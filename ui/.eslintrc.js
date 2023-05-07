@@ -7,6 +7,12 @@ module.exports = {
         project: ['tsconfig.json'],
         tsconfigRootDir: __dirname,
       },
+      rules: {
+        'import/no-unresolved': [
+          'error',
+          { ignore: ['^@', '^virtual:pwa-register'] },
+        ],
+      },
     },
   ],
   rules: {

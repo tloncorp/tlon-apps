@@ -8,7 +8,7 @@
 # $2: the location of the docket file
 
 # globber is a prebooted and docked fakezod
-curl https://bootstrap.urbit.org/globberv2.tgz | tar xzk
+curl https://bootstrap.urbit.org/globberv3.tgz | tar xzk
 ./zod/.run -d
 
 dojo () {

@@ -227,7 +227,7 @@ interface ZoneMoveChannel {
   delta: {
     'mov-nest': {
       nest: string;
-      index: number;
+      idx: number;
     };
   };
 }
@@ -286,6 +286,18 @@ export interface GroupAction {
   update: GroupUpdate;
 }
 
+export interface GroupCreate extends GroupMeta {
+  name: string;
+  cordon: Cordon;
+  members: Record<string, string[]>;
+  secret: boolean;
+}
+
+export interface GroupJoin {
+  flag: string;
+  'join-all': boolean;
+}
+
 export interface Groups {
   [flag: string]: Group;
 }
@@ -294,7 +306,7 @@ export interface GroupPreview {
   flag: string;
   meta: GroupMeta;
   cordon: Cordon;
-  time: number;
+  time?: number;
   secret: boolean;
 }
 

@@ -1,11 +1,13 @@
 import cn from 'classnames';
-import _ from 'lodash';
 import React from 'react';
 import { BigInteger } from 'big-integer';
+import { Virtuoso } from 'react-virtuoso';
 import useNest from '@/logic/useNest';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useComments, useHeapPerms } from '@/state/heap/heap';
 import { canWriteChannel, nestToFlag } from '@/logic/utils';
+import { HeapCurio } from '@/types/heap';
+import useMedia from '@/logic/useMedia';
 import HeapDetailCommentField from './HeapDetailCommentField';
 import HeapComment from './HeapComment';
 
@@ -20,23 +22,24 @@ export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
   const [, chFlag] = nestToFlag(nest);
   const stringTime = time.toString();
   const comments = useComments(chFlag, stringTime);
-
   const perms = useHeapPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const sortedComments = Array.from(comments).sort(([a], [b]) => a.compare(b));
 
   return (
-    <div className="flex h-full flex-col justify-between p-4 sm:overflow-y-auto">
-      <div
-        className={cn('flex flex-col space-y-2', comments.size !== 0 && 'mb-4')}
-      >
-        {Array.from(comments)
-          .sort(([a], [b]) => a.compare(b))
-          .map(([id, curio]) => (
-            <HeapComment key={id.toString()} curio={curio} />
-          ))}
+    <>
+      <div className="mx-4 mb-2 flex flex-col space-y-2 overflow-y-auto lg:flex-1">
+        {sortedComments.map(([id, curio]) => (
+          <HeapComment
+            key={id.toString()}
+            curio={curio}
+            parentTime={stringTime}
+            time={id.toString()}
+          />
+        ))}
       </div>
       {canWrite ? <HeapDetailCommentField /> : null}
-    </div>
+    </>
   );
 }

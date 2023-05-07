@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
+import { Link } from 'react-router-dom';
+import * as Toast from '@radix-ui/react-toast';
 import Layout from '@/components/Layout/Layout';
 import {
   useChannel,
@@ -10,7 +12,7 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import {
-  useNotesForDiary,
+  useNotes,
   useDiaryState,
   useDiaryDisplayMode,
   useDiaryPerms,
@@ -20,14 +22,12 @@ import {
   setChannelSetting,
   useDiarySettings,
   useDiarySortMode,
-  useSettingsState,
+  usePutEntryMutation,
 } from '@/state/settings';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryDisplayMode, DiaryLetter } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
-import { Link } from 'react-router-dom';
-import * as Toast from '@radix-ui/react-toast';
 import useRecentChannel from '@/logic/useRecentChannel';
 import {
   canReadChannel,
@@ -35,17 +35,21 @@ import {
   isChannelJoined,
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
+import AddIcon16 from '@/components/icons/Add16Icon';
+import { useLastReconnect } from '@/state/local';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
+import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 
 function DiaryChannel() {
   const [joining, setJoining] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
-  const letters = useNotesForDiary(chFlag);
+  const letters = useNotes(chFlag);
   const location = useLocation();
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
@@ -55,15 +59,22 @@ function DiaryChannel() {
   const joined = Object.keys(briefs).some((k) => k.includes('diary/'))
     ? isChannelJoined(nest, briefs)
     : true;
+  const lastReconnect = useLastReconnect();
+  const { mutate } = usePutEntryMutation({
+    bucket: 'diary',
+    key: 'settings',
+  });
+  const needsLoader = letters.size === 0;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await useDiaryState.getState().joinDiary(chFlag);
+    await useDiaryState.getState().joinDiary(flag, chFlag);
     setJoining(false);
-  }, [chFlag]);
+  }, [flag, chFlag]);
 
   const initializeChannel = useCallback(async () => {
     await useDiaryState.getState().initialize(chFlag);
+    setInitialized(true);
   }, [chFlag]);
 
   useEffect(() => {
@@ -86,8 +97,8 @@ function DiaryChannel() {
   const displayMode = useDiaryDisplayMode(chFlag);
   const sortMode = useDiarySortMode(chFlag);
 
-  const setDisplayMode = (view: DiaryDisplayMode) => {
-    useDiaryState.getState().viewDiary(chFlag, view);
+  const setDisplayMode = async (view: DiaryDisplayMode) => {
+    await useDiaryState.getState().viewDiary(chFlag, view);
   };
 
   const setSortMode = (
@@ -98,9 +109,9 @@ function DiaryChannel() {
       { sortMode: setting },
       chFlag
     );
-    useSettingsState
-      .getState()
-      .putEntry('diary', 'settings', JSON.stringify(newSettings));
+    mutate({
+      val: JSON.stringify(newSettings),
+    });
   };
 
   const perms = useDiaryPerms(chFlag);
@@ -128,9 +139,9 @@ function DiaryChannel() {
     joined,
     initializeChannel,
     joining,
-    briefs,
     channel,
     canRead,
+    lastReconnect,
   ]);
 
   useEffect(() => {
@@ -179,7 +190,7 @@ function DiaryChannel() {
     i: number,
     [time, letter]: [bigInt.BigInteger, DiaryLetter]
   ) => (
-    <div className="my-4 mx-auto max-w-[600px]">
+    <div className="my-6 mx-auto max-w-[600px] px-6">
       <DiaryListItem letter={letter} time={time} />
     </div>
   );
@@ -203,9 +214,12 @@ function DiaryChannel() {
           {canWrite ? (
             <Link
               to="edit"
-              className="button shrink-0 bg-blue text-white dark:text-black"
+              className={
+                'small-button shrink-0 bg-blue px-1 text-white sm:px-2'
+              }
             >
-              Add Note
+              <AddIcon16 className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">Add Note</span>
             </Link>
           ) : null}
         </ChannelHeader>
@@ -230,19 +244,21 @@ function DiaryChannel() {
         </div>
       </Toast.Provider>
       <div className="h-full">
-        {displayMode === 'grid' ? (
+        {!initialized && needsLoader ? (
+          <DiaryChannelListPlaceholder count={4} />
+        ) : displayMode === 'grid' ? (
           <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />
         ) : (
           <div className="h-full">
             <div className="mx-auto flex h-full w-full flex-col">
               <Virtuoso
-                style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
+                style={{ height: '100%', width: '100%' }}
                 data={sortedNotes}
                 itemContent={itemContent}
                 overscan={200}
                 atBottomStateChange={loadOlderNotes}
                 components={{
-                  Header: () => <div className="h-8 w-full" />,
+                  Header: () => <div />,
                   Footer: () => <div className="h-4 w-full" />,
                 }}
               />

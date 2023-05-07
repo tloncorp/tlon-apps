@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import bigInt from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
@@ -6,29 +7,29 @@ import { useCallback, useEffect, useMemo } from 'react';
 import {
   NoteDelta,
   Diary,
-  DiaryBriefs,
   DiaryBriefUpdate,
   DiaryNote,
   DiaryDiff,
   DiaryFlag,
   DiaryPerm,
-  Shelf,
   DiaryMemo,
   DiaryQuip,
   DiaryAction,
   DiaryDisplayMode,
   DiaryLetter,
-  DiaryStory,
   DiarySaid,
   DiaryUpdate,
+  DiaryJoin,
+  DiaryCreate,
+  DiaryNoteMap,
 } from '@/types/diary';
 import api from '@/api';
-import { nestToFlag } from '@/logic/utils';
+import { nestToFlag, restoreMap } from '@/logic/utils';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import { DiaryState } from './type';
 import makeNotesStore from './notes';
-import useSubscriptionState from '../subscription';
 import { createState } from '../base';
+import useSchedulerStore from '../scheduler';
 
 setAutoFreeze(false);
 
@@ -79,7 +80,6 @@ export const useDiaryState = createState<DiaryState>(
     shelf: {},
     notes: {},
     banter: {},
-    diarySubs: [],
     loadedNotes: {},
     briefs: {},
     pendingImports: {},
@@ -95,9 +95,9 @@ export const useDiaryState = createState<DiaryState>(
     },
     addQuip: async (flag, noteId, content) => {
       const replying = decToUd(noteId);
-      const story: DiaryStory = { block: [], inline: content };
+      // const story: DiaryStory = { block: [], inline: content };
       const memo: DiaryMemo = {
-        content: story,
+        content,
         author: window.our,
         sent: Date.now(),
       };
@@ -117,29 +117,93 @@ export const useDiaryState = createState<DiaryState>(
 
       await api.poke(diaryAction(flag, diff));
     },
-    start: async () => {
-      // TODO: parallelise
-      api
-        .scry<DiaryBriefs>({
-          app: 'diary',
-          path: '/briefs',
-        })
-        .then((briefs) => {
-          get().batchSet((draft) => {
-            draft.briefs = briefs;
-          });
-        });
+    delQuip: async (flag, noteId, quipId) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            quips: {
+              time: decToUd(quipId),
+              delta: {
+                del: null,
+              },
+            },
+          },
+        },
+      };
 
-      api
-        .scry<Shelf>({
-          app: 'diary',
-          path: '/shelf',
-        })
-        .then((shelf) => {
-          get().batchSet((draft) => {
-            draft.shelf = shelf;
-          });
-        });
+      await api.poke(diaryAction(flag, diff));
+    },
+    addFeel: async (flag, noteId, feel) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            'add-feel': {
+              time: decToUd(unixToDa(Date.now()).toString()),
+              feel,
+              ship: window.our,
+            },
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
+    delFeel: async (flag, noteId) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            'del-feel': window.our,
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
+    addQuipFeel: async (flag, noteId, quipId, feel) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            quips: {
+              time: decToUd(quipId),
+              delta: {
+                'add-feel': {
+                  feel,
+                  ship: window.our,
+                },
+              },
+            },
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
+    delQuipFeel: async (flag, noteId, quipId) => {
+      const diff: DiaryDiff = {
+        notes: {
+          time: decToUd(noteId),
+          delta: {
+            quips: {
+              time: decToUd(quipId),
+              delta: {
+                'del-feel': window.our,
+              },
+            },
+          },
+        },
+      };
+
+      await api.poke(diaryAction(flag, diff));
+    },
+    start: async ({ briefs, shelf }) => {
+      get().batchSet((draft) => {
+        draft.briefs = briefs;
+        draft.shelf = shelf;
+      });
 
       api.subscribe({
         app: 'diary',
@@ -184,25 +248,6 @@ export const useDiaryState = createState<DiaryState>(
           });
         },
       });
-
-      const pendingImports = await api.scry<Record<string, boolean>>({
-        app: 'diary',
-        path: '/imp',
-      });
-
-      get().batchSet((draft) => {
-        draft.pendingImports = pendingImports;
-      });
-
-      api.subscribe({
-        app: 'diary',
-        path: '/imp',
-        event: (imports: Record<string, boolean>) => {
-          get().batchSet((draft) => {
-            draft.pendingImports = imports;
-          });
-        },
-      });
     },
     fetchNote: async (flag, noteId) => {
       const note = await api.scry<DiaryNote>({
@@ -220,30 +265,19 @@ export const useDiaryState = createState<DiaryState>(
         draft.notes[flag] = draft.notes[flag].set(bigInt(noteId), note);
       });
     },
-    joinDiary: async (flag) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke({
+    joinDiary: async (group, chan) => {
+      await api.trackedPoke<DiaryJoin, DiaryAction>(
+        {
           app: 'diary',
-          mark: 'flag',
-          json: flag,
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState
-              .getState()
-              .track(`diary/ui`, (event: DiaryAction) => {
-                const {
-                  update: { diff },
-                  flag: f,
-                } = event;
-                if (f === flag && 'create' in diff) {
-                  return true;
-                }
-                return false;
-              });
-            resolve();
+          mark: 'channel-join',
+          json: {
+            group,
+            chan,
           },
-        });
-      });
+        },
+        { app: 'diary', path: '/ui' },
+        (event) => event.flag === chan && 'create' in event.update.diff
+      );
     },
     leaveDiary: async (flag) => {
       await api.poke({
@@ -257,32 +291,29 @@ export const useDiaryState = createState<DiaryState>(
     },
     addNote: async (flag, essay) =>
       new Promise<string>((resolve, reject) => {
-        api.poke({
-          ...diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
-            add: essay,
-          }),
-          onError: () => reject(),
-          onSuccess: async () => {
-            let timePosted = '';
-
-            await useSubscriptionState
-              .getState()
-              .track(`diary/diary/${flag}/ui`, (event: DiaryUpdate) => {
-                const { time, diff } = event;
-                if ('notes' in diff) {
-                  const { delta } = diff.notes;
-                  if ('add' in delta && delta.add.sent === essay.sent) {
-                    timePosted = time;
-                    return true;
-                  }
+        let timePosted = '';
+        api
+          .trackedPoke<DiaryAction, DiaryUpdate>(
+            diaryNoteDiff(flag, decToUd(unixToDa(Date.now()).toString()), {
+              add: essay,
+            }),
+            { app: 'diary', path: `/diary/${flag}/ui` },
+            (event) => {
+              const { time, diff } = event;
+              if ('notes' in diff) {
+                const { delta } = diff.notes;
+                if ('add' in delta && delta.add.sent === essay.sent) {
+                  timePosted = time;
+                  return true;
                 }
+              }
 
-                return false;
-              });
-
+              return false;
+            }
+          )
+          .then(() => {
             resolve(timePosted);
-          },
-        });
+          });
       }),
     editNote: async (flag, time, essay) => {
       await api.poke(
@@ -295,27 +326,20 @@ export const useDiaryState = createState<DiaryState>(
       await api.poke(diaryNoteDiff(flag, time, { del: null }));
     },
     create: async (req) => {
-      await new Promise<void>((resolve, reject) => {
-        api.poke({
+      await api.trackedPoke<DiaryCreate, DiaryAction>(
+        {
           app: 'diary',
           mark: 'diary-create',
           json: req,
-          onError: () => reject(),
-          onSuccess: async () => {
-            await useSubscriptionState.getState().track('diary/ui', (event) => {
-              const { update, flag } = event;
-              if (
-                'create' in update.diff &&
-                flag === `${req.group.split('/')[0]}/${req.name}`
-              ) {
-                return true;
-              }
-              return false;
-            });
-            resolve();
-          },
-        });
-      });
+        },
+        { app: 'diary', path: '/ui' },
+        (event) => {
+          const { update, flag } = event;
+          return (
+            'create' in update.diff && flag === `${window.our}/${req.name}`
+          );
+        }
+      );
     },
     addSects: async (flag, sects) => {
       await api.poke(diaryAction(flag, { 'add-sects': sects }));
@@ -354,19 +378,16 @@ export const useDiaryState = createState<DiaryState>(
       ).getNewer(count.toString());
     },
     initialize: async (flag) => {
-      if (get().diarySubs.includes(flag)) {
-        return;
-      }
-
-      const perms = await api.scry<DiaryPerm>({
-        app: 'diary',
-        path: `/diary/${flag}/perm`,
-      });
-      get().batchSet((draft) => {
-        const diary = { perms, view: 'list' as DiaryDisplayMode };
-        draft.shelf[flag] = diary;
-        draft.diarySubs.push(flag);
-      });
+      useSchedulerStore.getState().wait(async () => {
+        const perms = await api.scry<DiaryPerm>({
+          app: 'diary',
+          path: `/diary/${flag}/perm`,
+        });
+        get().batchSet((draft) => {
+          const diary = { perms, view: 'list' as DiaryDisplayMode };
+          draft.shelf[flag] = diary;
+        });
+      }, 2);
 
       await makeNotesStore(
         flag,
@@ -375,14 +396,48 @@ export const useDiaryState = createState<DiaryState>(
         `/diary/${flag}/ui`
       ).initialize();
     },
+    initImports: (init) => {
+      get().batchSet((draft) => {
+        draft.pendingImports = init;
+      });
+    },
   }),
-  ['briefs', 'shelf', 'notes'],
+  {
+    partialize: (state) => {
+      const saved = _.pick(state, ['briefs', 'shelf', 'notes']);
+
+      return saved;
+    },
+    merge: (state, current) => {
+      const notes: {
+        [flag: DiaryFlag]: DiaryNoteMap;
+      } = {};
+
+      Object.entries(state.notes).forEach(([k, n]) => {
+        let noteMap = restoreMap<DiaryLetter>(n);
+
+        noteMap.keys().forEach((key) => {
+          const note = noteMap.get(key);
+          if ('seal' in note) {
+            note.seal.quips = restoreMap<DiaryQuip>(note.seal.quips);
+            noteMap = noteMap.set(key, note);
+          }
+        });
+
+        notes[k] = noteMap;
+      });
+
+      return {
+        ...current,
+        ...state,
+        notes,
+      };
+    },
+  },
   []
 );
 
-export function useNotesForDiary(
-  flag: DiaryFlag
-): BigIntOrderedMap<DiaryLetter> {
+export function useNotes(flag: DiaryFlag): BigIntOrderedMap<DiaryLetter> {
   const def = useMemo(() => new BigIntOrderedMap<DiaryLetter>(), []);
   return useDiaryState(useCallback((s) => s.notes[flag] || def, [flag, def]));
 }
@@ -403,10 +458,6 @@ export function useDiaryIsJoined(flag: DiaryFlag) {
   );
 }
 
-export function useNotes(flag: DiaryFlag) {
-  return useDiaryState(useCallback((s) => s.notes[flag], [flag]));
-}
-
 export function useAllNotes() {
   return useDiaryState(useCallback((s: DiaryState) => s.notes, []));
 }
@@ -414,28 +465,6 @@ export function useAllNotes() {
 export function useCurrentNotesSize(flag: DiaryFlag) {
   return useDiaryState(useCallback((s) => s.notes[flag]?.size ?? 0, [flag]));
 }
-
-// export function useComments(flag: DiaryFlag, time: string) {
-//   const notes = useNotes(flag);
-//   return useMemo(() => {
-//     if (!notes) {
-//       return new BigIntOrderedMap<DiaryNote>();
-//     }
-
-//     const curio = notes.get(bigInt(time));
-//     const replies = (curio?.seal?.replied || ([] as number[]))
-//       .map((r: number) => {
-//         const t = bigInt(r);
-//         const c = notes.get(t);
-//         return c ? ([t, c] as const) : undefined;
-//       })
-//       .filter((r: unknown): r is [BigInteger, DiaryNote] => !!r) as [
-//       BigInteger,
-//       DiaryNote
-//     ][];
-//     return new BigIntOrderedMap<DiaryNote>().gas(replies);
-//   }, [notes, time]);
-// }
 
 const emptyNote: DiaryNote = {
   type: 'note',
@@ -449,32 +478,33 @@ const emptyNote: DiaryNote = {
   },
 };
 
+const fallback = [bigInt(0), emptyNote] as const;
+
 export function useNote(
   flag: DiaryFlag,
   time: string
 ): readonly [bigInt.BigInteger, DiaryNote] {
-  return useDiaryState(
-    useCallback(
-      (s) => {
-        const notes = s.notes[flag];
-        const fallback = [bigInt(0), emptyNote] as const;
-        if (!notes || !notes.get) {
-          return fallback;
-        }
+  const notes = useNotes(flag);
+  return useMemo(() => {
+    const t = bigInt(time);
+    if (notes.size === 0 || !notes.has(t)) {
+      return fallback;
+    }
 
-        const t = bigInt(time);
-        const note = notes.get(t);
-        if (!note) {
-          return fallback;
-        }
-        if (note.type === 'outline') {
-          return fallback;
-        }
-        return [t, note] as const;
-      },
-      [flag, time]
-    )
-  );
+    const note = notes.get(t);
+    if (note.type === 'outline') {
+      return fallback;
+    }
+    return [t, note] as const;
+  }, [time, notes]);
+}
+
+export function useQuip(flag: DiaryFlag, noteId: string, quipId: string) {
+  const [, note] = useNote(flag, noteId);
+  return useMemo(() => {
+    const quip = note.seal.quips.get(bigInt(quipId));
+    return quip;
+  }, [note, quipId]);
 }
 
 export function useDiary(flag: DiaryFlag): Diary | undefined {

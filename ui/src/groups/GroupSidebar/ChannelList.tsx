@@ -12,7 +12,6 @@ import {
 } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useGroupFlag, useVessel } from '@/state/groups';
-import CaretDown16Icon from '@/components/icons/CaretDownIcon';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useChannelSort from '@/logic/useChannelSort';
@@ -23,12 +22,16 @@ import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
 import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import usePendingImports from '@/logic/usePendingImports';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
 import MigrationTooltip from '@/components/MigrationTooltip';
-import { useStartedMigration } from '@/logic/useMigrationInfo';
+import {
+  usePendingImports,
+  useStartedMigration,
+} from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
+import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
@@ -43,31 +46,37 @@ interface ChannelListProps {
 
 export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   const { sortFn, sortOptions, setSortFn } = useChannelSort();
+
+  function sortLabel() {
+    switch (sortFn) {
+      case 'Arranged':
+        return 'Arranged Channels';
+      case 'Recent':
+        return 'Recent Activity';
+      case 'A → Z':
+        return 'Channels A → Z';
+      default:
+        return 'Channels';
+    }
+  }
   return (
-    <DropdownMenu.Root>
-      {isMobile ? (
+    <div className="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3">
+      {!isMobile && (
+        <h2 className="px-2 pb-0 text-sm font-bold text-gray-400">
+          {sortLabel()}
+        </h2>
+      )}
+      <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          className="default-focus flex items-center rounded-lg p-0 text-base font-semibold"
+          className="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
           aria-label="Groups Sort Options"
         >
-          <SortIcon className="h-6 w-6 text-gray-400" />
+          <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
         </DropdownMenu.Trigger>
-      ) : (
-        <div className="p-2">
-          <DropdownMenu.Trigger
-            className="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
-            aria-label="Channels Sort Options"
-          >
-            <span className="flex items-center">
-              <SortIcon className="h-4 w-4 text-gray-400" />
-              <span className="mr-2 pl-1">{`Sort: ${sortFn}`}</span>
-            </span>
-            <CaretDown16Icon className="h-4 w-4 text-gray-400" />
-          </DropdownMenu.Trigger>
-        </div>
-      )}
-      <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
-    </DropdownMenu.Root>
+
+        <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
+      </DropdownMenu.Root>
+    </div>
   );
 }
 
@@ -112,8 +121,18 @@ export default function ChannelList({ className }: ChannelListProps) {
   const vessel = useVessel(flag, window.our);
   const isChannelUnread = useCheckChannelUnread();
 
-  if (!group) {
-    return null;
+  if (!group || group.meta.title === '') {
+    return (
+      <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
+        <h2 className="px-4 pb-0 text-sm font-bold text-gray-400">
+          <div className="flex justify-between">
+            Loading Channels
+            <LoadingSpinner className="h-4 w-4 text-gray-400" />
+          </div>
+        </h2>
+        <GroupListPlaceholder count={15} />;
+      </div>
+    );
   }
 
   const renderChannels = (channels: [string, GroupChannel][]) =>
@@ -165,7 +184,11 @@ export default function ChannelList({ className }: ChannelListProps) {
             key={nest}
             icon={icon}
             to={channelHref(flag, nest)}
-            actions={isChannelUnread(nest) ? <UnreadIndicator /> : null}
+            actions={
+              isChannelUnread(nest) ? (
+                <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
+              ) : null
+            }
           >
             {channel.meta.title || nest}
           </SidebarItem>
@@ -177,27 +200,26 @@ export default function ChannelList({ className }: ChannelListProps) {
   );
 
   return (
-    <div className={className}>
-      {isMobile && (
-        <SidebarItem
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-              <HashIcon16 className="m-1 h-4 w-4" />
-            </div>
-          }
-          to={`/groups/${flag}/channels`}
-          className="mb-3"
-        >
-          All Channels
-        </SidebarItem>
-      )}
+    <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
       {!isMobile && <ChannelSorter isMobile={false} />}
-      <ul className={cn('space-y-1', isMobile && 'flex-none space-y-3')}>
+      <div className="mx-4 space-y-0.5 sm:mx-2">
+        {isMobile && (
+          <SidebarItem
+            icon={
+              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                <HashIcon16 className="m-1 h-4 w-4" />
+              </div>
+            }
+            to={`/groups/${flag}/channels`}
+          >
+            All Channels
+          </SidebarItem>
+        )}
         {isDefaultSort
           ? filteredSections.map((s) => (
-              <div className="space-y-1" key={s}>
+              <div className="space-y-0.5" key={s}>
                 {s !== UNZONED ? (
-                  <Divider>
+                  <Divider isMobile={isMobile}>
                     {s in group.zones ? group.zones[s].meta.title : ''}
                   </Divider>
                 ) : null}
@@ -205,7 +227,7 @@ export default function ChannelList({ className }: ChannelListProps) {
               </div>
             ))
           : renderChannels(unsectionedChannels)}
-      </ul>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-/-  g=groups, graph-store, zer=chat-0
+/-  g=groups, graph-store, uno=chat-1, zer=chat-0
 /-  meta
 /-  metadata-store
 /-  cite
@@ -8,6 +8,7 @@
 ++  old
   |%
   ++  zero  zer
+  ++  one  uno
   --
 ::
 ::  $writ: a chat message
@@ -106,7 +107,7 @@
   ::  $net: status of club
   ::
   +$  net  ?(%archive %invited %done)
-  +$  club  [=remark =pact crew]
+  +$  club  [=heard =remark =pact =crew]
   ::
   ::  $crew: a container for the metadata for the club
   ::
@@ -133,10 +134,14 @@
   ::  $invite: the contents to send in an invitation to someone
   ::
   +$  invite  [=id team=(set ship) hive=(set ship) met=data:meta]
-  ::  $echo: number of times diff has been echoed
+  ::  $uid: unique identifier for each club action
   ::
-  +$  echo    @ud
-  +$  diff    (pair echo delta)
+  +$  uid    @uv
+  ::  $heard: the set of action uid's we've already heard
+  ::
+  +$  heard  (set uid)
+  ::
+  +$  diff    (pair uid delta)
   ::
   +$  delta    
     $%  [%writ =diff:writs]
@@ -191,7 +196,7 @@
   +$  rsvp    [=ship ok=?]
   --
 ::
-::  $log: a time ordered map of all modifications to groups
+::  $log: a time ordered map of all modifications to chats
 ::
 +$  log
   ((mop time diff) lte)
@@ -315,7 +320,12 @@
   $:  writers=(set sect:g)
       group=flag:g
   ==
+::  $join: a group + channel flag to join a channel, group required for perms
 ::
++$  join
+  $:  group=flag:g
+      chan=flag:g
+  ==
 ::  $leave: a flag to pass for a channel leave
 ::
 +$  leave  flag:g

@@ -1,10 +1,8 @@
 import { useCallback } from 'react';
-import { useNotifications } from '@/notifications/useNotifications';
 import { useGroups } from '@/state/groups';
 import { useCheckChannelUnread } from './useIsChannelUnread';
 
 export default function useIsGroupUnread() {
-  const { notifications } = useNotifications();
   const groups = useGroups();
   const isChannelUnread = useCheckChannelUnread();
 
@@ -19,24 +17,12 @@ export default function useIsGroupUnread() {
       const group = groups[flag];
       const chNests = group ? Object.keys(group.channels) : [];
 
-      const hasActivity = chNests.reduce(
+      return chNests.reduce(
         (memo, nest) => memo || isChannelUnread(nest),
         false
       );
-
-      return (
-        hasActivity ||
-        notifications.some((n) =>
-          n.bins.some(
-            (b) =>
-              b.unread &&
-              b.topYarn?.rope.channel &&
-              chNests.includes(b.topYarn?.rope.channel)
-          )
-        )
-      );
     },
-    [groups, notifications, isChannelUnread]
+    [groups, isChannelUnread]
   );
 
   return {

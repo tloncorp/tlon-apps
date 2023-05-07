@@ -104,7 +104,7 @@ exports[`ChatInput > renders as expected 1`] = `
               aria-label="Message editor with formatting menu"
               class="ProseMirror input-inner"
               contenteditable="true"
-              spellcheck="true"
+              spellcheck="false"
               tabindex="0"
               translate="no"
             >
@@ -125,10 +125,24 @@ exports[`ChatInput > renders as expected 1`] = `
       </div>
     </div>
     <button
-      class="button"
+      aria-label="Send message"
+      class="button px-2"
       disabled=""
     >
-      Send
+      <svg
+        class="h-4 w-4"
+        fill="none"
+        viewBox="0 0 16 16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          class="stroke-current"
+          d="M8 3L4 7M8 3L12 7M8 3V13"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+        />
+      </svg>
     </button>
   </div>
 </DocumentFragment>

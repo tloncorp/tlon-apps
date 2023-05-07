@@ -7,7 +7,7 @@ export default function LoadingSpinner({
   className = 'h-4 w-4',
 }: IconProps) {
   return (
-    <svg className={className} fill="none" viewBox={'0 0 16 16'}>
+    <svg className={className} fill="current" viewBox={'0 0 16 16'}>
       <path
         className={secondary ? secondary : 'fill-gray-50'}
         fillRule="evenodd"

@@ -129,10 +129,15 @@ interface CurioDeltaAddFeel {
   };
 }
 
+interface CurioDeltaDelFeel {
+  'del-feel': string;
+}
+
 export type CurioDelta =
   | CurioDeltaAdd
   | CurioDeltaDel
   | CurioDeltaAddFeel
+  | CurioDeltaDelFeel
   | CurioDeltaEdit;
 
 export interface CurioDiff {
@@ -227,4 +232,14 @@ export type CurioFormSchema = NewCurioFormSchema | EditCurioFormSchema;
 export interface HeapSaid {
   flag: string;
   curio: HeapCurio;
+}
+
+export interface HeapJoin {
+  group: string;
+  chan: HeapFlag;
+}
+
+export interface HeapInit {
+  briefs: HeapBriefs;
+  stash: Stash;
 }

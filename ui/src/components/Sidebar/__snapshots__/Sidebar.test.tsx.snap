@@ -3,16 +3,16 @@
 exports[`Sidebar > renders as expected 1`] = `
 <DocumentFragment>
   <nav
-    class="flex h-full w-64 flex-col bg-white"
+    class="flex h-full w-full flex-none flex-col bg-white"
   >
-    <ul
-      class="flex w-full flex-col space-y-1 px-2 pt-2"
+    <div
+      class="flex w-full flex-col space-y-0.5 p-2"
     >
       <div
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 hover:bg-gray-50"
       >
         <button
-          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold text-black hover:text-gray-800 group"
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 text-black hover:text-gray-800 group"
         >
           <div
             aria-expanded="false"
@@ -48,7 +48,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
           >
             <div
               class="flex items-center justify-between"
@@ -81,14 +81,40 @@ exports[`Sidebar > renders as expected 1`] = `
           </div>
         </button>
       </div>
+      <button
+        class="flex w-full cursor-pointer flex-row space-x-2 px-1 text-gray-400 hover:text-gray-800"
+      >
+        <div
+          class="flex flex-row items-center space-x-2"
+        >
+          <svg
+            class="h-8 w-8"
+            fill="none"
+            viewBox="0 0 32 32"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="fill-current"
+              clip-rule="evenodd"
+              d="M8 9a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9Zm6 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V9Zm7-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-2Zm-1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2Zm-5-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-2Zm-7 1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2Zm1 5a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H9Zm5 1a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-2Zm7-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-2Z"
+              fill-rule="evenodd"
+            />
+          </svg>
+          <span
+            class="font-semibold"
+          >
+            Leap
+          </span>
+          <span>
+            (Ctrl + K)
+          </span>
+        </div>
+      </button>
       <div
-        class="h-5"
-      />
-      <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600"
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600"
       >
         <a
-          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
           href="/profile/edit"
         >
           <div
@@ -175,7 +201,7 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
           >
             <span>
               <span
@@ -199,19 +225,19 @@ exports[`Sidebar > renders as expected 1`] = `
             </span>
           </div>
         </a>
-      </li>
-      <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 bg-gray-100"
+      </div>
+      <div
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 bg-gray-100"
       >
         <a
-          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
           href="/notifications"
         >
           <div
             class="flex h-6 w-6 items-center justify-center rounded text-sm font-semibold bg-gray-100"
           >
             <svg
-              class="h-6 w-6"
+              class="m-0.5 h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
@@ -227,18 +253,18 @@ exports[`Sidebar > renders as expected 1`] = `
             </svg>
           </div>
           <div
-            class="max-w-full flex-1 text-left truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
             title="Notifications"
           >
             Notifications
           </div>
         </a>
-      </li>
-      <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+      </div>
+      <div
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 hover:bg-gray-50"
       >
         <a
-          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
           href="/find"
         >
           <svg
@@ -255,7 +281,7 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="max-w-full flex-1 text-left truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
           >
             <div
               class="flex items-center"
@@ -264,12 +290,12 @@ exports[`Sidebar > renders as expected 1`] = `
             </div>
           </div>
         </a>
-      </li>
-      <li
-        class="group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base text-gray-600 hover:bg-gray-50"
+      </div>
+      <div
+        class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 hover:bg-gray-50"
       >
         <a
-          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold"
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
           href="/groups/new"
         >
           <svg
@@ -286,114 +312,78 @@ exports[`Sidebar > renders as expected 1`] = `
             />
           </svg>
           <div
-            class="max-w-full flex-1 text-left truncate"
+            class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
             title="Create Group"
           >
             Create Group
           </div>
         </a>
-      </li>
-    </ul>
-    <ul
-      class="flex-initial overflow-y-auto overflow-x-hidden px-2"
-    >
-      <li
-        class="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2"
-      >
-        <span
-          class="ml-4 text-sm font-semibold text-gray-400"
-        >
-          All Groups
-        </span>
-      </li>
-      <li
-        class="relative p-2"
-      >
-        <button
-          aria-expanded="false"
-          aria-haspopup="menu"
-          aria-label="Groups Sort Options"
-          class="default-focus flex w-full items-center justify-between rounded-lg bg-gray-50 py-1 px-2 text-sm font-semibold"
-          data-state="closed"
-          id="radix-1"
-          type="button"
-        >
-          <span
-            class="flex items-center"
-          >
-            <svg
-              class="h-4 w-4 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                class="fill-current"
-                clip-rule="evenodd"
-                d="M17.207 4.793a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 1.414 1.414L15.5 7.914V17.5a1 1 0 1 0 2 0V7.914l1.293 1.293a1 1 0 1 0 1.414-1.414l-3-3ZM8.5 5.5a1 1 0 0 0-2 0v9.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l3-3a1 1 0 0 0-1.414-1.414L8.5 15.086V5.5Z"
-                fill-rule="evenodd"
-              />
-            </svg>
-            <span
-              class="mr-2 pl-1"
-            >
-              Sort: A → Z
-            </span>
-          </span>
-          <svg
-            class="h-4 w-4 text-gray-400"
-            fill="none"
-            viewBox="0 0 16 16"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              class="stroke-current"
-              d="m4 6 4 4 4-4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-            />
-          </svg>
-        </button>
-      </li>
-    </ul>
+      </div>
+    </div>
     <div
-      class="flex-auto"
+      class="flex-auto space-y-3 overflow-x-hidden sm:space-y-1"
     >
-      <ul
-        class="h-full animate-pulse space-y-3 p-2 sm:space-y-0"
+      <div
+        class="h-full w-full list-none overflow-x-hidden"
+        data-test-id="virtuoso-scroller"
+        data-virtuoso-scroller="true"
+        style="height: 100%; outline: none; overflow-y: auto; position: relative;"
+        tabindex="0"
       >
-        <li
-          class="relative flex w-full items-center justify-between rounded-lg"
+        <div
+          data-viewport-type="element"
+          style="width: 100%; height: 100%; position: absolute; top: 0px;"
         >
-          <div
-            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
-          >
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
-            />
-            <div
-              class="bg-gray-100 h-4 rounded-md"
-              style="width: 100px;"
-            />
+          <div>
+            <div>
+              <div
+                class="flex-initial"
+              >
+                <div
+                  class="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1"
+                >
+                  <h2
+                    class="px-2 text-sm font-bold text-gray-400"
+                  >
+                    Recent Activity
+                  </h2>
+                  <div
+                    class="pr-1"
+                  >
+                    <button
+                      aria-expanded="false"
+                      aria-haspopup="menu"
+                      aria-label="Groups Sort Options"
+                      class="default-focus flex h-6 w-6 items-center rounded text-base font-semibold hover:bg-gray-50 sm:p-1"
+                      data-state="closed"
+                      id="radix-1"
+                      type="button"
+                    >
+                      <svg
+                        class="h-6 w-6 text-gray-400 sm:h-4 sm:w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          class="fill-current"
+                          clip-rule="evenodd"
+                          d="M17.207 4.793a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 1.414 1.414L15.5 7.914V17.5a1 1 0 1 0 2 0V7.914l1.293 1.293a1 1 0 1 0 1.414-1.414l-3-3ZM8.5 5.5a1 1 0 0 0-2 0v9.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l3-3a1 1 0 0 0-1.414-1.414L8.5 15.086V5.5Z"
+                          fill-rule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </li>
-        <li
-          class="relative flex w-full items-center justify-between rounded-lg"
-        >
           <div
-            class="flex w-full flex-1 items-center space-x-3 rounded-lg p-2"
-          >
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-md bg-gray-100 text-sm sm:h-6 sm:w-6"
-            />
-            <div
-              class="bg-gray-100 h-4 rounded-md"
-              style="width: 100px;"
-            />
-          </div>
-        </li>
-      </ul>
+            data-test-id="virtuoso-item-list"
+            style="box-sizing: border-box; padding-top: 0px; padding-bottom: 0px; margin-top: 0px;"
+          />
+        </div>
+      </div>
     </div>
   </nav>
 </DocumentFragment>

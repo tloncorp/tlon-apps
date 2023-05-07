@@ -1,7 +1,12 @@
 #!/bin/sh
 cd ui
 
-npm run test -- run
+npm run test -- run -u
+
+npm run e2e
+npm run e2e:chat
+
+git add src/\*.snap
 
 npx lint-staged
 

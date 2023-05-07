@@ -41,7 +41,10 @@ export function writsReducer(whom: string) {
       return draft;
     }
 
-    const pact = draft.pacts[whom];
+    const pact = draft.pacts[whom] || {
+      index: {},
+      writs: new BigIntOrderedMap<ChatWrit>(),
+    };
 
     if ('add' in delta && !pact.index[id]) {
       const time = bigInt(unixToDa(Date.now()));
@@ -118,17 +121,20 @@ export default function makeWritsStore(
       const writs = await scry<ChatWrits>(
         `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`
       );
-      const sta = get();
-      sta.batchSet((draft) => {
-        const pact: Pact = {
+
+      get().batchSet((draft) => {
+        const pact: Pact = draft.pacts[whom] || {
           writs: new BigIntOrderedMap<ChatWrit>(),
           index: {},
         };
         Object.keys(writs).forEach((key) => {
           const writ = writs[key];
           const tim = bigInt(udToDec(key));
-          pact.writs = pact.writs.set(tim, writ);
-          pact.index[writ.seal.id] = tim;
+
+          if (!pact.index[writ.seal.id]) {
+            pact.writs = pact.writs.set(tim, writ);
+            pact.index[writ.seal.id] = tim;
+          }
         });
         draft.pacts[whom] = pact;
       });

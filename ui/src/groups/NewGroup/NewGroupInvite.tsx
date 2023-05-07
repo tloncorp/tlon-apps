@@ -23,14 +23,15 @@ interface NewGroupInviteProps {
   status: Status;
 }
 
-type Role = 'Member' | 'Moderator' | 'Admin';
+// defined again to avoid dependency cycle
+type Role = 'Member' | 'Admin';
 
 interface ShipWithRoles {
   patp: string;
   roles: Role[];
 }
 
-const roles: Role[] = ['Member', 'Admin', 'Moderator'];
+const roles: Role[] = ['Member', 'Admin'];
 
 interface MemberRoleDropDownMenuProps {
   selectedRole: Role;
@@ -145,25 +146,23 @@ export default function NewGroupInvite({
   const [selectedRole, setSelectedRole] = useState<Role>('Member');
   const submitText =
     shipsToInvite.length > 0 ? 'Invite People & Create Group' : 'Create Group';
-  const ready = status === 'initial';
+  const ready = status === 'idle';
 
   const handleEnter = useCallback(
     (ships: ShipOption[]) => {
-      setShipsToInvite((prevState) => {
-        return [
-          ...prevState,
-          ...ships
-            .filter(
-              (ship) =>
-                !prevState.find((prevShip) => prevShip.patp === ship.value)
-            )
-            .map((ship) => ({
-              patp: ship.value,
-              alias: ship.label,
-              roles: [selectedRole],
-            })),
-        ];
-      });
+      setShipsToInvite((prevState) => [
+        ...prevState,
+        ...ships
+          .filter(
+            (ship) =>
+              !prevState.find((prevShip) => prevShip.patp === ship.value)
+          )
+          .map((ship) => ({
+            patp: ship.value,
+            alias: ship.label,
+            roles: [selectedRole],
+          })),
+      ]);
     },
     [selectedRole, setShipsToInvite]
   );

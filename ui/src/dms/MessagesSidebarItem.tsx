@@ -1,14 +1,14 @@
 import React from 'react';
-import Avatar from '../components/Avatar';
+import Avatar, { AvatarSizes } from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
 import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { useMultiDm } from '../state/chat';
-import { useChannel, useGroup, useGroupState } from '../state/groups/groups';
-import { useIsMobile } from '../logic/useMedia';
+import { useChannel, useGroup, useGroups } from '../state/groups/groups';
+import useMedia, { useIsMobile } from '../logic/useMedia';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
-import MultiDmAvatar from './MultiDmAvatar';
+import MultiDmAvatar, { MultiDmAvatarSize } from './MultiDmAvatar';
 import { whomIsDm, whomIsMultiDm } from '../logic/utils';
 import { useMessagesScrolling } from './MessagesScrollingContext';
 
@@ -18,7 +18,7 @@ interface MessagesSidebarItemProps {
 }
 
 function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
-  const groups = useGroupState((s) => s.groups);
+  const groups = useGroups();
   const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => nest in v.channels
@@ -36,7 +36,7 @@ function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
       to={`/groups/${groupFlag}/channels/${nest}`}
       icon={
         <GroupAvatar
-          size="h-12 w-12 sm:h-6 sm:w-6"
+          size="h-12 w-12 sm:h-6 sm:w-6 rounded-lg sm:rounded"
           {...group?.meta}
           loadImage={!isScrolling}
         />
@@ -51,24 +51,35 @@ function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
 function DMSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
   const isMobile = useIsMobile();
   const isScrolling = useMessagesScrolling();
+  const isSmall = useMedia('(max-width: 768px) and (min-width: 640px)');
+
+  function avatarSize(): { size: AvatarSizes; icon: boolean } {
+    if (isMobile && !isSmall) {
+      return {
+        size: 'default',
+        icon: false,
+      };
+    }
+    return {
+      size: 'xs',
+      icon: true,
+    };
+  }
 
   return (
     <SidebarItem
       to={`/dm/${whom}`}
       icon={
         <Avatar
-          size={isMobile ? 'default' : 'xs'}
+          className="h-12 w-12 rounded-lg sm:h-6 sm:w-6 sm:rounded"
           ship={whom}
           loadImage={!isScrolling}
+          {...avatarSize()}
         />
       }
       actions={<DmOptions whom={whom} pending={!!pending} />}
     >
-      <ShipName
-        className="w-full truncate font-semibold"
-        name={whom}
-        showAlias
-      />
+      <ShipName className="truncate" name={whom} showAlias />
     </SidebarItem>
   );
 }
@@ -82,6 +93,18 @@ export function MultiDMSidebarItem({
   const allMembers = club?.team.concat(club.hive);
   const groupName = club?.meta.title || allMembers?.join(', ') || whom;
   const isScrolling = useMessagesScrolling();
+  const isSmall = useMedia('(max-width: 768px) and (min-width: 640px)');
+
+  function avatarSize(): { size: MultiDmAvatarSize } {
+    if (isMobile && !isSmall) {
+      return {
+        size: 'default',
+      };
+    }
+    return {
+      size: 'xs',
+    };
+  }
 
   if (club && !allMembers?.includes(window.our)) {
     return null;
@@ -91,16 +114,13 @@ export function MultiDMSidebarItem({
     <SidebarItem
       to={`/dm/${whom}`}
       icon={
-        pending ? (
-          <UnknownAvatarIcon className="h-12 w-12 rounded-md text-blue md:h-6 md:w-6" />
-        ) : (
-          <MultiDmAvatar
-            {...club?.meta}
-            title={groupName}
-            size={isMobile ? 'default' : 'xs'}
-            loadImage={!isScrolling}
-          />
-        )
+        <MultiDmAvatar
+          {...club?.meta}
+          title={groupName}
+          className="h-12 w-12 rounded-lg sm:h-6 sm:w-6 sm:rounded"
+          loadImage={!isScrolling}
+          {...avatarSize()}
+        />
       }
       actions={<DmOptions whom={whom} pending={!!pending} isMulti />}
     >

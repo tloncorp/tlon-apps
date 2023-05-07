@@ -1,19 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useDiaryState, useRemoteOutline } from '@/state/diary';
+import { useRemoteOutline } from '@/state/diary';
 import { useChannelPreview, useGang } from '@/state/groups';
 import { makePrettyDate, pluralize } from '@/logic/utils';
-import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
 import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import ReferenceBar from './ReferenceBar';
-import UnavailableReference from './UnavailableReference';
 
-export default function NoteReference({
+function NoteReference({
   chFlag,
   nest,
   id,
@@ -24,8 +22,7 @@ export default function NoteReference({
   id: string;
   isScrolling?: boolean;
 }) {
-  const preview = useChannelPreview(nest);
-  const [scryError, setScryError] = useState<string>();
+  const preview = useChannelPreview(nest, isScrolling);
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
@@ -33,20 +30,6 @@ export default function NoteReference({
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const initialize = useCallback(async () => {
-    try {
-      await useDiaryState.getState().initialize(chFlag);
-    } catch (e) {
-      console.log("Couldn't initialize diary state", e);
-    }
-  }, [chFlag]);
-
-  useEffect(() => {
-    if (!isScrolling) {
-      initialize();
-    }
-  }, [chFlag, isScrolling, initialize]);
 
   const handleOpenReferenceClick = () => {
     if (!group) {
@@ -88,12 +71,6 @@ export default function NoteReference({
     });
   }, [outline]);
 
-  if (scryError !== undefined) {
-    // TODO handle requests for single notes like we do for single writs.
-    const time = bigInt(udToDec(id));
-    return <UnavailableReference time={time} nest={nest} preview={preview} />;
-  }
-
   if (!outline) {
     return <HeapLoadingBlock reference />;
   }
@@ -104,7 +81,7 @@ export default function NoteReference({
     <div className="note-inline-block not-prose group">
       <div
         onClick={handleOpenReferenceClick}
-        className="flex cursor-pointer flex-col space-y-2 p-2 group-hover:bg-gray-50"
+        className="flex cursor-pointer flex-col space-y-2 p-4 group-hover:bg-gray-50"
       >
         {outline.image ? (
           <div
@@ -114,7 +91,7 @@ export default function NoteReference({
             }}
           />
         ) : null}
-        <span className="text-2xl font-bold">{outline.title}</span>
+        <span className="text-2xl font-semibold">{outline.title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
         {outline.quipCount > 0 ? (
           <div className="flex space-x-2">
@@ -153,9 +130,12 @@ export default function NoteReference({
         time={bigInt(id)}
         author={outline.author}
         groupFlag={preview?.group.flag}
+        groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
       />
     </div>
   );
 }
+
+export default React.memo(NoteReference);

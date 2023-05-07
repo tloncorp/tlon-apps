@@ -8,12 +8,13 @@ import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
-import useHarkState from '@/state/hark';
-import { YarnContent } from '@/types/hark';
-import { Bin, isComment, isMention, isReply } from './useNotifications';
+import { useSawRopeMutation } from '@/state/hark';
+import { Skein, YarnContent } from '@/types/hark';
+import { useChatState } from '@/state/chat';
+import { isComment, isMention, isReply } from './useNotifications';
 
 interface NotificationProps {
-  bin: Bin;
+  bin: Skein;
   topLine?: ReactNode;
   avatar?: ReactNode;
 }
@@ -41,12 +42,14 @@ function NotificationContent({
             ob.isValidPatp(s.replaceAll(PUNCTUATION_REGEX, '')) ? (
               <span
                 key={`${s}-${index}`}
-                className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue mix-blend-multiply"
+                className="mr-1 inline-block rounded bg-blue-soft px-1.5 py-0 text-blue mix-blend-multiply dark:mix-blend-normal"
               >
                 <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
               </span>
             ) : (
-              <span key={`${s}-${index}`}>{s} </span>
+              <span className="break-word text-ellipsis" key={`${s}-${index}`}>
+                {s}{' '}
+              </span>
             )
           )}
         </span>
@@ -108,20 +111,36 @@ function NotificationContent({
   );
 }
 
+function mentionPath(bin: Skein): string {
+  const { wer } = bin.top;
+  const parts = wer.split('/');
+  const index = parts.indexOf('op');
+  const ship = parts[index + 1];
+  const id = parts[index + 2];
+
+  if (index < 0 || !ship || !id) {
+    return wer;
+  }
+
+  const time = useChatState.getState().getTime(ship, `${ship}/${id}`);
+  return `${parts.slice(0, index).join('/')}?msg=${time}`;
+}
+
 export default function Notification({
   bin,
   avatar,
   topLine,
 }: NotificationProps) {
-  const rope = bin.topYarn?.rope;
+  const { rope } = bin.top;
   const moreCount = bin.count - 1;
-  const mentionBool = isMention(bin.topYarn);
-  const commentBool = isComment(bin.topYarn);
-  const replyBool = isReply(bin.topYarn);
-
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
+  const mentionBool = isMention(bin.top);
+  const commentBool = isComment(bin.top);
+  const replyBool = isReply(bin.top);
+  const path = mentionBool ? mentionPath(bin) : bin.top.wer;
   const onClick = useCallback(() => {
-    useHarkState.getState().sawRope(rope);
-  }, [rope]);
+    sawRopeMutation({ rope });
+  }, [rope, sawRopeMutation]);
 
   return (
     <div
@@ -131,7 +150,7 @@ export default function Notification({
       )}
     >
       <Link
-        to={bin.topYarn?.wer || ''}
+        to={path}
         className="flex w-full min-w-0 flex-1 space-x-3"
         onClick={onClick}
       >
@@ -139,10 +158,10 @@ export default function Notification({
         <div className="min-w-0 grow-0 break-words p-1">
           {topLine}
           <div className="my-2 leading-5">
-            {bin.topYarn && (
+            {bin.top && (
               <NotificationContent
                 time={bin.time}
-                content={bin.topYarn.con}
+                content={bin.top.con}
                 conIsMention={mentionBool}
                 conIsComment={commentBool}
                 conIsReply={replyBool}

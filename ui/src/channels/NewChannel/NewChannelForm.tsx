@@ -1,26 +1,25 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
 import { useNavigate, useParams } from 'react-router';
-import { useGroupState, useRouteGroup } from '@/state/groups';
+import { useAddChannelMutation, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
-import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
-import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
+import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
-import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export default function NewChannelForm() {
   const { section } = useParams<{ section: string }>();
-  const [addChannelStatus, setAddChannelStatus] = useState<Status>('initial');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
+  const { mutate: mutateAddChannel, status: addChannelStatus } =
+    useAddChannelMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
     zone: 'default',
@@ -43,8 +42,8 @@ export default function NewChannelForm() {
 
   const onSubmit = useCallback(
     async (values: NewChannelFormSchema) => {
-      setAddChannelStatus('loading');
       const { privacy, type, ...nextChannel } = values;
+      const titleIsNumber = Number.isInteger(Number(values.meta.title));
       /*
         For now channel names are used as keys for pacts. Therefore we need to
         check if a channel with the same name already exists in the chat store. If it does, we
@@ -55,10 +54,9 @@ export default function NewChannelForm() {
         In the future, we will index channels by their full path (including group name), and this will no
         longer be necessary. That change will require a migration of existing channels.
        */
-      const tempChannelName = strToSym(values.meta.title).replace(
-        /[^a-z]*([a-z][-\w\d]+)/i,
-        '$1'
-      );
+      const tempChannelName = titleIsNumber
+        ? `channel-${values.meta.title}`
+        : strToSym(values.meta.title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
       const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
       const existingChannel = () => {
         if (type === 'chat') {
@@ -110,32 +108,26 @@ export default function NewChannelForm() {
           writers: privacy !== 'public' ? ['admin'] : [],
         });
       } catch (e) {
-        setAddChannelStatus('error');
-        console.log(e);
+        console.log('NewChannelForm::onSubmit::createChannel', e);
       }
 
       if (section) {
         try {
-          await useGroupState
-            .getState()
-            .addChannelToZone(section, groupFlag, newChannelNest);
+          mutateAddChannel({
+            flag: groupFlag,
+            nest: newChannelNest,
+            zone: section,
+          });
         } catch (e) {
-          setAddChannelStatus('error');
-          console.log(e);
+          console.log('NewChannelForm::onSubmit::addChannelToZone', e);
         }
       }
 
-      if (values.join === true) {
-        await useGroupState
-          .getState()
-          .setChannelJoin(groupFlag, newChannelNest, true);
-      }
-      setAddChannelStatus('success');
       navigate(
-        isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/info/channels`
+        isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/channels`
       );
     },
-    [section, groupFlag, navigate, isMobile]
+    [section, groupFlag, navigate, isMobile, mutateAddChannel]
   );
 
   return (
@@ -159,7 +151,6 @@ export default function NewChannelForm() {
           Channel Permissions
           <ChannelPermsSelector />
         </label>
-        <ChannelJoinSelector />
 
         <footer className="mt-4 flex items-center justify-between space-x-2">
           <div className="ml-auto flex items-center space-x-2">

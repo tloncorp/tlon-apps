@@ -11,22 +11,11 @@ export default function ProfileBio({ bio }: ProfileBioProps) {
   const bioRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const shouldShowButton = (el: Element) => {
-      const { clientHeight, scrollHeight } = el;
-      return clientHeight !== scrollHeight;
-    };
-
-    const checkButtonAvailability = () => {
-      if (bioRef.current) {
-        const hadClampClass = bioRef.current.classList.contains('line-clamp-3');
-        if (!hadClampClass) bioRef.current.classList.add('line-clamp-3');
-        setShowButton(shouldShowButton(bioRef.current));
-        if (!hadClampClass) bioRef.current.classList.remove('line-clamp-3');
-      }
-    };
-
-    checkButtonAvailability();
-  }, [bioRef]);
+    if (bioRef.current) {
+      const { clientHeight, scrollHeight } = bioRef.current;
+      setShowButton(clientHeight !== scrollHeight);
+    }
+  }, []);
 
   const handleShowButtonClick = () => setTruncateBio(!truncateBio);
 
@@ -35,13 +24,13 @@ export default function ProfileBio({ bio }: ProfileBioProps) {
       <div
         ref={bioRef}
         className={cn(
-          'mt-1 max-w-prose text-gray-600',
+          'mt-1 max-w-prose leading-tight text-gray-600',
           truncateBio && 'line-clamp-3'
         )}
       >
         {bio}
       </div>
-      {showButton && (
+      {(showButton || !truncateBio) && (
         <button
           onClick={handleShowButtonClick}
           className="small-secondary-button mt-2"

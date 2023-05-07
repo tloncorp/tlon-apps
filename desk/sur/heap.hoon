@@ -190,6 +190,12 @@
   $:  writers=(set sect:g)
       group=flag:g
   ==
+::  $join: a group + channel flag to join a channel, group required for perms
+::
++$  join
+  $:  group=flag:g
+      chan=flag:g
+  ==
 ::  $leave: a flag to pass for a channel leave
 ::
 +$  leave  flag:g

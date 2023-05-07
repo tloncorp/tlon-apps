@@ -21,11 +21,11 @@ import { render } from 'react-dom';
 import App from './app';
 import _api from './api';
 
-import './assets/inter-roman.var.woff2';
-import './assets/inter-italic.var.woff2';
-import './assets/source-code-pro.woff2';
-
 import './styles/index.css';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import queryClient from './queryClient';
+import indexedDBPersistor from './indexedDBPersistor';
+import UpdateNotice from './components/UpdateNotice';
 
 const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -40,7 +40,15 @@ window.our = `~${window.ship}`;
 const root = document.getElementById('app') as HTMLElement;
 render(
   <React.StrictMode>
-    <App />
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: indexedDBPersistor(`${window.our}-landscape`),
+      }}
+    >
+      <UpdateNotice />
+      <App />
+    </PersistQueryClientProvider>
   </React.StrictMode>,
   root
 );

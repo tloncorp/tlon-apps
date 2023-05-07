@@ -5,23 +5,17 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { isSameDay } from 'date-fns';
+import { debounce } from 'lodash';
 import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { ChatState } from '@/state/chat/type';
-import {
-  useChatState,
-  useGetFirstUnreadID,
-  useLoadedWrits,
-} from '@/state/chat/chat';
-import {
-  INITIAL_MESSAGE_FETCH_PAGE_SIZE,
-  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
-} from '@/constants';
+import { useChatState, useLoadedWrits } from '@/state/chat/chat';
+import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
@@ -131,6 +125,25 @@ const List = React.forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   )
 );
 
+function getTopThreshold(isMobile: boolean, msgCount: number) {
+  if (msgCount >= 100) {
+    return isMobile ? 1200 : 2500;
+  }
+
+  return window.innerHeight * 0.6;
+}
+
+function scrollToIndex(
+  keys: bigInt.BigInteger[],
+  scrollerRef: React.RefObject<VirtuosoHandle>,
+  scrollTo?: bigInt.BigInteger
+) {
+  if (scrollerRef.current && scrollTo) {
+    const index = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
+    scrollerRef.current.scrollToIndex(index);
+  }
+}
+
 export default function ChatScroller({
   whom,
   messages,
@@ -139,18 +152,15 @@ export default function ChatScroller({
   scrollTo = undefined,
   scrollerRef,
 }: IChatScroller) {
-  const brief = useChatState((s: ChatState) => s.briefs[whom]);
-  const firstUnreadID = useGetFirstUnreadID(whom);
+  const isMobile = useIsMobile();
   const loaded = useLoadedWrits(whom);
   const [fetching, setFetching] = useState<FetchingState>('initial');
-  const isMobile = useIsMobile();
   const [isScrolling, setIsScrolling] = useState(false);
-  const { atBottom } = useChatStore.getState();
-  const [height, setHeight] = useState(0);
+  const firstPass = useRef(true);
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
-    atTopThreshold: isMobile ? 1200 : 2500,
+    atTopThreshold: getTopThreshold(isMobile, messages.size),
     overscan: isMobile
       ? { main: 200, reverse: 200 }
       : { main: 400, reverse: 400 },
@@ -184,12 +194,13 @@ export default function ChatScroller({
     [messages, whom, keys, replying, prefixedElement, scrollTo, isScrolling]
   );
 
+  const itemContent = useCallback(
+    (i: number, realIndex: bigInt.BigInteger) => <Message index={realIndex} />,
+    [Message]
+  );
+
   const TopLoader = useMemo(
     () => <Loader show={fetching === 'top'} />,
-    [fetching]
-  );
-  const BottomLoader = useMemo(
-    () => <Loader show={fetching === 'bottom'} />,
     [fetching]
   );
 
@@ -243,43 +254,51 @@ export default function ChatScroller({
     return scrollToIdx > -1 ? scrollToIdx : START_INDEX - 1;
   }, [keys, scrollTo]);
 
-  /**
-   * By default, 50 messages are fetched on initial load. If there are more
-   * unreads per the brief, fetch those as well. That way, the user can click
-   * the unread banner and see the unread messages.
-   */
   useEffect(() => {
-    if (
-      fetching === 'initial' &&
-      brief &&
-      brief.count > INITIAL_MESSAGE_FETCH_PAGE_SIZE &&
-      firstUnreadID &&
-      !keys.includes(firstUnreadID)
-    ) {
-      fetchMessages(false, brief.count);
+    // we're at the top so we won't get an atTopChange and so need to
+    // manually trigger fetching, usually when we have a scrollTo
+    if (initialTopMostIndex === 0 && firstPass.current) {
+      fetchMessages(false);
     }
-    /**
-     * Only want to track the brief and unread ID
-     */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brief, firstUnreadID]);
+  }, [initialTopMostIndex]);
 
+  useEffect(() => {
+    // if scrollTo changes, scroll to the new index
+    scrollToIndex(keys, scrollerRef, scrollTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo?.toString()]);
+
+  const updateScroll = useRef(
+    debounce((e: boolean) => {
+      setIsScrolling(e);
+    }, 1000)
+  );
+
+  /**
+   * we want to know immediately if scrolling, otherwise debounce updates
+   */
   const handleScroll = useCallback(
-    (e: boolean) => {
-      if (e !== isScrolling && !atBottom) {
-        setIsScrolling(e);
+    (scrolling: boolean) => {
+      if (firstPass.current) {
+        return;
+      }
+
+      if (scrolling && !isScrolling) {
+        setIsScrolling(true);
+      } else {
+        updateScroll.current(scrolling);
       }
     },
-    [isScrolling, atBottom]
+    [isScrolling]
   );
 
   const components = useMemo(
     () => ({
       Header: () => TopLoader,
-      Footer: () => BottomLoader,
       List,
     }),
-    [BottomLoader, TopLoader]
+    [TopLoader]
   );
 
   // perf: define these outside of render
@@ -289,23 +308,22 @@ export default function ChatScroller({
     if (bot) {
       fetchMessages(true);
       bottom(true);
-      delayedRead(whom, () => useChatState.getState().markRead(whom));
+
+      if (!firstPass.current) {
+        delayedRead(whom, () => useChatState.getState().markRead(whom));
+      }
     } else {
       bottom(false);
     }
   };
-  const totalListHeightChanged = (newHeight: number) => {
-    if (height < newHeight && atBottom) {
-      scrollerRef.current?.scrollBy({ left: 0, top: newHeight - height });
-      setHeight(newHeight);
-    }
-  };
-  const handleIsScrolling = (e: boolean) => {
-    handleScroll(e);
-  };
+  const totalListHeightChanged = useRef(
+    debounce(() => {
+      if (firstPass.current && !scrollTo) {
+        scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+      }
 
-  const itemContent = (i: number, realIndex: bigInt.BigInteger) => (
-    <Message index={realIndex} />
+      firstPass.current = false;
+    }, 200)
   );
 
   return (
@@ -315,17 +333,21 @@ export default function ChatScroller({
         ref={scrollerRef}
         followOutput
         alignToBottom
-        isScrolling={handleIsScrolling}
-        className="h-full overflow-x-hidden p-4"
         {...thresholds}
-        atTopStateChange={atTopStateChange}
-        atBottomStateChange={atBottomStateChange}
-        totalListHeightChanged={totalListHeightChanged}
-        firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={initialTopMostIndex}
+        components={components}
         itemContent={itemContent}
         computeItemKey={computeItemKey}
-        components={components}
+        firstItemIndex={firstItemIndex}
+        initialTopMostItemIndex={initialTopMostIndex}
+        isScrolling={handleScroll}
+        atTopStateChange={atTopStateChange}
+        atBottomStateChange={atBottomStateChange}
+        totalListHeightChanged={totalListHeightChanged.current}
+        // DO NOT REMOVE
+        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
+        // size of elements, triggering a reflow loop in virtual scroller
+        style={{ overflowY: 'scroll' }}
+        className="h-full overflow-x-hidden p-4"
       />
     </div>
   );

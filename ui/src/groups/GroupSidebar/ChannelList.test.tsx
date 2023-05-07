@@ -1,8 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import React from 'react';
+import { describe, expect, it } from 'vitest';
 import { createChannel, createMockGroup } from '@/mocks/groups';
 import { Group } from '@/types/groups';
-import { describe, expect, it } from 'vitest';
 import { render } from '../../../test/utils';
 import ChannelList from './ChannelList';
 
@@ -20,6 +20,7 @@ vi.mock('@/state/groups', () => ({
 }));
 
 vi.mock('@/logic/useMigrationInfo', () => ({
+  usePendingImports: () => ({}),
   useStartedMigration: () => ({
     hasStarted: (ship: string) => true,
   }),

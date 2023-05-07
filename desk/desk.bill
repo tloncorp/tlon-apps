@@ -1,7 +1,10 @@
 :~  %groups
     %chat
+    %contacts
     %heap
     %diary
     %hark
     %notify
+    %groups-ui
+    %grouper
 ==

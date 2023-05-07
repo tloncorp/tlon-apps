@@ -49,10 +49,16 @@ export default function DiaryNoteHeadline({
   return (
     <>
       {essay.image && !calm.disableRemoteContent ? (
-        <img src={essay.image} alt="" className="h-auto w-full rounded-xl" />
+        <img
+          src={essay.image}
+          alt=""
+          className="mb-8 h-auto w-full rounded-xl"
+        />
       ) : null}
-      <header className="mt-8 space-y-8">
-        <h1 className="text-3xl font-semibold leading-10">{essay.title}</h1>
+      <header className="space-y-8">
+        <h1 className="break-words text-3xl font-semibold leading-10">
+          {essay.title}
+        </h1>
         <p className="font-semibold text-gray-400">
           {format(essay.sent, 'LLLL do, yyyy')}
         </p>

@@ -1,11 +1,12 @@
 {
   "name": "Groups",
   "short_name": "Groups",
-  "start_url": "./apps/groups",
-  "scope": "./",
+  "start_url": "/apps/groups/",
+  "scope": "/apps/groups/",
+  "id": "/apps/groups/",
   "icons": [
     {
-      "src": "/apps/grid/android-chrome-512x512.png",
+      "src": "/apps/groups/android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

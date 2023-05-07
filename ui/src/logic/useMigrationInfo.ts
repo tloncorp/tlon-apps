@@ -1,40 +1,69 @@
 import _ from 'lodash';
 import create from 'zustand';
 import api from '@/api';
-import { useGroupState } from '@/state/groups';
-import { GroupState } from '@/state/groups/type';
-import { useCallback, useEffect } from 'react';
+import { useGroup } from '@/state/groups';
+import { useCallback, useEffect, useMemo } from 'react';
+import useSchedulerStore from '@/state/scheduler';
+import { useChatState } from '@/state/chat';
+import { useHeapState } from '@/state/heap/heap';
+import { useDiaryState } from '@/state/diary';
 import { getNestShip, isChannelImported } from './utils';
-import usePendingImports from './usePendingImports';
+
+interface ChannelAgent {
+  pendingImports: Record<string, boolean>;
+}
+
+const selPendImports = (s: ChannelAgent) => s.pendingImports;
+
+export function usePendingImports() {
+  const chats = useChatState(selPendImports);
+  const heaps = useHeapState(selPendImports);
+  const diaries = useDiaryState(selPendImports);
+
+  return useMemo(
+    () => ({
+      ..._.mapKeys(chats, (v, c) => `chat/${c}`),
+      ..._.mapKeys(heaps, (v, h) => `heap/${h}`),
+      ..._.mapKeys(diaries, (v, d) => `diary/${d}`),
+    }),
+    [chats, heaps, diaries]
+  );
+}
+
+export interface MigrationInit {
+  wait: string[];
+  chat: Record<string, boolean>;
+  heap: Record<string, boolean>;
+  diary: Record<string, boolean>;
+}
 
 interface WaitStore {
   wait: string[];
-  fetchWait: () => Promise<void>;
+  fetchData: () => Promise<void>;
 }
 
 let initialized = false;
 const useWaitStore = create<WaitStore>((set, get) => ({
   initialized: false,
   wait: [],
-  fetchWait: async () => {
+  fetchData: async () => {
     if (initialized) {
       return;
     }
 
     initialized = true;
-    const wait = await api.scry<string[]>({
-      app: 'group-store',
-      path: '/wait',
-    });
 
-    set({ wait });
-    api.subscribe({
-      app: 'group-store',
-      path: '/wait',
-      event: (newWait: string[]) => {
-        set({ wait: newWait });
-      },
-    });
+    useSchedulerStore.getState().wait(async () => {
+      const { wait, chat, heap, diary } = await api.scry<MigrationInit>({
+        app: 'groups-ui',
+        path: '/migration',
+      });
+
+      useChatState.getState().initImports(chat);
+      useHeapState.getState().initImports(heap);
+      useDiaryState.getState().initImports(diary);
+      set({ wait });
+    }, 5);
   },
 }));
 
@@ -43,13 +72,11 @@ const selWait = (s: WaitStore) => s.wait;
 export function useStartedMigration(flag: string) {
   const wait = useWaitStore(selWait);
   const pendingImports = usePendingImports();
-  const channels = useGroupState(
-    useCallback((s: GroupState) => s.groups[flag]?.channels, [flag])
-  );
+  const group = useGroup(flag);
   const pendingShips = Object.keys(pendingImports).map(getNestShip);
 
   useEffect(() => {
-    useWaitStore.getState().fetchWait();
+    useWaitStore.getState().fetchData();
   }, []);
 
   return {
@@ -63,7 +90,7 @@ export function useStartedMigration(flag: string) {
       },
       [pendingImports, pendingShips, wait]
     ),
-    channels,
+    channels: group?.channels,
     pendingImports,
   };
 }

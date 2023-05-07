@@ -1,6 +1,9 @@
+// Copyright 2022, Tlon Corporation
 import cookies from 'browser-cookies';
-import React, { Suspense, useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
+import _ from 'lodash';
 import {
   BrowserRouter as Router,
   Routes,
@@ -11,8 +14,8 @@ import {
   NavigateFunction,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
+import { TooltipProvider } from '@radix-ui/react-tooltip';
 import Groups from '@/groups/Groups';
-import Channel from '@/channels/Channel';
 import { IS_MOCK } from '@/api';
 import Dms from '@/dms/Dms';
 import NewDM from '@/dms/NewDm';
@@ -20,12 +23,7 @@ import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
 import { useCalm, useTheme } from '@/state/settings';
-import {
-  useAirLockErrorCount,
-  useErrorCount,
-  useLocalState,
-  useSubscriptionStatus,
-} from '@/state/local';
+import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -34,7 +32,7 @@ import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
-import GroupChannelManager from '@/groups/GroupAdmin/GroupChannelManager';
+import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
 import ProfileModal from '@/profiles/ProfileModal';
@@ -42,17 +40,12 @@ import MultiDMEditModal from '@/dms/MultiDMEditModal';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import FindGroups from '@/groups/FindGroups';
 import JoinGroupModal from '@/groups/Join/JoinGroupModal';
-import ChannelIndex from '@/groups/ChannelIndex/ChannelIndex';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
-import { TooltipProvider } from '@radix-ui/react-tooltip';
-import Notifications, {
-  GroupWrapper,
-  MainWrapper,
-} from './notifications/Notifications';
+import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
 import DiaryChannel from './diary/DiaryChannel';
@@ -70,17 +63,42 @@ import TalkHead from './dms/TalkHead';
 import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
 import MobileSidebar from './components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from './nav/MobileRoot';
-import MobileGroupRoot from './nav/MobileGroupRoot';
-import MobileGroupActions from './groups/MobileGroupActions';
-import MobileGroupsActions from './groups/MobileGroupsActions';
-import { isTalk } from './logic/utils';
+import Leap from './components/Leap/Leap';
+import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
-import useKilnState, { usePike } from './state/kiln';
 import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
-import useConnectionChecker from './logic/useConnectionChecker';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
+import { useScheduler } from './state/scheduler';
+import { LeapProvider } from './components/Leap/useLeap';
+import VitaMessage from './components/VitaMessage';
+import Dialog, { DialogContent } from './components/Dialog';
+import useIsStandaloneMode from './logic/useIsStandaloneMode';
+import Eyrie from './components/Eyrie';
+import queryClient from './queryClient';
+import EmojiPicker from './components/EmojiPicker';
+import SettingsDialog from './components/SettingsDialog';
+
+const Grid = React.lazy(() => import('./components/Grid/grid'));
+const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
+const AppModal = React.lazy(() => import('./components/Grid/appmodal'));
+
+function SuspendedModal({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <Dialog defaultOpen modal>
+          <DialogContent className="bg-transparent" containerClass="w-full">
+            <LoadingSpinner />
+          </DialogContent>
+        </Dialog>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
 
 const DiaryAddNote = React.lazy(() => import('./diary/diary-add-note'));
 const SuspendedDiaryAddNote = (
@@ -139,7 +157,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           />
           <Route path="/dm/" element={<Dms />}>
             <Route index element={<DMHome />} />
-            <Route path="new" element={<NewDM />} />
+            <Route path="new">
+              <Route index element={<NewDM />} />
+              <Route path=":ship" element={<Message />} />
+            </Route>
             <Route path=":ship" element={<Message />}>
               {isSmall ? null : (
                 <Route
@@ -157,10 +178,6 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
 
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
-            <Route
-              path="channels/join/:app/:chShip/:chName"
-              element={<Channel />}
-            />
             <Route path="channels/chat/:chShip/:chName">
               <Route
                 index
@@ -197,6 +214,31 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route path="/settings" element={<SettingsDialog />} />
+          <Route
+            path="/grid"
+            element={
+              <SuspendedModal>
+                <Grid />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk"
+            element={
+              <SuspendedModal>
+                <AppModal />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk/info"
+            element={
+              <SuspendedModal>
+                <TileInfo />
+              </SuspendedModal>
+            }
+          />
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
@@ -204,9 +246,46 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             path="/gangs/:ship/:name/reject"
             element={<RejectConfirmModal />}
           />
+          {isMobile ? (
+            <>
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/dm/:ship/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+            </>
+          ) : null}
         </Routes>
       ) : null}
     </>
+  );
+}
+
+let redirectToFind = !window.location.pathname.startsWith('/apps/groups/find');
+function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
+  const navigate = useNavigate();
+  const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
+  const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
+
+  useEffect(() => {
+    if (!isInGroups && redirectToFind) {
+      navigate('/find', { replace: true });
+      redirectToFind = false;
+    }
+  }, [isInGroups, navigate]);
+
+  if (isMobile) {
+    return <MobileGroupsNavHome />;
+  }
+
+  return (
+    <Notifications
+      child={GroupNotification}
+      title={`All Notifications • ${appHead('').title}`}
+    />
   );
 }
 
@@ -216,28 +295,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<GroupsNav />}>
           <Route element={isMobile ? <MobileSidebar /> : undefined}>
-            <Route
-              index
-              element={
-                isMobile ? (
-                  <MobileGroupsNavHome />
-                ) : (
-                  <Notifications
-                    child={GroupNotification}
-                    title={`All Notifications • ${appHead('').title}`}
-                  />
-                )
-              }
-            />
+            <Route index element={<HomeRoute isMobile={isMobile} />} />
             <Route
               path="/notifications"
               element={
-                <MainWrapper isMobile={isMobile}>
-                  <Notifications
-                    child={GroupNotification}
-                    title={`All Notifications • ${appHead('').title}`}
-                  />
-                </MainWrapper>
+                <Notifications
+                  child={GroupNotification}
+                  title={`All Notifications • ${appHead('').title}`}
+                />
               }
             />
             {/* Find by Invite URL */}
@@ -266,24 +331,28 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 <EditProfile title={`Edit Profile • ${appHead('').title}`} />
               }
             />
-            <Route path="/actions" element={<MobileGroupsActions />} />
+            <Route
+              path="/leap"
+              element={
+                <MainWrapper title="Leap" isMobile={isMobile}>
+                  <Leap openDefault />
+                </MainWrapper>
+              }
+            />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
-              <Route index element={isMobile ? <MobileGroupRoot /> : null} />
               <Route
-                path="channellist"
+                index
                 element={isMobile ? <MobileGroupChannelList /> : null}
               />
               <Route
                 path="activity"
                 element={
-                  <GroupWrapper isMobile={isMobile}>
-                    <Notifications
-                      child={GroupNotification}
-                      title={`• ${appHead('').title}`}
-                    />
-                  </GroupWrapper>
+                  <Notifications
+                    child={GroupNotification}
+                    title={`• ${appHead('').title}`}
+                  />
                 }
               />
               <Route path="info" element={<GroupAdmin />}>
@@ -299,23 +368,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   <Route path="pending" element={<GroupPendingManager />} />
                   <Route path="banned" element={<div />} />
                 </Route>
-                <Route
-                  path="channels"
-                  element={
-                    <GroupChannelManager title={`• ${appHead('').title}`} />
-                  }
-                />
               </Route>
               <Route
                 path="channels"
-                element={<ChannelIndex title={` • ${appHead('').title}`} />}
+                element={
+                  <GroupChannelManager title={` • ${appHead('').title}`} />
+                }
               />
-              <Route path="actions" element={<MobileGroupActions />} />
             </Route>
-            <Route
-              path="channels/join/:app/:chShip/:chName"
-              element={<Channel />}
-            />
             <Route path="channels/chat/:chShip/:chName">
               <Route
                 index
@@ -360,6 +420,31 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       {state?.backgroundLocation ? (
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
+          <Route path="/settings" element={<SettingsDialog />} />
+          <Route
+            path="/grid"
+            element={
+              <SuspendedModal>
+                <Grid />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk"
+            element={
+              <SuspendedModal>
+                <AppModal />
+              </SuspendedModal>
+            }
+          />
+          <Route
+            path="/app/:desk/info"
+            element={
+              <SuspendedModal>
+                <TileInfo />
+              </SuspendedModal>
+            }
+          />
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
@@ -386,6 +471,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             element={<NewChannelModal />}
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
+          {isMobile ? (
+            <Route
+              path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+              element={<EmojiPicker />}
+            />
+          ) : null}
         </Routes>
       ) : null}
     </>
@@ -407,7 +498,16 @@ function checkIfLoggedIn() {
 
   const session = cookies.get(`urbauth-~${window.ship}`);
   if (!session) {
-    authRedirect();
+    fetch('/~/name')
+      .then((res) => res.text())
+      .then((name) => {
+        if (name !== preSig(window.ship)) {
+          authRedirect();
+        }
+      })
+      .catch(() => {
+        authRedirect();
+      });
   }
 }
 
@@ -415,10 +515,17 @@ function handleGridRedirect(navigate: NavigateFunction) {
   const query = new URLSearchParams(window.location.search);
 
   if (query.has('grid-note')) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     navigate(decodeURIComponent(query.get('grid-note')!));
   } else if (query.has('grid-link')) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     navigate(decodeURIComponent(query.get('grid-link')!));
   }
+}
+
+function Scheduler() {
+  useScheduler();
+  return null;
 }
 
 function App() {
@@ -427,21 +534,7 @@ function App() {
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
-  const subscription = useSubscriptionStatus();
-  const errorCount = useErrorCount();
-  const airLockErrorCount = useAirLockErrorCount();
-  const pike = usePike(isTalk ? 'talk' : 'groups');
-  const [baseHash, setBaseHash] = useState('');
-  const [needsUpdate, setNeedsUpdate] = useState(false);
   const { disableWayfinding } = useCalm();
-
-  const fetchPikes = useCallback(async () => {
-    try {
-      await useKilnState.getState().fetchPikes();
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
 
   useEffect(() => {
     handleError(() => {
@@ -456,62 +549,34 @@ function App() {
     })();
   }, [handleError]);
 
-  useEffect(() => {
-    if (pike && baseHash === '') {
-      setBaseHash(pike.hash);
-    }
-  }, [pike, baseHash]);
-
-  useEffect(() => {
-    setInterval(() => {
-      fetchPikes();
-    }, 1000 * 60 * 5);
-  }, [fetchPikes]);
-
-  useEffect(() => {
-    if (pike && pike.hash !== baseHash && baseHash !== '' && !needsUpdate) {
-      setNeedsUpdate(true);
-    }
-  }, [pike, baseHash, needsUpdate]);
-
   const state = location.state as { backgroundLocation?: Location } | null;
-
-  useConnectionChecker();
-
-  useEffect(() => {
-    if (
-      (errorCount > 4 || airLockErrorCount > 1) &&
-      subscription === 'connected'
-    ) {
-      useLocalState.setState({ subscription: 'disconnected' });
-    }
-  }, [errorCount, subscription, airLockErrorCount]);
 
   return (
     <div className="flex h-full w-full flex-col">
       {!disableWayfinding && <LandscapeWayfinding />}
-      {subscription === 'disconnected' || subscription === 'reconnecting' ? (
-        <DisconnectNotice />
-      ) : null}
-      {needsUpdate ? <UpdateNotice /> : null}
-      {isTalk ? (
-        <>
-          <TalkHead />
-          <ChatRoutes
+      <DisconnectNotice />
+      <LeapProvider>
+        {isTalk ? (
+          <>
+            <TalkHead />
+            <ChatRoutes
+              state={state}
+              location={location}
+              isMobile={isMobile}
+              isSmall={isSmall}
+            />
+          </>
+        ) : (
+          <GroupsRoutes
             state={state}
             location={location}
             isMobile={isMobile}
             isSmall={isSmall}
           />
-        </>
-      ) : (
-        <GroupsRoutes
-          state={state}
-          location={location}
-          isMobile={isMobile}
-          isSmall={isSmall}
-        />
-      )}
+        )}
+        <Leap />
+      </LeapProvider>
+      <VitaMessage />
     </div>
   );
 }
@@ -520,17 +585,19 @@ function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
+  const isStandAlone = useIsStandaloneMode();
+  const body = document.querySelector('body');
 
-  const basename = (modeName: string, appName: string) => {
+  const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return '/';
     }
 
     switch (appName) {
       case 'chat':
-        return '/apps/talk';
+        return isStandAlone ? '/apps/talk/' : '/apps/talk';
       default:
-        return '/apps/groups';
+        return isStandAlone ? '/apps/groups/' : '/apps/groups';
     }
   };
 
@@ -549,12 +616,19 @@ function RoutedApp() {
     }
   }, [isDarkMode, theme]);
 
+  useEffect(() => {
+    if (isStandAlone) {
+      // this is necessary for the desktop PWA to not have extra padding at the bottom.
+      body?.style.setProperty('padding-bottom', '0px');
+    }
+  }, [isStandAlone, body]);
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
       onReset={() => window.location.reload()}
     >
-      <Router basename={basename(mode, app)}>
+      <Router basename={basename(app)}>
         <Helmet>
           <title>{appHead(app).title}</title>
           <link
@@ -564,15 +638,13 @@ function RoutedApp() {
             type="image/svg+xml"
           />
           <meta name="theme-color" content={userThemeColor} />
-          {app === 'groups' ? (
-            <link rel="manifest" href="/src/assets/manifest.json" />
-          ) : (
-            <link rel="manifest" href="/src/assets/chatmanifest.json" />
-          )}
         </Helmet>
         <TooltipProvider skipDelayDuration={400}>
           <App />
+          <Scheduler />
+          {import.meta.env.DEV && <Eyrie />}
         </TooltipProvider>
+        <ReactQueryDevtools initialIsOpen={false} />
       </Router>
     </ErrorBoundary>
   );

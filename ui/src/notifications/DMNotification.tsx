@@ -1,17 +1,16 @@
 import React from 'react';
 import Avatar from '@/components/Avatar';
-import { isYarnShip } from '@/types/hark';
+import { isYarnShip, Skein } from '@/types/hark';
 import { useMultiDm } from '@/state/chat';
-import { Bin } from './useNotifications';
 import Notification from './Notification';
 
 interface DMNotificationProps {
-  bin: Bin;
+  bin: Skein;
 }
 
 export default function DMNotification({ bin }: DMNotificationProps) {
-  const ship = bin.topYarn?.con.find(isYarnShip);
-  const [, whom] = bin.topYarn?.wer.slice(1).split('/') || undefined;
+  const ship = bin.top?.con.find(isYarnShip);
+  const [, whom] = bin.top?.wer.slice(1).split('/') || undefined;
   const club = useMultiDm(whom);
 
   return (

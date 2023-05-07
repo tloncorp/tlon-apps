@@ -3,7 +3,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import React, { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
-import Dialog, { DialogContent } from '@/components/Dialog';
+import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import { useChatState, usePinned } from '@/state/chat';
@@ -38,22 +38,22 @@ export default function DmOptions({
   const [isOpen, setIsOpen] = useState(false);
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const onArchive = () => {
-    navigate(-1);
+    navigate('/');
     useChatState.getState().archiveDm(whom);
   };
 
-  const markRead = useCallback(() => {
-    useChatState.getState().markRead(whom);
+  const markRead = useCallback(async () => {
+    await useChatState.getState().markRead(whom);
   }, [whom]);
 
   const [dialog, setDialog] = useState(false);
 
-  const leaveMessage = () => {
+  const leaveMessage = async () => {
     navigate('/');
     if (whomIsMultiDm(whom)) {
-      useChatState.getState().multiDmRsvp(whom, false);
+      await useChatState.getState().multiDmRsvp(whom, false);
     } else {
-      useChatState.getState().dmRsvp(whom, false);
+      await useChatState.getState().dmRsvp(whom, false);
     }
   };
   const closeDialog = () => {
@@ -61,10 +61,10 @@ export default function DmOptions({
   };
 
   const handlePin = useCallback(
-    (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    async (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
       const isPinned = pinned.includes(whom);
-      useChatState.getState().togglePin(whom, !isPinned);
+      await useChatState.getState().togglePin(whom, !isPinned);
     },
     [whom, pinned]
   );
@@ -76,24 +76,24 @@ export default function DmOptions({
   const handleAccept = () => {
     useChatState.getState().dmRsvp(whom, true);
   };
-  const handleDecline = () => {
+  const handleDecline = async () => {
     navigate(-1);
-    useChatState.getState().dmRsvp(whom, false);
+    await useChatState.getState().dmRsvp(whom, false);
   };
 
-  const handleMultiAccept = () => {
-    useChatState.getState().multiDmRsvp(whom, true);
+  const handleMultiAccept = async () => {
+    await useChatState.getState().multiDmRsvp(whom, true);
   };
 
-  const handleMultiDecline = () => {
-    useChatState.getState().multiDmRsvp(whom, false);
+  const handleMultiDecline = async () => {
+    await useChatState.getState().multiDmRsvp(whom, false);
   };
 
   return (
     <>
       <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
         <DropdownMenu.Trigger asChild className="appearance-none">
-          <div className="relative h-6 w-6">
+          <div className={cn('relative h-6 w-6', className)}>
             {!alwaysShowEllipsis && !isOpen && hasActivity ? (
               <BulletIcon
                 className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
@@ -108,7 +108,7 @@ export default function DmOptions({
               )}
               aria-label="Open Message Options"
             >
-              <EllipsisIcon className="h-6 w-6" />
+              <EllipsisIcon className="h-6 w-6 text-inherit" />
             </button>
           </div>
         </DropdownMenu.Trigger>
@@ -182,31 +182,28 @@ export default function DmOptions({
           )}
         </DropdownMenu.Content>
       </DropdownMenu.Root>
-      <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent containerClass="max-w-md" showClose>
-          <div className="flex flex-col">
-            <h2 className="mb-4 text-lg font-bold">Leave Chat</h2>
-            <p className="mb-7 leading-5">
-              Are you sure you want to leave this chat? Leaving will move this
-              chat into your <strong>Archive</strong>. If you rejoin this
-              channel, you’ll download everything you’ve missed since leaving
-              it.
-            </p>
-            <div className="flex items-center justify-end space-x-2">
-              <button onClick={closeDialog} className="button" type="button">
-                Cancel
-              </button>
+      <Dialog open={dialog} onOpenChange={setDialog} containerClass="max-w-md">
+        <div className="flex flex-col">
+          <h2 className="mb-4 text-lg font-bold">Leave Chat</h2>
+          <p className="mb-7 leading-5">
+            Are you sure you want to leave this chat? Leaving will move this
+            chat into your <strong>Archive</strong>. If you rejoin this channel,
+            you’ll download everything you’ve missed since leaving it.
+          </p>
+          <div className="flex items-center justify-end space-x-2">
+            <button onClick={closeDialog} className="button" type="button">
+              Cancel
+            </button>
 
-              <button
-                onClick={onArchive}
-                className="button bg-red text-white"
-                type="button"
-              >
-                Leave Chat
-              </button>
-            </div>
+            <button
+              onClick={onArchive}
+              className="button bg-red text-white"
+              type="button"
+            >
+              Leave Chat
+            </button>
           </div>
-        </DialogContent>
+        </div>
       </Dialog>
       {isMulti ? (
         <DmInviteDialog

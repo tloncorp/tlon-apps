@@ -1,5 +1,7 @@
 /-  h=heap
+/+  mp=mop-extensions
 |_  cur=curios:h
+++  mope  ((mp time curio:h) lte)
 ++  brief
   |=  [our=ship last-read=time]
   ^-  brief:briefs:h
@@ -8,7 +10,7 @@
     key.u.tim
   =/  unreads
     (lot:on:curios:h cur `last-read ~)
-  =/  read-id=(unit ^time)  
+  =/  read-id=(unit ^time)
     (bind (pry:on:curios:h unreads) |=([key=@da val=curio:h] time.val))
   =/  count
     (lent (skim ~(tap by unreads) |=([tim=^time =curio:h] !=(author.curio our))))
@@ -43,7 +45,7 @@
       cur
     ~|  curio-failed-validation/p.del
     ?>  ?|  ?=(^ replying.p.del)
-            ?&  ?=(^ title.p.del) 
+            ?&  ?=(^ title.p.del)
                 |(?=([~ ^] content.p.del) ?=([[* ~] ~] content.p.del))
             ==
         ==
@@ -80,33 +82,24 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   =*  on   on:curios:h
-  =*  rev  ((^on time curio:h) gte)
   ?+    pole  [~ ~]
   ::
-  ::  TODO: less iterations?
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    =/  ls    (scag count (bap:on cur))
-    ``heap-curios+!>((gas:on *curios:h ls))
+    ``heap-curios+!>((gas:on *curios:h (top:mope cur count)))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    =/  inverse  (gas:rev *curios:h (tap:on cur))
-    =-  ``heap-curios+!>(-)
-    %+  gas:on  *curios:h
-    (tab:rev inverse `start count)
+    ``heap-curios+!>((gas:on *curios:h (bat:mope cur `start count)))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    =-  ``heap-curios+!>(-)
-    %+  gas:on  *curios:h
-    (scag count (tap:on (lot:on cur `start ~)))
-
+    ``heap-curios+!>((gas:on *curios:h (tab:on cur `start count)))
   ::
       [%curio %id time=@ ~]
     =/  time  (slav %ud time.pole)
-    ``curio+!>((got `@da`time))
+    ``curio+!>(+:(got `@da`time))
   ==
 --

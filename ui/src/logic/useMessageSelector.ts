@@ -1,23 +1,24 @@
 import { difference } from 'lodash';
 import ob from 'urbit-ob';
 import { useCallback, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
 import { useChatState, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
 import { ChatMemo } from '@/types/chat';
-import { createStorageKey, newUv, preSig } from './utils';
+import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
   const navigate = useNavigate();
+  const location = useLocation();
   const newClubId = useMemo(() => newUv(), []);
   const [ships, setShips] = useLocalStorage<ShipOption[]>(
     createStorageKey('new-dm-ships'),
     []
   );
   const isMultiDm = ships.length > 1;
-  const shipValues = useMemo(() => ships.map((o) => preSig(o.value)), [ships]);
+  const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
 
   const existingDm = useMemo(() => {
@@ -28,7 +29,7 @@ export default function useMessageSelector() {
     const { briefs: chatBriefs } = useChatState.getState();
     return (
       Object.entries(chatBriefs).find(([flag, _brief]) => {
-        const theShip = preSig(ships[0].value);
+        const theShip = ships[0].value;
         const sameDM = theShip === flag;
         return sameDM;
       })?.[0] ?? null
@@ -42,6 +43,11 @@ export default function useMessageSelector() {
     const { briefs } = useChatState.getState();
     const clubId = Object.entries(multiDms).reduce<string>((key, [k, v]) => {
       const theShips = [...v.hive, ...v.team].filter((s) => s !== window.our);
+      if (theShips.length < 2) {
+        // not a valid multi-DM
+        return key;
+      }
+
       const sameDM =
         difference(shipValues, theShips).length === 0 &&
         shipValues.length === theShips.length;
@@ -60,20 +66,18 @@ export default function useMessageSelector() {
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
-      if (existingMultiDm) {
+      if (existingDm) {
+        navigate(`/dm/${existingDm}`);
+      } else if (existingMultiDm) {
         navigate(`/dm/${existingMultiDm}`);
-      } else if (existingDm) {
-        navigate(`/dm/${preSig(existingDm)}`);
       } else if (isMultiDm) {
         await createClub(
           newClubId,
-          invites
-            .filter((i) => preSig(i.value) !== window.our)
-            .map((s) => preSig(s.value))
+          invites.filter((i) => i.value !== window.our).map((s) => s.value)
         );
         navigate(`/dm/${newClubId}`);
       } else {
-        navigate(`/dm/${preSig(invites[0].value)}`);
+        navigate(`/dm/${invites[0].value}`);
       }
 
       setShips([]);
@@ -89,9 +93,10 @@ export default function useMessageSelector() {
 
       await useChatState.getState().sendMessage(whom, memo);
       setShips([]);
-      navigate(`/dm/${isMultiDm ? whom : preSig(whom)}`);
+      navigate(`/dm/${isMultiDm ? whom : whom}`);
     },
-    [isMultiDm, shipValues, existingMultiDm, setShips, navigate]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isMultiDm, JSON.stringify(shipValues), existingMultiDm, setShips, navigate]
   );
 
   const whom = useMemo(
@@ -115,14 +120,22 @@ export default function useMessageSelector() {
   const isSelectingMessage = useMemo(() => ships.length > 0, [ships]);
 
   useEffect(() => {
+    if (!location.pathname.includes('/dm/new')) {
+      if (existingMultiDm && location.pathname.includes(existingMultiDm)) {
+        navigate(`/dm/new/${existingMultiDm}`);
+      } else if (existingDm && location.pathname.includes(existingDm)) {
+        navigate(`/dm/new/${existingDm}`);
+      }
+      return;
+    }
     if (existingDm) {
-      navigate(`/dm/${preSig(existingDm)}`);
+      navigate(`/dm/new/${existingDm}`);
     } else if (existingMultiDm) {
-      navigate(`/dm/${existingMultiDm}`);
-    } else if (shipValues.length > 0) {
+      navigate(`/dm/new/${existingMultiDm}`);
+    } else {
       navigate(`/dm/new`);
     }
-  }, [existingDm, existingMultiDm, navigate, shipValues]);
+  }, [existingDm, existingMultiDm, navigate, location.pathname]);
 
   return {
     action,

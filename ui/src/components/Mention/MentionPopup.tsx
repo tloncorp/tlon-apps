@@ -16,8 +16,10 @@ import useContactState, { useContacts } from '@/state/contact';
 import { useGroup, useGroupFlag } from '@/state/groups';
 import { useMultiDms } from '@/state/chat';
 import { preSig } from '@/logic/utils';
+import keyMap from '@/keyMap';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
+import useLeap from '../Leap/useLeap';
 
 interface MentionListHandle {
   onKeyDown: (event: KeyboardEvent) => boolean;
@@ -33,14 +35,23 @@ const MentionList = React.forwardRef<
   const match = useMatch('/dm/:ship');
   const contacts = useContacts();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const { isOpen: leapIsOpen } = useLeap();
 
   const getMessage = useCallback(
     (ship: string) => {
+      if (ship === window.our) {
+        return null;
+      }
+
       if (match) {
         const multiDm = match && multiDms[match.params.ship || ''];
-        return !multiDm || ![...multiDm.hive, ...multiDm.team].includes(ship)
-          ? 'Not in message'
-          : null;
+        if (multiDm) {
+          return ![...multiDm.hive, ...multiDm.team].includes(ship)
+            ? 'Not in message'
+            : null;
+        }
+
+        return ship !== match.params.ship ? 'Not in message' : null;
       }
 
       return !group?.fleet[ship] ? 'Not in group' : null;
@@ -74,17 +85,18 @@ const MentionList = React.forwardRef<
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
-      if (event.key === 'ArrowUp') {
+      if (leapIsOpen) return false;
+      if (event.key === keyMap.mentionPopup.prevItem) {
         upHandler();
         return true;
       }
 
-      if (event.key === 'ArrowDown') {
+      if (event.key === keyMap.mentionPopup.nextItem) {
         downHandler();
         return true;
       }
 
-      if (event.key === 'Enter') {
+      if (event.key === keyMap.mentionPopup.selectItem) {
         event.stopPropagation();
         enterHandler();
         return true;
@@ -175,7 +187,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
-      `${normalizeText(contact.nickname)}${patp}`.toLocaleLowerCase()
+      `${normalizeText(contact?.nickname || '')}${patp}`.toLocaleLowerCase()
     );
 
     if (valid && !contactNames.includes(sigged)) {
@@ -243,7 +255,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
         });
       },
       onKeyDown: (props) => {
-        if (props.event.key === 'Escape') {
+        if (props.event.key === keyMap.mentionPopup.close) {
           popup[0]?.hide();
           return true;
         }

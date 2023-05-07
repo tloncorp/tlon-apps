@@ -22,6 +22,7 @@
         sent+(time sent.o)
         'quipCount'^(numb quips.o)
         quippers/a/(turn ~(tap in quippers.o) ship)
+        type/s/%outline
     ==
   ::
   ++  outlines
@@ -42,9 +43,11 @@
   ++  quips-delta
     |=  d=delta:quips:d
     %+  frond  -.d
-    ?+  -.d  ~
+    ?-  -.d
       %add  (memo p.d)
       %del  ~
+      %add-feel  (add-feel +.d)
+      %del-feel  (ship p.d)
     ==
   ::
   ++  flag
@@ -132,12 +135,13 @@
   ++  notes-delta
     |=  =delta:notes:d
     %+  frond  -.delta
-    ?+  -.delta  ~
+    ?-  -.delta
       %add       (essay p.delta)
       %edit      (essay p.delta)
       %del       ~
       %quips     (quips-diff p.delta)
       %add-feel  (add-feel +.delta)
+      %del-feel  (ship p.delta)
     ==
   ::
   ++  essay
@@ -282,6 +286,7 @@
     %-  pairs
     :~  seal+(seal -.note)
         essay+(essay +.note)
+        type/s/%note
     ==
   ::
   ++  cork
@@ -381,6 +386,7 @@
     :~  add/memo
         del/ul
         add-feel/add-feel
+        del-feel/ship
     ==
   ::
   ++  story
@@ -410,6 +416,7 @@
         del/ul
         quips/quips-diff
         add-feel/add-feel
+        del-feel/ship
     ==
   ::
   ++  add-sects  (as (se %tas))

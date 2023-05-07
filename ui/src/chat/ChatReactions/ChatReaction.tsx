@@ -1,7 +1,5 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
-import _ from 'lodash';
-import f from 'lodash/fp';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ChatSeal } from '@/types/chat';
 import { useChatState } from '@/state/chat';
@@ -47,8 +45,11 @@ export default function ChatReaction({
               <button
                 onClick={editFeel}
                 className={cn(
-                  'group relative flex items-center space-x-2 rounded border border-solid border-transparent bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-600 group-one-hover:border-gray-100',
-                  isMine && 'bg-blue-softer group-one-hover:border-blue-soft'
+                  'group relative flex items-center space-x-2 rounded border border-solid border-transparent px-2 py-1 text-sm font-semibold leading-4 text-gray-600',
+                  {
+                    'bg-gray-50 group-one-hover:bg-gray-200': !isMine,
+                    'bg-blue-softer group-one-hover:border-blue-soft': isMine,
+                  }
                 )}
                 aria-label={
                   isMine ? 'Remove reaction' : `Add ${feel.replaceAll(':', '')}`
@@ -72,10 +73,10 @@ export default function ChatReaction({
                   <div className="z-[100] w-fit cursor-none rounded bg-gray-400 px-4 py-2">
                     <label className="whitespace-nowrap font-semibold text-white">
                       {ships.map((ship, i) => (
-                        <>
-                          <ShipName key={ship} name={ship} showAlias />
+                        <span key={`${ship}-${i}`}>
+                          <ShipName name={ship} showAlias />
                           {i + 1 === ships.length ? '' : ', '}
-                        </>
+                        </span>
                       ))}
                     </label>
                   </div>

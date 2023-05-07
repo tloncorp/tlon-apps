@@ -1,35 +1,40 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import cn from 'classnames';
+import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { useGroups, usePendingInvites } from '@/state/groups';
+import { useGangList, useGroups, usePendingInvites } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
-import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import { usePinnedGroups } from '@/state/chat';
-import { hasKeys } from '@/logic/utils';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
-import { debounce } from 'lodash';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
+import GroupsSidebarItem from './GroupsSidebarItem';
+import SidebarSorter from './SidebarSorter';
+import GangItem from './GangItem';
+import { GroupsScrollingContext } from './GroupsScrollingContext';
+import ReconnectingSpinner from '../ReconnectingSpinner';
+import SystemChrome from './SystemChrome';
+import PencilSettingsIcon from '../icons/PencilSettingsIcon';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+
   return (
     <SidebarItem
-      div
       className={cn(
         menuOpen
           ? 'bg-gray-100 text-gray-800'
@@ -63,7 +68,7 @@ export function GroupsAppMenu() {
               target="_blank"
               rel="noreferrer"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+              <div className="flex h-12 w-12 items-center justify-center rounded-md text-blue">
                 <AsteriskIcon className="h-6 w-6" />
               </div>
               <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
@@ -82,12 +87,30 @@ export function GroupsAppMenu() {
                 About Groups
               </DropdownMenu.Item>
             </Link>
+            <Link
+              to="/settings"
+              className="dropdown-item flex flex-row items-center p-2 no-underline"
+              state={{ backgroundLocation: location }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <PencilSettingsIcon className="h-6 w-6" />
+              </div>
+              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
+                App Settings
+              </DropdownMenu.Item>
+            </Link>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       }
     >
       <div className="flex items-center justify-between">
         Groups
+        <ReconnectingSpinner
+          className={cn(
+            'h-4 w-4 group-hover:hidden',
+            menuOpen ? 'hidden' : 'block'
+          )}
+        />
         <a
           title="Back to Landscape"
           aria-label="Back to Landscape"
@@ -110,55 +133,43 @@ export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const pendingInvites = usePendingInvites();
-  const [scrolledFromTop, setScrolledFromTop] = useState(false);
-
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [atTop, setAtTop] = useState(true);
+  const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const pendingInvitesCount = pendingInvites.length;
   const { count } = useNotifications();
-
-  const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const groups = useGroups();
+  const gangs = useGangList();
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
-  const sortedPinnedGroups = sortGroups(pinnedGroups);
   const shipColor = useProfileColor(window.our);
-
-  const ref = useRef<HTMLUListElement>(null);
-
-  const classes = useMemo(
+  const ref = useRef<HTMLDivElement>(null);
+  const pinnedGroupsOptions = useMemo(
     () =>
-      cn(
-        'flex w-full flex-col space-y-1 px-2 pt-2',
-        scrolledFromTop && 'bottom-shadow'
-      ),
-    [scrolledFromTop]
+      Object.entries(pinnedGroups).map(([flag]) => (
+        <GroupsSidebarItem key={flag} flag={flag} />
+      )),
+    [pinnedGroups]
   );
 
-  // to prevent re-render, only set state when necessary
-  const scrollHandler = useCallback(() => {
-    debounce(() => {
-      if (ref.current?.scrollTop === 0) {
-        if (!scrolledFromTop) {
-          setScrolledFromTop(true);
-        }
-      } else {
-        // eslint-disable-next-line no-lonely-if
-        if (scrolledFromTop) {
-          setScrolledFromTop(false);
-        }
-      }
-    }, 100);
-  }, [scrolledFromTop]);
+  const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
+  const scroll = useRef(
+    debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
+  );
 
   if (isMobile) {
     return <MobileSidebar />;
   }
 
   return (
-    <nav className="flex h-full w-64 flex-col bg-white">
-      <ul className={classes}>
-        {/* TODO: FETCH WINDOW.OUR WITHOUT IT RETURNING UNDEFINED */}
+    <nav className="flex h-full w-full flex-none flex-col bg-white">
+      <div
+        className={cn('flex w-full flex-col space-y-0.5 p-2', {
+          'bottom-shadow': !atTop,
+        })}
+      >
         <GroupsAppMenu />
-        <div className="h-5" />
+        <SystemChrome />
         <SidebarItem
           highlight={shipColor}
           icon={<Avatar size="xs" ship={window.our} />}
@@ -180,7 +191,7 @@ export default function Sidebar() {
           <div className="flex items-center">
             Find Groups
             {pendingInvitesCount > 0 ? (
-              <span className="ml-auto font-semibold text-blue">
+              <span className="ml-auto pr-2 font-semibold text-blue">
                 {pendingInvitesCount}
               </span>
             ) : null}
@@ -193,40 +204,49 @@ export default function Sidebar() {
         >
           Create Group
         </SidebarItem>
-      </ul>
-      <ul
-        ref={ref}
-        onScroll={scrollHandler}
-        className="flex-initial overflow-y-auto overflow-x-hidden px-2"
-      >
-        {hasKeys(pinnedGroups) ? (
+      </div>
+      <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
+        <GroupsScrollingContext.Provider value={isScrolling}>
           <GroupList
-            className="p-2"
-            pinned
             groups={sortedGroups}
-            pinnedGroups={sortedPinnedGroups}
-          />
-        ) : null}
-        <li className="-mx-2 mt-5 grow border-t-2 border-gray-50 pt-3 pb-2">
-          <span className="ml-4 text-sm font-semibold text-gray-400">
-            All Groups
-          </span>
-        </li>
-        <li className="relative p-2">
-          <SidebarSorter
-            sortFn={sortFn}
-            setSortFn={setSortFn}
-            sortOptions={sortOptions}
-            isMobile={isMobile}
-          />
-        </li>
-      </ul>
-      <div className="flex-auto">
-        <GroupList
-          className="p-2"
-          groups={sortedGroups}
-          pinnedGroups={sortedPinnedGroups}
-        />
+            pinnedGroups={Object.entries(pinnedGroups)}
+            isScrolling={scroll.current}
+            atTopChange={atTopChange}
+          >
+            {Object.entries(pinnedGroups).length > 0 && (
+              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
+                <h2 className="p-2 text-sm font-bold text-gray-400">
+                  Pinned Groups
+                </h2>
+                {pinnedGroupsOptions}
+              </div>
+            )}
+            <div ref={ref} className="flex-initial">
+              <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
+                <h2 className="px-2 text-sm font-bold text-gray-400">
+                  {sortFn === 'A → Z' ? 'Groups A → Z' : 'Recent Activity'}
+                </h2>
+                <div className="pr-1">
+                  <SidebarSorter
+                    sortFn={sortFn}
+                    setSortFn={setSortFn}
+                    sortOptions={sortOptions}
+                  />
+                </div>
+              </div>
+
+              {!sortedGroups.length && (
+                <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
+                  Check out <strong>Find Groups</strong> above to find new
+                  groups in your network or view group invites.
+                </div>
+              )}
+            </div>
+            {gangs.map((flag) => (
+              <GangItem key={flag} flag={flag} />
+            ))}
+          </GroupList>
+        </GroupsScrollingContext.Provider>
       </div>
     </nav>
   );

@@ -1,53 +1,17 @@
-import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
-import produce from 'immer';
-import create from 'zustand';
-import { Blanket, Carpet, Flag, HarkAction, Rope, Seam } from '@/types/hark';
+import _ from 'lodash';
+import {
+  Blanket,
+  Carpet,
+  Flag,
+  HarkAction,
+  Rope,
+  Seam,
+  Skein,
+} from '@/types/hark';
 import api from '@/api';
 import { decToUd } from '@urbit/api';
-
-export interface HarkState {
-  set: (fn: (sta: HarkState) => void) => void;
-  batchSet: (fn: (sta: HarkState) => void) => void;
-  /** carpet: represents unread notifications at the app level */
-  carpet: Carpet;
-  /** blanket: represents read notifications at the app level */
-  blanket: Blanket;
-  /** textiles: represents notifications at the group level */
-  textiles: {
-    [flag: Flag]: {
-      carpet: Carpet;
-      blanket: Blanket;
-    };
-  };
-  groupSubs: Flag[];
-  /** start: fetches app-wide notifications and subscribes to updates */
-  start: () => Promise<void>;
-  /** retrieve: refreshes app-wide notifications to latest  */
-  retrieve: () => Promise<void>;
-  /** retrieveGroup: fetches group's notifications and adds to "subs" */
-  retrieveGroup: (flag: Flag) => Promise<void>;
-  /** releaseGroup: removes updates from happening */
-  releaseGroup: (flag: Flag) => Promise<void>;
-  sawRope: (rope: Rope) => Promise<void>;
-  sawSeam: (seam: Seam) => Promise<void>;
-}
-
-export function emptyCarpet(seam: Seam) {
-  return {
-    seam,
-    yarns: {},
-    cable: [],
-    stitch: 0,
-  };
-}
-
-export function emptyBlanket(seam: Seam) {
-  return {
-    seam,
-    yarns: {},
-    quilt: {},
-  };
-}
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 function harkAction(action: HarkAction) {
   return {
@@ -57,96 +21,104 @@ function harkAction(action: HarkAction) {
   };
 }
 
-const useHarkState = create<HarkState>((set, get) => ({
-  set: (fn) => {
-    set(produce(get(), fn));
-  },
-  batchSet: (fn) => {
-    batchUpdates(() => {
-      get().set(fn);
-    });
-  },
-  carpet: emptyCarpet({ desk: window.desk }),
-  blanket: emptyBlanket({ desk: window.desk }),
-  textiles: {},
-  groupSubs: [],
-  start: async () => {
-    get().retrieve();
+export function useCarpet(flag?: Flag) {
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['carpet', flag],
+    app: 'hark',
+    path: '/ui',
+    scry: flag ? `/group/${flag}/latest` : `/desk/${window.desk}/latest`,
+  });
 
-    api.subscribe({
-      app: 'hark',
-      path: '/ui',
-      event: (_event: HarkAction) => {
-        const { groupSubs, retrieve, retrieveGroup } = get();
-        retrieve();
+  return {
+    data: data as Carpet,
+    ...rest,
+  };
+}
 
-        groupSubs.forEach((g) => {
-          retrieveGroup(g);
-        });
-      },
-    });
-  },
-  retrieve: async () => {
-    const carpet = await api.scry<Carpet>({
-      app: 'hark',
-      path: `/desk/${window.desk}/latest`,
-    });
+export function useBlanket(flag?: Flag) {
+  const { data: carpet, isSuccess } = useCarpet(flag);
+  const quilt = isSuccess
+    ? carpet?.stitch === 0
+      ? '0'
+      : decToUd(carpet?.stitch?.toString() ?? '0')
+    : '0';
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['blanket', flag],
+    app: 'hark',
+    path: '/ui',
+    scry: flag
+      ? `/group/${flag}/quilt/${quilt}`
+      : `/desk/${window.desk}/quilt/${quilt}`,
+    options: { enabled: isSuccess },
+  });
 
-    const blanket = await api.scry<Blanket>({
-      app: 'hark',
-      path: `/desk/${window.desk}/quilt/${decToUd(carpet.stitch.toString())}`,
-    });
+  return {
+    data: data as Blanket,
+    ...rest,
+  };
+}
 
-    get().batchSet((draft) => {
-      draft.carpet = carpet;
-      draft.blanket = blanket;
-    });
-  },
-  retrieveGroup: async (flag) => {
-    const carpet = await api.scry<Carpet>({
-      app: 'hark',
-      path: `/group/${flag}/latest`,
-    });
+export function useSkeins(flag?: Flag) {
+  const { data, ...rest } = useReactQuerySubscription({
+    queryKey: ['skeins', flag ? flag : window.desk],
+    app: 'hark',
+    path: '/ui',
+    scry: flag ? `/group/${flag}/skeins` : `/desk/${window.desk}/skeins`,
+    options: {
+      refetchOnMount: true,
+      retry: 1,
+    },
+  });
 
-    const blanket = await api.scry<Blanket>({
-      app: 'hark',
-      path: `/group/${flag}/quilt/${decToUd(carpet.stitch.toString())}`,
-    });
+  return {
+    data: data as Skein[],
+    ...rest,
+  };
+}
 
-    get().batchSet((draft) => {
-      draft.textiles[flag] = {
-        carpet,
-        blanket,
-      };
-
-      if (!get().groupSubs.includes(flag)) {
-        draft.groupSubs.push(flag);
-      }
-    });
-  },
-  releaseGroup: async (flag) => {
-    get().batchSet((draft) => {
-      const index = draft.groupSubs.indexOf(flag);
-
-      if (index !== -1) {
-        draft.groupSubs.splice(index, 1);
-      }
-    });
-  },
-  sawRope: async (rope) => {
-    await api.poke(
+export function useSawRopeMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: { rope: Rope; update?: boolean }) =>
+    api.trackedPoke(
       harkAction({
-        'saw-rope': rope,
-      })
+        'saw-rope': variables.rope,
+      }),
+      { app: 'hark', path: '/ui' }
     );
-  },
-  sawSeam: async (seam) => {
-    await api.poke(
-      harkAction({
-        'saw-seam': seam,
-      })
-    );
-  },
-}));
 
-export default useHarkState;
+  return useMutation(mutationFn, {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['skeins', variables.rope.group]);
+    },
+    onSettled: async (_data, _error, variables) => {
+      await queryClient.invalidateQueries(['skeins', variables.rope.group]);
+    },
+  });
+}
+
+export function useSawSeamMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: { seam: Seam }) =>
+    api.poke({
+      ...harkAction({
+        'saw-seam': variables.seam,
+      }),
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: async (variables) => {
+      if ('group' in variables.seam) {
+        await queryClient.cancelQueries(['skeins', variables.seam.group]);
+      } else {
+        await queryClient.cancelQueries(['skeins', window.desk]);
+      }
+    },
+    onSettled: async (_data, _error, variables) => {
+      if ('group' in variables.seam) {
+        await queryClient.invalidateQueries(['skeins', variables.seam.group]);
+      } else {
+        await queryClient.invalidateQueries(['skeins', window.desk]);
+      }
+    },
+  });
+}

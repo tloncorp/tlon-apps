@@ -11,6 +11,8 @@ import NoteReference from './NoteReference';
 import AppReference from './AppReference';
 // eslint-disable-next-line import/no-cycle
 import BaitReference from './BaitReference';
+// eslint-disable-next-line import/no-cycle
+import NoteCommentReference from './NoteCommentReference';
 
 function ContentReference({
   cite,
@@ -38,6 +40,20 @@ function ContentReference({
 
     if (app === 'heap') {
       const idCurio = udToDec(segments[2]);
+      const idCurioComment = segments[3] ? udToDec(segments[3]) : null;
+
+      if (idCurioComment) {
+        return (
+          <CurioReference
+            chFlag={chFlag}
+            nest={nest}
+            idCurio={idCurio}
+            idCurioComment={idCurioComment}
+            isScrolling={isScrolling}
+          />
+        );
+      }
+
       return (
         <CurioReference
           chFlag={chFlag}
@@ -60,6 +76,20 @@ function ContentReference({
     }
     if (app === 'diary') {
       const idNote = udToDec(segments[2]);
+      const idQuip = segments[4] ? udToDec(segments[4]) : null;
+
+      if (idQuip) {
+        return (
+          <NoteCommentReference
+            isScrolling={isScrolling}
+            chFlag={chFlag}
+            nest={nest}
+            noteId={idNote}
+            quipId={idQuip}
+          />
+        );
+      }
+
       return (
         <NoteReference
           chFlag={chFlag}

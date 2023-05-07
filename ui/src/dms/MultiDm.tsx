@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -11,10 +11,11 @@ import {
   useMultiDmMessages,
 } from '@/state/chat';
 import ChatWindow from '@/chat/ChatWindow';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -22,13 +23,19 @@ import DmOptions from './DMOptions';
 import MessageSelector from './MessageSelector';
 
 export default function MultiDm() {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const clubId = useParams<{ ship: string }>().ship!;
   const isMobile = useIsMobile();
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
 
-  const { isSelectingMessage, sendDm: sendDmFromMessageSelector } =
-    useMessageSelector();
+  const {
+    isSelectingMessage,
+    sendDm: sendDmFromMessageSelector,
+    existingMultiDm,
+  } = useMessageSelector();
+
+  const isSelecting = isSelectingMessage && existingMultiDm === clubId;
 
   useEffect(() => {
     if (clubId && club) {
@@ -54,48 +61,45 @@ export default function MultiDm() {
       <Layout
         className="h-full grow"
         header={
-          isSelectingMessage ? (
+          isSelecting ? (
             <MessageSelector />
           ) : (
-            <div className="flex h-full w-full items-center justify-between border-b-2 border-gray-50 p-2">
+            <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4">
               <BackButton
                 to="/"
                 className={cn(
-                  'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-                  isMobile &&
-                    '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
+                  'default-focus ellipsis inline-flex appearance-none items-center pr-2 text-lg font-bold text-gray-800 sm:text-base sm:font-semibold'
                 )}
                 aria-label={isMobile ? 'Open Messages Menu' : undefined}
               >
                 {isMobile ? (
-                  <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+                  <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
                 ) : null}
-                <div className="flex items-center space-x-3">
-                  <MultiDmAvatar {...club.meta} size="small" />
-                  <div className="flex flex-col items-start text-left">
-                    <div className="font-semibold line-clamp-1">
-                      {groupName}
-                    </div>
-                    <div className="text-gray-600">
-                      <span>{`${count} ${pluralize('Member', count)}${
-                        hasPending ? ',' : ''
-                      }`}</span>
-                      {hasPending ? (
-                        <span className="text-blue">
-                          {' '}
-                          {pendingCount} Pending
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
+                <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 text-center">
+                  <MultiDmAvatar {...club.meta} size="xs" />
                 </div>
+                <span className="ellipsis text-gray-400 line-clamp-1">
+                  <span className="text-gray-800">{groupName}</span>
+                  <span className="ml-2 text-gray-400">
+                    <span>{`${count} ${pluralize('Member', count)}${
+                      hasPending ? ',' : ''
+                    }`}</span>
+                    {hasPending ? (
+                      <span className="text-blue"> {pendingCount} Pending</span>
+                    ) : null}
+                  </span>
+                </span>
               </BackButton>
-              <DmOptions
-                whom={clubId}
-                pending={!isAccepted}
-                isMulti
-                alwaysShowEllipsis
-              />
+              <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+                {isMobile && <ReconnectingSpinner />}
+                <DmOptions
+                  whom={clubId}
+                  pending={!isAccepted}
+                  isMulti
+                  alwaysShowEllipsis
+                  className="text-gray-400"
+                />
+              </div>
             </div>
           )
         }
@@ -103,12 +107,13 @@ export default function MultiDm() {
           isAccepted ? (
             <div className="border-t-2 border-gray-50 p-4">
               <ChatInput
+                key={clubId}
                 whom={clubId}
                 sendMessage={
-                  isSelectingMessage ? sendDmFromMessageSelector : sendMessage
+                  isSelecting ? sendDmFromMessageSelector : sendMessage
                 }
                 showReply
-                autoFocus={!isSelectingMessage}
+                autoFocus={!isSelecting}
               />
             </div>
           ) : null

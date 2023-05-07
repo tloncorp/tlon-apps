@@ -1,13 +1,17 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
-import useHarkState from '@/state/hark';
-import { useGroup, useGroupState } from '@/state/groups';
+import {
+  useGroup,
+  useGroupJoinMutation,
+  useGroupKnockMutation,
+  useGroupRejectMutation,
+  useGroupRescindMutation,
+} from '@/state/groups';
 import { Gang, PrivacyType } from '@/types/groups';
-import { Status } from '@/logic/status';
-import { isTalk } from '@/logic/utils';
 import useNavigateByApp from '@/logic/useNavigateByApp';
+import { useSawRopeMutation } from '@/state/hark';
 
 function getButtonText(
   privacy: PrivacyType,
@@ -35,7 +39,6 @@ export default function useGroupJoin(
     | { nest: string; id: string; type: string }
     | undefined = undefined
 ) {
-  const [status, setStatus] = useState<Status>('initial');
   const location = useLocation();
   const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();
@@ -45,8 +48,22 @@ export default function useGroupJoin(
   const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
+  const { mutate: joinMutation, status } = useGroupJoinMutation();
+  const { mutate: knockMutation, status: knockStatus } =
+    useGroupKnockMutation();
+  const { mutate: rescindMutation, status: rescindStatus } =
+    useGroupRescindMutation();
+  const { mutate: rejectMutation, status: rejectStatus } =
+    useGroupRejectMutation();
+  const { mutate: sawRopeMutation } = useSawRopeMutation();
 
   const open = useCallback(() => {
+    if (flag === '~nibset-napwyn/tlon') {
+      return navigateByApp(
+        '/groups/~nibset-napwyn/tlon/channels/chat/~nibset-napwyn/support'
+      );
+    }
+
     if (group) {
       return navigateByApp(`/groups/${flag}`);
     }
@@ -57,25 +74,24 @@ export default function useGroupJoin(
   }, [flag, group, location, navigate, navigateByApp]);
 
   const join = useCallback(async () => {
-    setStatus('loading');
-
     if (privacy === 'private' && !invited) {
-      await useGroupState.getState().knock(flag);
+      knockMutation({ flag });
     } else {
       try {
-        await useHarkState.getState().sawRope({
-          channel: null,
-          desk: window.desk,
-          group: flag,
-          thread: `/${flag}/invite`,
+        sawRopeMutation({
+          rope: {
+            channel: null,
+            desk: window.desk,
+            group: flag,
+            thread: `/${flag}/invite`,
+          },
         });
       } catch (error) {
         // no notification
       }
 
       try {
-        await useGroupState.getState().join(flag, true);
-        setStatus('success');
+        joinMutation({ flag });
         if (redirectItem) {
           if (redirectItem.type === 'chat') {
             return navigateByApp(
@@ -88,17 +104,28 @@ export default function useGroupJoin(
         }
         return navigateByApp(`/groups/${flag}`);
       } catch (e) {
-        setStatus('error');
         if (requested) {
-          await useGroupState.getState().rescind(flag);
+          rescindMutation({ flag });
         } else {
-          await useGroupState.getState().reject(flag);
+          rejectMutation({ flag });
         }
         return navigateByApp(`/find/${flag}`);
       }
     }
     return null;
-  }, [privacy, invited, flag, requested, redirectItem, navigateByApp]);
+  }, [
+    privacy,
+    invited,
+    flag,
+    requested,
+    redirectItem,
+    navigateByApp,
+    joinMutation,
+    knockMutation,
+    rescindMutation,
+    rejectMutation,
+    sawRopeMutation,
+  ]);
 
   const reject = useCallback(async () => {
     /**
@@ -106,7 +133,11 @@ export default function useGroupJoin(
      * a join request
      */
     if (privacy === 'public') {
-      await useGroupState.getState().reject(flag);
+      try {
+        rejectMutation({ flag });
+      } catch (e) {
+        console.log('Failed to reject invite', e);
+      }
 
       if (inModal) {
         dismiss();
@@ -120,7 +151,16 @@ export default function useGroupJoin(
     } else {
       navigateByApp(`/gangs/${flag}/reject`);
     }
-  }, [flag, inModal, location, dismiss, modalNavigate, privacy, navigateByApp]);
+  }, [
+    flag,
+    inModal,
+    location,
+    dismiss,
+    modalNavigate,
+    privacy,
+    navigateByApp,
+    rejectMutation,
+  ]);
 
   return {
     group,
@@ -130,6 +170,9 @@ export default function useGroupJoin(
     open,
     join,
     status,
+    rejectStatus,
+    knockStatus,
+    rescindStatus,
     reject,
     button: {
       disabled: requested && !invited,

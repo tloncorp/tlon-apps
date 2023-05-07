@@ -1,22 +1,35 @@
 import { Editor } from '@tiptap/react';
 import cn from 'classnames';
-import _ from 'lodash';
-import React, { useCallback, useEffect, useState } from 'react';
+import _, { debounce } from 'lodash';
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  useState,
+} from 'react';
 import { usePact } from '@/state/chat';
-import { ChatImage, ChatMemo } from '@/types/chat';
-import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
+import { ChatImage, ChatMemo, Cite } from '@/types/chat';
+import MessageEditor, {
+  HandlerParams,
+  useMessageEditor,
+} from '@/components/MessageEditor';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import {
   fetchChatBlocks,
-  useChatBlocks,
   useChatInfo,
   useChatStore,
 } from '@/chat/useChatStore';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { normalizeInline, JSONToInlines } from '@/logic/tiptap';
+import {
+  normalizeInline,
+  JSONToInlines,
+  makeMention,
+  inlinesToJSON,
+} from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
@@ -27,10 +40,13 @@ import {
   isImageUrl,
   pathToCite,
   URL_REGEX,
+  createStorageKey,
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
-import { useSubscriptionStatus } from '@/state/local';
+import { useSearchParams } from 'react-router-dom';
+import { useGroupFlag } from '@/state/groups';
+import { useLocalStorage } from 'usehooks-ts';
 
 interface ChatInputProps {
   whom: string;
@@ -40,6 +56,7 @@ interface ChatInputProps {
   className?: string;
   sendDisabled?: boolean;
   sendMessage: (whom: string, memo: ChatMemo) => void;
+  inThread?: boolean;
 }
 
 export function UploadErrorPopover({
@@ -80,14 +97,26 @@ export default function ChatInput({
   showReply = false,
   sendDisabled = false,
   sendMessage,
+  inThread = false,
 }: ChatInputProps) {
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const subscription = useSubscriptionStatus();
-  const pact = usePact(whom);
   const id = replying ? `${whom}-${replying}` : whom;
+  const [draft, setDraft] = useLocalStorage(
+    createStorageKey(`chat-${id}`),
+    inlinesToJSON([''])
+  );
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const chatReplyId = useMemo(
+    () => searchParams.get('chat_reply'),
+    [searchParams]
+  );
+  const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
+  const groupFlag = useGroupFlag();
+  const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
-  const reply = replying || chatInfo?.replying || null;
-  const replyingWrit = reply && pact.writs.get(pact.index[reply]);
+  const reply = replying || null;
+  // const replyingWrit = reply && pact.writs.get(pact.index[reply]);
+  const replyingWrit = chatReplyId && pact.writs.get(pact.index[chatReplyId]);
   const ship = replyingWrit && replyingWrit.memo.author;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
@@ -97,8 +126,9 @@ export default function ChatInput({
   const { setBlocks } = useChatStore.getState();
 
   const closeReply = useCallback(() => {
-    useChatStore.getState().reply(whom, null);
-  }, [whom]);
+    setSearchParams({}, { replace: true });
+    setReplyCite(undefined);
+  }, [setSearchParams]);
 
   useEffect(() => {
     if (
@@ -113,7 +143,10 @@ export default function ChatInput({
   const clearAttachments = useCallback(() => {
     useChatStore.getState().setBlocks(id, []);
     useFileStore.getState().getUploader(uploadKey)?.clear();
-  }, [id, uploadKey]);
+    if (replyCite) {
+      closeReply();
+    }
+  }, [id, uploadKey, closeReply, replyCite]);
 
   // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
@@ -138,17 +171,43 @@ export default function ChatInput({
     }
   }, [files, id]);
 
+  const onUpdate = useRef(
+    debounce(({ editor }: HandlerParams) => {
+      setDraft(editor.getJSON());
+    }, 300)
+  );
+
+  // ensure we store any drafts before dismounting
+  useEffect(
+    () => () => {
+      onUpdate.current.flush();
+    },
+    []
+  );
+
   const onSubmit = useCallback(
     async (editor: Editor) => {
-      if (sendDisabled) return;
+      if (
+        sendDisabled ||
+        mostRecentFile?.status === 'loading' ||
+        mostRecentFile?.status === 'error' ||
+        mostRecentFile?.url === '' ||
+        (editor.getText() === '' && chatInfo.blocks.length === 0)
+      )
+        return;
+
       const blocks = fetchChatBlocks(id);
-      if (!editor.getText() && !blocks.length) {
+      if (!editor.getText() && !blocks.length && !replyCite) {
         return;
       }
 
       const data = normalizeInline(
         JSONToInlines(editor?.getJSON()) as Inline[]
       );
+      // Checking for this prevents an extra <br>
+      // from being added to the end of the message
+      const dataIsJustBreak =
+        data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
 
       const text = editor.getText();
       const textIsImageUrl = isImageUrl(text);
@@ -191,8 +250,12 @@ export default function ChatInput({
           sent: 0, // wait until ID is created so we can share time
           content: {
             story: {
-              inline: Array.isArray(data) ? data : [data],
-              block: blocks,
+              inline: !dataIsJustBreak
+                ? Array.isArray(data)
+                  ? data
+                  : [data]
+                : [],
+              block: [...blocks, ...(replyCite ? [replyCite] : [])],
             },
           },
         };
@@ -200,13 +263,26 @@ export default function ChatInput({
         sendMessage(whom, memo);
       }
       editor?.commands.setContent('');
+      onUpdate.current.flush();
+      setDraft(inlinesToJSON(['']));
       setTimeout(() => {
         useChatStore.getState().read(whom);
-        closeReply();
         clearAttachments();
       }, 0);
     },
-    [whom, id, reply, clearAttachments, sendMessage, closeReply, sendDisabled]
+    [
+      whom,
+      id,
+      setDraft,
+      clearAttachments,
+      sendMessage,
+      sendDisabled,
+      replyCite,
+      reply,
+      chatInfo.blocks,
+      mostRecentFile?.status,
+      mostRecentFile?.url,
+    ]
   );
 
   /**
@@ -224,32 +300,60 @@ export default function ChatInput({
     allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
-        if (subscription === 'connected') {
-          onSubmit(editor);
-          return true;
-        }
-        return false;
+        onSubmit(editor);
+        return true;
       },
-      [onSubmit, subscription]
+      [onSubmit]
     ),
+    onUpdate: onUpdate.current,
   });
 
   useEffect(() => {
-    if (whom && messageEditor && !messageEditor.isDestroyed) {
-      messageEditor?.commands.setContent('');
-    }
-  }, [whom, messageEditor]);
-
-  useEffect(() => {
     if (
-      (autoFocus || reply) &&
+      (autoFocus || replyCite) &&
       !isMobile &&
       messageEditor &&
       !messageEditor.isDestroyed
     ) {
-      messageEditor.commands.focus();
+      // end brings the cursor to the end of the content
+      messageEditor?.commands.focus('end');
     }
-  }, [autoFocus, reply, isMobile, messageEditor]);
+  }, [autoFocus, replyCite, isMobile, messageEditor]);
+
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed) {
+      messageEditor?.commands.setContent(draft);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messageEditor]);
+
+  useEffect(() => {
+    if (
+      chatReplyId &&
+      messageEditor &&
+      !messageEditor.isDestroyed &&
+      !inThread
+    ) {
+      messageEditor?.commands.focus();
+      const mention = ship ? makeMention(ship.slice(1)) : null;
+      messageEditor?.commands.setContent(mention);
+      messageEditor?.commands.insertContent(': ');
+      const path = `/1/chan/chat/${id}/msg/${chatReplyId}`;
+      const cite = path ? pathToCite(path) : undefined;
+      if (cite && !replyCite) {
+        setReplyCite({ cite });
+      }
+    }
+  }, [
+    chatReplyId,
+    id,
+    setReplyCite,
+    replyCite,
+    groupFlag,
+    messageEditor,
+    ship,
+    inThread,
+  ]);
 
   const editorText = messageEditor?.getText();
   const editorHTML = messageEditor?.getHTML();
@@ -266,10 +370,10 @@ export default function ChatInput({
           if (!cite || !path) {
             return;
           }
-          if (!whom) {
+          if (!id) {
             return;
           }
-          setBlocks(whom, [{ cite }]);
+          setBlocks(id, [{ cite }]);
           messageEditor.commands.deleteRange({
             from: editorText.indexOf(path),
             to: editorText.indexOf(path) + path.length + 1,
@@ -298,7 +402,7 @@ export default function ChatInput({
         }
       }
     }
-  }, [messageEditor, editorText, editorHTML, whom, setBlocks]);
+  }, [messageEditor, editorText, editorHTML, id, setBlocks]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -310,7 +414,7 @@ export default function ChatInput({
       const blocks = fetchChatBlocks(whom);
       if ('image' in blocks[idx]) {
         // @ts-expect-error type check on previous line
-        uploader.removeByURL(blocks[idx]);
+        uploader.removeByURL(blocks[idx].image.src);
       }
       useChatStore.getState().setBlocks(
         whom,
@@ -375,7 +479,7 @@ export default function ChatInput({
             </div>
           ) : null}
 
-          {showReply && ship && reply ? (
+          {showReply && ship && chatReplyId ? (
             <div className="mb-4 flex items-center justify-start font-semibold">
               <span className="text-gray-600">Replying to</span>
               <Avatar size="xs" ship={ship} className="ml-2" />
@@ -424,21 +528,21 @@ export default function ChatInput({
           </div>
         </div>
         <button
-          className={cn('button', isMobile && 'px-2')}
+          className={cn('button px-2')}
           disabled={
             sendDisabled ||
-            subscription === 'reconnecting' ||
-            subscription === 'disconnected' ||
             mostRecentFile?.status === 'loading' ||
             mostRecentFile?.status === 'error' ||
+            mostRecentFile?.url === '' ||
             (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
           }
           onMouseDown={(e) => {
             e.preventDefault();
             onClick();
           }}
+          aria-label="Send message"
         >
-          {isMobile ? <ArrowNWIcon16 className="h-4 w-4" /> : 'Send'}
+          <ArrowNWIcon16 className="h-4 w-4" />
         </button>
       </div>
       {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}

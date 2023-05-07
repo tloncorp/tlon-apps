@@ -1,4 +1,5 @@
 import { BaitCite } from '@/types/chat';
+import { GroupsInit } from '@/types/ui';
 import {
   Gangs,
   Group,
@@ -25,7 +26,7 @@ export interface GroupState {
   };
   fetchShoal: (b: BaitCite['bait']) => Promise<string | null>;
   gangs: Gangs;
-  initialize: (flag: string) => Promise<number>;
+  initialize: (flag: string, getMembers?: boolean) => Promise<number>;
   delRole: (flag: string, sect: string) => Promise<void>;
   banShips: (flag: string, ships: string[]) => Promise<void>;
   unbanShips: (flag: string, ships: string[]) => Promise<void>;
@@ -55,7 +56,7 @@ export interface GroupState {
   edit: (flag: string, metadata: GroupMeta) => Promise<void>;
   delete: (flag: string) => Promise<void>;
   updateGroups: () => Promise<void>;
-  start: () => Promise<void>;
+  start: (init: Pick<GroupsInit, 'groups' | 'gangs'>) => Promise<void>;
   channelPreview: (nest: string) => Promise<void>;
   search: (flag: string) => Promise<void>;
   index: (ship: string) => Promise<GroupIndex>;

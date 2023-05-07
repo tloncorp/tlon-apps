@@ -24,7 +24,7 @@ type MessagesListProps = PropsWithChildren<{
 
 function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
   return (
-    <div className="pl-2 pb-3 sm:pb-1">
+    <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
     </div>
   );
@@ -89,6 +89,10 @@ export default function MessagesList({
           return false;
         }
 
+        if (isGroupBrief(b) && !group) {
+          return false;
+        }
+
         return true; // is all
       }),
     [allPending, briefs, chats, filter, groups, pinned, sortMessages]
@@ -101,7 +105,7 @@ export default function MessagesList({
         {allPending &&
           filter !== filters.groups &&
           allPending.map((whom) => (
-            <div className="pl-2 pb-3 sm:pb-1">
+            <div key={whom} className="px-4 sm:px-2">
               <MessagesSidebarItem pending key={whom} whom={whom} />
             </div>
           ))}

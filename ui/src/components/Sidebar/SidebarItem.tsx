@@ -3,7 +3,6 @@ import { mix } from 'color2k';
 import React, {
   ButtonHTMLAttributes,
   PropsWithChildren,
-  ReactHTML,
   useState,
 } from 'react';
 import { Link, LinkProps, useMatch } from 'react-router-dom';
@@ -21,8 +20,8 @@ type SidebarProps = PropsWithChildren<{
   // the link's 'to' attribute
   inexact?: boolean;
   color?: string;
-  div?: boolean;
   highlight?: string;
+  transparent?: boolean;
 }> &
   ButtonHTMLAttributes<HTMLButtonElement> &
   Omit<LinkProps, 'to'>;
@@ -43,19 +42,19 @@ function Action({
   return <button {...rest}>{children}</button>;
 }
 
-const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
+const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
   (
     {
       icon,
       to,
-      color = 'text-gray-600',
+      color = 'text-gray-800 sm:text-gray-600',
       highlight = 'bg-gray-50',
       actions,
       className,
       children,
       inexact = false,
-      div = false,
       defaultRoute = false,
+      transparent = false,
       ...rest
     },
     ref
@@ -67,7 +66,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
     );
     const active = !!matches;
     const isMobile = useIsMobile();
-    const Wrapper: keyof ReactHTML = div ? 'div' : 'li';
+    const Wrapper = 'div';
     const currentTheme = useCurrentTheme();
 
     const hasHoverColor = () => {
@@ -114,16 +113,20 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
         }}
         style={
           {
-            ...(hasHoverColor() && hover && !active
+            ...(hasHoverColor() && hover && !active && !transparent
               ? customHoverHiglightStyles()
               : null),
-            ...(hasHoverColor() && active
+            ...(hasHoverColor() && active && !transparent
               ? customActiveHiglightStyles()
+              : null),
+            ...((transparent === true && hover) ||
+            (transparent === true && active)
+              ? { backgroundColor: 'transparent' }
               : null),
           } as React.CSSProperties
         }
         className={cn(
-          'group relative flex w-full items-center justify-between rounded-lg text-lg font-semibold sm:text-base',
+          'group relative my-0.5 flex w-full items-center justify-between rounded-lg',
           color,
           !hasHoverColor() && !active ? `hover:${highlight}` : null,
           !hasHoverColor() && active && to !== '/' ? 'bg-gray-100' : null
@@ -132,7 +135,7 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
         <Action
           to={to}
           className={cn(
-            'default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 font-semibold',
+            'default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2',
             className
           )}
           {...rest}
@@ -141,16 +144,17 @@ const SidebarItem = React.forwardRef<HTMLLIElement, SidebarProps>(
           <div
             title={typeof children === 'string' ? children : undefined}
             className={cn(
-              'max-w-full flex-1 text-left',
+              'max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold ',
               isMobile ? 'line-clamp-1' : 'truncate',
-              actions && 'pr-4'
+              actions && 'pr-4',
+              !color ? 'text-gray-800 sm:text-gray-600' : color
             )}
           >
             {children}
           </div>
         </Action>
         {actions ? (
-          <div className={cn('absolute right-0')}>{actions}</div>
+          <div className={cn('absolute right-2 sm:right-1')}>{actions}</div>
         ) : null}
       </Wrapper>
     );

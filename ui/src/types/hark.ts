@@ -91,3 +91,11 @@ export interface HarkUpdate {
   seam: Seam;
   threads: Threads;
 }
+
+export interface Skein {
+  time: number;
+  count: number;
+  shipCount: number;
+  top: Yarn;
+  unread: boolean;
+}

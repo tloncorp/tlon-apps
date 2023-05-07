@@ -15,6 +15,8 @@ interface LocalState {
   subscription: SubscriptionStatus;
   errorCount: number;
   airLockErrorCount: number;
+  lastReconnect: number;
+  onReconnect: (() => void) | null;
   set: (f: (s: LocalState) => void) => void;
 }
 
@@ -27,6 +29,8 @@ export const useLocalState = create<LocalState>(
       subscription: 'connected',
       errorCount: 0,
       airLockErrorCount: 0,
+      lastReconnect: 0,
+      onReconnect: null,
     }),
     {
       name: createStorageKey('local'),
@@ -53,17 +57,16 @@ export function useCurrentTheme() {
 export const setLocalState = (f: (s: LocalState) => void) =>
   useLocalState.getState().set(f);
 
-const selSubscription = (s: LocalState) => s.subscription;
+const selSubscriptionStatus = (s: LocalState) => ({
+  subscription: s.subscription,
+  errorCount: s.errorCount,
+  airLockErrorCount: s.airLockErrorCount,
+});
 export function useSubscriptionStatus() {
-  return useLocalState(selSubscription);
+  return useLocalState(selSubscriptionStatus);
 }
 
-const selErrorCount = (s: LocalState) => s.errorCount;
-export function useErrorCount() {
-  return useLocalState(selErrorCount);
-}
-
-const selAirLockErrorCount = (s: LocalState) => s.airLockErrorCount;
-export function useAirLockErrorCount() {
-  return useLocalState(selAirLockErrorCount);
+const selLast = (s: LocalState) => s.lastReconnect;
+export function useLastReconnect() {
+  return useLocalState(selLast);
 }

@@ -18,7 +18,7 @@ import {
   ClearIndicatorProps,
   InputActionMeta,
 } from 'react-select';
-import { includes } from 'lodash';
+import _, { includes } from 'lodash';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
 import { deSig } from '@urbit/api';
@@ -31,7 +31,6 @@ import { MAX_DISPLAYED_OPTIONS } from '@/constants';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
-import _ from 'lodash';
 import ShipName from './ShipName';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';
 
@@ -289,7 +288,7 @@ export default function ShipSelector({
   const contactNames = Object.keys(contacts);
   const contactOptions = contactNames.map((contact) => ({
     value: contact,
-    label: contacts[contact].nickname,
+    label: contacts[contact]?.nickname || '',
   }));
   const validShips = ships
     ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
@@ -328,7 +327,7 @@ export default function ShipSelector({
     // fuzzy search both nicknames and patps; fuzzy#filter only supports
     // string comparision, so concat nickname + patp
     const searchSpace = Object.entries(contacts).map(
-      ([patp, contact]) => `${contact.nickname}${patp}`
+      ([patp, contact]) => `${contact?.nickname || ''}${patp}`
     );
 
     const fuzzyNames = fuzzy
@@ -348,7 +347,7 @@ export default function ShipSelector({
 
     return fuzzyNames.map((contact) => ({
       value: contact,
-      label: contacts[contact].nickname,
+      label: contacts[contact]?.nickname || '',
     }));
   }, [contactNames, contactOptions, contacts, inputValue]);
 
@@ -395,7 +394,7 @@ export default function ShipSelector({
 
         if (parts.every((s) => isValidNewOption(preSig(s)))) {
           const options: ShipOption[] = parts.map((p) => ({
-            value: p,
+            value: preSig(p),
             label: contacts[p]?.nickname || p,
           }));
           const newShips = _.uniqBy([...ships, ...options], 'value');
@@ -422,9 +421,9 @@ export default function ShipSelector({
         actionMeta.action
       )
     ) {
-      const validPatps = newValue.filter((o) =>
-        isValidNewOption(preSig(o.value))
-      );
+      const validPatps = newValue
+        .map((v) => ({ ...v, value: preSig(v.value) }))
+        .filter((o) => isValidNewOption(o.value));
       setShips(validPatps);
     }
   };
@@ -439,9 +438,10 @@ export default function ShipSelector({
       ) &&
       newValue !== null
     ) {
-      const validPatp = isValidNewOption(preSig(newValue.value));
+      const normValue = { ...newValue, value: preSig(newValue.value) };
+      const validPatp = isValidNewOption(normValue.value);
       if (validPatp) {
-        setShips([newValue]);
+        setShips([normValue]);
       }
     }
   };

@@ -57,6 +57,19 @@
         thread/(thread t)
     ==
   ::
+  ++  skeins
+    |=  sks=(list skein:h)
+    ^-  json
+    :-  %a
+    %+  turn  sks
+    |=  =skein:h
+    %-  pairs
+    :~  time/(time time.skein)
+        count/(numb count.skein)
+        ship-count/(numb ship-count.skein)
+        top/(yarn top.skein)
+        unread/b/unread.skein
+    ==
   ++  id
     |=  i=id:h
     ^-  json

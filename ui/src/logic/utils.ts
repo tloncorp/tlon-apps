@@ -1,13 +1,21 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
-import { BigInteger } from 'big-integer';
-import { unixToDa } from '@urbit/api';
+import bigInt, { BigInteger } from 'big-integer';
+import {
+  BigIntOrderedMap,
+  Docket,
+  DocketHref,
+  Treaty,
+  unixToDa,
+} from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
-import { parseToRgba } from 'color2k';
+import emojiRegex from 'emoji-regex';
+import { hsla, parseToHsla, parseToRgba } from 'color2k';
+import { useCopyToClipboard } from 'usehooks-ts';
 import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
@@ -166,7 +174,7 @@ export function pluralize(word: string, count: number): string {
 }
 
 export function createStorageKey(name: string): string {
-  return `~${window.ship}/${window.desk}/${name}`;
+  return `~${window.ship}/landscape/${name}`;
 }
 
 // for purging storage with version updates
@@ -390,6 +398,19 @@ export function isChannelJoined(
   return isChannelHost || (nest && nest in briefs);
 }
 
+export function isGroupHost(flag: string) {
+  const { ship } = getFlagParts(flag);
+  return ship === window.our;
+}
+
+export function getChannelHosts(group: Group): string[] {
+  return Object.keys(group.channels).map((c) => {
+    const [, chFlag] = nestToFlag(c);
+    const { ship } = getFlagParts(chFlag);
+    return ship;
+  });
+}
+
 export function canReadChannel(
   channel: GroupChannel,
   vessel: Vessel,
@@ -494,43 +515,16 @@ export function pathToCite(path: string): Cite | undefined {
   return undefined;
 }
 
-export function writeText(str: string | null): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const range = document.createRange();
-    range.selectNodeContents(document.body);
-    document?.getSelection()?.addRange(range);
-
-    let success = false;
-    function listener(e: any) {
-      e.clipboardData.setData('text/plain', str);
-      e.preventDefault();
-      success = true;
-    }
-    document.addEventListener('copy', listener);
-    document.execCommand('copy');
-    document.removeEventListener('copy', listener);
-
-    document?.getSelection()?.removeAllRanges();
-
-    if (success) {
-      resolve();
-    } else {
-      reject();
-    }
-  }).catch((error) => {
-    console.error(error);
-  });
-}
-
 export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
+  const [, copy] = useCopyToClipboard();
   const doCopy = useCallback(() => {
-    writeText(copied);
+    copy(copied);
     setDidCopy(true);
     setTimeout(() => {
       setDidCopy(false);
     }, 2000);
-  }, [copied]);
+  }, [copied, copy]);
 
   return { doCopy, didCopy };
 }
@@ -549,4 +543,109 @@ export function isChannelImported(
   return (
     !isImport || (isImport && pending[nest]) || window.our === getNestShip(nest)
   );
+}
+
+export function prettyChannelTypeName(app: string) {
+  switch (app) {
+    case 'chat':
+      return 'Chat';
+    case 'heap':
+      return 'Collection';
+    case 'diary':
+      return 'Notebook';
+    default:
+      return 'Unknown';
+  }
+}
+
+export async function asyncWithDefault<T>(
+  cb: () => Promise<T>,
+  def: T
+): Promise<T> {
+  try {
+    return await cb();
+  } catch (error) {
+    return def;
+  }
+}
+
+export async function asyncWithFallback<T>(
+  cb: () => Promise<T>,
+  def: (error: any) => Promise<T>
+): Promise<T> {
+  try {
+    return await cb();
+  } catch (error) {
+    return def(error);
+  }
+}
+
+export function getDarkColor(color: string): string {
+  const hslaColor = parseToHsla(color);
+  return hsla(hslaColor[0], hslaColor[1], 1 - hslaColor[2], 1);
+}
+export function getAppHref(href: DocketHref) {
+  return 'site' in href ? href.site : `/apps/${href.glob.base}/`;
+}
+
+export function disableDefault<T extends Event>(e: T): void {
+  e.preventDefault();
+}
+
+export function handleDropdownLink(
+  setOpen?: (open: boolean) => void
+): (e: Event) => void {
+  return (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setTimeout(() => setOpen?.(false), 15);
+  };
+}
+
+export function getAppName(
+  app: (Docket & { desk: string }) | Treaty | undefined
+): string {
+  if (!app) {
+    return '';
+  }
+
+  return app.title || app.desk;
+}
+
+export function isSingleEmoji(input: string): boolean {
+  const regex = emojiRegex();
+  const matches = input.match(regex);
+
+  return (
+    (matches &&
+      matches.length === 1 &&
+      matches.length === _.split(input, '').length) ??
+    false
+  );
+}
+
+export function initializeMap<T>(items: Record<string, T>) {
+  let map = new BigIntOrderedMap<T>();
+  Object.entries(items).forEach(([k, v]) => {
+    map = map.set(bigInt(k), v as T);
+  });
+
+  return map;
+}
+
+export function restoreMap<T>(obj: any): BigIntOrderedMap<T> {
+  const empty = new BigIntOrderedMap<T>();
+  if (!obj) {
+    return empty;
+  }
+
+  if ('has' in obj) {
+    return obj;
+  }
+
+  if ('root' in obj) {
+    return initializeMap(obj.root);
+  }
+
+  return empty;
 }

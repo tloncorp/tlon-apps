@@ -10,10 +10,11 @@ import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';
 import { useContact } from '@/state/contact';
-import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import DMHero from '@/dms/DMHero';
 import useMessageSelector from '@/logic/useMessageSelector';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MessageSelector from './MessageSelector';
 
 function BackLink({
@@ -33,6 +34,7 @@ function BackLink({
 }
 
 export default function Dm() {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const ship = useParams<{ ship: string }>().ship!;
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
@@ -42,8 +44,13 @@ export default function Dm() {
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
 
-  const { isSelectingMessage, sendDm: sendDmFromMessageSelector } =
-    useMessageSelector();
+  const {
+    isSelectingMessage,
+    sendDm: sendDmFromMessageSelector,
+    existingDm,
+  } = useMessageSelector();
+
+  const isSelecting = isSelectingMessage && existingDm === ship;
 
   useEffect(() => {
     if (ship && canStart) {
@@ -59,47 +66,49 @@ export default function Dm() {
       <Layout
         className="h-full grow"
         header={
-          isSelectingMessage ? (
+          isSelecting ? (
             <MessageSelector />
           ) : (
-            <div className="flex h-full items-center justify-between border-b-2 border-gray-50 p-2">
+            <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4">
               <BackLink mobile={isMobile}>
                 <BackButton
                   to="/"
                   className={cn(
-                    'cursor-pointer select-none p-2 sm:cursor-text sm:select-text',
-                    isMobile &&
-                      '-ml-2 flex items-center rounded-lg hover:bg-gray-50'
+                    'default-focus ellipsis inline-flex appearance-none items-center pr-2 text-lg font-bold text-gray-800 sm:text-base sm:font-semibold'
                   )}
                   aria-label={isMobile ? 'Open Messages Menu' : undefined}
                 >
                   {isMobile ? (
-                    <CaretLeftIcon className="mr-1 h-5 w-5 text-gray-500" />
+                    <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
                   ) : null}
-                  <div className="flex items-center space-x-3">
-                    <Avatar size="small" ship={ship} />
-                    <div className="flex flex-col items-start">
-                      {contact?.nickname ? (
-                        <>
-                          <span className="font-semibold">
-                            {contact.nickname}
-                          </span>
-                          <span className="text-gray-600">{ship}</span>
-                        </>
-                      ) : (
-                        <span className="font-semibold">{ship}</span>
-                      )}
-                    </div>
+                  <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 text-center">
+                    <Avatar size="xs" ship={ship} />
                   </div>
+                  <span className="ellipsis text-gray-200 line-clamp-1">
+                    {contact?.nickname ? (
+                      <>
+                        <span className="text-gray-800">
+                          {contact.nickname}
+                        </span>
+                        <span className="ml-2 text-gray-400">{ship}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-800">{ship}</span>
+                    )}
+                  </span>
                 </BackButton>
               </BackLink>
-              {canStart ? (
-                <DmOptions
-                  whom={ship}
-                  pending={!isAccepted}
-                  alwaysShowEllipsis
-                />
-              ) : null}
+              <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+                {isMobile && <ReconnectingSpinner />}
+                {canStart ? (
+                  <DmOptions
+                    whom={ship}
+                    pending={!isAccepted}
+                    alwaysShowEllipsis
+                    className="text-gray-400"
+                  />
+                ) : null}
+              </div>
             </div>
           )
         }
@@ -107,12 +116,13 @@ export default function Dm() {
           isAccepted ? (
             <div className="border-t-2 border-gray-50 p-4">
               <ChatInput
+                key={ship}
                 whom={ship}
                 sendMessage={
-                  isSelectingMessage ? sendDmFromMessageSelector : sendMessage
+                  isSelecting ? sendDmFromMessageSelector : sendMessage
                 }
                 showReply
-                autoFocus={!isSelectingMessage}
+                autoFocus={!isSelecting}
               />
             </div>
           ) : null

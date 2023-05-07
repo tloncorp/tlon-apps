@@ -1,18 +1,22 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { GroupChannel, ChannelFormSchema } from '@/types/groups';
 import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
-import { useGroupState, useRouteGroup } from '@/state/groups';
-import { channelHref, getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
+import { useEditChannelMutation, useRouteGroup } from '@/state/groups';
+import {
+  channelHref,
+  getPrivacyFromChannel,
+  nestToFlag,
+  prettyChannelTypeName,
+} from '@/logic/utils';
 import { useChatState } from '@/state/chat';
-import ChannelPermsSelector from '@/groups/GroupAdmin/AdminChannels/ChannelPermsSelector';
-import ChannelJoinSelector from '@/groups/GroupAdmin/AdminChannels/ChannelJoinSelector';
+import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
+import ChannelJoinSelector from '@/groups/ChannelsList/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import useChannel from '@/logic/useChannel';
-import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 interface EditChannelFormProps {
@@ -32,12 +36,13 @@ export default function EditChannelForm({
   redirect = true,
   setEditIsOpen,
 }: EditChannelFormProps) {
-  const [editStatus, setEditStatus] = useState<Status>('initial');
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const [app, channelFlag] = nestToFlag(nest);
   const chan = useChannel(nest);
+  const { mutate: mutateEditChannel, status: editStatus } =
+    useEditChannelMutation();
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -58,7 +63,6 @@ export default function EditChannelForm({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
-      setEditStatus('loading');
       const { privacy, ...nextChannel } = values;
 
       if (privacy === 'secret') {
@@ -71,12 +75,8 @@ export default function EditChannelForm({
         nextChannel.zone = presetSection;
       }
       try {
-        await useGroupState
-          .getState()
-          .editChannel(groupFlag, nest, nextChannel);
-        setEditStatus('success');
+        mutateEditChannel({ flag: groupFlag, channel: nextChannel, nest });
       } catch (e) {
-        setEditStatus('error');
         console.log(e);
       }
 
@@ -88,9 +88,9 @@ export default function EditChannelForm({
           : useDiaryState.getState();
 
       if (privacy !== 'public') {
-        chState.addSects(channelFlag, ['admin']);
+        await chState.addSects(channelFlag, ['admin']);
       } else {
-        chState.delSects(channelFlag, ['admin']);
+        await chState.delSects(channelFlag, ['admin']);
       }
 
       if (retainRoute === true && setEditIsOpen) {
@@ -104,22 +104,28 @@ export default function EditChannelForm({
     [
       app,
       channelFlag,
-      groupFlag,
       nest,
+      groupFlag,
       dismiss,
       navigate,
       redirect,
       retainRoute,
       setEditIsOpen,
       presetSection,
+      mutateEditChannel,
     ]
   );
 
   return (
     <FormProvider {...form}>
       <div className="sm:w-96">
-        <header className="mb-3 flex items-center">
-          <h2 className="text-lg font-bold">Edit Chat Channel</h2>
+        <header className="mb-3 flex flex-col">
+          <h2 className="text-lg font-bold leading-6">
+            {prettyChannelTypeName(app)} Channel Details
+          </h2>
+          <p className="text-sm leading-5 text-gray-800">
+            Edit the channel's details
+          </p>
         </header>
       </div>
       <form className="flex flex-col" onSubmit={form.handleSubmit(onSubmit)}>

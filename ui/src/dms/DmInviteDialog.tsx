@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 import ob from 'urbit-ob';
-import Dialog, { DialogContent } from '../components/Dialog';
+import Dialog from '../components/Dialog';
 import { useChatState } from '../state/chat';
 import ShipSelector, { ShipOption } from '../components/ShipSelector';
 
@@ -39,36 +39,35 @@ export default function DmInviteDialog({
   }, [whom, validShips, ships, setInviteIsOpen]);
 
   return (
-    <Dialog open={inviteIsOpen} onOpenChange={setInviteIsOpen}>
-      <DialogContent containerClass="w-full sm:max-w-lg" showClose>
-        <div>
-          <div className="flex flex-col">
-            <h2 className="mb-4 text-lg font-bold">Invite to Chat</h2>
-            <div className="w-full py-3 px-4">
-              <ShipSelector
-                ships={ships}
-                setShips={setShips}
-                onEnter={onEnter}
-              />
-            </div>
-          </div>
-          <div className="flex justify-end space-x-2">
-            <button
-              className="secondary-button"
-              onClick={() => setInviteIsOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              disabled={!validShips}
-              className="button"
-              onClick={submitHandler}
-            >
-              Add
-            </button>
+    <Dialog
+      open={inviteIsOpen}
+      onOpenChange={setInviteIsOpen}
+      containerClass="w-full sm:max-w-xl"
+      className="mb-64 bg-transparent p-0"
+    >
+      <div className="card">
+        <div className="flex flex-col">
+          <h2 className="mb-4 text-lg font-bold">Invite to Chat</h2>
+          <div className="w-full py-3 px-4">
+            <ShipSelector ships={ships} setShips={setShips} onEnter={onEnter} />
           </div>
         </div>
-      </DialogContent>
+        <div className="flex justify-end space-x-2">
+          <button
+            className="secondary-button"
+            onClick={() => setInviteIsOpen(false)}
+          >
+            Cancel
+          </button>
+          <button
+            disabled={!validShips}
+            className="button"
+            onClick={submitHandler}
+          >
+            Add
+          </button>
+        </div>
+      </div>
     </Dialog>
   );
 }

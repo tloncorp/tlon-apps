@@ -2,87 +2,49 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
-import { Contact, ContactEditField, uxToHex } from '@urbit/api';
 import { ViewProps } from '@/types/groups';
-import useContactState, {
-  useOurContact,
-  isOurContactPublic,
-} from '@/state/contact';
+import {
+  Contact,
+  ContactEditField,
+  ContactAddGroup,
+  ContactDelGroup,
+} from '@/types/contact';
+import useContactState, { useOurContact } from '@/state/contact';
 import { useGroups } from '@/state/groups';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import GroupSelector, { GroupOption } from '@/components/GroupSelector';
+import { getFlagParts } from '@/logic/utils';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
 
-interface ProfileFormSchema extends ContactEditField {
-  isContactPrivate: boolean;
+interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];
 }
 
-const emptyContact = {
-  nickname: '',
-  bio: '',
-  status: '',
-  color: '0x0',
-  avatar: null,
-  cover: null,
-  groups: [] as GroupOption[],
-  isContactPrivate: false,
-};
+const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
+  const fields = Object.entries(values as ProfileFormSchema)
+    .filter(
+      ([key, value]) =>
+        key !== 'groups' && value !== contact[key as keyof Contact]
+    )
+    .map(
+      ([key, value]) =>
+        ({
+          [key]: key !== 'color' ? value : value.replace('#', ''),
+        } as ContactEditField)
+    );
 
-const onFormSubmit = (
-  values: ProfileFormSchema,
-  contact: Contact | undefined,
-  ship: string
-) => {
-  if (!contact) {
-    return;
-  }
-
-  const resourceifyGroup = (group: string) => {
-    const groupFlag = group.replace('/ship/', '');
-    const groupResource = {
-      name: groupFlag.split('/')[1],
-      ship: groupFlag.split('/')[0] || '',
-    };
-    return groupResource;
-  };
-
-  Object.entries(values as ProfileFormSchema).forEach((formValue) => {
-    const [key, value] = formValue;
-    const newValue = key !== 'color' ? value : uxToHex(value.replace('#', ''));
-    if (value !== contact[key as keyof Contact]) {
-      if (key === 'isContactPrivate') {
-        // We're flipping the value here, Contact-store expects a checkbox called "Make Public" and Here we're using "Make Private"
-        useContactState.getState().setContactPublic(!newValue);
-      } else if (key === 'groups') {
-        const toRemove: string[] = _.difference(
-          contact?.groups || [],
-          values.groups.map((group) => `/ship/${group.value}`)
-        );
-        const toAdd: string[] = _.difference(
-          values.groups.map((group) => `/ship/${group.value}`),
-          contact?.groups || []
-        );
-        toRemove.forEach((i) => {
-          const group = resourceifyGroup(i);
-          useContactState
-            .getState()
-            .editContactField(ship, { 'remove-group': group });
-        });
-        toAdd.forEach((i) => {
-          const group = resourceifyGroup(i);
-          useContactState
-            .getState()
-            .editContactField(ship, { 'add-group': group });
-        });
-      } else {
-        useContactState.getState().editContactField(ship, { [key]: newValue });
-      }
-    }
-  });
+  const toRemove: ContactDelGroup[] = _.difference(
+    contact?.groups || [],
+    values.groups.map((group) => group.value)
+  ).map((v) => ({ 'del-group': v }));
+  const toAdd: ContactAddGroup[] = _.difference(
+    values.groups.map((group) => group.value),
+    contact?.groups || []
+  ).map((v) => ({ 'add-group': v }));
+  useContactState.getState().edit(fields.concat(toRemove, toAdd));
 };
 
 function EditProfileContent() {
@@ -91,7 +53,6 @@ function EditProfileContent() {
   const groupFlags = Object.keys(groupData);
   const ship = window.our;
   const contact = useOurContact();
-  const isPublic = isOurContactPublic();
 
   const objectifyGroups = useCallback(
     (groups: string[]) => {
@@ -110,10 +71,8 @@ function EditProfileContent() {
 
   const form = useForm<ProfileFormSchema>({
     defaultValues: {
-      ...emptyContact,
       ...contact,
       groups: objectifyGroups(contact?.groups || []),
-      isContactPrivate: !isPublic,
     },
   });
 
@@ -124,19 +83,17 @@ function EditProfileContent() {
 
   useEffect(() => {
     form.reset({
-      ...emptyContact,
       ...contact,
       groups: objectifyGroups(contact?.groups || []),
-      isContactPrivate: !isPublic,
     });
-  }, [form, contact, objectifyGroups, isPublic]);
+  }, [form, contact, objectifyGroups]);
 
   const onSubmit = useCallback(
     (values: ProfileFormSchema) => {
-      onFormSubmit(values, contact, ship);
+      onFormSubmit(values, contact);
       form.reset(values);
     },
-    [contact, ship, form]
+    [contact, form]
   );
 
   const uniqueGroupOptions = (groups: GroupOption[]) => {
@@ -170,7 +127,7 @@ function EditProfileContent() {
   );
 
   const avatarPreviewData = {
-    previewColor: form.watch('color') || emptyContact.color,
+    previewColor: form.watch('color') || contact.color,
     previewAvatar: form.watch('avatar') || '',
   };
 
@@ -201,55 +158,57 @@ function EditProfileContent() {
             </div>
           </div>
         </div>
-        <form
-          className="card mb-4 flex flex-col space-y-6"
-          onSubmit={form.handleSubmit(onSubmit)}
-        >
-          <ProfileFields />
-          <div className="flex flex-col space-y-2">
-            <label htmlFor="groups" className="font-bold">
-              Favorite Groups
-            </label>
-            <GroupSelector
-              autoFocus={false}
-              groups={allGroups}
-              onEnter={onEnter}
-              setGroups={setAllGroups}
-              isMulti={false}
-              isValidNewOption={(value) => groupFlags.includes(value)}
-            />
-            <div className="text-sm font-semibold text-gray-600">
-              Share your favorite groups on your profile
+        <div className="card">
+          <form
+            className="flex flex-col space-y-8"
+            onSubmit={form.handleSubmit(onSubmit)}
+          >
+            <ProfileFields />
+            <div className="flex flex-col space-y-2">
+              <label htmlFor="groups" className="font-bold">
+                Favorite Groups
+              </label>
+              <GroupSelector
+                autoFocus={false}
+                groups={allGroups}
+                onEnter={onEnter}
+                setGroups={setAllGroups}
+                isMulti={false}
+                isValidNewOption={(value) => groupFlags.includes(value)}
+              />
+              <div className="text-sm font-semibold text-gray-600">
+                Share your favorite groups on your profile
+              </div>
+              <div className="flex flex-wrap pt-2">
+                {form.watch('groups').map((group) => (
+                  <ProfileGroup
+                    key={group.value}
+                    groupFlag={group.value}
+                    onRemoveGroupClick={onRemoveGroupClick}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap pt-2">
-              {form.watch('groups').map((group) => (
-                <ProfileGroup
-                  key={group.value}
-                  groupFlag={group.value}
-                  onRemoveGroupClick={onRemoveGroupClick}
-                />
-              ))}
-            </div>
-          </div>
 
-          <footer className="flex items-center justify-end space-x-2">
-            <button
-              type="button"
-              className="secondary-button"
-              disabled={!form.formState.isDirty}
-              onClick={() => form.reset()}
-            >
-              Reset
-            </button>
-            <button
-              type="submit"
-              className="button"
-              disabled={!form.formState.isDirty}
-            >
-              Save
-            </button>
-          </footer>
-        </form>
+            <footer className="flex items-center justify-end space-x-2">
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={!form.formState.isDirty}
+                onClick={() => form.reset()}
+              >
+                Reset
+              </button>
+              <button
+                type="submit"
+                className="button"
+                disabled={!form.formState.isDirty}
+              >
+                Save
+              </button>
+            </footer>
+          </form>
+        </div>
       </FormProvider>
     </div>
   );
@@ -261,7 +220,7 @@ export default function EditProfile({ title }: ViewProps) {
       <Helmet>
         <title>{title}</title>
       </Helmet>
-      <div className="m-4 w-full sm:my-5 sm:mx-8">
+      <div className="w-full p-6">
         <EditProfileContent />
       </div>
     </div>

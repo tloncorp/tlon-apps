@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import cn from 'classnames';
 import ob from 'urbit-ob';
+import { useLocation } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import useAppName from '@/logic/useAppName';
 import GroupReference from '@/components/References/GroupReference';
 import { useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { setCalmSetting } from '@/state/settings';
+import { useCalmSettingMutation } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
-import Dialog, { DialogContent } from './Dialog';
+import { isTalk } from '@/logic/utils';
+import Dialog from './Dialog';
 
 function GroupsDescription() {
   const location = window.location.pathname;
@@ -18,12 +20,12 @@ function GroupsDescription() {
     <div className="flex flex-col leading-5">
       <h1 className="my-8 text-2xl font-bold">Where am I?</h1>
       <p>
-        Tlon Corporation's "Groups" app, a multi-channel communications
-        platform.
+        Tlon Corporation&rsquo;s &ldquo;Groups&rdquo; app, a multi-channel
+        communications platform.
       </p>
       {groupFlagInLocation && (
         <p className="mt-4">
-          You're currently within a group, which might have a variety of
+          You&rsquo;re currently within a group, which might have a variety of
           channels.
         </p>
       )}
@@ -63,14 +65,14 @@ function TalkDescription() {
     <div className="flex flex-col leading-5">
       <h1 className="my-8 text-2xl font-bold">Where am I?</h1>
       <p>
-        Tlon Corporation’s “Talk” app, a simple, powerful, and secure instant
-        messaging software for individuals or small groups of people.
+        Tlon Corporation&rsquo;s “Talk” app, a simple, powerful, and secure
+        instant messaging software for individuals or small groups of people.
       </p>
       <h1 className="my-8 text-2xl font-bold">What can I do here?</h1>
       <p>
-        Talk is simple: It works like any other messaging app you’ve ever used.
-        What makes it special is its directly person-to-person nature, no one
-        person or company can ever snoop the messages you send on Talk.
+        Talk is simple: It works like any other messaging app you&rsquo;ve ever
+        used. What makes it special is its directly person-to-person nature, no
+        one person or company can ever snoop the messages you send on Talk.
       </p>
       <p className="mt-4 mb-8">
         In addition to the experience you expect, Talk can also aggregate group
@@ -86,17 +88,27 @@ export default function LandscapeWayfinding() {
   const app = useAppName();
   const gang = useGang('~nibset-napwyn/tlon');
   const { open } = useGroupJoin('~nibset-napwyn/tlon', gang);
+  const location = useLocation();
+  const { mutate } = useCalmSettingMutation('disableWayfinding');
 
   const handleHide = () => {
-    setCalmSetting('disableWayfinding', true);
+    mutate(true);
   };
+
+  // Don't show the wayfinding button in DMs or Channels pages on mobile
+  if (
+    (isMobile && location.pathname.includes('dm')) ||
+    location.pathname.includes('channels/')
+  ) {
+    return null;
+  }
 
   return (
     <Dropdown.Root>
       <div
-        className={cn('absolute left-5 z-50', {
-          'bottom-10': !isMobile,
-          'bottom-20': isMobile,
+        className={cn('fixed left-5 z-45', {
+          'bottom-10': !isMobile || (isTalk && isMobile),
+          'bottom-20': isMobile && !isTalk,
         })}
       >
         <Dropdown.Trigger className="relative" asChild>
@@ -142,11 +154,14 @@ export default function LandscapeWayfinding() {
           </Dropdown.Item>
         </Dropdown.Content>
       </div>
-      <Dialog open={showModal} onOpenChange={() => setShowModal(false)}>
-        <DialogContent showClose={false}>
-          {app === 'Groups' && <GroupsDescription />}
-          {app === 'Talk' && <TalkDescription />}
-        </DialogContent>
+      <Dialog
+        open={showModal}
+        onOpenChange={(o) => setShowModal(o)}
+        containerClass="md:w-1/2 w-full z-50"
+        close="none"
+      >
+        {app === 'Groups' && <GroupsDescription />}
+        {app === 'Talk' && <TalkDescription />}
       </Dialog>
     </Dropdown.Root>
   );

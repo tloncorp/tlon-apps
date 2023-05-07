@@ -1,5 +1,6 @@
 import React from 'react';
 import { findLastIndex } from 'lodash';
+import cn from 'classnames';
 import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
 import {
   isBlockquote,
@@ -19,19 +20,26 @@ import ContentReference from '@/components/References/ContentReference';
 import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
+import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
+import { isSingleEmoji } from '@/logic/utils';
 
 interface ChatContentProps {
   story: ChatStory;
   isScrolling?: boolean;
+  className?: string;
+  writId?: string;
 }
 
 interface InlineContentProps {
   story: Inline;
+  writId?: string;
 }
 
 interface BlockContentProps {
   story: ChatBlock;
   isScrolling: boolean;
+  writId: string;
+  blockIndex: number;
 }
 
 interface ShipMentionProps {
@@ -52,8 +60,14 @@ function ShipMention({ ship }: ShipMentionProps) {
   );
 }
 
-export function InlineContent({ story }: InlineContentProps) {
+export function InlineContent({
+  story,
+  writId = 'not-writ',
+}: InlineContentProps) {
   if (typeof story === 'string') {
+    if (isSingleEmoji(story)) {
+      return <span className="text-[32px]">{story}</span>;
+    }
     return <span>{story}</span>;
   }
 
@@ -88,15 +102,12 @@ export function InlineContent({ story }: InlineContentProps) {
   }
 
   if (isLink(story)) {
-    const containsProtocol = story.link.href.match(/https?:\/\//);
     return (
-      <a
-        target="_blank"
-        rel="noreferrer"
-        href={containsProtocol ? story.link.href : `//${story.link.href}`}
-      >
-        {story.link.content || story.link.href}
-      </a>
+      <ChatEmbedContent
+        writId={writId}
+        url={story.link.href}
+        content={story.link.content}
+      />
     );
   }
 
@@ -143,7 +154,12 @@ export function InlineContent({ story }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export function BlockContent({ story, isScrolling }: BlockContentProps) {
+export function BlockContent({
+  story,
+  isScrolling,
+  writId,
+  blockIndex,
+}: BlockContentProps) {
   if (isChatImage(story)) {
     return (
       <ChatContentImage
@@ -151,6 +167,8 @@ export function BlockContent({ story, isScrolling }: BlockContentProps) {
         height={story.image.height}
         width={story.image.width}
         altText={story.image.alt}
+        writId={writId}
+        blockIndex={blockIndex}
       />
     );
   }
@@ -161,27 +179,44 @@ export function BlockContent({ story, isScrolling }: BlockContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export default function ChatContent({
+function ChatContent({
   story,
   isScrolling = false,
+  className = '',
+  writId = 'not-writ',
 }: ChatContentProps) {
   const inlineLength = story.inline.length;
   const blockLength = story.block.length;
   const firstBlockCode = story.inline.findIndex(isBlockCode);
   const lastBlockCode = findLastIndex(story.inline, isBlockCode);
+  const blockContent = story.block.sort((a, b) => {
+    // Sort images to the end
+    if (isChatImage(a) && !isChatImage(b)) {
+      return 1;
+    }
+    if (!isChatImage(a) && isChatImage(b)) {
+      return -1;
+    }
+    return 0;
+  });
 
   return (
-    <div className="leading-6">
+    <div className={cn('leading-6', className)}>
       {blockLength > 0 ? (
         <>
-          {story.block
+          {blockContent
             .filter((a) => !!a)
             .map((storyItem, index) => (
               <div
                 key={`${storyItem.toString()}-${index}`}
                 className="flex flex-col"
               >
-                <BlockContent story={storyItem} isScrolling={isScrolling} />
+                <BlockContent
+                  story={storyItem}
+                  isScrolling={isScrolling}
+                  writId={writId}
+                  blockIndex={index}
+                />
               </div>
             ))}
         </>
@@ -235,6 +270,7 @@ export default function ChatContent({
               <InlineContent
                 key={`${storyItem.toString()}-${index}`}
                 story={storyItem}
+                writId={writId}
               />
             );
           })}
@@ -243,3 +279,5 @@ export default function ChatContent({
     </div>
   );
 }
+
+export default React.memo(ChatContent);

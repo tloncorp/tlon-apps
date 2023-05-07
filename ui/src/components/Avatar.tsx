@@ -11,7 +11,7 @@ import { normalizeUrbitColor, isValidUrl } from '@/logic/utils';
 import { useContact } from '@/state/contact';
 import { useAvatar } from '@/state/avatar';
 
-export type AvatarSizes = 'xs' | 'small' | 'default' | 'huge';
+export type AvatarSizes = 'xxs' | 'xs' | 'small' | 'default' | 'huge';
 
 interface AvatarProps {
   ship: string;
@@ -32,6 +32,7 @@ interface AvatarMeta {
 }
 
 const sizeMap: Record<AvatarSizes, AvatarMeta> = {
+  xxs: { classes: 'h-4 w-4', size: 10 },
   xs: { classes: 'w-6 h-6 rounded', size: 12 },
   small: { classes: 'w-8 h-8 rounded', size: 16 },
   default: { classes: 'w-12 h-12 rounded-lg', size: 24 },
