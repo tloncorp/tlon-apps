@@ -28,6 +28,7 @@ import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
+import { getFlagParts } from '@/logic/utils';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -954,6 +955,13 @@ export function useGroupIndex(ship: string) {
     groupIndex: data as GroupIndex,
     ...rest,
   };
+}
+
+export function useGroupPreviewFromIndex(flag: string) {
+  const { ship } = getFlagParts(flag);
+  const { groupIndex } = useGroupIndex(ship);
+
+  return groupIndex?.[flag];
 }
 
 export function useGroupBanShipsMutation() {
