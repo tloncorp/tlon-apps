@@ -102,19 +102,24 @@ export const initializePushNotifications = async () => {
 };
 
 export const pokeNotify = async (token: string) => {
-  const api = useStore.getState().api;
-  await api?.poke({
-    app: 'notify',
-    mark: 'notify-client-action',
-    json: {
-      'connect-provider-with-binding': {
-        who: NOTIFY_PROVIDER,
-        service: NOTIFY_SERVICE,
-        address: token,
-        binding: Platform.OS === 'android' ? 'fcm' : 'apn',
+  const { api } = useStore.getState();
+  if (api) {
+    const result = await api.poke({
+      app: 'notify',
+      mark: 'notify-client-action',
+      json: {
+        'connect-provider-with-binding': {
+          who: NOTIFY_PROVIDER,
+          service: NOTIFY_SERVICE,
+          address: token,
+          binding: Platform.OS === 'android' ? 'fcm' : 'apn',
+        },
       },
-    },
-  });
+    });
+    console.debug('Connected notify client provider with result:', result);
+  } else {
+    console.error('Error connecting notify client provider: no api found');
+  }
 };
 
 export const handleNotification = async (
