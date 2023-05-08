@@ -45,6 +45,7 @@ export default function GroupRoles({ title }: { title: string }) {
   const [roleTitle, setRoleTitle] = useState('');
   const [editingRoleTitle, setEditingRoleTitle] = useState(false);
   const [description, setDescription] = useState('');
+  const [editingDescription, setEditingDescription] = useState(false);
   const [deleteField, setDeleteField] = useState('');
   const { mutate, status } = useGroupEditRoleMutation();
   const flag = useRouteGroup();
@@ -129,6 +130,15 @@ export default function GroupRoles({ title }: { title: string }) {
     [setRoleTitle]
   );
 
+  const onDescriptionChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setEditingDescription(true);
+      const { value } = event.target;
+      setDescription(value);
+    },
+    [setDescription]
+  );
+
   const onDeleteChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const { value } = event.target;
@@ -169,7 +179,7 @@ export default function GroupRoles({ title }: { title: string }) {
   }, [results, search, calculateTotalHeight]);
 
   useEffect(() => {
-    if (!editingRoleTitle) {
+    if (!editingRoleTitle && !editingDescription) {
       if (editRole) {
         setRoleTitle(group?.cabals[editRole].meta.title || '');
         setDescription(group?.cabals[editRole].meta.description || '');
@@ -179,7 +189,7 @@ export default function GroupRoles({ title }: { title: string }) {
         setDeleteField('');
       }
     }
-  }, [editRole, group, editingRoleTitle]);
+  }, [editRole, group, editingRoleTitle, editingDescription]);
 
   return (
     <>
@@ -253,7 +263,7 @@ export default function GroupRoles({ title }: { title: string }) {
                   <textarea
                     className="input"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={onDescriptionChange}
                   />
                 </div>
                 <div className="flex flex-row justify-end space-x-2">
