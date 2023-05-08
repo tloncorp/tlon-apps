@@ -46,7 +46,8 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const modalNavigate = useModalNavigate();
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
-  const { mutate: sectMutation, status: sectStatus } = useGroupSectMutation();
+  const { mutateAsync: sectMutation } = useGroupSectMutation();
+  const [sectLoading, setSectLoading] = useState('');
 
   const onViewProfile = (ship: string) => {
     modalNavigate(`/profile/${ship}`, {
@@ -84,13 +85,17 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       }
       if (inSect) {
         try {
-          sectMutation({ flag, ship, sects: [sect], operation: 'del' });
+          setSectLoading(sect);
+          await sectMutation({ flag, ship, sects: [sect], operation: 'del' });
+          setSectLoading('');
         } catch (e) {
           console.error(e);
         }
       } else {
         try {
-          sectMutation({ flag, ship, sects: [sect], operation: 'add' });
+          setSectLoading(sect);
+          await sectMutation({ flag, ship, sects: [sect], operation: 'add' });
+          setSectLoading('');
         } catch (e) {
           console.log(e);
         }
@@ -157,11 +162,11 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
                 onSelect={toggleSect(member, s, vessel)}
               >
                 {getSectTitle(group.cabals, s)}
-                {sectStatus === 'loading' ? (
+                {sectLoading === s ? (
                   <div className="mr-2 ml-auto flex h-4 w-4 items-center justify-center">
                     <LoadingSpinner className="h-4 w-4" />
                   </div>
-                ) : sectStatus === 'error' || isOwner ? (
+                ) : isOwner ? (
                   <div className="mr-2 ml-auto h-4 w-4">
                     <ExclamationPoint className="h-4 w-4 text-red" />
                   </div>
