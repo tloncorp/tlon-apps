@@ -134,6 +134,7 @@
     %+  frond  -.d
     ?-  -.d
       %add  (meta meta.d)
+      %edit  (meta meta.d)
       %del  ~
     ==
   ::
@@ -446,6 +447,7 @@
   ++  cabal-diff
     %-  of
     :~  add/meta
+        edit/meta
         del/ul
     ==
   ::

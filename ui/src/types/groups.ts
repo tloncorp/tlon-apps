@@ -112,6 +112,10 @@ interface CabalDiffAdd {
   add: GroupMeta;
 }
 
+interface CabalDiffEdit {
+  edit: GroupMeta;
+}
+
 interface CabalDiffDel {
   del: null;
 }
@@ -119,7 +123,7 @@ interface CabalDiffDel {
 interface CabalDiff {
   cabal: {
     sect: string;
-    diff: CabalDiffAdd | CabalDiffDel;
+    diff: CabalDiffAdd | CabalDiffEdit | CabalDiffDel;
   };
 }
 

@@ -1290,6 +1290,13 @@
       =.  cabals.group  (~(put by cabals.group) sect cabal)
       go-core
     ::
+        %edit
+      =.  cabals.group
+        %+  ~(jab by cabals.group)  sect
+        |=  cabal:g
+        +<(meta meta.diff)
+      go-core
+    ::
         %del
       =.  cabals.group  (~(del by cabals.group) sect)
       go-core

@@ -924,6 +924,26 @@ export function useGroupAddRoleMutation() {
   return useGroupMutation(mutationFn);
 }
 
+export function useGroupEditRoleMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    sect: string;
+    meta: GroupMeta;
+  }) => {
+    const diff = {
+      cabal: {
+        sect: variables.sect,
+        diff: {
+          edit: { ...variables.meta, image: '', cover: '' },
+        },
+      },
+    };
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
 export function useGroupDelRoleMutation() {
   const mutationFn = async (variables: { flag: string; sect: string }) => {
     const diff = {
