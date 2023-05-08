@@ -49,7 +49,7 @@ export default function GroupRoleDialog() {
         <div className="flex flex-col space-y-2">
           <label className="font-medium">Name</label>
           <input
-            className="rounded-md border border-gray-300 px-2 py-1"
+            className="input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             disabled={!!cabal}
@@ -58,7 +58,7 @@ export default function GroupRoleDialog() {
         <div className="flex flex-col space-y-2">
           <label className="font-medium">Description</label>
           <textarea
-            className="rounded-md border border-gray-300 px-2 py-1"
+            className="input"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
