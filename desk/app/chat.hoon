@@ -1028,7 +1028,9 @@
     ::
         %hive
       ?:  add.delta
-        ?:  (~(has in hive.crew.club) for.delta)
+        ?:  ?|  (~(has in hive.crew.club) for.delta)
+                (~(has in team.crew.club) for.delta)
+            ==
           cu-core
         =.  hive.crew.club   (~(put in hive.crew.club) for.delta)
         =^  new-uid  cu-core
