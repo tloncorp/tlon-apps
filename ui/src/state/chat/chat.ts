@@ -195,12 +195,11 @@ export const useChatState = createState<ChatState>(
         draft.pins = pins;
       });
 
-      Object.entries(briefs).forEach(([whom, brief]) => {
-        const isUnread = brief.count > 0 && brief['read-id'];
-        if (isUnread) {
-          useChatStore.getState().unread(whom, brief);
-        }
-      });
+      const unreadChats = Object.entries(briefs)
+        .filter(([, brief]) => brief.count > 0 && brief['read-id'])
+        .map(([whom, brief]) => ({ whom, brief }));
+
+      useChatStore.getState().batchUnread(unreadChats);
 
       api.subscribe(
         {
@@ -469,6 +468,7 @@ export const useChatState = createState<ChatState>(
         if (isNew) {
           set((draft) => ({
             ...draft,
+            dms: [...draft.dms, whom],
             pacts: {
               ...draft.pacts,
               [whom]: { index: {}, writs: new BigIntOrderedMap() },

@@ -25,7 +25,8 @@ export default function LureInviteBlock({
   group,
   className,
 }: LureInviteBlock) {
-  const { supported, fetched, enabled, url, toggle } = useLure(flag);
+  const { supported, fetched, enabled, enableAcked, url, toggle } =
+    useLure(flag);
   const { didCopy, doCopy } = useCopy(url);
 
   if (!supported) {
@@ -86,7 +87,7 @@ export default function LureInviteBlock({
           </label>
         </div>
       )}
-      {enabled ? (
+      {enabled && enableAcked ? (
         <div className="flex items-center space-x-2">
           <div className="relative max-w-md flex-1">
             {url === '' ? (
@@ -120,6 +121,12 @@ export default function LureInviteBlock({
           )}
         </div>
       ) : null}
+      {enabled && !enableAcked && (
+        <p className="leading-5 text-red">
+          The invite link service has not responded yet. Your ship might not be
+          able to communicate with it, or it might be offline.
+        </p>
+      )}
     </div>
   );
 }
