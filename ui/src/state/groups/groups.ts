@@ -210,27 +210,32 @@ export function useGangs() {
     },
   });
 
+  // this is a bit of a hack to get the group index data into the gangs
+  const groupIndexDataAsGangs: Gangs = useMemo(
+    () =>
+      (queryClient.getQueriesData(['group-index']) || []).reduce(
+        (acc, [_queryKey, indexData]) => {
+          if (indexData && typeof indexData === 'object') {
+            const newAcc = { ...acc };
+            Object.keys(indexData).forEach((key) => {
+              (newAcc as Gangs)[key] = {
+                preview: (indexData as GroupIndex)[key],
+                invite: null,
+                claim: null,
+              };
+            });
+            return newAcc;
+          }
+          return acc;
+        },
+        {}
+      ),
+    [queryClient]
+  );
+
   if (rest.isLoading || rest.isError) {
     return {} as Gangs;
   }
-
-  // this is a bit of a hack to get the group index data into the gangs
-  const groupIndexDataAsGangs: Gangs = (
-    queryClient.getQueriesData(['group-index']) || []
-  ).reduce((acc, [_queryKey, indexData]) => {
-    if (indexData && typeof indexData === 'object') {
-      const newAcc = { ...acc };
-      Object.keys(indexData).forEach((key) => {
-        (newAcc as Gangs)[key] = {
-          preview: (indexData as GroupIndex)[key],
-          invite: null,
-          claim: null,
-        };
-      });
-      return newAcc;
-    }
-    return acc;
-  }, {});
 
   return {
     ...groupIndexDataAsGangs,
