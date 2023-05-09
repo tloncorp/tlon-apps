@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { HarkAction, Rope } from '../types/hark';
+import type { HarkAction, Rope, Yarn } from '../types/hark';
 import useSubscriptionState from './subscription';
 import useStore from './store';
 
 export interface HarkState {
-  /** start: fetches app-wide notifications and subscribes to updates */
+  fetchYarn: (uid: string) => Promise<Yarn>;
   sawRope: (rope: Rope, update?: boolean) => Promise<void>;
 }
 
@@ -17,6 +17,17 @@ function harkAction(action: HarkAction) {
 }
 
 const useHarkState = create<HarkState>(() => ({
+  fetchYarn: async (uid: string) => {
+    const { api } = useStore.getState();
+    if (!api) {
+      throw new Error('No api found');
+    }
+
+    return api.scry<Yarn>({
+      app: 'hark',
+      path: `/yarn/${uid}`,
+    });
+  },
   sawRope: async (rope, update = true) => {
     const { api } = useStore.getState();
     if (api === null) {

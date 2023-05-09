@@ -9,9 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SHIP_COOKIE_REGEX } from './lib/util';
 import useStore from './state/store';
 import { preSig } from '@urbit/api';
+import { SHIP_COOKIE_REGEX } from './constants';
 
 const LEADING_HTTP_REGEX =
   /^(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?$/i;

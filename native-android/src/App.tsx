@@ -12,8 +12,11 @@ import {
 } from 'react-native';
 import useStore, { readShipConnection } from './state/store';
 import WebApp from './WebApp';
-import { URBIT_HOME_REGEX } from './lib/util';
 import Login from './Login';
+import { initNotifications } from './lib/notifications';
+import { URBIT_HOME_REGEX } from './constants';
+
+initNotifications();
 
 export default function App() {
   const tailwind = useTailwind();
