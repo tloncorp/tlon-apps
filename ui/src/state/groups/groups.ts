@@ -197,6 +197,7 @@ const defGang = {
 };
 
 export function useGangs() {
+  const queryClient = useQueryClient();
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['gangs'],
     app: 'groups',
@@ -213,7 +214,26 @@ export function useGangs() {
     return {} as Gangs;
   }
 
+  // this is a bit of a hack to get the group index data into the gangs
+  const groupIndexDataAsGangs: Gangs = (
+    queryClient.getQueriesData(['group-index']) || []
+  ).reduce((acc, [_queryKey, indexData]) => {
+    if (indexData && typeof indexData === 'object') {
+      const newAcc = { ...acc };
+      Object.keys(indexData).forEach((key) => {
+        (newAcc as Gangs)[key] = {
+          preview: (indexData as GroupIndex)[key],
+          invite: null,
+          claim: null,
+        };
+      });
+      return newAcc;
+    }
+    return acc;
+  }, {});
+
   return {
+    ...groupIndexDataAsGangs,
     ...(data as Gangs),
   };
 }
@@ -273,7 +293,7 @@ export function usePendingInvites() {
   return useMemo(
     () =>
       Object.entries(gangs)
-        .filter(([k, g]) => g.invite !== null && !(k in groups))
+        .filter(([k, g]) => g.invite && g.invite !== null && !(k in groups))
         .map(([k]) => k),
     [gangs, groups]
   );
@@ -299,7 +319,7 @@ export function usePendingGangsWithoutClaim() {
   const pendingGangs: Gangs = {};
 
   Object.entries(gangs)
-    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .filter(([flag, g]) => g.invite && g.invite !== null && !(flag in groups))
     .filter(
       ([, gang]) =>
         !gang.claim ||
