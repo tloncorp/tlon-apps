@@ -11,12 +11,13 @@ import {
 import { useTailwind } from 'tailwind-rn';
 import useStore from './state/store';
 import * as Notifications from 'expo-notifications';
-import { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
+import type { WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes';
 import {
-  BACKGROUND_NOTIFICATION_TASK,
   handleNotificationResponse,
-  initializePushNotifications,
+  connectNotifications,
 } from './lib/notifications';
+import useContactState from './state/contact';
+import useGroupsState from './state/groups';
 
 export default function WebApp() {
   const { shipUrl } = useStore();
@@ -70,38 +71,35 @@ export default function WebApp() {
   };
 
   useEffect(() => {
+    // Start back button listener
     if (Platform.OS === 'android') {
       BackHandler.addEventListener('hardwareBackPress', handleBackPressed);
     }
 
+    // Start app state change listener
     const listener = AppState.addEventListener('change', handleAppStateChange);
 
-    (async () => {
-      const enabled = await initializePushNotifications();
-      if (enabled) {
-        await Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
-        console.debug('Started background notification task');
+    // Start notification response listener
+    notificationResponseSubscription.current =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        handleNotificationResponse(response, webviewRef);
+      });
 
-        notificationResponseSubscription.current =
-          Notifications.addNotificationResponseReceivedListener((response) => {
-            handleNotificationResponse(response, webviewRef);
-          });
-        console.debug('Started notification response listener');
-      }
-    })();
+    // Start notification prompt
+    connectNotifications();
+
+    // Fetch initial data
+    useContactState.getState().fetchAll();
+    useGroupsState.getState().fetchAll();
 
     return () => {
       BackHandler.removeEventListener('hardwareBackPress', handleBackPressed);
       listener.remove();
 
-      Notifications.unregisterTaskAsync(BACKGROUND_NOTIFICATION_TASK);
-      console.debug('Removed notification listener');
-
       if (notificationResponseSubscription.current) {
         Notifications.removePushTokenSubscription(
           notificationResponseSubscription.current
         );
-        console.debug('Removed notification response listener');
       }
     };
   }, []);
