@@ -29,11 +29,6 @@
 			"height": 40
 		}
 	},
-	"h-2": {
-		"style": {
-			"height": 8
-		}
-	},
 	"h-full": {
 		"style": {
 			"height": "100%"
@@ -59,6 +54,11 @@
 	"items-center": {
 		"style": {
 			"alignItems": "center"
+		}
+	},
+	"justify-center": {
+		"style": {
+			"justifyContent": "center"
 		}
 	},
 	"rounded-md": {
@@ -98,14 +98,6 @@
 		"style": {
 			"--tw-bg-opacity": 1,
 			"backgroundColor": "rgb(255 255 255 / var(--tw-bg-opacity))"
-		}
-	},
-	"p-4": {
-		"style": {
-			"paddingTop": 16,
-			"paddingRight": 16,
-			"paddingBottom": 16,
-			"paddingLeft": 16
 		}
 	},
 	"p-6": {
