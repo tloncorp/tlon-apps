@@ -28,6 +28,7 @@ import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
+import { getFlagParts } from '@/logic/utils';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -196,6 +197,7 @@ const defGang = {
 };
 
 export function useGangs() {
+  const queryClient = useQueryClient();
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['gangs'],
     app: 'groups',
@@ -208,11 +210,35 @@ export function useGangs() {
     },
   });
 
+  // this is a bit of a hack to get the group index data into the gangs
+  const groupIndexDataAsGangs: Gangs = useMemo(
+    () =>
+      (queryClient.getQueriesData(['group-index']) || []).reduce(
+        (acc, [_queryKey, indexData]) => {
+          if (indexData && typeof indexData === 'object') {
+            const newAcc = { ...acc };
+            Object.keys(indexData).forEach((key) => {
+              (newAcc as Gangs)[key] = {
+                preview: (indexData as GroupIndex)[key],
+                invite: null,
+                claim: null,
+              };
+            });
+            return newAcc;
+          }
+          return acc;
+        },
+        {}
+      ),
+    [queryClient]
+  );
+
   if (rest.isLoading || rest.isError) {
     return {} as Gangs;
   }
 
   return {
+    ...groupIndexDataAsGangs,
     ...(data as Gangs),
   };
 }
@@ -272,7 +298,7 @@ export function usePendingInvites() {
   return useMemo(
     () =>
       Object.entries(gangs)
-        .filter(([k, g]) => g.invite !== null && !(k in groups))
+        .filter(([k, g]) => g.invite && g.invite !== null && !(k in groups))
         .map(([k]) => k),
     [gangs, groups]
   );
@@ -298,7 +324,7 @@ export function usePendingGangsWithoutClaim() {
   const pendingGangs: Gangs = {};
 
   Object.entries(gangs)
-    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .filter(([flag, g]) => g.invite && g.invite !== null && !(flag in groups))
     .filter(
       ([, gang]) =>
         !gang.claim ||
@@ -954,6 +980,13 @@ export function useGroupIndex(ship: string) {
     groupIndex: data as GroupIndex,
     ...rest,
   };
+}
+
+export function useGroupPreviewFromIndex(flag: string) {
+  const { ship } = getFlagParts(flag);
+  const { groupIndex } = useGroupIndex(ship);
+
+  return groupIndex?.[flag];
 }
 
 export function useGroupBanShipsMutation() {
