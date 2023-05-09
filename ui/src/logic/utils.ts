@@ -29,7 +29,15 @@ import {
   Vessel,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
-import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
+import {
+  DiaryBrief,
+  DiaryInline,
+  DiaryQuip,
+  DiaryQuipMap,
+  NoteContent,
+  Verse,
+  VerseInline,
+} from '@/types/diary';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -648,4 +656,51 @@ export function restoreMap<T>(obj: any): BigIntOrderedMap<T> {
   }
 
   return empty;
+}
+
+export function truncateProse(
+  content: NoteContent,
+  maxCharacters: number
+): NoteContent {
+  const truncate = (
+    [head, ...tail]: DiaryInline[],
+    remainingChars: number,
+    acc: DiaryInline[]
+  ): DiaryInline[] => {
+    if (!head || remainingChars <= 0) {
+      return acc;
+    }
+
+    if (typeof head === 'string') {
+      const truncatedString = head.slice(0, remainingChars);
+      return truncate(tail, remainingChars - truncatedString.length, [
+        ...acc,
+        truncatedString,
+      ]);
+    }
+
+    return truncate(tail, remainingChars, [...acc, head]);
+  };
+
+  let remainingChars = maxCharacters;
+  const truncatedContent: NoteContent = content
+    .map((verse: Verse): Verse => {
+      if ('inline' in verse) {
+        const lengthBefore = remainingChars;
+        const truncatedVerse: VerseInline = {
+          inline: truncate(verse.inline, remainingChars, []),
+        };
+        remainingChars -= lengthBefore - remainingChars;
+        return truncatedVerse;
+      }
+      return verse;
+    })
+    .filter((verse: Verse): boolean => {
+      if ('inline' in verse) {
+        return verse.inline.length > 0;
+      }
+      return true;
+    });
+
+  return truncatedContent;
 }
