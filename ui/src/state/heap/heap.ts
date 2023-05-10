@@ -183,6 +183,14 @@ export const useHeapState = createState<HeapState>(
       await api.poke(heapCurioDiff(flag, ud, { edit: heart }));
     },
     create: async (req) => {
+      get().batchSet((draft) => {
+        const flag = `${window.our}/${req.name}`;
+        draft.stash[flag] = {
+          perms: { writers: [], group: req.group },
+          view: 'grid',
+        };
+        draft.curios[flag] = new BigIntOrderedMap<HeapCurio>();
+      });
       await api.trackedPoke<HeapCreate, HeapAction>(
         {
           app: 'heap',

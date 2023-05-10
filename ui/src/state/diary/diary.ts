@@ -326,6 +326,14 @@ export const useDiaryState = createState<DiaryState>(
       await api.poke(diaryNoteDiff(flag, time, { del: null }));
     },
     create: async (req) => {
+      get().batchSet((draft) => {
+        const flag = `${window.our}/${req.name}`;
+        draft.shelf[flag] = {
+          perms: { writers: [], group: req.group },
+          view: 'list',
+        };
+        draft.notes[flag] = new BigIntOrderedMap<DiaryLetter>();
+      });
       await api.trackedPoke<DiaryCreate, DiaryAction>(
         {
           app: 'diary',
