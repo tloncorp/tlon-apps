@@ -23,6 +23,7 @@ export default function ChatReaction({
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
+  const totalShips = ships.length;
 
   useEffect(() => {
     load();
@@ -72,12 +73,21 @@ export default function ChatReaction({
                 <div className="pointer-events-none z-20 justify-items-center rounded">
                   <div className="z-[100] w-fit cursor-none rounded bg-gray-400 px-4 py-2">
                     <label className="whitespace-nowrap font-semibold text-white">
-                      {ships.map((ship, i) => (
-                        <span key={`${ship}-${i}`}>
-                          <ShipName name={ship} showAlias />
-                          {i + 1 === ships.length ? '' : ', '}
+                      {ships
+                        .filter((_ship, i) => i < 3)
+                        .map((ship, i) => (
+                          <span key={`${ship}-${i}`}>
+                            <ShipName name={ship} showAlias />
+                            {i + 1 === ships.length ? '' : ', '}
+                          </span>
+                        ))}
+                      {totalShips > 3 && (
+                        <span>
+                          {' '}
+                          and {totalShips - 3}{' '}
+                          {totalShips === 4 ? 'other' : 'others'}
                         </span>
-                      ))}
+                      )}
                     </label>
                   </div>
                   <Tooltip.Arrow asChild>
