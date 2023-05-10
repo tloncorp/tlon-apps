@@ -471,10 +471,10 @@
   ?.  ?=(%add -.q.diff)  [~ state]
   =*  id=id:chat  p.diff
   =*  memo=memo:chat  p.q.diff
-  (update-session whom memo id)
-::  +update-session: process message updates
+  (update-messages whom memo id)
+::  +update-messages: process message updates
 ::
-++  update-session
+++  update-messages
   |=  $:  =whom:chat
           =memo:chat
           =id:chat
@@ -490,13 +490,25 @@
        [~ state]
      se-abet:(se-read-post:(se-apex:se sole-id.i.sez) whom id memo)
   $(sez t.sez, cards (weld cards caz))
-  :: $(sez t.sez, cards (weld cards caz))
+::  +update-glyphs: process glyph bindings
+::
+++  update-glyphs
+  |=  [=glyph targ=(unit target)]
+  ^-  (quip card _state)
+  =/  sez=(list [=sole-id =session])
+    ~(tap by sessions)
+  =|  cards=(list card)
+  |-
+  ?~  sez  [cards state]
+   =^  caz  state
+     se-abet:(show-glyph:se-out:(se-apex:se sole-id.i.sez) glyph targ)
+  $(sez t.sez, cards (weld cards caz))
 ::  +bind-default-glyph: bind to default, or random available
 ::
 ++  bind-default-glyph
-  |=  [=sole-id =target]
+  |=  =target
   ^-  (quip card _state)
-  =;  =glyph  (bind-glyph sole-id glyph target)
+  =;  =glyph  (bind-glyph glyph target)
   |^  =/  g=glyph  (choose glyphs)
       ?.  (~(has by binds) g)  g
       =/  available=(list glyph)
@@ -512,39 +524,35 @@
 ::  +bind-glyph: add binding for glyph
 ::
 ++  bind-glyph
-  |=  [=sole-id =glyph =target]
+  |=  [=glyph =target]
   ^-  (quip card _state)
-  =^  cards  state
-    ::TODO  should send these to settings store eventually
-    ::  if the target was already bound to another glyph, un-bind that
-    ::
-    =?  binds  (~(has by bound) target)
-      (~(del ju binds) (~(got by bound) target) target)
-    =.  bound  (~(put by bound) target glyph)
-    =.  binds  (~(put ju binds) glyph target)
-    se-abet:(show-glyph:se-out:(se-apex:se sole-id) glyph `target)
-  [cards state]
+  ::TODO  should send these to settings store eventually
+  ::  if the target was already bound to another glyph, un-bind that
+  ::
+  =?  binds  (~(has by bound) target)
+    (~(del ju binds) (~(got by bound) target) target)
+  =.  bound  (~(put by bound) target glyph)
+  =.  binds  (~(put ju binds) glyph target)
+  (update-glyphs glyph `target)
 ::  +unbind-glyph: remove all binding for glyph
 ::
 ++  unbind-glyph
-  |=  [=sole-id =glyph targ=(unit target)]
+  |=  [=glyph targ=(unit target)]
   ^-  (quip card _state)
-  =^  cards  state
-    ?^  targ
-      =.  binds  (~(del ju binds) glyph u.targ)
-      =.  bound  (~(del by bound) u.targ)
-      se-abet:(show-glyph:se-out:(se-apex:se sole-id) glyph ~)
-    =/  ole=(set target)
-      (~(get ju binds) glyph)
-    =.  binds  (~(del by binds) glyph)
-    =.  bound
-      |-
-      ?~  ole  bound
-      =.  bound  $(ole l.ole)
-      =.  bound  $(ole r.ole)
-      (~(del by bound) n.ole)
-    se-abet:(show-glyph:se-out:(se-apex:se sole-id) glyph ~)
-  [cards state]
+  ?^  targ
+    =.  binds  (~(del ju binds) glyph u.targ)
+    =.  bound  (~(del by bound) u.targ)
+    (update-glyphs glyph ~)
+  =/  ole=(set target)
+    (~(get ju binds) glyph)
+  =.  binds  (~(del by binds) glyph)
+  =.  bound
+    |-
+    ?~  ole  bound
+    =.  bound  $(ole l.ole)
+    =.  bound  $(ole r.ole)
+    (~(del by bound) n.ole)
+  (update-glyphs glyph ~)
 ::  +decode-glyph: find the target that matches a glyph, if any
 ::
 ++  decode-glyph
@@ -834,8 +842,8 @@
             %view       (view +.job)
             %flee       (flee +.job)
         ::
-            %bind       (split (bind-glyph sole-id +.job))
-            %unbind     (split (unbind-glyph sole-id +.job))
+            %bind       (split (bind-glyph +.job))
+            %unbind     (split (unbind-glyph +.job))
             %what       (lookup-glyph +.job)
         ::
             %settings   show-settings
@@ -892,8 +900,11 @@
         (se-emil (connect target))
       ::  bind an unbound target
       ::
+      :: TODO if we move the prompt rendering above this
+      :: we'd need to update the session before calling
+      :: +bind-default-glyph. Otherwise +prompt will render the old audience.
       =?  se  !(~(has by bound) target)
-        (split (bind-default-glyph sole-id target))
+        (split (bind-default-glyph target))
       ::  load history if target is not in view
       ::
       =?  se  !(~(has in viewing) target)
