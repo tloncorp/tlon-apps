@@ -38,6 +38,13 @@ import {
   Verse,
   VerseInline,
 } from '@/types/diary';
+import {
+  Bold,
+  InlineCode,
+  Italics,
+  Strikethrough,
+  Link,
+} from '@/types/content';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -679,10 +686,50 @@ export function truncateProse(
       ]);
     }
 
+    if ('bold' in head) {
+      const truncatedString = (head.bold[0] as string).slice(0, remainingChars);
+      const truncatedBold: Bold = {
+        bold: [truncatedString],
+      };
+      return truncate(tail, remainingChars - truncatedString.length, [
+        ...acc,
+        truncatedBold,
+      ]);
+    }
+
+    if ('italics' in head) {
+      const truncatedString = (head.italics[0] as string).slice(
+        0,
+        remainingChars
+      );
+      const truncatedItalics: Italics = {
+        italics: [truncatedString],
+      };
+      return truncate(tail, remainingChars - truncatedString.length, [
+        ...acc,
+        truncatedItalics,
+      ]);
+    }
+
+    if ('strike' in head) {
+      const truncatedString = (head.strike[0] as string).slice(
+        0,
+        remainingChars
+      );
+      const truncatedStrike: Strikethrough = {
+        strike: [truncatedString],
+      };
+      return truncate(tail, remainingChars - truncatedString.length, [
+        ...acc,
+        truncatedStrike,
+      ]);
+    }
+
     return truncate(tail, remainingChars, [...acc, head]);
   };
 
   let remainingChars = maxCharacters;
+
   const truncatedContent: NoteContent = content
     .map((verse: Verse): Verse => {
       if ('inline' in verse) {
