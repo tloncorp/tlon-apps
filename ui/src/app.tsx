@@ -67,13 +67,12 @@ import Leap from './components/Leap/Leap';
 import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
-import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
-import Dialog, { DialogContent } from './components/Dialog';
+import Dialog from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
@@ -88,10 +87,8 @@ function SuspendedModal({ children }: { children: React.ReactNode }) {
   return (
     <Suspense
       fallback={
-        <Dialog defaultOpen modal>
-          <DialogContent className="bg-transparent" containerClass="w-full">
-            <LoadingSpinner />
-          </DialogContent>
+        <Dialog defaultOpen modal className="bg-transparent" close="none">
+          <LoadingSpinner />
         </Dialog>
       }
     >
