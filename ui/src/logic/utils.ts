@@ -29,7 +29,22 @@ import {
   Vessel,
 } from '@/types/groups';
 import { CurioContent, Heap, HeapBrief } from '@/types/heap';
-import { DiaryBrief, DiaryQuip, DiaryQuipMap } from '@/types/diary';
+import {
+  DiaryBrief,
+  DiaryInline,
+  DiaryQuip,
+  DiaryQuipMap,
+  NoteContent,
+  Verse,
+  VerseInline,
+} from '@/types/diary';
+import {
+  Bold,
+  InlineCode,
+  Italics,
+  Strikethrough,
+  Link,
+} from '@/types/content';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -648,4 +663,91 @@ export function restoreMap<T>(obj: any): BigIntOrderedMap<T> {
   }
 
   return empty;
+}
+
+export function truncateProse(
+  content: NoteContent,
+  maxCharacters: number
+): NoteContent {
+  const truncate = (
+    [head, ...tail]: DiaryInline[],
+    remainingChars: number,
+    acc: DiaryInline[]
+  ): DiaryInline[] => {
+    if (!head || remainingChars <= 0) {
+      return acc;
+    }
+
+    if (typeof head === 'string') {
+      const truncatedString = head.slice(0, remainingChars);
+      return truncate(tail, remainingChars - truncatedString.length, [
+        ...acc,
+        truncatedString,
+      ]);
+    }
+
+    if ('bold' in head) {
+      const truncatedString = (head.bold[0] as string).slice(0, remainingChars);
+      const truncatedBold: Bold = {
+        bold: [truncatedString],
+      };
+      return truncate(tail, remainingChars - truncatedString.length, [
+        ...acc,
+        truncatedBold,
+      ]);
+    }
+
+    if ('italics' in head) {
+      const truncatedString = (head.italics[0] as string).slice(
+        0,
+        remainingChars
+      );
+      const truncatedItalics: Italics = {
+        italics: [truncatedString],
+      };
+      return truncate(tail, remainingChars - truncatedString.length, [
+        ...acc,
+        truncatedItalics,
+      ]);
+    }
+
+    if ('strike' in head) {
+      const truncatedString = (head.strike[0] as string).slice(
+        0,
+        remainingChars
+      );
+      const truncatedStrike: Strikethrough = {
+        strike: [truncatedString],
+      };
+      return truncate(tail, remainingChars - truncatedString.length, [
+        ...acc,
+        truncatedStrike,
+      ]);
+    }
+
+    return truncate(tail, remainingChars, [...acc, head]);
+  };
+
+  let remainingChars = maxCharacters;
+
+  const truncatedContent: NoteContent = content
+    .map((verse: Verse): Verse => {
+      if ('inline' in verse) {
+        const lengthBefore = remainingChars;
+        const truncatedVerse: VerseInline = {
+          inline: truncate(verse.inline, remainingChars, []),
+        };
+        remainingChars -= lengthBefore - remainingChars;
+        return truncatedVerse;
+      }
+      return verse;
+    })
+    .filter((verse: Verse): boolean => {
+      if ('inline' in verse) {
+        return verse.inline.length > 0;
+      }
+      return true;
+    });
+
+  return truncatedContent;
 }
