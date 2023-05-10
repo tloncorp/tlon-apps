@@ -861,15 +861,24 @@
   +*  cu-pact  ~(. pac pact.club)
   ++  cu-core  .
   ++  cu-abet
-  =.  clubs
-    ?:  gone
-      (~(del by clubs) id)
-    (~(put by clubs) id club)
-  cor
+    ::  shouldn't need cleaning, but just in case
+    =.  cu-core  cu-clean
+    =.  clubs
+      ?:  gone
+        (~(del by clubs) id)
+      (~(put by clubs) id club)
+    cor
   ++  cu-abed
     |=  i=id:club:c
     ~|  no-club/i
     cu-core(id i, club (~(gut by clubs) i *club:c))
+  ++  cu-clean
+    =.  hive.crew.club
+      %-  ~(rep in hive.crew.club)
+      |=  [=ship hive=(set ship)]
+      ?:  (~(has in team.crew.club) ship)  hive
+      (~(put in hive) ship)
+    cu-core
   ++  cu-out  (~(del in cu-circle) our.bowl)
   ++  cu-circle
     (~(uni in team.crew.club) hive.crew.club)
@@ -1028,7 +1037,9 @@
     ::
         %hive
       ?:  add.delta
-        ?:  (~(has in hive.crew.club) for.delta)
+        ?:  ?|  (~(has in hive.crew.club) for.delta)
+                (~(has in team.crew.club) for.delta)
+            ==
           cu-core
         =.  hive.crew.club   (~(put in hive.crew.club) for.delta)
         =^  new-uid  cu-core
