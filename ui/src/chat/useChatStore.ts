@@ -42,6 +42,7 @@ export interface ChatStore {
   unread: (whom: string, brief: ChatBrief) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
+  batchUnread: (unreadChats: { whom: string; brief: ChatBrief }[]) => void;
 }
 
 const emptyInfo: ChatInfo = {
@@ -55,6 +56,24 @@ const emptyInfo: ChatInfo = {
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
+  batchUnread: (unreadChats) => {
+    set(
+      produce((draft: ChatStore) => {
+        unreadChats.forEach(({ whom, brief }) => {
+          const chat = draft.chats[whom] || emptyInfo;
+
+          draft.chats[whom] = {
+            ...chat,
+            unread: {
+              seen: false,
+              readTimeout: 0,
+              brief,
+            },
+          };
+        });
+      })
+    );
+  },
   atBottom: false,
   current: '',
   setBlocks: (whom, blocks) => {

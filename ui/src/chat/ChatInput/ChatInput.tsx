@@ -29,7 +29,6 @@ import {
   JSONToInlines,
   makeMention,
   inlinesToJSON,
-  tipTapToString,
 } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
@@ -188,7 +187,15 @@ export default function ChatInput({
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
-      if (sendDisabled) return;
+      if (
+        sendDisabled ||
+        mostRecentFile?.status === 'loading' ||
+        mostRecentFile?.status === 'error' ||
+        mostRecentFile?.url === '' ||
+        (editor.getText() === '' && chatInfo.blocks.length === 0)
+      )
+        return;
+
       const blocks = fetchChatBlocks(id);
       if (!editor.getText() && !blocks.length && !replyCite) {
         return;
@@ -272,6 +279,9 @@ export default function ChatInput({
       sendDisabled,
       replyCite,
       reply,
+      chatInfo.blocks,
+      mostRecentFile?.status,
+      mostRecentFile?.url,
     ]
   );
 

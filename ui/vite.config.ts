@@ -56,7 +56,7 @@ export default ({ mode }: { mode: string }) => {
     switch (app) {
       case 'chat':
         return [
-          mode !== 'sw' ? basicSsl() : null,
+          process.env.SSL === 'true' ? basicSsl() : null,
           urbitPlugin({
             base: 'talk',
             target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
@@ -86,7 +86,7 @@ export default ({ mode }: { mode: string }) => {
         ];
       default:
         return [
-          mode !== 'sw' ? basicSsl() : null,
+          process.env.SSL === 'true' ? basicSsl() : null,
           urbitPlugin({
             base: 'groups',
             target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
@@ -162,7 +162,7 @@ export default ({ mode }: { mode: string }) => {
   return defineConfig({
     base: base(mode, app),
     server: {
-      https: mode !== 'sw',
+      https: process.env.SSL === 'true' ? true : false,
       host: 'localhost',
       port: 3000,
     },
@@ -194,6 +194,7 @@ export default ({ mode }: { mode: string }) => {
       environment: 'jsdom',
       setupFiles: './test/setup.ts',
       deps: {},
+      include: ['**/*.test.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     },
   });
 };

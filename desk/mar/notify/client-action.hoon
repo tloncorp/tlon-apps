@@ -17,12 +17,20 @@
     %-  of
     :~  connect-provider+connect-provider
         remove-provider+remove-provider
+        connect-provider-with-binding+connect-provider-with-binding
     ==
     ++  connect-provider
       %-  ot
       :~  who+(su fed:ag)
           service+so
           address+so
+      ==
+    ++  connect-provider-with-binding
+      %-  ot
+      :~  who+(su fed:ag)
+          service+so
+          address+so
+          binding+so
       ==
     ++  remove-provider
       %-  ot
