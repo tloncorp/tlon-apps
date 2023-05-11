@@ -37,14 +37,11 @@ import {
   NoteContent,
   Verse,
   VerseInline,
+  VerseBlock,
+  DiaryListing,
+  DiaryList,
 } from '@/types/diary';
-import {
-  Bold,
-  InlineCode,
-  Italics,
-  Strikethrough,
-  Link,
-} from '@/types/content';
+import { Bold, Inline, Italics, Strikethrough } from '@/types/content';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -766,7 +763,7 @@ export function truncateProse(
       ]);
     }
 
-    if ('bold' in head) {
+    if ('bold' in head && typeof head.bold[0] === 'string') {
       const truncatedString = (head.bold[0] as string).slice(0, remainingChars);
       const truncatedBold: Bold = {
         bold: [truncatedString],
@@ -777,7 +774,7 @@ export function truncateProse(
       ]);
     }
 
-    if ('italics' in head) {
+    if ('italics' in head && typeof head.italics[0] === 'string') {
       const truncatedString = (head.italics[0] as string).slice(
         0,
         remainingChars
@@ -791,7 +788,7 @@ export function truncateProse(
       ]);
     }
 
-    if ('strike' in head) {
+    if ('strike' in head && typeof head.strike[0] === 'string') {
       const truncatedString = (head.strike[0] as string).slice(
         0,
         remainingChars
@@ -820,6 +817,60 @@ export function truncateProse(
         remainingChars -= lengthBefore - remainingChars;
         return truncatedVerse;
       }
+
+      if (
+        'block' in verse &&
+        'listing' in verse.block &&
+        'list' in verse.block.listing &&
+        'items' in verse.block.listing.list
+      ) {
+        const lengthBefore = remainingChars;
+        const { truncatedListItems, remainingChars: remainingCharsAfterList } =
+          verse.block.listing.list.items.reduce(
+            (
+              accumulator: {
+                truncatedListItems: DiaryListing[];
+                remainingChars: number;
+              },
+              listing: DiaryListing
+            ) => {
+              if ('item' in listing) {
+                const lengthBeforeList = accumulator.remainingChars;
+                const truncatedListing = {
+                  item: truncate(listing.item, lengthBeforeList, []),
+                };
+                const usedChars = truncatedListing.item.join('').length;
+                const remainingCharsInReducer = lengthBeforeList - usedChars;
+                return {
+                  truncatedListItems: [
+                    ...accumulator.truncatedListItems,
+                    truncatedListing,
+                  ],
+                  remainingChars: remainingCharsInReducer,
+                };
+              }
+              return accumulator;
+            },
+            { truncatedListItems: [], remainingChars }
+          );
+
+        remainingChars = remainingCharsAfterList;
+
+        remainingChars = remainingCharsAfterList;
+        const truncatedVerse: VerseBlock = {
+          block: {
+            listing: {
+              list: {
+                ...verse.block.listing.list,
+                items: truncatedListItems,
+              },
+            },
+          },
+        };
+        remainingChars -= lengthBefore - remainingChars;
+        return truncatedVerse;
+      }
+
       return verse;
     })
     .filter((verse: Verse): boolean => {

@@ -64,7 +64,7 @@ function NoteReference({
   const prettyDate = makePrettyDate(new Date(outline.sent));
 
   return (
-    <div className="note-inline-block not-prose group max-w-[600px]">
+    <div className="note-inline-block group max-w-[600px]">
       <div
         onClick={handleOpenReferenceClick}
         className="flex cursor-pointer flex-col space-y-2 p-4 group-hover:bg-gray-50"
