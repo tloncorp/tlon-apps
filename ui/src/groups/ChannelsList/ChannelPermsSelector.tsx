@@ -61,17 +61,6 @@ function RoleSelectorDropdown({
                     className="mr-2 flex items-center justify-center rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-gray-100"
                   >
                     {role.label}
-                    {/*
-                    <button
-                      type="button"
-                      className="ml-2"
-                      onClick={() => {
-                        setRoles(roles.filter((r) => r.value !== role.value));
-                      }}
-                    >
-                      <XIcon className="h-4 w-4" />
-                    </button>
-                    */}
                   </div>
                 ))}
               </div>
