@@ -108,7 +108,6 @@ export function useGroup(flag: string, updating = false) {
     options: {
       enabled: !!flag && flag !== '' && updating,
       initialData: group,
-      refetchOnWindowFocus: updating,
       refetchOnMount: updating,
     },
   });
@@ -204,9 +203,7 @@ export function useGangs() {
     path: `/gangs/updates`,
     scry: `/gangs`,
     options: {
-      refetchOnWindowFocus: true,
       refetchOnMount: false,
-      refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
   });
 
@@ -351,7 +348,6 @@ export function useChannelPreview(nest: string, disableLoading = false) {
     options: {
       enabled: !disableLoading,
       refetchOnMount: false,
-      refetchOnWindowFocus: false,
     },
   });
 

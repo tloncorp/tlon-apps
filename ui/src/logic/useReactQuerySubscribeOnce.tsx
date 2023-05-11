@@ -21,7 +21,6 @@ export default function useReactQuerySubscribeOnce<T>({
   const defaultOptions = {
     retryOnMount: false,
     refetchOnMount: false,
-    refetchOnWindowFocus: false,
     enabled: true,
     initialData,
   };
