@@ -246,13 +246,13 @@ export function useGang(flag: string) {
   return data?.[flag] || defGang;
 }
 
-export const useGangPreview = (flag: string, isScrolling?: boolean) => {
+export const useGangPreview = (flag: string, disabled = false) => {
   const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
     queryKey: ['gang-preview', flag],
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
-      enabled: !isScrolling,
+      enabled: !disabled,
     },
   });
 
