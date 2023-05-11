@@ -36,7 +36,7 @@ function eqRoleName(a: string, b: string) {
 
 const animationConfig = {
   type: 'spring',
-  stiffness: 2880,
+  stiffness: 1500,
   damping: 120,
 };
 
