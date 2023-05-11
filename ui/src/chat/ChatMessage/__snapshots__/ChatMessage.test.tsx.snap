@@ -120,6 +120,7 @@ exports[`ChatMessage > renders as expected 1`] = `
       >
         <span
           class="text-md break-all font-semibold leading-6 line-clamp-1"
+          title=""
         >
           <span
             aria-hidden="true"
