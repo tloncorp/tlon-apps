@@ -251,16 +251,22 @@ export default function GroupRoles({ title }: { title: string }) {
                   </h2>
                 </div>
                 <div className="flex flex-col space-y-2">
-                  <label className="font-medium">Name</label>
+                  <label htmlFor="title" className="font-medium">
+                    Name
+                  </label>
                   <input
+                    name="title"
                     className="input"
                     value={roleTitle}
                     onChange={onRoleTitleChange}
                   />
                 </div>
                 <div className="flex flex-col space-y-2">
-                  <label className="font-medium">Description</label>
+                  <label htmlFor="description" className="font-medium">
+                    Description
+                  </label>
                   <textarea
+                    name="description"
                     className="input"
                     value={description}
                     onChange={onDescriptionChange}

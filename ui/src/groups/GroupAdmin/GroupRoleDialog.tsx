@@ -47,18 +47,24 @@ export default function GroupRoleDialog() {
       <div className="flex flex-col space-y-4">
         <h2 className="text-lg font-bold">Create Role</h2>
         <div className="flex flex-col space-y-2">
-          <label className="font-medium">Name</label>
+          <label htmlFor="title" className="font-medium">
+            Name
+          </label>
           <input
             className="input"
+            name="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             disabled={!!cabal}
           />
         </div>
         <div className="flex flex-col space-y-2">
-          <label className="font-medium">Description</label>
+          <label htmlFor="description" className="font-medium">
+            Description
+          </label>
           <textarea
             className="input"
+            name="description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
