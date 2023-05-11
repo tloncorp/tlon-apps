@@ -21,13 +21,13 @@ export default function DMHero({ ship, contact }: DMHeroProps) {
   };
 
   return (
-    <div className="flex flex-col items-center space-y-1">
+    <div className="flex flex-col items-center space-y-2">
       <button onClick={handleProfileClick}>
         <Avatar ship={ship} size="huge" icon={false} />
       </button>
-      <div className="flex flex-col items-center pt-1">
+      <div className="flex flex-col items-center space-y-1">
         {contact?.nickname ? (
-          <span className="mb-1 font-semibold">{contact.nickname}</span>
+          <span className="font-semibold">{contact.nickname}</span>
         ) : null}
         <ShipName className="text-gray-600" name={ship} />
       </div>
