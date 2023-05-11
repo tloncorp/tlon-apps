@@ -1,10 +1,15 @@
 import React, { useCallback } from 'react';
+import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { GroupChannel, ChannelFormSchema } from '@/types/groups';
-import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
-import { useEditChannelMutation, useRouteGroup } from '@/state/groups';
+import {
+  useEditChannelMutation,
+  useGroup,
+  useRouteGroup,
+} from '@/state/groups';
 import {
   channelHref,
   getPrivacyFromChannel,
@@ -13,7 +18,6 @@ import {
 } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
-import ChannelJoinSelector from '@/groups/ChannelsList/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import useChannel from '@/logic/useChannel';
@@ -39,6 +43,8 @@ export default function EditChannelForm({
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
+  const group = useGroup(groupFlag);
+  const sects = Object.keys(group?.cabals || {});
   const [app, channelFlag] = nestToFlag(nest);
   const chan = useChannel(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
@@ -47,6 +53,7 @@ export default function EditChannelForm({
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
     readers: channel.readers || [],
+    writers: chan?.perms.writers || [],
     join: channel.join || false,
     meta: channel.meta || {
       title: '',
@@ -65,12 +72,6 @@ export default function EditChannelForm({
     async (values: ChannelFormSchema) => {
       const { privacy, ...nextChannel } = values;
 
-      if (privacy === 'secret') {
-        nextChannel.readers.push('admin');
-      } else {
-        nextChannel.readers.splice(nextChannel.readers.indexOf('admin'), 1);
-      }
-
       if (presetSection) {
         nextChannel.zone = presetSection;
       }
@@ -88,9 +89,23 @@ export default function EditChannelForm({
           : useDiaryState.getState();
 
       if (privacy !== 'public') {
-        await chState.addSects(channelFlag, ['admin']);
+        const writersToRemove = _.difference(
+          chan?.perms.writers || [],
+          values.writers
+        );
+
+        if (privacy === 'custom') {
+          await chState.delSects(channelFlag, writersToRemove);
+          await chState.addSects(channelFlag, values.writers);
+        }
+
+        if (privacy === 'read-only') {
+          // read-only for everyone but admin
+          await chState.delSects(channelFlag, writersToRemove);
+          await chState.addSects(channelFlag, ['admin']);
+        }
       } else {
-        await chState.delSects(channelFlag, ['admin']);
+        await chState.delSects(channelFlag, sects);
       }
 
       if (retainRoute === true && setEditIsOpen) {
@@ -106,6 +121,7 @@ export default function EditChannelForm({
       channelFlag,
       nest,
       groupFlag,
+      sects,
       dismiss,
       navigate,
       redirect,
@@ -113,6 +129,7 @@ export default function EditChannelForm({
       setEditIsOpen,
       presetSection,
       mutateEditChannel,
+      chan?.perms.writers,
     ]
   );
 
@@ -141,7 +158,6 @@ export default function EditChannelForm({
           Channel Permissions
           <ChannelPermsSelector />
         </label>
-        <ChannelJoinSelector />
 
         <footer className="mt-4 flex items-center justify-between space-x-2">
           <div className="ml-auto flex items-center space-x-2">

@@ -2,7 +2,6 @@ import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useLocation } from 'react-router';
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
@@ -25,6 +24,7 @@ import { useContact } from '@/state/contact';
 import { Vessel } from '@/types/groups';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import BadgeIcon from '@/components/icons/BadgeIcon';
 
 interface GroupMemberItemProps {
   member: string;
@@ -46,7 +46,8 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const modalNavigate = useModalNavigate();
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
-  const { mutate: sectMutation, status: sectStatus } = useGroupSectMutation();
+  const { mutateAsync: sectMutation } = useGroupSectMutation();
+  const [sectLoading, setSectLoading] = useState('');
 
   const onViewProfile = (ship: string) => {
     modalNavigate(`/profile/${ship}`, {
@@ -84,13 +85,17 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       }
       if (inSect) {
         try {
-          sectMutation({ flag, ship, sects: [sect], operation: 'del' });
+          setSectLoading(sect);
+          await sectMutation({ flag, ship, sects: [sect], operation: 'del' });
+          setSectLoading('');
         } catch (e) {
           console.error(e);
         }
       } else {
         try {
-          sectMutation({ flag, ship, sects: [sect], operation: 'add' });
+          setSectLoading(sect);
+          await sectMutation({ flag, ship, sects: [sect], operation: 'add' });
+          setSectLoading('');
         } catch (e) {
           console.log(e);
         }
@@ -107,32 +112,44 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
 
   return (
     <>
-      <div className="cursor-pointer" onClick={() => onViewProfile(member)}>
-        <Avatar ship={member} size="small" icon={false} className="mr-2" />
-      </div>
-      <div className="flex flex-1 flex-col space-y-0.5">
-        <h2>
-          {contact?.nickname ? contact.nickname : <ShipName name={member} />}
-        </h2>
-        {contact?.nickname ? (
-          <p className="text-sm text-gray-400">{member}</p>
-        ) : null}
-      </div>
-      {isHost && (
-        <div className="mr-2 rounded border border-green-500 px-2 py-0.5 text-xs font-medium uppercase text-green-500">
-          Host
+      <div className="flex flex-col">
+        <div className="flex space-x-2">
+          <div className="cursor-pointer" onClick={() => onViewProfile(member)}>
+            <Avatar ship={member} size="small" icon={false} className="mr-2" />
+          </div>
+          <div className="flex flex-col">
+            <div className="flex w-full flex-row items-center justify-between space-x-2">
+              <h2 className="font-semibold">
+                {contact?.nickname ? (
+                  contact.nickname
+                ) : (
+                  <ShipName name={member} />
+                )}
+              </h2>
+              {contact?.nickname ? (
+                <p className="text-gray-400">{member}</p>
+              ) : null}
+            </div>
+            {isHost ? (
+              <div className="py-1 text-sm font-semibold text-orange">Host</div>
+            ) : (
+              <div className="py-0.5 text-sm font-semibold text-gray-400">
+                {vessel.sects.length > 0
+                  ? vessel.sects.map((s) => (
+                      <span key={s} className="mr-1">
+                        {toTitleCase(getSectTitle(group.cabals, s))}
+                      </span>
+                    ))
+                  : 'Member'}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
       {isAdmin && vessel ? (
         <Dropdown.Root>
-          <Dropdown.Trigger className="small-secondary-button default-focus mr-2 flex max-w-xs items-center whitespace-nowrap">
-            {vessel.sects.length > 3
-              ? `${vessel.sects.length} Roles`
-              : vessel.sects
-                  .map((s) => toTitleCase(getSectTitle(group.cabals, s)))
-                  .concat('Member')
-                  .join(', ')}
-            <CaretDown16Icon className="ml-2 h-4 w-4" />
+          <Dropdown.Trigger className="default-focus ml-auto items-center text-gray-600 opacity-0 group-hover:opacity-100">
+            <BadgeIcon className="h-6 w-6" />
           </Dropdown.Trigger>
           <Dropdown.Content className="dropdown min-w-52 text-gray-800">
             {sects.map((s) => (
@@ -144,35 +161,29 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
                 )}
                 onSelect={toggleSect(member, s, vessel)}
               >
-                {sectStatus === 'loading' ? (
-                  <div className="mr-2 flex h-6 w-6 items-center justify-center">
+                {getSectTitle(group.cabals, s)}
+                {sectLoading === s ? (
+                  <div className="mr-2 ml-auto flex h-4 w-4 items-center justify-center">
                     <LoadingSpinner className="h-4 w-4" />
                   </div>
-                ) : sectStatus === 'error' || isOwner ? (
-                  <div className="mr-2 h-6 w-6">
+                ) : isOwner ? (
+                  <div className="mr-2 ml-auto h-4 w-4">
                     <ExclamationPoint className="h-4 w-4 text-red" />
                   </div>
                 ) : vessel.sects.includes(s) ? (
-                  <CheckIcon className="mr-2 h-6 w-6 text-green" />
+                  <CheckIcon className="mr-2 ml-auto h-4 w-4 text-gray-600" />
                 ) : (
                   <div className="mr-2 h-6 w-6" />
                 )}
-                {getSectTitle(group.cabals, s)}
               </Dropdown.Item>
             ))}
-            <Dropdown.Item
-              className={cn('dropdown-item flex items-center', 'text-gray-800')}
-            >
-              <CheckIcon className="mr-2 h-6 w-6 text-green" />
-              Member
-            </Dropdown.Item>
           </Dropdown.Content>
         </Dropdown.Root>
       ) : null}
       {isAdmin && !isHost ? (
         <Dropdown.Root>
           {member !== window.our ? (
-            <Dropdown.Trigger className="default-focus ml-auto text-gray-800">
+            <Dropdown.Trigger className="default-focus ml-2 text-gray-400 group-hover:text-gray-800">
               <ElipsisIcon className="h-6 w-6" />
             </Dropdown.Trigger>
           ) : (
@@ -197,7 +208,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
         </Dropdown.Root>
       ) : (
         <Dropdown.Root>
-          <Dropdown.Trigger className="default-focus ml-auto rounded text-gray-800">
+          <Dropdown.Trigger className="default-focus ml-2 rounded text-gray-400 group-hover:text-gray-800">
             <ElipsisIcon className="h-6 w-6" />
           </Dropdown.Trigger>
           <Dropdown.Content className="dropdown min-w-52 text-gray-800">

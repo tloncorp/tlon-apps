@@ -40,6 +40,19 @@ export default function GroupAdmin() {
                   Members
                 </NavLink>
               </li>
+              <li>
+                <NavLink
+                  to="roles"
+                  className={({ isActive }) =>
+                    cn(
+                      'default-focus inline-block rounded-md p-2 hover:bg-gray-50',
+                      isActive && 'text-gray-800'
+                    )
+                  }
+                >
+                  Roles
+                </NavLink>
+              </li>
             </ul>
           </nav>
         </header>
