@@ -89,7 +89,7 @@
   ==
 ::
 ++  peek
-  |=  =(pole knot)
+  |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
   =*  on   on:writs:c
   ?+    pole  [~ ~]
@@ -111,6 +111,8 @@
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
     =/  time  (slav %ud time.pole)
-    ``writ+!>((got ship `@da`time))
+    ?.  ?=(%u care)
+      ``writ+!>((got ship `@da`time))
+    ``flag+!>(?~((get ship `@da`time) | &))
   ==
 --
