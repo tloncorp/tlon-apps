@@ -105,14 +105,12 @@ export default function WebApp() {
   }, []);
 
   return (
-    <SafeAreaView style={tailwind('flex-1')}>
-      <WebView
-        source={{ uri: `${shipUrl}/apps/talk/` }}
-        ref={webviewRef}
-        onHttpError={handleUrlError}
-        sharedCookiesEnabled
-        scalesPageToFit
-      />
-    </SafeAreaView>
+    <WebView
+      source={{ uri: `${shipUrl}/apps/talk/` }}
+      ref={webviewRef}
+      onHttpError={handleUrlError}
+      sharedCookiesEnabled
+      scalesPageToFit
+    />
   );
 }

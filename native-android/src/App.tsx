@@ -14,13 +14,15 @@ import useStore, { readShipConnection } from './state/store';
 import WebApp from './WebApp';
 import Login from './Login';
 import { initNotifications } from './lib/notifications';
-import { URBIT_HOME_REGEX } from './constants';
+import { POST_HOG_API_KEY, URBIT_HOME_REGEX } from './constants';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
 
 initNotifications();
 
-export default function App() {
+const App = () => {
   const tailwind = useTailwind();
-  const { loading, setLoading, ship, setShip } = useStore();
+  const postHog = usePostHog();
+  const { loading, setLoading, ship, shipUrl, setShip } = useStore();
   const [connected, setConnected] = useState(false);
   const appState = useRef(AppState.currentState);
 
@@ -75,29 +77,44 @@ export default function App() {
     };
   }, []);
 
-  if (!connected) {
-    return (
-      <SafeAreaView style={tailwind('h-full w-full flex flex-col')}>
-        <Text style={tailwind('text-center text-xl')}>
-          Your are offline. Please connect to the internet and try again.
-        </Text>
-        <StatusBar backgroundColor="white" barStyle="dark-content" />
-      </SafeAreaView>
-    );
-  }
+  useEffect(() => {
+    if (ship) {
+      postHog?.identify(ship, { shipUrl });
+    }
+  }, [ship, shipUrl]);
 
   return (
-    <SafeAreaView style={tailwind('h-full bg-white w-full')}>
-      {loading ? (
-        <View style={tailwind('h-full flex items-center justify-center')}>
-          <ActivityIndicator size="large" color="#000" />
-        </View>
-      ) : ship ? (
-        <WebApp />
+    <SafeAreaView style={tailwind('h-full w-full bg-white')} ph-no-capture>
+      {connected ? (
+        loading ? (
+          <View style={tailwind('h-full flex items-center justify-center')}>
+            <ActivityIndicator size="large" color="#000" />
+          </View>
+        ) : ship ? (
+          <WebApp />
+        ) : (
+          <Login />
+        )
       ) : (
-        <Login />
+        <View style={tailwind('h-full p-4 flex items-center justify-center')}>
+          <Text style={tailwind('text-center text-xl font-semibold')}>
+            Your are offline. Please connect to the internet and try again.
+          </Text>
+        </View>
       )}
       <StatusBar backgroundColor="white" barStyle="dark-content" />
     </SafeAreaView>
+  );
+};
+
+export default function AnalyticsApp() {
+  return (
+    <PostHogProvider
+      apiKey={POST_HOG_API_KEY}
+      options={{ host: 'https://eu.posthog.com', enable: !__DEV__ }}
+      autocapture
+    >
+      <App />
+    </PostHogProvider>
   );
 }
