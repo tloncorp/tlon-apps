@@ -1,6 +1,7 @@
-import { Contact } from '@/types/contact';
 import { Patp } from '@urbit/api';
-import React from 'react';
+import { useLocation } from 'react-router';
+import { useModalNavigate } from '@/logic/routing';
+import { Contact } from '@/types/contact';
 import Avatar from '../components/Avatar';
 import ShipName from '../components/ShipName';
 
@@ -10,17 +11,26 @@ interface DMHeroProps {
 }
 
 export default function DMHero({ ship, contact }: DMHeroProps) {
+  const location = useLocation();
+  const modalNavigate = useModalNavigate();
+
+  const handleProfileClick = () => {
+    modalNavigate(`/profile/${ship}`, {
+      state: { backgroundLocation: location },
+    });
+  };
+
   return (
     <div className="flex flex-col items-center space-y-1">
-      <Avatar ship={ship} size="huge" icon={false} />
-      {contact?.nickname ? (
-        <div className="flex flex-col items-center pt-1">
-          <span className="font-semibold">{contact.nickname}</span>
-          <ShipName className="pt-1 text-gray-600" name={ship} />
-        </div>
-      ) : (
-        <ShipName className="pt-1 text-gray-600" name={ship} />
-      )}
+      <button onClick={handleProfileClick}>
+        <Avatar ship={ship} size="huge" icon={false} />
+      </button>
+      <div className="flex flex-col items-center pt-1">
+        {contact?.nickname ? (
+          <span className="mb-1 font-semibold">{contact.nickname}</span>
+        ) : null}
+        <ShipName className="text-gray-600" name={ship} />
+      </div>
       {/*
       TODO: Show mutual groups.
       */}
