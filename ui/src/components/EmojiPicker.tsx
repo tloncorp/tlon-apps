@@ -76,6 +76,7 @@ export default function EmojiPicker({
           sideOffset={30}
           collisionPadding={15}
           onInteractOutside={isMobile ? () => dismss() : undefined}
+          data-testid="emoji-picker"
         >
           <div className="z-50 mx-10 flex h-96 w-72 items-center justify-center">
             {data ? (

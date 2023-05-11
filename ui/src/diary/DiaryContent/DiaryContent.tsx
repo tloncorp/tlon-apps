@@ -31,6 +31,7 @@ refractor.register(hoon);
 
 interface DiaryContentProps {
   content: NoteContent;
+  isPreview?: boolean;
 }
 
 interface InlineContentProps {
@@ -251,9 +252,17 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 });
 
-export default function DiaryContent({ content }: DiaryContentProps) {
+export default function DiaryContent({
+  content,
+  isPreview,
+}: DiaryContentProps) {
   return (
-    <article className="prose-lg prose break-words dark:prose-invert">
+    <article
+      className={cn('prose break-words dark:prose-invert', {
+        'prose-sm': isPreview,
+        'prose-lg': !isPreview,
+      })}
+    >
       {content.map((c, index) => {
         if ('block' in c) {
           return <BlockContent key={index} story={c.block} />;
