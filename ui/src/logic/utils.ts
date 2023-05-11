@@ -665,6 +665,86 @@ export function restoreMap<T>(obj: any): BigIntOrderedMap<T> {
   return empty;
 }
 
+const apps = ['writ', 'writs', 'hive', 'team', 'curios', 'notes', 'quips'];
+const groups = [
+  'create',
+  'zone',
+  'mov',
+  'mov-nest',
+  'secret',
+  'cordon',
+  'open',
+  'shut',
+  'add-ships',
+  'del-ships',
+  'add-ranks',
+  'del-ranks',
+  'channel',
+  'join',
+  'cabal',
+  'fleet',
+];
+const misc = [
+  'saw-seam',
+  'saw-rope',
+  'anon',
+  'settings-event',
+  'put-bucket',
+  'del-bucket',
+  'put-entry',
+  'del-entry',
+];
+const wrappers = ['update', 'diff', 'delta'];
+const general = [
+  'add-sects',
+  'del-sects',
+  'view',
+  'add',
+  'del',
+  'edit',
+  'add-feel',
+  'del-feel',
+  'meta',
+  'init',
+];
+
+export function actionDrill(
+  obj: Record<string, unknown>,
+  level = 0,
+  prefix = ''
+): string[] {
+  const keys: string[] = [];
+  const allowed = general.concat(wrappers, apps, groups, misc);
+
+  Object.entries(obj).forEach(([key, val]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (!allowed.includes(key)) {
+      return;
+    }
+
+    const skip = wrappers.includes(key);
+    const deeper =
+      val &&
+      typeof val === 'object' &&
+      Object.keys(val).some((k) => allowed.includes(k));
+
+    if (deeper && level < 4) {
+      // continue deeper and skip the key if just a wrapper, otherwise add on to path
+      keys.push(
+        ...actionDrill(
+          val as Record<string, unknown>,
+          skip ? level : level + 1,
+          skip ? prefix : path
+        )
+      );
+    } else {
+      keys.push(path);
+    }
+  });
+
+  return keys.filter((k) => k !== '');
+}
+
 export function truncateProse(
   content: NoteContent,
   maxCharacters: number
