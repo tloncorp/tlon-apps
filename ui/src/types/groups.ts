@@ -347,7 +347,7 @@ export interface Gangs {
 
 export type PrivacyType = 'public' | 'private' | 'secret';
 
-export type ChannelPrivacyType = 'public' | 'read-only' | 'custom';
+export type ChannelPrivacyType = 'public' | 'custom';
 
 export type ChannelType = 'chat' | 'heap' | 'diary';
 

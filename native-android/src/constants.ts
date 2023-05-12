@@ -9,3 +9,5 @@ export const NOTIFY_PROVIDER =
   Constants.expoConfig?.extra?.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE =
   Constants.expoConfig?.extra?.notifyService ?? 'android';
+export const POST_HOG_API_KEY =
+  Constants.expoConfig?.extra?.postHogApiKey ?? '';

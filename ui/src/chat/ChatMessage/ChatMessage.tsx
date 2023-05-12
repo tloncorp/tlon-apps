@@ -28,7 +28,12 @@ import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatHovering, useChatInfo, useChatStore } from '../useChatStore';
+import {
+  useChatDialog,
+  useChatHovering,
+  useChatInfo,
+  useChatStore,
+} from '../useChatStore';
 
 export interface ChatMessageProps {
   whom: string;
@@ -94,6 +99,7 @@ const ChatMessage = React.memo<
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
+      const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -228,8 +234,8 @@ const ChatMessage = React.memo<
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex w-full">
             {hideOptions ||
-            (isScrolling && !hovering) ||
-            !hovering ||
+            isScrolling ||
+            (!hovering && !pickerOpen) ||
             // If we're the thread op, don't show options.
             // Options are shown for the threadOp in the main scroll window.
             (isThreadOp && !isThreadOnMobile) ? null : (

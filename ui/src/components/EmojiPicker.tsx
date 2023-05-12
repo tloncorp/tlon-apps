@@ -71,7 +71,6 @@ export default function EmojiPicker({
       )}
       <Popover.Portal>
         <Popover.Content
-          className={isMobile ? '' : 'pl-[100px] pt-[100px]'}
           side="bottom"
           sideOffset={30}
           collisionPadding={15}

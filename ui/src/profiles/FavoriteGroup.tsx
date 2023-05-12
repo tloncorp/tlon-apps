@@ -3,7 +3,7 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useNavigate, useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
-import { useGang, useGroup } from '@/state/groups';
+import { useGang, useGangPreview, useGroup } from '@/state/groups';
 
 interface FavoriteGroupProps {
   groupFlag: string;
@@ -15,6 +15,7 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
   const group = useGroup(noShipGroupFlag);
   const location = useLocation();
   const gang = useGang(noShipGroupFlag);
+  const preview = useGangPreview(noShipGroupFlag, !!group);
   const navigate = useNavigate();
   const modalNavigate = useModalNavigate();
 
@@ -45,7 +46,11 @@ export default function FavoriteGroup({ groupFlag }: FavoriteGroupProps) {
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
         <div onClick={onGroupClick} className="cursor-pointer">
-          <GroupAvatar {...group?.meta} image={data.image} size="h-14 w-14" />
+          <GroupAvatar
+            {...(group?.meta ?? preview?.meta)}
+            image={data.image}
+            size="h-14 w-14"
+          />
         </div>
       </Tooltip.Trigger>
       <Tooltip.Content
