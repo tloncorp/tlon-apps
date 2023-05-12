@@ -45,7 +45,7 @@ a:not([class]) {
 }
 
 ::selection {
-  @apply bg-gray-100;
+  @apply bg-gray-200;
 }
 
 .alt-highlight::selection {
@@ -57,7 +57,7 @@ _::-webkit-full-page-media,
 _:future,
 :root .safari_only,
 body.dark ::selection {
-  @apply bg-gray-800;
+  @apply bg-gray-200;
 }
 
 button,
