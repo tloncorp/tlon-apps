@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
-import { useNavigate, useParams } from 'react-router';
 import { useAddChannelMutation, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
@@ -43,7 +43,7 @@ export default function NewChannelForm() {
 
   const onSubmit = useCallback(
     async (values: NewChannelFormSchema) => {
-      const { privacy, type, ...nextChannel } = values;
+      const { type, ...nextChannel } = values;
       const titleIsNumber = Number.isInteger(Number(values.meta.title));
       /*
         For now channel names are used as keys for pacts. Therefore we need to
@@ -99,8 +99,8 @@ export default function NewChannelForm() {
           name: channelName,
           title: values.meta.title,
           description: values.meta.description,
-          readers: values.readers,
-          writers: privacy === 'read-only' ? ['admin'] : values.writers,
+          readers: values.readers.includes('members') ? [] : values.readers,
+          writers: values.writers,
         });
       } catch (e) {
         console.log('NewChannelForm::onSubmit::createChannel', e);

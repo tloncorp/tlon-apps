@@ -70,13 +70,20 @@ export default function EditChannelForm({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
-      const { privacy, ...nextChannel } = values;
+      const { privacy, readers, ...nextChannel } = values;
 
       if (presetSection) {
         nextChannel.zone = presetSection;
       }
       try {
-        mutateEditChannel({ flag: groupFlag, channel: nextChannel, nest });
+        mutateEditChannel({
+          flag: groupFlag,
+          channel: {
+            readers: readers.includes('members') ? [] : values.readers,
+            ...nextChannel,
+          },
+          nest,
+        });
       } catch (e) {
         console.log(e);
       }
@@ -97,12 +104,6 @@ export default function EditChannelForm({
         if (privacy === 'custom') {
           await chState.delSects(channelFlag, writersToRemove);
           await chState.addSects(channelFlag, values.writers);
-        }
-
-        if (privacy === 'read-only') {
-          // read-only for everyone but admin
-          await chState.delSects(channelFlag, writersToRemove);
-          await chState.addSects(channelFlag, ['admin']);
         }
       } else {
         await chState.delSects(channelFlag, sects);

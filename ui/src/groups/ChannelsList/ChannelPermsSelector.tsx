@@ -17,10 +17,6 @@ export const PRIVACY_TYPE: Record<ChannelPrivacyType, ChannelPrivacySetting> = {
     title: 'Open to All Members',
     description: 'Everyone can read and write',
   },
-  'read-only': {
-    title: 'Members Can Read Only',
-    description: 'Only admins can write',
-  },
   custom: {
     title: 'Custom',
     description: 'Specify which roles can read and write',
@@ -158,15 +154,19 @@ export default function PrivacySelector() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const options = group?.cabals
-    ? Object.keys(group.cabals).map((c) => ({
-        value: c,
-        label: group.cabals[c].meta.title,
-      }))
+    ? Object.keys(group.cabals)
+        .map((c) => ({
+          value: c,
+          label: group.cabals[c].meta.title,
+        }))
+        .concat([{ value: 'members', label: 'Members' }])
     : [];
   const { watch, setValue, getValues } = useFormContext<ChannelFormSchema>();
   const { readers, writers } = getValues();
   const [readerRoles, setReaderRoles] = useState<RoleOption[]>(
-    options.filter((o) => readers.includes(o.value) || o.value === 'admin')
+    readers.length > 1
+      ? options.filter((o) => readers.includes(o.value) || o.value === 'admin')
+      : options
   );
   const [writerRoles, setWriterRoles] = useState<RoleOption[]>(
     options.filter((o) => writers.includes(o.value) || o.value === 'admin')
