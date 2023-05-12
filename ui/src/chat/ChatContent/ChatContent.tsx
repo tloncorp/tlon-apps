@@ -125,7 +125,7 @@ export function InlineContent({
 
   if (isInlineCode(story)) {
     return (
-      <code className="inline-block rounded bg-gray-50 px-1.5 dark:bg-gray-100">
+      <code className="inline-block rounded bg-gray-100 px-1.5">
         {typeof story['inline-code'] === 'object' ? (
           <InlineContent story={story['inline-code']} />
         ) : (
@@ -137,7 +137,7 @@ export function InlineContent({
 
   if (isBlockCode(story)) {
     return (
-      <pre className="overflow-x-auto bg-gray-50 px-4 dark:bg-gray-100">
+      <pre className="overflow-x-auto bg-gray-100 px-4">
         <code>{story.code}</code>
       </pre>
     );
@@ -229,7 +229,7 @@ function ChatContent({
             if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
               return (
                 <div
-                  className="rounded bg-gray-50 py-2 dark:bg-gray-100"
+                  className="rounded bg-gray-100 py-2"
                   style={{ maxWidth: 'calc(100% - 2rem)' }}
                 >
                   <InlineContent
@@ -243,7 +243,7 @@ function ChatContent({
             if (index === firstBlockCode) {
               return (
                 <div
-                  className="rounded bg-gray-50 pt-2 dark:bg-gray-100"
+                  className="rounded bg-gray-100 pt-2"
                   style={{ maxWidth: 'calc(100% - 2rem)' }}
                 >
                   <InlineContent
@@ -256,7 +256,7 @@ function ChatContent({
             if (index === lastBlockCode) {
               return (
                 <div
-                  className="rounded bg-gray-50 pb-2 dark:bg-gray-100"
+                  className="rounded bg-gray-100 pb-2"
                   style={{ maxWidth: 'calc(100% - 2rem)' }}
                 >
                   <InlineContent
