@@ -73,15 +73,6 @@ export const initNotifications = async () => {
   });
   Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK);
 
-  // Handle receiving notifications while app is in foreground
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
-
   // Set up notification categories
   await Notifications.setNotificationCategoryAsync('message', [
     {
@@ -246,6 +237,12 @@ const createNotificationBody = (yarn: Yarn) => {
 export const handleNotification = async ({
   notification,
 }: NotificationPayload) => {
+  // Skip notification if user is not logged in
+  const { ship } = useStore.getState();
+  if (!ship) {
+    return;
+  }
+
   const { uid } = notification.data;
   let title: string | undefined;
   let body: string | undefined;
