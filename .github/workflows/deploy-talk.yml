@@ -67,7 +67,7 @@ jobs:
           git push
   deploy:
     runs-on: ubuntu-latest
-    name: "Deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    name: "Deploy a glob to ~wannec-dozzod-marnus (devstream)"
     needs: glob
     steps:
       - uses: actions/checkout@v3
@@ -83,7 +83,7 @@ jobs:
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/landscape-apps talk wannec-dozzod-marzod us-west1-b ${{ github.event.inputs.tag }}
+          ./.github/helpers/deploy.sh tloncorp/landscape-apps talk wannec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ github.event.inputs.tag }}
         env:
           SSH_SEC_KEY: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.JANEWAY_SSH_PUB_KEY }}
