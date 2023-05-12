@@ -43,9 +43,22 @@ const getHasRequestedNotifications = async () => {
   }
 };
 
-const setHasRequestedNotifications = (value: boolean) => {
+const setHasRequestedNotifications = (value: boolean) =>
   storage.save({ key: 'hasRequestedNotifications', data: value });
+
+const getHasRegisteredNotifications = async () => {
+  try {
+    const value = await storage.load<boolean>({
+      key: 'hasRegisteredNotifications',
+    });
+    return value;
+  } catch {
+    return false;
+  }
 };
+
+const setHasRegisteredNotifications = (value: boolean) =>
+  storage.save({ key: 'hasRegisteredNotifications', data: value });
 
 export const initNotifications = async () => {
   // Handle receiving notifications while app is in background
@@ -100,54 +113,81 @@ export const initNotifications = async () => {
 };
 
 export const connectNotifications = async () => {
-  if (!Device.isDevice) {
+  // Skip if running on emulator
+  if (!Device.isDevice && !__DEV__) {
     return false;
   }
 
-  const hasRequestedNotifications = await getHasRequestedNotifications();
+  // Fetch statuses from storage
+  const [hasRequestedNotifications, hasRegisteredNotifications] =
+    await Promise.all([
+      getHasRequestedNotifications(),
+      getHasRegisteredNotifications(),
+    ]);
+  console.debug(
+    'Already registered for push notifications?',
+    hasRegisteredNotifications ? 'Yes' : 'No'
+  );
+
+  // Skip if already registered
+  if (hasRegisteredNotifications) {
+    return true;
+  }
+
+  // Fetch current permissions
+  let isGranted = false;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    isGranted = status === 'granted';
+    console.debug('Current push notifications setting:', status);
+  } catch (err) {
+    console.error('Error reading current push notification setting:', err);
+  }
+
   console.debug(
     'Already asked for notifications permission?',
     hasRequestedNotifications ? 'Yes' : 'No'
   );
 
-  try {
-    const { status } = await Notifications.getPermissionsAsync();
-    console.debug('Current push notifications setting:', status);
-
-    const isGranted = status === 'granted';
-    if (hasRequestedNotifications || isGranted) {
-      setHasRequestedNotifications(true);
-      return isGranted;
-    }
-  } catch (err) {
-    console.error('Error reading current push notification setting:', err);
-  }
-
-  try {
-    const { status: nextStatus } =
-      await Notifications.requestPermissionsAsync();
-    console.debug('New push notifications setting:', nextStatus);
-
-    setHasRequestedNotifications(true);
-    if (nextStatus !== 'granted') {
-      return false;
-    }
-  } catch (err) {
-    console.error('Error requesting new push notification setting:', err);
+  // Skip if permission not granted and already requested permission
+  if (!isGranted && hasRequestedNotifications) {
     return false;
   }
 
+  // Request permission
+  try {
+    const { status: nextStatus } =
+      await Notifications.requestPermissionsAsync();
+    isGranted = nextStatus === 'granted';
+    setHasRequestedNotifications(true);
+    console.debug('New push notifications setting:', nextStatus);
+  } catch (err) {
+    console.error('Error requesting new push notification setting:', err);
+  }
+
+  // Skip if permission explicitly not granted
+  if (!isGranted) {
+    return false;
+  }
+
+  // Register for push notifications
   const { data: token } = await Notifications.getDevicePushTokenAsync();
   console.debug('Obtained new push notification token:', token);
-  await connectNotificationProvider(token);
-
-  return true;
+  try {
+    await connectNotificationProvider(token);
+    setHasRegisteredNotifications(true);
+    console.debug('Successfully connected notification provider');
+    return true;
+  } catch (err) {
+    console.error('Error connecting notification provider:', err);
+    return false;
+  }
 };
 
 const connectNotificationProvider = async (token: string) => {
   const { api } = useStore.getState();
   if (api) {
-    const result = await api.poke({
+    await api.poke({
       app: 'notify',
       mark: 'notify-client-action',
       json: {
@@ -159,7 +199,6 @@ const connectNotificationProvider = async (token: string) => {
         },
       },
     });
-    console.debug('Connected notify client provider with result:', result);
   } else {
     console.error('Error connecting notify client provider: no api found');
   }
