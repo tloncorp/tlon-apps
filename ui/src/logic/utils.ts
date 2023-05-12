@@ -266,12 +266,11 @@ export function getPrivacyFromChannel(
     return 'public';
   }
 
-  if (groupChannel.readers.includes('admin')) {
+  if (
+    groupChannel.readers.includes('admin') ||
+    channel.perms.writers.includes('admin')
+  ) {
     return 'custom';
-  }
-
-  if (channel.perms.writers.includes('admin')) {
-    return 'read-only';
   }
 
   return 'public';
