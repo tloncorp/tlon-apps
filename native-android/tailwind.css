@@ -30,10 +30,6 @@
   width: 100%
 }
 
-.flex-1 {
-  flex: 1 1 0%
-}
-
 .flex-col {
   flex-direction: column
 }
@@ -68,6 +64,10 @@
   background-color: rgb(255 255 255 / var(--tw-bg-opacity))
 }
 
+.p-4 {
+  padding: 1rem
+}
+
 .p-6 {
   padding: 1.5rem
 }
@@ -84,4 +84,8 @@
 .text-xl {
   font-size: 1.25rem;
   line-height: 1.75rem
+}
+
+.font-semibold {
+  font-weight: 600
 }
