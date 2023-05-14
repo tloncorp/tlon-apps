@@ -1745,7 +1745,7 @@
     |=  [=wire =sign:agent:gall]
     ^+  di-core
     ?+    wire  ~|(bad-dm-take/wire !!)
-        [%proxy ~]
+        [%hark ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
       ::  TODO: handle?
