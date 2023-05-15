@@ -952,9 +952,8 @@
           ~
         =/  am-op-author  =(author.curio.u.op our.bowl)
         =/  am-author  =(author.heart our.bowl)
-        ?:  |(&(!am-author in-replies) &(am-op-author !am-author))
-          =.  cor  (emit (pass-hark & & yarn))
-        he-core
+        =?  cor  |(&(!am-author in-replies) &(am-op-author !am-author))
+          (emit (pass-hark & & yarn))
         he-core
       ==
     ::
