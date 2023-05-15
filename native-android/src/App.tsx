@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { useTailwind } from 'tailwind-rn';
-import * as Network from 'expo-network';
 import {
-  AppState,
-  AppStateStatus,
   SafeAreaView,
   Text,
   StatusBar,
@@ -15,7 +14,6 @@ import WebApp from './WebApp';
 import Login from './Login';
 import { initNotifications } from './lib/notifications';
 import { POST_HOG_API_KEY, URBIT_HOME_REGEX } from './constants';
-import { PostHogProvider, usePostHog } from 'posthog-react-native';
 
 initNotifications();
 
@@ -23,16 +21,10 @@ const App = () => {
   const tailwind = useTailwind();
   const postHog = usePostHog();
   const { loading, setLoading, ship, shipUrl, setShip } = useStore();
-  const [connected, setConnected] = useState(false);
-  const appState = useRef(AppState.currentState);
-
-  const checkNetwork = useCallback(async () => {
-    const networkState = await Network.getNetworkStateAsync();
-    setConnected(Boolean(networkState.isInternetReachable));
-  }, [setConnected]);
+  const [connected, setConnected] = useState(true);
 
   useEffect(() => {
-    const loadStorage = async () => {
+    (async () => {
       try {
         const shipConnection = await readShipConnection();
         if (shipConnection?.shipUrl) {
@@ -52,28 +44,16 @@ const App = () => {
 
         setLoading(false);
       }
-    };
-    loadStorage();
-    checkNetwork();
+    })();
 
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-        checkNetwork();
+    const unsubscribeFromNetInfo = NetInfo.addEventListener(
+      ({ isConnected }) => {
+        setConnected(isConnected ?? true);
       }
-
-      appState.current = nextAppState;
-    };
-
-    const appStateListener = AppState.addEventListener(
-      'change',
-      handleAppStateChange
     );
 
     return () => {
-      appStateListener.remove();
+      unsubscribeFromNetInfo();
     };
   }, []);
 
