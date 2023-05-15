@@ -933,7 +933,6 @@
             =/  curio  (~(get cur curios.heap) time)
             ?~  curio  %.n
             =(author.curio.u.curio our.bowl)
-        ?:  |(=(author.heart our.bowl) !in-replies)  he-core
         =/  content  (trip (flatten q.content.curio))
         =/  title
           ?:  !=(title.heart ~)  (need title.heart)
@@ -951,7 +950,11 @@
                 (flatten q.content.heart)
             ==
           ~
-        =.  cor  (emit (pass-hark & & yarn))
+        =/  am-op-author  =(author.curio.u.op our.bowl)
+        =/  am-author  =(author.heart our.bowl)
+        ?:  |(&(!am-author in-replies) &(am-op-author !am-author))
+          =.  cor  (emit (pass-hark & & yarn))
+        he-core
         he-core
       ==
     ::
