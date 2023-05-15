@@ -96,15 +96,20 @@ export default function EditChannelForm({
           : useDiaryState.getState();
 
       if (privacy !== 'public') {
+        const writersIncludesMembers = values.writers.includes('members');
+
         const writersToRemove = _.difference(
           chan?.perms.writers || [],
           values.writers
         );
 
-        if (privacy === 'custom') {
+        if (writersIncludesMembers) {
+          await chState.delSects(channelFlag, sects);
+        } else {
           await chState.delSects(channelFlag, writersToRemove);
           await chState.addSects(channelFlag, values.writers);
         }
+
       } else {
         await chState.delSects(channelFlag, sects);
       }
