@@ -191,13 +191,17 @@ export default function ChatInput({
         sendDisabled ||
         mostRecentFile?.status === 'loading' ||
         mostRecentFile?.status === 'error' ||
-        mostRecentFile?.url === '' ||
-        (editor.getText() === '' && chatInfo.blocks.length === 0)
+        mostRecentFile?.url === ''
       )
         return;
 
       const blocks = fetchChatBlocks(id);
-      if (!editor.getText() && !blocks.length && !replyCite) {
+      if (
+        !editor.getText() &&
+        !blocks.length &&
+        !replyCite &&
+        chatInfo.blocks.length === 0
+      ) {
         return;
       }
 
@@ -279,7 +283,7 @@ export default function ChatInput({
       sendDisabled,
       replyCite,
       reply,
-      chatInfo.blocks,
+      chatInfo.blocks.length,
       mostRecentFile?.status,
       mostRecentFile?.url,
     ]
