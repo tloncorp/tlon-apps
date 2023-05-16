@@ -1624,7 +1624,7 @@
   ::
   ++  di-abed-soft
     |=  s=@p
-    =/  new=?  (~(has by dms) s)
+    =/  new=?  !(~(has by dms) s)
     =/  d
       %+  ~(gut by dms)  s
       =|  =remark:c
