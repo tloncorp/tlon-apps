@@ -7,6 +7,7 @@ import {
   BackHandler,
   Platform,
   Alert,
+  useColorScheme,
 } from 'react-native';
 import { useTailwind } from 'tailwind-rn';
 import useStore from './state/store';
@@ -22,6 +23,7 @@ import useGroupsState from './state/groups';
 export default function WebApp() {
   const { shipUrl } = useStore();
   const tailwind = useTailwind();
+  const colorscheme = useColorScheme();
   const webviewRef = useRef<WebView>(null);
   const appState = useRef(AppState.currentState);
   const notificationResponseSubscription =
@@ -108,6 +110,9 @@ export default function WebApp() {
     <WebView
       source={{ uri: `${shipUrl}/apps/talk/` }}
       ref={webviewRef}
+      injectedJavaScript={`
+        window.colorscheme="${colorscheme}";
+      `}
       onHttpError={handleUrlError}
       sharedCookiesEnabled
       scalesPageToFit

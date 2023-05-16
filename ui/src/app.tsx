@@ -603,6 +603,7 @@ function RoutedApp() {
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
   const body = document.querySelector('body');
+  const colorSchemeFromNative = window.colorscheme;
 
   const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
@@ -621,7 +622,11 @@ function RoutedApp() {
   const isDarkMode = useIsDark();
 
   useEffect(() => {
-    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
+    if (
+      (isDarkMode && theme === 'auto') ||
+      theme === 'dark' ||
+      colorSchemeFromNative === 'dark'
+    ) {
       document.body.classList.add('dark');
       useLocalState.setState({ currentTheme: 'dark' });
       setUserThemeColor('#000000');
@@ -630,7 +635,7 @@ function RoutedApp() {
       useLocalState.setState({ currentTheme: 'light' });
       setUserThemeColor('#ffffff');
     }
-  }, [isDarkMode, theme]);
+  }, [isDarkMode, theme, colorSchemeFromNative]);
 
   useEffect(() => {
     if (isStandAlone) {

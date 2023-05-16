@@ -10,6 +10,7 @@ declare global {
     ReactNativeWebView?: any;
     markRead: Rope;
     recents: any;
+    colorscheme: any;
   }
 }
 
