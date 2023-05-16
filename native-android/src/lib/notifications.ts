@@ -244,9 +244,6 @@ export const handleNotification = async ({
   }
 
   const { uid } = notification.data;
-  let title: string | undefined;
-  let body: string | undefined;
-  let data: Record<string, any> = {};
 
   try {
     const yarn = await useHarkState.getState().fetchYarn(uid);
@@ -255,28 +252,24 @@ export const handleNotification = async ({
       return;
     }
 
-    title = await createNotificationTitle(yarn);
-    body = createNotificationBody(yarn);
-    data = yarn;
+    const content = {
+      categoryIdentifier: 'message',
+      title: await createNotificationTitle(yarn),
+      body: createNotificationBody(yarn),
+      data: yarn,
+    };
+
+    if (Device.isDevice) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: uid,
+        content,
+        trigger: null,
+      });
+    } else {
+      console.log(content);
+    }
   } catch (err) {
     console.error('Error fetching yarn details:', err);
-  }
-
-  const content = {
-    categoryIdentifier: 'message',
-    title: title ?? 'You have received a new message',
-    body,
-    data,
-  };
-
-  if (Device.isDevice) {
-    await Notifications.scheduleNotificationAsync({
-      identifier: uid,
-      content,
-      trigger: null,
-    });
-  } else {
-    console.log(content);
   }
 };
 
