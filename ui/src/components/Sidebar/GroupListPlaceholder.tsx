@@ -20,11 +20,19 @@ function GroupItemPlaceholder() {
 
 interface GroupListPlaceholderProps {
   count: number;
+  pulse?: boolean;
 }
 
-function GroupListPlaceholder({ count }: GroupListPlaceholderProps) {
+function GroupListPlaceholder({
+  count,
+  pulse = true,
+}: GroupListPlaceholderProps) {
   return (
-    <ul className="h-full animate-pulse space-y-3 p-2 sm:space-y-0">
+    <ul
+      className={cn('h-full space-y-3 p-2 sm:space-y-0', {
+        'animate-pulse': pulse,
+      })}
+    >
       {new Array(count).fill(true).map((_, i) => (
         <GroupItemPlaceholder key={i} />
       ))}

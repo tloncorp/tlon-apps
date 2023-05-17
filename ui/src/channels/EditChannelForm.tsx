@@ -109,7 +109,6 @@ export default function EditChannelForm({
           await chState.delSects(channelFlag, writersToRemove);
           await chState.addSects(channelFlag, values.writers);
         }
-
       } else {
         await chState.delSects(channelFlag, sects);
       }

@@ -292,6 +292,10 @@
     ?.  ?=(%known -)  (hi-and-req-gang-index ship)
     (req-gang-index ship)
   ::
+      [%hi ship=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    (hi-ship ship)
+  ::
      [%gangs ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
     ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
@@ -341,6 +345,10 @@
       [%helm *]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
+  ::
+      [%hi ship=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    (take-hi ship sign)
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -1590,6 +1598,27 @@
   %-  emil
   :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('')]
       [%pass gang-wire %agent gang-dock %watch `path`gang-wire]
+  ==
+::
+++  hi-ship
+  |=  =ship
+  ^+  cor
+  =/  hi-wire=wire  /hi/(scot %p ship)
+  =/  hi-dock=dock  [ship %hood]
+  %-  emil
+  :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('')]
+  ==
+::
+++  take-hi
+  |=  [=ship =sign:agent:gall]
+  ^+  cor
+  =/  =path  /hi/(scot %p ship)
+  ?+  -.sign  !!
+      %kick  (emit %give %kick ~[path] ~)
+   ::
+      %poke-ack
+    =.  cor  (emit [%give %fact ~[path] hi-ship+!>(ship)])
+    (emit %give %kick ~[path] ~)
   ==
 ::
 ++  take-gang-index

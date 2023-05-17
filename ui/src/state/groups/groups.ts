@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
 import { useCallback, useEffect, useMemo } from 'react';
+import create from 'zustand';
 import {
   MutationFunction,
   useMutation,
@@ -28,7 +29,7 @@ import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { getFlagParts } from '@/logic/utils';
+import { getFlagParts, preSig } from '@/logic/utils';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -62,6 +63,24 @@ function groupTrackedPoke(action: Poke<GroupAction>) {
     { app: 'groups', path: '/groups/ui' },
     defaultValidator(action.json)
   );
+}
+
+export const useGroupConnectionState = create<{
+  groups: Record<string, boolean>;
+  setGroupConnected: (group: string, connected: boolean) => void;
+}>((set) => ({
+  groups: {},
+  setGroupConnected: (group, connected) =>
+    set((state) => ({
+      groups: {
+        ...state.groups,
+        [group]: connected,
+      },
+    })),
+}));
+
+export function useGroupConnection(flag: string) {
+  return useGroupConnectionState((state) => state.groups[flag] ?? true);
 }
 
 export function useGroups() {
@@ -109,6 +128,7 @@ export function useGroup(flag: string, updating = false) {
       enabled: !!flag && flag !== '' && updating,
       initialData: group,
       refetchOnMount: updating,
+      retry: true,
     },
   });
 
@@ -738,10 +758,8 @@ export function useGroupLeaveMutation() {
           queryKey: [GROUPS_KEY, variables.flag],
           exact: true,
         });
-        queryClient.invalidateQueries([GROUPS_KEY]);
-        queryClient.invalidateQueries(['gangs']);
-        queryClient.invalidateQueries(['gangs', variables.flag]);
-        queryClient.invalidateQueries(['gang-preview', variables.flag]);
+        queryClient.removeQueries(['gangs', variables.flag]);
+        queryClient.removeQueries(['gang-preview', variables.flag]);
       },
     }
   );
@@ -992,6 +1010,23 @@ export function useGroupIndex(ship: string) {
 
   return {
     groupIndex: data as GroupIndex,
+    ...rest,
+  };
+}
+
+export function useGroupHostHi(ship: string) {
+  const { data, ...rest } = useReactQuerySubscribeOnce({
+    queryKey: ['group-host-hi', ship],
+    app: 'groups',
+    path: `/hi/${ship}`,
+    options: {
+      enabled: ship !== '' && preSig(window.ship) !== ship,
+      cacheTime: 60 * 1000, // default to 1 minute before we check if the host is online again.
+    },
+  });
+
+  return {
+    ship: data as string,
     ...rest,
   };
 }
