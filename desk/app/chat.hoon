@@ -1630,10 +1630,10 @@
       =|  =remark:c
       =.  watching.remark  &
       [*pact:c remark ?:(=(src our):bowl %inviting %invited) |]
-    =?  di-core  &(new !=(src our):bowl)
-      di-invited:di-core(ship s, dm d)
-    di-core(ship s, dm d)
-
+    ?.  &(new !=(src our):bowl)
+      di-core(ship s, dm d)
+    di-invited:di-core(ship s, dm d)
+  ::
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
