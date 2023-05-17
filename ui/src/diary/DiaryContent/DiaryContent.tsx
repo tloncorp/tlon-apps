@@ -66,8 +66,8 @@ export function InlineContent({ story }: InlineContentProps) {
   if (_.isArray(story)) {
     return (
       <>
-        {story.map((s) => (
-          <InlineContent story={s} />
+        {story.map((s, k) => (
+          <InlineContent story={s} key={k} />
         ))}
       </>
     );
@@ -187,9 +187,9 @@ export function ListingContent({ content }: { content: DiaryListing }) {
         <InlineContent key={i} story={con} />
       ))}
       <List>
-        {content.list.items.map((i) => (
+        {content.list.items.map((con, i) => (
           <li>
-            <ListingContent content={i} />
+            <ListingContent key={i} content={con} />
           </li>
         ))}
       </List>
@@ -228,7 +228,7 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     return (
       <Tag>
         {story.header.content.map((con, i) => (
-          <InlineContent key={i} story={con} />
+          <InlineContent key={`${con}-${i}`} story={con} />
         ))}
       </Tag>
     );
