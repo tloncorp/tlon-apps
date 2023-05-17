@@ -342,7 +342,12 @@ export default function ChannelHeader({
         <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
           <ChannelIcon nest={nest} className="h-5 w-5 text-gray-400" />
         </div>
-        <span className="ellipsis line-clamp-1">{channel?.meta.title}</span>
+        <div className="flex flex-col justify-center">
+          <span className="ellipsis line-clamp-1">{channel?.meta.title}</span>
+          <span className="ellipsis text-sm font-medium text-gray-400 line-clamp-1">
+            {channel?.meta.description}
+          </span>
+        </div>
       </BackButton>
       <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
         {isMobile && <ReconnectingSpinner />}
