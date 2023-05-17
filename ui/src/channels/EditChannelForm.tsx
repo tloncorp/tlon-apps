@@ -160,6 +160,14 @@ export default function EditChannelForm({
           />
         </label>
         <label className="mb-3 font-semibold">
+          Channel Description
+          <input
+            {...form.register('meta.description')}
+            className="input my-2 block w-full p-1"
+            type="text"
+          />
+        </label>
+        <label className="mb-3 font-semibold">
           Channel Permissions
           <ChannelPermsSelector />
         </label>
