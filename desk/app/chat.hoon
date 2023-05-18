@@ -4,7 +4,7 @@
 /-  e=epic
 /+  default-agent, verb-lib=verb, dbug
 /+  chat-json
-/+  pac=dm
+/+  pac=writs
 /+  ch=chat-hark
 /+  gra=graph-store
 /+  epos-lib=saga
@@ -125,6 +125,7 @@
       %3
     =.  state  old      
     =.  cor  restore-missing-subs
+    ~&  %final-state
     ?:  =(okay cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
     %-  (note:wood %ver leaf/"New Epic" ~)
@@ -214,40 +215,95 @@
     ==
   ++  state-2-to-3
     |=  s=state-2
-    ^-  state-3
+    ~&  %migrating-2-3
+    ^-  state-3  
     %*  .  *state-3
-      dms     dms.s  :: TODO
-      clubs   clubs.s  :: TODO
+      dms     (dms-2-to-3 dms.s)
+      clubs   (clubs-2-to-3 clubs.s)
       drafts  drafts.s
       pins    pins.s
       bad     bad.s
       inv     inv.s
       fish    fish.s
-      voc     voc.s
+      voc     (voc-2-to-3 voc.s)
       chats   (chats-2-to-3 chats.s)
     ==
   ::
   ++  chats-2-to-3
     |=  chats=(map flag:two chat:two)
+    ~&  %migrating-chat
     ^-  (map flag:c chat:c)
     %-  ~(run by chats)
-    |=  old-chat=chat:two
+    |=  old=chat:two
     ^-  chat:c
-    :*  net.old-chat
-        remark.old-chat
-        ;;  log:c  log.old-chat  ::  ???
-        perm.old-chat
-        ^-  pact:c
-      :_  dex.pact.old-chat
-      %+  run:on:writs:two  wit.pact.old-chat
-      |=  old-writ=writ:two
-      ^-  writ:c
-      :_  +:old-writ
-      :*  id:-:old-writ  feels:-:old-writ  replied:-:old-writ
-        [%fray ~]
-      ==
+    :*  net.old
+        remark.old
+        ;;  log:c  log.old  ::  ???
+        perm.old
+        (pact-2-to-3 pact.old)
     ==
   ::
+  ++  clubs-2-to-3
+    |=  clubs=(map id:club:two club:two)
+    ~&  %migrating-club
+    ^-  (map id:club:c club:c)
+    %-  ~(run by clubs)
+    |=  old=club:two
+    ^-  club:c
+    :*  heard  heard.old
+        remark  remark.old
+        crew  crew.old
+        pact  (pact-2-to-3 pact.old)
+    ==
+  ::
+  ++  dms-2-to-3
+    |=  dms=(map ship dm:two)
+    ~&  %migrating-dm
+    ^-  (map ship dm:c)
+    %-  ~(run by dms)
+    |=  old=dm:two
+    ^-  dm:c
+    :*  net  net.old
+        remark  remark.old
+        pin  pin.old
+        pact  (pact-2-to-3 pact.old)
+    ==
+  ::
+  ++  voc-2-to-3
+    |=  voc=(map [flag:two id:two] (unit said:two))
+    ^-  (map [flag:c id:c] (unit said:c))
+    %-  ~(rut by voc)
+    |=  [[=flag:two =id:two] old=(unit said:two)]
+    ~&  [%voc flag id]
+    ^-  (unit said:c)
+    ?~  old  ~
+    =/  =chat:c  (~(gut by chats) flag *chat:c) 
+    =/  =time  (~(gut by dex.pact.chat) id *time)
+    %-  some
+    ^-  said:c
+    =*  old  u.old
+    :-  p.old
+    :_  +:q.old
+    :*  id:-:q.old  time  feels:-:q.old  replied:-:q.old
+      [%fray ~]
+    ==
+  ::
+  ++  pact-2-to-3
+    |=  old-pact=pact:two
+    ^-  pact:c
+    ~&  %migrating-pact
+    :_  dex.old-pact
+    %+  gas:on:writs:c  *writs:c        
+    ^-  (list [time writ:c])
+    %+  turn
+      (tap:on:writs:two wit.old-pact)
+    |=  [=time old-writ=writ:two]
+    ^-  [^time writ:c]
+    :-  time
+    :_  +:old-writ
+    :*  id:-:old-writ  time  feels:-:old-writ  replied:-:old-writ
+      [%fray ~]
+    ==
   ++  clubs-1-to-2
     |=  clubs=(map id:club:one club:one)
     ^-  (map id:club:two club:two)
