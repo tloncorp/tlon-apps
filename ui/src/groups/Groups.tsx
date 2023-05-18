@@ -35,15 +35,21 @@ function Groups() {
   const { recentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
+    if (group) {
+      useGroupConnectionState.getState().setGroupConnected(flag, true);
+      return;
+    }
+
     if (isLoading) {
       useGroupConnectionState.getState().setGroupConnected(flag, true);
     }
     if (isError) {
       useGroupConnectionState.getState().setGroupConnected(flag, false);
-    } else if (isSuccess) {
+    }
+    if (isSuccess) {
       useGroupConnectionState.getState().setGroupConnected(flag, true);
     }
-  }, [isError, isSuccess, isLoading, flag]);
+  }, [isError, isSuccess, isLoading, flag, group]);
 
   useEffect(() => {
     // 1) If we've initialized and the group doesn't exist and you don't have
@@ -98,14 +104,6 @@ function Groups() {
           <span className="ml-2 text-gray-600">
             Group host ({ship}) is offline.
           </span>
-          <button
-            className="small-button"
-            onClick={() =>
-              useGroupConnectionState.getState().setGroupConnected(flag, true)
-            }
-          >
-            Retry
-          </button>
         </div>
       </div>
     );
