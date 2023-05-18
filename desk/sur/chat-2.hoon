@@ -107,7 +107,7 @@
   ::  $net: status of club
   ::
   +$  net  ?(%archive %invited %done)
-  +$  club  [=heard =remark =pact crew]
+  +$  club  [=heard =remark =pact =crew]
   ::
   ::  $crew: a container for the metadata for the club
   ::
@@ -140,6 +140,7 @@
   ::  $heard: the set of action uid's we've already heard
   ::
   +$  heard  (set uid)
+  ::
   +$  diff    (pair uid delta)
   ::
   +$  delta    
@@ -195,7 +196,7 @@
   +$  rsvp    [=ship ok=?]
   --
 ::
-::  $log: a time ordered map of all modifications to groups
+::  $log: a time ordered map of all modifications to chats
 ::
 +$  log
   ((mop time diff) lte)

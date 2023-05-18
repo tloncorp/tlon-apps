@@ -56,7 +56,7 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id ~ ~ [%fray ~]]
+    =/  =seal:c  [id now ~ ~ [%fray ~]]
     ?:  (~(has by dex.pac) id)
       pac
     =.  wit.pac
@@ -95,8 +95,29 @@
   ?+    pole  [~ ~]
   ::
       [%newest count=@ ~]
+    ~>  %bout
     =/  count  (slav %ud count.pole)
-    ``chat-writs+!>((gas:on *writs:c (top:mope wit.pac count)))
+    =/  filtered
+      %^  (dip:on @)  wit.pac  ~
+      |=  [st=@ =time =writ:c]
+      :_  [%.n st]
+      ?+  -.threaded.writ  `writ
+          %strand  ~
+      ==
+    ``chat-writs+!>((gas:on *writs:c (top:mope +.filtered count)))
+  ::
+      [%newest count=@ %thread ship=@ time=@ ~]
+    ~>  %bout
+    =/  count  (slav %ud count.pole)
+    =/  =id:c  [(slav %p ship.pole) (slav %ud time.pole)]
+    =/  filtered
+      %^  (dip:on @)  wit.pac  ~
+      |=  [st=@ =time =writ:c]
+      :_  [%.n st]
+      ?+  -.threaded.writ  ~
+          %strand  ?.(=(id id.threaded.writ) ~ `writ)
+      ==
+    ``chat-writs+!>((gas:on *writs:c (top:mope +.filtered count)))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)

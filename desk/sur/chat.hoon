@@ -23,6 +23,7 @@
 ::  $seal: the id of a chat and its meta-responses
 ::
 ::    id: the id of the message
+::    time: the canonical host/server time for the message, used as a key
 ::    feels: reactions to a message
 ::    replied: set of replies to a message
 ::    threaded:
@@ -32,6 +33,7 @@
 ::
 +$  seal
   $:  =id
+      =time
       feels=(map ship feel)
       replied=(set id)
       threaded=$%([%knot ~] [%fray ~] [%strand =id])

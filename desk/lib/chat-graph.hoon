@@ -1,7 +1,7 @@
 /-  c=chat, g=groups
 /-  cite
 /+  gra=graph-store
-/+  pac=dm
+/+  pac=writs
 |%
 ++  nert
   |_  [=flag:g =dude:gall]
