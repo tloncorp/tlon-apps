@@ -7,7 +7,6 @@ import {
   useGroupConnection,
   useGroupConnectionState,
   useGroupHostHi,
-  useGroupIndex,
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
@@ -25,7 +24,7 @@ function Groups() {
   const group = useGroup(flag, true);
   const gang = useGang(flag);
   const { ship } = getFlagParts(flag);
-  const { isError, isSuccess, isLoading, ...rest } = useGroupHostHi(ship);
+  const { isError, isSuccess, isLoading } = useGroupHostHi(ship);
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -36,15 +35,21 @@ function Groups() {
   const { recentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
+    if (group) {
+      useGroupConnectionState.getState().setGroupConnected(flag, true);
+      return;
+    }
+
     if (isLoading) {
       useGroupConnectionState.getState().setGroupConnected(flag, true);
     }
     if (isError) {
       useGroupConnectionState.getState().setGroupConnected(flag, false);
-    } else if (isSuccess) {
+    }
+    if (isSuccess) {
       useGroupConnectionState.getState().setGroupConnected(flag, true);
     }
-  }, [isError, isSuccess, isLoading, flag]);
+  }, [isError, isSuccess, isLoading, flag, group]);
 
   useEffect(() => {
     // 1) If we've initialized and the group doesn't exist and you don't have
@@ -95,7 +100,7 @@ function Groups() {
   if (!connection && !group) {
     return (
       <div className="flex min-w-0 grow items-center justify-center bg-gray-50">
-        <div className="flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center space-y-4">
           <span className="ml-2 text-gray-600">
             Group host ({ship}) is offline.
           </span>
