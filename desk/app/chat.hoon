@@ -234,7 +234,7 @@
     ~&  %migrating-chat
     ^-  (map flag:c chat:c)
     %-  ~(run by chats)
-    |=  old-chat=chat:two
+    |=  old=chat:two
     ^-  chat:c
     :*  net.old-chat
         remark.old-chat
