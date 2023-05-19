@@ -183,7 +183,7 @@
         %+  weld
           ^-  (list card)
           :_  ~
-          [%pass /chat/ui %agent [our-self %chat] %leave ~]
+          [%pass /chat/ui %agent [our-self:tc %chat] %leave ~]
         ^-  (list card)
         %-  zing
         %+  turn  ~(tap in flags)
