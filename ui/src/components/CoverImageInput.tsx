@@ -10,18 +10,20 @@ import { useUploader } from '@/state/storage';
 interface CoverImageInputProps {
   className?: string;
   url?: string;
+  noteId?: string;
 }
 
 export default function CoverImageInput({
   className = '',
   url,
+  noteId,
 }: CoverImageInputProps) {
   const { register, watch, setValue } =
     useFormContext<Pick<NoteEssay, 'title' | 'image'>>();
   const image = watch('image');
   const calm = useCalm();
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const uploader = useUploader('cover-image-input');
+  const uploader = useUploader(`cover-image-input-${noteId || 'new'}`);
   const mostRecentFile = uploader?.getMostRecent();
 
   useEffect(() => {

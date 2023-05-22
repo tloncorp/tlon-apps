@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -205,7 +205,7 @@ export default function DiaryAddNote() {
         <FormProvider {...form}>
           <div className="mx-auto max-w-xl p-4">
             <form className="space-y-6">
-              <CoverImageInput url="" />
+              <CoverImageInput url="" noteId={id} />
               <input
                 placeholder="New Title"
                 className="input-transparent text-3xl font-semibold"
