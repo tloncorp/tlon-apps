@@ -753,13 +753,43 @@ export function useGroupLeaveMutation() {
       });
     },
     {
-      onSettled: (_data, _error, variables) => {
-        queryClient.removeQueries({
-          queryKey: [GROUPS_KEY, variables.flag],
-          exact: true,
+      onMutate: async (variables) => {
+        await queryClient.cancelQueries([GROUPS_KEY, variables.flag]);
+        await queryClient.cancelQueries(['gangs', variables.flag]);
+        await queryClient.cancelQueries(['gang-preview', variables.flag]);
+        await queryClient.cancelQueries([GROUPS_KEY]);
+
+        queryClient.setQueryData<Group | undefined>(
+          [GROUPS_KEY, variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Group | undefined>(
+          ['gangs', variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Group | undefined>(
+          ['gang-preview', variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Groups | undefined>([GROUPS_KEY], (old) => {
+          if (!old) {
+            return undefined;
+          }
+          const newGroups = old;
+          delete newGroups[variables.flag];
+
+          return newGroups;
         });
+      },
+      onSettled: async (_data, _error, variables) => {
         queryClient.removeQueries(['gangs', variables.flag]);
         queryClient.removeQueries(['gang-preview', variables.flag]);
+        queryClient.removeQueries([GROUPS_KEY, variables.flag]);
+        await queryClient.refetchQueries(['gangs']);
+        await queryClient.refetchQueries([GROUPS_KEY]);
       },
     }
   );
