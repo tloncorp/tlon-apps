@@ -33,10 +33,10 @@ export default function DiaryAddNote() {
     isLoading: loadingNote,
     fetchStatus,
   } = useNote(chFlag, id || '0', id === undefined ? true : false);
-  const { mutate: editNote, status: editStatus } = useEditNoteMutation();
+  const { mutateAsync: editNote, status: editStatus } = useEditNoteMutation();
   const {
     data: returnTime,
-    mutate: addNote,
+    mutateAsync: addNote,
     status: addStatus,
   } = useAddNoteMutation();
   const content = useMemo(
@@ -105,7 +105,7 @@ export default function DiaryAddNote() {
 
     try {
       if (id) {
-        editNote({
+        await editNote({
           flag: chFlag,
           time: id,
           essay: {
@@ -115,7 +115,7 @@ export default function DiaryAddNote() {
           },
         });
       } else {
-        addNote({
+        await addNote({
           flag: chFlag,
           essay: {
             ...values,

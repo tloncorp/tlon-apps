@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import bigInt from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
@@ -136,7 +135,11 @@ export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
     path: `/diary/${flag}/notes/older/${fetchStart}/${count}`,
     priority: 2,
     options: {
-      enabled: enabled && index !== undefined && oldNotesSize !== 0,
+      enabled:
+        enabled &&
+        index !== undefined &&
+        oldNotesSize !== 0 &&
+        fetchStart !== decToUd('0'),
     },
   });
 
@@ -471,6 +474,7 @@ export function useAddNoteMutation() {
     mutationFn,
     onMutate: async (variables) => {
       await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
+      await queryClient.cancelQueries(['diary', 'briefs']);
 
       const notes = queryClient.getQueryData<DiaryLetter>([
         'diary',
@@ -490,6 +494,7 @@ export function useAddNoteMutation() {
     },
     onSettled: async (_data, _error, variables) => {
       await queryClient.refetchQueries(['diary', 'notes', variables.flag]);
+      await queryClient.refetchQueries(['diary', 'briefs']);
     },
   });
 }
