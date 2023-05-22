@@ -136,14 +136,14 @@ export const useLureState = create<LureState>(
           undefined
         );
 
-        const enableAcked = await asyncWithDefault(
+        const enableAcked = !(await asyncWithDefault(
           () =>
             api.scry<boolean>({
               app: 'reel',
               path: `/outstanding-poke/${flag}`,
             }),
           true
-        );
+        ));
 
         set(
           produce((draft: LureState) => {

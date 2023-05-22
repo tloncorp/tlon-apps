@@ -12,7 +12,14 @@ import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
-import { useAmAdmin, useGroup } from '@/state/groups';
+import {
+  useAmAdmin,
+  useGang,
+  useGroup,
+  useGroupCancelMutation,
+} from '@/state/groups';
+import IconButton from '@/components/IconButton';
+import XIcon from '@/components/icons/XIcon';
 
 const { ship } = window;
 
@@ -59,11 +66,14 @@ type GroupActionsProps = PropsWithChildren<{
 const GroupActions = React.memo(
   ({ flag, className, children }: GroupActionsProps) => {
     const { isGroupUnread } = useIsGroupUnread();
+    const { preview, claim } = useGang(flag);
     const location = useLocation();
     const hasActivity = isGroupUnread(flag);
     const group = useGroup(flag);
     const privacy = group ? getPrivacyFromGroup(group) : 'public';
     const isAdmin = useAmAdmin(flag);
+    const { mutate: cancelJoinMutation, status: cancelJoinStatus } =
+      useGroupCancelMutation();
 
     const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
       useGroupActions(flag);
@@ -153,6 +163,15 @@ const GroupActions = React.memo(
                   <LeaveIcon className="h-6 w-6" />
                   <span className="pr-2">Leave Group</span>
                 </Link>
+              </DropdownMenu.Item>
+            )}
+            {claim && (
+              <DropdownMenu.Item
+                className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                onSelect={() => cancelJoinMutation({ flag })}
+              >
+                <XIcon className="h-6 w-6" />
+                <span className="pr-2">Cancel Join</span>
               </DropdownMenu.Item>
             )}
           </DropdownMenu.Content>
