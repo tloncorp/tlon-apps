@@ -197,28 +197,33 @@ export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
 
   const note = data as DiaryNote;
 
-  const quips = note?.seal?.quips;
-  let quipMap: BigIntOrderedMap<DiaryQuip> = new BigIntOrderedMap<DiaryQuip>();
+  const noteWithQuips = useMemo(() => {
+    const quips = note?.seal?.quips;
+    let quipMap: BigIntOrderedMap<DiaryQuip> =
+      new BigIntOrderedMap<DiaryQuip>();
 
-  if (quips !== undefined && quips !== null) {
-    quipMap = restoreMap<DiaryQuip>(quips);
-    const diff = Object.entries(quips as object).map(([k, v]) => ({
-      tim: bigInt(udToDec(k)),
-      quip: v as DiaryQuip,
-    }));
+    if (quips !== undefined && quips !== null) {
+      quipMap = restoreMap<DiaryQuip>(quips);
+      const diff = Object.entries(quips as object).map(([k, v]) => ({
+        tim: bigInt(udToDec(k)),
+        quip: v as DiaryQuip,
+      }));
 
-    diff.forEach(({ tim, quip }) => {
-      quipMap = quipMap.set(tim, quip);
-    });
-  }
+      diff.forEach(({ tim, quip }) => {
+        quipMap = quipMap.set(tim, quip);
+      });
+    }
 
-  const noteWithQuips = {
-    ...note,
-    seal: {
-      ...note?.seal,
-      quips: quipMap,
-    },
-  };
+    const newNoteWithQuips = {
+      ...note,
+      seal: {
+        ...note?.seal,
+        quips: quipMap,
+      },
+    };
+
+    return newNoteWithQuips;
+  }, [note]);
 
   return {
     note: noteWithQuips as DiaryNote,

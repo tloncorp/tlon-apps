@@ -40,10 +40,7 @@ export default function DiaryAddNote() {
     status: addStatus,
   } = useAddNoteMutation();
   const content = useMemo(
-    () =>
-      note && !loadingNote && note.essay.content.length > 0
-        ? diaryMixedToJSON(note.essay.content)
-        : '',
+    () => (note && !loadingNote ? diaryMixedToJSON(note.essay.content) : ''),
     [note, loadingNote]
   );
 
@@ -57,11 +54,12 @@ export default function DiaryAddNote() {
   const { reset, register, getValues, setValue } = form;
 
   useEffect(() => {
-    if (note && !loadingNote) {
+    const { title, image } = getValues();
+    if (!loadingNote && title === '' && image === '' && note?.essay) {
       setValue('title', note.essay.title);
       setValue('image', note.essay.image);
     }
-  }, [note, setValue, loadingNote]);
+  }, [note, setValue, loadingNote, getValues]);
 
   const editor = useDiaryInlineEditor({
     content,
