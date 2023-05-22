@@ -1,5 +1,5 @@
 import { citeToPath, useCopy } from '@/logic/utils';
-import { useDiaryState } from '@/state/diary';
+import { useDeleteNoteMutation } from '@/state/diary';
 import { decToUd } from '@urbit/api';
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
@@ -12,6 +12,7 @@ interface useDiaryActionsParams {
 export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const { mutate: deleteNote } = useDeleteNoteMutation();
   const { doCopy, didCopy } = useCopy(
     citeToPath({
       chan: {
@@ -22,9 +23,9 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   );
 
   const delNote = useCallback(async () => {
-    await useDiaryState.getState().delNote(flag, decToUd(time));
+    deleteNote({ flag, time: decToUd(time) });
     navigate('../');
-  }, [flag, time, navigate]);
+  }, [flag, time, deleteNote, navigate]);
 
   const onCopy = useCallback(
     (e) => {

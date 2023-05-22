@@ -15,7 +15,6 @@ vi.mock('@/state/chat', () => ({
   usePinned: () => [],
   useGetLatestChat: () => () => 0,
   useGetLatestCurio: () => () => 0,
-  useGetLatestNote: () => () => 0,
   useMultiDms: () => [],
   usePinnedClubs: () => [],
   useDms: () => [],

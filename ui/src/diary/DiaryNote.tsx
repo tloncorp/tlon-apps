@@ -6,7 +6,12 @@ import {
   pluralize,
   sampleQuippers,
 } from '@/logic/utils';
-import { useBrief, useDiaryState, useNote, useDiaryPerms } from '@/state/diary';
+import {
+  useDiaryBrief,
+  useNote,
+  useDiaryPerms,
+  useJoinDiaryMutation,
+} from '@/state/diary';
 import {
   useRouteGroup,
   useVessel,
@@ -83,27 +88,58 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 }
 
 export default function DiaryNote() {
-  const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
-  const [id, note] = useNote(chFlag, noteId)!;
+  // const [id, note] = useNote(chFlag, noteId)!;
+  const { note, status } = useNote(chFlag, noteId);
   const vessel = useVessel(groupFlag, window.our);
   const briefs = useAllBriefs();
   const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
     ? isChannelJoined(nest, briefs)
     : true;
   const isAdmin = useAmAdmin(groupFlag);
-  const { quips } = note.seal;
-  const quipArray = Array.from(quips).reverse(); // natural reading order
-  const brief = useBrief(chFlag);
+  const brief = useDiaryBrief(chFlag);
   // const settings = useDiarySettings();
   const sort = useDiaryCommentSortMode(chFlag);
-  const idIsZero = id.isZero();
   const perms = useDiaryPerms(chFlag);
+  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
+  const joinChannel = useCallback(async () => {
+    setJoining(true);
+    await joinDiary({ group: groupFlag, chan: chFlag });
+    setJoining(false);
+  }, [chFlag, groupFlag, joinDiary]);
+
+  useEffect(() => {
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel]);
+
+  if (!note || status === 'loading') {
+    return (
+      <Layout
+        className="h-full flex-1 bg-white"
+        header={
+          <DiaryNoteHeader
+            title={'Loading note...'}
+            time={noteId}
+            canEdit={false}
+          />
+        }
+      >
+        <div className="flex h-full w-full flex-col items-center justify-center">
+          Loading...
+        </div>
+      </Layout>
+    );
+  }
+
+  const { quips } = note.seal;
+  const quipArray = Array.from(quips).reverse(); // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const groupedQuips = setNewDays(
     groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
@@ -114,35 +150,6 @@ export default function DiaryNote() {
       return b.localeCompare(a);
     })
   );
-
-  const load = useCallback(async () => {
-    useDiaryState.getState().initialize(chFlag);
-    try {
-      await useDiaryState.getState().fetchNote(chFlag, noteId);
-    } catch (e) {
-      console.log("Couldn't load note", e);
-    }
-    setLoading(false);
-  }, [chFlag, noteId]);
-
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
-    await useDiaryState.getState().joinDiary(groupFlag, chFlag);
-    setJoining(false);
-  }, [chFlag, groupFlag]);
-
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel]);
-
-  useEffect(() => {
-    if (idIsZero && !joining) {
-      setLoading(true);
-      load();
-    }
-  }, [load, idIsZero, joining]);
 
   return (
     <Layout
@@ -156,42 +163,38 @@ export default function DiaryNote() {
       }
     >
       <div className="h-full overflow-y-scroll p-6">
-        {loading ? (
-          <div>Loading...</div>
-        ) : (
-          <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
-            <DiaryNoteHeadline
-              quipCount={note.seal.quips.size}
-              quippers={sampleQuippers(note.seal.quips)}
-              essay={note.essay}
-              time={bigInt(noteId)}
-            />
-            <DiaryContent content={note.essay.content} />
-            <footer id="comments">
-              <div className="mb-3 flex items-center py-3">
-                <Divider className="flex-1">
-                  <h2 className="font-semibold text-gray-400">
-                    {quips.size > 0
-                      ? `${quips.size} ${pluralize('comment', quips.size)}`
-                      : 'No comments'}
-                  </h2>
-                </Divider>
-              </div>
-              {canWrite ? (
-                <DiaryCommentField flag={chFlag} replyTo={noteId} />
-              ) : null}
-              <ul className="mt-12">
-                {groupedQuips.map(([t, g]) =>
-                  g.map((props) => (
-                    <li key={props.time.toString()}>
-                      <DiaryComment {...props} />
-                    </li>
-                  ))
-                )}
-              </ul>
-            </footer>
-          </section>
-        )}
+        <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
+          <DiaryNoteHeadline
+            quipCount={note.seal.quips.size}
+            quippers={sampleQuippers(note.seal.quips)}
+            essay={note.essay}
+            time={bigInt(noteId)}
+          />
+          <DiaryContent content={note.essay.content} />
+          <footer id="comments">
+            <div className="mb-3 flex items-center py-3">
+              <Divider className="flex-1">
+                <h2 className="font-semibold text-gray-400">
+                  {quips.size > 0
+                    ? `${quips.size} ${pluralize('comment', quips.size)}`
+                    : 'No comments'}
+                </h2>
+              </Divider>
+            </div>
+            {canWrite ? (
+              <DiaryCommentField flag={chFlag} replyTo={noteId} />
+            ) : null}
+            <ul className="mt-12">
+              {groupedQuips.map(([t, g]) =>
+                g.map((props) => (
+                  <li key={props.time.toString()}>
+                    <DiaryComment {...props} />
+                  </li>
+                ))
+              )}
+            </ul>
+          </footer>
+        </section>
       </div>
     </Layout>
   );

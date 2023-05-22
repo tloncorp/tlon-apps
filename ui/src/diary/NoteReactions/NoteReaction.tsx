@@ -4,8 +4,10 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
-import { useDiaryState } from '@/state/diary';
-import { useParams } from 'react-router';
+import {
+  useAddNoteFeelMutation,
+  useDeleteNoteFeelMutation,
+} from '@/state/diary';
 
 interface NotReactionProps {
   whom: string;
@@ -20,11 +22,11 @@ export default function NoteReaction({
   ships,
   time,
 }: NotReactionProps) {
-  const { chShip, chName } = useParams();
-  const chFlag = `${chShip}/${chName}`;
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
+  const { mutateAsync: addFeel } = useAddNoteFeelMutation();
+  const { mutateAsync: delFeel } = useDeleteNoteFeelMutation();
 
   useEffect(() => {
     load();
@@ -32,13 +34,11 @@ export default function NoteReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await useDiaryState.getState().delFeel(whom, time);
-      await useDiaryState.getState().fetchNote(chFlag, time);
+      await delFeel({ flag: whom, noteId: time });
     } else {
-      await useDiaryState.getState().addFeel(whom, time, feel);
-      await useDiaryState.getState().fetchNote(chFlag, time);
+      await addFeel({ flag: whom, feel, noteId: time });
     }
-  }, [isMine, whom, feel, time, chFlag]);
+  }, [isMine, whom, feel, time, addFeel, delFeel]);
 
   return (
     <div>
