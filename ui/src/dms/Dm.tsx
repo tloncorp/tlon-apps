@@ -15,6 +15,7 @@ import DMHero from '@/dms/DMHero';
 import useMessageSelector from '@/logic/useMessageSelector';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import ShipName from '@/components/ShipName';
 import MessageSelector from './MessageSelector';
 
 export default function Dm() {
@@ -79,14 +80,18 @@ export default function Dm() {
                       >
                         {contact.nickname}
                       </span>
-                      <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
-                        {ship}
-                      </span>
+                      <ShipName
+                        full
+                        name={ship}
+                        className="w-full break-all text-sm text-gray-400 line-clamp-1"
+                      />
                     </>
                   ) : (
-                    <span className="text-sm font-bold text-gray-800 sm:font-semibold">
-                      {ship}
-                    </span>
+                    <ShipName
+                      full
+                      name={ship}
+                      className="text-sm font-bold text-gray-800 sm:font-semibold"
+                    />
                   )}
                 </div>
               </BackButton>
