@@ -227,3 +227,6 @@ export function useUploader(key: string): Uploader | undefined {
 
   return uploader;
 }
+(window as any).fileUploader = useFileStore.getState;
+(window as any).emptyUploader = emptyUploader;
+(window as any).warehouse = useStorage.getState;
