@@ -1054,7 +1054,7 @@ export function useGroupHostHi(flag: string) {
     path: `/hi/${ship}`,
     options: {
       enabled: ship !== '' && preSig(window.ship) !== ship,
-      cacheTime: 1000, // default to 1 minute before we check if the host is online again.
+      cacheTime: 60 * 1000, // default to 1 minute before we check if the host is online again.
       retry: false,
       onSuccess: () => {
         queryClient.removeQueries(['group-host-hi', ship]);
