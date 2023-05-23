@@ -54,8 +54,8 @@
       [%timezone ? @ud]                             ::  adjust time printing
     ::                                              ::
       [%select selection]                           ::  rel/abs msg selection
-      [%chats ~]                                    ::  list available chats
-      [%dms ~]                                      ::  list available dms
+      [%chats (unit $?(@tas flag:chat))]            ::  list available chats
+      [%dms (unit ship)]                            ::  list available dms
       [%help ~]                                     ::  print usage info
   ==                                                ::
 ::
@@ -408,6 +408,11 @@
 ++  get-chats  ~+
   ^-  (set flag:chat)
   (scry-for (set flag:chat) %chat /chat)
+::  +get-groups: get known groups
+::
+++  get-groups  ~+
+  ^-  (map flag:groups group:groups)
+  (scry-for (map flag:groups group:groups) %groups /groups)
 ::  +get-accepted-dms: get known dms that are mutual and ones we've initiated
 ::
 ++  get-accepted-dms  ~+
@@ -661,9 +666,12 @@
           dem:ag
         ==
       ::
-        ;~(plug (tag %chats) (easy ~))
-        ;~(plug (tag %dms) (easy ~))
         ;~(plug (tag %help) (easy ~))
+        ;~(plug (perk %dms ~) (punt ;~(pfix ace ship)))
+        ;~  plug
+          (perk %chats ~)
+          (punt ;~(pfix ace ;~(pose sym ;~(plug ship name))))
+        ==
       ::
         (stag %thread ;~((glue ace) ;~(sfix nump ket) content))
         (stag %reference ;~((glue ace) ;~(sfix nump hax) content))
@@ -823,8 +831,8 @@
       [';set' leaf+";set key (value)"]
       [';unset' leaf+";unset key"]
     ::
-      [';chats' leaf+";chats"]
-      [';dms' leaf+";dms"]
+      [';chats' leaf+";chats (~host/chat-name / ~host/group-name)"]
+      [';dms' leaf+";dms (~ship)"]
       [';help' leaf+";help"]
     ==
   ::  +se-work: run user command
@@ -853,8 +861,8 @@
             %timezone   (split (set-timezone +.job))
         ::
             %select     (select +.job)
-            %chats      chats
-            %dms        dms
+            %chats      (chats +.job)
+            %dms        (dms +.job)
             %help       help
         ::
         ==
@@ -1175,21 +1183,113 @@
     ::  +chats: display list of joined chats
     ::
     ++  chats
-      ^+  se
-      =/  targets=(set target)
-        (~(run in get-chats) (lead %flag))
-      (show-targets:se-out ~(tap in targets))
+      |=  filter=(unit $?(@tas flag:chat))
+      |^  ^+  se
+      ?~  filter
+        %-  show-targets:se-out
+        ~(tap in `(set target)`(~(run in get-chats) (lead %flag)))
+      =/  produce=(set flag:chat)
+        ?@  u.filter  (name-filter u.filter)
+        (flag-filter u.filter)
+      ?:  =(~ produce)
+        (note:se-out "no such chat")
+      %-  show-targets:se-out
+      ~(tap in `(set target)`(~(run in produce) (lead %flag)))
+      ::  +flag-filter: search for chats by flag
+      ::
+      ++  flag-filter
+        |=  f=flag:chat
+        ^-  (set flag:chat)
+        =|  chats=(set flag:chat)
+        =?  chats  (~(has in get-chats) f)
+          (~(put in chats) f)
+        =/  group=(unit group:groups)
+          (~(get by get-groups) f)
+        ?~  group  chats
+        =;  chats-from-group=(set flag:chat)
+          (~(uni in chats) (~(int in chats-from-group) get-chats))
+        (~(run in ~(key by channels.u.group)) |=(=nest:groups q.nest))
+      ::  +name-filter: search for chats by chat or group name
+      ::
+      ++  name-filter
+        |=  name=term
+        |^  ^-  (set flag:chat)
+        =/  chats
+          (match-name ~(tap in get-chats) name)
+        =/  groups
+          (match-name ~(tap in ~(key by get-groups)) name)
+        (~(uni in chats) (grab-chats ~(tap in groups)))
+        ::  +match-name: get chats or groups by name
+        ::
+        ++  match-name
+          |=  [flags=(list flag:chat) name=term]
+          ^-  (set flag:chat)
+          =|  out=(set flag:chat)
+          |-
+          ?~  flags  out
+          ?.  =(name q.i.flags)  $(flags t.flags)
+          $(out (~(put in out) i.flags), flags t.flags)
+        ::  +grab-chats: get joined chats by group flags
+        ::
+        ++  grab-chats
+          |=  flags=(list flag:chat)
+          ^-  (set flag:chat)
+          =|  out=(set flag:chat)
+          |-
+          ?~  flags  out
+          =/  group=(unit group:groups)
+            (~(get by get-groups) i.flags)
+          ?~  group
+            $(flags t.flags)
+          =/  chats-from-group=(set flag:chat)
+            (~(run in ~(key by channels.u.group)) |=(=nest:groups q.nest))
+          %=  $
+            out  (~(uni in out) (~(int in chats-from-group) get-chats))
+            flags  t.flags
+          ==
+        --
+      --
     ::  +dms: display list of known dms
     ::
     ++  dms
-      ^+  se
-      =/  clubs=(set target)
-        (~(run in ~(key by get-clubs)) (lead %club))
+      |=  filter=(unit ship)
+      |^  ^+  se
+      ?~  filter
+        =/  clubs=(set target)
+          (~(run in ~(key by get-clubs)) (lead %club))
+        =/  dms=(set target)
+          %-  %~  run  in
+              (~(uni in get-accepted-dms) get-pending-dms)
+          (lead %ship)
+        (show-targets:se-out ~(tap in (~(uni in clubs) dms)))
+      =;  produce=(set target)
+        ?:  =(~ produce)
+          (note:se-out "no such chat")
+        (show-targets:se-out ~(tap in produce))
       =/  dms=(set target)
-        %-  %~  run  in
-            (~(uni in get-accepted-dms) get-pending-dms)
-        (lead %ship)
-      (show-targets:se-out ~(tap in (~(uni in clubs) dms)))
+        ?.  (~(has in (~(uni in get-accepted-dms) get-pending-dms)) u.filter)
+          ~
+        (~(put in *(set target)) `whom:chat`[%ship u.filter])
+      =/  clubs=(set target)
+        (match-club-member u.filter ~(tap by get-clubs))
+      (~(uni in clubs) dms)
+      ::  +match-club-member: search for clubs by member
+      ::
+      ++  match-club-member
+        |=  [=ship clubs=(list [=club-id =crew])]
+        ^-  (set target)
+        =|  out=(set target)
+        |-
+        ?~  clubs  out
+        ?.  ?|  (~(has in team.crew.i.clubs) ship)
+                (~(has in hive.crew.i.clubs) ship)
+            ==
+          $(clubs t.clubs)
+        %=  $
+          out  (~(put in out) `whom:chat`[%club club-id.i.clubs])
+          clubs  t.clubs
+        ==
+      --
     ::  +help: print (link to) usage instructions
     ::
     ++  help
@@ -1206,7 +1306,8 @@
           "---[pointer]"
           "      ~ship*  message"
           ""
-          ";[dms / chats] to print available chat channels."
+          ";dms (~ship) to print available dms."
+          ";chats (~host/chat-name / ~host/group-name) to print available chats."
           ";view [chat] to print messages for a chat you've already joined."
           ";flee [chat] to stop printing messages for a chat."
           ";[pointer] to select a message."
