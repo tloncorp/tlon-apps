@@ -24,9 +24,8 @@ images, media, and even random musings.
 
 ## Learn more about Landscape, Tlon, and Urbit
 
-- [Learn more about Landscape →](https://tlon.io/product)
-- [Learn more about Urbit →](https://urbit.org)
 - [Learn more about Tlon →](https://tlon.io)
+- [Learn more about Urbit →](https://urbit.org)
 
 ---
 
