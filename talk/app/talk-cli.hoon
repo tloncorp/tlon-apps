@@ -54,7 +54,7 @@
       [%timezone ? @ud]                             ::  adjust time printing
     ::                                              ::
       [%select selection]                           ::  rel/abs msg selection
-      [%chats (unit $?(@tas flag:chat))]            ::  list available chats
+      [%chats (unit tape)]                          ::  list available chats
       [%dms (unit ship)]                            ::  list available dms
       [%help ~]                                     ::  print usage info
   ==                                                ::
@@ -406,8 +406,8 @@
 ::  +get-chats: get known chats
 ::
 ++  get-chats  ~+
-  ^-  (set flag:chat)
-  (scry-for (set flag:chat) %chat /chat)
+  ^-  (map flag:chat chat:chat)
+  (scry-for (map flag:chat chat:chat) %chat /chats)
 ::  +get-groups: get known groups
 ::
 ++  get-groups  ~+
@@ -446,7 +446,7 @@
   |=  =target
   ^-  ?
   ?-   -.target
-      %flag  (~(has in get-chats) p.target)
+      %flag  (~(has by get-chats) p.target)
       %club  (~(has by get-clubs) p.target)
       %ship
     %.  p.target
@@ -668,10 +668,7 @@
       ::
         ;~(plug (tag %help) (easy ~))
         ;~(plug (perk %dms ~) (punt ;~(pfix ace ship)))
-        ;~  plug
-          (perk %chats ~)
-          (punt ;~(pfix ace ;~(pose sym ;~(plug ship name))))
-        ==
+        ;~(plug (perk %chats ~) (punt ;~(pfix ace (star qit))))
       ::
         (stag %thread ;~((glue ace) ;~(sfix nump ket) content))
         (stag %reference ;~((glue ace) ;~(sfix nump hax) content))
@@ -1183,72 +1180,23 @@
     ::  +chats: display list of joined chats
     ::
     ++  chats
-      |=  filter=(unit $?(@tas flag:chat))
-      |^  ^+  se
-      ?~  filter
+      |=  user-input=(unit tape)
+      ^+  se
+      ?~  user-input
         %-  show-targets:se-out
-        ~(tap in `(set target)`(~(run in get-chats) (lead %flag)))
-      =/  produce=(set flag:chat)
-        ?@  u.filter  (name-filter u.filter)
-        (flag-filter u.filter)
-      ?:  =(~ produce)
-        (note:se-out "no such chat")
-      %-  show-targets:se-out
-      ~(tap in `(set target)`(~(run in produce) (lead %flag)))
-      ::  +flag-filter: search for chats by flag
-      ::
-      ++  flag-filter
-        |=  f=flag:chat
-        ^-  (set flag:chat)
-        =|  chats=(set flag:chat)
-        =?  chats  (~(has in get-chats) f)
-          (~(put in chats) f)
-        =/  group=(unit group:groups)
-          (~(get by get-groups) f)
-        ?~  group  chats
-        =;  chats-from-group=(set flag:chat)
-          (~(uni in chats) (~(int in chats-from-group) get-chats))
-        (~(run in ~(key by channels.u.group)) |=(=nest:groups q.nest))
-      ::  +name-filter: search for chats by chat or group name
-      ::
-      ++  name-filter
-        |=  name=term
-        |^  ^-  (set flag:chat)
-        =/  chats
-          (match-name ~(tap in get-chats) name)
-        =/  groups
-          (match-name ~(tap in ~(key by get-groups)) name)
-        (~(uni in chats) (grab-chats ~(tap in groups)))
-        ::  +match-name: get chats or groups by name
-        ::
-        ++  match-name
-          |=  [flags=(list flag:chat) name=term]
-          ^-  (set flag:chat)
-          =|  out=(set flag:chat)
-          |-
-          ?~  flags  out
-          ?.  =(name q.i.flags)  $(flags t.flags)
-          $(out (~(put in out) i.flags), flags t.flags)
-        ::  +grab-chats: get joined chats by group flags
-        ::
-        ++  grab-chats
-          |=  flags=(list flag:chat)
-          ^-  (set flag:chat)
-          =|  out=(set flag:chat)
-          |-
-          ?~  flags  out
-          =/  group=(unit group:groups)
-            (~(get by get-groups) i.flags)
-          ?~  group
-            $(flags t.flags)
-          =/  chats-from-group=(set flag:chat)
-            (~(run in ~(key by channels.u.group)) |=(=nest:groups q.nest))
-          %=  $
-            out  (~(uni in out) (~(int in chats-from-group) get-chats))
-            flags  t.flags
+        ~(tap in `(set target)`(~(run in ~(key by get-chats)) (lead %flag)))
+      =;  produce=(list target)
+        ?~  produce  (note:se-out "no matches found")
+        (show-targets:se-out produce)
+      %+  murn  ~(tap by get-chats)
+      |=  [=flag:chat =chat:chat]
+      =/  chat-target=target   [%flag flag]
+      =/  group-target=target  [%flag group.perm.chat]
+      ?.  ?|  ?=(^ (find u.user-input ~(full tr chat-target)))
+              ?=(^ (find u.user-input ~(full tr group-target)))
           ==
-        --
-      --
+        ~
+      (some chat-target)
     ::  +dms: display list of known dms
     ::
     ++  dms
