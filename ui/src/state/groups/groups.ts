@@ -102,6 +102,7 @@ export function useGroups() {
 }
 
 export function useGroup(flag: string, updating = false) {
+  const connection = useGroupConnection(flag);
   const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
@@ -125,7 +126,7 @@ export function useGroup(flag: string, updating = false) {
     app: 'groups',
     path: `/groups/${flag}`,
     options: {
-      enabled: !!flag && flag !== '' && updating,
+      enabled: !!flag && flag !== '' && updating && connection,
       initialData: group,
       refetchOnMount: updating,
       retry: true,
@@ -1044,14 +1045,20 @@ export function useGroupIndex(ship: string) {
   };
 }
 
-export function useGroupHostHi(ship: string) {
+export function useGroupHostHi(flag: string) {
+  const { ship } = getFlagParts(flag);
+  const queryClient = useQueryClient();
   const { data, ...rest } = useReactQuerySubscribeOnce({
     queryKey: ['group-host-hi', ship],
     app: 'groups',
     path: `/hi/${ship}`,
     options: {
       enabled: ship !== '' && preSig(window.ship) !== ship,
-      cacheTime: 60 * 1000, // default to 1 minute before we check if the host is online again.
+      cacheTime: 1000, // default to 1 minute before we check if the host is online again.
+      retry: false,
+      onSuccess: () => {
+        queryClient.removeQueries(['group-host-hi', ship]);
+      },
     },
   });
 
