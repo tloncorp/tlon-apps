@@ -189,7 +189,7 @@ export default function Sidebar() {
           to="/find"
         >
           <div className="flex items-center">
-            Find Groups
+            Discover
             {pendingInvitesCount > 0 ? (
               <span className="ml-auto pr-2 font-semibold text-blue">
                 {pendingInvitesCount}
