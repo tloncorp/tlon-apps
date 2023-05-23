@@ -44,8 +44,8 @@ export default function CoverImageInput({
   const upload = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     if (uploader) {
-      setHaveUploaded(true);
       uploader.prompt();
+      setHaveUploaded(true);
     }
   };
 
