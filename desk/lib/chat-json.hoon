@@ -123,6 +123,19 @@
         brief/(brief q.u)
     ==
   ::
+  :: ++  recap
+  ::   |=  r=recap:briefs:c
+  ::   %-  pairs
+  ::   :~  last/(time last.r)
+  ::       count/(numb count.r)
+  ::       read-id/?~(read-id.r ~ (id u.read-id.r))
+  ::       :-  %threads
+  ::       %-  pairs
+  ::       %+  turn
+  ::         ~(tap by threads.r)
+  ::       |=  [i=id:c b=brief:briefs:c]
+  ::       [+:(id i) (brief b)]
+  ::   ==
   ++  brief
     |=  b=brief:briefs:c
     %-  pairs

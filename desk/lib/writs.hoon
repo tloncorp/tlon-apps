@@ -1,6 +1,7 @@
 /-  c=chat
 /+  mp=mop-extensions
 |_  pac=pact:c
+++  top-count  2.048
 ++  mope  ((mp time writ:c) lte)
 ++  gas
   |=  ls=(list [=time =writ:c])
@@ -88,6 +89,38 @@
     writ(feels (~(del by feels.writ) p.del))
   ==
 ::
+++  get-knots
+  |=  =writs:c
+  ^-  (set id:c)
+  =-  -.-
+  %^  (dip:on:writs:c (set id:c))  writs  *(set id:c)
+  |=  [st=(set id:c) =time =writ:c]
+  :-  ~
+  ?+  -.threaded.writ  [%.n st]
+      %knot  [%.n (~(put in st) id.writ)]
+  ==
+::
+++  index
+  ^-  pact:c
+  =/  top=writs:c  (gas:on:writs:c *writs:c (top:mope wit.pac top-count))
+  =/  knots  (get-knots top)
+  :*  wit.pac
+      dex.pac
+      top
+      =-  -.-
+      %^  (dip:on:writs:c (map id:c writs:c))  wit.pac  *(map id:c writs:c)
+      |=  [st=(map id:c writs:c) =time =writ:c]
+      :-  ~
+      :-  %.n
+      ?+  -.threaded.writ  st
+          %strand
+        =*  id  id.threaded.writ
+        ?.  (~(has in knots) id)  st
+        =/  thread  (~(gut by st) id *writs:c)
+        %+  ~(put by st)  id
+        (put:on:writs:c thread time writ)
+      ==
+  ==
 ++  peek
   |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
@@ -98,7 +131,7 @@
     ~>  %bout
     =/  count  (slav %ud count.pole)
     =/  filtered
-      %^  (dip:on @)  wit.pac  ~
+      %^  (dip:on:writs:c @)  wit.pac  ~
       |=  [st=@ =time =writ:c]
       :_  [%.n st]
       ?+  -.threaded.writ  `writ
@@ -111,7 +144,7 @@
     =/  count  (slav %ud count.pole)
     =/  =id:c  [(slav %p ship.pole) (slav %ud time.pole)]
     =/  filtered
-      %^  (dip:on @)  wit.pac  ~
+      %^  (dip:on:writs:c @)  wit.pac  ~
       |=  [st=@ =time =writ:c]
       :_  [%.n st]
       ?+  -.threaded.writ  ~

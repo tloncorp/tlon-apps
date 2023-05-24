@@ -20,6 +20,18 @@
 +$  feel   @ta
 +$  said   (pair flag writ)
 ::
+::  $threaded: identifier for thread participation
+::
+::    fray: unthreaded
+::    strand: middle of a thread with pointer to parent
+::    knot: top of a thread with summary of thread contents
+::
++$  threaded
+  $%  [%fray ~]
+      [%strand =id]
+      [%knot count=@ud authors=(set ship) last=time]
+  ==
+::
 ::  $seal: the id of a chat and its meta-responses
 ::
 ::    id: the id of the message
@@ -36,15 +48,8 @@
       =time
       feels=(map ship feel)
       replied=(set id)
-      threaded=$%([%knot ~] [%fray ~] [%strand =id])
+      =threaded
   ==
-::  $thread: a miniature chat that hangs off of a particular message
-+$  thread
-  $:  =brief:briefs
-      =pact
-  ==
-::
-+$  threads  (map id thread)
 ::
 ::  $whom: a polymorphic identifier for chats
 ::
@@ -64,6 +69,8 @@
   |% 
   +$  briefs
     (map whom brief)
+  +$  recap
+    [threads=(map id brief) brief]
   +$  brief
     [last=time count=@ud read-id=(unit id)]
   +$  update
@@ -72,6 +79,12 @@
 ::
 +$  remark-action
   (pair whom remark-diff)
+::
++$  remark-action-1
+  $:  =whom
+      thread=(unit id)
+      diff=remark-diff
+  ==
 ::
 +$  remark-diff
   $%  [%read ~]
@@ -102,11 +115,18 @@
 ::
 +$  index   (map id time)
 ::
-::  $pact: a double indexed map of chat messages, id -> time -> message
+::  $pact: lookups and indexes for chats
+::
+::    wit: map of all chat messages time -> message
+::    dex: map of chat messages id -> time
+::    top: latest 2048 messages, without thread strands
+::    threads: all messages in threads within the top 
 ::
 +$  pact
   $:  wit=writs
       dex=index
+      top=writs
+      threads=(map id writs)
   ==
 ::
 ::  $club: a direct line of communication between multiple parties
