@@ -1,111 +1,100 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { useTailwind } from 'tailwind-rn';
-import * as Network from 'expo-network';
 import {
-  AppState,
-  AppStateStatus,
   SafeAreaView,
   Text,
   StatusBar,
   ActivityIndicator,
   View,
 } from 'react-native';
-import useStore from './state/store';
+import useStore, { readShipConnection } from './state/store';
 import WebApp from './WebApp';
-import storage from './lib/storage';
-import { URBIT_HOME_REGEX } from './lib/util';
 import Login from './Login';
+import { initNotifications } from './lib/notifications';
+import { POST_HOG_API_KEY, URBIT_HOME_REGEX } from './constants';
 
-export default function App() {
+initNotifications();
+
+const App = () => {
   const tailwind = useTailwind();
-  const {
-    loading,
-    setLoading,
-    ship,
-    shipUrl,
-    authCookie,
-    loadStore,
-    needLogin,
-    setNeedLogin,
-  } = useStore();
-  const [connected, setConnected] = useState(false);
-  const appState = useRef(AppState.currentState);
-
-  const checkNetwork = useCallback(async () => {
-    const networkState = await Network.getNetworkStateAsync();
-    setConnected(Boolean(networkState.isInternetReachable));
-  }, [setConnected]);
+  const postHog = usePostHog();
+  const { loading, setLoading, ship, shipUrl, setShip } = useStore();
+  const [connected, setConnected] = useState(true);
 
   useEffect(() => {
-    const loadStorage = async () => {
+    (async () => {
       try {
-        const res = await storage.load({ key: 'store' });
-
-        if (res?.shipUrl) {
-          const response = await fetch(res.shipUrl);
-          const html = await response?.text();
-
-          if (html && URBIT_HOME_REGEX.test(html)) {
-            loadStore(res);
-            setNeedLogin(false);
+        const shipConnection = await readShipConnection();
+        if (shipConnection?.shipUrl) {
+          const response = await fetch(shipConnection.shipUrl);
+          const html = await response.text();
+          if (URBIT_HOME_REGEX.test(html)) {
+            setShip(shipConnection);
+            setTimeout(() => setLoading(false), 750);
+          } else {
+            setLoading(false);
           }
         }
-
-        setTimeout(() => setLoading(false), 500);
-      } catch (e: any) {
-        if (e.name !== 'NotFoundError') {
-          console.error(e);
+      } catch (err: any) {
+        if (err.name !== 'NotFoundError') {
+          console.error('Error reading ship connection from storage', err);
         }
+
         setLoading(false);
       }
-    };
-    loadStorage();
-    checkNetwork();
+    })();
 
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === 'active'
-      ) {
-        checkNetwork();
+    const unsubscribeFromNetInfo = NetInfo.addEventListener(
+      ({ isConnected }) => {
+        setConnected(isConnected ?? true);
       }
-
-      appState.current = nextAppState;
-    };
-
-    const appStateListener = AppState.addEventListener(
-      'change',
-      handleAppStateChange
     );
 
     return () => {
-      appStateListener.remove();
+      unsubscribeFromNetInfo();
     };
   }, []);
 
-  if (!connected) {
-    return (
-      <SafeAreaView style={tailwind('h-full w-full flex flex-col')}>
-        <Text style={tailwind('text-center text-xl')}>
-          Your are offline. Please connect to the internet and try again.
-        </Text>
-        <StatusBar backgroundColor="white" barStyle="dark-content" />
-      </SafeAreaView>
-    );
-  }
+  useEffect(() => {
+    if (ship) {
+      postHog?.identify(ship, { shipUrl });
+    }
+  }, [ship, shipUrl]);
 
   return (
-    <SafeAreaView style={tailwind('h-full bg-white w-full')}>
-      {loading ? (
-        <View style={tailwind('text-center p-4')}>
-          <ActivityIndicator size="large" color="#000" />
-        </View>
-      ) : needLogin && (!shipUrl || !ship || !authCookie) ? (
-        <Login />
+    <SafeAreaView style={tailwind('h-full w-full bg-white')} ph-no-capture>
+      {connected ? (
+        loading ? (
+          <View style={tailwind('h-full flex items-center justify-center')}>
+            <ActivityIndicator size="large" color="#000" />
+          </View>
+        ) : ship ? (
+          <WebApp />
+        ) : (
+          <Login />
+        )
       ) : (
-        <WebApp />
+        <View style={tailwind('h-full p-4 flex items-center justify-center')}>
+          <Text style={tailwind('text-center text-xl font-semibold')}>
+            Your are offline. Please connect to the internet and try again.
+          </Text>
+        </View>
       )}
       <StatusBar backgroundColor="white" barStyle="dark-content" />
     </SafeAreaView>
+  );
+};
+
+export default function AnalyticsApp() {
+  return (
+    <PostHogProvider
+      apiKey={POST_HOG_API_KEY}
+      options={{ host: 'https://eu.posthog.com', enable: !__DEV__ }}
+      autocapture
+    >
+      <App />
+    </PostHogProvider>
   );
 }

@@ -54,6 +54,7 @@ import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
+import GroupRoles from './groups/GroupAdmin/GroupRoles';
 import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from './components/DisconnectNotice';
@@ -67,17 +68,17 @@ import Leap from './components/Leap/Leap';
 import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
-import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
-import Dialog, { DialogContent } from './components/Dialog';
+import Dialog from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
+import GroupRoleDialog from './groups/GroupAdmin/GroupRoleDialog';
 import SettingsDialog from './components/SettingsDialog';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
@@ -88,10 +89,8 @@ function SuspendedModal({ children }: { children: React.ReactNode }) {
   return (
     <Suspense
       fallback={
-        <Dialog defaultOpen modal>
-          <DialogContent className="bg-transparent" containerClass="w-full">
-            <LoadingSpinner />
-          </DialogContent>
+        <Dialog defaultOpen modal className="bg-transparent" close="none">
+          <LoadingSpinner />
         </Dialog>
       }
     >
@@ -253,6 +252,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<EmojiPicker />}
               />
               <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
                 path="/dm/:ship/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
@@ -368,6 +371,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   <Route path="pending" element={<GroupPendingManager />} />
                   <Route path="banned" element={<div />} />
                 </Route>
+                <Route
+                  path="roles"
+                  element={<GroupRoles title={`• ${appHead('').title}`} />}
+                />
               </Route>
               <Route
                 path="channels"
@@ -448,6 +455,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
+            <Route path="role" element={<GroupRoleDialog />}>
+              <Route path=":cabal" element={<GroupRoleDialog />} />
+            </Route>
           </Route>
           <Route
             path="/groups/:ship/:name/leave"
@@ -472,10 +482,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           {isMobile ? (
-            <Route
-              path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
-              element={<EmojiPicker />}
-            />
+            <>
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+            </>
           ) : null}
         </Routes>
       ) : null}
@@ -587,6 +603,7 @@ function RoutedApp() {
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
   const body = document.querySelector('body');
+  const colorSchemeFromNative = window.colorscheme;
 
   const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
@@ -605,7 +622,11 @@ function RoutedApp() {
   const isDarkMode = useIsDark();
 
   useEffect(() => {
-    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
+    if (
+      (isDarkMode && theme === 'auto') ||
+      theme === 'dark' ||
+      colorSchemeFromNative === 'dark'
+    ) {
       document.body.classList.add('dark');
       useLocalState.setState({ currentTheme: 'dark' });
       setUserThemeColor('#000000');
@@ -614,7 +635,7 @@ function RoutedApp() {
       useLocalState.setState({ currentTheme: 'light' });
       setUserThemeColor('#ffffff');
     }
-  }, [isDarkMode, theme]);
+  }, [isDarkMode, theme, colorSchemeFromNative]);
 
   useEffect(() => {
     if (isStandAlone) {

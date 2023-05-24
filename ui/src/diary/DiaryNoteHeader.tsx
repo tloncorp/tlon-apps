@@ -22,26 +22,33 @@ export default function DiaryNoteHeader({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b-2 border-b-2 border-gray-50 border-gray-50 bg-white px-6 py-4 sm:px-4'
+        'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
       )}
     >
       <Link
         to=".."
         className={cn(
-          'default-focus ellipsis -ml-2 -mt-2 -mb-2 inline-flex appearance-none items-center rounded-md p-2 pr-4 text-lg font-bold text-gray-800 hover:bg-gray-50 sm:text-base sm:font-semibold',
-          isMobile && ''
+          'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
         )}
         aria-label="Open Channels Menu"
       >
-        <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
-
-        <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
-          <ChannelIcon nest="diary" className="h-5 w-5 text-gray-400" />
+        <div className="flex h-6 w-6 items-center justify-center">
+          <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
         </div>
-        <span className="ellipsis line-clamp-1">{title}</span>
+
+        <ChannelIcon nest="diary" className="h-6 w-6 shrink-0 text-gray-600" />
+        <div className="flex w-full flex-col justify-center">
+          <span
+            className={cn(
+              'ellipsis text-lg font-bold line-clamp-1 sm:text-sm sm:font-semibold'
+            )}
+          >
+            {title}
+          </span>
+        </div>
       </Link>
 
-      <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+      <div className="flex shrink-0 flex-row items-center space-x-3">
         {isMobile && <ReconnectingSpinner />}
         {canEdit ? (
           <Link to={`../edit/${time}`} className="small-button">

@@ -12,6 +12,13 @@ import {
   ChatNotice,
 } from '../types/chat';
 
+const getUnix = (count: number, setTime?: Date) =>
+  count > 1
+    ? subMinutes(setTime ? setTime : new Date(), count * 5).getTime()
+    : setTime
+    ? setTime.getTime()
+    : new Date().getTime();
+
 export const makeFakeChatWrit = (
   count: number,
   author: string,
@@ -19,7 +26,7 @@ export const makeFakeChatWrit = (
   feels?: Record<string, string>,
   setTime?: Date
 ): ChatWrit => {
-  const unix = subMinutes(setTime ? setTime : new Date(), count * 5).getTime();
+  const unix = getUnix(count, setTime);
   const time = unixToDa(unix);
   const da = decToUd(time.toString());
   return {
@@ -45,7 +52,7 @@ export const makeFakeChatNotice = (
   notice: ChatNotice,
   setTime?: Date
 ): ChatWrit => {
-  const unix = subMinutes(setTime ? setTime : new Date(), count * 5).getTime();
+  const unix = getUnix(count, setTime);
   const time = unixToDa(unix);
   const da = decToUd(time.toString());
   return {

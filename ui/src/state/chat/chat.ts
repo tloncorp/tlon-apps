@@ -195,11 +195,7 @@ export const useChatState = createState<ChatState>(
         draft.pins = pins;
       });
 
-      const unreadChats = Object.entries(briefs)
-        .filter(([, brief]) => brief.count > 0 && brief['read-id'])
-        .map(([whom, brief]) => ({ whom, brief }));
-
-      useChatStore.getState().batchUnread(unreadChats);
+      useChatStore.getState().update(briefs);
 
       api.subscribe(
         {

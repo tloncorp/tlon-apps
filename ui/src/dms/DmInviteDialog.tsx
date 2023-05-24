@@ -1,8 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
-import ob from 'urbit-ob';
 import Dialog from '../components/Dialog';
-import { useChatState } from '../state/chat';
+import { useChatState, useMultiDm } from '../state/chat';
 import ShipSelector, { ShipOption } from '../components/ShipSelector';
 
 interface DmInviteDialogProps {
@@ -18,16 +17,23 @@ export default function DmInviteDialog({
 }: DmInviteDialogProps) {
   const navigate = useNavigate();
   const [ships, setShips] = useState<ShipOption[]>([]);
-  const validShips = ships
-    ? ships.every((ship) => ob.isValidPatp(ship.value))
-    : false;
+  const club = useMultiDm(whom);
+  const invalidShips = ships.filter((ship) => {
+    if (!club) {
+      return false;
+    }
+
+    const members = [...club.hive, ...club.team];
+    return members.includes(ship.value);
+  });
+  const showError = invalidShips.length > 0;
 
   const onEnter = useCallback(async () => {
     navigate(`/dm/${whom}`);
   }, [navigate, whom]);
 
   const submitHandler = useCallback(async () => {
-    if (whom && validShips) {
+    if (whom && !showError) {
       ships.map(async (ship) => {
         await useChatState.getState().inviteToMultiDm(whom, {
           by: window.our,
@@ -36,7 +42,7 @@ export default function DmInviteDialog({
       });
       setInviteIsOpen(false);
     }
-  }, [whom, validShips, ships, setInviteIsOpen]);
+  }, [whom, showError, ships, setInviteIsOpen]);
 
   return (
     <Dialog
@@ -46,11 +52,31 @@ export default function DmInviteDialog({
       className="mb-64 bg-transparent p-0"
     >
       <div className="card">
-        <div className="flex flex-col">
-          <h2 className="mb-4 text-lg font-bold">Invite to Chat</h2>
-          <div className="w-full py-3 px-4">
-            <ShipSelector ships={ships} setShips={setShips} onEnter={onEnter} />
-          </div>
+        <div className="mb-4 flex flex-col space-y-4">
+          <h2 className="text-lg font-bold">Invite to Chat</h2>
+          <ShipSelector ships={ships} setShips={setShips} onEnter={onEnter} />
+          {showError && (
+            <div className="text-red">
+              {invalidShips.map((s, i) => {
+                if (i === invalidShips.length - 1) {
+                  return (
+                    <>
+                      {invalidShips.length > 1 ? 'and ' : ''}
+                      <strong>{s.label || s.value}</strong>{' '}
+                    </>
+                  );
+                }
+
+                return (
+                  <>
+                    <strong>{s.label || s.value}</strong>
+                    {`${invalidShips.length > 2 ? ',' : ''} `}
+                  </>
+                );
+              })}
+              {invalidShips.length > 1 ? 'are' : 'is'} already in this chat.
+            </div>
+          )}
         </div>
         <div className="flex justify-end space-x-2">
           <button
@@ -60,11 +86,11 @@ export default function DmInviteDialog({
             Cancel
           </button>
           <button
-            disabled={!validShips}
+            disabled={showError}
             className="button"
             onClick={submitHandler}
           >
-            Add
+            Invite
           </button>
         </div>
       </div>

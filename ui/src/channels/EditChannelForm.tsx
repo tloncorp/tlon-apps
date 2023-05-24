@@ -1,10 +1,15 @@
 import React, { useCallback } from 'react';
+import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { GroupChannel, ChannelFormSchema } from '@/types/groups';
-import { useNavigate } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
-import { useEditChannelMutation, useRouteGroup } from '@/state/groups';
+import {
+  useEditChannelMutation,
+  useGroup,
+  useRouteGroup,
+} from '@/state/groups';
 import {
   channelHref,
   getPrivacyFromChannel,
@@ -13,7 +18,6 @@ import {
 } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
-import ChannelJoinSelector from '@/groups/ChannelsList/ChannelJoinSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import useChannel from '@/logic/useChannel';
@@ -39,6 +43,8 @@ export default function EditChannelForm({
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
+  const group = useGroup(groupFlag);
+  const sects = Object.keys(group?.cabals || {});
   const [app, channelFlag] = nestToFlag(nest);
   const chan = useChannel(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
@@ -47,6 +53,7 @@ export default function EditChannelForm({
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
     readers: channel.readers || [],
+    writers: chan?.perms.writers || [],
     join: channel.join || false,
     meta: channel.meta || {
       title: '',
@@ -63,19 +70,20 @@ export default function EditChannelForm({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
-      const { privacy, ...nextChannel } = values;
-
-      if (privacy === 'secret') {
-        nextChannel.readers.push('admin');
-      } else {
-        nextChannel.readers.splice(nextChannel.readers.indexOf('admin'), 1);
-      }
+      const { privacy, readers, ...nextChannel } = values;
 
       if (presetSection) {
         nextChannel.zone = presetSection;
       }
       try {
-        mutateEditChannel({ flag: groupFlag, channel: nextChannel, nest });
+        mutateEditChannel({
+          flag: groupFlag,
+          channel: {
+            readers: readers.includes('members') ? [] : values.readers,
+            ...nextChannel,
+          },
+          nest,
+        });
       } catch (e) {
         console.log(e);
       }
@@ -88,9 +96,21 @@ export default function EditChannelForm({
           : useDiaryState.getState();
 
       if (privacy !== 'public') {
-        await chState.addSects(channelFlag, ['admin']);
+        const writersIncludesMembers = values.writers.includes('members');
+
+        const writersToRemove = _.difference(
+          chan?.perms.writers || [],
+          values.writers
+        );
+
+        if (writersIncludesMembers) {
+          await chState.delSects(channelFlag, sects);
+        } else {
+          await chState.delSects(channelFlag, writersToRemove);
+          await chState.addSects(channelFlag, values.writers);
+        }
       } else {
-        await chState.delSects(channelFlag, ['admin']);
+        await chState.delSects(channelFlag, sects);
       }
 
       if (retainRoute === true && setEditIsOpen) {
@@ -106,6 +126,7 @@ export default function EditChannelForm({
       channelFlag,
       nest,
       groupFlag,
+      sects,
       dismiss,
       navigate,
       redirect,
@@ -113,6 +134,7 @@ export default function EditChannelForm({
       setEditIsOpen,
       presetSection,
       mutateEditChannel,
+      chan?.perms.writers,
     ]
   );
 
@@ -138,10 +160,17 @@ export default function EditChannelForm({
           />
         </label>
         <label className="mb-3 font-semibold">
+          Channel Description
+          <input
+            {...form.register('meta.description')}
+            className="input my-2 block w-full p-1"
+            type="text"
+          />
+        </label>
+        <label className="mb-3 font-semibold">
           Channel Permissions
           <ChannelPermsSelector />
         </label>
-        <ChannelJoinSelector />
 
         <footer className="mt-4 flex items-center justify-between space-x-2">
           <div className="ml-auto flex items-center space-x-2">

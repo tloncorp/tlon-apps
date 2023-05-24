@@ -1,0 +1,26 @@
+diff --git a/node_modules/@urbit/http-api/dist/esm/index.js b/node_modules/@urbit/http-api/dist/esm/index.js
+index 4376a41..06d039c 100644
+--- a/node_modules/@urbit/http-api/dist/esm/index.js
++++ b/node_modules/@urbit/http-api/dist/esm/index.js
+@@ -435,10 +435,11 @@ class Urbit {
+      * be the empty string.
+      * @param code The access code for the ship at that address
+      */
+-    constructor(url, code, desk) {
++    constructor(url, code, desk, urlTransformer = (url) => url) {
+         this.url = url;
+         this.code = code;
+         this.desk = desk;
++        this.urlTransformer = urlTransformer;
+         if (isBrowser_1) {
+             window.addEventListener('beforeunload', this.delete);
+         }
+@@ -726,7 +727,7 @@ class Urbit {
+         return eventId;
+     }
+     async sendJSONtoChannel(...json) {
+-        const response = await fetch(this.channelUrl, {
++        const response = await fetch(this.urlTransformer(this.channelUrl, json), {
+             ...this.fetchOptions,
+             method: 'PUT',
+             body: JSON.stringify(json),

@@ -1,5 +1,7 @@
 import type UrbitMock from '@tloncorp/mock-http-api';
-import Urbit, {
+import UrbitBase, {
+  Message,
+  Poke,
   PokeInterface,
   Scry,
   SubscriptionRequestInterface,
@@ -10,6 +12,7 @@ import Urbit, {
 import _ from 'lodash';
 import { useLocalState } from '@/state/local';
 import useSchedulerStore from './state/scheduler';
+import { actionDrill } from './logic/utils';
 
 export const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -34,8 +37,37 @@ function subPath(id: SubscriptionId) {
   return `${id.app}${id.path}`;
 }
 
+type EyrePayload = (Message &
+  (Poke<any> | Thread<any> | SubscriptionRequestInterface | Scry))[];
+
+function hostingUrl(url: string, messages: EyrePayload) {
+  const isHosted =
+    import.meta.env.DEV || window.location.hostname.endsWith('.tlon.network');
+
+  if (!isHosted || messages.length !== 1) {
+    return url;
+  }
+
+  const json = messages[0];
+
+  if (json.action === 'poke' && 'mark' in json) {
+    const base = `${url}?mark=${json.mark}`;
+    const actions = json.json ? actionDrill(json.json).join(',') : [];
+    return actions.length > 0 ? `${base}&actions=${actions}` : base;
+  }
+
+  return url;
+}
+
+const Urbit = UrbitBase as new (
+  url: string,
+  code?: string,
+  desk?: string,
+  urlTransformer?: (someUrl: string, json: EyrePayload) => string
+) => UrbitBase;
+
 class API {
-  private client: Urbit | UrbitMock | undefined;
+  private client: UrbitBase | UrbitMock | undefined;
 
   subscriptions: Set<string>;
 
@@ -69,11 +101,11 @@ class API {
       return this.client;
     }
 
-    this.client = new Urbit('', '', window.desk);
+    this.client = new Urbit('', '', window.desk, hostingUrl);
     this.client.ship = window.ship;
     this.client.verbose = import.meta.env.DEV;
 
-    (this.client as Urbit).onReconnect = () => {
+    (this.client as UrbitBase).onReconnect = () => {
       const { onReconnect } = useLocalState.getState();
       if (onReconnect) {
         onReconnect();
@@ -102,7 +134,7 @@ class API {
     return this.client;
   }
 
-  private async withClient<T>(cb: (client: Urbit | UrbitMock) => T) {
+  private async withClient<T>(cb: (client: UrbitBase | UrbitMock) => T) {
     if (!this.client) {
       const client = await this.setup();
       return cb(client);
@@ -112,7 +144,7 @@ class API {
   }
 
   private async withErrorHandling<T>(
-    cb: (client: Urbit | UrbitMock) => Promise<T>
+    cb: (client: UrbitBase | UrbitMock) => Promise<T>
   ) {
     try {
       const result = await this.withClient(cb);
@@ -257,7 +289,7 @@ class API {
     event: T,
     callback: (data: UrbitHttpApiEvent[T]) => void
   ) {
-    (this.client as Urbit).on(event, callback);
+    (this.client as UrbitBase).on(event, callback);
   }
 }
 

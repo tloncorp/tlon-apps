@@ -45,6 +45,9 @@ vi.mock('@/logic/utils', () => ({
   normalizeUrbitColor: () => '#ffffff',
   hasKeys: () => false,
   randomElement: (a: any[]) => a[0],
+  storageVersion: () => 0,
+  clearStorageMigration: () => ({}),
+  isTalk: () => false,
 }));
 
 describe('Sidebar', () => {

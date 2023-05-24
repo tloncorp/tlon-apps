@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect } from 'react';
 import Picker from '@emoji-mart/react';
 import * as Popover from '@radix-ui/react-popover';
+import { useParams } from 'react-router';
 import useEmoji from '@/state/emoji';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useParams } from 'react-router';
 import { useChatState } from '@/state/chat';
+import { useCurrentTheme } from '@/state/local';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 interface EmojiPickerProps extends Record<string, any> {
@@ -30,6 +31,7 @@ export default function EmojiPicker({
     writShip: string;
     writTime: string;
   }>();
+  const currentTheme = useCurrentTheme();
   const whom = chShip ? `${chShip}/${chName}` : ship;
   const writId = `${writShip}/${writTime}`;
   const isMobile = useIsMobile();
@@ -71,11 +73,11 @@ export default function EmojiPicker({
       )}
       <Popover.Portal>
         <Popover.Content
-          className={isMobile ? '' : 'pl-[100px] pt-[100px]'}
           side="bottom"
           sideOffset={30}
           collisionPadding={15}
           onInteractOutside={isMobile ? () => dismss() : undefined}
+          data-testid="emoji-picker"
         >
           <div className="z-50 mx-10 flex h-96 w-72 items-center justify-center">
             {data ? (
@@ -84,6 +86,7 @@ export default function EmojiPicker({
                 autoFocus={isMobile}
                 perLine={isMobile ? mobilePerLineCount : 9}
                 previewPosition="none"
+                theme={currentTheme}
                 onEmojiSelect={isMobile ? onEmojiSelect : undefined}
                 {...props}
               />
