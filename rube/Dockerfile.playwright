@@ -1,9 +1,9 @@
 # Use the latest Ubuntu image as the base, and specify the platform as linux/amd64
 FROM --platform=linux/amd64 ubuntu:latest
 
-# Install necessary packages (curl)
+# Install necessary packages (curl, rsync)
 RUN apt-get update && \
-    apt-get install -y curl
+    apt-get install -y curl rsync
 
 # Set working directory
 WORKDIR /app
@@ -12,16 +12,20 @@ WORKDIR /app
 RUN mkdir -p /app/data
 
 # Download tar files from remote bucket using curl
-RUN curl -O https://bootstrap.urbit.org/rube-zod2.tgz && \
-    curl -O https://bootstrap.urbit.org/rube-bus2.tgz
+RUN curl -O https://bootstrap.urbit.org/rube-zod3.tgz && \
+    curl -O https://bootstrap.urbit.org/rube-bus3.tgz
 
 #Extract both files
-RUN tar xf rube-zod2.tgz && \
-    tar xf rube-bus2.tgz
+RUN tar xf rube-zod3.tgz && \
+    tar xf rube-bus3.tgz
 
 # Remove tar files to save space
-RUN rm rube-zod2.tgz rube-bus2.tgz
+RUN rm rube-zod3.tgz rube-bus3.tgz
+
+COPY ../rube/entrypoint_playwright.sh /app/entrypoint_playwright.sh
+COPY desk /app/desk
+COPY talk /app/talk
 
 # Set up the entrypoint to run executables from both extraced directories
 # and tail /dev/null to keep the container running
-ENTRYPOINT ["sh", "-c", "./zod/.run -d --http-port 8081 && ./bus/.run -d --http-port 8082 && tail -f /dev/null"]
+ENTRYPOINT ["/app/entrypoint_playwright.sh"]
