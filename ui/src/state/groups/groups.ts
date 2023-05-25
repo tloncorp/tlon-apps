@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
 import { useCallback, useEffect, useMemo } from 'react';
+import create from 'zustand';
 import {
   MutationFunction,
   useMutation,
@@ -28,8 +29,11 @@ import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
+import { getFlagParts, preSig } from '@/logic/utils';
 
 export const GROUP_ADMIN = 'admin';
+
+export const GROUPS_KEY = 'groups';
 
 function groupAction(flag: string, diff: GroupDiff): Poke<GroupAction> {
   return {
@@ -61,9 +65,27 @@ function groupTrackedPoke(action: Poke<GroupAction>) {
   );
 }
 
+export const useGroupConnectionState = create<{
+  groups: Record<string, boolean>;
+  setGroupConnected: (group: string, connected: boolean) => void;
+}>((set) => ({
+  groups: {},
+  setGroupConnected: (group, connected) =>
+    set((state) => ({
+      groups: {
+        ...state.groups,
+        [group]: connected,
+      },
+    })),
+}));
+
+export function useGroupConnection(flag: string) {
+  return useGroupConnectionState((state) => state.groups[flag] ?? true);
+}
+
 export function useGroups() {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['groups'],
+    queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
     scry: `/groups/light`,
@@ -83,7 +105,7 @@ export function useGroup(flag: string, updating = false) {
   const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
-  const queryKey = useMemo(() => ['groups', flag], [flag]);
+  const queryKey = useMemo(() => [GROUPS_KEY, flag], [flag]);
   const subscribe = useCallback(() => {
     api.subscribe({
       app: 'groups',
@@ -105,8 +127,8 @@ export function useGroup(flag: string, updating = false) {
     options: {
       enabled: !!flag && flag !== '' && updating,
       initialData: group,
-      refetchOnWindowFocus: updating,
       refetchOnMount: updating,
+      retry: true,
     },
   });
 
@@ -116,7 +138,7 @@ export function useGroup(flag: string, updating = false) {
     }
   }, [flag, updating, subscribe]);
 
-  if (rest.isLoading || rest.isError) {
+  if (rest.isLoading || rest.isError || data === undefined) {
     return undefined;
   }
 
@@ -124,7 +146,7 @@ export function useGroup(flag: string, updating = false) {
 }
 
 export function useGroupIsLoading(flag: string) {
-  return useQueryClient().getQueryState(['groups', flag]);
+  return useQueryClient().getQueryState([GROUPS_KEY, flag]);
 }
 
 export function useRouteGroup() {
@@ -192,23 +214,46 @@ const defGang = {
 };
 
 export function useGangs() {
+  const queryClient = useQueryClient();
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['gangs'],
     app: 'groups',
     path: `/gangs/updates`,
     scry: `/gangs`,
     options: {
-      refetchOnWindowFocus: true,
       refetchOnMount: false,
-      refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
   });
+
+  // this is a bit of a hack to get the group index data into the gangs
+  const groupIndexDataAsGangs: Gangs = useMemo(
+    () =>
+      (queryClient.getQueriesData(['group-index']) || []).reduce(
+        (acc, [_queryKey, indexData]) => {
+          if (indexData && typeof indexData === 'object') {
+            const newAcc = { ...acc };
+            Object.keys(indexData).forEach((key) => {
+              (newAcc as Gangs)[key] = {
+                preview: (indexData as GroupIndex)[key],
+                invite: null,
+                claim: null,
+              };
+            });
+            return newAcc;
+          }
+          return acc;
+        },
+        {}
+      ),
+    [queryClient]
+  );
 
   if (rest.isLoading || rest.isError) {
     return {} as Gangs;
   }
 
   return {
+    ...groupIndexDataAsGangs,
     ...(data as Gangs),
   };
 }
@@ -219,13 +264,13 @@ export function useGang(flag: string) {
   return data?.[flag] || defGang;
 }
 
-export const useGangPreview = (flag: string, isScrolling?: boolean) => {
+export const useGangPreview = (flag: string, disabled = false) => {
   const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
     queryKey: ['gang-preview', flag],
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
-      enabled: !isScrolling,
+      enabled: !disabled,
     },
   });
 
@@ -268,7 +313,7 @@ export function usePendingInvites() {
   return useMemo(
     () =>
       Object.entries(gangs)
-        .filter(([k, g]) => g.invite !== null && !(k in groups))
+        .filter(([k, g]) => g.invite && g.invite !== null && !(k in groups))
         .map(([k]) => k),
     [gangs, groups]
   );
@@ -294,7 +339,7 @@ export function usePendingGangsWithoutClaim() {
   const pendingGangs: Gangs = {};
 
   Object.entries(gangs)
-    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .filter(([flag, g]) => g.invite && g.invite !== null && !(flag in groups))
     .filter(
       ([, gang]) =>
         !gang.claim ||
@@ -321,7 +366,6 @@ export function useChannelPreview(nest: string, disableLoading = false) {
     options: {
       enabled: !disableLoading,
       refetchOnMount: false,
-      refetchOnWindowFocus: false,
     },
   });
 
@@ -355,16 +399,16 @@ export function useGroupMutation<TResponse>(
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['group', variables.flag]);
+      await queryClient.cancelQueries([GROUPS_KEY, variables.flag]);
 
-      const data = await queryClient.getQueryData(['group', variables.flag]);
+      const data = await queryClient.getQueryData([GROUPS_KEY, variables.flag]);
       const previousGroup = data as Group;
 
       const { zone, nest, idx, meta, index, metadata } = variables;
 
       if (metadata) {
         // edit group metadata
-        queryClient.setQueryData(['group', variables.flag], {
+        queryClient.setQueryData([GROUPS_KEY, variables.flag], {
           ...previousGroup,
           meta: {
             ...previousGroup.meta,
@@ -383,7 +427,7 @@ export function useGroupMutation<TResponse>(
               (z) => z !== zone
             );
             newZoneOrd.splice(index, 0, zone);
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               'zone-ord': newZoneOrd,
             });
@@ -391,7 +435,7 @@ export function useGroupMutation<TResponse>(
 
           if (meta) {
             // edit zone metadata
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               zones: {
                 ...previousGroup.zones,
@@ -411,7 +455,7 @@ export function useGroupMutation<TResponse>(
             const newIdxArray = previousZone.idx.filter((n) => n !== nest);
             newIdxArray.splice(idx, 0, nest);
 
-            queryClient.setQueryData(['group', variables.flag], {
+            queryClient.setQueryData([GROUPS_KEY, variables.flag], {
               ...previousGroup,
               zones: {
                 ...previousGroup.zones,
@@ -427,7 +471,7 @@ export function useGroupMutation<TResponse>(
           // add a new zone
           const newZoneOrd = previousGroup['zone-ord'];
           newZoneOrd.splice(1, 0, zone);
-          queryClient.setQueryData(['group', variables.flag], {
+          queryClient.setQueryData([GROUPS_KEY, variables.flag], {
             ...previousGroup,
             zones: {
               ...previousGroup.zones,
@@ -444,10 +488,10 @@ export function useGroupMutation<TResponse>(
       return data;
     },
     onError: (err, variables, previousGroup) => {
-      queryClient.setQueryData(['group', variables.flag], previousGroup);
+      queryClient.setQueryData([GROUPS_KEY, variables.flag], previousGroup);
     },
     onSettled: (_data, _error, variables) =>
-      queryClient.invalidateQueries(['group', variables.flag]),
+      queryClient.invalidateQueries([GROUPS_KEY, variables.flag]),
     ...options,
   });
 }
@@ -614,10 +658,20 @@ export function useGroupMoveChannelMutation() {
 
 export function useEditGroupMutation(options: UseMutationOptions = {}) {
   const mutationFn = (variables: { flag: string; metadata: GroupMeta }) =>
-    api.trackedPoke(groupAction(variables.flag, { meta: variables.metadata }), {
-      app: 'groups',
-      path: '/groups/ui',
-    });
+    api.trackedPoke(
+      groupAction(variables.flag, { meta: variables.metadata }),
+      {
+        app: 'groups',
+        path: '/groups/ui',
+      },
+      (event) => {
+        return (
+          event.flag === variables.flag &&
+          'meta' in event.update.diff &&
+          _.isEqual(event.update.diff.meta, variables.metadata)
+        );
+      }
+    );
 
   return useGroupMutation(mutationFn, options);
 }
@@ -681,7 +735,7 @@ export function useGroupJoinMutation() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries(['gangs']);
       queryClient.invalidateQueries(['gangs', variables.flag]);
-      queryClient.invalidateQueries(['groups']);
+      queryClient.invalidateQueries([GROUPS_KEY]);
     },
   });
 }
@@ -697,15 +751,43 @@ export function useGroupLeaveMutation() {
       });
     },
     {
-      onSettled: (_data, _error, variables) => {
-        queryClient.removeQueries({
-          queryKey: ['groups', variables.flag],
-          exact: true,
+      onMutate: async (variables) => {
+        await queryClient.cancelQueries([GROUPS_KEY, variables.flag]);
+        await queryClient.cancelQueries(['gangs', variables.flag]);
+        await queryClient.cancelQueries(['gang-preview', variables.flag]);
+        await queryClient.cancelQueries([GROUPS_KEY]);
+
+        queryClient.setQueryData<Group | undefined>(
+          [GROUPS_KEY, variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Group | undefined>(
+          ['gangs', variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Group | undefined>(
+          ['gang-preview', variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Groups | undefined>([GROUPS_KEY], (old) => {
+          if (!old) {
+            return undefined;
+          }
+          const newGroups = old;
+          delete newGroups[variables.flag];
+
+          return newGroups;
         });
-        queryClient.invalidateQueries(['groups']);
-        queryClient.invalidateQueries(['gangs']);
-        queryClient.invalidateQueries(['gangs', variables.flag]);
-        queryClient.invalidateQueries(['gang-preview', variables.flag]);
+      },
+      onSettled: async (_data, _error, variables) => {
+        queryClient.removeQueries(['gangs', variables.flag]);
+        queryClient.removeQueries(['gang-preview', variables.flag]);
+        queryClient.removeQueries([GROUPS_KEY, variables.flag]);
+        await queryClient.refetchQueries(['gangs']);
+        await queryClient.refetchQueries([GROUPS_KEY]);
       },
     }
   );
@@ -891,7 +973,6 @@ export function useGroupDelMembersMutation() {
 }
 
 export function useGroupAddRoleMutation() {
-  // Not used yet.
   const mutationFn = async (variables: {
     flag: string;
     sect: string;
@@ -911,8 +992,27 @@ export function useGroupAddRoleMutation() {
   return useGroupMutation(mutationFn);
 }
 
+export function useGroupEditRoleMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    sect: string;
+    meta: GroupMeta;
+  }) => {
+    const diff = {
+      cabal: {
+        sect: variables.sect,
+        diff: {
+          edit: { ...variables.meta, image: '', cover: '' },
+        },
+      },
+    };
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
 export function useGroupDelRoleMutation() {
-  // Not used yet.
   const mutationFn = async (variables: { flag: string; sect: string }) => {
     const diff = {
       cabal: {
@@ -940,6 +1040,30 @@ export function useGroupIndex(ship: string) {
     groupIndex: data as GroupIndex,
     ...rest,
   };
+}
+
+export function useGroupHostHi(ship: string) {
+  const { data, ...rest } = useReactQuerySubscribeOnce({
+    queryKey: ['group-host-hi', ship],
+    app: 'groups',
+    path: `/hi/${ship}`,
+    options: {
+      enabled: ship !== '' && preSig(window.ship) !== ship,
+      cacheTime: 60 * 1000, // default to 1 minute before we check if the host is online again.
+    },
+  });
+
+  return {
+    ship: data as string,
+    ...rest,
+  };
+}
+
+export function useGroupPreviewFromIndex(flag: string) {
+  const { ship } = getFlagParts(flag);
+  const { groupIndex } = useGroupIndex(ship);
+
+  return groupIndex?.[flag];
 }
 
 export function useGroupBanShipsMutation() {

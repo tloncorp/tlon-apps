@@ -57,6 +57,7 @@ function TopBar({
     menuOpen,
     setMenuOpen,
     onDelete,
+    deleteStatus,
     onEdit,
     onCopy,
     navigateToCurio,
@@ -163,6 +164,7 @@ function TopBar({
         open={deleteOpen}
         setOpen={setDeleteOpen}
         onConfirm={onDelete}
+        loading={deleteStatus === 'loading'}
         confirmText="Delete"
         title="Delete Gallery Item"
         message="Are you sure you want to delete this gallery item?"
@@ -292,11 +294,11 @@ export default function HeapBlock({
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
-  const notEmbed = isImage && isAudio && isText && isComment;
+  const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
 
   useEffect(() => {
     const getOembed = async () => {
-      if (isValidUrl(url) && !notEmbed && !calm.disableRemoteContent) {
+      if (isValidUrl(url) && maybeEmbed && !calm.disableRemoteContent) {
         try {
           const oembed = await useEmbedState.getState().getEmbed(url);
           setEmbed(oembed);
@@ -307,9 +309,14 @@ export default function HeapBlock({
       }
     };
     getOembed();
-  }, [url, notEmbed, calm]);
+  }, [url, maybeEmbed, calm]);
 
-  if (isValidUrl(url) && embed === undefined && !notEmbed) {
+  if (
+    isValidUrl(url) &&
+    embed === undefined &&
+    maybeEmbed &&
+    !calm.disableRemoteContent
+  ) {
     return <HeapLoadingBlock />;
   }
 

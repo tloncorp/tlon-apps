@@ -8,3 +8,8 @@ stats.html
 .eslintcache
 .vercel
 storybook-static
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+/e2e/.auth/user.json

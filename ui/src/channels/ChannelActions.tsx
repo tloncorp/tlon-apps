@@ -86,7 +86,7 @@ export default function ChannelActions({
       <Dropdown.Root open={dropdownIsOpen} onOpenChange={setDropdownIsOpen}>
         <Dropdown.Trigger asChild>
           <button
-            className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50"
+            className="flex h-6 w-6 items-center justify-center rounded  text-gray-600 hover:bg-gray-50"
             aria-label="Channel Options"
           >
             <EllipsisIcon className="h-6 w-6" />

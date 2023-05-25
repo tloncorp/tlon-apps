@@ -4,6 +4,9 @@ import _ from 'lodash';
 import {
   useGang,
   useGroup,
+  useGroupConnection,
+  useGroupConnectionState,
+  useGroupHostHi,
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
@@ -12,7 +15,7 @@ import { useHeapState } from '@/state/heap/heap';
 import { useDiaryState } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel } from '@/logic/utils';
+import { canReadChannel, getFlagParts } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 function Groups() {
@@ -20,6 +23,9 @@ function Groups() {
   const flag = useRouteGroup();
   const group = useGroup(flag, true);
   const gang = useGang(flag);
+  const { ship } = getFlagParts(flag);
+  const { isError, isSuccess, isLoading } = useGroupHostHi(ship);
+  const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
   const root = useMatch({
@@ -27,6 +33,23 @@ function Groups() {
     end: true,
   });
   const { recentChannel } = useRecentChannel(flag);
+
+  useEffect(() => {
+    if (group) {
+      useGroupConnectionState.getState().setGroupConnected(flag, true);
+      return;
+    }
+
+    if (isLoading) {
+      useGroupConnectionState.getState().setGroupConnected(flag, true);
+    }
+    if (isError) {
+      useGroupConnectionState.getState().setGroupConnected(flag, false);
+    }
+    if (isSuccess) {
+      useGroupConnectionState.getState().setGroupConnected(flag, true);
+    }
+  }, [isError, isSuccess, isLoading, flag, group]);
 
   useEffect(() => {
     // 1) If we've initialized and the group doesn't exist and you don't have
@@ -73,6 +96,18 @@ function Groups() {
       }
     }
   }, [root, gang, group, vessel, isMobile, recentChannel, navigate]);
+
+  if (!connection && !group) {
+    return (
+      <div className="flex min-w-0 grow items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <span className="ml-2 text-gray-600">
+            Group host ({ship}) is offline.
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   if (!group || group.meta.title === '') {
     return (

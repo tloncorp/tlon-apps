@@ -35,7 +35,7 @@ export default function makeNotesStore(
 
   const getMessages = async (dir: 'older' | 'newer', count: string) => {
     const { notes } = get();
-    let noteMap = notes[flag];
+    let noteMap = notes[flag] || new BigIntOrderedMap<DiaryLetter>();
 
     const oldNotesSize = noteMap.size ?? 0;
     if (oldNotesSize === 0) {

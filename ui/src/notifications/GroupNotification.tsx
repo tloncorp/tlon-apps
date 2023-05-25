@@ -11,6 +11,8 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import Person16Icon from '@/components/icons/Person16Icon';
 import X16Icon from '@/components/icons/X16Icon';
 import { useIsMobile } from '@/logic/useMedia';
+import DocketImage from '@/components/Grid/DocketImage';
+import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import Notification from './Notification';
 
 interface GroupNotificationProps {
@@ -82,7 +84,7 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
       topLine={
         <div className="flex flex-row items-center space-x-1 text-sm font-semibold text-gray-400">
           {!groupFlag ? (
-            <DefaultGroupIcon className="mr-1 h-4 w-4" />
+            <AppGroupsIcon className="mr-1 h-4 w-4 bg-[#EFF0F4] p-[5px] text-gray-200" />
           ) : (
             <GroupSubIcon rope={rope} />
           )}

@@ -28,7 +28,10 @@ export default function ShipName({
   const first = parts.shift();
 
   return (
-    <span {...props}>
+    <span
+      title={calm.disableNicknames ? contact?.nickname : undefined}
+      {...props}
+    >
       {contact?.nickname && !calm.disableNicknames && showAlias ? (
         <span title={citedName}>{contact.nickname}</span>
       ) : (

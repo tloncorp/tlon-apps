@@ -32,7 +32,7 @@ export default function makeCuriosStore(
 
   const getMessages = async (dir: 'older' | 'newer', count: string) => {
     const { curios } = get();
-    let curioMap = curios[flag];
+    let curioMap = curios[flag] || new BigIntOrderedMap<HeapCurio>();
 
     const oldCuriosSize = curioMap.size ?? 0;
     if (oldCuriosSize === 0) {

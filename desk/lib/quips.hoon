@@ -30,9 +30,11 @@
   ?-  -.del
       %add
     =/  =cork:d  [time ~]
-    ?:  (~(has by qup) time)
-      qup
-    (put:on:quips:d qup time [cork p.del])
+    |-
+    =/  quip  (get time)
+    ?~  quip  (put:on:quips:d qup time [cork p.del])
+    ?:  =(+.+.u.quip p.del)  qup
+    $(time `@da`(add time ^~((div ~s1 (bex 16)))))
   ::
       %del
     =^  no=(unit quip:d)  qup

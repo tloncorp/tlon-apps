@@ -16,11 +16,11 @@ export default function DisplayDropdown({
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
-        <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-50 ">
+        <button className="flex h-6 w-6 items-center justify-center rounded text-gray-600 hover:bg-gray-50 ">
           {displayMode === 'grid' ? (
-            <GridIcon className="h-6 w-6 text-gray-400" />
+            <GridIcon className="h-6 w-6" />
           ) : (
-            <ListIcon className="h-6 w-6 text-gray-400" />
+            <ListIcon className="h-6 w-6" />
           )}
         </button>
       </Dropdown.Trigger>

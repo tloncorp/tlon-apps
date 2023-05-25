@@ -270,9 +270,13 @@ export default function ChatScroller({
   }, [scrollTo?.toString()]);
 
   const updateScroll = useRef(
-    debounce((e: boolean) => {
-      setIsScrolling(e);
-    }, 1000)
+    debounce(
+      (e: boolean) => {
+        setIsScrolling(e);
+      },
+      300,
+      { leading: true, trailing: true }
+    )
   );
 
   /**

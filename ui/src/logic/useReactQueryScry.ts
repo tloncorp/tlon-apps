@@ -28,7 +28,6 @@ export default function useReactQueryScry<T>({
   return useQuery<T>(queryKey, fetchData, {
     retryOnMount: false,
     refetchOnMount: false,
-    refetchOnWindowFocus: false,
     ...options,
   });
 }

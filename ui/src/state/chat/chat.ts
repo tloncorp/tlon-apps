@@ -192,17 +192,12 @@ export const useChatState = createState<ChatState>(
     },
     start: async ({ briefs, chats, pins }) => {
       get().batchSet((draft) => {
-        draft.chats = _.assign(draft.chats, chats);
-        draft.briefs = _.assign(draft.briefs, briefs);
-        draft.pins = _.union(draft.pins, pins);
+        draft.chats = chats;
+        draft.briefs = briefs;
+        draft.pins = pins;
       });
 
-      Object.entries(briefs).forEach(([whom, brief]) => {
-        const isUnread = brief.count > 0 && brief['read-id'];
-        if (isUnread) {
-          useChatStore.getState().unread(whom, brief);
-        }
-      });
+      useChatStore.getState().update(briefs);
 
       api.subscribe(
         {
@@ -281,10 +276,10 @@ export const useChatState = createState<ChatState>(
       }
 
       get().batchSet((draft) => {
-        draft.multiDms = _.merge(draft.multiDms, init.clubs);
-        draft.dms = _.union(draft.dms, init.dms);
-        draft.pendingDms = _.union(draft.pendingDms, init.invited);
-        draft.pins = _.union(draft.pins, init.pins);
+        draft.multiDms = init.clubs;
+        draft.dms = init.dms;
+        draft.pendingDms = init.invited;
+        draft.pins = init.pins;
       });
 
       api.subscribe(
@@ -471,6 +466,7 @@ export const useChatState = createState<ChatState>(
         if (isNew) {
           set((draft) => ({
             ...draft,
+            dms: [...draft.dms, whom],
             pacts: {
               ...draft.pacts,
               [whom]: { index: {}, writs: new BigIntOrderedMap() },
@@ -521,13 +517,17 @@ export const useChatState = createState<ChatState>(
       });
     },
     delMessage: async (whom, id) => {
-      const isDM = whomIsDm(whom);
       const diff = { del: null };
-      if (isDM) {
+      if (whomIsDm(whom)) {
         await api.trackedPoke<DmAction, ChatAction>(
           dmAction(whom, diff, id),
           { app: 'chat', path: whom },
           (event) => event.flag === id && 'del' in event.update.diff
+        );
+      } else if (whomIsMultiDm(whom)) {
+        await api.trackedPoke<ClubAction>(
+          multiDmAction(whom, { writ: { id, delta: diff } }),
+          { app: 'chat', path: whom }
         );
       } else {
         await api.trackedPoke<ChatAction>(chatWritDiff(whom, id, diff), {
@@ -1014,9 +1014,12 @@ export function useWritByFlagAndWritId(
   const refs = useChatState(selLoadedRefs);
   const path = `/said/${chFlag}/msg/${idWrit}`;
   const cached = refs[path];
+  const pact = usePact(chFlag);
+  const writIndex = pact && pact.index[idWrit];
+  const writInPact = writIndex && pact && pact.writs.get(writIndex);
 
   useEffect(() => {
-    if (!isScrolling && shouldLoad(path)) {
+    if (!isScrolling && !writInPact && shouldLoad(path)) {
       newAttempt(path);
       subscribeOnce<UnsubbedWrit>('chat', path)
         .then(({ writ }) => {
@@ -1026,7 +1029,11 @@ export function useWritByFlagAndWritId(
         })
         .finally(() => finished(path));
     }
-  }, [path, isScrolling]);
+  }, [path, isScrolling, writInPact]);
+
+  if (writInPact) {
+    return writInPact;
+  }
 
   return cached;
 }

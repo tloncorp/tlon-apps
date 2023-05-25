@@ -1,12 +1,13 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import cn from 'classnames';
-import _, { debounce } from 'lodash';
+import _ from 'lodash';
+import debounce from 'lodash/debounce';
 import f from 'lodash/fp';
 import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import Author from '@/chat/ChatMessage/Author';
@@ -26,7 +27,13 @@ import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useChatHovering, useChatInfo, useChatStore } from '../useChatStore';
+import { useIsMobile } from '@/logic/useMedia';
+import {
+  useChatDialog,
+  useChatHovering,
+  useChatInfo,
+  useChatStore,
+} from '../useChatStore';
 
 export interface ChatMessageProps {
   whom: string;
@@ -79,10 +86,20 @@ const ChatMessage = React.memo<
     ) => {
       const { seal, memo } = writ;
       const container = useRef<HTMLDivElement>(null);
+      const { idShip, idTime } = useParams<{
+        idShip: string;
+        idTime: string;
+      }>();
+      const isThread = idShip && idTime;
+      const threadOpId = isThread ? `${idShip}/${idTime}` : '';
+      const isThreadOp = threadOpId === seal.id && hideReplies;
+      const isMobile = useIsMobile();
+      const isThreadOnMobile = isThread && isMobile;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
+      const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -153,8 +170,14 @@ const ChatMessage = React.memo<
         f.uniq,
         f.take(3)
       )(seal.replied);
-      const lastReply = seal.replied.length ? _.last(seal.replied)! : '';
-      const lastReplyWrit = useWrit(whom, lastReply)!;
+      const repliesSortedByTime = seal.replied.sort((a, b) => {
+        const aTime = useChatState.getState().getTime(whom, a);
+        const bTime = useChatState.getState().getTime(whom, b);
+
+        return aTime.compare(bTime);
+      });
+      const lastReply = _.last(repliesSortedByTime);
+      const lastReplyWrit = useWrit(whom, lastReply ?? '')!;
       const lastReplyTime = lastReplyWrit
         ? new Date(daToUnix(lastReplyWrit[0]))
         : new Date();
@@ -168,11 +191,15 @@ const ChatMessage = React.memo<
         }, 100)
       );
       const onOver = useCallback(() => {
-        if (hover.current === false) {
+        // If we're already hovering, don't do anything
+        // If we're the thread op and this isn't on mobile, don't do anything
+        // This is necessary to prevent the hover from appearing
+        // in the thread when the user hovers in the main scroll window.
+        if (hover.current === false && (!isThreadOp || isThreadOnMobile)) {
           hover.current = true;
           setHover.current();
         }
-      }, []);
+      }, [isThreadOp, isThreadOnMobile]);
       const onOut = useRef(
         debounce(
           () => {
@@ -194,6 +221,7 @@ const ChatMessage = React.memo<
           onMouseEnter={onOver}
           onClick={onOver}
           onMouseLeave={onOut.current}
+          data-testid="chat-message"
         >
           {unread && briefMatches(unread.brief, writ.seal.id) ? (
             <DateDivider
@@ -205,7 +233,12 @@ const ChatMessage = React.memo<
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex w-full">
-            {hideOptions || (isScrolling && !hovering) || !hovering ? null : (
+            {hideOptions ||
+            isScrolling ||
+            (!hovering && !pickerOpen) ||
+            // If we're the thread op, don't show options.
+            // Options are shown for the threadOp in the main scroll window.
+            (isThreadOp && !isThreadOnMobile) ? null : (
               <ChatMessageOptions
                 hideThreadReply={hideReplies}
                 whom={whom}

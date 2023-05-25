@@ -11,7 +11,12 @@ import {
   isChannelImported,
 } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
-import { useGroup, useGroupFlag, useVessel } from '@/state/groups';
+import {
+  useGroup,
+  useGroupConnection,
+  useGroupFlag,
+  useVessel,
+} from '@/state/groups';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import useChannelSort from '@/logic/useChannelSort';
@@ -110,6 +115,7 @@ function UnmigratedChannel({
 export default function ChannelList({ className }: ChannelListProps) {
   const flag = useGroupFlag();
   const group = useGroup(flag);
+  const connected = useGroupConnection(flag);
   const briefs = useAllBriefs();
   const pendingImports = usePendingImports();
   const { hasStarted } = useStartedMigration(flag);
@@ -126,11 +132,17 @@ export default function ChannelList({ className }: ChannelListProps) {
       <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
         <h2 className="px-4 pb-0 text-sm font-bold text-gray-400">
           <div className="flex justify-between">
-            Loading Channels
-            <LoadingSpinner className="h-4 w-4 text-gray-400" />
+            {!connected ? (
+              'Host is Offline.'
+            ) : (
+              <>
+                Loading Channels
+                <LoadingSpinner className="h-4 w-4 text-gray-400" />
+              </>
+            )}
           </div>
         </h2>
-        <GroupListPlaceholder count={15} />;
+        <GroupListPlaceholder count={15} pulse={connected} />;
       </div>
     );
   }

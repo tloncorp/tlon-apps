@@ -59,6 +59,9 @@
     =/  =seal:c  [id ~ ~]
     ?:  (~(has by dex.pac) id)
       pac
+    |-
+    ?:  (has:on:writs:c wit.pac now)  
+      $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
       (put:on:writs:c wit.pac now seal p.del)
     =.  dex.pac  (~(put by dex.pac) id now)
@@ -89,7 +92,7 @@
   ==
 ::
 ++  peek
-  |=  =(pole knot)
+  |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
   =*  on   on:writs:c
   ?+    pole  [~ ~]
@@ -111,7 +114,9 @@
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
     =/  time  (slav %ud time.pole)
-    ``writ+!>((got ship `@da`time))
+    ?.  ?=(%u care)
+      ``writ+!>((got ship `@da`time))
+    ``flag+!>(?~((get ship `@da`time) | &))
   ==
 ::
 ++  search

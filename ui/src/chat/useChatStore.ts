@@ -1,4 +1,4 @@
-import { ChatBlock, ChatBrief } from '@/types/chat';
+import { ChatBlock, ChatBrief, ChatBriefs } from '@/types/chat';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
@@ -42,6 +42,7 @@ export interface ChatStore {
   unread: (whom: string, brief: ChatBrief) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
+  update: (briefs: ChatBriefs) => void;
 }
 
 const emptyInfo: ChatInfo = {
@@ -55,6 +56,32 @@ const emptyInfo: ChatInfo = {
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
+  update: (briefs) => {
+    set(
+      produce((draft: ChatStore) => {
+        Object.entries(briefs).forEach(([whom, brief]) => {
+          const chat = draft.chats[whom];
+          if (brief.count > 0 && brief['read-id']) {
+            draft.chats[whom] = {
+              ...(chat || emptyInfo),
+              unread: {
+                seen: false,
+                readTimeout: 0,
+                brief,
+              },
+            };
+            return;
+          }
+
+          if (!chat) {
+            return;
+          }
+
+          delete chat.unread;
+        });
+      })
+    );
+  },
   atBottom: false,
   current: '',
   setBlocks: (whom, blocks) => {

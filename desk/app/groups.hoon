@@ -292,6 +292,10 @@
     ?.  ?=(%known -)  (hi-and-req-gang-index ship)
     (req-gang-index ship)
   ::
+      [%hi ship=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    (hi-ship ship)
+  ::
      [%gangs ship=@ name=@ rest=*]
     =/  ship=@p  (slav %p ship.pole)
     ga-abet:(ga-watch:(ga-abed:gang-core ship name.pole) rest.pole)
@@ -341,6 +345,10 @@
       [%helm *]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
+  ::
+      [%hi ship=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    (take-hi ship sign)
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -1049,12 +1057,18 @@
     =.  group  gr
     =.  net  [%sub time & %chi ~]
     =/  create=diff:g  [%create group]
+    =/  readable-channels
+      %-  ~(gas in *(set nest:g))
+      %+  murn  ~(tap in channels.group)
+      |=  [ch=nest:g =channel:g]
+      ?.  (go-can-read our.bowl channel)  ~
+      [~ ch]
     =.  cor
       (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag now.bowl create]))
     =.  cor
       (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
-      (emil (join-channels:go-pass ~(tap in ~(key by channels.group))))
+      (emil (join-channels:go-pass ~(tap in readable-channels)))
     go-core
   ::
   ++  go-give-update
@@ -1282,6 +1296,13 @@
       =/  =cabal:g
         [meta.diff ~]
       =.  cabals.group  (~(put by cabals.group) sect cabal)
+      go-core
+    ::
+        %edit
+      =.  cabals.group
+        %+  ~(jab by cabals.group)  sect
+        |=  cabal:g
+        +<(meta meta.diff)
       go-core
     ::
         %del
@@ -1577,6 +1598,27 @@
   %-  emil
   :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('')]
       [%pass gang-wire %agent gang-dock %watch `path`gang-wire]
+  ==
+::
+++  hi-ship
+  |=  =ship
+  ^+  cor
+  =/  hi-wire=wire  /hi/(scot %p ship)
+  =/  hi-dock=dock  [ship %hood]
+  %-  emil
+  :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('')]
+  ==
+::
+++  take-hi
+  |=  [=ship =sign:agent:gall]
+  ^+  cor
+  =/  =path  /hi/(scot %p ship)
+  ?+  -.sign  !!
+      %kick  (emit %give %kick ~[path] ~)
+   ::
+      %poke-ack
+    =.  cor  (emit [%give %fact ~[path] hi-ship+!>(ship)])
+    (emit %give %kick ~[path] ~)
   ==
 ::
 ++  take-gang-index

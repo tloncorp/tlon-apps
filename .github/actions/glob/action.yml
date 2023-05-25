@@ -13,7 +13,7 @@ outputs:
     value: ${{ steps.glob.outputs.hash }}
 runs:
   using: "composite"
-  steps: 
+  steps:
     - id: glob
       shell: bash
       run:
