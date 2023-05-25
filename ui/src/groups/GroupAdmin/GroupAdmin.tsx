@@ -8,6 +8,7 @@ import { useDismissNavigate } from '@/logic/routing';
 import HomeIcon from '@/components/icons/HomeIcon';
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
 import PeopleIcon from '@/components/icons/PeopleIcon';
+import BadgeIcon from '@/components/icons/BadgeIcon';
 import XIcon from '@/components/icons/XIcon';
 
 export default function GroupAdmin() {
@@ -57,7 +58,7 @@ export default function GroupAdmin() {
               </SidebarItem>
               <SidebarItem
                 to={`/groups/${flag}/edit/roles`}
-                icon={<PeopleIcon className="h-6 w-6" />}
+                icon={<BadgeIcon className="h-6 w-6" />}
                 state={{ backgroundLocation: state.backgroundLocation }}
               >
                 Roles

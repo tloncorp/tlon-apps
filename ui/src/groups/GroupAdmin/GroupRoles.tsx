@@ -199,32 +199,34 @@ export default function GroupRoles({ title }: { title: string }) {
         </title>
       </Helmet>
       <div className="card mb-4 flex flex-col space-y-4">
-        <div className="mb-8 flex flex-col">
-          <h2 className="text-lg font-bold">Group Roles</h2>
-          <p className="mt-1 text-gray-600">
-            Assign permissions and capabilities to sub-groups of members
-          </p>
-          <div className="my-8 flex items-center space-x-4">
-            {(privacy === 'public' || amAdmin) && (
-              <Link
-                to={`/groups/${flag}/role`}
-                state={{ backgroundLocation: location }}
-                className="button bg-blue px-2 dark:text-black sm:px-4"
-              >
-                Create Role
-              </Link>
-            )}
+        {!editRole && (
+          <div className="mb-8 flex flex-col">
+            <h2 className="text-lg font-bold">Group Roles</h2>
+            <p className="mt-1 text-gray-600">
+              Assign permissions and capabilities to sub-groups of members
+            </p>
+            <div className="my-8 flex items-center space-x-4">
+              {(privacy === 'public' || amAdmin) && (
+                <Link
+                  to={`/groups/${flag}/role`}
+                  state={{ backgroundLocation: location }}
+                  className="button bg-blue px-2 dark:text-black sm:px-4"
+                >
+                  Create Role
+                </Link>
+              )}
+            </div>
+            <label className="relative flex items-center">
+              <span className="sr-only">Search Roles</span>
+              <input
+                className="input h-10 w-full border-0 bg-gray-50 text-sm mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
+                placeholder={`Search (${roleNames.length + 1}) roles`}
+                value={rawInput}
+                onChange={onChange}
+              />
+            </label>
           </div>
-          <label className="relative flex items-center">
-            <span className="sr-only">Search Roles</span>
-            <input
-              className="input h-10 w-full border-0 bg-gray-50 text-sm mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
-              placeholder={`Search (${roleNames.length + 1}) roles`}
-              value={rawInput}
-              onChange={onChange}
-            />
-          </label>
-        </div>
+        )}
         <div
           className="height-transition relative overflow-hidden"
           ref={wrapperRef}

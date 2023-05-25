@@ -24,7 +24,7 @@ import { useContact } from '@/state/contact';
 import { Vessel } from '@/types/groups';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
-import BadgeIcon from '@/components/icons/BadgeIcon';
+import AddBadgeIcon from '@/components/icons/AddBadgeIcon';
 
 interface GroupMemberItemProps {
   member: string;
@@ -149,7 +149,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       {isAdmin && vessel ? (
         <Dropdown.Root>
           <Dropdown.Trigger className="default-focus ml-auto items-center text-gray-600 opacity-0 group-hover:opacity-100">
-            <BadgeIcon className="h-6 w-6" />
+            <AddBadgeIcon className="h-6 w-6" />
           </Dropdown.Trigger>
           <Dropdown.Content className="dropdown min-w-52 text-gray-800">
             {sects.map((s) => (
