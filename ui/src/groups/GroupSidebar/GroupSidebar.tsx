@@ -2,7 +2,12 @@ import cn from 'classnames';
 import _ from 'lodash';
 import React from 'react';
 import { useIsDark } from '@/logic/useMedia';
-import { useAmAdmin, useGroup, useGroupFlag } from '@/state/groups/groups';
+import {
+  useAmAdmin,
+  useGang,
+  useGroup,
+  useGroupFlag,
+} from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -21,6 +26,7 @@ import InviteIcon from '@/components/icons/InviteIcon';
 function GroupHeader() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
+  const { preview, claim } = useGang(flag);
   const defaultImportCover = group?.meta.cover === '0x0';
   const calm = useCalm();
   const isDark = useIsDark();
@@ -80,7 +86,9 @@ function GroupHeader() {
           icon={<GroupAvatar {...group?.meta} />}
           {...fgStyle()}
         >
-          <div className="max-w-[130px] truncate">{group?.meta.title}</div>
+          <div className="max-w-[130px] truncate">
+            {claim ? preview?.meta.title : group?.meta.title}
+          </div>
           <CaretDown16Icon className="absolute top-3 right-2 h-4 w-4" />
         </SidebarItem>
       </GroupActions>

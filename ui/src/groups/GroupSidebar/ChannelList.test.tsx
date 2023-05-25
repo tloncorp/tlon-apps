@@ -17,6 +17,7 @@ vi.mock('@/state/groups', () => ({
   useGroupFlag: () => fakeFlag,
   useVessel: () => fakeVessel,
   useGroupState: () => ({}),
+  useGroupConnection: () => true,
 }));
 
 vi.mock('@/logic/useMigrationInfo', () => ({

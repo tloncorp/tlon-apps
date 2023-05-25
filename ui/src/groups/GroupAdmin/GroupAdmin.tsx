@@ -56,6 +56,13 @@ export default function GroupAdmin() {
                 Members
               </SidebarItem>
               <SidebarItem
+                to={`/groups/${flag}/edit/roles`}
+                icon={<PeopleIcon className="h-6 w-6" />}
+                state={{ backgroundLocation: state.backgroundLocation }}
+              >
+                Roles
+              </SidebarItem>
+              <SidebarItem
                 to={`/groups/${flag}/edit/delete`}
                 icon={<XIcon className="m-0.5 h-5 w-5" />}
                 state={{ backgroundLocation: state.backgroundLocation }}

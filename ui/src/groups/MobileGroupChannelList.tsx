@@ -15,19 +15,25 @@ export default function MobileGroupChannelList() {
 
   return (
     <>
-      <header className="flex items-center justify-between border-b-2 border-gray-50 px-6 py-4">
+      <header className="flex items-center justify-between border-b-2 border-gray-50 py-2 pl-2 pr-6">
         <Link
           to="/"
-          className="default-focus inline-flex items-center text-base font-semibold text-gray-800"
+          className="default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2"
+          aria-label="Back to All Groups"
         >
-          <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
-          <GroupAvatar {...group?.meta} size="h-6 w-6" className="mr-3" />
-          <h1 className="shrink text-lg font-bold text-gray-800 line-clamp-1">
-            {group?.meta.title}
-          </h1>
+          <div className="flex h-6 w-6 items-center justify-center">
+            <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
+          </div>
+
+          <GroupAvatar {...group?.meta} size="h-6 w-6" />
+          <div className="flex w-full flex-col justify-center">
+            <h1 className="text-lg font-bold text-gray-800 line-clamp-1">
+              {group?.meta.title}
+            </h1>
+          </div>
         </Link>
 
-        <div className="flex flex-row items-center space-x-3 self-end">
+        <div className="flex flex-row items-center space-x-3">
           <ReconnectingSpinner />
           <ChannelSorter isMobile={true} />
           {isAdmin && (

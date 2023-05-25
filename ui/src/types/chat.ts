@@ -312,6 +312,7 @@ export interface ChatCreate {
 
 export interface ChatPerm {
   writers: string[];
+  readers: string[];
   group: string;
 }
 

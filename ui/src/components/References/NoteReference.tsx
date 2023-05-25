@@ -3,12 +3,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useRemoteOutline } from '@/state/diary';
 import { useChannelPreview, useGang } from '@/state/groups';
-import { makePrettyDate, pluralize } from '@/logic/utils';
+import { makePrettyDate, pluralize, truncateProse } from '@/logic/utils';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
 import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
+// eslint-disable-next-line import/no-cycle
+import DiaryContent from '@/diary/DiaryContent/DiaryContent';
 import ReferenceBar from './ReferenceBar';
 
 function NoteReference({
@@ -47,28 +49,12 @@ function NoteReference({
       return '';
     }
 
-    let charCount = 0;
-    return outline.content.slice(0, 1).map((verse, index) => {
-      if ('inline' in verse) {
-        return (
-          <div key={index}>
-            {verse.inline.map((token, i) => {
-              if (charCount > NOTE_REF_DISPLAY_LIMIT) {
-                return '';
-              }
-              if (typeof token === 'string') {
-                charCount += token.length;
-                return <span key={i}>{token}</span>;
-              }
-              // TODO: handle other types of tokens
-              return '';
-            })}
-          </div>
-        );
-      }
-      // TODO: handle blocks.
-      return '';
-    });
+    const truncatedContent = truncateProse(
+      outline.content,
+      NOTE_REF_DISPLAY_LIMIT
+    );
+
+    return <DiaryContent content={truncatedContent} isPreview />;
   }, [outline]);
 
   if (!outline) {
@@ -78,7 +64,7 @@ function NoteReference({
   const prettyDate = makePrettyDate(new Date(outline.sent));
 
   return (
-    <div className="note-inline-block not-prose group">
+    <div className="note-inline-block group max-w-[600px] text-base">
       <div
         onClick={handleOpenReferenceClick}
         className="flex cursor-pointer flex-col space-y-2 p-4 group-hover:bg-gray-50"

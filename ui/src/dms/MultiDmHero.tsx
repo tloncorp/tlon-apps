@@ -4,6 +4,7 @@ import { pluralize } from '../logic/utils';
 import { Club } from '../types/chat';
 import MultiDmAvatar from './MultiDmAvatar';
 import ShipName from '../components/ShipName';
+import PendingIndicator from './MultiDMPendingIndicator';
 
 interface MultiDMHeroProps {
   club: Club;
@@ -46,9 +47,7 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
         <span>{`${count} ${pluralize('Member', count)}${
           hasPending ? ',' : ''
         }`}</span>
-        {hasPending ? (
-          <span className="text-blue"> {pendingCount} Pending</span>
-        ) : null}
+        {hasPending ? <PendingIndicator hive={club.hive} /> : null}
       </div>
     </div>
   );

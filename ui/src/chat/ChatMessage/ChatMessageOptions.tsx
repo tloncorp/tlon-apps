@@ -95,7 +95,10 @@ export default function ChatMessageOptions(props: {
   }, [isMobile, loadEmoji]);
 
   return (
-    <div className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle">
+    <div
+      data-testid="chat-message-options"
+      className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
+    >
       {canWrite && !isMobile ? (
         <EmojiPicker
           open={pickerOpen}
@@ -107,6 +110,7 @@ export default function ChatMessageOptions(props: {
             icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
             label="React"
             showTooltip
+            aria-label="React"
             action={openPicker}
           />
         </EmojiPicker>
@@ -115,6 +119,7 @@ export default function ChatMessageOptions(props: {
         <IconButton
           icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
           label="React"
+          aria-label="React"
           showTooltip
           action={() =>
             navigate(`picker/${writ.seal.id}`, {
