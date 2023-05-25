@@ -22,7 +22,7 @@ RUN tar xf rube-zod3.tgz && \
 # Remove tar files to save space
 RUN rm rube-zod3.tgz rube-bus3.tgz
 
-COPY ../rube/entrypoint_playwright.sh /app/entrypoint_playwright.sh
+COPY rube/entrypoint_playwright.sh /app/entrypoint_playwright.sh
 COPY desk /app/desk
 COPY talk /app/talk
 
