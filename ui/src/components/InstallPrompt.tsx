@@ -23,7 +23,7 @@ export default function InstallPrompt() {
       <Popover.Anchor className="fixed bottom-4 right-4" />
       <Popover.Portal>
         <Popover.Content
-          className="w-full max-w-md space-y-4 rounded-xl bg-white p-6 shadow-lg dark:border dark:border-gray-50"
+          className="w-full max-w-md space-y-4 rounded-xl bg-white p-6 shadow-xl dark:border dark:border-gray-50"
           side="top"
           align="end"
           onPointerDownOutside={disableDefault}
