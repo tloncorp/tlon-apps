@@ -198,6 +198,7 @@ export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
         enabled &&
         index !== undefined &&
         oldNotesSize !== 0 &&
+        !!fetchStart &&
         fetchStart !== decToUd('0'),
     },
   });
@@ -460,12 +461,12 @@ export function useLeaveDiaryMutation() {
       await queryClient.cancelQueries(['diary', 'briefs']);
       await queryClient.cancelQueries(['diary', 'perms', variables.flag]);
       await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
+      queryClient.removeQueries(['diary', 'perms', variables.flag]);
+      queryClient.removeQueries(['diary', 'notes', variables.flag]);
     },
-    onSettled: async (_data, _error, variables) => {
+    onSettled: async (_data, _error) => {
       await queryClient.refetchQueries(['diary', 'shelf']);
       await queryClient.refetchQueries(['diary', 'briefs']);
-      await queryClient.refetchQueries(['diary', 'perms', variables.flag]);
-      await queryClient.refetchQueries(['diary', 'notes', variables.flag]);
     },
   });
 }
@@ -561,7 +562,9 @@ export function useAddNoteMutation() {
       }
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['diary', 'notes', variables.flag]);
+      await queryClient.refetchQueries(['diary', 'notes', variables.flag], {
+        exact: true,
+      });
       await queryClient.refetchQueries(['diary', 'briefs']);
     },
   });
@@ -650,7 +653,9 @@ export function useDeleteNoteMutation() {
       ]);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['diary', 'notes', variables.flag]);
+      await queryClient.refetchQueries(['diary', 'notes', variables.flag], {
+        exact: true,
+      });
     },
   });
 }
@@ -700,7 +705,12 @@ export function useCreateDiaryMutation() {
     },
     onSettled: async (_data, _error, variables) => {
       await queryClient.refetchQueries(['diary', 'shelf']);
-      await queryClient.refetchQueries(['diary', 'notes', variables.name]);
+      await queryClient.refetchQueries([
+        'diary',
+        'notes',
+        variables.name,
+        { exact: true },
+      ]);
     },
   });
 }
