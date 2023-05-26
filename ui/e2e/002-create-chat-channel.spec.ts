@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 test('Create a chat channel', async ({ page }) => {
   test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
@@ -20,4 +20,10 @@ test('Create a chat channel', async ({ page }) => {
   await page.getByRole('link', { name: 'bus chat' }).waitFor();
   await page.getByRole('link', { name: 'bus chat' }).click();
   await page.getByLabel('Send message').waitFor();
+  await page.locator('.ProseMirror').click();
+  await page.locator('.ProseMirror').fill("hi, it's me, ~bus");
+  // first enter is for the mention
+  await page.locator('.ProseMirror').press('Enter');
+  await page.locator('.ProseMirror').press('Enter');
+  await expect(page.getByText("hi, it's me, ~bus")).toBeVisible();
 });

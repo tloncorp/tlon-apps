@@ -42,7 +42,8 @@
     "tsc": "tsc --noEmit",
     "postinstall": "patch-package",
     "storybook": "start-storybook -p 6006",
-    "build-storybook": "build-storybook"
+    "build-storybook": "build-storybook",
+    "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\""
   },
   "lint-staged": {
     "**/*.ts?(x)": [

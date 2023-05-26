@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 test('accept group invite', async ({ page }) => {
   test.skip(process.env.SHIP === '~bus', 'skip on ~bus');
@@ -7,4 +7,5 @@ test('accept group invite', async ({ page }) => {
   await page.getByText('Pending Invites').waitFor();
   await page.getByRole('button', { name: 'Join Group' }).first().click();
   await page.getByLabel('Send message').waitFor();
+  await expect(page.getByText("hi, it's me, ~bus")).toBeVisible();
 });
