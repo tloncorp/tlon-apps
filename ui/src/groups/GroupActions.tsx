@@ -126,8 +126,9 @@ const GroupActions = React.memo(
             </DropdownMenu.Item>
             <DropdownMenu.Item asChild className="dropdown-item">
               <Link
-                to={`/groups/${flag}/info`}
+                to={`/groups/${flag}/edit`}
                 className="flex items-center space-x-2"
+                state={{ backgroundLocation: location }}
               >
                 Group Info &amp; Members
               </Link>
