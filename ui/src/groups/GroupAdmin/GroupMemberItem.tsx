@@ -4,7 +4,6 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useLocation } from 'react-router';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
-import LeaveIcon from '@/components/icons/LeaveIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from '@/components/ShipName';
 import { toTitleCase, getSectTitle, getChannelHosts } from '@/logic/utils';
@@ -155,26 +154,17 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
             {sects.map((s) => (
               <Dropdown.Item
                 key={s}
-                className={cn(
-                  'dropdown-item flex items-center',
-                  !vessel.sects.includes(s) && 'text-gray-800'
-                )}
+                className={cn('dropdown-item flex items-center space-x-1')}
                 onSelect={toggleSect(member, s, vessel)}
               >
-                {getSectTitle(group.cabals, s)}
                 {sectLoading === s ? (
-                  <div className="mr-2 ml-auto flex h-4 w-4 items-center justify-center">
-                    <LoadingSpinner className="h-4 w-4" />
-                  </div>
+                  <LoadingSpinner className="h-4 w-4" />
                 ) : isOwner ? (
-                  <div className="mr-2 ml-auto h-4 w-4">
-                    <ExclamationPoint className="h-4 w-4 text-red" />
-                  </div>
+                  <ExclamationPoint className="h-4 w-4 text-red" />
                 ) : vessel.sects.includes(s) ? (
-                  <CheckIcon className="mr-2 ml-auto h-4 w-4 text-gray-600" />
-                ) : (
-                  <div className="mr-2 h-6 w-6" />
-                )}
+                  <CheckIcon className="h-4 w-4" />
+                ) : null}
+                <span>{getSectTitle(group.cabals, s)}</span>
               </Dropdown.Item>
             ))}
           </Dropdown.Content>
@@ -189,19 +179,17 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
           ) : (
             <div className="h-6 w-6" />
           )}
-          <Dropdown.Content className="dropdown min-w-52 text-gray-800">
+          <Dropdown.Content className="dropdown min-w-52">
             <Dropdown.Item
-              className="dropdown-item flex items-center text-red"
+              className="dropdown-item-red"
               onSelect={() => setShowKickConfirm(true)}
             >
-              <LeaveIcon className="mr-2 h-6 w-6" />
               Kick
             </Dropdown.Item>
             <Dropdown.Item
-              className="dropdown-item flex items-center text-red"
+              className="dropdown-item-red"
               onSelect={() => setShowBanConfirm(true)}
             >
-              <LeaveIcon className="mr-2 h-6 w-6" />
               Ban
             </Dropdown.Item>
           </Dropdown.Content>
@@ -211,7 +199,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
           <Dropdown.Trigger className="default-focus ml-2 rounded text-gray-400 group-hover:text-gray-800">
             <ElipsisIcon className="h-6 w-6" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown min-w-52 text-gray-800">
+          <Dropdown.Content className="dropdown min-w-52">
             <Dropdown.Item
               className="dropdown-item flex items-center"
               onSelect={() => onViewProfile(member)}
