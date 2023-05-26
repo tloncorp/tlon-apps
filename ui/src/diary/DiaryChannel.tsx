@@ -64,7 +64,8 @@ function DiaryChannel() {
     bucket: 'diary',
     key: 'settings',
   });
-  const needsLoader = letters === undefined;
+
+  const needsLoader = letters.size === 0;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
