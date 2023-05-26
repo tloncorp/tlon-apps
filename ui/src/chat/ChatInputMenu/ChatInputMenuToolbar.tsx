@@ -48,7 +48,7 @@ export default function ChatInputMenuToolbar({
 
   const toolbarClassNames = isMobile
     ? 'mt-2'
-    : 'default-focus rounded-lg bg-white shadow-lg dark:border dark:border-black/10 w-full';
+    : 'default-focus rounded-lg bg-white shadow-xl dark:border dark:border-black/10 w-full';
 
   return (
     <div

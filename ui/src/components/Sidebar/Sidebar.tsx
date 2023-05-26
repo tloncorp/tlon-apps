@@ -20,14 +20,12 @@ import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
-import AsteriskIcon from '../icons/Asterisk16Icon';
 import GroupsSidebarItem from './GroupsSidebarItem';
 import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import SystemChrome from './SystemChrome';
-import PencilSettingsIcon from '../icons/PencilSettingsIcon';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,45 +58,30 @@ export function GroupsAppMenu() {
               />
             </div>
           </DropdownMenu.Trigger>
-
-          <DropdownMenu.Content className="dropdown mt-2 -ml-2 w-60">
-            <a
-              className="dropdown-item flex flex-row items-center p-2 no-underline"
-              href="https://airtable.com/shrflFkf5UyDFKhmW"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md text-blue">
-                <AsteriskIcon className="h-6 w-6" />
-              </div>
-              <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
+          <DropdownMenu.Content className="dropdown">
+            <DropdownMenu.Item className="dropdown-item-blue">
+              <a
+                href="https://airtable.com/shrflFkf5UyDFKhmW"
+                target="_blank"
+                rel="noreferrer"
+              >
                 Submit Feedback
-              </DropdownMenu.Item>
-            </a>
-            <Link
-              to="/about"
-              className="dropdown-item flex flex-row items-center p-2 no-underline"
-              state={{ backgroundLocation: location }}
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
-                <AppGroupsIcon className="h-6 w-6" />
-              </div>
-              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
+              </a>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="dropdown-item">
+              <Link to="/about" state={{ backgroundLocation: location }}>
                 About Groups
-              </DropdownMenu.Item>
-            </Link>
-            <Link
-              to="/settings"
-              className="dropdown-item flex flex-row items-center p-2 no-underline"
-              state={{ backgroundLocation: location }}
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
-                <PencilSettingsIcon className="h-6 w-6" />
-              </div>
-              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
+              </Link>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="dropdown-item">
+              <Link
+                to="/settings"
+                className=""
+                state={{ backgroundLocation: location }}
+              >
                 App Settings
-              </DropdownMenu.Item>
-            </Link>
+              </Link>
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       }
@@ -189,7 +172,7 @@ export default function Sidebar() {
           to="/find"
         >
           <div className="flex items-center">
-            Find Groups
+            Discover
             {pendingInvitesCount > 0 ? (
               <span className="ml-auto pr-2 font-semibold text-blue">
                 {pendingInvitesCount}

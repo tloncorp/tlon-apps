@@ -288,7 +288,7 @@ exports[`Sidebar > renders as expected 1`] = `
             <div
               class="flex items-center"
             >
-              Find Groups
+              Discover
             </div>
           </div>
         </a>

@@ -169,7 +169,7 @@ function ChannelActions({
                 Edit {prettyAppName()}
               </Dropdown.Item>
               <Dropdown.Item
-                className="dropdown-item text-red"
+                className="dropdown-item-red"
                 onClick={() => setDeleteChannelIsOpen(!deleteChannelIsOpen)}
               >
                 Delete {prettyAppName()}
@@ -177,10 +177,7 @@ function ChannelActions({
             </>
           )}
           {!isChannelHost && (
-            <Dropdown.Item
-              className="dropdown-item text-red"
-              onClick={leaveChannel}
-            >
+            <Dropdown.Item className="dropdown-item-red" onClick={leaveChannel}>
               Leave {prettyAppName()}
             </Dropdown.Item>
           )}
@@ -228,7 +225,7 @@ function HeapSortControls({
           )}
           onClick={() => (setSortMode ? setSortMode('time') : null)}
         >
-          <span className="font-semibold">Time</span>
+          Time
         </Dropdown.Item>
         <Dropdown.Item
           className={cn(
@@ -237,7 +234,7 @@ function HeapSortControls({
           )}
           onClick={() => (setSortMode ? setSortMode('alpha') : null)}
         >
-          <span className="font-semibold">Alphabetical</span>
+          Alphabetical
         </Dropdown.Item>
       </Dropdown.Content>
     </Dropdown.Root>
@@ -263,7 +260,7 @@ function DiarySortControls({
           )}
           onClick={() => (setSortMode ? setSortMode('time-dsc') : null)}
         >
-          <span className="font-semibold">New Posts First</span>
+          New Posts First
         </Dropdown.Item>
         <Dropdown.Item
           className={cn(
@@ -272,7 +269,7 @@ function DiarySortControls({
           )}
           onClick={() => (setSortMode ? setSortMode('time-asc') : null)}
         >
-          <span className="font-semibold">Old Posts First</span>
+          Old Posts First
         </Dropdown.Item>
         <Dropdown.Item
           className={cn(
@@ -280,9 +277,7 @@ function DiarySortControls({
             sortMode === 'quip-asc' && 'bg-gray-100 hover:bg-gray-100'
           )}
         >
-          <span className="font-semibold text-gray-400">
-            New Comments First
-          </span>
+          New Comments First
         </Dropdown.Item>
         <Dropdown.Item
           className={cn(
@@ -290,9 +285,7 @@ function DiarySortControls({
             sortMode === 'quip-dsc' && 'bg-gray-100 hover:bg-gray-100'
           )}
         >
-          <span className="font-semibold text-gray-400">
-            Old Comments First
-          </span>
+          Old Comments First
         </Dropdown.Item>
       </Dropdown.Content>
     </Dropdown.Root>
@@ -373,15 +366,12 @@ export default function ChannelHeader({
               <Dropdown.Content className="dropdown">
                 <Dropdown.Item
                   className={cn(
-                    'dropdown-item-icon',
+                    'dropdown-item',
                     displayMode === 'list' && 'hover-bg-gray-100 bg-gray-100'
                   )}
                   onClick={() => setDisplayMode('list')}
                 >
-                  <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
-                    <ListIcon className="-m-1 h-8 w-8" />
-                  </div>
-                  <span className="font-semibold">List</span>
+                  List
                 </Dropdown.Item>
                 <Dropdown.Item
                   className={cn(
@@ -390,10 +380,7 @@ export default function ChannelHeader({
                   )}
                   onClick={() => setDisplayMode('grid')}
                 >
-                  <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
-                    <GridIcon className="-m-1 h-8 w-8" />
-                  </div>
-                  <span className="font-semibold">Grid</span>
+                  Grid
                 </Dropdown.Item>
               </Dropdown.Content>
             </Dropdown.Root>

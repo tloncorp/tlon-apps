@@ -27,7 +27,7 @@ function getButtonText(
     case privacy === 'private' && !invited:
       return 'Request to Join';
     default:
-      return 'Join';
+      return 'Join Group';
   }
 }
 

@@ -5,6 +5,6 @@ test('accept group invite', async ({ page }) => {
   test.skip(process.env.APP === 'chat', 'skip on talk');
   await page.goto('');
   await page.getByText('Pending Invites').waitFor();
-  await page.getByRole('button', { name: 'Join' }).click();
+  await page.getByRole('button', { name: 'Join Group' }).first().click();
   await page.getByLabel('Send message').waitFor();
 });
