@@ -149,7 +149,7 @@ export const useDiaryState = createState<DiaryState>(
   []
 );
 
-export function useNotes(flag: DiaryFlag): BigIntOrderedMap<DiaryLetter> {
+export function useNotes(flag: DiaryFlag) {
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['diary', 'notes', flag],
     app: 'diary',
@@ -158,12 +158,14 @@ export function useNotes(flag: DiaryFlag): BigIntOrderedMap<DiaryLetter> {
     priority: 2,
   });
 
-  const def = new BigIntOrderedMap<DiaryLetter>();
-  if (rest.isLoading || rest.isError || data === undefined) {
-    return def;
-  }
-
   let noteMap = restoreMap<DiaryLetter>(data);
+
+  if (data === undefined || Object.entries(data as object).length === 0) {
+    return {
+      letters: noteMap as BigIntOrderedMap<DiaryLetter>,
+      ...rest,
+    };
+  }
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
@@ -174,7 +176,10 @@ export function useNotes(flag: DiaryFlag): BigIntOrderedMap<DiaryLetter> {
     noteMap = noteMap.set(tim, note);
   });
 
-  return noteMap as BigIntOrderedMap<DiaryLetter>;
+  return {
+    letters: noteMap as BigIntOrderedMap<DiaryLetter>,
+    ...rest,
+  };
 }
 
 export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {

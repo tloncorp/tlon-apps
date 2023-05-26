@@ -48,7 +48,7 @@ function DiaryChannel() {
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
-  const letters = useNotes(chFlag);
+  const { letters, isLoading } = useNotes(chFlag);
   const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
   const { mutate: changeDiaryView } = useViewDiaryMutation();
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
@@ -64,8 +64,6 @@ function DiaryChannel() {
     bucket: 'diary',
     key: 'settings',
   });
-
-  const needsLoader = letters.size === 0;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -244,7 +242,7 @@ function DiaryChannel() {
         </div>
       </Toast.Provider>
       <div className="h-full">
-        {needsLoader ? (
+        {isLoading ? (
           <DiaryChannelListPlaceholder count={4} />
         ) : displayMode === 'grid' ? (
           <DiaryGridView
