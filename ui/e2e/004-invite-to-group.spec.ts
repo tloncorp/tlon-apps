@@ -13,9 +13,6 @@ test('Invite to a group', async ({ page }) => {
   await page.getByText('zod', { exact: true }).click();
   await page.getByRole('button', { name: 'Send Invites' }).click();
   await page.getByRole('button', { name: 'B Bus Club' }).click();
-  await page
-    .getByText('Invite PeopleCopy Group LinkPinMembers & Group Info')
-    .waitFor();
   await page.getByRole('menuitem', { name: 'Members & Group Info' }).click();
   await page.getByRole('link', { name: 'Members' }).click();
   await page
