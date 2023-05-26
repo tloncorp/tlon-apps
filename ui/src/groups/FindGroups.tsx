@@ -177,10 +177,85 @@ export default function FindGroups({ title }: ViewProps) {
           <title>{title ? title : document.title}</title>
         </Helmet>
         <div className="w-full p-6">
+          {hasKeys(pendingGangs) ? (
+            <section className={cn('card mb-6 space-y-4')}>
+              <h1
+                className={cn('font-bold', isMobile ? 'text-base' : 'text-lg')}
+              >
+                Pending Invites
+              </h1>
+              <GroupJoinList gangs={pendingGangs} />
+            </section>
+          ) : null}
+          {!selectedShip && (
+            <section className={cn('card mb-6')}>
+              <h1 className="text-lg font-bold">Some Good Groups</h1>
+              <p className="mb-2 mt-4 leading-6 text-gray-600">
+                Here are some groups we like.
+              </p>
+              <p className="mt-2 mb-8 leading-6 text-gray-600">
+                You can find many more in the Urbit Foundation’s{' '}
+                <a
+                  href="https://urbit.org/ecosystem?type=groups"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  directory
+                </a>
+                .
+              </p>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="flex items-center justify-between">
+                  <GroupAvatar
+                    image="https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png"
+                    size="h-12 w-12 shrink-0"
+                  />
+                  <div className="mx-2 grow space-y-2">
+                    <h2 className="text-base font-semibold">
+                      Urbit Foundation
+                    </h2>
+                    <p className="text-gray-400">
+                      Learn about the Urbit project
+                    </p>
+                  </div>
+                  <GroupReference flag="~halbex-palheb/uf-public" onlyButton />
+                </div>
+                <div className="flex items-center justify-between">
+                  <GroupAvatar
+                    image="https://www.door.link/logowhite.svg"
+                    size="h-12 w-12 shrink-0"
+                  />
+                  <div className="mx-2 grow space-y-2">
+                    <h2 className="text-base font-semibold">door.link</h2>
+                    <p className="text-gray-400">A cult of music lovers</p>
+                  </div>
+                  <GroupReference flag="~natnex-ronret/door-link" onlyButton />
+                </div>
+                <div className="flex items-center justify-between">
+                  <GroupAvatar
+                    image="https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2023.4.06..02.45.53-tlon-local-pin.svg"
+                    size="h-12 w-12 shrink-0"
+                  />
+                  <div className="mx-2 grow space-y-2">
+                    <h2 className="text-base font-semibold">Tlon Local</h2>
+                    <p className="text-gray-400">
+                      Updates, announcements, and broadcasts from Tlon.
+                    </p>
+                  </div>
+                  <GroupReference flag="~nibset-napwyn/tlon" onlyButton />
+                </div>
+              </div>
+            </section>
+          )}
           <section className={cn('card mb-6 space-y-8')}>
             <div>
+              <h1 className="text-lg font-bold">Join With Code</h1>
+              <p className="mt-4 mb-8 leading-6 text-gray-600">
+                If you know the host id or shortcode of a public group, you can
+                enter it here to join.
+              </p>
               <label htmlFor="flag" className="mb-2 block font-semibold">
-                Join Groups via Nickname or Urbit ID
+                Host ID or Shortcode
               </label>
               <div className="flex flex-col space-y-2">
                 <ShipSelector
@@ -207,65 +282,6 @@ export default function FindGroups({ title }: ViewProps) {
               </section>
             ) : null}
           </section>
-          {hasKeys(pendingGangs) ? (
-            <section className={cn('card mb-6 space-y-4')}>
-              <h1
-                className={cn('font-bold', isMobile ? 'text-base' : 'text-lg')}
-              >
-                Pending Invites
-              </h1>
-              <GroupJoinList gangs={pendingGangs} />
-            </section>
-          ) : null}
-
-          {!hasKeys(pendingGangs) && !selectedShip && (
-            <section className={cn('card mb-6 space-y-8')}>
-              <h1 className="text-lg font-bold">Suggested Groups</h1>
-              <p className="leading-6">
-                Here are some groups we recommend joining to learn more about
-                Groups and how to use it in interesting ways:
-              </p>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <div className="flex items-center justify-between">
-                  <GroupAvatar
-                    image="https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png"
-                    size="h-12 w-12 shrink-0"
-                  />
-                  <div className="mx-2 grow">
-                    <h2 className="text-base font-semibold">
-                      Urbit Foundation
-                    </h2>
-                    <p className="text-xs">Learn about the Urbit project</p>
-                  </div>
-                  <GroupReference flag="~halbex-palheb/uf-public" onlyButton />
-                </div>
-                <div className="flex items-center justify-between">
-                  <GroupAvatar
-                    image="https://www.door.link/logowhite.svg"
-                    size="h-12 w-12 shrink-0"
-                  />
-                  <div className="mx-2 grow">
-                    <h2 className="text-base font-semibold">door.link</h2>
-                    <p className="text-xs">A cult of music lovers</p>
-                  </div>
-                  <GroupReference flag="~natnex-ronret/door-link" onlyButton />
-                </div>
-                <div className="flex items-center justify-between">
-                  <GroupAvatar
-                    image="https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2023.4.06..02.45.53-tlon-local-pin.svg"
-                    size="h-12 w-12 shrink-0"
-                  />
-                  <div className="mx-2 grow">
-                    <h2 className="text-base font-semibold">Tlon Local</h2>
-                    <p className="text-xs">
-                      Updates, announcements, and broadcasts from Tlon.
-                    </p>
-                  </div>
-                  <GroupReference flag="~nibset-napwyn/tlon" onlyButton />
-                </div>
-              </div>
-            </section>
-          )}
         </div>
       </div>
     </>
