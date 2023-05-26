@@ -1,4 +1,0 @@
-#!/bin/sh
-cd native-android
-
-npx lint-staged
