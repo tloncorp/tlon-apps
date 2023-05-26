@@ -97,7 +97,7 @@
 }
 
 .dropdown-item {
-  @apply cursor-pointer rounded p-2 ring-gray-200 hover:bg-gray-50 focus:outline-none text-sm font-semibold text-left no-underline;
+  @apply cursor-pointer rounded p-2 text-left text-sm font-semibold no-underline ring-gray-200 hover:bg-gray-50 focus:outline-none;
 }
 
 .dropdown-item > a {
