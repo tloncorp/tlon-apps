@@ -229,7 +229,7 @@ function DiaryChannel() {
         <div className="relative flex flex-col items-center">
           <Toast.Root duration={3000} defaultOpen={false} open={showToast}>
             <Toast.Description asChild>
-              <div className="absolute z-10 flex w-[415px] -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-black drop-shadow-lg dark:bg-gray-200">
+              <div className="absolute z-10 flex w-[415px] -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-black shadow-xl dark:bg-gray-200">
                 <span className="py-2 px-4">Note successfully published</span>
                 <button
                   onClick={onCopy}

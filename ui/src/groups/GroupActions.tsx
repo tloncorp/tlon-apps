@@ -2,13 +2,8 @@ import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link, useLocation } from 'react-router-dom';
-import InviteIcon16 from '@/components/icons/InviteIcon16';
-import LinkIcon16 from '@/components/icons/LinkIcon16';
-import PinIcon16 from '@/components/icons/PinIcon16';
-import Person16Icon from '@/components/icons/Person16Icon';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, usePinnedGroups } from '@/state/chat';
-import LeaveIcon from '@/components/icons/LeaveIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
@@ -18,8 +13,6 @@ import {
   useGroup,
   useGroupCancelMutation,
 } from '@/state/groups';
-import IconButton from '@/components/IconButton';
-import XIcon from '@/components/icons/XIcon';
 
 const { ship } = window;
 
@@ -111,67 +104,50 @@ const GroupActions = React.memo(
               </div>
             )}
           </DropdownMenu.Trigger>
-          <DropdownMenu.Content className="dropdown min-w-52 text-gray-800">
+          <DropdownMenu.Content className="dropdown min-w-52">
             {(privacy === 'public' || isAdmin) && (
-              <DropdownMenu.Item
-                asChild
-                className="dropdown-item text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
-              >
+              <DropdownMenu.Item asChild className="dropdown-item-blue">
                 <Link
                   to={`/groups/${flag}/invite`}
                   state={{ backgroundLocation: location }}
-                  className="flex items-center space-x-2"
                 >
-                  <InviteIcon16 className="h-6 w-6 opacity-60" />
-                  <span className="pr-2">Invite People</span>
+                  Invite People
                 </Link>
               </DropdownMenu.Item>
             )}
             <DropdownMenu.Item
-              className={
-                'dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900'
-              }
+              className="dropdown-item"
               onSelect={onCopySelect}
             >
-              <LinkIcon16 className="h-6 w-6 opacity-60" />
-              <span className="pr-2">{copyItemText}</span>
+              {copyItemText}
             </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className="dropdown-item flex items-center space-x-2"
-              onClick={onPinClick}
-            >
-              <PinIcon16 className="h-6 w-6 text-gray-600" />
-              <span className="pr-2">{isPinned ? 'Unpin' : 'Pin'}</span>
+            <DropdownMenu.Item className="dropdown-item" onClick={onPinClick}>
+              {isPinned ? 'Unpin' : 'Pin'}
             </DropdownMenu.Item>
             <DropdownMenu.Item asChild className="dropdown-item">
               <Link
                 to={`/groups/${flag}/info`}
-                // state={{ backgroundLocation: location }}
                 className="flex items-center space-x-2"
               >
-                <Person16Icon className="m-1 h-4 w-4 text-gray-600" />
-                <span className="pr-2">Members &amp; Group Info</span>
+                Group Info &amp; Members
               </Link>
             </DropdownMenu.Item>
             {flag.includes(ship) ? null : (
-              <DropdownMenu.Item asChild className="dropdown-item">
+              <DropdownMenu.Item asChild className="dropdown-item-red">
                 <Link
                   to={`/groups/${flag}/leave`}
                   state={{ backgroundLocation: location }}
-                  className="flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
                 >
-                  <LeaveIcon className="h-6 w-6" />
-                  <span className="pr-2">Leave Group</span>
+                  Leave Group
                 </Link>
               </DropdownMenu.Item>
             )}
             {claim && (
               <DropdownMenu.Item
-                className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                className="dropdown-item-red"
                 onSelect={() => cancelJoinMutation({ flag })}
               >
-                <XIcon className="h-6 w-6" />
-                <span className="pr-2">Cancel Join</span>
+                Cancel Join
               </DropdownMenu.Item>
             )}
           </DropdownMenu.Content>
