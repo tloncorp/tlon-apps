@@ -648,7 +648,6 @@ export function useDeleteNoteMutation() {
         variables.flag,
         variables.time,
       ]);
-
     },
     onSettled: async (_data, _error, variables) => {
       await queryClient.refetchQueries(['diary', 'notes', variables.flag]);

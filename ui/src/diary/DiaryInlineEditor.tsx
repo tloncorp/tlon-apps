@@ -1,11 +1,7 @@
 import cn from 'classnames';
 import { EditorView } from 'prosemirror-view';
 import { PluginKey } from 'prosemirror-state';
-import {
-  EditorOptions,
-  KeyboardShortcutCommand,
-  Range,
-} from '@tiptap/core';
+import { EditorOptions, KeyboardShortcutCommand, Range } from '@tiptap/core';
 import {
   Editor,
   EditorContent,
