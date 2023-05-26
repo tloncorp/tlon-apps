@@ -1047,13 +1047,14 @@ export function useGroupIndex(ship: string) {
 
 export function useGroupHostHi(flag: string) {
   const { ship } = getFlagParts(flag);
+  const connected = useGroupConnection(ship);
   const queryClient = useQueryClient();
   const { data, ...rest } = useReactQuerySubscribeOnce({
     queryKey: ['group-host-hi', ship],
     app: 'groups',
     path: `/hi/${ship}`,
     options: {
-      enabled: ship !== '' && preSig(window.ship) !== ship,
+      enabled: ship !== '' && preSig(window.ship) !== ship && !connected,
       cacheTime: 60 * 1000, // default to 1 minute before we check if the host is online again.
       retry: false,
       onSuccess: () => {
