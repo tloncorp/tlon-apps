@@ -157,7 +157,7 @@ function ChannelActions({
       <Dropdown.Root open={dropdownIsOpen} onOpenChange={setDropdownIsOpen}>
         <Dropdown.Trigger asChild>
           <button
-            className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50"
+            className="flex h-6 w-6 items-center justify-center rounded  text-gray-600 hover:bg-gray-50"
             aria-label="Channel Options"
           >
             <EllipsisIcon className="h-6 w-6" />
@@ -220,7 +220,7 @@ function HeapSortControls({
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
-        <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50 ">
+        <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-600 hover:bg-gray-50 ">
           <SortIcon className="h-6 w-6" />
         </button>
       </Dropdown.Trigger>
@@ -255,7 +255,7 @@ function DiarySortControls({
   return (
     <Dropdown.Root>
       <Dropdown.Trigger asChild>
-        <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-400 hover:bg-gray-50 ">
+        <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-600 hover:bg-gray-50 ">
           <SortIcon className="h-6 w-6" />
         </button>
       </Dropdown.Trigger>
@@ -329,42 +329,48 @@ export default function ChannelHeader({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4'
+        'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
       )}
     >
       <BackButton
         to={backTo()}
         className={cn(
-          'default-focus ellipsis inline-flex appearance-none items-center pr-2 text-lg font-bold text-gray-800 sm:text-base sm:font-semibold',
-          isMobile && ''
+          'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
         )}
         aria-label="Open Channels Menu"
       >
         {isMobile ? (
-          <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+          <div className="flex h-6 w-6 items-center justify-center">
+            <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
+          </div>
         ) : null}
-        <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 p-1 text-center">
-          <ChannelIcon nest={nest} className="h-5 w-5 text-gray-400" />
-        </div>
-        <div className="flex flex-col justify-center">
-          <span className="ellipsis line-clamp-1">{channel?.meta.title}</span>
-          <span className="ellipsis text-sm font-medium text-gray-400 line-clamp-1">
+        <ChannelIcon nest={nest} className="h-6 w-6 shrink-0 text-gray-600" />
+        <div className="flex w-full flex-col justify-center">
+          <span
+            className={cn(
+              'ellipsis font-bold line-clamp-1 sm:font-semibold',
+              channel?.meta.description ? 'text-sm' : 'text-lg sm:text-sm'
+            )}
+          >
+            {channel?.meta.title}
+          </span>
+          <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
             {channel?.meta.description}
           </span>
         </div>
       </BackButton>
-      <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+      <div className="flex shrink-0 flex-row items-center space-x-3">
         {isMobile && <ReconnectingSpinner />}
         {showControls && displayMode && setDisplayMode && setSortMode ? (
           <>
             {children}
             <Dropdown.Root>
               <Dropdown.Trigger asChild>
-                <button className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-50 ">
+                <button className="flex h-6 w-6 items-center justify-center rounded text-gray-600 hover:bg-gray-50 ">
                   {displayMode === 'grid' ? (
-                    <GridIcon className="h-6 w-6 text-gray-400" />
+                    <GridIcon className="h-6 w-6" />
                   ) : (
-                    <ListIcon className="h-6 w-6 text-gray-400" />
+                    <ListIcon className="h-6 w-6" />
                   )}
                 </button>
               </Dropdown.Trigger>

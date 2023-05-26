@@ -42,9 +42,11 @@
   ?-  -.del
       %add
     =/  =seal:d  [new ~ ~]
-    ?:  (~(has by not) new)
-      not
-    (put:on:notes:d not new [seal p.del])
+    |-
+    =/  note  (get new)
+    ?~  note  (put:on:notes:d not new [seal p.del])
+    ?:  =(+.+.u.note p.del)  not
+    $(new `@da`(add new ^~((div ~s1 (bex 16)))))
   ::
       %edit
     =/  note  (get existing)

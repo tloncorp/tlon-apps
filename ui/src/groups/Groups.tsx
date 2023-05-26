@@ -24,7 +24,7 @@ function Groups() {
   const group = useGroup(flag, true);
   const gang = useGang(flag);
   const { ship } = getFlagParts(flag);
-  const { isError, isSuccess, isLoading } = useGroupHostHi(ship);
+  const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
   const diaryBriefs = useDiaryBriefs();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
@@ -41,16 +41,16 @@ function Groups() {
       return;
     }
 
-    if (isLoading) {
+    if (isLoading && !connection) {
       useGroupConnectionState.getState().setGroupConnected(flag, true);
     }
-    if (isError) {
+    if (isError && connection) {
       useGroupConnectionState.getState().setGroupConnected(flag, false);
     }
-    if (isSuccess) {
+    if (isSuccess && !connection) {
       useGroupConnectionState.getState().setGroupConnected(flag, true);
     }
-  }, [isError, isSuccess, isLoading, flag, group]);
+  }, [isError, isSuccess, isLoading, flag, group, connection]);
 
   useEffect(() => {
     // 1) If we've initialized and the group doesn't exist and you don't have
