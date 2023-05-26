@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 
 test('accept group invite', async ({ page }) => {
   test.skip(process.env.SHIP === '~bus', 'skip on ~bus');
