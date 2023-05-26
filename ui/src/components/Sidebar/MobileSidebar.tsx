@@ -32,7 +32,7 @@ export default function MobileSidebar() {
             </NavTab>
             <NavTab to="/find" linkClass="basis-1/5">
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
-              Find Groups
+              Discover
             </NavTab>
             <NavTab to="/leap">
               <GridIcon className="-mx-1 h-7 w-7" />
