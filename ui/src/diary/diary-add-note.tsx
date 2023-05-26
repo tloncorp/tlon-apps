@@ -32,17 +32,13 @@ export default function DiaryAddNote() {
     note,
     isLoading: loadingNote,
     fetchStatus,
-  } = useNote(chFlag, id || '0', !!id);
+  } = useNote(chFlag, id || '0', !id);
   const { mutateAsync: editNote, status: editStatus } = useEditNoteMutation();
   const {
     data: returnTime,
     mutateAsync: addNote,
     status: addStatus,
   } = useAddNoteMutation();
-  const content = useMemo(
-    () => (note && !loadingNote ? diaryMixedToJSON(note.essay.content) : ''),
-    [note, loadingNote]
-  );
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
@@ -62,10 +58,22 @@ export default function DiaryAddNote() {
   }, [note, setValue, loadingNote, getValues]);
 
   const editor = useDiaryInlineEditor({
-    content,
+    content: '',
     placeholder: '',
     onEnter: () => false,
   });
+
+  useEffect(() => {
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      !loadingNote &&
+      note?.essay &&
+      editor?.getText() === ''
+    ) {
+      editor.commands.setContent(diaryMixedToJSON(note.essay.content));
+    }
+  }, [editor, loadingNote, note]);
 
   const publish = useCallback(async () => {
     if (!editor?.getText()) {
