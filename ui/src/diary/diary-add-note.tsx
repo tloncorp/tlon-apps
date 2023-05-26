@@ -32,7 +32,7 @@ export default function DiaryAddNote() {
     note,
     isLoading: loadingNote,
     fetchStatus,
-  } = useNote(chFlag, id || '0', id === undefined ? true : false);
+  } = useNote(chFlag, id || '0', !!id);
   const { mutateAsync: editNote, status: editStatus } = useEditNoteMutation();
   const {
     data: returnTime,
@@ -129,12 +129,6 @@ export default function DiaryAddNote() {
       console.error(error);
     }
   }, [chFlag, editor, getValues, id, note, reset, addNote, editNote]);
-
-  useEffect(() => {
-    if (editor?.isDestroyed) {
-      editor?.commands.setContent('');
-    }
-  }, [editor]);
 
   useEffect(() => {
     if (editStatus === 'success') {
