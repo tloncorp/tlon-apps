@@ -1584,8 +1584,11 @@
                 (snoc out [(snoc (reap quote '>') ' ') ~])
       ::
           %code
-        =.  out  (append-solo out "```")
-        =.  out  (append-inline out (trip p.inline))
+        ?.  ?=(^ (find "\0a" (trip p.inline)))
+          (append-inline out (trip p.inline))
+        =.  out
+          %+  weld  (append-solo out "```")
+          (roll (break-codeblock p.inline) process-inline)
         (append-solo out "```")
       ::
           ?(%italics %bold %strike %blockquote %inline-code)
@@ -1643,6 +1646,17 @@
         ?~  b  (trip a)
         (welp b '.' (trip a))
       ==
+    ::  +break-codeblock: transforms a codeblock cord to a (list
+    ::  inline:chat) for proecessing
+    ::
+    ++  break-codeblock
+      |=  full=cord
+      ^-  (list inline:chat)
+      %+  join  `inline:chat`[%break ~]
+      %+  turn  (to-wain:format full)
+      |=  =cord
+      ^-  inline:chat
+      [%code p=cord]
     ::
     ++  append-solo
       |=  [content=(list (list tape)) newline=tape]
