@@ -55,7 +55,7 @@
     ::                                              ::
       [%select selection]                           ::  rel/abs msg selection
       [%chats (unit tape)]                          ::  list available chats
-      [%dms (unit ship)]                            ::  list available dms
+      [%dms (unit tape)]                            ::  list available dms
       [%help ~]                                     ::  print usage info
   ==                                                ::
 ::
@@ -667,7 +667,7 @@
         ==
       ::
         ;~(plug (tag %help) (easy ~))
-        ;~(plug (perk %dms ~) (punt ;~(pfix ace ship)))
+        ;~(plug (perk %dms ~) (punt ;~(pfix ace (star qit))))
         ;~(plug (perk %chats ~) (punt ;~(pfix ace (star qit))))
       ::
         (stag %thread ;~((glue ace) ;~(sfix nump ket) content))
@@ -1200,43 +1200,51 @@
     ::  +dms: display list of known dms
     ::
     ++  dms
-      |=  filter=(unit ship)
+      |=  user-input=(unit tape)
       |^  ^+  se
-      ?~  filter
+      =/  dms=(set ship)
+        (~(uni in get-accepted-dms) get-pending-dms)
+      ?~  user-input
         =/  clubs=(set target)
           (~(run in ~(key by get-clubs)) (lead %club))
-        =/  dms=(set target)
-          %-  %~  run  in
-              (~(uni in get-accepted-dms) get-pending-dms)
-          (lead %ship)
-        (show-targets:se-out ~(tap in (~(uni in clubs) dms)))
-      =;  produce=(set target)
-        ?:  =(~ produce)
-          (note:se-out "no such chat")
-        (show-targets:se-out ~(tap in produce))
-      =/  dms=(set target)
-        ?.  (~(has in (~(uni in get-accepted-dms) get-pending-dms)) u.filter)
-          ~
-        (~(put in *(set target)) `whom:chat`[%ship u.filter])
-      =/  clubs=(set target)
-        (match-club-member u.filter ~(tap by get-clubs))
-      (~(uni in clubs) dms)
-      ::  +match-club-member: search for clubs by member
+        %-  show-targets:se-out
+        %~  tap  in
+        (~(uni in clubs) `(set target)`(~(run in dms) (lead %ship)))
+      =/  produce=(list target)
+        %+  weld  (match-dm u.user-input dms)
+        (match-club u.user-input)
+      =/  render-input=tape
+        (snoc ['"' u.user-input] '"')
+      ?~  produce
+        %-  note:se-out
+        (weld "dms: no results for " render-input)
+      =.  se  (note:se-out (weld "dms: " render-input))
+      (show-targets:se-out produce)
+      ::  +match-dm: find dm targets by ship
       ::
-      ++  match-club-member
-        |=  [=ship clubs=(list [=club-id =crew])]
-        ^-  (set target)
-        =|  out=(set target)
-        |-
-        ?~  clubs  out
-        ?.  ?|  (~(has in team.crew.i.clubs) ship)
-                (~(has in hive.crew.i.clubs) ship)
-            ==
-          $(clubs t.clubs)
-        %=  $
-          out  (~(put in out) `whom:chat`[%club club-id.i.clubs])
-          clubs  t.clubs
-        ==
+      ++  match-dm
+        |=  [user-input=tape dms=(set ship)]
+        ^-  (list target)
+        %+  murn  ~(tap in dms)
+        |=  =ship
+        =/  =target  [%ship ship]
+        ?.  ?=(^ (find user-input ~(full tr target)))  ~
+        (some target)
+      ::  +match-club: find club targets by either ship or title
+      ::
+      ++  match-club
+        |=  user-input=tape
+        ^-  (list target)
+        %+  murn  ~(tap by get-clubs)
+        |=  [=club-id =crew]
+        =/  =target  [%club club-id]
+        ?:  ?=(^ (find user-input (trip title.met.crew)))
+          `target
+        =;  found-ship=?
+          ?:(found-ship `target ~)
+        %+  lien  ~(tap in (~(uni in hive.crew) team.crew))
+        |=  =ship
+        ?=(^ (find user-input (scow %p ship)))
       --
     ::  +help: print (link to) usage instructions
     ::
