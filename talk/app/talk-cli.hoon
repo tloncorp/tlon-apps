@@ -1181,7 +1181,7 @@
     ::
     ++  chats
       |=  user-input=(unit tape)
-      ^+  se
+      |^  ^+  se
       ?~  user-input
         =.  se  (note:se-out "chats:")
         %-  show-targets:se-out
@@ -1197,12 +1197,22 @@
       %+  murn  ~(tap by get-chats)
       |=  [=flag:chat =chat:chat]
       =/  chat-target=target   [%flag flag]
-      =/  group-target=target  [%flag group.perm.chat]
-      ?.  ?|  ?=(^ (find u.user-input ~(full tr chat-target)))
-              ?=(^ (find u.user-input ~(full tr group-target)))
+      ?.  ?|  ?=(^ (find u.user-input ~(meta tr chat-target)))
+              ?=(^ (find u.user-input (match-group group.perm.chat)))
           ==
         ~
       (some chat-target)
+      ::
+      ++  match-group
+        |=  =flag:groups
+        ^-  tape
+        =/  group=(unit group:groups)
+          (~(get by get-groups) flag)
+        ?~  group
+          ~(phat tr `target`[%flag flag])
+        %+  weld  ~(phat tr `target`[%flag flag])
+        " {(trip title.meta.u.group)}"
+      --
     ::  +dms: display list of known dms
     ::
     ++  dms
@@ -1431,6 +1441,22 @@
   ++  meta
     |^  ^-  tape
     ?+   -.target  ~(phat tr target)
+        %flag
+      =;  out=tape
+        ?~(out ~(phat tr target) out)
+      =/  chat=(unit chat:chat)
+        (~(get by get-chats) p.target)
+      ?~  chat  ~
+      =/  group=(unit group:groups)
+        (~(get by get-groups) group.perm.u.chat)
+      ?~  group  ~
+      =/  channel=(unit channel:groups)
+       %-  ~(get by channels.u.group)
+       `nest:groups`[%chat p.target]
+      ?~  channel  ~
+      ?:  =(*cord title.meta.u.channel)  ~
+      (weld ~(phat tr target) "  ({(trip title.meta.u.channel)})")
+    ::
         %club
       =/  =club-id  p.target
       =/  crew=(unit crew)
