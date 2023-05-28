@@ -1672,6 +1672,16 @@
         ?~  b  (trip a)
         (welp b '.' (trip a))
       ==
+    ::  +stub-multibyte-unicode: swap multibyte unicode with '?'
+    ::
+    :: TODO this is a temporary fix to guard against a %bad-text
+    :: error; ideally we convert UTF-32 to UTF-8 characters.
+    ++  stub-multibyte-unicode
+      |=  og=tape
+      ^-  tape
+      %+  turn  og
+      |=  a=@t
+      ?.((gth (teff a) 1) a '?')
     ::  +break-codeblock: transforms a codeblock cord to a (list
     ::  inline:chat) for proecessing
     ::
@@ -1688,22 +1698,24 @@
       |=  [content=(list (list tape)) newline=tape]
       ^+  content
       %+  weld  content
-      `_content`~[[newline]~ ~]
+      `_content`~[[(stub-multibyte-unicode newline)]~ ~]
     ::
     ++  append-inline
       |=  [content=(list (list tape)) inline=tape]
       ^+  content
+      =/  washed-inline=tape
+        (stub-multibyte-unicode inline)
       ?:  =(~ content)
-        ~[~[inline]]
+        ~[~[washed-inline]]
       =/  last
         (dec (lent content))
       =/  old=(list tape)
         (snag last content)
       =/  new=(list tape)
-        ?.  =(~ old)  (snoc old inline)
+        ?.  =(~ old)  (snoc old washed-inline)
         ::  clean up leading space, common after solo elements
-        ?:  ?=([%' ' *] inline)  [t.inline]~
-        [inline]~
+        ?:  ?=([%' ' *] washed-inline)  [t.washed-inline]~
+        [washed-inline]~
       (snap content last new)
     --
   ::
