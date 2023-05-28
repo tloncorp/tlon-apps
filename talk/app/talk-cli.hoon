@@ -1183,10 +1183,16 @@
       |=  user-input=(unit tape)
       ^+  se
       ?~  user-input
+        =.  se  (note:se-out "chats:")
         %-  show-targets:se-out
         ~(tap in `(set target)`(~(run in ~(key by get-chats)) (lead %flag)))
       =;  produce=(list target)
-        ?~  produce  (note:se-out "no matches found")
+        =/  render-input=tape
+          (snoc ['"' u.user-input] '"')
+        ?~  produce
+          %-  note:se-out
+          (weld "chats: no results for " render-input)
+        =.  se  (note:se-out (weld "chats: " render-input))
         (show-targets:se-out produce)
       %+  murn  ~(tap by get-chats)
       |=  [=flag:chat =chat:chat]
@@ -1207,6 +1213,7 @@
       ?~  user-input
         =/  clubs=(set target)
           (~(run in ~(key by get-clubs)) (lead %club))
+        =.  se  (note:se-out "dms:")
         %-  show-targets:se-out
         %~  tap  in
         (~(uni in clubs) `(set target)`(~(run in dms) (lead %ship)))
