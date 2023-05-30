@@ -32,7 +32,6 @@ import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupDelete from '@/groups/GroupAdmin/GroupDelete';
-import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
 import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
@@ -57,7 +56,7 @@ import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupRoles from './groups/GroupAdmin/GroupRoles';
-import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
+import GroupInfoEditor from './groups/GroupAdmin/GroupInfoEditor';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
@@ -443,10 +442,11 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               <Route path=":cabal" element={<GroupRoleDialog />} />
             </Route>
           </Route>
+          <Route path="/groups/:ship/:name/info" element={<GroupInfo />} />
           <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
             <Route
               index
-              element={<GroupInfo title={`• ${appHead('').title}`} />}
+              element={<GroupInfoEditor title={`• ${appHead('').title}`} />}
             />
             <Route path="invites-privacy" element={<GroupInvitesPrivacy />} />
             <Route

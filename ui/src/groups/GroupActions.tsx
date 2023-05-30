@@ -125,13 +125,21 @@ const GroupActions = React.memo(
               {isPinned ? 'Unpin' : 'Pin'}
             </DropdownMenu.Item>
             <DropdownMenu.Item asChild className="dropdown-item">
-              <Link
-                to={`/groups/${flag}/edit`}
-                className="flex items-center space-x-2"
-                state={{ backgroundLocation: location }}
-              >
-                Group Info &amp; Members
-              </Link>
+              {isAdmin ? (
+                <Link
+                  to={`/groups/${flag}/edit`}
+                  state={{ backgroundLocation: location }}
+                >
+                  Group Settings
+                </Link>
+              ) : (
+                <Link
+                  to={`/groups/${flag}/info`}
+                  state={{ backgroundLocation: location }}
+                >
+                  Group Members & Info
+                </Link>
+              )}
             </DropdownMenu.Item>
             {flag.includes(ship) ? null : (
               <DropdownMenu.Item asChild className="dropdown-item-red">

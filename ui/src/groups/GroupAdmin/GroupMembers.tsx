@@ -22,7 +22,7 @@ export default function GroupMembers({ title }: ViewProps) {
       </Helmet>
       <GroupPendingManager />
       <div className="h-4" />
-      <GroupMemberManager />
+      <GroupMemberManager half />
     </div>
   );
 }

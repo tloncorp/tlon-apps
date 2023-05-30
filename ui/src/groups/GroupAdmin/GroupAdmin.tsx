@@ -76,15 +76,7 @@ export default function GroupAdmin() {
             <Outlet />
           </main>
         </div>
-      ) : (
-        <div className="p-6">
-          <h2 className="mb-4 text-lg font-bold">Permission Error</h2>
-          <p className="leading-5">
-            You&rsquo;re not an administrator for this group, or something has
-            gone wrong.
-          </p>
-        </div>
-      )}
+      ) : null}
     </Dialog>
   );
 }

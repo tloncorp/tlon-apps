@@ -18,7 +18,13 @@ import InviteIcon16 from '@/components/icons/InviteIcon16';
 import { useIsMobile } from '@/logic/useMedia';
 import MemberScroller from './MemberScroller';
 
-export default function GroupMemberManager() {
+interface GroupManagerProps {
+  half?: boolean;
+}
+
+export default function GroupMemberManager({
+  half = false,
+}: GroupManagerProps) {
   const location = useLocation();
   const flag = useRouteGroup();
   const group = useGroup(flag);
@@ -78,21 +84,25 @@ export default function GroupMemberManager() {
   }
 
   return (
-    <div className={cn('card flex h-1/2 flex-col')}>
-      <div className={cn('flex w-full items-center justify-between pb-2')}>
-        <h2 className="flex items-center text-lg font-bold">
+    <div className={cn('card flex flex-col', half ? 'h-1/2' : 'h-full')}>
+      <div
+        className={cn(
+          'flex w-full flex-col items-center justify-between space-y-2 pb-2 md:flex-row'
+        )}
+      >
+        <h2 className="flex w-full items-center text-lg font-bold md:w-auto">
           Members{' '}
           <div className="ml-2 rounded border border-gray-800 px-2 py-0.5 text-xs font-medium uppercase text-gray-800">
-            {members.length} joined
+            {members.length}
           </div>
         </h2>
-        <label className="relative ml-auto flex items-center">
+        <label className="relative ml-auto flex w-full items-center md:w-auto">
           <span className="sr-only">Filter Members</span>
           <span className="absolute inset-y-[5px] left-0 flex h-8 w-8 items-center pl-2 text-gray-400">
             <MagnifyingGlass16Icon className="h-4 w-4" />
           </span>
           <input
-            className="input h-10 w-[240px] bg-gray-50 pl-7 text-sm mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
+            className="input h-10 w-full bg-gray-50 pl-7 text-sm mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base lg:w-[240px]"
             placeholder={`Filter Members`}
             value={rawInput}
             onChange={onChange}

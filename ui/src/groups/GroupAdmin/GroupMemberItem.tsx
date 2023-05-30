@@ -179,40 +179,44 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
           ) : (
             <div className="h-6 w-6" />
           )}
-          <Dropdown.Content className="dropdown min-w-52">
-            <Dropdown.Item
-              className="dropdown-item-red"
-              onSelect={() => setShowKickConfirm(true)}
-            >
-              Kick
-            </Dropdown.Item>
-            <Dropdown.Item
-              className="dropdown-item-red"
-              onSelect={() => setShowBanConfirm(true)}
-            >
-              Ban
-            </Dropdown.Item>
-          </Dropdown.Content>
+          <Dropdown.Portal>
+            <Dropdown.Content className="dropdown z-50 min-w-52">
+              <Dropdown.Item
+                className="dropdown-item-red"
+                onSelect={() => setShowKickConfirm(true)}
+              >
+                Kick
+              </Dropdown.Item>
+              <Dropdown.Item
+                className="dropdown-item-red"
+                onSelect={() => setShowBanConfirm(true)}
+              >
+                Ban
+              </Dropdown.Item>
+            </Dropdown.Content>
+          </Dropdown.Portal>
         </Dropdown.Root>
       ) : (
         <Dropdown.Root>
           <Dropdown.Trigger className="default-focus ml-2 rounded text-gray-400 group-hover:text-gray-800">
             <ElipsisIcon className="h-6 w-6" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown min-w-52">
-            <Dropdown.Item
-              className="dropdown-item flex items-center"
-              onSelect={() => onViewProfile(member)}
-            >
-              View Profile
-            </Dropdown.Item>
-            <Dropdown.Item
-              className="dropdown-item flex items-center"
-              onSelect={(e) => e.preventDefault}
-            >
-              Send Message
-            </Dropdown.Item>
-          </Dropdown.Content>
+          <Dropdown.Portal>
+            <Dropdown.Content className="dropdown z-50 min-w-52">
+              <Dropdown.Item
+                className="dropdown-item flex items-center"
+                onSelect={() => onViewProfile(member)}
+              >
+                View Profile
+              </Dropdown.Item>
+              <Dropdown.Item
+                className="dropdown-item flex items-center"
+                onSelect={(e) => e.preventDefault}
+              >
+                Send Message
+              </Dropdown.Item>
+            </Dropdown.Content>
+          </Dropdown.Portal>
         </Dropdown.Root>
       )}
       <ConfirmationModal
