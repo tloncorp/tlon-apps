@@ -1,10 +1,9 @@
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
-import { useDiaryState } from '@/state/diary';
+import { useAddNoteFeelMutation } from '@/state/diary';
 import { NoteSeal } from '@/types/diary';
 import _ from 'lodash';
 import React, { useCallback, useState } from 'react';
-import { useParams } from 'react-router';
 import NoteReaction from './NoteReaction';
 
 interface NotReactionsProps {
@@ -15,16 +14,14 @@ interface NotReactionsProps {
 
 export default function NoteReactions({ whom, seal, time }: NotReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const { chShip, chName } = useParams();
-  const chFlag = `${chShip}/${chName}`;
+  const { mutateAsync: addFeel } = useAddNoteFeelMutation();
   const feels = _.invertBy(seal.feels);
 
   const onEmoji = useCallback(
     async (emoji) => {
-      await useDiaryState.getState().addFeel(whom, time, emoji.shortcodes);
-      await useDiaryState.getState().fetchNote(chFlag, time);
+      await addFeel({ flag: whom, noteId: time, feel: emoji.shortcodes });
     },
-    [whom, time, chFlag]
+    [whom, time, addFeel]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

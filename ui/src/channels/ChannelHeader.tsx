@@ -13,7 +13,7 @@ import {
   useDeleteChannelMutation,
 } from '@/state/groups';
 import { useChatState } from '@/state/chat';
-import { useDiaryState } from '@/state/diary';
+import { useLeaveDiaryMutation } from '@/state/diary';
 import { useHeapState } from '@/state/heap/heap';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
@@ -77,6 +77,7 @@ function ChannelActions({
   const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
   const isChannelHost = useIsChannelHost(flag);
   const { mutate: deleteChannelMutate } = useDeleteChannelMutation();
+  const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
 
   function prettyAppName() {
     switch (_app) {
@@ -93,16 +94,19 @@ function ChannelActions({
 
   const leave = useCallback(
     async (chFlag: string) => {
+      if (_app === 'diary') {
+        await leaveDiary({ flag: chFlag });
+        return;
+      }
+
       const leaver =
         _app === 'chat'
           ? useChatState.getState().leaveChat
-          : _app === 'heap'
-          ? useHeapState.getState().leaveHeap
-          : useDiaryState.getState().leaveDiary;
+          : useHeapState.getState().leaveHeap;
 
       await leaver(chFlag);
     },
-    [_app]
+    [_app, leaveDiary]
   );
 
   const leaveChannel = useCallback(async () => {

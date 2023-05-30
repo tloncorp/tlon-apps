@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useDiaryState, useQuip } from '@/state/diary';
+import { useQuip } from '@/state/diary';
 import { useChannelPreview, useGang } from '@/state/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -12,7 +12,6 @@ import { ChatBlock, ChatStory } from '@/types/chat';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { useChannelFlag } from '@/hooks';
 import ReferenceBar from './ReferenceBar';
-import UnavailableReference from './UnavailableReference';
 
 function NoteCommentReference({
   chFlag,
@@ -29,29 +28,13 @@ function NoteCommentReference({
 }) {
   const preview = useChannelPreview(nest);
   const isReply = useChannelFlag() === chFlag;
-  const [scryError, setScryError] = useState<string>();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const quip = useQuip(chFlag, noteId, quipId);
+  const quip = useQuip(chFlag, noteId, quipId, isScrolling);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const initialize = useCallback(async () => {
-    try {
-      await useDiaryState.getState().initialize(chFlag);
-      await useDiaryState.getState().fetchNote(chFlag, noteId);
-    } catch (e) {
-      console.log("Couldn't initialize diary state", e);
-    }
-  }, [chFlag, noteId]);
-
-  useEffect(() => {
-    if (!isScrolling) {
-      initialize();
-    }
-  }, [chFlag, isScrolling, initialize]);
 
   const handleOpenReferenceClick = () => {
     if (!group) {
@@ -63,12 +46,6 @@ function NoteCommentReference({
 
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/note/${noteId}`);
   };
-
-  if (scryError !== undefined) {
-    // TODO handle requests for single notes like we do for single writs.
-    const time = bigInt(udToDec(noteId));
-    return <UnavailableReference time={time} nest={nest} preview={preview} />;
-  }
 
   if (!quip) {
     return <HeapLoadingBlock reference />;

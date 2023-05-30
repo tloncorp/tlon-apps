@@ -20,7 +20,7 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { useChatState } from '@/state/chat';
-import { useDiaryState } from '@/state/diary';
+import { useDiaries } from '@/state/diary';
 import { useHeapState } from '@/state/heap/heap';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -59,6 +59,7 @@ export default function GroupRoles({ title }: { title: string }) {
     useGroupDelRoleMutation();
   const roles = group?.cabals;
   const fleet = group?.fleet;
+  const shelf = useDiaries();
 
   const currentlyUsedRoles = group
     ? _.uniq([
@@ -77,7 +78,7 @@ export default function GroupRoles({ title }: { title: string }) {
                 ? useChatState.getState().chats
                 : app === 'heap'
                 ? useHeapState.getState().stash
-                : useDiaryState.getState().shelf;
+                : shelf;
 
             const channel = chState[channelFlag];
 

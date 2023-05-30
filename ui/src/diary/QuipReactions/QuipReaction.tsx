@@ -4,8 +4,10 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
-import { useDiaryState } from '@/state/diary';
-import { useParams } from 'react-router';
+import {
+  useAddQuipFeelMutation,
+  useDeleteQuipFeelMutation,
+} from '@/state/diary';
 
 interface QuipReactionProps {
   whom: string;
@@ -22,11 +24,11 @@ export default function QuipReaction({
   time,
   noteId,
 }: QuipReactionProps) {
-  const { chShip, chName } = useParams();
-  const chFlag = `${chShip}/${chName}`;
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
+  const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
+  const { mutateAsync: delQuipFeel } = useDeleteQuipFeelMutation();
 
   useEffect(() => {
     load();
@@ -34,13 +36,11 @@ export default function QuipReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await useDiaryState.getState().delQuipFeel(whom, noteId, time);
-      await useDiaryState.getState().fetchNote(chFlag, noteId);
+      await delQuipFeel({ flag: whom, noteId, quipId: time });
     } else {
-      await useDiaryState.getState().addQuipFeel(whom, noteId, time, feel);
-      await useDiaryState.getState().fetchNote(chFlag, noteId);
+      await addQuipFeel({ flag: whom, noteId, quipId: time, feel });
     }
-  }, [isMine, whom, feel, noteId, time, chFlag]);
+  }, [isMine, whom, feel, noteId, time, addQuipFeel, delQuipFeel]);
 
   return (
     <div>

@@ -13,9 +13,13 @@ import {
 } from '@/state/groups/groups';
 import {
   useNotes,
-  useDiaryState,
   useDiaryDisplayMode,
   useDiaryPerms,
+  useOlderNotes,
+  useViewDiaryMutation,
+  useJoinDiaryMutation,
+  useDiaryIsJoined,
+  useMarkReadDiaryMutation,
 } from '@/state/diary';
 import {
   DiarySetting,
@@ -29,12 +33,7 @@ import useDismissChannelNotifications from '@/logic/useDismissChannelNotificatio
 import { DiaryDisplayMode, DiaryLetter } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
-import {
-  canReadChannel,
-  canWriteChannel,
-  isChannelJoined,
-} from '@/logic/utils';
-import useAllBriefs from '@/logic/useAllBriefs';
+import { canReadChannel, canWriteChannel } from '@/logic/utils';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import { useLastReconnect } from '@/state/local';
 import DiaryListItem from './DiaryList/DiaryListItem';
@@ -43,39 +42,34 @@ import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 
 function DiaryChannel() {
   const [joining, setJoining] = useState(false);
-  const [initialized, setInitialized] = useState(false);
+  const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
-  const letters = useNotes(chFlag);
+  const { letters, isLoading } = useNotes(chFlag);
+  const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
+  const { mutate: changeDiaryView } = useViewDiaryMutation();
+  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
+  const { mutateAsync: markRead } = useMarkReadDiaryMutation();
   const location = useLocation();
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
   const group = useGroup(flag);
   const channel = useChannel(flag, nest);
-  const briefs = useAllBriefs();
-  const joined = Object.keys(briefs).some((k) => k.includes('diary/'))
-    ? isChannelJoined(nest, briefs)
-    : true;
+  const joined = useDiaryIsJoined(chFlag);
   const lastReconnect = useLastReconnect();
   const { mutate } = usePutEntryMutation({
     bucket: 'diary',
     key: 'settings',
   });
-  const needsLoader = letters.size === 0;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await useDiaryState.getState().joinDiary(flag, chFlag);
+    await joinDiary({ group: flag, chan: chFlag });
     setJoining(false);
-  }, [flag, chFlag]);
-
-  const initializeChannel = useCallback(async () => {
-    await useDiaryState.getState().initialize(chFlag);
-    setInitialized(true);
-  }, [chFlag]);
+  }, [flag, chFlag, joinDiary]);
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
@@ -98,7 +92,7 @@ function DiaryChannel() {
   const sortMode = useDiarySortMode(chFlag);
 
   const setDisplayMode = async (view: DiaryDisplayMode) => {
-    await useDiaryState.getState().viewDiary(chFlag, view);
+    changeDiaryView({ flag: chFlag, view });
   };
 
   const setSortMode = (
@@ -129,7 +123,6 @@ function DiaryChannel() {
 
   useEffect(() => {
     if (joined && !joining && channel && canRead) {
-      initializeChannel();
       setRecentChannel(nest);
     }
   }, [
@@ -137,7 +130,6 @@ function DiaryChannel() {
     nest,
     setRecentChannel,
     joined,
-    initializeChannel,
     joining,
     channel,
     canRead,
@@ -162,7 +154,7 @@ function DiaryChannel() {
 
   useDismissChannelNotifications({
     nest,
-    markRead: useDiaryState.getState().markRead,
+    markRead: () => markRead({ flag: chFlag }),
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
@@ -182,10 +174,6 @@ function DiaryChannel() {
     return b.compare(a);
   });
 
-  const loadOlderNotes = useCallback(async () => {
-    await useDiaryState.getState().getOlderNotes(chFlag, 30);
-  }, [chFlag]);
-
   const itemContent = (
     i: number,
     [time, letter]: [bigInt.BigInteger, DiaryLetter]
@@ -193,6 +181,16 @@ function DiaryChannel() {
     <div className="my-6 mx-auto max-w-[600px] px-6">
       <DiaryListItem letter={letter} time={time} />
     </div>
+  );
+
+  const loadOlderNotes = useCallback(
+    (load: boolean) => {
+      if (!loadingOlderNotes && load) {
+        setShouldLoadOlderNotes(true);
+      }
+      setShouldLoadOlderNotes(false);
+    },
+    [loadingOlderNotes]
   );
 
   return (
@@ -244,10 +242,18 @@ function DiaryChannel() {
         </div>
       </Toast.Provider>
       <div className="h-full">
-        {!initialized && needsLoader ? (
+        {isLoading ? (
           <DiaryChannelListPlaceholder count={4} />
         ) : displayMode === 'grid' ? (
-          <DiaryGridView notes={sortedNotes} loadOlderNotes={loadOlderNotes} />
+          <DiaryGridView
+            notes={sortedNotes}
+            loadOlderNotes={() => {
+              if (!loadingOlderNotes) {
+                setShouldLoadOlderNotes(true);
+              }
+              setShouldLoadOlderNotes(false);
+            }}
+          />
         ) : (
           <div className="h-full">
             <div className="mx-auto flex h-full w-full flex-col">
@@ -256,7 +262,9 @@ function DiaryChannel() {
                 data={sortedNotes}
                 itemContent={itemContent}
                 overscan={200}
-                atBottomStateChange={loadOlderNotes}
+                atBottomStateChange={(atBottom) => {
+                  loadOlderNotes(atBottom);
+                }}
                 components={{
                   Header: () => <div />,
                   Footer: () => <div className="h-4 w-full" />,

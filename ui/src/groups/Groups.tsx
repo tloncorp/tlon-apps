@@ -12,7 +12,7 @@ import {
 } from '@/state/groups/groups';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
-import { useDiaryState } from '@/state/diary';
+import { useDiaryBriefs } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, getFlagParts } from '@/logic/utils';
@@ -25,6 +25,7 @@ function Groups() {
   const gang = useGang(flag);
   const { ship } = getFlagParts(flag);
   const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
+  const diaryBriefs = useDiaryBriefs();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -82,7 +83,7 @@ function Groups() {
       const allBriefs = {
         ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
         ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
-        ..._.mapKeys(useDiaryState.getState().briefs, (v, k) => `diary/${k}`),
+        ..._.mapKeys(diaryBriefs, (v, k) => `diary/${k}`),
       };
       const channel = Object.entries(group.channels).find(
         ([nest]) => nest in allBriefs
@@ -95,7 +96,16 @@ function Groups() {
         navigate('./channels');
       }
     }
-  }, [root, gang, group, vessel, isMobile, recentChannel, navigate]);
+  }, [
+    root,
+    gang,
+    group,
+    vessel,
+    isMobile,
+    recentChannel,
+    navigate,
+    diaryBriefs,
+  ]);
 
   if (!connection && !group) {
     return (
