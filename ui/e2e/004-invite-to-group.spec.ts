@@ -8,7 +8,7 @@ test('Invite to a group', async ({ page }) => {
   await page.getByRole('link', { name: 'B Bus Club' }).click();
   await page.getByRole('link', { name: 'Add Note' }).waitFor();
   await page.getByRole('link', { name: 'Invite People' }).click();
-  await page.getByRole('combobox', { name: 'Ships' }).click();
+  await page.locator('.py-0\\.5').click();
   await page.getByRole('combobox', { name: 'Ships' }).fill('~zod');
   await page.getByText('zod', { exact: true }).click();
   await page.getByRole('button', { name: 'Send Invites' }).click();
