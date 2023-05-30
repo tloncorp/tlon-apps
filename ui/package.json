@@ -38,6 +38,7 @@
     "e2e": "../rube/pre_playwright.sh && cross-env SHIP=~bus npx playwright test --workers=1 && cross-env SHIP=~zod npx playwright test --workers=1 && ../rube/post_playwright.sh",
     "e2e:debug:zod": "../rube/pre_playwright.sh && cross-env SHIP=~zod npx playwright test --debug && ../rube/post_playwright.sh",
     "e2e:debug:bus": "../rube/pre_playwright.sh && cross-env SHIP=~bus npx playwright test --debug && ../rube/post_playwright.sh",
+    "e2e:debug": "../rube/pre_playwright.sh && cross-env SHIP=~bus npx playwright test --debug && cross-env SHIP=~zod npx playwright test --debug && ../rube/post_playwright.sh",
     "e2e:chat": "../rube/pre_playwright.sh && cross-env SHIP=~zod APP=chat npx playwright test && cross-env SHIP=~bus APP=chat npx playwright test && ../rube/post_playwright.sh",
     "tsc": "tsc --noEmit",
     "postinstall": "patch-package",

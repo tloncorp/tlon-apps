@@ -6,6 +6,8 @@ test('accept group invite', async ({ page }) => {
   await page.goto('');
   await page.getByText('Pending Invites').waitFor();
   await page.getByRole('button', { name: 'Join Group' }).first().click();
-  await page.getByLabel('Send message').waitFor();
-  await expect(page.getByText("hi, it's me, ~bus")).toBeVisible();
+  await page.getByText('Wait a sec').waitFor();
+  await page.getByText('bus chat').first().waitFor();
+  await page.getByText('bus chat').first().click();
+  await page.getByText("hi, it's me, ~bus").waitFor();
 });

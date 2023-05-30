@@ -112,7 +112,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
 
   return (
     <>
-      <div className="flex flex-col">
+      <div className="flex flex-col" data-testid={`${member}-row`}>
         <div className="flex space-x-2">
           <div className="cursor-pointer" onClick={() => onViewProfile(member)}>
             <Avatar ship={member} size="small" icon={false} className="mr-2" />
