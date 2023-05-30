@@ -1,5 +1,4 @@
 import _, { debounce } from 'lodash';
-import { motion, AnimatePresence } from 'framer-motion';
 import fuzzy from 'fuzzy';
 import {
   ChangeEvent,
@@ -33,12 +32,6 @@ import IconButton from '@/components/IconButton';
 function eqRoleName(a: string, b: string) {
   return a.toLocaleLowerCase() === b.toLocaleLowerCase();
 }
-
-const animationConfig = {
-  type: 'spring',
-  stiffness: 1500,
-  damping: 120,
-};
 
 export default function GroupRoles({ title }: { title: string }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -227,201 +220,181 @@ export default function GroupRoles({ title }: { title: string }) {
             </label>
           </div>
         )}
-        <div
-          className="height-transition relative overflow-hidden"
-          ref={wrapperRef}
-        >
-          <AnimatePresence initial={false}>
-            {editRole !== '' ? (
-              <motion.div
-                initial={{ x: 2000, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: 2000, opacity: 0 }}
-                transition={animationConfig}
-                key="edit-role"
-                className="absolute flex w-full flex-col space-y-4"
-              >
-                <div className="flex items-center space-x-3">
-                  <IconButton
-                    label='Back to "Roles"'
-                    action={backToRoles}
-                    className="rounded bg-gray-50"
-                    icon={<CaretLeftIcon className="h-5 w-5 text-gray-400" />}
-                  />
-                  <h2 className="text-lg font-bold">
-                    Editing Role: {group?.cabals[editRole].meta.title}
-                  </h2>
-                </div>
-                <div className="flex flex-col space-y-2">
-                  <label htmlFor="title" className="font-medium">
-                    Name
-                  </label>
-                  <input
-                    name="title"
-                    className="input"
-                    value={roleTitle}
-                    onChange={onRoleTitleChange}
-                  />
-                </div>
-                <div className="flex flex-col space-y-2">
-                  <label htmlFor="description" className="font-medium">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    className="input"
-                    value={description}
-                    onChange={onDescriptionChange}
-                  />
-                </div>
-                <div className="flex flex-row justify-end space-x-2">
-                  <button
-                    className="button bg-blue text-white"
-                    onClick={() => updateRole()}
-                    disabled={status === 'loading'}
-                  >
-                    {status === 'loading' ? (
-                      <div className="flex flex-row space-x-2">
-                        Saving...
-                        <LoadingSpinner className="h-4 w-4" />
-                      </div>
-                    ) : (
-                      'Save Role'
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ x: -2000, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -2000, opacity: 0 }}
-                transition={animationConfig}
-                className="absolute flex w-full flex-col space-y-4"
-                key="roles"
-              >
-                {!search && (
-                  <div className="flex h-12 cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-gray-50">
-                    <div className="flex flex-row items-center space-x-4">
-                      <GlobeIcon className="h-8 w-8 rounded-sm bg-gray-50 p-1 text-gray-400" />
-                      <div className="flex flex-col space-y-1">
-                        <p className="font-semibold">Everyone (Default)</p>
-                        {fleet && (
-                          <p className="text-sm font-semibold text-gray-400">
-                            {Object.entries(fleet).length} Members
-                          </p>
-                        )}
-                      </div>
+        <div className="relative overflow-hidden" ref={wrapperRef}>
+          {editRole !== '' ? (
+            <div
+              key="edit-role"
+              className="absolute flex w-full flex-col space-y-4"
+            >
+              <div className="flex items-center space-x-3">
+                <IconButton
+                  label='Back to "Roles"'
+                  action={backToRoles}
+                  className="rounded bg-gray-50"
+                  icon={<CaretLeftIcon className="h-5 w-5 text-gray-400" />}
+                />
+                <h2 className="text-lg font-bold">
+                  Editing Role: {group?.cabals[editRole].meta.title}
+                </h2>
+              </div>
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="title" className="font-medium">
+                  Name
+                </label>
+                <input
+                  name="title"
+                  className="input"
+                  value={roleTitle}
+                  onChange={onRoleTitleChange}
+                />
+              </div>
+              <div className="flex flex-col space-y-2">
+                <label htmlFor="description" className="font-medium">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  className="input"
+                  value={description}
+                  onChange={onDescriptionChange}
+                />
+              </div>
+              <div className="flex flex-row justify-end space-x-2">
+                <button
+                  className="button bg-blue text-white"
+                  onClick={() => updateRole()}
+                  disabled={status === 'loading'}
+                >
+                  {status === 'loading' ? (
+                    <div className="flex flex-row space-x-2">
+                      Saving...
+                      <LoadingSpinner className="h-4 w-4" />
+                    </div>
+                  ) : (
+                    'Save Role'
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              className="absolute flex w-full flex-col space-y-4"
+              key="roles"
+            >
+              {!search && (
+                <div className="flex h-12 cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-gray-50">
+                  <div className="flex flex-row items-center space-x-4">
+                    <GlobeIcon className="h-8 w-8 rounded-sm bg-gray-50 p-1 text-gray-400" />
+                    <div className="flex flex-col space-y-1">
+                      <p className="font-semibold">Everyone (Default)</p>
+                      {fleet && (
+                        <p className="text-sm font-semibold text-gray-400">
+                          {Object.entries(fleet).length} Members
+                        </p>
+                      )}
                     </div>
                   </div>
-                )}
-                {results.map(
-                  (roleName) =>
-                    roles &&
-                    roles[roleName].meta && (
-                      <div
-                        onClick={() => setEditRole(roleName)}
-                        className="flex h-12 cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-gray-50"
-                        key={roleName}
-                        aria-label={`Edit ${roleName}`}
-                      >
-                        <div className="flex flex-row items-center space-x-4">
-                          {roleName === 'admin' ? (
-                            <StarIcon className="h-8 w-8 rounded-sm bg-yellow-soft p-1 text-yellow" />
-                          ) : (
-                            <KeyIcon className="h-8 w-8 rounded-sm bg-blue-soft p-1 text-blue" />
-                          )}
-                          <div className="flex flex-col space-y-1">
-                            <p className="font-semibold">
-                              {roleName === 'admin'
-                                ? 'Owners'
-                                : roles[roleName].meta.title}
+                </div>
+              )}
+              {results.map(
+                (roleName) =>
+                  roles &&
+                  roles[roleName].meta && (
+                    <div
+                      onClick={() => setEditRole(roleName)}
+                      className="flex h-12 cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-gray-50"
+                      key={roleName}
+                      aria-label={`Edit ${roleName}`}
+                    >
+                      <div className="flex flex-row items-center space-x-4">
+                        {roleName === 'admin' ? (
+                          <StarIcon className="h-8 w-8 rounded-sm bg-yellow-soft p-1 text-yellow" />
+                        ) : (
+                          <KeyIcon className="h-8 w-8 rounded-sm bg-blue-soft p-1 text-blue" />
+                        )}
+                        <div className="flex flex-col space-y-1">
+                          <p className="font-semibold">
+                            {roleName === 'admin'
+                              ? 'Owners'
+                              : roles[roleName].meta.title}
+                          </p>
+                          {fleet && (
+                            <p className="text-sm font-semibold text-gray-400">
+                              {
+                                Object.entries(fleet).filter(([s, v]) =>
+                                  v.sects.includes(roleName)
+                                ).length
+                              }{' '}
+                              Members
                             </p>
-                            {fleet && (
-                              <p className="text-sm font-semibold text-gray-400">
-                                {
-                                  Object.entries(fleet).filter(([s, v]) =>
-                                    v.sects.includes(roleName)
-                                  ).length
-                                }{' '}
-                                Members
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-end space-x-4">
-                          <CaretRightIcon className="h-6 w-6 text-gray-400" />
+                          )}
                         </div>
                       </div>
-                    )
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                      <div className="flex items-center justify-end space-x-4">
+                        <CaretRightIcon className="h-6 w-6 text-gray-400" />
+                      </div>
+                    </div>
+                  )
+              )}
+            </div>
+          )}
         </div>
       </div>
-      <AnimatePresence>
-        {editRole && (
-          <motion.div
-            initial={{ y: 2000, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 2000, opacity: 0 }}
-            transition={animationConfig}
-            className="card mb-4 flex flex-col space-y-4"
-          >
-            <h1 className="mb-4 text-lg font-bold">
-              Delete Role and Revoke Permissions
-            </h1>
-            <p>
-              Type the name of the role to confirm deletion. This role will be
-              removed from all members currently assigned to it, and associated
-              permissions with this role will be revoked. This action is
-              irreversible.
-            </p>
-            <input
-              className="input"
-              placeholder="Role Name"
-              value={deleteField}
-              onChange={onDeleteChange}
-            />
-            <div className="mt-8 flex justify-end space-x-2">
-              <button
-                className="secondary-button"
-                onClick={() => setDeleteField('')}
-                disabled={deleteStatus === 'loading' || !deleteField}
-              >
-                Cancel
-              </button>
-              <button
-                className="button center-items flex bg-red"
-                title={
-                  currentlyUsedRoles.includes(editRole)
-                    ? 'This role is currently in use and cannot be deleted'
-                    : 'Delete role'
-                }
-                disabled={
-                  currentlyUsedRoles.includes(editRole) ||
-                  deleteStatus === 'loading' ||
-                  !eqRoleName(
-                    deleteField,
-                    group?.cabals[editRole].meta.title || ''
-                  )
-                }
-                onClick={() => handleDeleteRole(editRole)}
-              >
-                {deleteStatus === 'loading' ? (
-                  <>
-                    <LoadingSpinner h-4 w-4 mr-2 />
-                    Deleting...
-                  </>
-                ) : (
-                  'Delete'
-                )}
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+      {editRole && (
+        <div className="card mb-4 flex flex-col space-y-4">
+          <h1 className="mb-4 text-lg font-bold">
+            Delete Role and Revoke Permissions
+          </h1>
+          <p>
+            Type the name of the role to confirm deletion. This role will be
+            removed from all members currently assigned to it, and associated
+            permissions with this role will be revoked. This action is
+            irreversible.
+          </p>
+          <input
+            className="input"
+            placeholder="Role Name"
+            value={deleteField}
+            onChange={onDeleteChange}
+          />
+          <div className="mt-8 flex justify-end space-x-2">
+            <button
+              className="secondary-button"
+              onClick={() => setDeleteField('')}
+              disabled={deleteStatus === 'loading' || !deleteField}
+            >
+              Cancel
+            </button>
+            <button
+              className="button center-items flex bg-red"
+              title={
+                currentlyUsedRoles.includes(editRole)
+                  ? 'This role is currently in use and cannot be deleted'
+                  : 'Delete role'
+              }
+              disabled={
+                currentlyUsedRoles.includes(editRole) ||
+                deleteStatus === 'loading' ||
+                !eqRoleName(
+                  deleteField,
+                  group?.cabals[editRole].meta.title || ''
+                )
+              }
+              onClick={() => handleDeleteRole(editRole)}
+            >
+              {deleteStatus === 'loading' ? (
+                <>
+                  <LoadingSpinner h-4 w-4 mr-2 />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

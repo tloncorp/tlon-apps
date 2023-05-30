@@ -4,7 +4,7 @@ import classNames from 'classnames';
 import X16Icon from './icons/X16Icon';
 import XIcon from './icons/XIcon';
 
-type DialogCloseLocation = 'default' | 'none' | 'lightbox' | 'app';
+type DialogCloseLocation = 'default' | 'none' | 'lightbox' | 'app' | 'header';
 
 interface DialogContentProps extends DialogPrimitive.DialogContentProps {
   containerClass?: string;
@@ -37,6 +37,11 @@ export const DialogContent = React.forwardRef<
         {close === 'app' && (
           <DialogPrimitive.Close className="icon-button absolute top-8 right-6 h-8 w-8 bg-white p-1">
             <XIcon className="h-5 w-5" />
+          </DialogPrimitive.Close>
+        )}
+        {close === 'header' && (
+          <DialogPrimitive.Close className="icon-button absolute top-8 right-8 bg-white">
+            <X16Icon className="h-4 w-4" />
           </DialogPrimitive.Close>
         )}
       </section>
