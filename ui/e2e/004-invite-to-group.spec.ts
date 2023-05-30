@@ -12,6 +12,7 @@ test('Invite to a group', async ({ page }) => {
   await page.getByRole('combobox', { name: 'Ships' }).fill('~zod');
   await page.getByText('zod', { exact: true }).click();
   await page.getByRole('button', { name: 'Send Invites' }).click();
+  await page.getByText('A bus note').waitFor();
   await page.getByRole('button', { name: 'B Bus Club' }).click();
   await page.getByRole('menuitem', { name: 'Members & Group Info' }).click();
   await page.getByRole('link', { name: 'Members' }).click();
