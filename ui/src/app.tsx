@@ -22,7 +22,7 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useTheme } from '@/state/settings';
+import { useCalm, usePutEntryMutation, useTheme } from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -604,6 +604,11 @@ function RoutedApp() {
   const isStandAlone = useIsStandaloneMode();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
+  const { mutate, isLoading, data } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'hasBeenUsed',
+  });
+  console.log({ data, isLoading });
 
   const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
@@ -643,6 +648,14 @@ function RoutedApp() {
       body?.style.setProperty('padding-bottom', '0px');
     }
   }, [isStandAlone, body]);
+
+  useEffect(() => {
+    if (app === 'groups') {
+      mutate({
+        val: true,
+      });
+    }
+  }, [app, mutate]);
 
   return (
     <ErrorBoundary
