@@ -608,7 +608,6 @@ function RoutedApp() {
     bucket: 'groups',
     key: 'hasBeenUsed',
   });
-  console.log({ data, isLoading });
 
   const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
