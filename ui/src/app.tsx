@@ -604,7 +604,7 @@ function RoutedApp() {
   const isStandAlone = useIsStandaloneMode();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
-  const { mutate, isLoading, data } = usePutEntryMutation({
+  const { mutate } = usePutEntryMutation({
     bucket: 'groups',
     key: 'hasBeenUsed',
   });
