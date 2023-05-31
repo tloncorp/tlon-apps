@@ -22,7 +22,7 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, usePutEntryMutation, useTheme } from '@/state/settings';
+import { useCalm, useTheme } from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
