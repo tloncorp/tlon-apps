@@ -604,10 +604,6 @@ function RoutedApp() {
   const isStandAlone = useIsStandaloneMode();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
-  const { mutate } = usePutEntryMutation({
-    bucket: 'groups',
-    key: 'hasBeenUsed',
-  });
 
   const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
@@ -647,14 +643,6 @@ function RoutedApp() {
       body?.style.setProperty('padding-bottom', '0px');
     }
   }, [isStandAlone, body]);
-
-  useEffect(() => {
-    if (app === 'groups') {
-      mutate({
-        val: true,
-      });
-    }
-  }, [app, mutate]);
 
   return (
     <ErrorBoundary
