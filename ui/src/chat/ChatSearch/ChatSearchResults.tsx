@@ -1,11 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { debounce } from 'lodash';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { BigInteger } from 'big-integer';
 import { useParams } from 'react-router';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useChatStore } from '@/chat/useChatStore';
 import { ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatSearch } from '@/state/chat';
+import { useChatSearch, useChatState } from '@/state/chat';
 import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
 
@@ -15,11 +22,16 @@ interface ChatSearchResultsProps {
 
 function itemContent(
   _i: number,
-  [whom, key, writ]: [string, BigInteger, ChatWrit]
+  [whom, key, writ, msgLoad]: [
+    string,
+    BigInteger,
+    ChatWrit,
+    (time: BigInteger, type: 'click' | 'hover') => void
+  ]
 ) {
   return (
     <div className="px-4 sm:px-2">
-      <ChatSearchResult whom={whom} writ={writ} time={key} />
+      <ChatSearchResult whom={whom} writ={writ} time={key} msgLoad={msgLoad} />
     </div>
   );
 }
@@ -39,13 +51,40 @@ export default function ChatSearchResults({ whom }: ChatSearchResultsProps) {
       : { main: 400, reverse: 400 },
   };
 
+  const loadMsgs = useMemo(() => {
+    return debounce(
+      (time: BigInteger) => {
+        useChatState.getState().fetchMessagesAround(whom, '25', time);
+      },
+      200,
+      { trailing: true }
+    );
+  }, [whom]);
+
+  const msgLoad = useCallback(
+    (time: BigInteger, type: 'click' | 'hover') => {
+      loadMsgs(time);
+
+      if (type === 'click') {
+        loadMsgs.flush();
+      }
+    },
+    [loadMsgs]
+  );
+
   const entries = useMemo(() => {
     return scan
       ? [...scan].map(
-          ([int, writ]) => [whom, int, writ] as [string, BigInteger, ChatWrit]
+          ([int, writ]) =>
+            [whom, int, writ, msgLoad] as [
+              string,
+              BigInteger,
+              ChatWrit,
+              (time: BigInteger, type: 'click' | 'hover') => void
+            ]
         )
       : [];
-  }, [scan, whom]);
+  }, [scan, whom, msgLoad]);
 
   useEffect(() => {
     let timeout = 0;

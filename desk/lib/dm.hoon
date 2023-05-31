@@ -111,6 +111,18 @@
     =/  start  (slav %ud start.pole)
     ``chat-writs+!>((gas:on *writs:c (tab:on wit.pac `start count)))
   ::
+      [%around time=@ count=@ ~]
+    =/  count  (slav %ud count.pole)
+    =/  time  (slav %ud time.pole)
+    =/  older  (bat:mope wit.pac `time count)
+    =/  newer  (tab:on:writs:c wit.pac `time count)
+    =/  writ   (get:on:writs:c wit.pac time)
+    =-  ``chat-writs+!>(-)
+    %+  gas:on  *writs:c
+    ?~  writ
+      (welp older newer)
+    (welp (snoc older [time u.writ]) newer)
+  ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
     =/  time  (slav %ud time.pole)

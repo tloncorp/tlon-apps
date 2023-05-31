@@ -1,7 +1,9 @@
+import _ from 'lodash';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import api from '../../api';
+import { sliceMap } from '@/logic/utils';
+import api from '@/api';
 import {
   ChatWrit,
   ChatWrits,
@@ -9,13 +11,14 @@ import {
   WritDiff,
   ChatAction,
   DmAction,
-} from '../../types/chat';
-import { BasedChatState } from './type';
+} from '@/types/chat';
+import { BasedChatState, WritWindow, WritWindows } from './type';
 
 interface WritsStore {
   initialize: () => Promise<void>;
-  getNewer: (count: string) => Promise<boolean>;
-  getOlder: (count: string) => Promise<boolean>;
+  getNewer: (count: string, time?: BigInteger) => Promise<boolean>;
+  getOlder: (count: string, time?: BigInteger) => Promise<boolean>;
+  getAround: (count: string, time: BigInteger) => Promise<void>;
 }
 
 export function writsReducer(whom: string) {
@@ -105,6 +108,114 @@ export function writsReducer(whom: string) {
   };
 }
 
+export const emptyWindow: WritWindow = {
+  oldest: bigInt(0),
+  newest: bigInt(0),
+  loadedOldest: false,
+  loadedNewest: false,
+};
+export const emptyWindows: WritWindows = {
+  latest: emptyWindow,
+  windows: [emptyWindow],
+};
+
+function inWindow(window: WritWindow, time: BigInteger) {
+  return time.geq(window.oldest) && time.leq(window.newest);
+}
+
+export function getWritWindow(window: WritWindows, time?: BigInteger) {
+  if (!time) {
+    return window.latest;
+  }
+
+  for (let i = 0; i <= window.windows.length - 1; i += 1) {
+    if (inWindow(window.windows[i], time)) {
+      return window.windows[i];
+    }
+  }
+
+  return window.latest;
+}
+
+export function combineWindows(windows: WritWindow[]) {
+  const result: WritWindow[] = [];
+  let last: WritWindow;
+
+  _.forEachRight(windows, (r) => {
+    if (!last || r.newest.lt(last.oldest)) {
+      result.push((last = r));
+    } else if (r.oldest.lt(last.oldest)) {
+      last.oldest = r.oldest;
+    }
+  });
+
+  return result;
+}
+
+function extendCurrentWindow(
+  newWindow: WritWindow,
+  windows?: WritWindows,
+  time?: BigInteger
+) {
+  if (!windows) {
+    return {
+      latest: newWindow,
+      windows: [newWindow],
+    };
+  }
+
+  const current = getWritWindow(windows, time);
+  const areEqual = (a: WritWindow, b: WritWindow) =>
+    a.oldest.eq(b.oldest) && a.newest.eq(b.newest);
+  const newWindows = windows.windows.some((w) => areEqual(w, current))
+    ? windows.windows.map((w) => {
+        if (areEqual(w, current)) {
+          return {
+            ...newWindow,
+            newest: newWindow.newest.gt(w.newest) ? newWindow.newest : w.newest,
+            oldest: newWindow.oldest.lt(w.oldest) ? newWindow.oldest : w.oldest,
+          };
+        }
+        return w;
+      })
+    : [...windows.windows, newWindow];
+
+  const combined = combineWindows(
+    newWindows.sort((a, b) => {
+      return (
+        a.oldest.subtract(b.oldest).toJSNumber() ||
+        a.newest.subtract(b.newest).toJSNumber()
+      );
+    })
+  );
+
+  return {
+    latest: combined[newWindows.length - 1],
+    windows: combined,
+  };
+}
+
+export function updatePact(
+  whom: string,
+  writs: ChatWrits,
+  draft: BasedChatState
+) {
+  const pact: Pact = draft.pacts[whom] || {
+    writs: new BigIntOrderedMap<ChatWrit>(),
+    index: {},
+  };
+  Object.keys(writs).forEach((key) => {
+    const writ = writs[key];
+    const tim = bigInt(udToDec(key));
+
+    if (!pact.index[writ.seal.id]) {
+      pact.writs = pact.writs.set(tim, writ);
+      pact.index[writ.seal.id] = tim;
+    }
+  });
+  draft.pacts[whom] = { ...pact };
+}
+
 export default function makeWritsStore(
   whom: string,
   get: () => BasedChatState,
@@ -116,6 +227,67 @@ export default function makeWritsStore(
       app: 'chat',
       path: `${scryPath}${path}`,
     });
+
+  const getMessages = async (
+    count: string,
+    dir: 'older' | 'newer',
+    around?: BigInteger
+  ) => {
+    const { pacts, writWindows } = get();
+    const pact = pacts[whom];
+
+    if (!pact) {
+      return false;
+    }
+
+    const oldMessagesSize = pact.writs.size ?? 0;
+    if (oldMessagesSize === 0) {
+      // already loading the graph
+      return false;
+    }
+
+    const window = getWritWindow(writWindows[whom], around);
+    const current = sliceMap(pact.writs, window.oldest, window.newest);
+    const index =
+      dir === 'newer'
+        ? current.peekLargest()?.[0]
+        : current.peekSmallest()?.[0];
+    if (!index) {
+      return false;
+    }
+
+    const fetchStart = decToUd(index.toString());
+    const writs = await api.scry<ChatWrits>({
+      app: 'chat',
+      path: `${scryPath}/${dir}/${fetchStart}/${count}`,
+    });
+
+    get().batchSet((draft) => {
+      updatePact(whom, writs, draft);
+      // combine any overlapping windows so we have one continuous window
+      const keys = Object.keys(writs).sort();
+      const updates = keys.length > 0;
+      const oldest = updates ? bigInt(udToDec(keys[0])) : window.oldest;
+      const newest = updates
+        ? bigInt(udToDec(keys[keys.length - 1]))
+        : window.newest;
+      draft.writWindows[whom] = extendCurrentWindow(
+        {
+          oldest,
+          newest,
+          loadedNewest: dir === 'newer' ? !updates : window.loadedNewest,
+          loadedOldest: dir === 'older' ? !updates : window.loadedOldest,
+        },
+        draft.writWindows[whom],
+        around
+      );
+      console.log(draft.writWindows[whom], writs);
+    });
+
+    const newMessageSize = get().pacts[whom].writs.size;
+    return newMessageSize !== oldMessagesSize;
+  };
+
   return {
     initialize: async () => {
       const writs = await scry<ChatWrits>(
@@ -123,20 +295,24 @@ export default function makeWritsStore(
       );
 
       get().batchSet((draft) => {
-        const pact: Pact = draft.pacts[whom] || {
-          writs: new BigIntOrderedMap<ChatWrit>(),
-          index: {},
-        };
-        Object.keys(writs).forEach((key) => {
-          const writ = writs[key];
-          const tim = bigInt(udToDec(key));
+        const keys = Object.keys(writs).sort();
+        if (keys.length === 0) {
+          return;
+        }
 
-          if (!pact.index[writ.seal.id]) {
-            pact.writs = pact.writs.set(tim, writ);
-            pact.index[writ.seal.id] = tim;
-          }
-        });
-        draft.pacts[whom] = pact;
+        updatePact(whom, writs, draft);
+        // combine any overlapping windows so we have one continuous window
+        const oldest = bigInt(udToDec(keys[0]));
+        const newest = bigInt(udToDec(keys[keys.length - 1]));
+        draft.writWindows[whom] = extendCurrentWindow(
+          {
+            oldest,
+            newest,
+            loadedNewest: true,
+            loadedOldest: false,
+          },
+          draft.writWindows[whom]
+        );
       });
 
       api.subscribe({
@@ -152,103 +328,36 @@ export default function makeWritsStore(
         },
       });
     },
-    getNewer: async (count: string) => {
-      // TODO: fix for group chats
-      const { pacts } = get();
-      const pact = pacts[whom];
-
-      if (!pact) {
-        return false;
-      }
-
-      const oldMessagesSize = pact.writs.size ?? 0;
-      if (oldMessagesSize === 0) {
-        // already loading the graph
-        return false;
-      }
-
-      const index = pact.writs.peekLargest()?.[0];
-      if (!index) {
-        return false;
-      }
-
-      const newest = pact.writs.peekLargest()[0];
-      const fetchStart = decToUd(newest.toString());
-
+    getNewer: async (count, time) => getMessages(count, 'newer', time),
+    getOlder: async (count, time) => getMessages(count, 'older', time),
+    getAround: async (count, time) => {
       const writs = await api.scry<ChatWrits>({
         app: 'chat',
-        path: `${scryPath}/newer/${fetchStart}/${count}`,
+        path: `${scryPath}/around/${decToUd(time.toString())}/${count}`,
       });
 
       get().batchSet((draft) => {
-        Object.keys(writs).forEach((key) => {
-          const writ = writs[key];
-          const tim = bigInt(udToDec(key));
+        const keys = Object.keys(writs).sort();
+        if (keys.length === 0) {
+          return;
+        }
 
-          if (!pact.index[writ.seal.id]) {
-            pact.writs = pact.writs.set(tim, writ);
-            pact.index[writ.seal.id] = tim;
-          }
-        });
-        draft.pacts[whom] = { ...pact };
-        const loaded = draft.loadedWrits[whom] || {
-          oldest: unixToDa(Date.now()),
-          newest: unixToDa(0),
-        };
-        draft.loadedWrits[whom] = { ...loaded, newest };
+        updatePact(whom, writs, draft);
+        const oldest = bigInt(udToDec(keys[0]));
+        const newest = bigInt(udToDec(keys[keys.length - 1]));
+        draft.writWindows[whom] = extendCurrentWindow(
+          {
+            oldest,
+            newest,
+            loadedNewest: false,
+            loadedOldest: false,
+          },
+          draft.writWindows[whom],
+          time
+        );
+
+        console.log(draft.writWindows[whom], writs);
       });
-
-      const newMessageSize = get().pacts[whom].writs.size;
-      return newMessageSize !== oldMessagesSize;
-    },
-    getOlder: async (count: string) => {
-      // TODO: fix for group chats
-      const { pacts, batchSet } = get();
-      const pact = pacts[whom];
-
-      if (!pact) {
-        return false;
-      }
-
-      const oldMessagesSize = pact.writs.size ?? 0;
-      if (oldMessagesSize === 0) {
-        // already loading the graph
-        return false;
-      }
-
-      const index = pact.writs.peekSmallest()?.[0];
-      if (!index) {
-        return false;
-      }
-
-      const oldest = pact.writs.peekSmallest()[0];
-      const fetchStart = decToUd(oldest.toString());
-
-      const writs = await api.scry<ChatWrits>({
-        app: 'chat',
-        path: `${scryPath}/older/${fetchStart}/${count}`,
-      });
-
-      batchSet((draft) => {
-        Object.keys(writs).forEach((key) => {
-          const writ = writs[key];
-          const tim = bigInt(udToDec(key));
-
-          if (!pact.index[writ.seal.id]) {
-            pact.writs = pact.writs.set(tim, writ);
-            pact.index[writ.seal.id] = tim;
-          }
-        });
-        draft.pacts[whom] = { ...pact };
-        const loaded = draft.loadedWrits[whom] || {
-          oldest: unixToDa(Date.now()),
-          newest: unixToDa(0),
-        };
-        draft.loadedWrits[whom] = { ...loaded, oldest };
-      });
-
-      const newMessageSize = get().pacts[whom].writs.size;
-      return newMessageSize === oldMessagesSize;
     },
   };
 }

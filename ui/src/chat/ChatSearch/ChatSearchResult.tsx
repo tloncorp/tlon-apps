@@ -13,6 +13,7 @@ export interface ChatSearchResultProps {
   whom: string;
   time: BigInteger;
   writ: ChatWrit;
+  msgLoad: (time: BigInteger, type: 'click' | 'hover') => void;
   isScrolling?: boolean;
 }
 
@@ -20,6 +21,7 @@ function ChatSearchResult({
   whom,
   time,
   writ,
+  msgLoad,
   isScrolling,
 }: ChatSearchResultProps) {
   const { seal, memo } = writ;
@@ -37,6 +39,8 @@ function ChatSearchResult({
       className={cn(
         'flex flex-col break-words rounded-md px-2 py-1 hover:bg-gray-50'
       )}
+      onClick={() => msgLoad(time, 'click')}
+      onMouseOver={() => msgLoad(time, 'hover')}
     >
       <Author ship={memo.author} date={unix} />
       <div className="group-one wrap-anywhere relative z-0 flex w-full flex-col space-y-2 py-1 pl-9">

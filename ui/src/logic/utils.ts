@@ -660,6 +660,22 @@ export function restoreMap<T>(obj: any): BigIntOrderedMap<T> {
   return empty;
 }
 
+export function sliceMap<T>(
+  theMap: BigIntOrderedMap<T>,
+  start: BigInteger,
+  end: BigInteger
+): BigIntOrderedMap<T> {
+  let empty = new BigIntOrderedMap<T>();
+
+  [...theMap].forEach(([k, v]) => {
+    if (k.geq(start) && k.leq(end)) {
+      empty = empty.set(k, v);
+    }
+  });
+
+  return empty;
+}
+
 const apps = ['writ', 'writs', 'hive', 'team', 'curios', 'notes', 'quips'];
 const groups = [
   'create',

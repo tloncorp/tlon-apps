@@ -29,14 +29,25 @@ import {
   WritDelta,
 } from '@/types/chat';
 import api from '@/api';
-import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
+import {
+  whomIsDm,
+  whomIsMultiDm,
+  whomIsFlag,
+  nestToFlag,
+  sliceMap,
+} from '@/logic/utils';
 import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import { pokeOptimisticallyN, createState } from '../base';
-import makeWritsStore, { writsReducer } from './writs';
-import { ChatState } from './type';
+import makeWritsStore, {
+  emptyWindows,
+  getWritWindow,
+  updatePact,
+  writsReducer,
+} from './writs';
+import { ChatState, WritWindow, WritWindows } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
@@ -134,7 +145,7 @@ export const useChatState = createState<ChatState>(
     pins: [],
     sentMessages: [],
     postedMessages: [],
-    loadedWrits: {},
+    writWindows: {},
     loadedRefs: {},
     briefs: {},
     loadedGraphRefs: {},
@@ -305,18 +316,24 @@ export const useChatState = createState<ChatState>(
         3
       );
     },
-    fetchNewer: async (whom: string, count: string) => {
+    fetchMessages: async (whom: string, count: string, dir, time) => {
       const isDM = whomIsDm(whom);
       const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
 
-      return makeWritsStore(
+      const { getOlder, getNewer } = makeWritsStore(
         whom,
         get,
         `/${type}/${whom}/writs`,
         `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
-      ).getNewer(count);
+      );
+
+      if (dir === 'older') {
+        return getOlder(count, time);
+      }
+
+      return getNewer(count, time);
     },
-    fetchOlder: async (whom: string, count: string) => {
+    fetchMessagesAround: async (whom: string, count: string, time) => {
       const isDM = whomIsDm(whom);
       const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
 
@@ -325,7 +342,7 @@ export const useChatState = createState<ChatState>(
         get,
         `/${type}/${whom}/writs`,
         `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
-      ).getOlder(count);
+      ).getAround(count, time);
     },
     fetchMultiDms: async () => {
       const dms = await api.scry<Clubs>({
@@ -734,11 +751,23 @@ export const useChatState = createState<ChatState>(
   []
 );
 
-export function useMessagesForChat(whom: string) {
-  const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
-  return useChatState(
-    useCallback((s) => s.pacts[whom]?.writs || def, [whom, def])
+export function useWritWindow(whom: string, time?: BigInteger) {
+  const window = useChatState(
+    useCallback((s) => s.writWindows[whom] || emptyWindows, [whom])
   );
+
+  return getWritWindow(window, time);
+}
+
+export function useMessagesForChat(whom: string, near?: BigInteger) {
+  const window = useWritWindow(whom, near);
+  const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
+
+  return useMemo(() => {
+    const def = new BigIntOrderedMap<ChatWrit>();
+    const messages = sliceMap(writs || def, window.oldest, window.newest);
+    return messages;
+  }, [writs, window]);
 }
 
 /**
@@ -1072,19 +1101,6 @@ export function useWritByFlagAndGraphIndex(
   }, [isScrolling, chFlag, index, res]);
 
   return res || 'loading';
-}
-
-export function useLoadedWrits(whom: string) {
-  return useChatState(
-    useCallback(
-      (s) =>
-        s.loadedWrits[whom] || {
-          oldest: unixToDa(Date.now()),
-          newest: unixToDa(0),
-        },
-      [whom]
-    )
-  );
 }
 
 export function useLatestMessage(chFlag: string) {
