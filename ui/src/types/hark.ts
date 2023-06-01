@@ -8,9 +8,9 @@ export interface Threads {
 }
 
 export interface Yarn {
-  id: Id;
+  id?: Id | null;
   rope: Rope;
-  time: number;
+  time?: number | null;
   con: YarnContent[];
   wer: string;
   but: YarnButton | null;
