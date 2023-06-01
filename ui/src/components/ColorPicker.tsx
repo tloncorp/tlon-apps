@@ -24,15 +24,15 @@ export default function ColorPicker({
   setColor,
 }: ColorPickerProps) {
   return (
-    <div className={classNames('flex items-center', className)}>
+    <div className={classNames('flex grow items-center', className)}>
       <Popover.Root>
         <Popover.Trigger
           style={{ backgroundColor: color }}
           className="h-6 w-6 shrink-0 rounded"
         />
-        <Popover.Content>
+        <Popover.Content side="right">
           <HexColorPicker color={color} onChange={setColor} />
-          <Popover.Arrow className="fill-gray-300" />
+          <Popover.Arrow className="fill-black dark:fill-white" />
         </Popover.Content>
       </Popover.Root>
       <HexColorInput

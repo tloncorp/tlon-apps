@@ -1,9 +1,9 @@
 import React, { forwardRef } from 'react';
 import { Components as VirtuosoComponents, Virtuoso } from 'react-virtuoso';
 import { useIsMobile } from '@/logic/useMedia';
-import GroupMemberItem from './GroupMemberItem';
+import PendingMemberItem from './PendingMemberItem';
 
-interface MemberScrollerProps {
+interface PendingScrollerProps {
   members: string[];
 }
 
@@ -15,7 +15,7 @@ const Components: VirtuosoComponents<string> = {
   )),
   Item: forwardRef((props, itemRef) => (
     <div
-      className="group flex items-center justify-between rounded-lg py-3 px-2 hover:bg-gray-50"
+      className="flex items-center border-t border-gray-100 py-3 font-semibold hover:bg-gray-50"
       {...props}
       // @ts-expect-error tsc complains about the ref prop, but it's fine
       ref={itemRef}
@@ -25,7 +25,7 @@ const Components: VirtuosoComponents<string> = {
   )),
 };
 
-export default function MemberScroller({ members }: MemberScrollerProps) {
+export default function PendingScroller({ members }: PendingScrollerProps) {
   const isMobile = useIsMobile();
 
   const thresholds = {
@@ -37,7 +37,7 @@ export default function MemberScroller({ members }: MemberScrollerProps) {
   };
 
   if (members.length === 0) {
-    return <p>No members</p>;
+    return <p>No pending</p>;
   }
 
   return (
@@ -45,7 +45,7 @@ export default function MemberScroller({ members }: MemberScrollerProps) {
       {...thresholds}
       data={members}
       computeItemKey={(i, member: string) => member}
-      itemContent={(i, member: string) => <GroupMemberItem member={member} />}
+      itemContent={(i, member: string) => <PendingMemberItem member={member} />}
       style={{
         minHeight: '100%',
       }}

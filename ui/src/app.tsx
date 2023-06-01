@@ -31,7 +31,7 @@ import GroupInviteDialog from '@/groups/GroupInviteDialog';
 import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
-import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
+import GroupDelete from '@/groups/GroupAdmin/GroupDelete';
 import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
@@ -45,6 +45,7 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
+import GroupInvitesPrivacy from './groups/GroupAdmin/GroupInvitesPrivacy';
 import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
@@ -55,7 +56,7 @@ import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
 import GroupRoles from './groups/GroupAdmin/GroupRoles';
-import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
+import GroupInfoEditor from './groups/GroupAdmin/GroupInfoEditor';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
@@ -358,24 +359,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   />
                 }
               />
-              <Route path="info" element={<GroupAdmin />}>
-                <Route
-                  index
-                  element={<GroupInfo title={`• ${appHead('').title}`} />}
-                />
-                <Route
-                  path="members"
-                  element={<GroupMembers title={`• ${appHead('').title}`} />}
-                >
-                  <Route index element={<GroupMemberManager />} />
-                  <Route path="pending" element={<GroupPendingManager />} />
-                  <Route path="banned" element={<div />} />
-                </Route>
-                <Route
-                  path="roles"
-                  element={<GroupRoles title={`• ${appHead('').title}`} />}
-                />
-              </Route>
               <Route
                 path="channels"
                 element={
@@ -458,6 +441,23 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route path="role" element={<GroupRoleDialog />}>
               <Route path=":cabal" element={<GroupRoleDialog />} />
             </Route>
+          </Route>
+          <Route path="/groups/:ship/:name/info" element={<GroupInfo />} />
+          <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
+            <Route
+              index
+              element={<GroupInfoEditor title={`• ${appHead('').title}`} />}
+            />
+            <Route path="invites-privacy" element={<GroupInvitesPrivacy />} />
+            <Route
+              path="members"
+              element={<GroupMembers title={`• ${appHead('').title}`} />}
+            />
+            <Route
+              path="roles"
+              element={<GroupRoles title={`• ${appHead('').title}`} />}
+            />
+            <Route path="delete" element={<GroupDelete />} />
           </Route>
           <Route
             path="/groups/:ship/:name/leave"

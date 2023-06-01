@@ -81,17 +81,20 @@ export default function MobileGroupSidebar() {
                 >
                   {copyItemText}
                 </SidebarItem>
-                <SidebarItem
-                  onClick={() => setShowSheet(false)}
-                  to={`/groups/${flag}/info`}
-                  icon={
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                      <PersonIcon className="h-6 w-6" />
-                    </div>
-                  }
-                >
-                  Members &amp; Group Info
-                </SidebarItem>
+                {isAdmin && (
+                  <SidebarItem
+                    onClick={() => setShowSheet(false)}
+                    to={`/groups/${flag}/edit`}
+                    state={{ backgroundLocation: location }}
+                    icon={
+                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                        <PersonIcon className="h-6 w-6" />
+                      </div>
+                    }
+                  >
+                    Group Settings
+                  </SidebarItem>
+                )}
                 {flag.includes(ship) ? null : (
                   <SidebarItem
                     onClick={() => setShowSheet(false)}

@@ -20,22 +20,45 @@ export default function GroupInfoFields() {
   const calm = useCalm();
 
   return (
-    <>
-      <div className="flex flex-col">
-        <label htmlFor="title" className="pb-2 font-bold">
-          Group Name*
+    <div className="flex flex-col space-y-8">
+      <div>
+        <label htmlFor="title" className="block pb-1.5 font-bold">
+          Group Name
         </label>
         <input
-          // TODO: set sane maxLength
           {...register('title', { required: true, maxLength: 180 })}
-          className="input"
+          className="input w-full"
           type="text"
           placeholder="e.g. Urbit Fan Club"
         />
       </div>
-      <div className="flex flex-col space-x-0 sm:flex-row sm:space-x-2">
-        <div className="pb-2 font-bold sm:hidden">Preview</div>
-        <div className="flex flex-row justify-center pb-2">
+
+      <div className="flex space-x-4">
+        <div className="flex grow flex-col space-y-6">
+          <div>
+            <label htmlFor="image" className="block pb-1.5 font-bold">
+              Group Icon
+            </label>
+            <ImageOrColorField
+              fieldName="image"
+              state={iconType}
+              setState={setIconType}
+              defaultColor="#999999"
+            />
+          </div>
+          <div>
+            <label htmlFor="cover" className="block pb-1.5 font-bold">
+              Group Header Image
+            </label>
+            <ImageOrColorField
+              fieldName="cover"
+              state={coverType}
+              setState={setCoverType}
+              defaultColor="#D9D9D9"
+            />
+          </div>
+        </div>
+        <div className="shrink-0">
           <GroupInfoPreview
             iconType={iconType}
             showEmpty={showEmpty}
@@ -46,34 +69,18 @@ export default function GroupInfoFields() {
             showCoverEmpty={showCoverEmpty}
           />
         </div>
-        <div className="flex grow flex-col">
-          <span className="pb-2 font-bold">Group Icon*</span>
-          <ImageOrColorField
-            fieldName="image"
-            state={iconType}
-            setState={setIconType}
-            defaultColor="#999999"
-          />
-          <span className="mt-4 pb-2 font-bold">Group Cover*</span>
-          <ImageOrColorField
-            fieldName="cover"
-            state={coverType}
-            setState={setCoverType}
-            defaultColor="#D9D9D9"
-          />
-        </div>
       </div>
-      <div className="flex flex-col">
-        <label htmlFor="description" className="pb-2 font-bold">
-          Group Description (optional)
+
+      <div>
+        <label htmlFor="description" className="block pb-1.5 font-bold">
+          Group Description
         </label>
         <textarea
-          // TODO: set sane maxLength
           {...register('description', { maxLength: 300 })}
-          className="input"
+          className="input h-24 w-full"
           spellCheck={`${!calm.disableSpellcheck}`}
         />
       </div>
-    </>
+    </div>
   );
 }
