@@ -19,7 +19,7 @@
 +$  yarn
   $:  id=(unit id)                   :: optional identifier
       rop=rope                       :: origin
-      tim=(unit time)                       :: time sent
+      tim=(unit time)                :: time sent
       con=(list content)             :: content of notification
       wer=path                       :: where to link to in FE
       but=(unit button)              :: action, if any
@@ -75,7 +75,6 @@
       [%all ~]
   ==
 ::  $rug: notifications inbox
-::
 ::    .new contains all "unread" notifications, grouped by $rope
 ::    .qul is an archive
 ::
@@ -85,7 +84,6 @@
   =<  quilt
   |%
   ::  $quilt: inbox archive
-  ::
   ::    Threads are keyed by an autoincrementing counter that starts at
   ::    0
   ::

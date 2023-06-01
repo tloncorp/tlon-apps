@@ -105,16 +105,6 @@
     |=  [i=id:h y=yarn:h]
     [(scot %uv i) (yarn y)]
   ::
-  :: ++  new-yarn
-    :: |=  y=new-yarn:h
-    :: ^-  json
-    :: %-  pairs
-    :: :~  rope/(rope rop.y)
-        :: con/a/(turn con.y content)
-        :: wer/s/(spat wer.y)
-        :: button/~
-    :: ==
-  ::
   ++  yarn
     |=  y=yarn:h
     ^-  json
