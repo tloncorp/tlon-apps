@@ -104,10 +104,11 @@
   |^  ^+  cor
   =+  !<([old=versioned:state-chat cool=epic:e] vase)
   |-
+  =*  sc  ~(. state-chat bowl)
   ?-  -.old
-    %0  $(old (state-0-to-1:state-chat old))
-    %1  $(old (state-1-to-2:state-chat old))
-    %2  $(old (state-2-to-3:state-chat old))
+    %0  $(old (state-0-to-1:sc old))
+    %1  $(old (state-1-to-2:sc old))
+    %2  $(old (state-2-to-3:sc old))
     ::
       %3
     =.  state  old      

@@ -28,8 +28,8 @@
 ::
 +$  threaded
   $%  [%fray ~]
+      [%knot ~]
       [%strand =id]
-      [%knot count=@ud authors=(set ship) last=time]
   ==
 ::
 ::  $seal: the id of a chat and its meta-responses
@@ -77,6 +77,9 @@
     (pair whom brief)
   --
 ::
+::  $remark: unread tracking information for a chat
++$  remark
+  [last-read=time watching=_| ~]
 +$  remark-action
   (pair whom remark-diff)
 ::
@@ -111,6 +114,18 @@
     ::
       [%create p=perm q=pact]
   ==
+::
+::  $thread: a miniature chat
++$  thread  [knot=writ =remark =pact]
+::
++$  threads  (map id thread)
+::
++$  thread-summary
+  $:  count=@ud 
+      authors=(set ship)
+      updated=time
+  ==
+::
 ::  $index: a map of chat message id to server received message time
 ::
 +$  index   (map id time)
@@ -125,8 +140,6 @@
 +$  pact
   $:  wit=writs
       dex=index
-      top=writs
-      threads=(map id writs)
   ==
 ::
 ::  $club: a direct line of communication between multiple parties
@@ -237,13 +250,11 @@
   ((mop time diff) lte)
 ++  log-on
   ((on time diff) lte)
-+$  remark
-  [last-read=time watching=_| ~]
 ::
 ::  $chat: a group based channel for communicating
 ::
 +$  chat
-  [=net =remark =log =perm =pact]
+  [=threads =net =remark =log =perm =pact]
 ::
 ::  $notice: the contents of an automated message
 ::  
@@ -310,13 +321,15 @@
 ::
 ::  $memo: a chat message with metadata
 ::
+::    thread: the thread this message belongs to
 ::    replying: what message we're replying to
 ::    author: writer of the message
 ::    sent: time (from sender) when the message was sent
 ::    content: body of the message
 ::
 +$  memo  
-  $:  replying=(unit id)
+  $:  thread=(unit id)
+      replying=(unit id)      
       author=ship
       sent=time
       =content

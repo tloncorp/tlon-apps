@@ -1,6 +1,6 @@
 /-  c=chat
 /+  pac=writs
-|%
+|_  bowl:gall
 +$  versioned  $%(current state-2 state-1 state-0)
 +$  current
   $:  %3
@@ -104,12 +104,14 @@
   ^-  (map flag:c chat:c)
   %-  ~(run by chats)
   |=  old-chat=chat:two
+  =/  pact  (pact-2-to-3 pact.old-chat)
   ^-  chat:c
-  :*  net.old-chat
+  :*  (index-threads pact)
+      net.old-chat
       remark.old-chat
       (log-2-to-3 log.old-chat)
       perm.old-chat
-      (pact-2-to-3 pact.old-chat)
+      pact
   ==
 ::
 ++  clubs-2-to-3
@@ -151,11 +153,7 @@
   %-  some
   ^-  said:c
   :-  p.u.old-said
-  =*  writ  q.u.old-said
-  :_  +:writ
-  :*  id:-:writ  time  feels:-:writ  replied:-:writ
-    [%fray ~]
-  ==
+  +:(writ-2-to-3 time q.u.old-said)
 ::
 ++  log-2-to-3
   |=  old-log=log:two
@@ -176,19 +174,47 @@
   |=  old-pact=pact:two
   ^-  pact:c
   ~&  %migrating-pact
-  =/  wit
-    %+  gas:on:writs:c  *writs:c        
-    ^-  (list [time writ:c])
-    %+  turn
-      (tap:on:writs:two wit.old-pact)
-    |=  [=time old-writ=writ:two]
-    ^-  [^time writ:c]
-    :-  time
-    :_  +:old-writ
-    :*  id:-:old-writ  time  feels:-:old-writ  replied:-:old-writ
-      [%fray ~]
+  :_  dex.old-pact
+  %+  gas:on:writs:c  *writs:c        
+  ^-  (list [time writ:c])
+  (turn (tap:on:writs:two wit.old-pact) writ-2-to-3)
+::
+++  writ-2-to-3
+  |=  [=time old-writ=writ:two]
+  ^-  [^time writ:c]
+  :-  time
+  :_  [replying.old-writ +:old-writ]
+  :*  id.old-writ  time  feels.old-writ  ~
+    ?^  replying.old-writ  [%strand (need replying.old-writ)]
+    ?~  replied.old-writ  [%fray ~]
+    [%knot ~]
+  ==
+::
+++  index-threads
+  |=  =pact:c 
+  ^-  threads:c
+  =-  -.-
+  %^  (dip:on:writs:c threads:c)  wit.pact  *threads:c
+  |=  [st=threads:c =time =writ:c]
+  :-  ~
+  :-  %.n
+  ?+  -.threaded.writ  st
+      %knot  
+    =/  =thread:c  (~(gut by st) id.writ *thread:c)
+    (~(put by st) id.writ thread(knot writ, remark [now & ~]))
+  ::
+      %strand
+    =*  id  id.threaded.writ
+    =/  =thread:c  (~(gut by st) id *thread:c)
+    %+  ~(put by st)  id
+    =/  knot  (~(get pac pact) id)
+    :*  ?~(knot *writ:c +.u.knot)
+        [now & ~]
+        :-  (put:on:writs:c wit.pact.thread time writ)
+            (~(put by dex.pact.thread) id time)
     ==
-  ~(index pac [wit dex.old-pact *writs:c *(map id:c writs:c)])
+  ==
+::
 ++  clubs-1-to-2
   |=  clubs=(map id:club:one club:one)
   ^-  (map id:club:two club:two)
