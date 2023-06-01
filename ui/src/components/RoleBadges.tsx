@@ -16,6 +16,7 @@ export default function RoleBadges(props: { ship: string }) {
             <Tooltip.Trigger asChild>
               <div className="relative shrink-0 cursor-pointer rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium">
                 {sects.length}
+                <span className="sr-only">Roles</span>
               </div>
             </Tooltip.Trigger>
             <Tooltip.Portal>
