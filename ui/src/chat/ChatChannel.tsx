@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Outlet, Route, Routes, useNavigate, useParams } from 'react-router';
-import { Helmet } from 'react-helmet';
 import cn from 'classnames';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Route, Routes, useNavigate, useParams } from 'react-router';
+import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
-import { useChatPerms, useChatState, useMessagesForChat } from '@/state/chat';
+import { useChatPerms, useChatState } from '@/state/chat';
 import {
   useRouteGroup,
   useVessel,
@@ -45,9 +45,7 @@ function ChatChannel({ title }: ViewProps) {
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
   const { setRecentChannel } = useRecentChannel(groupFlag);
-  const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
-  const messages = useMessagesForChat(chFlag);
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
   const channel = useChannel(groupFlag, nest);
@@ -62,7 +60,6 @@ function ChatChannel({ title }: ViewProps) {
   const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
     ? isChannelJoined(nest, briefs)
     : true;
-  const needsLoader = messages.size === 0;
   const lastReconnect = useLastReconnect();
   const isSmall = useMedia('(max-width: 1023px)');
 
@@ -78,7 +75,6 @@ function ChatChannel({ title }: ViewProps) {
 
   const initializeChannel = useCallback(async () => {
     await useChatState.getState().initialize(chFlag);
-    setLoading(false);
   }, [chFlag]);
 
   useEffect(() => {
@@ -88,16 +84,11 @@ function ChatChannel({ title }: ViewProps) {
   }, [joined, joinChannel]);
 
   useEffect(() => {
-    if (needsLoader) {
-      setLoading(true);
-    }
-
     if (joined && canRead && !joining) {
       initializeChannel();
       setRecentChannel(nest);
     }
   }, [
-    needsLoader,
     nest,
     setRecentChannel,
     initializeChannel,
@@ -183,13 +174,7 @@ function ChatChannel({ title }: ViewProps) {
                     : title}
                 </title>
               </Helmet>
-              {loading ? (
-                <div className="h-full">
-                  <ChatScrollerPlaceholder count={30} />
-                </div>
-              ) : (
-                <ChatWindow whom={chFlag} messages={messages} />
-              )}
+              <ChatWindow whom={chFlag} />
             </Layout>
             <Routes>
               {isSmall ? null : (

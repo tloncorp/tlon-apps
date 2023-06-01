@@ -4,7 +4,7 @@ import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import { useChatState, useDmIsPending, useDmMessages } from '@/state/chat';
+import { useChatState, useDmIsPending } from '@/state/chat';
 import ChatWindow from '@/chat/ChatWindow';
 import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
@@ -42,7 +42,6 @@ export default function Dm() {
       useChatState.getState().initializeDm(ship);
     }
   }, [ship, canStart]);
-  const messages = useDmMessages(ship);
 
   const BackButton = isMobile ? Link : 'div';
 
@@ -128,7 +127,6 @@ export default function Dm() {
         {isAccepted ? (
           <ChatWindow
             whom={ship}
-            messages={messages}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <DMHero ship={ship} contact={contact} />

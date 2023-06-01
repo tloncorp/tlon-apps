@@ -23,10 +23,11 @@ export interface WritWindow {
   newest: bigInt.BigInteger;
   loadedOldest: boolean;
   loadedNewest: boolean;
+  latest?: boolean;
 }
 
 export interface WritWindows {
-  latest: WritWindow;
+  latest?: WritWindow;
   windows: WritWindow[];
 }
 

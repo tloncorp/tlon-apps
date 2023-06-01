@@ -752,22 +752,28 @@ export const useChatState = createState<ChatState>(
 );
 
 export function useWritWindow(whom: string, time?: BigInteger) {
-  const window = useChatState(
-    useCallback((s) => s.writWindows[whom] || emptyWindows, [whom])
-  );
+  const window = useChatState(useCallback((s) => s.writWindows[whom], [whom]));
 
   return getWritWindow(window, time);
 }
 
+const emptyWrits = new BigIntOrderedMap<ChatWrit>();
 export function useMessagesForChat(whom: string, near?: BigInteger) {
   const window = useWritWindow(whom, near);
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
 
   return useMemo(() => {
-    const def = new BigIntOrderedMap<ChatWrit>();
-    const messages = sliceMap(writs || def, window.oldest, window.newest);
+    const messages =
+      window && writs
+        ? sliceMap(writs, window.oldest, window.newest)
+        : emptyWrits;
     return messages;
   }, [writs, window]);
+}
+
+export function useHasMessages(whom: string) {
+  const messages = useMessagesForChat(whom);
+  return messages.size > 0;
 }
 
 /**
@@ -830,10 +836,6 @@ const selDmList = (s: ChatState) =>
 
 export function useDmList() {
   return useChatState(selDmList);
-}
-
-export function useDmMessages(ship: string) {
-  return useMessagesForChat(ship);
 }
 
 const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
@@ -971,10 +973,6 @@ export function useMultiDmIsPending(id: string): boolean {
       [id]
     )
   );
-}
-
-export function useMultiDmMessages(id: string) {
-  return useMessagesForChat(id);
 }
 
 const selDmArchive = (s: ChatState) => s.dmArchive;

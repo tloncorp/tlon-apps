@@ -109,7 +109,7 @@ export function writsReducer(whom: string) {
 }
 
 export const emptyWindow: WritWindow = {
-  oldest: bigInt(0),
+  oldest: unixToDa(Date.now()),
   newest: bigInt(0),
   loadedOldest: false,
   loadedNewest: false,
@@ -123,7 +123,11 @@ function inWindow(window: WritWindow, time: BigInteger) {
   return time.geq(window.oldest) && time.leq(window.newest);
 }
 
-export function getWritWindow(window: WritWindows, time?: BigInteger) {
+export function getWritWindow(window?: WritWindows, time?: BigInteger) {
+  if (!window) {
+    return undefined;
+  }
+
   if (!time) {
     return window.latest;
   }
@@ -134,7 +138,7 @@ export function getWritWindow(window: WritWindows, time?: BigInteger) {
     }
   }
 
-  return window.latest;
+  return undefined;
 }
 
 export function combineWindows(windows: WritWindow[]) {
@@ -143,9 +147,11 @@ export function combineWindows(windows: WritWindow[]) {
 
   _.forEachRight(windows, (r) => {
     if (!last || r.newest.lt(last.oldest)) {
-      result.push((last = r));
+      result.unshift((last = r));
     } else if (r.oldest.lt(last.oldest)) {
       last.oldest = r.oldest;
+      last.latest = last.latest || r.latest;
+      last.loadedOldest = r.loadedOldest;
     }
   });
 
@@ -159,38 +165,47 @@ function extendCurrentWindow(
 ) {
   if (!windows) {
     return {
-      latest: newWindow,
+      latest: newWindow.latest ? newWindow : undefined,
       windows: [newWindow],
     };
   }
 
+  console.log('old', JSON.parse(JSON.stringify(windows.windows)));
+  console.log('new window', newWindow);
   const current = getWritWindow(windows, time);
   const areEqual = (a: WritWindow, b: WritWindow) =>
     a.oldest.eq(b.oldest) && a.newest.eq(b.newest);
-  const newWindows = windows.windows.some((w) => areEqual(w, current))
-    ? windows.windows.map((w) => {
-        if (areEqual(w, current)) {
-          return {
-            ...newWindow,
-            newest: newWindow.newest.gt(w.newest) ? newWindow.newest : w.newest,
-            oldest: newWindow.oldest.lt(w.oldest) ? newWindow.oldest : w.oldest,
-          };
-        }
-        return w;
-      })
-    : [...windows.windows, newWindow];
+  const newWindows =
+    current && windows.windows.some((w) => areEqual(w, current))
+      ? windows.windows.map((w) => {
+          if (areEqual(w, current)) {
+            return {
+              ...newWindow,
+              latest: newWindow.latest || w.latest,
+              newest: newWindow.newest.gt(w.newest)
+                ? newWindow.newest
+                : w.newest,
+              oldest: newWindow.oldest.lt(w.oldest)
+                ? newWindow.oldest
+                : w.oldest,
+            };
+          }
+          return w;
+        })
+      : [...windows.windows, newWindow];
 
+  console.log('new', JSON.parse(JSON.stringify(newWindows)));
   const combined = combineWindows(
     newWindows.sort((a, b) => {
       return (
-        a.oldest.subtract(b.oldest).toJSNumber() ||
-        a.newest.subtract(b.newest).toJSNumber()
+        a.newest.subtract(b.newest).toJSNumber() ||
+        a.oldest.subtract(b.oldest).toJSNumber()
       );
     })
   );
 
   return {
-    latest: combined[newWindows.length - 1],
+    latest: combined.find((w) => w.latest),
     windows: combined,
   };
 }
@@ -247,6 +262,9 @@ export default function makeWritsStore(
     }
 
     const window = getWritWindow(writWindows[whom], around);
+    if (!window) {
+      return false;
+    }
     const current = sliceMap(pact.writs, window.oldest, window.newest);
     const index =
       dir === 'newer'
@@ -281,7 +299,6 @@ export default function makeWritsStore(
         draft.writWindows[whom],
         around
       );
-      console.log(draft.writWindows[whom], writs);
     });
 
     const newMessageSize = get().pacts[whom].writs.size;
@@ -300,16 +317,22 @@ export default function makeWritsStore(
           return;
         }
 
-        updatePact(whom, writs, draft);
-        // combine any overlapping windows so we have one continuous window
+        const window = getWritWindow(draft.writWindows[whom]);
         const oldest = bigInt(udToDec(keys[0]));
         const newest = bigInt(udToDec(keys[keys.length - 1]));
+        if (window && window.oldest.eq(oldest) && window.newest.eq(newest)) {
+          return;
+        }
+
+        updatePact(whom, writs, draft);
+        // combine any overlapping windows so we have one continuous window
         draft.writWindows[whom] = extendCurrentWindow(
           {
             oldest,
             newest,
             loadedNewest: true,
             loadedOldest: false,
+            latest: true,
           },
           draft.writWindows[whom]
         );
@@ -355,8 +378,6 @@ export default function makeWritsStore(
           draft.writWindows[whom],
           time
         );
-
-        console.log(draft.writWindows[whom], writs);
       });
     },
   };

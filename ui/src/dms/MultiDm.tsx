@@ -4,12 +4,7 @@ import { Outlet, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import {
-  useChatState,
-  useMultiDm,
-  useMultiDmIsPending,
-  useMultiDmMessages,
-} from '@/state/chat';
+import { useChatState, useMultiDm, useMultiDmIsPending } from '@/state/chat';
 import ChatWindow from '@/chat/ChatWindow';
 import { useIsMobile } from '@/logic/useMedia';
 import { pluralize } from '@/logic/utils';
@@ -45,7 +40,6 @@ export default function MultiDm() {
   }, [clubId, club]);
 
   const { sendMessage } = useChatState.getState();
-  const messages = useMultiDmMessages(clubId);
 
   if (!club) {
     return null;
@@ -128,7 +122,6 @@ export default function MultiDm() {
         {isAccepted ? (
           <ChatWindow
             whom={clubId}
-            messages={messages}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <MultiDmHero club={club} />

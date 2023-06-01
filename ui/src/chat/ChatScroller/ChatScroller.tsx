@@ -156,7 +156,7 @@ export default function ChatScroller({
   scrollerRef,
 }: IChatScroller) {
   const isMobile = useIsMobile();
-  const writWindow = useWritWindow(whom);
+  const writWindow = useWritWindow(whom, scrollTo);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
@@ -218,9 +218,11 @@ export default function ChatScroller({
   const fetchMessages = useCallback(
     async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
       const newest = messages.peekLargest();
-      const seenNewest = newer && newest && writWindow.loadedNewest;
+      const seenNewest =
+        newer && newest && writWindow && writWindow.loadedNewest;
       const oldest = messages.peekSmallest();
-      const seenOldest = !newer && oldest && writWindow.loadedOldest;
+      const seenOldest =
+        !newer && oldest && writWindow && writWindow.loadedOldest;
 
       if (seenNewest || seenOldest) {
         return;
@@ -262,8 +264,6 @@ export default function ChatScroller({
     if (hasScrollTo) {
       // if scrollTo changes, scroll to the new index
       scrollToIndex(keys, scrollerRef, scrollTo);
-    } else if (scrollTo) {
-      useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
