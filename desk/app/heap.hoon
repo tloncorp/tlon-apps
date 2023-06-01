@@ -529,8 +529,7 @@
 ++  spin
   |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
   ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
+  [~ rope ~ con wer but]
 ++  flatten
   |=  content=(list inline:h)
   ^-  cord

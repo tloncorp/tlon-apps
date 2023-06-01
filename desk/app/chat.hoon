@@ -122,7 +122,7 @@
     %1  $(old (state-1-to-2 old))
     ::
       %2
-    =.  state  old      
+    =.  state  old
     =.  cor  restore-missing-subs
     ?:  =(okay cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
@@ -134,7 +134,7 @@
       cor
     =.  cor
       ca-abet:ca-upgrade:(ca-abed:ca-core i.chats)
-    $(chats t.chats)  
+    $(chats t.chats)
   ==
   ::
   ++  restore-missing-subs
@@ -268,7 +268,7 @@
     =+  !<(f=flag:c vase)
     ?<  =(our.bowl p.f)
     (join [*flag:g f])
-  ::  
+  ::
       %channel-join
     =+  !<(j=join:c vase)
     ?<  =(our.bowl p.chan.j)
@@ -830,8 +830,7 @@
 ++  spin
   |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
   ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
+  [~ rope ~ con wer but]
 ++  flatten
   |=  content=(list inline:c)
   ^-  cord
@@ -1005,7 +1004,7 @@
               !=(~ team.crew.club)
               !=(*data:meta met.crew.club)
           ==
-        cu-core  
+        cu-core
       =:  hive.crew.club  hive.delta
           team.crew.club  team.delta
           met.crew.club   met.delta
@@ -1014,11 +1013,11 @@
     ::
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
-      ?-  -.q.diff.delta  
+      ?-  -.q.diff.delta
           ?(%del %add-feel %del-feel)  cu-core
           %add
         =/  memo=memo:c  p.q.diff.delta
-        =?  remark.club  =(author.memo our.bowl)  
+        =?  remark.club  =(author.memo our.bowl)
           remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief club/id cu-brief)
         ?:  =(our.bowl author.memo)  cu-core
@@ -1052,7 +1051,7 @@
         (cu-post-notice ship '' ' declined the invite')
       =.  cor  (give-brief club/id cu-brief)
       =.  team.crew.club  (~(put in team.crew.club) ship)
-      =?  last-read.remark.club  =(ship our.bowl)  now.bowl  
+      =?  last-read.remark.club  =(ship our.bowl)  now.bowl
       (cu-post-notice ship '' ' joined the chat')
     ::
         %hive
@@ -1376,7 +1375,7 @@
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
     =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
     ?~  write  |
-    =/  perms  (need write) 
+    =/  perms  (need write)
     ?:  |(bloc.perms =(~ writers.perm.chat))  &
     !=(~ (~(int in writers.perm.chat) sects.perms))
   ::
@@ -1522,7 +1521,7 @@
           ?(%del %add-feel %del-feel)  ca-core
           %add
         =/  memo=memo:c  p.delta
-        =?  remark.chat  =(author.memo our.bowl)  
+        =?  remark.chat  =(author.memo our.bowl)
           remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief flag/flag ca-brief)
         ?-  -.content.memo
@@ -1581,7 +1580,7 @@
           ' mentioned you :'
           (flatten q.story)
       ==
-    ~  
+    ~
   --
 ::
 ++  pending-dms
@@ -1688,7 +1687,7 @@
         ?(%del %add-feel %del-feel)  di-core
         %add
       =/  memo=memo:c  p.q.diff
-      =?  remark.dm  =(author.memo our.bowl)  
+      =?  remark.dm  =(author.memo our.bowl)
         remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
       =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
         (give-brief ship/ship di-brief)

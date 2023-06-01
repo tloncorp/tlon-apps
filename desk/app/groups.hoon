@@ -511,8 +511,7 @@
 ++  spin
   |=  [=rope:ha wer=path but=(unit button:ha) con=(list content:ha)]
   ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
+  [~ rope ~ con wer but]
 ::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]

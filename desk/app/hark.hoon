@@ -15,7 +15,7 @@
   ^-  (list _?>(?=(^ a) ?>(?=(^ b) [i.a i.b])))
   ?~  a  ~
   ?~  b  ~
-  :-  [i.a i.b] 
+  :-  [i.a i.b]
   $(a t.a, b t.b)
 ::
 ++  quilt-idx
@@ -42,7 +42,7 @@
   +*  this  .
       cor    ~(. +> [bowl ~])
       def   ~(. (default-agent this %|) bowl)
-  ++  on-init  
+  ++  on-init
     =^  cards  state
       abet:set-gc-wake:cor
     [cards this]
@@ -50,7 +50,7 @@
   ++  on-load
     |=  =vase
     =/  old=(unit state-0)
-      (mole |.(!<(state-0 vase)))  
+      (mole |.(!<(state-0 vase)))
     ?~  old  on-init
     `this(state u.old)
   ++  on-poke
@@ -87,11 +87,20 @@
   ?+    mark  ~|(bad-mark/mark !!)
       %hark-action
     =+  !<(act=action:h vase)
-    =.  cor  (give-ui act)
+    =/  id  (end [7 1] (shax eny.bowl))
+    ~&  "{<act>}"
     ?-    -.act
-      %saw-rope  (saw-rope rope.act)
-      %saw-seam  (saw-seam +.act)
-      %add-yarn  (add-yarn +.act)
+      %saw-rope
+      =.  cor  (give-ui act)
+      (saw-rope rope.act)
+      %saw-seam
+      =.  cor  (give-ui act)
+      (saw-seam +.act)
+      %add-yarn
+      =.  id.yarn.act  [~ id]
+      =/  new-act  [%add-yarn all.act desk.act yarn.act]
+      =.  cor  (give-ui new-act)
+      (add-yarn +.new-act)
     ==
   ==
 ++  peek
@@ -137,7 +146,7 @@
   cor
 ::
 ++  scry-rug
-  |=  [=(pole knot) =seam:h =rug:h] 
+  |=  [=(pole knot) =seam:h =rug:h]
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%skeins ~]  ``hark-skeins+!>((rug-to-skeins seam rug))
@@ -166,10 +175,12 @@
     %+  sort
       (turn (thread-to-yarns thread) tail)
     |=  [a=yarn:h b=yarn:h]
-    (gth tim.a tim.b)
+    =/  tima  (fall tim.a ~)
+    =/  timb  (fall tim.b ~)
+    (gth tima timb)
   =/  top=yarn:h  (head yrns)
   ^-  skein:h
-  :*  tim.top
+  :*  (fall tim.top `@da`0)
       (lent yrns)
       (ship-count yrns)
       top
@@ -288,7 +299,7 @@
 ::  +stale: garbage collection
 ::
 ++  stale
-  |^ 
+  |^
   =/  ids  ~(key by yarns)
   =.  ids  (~(dif in ids) (ids-for-rug all))
   =.  ids  (~(dif in ids) ids-for-groups)
@@ -305,7 +316,7 @@
       rug
     ::  TODO: bad asymptotics
     =+  siz=(lent (tap:on qul.rug))
-    ?:  (lte siz 50)  
+    ?:  (lte siz 50)
       rug  :: bail if not much there
     =/  dip  (dip:on ,count=@ud)
     =.  qul.rug
@@ -314,7 +325,7 @@
       |=  [count=@ud key=@ud =thread:h]
       ^-  [(unit thread:h) stop=? count=@ud]
       =-  [~ - +(count)]
-      (gte count rug-trim-size) 
+      (gte count rug-trim-size)
     rug
   ::
   ++  ids-for-rug
@@ -351,14 +362,14 @@
   --
 ++  saw-seam
   |=  =seam:h
-  =/  fun  
+  =/  fun
     |=  =rug:h
     =/  start  (quilt-idx qul.rug)
     =/  new  ~(val by new.rug)
     %_  rug
         new  ~
     ::
-        qul  
+        qul
       %+  gas:on:quilt:h  qul.rug
       (zip (gulf start (add start (lent new))) new)
     ==
@@ -370,11 +381,28 @@
     ==
   cor
 ::
+++  new-yarn-to-yarn
+  |=  [tim=time:h new-yarn=yarn:h]
+  ^-  yarn:h
+  =/  id   id.new-yarn
+  =/  rop  rop.new-yarn
+  =/  tim  [~ tim]
+  =/  con  con.new-yarn
+  =/  wer  wer.new-yarn
+  =/  but  but.new-yarn
+  [id rop tim con wer but]
+::
 ++  add-yarn
-  =|  [add-all=? add-desk=? =yarn:h]
+  =|  [add-all=? add-desk=? new-yarn=yarn:h]
   |%
+  ++  tim  now.bowl
   ++  $
-    =.  yarns  (~(put by yarns) id.yarn yarn)
+    =/  yarn  (new-yarn-to-yarn tim new-yarn)
+    =.
+      yarns
+      ?~  id.yarn
+        yarns
+      (~(put by yarns) u.id.yarn yarn)
     =.  cor  weave-all
     =.  cor  weave-group
     weave-desk
@@ -383,23 +411,30 @@
     ?.  add-all  cor
     cor(all (weave-rug all all/~))
   ++  weave-rug
+    =/  yarn  (new-yarn-to-yarn tim new-yarn)
     |=  [=rug:h =seam:h]
     =/  =thread:h   (~(gut by new.rug) rop.yarn ~)
-    =.  thread   (~(put in thread) id.yarn)
+    =.
+      thread
+      ?~  id.yarn
+        thread
+      (~(put in thread) u.id.yarn)
     =.  new.rug   (~(put by new.rug) rop.yarn thread)
     rug
   ::
   ++  weave-group
+    =/  yarn  (new-yarn-to-yarn tim new-yarn)
     ?~  gop.rop.yarn  cor
     =*  group  u.gop.rop.yarn
-    =/  =rug:h  (~(gut by groups) group *rug:h) 
+    =/  =rug:h  (~(gut by groups) group *rug:h)
     =.  rug  (weave-rug rug group/group)
     =.  groups  (~(put by groups) group rug)
     cor
   ::
   ++  weave-desk
+    =/  yarn  (new-yarn-to-yarn tim new-yarn)
     ?.  add-desk  cor
-    =/  =rug:h  (~(gut by desks) des.rop.yarn *rug:h) 
+    =/  =rug:h  (~(gut by desks) des.rop.yarn *rug:h)
     =.  rug     (weave-rug rug desk/des.rop.yarn)
     =.  desks   (~(put by desks) des.rop.yarn rug)
     cor

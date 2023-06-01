@@ -105,13 +105,23 @@
     |=  [i=id:h y=yarn:h]
     [(scot %uv i) (yarn y)]
   ::
+  :: ++  new-yarn
+    :: |=  y=new-yarn:h
+    :: ^-  json
+    :: %-  pairs
+    :: :~  rope/(rope rop.y)
+        :: con/a/(turn con.y content)
+        :: wer/s/(spat wer.y)
+        :: button/~
+    :: ==
+  ::
   ++  yarn
     |=  y=yarn:h
     ^-  json
     %-  pairs
-    :~  id/s/(scot %uv id.y)
+    :~  id/?~(id.y ~ s/(scot %uv u.id.y))
         rope/(rope rop.y)
-        time/(time tim.y)
+        time/?~(tim.y ~ s/(scot %da u.tim.y))
         con/a/(turn con.y content)
         wer/s/(spat wer.y)
         button/~
@@ -158,6 +168,7 @@
     %-  of
     :~  saw-seam/seam
         saw-rope/rope
+        add-yarn/add-yarn
     ==
   ::
   ++  seam
@@ -167,9 +178,43 @@
         group/flag
     ==
   ::
+  ++  add-yarn
+    %-  ot
+    :~  all/bo
+        desk/bo
+        yarn/yarn
+    ==
+  ::
+  ++  button
+    %-  ot
+    :~  title/so
+        hanlder/pa
+    ==
+  ::
+  ++  content
+    |=  j=json
+    ^-  content:h
+    ?:  ?=([%s *] j)  p.j
+    =>  .(j `json`j)
+    %.  j
+    %-  of
+    :~  ship/ship
+        emph/so
+    ==
+  ::
+  ++  yarn
+    %-  ot
+    :~  id/(mu (se %uvh))
+        rope/rope
+        time/(mu (se %da))
+        con/(ar content)
+        wer/pa
+        but/(mu button)
+    ==
+  ::
   ++  flag  flag:dejs:groups-json
   ++  nest  nest:dejs:groups-json
-  ::
+  ++  ship  ship:dejs:groups-json
   ++  rope
     %-  ot
     :~  group/(mu flag)
