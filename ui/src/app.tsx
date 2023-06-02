@@ -79,7 +79,6 @@ import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
-import GroupRoleDialog from './groups/GroupAdmin/GroupRoleDialog';
 import SettingsDialog from './components/SettingsDialog';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
@@ -438,9 +437,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/new" element={<NewGroup />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
-            <Route path="role" element={<GroupRoleDialog />}>
-              <Route path=":cabal" element={<GroupRoleDialog />} />
-            </Route>
           </Route>
           <Route path="/groups/:ship/:name/info" element={<GroupInfo />} />
           <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
