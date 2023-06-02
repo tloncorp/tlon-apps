@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import cn from 'classnames';
+import _ from 'lodash';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useLocation } from 'react-router';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -134,7 +135,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
             ) : (
               <div className="py-0.5 text-sm font-semibold text-gray-400">
                 {vessel.sects.length > 0
-                  ? vessel.sects.map((s) => (
+                  ? _.pull(vessel.sects, 'member').map((s) => (
                       <span key={s} className="mr-1">
                         {toTitleCase(getSectTitle(group.cabals, s))}
                       </span>
