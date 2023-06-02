@@ -142,9 +142,6 @@ exports[`ChatMessage > renders as expected 1`] = `
           </span>
         </span>
       </div>
-      <div
-        class="group-two-hover:hidden"
-      />
       <span
         class="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block"
       >

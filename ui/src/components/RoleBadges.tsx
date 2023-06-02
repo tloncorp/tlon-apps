@@ -60,7 +60,7 @@ export default function RoleBadges(props: { ship: string }) {
       );
     }
     return (
-      <div className="flex items-center space-x-1 overflow-auto">
+      <div className="flex items-center space-x-1 overflow-auto group-two-hover:hidden">
         {displaySects.map((sect) => {
           if (sect !== 'member') {
             return (
