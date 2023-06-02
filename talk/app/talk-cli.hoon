@@ -1411,19 +1411,25 @@
         %club  "{(scow %uv p.target)}"
         %flag  "{(scow %p p.p.target)}/{(trip q.p.target)}"
     ==
-  ::  +phat: render chat target with local shorthand
+  ::  +phat: render target with local shorthand
   ::
   ::    renders as ~ship/path.
   ::    for local mailboxes, renders just /path.
+  ::    for club-ids, renders last 12 characters
   ::
   ++  phat
     ^-  tape
-    ?.  ?=(%flag -.target)
-      ~(full tr target)
-    %+  weld
-      ?:  =(our-self p.p.target)  ~
-      (scow %p p.p.target)
-    "/{(trip q.p.target)}"
+    ?+   -.target  ~(full tr target)
+        %club
+      %+  swag  [21 12]
+      (scow %uv p.target)
+    ::
+        %flag
+      %+  weld
+        ?:  =(our-self p.p.target)  ~
+        (scow %p p.p.target)
+      "/{(trip q.p.target)}"
+    ==
   ::  +show: render as tape, as glyph if we can
   ::
   ++  show
@@ -1462,26 +1468,19 @@
       =/  crew=(unit crew)
         (~(get by get-clubs) club-id)
       ?~  crew
-        (weld (truncate-club-id club-id) "  (club does not exist)")
+        (weld ~(phat tr target) "  (club does not exist)")
       =+  team=team.u.crew
       =+  hive=hive.u.crew
       ?:  &(=(~ team) =(~ hive))
-        %+  weld  (truncate-club-id club-id)
+        %+  weld  ~(phat tr target)
         "  (club does not have any members)"
       %+  weld
-        (truncate-club-id club-id)
+        ~(phat tr target)
       ?.  =(*cord title.met.u.crew)
         "  ({(trip title.met.u.crew)})"
       %+  weld  "  "
       (render-club-members club-id ?~(team hive team))
     ==
-    ::  +truncate-club-id: render the last 12 characters of the club id
-    ::
-    ++  truncate-club-id
-      |=  =club-id
-      ^-  tape
-      %+  swag  [21 12]
-      (scow %uv club-id)
     ::  +render-club-members: produce club members as tape
     ::
     ::    print up to four members and produce
