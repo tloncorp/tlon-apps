@@ -88,7 +88,6 @@
       %hark-action
     =+  !<(act=action:h vase)
     =/  id  (end [7 1] (shax eny.bowl))
-    ~&  "{<act>}"
     ?-    -.act
       %saw-rope
       =.  cor  (give-ui act)
