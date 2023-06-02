@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { getSectTitle } from '@/logic/utils';
 import { useGroup, useGroupFlag, useVessel } from '@/state/groups';
 import * as Tooltip from '@radix-ui/react-tooltip';
@@ -7,15 +8,16 @@ export default function RoleBadges(props: { ship: string }) {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const { sects } = useVessel(flag, ship);
+  const displaySects = _.pull(sects, 'member');
 
   if (group && sects.length) {
-    if (sects.length >= 3) {
+    if (displaySects.length >= 3) {
       return (
         <Tooltip.Provider>
           <Tooltip.Root delayDuration={0}>
             <Tooltip.Trigger asChild>
               <div className="relative shrink-0 cursor-pointer rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium">
-                {sects.length}
+                {displaySects.length}
                 <span className="sr-only">Roles</span>
               </div>
             </Tooltip.Trigger>
@@ -24,9 +26,13 @@ export default function RoleBadges(props: { ship: string }) {
                 <div className="z-50">
                   <div className="z-[100] w-fit cursor-none rounded bg-gray-400 px-4 py-2">
                     <label className="whitespace-nowrap font-semibold text-white">
-                      {sects.map((sect) => {
+                      {displaySects.map((sect) => {
                         if (sect !== 'member') {
-                          return <li>{getSectTitle(group.cabals, sect)}</li>;
+                          return (
+                            <div className="mb-2">
+                              {getSectTitle(group.cabals, sect)}
+                            </div>
+                          );
                         }
                         return null;
                       })}
@@ -42,7 +48,6 @@ export default function RoleBadges(props: { ship: string }) {
                     >
                       <path
                         d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
-                        // fill="#999999"
                         className="fill-gray-400"
                       />
                     </svg>
@@ -56,7 +61,7 @@ export default function RoleBadges(props: { ship: string }) {
     }
     return (
       <div className="flex items-center space-x-1 overflow-auto">
-        {sects.map((sect) => {
+        {displaySects.map((sect) => {
           if (sect !== 'member') {
             return (
               <span className="shrink-0 rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium">
