@@ -27,7 +27,7 @@ export default function GroupMemberManager({
 }: GroupManagerProps) {
   const location = useLocation();
   const flag = useRouteGroup();
-  const group = useGroup(flag);
+  const group = useGroup(flag, true);
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
   const amAdmin = useAmAdmin(flag);
