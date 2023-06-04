@@ -1310,23 +1310,26 @@
       ?~  user-input
         =.  se  (note:se-out "chats:")
         %-  show-targets:se-out
-        ~(tap in `(set target)`(~(run in ~(key by get-chats)) (lead %flag)))
-      =;  produce=(list target)
-        =/  render-input=tape
-          (snoc ['"' u.user-input] '"')
-        ?~  produce
-          %-  note:se-out
-          (weld "chats: no results for " render-input)
-        =.  se  (note:se-out (weld "chats: " render-input))
-        (show-targets:se-out produce)
-      %+  murn  ~(tap by get-chats)
-      |=  [=flag:chat =chat:chat]
-      =/  chat-target=target   [%flag flag]
-      ?.  ?|  ?=(^ (find u.user-input ~(meta tr chat-target)))
-              ?=(^ (find u.user-input (match-group group.perm.chat)))
-          ==
-        ~
-      (some chat-target)
+        %+  sort
+          ~(tap in `(set target)`(~(run in ~(key by get-chats)) (lead %flag)))
+        order-targets
+      =/  produce=(list target)
+        %+  murn  ~(tap by get-chats)
+        |=  [=flag:chat =chat:chat]
+        =/  chat-target=target   [%flag flag]
+        ?.  ?|  ?=(^ (find u.user-input ~(meta tr chat-target)))
+                ?=(^ (find u.user-input (match-group group.perm.chat)))
+            ==
+          ~
+        (some chat-target)
+      =/  render-input=tape
+        (snoc ['"' u.user-input] '"')
+      ?~  produce
+        %-  note:se-out
+        (weld "chats: no results for " render-input)
+      =.  se  (note:se-out (weld "chats: " render-input))
+      (show-targets:se-out (chat-sort produce u.user-input))
+      ::  +match-group: check against group flags and titles
       ::
       ++  match-group
         |=  =flag:groups
@@ -1337,6 +1340,36 @@
           ~(phat tr `target`[%flag flag])
         %+  weld  ~(phat tr `target`[%flag flag])
         " {(trip title.meta.u.group)}"
+      ::  +chat-sort: sort closest match, prioritizing chat titles
+      ::
+      ++  chat-sort
+        |=  [targets=(list target) user-input=tape]
+        ^-  (list target)
+        %+  sort  targets
+        |=  [a=target b=target]
+        ^-  ?
+        =+  a=~(meta tr a)
+        =+  b=~(meta tr b)
+        :: pretty titles go closest to prompt
+        =/  a-pretty=(unit @)
+          =+  pal=(find "(" a)
+          ?~(pal ~ (find user-input (slag u.pal a) a))
+        =/  b-pretty=(unit @)
+          =+  pal=(find "(" b)
+          ?~(pal ~ (find user-input (slag u.pal b) b))
+        ?:  &(?=(^ a-pretty) ?=(^ b-pretty))
+          ?:((lth u.a-pretty u.b-pretty) | &)
+        ?^  a-pretty  |
+        ?^  b-pretty  &
+        :: then terms
+        =+  a-term=(find user-input (slag +:(find "/" a) a))
+        =+  b-term=(find user-input (slag +:(find "/" b) b))
+        ?:  &(?=(^ a-term) ?=(^ b-term))
+          ?:((lth u.a-term +.b-term) | &)
+        ?^  a-term  |
+        ?^  b-term  &
+        :: then ships
+        (aor b a)
       --
     ::  +dms: display list of known dms
     ::
@@ -1350,8 +1383,10 @@
           (~(run in ~(key by get-clubs)) (lead %club))
         =.  se  (note:se-out "dms:")
         %-  show-targets:se-out
-        %~  tap  in
-        (~(uni in clubs) `(set target)`(~(run in dms) (lead %ship)))
+        %+  sort
+          %~  tap  in
+          (~(uni in clubs) `(set target)`(~(run in dms) (lead %ship)))
+        order-targets
       =/  produce=(list target)
         %+  weld  (match-dm u.user-input dms)
         (match-club u.user-input)
@@ -1361,7 +1396,7 @@
         %-  note:se-out
         (weld "dms: no results for " render-input)
       =.  se  (note:se-out (weld "dms: " render-input))
-      (show-targets:se-out produce)
+      (show-targets:se-out (dm-sort produce u.user-input))
       ::  +match-dm: find dm targets by ship
       ::
       ++  match-dm
@@ -1372,6 +1407,19 @@
         =/  =target  [%ship ship]
         ?.  ?=(^ (find user-input ~(full tr target)))  ~
         (some target)
+      ::  +dm-sort: sort closest match
+      ::
+      ++  dm-sort
+        |=  [targets=(list target) user-input=tape]
+        ^-  (list target)
+        %+  sort  targets
+        |=  [a=target b=target]
+        ^-  ?
+        =+  a-index=(find user-input ~(meta tr a))
+        =+  b-index=(find user-input ~(meta tr b))
+        ?.  &(?=(^ a-index) ?=(^ b-index))
+          ?^(a-index | &)
+        ?:((lth u.a-index u.b-index) | &)
       ::  +match-club: find club targets by either ship or title
       ::
       ++  match-club
