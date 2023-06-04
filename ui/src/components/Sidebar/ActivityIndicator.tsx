@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React from 'react';
-import BulletIcon from '../icons/BulletIcon';
+import BellIcon from '../icons/BellIcon';
 
 interface ActivityIndicatorProps {
   count: number;
@@ -17,12 +17,13 @@ export default function ActivityIndicator({
     <div
       className={cn(
         'flex h-6 w-6 items-center justify-center rounded text-sm font-semibold',
+        count === 0 ? 'bg-transparent' : 'bg-gray-100',
         bg,
         className
       )}
     >
       {count === 0 ? (
-        <BulletIcon className="m-0.5 h-5 w-5" />
+        <BellIcon className="m-0.5 h-5 w-5" />
       ) : count > 99 ? (
         '99+'
       ) : (

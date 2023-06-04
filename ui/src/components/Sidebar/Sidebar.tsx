@@ -165,7 +165,7 @@ export default function Sidebar() {
           to={`/notifications`}
           defaultRoute
         >
-          Notifications
+          Activity
         </SidebarItem>
         <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}

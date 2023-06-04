@@ -236,7 +236,7 @@ exports[`Sidebar > renders as expected 1`] = `
           href="/notifications"
         >
           <div
-            class="flex h-6 w-6 items-center justify-center rounded text-sm font-semibold bg-gray-100"
+            class="flex h-6 w-6 items-center justify-center rounded text-sm font-semibold bg-transparent bg-gray-100"
           >
             <svg
               class="m-0.5 h-5 w-5"
@@ -244,21 +244,19 @@ exports[`Sidebar > renders as expected 1`] = `
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <rect
+              <path
                 class="fill-current"
-                height="8"
-                rx="4"
-                width="8"
-                x="8"
-                y="8"
+                clip-rule="evenodd"
+                d="M6 11a6.002 6.002 0 0 1 5-5.917V3h2v2.083c2.838.476 5 2.944 5 5.917v2.382l.764.382a2.236 2.236 0 0 1-1 4.236H15a3 3 0 1 1-6 0H6.236a2.236 2.236 0 0 1-1-4.236L6 13.382V11Zm5 7a1 1 0 1 0 2 0h-2Zm-3-7a4 4 0 1 1 8 0v2.902c0 .439.248.84.64 1.036l1.23.615a.236.236 0 0 1-.106.447H6.236a.236.236 0 0 1-.106-.447l1.23-.615c.392-.196.64-.597.64-1.036V11Z"
+                fill-rule="evenodd"
               />
             </svg>
           </div>
           <div
             class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
-            title="Notifications"
+            title="Activity"
           >
-            Notifications
+            Activity
           </div>
         </a>
       </div>
