@@ -398,11 +398,22 @@
   |=  =sole-id
   ^-  session
   (~(gut by sessions) sole-id %*(. *session audience [%flag [our-self %$]]))
-::  +tor: term ordering for chats
+::  +tor: term ordering for chats; decending order
 ::
 ++  tor
   |=  [[* a=term] [* b=term]]
-  (aor a b)
+  (aor b a)
+::  +order-targets: ships go before chats who go before clubs
+::
+++  order-targets
+  |=  [a=target b=target]
+  ^-  ?
+  ?:  ?=(%club -.a)  &
+  ?:  ?=(%club -.b)  |
+  ?:  &(?=(%flag -.a) ?=(%flag -.b))  (tor +.a +.b)
+  ?:  &(?=(%ship -.a) ?=(%ship -.b))
+    (aor (scot %p p.b) (scot %p p.a))
+  (gte -.a -.b)
 ::  +get-chats: get known chats
 ::
 ++  get-chats  ~+
@@ -1007,7 +1018,7 @@
       ::  without argument, print all we're viewing
       ::
       ?~  target
-        (show-targets:se-out ~(tap in viewing))
+        (show-targets:se-out (sort ~(tap in viewing) order-targets))
       ::  only view existing chats
       ::
       ?.  (target-exists target)
@@ -1489,26 +1500,14 @@
     ::
     ++  show-targets
       |=  targets=(list target)
-      |^  ^+  se
+      ^+  se
       %-  print-more
-      %+  turn  (sort targets order)
+      %+  turn  targets
       |=  =target
       =/  glyph=(unit tape)
         ?.  (~(has by bound) target)  ~
         (some ~(glyph tr target))
       (weld (fall glyph " ") [' ' ~(meta tr target)])
-      ::  +order: ships go before chats who go before clubs
-      ::
-      ++  order
-        |=  [a=target b=target]
-        ^-  ?
-        ?:  &(?=(%ship -.a) ?=(%ship -.b))
-          (aor (scot %p p.a) (scot %p p.b))
-        ?:  ?=(%ship -.a)  &
-        ?:  ?=(%ship -.b)  |
-        ?:  &(?=(%flag -.a) ?=(%flag -.b))  (tor +.a +.b)
-        (gte -.a -.b)  ::  %flag before %club
-      --
     --
   --
 ::
