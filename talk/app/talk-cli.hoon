@@ -1,7 +1,15 @@
-::  talk-cli: cli chat client using groups' chat
+::  talk-cli: cli chat client using Groups' %chat
 ::
-::    pulls all known messages into a single stream.
+::    pull chat and dm messages into a single stream.
+::    features include:
+::    - of course, chat and dm message sending
+::    - message referencing and thread support
+::    - programmatic tab-list for fast command entry
+::    - fuzzy search by chat, group, or ship
+::    - minimal sanity checker with +poke-noun
 ::    type ;help for usage instructions.
+::
+::    works best in a dedicated terminal session.
 ::
 /-  chat, cite, groups
 /+  shoe, default-agent, verb, dbug
