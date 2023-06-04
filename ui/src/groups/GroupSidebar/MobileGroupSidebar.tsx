@@ -41,7 +41,11 @@ export default function MobileGroupSidebar() {
               <BellIcon className="mb-0.5 h-6 w-6" />
               Activity
             </NavTab>
-            <NavTab to={`/groups/${flag}/info`} className="basis-1/4">
+            <NavTab
+              to={`/groups/${flag}/info`}
+              className="basis-1/4"
+              state={{ backgroundLocation: location }}
+            >
               <GroupAvatar
                 {...group?.meta}
                 size="h-6 w-6"
