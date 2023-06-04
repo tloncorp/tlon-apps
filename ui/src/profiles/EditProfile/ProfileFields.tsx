@@ -110,9 +110,8 @@ export default function ProfileFields() {
           Bio
         </label>
         <textarea
-          // TODO: set sane maxLength
           {...register('bio', { maxLength: 1000 })}
-          className="input"
+          className="input h-44"
           placeholder="Add a bio"
           spellCheck={`${!calm.disableSpellcheck}`}
         />
