@@ -101,12 +101,9 @@ export default function Notifications({
   const MarkAsRead = (
     <button
       disabled={isMarkReadPending || !hasUnreads}
-      className={cn(
-        'small-button whitespace-nowrap text-sm',
-        {
-          'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
-        }
-      )}
+      className={cn('small-button whitespace-nowrap text-sm', {
+        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+      })}
       onClick={markAllRead}
     >
       {isMarkReadPending ? (
@@ -129,9 +126,11 @@ export default function Notifications({
         </header>
       )}
       <section className="flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-gray-50 p-6">
-        <Helmet>
-          <title>{group ? `${group?.meta?.title} ${title}` : title}</title>
-        </Helmet>
+        {group && (
+          <Helmet>
+            <title>{group ? `${group.meta.title} ${title}` : title}</title>
+          </Helmet>
+        )}
 
         {group && (
           <div className="card">
@@ -158,7 +157,7 @@ export default function Notifications({
           {!isMobile && (
             <div className="mb-6 flex w-full items-center justify-between">
               <h2 className="text-lg font-bold">
-                {group && 'Group '} Activity {!group && ' in All Groups'}
+                {group && 'Group '}Activity{!group && ' in All Groups'}
               </h2>
               {hasUnreads && MarkAsRead}
             </div>
