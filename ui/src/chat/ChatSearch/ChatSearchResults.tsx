@@ -18,6 +18,7 @@ import ChatSearchResult from './ChatSearchResult';
 
 interface ChatSearchResultsProps {
   whom: string;
+  query?: string;
 }
 
 function itemContent(
@@ -30,15 +31,17 @@ function itemContent(
   ]
 ) {
   return (
-    <div className="px-4 sm:px-2">
+    <div className="pb-2 pr-2">
       <ChatSearchResult whom={whom} writ={writ} time={key} msgLoad={msgLoad} />
     </div>
   );
 }
 
-export default function ChatSearchResults({ whom }: ChatSearchResultsProps) {
+export default function ChatSearchResults({
+  whom,
+  query,
+}: ChatSearchResultsProps) {
   const scrollerRef = useRef<VirtuosoHandle>(null);
-  const { query } = useParams<{ query: string }>();
   const { scan, isLoading } = useChatSearch(whom, query || '');
   const [delayedLoading, setDelayedLoading] = useState(false);
   const reallyLoading = isLoading && query && query !== '';
@@ -108,29 +111,40 @@ export default function ChatSearchResults({ whom }: ChatSearchResultsProps) {
   }, [whom]);
 
   return (
-    <div className="relative h-full">
-      <div className="flex h-full w-full flex-col overflow-hidden">
-        {delayedLoading ? (
-          <div className="h-full">
-            <ChatScrollerPlaceholder count={30} />
-          </div>
-        ) : entries.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center">
-            <div className="text-xl font-semibold text-gray-600">
-              No results found
-            </div>
-          </div>
-        ) : (
-          <Virtuoso
-            {...thresholds}
-            ref={scrollerRef}
-            data={entries}
-            itemContent={itemContent}
-            computeItemKey={(i, item) => item[1].toString()}
-            className="h-full w-full list-none overflow-x-hidden overflow-y-scroll"
-          />
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="mb-6 flex items-center justify-between text-sm text-gray-400">
+        {query && (
+          <strong>
+            Search Results for &ldquo;
+            <span className="text-gray-800">{query}</span>&rdquo;
+          </strong>
+        )}
+        {entries.length > 0 && (
+          <strong>
+            Sorted by <span className="text-gray-800">Most Recent</span>
+          </strong>
         )}
       </div>
+      {delayedLoading ? (
+        <div className="flex-1">
+          <ChatScrollerPlaceholder count={30} />
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="flex h-full flex-col items-center justify-center">
+          <div className="font-semibold text-gray-600">
+            {query ? 'No results found' : 'Enter a search to get started'}
+          </div>
+        </div>
+      ) : (
+        <Virtuoso
+          {...thresholds}
+          ref={scrollerRef}
+          data={entries}
+          itemContent={itemContent}
+          computeItemKey={(i, item) => item[1].toString()}
+          className="h-full w-full list-none overflow-x-hidden overflow-y-scroll"
+        />
+      )}
     </div>
   );
 }

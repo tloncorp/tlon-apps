@@ -37,7 +37,7 @@ function ChatSearchResult({
     <Link
       to={to}
       className={cn(
-        'flex flex-col break-words rounded-md px-2 py-1 hover:bg-gray-50'
+        'flex flex-col break-words rounded-md border border-gray-50 px-2 py-1 hover:bg-gray-50'
       )}
       onClick={() => msgLoad(time, 'click')}
       onMouseOver={() => msgLoad(time, 'hover')}

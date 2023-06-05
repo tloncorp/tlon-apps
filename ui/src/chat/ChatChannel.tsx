@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React, { useEffect, useState, useCallback } from 'react';
-import { Route, Routes, useNavigate, useParams } from 'react-router';
+import { Route, Routes, useMatch, useNavigate, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
@@ -22,12 +22,10 @@ import {
   isTalk,
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
-import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder';
 import { useLastReconnect } from '@/state/local';
 import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia from '@/logic/useMedia';
-import ChatSearchResults from './ChatSearch/ChatSearchResults';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -55,6 +53,7 @@ function ChatChannel({ title }: ViewProps) {
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
   const inThread = idShip && idTime;
+  const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
   const { sendMessage } = useChatState.getState();
   const briefs = useAllBriefs();
   const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
@@ -111,29 +110,29 @@ function ChatChannel({ title }: ViewProps) {
   }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);
 
   return (
-    <Routes>
-      <Route
-        path="search/:query?"
-        element={
-          <Layout className="flex-1 bg-white" header={<ChatSearch />}>
-            <Helmet>
-              <title>
-                {channel && group
-                  ? `${channel.meta.title} in ${group.meta.title} Search`
-                  : 'Search'}
-              </title>
-            </Helmet>
-            <ChatSearchResults whom={chFlag} />
-          </Layout>
-        }
-      />
-      <Route
-        path="*"
-        element={
-          <>
-            <Layout
-              className="flex-1 bg-white"
-              header={
+    <>
+      <Layout
+        className="flex-1 bg-white"
+        header={
+          <Routes>
+            <Route
+              path="search/:query?"
+              element={
+                <>
+                  <ChatSearch />
+                  <Helmet>
+                    <title>
+                      {channel && group
+                        ? `${channel.meta.title} in ${group.meta.title} Search`
+                        : 'Search'}
+                    </title>
+                  </Helmet>
+                </>
+              }
+            />
+            <Route
+              path="*"
+              element={
                 <ChannelHeader
                   flag={groupFlag}
                   nest={nest}
@@ -149,45 +148,42 @@ function ChatChannel({ title }: ViewProps) {
                   </Link>
                 </ChannelHeader>
               }
-              footer={
-                <div
-                  className={cn(
-                    canWrite ? 'border-t-2 border-gray-50 p-3 sm:p-4' : ''
-                  )}
-                >
-                  {canWrite ? (
-                    <ChatInput
-                      key={chFlag}
-                      whom={chFlag}
-                      sendMessage={sendMessage}
-                      showReply
-                      autoFocus={!inThread}
-                    />
-                  ) : null}
-                </div>
-              }
-            >
-              <Helmet>
-                <title>
-                  {channel && group
-                    ? `${channel.meta.title} in ${group.meta.title} ${title}`
-                    : title}
-                </title>
-              </Helmet>
-              <ChatWindow whom={chFlag} />
-            </Layout>
-            <Routes>
-              {isSmall ? null : (
-                <Route
-                  path="message/:idShip/:idTime"
-                  element={<ChatThread />}
-                />
-              )}
-            </Routes>
-          </>
+            />
+          </Routes>
         }
-      />
-    </Routes>
+        footer={
+          <div
+            className={cn(
+              canWrite ? 'border-t-2 border-gray-50 p-3 sm:p-4' : ''
+            )}
+          >
+            {canWrite ? (
+              <ChatInput
+                key={chFlag}
+                whom={chFlag}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus={!inThread && !inSearch}
+              />
+            ) : null}
+          </div>
+        }
+      >
+        <Helmet>
+          <title>
+            {channel && group
+              ? `${channel.meta.title} in ${group.meta.title} ${title}`
+              : title}
+          </title>
+        </Helmet>
+        <ChatWindow whom={chFlag} />
+      </Layout>
+      <Routes>
+        {isSmall ? null : (
+          <Route path="message/:idShip/:idTime" element={<ChatThread />} />
+        )}
+      </Routes>
+    </>
   );
 }
 
