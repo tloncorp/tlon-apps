@@ -103,7 +103,6 @@ export default function Notifications({
       disabled={isMarkReadPending || !hasUnreads}
       className={cn(
         'small-button whitespace-nowrap text-sm',
-        isMobile ? 'small-button' : 'button',
         {
           'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
         }
