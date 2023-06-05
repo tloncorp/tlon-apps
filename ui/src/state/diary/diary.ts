@@ -408,9 +408,7 @@ export function useRemoteOutline(
     return {} as DiaryOutline;
   }
 
-  const { outline } = data as DiarySaid;
-
-  return outline as DiaryOutline;
+  return ((data as DiarySaid)?.outline ?? {}) as DiaryOutline;
 }
 
 export function useMarkReadDiaryMutation() {
