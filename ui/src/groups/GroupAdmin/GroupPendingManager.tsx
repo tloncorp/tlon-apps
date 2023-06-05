@@ -19,7 +19,7 @@ const DA_BEGIN = daToUnix(bigInt('170141184492615420181573981275213004800'));
 
 export default function GroupPendingManager() {
   const flag = useRouteGroup();
-  const group = useGroup(flag);
+  const group = useGroup(flag, true);
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
 
