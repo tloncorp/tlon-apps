@@ -251,8 +251,15 @@ export default function FindGroups({ title }: ViewProps) {
             <div>
               <h1 className="text-lg font-bold">Join With Code</h1>
               <p className="mt-4 mb-8 leading-6 text-gray-600">
-                If you know the host id or shortcode of a public group, you can
-                enter it here to join.
+                If you know the{' '}
+                <abbr title="~sampel-palnet" className="cursor-help">
+                  host ID
+                </abbr>{' '}
+                or{' '}
+                <abbr title="~sampel-palnet/group-name" className="cursor-help">
+                  shortcode
+                </abbr>{' '}
+                of a public group, you can enter it here to join.
               </p>
               <label htmlFor="flag" className="mb-2 block font-semibold">
                 Host ID or Shortcode

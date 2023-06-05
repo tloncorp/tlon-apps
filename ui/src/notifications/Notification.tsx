@@ -146,7 +146,7 @@ export default function Notification({
     <div
       className={cn(
         'relative flex space-x-3 rounded-xl p-3 text-gray-600',
-        bin.unread ? 'bg-blue-soft dark:bg-blue-900' : 'bg-white'
+        bin.unread ? 'bg-blue-soft dark:bg-blue-900' : 'bg-gray-50'
       )}
     >
       <Link
@@ -176,7 +176,7 @@ export default function Notification({
           {mentionBool || commentBool || replyBool ? (
             <p
               className={cn(
-                'small-button bg-gray-50 text-gray-800',
+                'small-button bg-blue-soft text-blue',
                 moreCount > 0 ? 'mt-2' : 'mt-0'
               )}
             >

@@ -287,7 +287,7 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   return (
     <Notifications
       child={GroupNotification}
-      title={`All Notifications • ${appHead('').title}`}
+      title={`Activity • ${appHead('').title}`}
     />
   );
 }
@@ -304,7 +304,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               element={
                 <Notifications
                   child={GroupNotification}
-                  title={`All Notifications • ${appHead('').title}`}
+                  title={`Activity • ${appHead('').title}`}
                 />
               }
             />
