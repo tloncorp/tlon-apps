@@ -404,7 +404,7 @@ export function useRemoteOutline(
     },
   });
 
-  if (rest.isLoading || rest.isError || data === undefined) {
+  if (rest.isLoading || rest.isError || !data) {
     return {} as DiaryOutline;
   }
 
