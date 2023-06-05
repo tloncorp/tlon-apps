@@ -32,3 +32,7 @@ a[aria-disabled='true'] {
 .wrap-anywhere {
   overflow-wrap: anywhere;
 }
+
+.height-transition {
+  @apply transition-all duration-300 ease-in-out;
+}

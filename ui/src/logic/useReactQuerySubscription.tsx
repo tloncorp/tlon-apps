@@ -58,7 +58,6 @@ export default function useReactQuerySubscription({
   return useQuery(queryKey, fetchData, {
     retryOnMount: false,
     refetchOnMount: false,
-    refetchOnWindowFocus: false,
     ...options,
   });
 }

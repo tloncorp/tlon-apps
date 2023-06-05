@@ -39,7 +39,7 @@ export const groupsMenuOptions: IMenuOption[] = [
     modal: true,
   },
   {
-    title: 'Notifications',
+    title: 'Activity',
     subtitle: '',
     to: '/notifications',
     icon: CommandBadge,

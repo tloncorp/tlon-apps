@@ -108,7 +108,7 @@
     (scry-rug rest.pole group/flag rug)
   ::
       [%x %desk desk=@ rest=*]
-    (scry-rug rest.pole desk/desk.pole (~(got by desks) desk.pole))
+    (scry-rug rest.pole desk/desk.pole (~(gut by desks) desk.pole *rug:h))
   ::
       [%x %yarn uid=@ ~]
     ``hark-yarn+!>((~(got by yarns) (slav %uv uid.pole)))

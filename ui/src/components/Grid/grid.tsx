@@ -86,14 +86,15 @@ export default function Grid() {
   const navigate = useNavigate();
   const location = useLocation();
   const charges = useCharges();
+  const chargeKeys = Object.keys(charges);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const { setIsOpen: setLeapIsOpen } = useLeap();
   const { order, loaded } = useTiles();
   const { mutate } = usePutEntryMutation({ bucket: 'tiles', key: 'order' });
-  const chargesLoaded = Object.keys(charges).length > 0;
-  const tilesToDisplay = order.filter(
-    (t) => t !== 'landscape' && t !== window.desk
-  );
+  const chargesLoaded = chargeKeys.length > 0;
+  const tilesToDisplay = order
+    .filter((t) => t !== 'landscape' && t !== window.desk)
+    .filter((t) => chargeKeys.includes(t));
   const totalTiles = tilesToDisplay.length;
   const gridRef = React.useRef<HTMLDivElement>(null);
   const gridWidth = gridRef.current?.clientWidth || 0;
@@ -150,7 +151,6 @@ export default function Grid() {
 
   useEffect(() => {
     const hasKeys = order && !!order.length;
-    const chargeKeys = Object.keys(charges);
     const hasChargeKeys = chargeKeys.length > 0;
 
     if (!loaded) {
@@ -172,7 +172,7 @@ export default function Grid() {
         val: uniq(order.filter((key) => key in charges).concat(chargeKeys)),
       });
     }
-  }, [charges, order, loaded, mutate]);
+  }, [chargeKeys, charges, order, loaded, mutate]);
 
   if (!chargesLoaded) {
     return <span>Loading...</span>;

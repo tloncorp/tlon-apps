@@ -154,7 +154,7 @@ function NoShipsMessage() {
     <div className="flex content-center space-x-1 px-2 py-3">
       <ExclamationPoint className="mr-2 w-[18px] text-gray-300" />
       <span className="italic">
-        This is not a known alias or valid ship name.
+        This is not a known nickname or valid ship name (~sampel-palnet).
       </span>
     </div>
   );
@@ -545,7 +545,7 @@ export default function ShipSelector({
     <CreatableSelect
       ref={selectRef}
       formatCreateLabel={AddNewOption}
-      autoFocus
+      autoFocus={autoFocus}
       isMulti
       className={containerClassName}
       styles={{

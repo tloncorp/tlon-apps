@@ -1,14 +1,14 @@
 import React, { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
-import { useNavigate, useParams } from 'react-router';
 import { useAddChannelMutation, useRouteGroup } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import { useHeapState } from '@/state/heap/heap';
-import { useDiaryState } from '@/state/diary';
+import { useCreateDiaryMutation, useDiaries } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -18,13 +18,16 @@ export default function NewChannelForm() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
+  const shelf = useDiaries();
   const { mutate: mutateAddChannel, status: addChannelStatus } =
     useAddChannelMutation();
+  const { mutateAsync: createDiary } = useCreateDiaryMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
     zone: 'default',
     added: Date.now(),
     readers: [],
+    writers: [],
     join: false,
     meta: {
       title: '',
@@ -42,7 +45,7 @@ export default function NewChannelForm() {
 
   const onSubmit = useCallback(
     async (values: NewChannelFormSchema) => {
-      const { privacy, type, ...nextChannel } = values;
+      const { type, ...nextChannel } = values;
       const titleIsNumber = Number.isInteger(Number(values.meta.title));
       /*
         For now channel names are used as keys for pacts. Therefore we need to
@@ -64,7 +67,7 @@ export default function NewChannelForm() {
         }
 
         if (type === 'diary') {
-          return useDiaryState.getState().notes[tempNewChannelFlag];
+          return shelf[tempNewChannelFlag];
         }
 
         if (type === 'heap') {
@@ -81,12 +84,6 @@ export default function NewChannelForm() {
       const newChannelFlag = `${window.our}/${channelName}`;
       const newChannelNest = `${type}/${newChannelFlag}`;
 
-      if (privacy === 'secret') {
-        nextChannel.readers.push('admin');
-      } else {
-        nextChannel.readers.splice(nextChannel.readers.indexOf('admin'), 1);
-      }
-
       if (section) {
         nextChannel.zone = section;
       }
@@ -96,7 +93,7 @@ export default function NewChannelForm() {
           ? useChatState.getState().create
           : type === 'heap'
           ? useHeapState.getState().create
-          : useDiaryState.getState().create;
+          : createDiary;
 
       try {
         await creator({
@@ -104,8 +101,8 @@ export default function NewChannelForm() {
           name: channelName,
           title: values.meta.title,
           description: values.meta.description,
-          readers: values.readers,
-          writers: privacy !== 'public' ? ['admin'] : [],
+          readers: values.readers.includes('members') ? [] : values.readers,
+          writers: values.writers,
         });
       } catch (e) {
         console.log('NewChannelForm::onSubmit::createChannel', e);
@@ -127,7 +124,15 @@ export default function NewChannelForm() {
         isMobile ? `/groups/${groupFlag}` : `/groups/${groupFlag}/channels`
       );
     },
-    [section, groupFlag, navigate, isMobile, mutateAddChannel]
+    [
+      section,
+      groupFlag,
+      navigate,
+      isMobile,
+      mutateAddChannel,
+      shelf,
+      createDiary,
+    ]
   );
 
   return (
@@ -143,6 +148,14 @@ export default function NewChannelForm() {
           Channel Name*
           <input
             {...form.register('meta.title', { required: true })}
+            className="input my-2 block w-full p-1"
+            type="text"
+          />
+        </label>
+        <label className="mb-3 font-semibold">
+          Channel Description
+          <input
+            {...form.register('meta.description')}
             className="input my-2 block w-full p-1"
             type="text"
           />

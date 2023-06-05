@@ -18,12 +18,10 @@ import {
   useMessagesFilter,
   usePutEntryMutation,
 } from '@/state/settings';
-import AsteriskIcon from '@/components/icons/Asterisk16Icon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
-import PencilSettingsIcon from '@/components/icons/PencilSettingsIcon';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -59,45 +57,30 @@ export function TalkAppMenu() {
               />
             </div>
           </DropdownMenu.Trigger>
-
-          <DropdownMenu.Content className="dropdown mt-2 -ml-2 w-60">
-            <a
-              className="dropdown-item flex flex-row items-center p-2 no-underline"
-              href="https://airtable.com/shrflFkf5UyDFKhmW"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md text-blue">
-                <AsteriskIcon className="h-6 w-6" />
-              </div>
-              <DropdownMenu.Item className="dropdown-item pl-3 text-blue">
+          <DropdownMenu.Content className="dropdown">
+            <DropdownMenu.Item className="dropdown-item-blue">
+              <a
+                href="https://airtable.com/shrflFkf5UyDFKhmW"
+                target="_blank"
+                rel="noreferrer"
+              >
                 Submit Feedback
-              </DropdownMenu.Item>
-            </a>
-            <Link
-              to="/about"
-              className="dropdown-item flex flex-row items-center p-2 no-underline"
-              state={{ backgroundLocation: location }}
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
-                <TalkIcon className="h-6 w-6" />
-              </div>
-              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
+              </a>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="dropdown-item">
+              <Link to="/about" state={{ backgroundLocation: location }}>
                 About Talk
-              </DropdownMenu.Item>
-            </Link>
-            <Link
-              to="/settings"
-              className="dropdown-item flex flex-row items-center p-2 no-underline"
-              state={{ backgroundLocation: location }}
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
-                <PencilSettingsIcon className="h-6 w-6" />
-              </div>
-              <DropdownMenu.Item className="dropdown-item pl-3 text-gray-600">
+              </Link>
+            </DropdownMenu.Item>
+            <DropdownMenu.Item className="dropdown-item">
+              <Link
+                to="/settings"
+                className=""
+                state={{ backgroundLocation: location }}
+              >
                 App Settings
-              </DropdownMenu.Item>
-            </Link>
+              </Link>
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       }

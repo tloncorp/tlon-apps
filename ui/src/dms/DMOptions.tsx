@@ -5,13 +5,9 @@ import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import LeaveIcon from '@/components/icons/LeaveIcon';
 import { useChatState, usePinned } from '@/state/chat';
-import PinIcon from '@/components/icons/PinIcon';
 import BulletIcon from '@/components/icons/BulletIcon';
-import InviteIcon16 from '@/components/icons/InviteIcon16';
 import { whomIsMultiDm } from '@/logic/utils';
-import PeopleIcon from '@/components/icons/PeopleIcon';
 import useIsChannelUnread from '@/logic/useIsChannelUnread';
 import DmInviteDialog from './DmInviteDialog';
 
@@ -116,67 +112,54 @@ export default function DmOptions({
           {pending ? (
             <>
               <DropdownMenu.Item
-                className="dropdown-item flex items-center space-x-2"
+                className="dropdown-item"
                 onClick={isMulti ? handleMultiAccept : handleAccept}
               >
-                <PeopleIcon className="h-6 w-6" />
-                <span>Accept</span>
+                Accept
               </DropdownMenu.Item>
               <DropdownMenu.Item
-                className="dropdown-item flex items-center space-x-2"
+                className="dropdown-item"
                 onClick={isMulti ? handleMultiDecline : handleDecline}
               >
-                <PeopleIcon className="h-6 w-6" />
-                <span>Decline</span>
+                Decline
               </DropdownMenu.Item>
             </>
           ) : (
             <>
               {hasActivity ? (
                 <DropdownMenu.Item
-                  className="dropdown-item flex items-center space-x-2 text-blue hover:bg-blue-soft hover:dark:bg-blue-900"
+                  className="dropdown-item-blue"
                   onClick={markRead}
                 >
-                  <BulletIcon className="h-6 w-6" />
-                  <span>Mark Read</span>
+                  Mark Read
                 </DropdownMenu.Item>
               ) : null}
               {isMulti ? (
-                <DropdownMenu.Item
-                  className="dropdown-item flex items-center space-x-2"
-                  asChild
-                >
+                <DropdownMenu.Item className="dropdown-item" asChild>
                   <Link
                     to={`/dm/${whom}/edit-info`}
                     state={{ backgroundLocation: location }}
                   >
-                    <PeopleIcon className="h-6 w-6" />
-                    <span>Chat Info</span>
+                    Chat Info
                   </Link>
                 </DropdownMenu.Item>
               ) : null}
-              <DropdownMenu.Item
-                className="dropdown-item flex items-center space-x-3"
-                onClick={handlePin}
-              >
-                <PinIcon className="h-4 w-4" />
-                <span>{pinned.includes(whom) ? 'Unpin' : 'Pin'}</span>
+              <DropdownMenu.Item className="dropdown-item " onClick={handlePin}>
+                {pinned.includes(whom) ? 'Unpin' : 'Pin'}
               </DropdownMenu.Item>
               {isMulti ? (
                 <DropdownMenu.Item
-                  className="dropdown-item flex items-center space-x-2"
+                  className="dropdown-item "
                   onClick={handleInvite}
                 >
-                  <InviteIcon16 className="h-6 w-6" />
-                  <span>Invite</span>
+                  Invite
                 </DropdownMenu.Item>
               ) : null}
               <DropdownMenu.Item
                 onSelect={leaveMessage}
-                className="dropdown-item flex items-center space-x-2 text-red hover:bg-red-soft hover:dark:bg-red-900"
+                className="dropdown-item-red"
               >
-                <LeaveIcon className="h-6 w-6 opacity-60" />
-                <span>Leave Message</span>
+                Leave Message
               </DropdownMenu.Item>
             </>
           )}

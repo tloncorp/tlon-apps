@@ -1,6 +1,6 @@
 import { useBriefs } from '@/state/chat';
 import { useBriefs as useHeapBriefs } from '@/state/heap/heap';
-import { useBriefs as useDiaryBriefs } from '@/state/diary';
+import { useDiaryBriefs } from '@/state/diary';
 import _ from 'lodash';
 
 export default function useAllBriefs() {
