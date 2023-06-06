@@ -162,7 +162,19 @@
   %+  run:log-on:log:two  old-log
   |=  old-diff=diff:two
   ^-  diff:c
-  ?+  -.old-diff  old-diff
+  ?-  -.old-diff
+      %add-sects  old-diff
+      %del-sects  old-diff
+      %writs
+    :*  %writs
+        p.p.old-diff
+        ?-  -.q.p.old-diff
+          %add  [%add (memo-2-to-3 +.q.p.old-diff)]
+          %del  q.p.old-diff
+          %add-feel  q.p.old-diff
+          %del-feel  q.p.old-diff
+        ==
+    ==
       %create
     :*  %create
         p.old-diff
@@ -179,15 +191,41 @@
   ^-  (list [time writ:c])
   (turn (tap:on:writs:two wit.old-pact) writ-2-to-3)
 ::
+++  memo-2-to-3
+  |=  old-memo=memo:two
+  ^-  memo:c
+  :*  thread=~
+      replying=replying.old-memo
+      author=author.old-memo
+      sent=sent.old-memo
+      content=content.old-memo
+  ==
+::
 ++  writ-2-to-3
-  |=  [=time old-writ=writ:two]
-  ^-  [^time writ:c]
-  :-  time
-  :_  [replying.old-writ +:old-writ]
-  :*  id.old-writ  time  feels.old-writ  ~
-    ?^  replying.old-writ  [%strand (need replying.old-writ)]
-    ?~  replied.old-writ  [%fray ~]
-    [%knot ~]
+  |=  [tim=time old-writ=writ:two]
+  ^-  [time writ:c]
+  :*  tim
+      ^-  seal:c
+      :*  id.old-writ
+          tim
+          feels.old-writ
+          replied.old-writ
+          ::  threaded
+          ?^  replying.old-writ  [%strand (need replying.old-writ)]
+          ?~  replied.old-writ  [%fray ~]
+          [%knot ~]
+      ==
+      ^-  memo:c
+      :*  ::  thread
+          ?^  replying.old-writ  replying.old-writ
+          ?~  replied.old-writ  `id.old-writ
+          ~
+          ::
+          replying.old-writ
+          author.old-writ
+          tim
+          content.old-writ
+      ==
   ==
 ::
 ++  index-threads
