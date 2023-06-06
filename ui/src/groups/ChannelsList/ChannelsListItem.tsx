@@ -17,7 +17,11 @@ import {
   nestToFlag,
   WritePermissions,
 } from '@/logic/utils';
-import { useDiaryState } from '@/state/diary';
+import {
+  useDiaries,
+  useJoinDiaryMutation,
+  useLeaveDiaryMutation,
+} from '@/state/diary';
 import ChannelIcon from '@/channels/ChannelIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
@@ -33,10 +37,10 @@ interface ChannelsListItemProps {
   onChannelDelete: (channelFlag: string, sectionKey: string) => void;
 }
 
-function getChannel(app: string, flag: string): WritePermissions {
+function useGetChannel(app: string, flag: string): WritePermissions {
   const { chats } = useChatState.getState();
   const { stash } = useHeapState.getState();
-  const { shelf } = useDiaryState.getState();
+  const shelf = useDiaries();
 
   switch (app) {
     case 'chat':
@@ -65,6 +69,8 @@ export default function ChannelsListItem({
   const [app, channelFlag] = nestToFlag(nest);
   const briefs = useAllBriefs();
   const joined = isChannelJoined(nest, briefs);
+  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
+  const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
@@ -72,7 +78,10 @@ export default function ChannelsListItem({
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const privacy = getPrivacyFromChannel(channel, getChannel(app, channelFlag));
+  const privacy = getPrivacyFromChannel(
+    channel,
+    useGetChannel(app, channelFlag)
+  );
   const permissionText = PRIVACY_TYPE[privacy].title;
   const { mutate: deleteChannelMutation, status: deleteStatus } =
     useDeleteChannelMutation();
@@ -96,29 +105,35 @@ export default function ChannelsListItem({
 
   const join = useCallback(
     async (chFlag: string) => {
+      if (app === 'diary') {
+        await joinDiary({ group: groupFlag, chan: chFlag });
+        return;
+      }
+
       const joiner =
         app === 'chat'
           ? useChatState.getState().joinChat
-          : app === 'heap'
-          ? useHeapState.getState().joinHeap
-          : useDiaryState.getState().joinDiary;
+          : useHeapState.getState().joinHeap;
 
       await joiner(groupFlag, chFlag);
     },
-    [groupFlag, app]
+    [groupFlag, app, joinDiary]
   );
   const leave = useCallback(
     async (chFlag: string) => {
+      if (app === 'diary') {
+        await leaveDiary({ flag: chFlag });
+        return;
+      }
+
       const leaver =
         app === 'chat'
           ? useChatState.getState().leaveChat
-          : app === 'heap'
-          ? useHeapState.getState().leaveHeap
-          : useDiaryState.getState().leaveDiary;
+          : useHeapState.getState().leaveHeap;
 
       await leaver(chFlag);
     },
-    [app]
+    [app, leaveDiary]
   );
 
   const joinChannel = useCallback(async () => {

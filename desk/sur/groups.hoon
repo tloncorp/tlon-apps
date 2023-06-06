@@ -17,7 +17,7 @@
 ::
 ::  $zone: channel grouping
 ::
-::    includes its own metadata for display and keeps the order of 
+::    includes its own metadata for display and keeps the order of
 ::    channels within.
 ::
 ::    zone: the term that represents the ID of a zone
@@ -28,7 +28,7 @@
 ::      %edit: modify the zone metadata
 ::      %mov: reorders the zone in the group
 ::      %mov-nest: reorders a channel within the zone
-::  
+::
 ++  zone
   =<  zone
   |%
@@ -42,7 +42,7 @@
     $%  [%add meta=data:meta]
         [%del ~]
         [%edit meta=data:meta]
-        [%mov idx=@ud]            
+        [%mov idx=@ud]
         [%mov-nest =nest idx=@ud]
     ==
   --
@@ -98,7 +98,7 @@
     ==
   ::
   ::  $diff: represents the set of actions you can take on a channel
-  ::  
+  ::
   ::    add: create a channel
   ::    edit: edit a channel
   ::    del: delete a channel
@@ -112,7 +112,7 @@
         [%edit =channel]
         [%del ~]
       ::
-        [%add-sects sects=(set sect)]   
+        [%add-sects sects=(set sect)]
         [%del-sects sects=(set sect)]
       ::
         [%zone =zone]
@@ -150,6 +150,7 @@
   ::
   +$  diff
     $%  [%add meta=data:meta]
+        [%edit meta=data:meta]
         [%del ~]
     ==
   --
@@ -265,7 +266,7 @@
   $:  name=term
       title=cord
       description=cord
-      image=cord  
+      image=cord
       cover=cord
       =cordon
       members=(jug ship sect)
@@ -306,7 +307,7 @@
 ::
 +$  knock  flag
 ::
-::  $progress: the state of a group join 
+::  $progress: the state of a group join
 ::
 +$  progress
   ?(%knocking %adding %watching %done %error)
@@ -320,7 +321,7 @@
 ::
 ::  $preview: the metadata and entry policy for a group
 ::
-+$  preview  
++$  preview
   $:  =flag
       meta=data:meta
       =cordon

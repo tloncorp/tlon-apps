@@ -738,7 +738,7 @@
       [%x %chat @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
-    (ca-peek:(ca-abed:ca-core ship name) t.t.t.t.path)
+    (ca-peek:(ca-abed:ca-core ship name) %x t.t.t.t.path)
   ::
       [%x %dm ~]
     ``ships+!>(~(key by accepted-dms))
@@ -751,10 +751,10 @@
   ::
       [%x %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
-    (di-peek:(di-abed:di-core ship) t.t.t.path)
+    (di-peek:(di-abed:di-core ship) %x t.t.t.path)
   ::
       [%x %club @ *]
-    (cu-peek:(cu-abed (slav %uv i.t.t.path)) t.t.t.path)
+    (cu-peek:(cu-abed (slav %uv i.t.t.path)) %x t.t.t.path)
   ::
       [%x %draft @ $@(~ [@ ~])]
     =/  =whom:c
@@ -768,6 +768,26 @@
     ==
     =-  ``chat-draft+!>(-)
     `draft:c`[whom (~(gut by drafts) whom *story:c)]
+  ::
+      [%u %dm @ *]
+    =/  =ship  (slav %p i.t.t.path)
+    ?.  (~(has by dms) ship)
+      ``flag+!>(|)
+    (di-peek:(di-abed:di-core ship) %u t.t.t.path)
+  ::
+      [%u %club @ *]
+    =/  =id:club:c  (slav %uv i.t.t.path)
+    ?.  (~(has by clubs) id)
+      ``flag+!>(|)
+    (cu-peek:(cu-abed:cu-core id) %u t.t.t.path)
+  ::
+      [%u %chat @ @ *]
+    =/  =flag:c
+      :-  (slav %p i.t.t.path)
+      (slav %tas i.t.t.t.path)
+    ?.  (~(has by chats) flag)
+      ``flag+!>(|)
+    (ca-peek:(ca-abed:ca-core flag) %u t.t.t.t.path)
   ::
   ==
 ::
@@ -861,15 +881,24 @@
   +*  cu-pact  ~(. pac pact.club)
   ++  cu-core  .
   ++  cu-abet
-  =.  clubs
-    ?:  gone
-      (~(del by clubs) id)
-    (~(put by clubs) id club)
-  cor
+    ::  shouldn't need cleaning, but just in case
+    =.  cu-core  cu-clean
+    =.  clubs
+      ?:  gone
+        (~(del by clubs) id)
+      (~(put by clubs) id club)
+    cor
   ++  cu-abed
     |=  i=id:club:c
     ~|  no-club/i
     cu-core(id i, club (~(gut by clubs) i *club:c))
+  ++  cu-clean
+    =.  hive.crew.club
+      %-  ~(rep in hive.crew.club)
+      |=  [=ship hive=(set ship)]
+      ?:  (~(has in team.crew.club) ship)  hive
+      (~(put in hive) ship)
+    cu-core
   ++  cu-out  (~(del in cu-circle) our.bowl)
   ++  cu-circle
     (~(uni in team.crew.club) hive.crew.club)
@@ -1028,7 +1057,9 @@
     ::
         %hive
       ?:  add.delta
-        ?:  (~(has in hive.crew.club) for.delta)
+        ?:  ?|  (~(has in hive.crew.club) for.delta)
+                (~(has in team.crew.club) for.delta)
+            ==
           cu-core
         =.  hive.crew.club   (~(put in hive.crew.club) for.delta)
         =^  new-uid  cu-core
@@ -1060,10 +1091,10 @@
     cu-core
   ::
   ++  cu-peek
-    |=  =path
+    |=  [care=@tas =path]
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
-      [%writs *]  (peek:cu-pact t.path)
+      [%writs *]  (peek:cu-pact care t.path)
       [%crew ~]   ``club-crew+!>(crew.club)
     ==
   ::
@@ -1241,11 +1272,11 @@
   ++  ca-brief  (brief:ca-pact our.bowl last-read.remark.chat)
   ::
   ++  ca-peek
-    |=  =(pole knot)
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
         [%writs rest=*]
-      (peek:ca-pact rest.pole)
+      (peek:ca-pact care rest.pole)
     ::
         [%perm ~]
       ``chat-perm+!>(perm.chat)
@@ -1616,16 +1647,16 @@
   ::
   ++  di-abed-soft
     |=  s=@p
-    =/  new=?  (~(has by dms) s)
+    =/  new=?  !(~(has by dms) s)
     =/  d
       %+  ~(gut by dms)  s
       =|  =remark:c
       =.  watching.remark  &
       [*pact:c remark ?:(=(src our):bowl %inviting %invited) |]
-    =?  di-core  &(new !=(src our):bowl)
-      di-invited
-    di-core(ship s, dm d)
-
+    ?.  &(new !=(src our):bowl)
+      di-core(ship s, dm d)
+    di-invited:di-core(ship s, dm d)
+  ::
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
@@ -1737,7 +1768,7 @@
     |=  [=wire =sign:agent:gall]
     ^+  di-core
     ?+    wire  ~|(bad-dm-take/wire !!)
-        [%proxy ~]
+        [%hark ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
       ::  TODO: handle?
@@ -1753,11 +1784,11 @@
     ==
   ::
   ++  di-peek
-    |=  =(pole knot)
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
         [%writs rest=*]
-      (peek:di-pact rest.pole)
+      (peek:di-pact care rest.pole)
     ::
         [%search %text skip=@ count=@ nedl=@ ~]
       %-  some

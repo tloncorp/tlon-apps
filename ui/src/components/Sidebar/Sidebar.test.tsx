@@ -15,7 +15,6 @@ vi.mock('@/state/chat', () => ({
   usePinned: () => [],
   useGetLatestChat: () => () => 0,
   useGetLatestCurio: () => () => 0,
-  useGetLatestNote: () => () => 0,
   useMultiDms: () => [],
   usePinnedClubs: () => [],
   useDms: () => [],
@@ -45,6 +44,9 @@ vi.mock('@/logic/utils', () => ({
   normalizeUrbitColor: () => '#ffffff',
   hasKeys: () => false,
   randomElement: (a: any[]) => a[0],
+  storageVersion: () => 0,
+  clearStorageMigration: () => ({}),
+  isTalk: () => false,
 }));
 
 describe('Sidebar', () => {

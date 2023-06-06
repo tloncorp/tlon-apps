@@ -80,7 +80,7 @@ function GroupReference({
               </div>
             ) : (
               <button
-                className="small-button ml-3 whitespace-nowrap bg-blue text-white dark:text-black"
+                className="small-button ml-3 whitespace-nowrap bg-blue-soft text-blue dark:text-black"
                 onClick={button.action}
                 disabled={button.disabled || status === 'error'}
               >
@@ -96,7 +96,7 @@ function GroupReference({
   return (
     <div
       className={cn(
-        'not-prose relative flex max-w-[250px] items-center rounded-lg bg-white text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
+        'not-prose relative mb-2 flex max-w-[300px] items-center rounded-lg bg-white text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
         {
           'border-2 border-gray-50': !plain,
         }
@@ -154,7 +154,7 @@ function GroupReference({
               </div>
             ) : (
               <button
-                className="small-button ml-3 whitespace-nowrap bg-blue text-white dark:text-black"
+                className="small-button ml-3 whitespace-nowrap bg-blue-softer text-blue dark:text-black"
                 onClick={button.action}
                 disabled={button.disabled || status === 'error'}
               >

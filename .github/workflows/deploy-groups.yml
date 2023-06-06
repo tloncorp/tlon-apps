@@ -46,7 +46,7 @@ jobs:
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
-          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
+          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
       - name: 'glob'
@@ -67,7 +67,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: glob
-    name: "Deploy a glob to ~wannec-dozzod-marzod (devstream)"
+    name: "Deploy a glob to ~wannec-dozzod-marnus (devstream)"
     steps:
       - uses: actions/checkout@v3
         with:
@@ -76,14 +76,14 @@ jobs:
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
-          credentials_json: '${{ secrets.JANEWAY_SERVICE_KEY }}'
+          credentials_json: '${{ secrets.GCP_SERVICE_KEY }}'
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups wannec-dozzod-marzod us-west1-b ${{ github.event.inputs.tag }}
+          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups wannec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ github.event.inputs.tag }}
         env:
-          SSH_SEC_KEY: ${{ secrets.JANEWAY_SSH_SEC_KEY }}
-          SSH_PUB_KEY: ${{ secrets.JANEWAY_SSH_PUB_KEY }}
+          SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
+          SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
           URBIT_REPO_TAG: ${{ vars.URBIT_REPO_TAG }}

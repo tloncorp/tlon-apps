@@ -1,10 +1,9 @@
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
-import { useDiaryState } from '@/state/diary';
+import { useAddQuipFeelMutation } from '@/state/diary';
 import { NoteCork } from '@/types/diary';
 import _ from 'lodash';
 import React, { useCallback, useState } from 'react';
-import { useParams } from 'react-router';
 import QuipReaction from './QuipReaction';
 
 interface QuipReactionsProps {
@@ -21,18 +20,14 @@ export default function QuipReactions({
   noteId,
 }: QuipReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const { chShip, chName } = useParams();
-  const chFlag = `${chShip}/${chName}`;
   const feels = _.invertBy(cork.feels);
+  const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
 
   const onEmoji = useCallback(
     async (emoji) => {
-      await useDiaryState
-        .getState()
-        .addQuipFeel(whom, noteId, time, emoji.shortcodes);
-      await useDiaryState.getState().fetchNote(chFlag, noteId);
+      addQuipFeel({ flag: whom, noteId, quipId: time, feel: emoji.shortcodes });
     },
-    [whom, time, chFlag, noteId]
+    [whom, time, noteId, addQuipFeel]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

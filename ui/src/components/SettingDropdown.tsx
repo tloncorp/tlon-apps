@@ -36,18 +36,19 @@ export default function SettingDropdown({
           >
             <span className="flex space-x-2 text-gray-600">
               {selected.label}
-              {status === 'loading' && (
+              {status === 'loading' ? (
                 <LoadingSpinner className="ml-2 h-4 w-4" />
+              ) : (
+                <CaretDownIcon className="ml-2 h-4 w-4" />
               )}
             </span>
-            <CaretDownIcon className="ml-2 h-4 w-4" />
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal className="z-50">
-            <DropdownMenu.Content className="dropdown z-50 text-gray-800">
+            <DropdownMenu.Content className="dropdown z-50">
               <DropdownMenu.RadioGroup>
                 {options.map((option) => (
                   <DropdownMenu.CheckboxItem
-                    className="dropdown-item flex items-center pl-6"
+                    className="dropdown-item flex items-center space-x-1"
                     disabled={disabled}
                     key={option.value}
                     onCheckedChange={(checked) => {
@@ -58,10 +59,8 @@ export default function SettingDropdown({
                   >
                     {selected.value === option.value ? (
                       <CheckIcon className="h-4 w-4" />
-                    ) : (
-                      <span className="h-4 w-4" />
-                    )}
-                    <span className="ml-2 text-gray-600">{option.label}</span>
+                    ) : null}
+                    <span>{option.label}</span>
                   </DropdownMenu.CheckboxItem>
                 ))}
               </DropdownMenu.RadioGroup>

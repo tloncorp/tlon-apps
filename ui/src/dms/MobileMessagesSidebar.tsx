@@ -62,9 +62,11 @@ export default function MobileMessagesSidebar() {
         </h1>
         <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
           <ReconnectingSpinner />
-          <button title="Open Leap" onClick={() => setIsOpen(true)}>
-            <GridIcon className="h-6 w-6 text-gray-400" />
-          </button>
+          {!window.ReactNativeWebView && (
+            <button title="Open Leap" onClick={() => setIsOpen(true)}>
+              <GridIcon className="h-6 w-6 text-gray-400" />
+            </button>
+          )}
           <Link
             to="/dm/new"
             className="default-focus flex items-center rounded-md bg-blue p-1 text-base"

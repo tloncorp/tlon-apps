@@ -31,6 +31,7 @@ refractor.register(hoon);
 
 interface DiaryContentProps {
   content: NoteContent;
+  isPreview?: boolean;
 }
 
 interface InlineContentProps {
@@ -65,8 +66,8 @@ export function InlineContent({ story }: InlineContentProps) {
   if (_.isArray(story)) {
     return (
       <>
-        {story.map((s) => (
-          <InlineContent story={s} />
+        {story.map((s, k) => (
+          <InlineContent story={s} key={k} />
         ))}
       </>
     );
@@ -186,9 +187,9 @@ export function ListingContent({ content }: { content: DiaryListing }) {
         <InlineContent key={i} story={con} />
       ))}
       <List>
-        {content.list.items.map((i) => (
+        {content.list.items.map((con, i) => (
           <li>
-            <ListingContent content={i} />
+            <ListingContent key={i} content={con} />
           </li>
         ))}
       </List>
@@ -227,7 +228,7 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     return (
       <Tag>
         {story.header.content.map((con, i) => (
-          <InlineContent key={i} story={con} />
+          <InlineContent key={`${con}-${i}`} story={con} />
         ))}
       </Tag>
     );
@@ -251,9 +252,17 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 });
 
-export default function DiaryContent({ content }: DiaryContentProps) {
+export default function DiaryContent({
+  content,
+  isPreview,
+}: DiaryContentProps) {
   return (
-    <article className="prose-lg prose break-words dark:prose-invert">
+    <article
+      className={cn('prose break-words dark:prose-invert', {
+        'prose-sm': isPreview,
+        'prose-lg': !isPreview,
+      })}
+    >
       {content.map((c, index) => {
         if ('block' in c) {
           return <BlockContent key={index} story={c.block} />;

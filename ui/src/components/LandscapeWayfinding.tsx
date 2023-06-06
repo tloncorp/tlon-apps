@@ -112,32 +112,29 @@ export default function LandscapeWayfinding() {
         })}
       >
         <Dropdown.Trigger className="relative" asChild>
-          <button className="h-9 w-9 cursor-pointer rounded-lg bg-black text-xl text-white">
+          <button className="h-9 w-9 cursor-pointer rounded-lg border-2 border-gray-100 bg-gray-50 text-base font-bold text-gray-800">
             ?
           </button>
         </Dropdown.Trigger>
         <Dropdown.Content
           side="bottom"
           sideOffset={8}
-          className="dropdown mx-4 flex w-[208px] flex-col space-y-3 rounded-lg bg-white p-2 text-sm font-semibold text-black drop-shadow-lg"
+          className="dropdown mx-4 flex w-[208px] flex-col rounded-lg  drop-shadow-lg"
         >
-          <Dropdown.Item asChild className="dropdown-item p-2">
-            <span
-              onClick={() => setShowModal(true)}
-              className="cursor-pointer text-blue"
-            >
+          <Dropdown.Item asChild className="dropdown-item-blue">
+            <span onClick={() => setShowModal(true)} className="cursor-pointer">
               Basic Wayfinding
             </span>
           </Dropdown.Item>
           <Dropdown.Separator asChild>
             <hr className="my-2 border-[1px] border-gray-50" />
           </Dropdown.Separator>
-          <Dropdown.Item asChild className="dropdown-item p-2">
+          <Dropdown.Item asChild className="dropdown-item">
             <span className="cursor-pointer" onClick={open}>
               Help & Support
             </span>
           </Dropdown.Item>
-          <Dropdown.Item asChild className="dropdown-item p-2">
+          <Dropdown.Item asChild className="dropdown-item">
             <a
               className="no-underline"
               href="https://airtable.com/shrflFkf5UyDFKhmW"
@@ -147,7 +144,7 @@ export default function LandscapeWayfinding() {
               Submit Feedback
             </a>
           </Dropdown.Item>
-          <Dropdown.Item asChild className="dropdown-item p-2">
+          <Dropdown.Item asChild className="dropdown-item">
             <span className="cursor-pointer" onClick={handleHide}>
               Hide This Button
             </span>

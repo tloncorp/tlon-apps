@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
 import { useCallback, useEffect, useMemo } from 'react';
+import create from 'zustand';
 import {
   MutationFunction,
   useMutation,
@@ -28,6 +29,7 @@ import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
+import { getFlagParts, preSig } from '@/logic/utils';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -63,6 +65,24 @@ function groupTrackedPoke(action: Poke<GroupAction>) {
   );
 }
 
+export const useGroupConnectionState = create<{
+  groups: Record<string, boolean>;
+  setGroupConnected: (group: string, connected: boolean) => void;
+}>((set) => ({
+  groups: {},
+  setGroupConnected: (group, connected) =>
+    set((state) => ({
+      groups: {
+        ...state.groups,
+        [group]: connected,
+      },
+    })),
+}));
+
+export function useGroupConnection(flag: string) {
+  return useGroupConnectionState((state) => state.groups[flag] ?? true);
+}
+
 export function useGroups() {
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: [GROUPS_KEY],
@@ -82,6 +102,7 @@ export function useGroups() {
 }
 
 export function useGroup(flag: string, updating = false) {
+  const connection = useGroupConnection(flag);
   const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
@@ -105,10 +126,10 @@ export function useGroup(flag: string, updating = false) {
     app: 'groups',
     path: `/groups/${flag}`,
     options: {
-      enabled: !!flag && flag !== '' && updating,
+      enabled: !!flag && flag !== '' && updating && connection,
       initialData: group,
-      refetchOnWindowFocus: updating,
       refetchOnMount: updating,
+      retry: true,
     },
   });
 
@@ -196,23 +217,46 @@ const defGang = {
 };
 
 export function useGangs() {
+  const queryClient = useQueryClient();
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['gangs'],
     app: 'groups',
     path: `/gangs/updates`,
     scry: `/gangs`,
     options: {
-      refetchOnWindowFocus: true,
       refetchOnMount: false,
-      refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
   });
+
+  // this is a bit of a hack to get the group index data into the gangs
+  const groupIndexDataAsGangs: Gangs = useMemo(
+    () =>
+      (queryClient.getQueriesData(['group-index']) || []).reduce(
+        (acc, [_queryKey, indexData]) => {
+          if (indexData && typeof indexData === 'object') {
+            const newAcc = { ...acc };
+            Object.keys(indexData).forEach((key) => {
+              (newAcc as Gangs)[key] = {
+                preview: (indexData as GroupIndex)[key],
+                invite: null,
+                claim: null,
+              };
+            });
+            return newAcc;
+          }
+          return acc;
+        },
+        {}
+      ),
+    [queryClient]
+  );
 
   if (rest.isLoading || rest.isError) {
     return {} as Gangs;
   }
 
   return {
+    ...groupIndexDataAsGangs,
     ...(data as Gangs),
   };
 }
@@ -223,13 +267,13 @@ export function useGang(flag: string) {
   return data?.[flag] || defGang;
 }
 
-export const useGangPreview = (flag: string, isScrolling?: boolean) => {
+export const useGangPreview = (flag: string, disabled = false) => {
   const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
     queryKey: ['gang-preview', flag],
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
-      enabled: !isScrolling,
+      enabled: !disabled,
     },
   });
 
@@ -272,7 +316,7 @@ export function usePendingInvites() {
   return useMemo(
     () =>
       Object.entries(gangs)
-        .filter(([k, g]) => g.invite !== null && !(k in groups))
+        .filter(([k, g]) => g.invite && g.invite !== null && !(k in groups))
         .map(([k]) => k),
     [gangs, groups]
   );
@@ -298,7 +342,7 @@ export function usePendingGangsWithoutClaim() {
   const pendingGangs: Gangs = {};
 
   Object.entries(gangs)
-    .filter(([flag, g]) => g.invite !== null && !(flag in groups))
+    .filter(([flag, g]) => g.invite && g.invite !== null && !(flag in groups))
     .filter(
       ([, gang]) =>
         !gang.claim ||
@@ -325,7 +369,6 @@ export function useChannelPreview(nest: string, disableLoading = false) {
     options: {
       enabled: !disableLoading,
       refetchOnMount: false,
-      refetchOnWindowFocus: false,
     },
   });
 
@@ -711,15 +754,43 @@ export function useGroupLeaveMutation() {
       });
     },
     {
-      onSettled: (_data, _error, variables) => {
-        queryClient.removeQueries({
-          queryKey: [GROUPS_KEY, variables.flag],
-          exact: true,
+      onMutate: async (variables) => {
+        await queryClient.cancelQueries([GROUPS_KEY, variables.flag]);
+        await queryClient.cancelQueries(['gangs', variables.flag]);
+        await queryClient.cancelQueries(['gang-preview', variables.flag]);
+        await queryClient.cancelQueries([GROUPS_KEY]);
+
+        queryClient.setQueryData<Group | undefined>(
+          [GROUPS_KEY, variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Group | undefined>(
+          ['gangs', variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Group | undefined>(
+          ['gang-preview', variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Groups | undefined>([GROUPS_KEY], (old) => {
+          if (!old) {
+            return undefined;
+          }
+          const newGroups = old;
+          delete newGroups[variables.flag];
+
+          return newGroups;
         });
-        queryClient.invalidateQueries([GROUPS_KEY]);
-        queryClient.invalidateQueries(['gangs']);
-        queryClient.invalidateQueries(['gangs', variables.flag]);
-        queryClient.invalidateQueries(['gang-preview', variables.flag]);
+      },
+      onSettled: async (_data, _error, variables) => {
+        queryClient.removeQueries(['gangs', variables.flag]);
+        queryClient.removeQueries(['gang-preview', variables.flag]);
+        queryClient.removeQueries([GROUPS_KEY, variables.flag]);
+        await queryClient.refetchQueries(['gangs']);
+        await queryClient.refetchQueries([GROUPS_KEY]);
       },
     }
   );
@@ -905,7 +976,6 @@ export function useGroupDelMembersMutation() {
 }
 
 export function useGroupAddRoleMutation() {
-  // Not used yet.
   const mutationFn = async (variables: {
     flag: string;
     sect: string;
@@ -925,8 +995,27 @@ export function useGroupAddRoleMutation() {
   return useGroupMutation(mutationFn);
 }
 
+export function useGroupEditRoleMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    sect: string;
+    meta: GroupMeta;
+  }) => {
+    const diff = {
+      cabal: {
+        sect: variables.sect,
+        diff: {
+          edit: { ...variables.meta, image: '', cover: '' },
+        },
+      },
+    };
+    await api.poke(groupAction(variables.flag, diff));
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
 export function useGroupDelRoleMutation() {
-  // Not used yet.
   const mutationFn = async (variables: { flag: string; sect: string }) => {
     const diff = {
       cabal: {
@@ -954,6 +1043,37 @@ export function useGroupIndex(ship: string) {
     groupIndex: data as GroupIndex,
     ...rest,
   };
+}
+
+export function useGroupHostHi(flag: string) {
+  const { ship } = getFlagParts(flag);
+  const connected = useGroupConnection(ship);
+  const queryClient = useQueryClient();
+  const { data, ...rest } = useReactQuerySubscribeOnce({
+    queryKey: ['group-host-hi', ship],
+    app: 'groups',
+    path: `/hi/${ship}`,
+    options: {
+      enabled: ship !== '' && preSig(window.ship) !== ship && !connected,
+      cacheTime: 60 * 1000, // default to 1 minute before we check if the host is online again.
+      retry: false,
+      onSuccess: () => {
+        queryClient.removeQueries(['group-host-hi', ship]);
+      },
+    },
+  });
+
+  return {
+    ship: data as string,
+    ...rest,
+  };
+}
+
+export function useGroupPreviewFromIndex(flag: string) {
+  const { ship } = getFlagParts(flag);
+  const { groupIndex } = useGroupIndex(ship);
+
+  return groupIndex?.[flag];
 }
 
 export function useGroupBanShipsMutation() {

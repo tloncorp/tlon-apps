@@ -40,7 +40,6 @@ export default function ChannelsList() {
     return sectionedChannels;
   }, [group, vessel]);
 
-
   const getFilteredSectionedChannels = useCallback(() => {
     const filteredSectionedChannels: SectionMap = {};
     if (searchInput !== '') {

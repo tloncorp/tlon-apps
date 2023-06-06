@@ -7,6 +7,7 @@ import CurioReference from './CurioReference';
 // eslint-disable-next-line import/no-cycle
 import WritChanReference from './WritChanReference';
 import GroupReference from './GroupReference';
+// eslint-disable-next-line import/no-cycle
 import NoteReference from './NoteReference';
 import AppReference from './AppReference';
 // eslint-disable-next-line import/no-cycle

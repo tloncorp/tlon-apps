@@ -1,3 +1,4 @@
+import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useIsMobile } from '@/logic/useMedia';
 import {
@@ -34,6 +35,27 @@ export default function GangItem(props: { flag: string }) {
     }
   };
 
+  if (!requested && !errored) {
+    return (
+      <SidebarItem
+        icon={
+          <GroupAvatar
+            {...preview?.meta}
+            size="h-12 w-12 sm:h-6 sm:w-6"
+            className="opacity-60"
+          />
+        }
+        actions={<GroupActions flag={flag} />}
+        className="px-4"
+        to={`/groups/${flag}`}
+      >
+        <span className="inline-block w-full truncate opacity-60">
+          {preview ? preview.meta.title : flag}
+        </span>
+      </SidebarItem>
+    );
+  }
+
   return (
     <Popover.Root>
       <Popover.Anchor>
@@ -46,6 +68,7 @@ export default function GangItem(props: { flag: string }) {
                 className="opacity-60"
               />
             }
+            className="px-4"
           >
             <span className="inline-block w-full truncate opacity-60">
               {preview ? preview.meta.title : flag}
@@ -58,7 +81,7 @@ export default function GangItem(props: { flag: string }) {
         sideOffset={isMobile ? 0 : 16}
         className="z-10"
       >
-        <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
+        <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 shadow-xl">
           {requested ? (
             <>
               <span>You've requested to join this group.</span>

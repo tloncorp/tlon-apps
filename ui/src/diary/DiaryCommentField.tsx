@@ -5,7 +5,7 @@ import { DiaryInline } from '@/types/diary';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { useDiaryState, useQuip } from '@/state/diary';
+import { useAddQuipMutation, useQuip } from '@/state/diary';
 import useRequestState from '@/logic/useRequestState';
 import { normalizeInline, JSONToInlines, makeMention } from '@/logic/tiptap';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -35,6 +35,7 @@ export default function DiaryCommentField({
   const chFlag = `${chShip}/${chName}`;
   const quipReply = useQuip(chFlag, replyTo, quipReplyId || '');
   const { isPending, setPending, setReady } = useRequestState();
+  const { mutateAsync: addQuip } = useAddQuipMutation();
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -55,9 +56,13 @@ export default function DiaryCommentField({
       );
 
       editor?.commands.setContent('');
-      await useDiaryState.getState().addQuip(flag, replyTo, {
-        block: replyCite ? [replyCite] : [],
-        inline,
+      await addQuip({
+        flag,
+        noteId: replyTo,
+        content: {
+          block: replyCite ? [replyCite] : [],
+          inline,
+        },
       });
       setReplyCite(undefined);
       setSearchParms();
@@ -72,6 +77,7 @@ export default function DiaryCommentField({
       replyCite,
       setReplyCite,
       setSearchParms,
+      addQuip,
     ]
   );
 
@@ -103,7 +109,12 @@ export default function DiaryCommentField({
   }, [flag, messageEditor]);
 
   useEffect(() => {
-    if (quipReplyId && messageEditor && !messageEditor.isDestroyed) {
+    if (
+      quipReply &&
+      quipReplyId &&
+      messageEditor &&
+      !messageEditor.isDestroyed
+    ) {
       messageEditor?.commands.focus();
       const mention = makeMention(quipReply?.memo.author.slice(1));
       messageEditor?.commands.setContent(mention);

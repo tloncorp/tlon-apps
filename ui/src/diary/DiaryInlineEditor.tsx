@@ -1,12 +1,7 @@
-import classNames from 'classnames';
+import cn from 'classnames';
 import { EditorView } from 'prosemirror-view';
 import { PluginKey } from 'prosemirror-state';
-import {
-  Editor as EditorCore,
-  EditorOptions,
-  KeyboardShortcutCommand,
-  Range,
-} from '@tiptap/core';
+import { EditorOptions, KeyboardShortcutCommand, Range } from '@tiptap/core';
 import {
   Editor,
   EditorContent,
@@ -20,7 +15,6 @@ import React, {
   useImperativeHandle,
   useState,
   forwardRef,
-  useMemo,
 } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
@@ -31,7 +25,6 @@ import Italic from '@tiptap/extension-italic';
 import Strike from '@tiptap/extension-strike';
 import Link from '@tiptap/extension-link';
 import Text from '@tiptap/extension-text';
-import cn from 'classnames';
 import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
@@ -112,10 +105,6 @@ const ActionMenuBar = forwardRef<
       return false;
     },
   }));
-
-  const onClick = (idx: number) => {
-    selectItem(idx);
-  };
 
   return (
     <ul className="w-32 border border-black bg-white" ref={ref}>
@@ -371,16 +360,6 @@ export function useDiaryInlineEditor({
     [placeholder, autofocus]
   );
 
-  useEffect(() => {
-    if (ed && !ed.isDestroyed) {
-      const com = ed.chain().clearContent().insertContent(content);
-      if (content !== '') {
-        com.focus();
-      }
-      com.run();
-    }
-  }, [ed, content]);
-
   return ed;
 }
 
@@ -396,7 +375,7 @@ export default function DiaryInlineEditor({
   const isMobile = useIsMobile();
 
   return (
-    <div className={classNames('input-transparent block p-0', className)}>
+    <div className={cn('input-transparent block p-0', className)}>
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
       <EditorContent
         className="prose-lg prose w-full dark:prose-invert"

@@ -149,8 +149,8 @@ export default function NewGroup() {
       modal
       onOpenChange={onOpenChange}
       onInteractOutside={(e) => e.preventDefault()}
-      className="w-[500px] sm:inset-y-24"
-      containerClass="w-full h-full sm:max-w-lg"
+      className="sm:inset-y-24"
+      containerClass="w-full h-full sm:max-w-2xl"
     >
       <FormProvider {...form}>
         <div className="flex flex-col">{currentStepComponent}</div>

@@ -31,7 +31,7 @@ import GroupInviteDialog from '@/groups/GroupInviteDialog';
 import GroupLeaveDialog from '@/groups/GroupLeaveDialog';
 import Message from '@/dms/Message';
 import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
-import GroupMemberManager from '@/groups/GroupAdmin/GroupMemberManager';
+import GroupDelete from '@/groups/GroupAdmin/GroupDelete';
 import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import NewGroup from '@/groups/NewGroup/NewGroup';
@@ -45,6 +45,7 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
+import GroupInvitesPrivacy from './groups/GroupAdmin/GroupInvitesPrivacy';
 import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
 import HeapChannel from './heap/HeapChannel';
@@ -54,7 +55,8 @@ import DMNotification from './notifications/DMNotification';
 import GroupNotification from './notifications/GroupNotification';
 import EditCurioModal from './heap/EditCurioModal';
 import GroupMembers from './groups/GroupAdmin/GroupMembers';
-import GroupPendingManager from './groups/GroupAdmin/GroupPendingManager';
+import GroupRoles from './groups/GroupAdmin/GroupRoles';
+import GroupInfoEditor from './groups/GroupAdmin/GroupInfoEditor';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from './components/DisconnectNotice';
 import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
@@ -67,13 +69,12 @@ import Leap from './components/Leap/Leap';
 import { isTalk, preSig } from './logic/utils';
 import bootstrap from './state/bootstrap';
 import AboutDialog from './components/AboutDialog';
-import UpdateNotice from './components/UpdateNotice';
 import MobileGroupChannelList from './groups/MobileGroupChannelList';
 import LandscapeWayfinding from './components/LandscapeWayfinding';
 import { useScheduler } from './state/scheduler';
 import { LeapProvider } from './components/Leap/useLeap';
 import VitaMessage from './components/VitaMessage';
-import Dialog, { DialogContent } from './components/Dialog';
+import Dialog from './components/Dialog';
 import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
@@ -88,10 +89,8 @@ function SuspendedModal({ children }: { children: React.ReactNode }) {
   return (
     <Suspense
       fallback={
-        <Dialog defaultOpen modal>
-          <DialogContent className="bg-transparent" containerClass="w-full">
-            <LoadingSpinner />
-          </DialogContent>
+        <Dialog defaultOpen modal className="bg-transparent" close="none">
+          <LoadingSpinner />
         </Dialog>
       }
     >
@@ -253,6 +252,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<EmojiPicker />}
               />
               <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
                 path="/dm/:ship/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
@@ -264,60 +267,46 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
-function HomeRoute({
-  isMobile = true,
-  isInGroups = false,
-}: {
-  isMobile: boolean;
-  isInGroups: boolean;
-}) {
-  if (!isInGroups) {
-    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
-  }
+let redirectToFind = !window.location.pathname.startsWith('/apps/groups/find');
+function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
+  const navigate = useNavigate();
+  const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
+  const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
 
-  if (isMobile && isInGroups) {
+  useEffect(() => {
+    if (!isInGroups && redirectToFind) {
+      navigate('/find', { replace: true });
+      redirectToFind = false;
+    }
+  }, [isInGroups, navigate]);
+
+  if (isMobile) {
     return <MobileGroupsNavHome />;
   }
 
   return (
     <Notifications
       child={GroupNotification}
-      title={`All Notifications • ${appHead('').title}`}
-    />
-  );
-}
-
-function ActivityRoute({ isInGroups = false }: { isInGroups: boolean }) {
-  if (!isInGroups) {
-    return <FindGroups title={`Find Groups • ${appHead('').title}`} />;
-  }
-
-  return (
-    <Notifications
-      child={GroupNotification}
-      title={`All Notifications • ${appHead('').title}`}
+      title={`Activity • ${appHead('').title}`}
     />
   );
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
-  const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
-  const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
-
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<GroupsNav />}>
           <Route element={isMobile ? <MobileSidebar /> : undefined}>
-            <Route
-              index
-              element={
-                <HomeRoute isMobile={isMobile} isInGroups={isInGroups} />
-              }
-            />
+            <Route index element={<HomeRoute isMobile={isMobile} />} />
             <Route
               path="/notifications"
-              element={<ActivityRoute isInGroups={isInGroups} />}
+              element={
+                <Notifications
+                  child={GroupNotification}
+                  title={`Activity • ${appHead('').title}`}
+                />
+              }
             />
             {/* Find by Invite URL */}
             <Route
@@ -369,20 +358,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   />
                 }
               />
-              <Route path="info" element={<GroupAdmin />}>
-                <Route
-                  index
-                  element={<GroupInfo title={`• ${appHead('').title}`} />}
-                />
-                <Route
-                  path="members"
-                  element={<GroupMembers title={`• ${appHead('').title}`} />}
-                >
-                  <Route index element={<GroupMemberManager />} />
-                  <Route path="pending" element={<GroupPendingManager />} />
-                  <Route path="banned" element={<div />} />
-                </Route>
-              </Route>
               <Route
                 path="channels"
                 element={
@@ -463,6 +438,23 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
+          <Route path="/groups/:ship/:name/info" element={<GroupInfo />} />
+          <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
+            <Route
+              index
+              element={<GroupInfoEditor title={`• ${appHead('').title}`} />}
+            />
+            <Route path="invites-privacy" element={<GroupInvitesPrivacy />} />
+            <Route
+              path="members"
+              element={<GroupMembers title={`• ${appHead('').title}`} />}
+            />
+            <Route
+              path="roles"
+              element={<GroupRoles title={`• ${appHead('').title}`} />}
+            />
+            <Route path="delete" element={<GroupDelete />} />
+          </Route>
           <Route
             path="/groups/:ship/:name/leave"
             element={<GroupLeaveDialog />}
@@ -486,10 +478,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           {isMobile ? (
-            <Route
-              path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
-              element={<EmojiPicker />}
-            />
+            <>
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+            </>
           ) : null}
         </Routes>
       ) : null}
@@ -601,6 +599,7 @@ function RoutedApp() {
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
   const body = document.querySelector('body');
+  const colorSchemeFromNative = window.colorscheme;
 
   const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
@@ -619,7 +618,11 @@ function RoutedApp() {
   const isDarkMode = useIsDark();
 
   useEffect(() => {
-    if ((isDarkMode && theme === 'auto') || theme === 'dark') {
+    if (
+      (isDarkMode && theme === 'auto') ||
+      theme === 'dark' ||
+      colorSchemeFromNative === 'dark'
+    ) {
       document.body.classList.add('dark');
       useLocalState.setState({ currentTheme: 'dark' });
       setUserThemeColor('#000000');
@@ -628,7 +631,7 @@ function RoutedApp() {
       useLocalState.setState({ currentTheme: 'light' });
       setUserThemeColor('#ffffff');
     }
-  }, [isDarkMode, theme]);
+  }, [isDarkMode, theme, colorSchemeFromNative]);
 
   useEffect(() => {
     if (isStandAlone) {

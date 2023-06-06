@@ -29,7 +29,6 @@ import {
   JSONToInlines,
   makeMention,
   inlinesToJSON,
-  tipTapToString,
 } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import AddIcon from '@/components/icons/AddIcon';
@@ -77,7 +76,7 @@ export function UploadErrorPopover({
         onEscapeKeyDown={() => setUploadError(null)}
         onPointerDownOutside={() => setUploadError(null)}
       >
-        <div className="flex w-[200px] flex-col items-center justify-center rounded-lg bg-white p-4 leading-5 drop-shadow-lg">
+        <div className="flex w-[200px] flex-col items-center justify-center rounded-lg bg-white p-4 leading-5 shadow-xl">
           <span className="mb-2 font-semibold text-gray-800">
             This file can't be posted.
           </span>
@@ -188,9 +187,21 @@ export default function ChatInput({
 
   const onSubmit = useCallback(
     async (editor: Editor) => {
-      if (sendDisabled) return;
+      if (
+        sendDisabled ||
+        mostRecentFile?.status === 'loading' ||
+        mostRecentFile?.status === 'error' ||
+        mostRecentFile?.url === ''
+      )
+        return;
+
       const blocks = fetchChatBlocks(id);
-      if (!editor.getText() && !blocks.length && !replyCite) {
+      if (
+        !editor.getText() &&
+        !blocks.length &&
+        !replyCite &&
+        chatInfo.blocks.length === 0
+      ) {
         return;
       }
 
@@ -272,6 +283,9 @@ export default function ChatInput({
       sendDisabled,
       replyCite,
       reply,
+      chatInfo.blocks.length,
+      mostRecentFile?.status,
+      mostRecentFile?.url,
     ]
   );
 

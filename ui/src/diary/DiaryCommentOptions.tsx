@@ -13,7 +13,7 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
 import { DiaryQuip } from '@/types/diary';
-import { useDiaryState } from '@/state/diary';
+import { useAddQuipFeelMutation, useDeleteQuipMutation } from '@/state/diary';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
 import { useSearchParams } from 'react-router-dom';
@@ -45,6 +45,8 @@ export default function DiaryCommentOptions({
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const { mutateAsync: delQuip } = useDeleteQuipMutation();
+  const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
   const {
     isPending: isDeletePending,
     setPending: setDeletePending,
@@ -55,8 +57,7 @@ export default function DiaryCommentOptions({
   const onDelete = async () => {
     setDeletePending();
     try {
-      await useDiaryState.getState().delQuip(whom, noteId, time);
-      await useDiaryState.getState().fetchNote(chFlag, noteId);
+      await delQuip({ flag: whom, noteId, quipId: time });
     } catch (e) {
       setDeleteFailed();
       console.error('Failed to delete comment', e);
@@ -77,16 +78,18 @@ export default function DiaryCommentOptions({
   const onEmoji = useCallback(
     async (emoji: { shortcodes: string }) => {
       try {
-        await useDiaryState
-          .getState()
-          .addQuipFeel(whom, noteId, time, emoji.shortcodes);
-        await useDiaryState.getState().fetchNote(chFlag, noteId);
+        await addQuipFeel({
+          flag: whom,
+          noteId,
+          quipId: time,
+          feel: emoji.shortcodes,
+        });
       } catch (e) {
         console.error('Failed to add emoji', e);
       }
       setPickerOpen(false);
     },
-    [noteId, time, whom, chFlag]
+    [noteId, time, whom, addQuipFeel]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
