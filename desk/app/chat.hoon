@@ -1091,11 +1091,31 @@
     cu-core
   ::
   ++  cu-peek
-    |=  [care=@tas =path]
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  path  [~ ~]
-      [%writs *]  (peek:cu-pact care t.path)
+    ?+  pole  [~ ~]
+      [%writs rest=*]  (peek:cu-pact care rest.pole)
       [%crew ~]   ``club-crew+!>(crew.club)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:cu-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:cu-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  cu-watch

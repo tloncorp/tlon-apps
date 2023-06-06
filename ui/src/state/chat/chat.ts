@@ -1135,10 +1135,11 @@ export function useGetFirstUnreadID(whom: string) {
 }
 
 export function useChatSearch(whom: string, query: string) {
+  const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
   const { data, ...rest } = useReactQueryScry<ChatScan>({
     queryKey: ['chat', 'search', whom, query],
     app: 'chat',
-    path: `/chat/${whom}/search/text/0/1.000/${query}`,
+    path: `/${type}/${whom}/search/text/0/1.000/${query}`,
     options: {
       enabled: query !== '',
     },

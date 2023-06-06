@@ -160,13 +160,16 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               <Route index element={<NewDM />} />
               <Route path=":ship" element={<Message />} />
             </Route>
-            <Route path=":ship" element={<Message />}>
-              {isSmall ? null : (
-                <Route
-                  path="message/:idShip/:idTime"
-                  element={<ChatThread />}
-                />
-              )}
+            <Route path=":ship">
+              <Route index element={<Message />} />
+              <Route path="*" element={<Message />}>
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<ChatThread />}
+                  />
+                )}
+              </Route>
             </Route>
             {isSmall && (
               <Route

@@ -1,48 +1,44 @@
 import { debounce } from 'lodash';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BigInteger } from 'big-integer';
-import { useParams } from 'react-router';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { useChatStore } from '@/chat/useChatStore';
+import { BigIntOrderedMap } from '@urbit/api';
 import { ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatSearch, useChatState } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
 
 interface ChatSearchResultsProps {
   whom: string;
+  root: string;
+  scan: BigIntOrderedMap<ChatWrit> | null;
+  isLoading: boolean;
   query?: string;
+  selected?: number;
 }
 
-function itemContent(
-  _i: number,
-  [whom, key, writ, msgLoad]: [
-    string,
-    BigInteger,
-    ChatWrit,
-    (time: BigInteger, type: 'click' | 'hover') => void
-  ]
-) {
+interface ChatSearchResultEntry {
+  whom: string;
+  root: string;
+  time: BigInteger;
+  writ: ChatWrit;
+  selected: boolean;
+  msgLoad: (time: BigInteger, type: 'click' | 'hover') => void;
+}
+
+function itemContent(_i: number, entry: ChatSearchResultEntry) {
   return (
     <div className="pb-2 pr-2">
-      <ChatSearchResult whom={whom} writ={writ} time={key} msgLoad={msgLoad} />
+      <ChatSearchResult {...entry} index={_i} />
     </div>
   );
 }
 
-export default function ChatSearchResults({
-  whom,
-  query,
-}: ChatSearchResultsProps) {
-  const scrollerRef = useRef<VirtuosoHandle>(null);
-  const { scan, isLoading } = useChatSearch(whom, query || '');
+const ChatSearchResults = React.forwardRef<
+  VirtuosoHandle,
+  ChatSearchResultsProps
+>(({ whom, root, scan, isLoading, selected, query }, scrollerRef) => {
   const [delayedLoading, setDelayedLoading] = useState(false);
   const reallyLoading = isLoading && query && query !== '';
   const isMobile = useIsMobile();
@@ -78,16 +74,17 @@ export default function ChatSearchResults({
   const entries = useMemo(() => {
     return scan
       ? [...scan].map(
-          ([int, writ]) =>
-            [whom, int, writ, msgLoad] as [
-              string,
-              BigInteger,
-              ChatWrit,
-              (time: BigInteger, type: 'click' | 'hover') => void
-            ]
+          ([int, writ], i): ChatSearchResultEntry => ({
+            whom,
+            root,
+            time: int,
+            writ,
+            selected: i === selected,
+            msgLoad,
+          })
         )
       : [];
-  }, [scan, whom, msgLoad]);
+  }, [scan, whom, root, selected, msgLoad]);
 
   useEffect(() => {
     let timeout = 0;
@@ -105,10 +102,6 @@ export default function ChatSearchResults({
       clearTimeout(timeout);
     };
   }, [reallyLoading]);
-
-  useEffect(() => {
-    useChatStore.getState().setCurrent(whom);
-  }, [whom]);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -138,13 +131,16 @@ export default function ChatSearchResults({
       ) : (
         <Virtuoso
           {...thresholds}
+          tabIndex={-1}
           ref={scrollerRef}
           data={entries}
           itemContent={itemContent}
-          computeItemKey={(i, item) => item[1].toString()}
+          computeItemKey={(i, item) => item.time.toString()}
           className="h-full w-full list-none overflow-x-hidden overflow-y-scroll"
         />
       )}
     </div>
   );
-}
+});
+
+export default ChatSearchResults;

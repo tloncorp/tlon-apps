@@ -26,6 +26,7 @@ import { useLastReconnect } from '@/state/local';
 import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia from '@/logic/useMedia';
+import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -119,7 +120,15 @@ function ChatChannel({ title }: ViewProps) {
               path="search/:query?"
               element={
                 <>
-                  <ChatSearch />
+                  <ChatSearch
+                    whom={chFlag}
+                    root={`/groups/${groupFlag}/channels/${nest}`}
+                    placeholder={
+                      channel ? `Search in ${channel.meta.title}` : 'Search'
+                    }
+                  >
+                    <ChannelTitleButton flag={groupFlag} nest={nest} />
+                  </ChatSearch>
                   <Helmet>
                     <title>
                       {channel && group
