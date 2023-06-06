@@ -119,7 +119,7 @@ const ChatSearchResults = React.forwardRef<
         )}
       </div>
       {delayedLoading ? (
-        <div className="flex-1">
+        <div className="-mx-4 flex-1">
           <ChatScrollerPlaceholder count={30} />
         </div>
       ) : entries.length === 0 ? (

@@ -74,6 +74,16 @@ export default function ChatSearch({
         navigate(root);
       }
 
+      if (event.key === 'Enter' && selected !== undefined) {
+        const { time } = selected;
+        const { memo } = scan.get(time);
+        const scrollTo = `?msg=${time.toString()}`;
+        const to = memo.replying
+          ? `${root}/message/${memo.replying}${scrollTo}`
+          : `${root}${scrollTo}`;
+        navigate(to);
+      }
+
       const arrow = event.key === 'ArrowDown' || event.key === 'ArrowUp';
       const scroller = scrollerRef.current;
       if (!arrow || !scroller || scan.size === 0) {
