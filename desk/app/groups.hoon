@@ -1606,7 +1606,7 @@
   =/  hi-wire=wire  /hi/(scot %p ship)
   =/  hi-dock=dock  [ship %hood]
   %-  emil
-  :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('')]
+  :~  [%pass hi-wire %agent hi-dock %poke %helm-hi !>('%groups connectivity check')]
   ==
 ::
 ++  take-hi

@@ -155,9 +155,9 @@
     ^-  scan:c
     %-  flop
     =<  scan.-
-    %^    (dip:on:writs:c query)
-        wit.pac
-      [sip len ~]
+    %^    (dop:mope query)
+        wit.pac     :: (gas:on:writs:c wit.pac ls)
+      [sip len ~]   :: (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
     |=  $:  =query
             =time
             =writ:c
@@ -198,25 +198,41 @@
       |-
       ?~  ls  |
       ?@  i.ls
-        |((find nedl i.ls) $(ls t.ls))
+        |((find nedl i.ls |) $(ls t.ls))
       ?.  ?=(?(%bold %italics %strike %blockquote) -.i.ls)
         $(ls t.ls)
       |($(ls p.i.ls) $(ls t.ls))
     ++  find
-      |=  [nedl=@t hay=@t]
+      |=  [nedl=@t hay=@t case=?]
       ^-  ?
       =/  nlen  (met 3 nedl)
       =/  hlen  (met 3 hay)
       ?:  (lth hlen nlen)
         |
+      =?  nedl  !case
+        (cass nedl)
       =/  pos  0
       =/  lim  (sub hlen nlen)
       |-
       ?:  (gth pos lim)
         |
-      ?:  =(nedl (cut 3 [pos nlen] hay))
+      ?:  .=  nedl
+          ?:  case
+            (cut 3 [pos nlen] hay)
+          (cass (cut 3 [pos nlen] hay))
         &
       $(pos +(pos))
+    ++  cass
+      |=  text=@t
+      ^-  @t
+      %^    run
+          3
+        text
+      |=  dat=@
+      ^-  @
+      ?.  &((gth dat 64) (lth dat 91))
+        dat
+      (add dat 32)
     --
   --
 --

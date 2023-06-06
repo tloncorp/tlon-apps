@@ -44,18 +44,18 @@ export default function GroupInfoPreview({
           className="absolute h-full w-full flex-none rounded-lg object-cover"
         />
       ) : null}
-      <div className="relative flex w-full flex-col justify-between p-2 text-lg sm:text-base">
+      <div className="absolute top-0 flex w-full flex-col justify-between p-2 text-lg sm:text-base">
         <div className="flex items-center space-x-2">
           <div className="flex items-center">
             {iconType === 'color' || isValidUrl(watchImage) ? (
               <GroupAvatar
                 title={watchTitle}
-                size=" h-6 w-6"
+                size="h-6 w-6 rounded"
                 image={watchImage}
               />
             ) : null}
             {showEmpty ? (
-              <EmptyIconBox className=" h-6 w-6 text-gray-300" />
+              <EmptyIconBox className="h-6 w-6 rounded text-gray-300" />
             ) : null}
           </div>
           <div className="w-full truncate text-left font-semibold text-gray-500">

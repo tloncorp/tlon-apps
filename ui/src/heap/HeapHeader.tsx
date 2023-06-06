@@ -79,7 +79,7 @@ export default function HeapHeader({
             )}
             onClick={() => (setSortMode ? setSortMode('time') : null)}
           >
-            <span className="font-semibold">Time</span>
+            Time
           </Dropdown.Item>
           <Dropdown.Item
             className={cn(
@@ -88,7 +88,7 @@ export default function HeapHeader({
             )}
             onClick={() => (setSortMode ? setSortMode('alpha') : null)}
           >
-            <span className="font-semibold">Alphabetical</span>
+            Alphabetical
           </Dropdown.Item>
         </Dropdown.Content>
       </Dropdown.Root>

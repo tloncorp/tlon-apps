@@ -27,27 +27,21 @@ export default function DisplayDropdown({
       <Dropdown.Content className="dropdown">
         <Dropdown.Item
           className={cn(
-            'dropdown-item-icon',
+            'dropdown-item',
             displayMode === 'list' && 'hover-bg-gray-100 bg-gray-100'
           )}
           onClick={() => setDisplayMode('list')}
         >
-          <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
-            <ListIcon className="-m-1 h-8 w-8" />
-          </div>
-          <span className="font-semibold">List</span>
+          List
         </Dropdown.Item>
         <Dropdown.Item
           className={cn(
-            'dropdown-item-icon',
+            'dropdown-item',
             displayMode === 'grid' && 'bg-gray-100 hover:bg-gray-100'
           )}
           onClick={() => setDisplayMode('grid')}
         >
-          <div className="rounded bg-gray-50 p-1 mix-blend-multiply dark:mix-blend-screen">
-            <GridIcon className="-m-1 h-8 w-8" />
-          </div>
-          <span className="font-semibold">Grid</span>
+          Grid
         </Dropdown.Item>
       </Dropdown.Content>
     </Dropdown.Root>

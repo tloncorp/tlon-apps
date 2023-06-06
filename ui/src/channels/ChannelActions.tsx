@@ -102,7 +102,7 @@ export default function ChannelActions({
                 Edit {prettyAppName}
               </Dropdown.Item>
               <Dropdown.Item
-                className="dropdown-item text-red"
+                className="dropdown-item-red"
                 onClick={() => setDeleteChannelIsOpen(!deleteChannelIsOpen)}
               >
                 Delete {prettyAppName}
@@ -110,10 +110,7 @@ export default function ChannelActions({
             </>
           )}
           {!isChannelHost && (
-            <Dropdown.Item
-              className="dropdown-item text-red"
-              onClick={leaveChannel}
-            >
+            <Dropdown.Item className="dropdown-item-red" onClick={leaveChannel}>
               Leave {prettyAppName}
             </Dropdown.Item>
           )}

@@ -11,17 +11,14 @@ export default function ChannelSortOptions({
 >) {
   return (
     <DropdownMenu.Content className="dropdown w-56">
-      <DropdownMenu.Item
-        disabled
-        className="dropdown-item flex cursor-default items-center space-x-2 text-gray-300 hover:bg-transparent"
-      >
+      <DropdownMenu.Item disabled className="dropdown-item-disabled">
         Channel Ordering
       </DropdownMenu.Item>
       {Object.keys(sortOptions).map((k) => (
         <DropdownMenu.Item
           key={k}
           onSelect={() => setSortFn(k)}
-          className="dropdown-item flex items-center space-x-2"
+          className="dropdown-item"
         >
           {k}
         </DropdownMenu.Item>

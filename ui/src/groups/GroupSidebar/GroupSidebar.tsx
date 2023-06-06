@@ -22,6 +22,7 @@ import AddIcon from '@/components/icons/AddIcon';
 import { Link, useLocation } from 'react-router-dom';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import InviteIcon from '@/components/icons/InviteIcon';
+import HomeIcon from '@/components/icons/HomeIcon';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -117,7 +118,7 @@ export default function GroupSidebar() {
           <GroupHeader />
           <SidebarItem
             icon={
-              <BellIcon
+              <HomeIcon
                 className={cn('h-6 w-6 rounded', {
                   'mix-blend-multiply': !isDark,
                 })}
@@ -125,7 +126,7 @@ export default function GroupSidebar() {
             }
             to={`/groups/${flag}/activity`}
           >
-            Activity
+            Home
           </SidebarItem>
           <SidebarItem
             icon={

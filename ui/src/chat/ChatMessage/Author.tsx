@@ -5,6 +5,7 @@ import { useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
+import RoleBadges from '@/components/RoleBadges';
 
 interface AuthorProps {
   ship: string;
@@ -65,6 +66,7 @@ export default function Author({
             />
           )}
         </div>
+        <RoleBadges ship={ship} />
       </div>
     );
   }
@@ -98,7 +100,7 @@ export default function Author({
           />
         )}
       </div>
-
+      <RoleBadges ship={ship} />
       {hideTime ? (
         <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
           {timeDisplay.day} <span role="presentation">&#x2022;</span>{' '}

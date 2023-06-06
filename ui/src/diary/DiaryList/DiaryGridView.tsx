@@ -11,7 +11,7 @@ import { DiaryLetter } from '@/types/diary';
 
 interface DiaryGridProps {
   notes: [bigInt.BigInteger, DiaryLetter][];
-  loadOlderNotes: () => Promise<void>;
+  loadOlderNotes: () => void;
 }
 
 const masonryItem = ({

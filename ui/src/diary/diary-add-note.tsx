@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -8,11 +8,14 @@ import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
 import { diaryMixedToJSON, JSONToInlines } from '@/logic/tiptap';
-import { useDiaryState, useNote } from '@/state/diary';
+import {
+  useAddNoteMutation,
+  useEditNoteMutation,
+  useNote,
+} from '@/state/diary';
 import { useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
 import { Inline } from '@/types/content';
-import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { useIsMobile } from '@/logic/useMedia';
@@ -25,49 +28,57 @@ export default function DiaryAddNote() {
   const group = useRouteGroup();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [idNote, note] = useNote(chFlag, id || '');
-  const [status, setStatus] = useState<Status>('initial');
-  const content = useMemo(
-    () =>
-      note.essay.content.length > 0 ? diaryMixedToJSON(note.essay.content) : '',
-    [note.essay.content]
-  );
-
-  const loading = idNote.isZero();
-
-  useEffect(() => {
-    async function load() {
-      await useDiaryState.getState().initialize(chFlag);
-      if (loading) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await useDiaryState.getState().fetchNote(chFlag, id!);
-      }
-    }
-
-    load();
-  }, [chFlag, id, loading]);
+  const {
+    note,
+    isLoading: loadingNote,
+    fetchStatus,
+  } = useNote(chFlag, id || '0', !id);
+  const { mutateAsync: editNote, status: editStatus } = useEditNoteMutation();
+  const {
+    data: returnTime,
+    mutateAsync: addNote,
+    status: addStatus,
+  } = useAddNoteMutation();
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
-      title: note.essay.title || '',
-      image: note.essay.image || '',
+      title: note?.essay?.title || '',
+      image: note?.essay?.image || '',
     },
   });
 
-  const { reset, register, getValues } = form;
+  const { reset, register, getValues, setValue } = form;
+
+  useEffect(() => {
+    const { title, image } = getValues();
+    if (!loadingNote && title === '' && image === '' && note?.essay) {
+      setValue('title', note.essay.title);
+      setValue('image', note.essay.image);
+    }
+  }, [note, setValue, loadingNote, getValues]);
 
   const editor = useDiaryInlineEditor({
-    content,
+    content: '',
     placeholder: '',
     onEnter: () => false,
   });
+
+  useEffect(() => {
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      !loadingNote &&
+      note?.essay &&
+      editor?.getText() === ''
+    ) {
+      editor.commands.setContent(diaryMixedToJSON(note.essay.content));
+    }
+  }, [editor, loadingNote, note]);
 
   const publish = useCallback(async () => {
     if (!editor?.getText()) {
       return;
     }
-
-    setStatus('loading');
 
     const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
@@ -98,33 +109,42 @@ export default function DiaryAddNote() {
       }
     });
 
-    let returnTime = id;
     try {
       if (id) {
-        await useDiaryState.getState().editNote(chFlag, id, {
-          ...note.essay,
-          ...values,
-          content: noteContent,
+        await editNote({
+          flag: chFlag,
+          time: id,
+          essay: {
+            ...note.essay,
+            ...values,
+            content: noteContent,
+          },
         });
       } else {
-        returnTime = await useDiaryState.getState().addNote(chFlag, {
-          ...values,
-          content: noteContent,
-          author: window.our,
-          sent,
+        await addNote({
+          flag: chFlag,
+          essay: {
+            ...values,
+            content: noteContent,
+            author: window.our,
+            sent,
+          },
         });
       }
 
-      setStatus('success');
       reset();
-      if (!editor?.isDestroyed) {
-        editor.commands.setContent('');
-      }
-      navigate(`/groups/${group}/channels/diary/${chFlag}?new=${returnTime}`);
     } catch (error) {
-      setStatus('error');
+      console.error(error);
     }
-  }, [chFlag, editor, getValues, group, id, navigate, note.essay, reset]);
+  }, [chFlag, editor, getValues, id, note, reset, addNote, editNote]);
+
+  useEffect(() => {
+    if (editStatus === 'success') {
+      navigate(`/groups/${group}/channels/diary/${chFlag}`);
+    } else if (addStatus === 'success' && returnTime) {
+      navigate(`/groups/${group}/channels/diary/${chFlag}?new=${returnTime}`);
+    }
+  }, [addStatus, chFlag, editStatus, group, navigate, returnTime]);
 
   return (
     <Layout
@@ -159,15 +179,19 @@ export default function DiaryAddNote() {
           <div className="flex shrink-0 flex-row items-center space-x-3">
             {isMobile && <ReconnectingSpinner />}
             <button
-              disabled={!editor?.getText() || status === 'loading'}
+              disabled={
+                !editor?.getText() ||
+                editStatus === 'loading' ||
+                addStatus === 'loading'
+              }
               className={cn(
                 'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
               )}
               onClick={publish}
             >
-              {status === 'loading' ? (
+              {editStatus === 'loading' || addStatus === 'loading' ? (
                 <LoadingSpinner className="h-4 w-4" />
-              ) : status === 'error' ? (
+              ) : editStatus === 'error' || addStatus === 'error' ? (
                 'Error'
               ) : (
                 'Save'
@@ -177,22 +201,28 @@ export default function DiaryAddNote() {
         </header>
       }
     >
-      <FormProvider {...form}>
-        <div className="mx-auto max-w-xl p-4">
-          <form className="space-y-6">
-            <CoverImageInput url="" />
-            <input
-              placeholder="New Title"
-              className="input-transparent text-3xl font-semibold"
-              type="text"
-              {...register('title')}
-            />
-          </form>
-          <div className="py-6">
-            {editor ? <DiaryInlineEditor editor={editor} /> : null}
-          </div>
+      {loadingNote && fetchStatus !== 'idle' ? (
+        <div className="flex h-full w-full items-center justify-center">
+          <LoadingSpinner className="h-6 w-6" />
         </div>
-      </FormProvider>
+      ) : (
+        <FormProvider {...form}>
+          <div className="mx-auto max-w-xl p-4">
+            <form className="space-y-6">
+              <CoverImageInput url="" noteId={id} />
+              <input
+                placeholder="New Title"
+                className="input-transparent text-3xl font-semibold"
+                type="text"
+                {...register('title')}
+              />
+            </form>
+            <div className="py-6">
+              {editor ? <DiaryInlineEditor editor={editor} /> : null}
+            </div>
+          </div>
+        </FormProvider>
+      )}
     </Layout>
   );
 }

@@ -1,6 +1,7 @@
 import { QueryKey, useQuery, UseQueryOptions } from '@tanstack/react-query';
 import api from '@/api';
 import useSchedulerStore from '@/state/scheduler';
+import { useCallback } from 'react';
 
 export default function useReactQueryScry<T>({
   queryKey,
@@ -15,15 +16,18 @@ export default function useReactQueryScry<T>({
   priority?: number;
   options?: UseQueryOptions<T>;
 }) {
-  const fetchData = async () =>
-    useSchedulerStore.getState().wait(
-      async () =>
-        api.scry<T>({
-          app,
-          path,
-        }),
-      priority
-    );
+  const fetchData = useCallback(
+    async () =>
+      useSchedulerStore.getState().wait(
+        async () =>
+          api.scry<T>({
+            app,
+            path,
+          }),
+        priority
+      ),
+    [app, path, priority]
+  );
 
   return useQuery<T>(queryKey, fetchData, {
     retryOnMount: false,

@@ -33,10 +33,7 @@ export default function DiaryNoteOptionsDropdown({
         >
           {children}
         </Dropdown.Trigger>
-        <Dropdown.Content
-          sideOffset={8}
-          className="dropdown min-w-[208px] drop-shadow-lg"
-        >
+        <Dropdown.Content sideOffset={8} className="dropdown min-w-[208px]">
           <Dropdown.Item className="dropdown-item" onSelect={onCopy}>
             {didCopy ? 'Link Copied!' : 'Copy Note Link'}
           </Dropdown.Item>

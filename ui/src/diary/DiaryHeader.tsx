@@ -3,7 +3,11 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
 import DisplayDropdown from '@/channels/DisplayDropdown';
-import { useDiaryState } from '@/state/diary';
+import {
+  useDiaryState,
+  useLeaveDiaryMutation,
+  useViewDiaryMutation,
+} from '@/state/diary';
 import {
   setChannelSetting,
   DiarySetting,
@@ -32,13 +36,15 @@ export default function DiaryHeader({
 }: DiaryHeaderProps) {
   const [, chFlag] = nestToFlag(nest);
   const settings = useDiarySettings();
+  const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
+  const { mutate: changeDiaryView } = useViewDiaryMutation();
   const { mutate } = usePutEntryMutation({
     bucket: 'diary',
     key: 'settings',
   });
 
   const setDisplayMode = async (view: DiaryDisplayMode) => {
-    await useDiaryState.getState().viewDiary(chFlag, view);
+    changeDiaryView({ flag: chFlag, view });
   };
 
   const setSortMode = (
@@ -59,7 +65,7 @@ export default function DiaryHeader({
       flag={flag}
       nest={nest}
       prettyAppName="Notebook"
-      leave={useDiaryState.getState().leaveDiary}
+      leave={(ch) => leaveDiary({ flag: ch })}
     >
       {canWrite ? (
         <Link
@@ -85,7 +91,7 @@ export default function DiaryHeader({
             )}
             onClick={() => (setSortMode ? setSortMode('time-dsc') : null)}
           >
-            <span className="font-semibold">New Posts First</span>
+            New Posts First
           </Dropdown.Item>
           <Dropdown.Item
             className={cn(
@@ -94,27 +100,7 @@ export default function DiaryHeader({
             )}
             onClick={() => (setSortMode ? setSortMode('time-asc') : null)}
           >
-            <span className="font-semibold">Old Posts First</span>
-          </Dropdown.Item>
-          <Dropdown.Item
-            className={cn(
-              'dropdown-item',
-              sort === 'quip-asc' && 'bg-gray-100 hover:bg-gray-100'
-            )}
-          >
-            <span className="font-semibold text-gray-400">
-              New Comments First
-            </span>
-          </Dropdown.Item>
-          <Dropdown.Item
-            className={cn(
-              'dropdown-item',
-              sort === 'quip-dsc' && 'bg-gray-100 hover:bg-gray-100'
-            )}
-          >
-            <span className="font-semibold text-gray-400">
-              Old Comments First
-            </span>
+            Old Posts First
           </Dropdown.Item>
         </Dropdown.Content>
       </Dropdown.Root>

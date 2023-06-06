@@ -6,7 +6,6 @@ import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
 import { useChatState } from './chat';
 import useContactState from './contact';
-import { useDiaryState } from './diary';
 import useDocketState from './docket';
 import { useHeapState } from './heap/heap';
 import useKilnState from './kiln';
@@ -52,9 +51,10 @@ async function startGroups(talkStarted: boolean) {
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
+  queryClient.setQueryData(['diary', 'shelf'], diary.shelf);
+  queryClient.setQueryData(['diary', 'briefs'], diary.briefs);
 
   useHeapState.getState().start(heap);
-  useDiaryState.getState().start(diary);
 }
 
 async function startTalk(groupsStarted: boolean) {

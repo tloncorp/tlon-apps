@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDismissNavigate } from '@/logic/routing';
-import GroupInfoFields from '../GroupInfoFields';
+import GroupInfoFields from '../GroupAdmin/GroupInfoFields';
 
 interface NewGroupFormProps {
   isValid: boolean;
