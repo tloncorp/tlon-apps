@@ -10,7 +10,11 @@ import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
-import { useChatState, useMessagesForChat } from '@/state/chat';
+import {
+  useChatInitialized,
+  useChatState,
+  useMessagesForChat,
+} from '@/state/chat';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useChatInfo, useChatStore } from './useChatStore';
@@ -27,6 +31,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     const msg = searchParams.get('msg');
     return msg ? bigInt(msg) : undefined;
   }, [searchParams]);
+  const initialized = useChatInitialized(whom);
   const messages = useMessagesForChat(whom, scrollTo);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
@@ -57,7 +62,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     [readTimeout, whom]
   );
 
-  if (messages.size === 0) {
+  if (!initialized) {
     return (
       <div className="h-full">
         <ChatScrollerPlaceholder count={30} />

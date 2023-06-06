@@ -16,8 +16,8 @@ import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
 import { disableDefault } from '@/logic/utils';
 import { useChatSearch } from '@/state/chat';
-import ChatSearchResults from './ChatSearchResults';
 import bigInt from 'big-integer';
+import ChatSearchResults from './ChatSearchResults';
 
 interface RouteParams {
   chShip: string;

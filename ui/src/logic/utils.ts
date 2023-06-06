@@ -107,38 +107,65 @@ export function makePrettyDate(date: Date) {
   return `${format(date, 'PPP')}`;
 }
 
-export function makePrettyDayAndTime(date: Date) {
-  const diff = differenceInDays(endOfToday(), date);
-  const time = makePrettyTime(date);
-  switch (true) {
-    case diff === 0:
-      return `Today • ${time}`;
-    case diff === 1:
-      return `Yesterday • ${time}`;
-    case diff > 1 && diff < 8:
-      return `${format(date, 'cccc')} • ${time}`;
-    default:
-      return `${format(date, 'LLLL')} ${format(date, 'do')} • ${time}`;
-  }
+export interface DayTimeDisplay {
+  original: Date;
+  diff: number;
+  day: string;
+  time: string;
+  asString: string;
 }
 
-export function makePrettyDayAndDateAndTime(date: Date) {
+export function makePrettyDayAndTime(date: Date): DayTimeDisplay {
   const diff = differenceInDays(endOfToday(), date);
   const time = makePrettyTime(date);
+  let day = '';
+  switch (true) {
+    case diff === 0:
+      day = 'Today';
+      break;
+    case diff === 1:
+      day = 'Yesterday';
+      break;
+    case diff > 1 && diff < 8:
+      day = format(date, 'cccc');
+      break;
+    default:
+      day = `${format(date, 'LLLL')} ${format(date, 'do')}`;
+  }
+
+  return {
+    original: date,
+    diff,
+    time,
+    day,
+    asString: `${day} • ${time}`,
+  };
+}
+
+export interface DateDayTimeDisplay extends DayTimeDisplay {
+  fullDate: string;
+}
+
+export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
   const fullDate = `${format(date, 'LLLL')} ${format(date, 'do')}, ${format(
     date,
     'yyyy'
   )}`;
-  switch (true) {
-    case diff === 0:
-      return `Today • ${time} • ${fullDate}`;
-    case diff === 1:
-      return `Yesterday • ${time} • ${fullDate}`;
-    case diff > 1 && diff < 8:
-      return `${format(date, 'cccc')} • ${time} • ${fullDate}`;
-    default:
-      return `${fullDate} • ${time}`;
+  const dayTime = makePrettyDayAndTime(date);
+
+  if (dayTime.diff >= 8) {
+    return {
+      ...dayTime,
+      fullDate,
+      asString: `${fullDate} • ${dayTime.time}`,
+    };
   }
+
+  return {
+    ...dayTime,
+    fullDate,
+    asString: `${dayTime.asString} • ${fullDate}`,
+  };
 }
 
 export function whomIsDm(whom: ChatWhom): boolean {

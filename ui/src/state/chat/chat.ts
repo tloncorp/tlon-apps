@@ -829,6 +829,10 @@ export function useChatIsJoined(whom: string) {
   );
 }
 
+export function useChatInitialized(whom: string) {
+  return useChatState(useCallback((s) => !!s.pacts[whom], [whom]));
+}
+
 const selDmList = (s: ChatState) =>
   Object.keys(s.briefs)
     .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))

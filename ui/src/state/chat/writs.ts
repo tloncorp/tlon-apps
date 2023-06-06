@@ -163,7 +163,6 @@ export function writsReducer(whom: string) {
         },
         draft.writWindows[whom]
       );
-      console.log(draft.writWindows[whom]);
       if (delta.add.replying) {
         const replyTime = pact.index[delta.add.replying];
         if (replyTime) {
@@ -320,13 +319,9 @@ export default function makeWritsStore(
 
       get().batchSet((draft) => {
         const keys = Object.keys(writs).sort();
-        if (keys.length === 0) {
-          return;
-        }
-
         const window = getWritWindow(draft.writWindows[whom]);
-        const oldest = bigInt(udToDec(keys[0]));
-        const newest = bigInt(udToDec(keys[keys.length - 1]));
+        const oldest = bigInt(udToDec(keys[0] || '0'));
+        const newest = bigInt(udToDec(keys[keys.length - 1] || '0'));
         if (window && window.oldest.eq(oldest) && window.newest.eq(newest)) {
           return;
         }
