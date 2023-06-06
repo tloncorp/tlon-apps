@@ -545,7 +545,8 @@
   ++  memo
     ^-  $-(json memo:c)
     %-  ot
-    :~  replying/(mu id)
+    :~  thread/(mu id)
+        replying/(mu id)
         author/ship
         sent/di
         content/content

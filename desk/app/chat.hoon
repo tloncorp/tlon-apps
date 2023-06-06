@@ -463,7 +463,7 @@
   :: XX: probably change?
   :-  ~
   :-  [[author.pos time] time ~ ~ [%fray ~]]
-  [~ author.pos time-sent.pos story/(~(con nert:mig flag %chat) contents.pos)]
+  [~ ~ author.pos time-sent.pos story/(~(con nert:mig flag %chat) contents.pos)]
 ::
 ++  import
   |=  =imports:c
@@ -479,7 +479,8 @@
     ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
   =/  =pact:c  (graph-to-pact graph flag)
   =/  =chat:c
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | chi/~])
+    :*  threads=*threads:c
+        net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | chi/~])
         *remark:c
         log=(import-log pact perm)
         perm
@@ -866,7 +867,7 @@
       (rap 3 ' started a group chat with ' (scot %ud ~(wyt in hive.create)) ' other members' ~)
     =.  cor  (give-brief club/id cu-brief)
     =.  cu-core
-      (cu-diff 0v0 [%writ now-id %add ~ our.bowl now.bowl notice/notice])
+      (cu-diff 0v0 [%writ now-id %add ~ ~ our.bowl now.bowl notice/notice])
     cu-core
   ::
   ::  NB: need to be careful not to forward automatically generated
@@ -876,7 +877,7 @@
     |=  [=ship =notice:c]
     =/  =id:c
       [ship now.bowl]
-    =/  w-d=diff:writs:c  [id %add ~ ship now.bowl notice/notice]
+    =/  w-d=diff:writs:c  [id %add ~ ~ ship now.bowl notice/notice]
     =.  pact.club  (reduce:cu-pact now.bowl w-d)
     (cu-give-writs-diff w-d)
   ::
@@ -1631,7 +1632,7 @@
   ::
   ++  di-post-notice
     |=  n=notice:c
-    (di-ingest-diff [our now]:bowl %add ~ src.bowl now.bowl %notice n)
+    (di-ingest-diff [our now]:bowl %add ~ ~ src.bowl now.bowl %notice n)
   ::
   ++  di-rsvp
     |=  ok=?

@@ -12,7 +12,8 @@
     ~
   =*  p  p.post.node
   :-  ~
-  :*  replying=~
+  :*  thread=~
+      replying=~
       author=author.p
       sent=time-sent.p
       contents=story/(con contents.p)
