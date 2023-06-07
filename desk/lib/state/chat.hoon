@@ -194,7 +194,7 @@
 ++  memo-2-to-3
   |=  old-memo=memo:two
   ^-  memo:c
-  :*  thread=~
+  :*  thread=replying.old-memo
       replying=replying.old-memo
       author=author.old-memo
       sent=sent.old-memo
