@@ -15,8 +15,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import LureInviteBlock from './LureInviteBlock';
 
-export default function GroupInviteDialog() {
-  const dismiss = useDismissNavigate();
+export function GroupInviteBlock() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const privacy = group ? getPrivacyFromGroup(group) : 'public';
@@ -45,8 +44,13 @@ export default function GroupInviteDialog() {
       } else {
         addMembersMutation({ flag, ships: shipList });
       }
-      dismiss();
+      setShips([]);
+      setTimeout(() => {
+        resetInvite();
+        resetAddMembers();
+      }, 3000);
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.error('Error inviting/adding members: poke failed');
       setTimeout(() => {
         resetInvite();
@@ -57,12 +61,66 @@ export default function GroupInviteDialog() {
     flag,
     privacy,
     ships,
-    dismiss,
     inviteMutation,
     addMembersMutation,
     resetInvite,
     resetAddMembers,
   ]);
+
+  return (
+    <div className="card">
+      <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
+      <p className="mb-4 text-gray-600">
+        (e.g. ~sampel-palnet) or display name
+      </p>
+      <div className="w-full py-3">
+        <ShipSelector
+          ships={ships}
+          setShips={setShips}
+          onEnter={onInvite}
+          placeholder="Search"
+          autoFocus={false}
+        />
+      </div>
+      <div className="flex items-center justify-end space-x-2">
+        <DialogClose className="secondary-button">Cancel</DialogClose>
+        {addMembersStatus === 'success' ? (
+          <button disabled className="button">
+            Invites Sent
+          </button>
+        ) : (
+          <button
+            onClick={onInvite}
+            className={cn('button', {
+              'bg-red':
+                inviteStatus === 'error' || addMembersStatus === 'error',
+            })}
+            disabled={
+              !validShips ||
+              inviteStatus === 'loading' ||
+              inviteStatus === 'error' ||
+              addMembersStatus === 'loading' ||
+              addMembersStatus === 'error'
+            }
+          >
+            Send Invites
+            {inviteStatus === 'loading' || addMembersStatus === 'loading' ? (
+              <LoadingSpinner className="ml-2 h-4 w-4" />
+            ) : null}
+            {inviteStatus === 'error' || addMembersStatus === 'error' ? (
+              <ExclamationPoint className="ml-2 h-4 w-4" />
+            ) : null}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function GroupInviteDialog() {
+  const dismiss = useDismissNavigate();
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
 
   return (
     <Dialog
@@ -73,49 +131,12 @@ export default function GroupInviteDialog() {
       close="none"
     >
       <div className="flex flex-col space-y-6">
-        {group && <LureInviteBlock flag={flag} group={group} />}
-        <div className="card">
-          <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
-          <p className="mb-4 text-gray-600">
-            (e.g. ~sampel-palnet) or display name.
-          </p>
-          <div className="w-full py-3">
-            <ShipSelector
-              ships={ships}
-              setShips={setShips}
-              onEnter={onInvite}
-              placeholder="Search"
-            />
-          </div>
-          <div className="flex items-center justify-end space-x-2">
-            <DialogClose className="secondary-button">Cancel</DialogClose>
-
-            <button
-              onClick={onInvite}
-              className={cn('button text-white dark:text-black', {
-                'bg-red':
-                  inviteStatus === 'error' || addMembersStatus === 'error',
-                'bg-blue':
-                  inviteStatus !== 'error' && addMembersStatus !== 'error',
-              })}
-              disabled={
-                !validShips ||
-                inviteStatus === 'loading' ||
-                inviteStatus === 'error' ||
-                addMembersStatus === 'loading' ||
-                addMembersStatus === 'error'
-              }
-            >
-              Send Invites
-              {inviteStatus === 'loading' || addMembersStatus === 'loading' ? (
-                <LoadingSpinner className="ml-2 h-4 w-4" />
-              ) : null}
-              {inviteStatus === 'error' || addMembersStatus === 'error' ? (
-                <ExclamationPoint className="ml-2 h-4 w-4" />
-              ) : null}
-            </button>
-          </div>
-        </div>
+        {group && (
+          <>
+            <LureInviteBlock flag={flag} group={group} />
+            <GroupInviteBlock />
+          </>
+        )}
       </div>
     </Dialog>
   );

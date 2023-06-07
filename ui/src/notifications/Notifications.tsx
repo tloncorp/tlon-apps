@@ -6,7 +6,7 @@ import React, {
   PropsWithChildren,
 } from 'react';
 import { Helmet } from 'react-helmet';
-import { useRouteGroup, useGroup } from '@/state/groups';
+import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
 import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -14,6 +14,8 @@ import { useIsMobile } from '@/logic/useMedia';
 import { randomElement, randomIntInRange } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Skein } from '@/types/hark';
+import GroupSummary from '@/groups/GroupSummary';
+import { Link, useLocation } from 'react-router-dom';
 import { useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -68,6 +70,8 @@ export default function Notifications({
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const isMobile = useIsMobile();
+  const isAdmin = useAmAdmin(flag);
+  const location = useLocation();
   const [showMentionsOnly, setShowMentionsOnly] = useState(false);
   const { loaded, notifications, mentions, count } = useNotifications(
     flag,
@@ -97,14 +101,9 @@ export default function Notifications({
   const MarkAsRead = (
     <button
       disabled={isMarkReadPending || !hasUnreads}
-      className={cn(
-        'whitespace-nowrap text-sm',
-        isMobile ? 'small-button' : 'button',
-        {
-          'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
-          'bg-blue text-white': !isMarkReadPending && hasUnreads,
-        }
-      )}
+      className={cn('small-button whitespace-nowrap text-sm', {
+        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+      })}
       onClick={markAllRead}
     >
       {isMarkReadPending ? (
@@ -126,57 +125,43 @@ export default function Notifications({
           </div>
         </header>
       )}
-      <section className="h-full w-full overflow-y-scroll bg-gray-50">
-        <Helmet>
-          <title>
-            {group
-              ? `All Notifications for ${group?.meta?.title} ${title}`
-              : title}
-          </title>
-        </Helmet>
+      <section className="flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-gray-50 p-6">
+        {group && (
+          <Helmet>
+            <title>{group ? `${group.meta.title} ${title}` : title}</title>
+          </Helmet>
+        )}
 
-        <div className="p-6">
-          <div className="flex w-full items-center justify-between">
-            <div
-              className={cn('flex flex-row', {
-                'w-full justify-center': isMobile,
-              })}
-            >
-              <button
-                onClick={() => setShowMentionsOnly(false)}
-                className={cn(
-                  'button whitespace-nowrap rounded-r-none text-sm',
-                  {
-                    'bg-gray-800 text-white': !showMentionsOnly,
-                    'bg-white text-gray-800 ': showMentionsOnly,
-                    'small-button grow': isMobile,
-                  }
-                )}
-              >
-                All{' '}
-                <span className="hidden sm:inline">
-                  &nbsp;Notifications&nbsp;
-                </span>
-                {hasUnreads ? ` • ${count} New` : null}
-              </button>
-              <button
-                onClick={() => setShowMentionsOnly(true)}
-                className={cn(
-                  'button whitespace-nowrap rounded-l-none text-sm',
-                  {
-                    'bg-gray-800 text-white': showMentionsOnly,
-                    'bg-white text-gray-800': !showMentionsOnly,
-                    'small-button grow': isMobile,
-                  }
-                )}
-              >
-                Mentions Only
-                {mentions.length ? ` • ${mentions.length} New` : null}
-              </button>
+        {group && (
+          <div className="card">
+            <div className="flex w-full items-center justify-between">
+              <h2 className="mb-6 text-lg font-bold">Group Info</h2>
+              {isAdmin && (
+                <Link
+                  to={`/groups/${flag}/edit`}
+                  state={{ backgroundLocation: location }}
+                  className="small-button"
+                >
+                  Edit Group Details
+                </Link>
+              )}
             </div>
-
-            {!isMobile && hasUnreads && MarkAsRead}
+            <GroupSummary flag={flag} preview={{ ...group, flag }} />
+            <p className="prose-sm mt-4 leading-5 lg:max-w-sm">
+              {group?.meta.description}
+            </p>
           </div>
+        )}
+
+        <div className="card">
+          {!isMobile && (
+            <div className="mb-6 flex w-full items-center justify-between">
+              <h2 className="text-lg font-bold">
+                {group && 'Group '}Activity{!group && ' in All Groups'}
+              </h2>
+              {hasUnreads && MarkAsRead}
+            </div>
+          )}
 
           {loaded ? (
             notifications.length === 0 ? (
@@ -188,10 +173,12 @@ export default function Notifications({
             ) : (
               notifications.map((grouping) => (
                 <div key={grouping.date}>
-                  <h2 className="my-4 text-lg font-bold text-gray-400">
-                    {grouping.date}
-                  </h2>
-                  <ul className="space-y-2">
+                  {grouping.date !== 'Today' && (
+                    <h2 className="mb-4 text-lg font-bold text-gray-400">
+                      {grouping.date}
+                    </h2>
+                  )}
+                  <ul className="mb-4 space-y-2">
                     {grouping.skeins.map((b) => (
                       <li key={b.time}>
                         <Notification bin={b} />

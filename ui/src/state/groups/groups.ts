@@ -102,6 +102,7 @@ export function useGroups() {
 }
 
 export function useGroup(flag: string, updating = false) {
+  const connection = useGroupConnection(flag);
   const queryClient = useQueryClient();
   const initialData = useGroups();
   const group = initialData?.[flag];
@@ -125,7 +126,7 @@ export function useGroup(flag: string, updating = false) {
     app: 'groups',
     path: `/groups/${flag}`,
     options: {
-      enabled: !!flag && flag !== '' && updating,
+      enabled: !!flag && flag !== '' && updating && connection,
       initialData: group,
       refetchOnMount: updating,
       retry: true,
@@ -753,13 +754,43 @@ export function useGroupLeaveMutation() {
       });
     },
     {
-      onSettled: (_data, _error, variables) => {
-        queryClient.removeQueries({
-          queryKey: [GROUPS_KEY, variables.flag],
-          exact: true,
+      onMutate: async (variables) => {
+        await queryClient.cancelQueries([GROUPS_KEY, variables.flag]);
+        await queryClient.cancelQueries(['gangs', variables.flag]);
+        await queryClient.cancelQueries(['gang-preview', variables.flag]);
+        await queryClient.cancelQueries([GROUPS_KEY]);
+
+        queryClient.setQueryData<Group | undefined>(
+          [GROUPS_KEY, variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Group | undefined>(
+          ['gangs', variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Group | undefined>(
+          ['gang-preview', variables.flag],
+          undefined
+        );
+
+        queryClient.setQueryData<Groups | undefined>([GROUPS_KEY], (old) => {
+          if (!old) {
+            return undefined;
+          }
+          const newGroups = old;
+          delete newGroups[variables.flag];
+
+          return newGroups;
         });
+      },
+      onSettled: async (_data, _error, variables) => {
         queryClient.removeQueries(['gangs', variables.flag]);
         queryClient.removeQueries(['gang-preview', variables.flag]);
+        queryClient.removeQueries([GROUPS_KEY, variables.flag]);
+        await queryClient.refetchQueries(['gangs']);
+        await queryClient.refetchQueries([GROUPS_KEY]);
       },
     }
   );
@@ -1014,14 +1045,21 @@ export function useGroupIndex(ship: string) {
   };
 }
 
-export function useGroupHostHi(ship: string) {
+export function useGroupHostHi(flag: string) {
+  const { ship } = getFlagParts(flag);
+  const connected = useGroupConnection(ship);
+  const queryClient = useQueryClient();
   const { data, ...rest } = useReactQuerySubscribeOnce({
     queryKey: ['group-host-hi', ship],
     app: 'groups',
     path: `/hi/${ship}`,
     options: {
-      enabled: ship !== '' && preSig(window.ship) !== ship,
+      enabled: ship !== '' && preSig(window.ship) !== ship && !connected,
       cacheTime: 60 * 1000, // default to 1 minute before we check if the host is online again.
+      retry: false,
+      onSuccess: () => {
+        queryClient.removeQueries(['group-host-hi', ship]);
+      },
     },
   });
 

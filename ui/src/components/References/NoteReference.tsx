@@ -45,7 +45,7 @@ function NoteReference({
   };
 
   const contentPreview = useMemo(() => {
-    if (!outline) {
+    if (!outline || !outline.content) {
       return '';
     }
 
@@ -57,7 +57,7 @@ function NoteReference({
     return <DiaryContent content={truncatedContent} isPreview />;
   }, [outline]);
 
-  if (!outline) {
+  if (!outline || !outline.content) {
     return <HeapLoadingBlock reference />;
   }
 

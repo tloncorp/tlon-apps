@@ -29,7 +29,7 @@ export default function MigrationTooltip({
       <Popover.Trigger asChild>{children}</Popover.Trigger>
       <Popover.Portal>
         <Popover.Content side={side} sideOffset={16} className="z-10">
-          <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 drop-shadow-lg dark:border dark:border-solid dark:border-gray-50">
+          <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 shadow-xl dark:border dark:border-solid dark:border-gray-50">
             <span>
               This {kind} will become available once{' '}
               <ShipName name={ship} className="font-semibold" /> has migrated.

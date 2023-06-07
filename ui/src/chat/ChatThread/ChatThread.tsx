@@ -99,26 +99,42 @@ export default function ChatThread() {
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-y-auto  bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
+      className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
     >
       <header className={'header z-40'}>
         <div
           className={cn(
-            'flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4'
+            'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
           )}
         >
-          <BackButton to={returnURL()} aria-label="Close" className="">
-            <div className="flex items-center">
-              {isMobile && (
-                <CaretLeft16Icon className="mr-2 h-4 w-4 text-gray-400" />
-              )}
-              <div className="mr-3 flex h-6 w-6 items-center justify-center rounded bg-gray-100 p-1">
-                <BranchIcon className="h-4 w-4 text-gray-400" />
+          <BackButton
+            to={returnURL()}
+            aria-label="Close"
+            className={cn(
+              'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
+            )}
+          >
+            {isMobile ? (
+              <div className="flex h-6 w-6 items-center justify-center">
+                <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
               </div>
-              <h3 className="text-lg font-bold line-clamp-1 sm:text-base sm:font-semibold">
-                Thread: {threadTitle}
-              </h3>
+            ) : null}
+            <div className="flex h-6 w-6 items-center justify-center">
+              <BranchIcon className="h-6 w-6 text-gray-600" />
+            </div>
+
+            <div className="flex w-full flex-col justify-center">
+              <span
+                className={cn(
+                  'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                )}
+              >
+                Thread
+              </span>
+              <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+                {threadTitle}
+              </span>
             </div>
           </BackButton>
 
@@ -128,7 +144,7 @@ export default function ChatThread() {
               aria-label="Close"
               className="icon-button h-6 w-6 bg-transparent"
             >
-              <X16Icon className="h-4 w-4 text-gray-400" />
+              <X16Icon className="h-4 w-4 text-gray-600" />
             </Link>
           )}
         </div>

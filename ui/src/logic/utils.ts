@@ -16,7 +16,7 @@ import f from 'lodash/fp';
 import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { Chat, ChatWhom, ChatBrief, Cite } from '@/types/chat';
+import { ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -28,7 +28,7 @@ import {
   GroupPreview,
   Vessel,
 } from '@/types/groups';
-import { CurioContent, Heap, HeapBrief } from '@/types/heap';
+import { CurioContent, HeapBrief } from '@/types/heap';
 import {
   DiaryBrief,
   DiaryInline,
@@ -39,9 +39,8 @@ import {
   VerseInline,
   VerseBlock,
   DiaryListing,
-  DiaryList,
 } from '@/types/diary';
-import { Bold, Inline, Italics, Strikethrough } from '@/types/content';
+import { Bold, Italics, Strikethrough } from '@/types/content';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -749,23 +748,27 @@ export function truncateProse(
     [head, ...tail]: DiaryInline[],
     remainingChars: number,
     acc: DiaryInline[]
-  ): DiaryInline[] => {
+  ): { truncatedItems: DiaryInline[]; remainingChars: number } => {
     if (!head || remainingChars <= 0) {
-      return acc;
+      return { truncatedItems: acc, remainingChars };
     }
+
+    let willBeEnd = false;
 
     if (typeof head === 'string') {
       const truncatedString = head.slice(0, remainingChars);
+      willBeEnd = remainingChars - truncatedString.length <= 0;
       return truncate(tail, remainingChars - truncatedString.length, [
         ...acc,
-        truncatedString,
+        truncatedString.concat(willBeEnd ? '...' : ''),
       ]);
     }
 
     if ('bold' in head && typeof head.bold[0] === 'string') {
       const truncatedString = (head.bold[0] as string).slice(0, remainingChars);
+      willBeEnd = remainingChars - truncatedString.length <= 0;
       const truncatedBold: Bold = {
-        bold: [truncatedString],
+        bold: [truncatedString.concat(willBeEnd ? '...' : '')],
       };
       return truncate(tail, remainingChars - truncatedString.length, [
         ...acc,
@@ -778,8 +781,9 @@ export function truncateProse(
         0,
         remainingChars
       );
+      willBeEnd = remainingChars - truncatedString.length <= 0;
       const truncatedItalics: Italics = {
-        italics: [truncatedString],
+        italics: [truncatedString.concat(willBeEnd ? '...' : '')],
       };
       return truncate(tail, remainingChars - truncatedString.length, [
         ...acc,
@@ -792,8 +796,9 @@ export function truncateProse(
         0,
         remainingChars
       );
+      willBeEnd = remainingChars - truncatedString.length <= 0;
       const truncatedStrike: Strikethrough = {
-        strike: [truncatedString],
+        strike: [truncatedString.concat(willBeEnd ? '...' : '')],
       };
       return truncate(tail, remainingChars - truncatedString.length, [
         ...acc,
@@ -805,27 +810,73 @@ export function truncateProse(
   };
 
   let remainingChars = maxCharacters;
+  let remainingImages = 1;
 
   const truncatedContent: NoteContent = content
     .map((verse: Verse): Verse => {
       if ('inline' in verse) {
         const lengthBefore = remainingChars;
+        const { truncatedItems, remainingChars: updatedRemainingChars } =
+          truncate(verse.inline, remainingChars, []);
         const truncatedVerse: VerseInline = {
-          inline: truncate(verse.inline, remainingChars, []),
+          inline: truncatedItems,
         };
-        remainingChars -= lengthBefore - remainingChars;
+
+        remainingChars -= lengthBefore - updatedRemainingChars;
         return truncatedVerse;
       }
 
-      if (
-        'block' in verse &&
-        'listing' in verse.block &&
-        'list' in verse.block.listing &&
-        'items' in verse.block.listing.list
-      ) {
-        const lengthBefore = remainingChars;
-        const { truncatedListItems, remainingChars: remainingCharsAfterList } =
-          verse.block.listing.list.items.reduce(
+      if ('block' in verse) {
+        if (remainingChars <= 0) {
+          return {
+            inline: [''],
+          };
+        }
+
+        if ('cite' in verse.block) {
+          return {
+            inline: [''],
+          };
+        }
+
+        if ('image' in verse.block) {
+          if (remainingImages <= 0) {
+            return {
+              inline: [''],
+            };
+          }
+
+          remainingImages -= 1;
+          return verse;
+        }
+
+        if ('header' in verse.block) {
+          // apparently users can add headers if they paste in content from elsewhere
+          const lengthBefore = remainingChars;
+          const { truncatedItems, remainingChars: updatedRemainingChars } =
+            truncate(verse.block.header.content, remainingChars, []);
+          const truncatedVerse: VerseBlock = {
+            block: {
+              header: {
+                ...verse.block.header,
+                content: truncatedItems,
+              },
+            },
+          };
+          remainingChars = lengthBefore - updatedRemainingChars;
+          return truncatedVerse;
+        }
+
+        if (
+          'listing' in verse.block &&
+          'list' in verse.block.listing &&
+          'items' in verse.block.listing.list
+        ) {
+          const lengthBefore = remainingChars;
+          const {
+            truncatedListItems,
+            remainingChars: remainingCharsAfterList,
+          } = verse.block.listing.list.items.reduce(
             (
               accumulator: {
                 truncatedListItems: DiaryListing[];
@@ -835,11 +886,20 @@ export function truncateProse(
             ) => {
               if ('item' in listing) {
                 const lengthBeforeList = accumulator.remainingChars;
+
+                if (lengthBeforeList <= 0) {
+                  return accumulator;
+                }
+
+                const {
+                  truncatedItems,
+                  remainingChars: updatedRemainingChars,
+                } = truncate(listing.item, lengthBeforeList, []);
                 const truncatedListing = {
-                  item: truncate(listing.item, lengthBeforeList, []),
+                  item: truncatedItems,
                 };
-                const usedChars = truncatedListing.item.join('').length;
-                const remainingCharsInReducer = lengthBeforeList - usedChars;
+                const remainingCharsInReducer =
+                  lengthBeforeList - updatedRemainingChars;
                 return {
                   truncatedListItems: [
                     ...accumulator.truncatedListItems,
@@ -853,21 +913,22 @@ export function truncateProse(
             { truncatedListItems: [], remainingChars }
           );
 
-        remainingChars = remainingCharsAfterList;
-
-        remainingChars = remainingCharsAfterList;
-        const truncatedVerse: VerseBlock = {
-          block: {
-            listing: {
-              list: {
-                ...verse.block.listing.list,
-                items: truncatedListItems,
+          remainingChars = remainingCharsAfterList;
+          const truncatedVerse: VerseBlock = {
+            block: {
+              listing: {
+                list: {
+                  ...verse.block.listing.list,
+                  items: truncatedListItems,
+                },
               },
             },
-          },
-        };
-        remainingChars -= lengthBefore - remainingChars;
-        return truncatedVerse;
+          };
+          remainingChars -= lengthBefore - remainingChars;
+          return truncatedVerse;
+        }
+
+        return verse;
       }
 
       return verse;

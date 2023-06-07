@@ -139,6 +139,9 @@ module.exports = {
         snug: 1.33334,
         relaxed: 1.66667,
       },
+      boxShadow: {
+        xl: '0px 4px 16px rgba(0, 0, 0, 0.20)',
+      },
       lineClamp: {
         7: '7',
         8: '8',

@@ -19,7 +19,10 @@ import {
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import { useHeapState } from '@/state/heap/heap';
-import { useDiaryState } from '@/state/diary';
+import {
+  useAddSectsDiaryMutation,
+  useDeleteSectsDiaryMutation,
+} from '@/state/diary';
 import useChannel from '@/logic/useChannel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
@@ -49,6 +52,8 @@ export default function EditChannelForm({
   const chan = useChannel(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
     useEditChannelMutation();
+  const { mutateAsync: addDiarySects } = useAddSectsDiaryMutation();
+  const { mutateAsync: delDiarySects } = useDeleteSectsDiaryMutation();
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -89,11 +94,7 @@ export default function EditChannelForm({
       }
 
       const chState =
-        app === 'chat'
-          ? useChatState.getState()
-          : app === 'heap'
-          ? useHeapState.getState()
-          : useDiaryState.getState();
+        app === 'chat' ? useChatState.getState() : useHeapState.getState();
 
       if (privacy !== 'public') {
         const writersIncludesMembers = values.writers.includes('members');
@@ -104,10 +105,21 @@ export default function EditChannelForm({
         );
 
         if (writersIncludesMembers) {
-          await chState.delSects(channelFlag, sects);
+          if (app === 'diary') {
+            await delDiarySects({
+              flag: channelFlag,
+              writers: writersToRemove,
+            });
+          } else {
+            await chState.delSects(channelFlag, sects);
+          }
+        } else if (app === 'diary') {
+          await addDiarySects({
+            flag: channelFlag,
+            writers: values.writers,
+          });
         } else {
           await chState.delSects(channelFlag, writersToRemove);
-          await chState.addSects(channelFlag, values.writers);
         }
       } else {
         await chState.delSects(channelFlag, sects);
@@ -135,6 +147,8 @@ export default function EditChannelForm({
       presetSection,
       mutateEditChannel,
       chan?.perms.writers,
+      addDiarySects,
+      delDiarySects,
     ]
   );
 
@@ -155,6 +169,14 @@ export default function EditChannelForm({
           Channel Name*
           <input
             {...form.register('meta.title')}
+            className="input my-2 block w-full p-1"
+            type="text"
+          />
+        </label>
+        <label className="mb-3 font-semibold">
+          Channel Description
+          <input
+            {...form.register('meta.description')}
             className="input my-2 block w-full p-1"
             type="text"
           />

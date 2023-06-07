@@ -41,19 +41,21 @@
   ?-  -.del
       %add
     =/  =seal:h  [new ~ ~]
-    ?:  (~(has by cur) new)
-      cur
     ~|  curio-failed-validation/p.del
     ?>  ?|  ?=(^ replying.p.del)
             ?&  ?=(^ title.p.del)
                 |(?=([~ ^] content.p.del) ?=([[* ~] ~] content.p.del))
             ==
         ==
-    =.  cur
-      (put:on:curios:h cur new [seal p.del])
-    ?~  replying.p.del  cur
-    =*  replying  u.replying.p.del
-    (jab replying |=(curio:h +<(replied (~(put in replied) new))))
+    |-
+    =/  curio  (get new)
+    ?~  curio
+      =.  cur  (put:on:curios:h cur new [seal p.del])
+      ?~  replying.p.del  cur
+      =*  replying  u.replying.p.del
+      (jab replying |=(curio:h +<(replied (~(put in replied) new))))
+    ?:  =(+.+.u.curio p.del)  cur
+    $(new `@da`(add new ^~((div ~s1 (bex 16)))))
   ::
       %edit
     =/  curio  (get existing)

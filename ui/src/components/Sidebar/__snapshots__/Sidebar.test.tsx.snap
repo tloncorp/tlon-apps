@@ -256,9 +256,9 @@ exports[`Sidebar > renders as expected 1`] = `
           </div>
           <div
             class="max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold  truncate text-gray-800 sm:text-gray-600"
-            title="Notifications"
+            title="Activity"
           >
-            Notifications
+            Activity
           </div>
         </a>
       </div>
@@ -288,7 +288,7 @@ exports[`Sidebar > renders as expected 1`] = `
             <div
               class="flex items-center"
             >
-              Find Groups
+              Discover
             </div>
           </div>
         </a>

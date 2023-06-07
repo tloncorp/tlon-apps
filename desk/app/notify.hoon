@@ -375,12 +375,7 @@
 ++  post-form
   |=  [=wire url=@t auth=@t params=(list [@t @t])]
   ^-  card
-  =/  esc=$-(@t @t)
-    |=(t=@t (crip (en-urlt:html (trip t))))
-  =.  params
-    %+  turn  params
-    |=  [p=@t q=@t]
-    [(esc p) (esc q)]
+  ~&  "post-form to {<url>} with {<params>}"
   =/  data
     %+  roll
       %+  sort  params

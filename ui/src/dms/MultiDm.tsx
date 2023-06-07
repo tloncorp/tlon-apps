@@ -21,6 +21,7 @@ import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
 import DmOptions from './DMOptions';
 import MessageSelector from './MessageSelector';
+import PendingIndicator from './MultiDMPendingIndicator';
 
 export default function MultiDm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -51,8 +52,7 @@ export default function MultiDm() {
   }
 
   const count = club.team.length;
-  const pendingCount = club.hive.length;
-  const hasPending = pendingCount > 0;
+  const hasPending = club.hive.length > 0;
   const groupName = club.meta.title || club.team.concat(club.hive).join(', ');
   const BackButton = isMobile ? Link : 'div';
 
@@ -64,40 +64,46 @@ export default function MultiDm() {
           isSelecting ? (
             <MessageSelector />
           ) : (
-            <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white px-6 py-4 sm:px-4">
+            <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
               <BackButton
                 to="/"
                 className={cn(
-                  'default-focus ellipsis inline-flex appearance-none items-center pr-2 text-lg font-bold text-gray-800 sm:text-base sm:font-semibold'
+                  'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
                 )}
-                aria-label={isMobile ? 'Open Messages Menu' : undefined}
+                aria-label="Open Messages Menu"
               >
                 {isMobile ? (
-                  <CaretLeft16Icon className="mr-2 h-4 w-4 shrink-0 text-gray-400" />
+                  <div className="flex h-6 w-6 items-center justify-center">
+                    <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
+                  </div>
                 ) : null}
-                <div className="mr-3 flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 text-center">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-center">
                   <MultiDmAvatar {...club.meta} size="xs" />
                 </div>
-                <span className="ellipsis text-gray-400 line-clamp-1">
-                  <span className="text-gray-800">{groupName}</span>
-                  <span className="ml-2 text-gray-400">
+                <div className="flex w-full flex-col justify-center">
+                  <span
+                    className={cn(
+                      'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                    )}
+                  >
+                    {groupName}
+                  </span>
+                  <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
                     <span>{`${count} ${pluralize('Member', count)}${
                       hasPending ? ',' : ''
                     }`}</span>
-                    {hasPending ? (
-                      <span className="text-blue"> {pendingCount} Pending</span>
-                    ) : null}
+                    {hasPending ? <PendingIndicator hive={club.hive} /> : null}
                   </span>
-                </span>
+                </div>
               </BackButton>
-              <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
+              <div className="flex shrink-0 flex-row items-center space-x-3">
                 {isMobile && <ReconnectingSpinner />}
                 <DmOptions
                   whom={clubId}
                   pending={!isAccepted}
                   isMulti
                   alwaysShowEllipsis
-                  className="text-gray-400"
+                  className="text-gray-600"
                 />
               </div>
             </div>

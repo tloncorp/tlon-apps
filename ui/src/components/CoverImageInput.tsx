@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, MouseEvent } from 'react';
 import cn from 'classnames';
 import { useFormContext } from 'react-hook-form';
 import { NoteEssay } from '@/types/diary';
@@ -10,18 +10,21 @@ import { useUploader } from '@/state/storage';
 interface CoverImageInputProps {
   className?: string;
   url?: string;
+  noteId?: string;
 }
 
 export default function CoverImageInput({
   className = '',
   url,
+  noteId,
 }: CoverImageInputProps) {
   const { register, watch, setValue } =
     useFormContext<Pick<NoteEssay, 'title' | 'image'>>();
   const image = watch('image');
   const calm = useCalm();
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const uploader = useUploader('cover-image-input');
+  const [haveUploaded, setHaveUploaded] = useState(false);
+  const uploader = useUploader(`cover-image-input-${noteId || 'new'}`);
   const mostRecentFile = uploader?.getMostRecent();
 
   useEffect(() => {
@@ -33,10 +36,18 @@ export default function CoverImageInput({
       setUploadError(mostRecentFile.errorMessage);
     }
 
-    if (mostRecentFile && mostRecentFile.status === 'success') {
+    if (mostRecentFile && mostRecentFile.status === 'success' && haveUploaded) {
       setValue('image', mostRecentFile.url);
     }
-  }, [mostRecentFile, setValue]);
+  }, [mostRecentFile, setValue, haveUploaded]);
+
+  const upload = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (uploader) {
+      uploader.prompt();
+      setHaveUploaded(true);
+    }
+  };
 
   return (
     <div
@@ -69,10 +80,7 @@ export default function CoverImageInput({
               title={'Upload an image'}
               className="small-button whitespace-nowrap"
               aria-label="Add attachment"
-              onClick={(e) => {
-                e.preventDefault();
-                uploader.prompt();
-              }}
+              onClick={upload}
             >
               {mostRecentFile && mostRecentFile.status === 'loading' ? (
                 <LoadingSpinner secondary="black" className="h-4 w-4" />

@@ -7,13 +7,12 @@ import {
   useGroupConnection,
   useGroupConnectionState,
   useGroupHostHi,
-  useGroupIndex,
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
 import { useChatState } from '@/state/chat';
 import { useHeapState } from '@/state/heap/heap';
-import { useDiaryState } from '@/state/diary';
+import { useDiaryBriefs } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, getFlagParts } from '@/logic/utils';
@@ -25,7 +24,8 @@ function Groups() {
   const group = useGroup(flag, true);
   const gang = useGang(flag);
   const { ship } = getFlagParts(flag);
-  const { isError, isSuccess, isLoading, ...rest } = useGroupHostHi(ship);
+  const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
+  const diaryBriefs = useDiaryBriefs();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -36,15 +36,21 @@ function Groups() {
   const { recentChannel } = useRecentChannel(flag);
 
   useEffect(() => {
-    if (isLoading) {
+    if (group) {
+      useGroupConnectionState.getState().setGroupConnected(flag, true);
+      return;
+    }
+
+    if (isLoading && !connection) {
       useGroupConnectionState.getState().setGroupConnected(flag, true);
     }
-    if (isError) {
+    if (isError && connection) {
       useGroupConnectionState.getState().setGroupConnected(flag, false);
-    } else if (isSuccess) {
+    }
+    if (isSuccess && !connection) {
       useGroupConnectionState.getState().setGroupConnected(flag, true);
     }
-  }, [isError, isSuccess, isLoading, flag]);
+  }, [isError, isSuccess, isLoading, flag, group, connection]);
 
   useEffect(() => {
     // 1) If we've initialized and the group doesn't exist and you don't have
@@ -77,7 +83,7 @@ function Groups() {
       const allBriefs = {
         ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
         ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
-        ..._.mapKeys(useDiaryState.getState().briefs, (v, k) => `diary/${k}`),
+        ..._.mapKeys(diaryBriefs, (v, k) => `diary/${k}`),
       };
       const channel = Object.entries(group.channels).find(
         ([nest]) => nest in allBriefs
@@ -90,12 +96,21 @@ function Groups() {
         navigate('./channels');
       }
     }
-  }, [root, gang, group, vessel, isMobile, recentChannel, navigate]);
+  }, [
+    root,
+    gang,
+    group,
+    vessel,
+    isMobile,
+    recentChannel,
+    navigate,
+    diaryBriefs,
+  ]);
 
   if (!connection && !group) {
     return (
       <div className="flex min-w-0 grow items-center justify-center bg-gray-50">
-        <div className="flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center space-y-4">
           <span className="ml-2 text-gray-600">
             Group host ({ship}) is offline.
           </span>

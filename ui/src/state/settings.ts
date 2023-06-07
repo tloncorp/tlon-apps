@@ -86,6 +86,7 @@ export interface SettingsState {
     sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
     groupSideBarSort: Stringified<GroupSideBarSort>;
     showVitaMessage: boolean;
+    hasBeenUsed: boolean;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -96,8 +97,8 @@ export interface SettingsState {
 export const useLandscapeSettings = () => {
   const { data, isLoading } = useReactQuerySubscription({
     scry: `/desk/${lsDesk}`,
-    scryApp: 'settings-store',
-    app: 'settings-store',
+    scryApp: 'settings',
+    app: 'settings',
     path: `/desk/${lsDesk}`,
     queryKey: ['settings', lsDesk],
   });
@@ -116,8 +117,8 @@ export const useLandscapeSettings = () => {
 export const useSettings = () => {
   const { data, isLoading } = useReactQuerySubscription({
     scry: `/desk/${window.desk}`,
-    scryApp: 'settings-store',
-    app: 'settings-store',
+    scryApp: 'settings',
+    app: 'settings',
     path: `/desk/${window.desk}`,
     queryKey: ['settings', window.desk],
   });
@@ -224,7 +225,7 @@ export function usePutEntryMutation({
     const { val } = variables;
     await api.trackedPoke<PutEntry, SettingsEvent>(
       {
-        app: 'settings-store',
+        app: 'settings',
         mark: 'settings-event',
         json: {
           'put-entry': {
@@ -236,7 +237,7 @@ export function usePutEntryMutation({
         },
       },
       {
-        app: 'settings-store',
+        app: 'settings',
         path: `/desk/${window.desk}`,
       },
       (event) => {

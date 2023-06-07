@@ -1190,9 +1190,32 @@
   ++  ca-peek
     |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  pole  [~ ~]
-      [%writs rest=*]  (peek:ca-pact care rest.pole)
-      [%perm ~]        ``chat-perm+!>(perm.chat)
+    ?+    pole  [~ ~]
+        [%writs rest=*]
+      (peek:ca-pact care rest.pole)
+    ::
+        [%perm ~]
+      ``chat-perm+!>(perm.chat)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:ca-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:ca-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  ca-revoke
@@ -1540,16 +1563,16 @@
   ::
   ++  di-abed-soft
     |=  s=@p
-    =/  new=?  (~(has by dms) s)
+    =/  new=?  !(~(has by dms) s)
     =/  d
       %+  ~(gut by dms)  s
       =|  =remark:c
       =.  watching.remark  &
       [*pact:c remark ?:(=(src our):bowl %inviting %invited) |]
-    =?  di-core  &(new !=(src our):bowl)
-      di-invited
-    di-core(ship s, dm d)
-
+    ?.  &(new !=(src our):bowl)
+      di-core(ship s, dm d)
+    di-invited:di-core(ship s, dm d)
+  ::
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
@@ -1677,10 +1700,31 @@
     ==
   ::
   ++  di-peek
-    |=  [care=@tas =path]
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  path  [~ ~]
-      [%writs *]  (peek:di-pact care t.path)
+    ?+    pole  [~ ~]
+        [%writs rest=*]
+      (peek:di-pact care rest.pole)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:di-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:di-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  di-brief  (brief:di-pact our.bowl last-read.remark.dm)

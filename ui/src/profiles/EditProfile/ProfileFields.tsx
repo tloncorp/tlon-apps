@@ -35,7 +35,7 @@ export default function ProfileFields() {
               <ColorPicker
                 color={normalizeUrbitColor(watchSigilColor || '0x0')}
                 setColor={debouncedSetColor}
-                className="z-50"
+                className="z-10"
               />
             </div>
             {errors.color ? (
@@ -110,9 +110,8 @@ export default function ProfileFields() {
           Bio
         </label>
         <textarea
-          // TODO: set sane maxLength
           {...register('bio', { maxLength: 1000 })}
-          className="input"
+          className="input h-44"
           placeholder="Add a bio"
           spellCheck={`${!calm.disableSpellcheck}`}
         />
