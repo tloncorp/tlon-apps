@@ -60,9 +60,6 @@
     =/  =seal:c  [id now ~ ~ [%fray ~]]
     ?:  (~(has by dex.pac) id)
       pac
-    |-
-    ?:  (has:on:writs:c wit.pac now)  
-      $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
       (put:on:writs:c wit.pac now seal p.del)
     =.  dex.pac  (~(put by dex.pac) id now)
@@ -126,12 +123,26 @@
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((gas:on *writs:c (bat:mope wit.pac `start count)))
+    =/  items  (bat:mope wit.pac `start count)
+    =/  filtered
+      %+  skim  items
+      |=  [=time =writ:c]
+      ?+  -.threaded.writ  %.y
+          %strand  %.n
+      ==
+    ``chat-writs+!>((gas:on *writs:c filtered))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((gas:on *writs:c (tab:on wit.pac `start count)))
+    =/  items  (tab:on wit.pac `start count)
+    =/  filtered
+      %+  skim  items
+      |=  [=time =writ:c]
+      ?+  -.threaded.writ  %.y
+          %strand  %.n
+      ==
+    ``chat-writs+!>((gas:on *writs:c filtered))
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
