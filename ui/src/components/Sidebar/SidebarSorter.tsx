@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import SortIcon from '@/components/icons/SortIcon';
 import useSidebarSort from '@/logic/useSidebarSort';
 
@@ -19,7 +18,7 @@ export default function SidebarSorter({
         <DropdownMenu.Item
           key={k}
           onSelect={() => setSortFn(k)}
-          className="dropdown-item flex items-center space-x-2"
+          className="dropdown-item"
         >
           {k}
         </DropdownMenu.Item>
@@ -36,10 +35,7 @@ export default function SidebarSorter({
         <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
       </DropdownMenu.Trigger>
       <DropdownMenu.Content className="dropdown w-56">
-        <DropdownMenu.Item
-          disabled
-          className="dropdown-item flex cursor-default items-center space-x-2 text-gray-300 hover:bg-transparent"
-        >
+        <DropdownMenu.Item disabled className="dropdown-item-disabled">
           Group Ordering
         </DropdownMenu.Item>
         {dropdownOptions}

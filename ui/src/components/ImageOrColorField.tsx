@@ -61,18 +61,18 @@ export default function ImageOrColorField<FormType extends FieldValues>({
       <div className="flex w-full items-center space-x-2">
         {status === 'image' ? (
           <>
-            <button
-              className="flex items-center justify-center"
-              onClick={handleColorIconType}
-            >
-              <XIcon className="h-4 w-4" />
-            </button>
             <ImageURLUploadField
               formRegister={register}
               formSetValue={setValue}
               formWatchURL={watchValue}
               formValue={fieldName}
             />
+            <button
+              className="flex items-center justify-center"
+              onClick={handleColorIconType}
+            >
+              <XIcon className="h-4 w-4" />
+            </button>
           </>
         ) : null}
         {status === 'color' ? (

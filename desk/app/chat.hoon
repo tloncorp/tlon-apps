@@ -1274,9 +1274,32 @@
   ++  ca-peek
     |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  pole  [~ ~]
-      [%writs rest=*]  (peek:ca-pact care rest.pole)
-      [%perm ~]        ``chat-perm+!>(perm.chat)
+    ?+    pole  [~ ~]
+        [%writs rest=*]
+      (peek:ca-pact care rest.pole)
+    ::
+        [%perm ~]
+      ``chat-perm+!>(perm.chat)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:ca-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:ca-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  ca-revoke
@@ -1761,10 +1784,31 @@
     ==
   ::
   ++  di-peek
-    |=  [care=@tas =path]
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  path  [~ ~]
-      [%writs *]  (peek:di-pact care t.path)
+    ?+    pole  [~ ~]
+        [%writs rest=*]
+      (peek:di-pact care rest.pole)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:di-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:di-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  di-brief  (brief:di-pact our.bowl last-read.remark.dm)

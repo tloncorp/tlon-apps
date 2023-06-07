@@ -147,10 +147,15 @@
     %+  gas:on:outlines:d  *outlines:d
     (turn ls |=([=time =note:d] [time (trace note)]))
   ::
-      [%older start=@ count=@ ~]
+      [%older start=@ count=@ mode=?(%outline %note) ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``diary-notes+!>((gas:on *notes:d (bat:mope not `start count)))
+    =/  ls    (bat:mope not `start count)
+    ?:  =(mode.pole %note)
+      ``diary-notes+!>((gas:on *notes:d ls))
+    =-  ``diary-outlines+!>(-)
+    %+  gas:on:outlines:d  *outlines:d
+    (turn ls |=([=time =note:d] [time (trace note)]))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
