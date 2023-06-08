@@ -221,7 +221,7 @@
       =/  =action:d  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /diary
       =/  =dock  [our.bowl %diary]
-      =/  =cage  diary-action-0+!>(action)
+      =/  =cage  [act:mar:d !>(action)]
       [%pass wire %agent dock %poke cage]
     ::
         %heap

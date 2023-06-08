@@ -11,7 +11,6 @@
 ^-  agent:gall
 =>
   |%
-  ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  current-state
     $:  %0
@@ -36,7 +35,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay])
+  ++  on-save  !>([state okay:d])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -76,7 +75,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
-+*  epos  ~(. epos-lib [bowl %diary-update okay])
++*  epos  ~(. epos-lib [bowl %diary-update okay:d])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -85,11 +84,6 @@
 ++  init
   ^+  cor
   watch-groups
-++  mar
-  |%
-  ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
-  ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
-  --
 ++  load
   |=  =vase
   |^  ^+  cor
@@ -135,7 +129,7 @@
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay)
+    ?.  =(epic okay:d)
       cor
     ~&  >>  "good news everyone!"
     %+  roll  ~(tap by shelf)
@@ -358,7 +352,7 @@
       [%ui ~]      ?>(from-self cor)
       [%imp ~]      ?>(from-self cor)
     ::
-      [%epic ~]    (give %fact ~ epic+!>(okay))
+      [%epic ~]    (give %fact ~ epic+!>(okay:d))
     ::
       [%diary ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -453,7 +447,7 @@
     ::
         %watch-ack
       ?~  p.sign
-       (give %fact ~ epic+!>(okay))
+       (give %fact ~ epic+!>(okay:d))
       =/  =tank
         leaf/"Failed groups subscription in {<dap.bowl>}, unexpected"
       ((slog tank u.p.sign) cor)
@@ -599,7 +593,7 @@
       di-core
     ?.  ?=(%dex -.saga.net.diary)
       di-core
-    ?.  =(okay ver.saga.net.diary)
+    ?.  =(okay:d ver.saga.net.diary)
       ~&  future-shock/[ver.saga.net.diary flag]
       di-core
     =>  .(saga.net.diary `saga:e`saga.net.diary)
@@ -738,9 +732,9 @@
     |=  her=epic:e
     ^+  di-core
     ?>  ?=(%sub -.net.diary)
-    ?:  =(her okay)
+    ?:  =(her okay:d)
       di-core
-    ?:  (gth her okay)
+    ?:  (gth her okay:d)
       =.  saga.net.diary  dex+her
       di-core
     di-make-lev
@@ -783,7 +777,7 @@
     ^+  di-core
     ?>  di-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  [act:mar !>([flag update])]
+    =/  =cage  [act:mar:d !>([flag update])]
     =.  cor
       (emit %pass di-area %agent dock %poke cage)
     di-core
@@ -818,8 +812,7 @@
       ?~  path  log.diary
       =/  =time  (slav %da i.path)
       (lot:log-on:d log.diary `time ~)
-    =/  =cage  diary-logs+!>(log)
-    =.  cor  (give %fact ~ cage)
+    =.  cor  (give %fact ~ log:mar:d !>(log))
     di-core
   ::
   ++  di-sub
@@ -877,8 +870,8 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
-    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
-    =/  cag=cage  [upd:mar !>([time d])]
+    =.  cor  (give %fact ~[/ui] act:mar:^d !>([flag [time d]]))
+    =/  cag=cage  [upd:mar:^d !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
     di-core
