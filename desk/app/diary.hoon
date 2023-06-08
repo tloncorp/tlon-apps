@@ -459,7 +459,7 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(%group-action-0 p.cage.sign)  cor
+      ?.  =(act:mar:g p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
@@ -656,7 +656,7 @@
       =/  =dock      [our.bowl %groups] :: [p.p.action %groups] XX: check?
       =/  =wire      (snoc di-area term)
       =.  cor
-        (emit %pass wire %agent dock %poke group-action-0+!>(action))
+        (emit %pass wire %agent dock %poke act:mar:g !>(action))
       di-core
     ::
     ++  create-channel
