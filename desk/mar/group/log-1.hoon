@@ -1,2 +1,2 @@
-/=  mark  /mar/dummy
+/=  mark  /mar/group/log-0
 mark

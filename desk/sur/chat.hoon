@@ -10,6 +10,14 @@
   ++  zero  zer
   ++  one  uno
   --
+::  +mar:  mark name
+++  okay  `epic:e`0
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %chat-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %chat-update '-' (scot %ud okay) ~)
+  ++  log  `mark`(rap 3 %chat-logs '-' (scot %ud okay) ~)
+  --
 ::
 ::  $scan: search results
 +$  scan  (list writ)
