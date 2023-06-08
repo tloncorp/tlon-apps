@@ -11,7 +11,7 @@
 ^-  agent:gall
 =>
   |%
-  ++  okay  `epic:e`0
+  ++  okay  `epic:e`1
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
@@ -139,7 +139,7 @@
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) ~)
   ::
-      ?(%group-action %group-action-0)
+      ?(%group-action-1 %group-action-0)
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
@@ -986,10 +986,10 @@
       =*  cage  cage.sign
       ::  XX: does init need to be handled specially?
       ?+  p.cage  (go-odd-update p.cage)
-        %epic                             (go-take-epic !<(epic:e q.cage))
-        ?(%group-log-0 %group-log)        (go-apply-log !<(log:g q.cage))
-        ?(%group-update-0 %group-update)  (go-update !<(update:g q.cage))
-        ?(%group-init-0 %group-init)      (go-fact-init !<(init:g q.cage))
+        %epic            (go-take-epic !<(epic:e q.cage))
+        %group-log-1     (go-apply-log !<(log:g q.cage))
+        %group-update-1  (go-update !<(update:g q.cage))
+        %group-init-1    (go-fact-init !<(init:g q.cage))
       ==
     ==
   ::
