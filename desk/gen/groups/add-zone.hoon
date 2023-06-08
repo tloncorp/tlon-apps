@@ -7,7 +7,7 @@
     ==
 ::
 =|  =vessel:fleet:g
-:-  %group-action
+:-  act:mar:g
 ^-  action:g
 =/  meta=data:meta  ['title' 'description' '' '']
 :-  [her name]
