@@ -132,6 +132,19 @@
       ==
     ``chat-writs+!>((gas:on *writs:c filtered))
   ::
+      [%older start=@ count=@ %thread ship=@ time=@ ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %ud start.pole)
+    =/  =id:c  [(slav %p ship.pole) (slav %ud time.pole)]
+    =/  items  (bat:mope wit.pac `start count)
+    =/  filtered
+      %+  skim  items
+      |=  [=time =writ:c]
+      ?+  -.threaded.writ  %.n
+          %strand  =(id id.threaded.writ)
+      ==
+    ``chat-writs+!>((gas:on *writs:c filtered))
+  ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
@@ -141,6 +154,19 @@
       |=  [=time =writ:c]
       ?+  -.threaded.writ  %.y
           %strand  %.n
+      ==
+    ``chat-writs+!>((gas:on *writs:c filtered))
+  ::
+      [%newer start=@ count=@ %thread ship=@ time=@ ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %ud start.pole)
+    =/  =id:c  [(slav %p ship.pole) (slav %ud time.pole)]
+    =/  items  (tab:on wit.pac `start count)
+    =/  filtered
+      %+  skim  items
+      |=  [=time =writ:c]
+      ?+  -.threaded.writ  %.n
+          %strand  =(id id.threaded.writ)
       ==
     ``chat-writs+!>((gas:on *writs:c filtered))
   ::
