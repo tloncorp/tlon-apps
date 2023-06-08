@@ -1,4 +1,4 @@
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import {
   Chat,
   ChatWhom,
@@ -17,6 +17,19 @@ import {
 } from '../../types/chat';
 import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
+
+export interface WritWindow {
+  oldest: bigInt.BigInteger;
+  newest: bigInt.BigInteger;
+  loadedOldest: boolean;
+  loadedNewest: boolean;
+  latest?: boolean;
+}
+
+export interface WritWindows {
+  latest?: WritWindow;
+  windows: WritWindow[];
+}
 
 export interface ChatState {
   set: (fn: (sta: BasedChatState) => void) => void;
@@ -38,11 +51,8 @@ export interface ChatState {
   pacts: {
     [whom: ChatWhom]: Pact;
   };
-  loadedWrits: {
-    [whom: ChatWhom]: {
-      oldest: bigInt.BigInteger;
-      newest: bigInt.BigInteger;
-    };
+  writWindows: {
+    [whom: ChatWhom]: WritWindows;
   };
   loadedRefs: {
     [path: string]: ChatWrit;
@@ -60,8 +70,17 @@ export interface ChatState {
   startTalk: (init: TalkChatInit, startBase?: boolean) => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
-  fetchNewer: (ship: string, count: string) => Promise<boolean>;
-  fetchOlder: (ship: string, count: string) => Promise<boolean>;
+  fetchMessages: (
+    ship: string,
+    count: string,
+    dir: 'newer' | 'older',
+    time?: BigInteger
+  ) => Promise<boolean>;
+  fetchMessagesAround: (
+    ship: string,
+    count: string,
+    time: BigInteger
+  ) => Promise<void>;
   draft: (whom: string, story: ChatStory) => Promise<void>;
   joinChat: (groupFlag: string, flag: string) => Promise<void>;
   leaveChat: (flag: string) => Promise<void>;

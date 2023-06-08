@@ -145,12 +145,33 @@ exports[`ChatMessage > renders as expected 1`] = `
       <span
         class="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block"
       >
-        February 1st, 2021 • 13:00
+        <time
+          datetime="2021-02-01T19:00:00.000Z"
+        >
+          February 1st, 2021 
+          <span
+            aria-hidden="true"
+          >
+            •
+          </span>
+           13:00
+        </time>
       </span>
       <span
         class="-mb-0.5 block shrink-0 text-sm font-semibold text-gray-500 group-two-hover:hidden"
       >
-        February 1st • 13:00
+        February 1st 
+        <span
+          aria-hidden="true"
+        >
+          •
+        </span>
+         
+        <time
+          datetime="13:00"
+        >
+          13:00
+        </time>
       </span>
     </div>
     <div

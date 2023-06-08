@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router';
-import { Helmet } from 'react-helmet';
 import cn from 'classnames';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Route, Routes, useMatch, useNavigate, useParams } from 'react-router';
+import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
-import { useChatPerms, useChatState, useMessagesForChat } from '@/state/chat';
+import { useChatPerms, useChatState } from '@/state/chat';
 import {
   useRouteGroup,
   useVessel,
@@ -22,8 +22,13 @@ import {
   isTalk,
 } from '@/logic/utils';
 import useAllBriefs from '@/logic/useAllBriefs';
-import ChatScrollerPlaceholder from '@/chat/ChatScoller/ChatScrollerPlaceholder';
 import { useLastReconnect } from '@/state/local';
+import { Link } from 'react-router-dom';
+import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
+import useMedia from '@/logic/useMedia';
+import ChannelTitleButton from '@/channels/ChannelTitleButton';
+import ChatSearch from './ChatSearch/ChatSearch';
+import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
@@ -39,9 +44,7 @@ function ChatChannel({ title }: ViewProps) {
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
   const { setRecentChannel } = useRecentChannel(groupFlag);
-  const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
-  const messages = useMessagesForChat(chFlag);
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
   const channel = useChannel(groupFlag, nest);
@@ -51,13 +54,14 @@ function ChatChannel({ title }: ViewProps) {
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
   const inThread = idShip && idTime;
+  const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
   const { sendMessage } = useChatState.getState();
   const briefs = useAllBriefs();
   const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
     ? isChannelJoined(nest, briefs)
     : true;
-  const needsLoader = messages.size === 0;
   const lastReconnect = useLastReconnect();
+  const isSmall = useMedia('(max-width: 1023px)');
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -71,7 +75,6 @@ function ChatChannel({ title }: ViewProps) {
 
   const initializeChannel = useCallback(async () => {
     await useChatState.getState().initialize(chFlag);
-    setLoading(false);
   }, [chFlag]);
 
   useEffect(() => {
@@ -81,16 +84,11 @@ function ChatChannel({ title }: ViewProps) {
   }, [joined, joinChannel]);
 
   useEffect(() => {
-    if (needsLoader) {
-      setLoading(true);
-    }
-
     if (joined && canRead && !joining) {
       initializeChannel();
       setRecentChannel(nest);
     }
   }, [
-    needsLoader,
     nest,
     setRecentChannel,
     initializeChannel,
@@ -116,7 +114,52 @@ function ChatChannel({ title }: ViewProps) {
     <>
       <Layout
         className="flex-1 bg-white"
-        header={<ChannelHeader flag={groupFlag} nest={nest} />}
+        header={
+          <Routes>
+            <Route
+              path="search/:query?"
+              element={
+                <>
+                  <ChatSearch
+                    whom={chFlag}
+                    root={`/groups/${groupFlag}/channels/${nest}`}
+                    placeholder={
+                      channel ? `Search in ${channel.meta.title}` : 'Search'
+                    }
+                  >
+                    <ChannelTitleButton flag={groupFlag} nest={nest} />
+                  </ChatSearch>
+                  <Helmet>
+                    <title>
+                      {channel && group
+                        ? `${channel.meta.title} in ${group.meta.title} Search`
+                        : 'Search'}
+                    </title>
+                  </Helmet>
+                </>
+              }
+            />
+            <Route
+              path="*"
+              element={
+                <ChannelHeader
+                  flag={groupFlag}
+                  nest={nest}
+                  prettyAppName="Chat"
+                  leave={useChatState.getState().leaveChat}
+                >
+                  <Link
+                    to="search/"
+                    className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
+                    aria-label="Search Chat"
+                  >
+                    <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
+                  </Link>
+                </ChannelHeader>
+              }
+            />
+          </Routes>
+        }
         footer={
           <div
             className={cn(
@@ -129,7 +172,7 @@ function ChatChannel({ title }: ViewProps) {
                 whom={chFlag}
                 sendMessage={sendMessage}
                 showReply
-                autoFocus={!inThread}
+                autoFocus={!inThread && !inSearch}
               />
             ) : null}
           </div>
@@ -142,15 +185,13 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        {loading ? (
-          <div className="h-full">
-            <ChatScrollerPlaceholder count={30} />
-          </div>
-        ) : (
-          <ChatWindow whom={chFlag} messages={messages} />
-        )}
+        <ChatWindow whom={chFlag} />
       </Layout>
-      <Outlet />
+      <Routes>
+        {isSmall ? null : (
+          <Route path="message/:idShip/:idTime" element={<ChatThread />} />
+        )}
+      </Routes>
     </>
   );
 }
