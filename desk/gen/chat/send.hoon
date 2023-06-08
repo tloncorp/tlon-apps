@@ -10,7 +10,7 @@
   [~ mess]
 =/  =memo:c
   [~ p.beak now story/story]
-:-  %chat-action
+:-  act:mar:c
 ^-  action:c
 :-  [her name]
 :-  now

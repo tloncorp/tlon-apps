@@ -22,7 +22,6 @@
         odd=&
         veb=|
     ==
-  ++  okay  `epic:e`0
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
     $:  %2
@@ -54,7 +53,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay])
+  ++  on-save  !>([state okay:c])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -94,7 +93,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
-+*  epos  ~(. epos-lib [bowl %chat-update okay])
++*  epos  ~(. epos-lib [bowl %chat-update okay:c])
     wood   ~(. wood-lib [bowl wood-state])
 ++  abet  [(flop cards) state]
 ++  cor   .
@@ -105,12 +104,6 @@
 ++  init
   ^+  cor
   watch-groups
-::  +mar:  mark name
-++  mar
-  |%
-  ++  act  `mark`(rap 3 %chat-action '-' (scot %ud okay) ~)
-  ++  upd  `mark`(rap 3 %chat-update '-' (scot %ud okay) ~)
-  --
 ::  +load: load next state
 ++  load
   |=  =vase
@@ -124,7 +117,7 @@
       %2
     =.  state  old      
     =.  cor  restore-missing-subs
-    ?:  =(okay cool)  cor
+    ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
     %-  (note:wood %ver leaf/"New Epic" ~)
     =.  cor  (emil (drop load:epos))
@@ -372,7 +365,7 @@
       [%dm %invited ~]  ?>(from-self cor)
   ::
       [%epic ~]
-    (give %fact ~ epic+!>(okay))
+    (give %fact ~ epic+!>(okay:c))
   ::
       [%said host=@ name=@ %msg sender=@ time=@ ~]
     =/  host=ship  (slav %p host.pole)
@@ -653,7 +646,7 @@
       %-  (note:wood %odd leaf/"!!! weird fact on /epic" ~)
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay)  :: is now our guy
+    ?.  =(epic okay:c)  :: is now our guy
       cor
     %+  roll  ~(tap by chats)
     |=  [[=flag:g =chat:c] out=_cor]
@@ -1190,7 +1183,7 @@
     ^+  ca-core
     ?.  ?=(%sub -.net.chat)  ca-core
     ?.  ?=(%dex -.saga.net.chat)  ca-core
-    ?.  =(okay ver.saga.net.chat)
+    ?.  =(okay:c ver.saga.net.chat)
       %-  (note:wood %ver leaf/"%future-shock {<[ver.saga.net.chat flag]>}" ~)
       ca-core
     ca-make-chi
@@ -1370,9 +1363,9 @@
     |=  her=epic:e
     ^+  ca-core
     ?>  ?=(%sub -.net.chat)
-    ?:  =(her okay)
+    ?:  =(her okay:c)
       ca-make-chi
-    ?:  (gth her okay)
+    ?:  (gth her okay:c)
       =.  saga.net.chat  dex/her
       %-  (note:wood %ver leaf/"took dex epic: {<[flag her]>}" ~)
       ca-core
@@ -1383,7 +1376,7 @@
     ^+  ca-core
     ?>  ca-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  [act:mar !>([flag update])]
+    =/  =cage  [act:mar:c !>([flag update])]
     =.  cor
       (emit %pass ca-area %agent dock %poke cage)
     ca-core
@@ -1418,8 +1411,7 @@
       ?~  path  log.chat
       =/  =time  (slav %da i.path)
       (lot:log-on:c log.chat `time ~)
-    =/  =cage  chat-logs+!>(logs)
-    =.  cor  (give %fact ~ cage)
+    =.  cor  (give %fact ~ log:mar:c !>(logs))
     ca-core
   ::
   ++  ca-safe-sub
@@ -1485,10 +1477,10 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
-    =/  cag=cage  [upd:mar !>([time d])]
+    =/  cag=cage  [upd:mar:c !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
+    =.  cor  (give %fact ~[/ui] act:mar:c !>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))

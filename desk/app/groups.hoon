@@ -212,7 +212,7 @@
       =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /chat
       =/  =dock  [our.bowl %chat]
-      =/  =cage  chat-action-0+!>(action)
+      =/  =cage  [act:mar:c !>(action)]
       [%pass wire %agent dock %poke cage]
     ::
         %diary
