@@ -1,18 +1,10 @@
-/-  g=groups, graph-store, uno=chat-1, zer=chat-0
+/-  g=groups, graph-store
 /-  meta
 /-  metadata-store
 /-  cite
 /-  e=epic
 /+  lib-graph=graph-store
-/+  mp=mop-extensions
 |%
-++  old
-  |%
-  ++  zero  zer
-  ++  one  uno
-  --
-++  mope  ((mp time (unit writ:c)) lte)
-::
 ::  $writ: a chat message
 +$  writ   [seal memo]
 ::  $id: an identifier for chat messages
@@ -29,7 +21,7 @@
 ::
 +$  seal
   $:  =id
-      feels=(map ship [rev=@ud =feel])
+      feels=(map ship feel)
       replied=(set id)
   ==
 ::
@@ -90,9 +82,6 @@
 +$  index   (map id time)
 ::
 ::  $pact: a double indexed map of chat messages, id -> time -> message
-::
-::    if a message is in dex, it must be non-null in wit, and if it's
-::    non-null in wit, then it must be in dex
 ::
 +$  pact
   $:  wit=writs
@@ -165,61 +154,17 @@
   =<  writs
   |%
   +$  writs
-    ((mop time (unit writ)) lte)
+    ((mop time writ) lte)
   ++  on
-    ((^on time (unit writ)) lte)
+    ((^on time writ) lte)
   +$  diff
-    writs
-  +$  action
+    (pair id delta)
+  +$  delta
     $%  [%add p=memo]
         [%del ~]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
     ==
-  ::  Apply a diff to a snapshot.  We don't expect diffs to necessarily
-  ::  be in order, and they may be safely applied more than once.
-  ::
-  ++  wash
-    |=  [wit=writs dif=diff]
-    ^-  writs
-    %-  (uno:mope wit dif)
-    |=  [=time a=(unit writ:c) b=(unit writ:c)]
-    ^-  (unit writ:c)
-    ?~  a
-      ~
-    ?~  b
-      ~
-    ?.  =([id memo]:u.a [id memo]:u.b)
-      %-  %:  slog
-            'chat: unexpected messsage conflict!'
-            >[id memo]:u.a<
-            >[id memo]:u.b<
-          ==
-      a
-    :-  ~  :_  memo.u.a
-    :-  id.u.a
-    :_  (~(uni in replied.u.a) replied.u.b)
-    ^-  (map ship feel)
-    %-  (~(uno by feels.u.a) feels.u.b)
-    |=  [=ship a=[rev=@ud =feel] b=[rev=@ud =feel]]
-    ^-  [rev=@ud feel]
-    ?:  (gth rev.a rev.b)
-      a
-    b
-  ::  Generate a diff between two snapshots.  The result should be the
-  ::  smallest diff that can be applied to the old snapshot to produce
-  ::  the newer snapshot.
-  ::
-  ++  walk
-    |=  [old=writs new=writs]
-    ^-  diff
-    =/  a  (dif:mope old new)  :: everything in old must be in new
-    ?>  =(~ a)
-    =/  b  (dif:mope new old)  :: in new but not old
-    =/  c  (int:mope old new)  :: in both, use new
-    =/  d  (tin:mope old new)  :: in both with identical values
-    =/  e  (dif:mope c d)      :: in both with different values
-    (uni:writs:c e b)          :: disjoint union
   --
 ::
 ::  $dm: a direct line of communication between two ships

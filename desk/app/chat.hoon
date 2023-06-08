@@ -1490,6 +1490,7 @@
     =.  cor
       (give-brief flag/flag ca-brief)
     ca-core
+  ::  received update from host
   ::
   ++  ca-update
     |=  [=time d=diff:c]
@@ -1517,56 +1518,72 @@
     ::
         %writs
       =*  delta  q.p.d
+      =/  old  wit.pact.chat
       =.  pact.chat  (reduce:ca-pact time p.d)
-      ?-  -.delta
-          ?(%del %add-feel %del-feel)  ca-core
-          %add
-        =/  memo=memo:c  p.delta
-        =?  remark.chat  =(author.memo our.bowl)  
+      =/  diff  (walk:writs:c old wit.pact.chat)
+      ::  XX give-updates
+      =/  diffs=(list [=time wit=(unit writ)])  (tap:on:writs:c diff)
+      |-  ^+  ca-core
+      ?~  diffs
+        ca-core
+      =.  ca-core
+        ?~  wit.i.diffs
+          ca-core
+        ?:  (has:on:writs:c time.i.diffs)
+          ca-core
+        ::  got new message
+        ::
+        =?  remark.chat  =(author.memo.u.wit.i.diffs our.bowl)
           remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief flag/flag ca-brief)
-        ?-  -.content.memo
-            %notice  ca-core
-            %story
-          ?.  ?&  !=(author.memo our.bowl)
-                  |(!=(~ replying.memo) (mentioned q.p.content.memo our.bowl))
-              ==
-            ca-core
-          ?:  (mentioned q.p.content.memo our.bowl)
-            =/  yarn  (ca-mention-hark memo p.content.memo p.p.d)
-            =.  cor  (emit (pass-hark & & yarn))
-            ca-core
-          =/  replying  (need replying.memo)
-          =/  op  (~(get pac pact.chat) replying)
-          ?~  op  ca-core
-          =/  opwrit  writ.u.op
-          =/  in-replies
-            %+  lien
-              ~(tap in replied.opwrit)
-            |=  =id:c
-            =/  writ  (~(get pac pact.chat) id)
-            ?~  writ  %.n
-            =(author.writ.u.writ our.bowl)
-          ?:  &(!=(author.opwrit our.bowl) !in-replies)  ca-core
-          ?-  -.content.opwrit
-              %notice  ca-core
-              %story
-            =/  yarn
-              %^  ca-spin
-                /message/(scot %p p.replying)/(scot %ud q.replying)
-                :~  [%ship author.memo]
-                    ' replied to your message “'
-                    (flatten q.p.content.opwrit)
-                    '”: '
-                    [%ship author.memo]
-                    ': '
-                    (flatten q.p.content.memo)
-                ==
-              ~
-            =.  cor  (emit (pass-hark & & yarn))
-            ca-core
+        (ca-maybe-mention-hark memo.u.wit.i.diffs)
+      $(diffs t.diffs)
+    ==
+  ::  got new message, decide whether to notify
+  ::
+  ++  ca-maybe-mention-hark
+    |=  =memo:c
+    ^+  ca-core
+    ?-  -.content.memo
+        %notice  ca-core
+        %story
+      ?.  ?&  !=(author.memo our.bowl)
+              |(!=(~ replying.memo) (mentioned q.p.content.memo our.bowl))
           ==
-        ==
+        ca-core
+      ?:  (mentioned q.p.content.memo our.bowl)
+        =/  yarn  (ca-mention-hark memo p.content.memo p.p.d)
+        =.  cor  (emit (pass-hark & & yarn))
+        ca-core
+      =/  replying  (need replying.memo)
+      =/  op  (~(get pac pact.chat) replying)
+      ?~  op  ca-core
+      =/  opwrit  writ.u.op
+      =/  in-replies
+        %+  lien
+          ~(tap in replied.opwrit)
+        |=  =id:c
+        =/  writ  (~(get pac pact.chat) id)
+        ?~  writ  %.n
+        =(author.writ.u.writ our.bowl)
+      ?:  &(!=(author.opwrit our.bowl) !in-replies)  ca-core
+      ?-  -.content.opwrit
+          %notice  ca-core
+          %story
+        =/  yarn
+          %^  ca-spin
+            /message/(scot %p p.replying)/(scot %ud q.replying)
+            :~  [%ship author.memo]
+                ' replied to your message “'
+                (flatten q.p.content.opwrit)
+                '”: '
+                [%ship author.memo]
+                ': '
+                (flatten q.p.content.memo)
+            ==
+          ~
+        =.  cor  (emit (pass-hark & & yarn))
+        ca-core
       ==
     ==
   ::

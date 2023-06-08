@@ -74,4 +74,98 @@
       (items-with-remainder l.a (dec q.right-result))
     [(zing ~[p.left-result ~[n.a] p.right-result]) q.left-result]
   --
+::  +bif: split by node (used internally by +dif)
+::
+++  bif
+  ~/
+  |=  [a=(tree item) b=key c=val]
+  ^-  [l=(tree item) r=(tree item)
+  =<  +
+  |-  ^-  (tree item)
+  ?~  a
+    [[b c] ~ ~]
+  ?:  =(b key.n.a)
+    ?:  =(c val.n.a)
+      a
+    a(n [b c])
+  ?:  (compare b key.n.a)
+    =+  d=$(a l.a)
+    ?>  ?=(^ d)
+    d(r a(l r.d))
+  =+  d=$(a r.a)
+  ?>  ?=(^ d)
+  d(l a(r l.d))
+::
+::  +dif: "set difference", those elements in a but not in b
+::
+++  dif
+  ~/  %dif
+  |=  [a=(tree item) b=(tree item)]
+  |-  ^-  (tree item)
+  ?~  b
+    a
+  =+  c=(bif a n.b)
+  ?>  ?=(^ c)
+  =+  d=$(a l.c, b l.b)
+  =+  e=$(a r.c, b r.b)
+  |-  ^-  (tree item)
+  ?~  d  e
+  ?~  e  d
+  ?:  (mor key.n.d key.n.e)
+    d(r $(d r.d))
+  e(l $(e l.e))
+::  +uno: merge with conflict resolution function
+::
+++  uno
+  ~/  %uno
+  |=  [a=(tree item) b=(tree item)]
+  |=  [meg=$-([key val val] val)]
+  ^-  (tree item)
+  ?~  b  a
+  ?~  a  b
+  ?:  =(key.n.a key.n.b)
+    [n=(meg key.n.a val.n.a val.n.b) l=$(a l.a, b l.b) r=$(a r.a, b r.b)]
+  ?:  (mor key.n.a key.n.b)
+    ?:  (compare key.n.b key.n.a)
+      $(l.a $(a l.a, r.b ~), b r.b)
+    $(r.a $(a r.a, l.b ~), b l.b)
+  ?:  (compare key.n.a key.n.b)
+    $(l.b $(b l.b, r.a ~), a r.a)
+  $(r.b $(b r.b, l.a ~), a l.a)
+::  +int: intersection, preferring second value
+::
+++  int
+  ~/  %int
+  |=  [a=(tree item) b=(tree item)]
+  |-  ^-  (tree item)
+  ?~  b  ~
+  ?~  a  ~
+  ?:  =(key.n.a key.n.b)
+    b(l $(b l.b, a l.a), r $(b r.b, a r.a))
+  ?:  (compare key.n.b key.n.a)
+    %+  uni:on
+      $(a l.a, r.b ~)   ::  left side of b must be in the left side of a
+    $(l.b ~)            ::  right side of b might be anywhere
+  %+  uni:on
+    $(a r.a, l.b ~)     ::  right side of b must be in the right side of a
+  $(r.b ~)              ::  left side of b might be anywhere
+::  +tin: intersection, but only if value is also equal
+::
+++  tin
+  ~/  %tin
+  |=  [a=(tree item) b=(tree item)]
+  |-  ^-  (tree item)
+  ?~  b  ~
+  ?~  a  ~
+  ?:  =(key.n.a key.n.b)
+    ?:  =(val.n.a val.n.b)
+      b(l $(b l.b, a l.a), r $(b r.b, a r.a))
+    (uni:on $(b l.b, a l.a), r $(b r.b, a r.a))
+  ?:  (compare key.n.b key.n.a)
+    %+  uni:on
+      $(a l.a, r.b ~)   ::  left side of b must be in the left side of a
+    $(l.b ~)            ::  right side of b might be anywhere
+  %+  uni:on
+    $(a r.a, l.b ~)     ::  right side of b must be in the right side of a
+  $(r.b ~)              ::  left side of b might be anywhere
 --

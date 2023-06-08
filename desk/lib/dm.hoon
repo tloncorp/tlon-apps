@@ -1,7 +1,7 @@
 /-  c=chat
 /+  mp=mop-extensions
 |_  pac=pact:c
-++  mope  ((mp time writ:c) lte)
+++  mope  ((mp time (unit writ:c)) lte)
 ++  gas
   |=  ls=(list [=time =writ:c])
   ^+  pac
@@ -37,7 +37,9 @@
     ~
   ?~  wit=(get:on:writs:c wit.pac u.tim)
     ~
-  `[u.tim u.wit]
+  ?~  wit
+    ~
+  `[u.tim u.u.wit]
 ::
 ++  jab
   |=  [=id:c fun=$-(writ:c writ:c)]
@@ -50,11 +52,12 @@
   |=  =id:c
   ^-  [=time =writ:c]
   (need (get id))
+::  execute action (on host)
 ::
-++  reduce
-  |=  [now=time =id:c del=delta:writs:c]
+++  perform
+  |=  [now=time =id:c act=action:writs:c]
   ^+  pac
-  ?-  -.del
+  ?-  -.act
       %add
     =/  =seal:c  [id ~ ~]
     ?:  (~(has by dex.pac) id)
@@ -63,18 +66,18 @@
     ?:  (has:on:writs:c wit.pac now)  
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
-      (put:on:writs:c wit.pac now seal p.del)
+      (put:on:writs:c wit.pac now seal p.act)
     =.  dex.pac  (~(put by dex.pac) id now)
-    ?~  replying.p.del  pac
-    =*  replying  u.replying.p.del
+    ?~  replying.p.act  pac
+    =*  replying  u.replying.p.act
     (jab replying |=(writ:c +<(replied (~(put in replied) ^id))))
   ::
       %del
     =/  tim=(unit time)  (~(get by dex.pac) id)
     ?~  tim  pac
     =/  =time  (need tim)
-    =^  wit=(unit writ:c)  wit.pac
-      (del:on:writs:c wit.pac time)
+    =/  wit=(unit writ:c)  (get:on:writs:c wit.pac time)
+    =.  wit.pac  (put:on:writs:c wit.pac time ~)
     =.  dex.pac  (~(del by dex.pac) id)
     ?~  wit  pac
     ?~  replying.u.wit  pac
@@ -83,13 +86,30 @@
       %add-feel
     %+  jab  id
     |=  =writ:c
-    writ(feels (~(put by feels.writ) [p q]:del))
+    writ(feels (~(put by feels.writ) [p q]:act))
   ::
       %del-feel
     %+  jab  id
     |=  =writ:c
-    writ(feels (~(del by feels.writ) p.del))
+    writ(feels (~(del by feels.writ) p.act))
   ==
+::  ingest new writs (on client)
+::
+++  reduce
+  |=  =diff:writs:c
+  ^+  pac
+  :-  (walk:writs:c wit.pac diff)
+  =<  +
+  |-  ^-  index
+  ?~  diff
+    dex.pac
+  =.  dex.pac
+    ?~  q.n.diff
+      (~(del by dex.pac) id.u.val.n.diff)
+    (~(put by dex.pac) id.u.val.n.diff key.n.diff)
+  =.  dex.pac  $(diff l.diff)
+  =.  dex.pac  $(diff r.diff)
+  dex.pac
 ::
 ++  peek
   |=  [care=@tas =(pole knot)]
