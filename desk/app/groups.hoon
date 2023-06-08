@@ -314,12 +314,13 @@
       [%x %groups %light ~]  ``groups+!>(groups-light)
   ::
       [%x %groups ~]
-    ``groups+!>(`groups:g`(~(run by groups) tail))
+    ``groups+!>(`groups:g`(~(run by groups) to-group-ui))
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
     ?~  rest.pole
-      ``group+!>(`group:g`+:(~(got by groups) [ship name.pole]))
+      =/  group  (~(got by groups) [ship name.pole])
+      ``group+!>(`group-ui:g`(to-group-ui group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
       [%x %exists ship=@ name=@ rest=*]
@@ -335,7 +336,15 @@
     %+  ~(put by *fleet:g)
       our.bowl
     (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-  group
+  (to-group-ui net group)
+::
+++  to-group-ui
+  |=  [=net:g =group:g]
+  ^-  group-ui:g
+  :-  group
+  ?+  -.net  ~
+      %sub  `saga.net
+  ==
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor

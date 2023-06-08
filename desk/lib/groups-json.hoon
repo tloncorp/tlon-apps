@@ -1,4 +1,4 @@
-/-  g=groups
+/-  g=groups, e=epic
 /-  meta
 |%
 ++  enjs
@@ -149,11 +149,11 @@
     ==
   ::
   ++  groups
-    |=  gs=(map flag:g group:g)
+    |=  gs=groups:g
     %-  pairs
     %+  turn  ~(tap by gs)
-    |=  [f=flag:g gr=group:g]
-    [(flag f) (group gr)]
+    |=  [f=flag:g gr=group-ui:g]
+    [(flag f) (group-ui gr)]
   ::
   ++  gangs
     |=  gs=(map flag:g gang:g)
@@ -209,6 +209,22 @@
         meta/(meta meta.gr)
         secret/b/secret.gr
     ==
+  ::
+  ++  group-ui
+    |=  gr=group-ui:g
+    %-  pairs
+    :~  fleet/(fleet fleet.gr)
+        cabals/(cabals cabals.gr)
+        zones/(zones zones.gr)
+        zone-ord/a/(turn zone-ord.gr (lead %s))
+        channels/(channels channels.gr)
+        bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+        cordon/(cordon cordon.gr)
+        meta/(meta meta.gr)
+        secret/b/secret.gr
+        saga/?~(saga.gr ~ (saga u.saga.gr))
+    ==
+  ::
   ++  fleet
     |=  fl=fleet:g
     %-  pairs
@@ -297,6 +313,15 @@
         description/s/description.m
         image/s/image.m
         cover/s/cover.m
+    ==
+  ::
+  ++  saga
+    |=  s=saga:e
+    %-  frond
+    ?-  -.s
+      %dex  ahead/s/(scot %ud ver.s)
+      %chi  synced/~
+      %lev  behind/~
     ==
   --
 ::
