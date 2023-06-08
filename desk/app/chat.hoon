@@ -2,6 +2,7 @@
 /-  meta
 /-  ha=hark
 /-  e=epic
+/-  contacts
 /+  default-agent, verb-lib=verb, dbug
 /+  chat-json
 /+  pac=dm
@@ -1691,7 +1692,7 @@
     =/  =path  (snoc di-area %ui)
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  =wire  /contacts/(scot %p ship)
-    =/  =cage  contact-action-0+!>([%heed ~[ship]])
+    =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
