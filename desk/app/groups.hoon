@@ -230,7 +230,7 @@
       =/  =action:h  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /heap
       =/  =dock  [our.bowl %heap]
-      =/  =cage  heap-action-0+!>(action)
+      =/  =cage  [act:mar:h !>(action)]
       [%pass wire %agent dock %poke cage]
     ==
   core
