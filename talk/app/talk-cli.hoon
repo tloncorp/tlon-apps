@@ -854,31 +854,34 @@
         [";unset" ";unset key"]
       ::
         [";chats" ";chats (~host/chat-name / ~host/group-name)"]
-        [";dms" ";dms (~ship)"]
+        [";dms" ";dms (~ship / group chat title)"]
         [";help" ";help"]
       ==
     %+  weld  default
     ^-  (list [tape tape])
     %-  zing
     ^-  (list (list [tape tape]))
-    =+  glyphs=(turn glyphs |=(g=@t (trip g)))
-    =+  dms=(purge (weld dm-ships club-ships-and-titles))
-    =+  chats=(purge :(weld chat-flags group-flags chat-and-group-titles))
-    =+  targets=(purge :(weld dm-ships club-ids chat-flags))
-    =+  glyphs-and-targets=(weld glyphs targets)
+    =/  glyphs=(list tape)
+      (turn glyphs trip)
+    =/  targets=(list tape)
+      :(weld ships club-ids chats)
+    =/  glyphs-and-targets=(list tape)
+      (weld glyphs targets)
     :~
-      (glue ";view *" "put * in view" (sort glyphs-and-targets dor))
-      (glue ";what *" "what is * bound to?" (sort glyphs-and-targets dor))
-      (glue ";chats *" "search for *" (sort chats dor))
-      (glue ";dms *" "search for *" (sort dms dor))
-      (glue ";unbind *" "unbind the * glyph" (sort bound-glyphs dor))
-      %^  glue  ";flee *"
-        "stop printing messages from *"
+      :~  [";set notify" "bing when messages arrive"]
+          [";set width" "set width of message column"]
+          [";set timezone" "change timezone (GMT +/-0)"]
+          [";set showtime" "show message times"]
+          [";unset notify" "don't bing when messages arrive"]
+          [";unset showtime" "don't show message times"]
+      ==
+      (glue [";view" "put" "in view"] (sort glyphs-and-targets dor))
+      (glue [";what" "what is" "bound to?"] (sort glyphs-and-targets dor))
+      %+  glue  [";flee" "stop printing messages from" ~]
       (sort glyphs-and-targets dor)
-      %-  zing
-      %+  turn  (glue ";bind * *" "bind the * glyph to *" (sort glyphs dor))
-      |=  [cmd=tape des=tape]
-      (glue cmd des (sort targets dor))
+      %+  glue
+        [";unbind" "unbind the" "glyph"]
+      (sort (turn ~(tap in ~(key by binds)) trip) dor)
     ==
     ::  +dor: sort tapes in decending order
     ::
@@ -886,45 +889,21 @@
       |=  [a=tape b=tape]
       ^-  ?
       (aor b a)
-    ::  +purge: remove duplicate and empty tapes
-    ::
-    ++  purge
-      |=  t=(list tape)
-      ^+  t
-      %+  murn  ~(tap in (silt t))
-      |=  =tape
-      ?~(tape ~ `tape)
     ::  +glue: slot in details
     ::
     ++  glue
-      |=  [cmd=tape des=tape content=(list tape)]
-      |^  ^-  (list [tape tape])
+      |=  [[cmd=tape before=tape after=tape] content=(list tape)]
+      ^-  (list [tape tape])
       %+  turn  content
       |=  con=tape
-      =+  cmd-ind=(find "*" cmd)
-      =+  des-ind=(find "*" des)
-      :-  ?~(cmd-ind cmd (paste u.cmd-ind cmd con))
-      ?~(des-ind des (paste u.des-ind des con))
-      ::
-      ++  paste
-        |=  [i=@ud t=tape c=tape]
-        ^-  tape
-        %+  weld  (weld (scag i (snap t i ' ')) c)
-        (slag +(i) t)
-      --
+      :-  :(weld cmd " " con)
+      :(weld before " " con ?~(after ~ " ") after)
     ::
-    ++  bound-glyphs
-      ^-  (list tape)
-      %+  murn  glyphs
-      |=  g=@t
-      ?~  (~(get ju binds) g)  ~
-      `(trip g)
-    ::
-    ++  dm-ships
+    ++  ships
       ^-  (list tape)
       %+  turn  ~(tap in (~(uni in get-accepted-dms) get-pending-dms))
       |=  =ship
-      (scow %p ship)
+      ((cury scow %p) ship)
     ::
     ++  club-ids
       ^-  (list tape)
@@ -932,38 +911,11 @@
       |=  =club-id
       ~(phat tr `target`[%club club-id])
     ::
-    ++  chat-flags
+    ++  chats
       ^-  (list tape)
       %+  turn  ~(tap in ~(key by get-chats))
       |=  =flag:chat
       ~(phat tr `target`[%flag flag])
-    ::
-    ++  club-ships-and-titles
-      ^-  (list tape)
-      %-  zing
-      %+  turn  ~(tap by get-clubs)
-      |=  [=club-id =crew]
-      :-  (trip title.met.crew)
-      %+  weld
-        (turn ~(tap in team.crew) |=(=ship (scow %p ship)))
-      (turn ~(tap in hive.crew) |=(=ship (scow %p ship)))
-    ::
-    ++  group-flags
-      ^-  (list tape)
-      %+  turn  ~(tap in ~(key by get-groups))
-      |=  =flag:chat
-      ~(phat tr `target`[%flag flag])
-    ::
-    ++  chat-and-group-titles
-      ^-  (list tape)
-      %-  zing
-      %+  turn  ~(tap by get-groups)
-      |=  [=flag:groups =group:groups]
-      :-  (trip title.meta.group)
-      %+  murn  ~(tap by channels.group)
-      |=  [=nest:groups =channel:groups]
-      ?.  (~(has by get-chats) q.nest)  ~
-      `(trip title.meta.channel)
     --
   ::  +se-work: run user command
   ::
