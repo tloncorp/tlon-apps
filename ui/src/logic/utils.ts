@@ -41,7 +41,7 @@ import {
   DiaryListing,
 } from '@/types/diary';
 import { Bold, Italics, Strikethrough } from '@/types/content';
-import { isNativeApp, postJSONToNativeApp } from './native';
+import { isNativeApp, postActionToNativeApp } from './native';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -560,7 +560,7 @@ export function useCopy(copied: string) {
   const doCopy = useCallback(async () => {
     let success = false;
     if (isNativeApp()) {
-      postJSONToNativeApp({ copy: copied });
+      postActionToNativeApp('copy', copied);
       success = true;
     } else {
       success = await copy(copied);
