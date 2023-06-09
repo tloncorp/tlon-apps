@@ -146,7 +146,7 @@ exports[`ChatMessage > renders as expected 1`] = `
         class="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block"
       >
         <time
-          datetime="2021-02-01T19:00:00.000Z"
+          datetime="2021-02-01T21:00:00.000Z"
         >
           February 1st, 2021 
           <span
