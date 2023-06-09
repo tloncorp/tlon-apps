@@ -17,6 +17,7 @@ import {
   ChatMemo,
   ChatPerm,
   Chats,
+  ChatScan,
   ChatWrit,
   Club,
   ClubAction,
@@ -28,13 +29,25 @@ import {
   WritDelta,
 } from '@/types/chat';
 import api from '@/api';
-import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
+import {
+  whomIsDm,
+  whomIsMultiDm,
+  whomIsFlag,
+  nestToFlag,
+  sliceMap,
+} from '@/logic/utils';
 import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
+import useReactQueryScry from '@/logic/useReactQueryScry';
 import { pokeOptimisticallyN, createState } from '../base';
-import makeWritsStore, { writsReducer } from './writs';
-import { ChatState } from './type';
+import makeWritsStore, {
+  emptyWindows,
+  getWritWindow,
+  updatePact,
+  writsReducer,
+} from './writs';
+import { ChatState, WritWindow, WritWindows } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
@@ -132,7 +145,7 @@ export const useChatState = createState<ChatState>(
     pins: [],
     sentMessages: [],
     postedMessages: [],
-    loadedWrits: {},
+    writWindows: {},
     loadedRefs: {},
     briefs: {},
     loadedGraphRefs: {},
@@ -303,18 +316,24 @@ export const useChatState = createState<ChatState>(
         3
       );
     },
-    fetchNewer: async (whom: string, count: string) => {
+    fetchMessages: async (whom: string, count: string, dir, time) => {
       const isDM = whomIsDm(whom);
       const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
 
-      return makeWritsStore(
+      const { getOlder, getNewer } = makeWritsStore(
         whom,
         get,
         `/${type}/${whom}/writs`,
         `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
-      ).getNewer(count);
+      );
+
+      if (dir === 'older') {
+        return getOlder(count, time);
+      }
+
+      return getNewer(count, time);
     },
-    fetchOlder: async (whom: string, count: string) => {
+    fetchMessagesAround: async (whom: string, count: string, time) => {
       const isDM = whomIsDm(whom);
       const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
 
@@ -323,7 +342,7 @@ export const useChatState = createState<ChatState>(
         get,
         `/${type}/${whom}/writs`,
         `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
-      ).getOlder(count);
+      ).getAround(count, time);
     },
     fetchMultiDms: async () => {
       const dms = await api.scry<Clubs>({
@@ -732,11 +751,29 @@ export const useChatState = createState<ChatState>(
   []
 );
 
-export function useMessagesForChat(whom: string) {
-  const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
-  return useChatState(
-    useCallback((s) => s.pacts[whom]?.writs || def, [whom, def])
-  );
+export function useWritWindow(whom: string, time?: BigInteger) {
+  const window = useChatState(useCallback((s) => s.writWindows[whom], [whom]));
+
+  return getWritWindow(window, time);
+}
+
+const emptyWrits = new BigIntOrderedMap<ChatWrit>();
+export function useMessagesForChat(whom: string, near?: BigInteger) {
+  const window = useWritWindow(whom, near);
+  const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
+
+  return useMemo(() => {
+    const messages =
+      window && writs
+        ? sliceMap(writs, window.oldest, window.newest)
+        : emptyWrits;
+    return messages;
+  }, [writs, window]);
+}
+
+export function useHasMessages(whom: string) {
+  const messages = useMessagesForChat(whom);
+  return messages.size > 0;
 }
 
 /**
@@ -792,6 +829,10 @@ export function useChatIsJoined(whom: string) {
   );
 }
 
+export function useChatInitialized(whom: string) {
+  return useChatState(useCallback((s) => !!s.pacts[whom], [whom]));
+}
+
 const selDmList = (s: ChatState) =>
   Object.keys(s.briefs)
     .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
@@ -799,10 +840,6 @@ const selDmList = (s: ChatState) =>
 
 export function useDmList() {
   return useChatState(selDmList);
-}
-
-export function useDmMessages(ship: string) {
-  return useMessagesForChat(ship);
 }
 
 const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
@@ -942,10 +979,6 @@ export function useMultiDmIsPending(id: string): boolean {
   );
 }
 
-export function useMultiDmMessages(id: string) {
-  return useMessagesForChat(id);
-}
-
 const selDmArchive = (s: ChatState) => s.dmArchive;
 export function useDmArchive() {
   return useChatState(selDmArchive);
@@ -1072,19 +1105,6 @@ export function useWritByFlagAndGraphIndex(
   return res || 'loading';
 }
 
-export function useLoadedWrits(whom: string) {
-  return useChatState(
-    useCallback(
-      (s) =>
-        s.loadedWrits[whom] || {
-          oldest: unixToDa(Date.now()),
-          newest: unixToDa(0),
-        },
-      [whom]
-    )
-  );
-}
-
 export function useLatestMessage(chFlag: string) {
   const messages = useMessagesForChat(chFlag);
   return messages.size > 0 ? messages.peekLargest() : [bigInt(), null];
@@ -1116,6 +1136,36 @@ export function useGetFirstUnreadID(whom: string) {
   const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
   const firstUnread = keys.find((key) => key.gt(lastReadBN));
   return firstUnread ?? null;
+}
+
+export function useChatSearch(whom: string, query: string) {
+  const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
+  const { data, ...rest } = useReactQueryScry<ChatScan>({
+    queryKey: ['chat', 'search', whom, query],
+    app: 'chat',
+    path: `/${type}/${whom}/search/text/0/1.000/${query}`,
+    options: {
+      enabled: query !== '',
+    },
+  });
+
+  const scan = useMemo(() => {
+    let scanMap = new BigIntOrderedMap<ChatWrit>();
+    if (!data) {
+      return scanMap;
+    }
+
+    data.forEach(({ time, writ }) => {
+      scanMap = scanMap.set(bigInt(udToDec(time)), writ);
+    });
+
+    return scanMap;
+  }, [data]);
+
+  return {
+    scan,
+    ...rest,
+  };
 }
 
 (window as any).chat = useChatState.getState;

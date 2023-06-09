@@ -90,7 +90,7 @@ export default function HeapDetailHeader({
                 ? truncate({ str: curioContent, n: 50 })
                 : null}
               {!isImageLink && !curioTitle
-                ? truncate({ str: prettyDayAndTime, n: 50 })
+                ? truncate({ str: prettyDayAndTime.asString, n: 50 })
                 : null}
             </span>
           </div>

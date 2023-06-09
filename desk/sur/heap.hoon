@@ -4,6 +4,13 @@
 /-  metadata-store
 /+  lib-graph=graph-store
 |%
+++  okay  `epic:e`0
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %heap-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %heap-update '-' (scot %ud okay) ~)
+  ++  log  `mark`(rap 3 %heap-logs '-' (scot %ud okay) ~)
+  --
 ::  $flag: identifier for a heap channel
 +$  flag  (pair ship term)
 ::  $feel: either an emoji identifier like :wave or a URL for custom

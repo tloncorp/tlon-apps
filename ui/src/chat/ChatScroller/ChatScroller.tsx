@@ -14,8 +14,11 @@ import { BigIntOrderedMap, daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChatState, useLoadedWrits } from '@/state/chat/chat';
-import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import { useChatState, useWritWindow } from '@/state/chat/chat';
+import {
+  INITIAL_MESSAGE_FETCH_PAGE_SIZE,
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
 import { ChatBrief, ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
@@ -140,7 +143,7 @@ function scrollToIndex(
 ) {
   if (scrollerRef.current && scrollTo) {
     const index = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
-    scrollerRef.current.scrollToIndex(index);
+    scrollerRef.current.scrollToIndex({ index, align: 'center' });
   }
 }
 
@@ -153,7 +156,7 @@ export default function ChatScroller({
   scrollerRef,
 }: IChatScroller) {
   const isMobile = useIsMobile();
-  const loaded = useLoadedWrits(whom);
+  const writWindow = useWritWindow(whom, scrollTo);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
@@ -179,6 +182,14 @@ export default function ChatScroller({
         }),
     [messages, replying]
   );
+
+  const hasScrollTo = useMemo(() => {
+    if (!scrollTo) {
+      return true;
+    }
+
+    return keys.some((k) => k.eq(scrollTo));
+  }, [scrollTo, keys]);
 
   const Message = useMemo(
     () =>
@@ -207,9 +218,11 @@ export default function ChatScroller({
   const fetchMessages = useCallback(
     async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
       const newest = messages.peekLargest();
-      const seenNewest = newer && newest && loaded.newest.geq(newest[0]);
+      const seenNewest =
+        newer && newest && writWindow && writWindow.loadedNewest;
       const oldest = messages.peekSmallest();
-      const seenOldest = !newer && oldest && loaded.oldest.leq(oldest[0]);
+      const seenOldest =
+        !newer && oldest && writWindow && writWindow.loadedOldest;
 
       if (seenNewest || seenOldest) {
         return;
@@ -219,9 +232,13 @@ export default function ChatScroller({
         setFetching(newer ? 'bottom' : 'top');
 
         if (newer) {
-          await useChatState.getState().fetchNewer(whom, pageSize.toString());
+          await useChatState
+            .getState()
+            .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
         } else {
-          await useChatState.getState().fetchOlder(whom, pageSize.toString());
+          await useChatState
+            .getState()
+            .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
         }
 
         setFetching('initial');
@@ -230,7 +247,7 @@ export default function ChatScroller({
         setFetching('initial');
       }
     },
-    [whom, messages, loaded]
+    [whom, messages, scrollTo, writWindow]
   );
 
   /**
@@ -242,32 +259,15 @@ export default function ChatScroller({
    */
   const START_INDEX = 9999999;
   const firstItemIndex = useMemo(() => START_INDEX - keys.length, [keys]);
-  /**
-   * If scrollTo is set, we want to set initial scroll to that index.
-   * If it's not set, we want to set initial scroll to the bottom.
-   */
-  const initialTopMostIndex = useMemo(() => {
-    const scrollToIdx = scrollTo
-      ? keys.findIndex((k) => k.greaterOrEquals(scrollTo))
-      : -1;
-
-    return scrollToIdx > -1 ? scrollToIdx : START_INDEX - 1;
-  }, [keys, scrollTo]);
 
   useEffect(() => {
-    // we're at the top so we won't get an atTopChange and so need to
-    // manually trigger fetching, usually when we have a scrollTo
-    if (initialTopMostIndex === 0 && firstPass.current) {
-      fetchMessages(false);
+    if (hasScrollTo) {
+      // if scrollTo changes, scroll to the new index
+      scrollToIndex(keys, scrollerRef, scrollTo);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTopMostIndex]);
 
-  useEffect(() => {
-    // if scrollTo changes, scroll to the new index
-    scrollToIndex(keys, scrollerRef, scrollTo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString()]);
+  }, [scrollTo?.toString(), hasScrollTo]);
 
   const updateScroll = useRef(
     debounce(
@@ -342,7 +342,6 @@ export default function ChatScroller({
         itemContent={itemContent}
         computeItemKey={computeItemKey}
         firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={initialTopMostIndex}
         isScrolling={handleScroll}
         atTopStateChange={atTopStateChange}
         atBottomStateChange={atBottomStateChange}

@@ -11,7 +11,6 @@
 ^-  agent:gall
 =>
   |%
-  ++  okay  `epic:e`1
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
@@ -36,7 +35,7 @@
     ^-  (quip card _this)
     `this
   ::
-  ++  on-save  !>([state okay])
+  ++  on-save  !>([state okay:g])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -76,7 +75,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
-+*  epos  ~(. epos-lib [bowl %group-update okay])
++*  epos  ~(. epos-lib [bowl %group-update okay:g])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -87,11 +86,6 @@
   ^-  ?(%alien %known)
   =-  (fall (~(get by -) ship) %alien)
   .^((map ^ship ?(%alien %known)) %ax /(scot %p our.bowl)//(scot %da now.bowl)/peers)
-++  mar
-  |%
-  ++  act  `mark`(rap 3 %group-action '-' (scot %ud okay) ~)
-  ++  upd  `mark`(rap 3 %group-update '-' (scot %ud okay) ~)
-  --
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -208,7 +202,7 @@
       =/  wire  /groups
       =/  dock  [our.bowl dap.bowl]
       =/  =action:g  [flag [now.bowl [%channel nest [%del-sects readers.channel]]]]
-      =/  cage  group-action+!>(action)
+      =/  cage  [act:mar:g !>(action)]
       [%pass wire %agent dock %poke cage]
     ^-  card
     ?+  -.nest  *card
@@ -218,7 +212,7 @@
       =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /chat
       =/  =dock  [our.bowl %chat]
-      =/  =cage  chat-action+!>(action)
+      =/  =cage  [act:mar:c !>(action)]
       [%pass wire %agent dock %poke cage]
     ::
         %diary
@@ -227,7 +221,7 @@
       =/  =action:d  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /diary
       =/  =dock  [our.bowl %diary]
-      =/  =cage  diary-action+!>(action)
+      =/  =cage  [act:mar:d !>(action)]
       [%pass wire %agent dock %poke cage]
     ::
         %heap
@@ -236,7 +230,7 @@
       =/  =action:h  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /heap
       =/  =dock  [our.bowl %heap]
-      =/  =cage  heap-action+!>(action)
+      =/  =cage  [act:mar:h !>(action)]
       [%pass wire %agent dock %poke cage]
     ==
   core
@@ -248,7 +242,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
-  ?:  =(okay cool)  cor
+  ?:  =(okay:g cool)  cor
   =.  cor  (emil (drop load:epos))
   =/  groups  ~(tap in ~(key by groups))
   |-
@@ -275,7 +269,7 @@
     [%groups %ui ~]       cor
     [%gangs %updates ~]   cor
   ::
-    [%epic ~]  (give %fact ~ epic+!>(okay))
+    [%epic ~]  (give %fact ~ epic+!>(okay:g))
   ::
       [%bait s=@ n=@ gs=@ gn=@ ~]
     =,(pole (cast [(slav %p gs) gn] [(slav %p s) n]))
@@ -374,8 +368,6 @@
     =/  =ship  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     (take-chan nest sign)
-
-
   ==
 ::
 ++  arvo
@@ -447,7 +439,7 @@
       ~&  [p.cage.sign '!!! weird fact on /epic']
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay)  cor
+    ?.  =(epic okay:g)  cor
     ~&  >>  "good news everyone!"
     %+  roll  ~(tap by groups)
     |=  [[=flag:g =net:g =group:g] out=_cor]
@@ -534,7 +526,7 @@
     =/  cage  group-invite+!>(`invite:g`[flag ship])
     =/  line  `wire`/gangs/(scot %p p.flag)/[q.flag]/invite
     [%pass line %agent [ship dap.bowl] %poke cage]
-
+::
 ++  import-groups
   |=  =imports:g
   ^+  cor
@@ -634,7 +626,6 @@
     %graph-validator-link     `%heap
     %graph-validator-publish  `%diary
   ==
-
   ::
   ++  graph-meta-to-agent
     |=  =metadatum:m-one
@@ -693,7 +684,7 @@
     %^  scry  %gx  %metadata-store
     `path`[%group (snoc old-flag-path %noun)]
   --
-
+::
 ++  group-core
   |_  [=flag:g =net:g =group:g gone=_|]
   ++  go-core  .
@@ -705,7 +696,7 @@
     ?.  gone  cor
     =?  cor  !=(p.flag our.bowl)  (emit leave:go-pass)
     =/  =action:g  [flag now.bowl %del ~]
-    (give %fact ~[/groups/ui] act:mar !>(action))
+    (give %fact ~[/groups/ui] act:mar:g !>(action))
   ++  go-abed
     |=  f=flag:g
     ^+  go-core
@@ -763,7 +754,7 @@
       =/  =wire  (snoc go-area %proxy)
       =/  =dock  [p.flag dap.bowl]
       =/  =cage
-        :-  act:mar
+        :-  act:mar:g
         !>  ^-  action:g
         [flag now.bowl %fleet (silt our.bowl ~) %del ~]
       [%pass wire %agent dock %poke cage]
@@ -959,7 +950,7 @@
     ^+  go-core
     ?.  ?=(%sub -.net)       go-core
     ?.  ?=(%dex -.saga.net)  go-core
-    ?.  =(okay ver.saga.net)
+    ?.  =(okay:g ver.saga.net)
       ~&  future-shock/[ver.saga.net flag]
       go-core
     go-make-chi
@@ -968,9 +959,9 @@
     |=  her=epic:e
     ^+  go-core
     ?>  ?=(%sub -.net)
-    ?:  =(her okay)
+    ?:  =(her okay:g)
       go-make-chi
-    ?:  (gth her okay)
+    ?:  (gth her okay:g)
       =.  saga.net  dex+her
       go-core
     go-make-lev
@@ -1033,7 +1024,7 @@
     ?>  ?|(go-is-bloc ?&(?=(%fleet -.diff) ?=([%add ~] q.diff)))
     =/  =wire  (snoc go-area %proxy)
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  group-action+!>([flag update])
+    =/  =cage  [act:mar:g !>([flag update])]
     =.  cor  (emit %pass wire %agent dock %poke cage)
     go-core
   ::
@@ -1046,12 +1037,12 @@
       go-core
     ?:  ?=([%init ~] path)
       =/  [=time *]  (need (ram:log-on:g p.net))
-      group-init+!>([time group])
+      [int:mar:g !>([time group])]
     ?>  ?=([@ ~] path)
     =/  =time  (slav %da i.path)
     =/  =log:g
       (lot:log-on:g p.net `time ~)
-    group-log+!>(log)
+    [log:mar:g !>(log)]
   ::
   ++  go-apply-log
     |=  =log:g
@@ -1073,7 +1064,7 @@
       ?.  (go-can-read our.bowl channel)  ~
       [~ ch]
     =.  cor
-      (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag now.bowl create]))
+      (give %fact ~[/groups /groups/ui] act:mar:g !>(`action:g`[flag now.bowl create]))
     =.  cor
       (give %fact ~[/groups /groups/ui] gang-gone+!>(flag))
     =.  cor
@@ -1091,9 +1082,9 @@
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
     =.  cor
-      (give %fact ~(tap in paths) upd:mar !>(`update:g`[time diff]))
+      (give %fact ~(tap in paths) upd:mar:g !>(`update:g`[time diff]))
     =.  cor
-      (give %fact ~[/groups /groups/ui] act:mar !>(`action:g`[flag time diff]))
+      (give %fact ~[/groups /groups/ui] act:mar:g !>(`action:g`[flag time diff]))
     go-core
   ::
   ++  go-tell-update
@@ -1676,16 +1667,16 @@
     ++  add-self
       =/  =vessel:fleet:g  [~ now.bowl]
       =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
-      (poke-host /join/add act:mar !>(action))
+      (poke-host /join/add act:mar:g !>(action))
     ::
     ++  knock
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
       =/  =action:g  [flag now.bowl %cordon %shut %add-ships %ask ships]
-      (poke-host /knock act:mar !>(action))
+      (poke-host /knock act:mar:g !>(action))
     ++  rescind
       =/  ships=(set ship)  (~(put in *(set ship)) our.bowl)
       =/  =action:g  [flag now.bowl %cordon %shut %del-ships %ask ships]
-      (poke-host /rescind act:mar !>(action))
+      (poke-host /rescind act:mar:g !>(action))
     ++  get-preview
       =/  =task:agent:gall  [%watch /groups/(scot %p p.flag)/[q.flag]/preview]
       (pass-host /preview task)
