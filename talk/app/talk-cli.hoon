@@ -1273,12 +1273,13 @@
         %+  sort
           ~(tap in `(set target)`(~(run in ~(key by get-chats)) (lead %flag)))
         order-targets
+      =+  lower-input=(cass u.user-input)
       =/  produce=(list target)
         %+  murn  ~(tap by get-chats)
         |=  [=flag:chat =chat:chat]
         =/  chat-target=target   [%flag flag]
-        ?.  ?|  ?=(^ (find u.user-input ~(meta tr chat-target)))
-                ?=(^ (find u.user-input (match-group group.perm.chat)))
+        ?.  ?|  ?=(^ (find lower-input (cass ~(meta tr chat-target))))
+                ?=(^ (find lower-input (match-group group.perm.chat)))
             ==
           ~
         (some chat-target)
@@ -1288,7 +1289,7 @@
         %-  note:se-out
         (weld "chats: no results for " render-input)
       =.  se  (note:se-out (weld "chats: " render-input))
-      (show-targets:se-out (chat-sort produce u.user-input))
+      (show-targets:se-out (chat-sort produce lower-input))
       ::  +match-group: check against group flags and titles
       ::
       ++  match-group
@@ -1298,6 +1299,7 @@
           (~(get by get-groups) flag)
         ?~  group
           ~(phat tr `target`[%flag flag])
+        %-  cass
         %+  weld  ~(phat tr `target`[%flag flag])
         " {(trip title.meta.u.group)}"
       ::  +chat-sort: sort closest match, prioritizing chat titles
@@ -1347,16 +1349,17 @@
           %~  tap  in
           (~(uni in clubs) `(set target)`(~(run in dms) (lead %ship)))
         order-targets
+      =+  lower-input=(cass u.user-input)
       =/  produce=(list target)
-        %+  weld  (match-dm u.user-input dms)
-        (match-club u.user-input)
+        %+  weld  (match-dm lower-input dms)
+        (match-club lower-input)
       =/  render-input=tape
         (snoc ['"' u.user-input] '"')
       ?~  produce
         %-  note:se-out
         (weld "dms: no results for " render-input)
       =.  se  (note:se-out (weld "dms: " render-input))
-      (show-targets:se-out (dm-sort produce u.user-input))
+      (show-targets:se-out (dm-sort produce lower-input))
       ::  +match-dm: find dm targets by ship
       ::
       ++  match-dm
@@ -1388,7 +1391,7 @@
         %+  murn  ~(tap by get-clubs)
         |=  [=club-id =crew]
         =/  =target  [%club club-id]
-        ?:  ?=(^ (find user-input (trip title.met.crew)))
+        ?:  ?=(^ (find user-input (cass (trip title.met.crew))))
           `target
         =;  found-ship=?
           ?:(found-ship `target ~)
