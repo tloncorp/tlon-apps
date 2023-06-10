@@ -154,7 +154,7 @@ exports[`ChatMessage > renders as expected 1`] = `
           >
             •
           </span>
-           05:00
+           13:00
         </time>
       </span>
       <span
@@ -168,9 +168,9 @@ exports[`ChatMessage > renders as expected 1`] = `
         </span>
          
         <time
-          datetime="05:00"
+          datetime="13:00"
         >
-          05:00
+          13:00
         </time>
       </span>
     </div>
@@ -180,7 +180,7 @@ exports[`ChatMessage > renders as expected 1`] = `
       <div
         class="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100"
       >
-        05:00
+        13:00
       </div>
       <div
         class="wrap-anywhere flex w-full"

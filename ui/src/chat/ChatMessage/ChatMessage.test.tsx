@@ -69,7 +69,7 @@ describe('ChatMessage', () => {
     vi.resetAllMocks();
   });
   it('renders as expected', () => {
-    const date = Date.UTC(2021, 1, 1, 13);
+    const date = new Date(2021, 1, 1, 13);
     const writ = makeFakeChatWrit(
       1,
       '~finned-palmer',
