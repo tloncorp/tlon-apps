@@ -121,7 +121,7 @@ function DiaryChannel() {
 
   useDismissChannelNotifications({
     nest,
-    markRead: () => markRead({ flag: chFlag }),
+    markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
