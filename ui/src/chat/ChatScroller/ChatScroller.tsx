@@ -260,6 +260,8 @@ export default function ChatScroller({
   const START_INDEX = 9999999;
   const firstItemIndex = useMemo(() => START_INDEX - keys.length, [keys]);
 
+  const initialTopMostIndex = scrollTo ? undefined : START_INDEX - 1;
+
   useEffect(() => {
     if (hasScrollTo) {
       // if scrollTo changes, scroll to the new index
@@ -330,28 +332,37 @@ export default function ChatScroller({
     }, 200)
   );
 
+  const scrollerProps = {
+    ...thresholds,
+    data: keys,
+    components,
+    itemContent,
+    computeItemKey,
+    firstItemIndex,
+    atTopStateChange,
+    atBottomStateChange,
+    ref: scrollerRef,
+    followOutput: true,
+    alignToBottom: true,
+    isScrolling: handleScroll,
+    // DO NOT REMOVE
+    // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
+    // size of elements, triggering a reflow loop in virtual scroller
+    style: { overflowY: 'scroll' } as React.CSSProperties,
+    className: 'h-full overflow-x-hidden p-4',
+    totalListHeightChanged: totalListHeightChanged.current,
+  };
+
   return (
     <div className="relative h-full flex-1">
-      <Virtuoso
-        data={keys}
-        ref={scrollerRef}
-        followOutput
-        alignToBottom
-        {...thresholds}
-        components={components}
-        itemContent={itemContent}
-        computeItemKey={computeItemKey}
-        firstItemIndex={firstItemIndex}
-        isScrolling={handleScroll}
-        atTopStateChange={atTopStateChange}
-        atBottomStateChange={atBottomStateChange}
-        totalListHeightChanged={totalListHeightChanged.current}
-        // DO NOT REMOVE
-        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
-        // size of elements, triggering a reflow loop in virtual scroller
-        style={{ overflowY: 'scroll' }}
-        className="h-full overflow-x-hidden p-4"
-      />
+      {initialTopMostIndex === undefined ? (
+        <Virtuoso {...scrollerProps} />
+      ) : (
+        <Virtuoso
+          {...scrollerProps}
+          initialTopMostItemIndex={initialTopMostIndex}
+        />
+      )}
     </div>
   );
 }

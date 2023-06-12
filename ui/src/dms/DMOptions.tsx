@@ -7,7 +7,7 @@ import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
-import { whomIsMultiDm } from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsChannelUnread } from '@/logic/channel';
 import DmInviteDialog from './DmInviteDialog';
 
@@ -50,8 +50,10 @@ export default function DmOptions({
     navigate('/');
     if (whomIsMultiDm(whom)) {
       await useChatState.getState().multiDmRsvp(whom, false);
-    } else {
+    } else if (whomIsDm(whom)) {
       await useChatState.getState().dmRsvp(whom, false);
+    } else {
+      await useChatState.getState().leaveChat(whom);
     }
   };
   const closeDialog = () => {

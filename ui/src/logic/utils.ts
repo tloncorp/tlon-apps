@@ -41,6 +41,7 @@ import {
   DiaryListing,
 } from '@/types/diary';
 import { Bold, Italics, Strikethrough } from '@/types/content';
+import { isNativeApp, postActionToNativeApp } from './native';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
@@ -556,12 +557,29 @@ export function pathToCite(path: string): Cite | undefined {
 export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
   const [, copy] = useCopyToClipboard();
-  const doCopy = useCallback(() => {
-    copy(copied);
-    setDidCopy(true);
-    setTimeout(() => {
+
+  const doCopy = useCallback(async () => {
+    let success = false;
+    if (isNativeApp()) {
+      postActionToNativeApp('copy', copied);
+      success = true;
+    } else {
+      success = await copy(copied);
+    }
+
+    setDidCopy(success);
+
+    let timeout: NodeJS.Timeout;
+    if (success) {
+      timeout = setTimeout(() => {
+        setDidCopy(false);
+      }, 2000);
+    }
+
+    return () => {
       setDidCopy(false);
-    }, 2000);
+      clearTimeout(timeout);
+    };
   }, [copied, copy]);
 
   return { doCopy, didCopy };
