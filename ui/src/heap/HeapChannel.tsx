@@ -17,17 +17,13 @@ import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import {
-  canReadChannel,
-  canWriteChannel,
-  isChannelJoined,
-} from '@/logic/utils';
+import { canReadChannel, canWriteChannel } from '@/logic/utils';
 import { GRID, HeapCurio } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
-import useAllBriefs from '@/logic/useAllBriefs';
 import makeCuriosStore from '@/state/heap/curios';
 import { useIsMobile } from '@/logic/useMedia';
 import { useLastReconnect } from '@/state/local';
+import { useChannelIsJoined } from '@/logic/channel';
 import NewCurioForm from './NewCurioForm';
 import HeapHeader from './HeapHeader';
 
@@ -53,10 +49,7 @@ function HeapChannel({ title }: ViewProps) {
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
-  const briefs = useAllBriefs();
-  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
-    ? isChannelJoined(nest, briefs)
-    : true;
+  const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
 
   const joinChannel = useCallback(async () => {

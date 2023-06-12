@@ -22,7 +22,7 @@ import {
   usePinnedGroups,
 } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
-import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
+import { useCheckChannelUnread } from '@/logic/channel';
 import { Club } from '@/types/chat';
 import { useMutuals } from '@/state/pals';
 import { Contact } from '@/types/contact';

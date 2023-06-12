@@ -349,6 +349,7 @@ export function useQuip(
   }, [note, quipId]);
 }
 
+const emptyBriefs = {};
 export function useDiaryBriefs(): DiaryBriefs {
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['diary', 'briefs'],
@@ -358,7 +359,7 @@ export function useDiaryBriefs(): DiaryBriefs {
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return {};
+    return emptyBriefs;
   }
 
   return data as DiaryBriefs;

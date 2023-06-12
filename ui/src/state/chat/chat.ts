@@ -36,18 +36,12 @@ import {
   nestToFlag,
   sliceMap,
 } from '@/logic/utils';
-import { useChannelFlag } from '@/hooks';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import { pokeOptimisticallyN, createState } from '../base';
-import makeWritsStore, {
-  emptyWindows,
-  getWritWindow,
-  updatePact,
-  writsReducer,
-} from './writs';
-import { ChatState, WritWindow, WritWindows } from './type';
+import makeWritsStore, { getWritWindow, writsReducer } from './writs';
+import { ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
@@ -786,10 +780,9 @@ export function useChatKeys({
   whom,
 }: {
   replying: boolean;
-  whom?: string;
+  whom: string;
 }) {
-  const chFlag = useChannelFlag();
-  const messages = useMessagesForChat(whom ?? chFlag ?? '');
+  const messages = useMessagesForChat(whom ?? '');
   return useMemo(
     () =>
       messages

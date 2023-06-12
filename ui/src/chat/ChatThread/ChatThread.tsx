@@ -7,7 +7,6 @@ import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import { useChannelFlag } from '@/hooks';
 import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
 import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -19,6 +18,7 @@ import useLeap from '@/components/Leap/useLeap';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
+import { useChannelFlag } from '@/logic/channel';
 import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {

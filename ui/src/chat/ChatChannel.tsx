@@ -15,18 +15,13 @@ import {
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useRecentChannel from '@/logic/useRecentChannel';
-import {
-  canReadChannel,
-  canWriteChannel,
-  isChannelJoined,
-  isTalk,
-} from '@/logic/utils';
-import useAllBriefs from '@/logic/useAllBriefs';
+import { canReadChannel, canWriteChannel, isTalk } from '@/logic/utils';
 import { useLastReconnect } from '@/state/local';
 import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
+import { useChannelIsJoined } from '@/logic/channel';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -56,10 +51,7 @@ function ChatChannel({ title }: ViewProps) {
   const inThread = idShip && idTime;
   const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
   const { sendMessage } = useChatState.getState();
-  const briefs = useAllBriefs();
-  const joined = Object.keys(briefs).some((k) => k.includes('chat/'))
-    ? isChannelJoined(nest, briefs)
-    : true;
+  const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
   const isSmall = useMedia('(max-width: 1023px)');
 

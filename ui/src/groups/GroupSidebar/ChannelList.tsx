@@ -1,10 +1,8 @@
 import cn from 'classnames';
 import React, { ReactNode } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import useAllBriefs from '@/logic/useAllBriefs';
 import {
   channelHref,
-  isChannelJoined,
   canReadChannel,
   nestToFlag,
   getFlagParts,
@@ -19,13 +17,16 @@ import {
 } from '@/state/groups';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import useChannelSort from '@/logic/useChannelSort';
 import { DEFAULT } from '@/logic/useSidebarSort';
-import useChannelSections from '@/logic/useChannelSections';
 import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
-import { useCheckChannelUnread } from '@/logic/useIsChannelUnread';
+import {
+  useChannelSections,
+  useChannelSort,
+  useCheckChannelJoined,
+  useCheckChannelUnread,
+} from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
@@ -116,7 +117,6 @@ export default function ChannelList({ className }: ChannelListProps) {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const connected = useGroupConnection(flag);
-  const briefs = useAllBriefs();
   const pendingImports = usePendingImports();
   const { hasStarted } = useStartedMigration(flag);
   const { sortFn, sortChannels } = useChannelSort();
@@ -125,6 +125,7 @@ export default function ChannelList({ className }: ChannelListProps) {
   const filteredSections = useFilteredSections(flag, true);
   const isMobile = useIsMobile();
   const vessel = useVessel(flag, window.our);
+  const isChannelJoined = useCheckChannelJoined();
   const isChannelUnread = useCheckChannelUnread();
 
   if (!group || group.meta.title === '') {
@@ -151,7 +152,7 @@ export default function ChannelList({ className }: ChannelListProps) {
     channels
       .filter(
         ([nest, chan]) =>
-          (isChannelJoined(nest, briefs) &&
+          (isChannelJoined(nest) &&
             canReadChannel(chan, vessel, group?.bloc)) ||
           nest in pendingImports
       )
@@ -207,8 +208,8 @@ export default function ChannelList({ className }: ChannelListProps) {
         );
       });
 
-  const unsectionedChannels = sortChannels(group.channels).filter(
-    ([n]) => n in briefs
+  const unsectionedChannels = sortChannels(group.channels).filter(([n]) =>
+    isChannelJoined(n)
   );
 
   return (
