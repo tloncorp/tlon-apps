@@ -217,7 +217,7 @@ function channelIsJoined(
 ) {
   const [app, flag] = nestToFlag(nest);
 
-  return Object.keys(briefs[app]).length > 0
+  return briefs[app] && Object.keys(briefs[app]).length > 0
     ? isChannelJoined(flag, briefs[app])
     : true;
 }
