@@ -260,6 +260,8 @@ export default function ChatScroller({
   const START_INDEX = 9999999;
   const firstItemIndex = useMemo(() => START_INDEX - keys.length, [keys]);
 
+  const initialTopMostIndex = scrollTo ? undefined : START_INDEX - 1;
+
   useEffect(() => {
     if (hasScrollTo) {
       // if scrollTo changes, scroll to the new index
@@ -342,6 +344,7 @@ export default function ChatScroller({
         itemContent={itemContent}
         computeItemKey={computeItemKey}
         firstItemIndex={firstItemIndex}
+        initialTopMostItemIndex={initialTopMostIndex}
         isScrolling={handleScroll}
         atTopStateChange={atTopStateChange}
         atBottomStateChange={atBottomStateChange}
