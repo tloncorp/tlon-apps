@@ -1337,7 +1337,7 @@
           =/  vessel  (~(gut by fleet.group) ship *vessel:fleet:g)
           [ship [sects=sects.vessel joined=joined]]
       ?:  from-self  go-core
-      =/  link  (go-link /info/members)
+      =/  link  (go-link /edit/members)
       =/  yarn
         %-  spin
         :*  (go-rope /joins)
