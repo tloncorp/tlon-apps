@@ -1,0 +1,19 @@
+name: Add issues to Linear
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  add-to-linear:
+    name: Add issue to Linear
+    runs-on: ubuntu-latest
+    steps:
+      - uses: jamesacklin/linear-app-create-issue-action@v1
+        with:
+          issueTitle: ${{ github.event.issue.title }}
+          issueContent: ${{ github.event.issue.body }}
+          apiKey: ${{ secrets.LINEAR_APIKEY }}
+          teamId: ${{ secrets.LINEAR_TEAMID }}
+          stateId: ${{ secrets.LINEAR_STATEID }}
