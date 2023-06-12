@@ -1,6 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet';
-import { useChannelUnreadCounts } from '@/logic/useIsChannelUnread';
+import { useChannelUnreadCounts } from '@/logic/channel';
 import { useMessagesFilter } from '@/state/settings';
 
 export default function TalkHead() {

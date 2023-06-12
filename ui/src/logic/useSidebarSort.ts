@@ -5,6 +5,7 @@ import {
   useSideBarSortMode,
 } from '@/state/settings';
 import useAllBriefs from './useAllBriefs';
+import { nestToFlag } from './utils';
 
 export const ALPHABETICAL = 'A → Z';
 export const DEFAULT = 'Arranged';
@@ -27,8 +28,10 @@ export function useRecentSort() {
   const briefs = useAllBriefs();
   const sortRecent = useCallback(
     (aNest: string, bNest: string) => {
-      const aLast = briefs[aNest]?.last ?? Number.NEGATIVE_INFINITY;
-      const bLast = briefs[bNest]?.last ?? Number.NEGATIVE_INFINITY;
+      const [aApp, aFlag] = nestToFlag(aNest);
+      const aLast = briefs[aApp]?.[aFlag]?.last ?? Number.NEGATIVE_INFINITY;
+      const [bApp, bFlag] = nestToFlag(bNest);
+      const bLast = briefs[bApp]?.[bFlag]?.last ?? Number.NEGATIVE_INFINITY;
       if (aLast < bLast) {
         return -1;
       }

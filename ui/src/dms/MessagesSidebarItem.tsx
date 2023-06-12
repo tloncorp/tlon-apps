@@ -41,7 +41,9 @@ function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
           loadImage={!isScrolling}
         />
       }
-      actions={<DmOptions whom={whom} pending={!!pending} />}
+      actions={({ hover }) => (
+        <DmOptions whom={whom} pending={!!pending} isHovered={hover} />
+      )}
     >
       {channel.meta.title}
     </SidebarItem>
@@ -77,7 +79,9 @@ function DMSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
           {...avatarSize()}
         />
       }
-      actions={<DmOptions whom={whom} pending={!!pending} />}
+      actions={({ hover }) => (
+        <DmOptions whom={whom} pending={!!pending} isHovered={hover} />
+      )}
     >
       <ShipName className="truncate" name={whom} showAlias />
     </SidebarItem>
@@ -122,7 +126,9 @@ export function MultiDMSidebarItem({
           {...avatarSize()}
         />
       }
-      actions={<DmOptions whom={whom} pending={!!pending} isMulti />}
+      actions={({ hover }) => (
+        <DmOptions whom={whom} pending={!!pending} isMulti isHovered={hover} />
+      )}
     >
       {groupName}
     </SidebarItem>

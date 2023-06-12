@@ -45,10 +45,12 @@ import { isNativeApp, postActionToNativeApp } from './native';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
-export function nestToFlag(nest: string): [string, string] {
+type App = 'chat' | 'heap' | 'diary';
+
+export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
 
-  return [app, rest.join('/')];
+  return [app as App, rest.join('/')];
 }
 
 export function sampleQuippers(quips: DiaryQuipMap) {
@@ -428,12 +430,11 @@ export async function jsonFetch<T>(
 }
 
 export function isChannelJoined(
-  nest: string,
+  flag: string,
   briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
 ) {
-  const [, chFlag] = nestToFlag(nest);
-  const isChannelHost = window.our === chFlag?.split('/')[0];
-  return isChannelHost || (nest && nest in briefs);
+  const isChannelHost = window.our === flag?.split('/')[0];
+  return isChannelHost || (flag && flag in briefs);
 }
 
 export function isGroupHost(flag: string) {

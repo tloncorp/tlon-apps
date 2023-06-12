@@ -10,7 +10,7 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 import { ChatBlock, ChatStory } from '@/types/chat';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-import { useChannelFlag } from '@/hooks';
+import { useChannelFlag } from '@/logic/channel';
 import ReferenceBar from './ReferenceBar';
 
 function NoteCommentReference({
