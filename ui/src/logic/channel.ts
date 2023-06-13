@@ -43,7 +43,7 @@ function channelUnread(
     return Boolean(unread && !unread.seen);
   }
 
-  return (briefs[app][chFlag]?.count ?? 0) > 0;
+  return (briefs[app]?.[chFlag]?.count ?? 0) > 0;
 }
 
 interface ChannelUnreadCount {

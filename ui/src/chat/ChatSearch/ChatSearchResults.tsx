@@ -6,7 +6,7 @@ import { BigIntOrderedMap } from '@urbit/api';
 import { ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatState } from '@/state/chat';
-import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
+import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
 
 interface ChatSearchResultsProps {
