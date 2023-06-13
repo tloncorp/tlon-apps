@@ -19,7 +19,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useChannelFlag } from '@/logic/channel';
-import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
+import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime, idShip } = useParams<{
