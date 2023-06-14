@@ -24,7 +24,7 @@ function Toggle({
 
   return (
     <RadixToggle.Root
-      className={classNames('default-ring rounded-full', className)}
+      className={classNames('default-focus rounded-full', className)}
       pressed={proxyPressed}
       onPressedChange={proxyOnPressedChange}
       disabled={disabled || loading}

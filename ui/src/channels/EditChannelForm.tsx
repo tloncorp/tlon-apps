@@ -23,8 +23,8 @@ import {
   useAddSectsDiaryMutation,
   useDeleteSectsDiaryMutation,
 } from '@/state/diary';
-import useChannel from '@/logic/useChannel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { useChannel } from '@/logic/channel';
 
 interface EditChannelFormProps {
   nest: string;

@@ -13,30 +13,19 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { useCurios, useHeapState, useHeapPerms } from '@/state/heap/heap';
-import ChannelHeader from '@/channels/ChannelHeader';
-import {
-  HeapSetting,
-  setChannelSetting,
-  useHeapSettings,
-  useHeapSortMode,
-  useHeapDisplayMode,
-  usePutEntryMutation,
-} from '@/state/settings';
+import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import {
-  canReadChannel,
-  canWriteChannel,
-  isChannelJoined,
-} from '@/logic/utils';
-import { GRID, HeapCurio, HeapDisplayMode, HeapSortMode } from '@/types/heap';
+import { canReadChannel, canWriteChannel } from '@/logic/utils';
+import { GRID, HeapCurio } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
-import useAllBriefs from '@/logic/useAllBriefs';
 import makeCuriosStore from '@/state/heap/curios';
 import { useIsMobile } from '@/logic/useMedia';
 import { useLastReconnect } from '@/state/local';
+import { useChannelIsJoined } from '@/logic/channel';
 import NewCurioForm from './NewCurioForm';
+import HeapHeader from './HeapHeader';
 
 function HeapChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
@@ -51,7 +40,6 @@ function HeapChannel({ title }: ViewProps) {
   const group = useGroup(flag);
   const { setRecentChannel } = useRecentChannel(flag);
   const displayMode = useHeapDisplayMode(chFlag);
-  const settings = useHeapSettings();
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
@@ -61,15 +49,8 @@ function HeapChannel({ title }: ViewProps) {
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
-  const briefs = useAllBriefs();
-  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
-    ? isChannelJoined(nest, briefs)
-    : true;
+  const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
-  const { mutate } = usePutEntryMutation({
-    bucket: 'heaps',
-    key: 'heapSettings',
-  });
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -80,30 +61,6 @@ function HeapChannel({ title }: ViewProps) {
   const initializeChannel = useCallback(async () => {
     await useHeapState.getState().initialize(chFlag);
   }, [chFlag]);
-
-  const setDisplayMode = (setting: HeapDisplayMode) => {
-    const newSettings = setChannelSetting<HeapSetting>(
-      settings,
-      { displayMode: setting },
-      chFlag
-    );
-
-    mutate({
-      val: JSON.stringify(newSettings),
-    });
-  };
-
-  const setSortMode = (setting: HeapSortMode) => {
-    const newSettings = setChannelSetting<HeapSetting>(
-      settings,
-      { sortMode: setting },
-      chFlag
-    );
-
-    mutate({
-      val: JSON.stringify(newSettings),
-    });
-  };
 
   const navigateToDetail = useCallback(
     (time: bigInt.BigInteger) => {
@@ -247,14 +204,11 @@ function HeapChannel({ title }: ViewProps) {
       className="flex-1 bg-gray-50"
       aside={<Outlet />}
       header={
-        <ChannelHeader
+        <HeapHeader
           flag={flag}
           nest={nest}
-          showControls
-          displayMode={displayMode}
-          setDisplayMode={setDisplayMode}
-          sortMode={sortMode}
-          setSortMode={setSortMode}
+          display={displayMode}
+          sort={sortMode}
         />
       }
     >

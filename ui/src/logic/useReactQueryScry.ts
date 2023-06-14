@@ -3,7 +3,7 @@ import api from '@/api';
 import useSchedulerStore from '@/state/scheduler';
 import { useCallback } from 'react';
 
-export default function useReactQueryScry({
+export default function useReactQueryScry<T>({
   queryKey,
   app,
   path,
@@ -14,13 +14,13 @@ export default function useReactQueryScry({
   app: string;
   path: string;
   priority?: number;
-  options?: UseQueryOptions;
-}): ReturnType<typeof useQuery> {
+  options?: UseQueryOptions<T>;
+}) {
   const fetchData = useCallback(
     async () =>
       useSchedulerStore.getState().wait(
         async () =>
-          api.scry({
+          api.scry<T>({
             app,
             path,
           }),
@@ -29,7 +29,7 @@ export default function useReactQueryScry({
     [app, path, priority]
   );
 
-  return useQuery(queryKey, fetchData, {
+  return useQuery<T>(queryKey, fetchData, {
     retryOnMount: false,
     refetchOnMount: false,
     ...options,

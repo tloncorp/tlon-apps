@@ -108,7 +108,8 @@
         :-  now.bowl
         :-  %cordon
         [%shut [%add-ships %pending (~(gas in *(set ship)) ~[joiner.bite])]]
-      ~[[%pass /invite %agent [our.bowl %groups] %poke %group-action !>(action)]]
+      :_  ~
+      [%pass /invite %agent [our.bowl %groups] %poke act:mar:groups !>(action)]
     ==
   ==
 ::

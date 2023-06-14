@@ -22,7 +22,7 @@ function GroupInvitesPrivacy() {
           </div>
           <PrivacySelectorForm />
         </div>
-        <LureInviteBlock flag={groupFlag} group={group} />
+        <LureInviteBlock flag={groupFlag} group={group} className="grow" />
         <GroupInviteBlock />
       </div>
     );

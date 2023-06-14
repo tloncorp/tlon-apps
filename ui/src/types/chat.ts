@@ -333,3 +333,10 @@ export interface TalkChatInit extends ChatInit {
   invited: string[];
   pins: string[];
 }
+
+export interface ChatScanItem {
+  time: string;
+  writ: ChatWrit;
+}
+
+export type ChatScan = ChatScanItem[];

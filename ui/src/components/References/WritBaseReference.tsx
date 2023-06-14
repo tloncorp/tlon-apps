@@ -7,9 +7,9 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useChannelFlag } from '@/hooks';
 import { useChatState } from '@/state/chat';
 import { unixToDa } from '@urbit/api';
+import { useChannelFlag } from '@/logic/channel';
 import ReferenceBar from './ReferenceBar';
 
 interface WritBaseReferenceProps {

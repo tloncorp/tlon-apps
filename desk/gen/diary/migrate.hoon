@@ -13,7 +13,7 @@
       p.beak
       now
   ==
-:-  %diary-action
+:-  act:mar:d
 ^-  action:d
 :-  [her name]
 :-  now

@@ -2,6 +2,13 @@
 /-  metadata-store
 /+  lib-graph=graph-store
 |%
+++  okay  `epic:e`0
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
+  ++  log  `mark`(rap 3 %diary-logs '-' (scot %ud okay) ~)
+  --
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
 ::  $feel: either an emoji identifier like :diff or a URL for custom

@@ -158,18 +158,18 @@ export function useNotes(flag: DiaryFlag) {
     priority: 2,
   });
 
-  let noteMap = restoreMap<DiaryLetter>(data);
+  let noteMap = restoreMap<DiaryOutline>(data);
 
   if (data === undefined || Object.entries(data as object).length === 0) {
     return {
-      letters: noteMap as BigIntOrderedMap<DiaryLetter>,
+      letters: noteMap as BigIntOrderedMap<DiaryOutline>,
       ...rest,
     };
   }
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    note: v as DiaryLetter,
+    note: v as DiaryOutline,
   }));
 
   diff.forEach(({ tim, note }) => {
@@ -177,7 +177,7 @@ export function useNotes(flag: DiaryFlag) {
   });
 
   return {
-    letters: noteMap as BigIntOrderedMap<DiaryLetter>,
+    letters: noteMap as BigIntOrderedMap<DiaryOutline>,
     ...rest,
   };
 }
@@ -349,6 +349,7 @@ export function useQuip(
   }, [note, quipId]);
 }
 
+const emptyBriefs = {};
 export function useDiaryBriefs(): DiaryBriefs {
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['diary', 'briefs'],
@@ -358,7 +359,7 @@ export function useDiaryBriefs(): DiaryBriefs {
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return {};
+    return emptyBriefs;
   }
 
   return data as DiaryBriefs;
@@ -513,18 +514,15 @@ export function useViewDiaryMutation() {
 
 export function useAddNoteMutation() {
   const queryClient = useQueryClient();
-  let timePosted = '';
+  const now = decToUd(unixToDa(Date.now()).toString());
+  let timePosted = now;
   const mutationFn = async (variables: { flag: DiaryFlag; essay: NoteEssay }) =>
-    new Promise<string>((resolve, reject) => {
+    new Promise<string>((resolve) => {
       api
         .trackedPoke<DiaryAction, DiaryUpdate>(
-          diaryNoteDiff(
-            variables.flag,
-            decToUd(unixToDa(Date.now()).toString()),
-            {
-              add: variables.essay,
-            }
-          ),
+          diaryNoteDiff(variables.flag, now, {
+            add: variables.essay,
+          }),
           { app: 'diary', path: `/diary/${variables.flag}/ui` },
           (event) => {
             const { time, diff } = event;
@@ -550,18 +548,22 @@ export function useAddNoteMutation() {
       await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
       await queryClient.cancelQueries(['diary', 'briefs']);
 
-      const notes = queryClient.getQueryData<DiaryLetter>([
+      const notes = queryClient.getQueryData<DiaryOutline>([
         'diary',
         'notes',
         variables.flag,
       ]);
 
       if (notes !== undefined) {
-        queryClient.setQueryData<DiaryLetter>(
+        queryClient.setQueryData<DiaryOutline>(
           ['diary', 'notes', variables.flag],
           {
             ...notes,
             [timePosted]: variables.essay,
+            quipCount: 0,
+            quippers: [],
+            title: variables.essay.title,
+            image: variables.essay.image,
           }
         );
       }

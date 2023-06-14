@@ -170,6 +170,18 @@
       ==
     ``chat-writs+!>((gas:on *writs:c filtered))
   ::
+      [%around time=@ count=@ ~]
+    =/  count  (slav %ud count.pole)
+    =/  time  (slav %ud time.pole)
+    =/  older  (bat:mope wit.pac `time count)
+    =/  newer  (tab:on:writs:c wit.pac `time count)
+    =/  writ   (get:on:writs:c wit.pac time)
+    =-  ``chat-writs+!>(-)
+    %+  gas:on  *writs:c
+    ?~  writ
+      (welp older newer)
+    (welp (snoc older [time u.writ]) newer)
+  ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
     =/  time  (slav %ud time.pole)
@@ -206,7 +218,7 @@
         wit.pac     :: (gas:on:writs:c wit.pac ls)
       [sip len ~]   :: (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
     |=  $:  =query
-            time
+            =time
             =writ:c
         ==
     ^-  [(unit writ:c) stop=? _query]
@@ -214,7 +226,7 @@
     ?:  (matc writ)
       ?:  =(0 skip.query)
         :-  =(1 more.query)
-        query(more (dec more.query), scan [writ scan.query])
+        query(more (dec more.query), scan [[time writ] scan.query])
       [| query(skip (dec skip.query))]
     [| query]
   ++  mntn
