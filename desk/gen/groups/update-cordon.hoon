@@ -5,7 +5,7 @@
         [[[her=ship name=term] =diff:cordon:g ~] ~]
     ==
 ::
-:-  %group-action
+:-  act:mar:g
 ^-  action:g
 :-  [her name]
 :-  now
