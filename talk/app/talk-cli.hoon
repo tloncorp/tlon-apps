@@ -861,12 +861,8 @@
     ^-  (list [tape tape])
     %-  zing
     ^-  (list (list [tape tape]))
-    =/  glyphs=(list tape)
-      (turn glyphs trip)
     =/  targets=(list tape)
       :(weld ships club-ids chats)
-    =/  glyphs-and-targets=(list tape)
-      (weld glyphs targets)
     :~
       :~  [";set notify" "bing when messages arrive"]
           [";set width" "set width of message column"]
@@ -875,13 +871,9 @@
           [";unset notify" "don't bing when messages arrive"]
           [";unset showtime" "don't show message times"]
       ==
-      (glue [";view" "put" "in view"] (sort glyphs-and-targets dor))
-      (glue [";what" "what is" "bound to?"] (sort glyphs-and-targets dor))
-      %+  glue  [";flee" "stop printing messages from" ~]
-      (sort glyphs-and-targets dor)
-      %+  glue
-        [";unbind" "unbind the" "glyph"]
-      (sort (turn ~(tap in ~(key by binds)) trip) dor)
+      (glue [";view" "put" "in view"] (sort targets dor))
+      (glue [";what" "what is" "bound to?"] (sort targets dor))
+      (glue [";flee" "stop printing messages from" ~] (sort targets dor))
     ==
     ::  +dor: sort tapes in decending order
     ::
