@@ -10,9 +10,10 @@ import React, {
 } from 'react';
 import { isSameDay } from 'date-fns';
 import { debounce } from 'lodash';
-import { BigIntOrderedMap, daToUnix } from '@urbit/api';
+import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+import BTree from 'sorted-btree';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChatState, useWritWindow } from '@/state/chat/chat';
 import {
@@ -27,7 +28,7 @@ import { ChatInfo, useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
 
 interface CreateRendererParams {
-  messages: BigIntOrderedMap<ChatWrit>;
+  messages: BTree<bigInt.BigInteger, ChatWrit>;
   keys: bigInt.BigInteger[];
   replying: boolean;
   whom: string;
@@ -53,7 +54,7 @@ function createRenderer({
 }: CreateRendererParams) {
   const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
     <>
-      {index.eq(messages.peekSmallest()[0]) ? prefixedElement : null}
+      {index.eq(messages.minKey() || bigInt()) ? prefixedElement : null}
       {child}
     </>
   );
@@ -169,19 +170,14 @@ export default function ChatScroller({
       : { main: 400, reverse: 400 },
   };
 
-  const keys = useMemo(
-    () =>
-      messages
-        .keys()
-        .reverse()
-        .filter((k) => {
-          if (replying) {
-            return true;
-          }
-          return messages.get(k)?.memo.replying === null;
-        }),
-    [messages, replying]
-  );
+  const keys = useMemo(() => {
+    return Array.from(messages.keys()).filter((k) => {
+      if (replying) {
+        return true;
+      }
+      return messages.get(k)?.memo.replying === null;
+    });
+  }, [messages, replying]);
 
   const hasScrollTo = useMemo(() => {
     if (!scrollTo) {
@@ -217,10 +213,10 @@ export default function ChatScroller({
 
   const fetchMessages = useCallback(
     async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
-      const newest = messages.peekLargest();
+      const newest = messages.maxKey();
       const seenNewest =
         newer && newest && writWindow && writWindow.loadedNewest;
-      const oldest = messages.peekSmallest();
+      const oldest = messages.minKey();
       const seenOldest =
         !newer && oldest && writWindow && writWindow.loadedOldest;
 
