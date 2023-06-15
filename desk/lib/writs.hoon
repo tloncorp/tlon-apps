@@ -56,9 +56,12 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id now ~ ~]
+    =/  =seal:c  [id ~ ~]
     ?:  (~(has by dex.pac) id)
       pac
+    |-
+    ?:  (has:on:writs:c wit.pac now)  
+      $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
       (put:on:writs:c wit.pac now seal p.del)
     =.  dex.pac  (~(put by dex.pac) id now)
@@ -95,79 +98,18 @@
   ?+    pole  [~ ~]
   ::
       [%newest count=@ ~]
-    ~>  %bout
     =/  count  (slav %ud count.pole)
-    =/  filtered
-      %^  (dip:on:writs:c @)  wit.pac  ~
-      |=  [st=@ =time =writ:c]
-      :_  [%.n st]
-      ?+  -.threaded.writ  `writ
-          %strand  ~
-      ==
-    ``chat-writs+!>((gas:on *writs:c (top:mope +.filtered count)))
-  ::
-      [%newest count=@ %thread ship=@ time=@ ~]
-    ~>  %bout
-    =/  count  (slav %ud count.pole)
-    =/  =id:c  [(slav %p ship.pole) (slav %ud time.pole)]
-    =/  filtered
-      %^  (dip:on:writs:c @)  wit.pac  ~
-      |=  [st=@ =time =writ:c]
-      :_  [%.n st]
-      ?+  -.threaded.writ  ~
-          %strand  ?.(=(id id.threaded.writ) ~ `writ)
-      ==
-    ``chat-writs+!>((gas:on *writs:c (top:mope +.filtered count)))
+    ``chat-writs+!>((gas:on *writs:c (top:mope wit.pac count)))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    =/  items  (bat:mope wit.pac `start count)
-    =/  filtered
-      %+  skim  items
-      |=  [=time =writ:c]
-      ?+  -.threaded.writ  %.y
-          %strand  %.n
-      ==
-    ``chat-writs+!>((gas:on *writs:c filtered))
-  ::
-      [%older start=@ count=@ %thread ship=@ time=@ ~]
-    =/  count  (slav %ud count.pole)
-    =/  start  (slav %ud start.pole)
-    =/  =id:c  [(slav %p ship.pole) (slav %ud time.pole)]
-    =/  items  (bat:mope wit.pac `start count)
-    =/  filtered
-      %+  skim  items
-      |=  [=time =writ:c]
-      ?+  -.threaded.writ  %.n
-          %strand  =(id id.threaded.writ)
-      ==
-    ``chat-writs+!>((gas:on *writs:c filtered))
+    ``chat-writs+!>((gas:on *writs:c (bat:mope wit.pac `start count)))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    =/  items  (tab:on wit.pac `start count)
-    =/  filtered
-      %+  skim  items
-      |=  [=time =writ:c]
-      ?+  -.threaded.writ  %.y
-          %strand  %.n
-      ==
-    ``chat-writs+!>((gas:on *writs:c filtered))
-  ::
-      [%newer start=@ count=@ %thread ship=@ time=@ ~]
-    =/  count  (slav %ud count.pole)
-    =/  start  (slav %ud start.pole)
-    =/  =id:c  [(slav %p ship.pole) (slav %ud time.pole)]
-    =/  items  (tab:on wit.pac `start count)
-    =/  filtered
-      %+  skim  items
-      |=  [=time =writ:c]
-      ?+  -.threaded.writ  %.n
-          %strand  =(id id.threaded.writ)
-      ==
-    ``chat-writs+!>((gas:on *writs:c filtered))
+    ``chat-writs+!>((gas:on *writs:c (tab:on wit.pac `start count)))
   ::
       [%around time=@ count=@ ~]
     =/  count  (slav %ud count.pole)

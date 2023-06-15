@@ -42,7 +42,6 @@
 ::
 +$  seal
   $:  =id
-      =time
       feels=(map ship feel)
       replied=(set id)
   ==
@@ -320,7 +319,6 @@
 ::
 ::  $memo: a chat message with metadata
 ::
-::    thread: the thread this message belongs to
 ::    replying: what message we're replying to
 ::    author: writer of the message
 ::    sent: time (from sender) when the message was sent

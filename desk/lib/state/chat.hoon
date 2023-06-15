@@ -191,10 +191,8 @@
   :+  ~  %.n
   =/  newseal=seal:c
     :*  id.oldseal
-        tim
         feels.oldseal
         replied=~
-        ted=~
     ==
   =/  newmemo=memo:c
     :*  replying=~
