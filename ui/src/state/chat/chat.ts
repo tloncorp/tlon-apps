@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
+import BTree from 'sorted-btree';
+import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -24,6 +25,7 @@ import {
   ClubDelta,
   Clubs,
   DmAction,
+  newWritMap,
   Pact,
   Pins,
   WritDelta,
@@ -480,7 +482,7 @@ export const useChatState = createState<ChatState>(
             dms: [...draft.dms, whom],
             pacts: {
               ...draft.pacts,
-              [whom]: { index: {}, writs: new BigIntOrderedMap() },
+              [whom]: { index: {}, writs: newWritMap() },
             },
           }));
         }
@@ -751,7 +753,7 @@ export function useWritWindow(whom: string, time?: BigInteger) {
   return getWritWindow(window, time);
 }
 
-const emptyWrits = new BigIntOrderedMap<ChatWrit>();
+const emptyWrits = newWritMap();
 export function useMessagesForChat(whom: string, near?: BigInteger) {
   const window = useWritWindow(whom, near);
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
@@ -759,7 +761,7 @@ export function useMessagesForChat(whom: string, near?: BigInteger) {
   return useMemo(() => {
     const messages =
       window && writs
-        ? sliceMap(writs, window.oldest, window.newest)
+        ? newWritMap(writs.getRange(window.oldest, window.newest, true))
         : emptyWrits;
     return messages;
   }, [writs, window]);
@@ -785,15 +787,12 @@ export function useChatKeys({
   const messages = useMessagesForChat(whom ?? '');
   return useMemo(
     () =>
-      messages
-        .keys()
-        .reverse()
-        .filter((k) => {
-          if (replying) {
-            return true;
-          }
-          return messages.get(k)?.memo.replying === null;
-        }),
+      Array.from(messages.keys()).filter((k) => {
+        if (replying) {
+          return true;
+        }
+        return messages.get(k)?.memo.replying === null;
+      }),
     [messages, replying]
   );
 }
@@ -835,7 +834,7 @@ export function useDmList() {
   return useChatState(selDmList);
 }
 
-const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
+const emptyPact = { index: {}, writs: newWritMap() };
 export function usePact(whom: string): Pact {
   return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));
 }
@@ -855,12 +854,12 @@ export function useReplies(whom: string, id: string) {
   const pact = usePact(whom);
   return useMemo(() => {
     if (!pact) {
-      return new BigIntOrderedMap<ChatWrit>();
+      return newWritMap();
     }
     const { writs, index } = pact;
     const time = index[id];
     if (!time) {
-      return new BigIntOrderedMap<ChatWrit>();
+      return newWritMap();
     }
     const message = writs.get(time);
     const replies = (message?.seal?.replied || ([] as string[]))
@@ -870,7 +869,7 @@ export function useReplies(whom: string, id: string) {
         return t && writ ? ([t, writ] as const) : undefined;
       })
       .filter((r: unknown): r is [BigInteger, ChatWrit] => !!r);
-    return new BigIntOrderedMap<ChatWrit>().gas(replies);
+    return newWritMap(replies);
   }, [pact, id]);
 }
 
@@ -1098,20 +1097,27 @@ export function useWritByFlagAndGraphIndex(
   return res || 'loading';
 }
 
-export function useLatestMessage(chFlag: string) {
+export function useLatestMessage(
+  chFlag: string
+): [BigInteger, ChatWrit | null] {
   const messages = useMessagesForChat(chFlag);
-  return messages.size > 0 ? messages.peekLargest() : [bigInt(), null];
+  const max = messages.maxKey();
+  return messages.size > 0 && max
+    ? [max, messages.get(max) || null]
+    : [bigInt(), null];
 }
 
 export function useGetLatestChat() {
-  const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
-  const empty = [bigInt(), null];
+  const def = useMemo(() => newWritMap(), []);
   const pacts = usePacts();
 
   return (chFlag: string) => {
     const pactFlag = chFlag.startsWith('~') ? chFlag : nestToFlag(chFlag)[1];
     const messages = pacts[pactFlag]?.writs ?? def;
-    return messages.size > 0 ? messages.peekLargest() : empty;
+    const max = messages.maxKey();
+    return messages.size > 0 && max
+      ? [max, messages.get(max) || null]
+      : [bigInt(), null];
   };
 }
 
@@ -1143,16 +1149,9 @@ export function useChatSearch(whom: string, query: string) {
   });
 
   const scan = useMemo(() => {
-    let scanMap = new BigIntOrderedMap<ChatWrit>();
-    if (!data) {
-      return scanMap;
-    }
-
-    data.forEach(({ time, writ }) => {
-      scanMap = scanMap.set(bigInt(udToDec(time)), writ);
-    });
-
-    return scanMap;
+    return newWritMap(
+      (data || []).map(({ time, writ }) => [bigInt(udToDec(time)), writ])
+    );
   }, [data]);
 
   return {

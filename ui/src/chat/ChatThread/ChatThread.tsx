@@ -94,7 +94,7 @@ export default function ChatThread() {
 
   if (!time || !writ) return null;
 
-  const thread = replies.set(time, writ);
+  const thread = replies.with(time, writ);
   const BackButton = isMobile ? Link : 'div';
 
   return (

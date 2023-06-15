@@ -1,5 +1,5 @@
-import { BigIntOrderedMap } from '@urbit/api';
 import { BigInteger } from 'big-integer';
+import BTree from 'sorted-btree';
 import {
   BlockCode,
   Blockquote,
@@ -200,8 +200,14 @@ export interface DmRsvp {
   ok: boolean;
 }
 
+export function newWritMap(
+  entries?: [BigInteger, ChatWrit][]
+): BTree<BigInteger, ChatWrit> {
+  return new BTree<BigInteger, ChatWrit>(entries, (a, b) => a.compare(b));
+}
+
 export interface Pact {
-  writs: BigIntOrderedMap<ChatWrit>;
+  writs: BTree<BigInteger, ChatWrit>;
   index: {
     [id: string]: BigInteger;
   };
