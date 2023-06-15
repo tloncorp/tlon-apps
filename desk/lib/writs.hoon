@@ -1,7 +1,6 @@
 /-  c=chat
 /+  mp=mop-extensions
 |_  pac=pact:c
-++  top-count  2.048
 ++  mope  ((mp time writ:c) lte)
 ++  gas
   |=  ls=(list [=time =writ:c])
@@ -57,7 +56,7 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id now ~ ~ [%fray ~]]
+    =/  =seal:c  [id now ~ ~]
     ?:  (~(has by dex.pac) id)
       pac
     =.  wit.pac

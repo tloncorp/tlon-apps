@@ -23,24 +23,14 @@
 ::  $scan: search results
 +$  scan  (list (pair time writ))
 ::  $writ: a chat message
-+$  writ   [seal memo]
++$  writ    [seal memo thread]
+::  $strand: a threaded chat message
++$  strand  [=seal =memo]
 ::  $id: an identifier for chat messages
 +$  id     (pair ship time)
 ::  $feel: either an emoji identifier like :wave: or a URL for custom
 +$  feel   @ta
 +$  said   (pair flag writ)
-::
-::  $threaded: identifier for thread participation
-::
-::    fray: unthreaded
-::    strand: middle of a thread with pointer to parent
-::    knot: top of a thread with summary of thread contents
-::
-+$  threaded
-  $%  [%fray ~]
-      [%knot ~]
-      [%strand =id]
-  ==
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
@@ -48,17 +38,13 @@
 ::    time: the canonical host/server time for the message, used as a key
 ::    feels: reactions to a message
 ::    replied: set of replies to a message
-::    threaded:
-::      fray: unthreaded
-::      knot: top of a thread
-::      strand: middle of a thread
+::    ted: messages under this one
 ::
 +$  seal
   $:  =id
       =time
       feels=(map ship feel)
       replied=(set id)
-      =threaded
   ==
 ::
 ::  $whom: a polymorphic identifier for chats
@@ -69,6 +55,13 @@
       [%club p=id:club]
   == 
 ::
+::  $hoot: either a whom or whom + id of parent message of thread
+::
++$  hoot
+  $%  [%whom =whom]
+      [%thread =whom =id]
+  ==
+::
 ::  $briefs: a map of chat/club/dm unread information
 ::
 ::    brief: the last time a message was read, how many messages since,
@@ -78,9 +71,7 @@
   =<  briefs
   |% 
   +$  briefs
-    (map whom brief)
-  +$  recap
-    [threads=(map id brief) brief]
+    (map hoot brief)
   +$  brief
     [last=time count=@ud read-id=(unit id)]
   +$  update
@@ -126,15 +117,7 @@
   ==
 ::
 ::  $thread: a miniature chat
-+$  thread  [knot=writ =remark =pact]
-::
-+$  threads  (map id thread)
-::
-+$  thread-summary
-  $:  count=@ud 
-      authors=(set ship)
-      updated=time
-  ==
++$  thread  [authors=(set ship) count=@ud =remark =strands]
 ::
 ::  $index: a map of chat message id to server received message time
 ::
@@ -144,8 +127,6 @@
 ::
 ::    wit: map of all chat messages time -> message
 ::    dex: map of chat messages id -> time
-::    top: latest 2048 messages, without thread strands
-::    threads: all messages in threads within the top 
 ::
 +$  pact
   $:  wit=writs
@@ -211,9 +192,6 @@
   ::
   +$  action  (pair id diff)
   --
-::
-::  $writs: a set of time ordered chat messages
-::
 ++  writs
   =<  writs
   |%
@@ -229,6 +207,17 @@
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
     ==
+  --
+::
+::  $writs: a set of time ordered threaded chat messages
+::
+++  strands
+  =<  strands
+  |%
+  +$  strands
+    ((mop time strand) lte)
+  ++  on
+    ((^on time strand) lte)
   --
 ::
 ::  $dm: a direct line of communication between two ships
@@ -264,7 +253,7 @@
 ::  $chat: a group based channel for communicating
 ::
 +$  chat
-  [=threads =net =remark =log =perm =pact]
+  [=net =remark =log =perm =pact]
 ::
 ::  $notice: the contents of an automated message
 ::  
@@ -338,8 +327,7 @@
 ::    content: body of the message
 ::
 +$  memo  
-  $:  thread=(unit id)
-      replying=(unit id)      
+  $:  replying=(unit id)
       author=ship
       sent=time
       =content

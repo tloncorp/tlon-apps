@@ -106,8 +106,7 @@
   |=  old-chat=chat:two
   =/  pact  (pact-2-to-3 pact.old-chat)
   ^-  chat:c
-  :*  (index-threads pact)
-      net.old-chat
+  :*  net.old-chat
       remark.old-chat
       (log-2-to-3 log.old-chat)
       perm.old-chat
@@ -169,7 +168,7 @@
     :*  %writs
         p.p.old-diff
         ?-  -.q.p.old-diff
-          %add  [%add (memo-2-to-3 +.q.p.old-diff)]
+          %add  [%add (log-memo-2-to-3 +.q.p.old-diff)]
           %del  q.p.old-diff
           %add-feel  q.p.old-diff
           %del-feel  q.p.old-diff
@@ -187,15 +186,41 @@
   ^-  pact:c
   ~&  %migrating-pact
   :_  dex.old-pact
-  %+  gas:on:writs:c  *writs:c        
-  ^-  (list [time writ:c])
-  (turn (tap:on:writs:two wit.old-pact) writ-2-to-3)
+  %+  dip:on:writs:c  *writs:c
+  |=  [state=writs:c [tim=time [oldseal=seal:two oldmemo=memo:two]]]
+  :+  ~  %.n
+  =/  newseal=seal:c
+    :*  id.oldseal
+        tim
+        feels.oldseal
+        replied=~
+        ted=~
+    ==
+  =/  newmemo=memo:c
+    :*  replying=~
+        author.oldmemo
+        sent.oldmemo
+        content.oldmemo
+    ==
+  ?~  replying.oldmemo
+    (put:on:writs:c state tim [newseal newmemo *thread:c])
+  =/  parent  (get:on:writs:c state q.u.replying.oldmemo)
+  ?~  parent  state
+  =/  [parent-seal parent-memo parent-thread]  u.parent
+  %^  put:on:writs:c  state  q.u.replying.oldmemo
+  :*  parent-seal
+      parent-memo
+      :*  (~(put in authors.parent-thread) author.newmemo)
+          +(count.parent-thread)
+          remark.parent-thread
+          (put:on:strands:c strand.parent-thread tim [newseal newmemo])
+      ==
+  ==
 ::
-++  memo-2-to-3
+++  log-memo-2-to-3
   |=  old-memo=memo:two
   ^-  memo:c
-  :*  thread=replying.old-memo
-      replying=replying.old-memo
+  :*  replying=~
       author=author.old-memo
       sent=sent.old-memo
       content=content.old-memo
@@ -226,31 +251,6 @@
           tim
           content.old-writ
       ==
-  ==
-::
-++  index-threads
-  |=  =pact:c 
-  ^-  threads:c
-  =-  -.-
-  %^  (dip:on:writs:c threads:c)  wit.pact  *threads:c
-  |=  [st=threads:c =time =writ:c]
-  :-  ~
-  :-  %.n
-  ?+  -.threaded.writ  st
-      %knot  
-    =/  =thread:c  (~(gut by st) id.writ *thread:c)
-    (~(put by st) id.writ thread(knot writ, remark [now & ~]))
-  ::
-      %strand
-    =*  id  id.threaded.writ
-    =/  =thread:c  (~(gut by st) id *thread:c)
-    %+  ~(put by st)  id
-    =/  knot  (~(get pac pact) id)
-    :*  ?~(knot *writ:c +.u.knot)
-        [now & ~]
-        :-  (put:on:writs:c wit.pact.thread time writ)
-            (~(put by dex.pact.thread) id time)
-    ==
   ==
 ::
 ++  clubs-1-to-2
