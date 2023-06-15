@@ -76,10 +76,10 @@ export default function ChatSearch({
 
       if (event.key === 'Enter' && selected !== undefined) {
         const { time } = selected;
-        const { memo } = scan.get(time);
+        const writ = scan.get(time);
         const scrollTo = `?msg=${time.toString()}`;
-        const to = memo.replying
-          ? `${root}/message/${memo.replying}${scrollTo}`
+        const to = writ?.memo.replying
+          ? `${root}/message/${writ.memo.replying}${scrollTo}`
           : `${root}${scrollTo}`;
         navigate(to);
       }

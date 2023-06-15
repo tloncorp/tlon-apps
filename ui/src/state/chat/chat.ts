@@ -885,7 +885,11 @@ export function useWrit(whom: string, id: string) {
         if (!time) {
           return undefined;
         }
-        return [time, pact.writs.get(time)] as const;
+        const writ = pact.writs.get(time);
+        if (!writ) {
+          return undefined;
+        }
+        return [time, writ] as const;
       },
       [whom, id]
     )
