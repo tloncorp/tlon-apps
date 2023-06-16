@@ -1,6 +1,6 @@
 /-  u=ui, g=groups, c=chat
 /+  default-agent, dbug, verb, vita-client
-/%  init  %ui-init
+/$  init  %ui-init  %json
 ^-  agent:gall
 =>
   |%
