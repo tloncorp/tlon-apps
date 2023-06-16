@@ -177,7 +177,7 @@ export function writsReducer(whom: string) {
     } else if ('del' in delta && pact.index[id]) {
       const time = pact.index[id];
       const old = pact.writs.get(time);
-      pact.writs.delete(time);
+      pact.writs = pact.writs.without(time);
       delete pact.index[id];
       if (old && old.memo.replying) {
         const replyTime = pact.index[old.memo.replying];
@@ -197,15 +197,8 @@ export function writsReducer(whom: string) {
       const { ship, feel } = delta['add-feel'];
 
       if (msg) {
-        debugger;
-
-        pact.writs = pact.writs.with(
-          time,
-          produce(msg, (draftMsg) => {
-            // eslint-disable-next-line no-param-reassign
-            draftMsg.seal.feels[ship] = feel;
-          })
-        );
+        msg.seal.feels[ship] = feel;
+        pact.writs = pact.writs.with(time, msg);
       }
     } else if ('del-feel' in delta && pact.index[id]) {
       const time = pact.index[id];
@@ -356,13 +349,11 @@ export default function makeWritsStore(
         event: (data: WritDiff) => {
           set((draft) => {
             writsReducer(whom)(data, draft);
-            draft.sentMessages = draft.sentMessages.filter(
-              (id) => id !== data.id
-            );
 
             return {
               pacts: { ...draft.pacts },
               writWindows: { ...draft.writWindows },
+              sentMessages: draft.sentMessages.filter((id) => id !== data.id),
             };
           });
         },

@@ -124,7 +124,6 @@ export default function ChatScroller({
 
   const [keys, entries]: [bigInt.BigInteger[], ChatScrollerItemProps[]] =
     useMemo(() => {
-      debugger;
       const messagesWithoutReplies = messages.filter((k) => {
         if (replying) {
           return true;

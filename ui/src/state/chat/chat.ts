@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
-import BTree from 'sorted-btree';
+import { SetState } from 'zustand';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt, { BigInteger } from 'big-integer';
@@ -43,7 +43,7 @@ import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { getWritWindow, writsReducer } from './writs';
-import { ChatState } from './type';
+import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
@@ -119,12 +119,41 @@ function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   };
 }
 
+async function optimisticAction(
+  whom: string,
+  id: string,
+  delta: WritDelta,
+  set: SetState<BasedChatState>
+) {
+  const action = whomIsDm(whom)
+    ? dmAction(whom, delta, id)
+    : whomIsMultiDm(whom)
+    ? multiDmAction(whom, { writ: { id, delta } })
+    : chatWritDiff(whom, id, delta);
+  set((draft) => {
+    const potentialEvent =
+      action.mark === 'club-action-0' &&
+      'id' in action.json &&
+      'writ' in action.json.diff.delta
+        ? action.json.diff.delta.writ
+        : (action.json as ChatAction | DmAction);
+    const reduced = writsReducer(whom)(potentialEvent, draft);
+
+    return {
+      pacts: { ...reduced.pacts },
+      writWindows: { ...reduced.writWindows },
+    };
+  });
+
+  await api.poke<ClubAction | DmAction | ChatAction>(action);
+}
+
 export const useChatState = createState<ChatState>(
   'chat',
   (set, get) => ({
     batchSet: (fn) => {
       batchUpdates(() => {
-        get().set(produce(fn));
+        set(produce(fn));
       });
     },
     chats: {},
@@ -487,28 +516,7 @@ export const useChatState = createState<ChatState>(
         draft.sentMessages.push(id);
       });
 
-      debugger;
-      const action = isDM
-        ? dmAction(whom, diff, id)
-        : isMultiDm
-        ? multiDmAction(whom, { writ: { id, delta: diff } })
-        : chatWritDiff(whom, id, diff);
-      set((draft) => {
-        const potentialEvent =
-          action.mark === 'club-action-0' &&
-          'id' in action.json &&
-          'writ' in action.json.diff.delta
-            ? action.json.diff.delta.writ
-            : (action.json as ChatAction | DmAction);
-        const reduced = writsReducer(whom)(potentialEvent, draft);
-
-        return {
-          pacts: { ...reduced.pacts },
-          writWindows: { ...reduced.writWindows },
-        };
-      });
-
-      await api.poke<ClubAction | DmAction | ChatAction>(action);
+      await optimisticAction(whom, id, diff, set);
       set((draft) => {
         if (!isDM || !isNew) {
           draft.postedMessages.push(id);
@@ -539,63 +547,11 @@ export const useChatState = createState<ChatState>(
       const delta: WritDelta = {
         'add-feel': { feel, ship: window.our },
       };
-
-      const action = whomIsDm(whom)
-        ? dmAction(whom, delta, id)
-        : whomIsMultiDm(whom)
-        ? multiDmAction(whom, { writ: { id, delta } })
-        : chatWritDiff(whom, id, delta);
-      set((draft) => {
-        const potentialEvent =
-          action.mark === 'club-action-0' &&
-          'id' in action.json &&
-          'writ' in action.json.diff.delta
-            ? action.json.diff.delta.writ
-            : (action.json as ChatAction | DmAction);
-        const reduced = writsReducer(whom)(potentialEvent, draft);
-
-        return {
-          pacts: { ...reduced.pacts },
-          writWindows: { ...reduced.writWindows },
-        };
-      });
-
-      await api.poke<ClubAction | DmAction | ChatAction>(action);
-      // if () {
-      //   pokeOptimisticallyN(useChatState, dmAction(whom, delta, id), [
-      //     writsReducer(whom),
-      //   ]).then(() => set((draft) => draft.postedMessages.push(id)));
-      // } else if () {
-      //   pokeOptimisticallyN(
-      //     useChatState,
-      //     multiDmAction(whom, { writ: { id, delta } }),
-      //     [writsReducer(whom)]
-      //   ).then(() => set((draft) => draft.postedMessages.push(id)));
-      // } else {
-      //   pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, delta), [
-      //     writsReducer(whom),
-      //   ]).then(() => set((draft) => draft.postedMessages.push(id)));
-      // }
-      // set((draft) => draft.sentMessages.push(id));
+      await optimisticAction(whom, id, delta, set);
     },
     delFeel: async (whom, id) => {
       const delta: WritDelta = { 'del-feel': window.our };
-
-      if (whomIsDm(whom)) {
-        pokeOptimisticallyN(useChatState, dmAction(whom, delta, id), [
-          writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
-      } else if (whomIsMultiDm(whom)) {
-        pokeOptimisticallyN(
-          useChatState,
-          multiDmAction(whom, { writ: { id, delta } }),
-          [writsReducer(whom)]
-        ).then(() => set((draft) => draft.postedMessages.push(id)));
-      } else {
-        pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, delta), [
-          writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
-      }
+      await optimisticAction(whom, id, delta, set);
     },
     create: async (req) => {
       await api.trackedPoke<ChatCreate, ChatAction>(
