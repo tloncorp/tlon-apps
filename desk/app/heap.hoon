@@ -2,9 +2,10 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
-/+  heap-json
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
+::  performance, keep warm
+/+  heap-json
 ^-  agent:gall
 =>
   |%

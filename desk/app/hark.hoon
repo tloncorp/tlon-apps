@@ -1,7 +1,8 @@
 /-  c=chat, h=hark
 /+  default-agent, verb, dbug
-/+  hark-json  :: performance
 /+  mp=mop-extensions
+::  performance, keep warm
+/+  hark-json
 |%
 +$  card  card:agent:gall
 ++  mope  ((mp @ud thread:h) lte)

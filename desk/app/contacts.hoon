@@ -1,5 +1,7 @@
 /-  *contacts
 /+  default-agent, dbug, verb
+::  performance, keep warm
+/+  contacts-json
 ::
 |%
 ::  conventions
