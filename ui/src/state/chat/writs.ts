@@ -214,7 +214,7 @@ export function writsReducer(whom: string) {
         });
       }
     }
-    draft.pacts[whom] = pact;
+    draft.pacts[whom] = { ...pact };
 
     return draft;
   };
@@ -349,7 +349,6 @@ export default function makeWritsStore(
         event: (data: WritDiff) => {
           set((draft) => {
             writsReducer(whom)(data, draft);
-
             return {
               pacts: { ...draft.pacts },
               writWindows: { ...draft.writWindows },
