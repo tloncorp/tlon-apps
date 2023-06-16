@@ -157,7 +157,6 @@ export const createState = <T extends Record<string, unknown>>(
             subscriptions.map((sub) => airlock.subscribe(sub(set, get)))
           );
         },
-        set: (fn) => stateSetter(fn, set, get),
         optSet: (fn) => optStateSetter(fn, set, get),
         patches: {},
         addPatch: (id: string, patch: Patch[]) => {

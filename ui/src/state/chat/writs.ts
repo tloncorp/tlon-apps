@@ -1,7 +1,7 @@
 import _ from 'lodash';
+import produce from 'immer';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
-import BTree from 'sorted-btree';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '@/api';
 import {
@@ -177,7 +177,7 @@ export function writsReducer(whom: string) {
     } else if ('del' in delta && pact.index[id]) {
       const time = pact.index[id];
       const old = pact.writs.get(time);
-      pact.writs.delete(time);
+      pact.writs = pact.writs.without(time);
       delete pact.index[id];
       if (old && old.memo.replying) {
         const replyTime = pact.index[old.memo.replying];
@@ -196,18 +196,10 @@ export function writsReducer(whom: string) {
       const msg = pact.writs.get(time);
       const { ship, feel } = delta['add-feel'];
 
-      pact.writs = !msg
-        ? pact.writs
-        : pact.writs.with(time, {
-            ...msg,
-            seal: {
-              ...msg.seal,
-              feels: {
-                ...msg.seal.feels,
-                [ship]: feel,
-              },
-            },
-          });
+      if (msg) {
+        msg.seal.feels[ship] = feel;
+        pact.writs = pact.writs.with(time, msg);
+      }
     } else if ('del-feel' in delta && pact.index[id]) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
@@ -252,6 +244,7 @@ export function updatePact(
 export default function makeWritsStore(
   whom: string,
   get: () => BasedChatState,
+  set: (fn: (draft: BasedChatState) => void) => void,
   scryPath: string,
   subPath: string
 ): WritsStore {
@@ -296,7 +289,7 @@ export default function makeWritsStore(
       path: `${scryPath}/${dir}/${fetchStart}/${count}`,
     });
 
-    get().batchSet((draft) => {
+    set((draft) => {
       updatePact(whom, writs, draft);
       // combine any overlapping windows so we have one continuous window
       const keys = Object.keys(writs).sort();
@@ -354,11 +347,14 @@ export default function makeWritsStore(
         app: 'chat',
         path: subPath,
         event: (data: WritDiff) => {
-          get().batchSet((draft) => {
+          set((draft) => {
             writsReducer(whom)(data, draft);
-            draft.sentMessages = draft.sentMessages.filter(
-              (id) => id !== data.id
-            );
+
+            return {
+              pacts: { ...draft.pacts },
+              writWindows: { ...draft.writWindows },
+              sentMessages: draft.sentMessages.filter((id) => id !== data.id),
+            };
           });
         },
       });
