@@ -4,9 +4,10 @@
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
-/+  groups-json  :: unused, nice for perf
 /+  of
 /+  epos-lib=saga
+::  performance, keep warm
+/+  groups-json
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
