@@ -13,100 +13,48 @@ import { debounce } from 'lodash';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import BTree from 'sorted-btree';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChatState, useWritWindow } from '@/state/chat/chat';
-import {
-  INITIAL_MESSAGE_FETCH_PAGE_SIZE,
-  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
-} from '@/constants';
-import { ChatBrief, ChatWrit } from '@/types/chat';
+import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
-import ChatMessage from '../ChatMessage/ChatMessage';
-import { ChatInfo, useChatStore } from '../useChatStore';
+import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
+import { useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
 
-interface CreateRendererParams {
-  messages: BTree<bigInt.BigInteger, ChatWrit>;
-  keys: bigInt.BigInteger[];
-  replying: boolean;
-  whom: string;
-  brief?: ChatBrief;
-  chatInfo?: ChatInfo;
-  prefixedElement: React.ReactNode;
-  scrollTo?: bigInt.BigInteger;
-  isScrolling: boolean;
-}
-
-interface RendererProps {
+interface ChatScrollerItemProps extends ChatMessageProps {
   index: bigInt.BigInteger;
+  prefixedElement?: ReactNode;
 }
 
-function createRenderer({
-  messages,
-  keys,
-  whom,
-  replying,
-  prefixedElement,
-  scrollTo,
-  isScrolling,
-}: CreateRendererParams) {
-  const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
+const ChatScrollerItem = React.forwardRef<
+  HTMLDivElement,
+  ChatScrollerItemProps
+>(({ index, writ, prefixedElement, ...props }, ref) => {
+  const isNotice = writ ? 'notice' in writ.memo.content : false;
+  if (isNotice) {
+    return (
+      <>
+        {prefixedElement || null}
+        <ChatNotice
+          key={writ.seal.id}
+          writ={writ}
+          newDay={new Date(daToUnix(index))}
+        />
+      </>
+    );
+  }
+
+  return (
     <>
-      {index.eq(messages.minKey() || bigInt()) ? prefixedElement : null}
-      {child}
+      {prefixedElement || null}
+      <ChatMessage key={writ.seal.id} ref={ref} writ={writ} {...props} />
     </>
   );
+});
 
-  return React.forwardRef<HTMLDivElement, RendererProps>(
-    ({ index }: RendererProps, ref) => {
-      const writ = messages.get(index);
-
-      if (!writ) {
-        return null;
-      }
-
-      const keyIdx = keys.findIndex((idx) => idx.eq(index));
-      const lastWritKey = keyIdx > 0 ? keys[keyIdx - 1] : undefined;
-      const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
-      const newAuthor = lastWrit
-        ? writ.memo.author !== lastWrit.memo.author ||
-          'notice' in lastWrit.memo.content
-        : true;
-      const writDay = new Date(daToUnix(index));
-      const lastWritDay = lastWritKey
-        ? new Date(daToUnix(lastWritKey))
-        : undefined;
-      const newDay =
-        lastWrit && lastWritDay ? !isSameDay(writDay, lastWritDay) : !lastWrit;
-
-      const isNotice = writ ? 'notice' in writ.memo.content : false;
-      if (isNotice) {
-        return renderPrefix(
-          index,
-          <ChatNotice key={writ.seal.id} writ={writ} newDay={writDay} />
-        );
-      }
-
-      return renderPrefix(
-        index,
-        <ChatMessage
-          key={writ.seal.id}
-          whom={whom}
-          writ={writ}
-          hideReplies={replying}
-          time={index}
-          newAuthor={newAuthor}
-          newDay={newDay}
-          ref={ref}
-          isLast={keyIdx === keys.length - 1}
-          isLinked={scrollTo ? index.eq(scrollTo) : false}
-          isScrolling={isScrolling}
-        />
-      );
-    }
-  );
+function itemContent(_i: number, entry: ChatScrollerItemProps) {
+  return <ChatScrollerItem {...entry} />;
 }
 
 function Loader({ show }: { show: boolean }) {
@@ -119,8 +67,12 @@ function Loader({ show }: { show: boolean }) {
 
 type FetchingState = 'top' | 'bottom' | 'initial';
 
-function computeItemKey(index: number, item: bigInt.BigInteger, context: any) {
-  return item.toString();
+function computeItemKey(
+  index: number,
+  item: ChatScrollerItemProps,
+  context: any
+) {
+  return item.index.toString();
 }
 
 const List = React.forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
@@ -170,14 +122,54 @@ export default function ChatScroller({
       : { main: 400, reverse: 400 },
   };
 
-  const keys = useMemo(() => {
-    return Array.from(messages.keys()).filter((k) => {
-      if (replying) {
-        return true;
-      }
-      return messages.get(k)?.memo.replying === null;
-    });
-  }, [messages, replying]);
+  const [keys, entries]: [bigInt.BigInteger[], ChatScrollerItemProps[]] =
+    useMemo(() => {
+      debugger;
+      const messagesWithoutReplies = messages.filter((k) => {
+        if (replying) {
+          return true;
+        }
+        return messages.get(k)?.memo.replying === null;
+      });
+
+      const ks: bigInt.BigInteger[] = Array.from(messagesWithoutReplies.keys());
+      const min = messagesWithoutReplies.minKey() || bigInt();
+      const es: ChatScrollerItemProps[] = messagesWithoutReplies
+        .toArray()
+        .map<ChatScrollerItemProps>(([index, writ]) => {
+          const keyIdx = ks.findIndex((idx) => idx.eq(index));
+          const lastWritKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
+          const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
+          const newAuthor = lastWrit
+            ? writ.memo.author !== lastWrit.memo.author ||
+              'notice' in lastWrit.memo.content
+            : true;
+          const writDay = new Date(daToUnix(index));
+          const lastWritDay = lastWritKey
+            ? new Date(daToUnix(lastWritKey))
+            : undefined;
+          const newDay =
+            lastWrit && lastWritDay
+              ? !isSameDay(writDay, lastWritDay)
+              : !lastWrit;
+
+          return {
+            index,
+            whom,
+            writ,
+            hideReplies: replying,
+            time: index,
+            newAuthor,
+            newDay,
+            isLast: keyIdx === ks.length - 1,
+            isLinked: scrollTo ? index.eq(scrollTo) : false,
+            isScrolling,
+            prefixedElement: index.eq(min) ? prefixedElement : undefined,
+          };
+        });
+
+      return [ks, es];
+    }, [whom, scrollTo, messages, replying, prefixedElement, isScrolling]);
 
   const hasScrollTo = useMemo(() => {
     if (!scrollTo) {
@@ -186,25 +178,6 @@ export default function ChatScroller({
 
     return keys.some((k) => k.eq(scrollTo));
   }, [scrollTo, keys]);
-
-  const Message = useMemo(
-    () =>
-      createRenderer({
-        messages,
-        whom,
-        replying,
-        keys,
-        prefixedElement,
-        scrollTo,
-        isScrolling,
-      }),
-    [messages, whom, keys, replying, prefixedElement, scrollTo, isScrolling]
-  );
-
-  const itemContent = useCallback(
-    (i: number, realIndex: bigInt.BigInteger) => <Message index={realIndex} />,
-    [Message]
-  );
 
   const TopLoader = useMemo(
     () => <Loader show={fetching === 'top'} />,
@@ -330,7 +303,7 @@ export default function ChatScroller({
 
   const scrollerProps = {
     ...thresholds,
-    data: keys,
+    data: entries,
     components,
     itemContent,
     computeItemKey,
