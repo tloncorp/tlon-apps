@@ -2,7 +2,7 @@ import _, { get, groupBy } from 'lodash';
 import { useParams } from 'react-router';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import useAllBriefs from '@/logic/useAllBriefs';
-import { useBriefs, useChat, useChats } from '@/state/chat';
+import { useBriefs, useChat, useChats, useMultiDms } from '@/state/chat';
 import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
 import { useCallback, useMemo } from 'react';
 import { useDiary } from '@/state/diary';
@@ -53,6 +53,7 @@ interface ChannelUnreadCount {
 export function useChannelUnreadCounts(args: ChannelUnreadCount) {
   const briefs = useBriefs();
   const chats = useChats();
+  const multiDms = useMultiDms();
   const groups = useGroups();
   const chatKeys = Object.keys(chats);
 
@@ -64,6 +65,11 @@ export function useChannelUnreadCounts(args: ChannelUnreadCount) {
         const channel = group?.channels[`chat/${k}`];
         const vessel = group?.fleet[window.our];
         return channel && vessel && canReadChannel(channel, vessel, group.bloc);
+      }
+
+      const club = multiDms[k];
+      if (club) {
+        return club.team.concat(club.hive).includes(window.our);
       }
 
       return true;
