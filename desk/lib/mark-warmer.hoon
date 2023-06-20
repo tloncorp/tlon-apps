@@ -10,6 +10,7 @@
 /$  quips       %diary-quips          %json
 /$  outlines    %diary-outlines       %json
 /$  groups      %groups               %json
+/$  group       %group                %json
 /$  gangs       %gangs                %json
 /$  ships       %ships                %json
 /$  skeins      %hark-skeins          %json
