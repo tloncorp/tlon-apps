@@ -58,50 +58,28 @@ interface DiaryNoteInCache {
 
 async function updateNoteInCache(
   variables: { flag: DiaryFlag; noteId: string },
-  updater: (note: DiaryNoteInCache) => DiaryNoteInCache,
+  updater: (note: DiaryNoteInCache | undefined) => DiaryNoteInCache | undefined,
   queryClient: QueryClient
 ) {
-  await queryClient.cancelQueries([
-    'diary',
-    'notes',
-    variables.flag,
-    variables.noteId,
-  ]);
+  await queryClient.cancelQueries({
+    queryKey: ['diary', 'notes', variables.flag, variables.noteId],
+    exact: true,
+  });
 
-  const prevNote = queryClient.getQueryData([
-    'diary',
-    'notes',
-    variables.flag,
-    variables.noteId,
-  ]) as DiaryNoteInCache;
-
-  if (prevNote) {
-    queryClient.setQueryData(
-      ['diary', 'notes', variables.flag, variables.noteId],
-      updater(prevNote)
-    );
-  }
+  queryClient.setQueryData(
+    ['diary', 'notes', variables.flag, variables.noteId],
+    updater
+  );
 }
 
 async function updateNotesInCache(
   variables: { flag: DiaryFlag },
-  updater: (notes: DiaryNotes) => DiaryNotes,
+  updater: (notes: DiaryNotes | undefined) => DiaryNotes | undefined,
   queryClient: QueryClient
 ) {
   await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
 
-  const prevNotes = queryClient.getQueryData([
-    'diary',
-    'notes',
-    variables.flag,
-  ]) as DiaryNotes;
-
-  if (prevNotes) {
-    queryClient.setQueryData(
-      ['diary', 'notes', variables.flag],
-      updater(prevNotes)
-    );
-  }
+  queryClient.setQueryData(['diary', 'notes', variables.flag], updater);
 }
 
 function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
@@ -594,19 +572,27 @@ export function useEditNoteMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNoteInCache) => ({
-        ...prev,
-        ...variables.essay,
-      });
-
-      const notesUpdater = (prev: DiaryNotes) => {
-        const { [decToUd(variables.time)]: _, ...rest } = prev;
+      const updater = (prev: DiaryNoteInCache | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
 
         return {
-          ...rest,
+          ...prev,
+          essay: variables.essay,
+        };
+      };
+
+      const notesUpdater = (prev: DiaryNotes | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
+
+        return {
+          ...prev,
           [variables.time]: {
             ...prev[decToUd(variables.time)],
-            ...variables.essay,
+            essay: variables.essay,
           },
         };
       };
@@ -622,14 +608,6 @@ export function useEditNoteMutation() {
 
       await updateNotesInCache(variables, notesUpdater, queryClient);
     },
-    onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries([
-        'diary',
-        'notes',
-        variables.flag,
-        variables.time,
-      ]);
-    },
   });
 }
 
@@ -644,7 +622,11 @@ export function useDeleteNoteMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNotes) => {
+      const updater = (prev: DiaryNotes | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
+
         const { [decToUd(variables.time)]: _, ...rest } = prev;
 
         return rest;
@@ -841,7 +823,11 @@ export function useAddQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, DiaryLetter>) => {
+      const notesUpdater = (prev: Record<string, DiaryLetter> | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
+
         const replying = decToUd(variables.noteId);
         if (replying in prev) {
           const replyingNote = prev[replying] as DiaryOutline;
@@ -859,7 +845,10 @@ export function useAddQuipMutation() {
         return prev;
       };
 
-      const updater = (prevNote: DiaryNoteInCache) => {
+      const updater = (prevNote: DiaryNoteInCache | undefined) => {
+        if (prevNote === undefined) {
+          return prevNote;
+        }
         const prevQuips = prevNote.seal.quips;
         const dateTime = Date.now();
         const newQuips = {
@@ -921,7 +910,10 @@ export function useDeleteQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, DiaryLetter>) => {
+      const notesUpdater = (prev: Record<string, DiaryLetter> | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
         const replying = decToUd(variables.noteId);
         if (replying in prev) {
           const replyingNote = prev[replying] as DiaryOutline;
@@ -941,7 +933,11 @@ export function useDeleteQuipMutation() {
         return prev;
       };
 
-      const updater = (prevNote: DiaryNoteInCache) => {
+      const updater = (prevNote: DiaryNoteInCache | undefined) => {
+        if (prevNote === undefined) {
+          return prevNote;
+        }
+
         const prevQuips = prevNote.seal.quips;
         const newQuips = { ...prevQuips };
         delete newQuips[variables.quipId];
@@ -989,7 +985,10 @@ export function useAddNoteFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prevNote: DiaryNoteInCache) => {
+      const updater = (prevNote: DiaryNoteInCache | undefined) => {
+        if (prevNote === undefined) {
+          return prevNote;
+        }
         const prevFeels = prevNote.seal.feels;
         const newFeels = {
           ...prevFeels,
@@ -1039,7 +1038,11 @@ export function useDeleteNoteFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNoteInCache) => {
+      const updater = (prev: DiaryNoteInCache | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
+
         const prevFeels = prev.seal.feels;
         const newFeels = {
           ...prevFeels,
@@ -1102,7 +1105,11 @@ export function useAddQuipFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNoteInCache) => {
+      const updater = (prev: DiaryNoteInCache | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
+
         const { quips } = prev.seal;
         Object.entries(quips).forEach(([time, quip]) => {
           if (time === decToUd(variables.quipId)) {
@@ -1162,7 +1169,10 @@ export function useDeleteQuipFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNoteInCache) => {
+      const updater = (prev: DiaryNoteInCache | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
         const { quips } = prev.seal;
         Object.entries(quips).forEach(([time, quip]) => {
           if (time === decToUd(variables.quipId)) {
