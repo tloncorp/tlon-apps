@@ -128,6 +128,18 @@ export const useDiaryState = createState<DiaryState>(
 );
 
 export function useNotes(flag: DiaryFlag) {
+  const queryClient = useQueryClient();
+  const existingNotes = queryClient.getQueryData(['diary', 'notes', flag]);
+  // account for the fact that we accidentally stored these as a map of
+  // full notes instead of outlines for a time
+  const existingNotesAreOutlines = Object.values(existingNotes ?? {}).every(
+    (note) => note?.type === 'outline'
+  );
+
+  if (existingNotes && !existingNotesAreOutlines) {
+    queryClient.setQueryData(['diary', 'notes', flag], {});
+  }
+
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['diary', 'notes', flag],
     app: 'diary',
