@@ -4,10 +4,11 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
-/+  diary-json
 /+  migrate=diary-graph
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
+::  performance, keep warm
+/+  diary-json
 ^-  agent:gall
 =>
   |%

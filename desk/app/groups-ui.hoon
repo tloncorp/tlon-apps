@@ -1,5 +1,7 @@
 /-  u=ui, g=groups, c=chat, d=diary, h=heap
 /+  default-agent, dbug, verb, vita-client
+::  performance, keep warm
+/+  mark-warmer
 ^-  agent:gall
 =>
   |%
@@ -76,10 +78,7 @@
   =/  =cage  settings-event+!>([%put-entry %groups %groups %'showVitaMessage' [%b &]])
   =?  cor  first-load  (emit %pass /set-vita %agent [our.bowl %settings-store] %poke cage)
   =.  first-load  |
-  %-  emil 
-  :~  [%pass /build %arvo [%c %warp our.bowl q.byk.bowl ~ %sing %c da+now.bowl /ui-init/json]]
-      [%pass /build %arvo [%c %warp our.bowl q.byk.bowl ~ %sing %c da+now.bowl /ui-migration/json]]
-  ==
+  cor
 ::
 ++  load
   |=  =vase

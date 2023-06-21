@@ -4,9 +4,10 @@
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
-/+  groups-json  :: unused, nice for perf
 /+  of
 /+  epos-lib=saga
+::  performance, keep warm
+/+  groups-json
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -1337,7 +1338,7 @@
           =/  vessel  (~(gut by fleet.group) ship *vessel:fleet:g)
           [ship [sects=sects.vessel joined=joined]]
       ?:  from-self  go-core
-      =/  link  (go-link /info/members)
+      =/  link  (go-link /edit/members)
       =/  yarn
         %-  spin
         :*  (go-rope /joins)
