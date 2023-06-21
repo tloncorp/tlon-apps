@@ -184,10 +184,16 @@
 ++  pact-2-to-3
   |=  old-pact=pact:two
   ^-  pact:c
-  ~&  %migrating-pact
   :_  dex.old-pact
-  %+  dip:on:writs:c  *writs:c
-  |=  [state=writs:c [tim=time [oldseal=seal:two oldmemo=memo:two]]]
+  ::  take only the resulting state from dip and ignore the old mop
+  ^-  writs:c
+  =-  -<
+  %^  (dip:on:writs:two writs:c)  wit.old-pact  *writs:c
+  ::  insert the old writs into a new mop of writs
+  ::  when a writ is a reply, find its parent and put it there
+  |=  [state=writs:c kv=(pair time writ:two)]
+  ^-  [(unit writ:two) %.n writs:c]
+  =/  [tim=time [oldseal=seal:two oldmemo=memo:two]]  kv
   :+  ~  %.n
   =/  newseal=seal:c
     :*  id.oldseal
@@ -204,14 +210,14 @@
     (put:on:writs:c state tim [newseal newmemo *thread:c])
   =/  parent  (get:on:writs:c state q.u.replying.oldmemo)
   ?~  parent  state
-  =/  [parent-seal parent-memo parent-thread]  u.parent
+  =/  [parent-seal=seal:c parent-memo=memo:c parent-thread=thread:c]  u.parent
   %^  put:on:writs:c  state  q.u.replying.oldmemo
   :*  parent-seal
       parent-memo
       :*  (~(put in authors.parent-thread) author.newmemo)
           +(count.parent-thread)
           remark.parent-thread
-          (put:on:strands:c strand.parent-thread tim [newseal newmemo])
+          (put:on:strands:c strands.parent-thread tim [newseal newmemo])
       ==
   ==
 ::
@@ -230,25 +236,16 @@
   :*  tim
       ^-  seal:c
       :*  id.old-writ
-          tim
           feels.old-writ
           replied.old-writ
-          ::  threaded
-          ?^  replying.old-writ  [%strand (need replying.old-writ)]
-          ?~  replied.old-writ  [%fray ~]
-          [%knot ~]
       ==
       ^-  memo:c
-      :*  ::  thread
-          ?^  replying.old-writ  replying.old-writ
-          ?~  replied.old-writ  `id.old-writ
-          ~
-          ::
-          replying.old-writ
+      :*  replying.old-writ
           author.old-writ
           tim
           content.old-writ
       ==
+      *thread:c
   ==
 ::
 ++  clubs-1-to-2

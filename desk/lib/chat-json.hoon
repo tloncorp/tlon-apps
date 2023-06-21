@@ -101,6 +101,12 @@
     :~  ship/(ship ship.r)
         ok/b/ok.r
     ==
+  ++  hoot
+    |=  h=hoot:c
+    ?-  -.h
+      %whom    (whom whom.h)
+      %thread  (crip "{(trip (whom whom.h))}/{(trip +:(id id.h))}")
+    ==
   ++  whom
     |=  w=whom:c
     ?-  -.w
@@ -113,14 +119,14 @@
     |=  bs=briefs:c
     %-  pairs
     %+  turn  ~(tap by bs)
-    |=  [w=whom:c b=brief:briefs:c]
-    [(whom w) (brief b)]
+    |=  [h=hoot:c b=brief:briefs:c]
+    [(hoot h) (brief b)]
   ::
   ++  brief-update
     |=  u=update:briefs:c
     %-  pairs
-    :~  whom/s/(whom p.u)
-        brief/(brief q.u)
+    :~  hoot+s+(hoot p.u)
+        brief+(brief q.u)
     ==
   ::
   :: ++  recap
@@ -337,11 +343,33 @@
         :-  %a
         (turn ~(tap in replied.seal) |=(i=id:c (id i)))
     ==
+  ++  thread
+    |=  =thread:c
+    %-  pairs
+    :~  authors+[%a (turn ~(tap in authors.thread) ship)]
+        count+(numb count.thread)
+        ::  remark?
+        strands+(strands strands.thread)
+    ==
+  ++  strands
+    |=  =strands:c
+    ^-  json
+    %-  pairs
+    %+  turn  (tap:on:strands:c strands) 
+    |=  [key=@da s=strand:c]
+    [(scot %ud key) (strand s)]
+  ++  strand
+    |=  =strand:c
+    %-  pairs
+    :~  seal+(seal seal.strand)
+        memo+(memo memo.strand)
+    ==
   ++  writ
     |=  =writ:c
     %-  pairs
     :~  seal+(seal -.writ)
-        memo+(memo +.writ)
+        memo+(memo +<.writ)
+        thread+(thread +>.writ)
     ==
   ::
   ++  writ-list
@@ -356,7 +384,6 @@
     %+  turn  (tap:on:writs:c writs) 
     |=  [key=@da w=writ:c]
     [(scot %ud key) (writ w)]
-
   --
 ++  dejs
   =,  dejs:format
@@ -545,8 +572,7 @@
   ++  memo
     ^-  $-(json memo:c)
     %-  ot
-    :~  thread/(mu id)
-        replying/(mu id)
+    :~  replying/(mu id)
         author/ship
         sent/di
         content/content

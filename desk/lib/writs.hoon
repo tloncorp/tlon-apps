@@ -63,7 +63,8 @@
     ?:  (has:on:writs:c wit.pac now)  
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
-      (put:on:writs:c wit.pac now seal p.del)
+      ::  TODO thread
+      (put:on:writs:c wit.pac now seal p.del *thread:c)
     =.  dex.pac  (~(put by dex.pac) id now)
     ?~  replying.p.del  pac
     =*  replying  u.replying.p.del

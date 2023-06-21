@@ -74,7 +74,7 @@
   +$  brief
     [last=time count=@ud read-id=(unit id)]
   +$  update
-    (pair whom brief)
+    (pair hoot brief)
   --
 ::
 ::  $remark: unread tracking information for a chat
