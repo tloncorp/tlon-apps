@@ -61,9 +61,8 @@ export default function ChatSearch({
   const onChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const input = e.target as HTMLInputElement;
-      const value = input.value.trim();
-      setRawInput(value);
-      debouncedSearch(value);
+      setRawInput(input.value);
+      debouncedSearch(input.value);
     },
     [debouncedSearch]
   );
@@ -74,7 +73,7 @@ export default function ChatSearch({
         navigate(root);
       }
 
-      if (event.key === 'Enter' && selected !== undefined) {
+      if (event.key === 'Enter' && selected.index >= 0) {
         const { time } = selected;
         const writ = scan.get(time);
         const scrollTo = `?msg=${time.toString()}`;
