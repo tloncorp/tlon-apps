@@ -61,9 +61,8 @@ export default function ChatSearch({
   const onChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const input = e.target as HTMLInputElement;
-      const value = input.value.trim();
-      setRawInput(value);
-      debouncedSearch(value);
+      setRawInput(input.value);
+      debouncedSearch(input.value);
     },
     [debouncedSearch]
   );
