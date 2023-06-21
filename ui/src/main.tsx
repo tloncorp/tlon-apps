@@ -44,6 +44,7 @@ render(
       client={queryClient}
       persistOptions={{
         persister: indexedDBPersistor(`${window.our}-landscape`),
+        buster: `${window.our}-landscape-4.0.1`,
       }}
     >
       <UpdateNotice />
