@@ -201,9 +201,12 @@ export interface DmRsvp {
 }
 
 export function newWritMap(
-  entries?: [BigInteger, ChatWrit][]
+  entries?: [BigInteger, ChatWrit][],
+  reverse = false
 ): BTree<BigInteger, ChatWrit> {
-  return new BTree<BigInteger, ChatWrit>(entries, (a, b) => a.compare(b));
+  return new BTree<BigInteger, ChatWrit>(entries, (a, b) =>
+    reverse ? b.compare(a) : a.compare(b)
+  );
 }
 
 export interface Pact {

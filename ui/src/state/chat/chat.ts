@@ -1120,7 +1120,8 @@ export function useChatSearch(whom: string, query: string) {
 
   const scan = useMemo(() => {
     return newWritMap(
-      (data || []).map(({ time, writ }) => [bigInt(udToDec(time)), writ])
+      (data || []).map(({ time, writ }) => [bigInt(udToDec(time)), writ]),
+      true
     );
   }, [data]);
 

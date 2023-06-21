@@ -74,7 +74,7 @@ export default function ChatSearch({
         navigate(root);
       }
 
-      if (event.key === 'Enter' && selected !== undefined) {
+      if (event.key === 'Enter' && selected.index >= 0) {
         const { time } = selected;
         const writ = scan.get(time);
         const scrollTo = `?msg=${time.toString()}`;
