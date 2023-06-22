@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
+import { usePostHog } from 'posthog-js/react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -590,6 +591,7 @@ function RoutedApp() {
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
+  const posthog = usePostHog();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
 
@@ -631,6 +633,12 @@ function RoutedApp() {
       body?.style.setProperty('padding-bottom', '0px');
     }
   }, [isStandAlone, body]);
+
+  useEffect(() => {
+    if (posthog) {
+      posthog.identify(window.our);
+    }
+  }, [posthog]);
 
   return (
     <ErrorBoundary

@@ -18,6 +18,7 @@ EditorView.prototype.updateState = function updateState(state) {
 
 import React from 'react';
 import { render } from 'react-dom';
+import { PostHogProvider } from 'posthog-js/react';
 import App from './app';
 import _api from './api';
 
@@ -48,7 +49,15 @@ render(
       }}
     >
       <UpdateNotice />
-      <App />
+      <PostHogProvider
+        apiKey={import.meta.env.VITE_POSTHOG_KEY}
+        options={{
+          api_host: 'https://eu.posthog.com',
+          opt_out_capturing_by_default: import.meta.env.DEV,
+        }}
+      >
+        <App />
+      </PostHogProvider>
     </PersistQueryClientProvider>
   </React.StrictMode>,
   root

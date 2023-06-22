@@ -125,6 +125,7 @@
     "lodash": "^4.17.21",
     "masonic": "^3.6.5",
     "moment": "^2.29.4",
+    "posthog-js": "^1.68.2",
     "prismjs": "^1.29.0",
     "prosemirror-model": "^1.18.1",
     "prosemirror-state": "^1.4.1",
