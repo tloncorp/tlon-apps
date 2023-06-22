@@ -23,9 +23,13 @@
 ::  $scan: search results
 +$  scan  (list (pair time writ))
 ::  $writ: a chat message
-+$  writ    [seal memo thread]
-::  $strand: a threaded chat message
-+$  strand  [=seal =memo]
++$  writ     [seal memo]
+::  $wool: a writ and a thread
++$  wool     [=stitch thread=writs parent=writ]
+::  $thimble: a parent message and thread summary without thread replies
++$  thimble  [=stitch parent=writ]
+::  $stitch:  summary of thread contents and unread status
++$  stitch  [authors=(set ship) count=@ud =remark]
 ::  $id: an identifier for chat messages
 +$  id     (pair ship time)
 ::  $feel: either an emoji identifier like :wave: or a URL for custom
@@ -114,9 +118,6 @@
     ::
       [%create p=perm q=pact]
   ==
-::
-::  $thread: a miniature chat
-+$  thread  [authors=(set ship) count=@ud =remark =strands]
 ::
 ::  $index: a map of chat message id to server received message time
 ::
@@ -326,6 +327,7 @@
 ::
 +$  memo  
   $:  replying=(unit id)
+      thread=(unit id)
       author=ship
       sent=time
       =content
