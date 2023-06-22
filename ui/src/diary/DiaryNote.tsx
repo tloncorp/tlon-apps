@@ -1,11 +1,6 @@
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import {
-  canWriteChannel,
-  isChannelJoined,
-  pluralize,
-  sampleQuippers,
-} from '@/logic/utils';
+import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
 import {
   useDiaryBrief,
   useNote,
@@ -24,8 +19,8 @@ import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
-import useAllBriefs from '@/logic/useAllBriefs';
 import { useDiaryCommentSortMode } from '@/state/settings';
+import { useChannelIsJoined } from '@/logic/channel';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -97,10 +92,7 @@ export default function DiaryNote() {
   // const [id, note] = useNote(chFlag, noteId)!;
   const { note, status } = useNote(chFlag, noteId);
   const vessel = useVessel(groupFlag, window.our);
-  const briefs = useAllBriefs();
-  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
-    ? isChannelJoined(nest, briefs)
-    : true;
+  const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
   const brief = useDiaryBrief(chFlag);
   // const settings = useDiarySettings();

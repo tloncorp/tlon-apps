@@ -11,8 +11,19 @@
   ++  zero  zer
   ++  one  uno
   --
+::  +mar:  mark name
+++  okay  `epic:e`0
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %chat-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %chat-update '-' (scot %ud okay) ~)
+  ++  log  `mark`(rap 3 %chat-logs '-' (scot %ud okay) ~)
+  --
+::
 ++  mope  ((mp time (unit writ:c)) lte)
 ::
+::  $scan: search results
++$  scan  (list (pair time writ))
 ::  $writ: a chat message
 +$  writ   [seal memo]
 ::  $id: an identifier for chat messages
@@ -23,7 +34,7 @@
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
-::    id: the id of the message  
+::    id: the id of the message
 ::    feels: reactions to a message
 ::    replied: set of replies to a message
 ::
@@ -39,7 +50,7 @@
   $%  [%flag p=flag]
       [%ship p=ship]
       [%club p=id:club]
-  == 
+  ==
 ::
 ::  $briefs: a map of chat/club/dm unread information
 ::
@@ -48,7 +59,7 @@
 ::
 ++  briefs
   =<  briefs
-  |% 
+  |%
   +$  briefs
     (map whom brief)
   +$  brief
@@ -148,7 +159,7 @@
   ::
   +$  diff    (pair uid delta)
   ::
-  +$  delta    
+  +$  delta
     $%  [%writ =diff:writs]
         [%meta meta=data:meta]
         [%team =ship ok=?]
@@ -260,7 +271,7 @@
   [=net =remark =log =perm =pact]
 ::
 ::  $notice: the contents of an automated message
-::  
+::
 ::    pfix: text preceding ship name
 ::    sfix: text following ship name
 ::
@@ -329,7 +340,7 @@
 ::    sent: time (from sender) when the message was sent
 ::    content: body of the message
 ::
-+$  memo  
++$  memo
   $:  replying=(unit id)
       author=ship
       sent=time
@@ -380,12 +391,12 @@
 +$  leave  flag:g
 ::
 ::  $create: represents a request to create a channel
-::    
+::
 ::    The name will be used as part of the flag which represents the
-::    channel. $create is consumed by the chat agent first 
-::    and then passed to the groups agent to register the channel with 
-::    the group. 
-::  
+::    channel. $create is consumed by the chat agent first
+::    and then passed to the groups agent to register the channel with
+::    the group.
+::
 ::    Write permission is stored with the specific agent in the channel,
 ::    read permission is stored with the group's data.
 ::

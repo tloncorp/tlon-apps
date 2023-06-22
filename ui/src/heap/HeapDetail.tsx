@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
 import Layout from '@/components/Layout/Layout';
 import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { canReadChannel, isChannelJoined } from '@/logic/utils';
+import { canReadChannel } from '@/logic/utils';
 import { Link } from 'react-router-dom';
 import bigInt from 'big-integer';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
@@ -11,8 +11,8 @@ import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useEventListener } from 'usehooks-ts';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import useLeap from '@/components/Leap/useLeap';
-import useAllBriefs from '@/logic/useAllBriefs';
 import keyMap from '@/keyMap';
+import { useChannelIsJoined } from '@/logic/channel';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -32,10 +32,7 @@ export default function HeapDetail() {
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
-  const briefs = useAllBriefs();
-  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
-    ? isChannelJoined(nest, briefs)
-    : true;
+  const joined = useChannelIsJoined(nest);
   const { time, curio } = useCurioFromParams();
   const [loading, setLoading] = useState(false);
   const { isOpen: leapIsOpen } = useLeap();

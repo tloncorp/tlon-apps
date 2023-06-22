@@ -3,6 +3,14 @@
 /-  grp=group-store
 /-  metadata-store
 |%
+++  okay  `epic:e`1
+++  mar
+  |%
+  ++  act  `mark`(rap 3 %group-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %group-update '-' (scot %ud okay) ~)
+  ++  log  `mark`(rap 3 %group-log '-' (scot %ud okay) ~)
+  ++  int  `mark`(rap 3 %group-init '-' (scot %ud okay) ~)
+  --
 ::  $flag: ID for a group
 ::
 +$  flag  (pair ship term)

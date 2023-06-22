@@ -2,13 +2,13 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
-/+  heap-json
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
+::  performance, keep warm
+/+  heap-json
 ^-  agent:gall
 =>
   |%
-  ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  current-state
     $:  %0
@@ -34,7 +34,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay])
+  ++  on-save  !>([state okay:h])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -74,7 +74,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
-+*  epos  ~(. epos-lib [bowl %heap-update okay])
++*  epos  ~(. epos-lib [bowl %heap-update okay:h])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -87,12 +87,6 @@
 ++  watch-groups
   ^+  cor
   (emit %pass /groups %agent [our.bowl %groups] %watch /groups)
-::
-++  mar
-  |%
-  ++  act  `mark`(rap 3 %heap-action '-' (scot %ud okay) ~)
-  ++  upd  `mark`(rap 3 %heap-update '-' (scot %ud okay) ~)
-  --
 ::
 ++  poke
   |=  [=mark =vase]
@@ -177,7 +171,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
-  ?:  =(okay cool)  cor
+  ?:  =(okay:h cool)  cor
   ::  speak the good news
   =.  cor  (emil (drop load:epos))
   =/  heaps  ~(tap in ~(key by stash))
@@ -205,7 +199,7 @@
       [%ui ~]      ?>(from-self cor)
       [%imp ~]     ?>(from-self cor)
     ::
-      [%epic ~]    (give %fact ~ epic+!>(okay))
+      [%epic ~]    (give %fact ~ epic+!>(okay:h))
     ::
       [%heap ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -302,7 +296,7 @@
       (slog tank u.p.sign)
     ::
         %fact
-      ?.  =(%group-action-0 p.cage.sign)  cor
+      ?.  =(act:mar:g p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
@@ -327,7 +321,7 @@
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay)
+    ?.  =(epic okay:h)
       cor
     ~&  >>  "good news everyone!"
     %+  roll  ~(tap by stash)
@@ -593,7 +587,7 @@
     ^+  he-core
     ?.  ?=(%sub -.net.heap)  he-core
     ?.  ?=(%dex -.saga.net.heap)  he-core
-    ?.  =(okay ver.saga.net.heap)
+    ?.  =(okay:h ver.saga.net.heap)
       ~&  future-shock/[ver.saga.net.heap flag]
       he-core
     he-make-chi
@@ -627,7 +621,7 @@
       =/  =dock      [our.bowl %groups] :: XX which ship
       =/  =wire      (snoc he-area term)
       =.  cor
-        (emit %pass wire %agent dock %poke group-action-0+!>(action))
+        (emit %pass wire %agent dock %poke act:mar:g !>(action))
       he-core
     ::
     ++  create-channel
@@ -715,9 +709,9 @@
     |=  her=epic:e
     ^+  he-core
     ?>  ?=(%sub -.net.heap)
-    ?:  =(her okay)
+    ?:  =(her okay:h)
       he-make-chi
-    ?:  (gth her okay)
+    ?:  (gth her okay:h)
       =.  saga.net.heap  dex+her
       he-core
     he-make-lev
@@ -775,7 +769,7 @@
     ^+  he-core
     ?>  he-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  [act:mar !>([flag update])]
+    =/  =cage  [act:mar:h !>([flag update])]
     =.  cor
       (emit %pass he-area %agent dock %poke cage)
     he-core
@@ -810,8 +804,7 @@
       ?~  path  log.heap
       =/  =time  (slav %da i.path)
       (lot:log-on:h log.heap `time ~)
-    =/  =cage  heap-logs+!>(log)
-    =.  cor  (give %fact ~ cage)
+    =.  cor  (give %fact ~ log:mar:h !>(log))
     he-core
   ::
   ++  he-has-sub
@@ -878,10 +871,10 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in he-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc he-area %ui))
-    =/  cag=cage  [upd:mar !>([time d])]
+    =/  cag=cage  [upd:mar:h !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
+    =.  cor  (give %fact ~[/ui] act:mar:h !>([flag [time d]]))
     he-core
   ::
   ++  he-remark-diff

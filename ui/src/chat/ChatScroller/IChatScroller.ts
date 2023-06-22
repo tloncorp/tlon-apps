@@ -1,12 +1,12 @@
-import { BigIntOrderedMap } from '@urbit/api';
 import { BigInteger } from 'big-integer';
 import { ReactNode } from 'react';
 import { VirtuosoHandle } from 'react-virtuoso';
+import BTree from 'sorted-btree';
 import { ChatWrit } from '../../types/chat';
 
 export interface IChatScroller {
   whom: string;
-  messages: BigIntOrderedMap<ChatWrit>;
+  messages: BTree<BigInteger, ChatWrit>;
   replying?: boolean;
   prefixedElement?: ReactNode;
   scrollTo?: BigInteger;

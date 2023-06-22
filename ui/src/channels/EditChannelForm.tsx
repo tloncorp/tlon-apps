@@ -23,8 +23,8 @@ import {
   useAddSectsDiaryMutation,
   useDeleteSectsDiaryMutation,
 } from '@/state/diary';
-import useChannel from '@/logic/useChannel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { useChannel } from '@/logic/channel';
 
 interface EditChannelFormProps {
   nest: string;
@@ -93,8 +93,20 @@ export default function EditChannelForm({
         console.log(e);
       }
 
-      const chState =
-        app === 'chat' ? useChatState.getState() : useHeapState.getState();
+      const addSects =
+        app === 'diary'
+          ? (flag: string, writers: string[]) =>
+              addDiarySects({ flag, writers })
+          : app === 'heap'
+          ? useHeapState.getState().addSects
+          : useChatState.getState().addSects;
+      const delSects =
+        app === 'diary'
+          ? (flag: string, writers: string[]) =>
+              delDiarySects({ flag, writers })
+          : app === 'heap'
+          ? useHeapState.getState().delSects
+          : useChatState.getState().delSects;
 
       if (privacy !== 'public') {
         const writersIncludesMembers = values.writers.includes('members');
@@ -104,25 +116,13 @@ export default function EditChannelForm({
           values.writers
         );
 
-        if (writersIncludesMembers) {
-          if (app === 'diary') {
-            await delDiarySects({
-              flag: channelFlag,
-              writers: writersToRemove,
-            });
-          } else {
-            await chState.delSects(channelFlag, sects);
-          }
-        } else if (app === 'diary') {
-          await addDiarySects({
-            flag: channelFlag,
-            writers: values.writers,
-          });
-        } else {
-          await chState.delSects(channelFlag, writersToRemove);
-        }
+        await addSects(channelFlag, values.writers);
+        await delSects(
+          channelFlag,
+          writersIncludesMembers ? sects : writersToRemove
+        );
       } else {
-        await chState.delSects(channelFlag, sects);
+        await delSects(channelFlag, sects);
       }
 
       if (retainRoute === true && setEditIsOpen) {

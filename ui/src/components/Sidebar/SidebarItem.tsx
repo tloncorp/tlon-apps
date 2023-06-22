@@ -14,7 +14,9 @@ type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   to?: string;
   defaultRoute?: boolean;
-  actions?: React.ReactNode;
+  actions?:
+    | React.ReactNode
+    | (({ hover }: { hover: boolean }) => React.ReactNode);
   // This is used for links we want to keep in an
   // "active" state even if the route is deeper than
   // the link's 'to' attribute
@@ -154,7 +156,9 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           </div>
         </Action>
         {actions ? (
-          <div className={cn('absolute right-2 sm:right-1')}>{actions}</div>
+          <div className={cn('absolute right-2 sm:right-1')}>
+            {typeof actions === 'function' ? actions({ hover }) : actions}
+          </div>
         ) : null}
       </Wrapper>
     );

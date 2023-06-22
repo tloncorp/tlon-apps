@@ -41,13 +41,16 @@ import {
   DiaryListing,
 } from '@/types/diary';
 import { Bold, Italics, Strikethrough } from '@/types/content';
+import { isNativeApp, postActionToNativeApp } from './native';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 
-export function nestToFlag(nest: string): [string, string] {
+type App = 'chat' | 'heap' | 'diary';
+
+export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
 
-  return [app, rest.join('/')];
+  return [app as App, rest.join('/')];
 }
 
 export function sampleQuippers(quips: DiaryQuipMap) {
@@ -107,38 +110,65 @@ export function makePrettyDate(date: Date) {
   return `${format(date, 'PPP')}`;
 }
 
-export function makePrettyDayAndTime(date: Date) {
-  const diff = differenceInDays(endOfToday(), date);
-  const time = makePrettyTime(date);
-  switch (true) {
-    case diff === 0:
-      return `Today • ${time}`;
-    case diff === 1:
-      return `Yesterday • ${time}`;
-    case diff > 1 && diff < 8:
-      return `${format(date, 'cccc')} • ${time}`;
-    default:
-      return `${format(date, 'LLLL')} ${format(date, 'do')} • ${time}`;
-  }
+export interface DayTimeDisplay {
+  original: Date;
+  diff: number;
+  day: string;
+  time: string;
+  asString: string;
 }
 
-export function makePrettyDayAndDateAndTime(date: Date) {
+export function makePrettyDayAndTime(date: Date): DayTimeDisplay {
   const diff = differenceInDays(endOfToday(), date);
   const time = makePrettyTime(date);
+  let day = '';
+  switch (true) {
+    case diff === 0:
+      day = 'Today';
+      break;
+    case diff === 1:
+      day = 'Yesterday';
+      break;
+    case diff > 1 && diff < 8:
+      day = format(date, 'cccc');
+      break;
+    default:
+      day = `${format(date, 'LLLL')} ${format(date, 'do')}`;
+  }
+
+  return {
+    original: date,
+    diff,
+    time,
+    day,
+    asString: `${day} • ${time}`,
+  };
+}
+
+export interface DateDayTimeDisplay extends DayTimeDisplay {
+  fullDate: string;
+}
+
+export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
   const fullDate = `${format(date, 'LLLL')} ${format(date, 'do')}, ${format(
     date,
     'yyyy'
   )}`;
-  switch (true) {
-    case diff === 0:
-      return `Today • ${time} • ${fullDate}`;
-    case diff === 1:
-      return `Yesterday • ${time} • ${fullDate}`;
-    case diff > 1 && diff < 8:
-      return `${format(date, 'cccc')} • ${time} • ${fullDate}`;
-    default:
-      return `${fullDate} • ${time}`;
+  const dayTime = makePrettyDayAndTime(date);
+
+  if (dayTime.diff >= 8) {
+    return {
+      ...dayTime,
+      fullDate,
+      asString: `${fullDate} • ${dayTime.time}`,
+    };
   }
+
+  return {
+    ...dayTime,
+    fullDate,
+    asString: `${dayTime.asString} • ${fullDate}`,
+  };
 }
 
 export function whomIsDm(whom: ChatWhom): boolean {
@@ -400,12 +430,11 @@ export async function jsonFetch<T>(
 }
 
 export function isChannelJoined(
-  nest: string,
+  flag: string,
   briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
 ) {
-  const [, chFlag] = nestToFlag(nest);
-  const isChannelHost = window.our === chFlag?.split('/')[0];
-  return isChannelHost || (nest && nest in briefs);
+  const isChannelHost = window.our === flag?.split('/')[0];
+  return isChannelHost || (flag && flag in briefs);
 }
 
 export function isGroupHost(flag: string) {
@@ -528,12 +557,29 @@ export function pathToCite(path: string): Cite | undefined {
 export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
   const [, copy] = useCopyToClipboard();
-  const doCopy = useCallback(() => {
-    copy(copied);
-    setDidCopy(true);
-    setTimeout(() => {
+
+  const doCopy = useCallback(async () => {
+    let success = false;
+    if (isNativeApp()) {
+      postActionToNativeApp('copy', copied);
+      success = true;
+    } else {
+      success = await copy(copied);
+    }
+
+    setDidCopy(success);
+
+    let timeout: NodeJS.Timeout;
+    if (success) {
+      timeout = setTimeout(() => {
+        setDidCopy(false);
+      }, 2000);
+    }
+
+    return () => {
       setDidCopy(false);
-    }, 2000);
+      clearTimeout(timeout);
+    };
   }, [copied, copy]);
 
   return { doCopy, didCopy };
@@ -656,6 +702,22 @@ export function restoreMap<T>(obj: any): BigIntOrderedMap<T> {
   if ('root' in obj) {
     return initializeMap(obj.root);
   }
+
+  return empty;
+}
+
+export function sliceMap<T>(
+  theMap: BigIntOrderedMap<T>,
+  start: BigInteger,
+  end: BigInteger
+): BigIntOrderedMap<T> {
+  let empty = new BigIntOrderedMap<T>();
+
+  [...theMap].forEach(([k, v]) => {
+    if (k.geq(start) && k.leq(end)) {
+      empty = empty.set(k, v);
+    }
+  });
 
   return empty;
 }

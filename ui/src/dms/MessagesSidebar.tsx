@@ -136,7 +136,7 @@ export default function MessagesSidebar() {
   );
 
   return (
-    <nav className="flex h-full w-64 flex-none flex-col border-r-2 border-gray-50 bg-white">
+    <nav className="flex h-full min-w-64 flex-none resize-x flex-col overflow-hidden border-r-2 border-gray-50 bg-white">
       <div
         className={cn('flex w-full flex-col p-2', !atTop && 'bottom-shadow')}
       >

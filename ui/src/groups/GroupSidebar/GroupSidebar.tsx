@@ -112,7 +112,7 @@ export default function GroupSidebar() {
   const privacy = group ? getPrivacyFromGroup(group) : 'public';
 
   return (
-    <nav className="flex h-full w-64 flex-none flex-col bg-white">
+    <nav className="flex h-full min-w-64 flex-none flex-col bg-white">
       <div className="flex min-h-0 flex-col">
         <div className="flex flex-col space-y-0.5 px-2 pt-2 pb-4">
           <GroupHeader />

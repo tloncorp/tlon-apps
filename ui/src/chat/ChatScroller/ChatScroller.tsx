@@ -10,99 +10,51 @@ import React, {
 } from 'react';
 import { isSameDay } from 'date-fns';
 import { debounce } from 'lodash';
-import { BigIntOrderedMap, daToUnix } from '@urbit/api';
+import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChatState, useLoadedWrits } from '@/state/chat/chat';
+import { useChatState, useWritWindow } from '@/state/chat/chat';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { ChatBrief, ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { IChatScroller } from './IChatScroller';
-import ChatMessage from '../ChatMessage/ChatMessage';
-import { ChatInfo, useChatStore } from '../useChatStore';
+import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
+import { useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
 
-interface CreateRendererParams {
-  messages: BigIntOrderedMap<ChatWrit>;
-  keys: bigInt.BigInteger[];
-  replying: boolean;
-  whom: string;
-  brief?: ChatBrief;
-  chatInfo?: ChatInfo;
-  prefixedElement: React.ReactNode;
-  scrollTo?: bigInt.BigInteger;
-  isScrolling: boolean;
-}
-
-interface RendererProps {
+interface ChatScrollerItemProps extends ChatMessageProps {
   index: bigInt.BigInteger;
+  prefixedElement?: ReactNode;
 }
 
-function createRenderer({
-  messages,
-  keys,
-  whom,
-  replying,
-  prefixedElement,
-  scrollTo,
-  isScrolling,
-}: CreateRendererParams) {
-  const renderPrefix = (index: bigInt.BigInteger, child: ReactNode) => (
+const ChatScrollerItem = React.forwardRef<
+  HTMLDivElement,
+  ChatScrollerItemProps
+>(({ index, writ, prefixedElement, ...props }, ref) => {
+  const isNotice = writ ? 'notice' in writ.memo.content : false;
+  if (isNotice) {
+    return (
+      <>
+        {prefixedElement || null}
+        <ChatNotice
+          key={writ.seal.id}
+          writ={writ}
+          newDay={new Date(daToUnix(index))}
+        />
+      </>
+    );
+  }
+
+  return (
     <>
-      {index.eq(messages.peekSmallest()[0]) ? prefixedElement : null}
-      {child}
+      {prefixedElement || null}
+      <ChatMessage key={writ.seal.id} ref={ref} writ={writ} {...props} />
     </>
   );
+});
 
-  return React.forwardRef<HTMLDivElement, RendererProps>(
-    ({ index }: RendererProps, ref) => {
-      const writ = messages.get(index);
-
-      if (!writ) {
-        return null;
-      }
-
-      const keyIdx = keys.findIndex((idx) => idx.eq(index));
-      const lastWritKey = keyIdx > 0 ? keys[keyIdx - 1] : undefined;
-      const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
-      const newAuthor = lastWrit
-        ? writ.memo.author !== lastWrit.memo.author ||
-          'notice' in lastWrit.memo.content
-        : true;
-      const writDay = new Date(daToUnix(index));
-      const lastWritDay = lastWritKey
-        ? new Date(daToUnix(lastWritKey))
-        : undefined;
-      const newDay =
-        lastWrit && lastWritDay ? !isSameDay(writDay, lastWritDay) : !lastWrit;
-
-      const isNotice = writ ? 'notice' in writ.memo.content : false;
-      if (isNotice) {
-        return renderPrefix(
-          index,
-          <ChatNotice key={writ.seal.id} writ={writ} newDay={writDay} />
-        );
-      }
-
-      return renderPrefix(
-        index,
-        <ChatMessage
-          key={writ.seal.id}
-          whom={whom}
-          writ={writ}
-          hideReplies={replying}
-          time={index}
-          newAuthor={newAuthor}
-          newDay={newDay}
-          ref={ref}
-          isLast={keyIdx === keys.length - 1}
-          isLinked={scrollTo ? index.eq(scrollTo) : false}
-          isScrolling={isScrolling}
-        />
-      );
-    }
-  );
+function itemContent(_i: number, entry: ChatScrollerItemProps) {
+  return <ChatScrollerItem {...entry} />;
 }
 
 function Loader({ show }: { show: boolean }) {
@@ -115,8 +67,12 @@ function Loader({ show }: { show: boolean }) {
 
 type FetchingState = 'top' | 'bottom' | 'initial';
 
-function computeItemKey(index: number, item: bigInt.BigInteger, context: any) {
-  return item.toString();
+function computeItemKey(
+  index: number,
+  item: ChatScrollerItemProps,
+  context: any
+) {
+  return item.index.toString();
 }
 
 const List = React.forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
@@ -140,7 +96,7 @@ function scrollToIndex(
 ) {
   if (scrollerRef.current && scrollTo) {
     const index = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
-    scrollerRef.current.scrollToIndex(index);
+    scrollerRef.current.scrollToIndex({ index, align: 'center' });
   }
 }
 
@@ -153,7 +109,7 @@ export default function ChatScroller({
   scrollerRef,
 }: IChatScroller) {
   const isMobile = useIsMobile();
-  const loaded = useLoadedWrits(whom);
+  const writWindow = useWritWindow(whom, scrollTo);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
@@ -166,38 +122,61 @@ export default function ChatScroller({
       : { main: 400, reverse: 400 },
   };
 
-  const keys = useMemo(
-    () =>
-      messages
-        .keys()
-        .reverse()
-        .filter((k) => {
-          if (replying) {
-            return true;
-          }
-          return messages.get(k)?.memo.replying === null;
-        }),
-    [messages, replying]
-  );
+  const [keys, entries]: [bigInt.BigInteger[], ChatScrollerItemProps[]] =
+    useMemo(() => {
+      const messagesWithoutReplies = messages.filter((k) => {
+        if (replying) {
+          return true;
+        }
+        return messages.get(k)?.memo.replying === null;
+      });
 
-  const Message = useMemo(
-    () =>
-      createRenderer({
-        messages,
-        whom,
-        replying,
-        keys,
-        prefixedElement,
-        scrollTo,
-        isScrolling,
-      }),
-    [messages, whom, keys, replying, prefixedElement, scrollTo, isScrolling]
-  );
+      const ks: bigInt.BigInteger[] = Array.from(messagesWithoutReplies.keys());
+      const min = messagesWithoutReplies.minKey() || bigInt();
+      const es: ChatScrollerItemProps[] = messagesWithoutReplies
+        .toArray()
+        .map<ChatScrollerItemProps>(([index, writ]) => {
+          const keyIdx = ks.findIndex((idx) => idx.eq(index));
+          const lastWritKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
+          const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
+          const newAuthor = lastWrit
+            ? writ.memo.author !== lastWrit.memo.author ||
+              'notice' in lastWrit.memo.content
+            : true;
+          const writDay = new Date(daToUnix(index));
+          const lastWritDay = lastWritKey
+            ? new Date(daToUnix(lastWritKey))
+            : undefined;
+          const newDay =
+            lastWrit && lastWritDay
+              ? !isSameDay(writDay, lastWritDay)
+              : !lastWrit;
 
-  const itemContent = useCallback(
-    (i: number, realIndex: bigInt.BigInteger) => <Message index={realIndex} />,
-    [Message]
-  );
+          return {
+            index,
+            whom,
+            writ,
+            hideReplies: replying,
+            time: index,
+            newAuthor,
+            newDay,
+            isLast: keyIdx === ks.length - 1,
+            isLinked: scrollTo ? index.eq(scrollTo) : false,
+            isScrolling,
+            prefixedElement: index.eq(min) ? prefixedElement : undefined,
+          };
+        });
+
+      return [ks, es];
+    }, [whom, scrollTo, messages, replying, prefixedElement, isScrolling]);
+
+  const hasScrollTo = useMemo(() => {
+    if (!scrollTo) {
+      return true;
+    }
+
+    return keys.some((k) => k.eq(scrollTo));
+  }, [scrollTo, keys]);
 
   const TopLoader = useMemo(
     () => <Loader show={fetching === 'top'} />,
@@ -206,10 +185,12 @@ export default function ChatScroller({
 
   const fetchMessages = useCallback(
     async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
-      const newest = messages.peekLargest();
-      const seenNewest = newer && newest && loaded.newest.geq(newest[0]);
-      const oldest = messages.peekSmallest();
-      const seenOldest = !newer && oldest && loaded.oldest.leq(oldest[0]);
+      const newest = messages.maxKey();
+      const seenNewest =
+        newer && newest && writWindow && writWindow.loadedNewest;
+      const oldest = messages.minKey();
+      const seenOldest =
+        !newer && oldest && writWindow && writWindow.loadedOldest;
 
       if (seenNewest || seenOldest) {
         return;
@@ -219,9 +200,13 @@ export default function ChatScroller({
         setFetching(newer ? 'bottom' : 'top');
 
         if (newer) {
-          await useChatState.getState().fetchNewer(whom, pageSize.toString());
+          await useChatState
+            .getState()
+            .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
         } else {
-          await useChatState.getState().fetchOlder(whom, pageSize.toString());
+          await useChatState
+            .getState()
+            .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
         }
 
         setFetching('initial');
@@ -230,7 +215,7 @@ export default function ChatScroller({
         setFetching('initial');
       }
     },
-    [whom, messages, loaded]
+    [whom, messages, scrollTo, writWindow]
   );
 
   /**
@@ -242,32 +227,17 @@ export default function ChatScroller({
    */
   const START_INDEX = 9999999;
   const firstItemIndex = useMemo(() => START_INDEX - keys.length, [keys]);
-  /**
-   * If scrollTo is set, we want to set initial scroll to that index.
-   * If it's not set, we want to set initial scroll to the bottom.
-   */
-  const initialTopMostIndex = useMemo(() => {
-    const scrollToIdx = scrollTo
-      ? keys.findIndex((k) => k.greaterOrEquals(scrollTo))
-      : -1;
 
-    return scrollToIdx > -1 ? scrollToIdx : START_INDEX - 1;
-  }, [keys, scrollTo]);
+  const initialTopMostIndex = scrollTo ? undefined : START_INDEX - 1;
 
   useEffect(() => {
-    // we're at the top so we won't get an atTopChange and so need to
-    // manually trigger fetching, usually when we have a scrollTo
-    if (initialTopMostIndex === 0 && firstPass.current) {
-      fetchMessages(false);
+    if (hasScrollTo) {
+      // if scrollTo changes, scroll to the new index
+      scrollToIndex(keys, scrollerRef, scrollTo);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTopMostIndex]);
 
-  useEffect(() => {
-    // if scrollTo changes, scroll to the new index
-    scrollToIndex(keys, scrollerRef, scrollTo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString()]);
+  }, [scrollTo?.toString(), hasScrollTo]);
 
   const updateScroll = useRef(
     debounce(
@@ -330,29 +300,37 @@ export default function ChatScroller({
     }, 200)
   );
 
+  const scrollerProps = {
+    ...thresholds,
+    data: entries,
+    components,
+    itemContent,
+    computeItemKey,
+    firstItemIndex,
+    atTopStateChange,
+    atBottomStateChange,
+    ref: scrollerRef,
+    followOutput: true,
+    alignToBottom: true,
+    isScrolling: handleScroll,
+    // DO NOT REMOVE
+    // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
+    // size of elements, triggering a reflow loop in virtual scroller
+    style: { overflowY: 'scroll' } as React.CSSProperties,
+    className: 'h-full overflow-x-hidden p-4',
+    totalListHeightChanged: totalListHeightChanged.current,
+  };
+
   return (
     <div className="relative h-full flex-1">
-      <Virtuoso
-        data={keys}
-        ref={scrollerRef}
-        followOutput
-        alignToBottom
-        {...thresholds}
-        components={components}
-        itemContent={itemContent}
-        computeItemKey={computeItemKey}
-        firstItemIndex={firstItemIndex}
-        initialTopMostItemIndex={initialTopMostIndex}
-        isScrolling={handleScroll}
-        atTopStateChange={atTopStateChange}
-        atBottomStateChange={atBottomStateChange}
-        totalListHeightChanged={totalListHeightChanged.current}
-        // DO NOT REMOVE
-        // we do overflow-y: scroll here to prevent the scrollbar appearing and changing
-        // size of elements, triggering a reflow loop in virtual scroller
-        style={{ overflowY: 'scroll' }}
-        className="h-full overflow-x-hidden p-4"
-      />
+      {initialTopMostIndex === undefined ? (
+        <Virtuoso {...scrollerProps} />
+      ) : (
+        <Virtuoso
+          {...scrollerProps}
+          initialTopMostItemIndex={initialTopMostIndex}
+        />
+      )}
     </div>
   );
 }

@@ -7,13 +7,14 @@ import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
-import { whomIsMultiDm } from '@/logic/utils';
-import useIsChannelUnread from '@/logic/useIsChannelUnread';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useIsChannelUnread } from '@/logic/channel';
 import DmInviteDialog from './DmInviteDialog';
 
 interface DMOptionsProps {
   whom: string;
   pending: boolean;
+  isHovered?: boolean;
   className?: string;
   isMulti?: boolean;
   alwaysShowEllipsis?: boolean;
@@ -22,6 +23,7 @@ interface DMOptionsProps {
 export default function DmOptions({
   whom,
   pending,
+  isHovered = true,
   isMulti = false,
   alwaysShowEllipsis = false,
   className,
@@ -48,8 +50,10 @@ export default function DmOptions({
     navigate('/');
     if (whomIsMultiDm(whom)) {
       await useChatState.getState().multiDmRsvp(whom, false);
-    } else {
+    } else if (whomIsDm(whom)) {
       await useChatState.getState().dmRsvp(whom, false);
+    } else {
+      await useChatState.getState().leaveChat(whom);
     }
   };
   const closeDialog = () => {
@@ -84,6 +88,17 @@ export default function DmOptions({
   const handleMultiDecline = async () => {
     await useChatState.getState().multiDmRsvp(whom, false);
   };
+
+  if (!isHovered && !alwaysShowEllipsis) {
+    return !isOpen && hasActivity ? (
+      <button className={cn('relative h-6 w-6 appearance-none', className)}>
+        <BulletIcon
+          className="h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+          aria-label="Has Activity"
+        />
+      </button>
+    ) : null;
+  }
 
   return (
     <>

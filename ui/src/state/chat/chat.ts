@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
-import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
+import { SetState } from 'zustand';
+import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -17,24 +18,32 @@ import {
   ChatMemo,
   ChatPerm,
   Chats,
+  ChatScan,
   ChatWrit,
   Club,
   ClubAction,
   ClubDelta,
   Clubs,
   DmAction,
+  newWritMap,
   Pact,
   Pins,
   WritDelta,
 } from '@/types/chat';
 import api from '@/api';
-import { whomIsDm, whomIsMultiDm, whomIsFlag, nestToFlag } from '@/logic/utils';
-import { useChannelFlag } from '@/hooks';
+import {
+  whomIsDm,
+  whomIsMultiDm,
+  whomIsFlag,
+  nestToFlag,
+  sliceMap,
+} from '@/logic/utils';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
+import useReactQueryScry from '@/logic/useReactQueryScry';
 import { pokeOptimisticallyN, createState } from '../base';
-import makeWritsStore, { writsReducer } from './writs';
-import { ChatState } from './type';
+import makeWritsStore, { getWritWindow, writsReducer } from './writs';
+import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
@@ -51,7 +60,7 @@ function subscribeOnce<T>(app: string, path: string) {
   });
 }
 
-function chatAction(whom: string, diff: ChatDiff) {
+function chatAction(whom: string, diff: ChatDiff): Poke<ChatAction> {
   return {
     app: 'chat',
     mark: 'chat-action-0',
@@ -110,15 +119,41 @@ function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   };
 }
 
+async function optimisticAction(
+  whom: string,
+  id: string,
+  delta: WritDelta,
+  set: SetState<BasedChatState>
+) {
+  const action = whomIsDm(whom)
+    ? dmAction(whom, delta, id)
+    : whomIsMultiDm(whom)
+    ? multiDmAction(whom, { writ: { id, delta } })
+    : chatWritDiff(whom, id, delta);
+  set((draft) => {
+    const potentialEvent =
+      action.mark === 'club-action-0' &&
+      'id' in action.json &&
+      'writ' in action.json.diff.delta
+        ? action.json.diff.delta.writ
+        : (action.json as ChatAction | DmAction);
+    const reduced = writsReducer(whom)(potentialEvent, draft);
+
+    return {
+      pacts: { ...reduced.pacts },
+      writWindows: { ...reduced.writWindows },
+    };
+  });
+
+  await api.poke<ClubAction | DmAction | ChatAction>(action);
+}
+
 export const useChatState = createState<ChatState>(
   'chat',
   (set, get) => ({
-    set: (fn) => {
-      set(produce(get(), fn));
-    },
     batchSet: (fn) => {
       batchUpdates(() => {
-        get().set(fn);
+        set(produce(fn));
       });
     },
     chats: {},
@@ -132,7 +167,7 @@ export const useChatState = createState<ChatState>(
     pins: [],
     sentMessages: [],
     postedMessages: [],
-    loadedWrits: {},
+    writWindows: {},
     loadedRefs: {},
     briefs: {},
     loadedGraphRefs: {},
@@ -303,27 +338,35 @@ export const useChatState = createState<ChatState>(
         3
       );
     },
-    fetchNewer: async (whom: string, count: string) => {
+    fetchMessages: async (whom: string, count: string, dir, time) => {
       const isDM = whomIsDm(whom);
       const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
 
-      return makeWritsStore(
+      const { getOlder, getNewer } = makeWritsStore(
         whom,
         get,
+        set,
         `/${type}/${whom}/writs`,
         `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
-      ).getNewer(count);
+      );
+
+      if (dir === 'older') {
+        return getOlder(count, time);
+      }
+
+      return getNewer(count, time);
     },
-    fetchOlder: async (whom: string, count: string) => {
+    fetchMessagesAround: async (whom: string, count: string, time) => {
       const isDM = whomIsDm(whom);
       const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
 
       return makeWritsStore(
         whom,
         get,
+        set,
         `/${type}/${whom}/writs`,
         `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
-      ).getOlder(count);
+      ).getAround(count, time);
     },
     fetchMultiDms: async () => {
       const dms = await api.scry<Clubs>({
@@ -447,7 +490,7 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    sendMessage: (whom, mem) => {
+    sendMessage: async (whom, mem) => {
       const isDM = whomIsDm(whom);
       const isMultiDm = whomIsMultiDm(whom);
       // ensure time and ID match up
@@ -460,58 +503,24 @@ export const useChatState = createState<ChatState>(
 
       const { pacts } = get();
       const isNew = !(whom in pacts);
-      if (isDM) {
-        if (isNew) {
-          set((draft) => ({
-            ...draft,
-            dms: [...draft.dms, whom],
-            pacts: {
-              ...draft.pacts,
-              [whom]: { index: {}, writs: new BigIntOrderedMap() },
-            },
-          }));
-        }
+      get().batchSet((draft) => {
+        if (isDM) {
+          if (isNew) {
+            draft.dms.push(whom);
+            draft.pacts[whom] = { index: {}, writs: newWritMap() };
 
-        pokeOptimisticallyN(
-          useChatState,
-          dmAction(whom, { add: memo }, id),
-          [writsReducer(whom)],
-          false
-        ).then(() =>
-          set((draft) => {
-            if (!isNew) {
-              draft.postedMessages.push(id);
-            }
-          })
-        );
-      } else if (isMultiDm) {
-        pokeOptimisticallyN(
-          useChatState,
-          multiDmAction(whom, {
-            writ: {
-              id,
-              delta: { add: { ...memo, sent: Date.now() } },
-            },
-          }),
-          [writsReducer(whom)],
-          false
-        ).then(() => set((draft) => draft.postedMessages.push(id)));
-      } else {
-        pokeOptimisticallyN(
-          useChatState,
-          chatWritDiff(whom, id, diff),
-          [writsReducer(whom)],
-          false
-        ).then(() => set((draft) => draft.postedMessages.push(id)));
-      }
-
-      set((draft) => {
-        // dms first message won't be heard through a fact
-        if (isDM && isNew) {
-          return;
+            return;
+          }
         }
 
         draft.sentMessages.push(id);
+      });
+
+      await optimisticAction(whom, id, diff, set);
+      set((draft) => {
+        if (!isDM || !isNew) {
+          draft.postedMessages.push(id);
+        }
       });
     },
     delMessage: async (whom, id) => {
@@ -538,42 +547,11 @@ export const useChatState = createState<ChatState>(
       const delta: WritDelta = {
         'add-feel': { feel, ship: window.our },
       };
-
-      if (whomIsDm(whom)) {
-        pokeOptimisticallyN(useChatState, dmAction(whom, delta, id), [
-          writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
-      } else if (whomIsMultiDm(whom)) {
-        pokeOptimisticallyN(
-          useChatState,
-          multiDmAction(whom, { writ: { id, delta } }),
-          [writsReducer(whom)]
-        ).then(() => set((draft) => draft.postedMessages.push(id)));
-      } else {
-        pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, delta), [
-          writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
-      }
-      set((draft) => draft.sentMessages.push(id));
+      await optimisticAction(whom, id, delta, set);
     },
     delFeel: async (whom, id) => {
       const delta: WritDelta = { 'del-feel': window.our };
-
-      if (whomIsDm(whom)) {
-        pokeOptimisticallyN(useChatState, dmAction(whom, delta, id), [
-          writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
-      } else if (whomIsMultiDm(whom)) {
-        pokeOptimisticallyN(
-          useChatState,
-          multiDmAction(whom, { writ: { id, delta } }),
-          [writsReducer(whom)]
-        ).then(() => set((draft) => draft.postedMessages.push(id)));
-      } else {
-        pokeOptimisticallyN(useChatState, chatWritDiff(whom, id, delta), [
-          writsReducer(whom),
-        ]).then(() => set((draft) => draft.postedMessages.push(id)));
-      }
+      await optimisticAction(whom, id, delta, set);
     },
     create: async (req) => {
       await api.trackedPoke<ChatCreate, ChatAction>(
@@ -595,6 +573,7 @@ export const useChatState = createState<ChatState>(
       await makeWritsStore(
         id,
         get,
+        set,
         `/club/${id}/writs`,
         `/club/${id}/ui/writs`
       ).initialize();
@@ -678,6 +657,7 @@ export const useChatState = createState<ChatState>(
       await makeWritsStore(
         whom,
         get,
+        set,
         `/chat/${whom}/writs`,
         `/chat/${whom}/ui/writs`
       ).initialize();
@@ -710,6 +690,7 @@ export const useChatState = createState<ChatState>(
       await makeWritsStore(
         ship,
         get,
+        set,
         `/dm/${ship}/writs`,
         `/dm/${ship}/ui`
       ).initialize();
@@ -732,11 +713,29 @@ export const useChatState = createState<ChatState>(
   []
 );
 
-export function useMessagesForChat(whom: string) {
-  const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
-  return useChatState(
-    useCallback((s) => s.pacts[whom]?.writs || def, [whom, def])
-  );
+export function useWritWindow(whom: string, time?: BigInteger) {
+  const window = useChatState(useCallback((s) => s.writWindows[whom], [whom]));
+
+  return getWritWindow(window, time);
+}
+
+const emptyWrits = newWritMap();
+export function useMessagesForChat(whom: string, near?: BigInteger) {
+  const window = useWritWindow(whom, near);
+  const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
+
+  return useMemo(() => {
+    const messages =
+      window && writs
+        ? newWritMap(writs.getRange(window.oldest, window.newest, true))
+        : emptyWrits;
+    return messages;
+  }, [writs, window]);
+}
+
+export function useHasMessages(whom: string) {
+  const messages = useMessagesForChat(whom);
+  return messages.size > 0;
 }
 
 /**
@@ -749,21 +748,17 @@ export function useChatKeys({
   whom,
 }: {
   replying: boolean;
-  whom?: string;
+  whom: string;
 }) {
-  const chFlag = useChannelFlag();
-  const messages = useMessagesForChat(whom ?? chFlag ?? '');
+  const messages = useMessagesForChat(whom ?? '');
   return useMemo(
     () =>
-      messages
-        .keys()
-        .reverse()
-        .filter((k) => {
-          if (replying) {
-            return true;
-          }
-          return messages.get(k)?.memo.replying === null;
-        }),
+      Array.from(messages.keys()).filter((k) => {
+        if (replying) {
+          return true;
+        }
+        return messages.get(k)?.memo.replying === null;
+      }),
     [messages, replying]
   );
 }
@@ -792,6 +787,10 @@ export function useChatIsJoined(whom: string) {
   );
 }
 
+export function useChatInitialized(whom: string) {
+  return useChatState(useCallback((s) => !!s.pacts[whom], [whom]));
+}
+
 const selDmList = (s: ChatState) =>
   Object.keys(s.briefs)
     .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
@@ -801,11 +800,7 @@ export function useDmList() {
   return useChatState(selDmList);
 }
 
-export function useDmMessages(ship: string) {
-  return useMessagesForChat(ship);
-}
-
-const emptyPact = { index: {}, writs: new BigIntOrderedMap<ChatWrit>() };
+const emptyPact = { index: {}, writs: newWritMap() };
 export function usePact(whom: string): Pact {
   return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));
 }
@@ -825,12 +820,12 @@ export function useReplies(whom: string, id: string) {
   const pact = usePact(whom);
   return useMemo(() => {
     if (!pact) {
-      return new BigIntOrderedMap<ChatWrit>();
+      return newWritMap();
     }
     const { writs, index } = pact;
     const time = index[id];
     if (!time) {
-      return new BigIntOrderedMap<ChatWrit>();
+      return newWritMap();
     }
     const message = writs.get(time);
     const replies = (message?.seal?.replied || ([] as string[]))
@@ -840,7 +835,7 @@ export function useReplies(whom: string, id: string) {
         return t && writ ? ([t, writ] as const) : undefined;
       })
       .filter((r: unknown): r is [BigInteger, ChatWrit] => !!r);
-    return new BigIntOrderedMap<ChatWrit>().gas(replies);
+    return newWritMap(replies);
   }, [pact, id]);
 }
 
@@ -856,7 +851,11 @@ export function useWrit(whom: string, id: string) {
         if (!time) {
           return undefined;
         }
-        return [time, pact.writs.get(time)] as const;
+        const writ = pact.writs.get(time);
+        if (!writ) {
+          return undefined;
+        }
+        return [time, writ] as const;
       },
       [whom, id]
     )
@@ -940,10 +939,6 @@ export function useMultiDmIsPending(id: string): boolean {
       [id]
     )
   );
-}
-
-export function useMultiDmMessages(id: string) {
-  return useMessagesForChat(id);
 }
 
 const selDmArchive = (s: ChatState) => s.dmArchive;
@@ -1072,33 +1067,27 @@ export function useWritByFlagAndGraphIndex(
   return res || 'loading';
 }
 
-export function useLoadedWrits(whom: string) {
-  return useChatState(
-    useCallback(
-      (s) =>
-        s.loadedWrits[whom] || {
-          oldest: unixToDa(Date.now()),
-          newest: unixToDa(0),
-        },
-      [whom]
-    )
-  );
-}
-
-export function useLatestMessage(chFlag: string) {
+export function useLatestMessage(
+  chFlag: string
+): [BigInteger, ChatWrit | null] {
   const messages = useMessagesForChat(chFlag);
-  return messages.size > 0 ? messages.peekLargest() : [bigInt(), null];
+  const max = messages.maxKey();
+  return messages.size > 0 && max
+    ? [max, messages.get(max) || null]
+    : [bigInt(), null];
 }
 
 export function useGetLatestChat() {
-  const def = useMemo(() => new BigIntOrderedMap<ChatWrit>(), []);
-  const empty = [bigInt(), null];
+  const def = useMemo(() => newWritMap(), []);
   const pacts = usePacts();
 
   return (chFlag: string) => {
     const pactFlag = chFlag.startsWith('~') ? chFlag : nestToFlag(chFlag)[1];
     const messages = pacts[pactFlag]?.writs ?? def;
-    return messages.size > 0 ? messages.peekLargest() : empty;
+    const max = messages.maxKey();
+    return messages.size > 0 && max
+      ? [max, messages.get(max) || null]
+      : [bigInt(), null];
   };
 }
 
@@ -1116,6 +1105,30 @@ export function useGetFirstUnreadID(whom: string) {
   const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
   const firstUnread = keys.find((key) => key.gt(lastReadBN));
   return firstUnread ?? null;
+}
+
+export function useChatSearch(whom: string, query: string) {
+  const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
+  const { data, ...rest } = useReactQueryScry<ChatScan>({
+    queryKey: ['chat', 'search', whom, query],
+    app: 'chat',
+    path: `/${type}/${whom}/search/text/0/1.000/${query}`,
+    options: {
+      enabled: query !== '',
+    },
+  });
+
+  const scan = useMemo(() => {
+    return newWritMap(
+      (data || []).map(({ time, writ }) => [bigInt(udToDec(time)), writ]),
+      true
+    );
+  }, [data]);
+
+  return {
+    scan,
+    ...rest,
+  };
 }
 
 (window as any).chat = useChatState.getState;

@@ -6,7 +6,7 @@
         [[[her=ship name=term] =id:c ~] ~]
     ==
 ::
-:-  %chat-action
+:-  act:mar:c
 ^-  action:c
 :-  [her name]
 :-  now

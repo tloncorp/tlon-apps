@@ -38,6 +38,68 @@
       $(a l.a)
     a(r $(a r.a))
   --
+::  +dop: dip:on but in reverse order (right to left)
+::
+++  dop
+  |*  state=mold
+  |=  $:  a=(tree item)
+          =state
+          f=$-([state item] [(unit val) ? state])
+      ==
+  ^+  [state a]
+  ::  acc: accumulator
+  ::
+  ::    .stop: set to %.y by .f when done traversing
+  ::    .state: threaded through each run of .f and produced by +abet
+  ::
+  =/  acc  [stop=`?`%.n state=state]
+  =<  abet  =<  main
+  |%
+  ++  this  .
+  ++  abet  [state.acc a]
+  ::  +main: main recursive loop; performs a partial inorder traversal
+  ::
+  ++  main
+    ^+  this
+    ::  stop if empty or we've been told to stop
+    ::
+    ?:  =(~ a)  this
+    ?:  stop.acc  this
+    ::  reverse in-order traversal: right -> node -> left, until .f sets .stop
+    ::
+    =.  this  right
+    ?:  stop.acc  this
+    =^  del  this  node
+    =?  this  !stop.acc  left
+    ::  XX: remove for now; bring back when upstreaming
+    :: =?  a  del  (nip a)
+    this
+  ::  +node: run .f on .n.a, updating .a, .state, and .stop
+  ::
+  ++  node
+    ^+  [del=*? this]
+    ::  run .f on node, updating .stop.acc and .state.acc
+    ::
+    ?>  ?=(^ a)
+    =^  res  acc  (f state.acc n.a)
+    ?~  res
+      [del=& this]
+    [del=| this(val.n.a u.res)]
+  ::  +left: recurse on left subtree, copying mutant back into .l.a
+  ::
+  ++  left
+    ^+  this
+    ?~  a  this
+    =/  lef  main(a l.a)
+    lef(a a(l a.lef))
+  ::  +right: recurse on right subtree, copying mutant back into .r.a
+  ::
+  ++  right
+    ^+  this
+    ?~  a  this
+    =/  rig  main(a r.a)
+    rig(a a(r a.rig))
+  --
 ::  +bot: produce the N leftmost elements
 ::
 ++  bot

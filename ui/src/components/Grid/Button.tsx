@@ -41,7 +41,7 @@ export const Button = React.forwardRef<React.ElementType, ButtonProps>(
       ref={ref}
       {...props}
       className={classNames(
-        'button default-ring',
+        'button default-focus',
         variants[variant],
         className
       )}

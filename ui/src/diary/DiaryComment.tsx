@@ -9,7 +9,7 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import { DiaryQuip } from '@/types/diary';
 import { ChatBlock, ChatStory } from '@/types/chat';
-import { useChannelFlag } from '@/hooks';
+import { useChannelFlag } from '@/logic/channel';
 import DiaryCommentOptions from './DiaryCommentOptions';
 import QuipReactions from './QuipReactions/QuipReactions';
 
