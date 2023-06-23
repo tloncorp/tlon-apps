@@ -229,6 +229,7 @@
     |=  =chat:two
     =>  .(wit.pact.chat (writs-2-to-3 wit.pact.chat))
     %=    chat
+        perm  [0 perm.chat]
         log
       %+  gas:log-on:three  *log:three
       %+  murn  (tap:log-on:two log.chat)
@@ -1627,53 +1628,44 @@
     ^+  ca-core
     =.  log.chat
       (put:log-on:c log.chat time d)
-    ?-    -.d
-        %add-sects
-      =.  ca-core  (ca-give-updates time d)
-      =*  p  perm.chat
-      =.  writers.p  (~(uni in writers.p) p.d)
-      ca-core
-    ::
-        %del-sects
-      =.  ca-core  (ca-give-updates time d)
-      =*  p  perm.chat
-      =.  writers.p  (~(dif in writers.p) p.d)
-      ca-core
-    ::
-        %create
-      =.  ca-core  (ca-give-updates time d)
-      =.  perm.chat  p.d
-      =.  pact.chat  q.d
-      ca-core
-    ::
-        %writs
-      =/  old  wit.pact.chat
-      =.  pact.chat  (reduce:ca-pact p.d)
-      =/  diff  (walk:writs:c old wit.pact.chat)
-      =/  diffs=(list [=^time wit=(unit writ:c)])  (tap:on:writs:c diff)
-      |-  ^+  ca-core
-      ?~  diffs
+    =?  ca-core  ?=(^ perm.d)
+      =/  old  perm.chat
+      =.  perm.chat  (wash:perm:c perm.chat u.perm.d)
+      =/  diff  (walk:perm:c old perm.chat)
+      =/  split-diffs  (split-walk:perm:c old diff)
+      |-
+      ?~  split-diffs
         ca-core
-      =.  ca-core
-        =/  split-diffs  (split-walk:writs:c old diff)
-        |-
-        ?~  split-diffs
-          ca-core
-        =.  ca-core  (ca-give-updates time %writs i.split-diffs)
-        $(split-diffs t.split-diffs)
-      =.  ca-core
-        ?~  wit.i.diffs
-          ca-core
-        ?:  (has:on:writs:c old time.i.diffs)
-          ca-core
-        ::  got new message
-        ::
-        =?  remark.chat  =(author.u.wit.i.diffs our.bowl)
-          remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
-        =.  cor  (give-brief flag/flag ca-brief)
-        (ca-maybe-mention-hark id.u.wit.i.diffs +.u.wit.i.diffs)
-      $(diffs t.diffs)
-    ==
+      =.  ca-core  (ca-give-updates time i.split-diffs)
+      $(split-diffs t.split-diffs)
+    ?~  writs.d
+      ca-core
+    =/  old  wit.pact.chat
+    =.  pact.chat  (reduce:ca-pact u.writs.d)
+    =/  diff  (walk:writs:c old wit.pact.chat)
+    =/  diffs=(list [=^time wit=(unit writ:c)])  (tap:on:writs:c diff)
+    |-  ^+  ca-core
+    ?~  diffs
+      ca-core
+    =.  ca-core
+      =/  split-diffs  (split-walk:writs:c old diff)
+      |-
+      ?~  split-diffs
+        ca-core
+      =.  ca-core  (ca-give-updates time %writs i.split-diffs)
+      $(split-diffs t.split-diffs)
+    =.  ca-core
+      ?~  wit.i.diffs
+        ca-core
+      ?:  (has:on:writs:c old time.i.diffs)
+        ca-core
+      ::  got new message
+      ::
+      =?  remark.chat  =(author.u.wit.i.diffs our.bowl)
+        remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
+      =.  cor  (give-brief flag/flag ca-brief)
+      (ca-maybe-mention-hark id.u.wit.i.diffs +.u.wit.i.diffs)
+    $(diffs t.diffs)
   ::  got new message, decide whether to notify
   ::
   ++  ca-maybe-mention-hark

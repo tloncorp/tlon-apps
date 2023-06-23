@@ -1,5 +1,5 @@
 /-  c=chat
-|_  =logs:c
+|_  =logs:two:old:c
 ++  grad  %noun
 ++  grow
   |%
@@ -7,6 +7,6 @@
   --
 ++  grab
   |%
-  ++  noun  logs:c
+  ++  noun  logs:two:old:c
   --
 --

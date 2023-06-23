@@ -89,14 +89,7 @@
 ::    %del-sects: delete sects from writers
 ::    %create: create a new chat
 ::
-+$  diff
-  $%  [%writs p=diff:writs]
-    ::
-      [%add-sects p=(set sect:g)]
-      [%del-sects p=(set sect:g)]
-    ::
-      [%create p=perm q=pact]
-  ==
++$  diff  [perm=(unit perm) writs=(unit diff:writs)]
 ::
 ::  $split-diff: a diff using the legacy split-diff structure
 ::
@@ -257,7 +250,7 @@
     =/  c  (int:mope old new)  :: in both, use new
     =/  d  (tin:mope old new)  :: in both with identical values
     =/  e  (dif:mope c d)      :: in both with different values
-    (uni:on:writs e b)          :: disjoint union
+    (uni:on:writs e b)         :: disjoint union
   ::  Generate a list of legacy split-style diffs from a minimal diff
   ::
   ++  split-walk
@@ -320,6 +313,9 @@
   +$  action  (pair ship diff)
   +$  split-action  (pair ship split-diff:writs)
   +$  rsvp    [=ship ok=?]
+  ++  wash    wash:writs
+  ++  walk    walk:writs
+  ++  split-walk  split-walk:writs
   --
 ::
 ::  $log: a time ordered map of all modifications to chats
@@ -337,7 +333,7 @@
 ::  $chat: a group based channel for communicating
 ::
 +$  chat
-  [=net =remark =log =perm =pact]
+  [group=flag:g =net =remark =log =perm =pact]
 ::
 ::  $notice: the contents of an automated message
 ::
@@ -445,18 +441,53 @@
 +$  split-update
   (pair time split-diff)
 ::
-::  $logs: a time ordered map of all modifications to groups
+::  $logs: a portion of the backlog
 ::
 +$  logs
-  ((mop time diff) lte)
+  diff:writs
 ::
 ::  $perm: represents the permissions for a channel and gives a pointer
 ::  back to the group it belongs to.
 ::
 +$  perm
-  $:  writers=(set sect:g)
-      group=flag:g
-  ==
+  =<  perm
+  |%
+  +$  perm
+    $:  rev=@ud
+        writers=(set sect:g)
+    ==
+  +$  diff  perm
+  +$  split-diff
+    $%  [%add-sects p=(set sect:g)]
+        [%del-sects p=(set sect:g)]
+    ==
+  ++  wash
+    |=  [old=perm dif=diff]
+    ^-  perm
+    :_  ?~(writs.dif writs.old (wash:writs writs.old u.writs.dif))
+    ?~  perm.dif
+      perm.old
+    ?:  (gte rev.perm.u.dif rev.perm.old)
+      perm.u.dif
+    per.old
+  ::
+  ++  walk
+    |=  [old=perm new=perm]
+    ^-  diff
+    :-  ?:(=(perm.old perm.new) ~ `perm.new)
+    ?:(=(writs.old writs.new) ~ (walk:writs writs.old writs.new))
+  ::
+  ++  split-walk
+    |=  [old=perm dif=diff]
+    ^-  (list split-diff)
+    %+  welp
+      =/  added  (~(dif in writers.dif) writers.old)
+      ?~  added  ~
+      [%add-sects added]~
+    =/  removed  (~(dif in writers.old) writers.dif)
+    ?~  removed  ~
+    [%del-sects removed]~
+  --
 ::  $join: a group + channel flag to join a channel, group required for perms
 ::
 +$  join

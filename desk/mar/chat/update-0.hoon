@@ -1,15 +1,13 @@
 /-  c=chat
 /+  j=chat-json
-|_  =update:c
+|_  =update:two:old:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  update
-  ++  json  (update:enjs:j update)
   --
 ++  grab
   |%
-  ++  noun  update:c
-
+  ++  noun  update:two:old:c
   --
 --
