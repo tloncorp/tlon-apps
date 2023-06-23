@@ -1,4 +1,4 @@
-/-  g=groups, graph-store, uno=chat-1, zer=chat-0
+/-  g=groups, graph-store, dos=chat-2, uno=chat-1, zer=chat-0
 /-  meta
 /-  metadata-store
 /-  cite
@@ -10,9 +10,10 @@
   |%
   ++  zero  zer
   ++  one  uno
+  ++  two  dos
   --
 ::  +mar:  mark name
-++  okay  `epic:e`0
+++  okay  `epic:e`1
 ++  mar
   |%
   ++  act  `mark`(rap 3 %chat-action '-' (scot %ud okay) ~)
@@ -20,10 +21,10 @@
   ++  log  `mark`(rap 3 %chat-logs '-' (scot %ud okay) ~)
   --
 ::
-++  mope  ((mp time (unit writ:c)) lte)
+++  mope  ((mp time (unit writ)) lte)
 ::
 ::  $scan: search results
-+$  scan  (list (pair time writ))
++$  scan  (list (pair time (unit writ)))
 ::  $writ: a chat message
 +$  writ   [seal memo]
 ::  $id: an identifier for chat messages
@@ -40,7 +41,7 @@
 ::
 +$  seal
   $:  =id
-      feels=(map ship [rev=@ud =feel])
+      feels=(map ship [rev=@ud fel=(unit feel)])
       replied=(set id)
   ==
 ::
@@ -90,6 +91,17 @@
 ::
 +$  diff
   $%  [%writs p=diff:writs]
+    ::
+      [%add-sects p=(set sect:g)]
+      [%del-sects p=(set sect:g)]
+    ::
+      [%create p=perm q=pact]
+  ==
+::
+::  $split-diff: a diff using the legacy split-diff structure
+::
++$  split-diff
+  $%  [%writs p=split-diff:writs]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
@@ -168,6 +180,19 @@
     ==
   ::
   +$  action  (pair id diff)
+  ::
+  +$  split-diff    (pair uid split-delta)
+  ::
+  +$  split-delta
+    $%  [%writ diff=split-diff:writs]
+        [%meta meta=data:meta]
+        [%team =ship ok=?]
+        [%hive by=ship for=ship add=?]
+        [%init team=(set ship) hive=(set ship) met=data:meta]
+    ==
+  ::
+  +$  split-action  (pair id split-diff)
+
   --
 ::
 ::  $writs: a set of time ordered chat messages
@@ -181,6 +206,7 @@
     ((^on time (unit writ)) lte)
   +$  diff
     writs
+  +$  split-diff  (pair id action)
   +$  action
     $%  [%add p=memo]
         [%del ~]
@@ -194,26 +220,27 @@
     |=  [wit=writs dif=diff]
     ^-  writs
     %-  (uno:mope wit dif)
-    |=  [=time a=(unit writ:c) b=(unit writ:c)]
-    ^-  (unit writ:c)
+    |=  [=time a=(unit writ) b=(unit writ)]
+    ^-  (unit writ)
     ?~  a
       ~
     ?~  b
       ~
-    ?.  =([id memo]:u.a [id memo]:u.b)
+    ?.  =([id +]:u.a [id +]:u.b)
       %-  %:  slog
             'chat: unexpected messsage conflict!'
-            >[id memo]:u.a<
-            >[id memo]:u.b<
+            >[id +]:u.a<
+            >[id +]:u.b<
+            ~
           ==
       a
-    :-  ~  :_  memo.u.a
+    :-  ~  :_  +.u.a
     :-  id.u.a
     :_  (~(uni in replied.u.a) replied.u.b)
-    ^-  (map ship feel)
+    ^-  (map ship [@ud (unit feel)])
     %-  (~(uno by feels.u.a) feels.u.b)
-    |=  [=ship a=[rev=@ud =feel] b=[rev=@ud =feel]]
-    ^-  [rev=@ud feel]
+    |=  [=ship a=[rev=@ud fel=(unit feel)] b=[rev=@ud fel=(unit feel)]]
+    ^-  [@ud (unit feel)]
     ?:  (gth rev.a rev.b)
       a
     b
@@ -230,7 +257,45 @@
     =/  c  (int:mope old new)  :: in both, use new
     =/  d  (tin:mope old new)  :: in both with identical values
     =/  e  (dif:mope c d)      :: in both with different values
-    (uni:writs:c e b)          :: disjoint union
+    (uni:on:writs e b)          :: disjoint union
+  ::  Generate a list of legacy split-style diffs from a minimal diff
+  ::
+  ++  split-walk
+    |=  [old=writs dif=diff]
+    ^-  (list split-diff)
+    %-  zing
+    %+  turn  (tap:on dif)
+    |=  [=time wit=(unit writ)]
+    ^-  (list split-diff)
+    ?~  old-wit=(get:on old time)
+      ::  added
+      ::
+      ?>  ?=(^ wit)
+      :-  [id.u.wit %add +.u.wit]
+      %+  murn  ~(tap by feels.u.wit)
+      |=  [=ship rev=@ud fel=(unit feel)]
+      ?~  fel
+        ~
+      `u=[id.u.wit %add-feel ship u.fel]
+    ::
+    ?>  ?=(^ u.old-wit)
+    ?~  wit
+      ::  removed
+      ::
+      ~!  old-wit
+      [id.u.u.old-wit %del ~]~
+    ::  changed feels
+    ::
+    %+  murn  ~(tap by feels.u.wit)
+    |=  [=ship rev=@ud fel=(unit feel)]
+    ?~  old-feel=(~(get by feels.u.u.old-wit) ship)
+      ?~  fel
+        ~
+      `u=[id.u.wit %add-feel ship u.fel]
+    ::
+    ?~  fel
+      `u=[id.u.wit %del-feel ship]
+    `u=[id.u.wit %add-feel ship u.fel]
   --
 ::
 ::  $dm: a direct line of communication between two ships
@@ -253,6 +318,7 @@
   +$  id      (pair ship time)
   +$  diff    diff:writs
   +$  action  (pair ship diff)
+  +$  split-action  (pair ship split-diff:writs)
   +$  rsvp    [=ship ok=?]
   --
 ::
@@ -262,6 +328,9 @@
   ((mop time diff) lte)
 ++  log-on
   ((on time diff) lte)
+++  log-mope
+  ((mp time (unit writ)) lte)
+::
 +$  remark
   [last-read=time watching=_| ~]
 ::
@@ -362,11 +431,19 @@
 ::
 +$  action
   (pair flag update)
+::  $action: legacy split-style actions
+::
++$  split-action
+  (pair flag split-update)
 ::
 ::  $update: a representation in time of a modification of a chat
 ::
 +$  update
   (pair time diff)
+::  $split-update: legacy split-style updates
+::
++$  split-update
+  (pair time split-diff)
 ::
 ::  $logs: a time ordered map of all modifications to groups
 ::

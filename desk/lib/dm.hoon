@@ -3,17 +3,19 @@
 |_  pac=pact:c
 ++  mope  ((mp time (unit writ:c)) lte)
 ++  gas
-  |=  ls=(list [=time =writ:c])
+  |=  ls=(list [=time wit=(unit writ:c)])
   ^+  pac
   %_    pac
       wit  (gas:on:writs:c wit.pac ls)
   ::
       dex  
     %-  ~(gas by dex.pac)
-    %+  turn  ls
-    |=  [=time =writ:c]
-    ^-  [id:c _time]
-    [id.writ time]
+    %+  murn  ls
+    |=  [=time wit=(unit writ:c)]
+    ^-  (unit [id:c _time])
+    ?~  wit
+      ~
+    `[id.u.wit time]
   ==
 ::
 ++  brief
@@ -25,9 +27,14 @@
   =/  unreads
     (lot:on:writs:c wit.pac `last-read ~)
   =/  read-id=(unit id:c)  
-    (bind (pry:on:writs:c unreads) |=([key=@da val=writ:c] id.val))
+    ?~  got=(pry:on:writs:c unreads)  ~
+    ?~  val.u.got  ~
+    `id.u.val.u.got
   =/  count
-    (lent (skim ~(tap by unreads) |=([tim=^time =writ:c] !=(author.writ our))))
+    %-  lent
+    %+  skim  ~(tap by unreads)
+    |=  [tim=^time wit=(unit writ:c)]
+    &(?=(^ wit) !=(author.u.wit our))
   [time count read-id]
 ::
 ++  get
@@ -37,7 +44,7 @@
     ~
   ?~  wit=(get:on:writs:c wit.pac u.tim)
     ~
-  ?~  wit
+  ?~  u.wit
     ~
   `[u.tim u.u.wit]
 ::
@@ -45,7 +52,7 @@
   |=  [=id:c fun=$-(writ:c writ:c)]
   ^+  pac
   ?~  v=(get id)  pac
-  =.  wit.pac  (put:on:writs:c wit.pac time.u.v (fun writ.u.v))
+  =.  wit.pac  (put:on:writs:c wit.pac time.u.v `(fun writ.u.v))
   pac
 ::
 ++  got
@@ -66,7 +73,7 @@
     ?:  (has:on:writs:c wit.pac now)  
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
-      (put:on:writs:c wit.pac now seal p.act)
+      (put:on:writs:c wit.pac now ~ seal p.act)
     =.  dex.pac  (~(put by dex.pac) id now)
     ?~  replying.p.act  pac
     =*  replying  u.replying.p.act
@@ -76,36 +83,48 @@
     =/  tim=(unit time)  (~(get by dex.pac) id)
     ?~  tim  pac
     =/  =time  (need tim)
-    =/  wit=(unit writ:c)  (get:on:writs:c wit.pac time)
+    =/  wit=(unit (unit writ:c))  (get:on:writs:c wit.pac time)
     =.  wit.pac  (put:on:writs:c wit.pac time ~)
     =.  dex.pac  (~(del by dex.pac) id)
     ?~  wit  pac
-    ?~  replying.u.wit  pac
-    (jab u.replying.u.wit |=(writ:c +<(replied (~(del in replied) ^id))))
+    ?~  u.wit  pac
+    ?~  replying.u.u.wit  pac
+    (jab u.replying.u.u.wit |=(writ:c +<(replied (~(del in replied) ^id))))
   ::
       %add-feel
     %+  jab  id
     |=  =writ:c
-    writ(feels (~(put by feels.writ) [p q]:act))
+    =/  rev=@ud
+      ?~  old=(~(get by feels.writ) p.act)
+        0
+      +(rev.u.old)
+    writ(feels (~(put by feels.writ) p.act rev `q.act))
   ::
       %del-feel
     %+  jab  id
     |=  =writ:c
-    writ(feels (~(del by feels.writ) p.act))
+    =/  rev=@ud
+      ?~  old=(~(get by feels.writ) p.act)
+        0
+      +(rev.u.old)
+    writ(feels (~(put by feels.writ) p.act rev ~))
   ==
 ::  ingest new writs (on client)
 ::
 ++  reduce
   |=  =diff:writs:c
   ^+  pac
-  :-  (walk:writs:c wit.pac diff)
-  =<  +
-  |-  ^-  index
+  :-  (wash:writs:c wit.pac diff)
+  |-  ^-  index:c
   ?~  diff
     dex.pac
   =.  dex.pac
-    ?~  q.n.diff
-      (~(del by dex.pac) id.u.val.n.diff)
+    ?~  val.n.diff
+      ?~  w=(get:on:writs:c wit.pac key.n.diff)
+        dex.pac
+      ?~  u.w
+        dex.pac
+      (~(del by dex.pac) id.u.u.w)
     (~(put by dex.pac) id.u.val.n.diff key.n.diff)
   =.  dex.pac  $(diff l.diff)
   =.  dex.pac  $(diff r.diff)
@@ -180,14 +199,14 @@
       [sip len ~]   :: (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
     |=  $:  =query
             =time
-            =writ:c
+            wit=(unit writ:c)
         ==
-    ^-  [(unit writ:c) stop=? _query]
+    ^-  [(unit (unit writ:c)) stop=? _query]
     :-  ~
-    ?:  (matc writ)
+    ?:  &(?=(^ wit) (matc u.wit))
       ?:  =(0 skip.query)
         :-  =(1 more.query)
-        query(more (dec more.query), scan [[time writ] scan.query])
+        query(more (dec more.query), scan [[time `u.wit] scan.query])
       [| query(skip (dec skip.query))]
     [| query]
   ++  mntn

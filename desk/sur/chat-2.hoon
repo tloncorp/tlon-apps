@@ -5,6 +5,7 @@
 /-  e=epic
 /+  lib-graph=graph-store
 |%
+++  okay  `epic:e`0
 ::  $writ: a chat message
 +$  writ   [seal memo]
 ::  $id: an identifier for chat messages

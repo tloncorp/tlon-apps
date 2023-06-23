@@ -19,7 +19,7 @@
     ==
   ::
   ++  club-action
-    |=  a=action:club:c
+    |=  a=split-action:club:c
     ^-  json
     %-  pairs
     :~  id/s/(scot %uv p.a)
@@ -27,14 +27,14 @@
     ==
   ::
   ++  club-diff
-    |=  d=diff:club:c
+    |=  d=split-diff:club:c
     ^-  json
     %-  pairs
     :~  uid/s/(scot %uv p.d)
         delta/(club-delta q.d)
     ==
   ++  club-delta
-    |=  d=delta:club:c
+    |=  d=split-delta:club:c
     %+  frond  -.d
     ?-  -.d 
         %writ  (writs-diff diff.d)
@@ -162,21 +162,21 @@
     n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
   ::
   ++  action
-    |=  =action:c
+    |=  action=split-action:c
     %-  pairs
     :~  flag/(flag p.action)
         update/(update q.action)
     ==
   ::
   ++  update
-    |=  =update:c
+    |=  update=split-update:c
     %-  pairs
     :~  time+s+(scot %ud p.update)
         diff+(diff q.update)
     ==
   ::
   ++  diff
-    |=  =diff:c
+    |=  diff=split-diff:c
     %+  frond  -.diff
     ?-  -.diff
       %create     (pairs ~[perms/(perm p.diff)])
@@ -186,14 +186,14 @@
     ==
   ::
   ++  writs-diff
-    |=  =diff:writs:c
+    |=  diff=split-diff:writs:c
     %-  pairs
     :~  id/(id p.diff)
         delta/(writs-delta q.diff)
     ==
   ::
   ++  writs-delta
-    |=  =delta:writs:c
+    |=  delta=action:writs:c
     %+  frond  -.delta
     ?-  -.delta
       %add       (memo p.delta)
@@ -209,7 +209,7 @@
     ==
   ::
   ++  dm-action
-    |=  =action:dm:c
+    |=  action=split-action:dm:c
     %-  pairs
     :~  ship+(ship p.action)
         diff+(writs-diff q.action)
@@ -316,9 +316,11 @@
     ::
         :-  %feels
         %-  pairs
-        %+  turn  ~(tap by feels.seal)
-        |=  [her=@p =feel:c]
-        [(scot %p her) s+feel]
+        %+  murn  ~(tap by feels.seal)
+        |=  [her=@p rev=@ud fel=(unit feel:c)]
+        ?~  fel
+          ~
+        `u=[(scot %p her) s+u.fel]
     ::
         :-  %replied
         :-  %a
@@ -340,9 +342,11 @@
     |=  =writs:c
     ^-  json
     %-  pairs
-    %+  turn  (tap:on:writs:c writs) 
-    |=  [key=@da w=writ:c]
-    [(scot %ud key) (writ w)]
+    %+  murn  (tap:on:writs:c writs) 
+    |=  [key=@da w=(unit writ:c)]
+    ?~  w
+      ~
+    `u=[(scot %ud key) (writ u.w)]
 
   --
 ++  dejs
@@ -408,7 +412,7 @@
     (cook |=(@ `@uv`+<) ;~(pfix (jest '0v') viz:ag))
   ++  club-id  (su club-id-rule)
   ++  action
-    ^-  $-(json action:c)
+    ^-  $-(json split-action:c)
     %-  ot
     :~  flag+flag
         update+update
@@ -422,28 +426,28 @@
     ==
   ::
   ++  club-action
-    ^-  $-(json action:club:c)
+    ^-  $-(json split-action:club:c)
     %-  ot
     :~  id/(se %uv)
         diff/club-diff
     ==
   ::
   ++  club-action-0
-    ^-  $-(json action:club:c)
+    ^-  $-(json split-action:club:c)
     %-  ot
     :~  id/(se %uv)
         diff/club-diff-0
     ==
   ::
   ++  club-diff
-    ^-  $-(json diff:club:c)
+    ^-  $-(json split-diff:club:c)
     %-  ot
     :~  echo/ni
         delta/club-delta
     ==
   ::
   ++  club-diff-0
-    ^-  $-(json diff:club:c)
+    ^-  $-(json split-diff:club:c)
     %-  ot
     :~  uid/(se %uv)
         delta/club-delta
@@ -478,7 +482,7 @@
     ==
   ::
   ++  dm-action
-    ^-  $-(json action:dm:c)
+    ^-  $-(json split-action:dm:c)
     %-  ot
     :~  ship/ship
         diff/writs-diff
@@ -486,12 +490,12 @@
   ::
   ++  update
     |=  j=json
-    ^-  update:c
+    ^-  split-update:c
     ?>  ?=(%o -.j)
     [*time (diff (~(got by p.j) %diff))]
   ::
   ++  diff
-    ^-  $-(json diff:c)
+    ^-  $-(json split-diff:c)
     %-  of
     :~  writs/writs-diff
         add-sects/add-sects
@@ -505,13 +509,13 @@
     ;~((glue fas) ;~(pfix sig fed:ag) dem:ag)
   ::
   ++  writs-diff
-    ^-  $-(json diff:writs:c)
+    ^-  $-(json split-diff:writs:c)
     %-  ot
     :~  id/id
         delta/writs-delta
     ==
   ++  writs-delta
-    ^-  $-(json delta:writs:c)
+    ^-  $-(json action:writs:c)
     %-  of
     :~  add/memo
         del/ul

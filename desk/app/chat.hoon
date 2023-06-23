@@ -26,7 +26,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %2
+    $:  %3
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -111,12 +111,13 @@
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
+  ?>  =(1 0)
   |-
   ?-  -.old
-    %0  $(old (state-0-to-1 old))
-    %1  $(old (state-1-to-2 old))
-    ::
-      %2
+      %0  $(old (state-0-to-1 old))
+      %1  $(old (state-1-to-2 old))
+      %2  $(old (state-2-to-3 old))
+      %3
     =.  state  old      
     =.  cor  restore-missing-subs
     ?:  =(okay:c cool)  cor
@@ -144,7 +145,7 @@
     ~&  >  %keep
     [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
   ::
-  +$  versioned-state  $%(current-state state-1 state-0)
+  +$  versioned-state  $%(state-3 state-2 state-1 state-0)
   +$  state-0
     $:  %0
         chats=(map flag:zero chat:zero)
@@ -173,10 +174,95 @@
         ::  true represents imported, false pending import
         imp=(map flag:one ?)
     ==
-  +$  state-2  current-state
+  +$  state-2
+    $:  %2
+        chats=(map flag:two chat:two)
+        dms=(map ship dm:two)
+        clubs=(map id:club:two club:two)
+        drafts=(map whom:two story:two)
+        pins=(list whom:two)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:two id:two] (unit said:two))
+        fish=(map [flag:two @] id:two)
+        ::  true represents imported, false pending import
+        imp=(map flag:two ?)
+    ==
+  +$  state-3  current-state
   ++  zero     zero:old:c
   ++  one      one:old:c
-  ++  two      c
+  ++  two      two:old:c
+  ++  three    c
+  ++  state-2-to-3
+    |=  s=state-2
+    ^-  state-3
+    %*  .  *state-3
+      dms     (dms-2-to-3 dms.s)
+      clubs   (clubs-2-to-3 clubs.s)
+      drafts  drafts.s
+      pins    pins.s
+      bad     bad.s
+      inv     inv.s
+      fish    fish.s
+      voc     (voc-2-to-3 voc.s)
+      chats   (chats-2-to-3 chats.s)
+    ==
+  ::
+  ++  dms-2-to-3
+    |=  dms=(map ship dm:two)
+    ^-  (map ship dm:three)
+    %-  ~(run by dms)
+    |=  =dm:two
+    dm(wit.pact (writs-2-to-3 wit.pact.dm))
+  ::
+  ++  clubs-2-to-3
+    |=  clubs=(map id:club:two club:two)
+    ^-  (map id:club:three club:three)
+    %-  ~(run by clubs)
+    |=  =club:two
+    club(wit.pact (writs-2-to-3 wit.pact.club))
+  ::
+  ++  chats-2-to-3
+    |=  chats=(map flag:two chat:two)
+    ^-  (map flag:three chat:three)
+    %-  ~(run by chats)
+    |=  =chat:two
+    =>  .(wit.pact.chat (writs-2-to-3 wit.pact.chat))
+    %=    chat
+        log
+      %+  gas:log-on:three  *log:three
+      %+  murn  (tap:log-on:two log.chat)
+      |=  [tim=time d=diff:two]
+      ^-  (unit [time diff:three])
+      ?-    -.d
+          %add-sects  `[tim d]
+          %del-sects  `[tim d]
+          %create     `[tim d(wit.q (writs-2-to-3 wit.q.d))]
+          %writs
+        =/  w  (~(get by wit.pact.chat) tim)
+        ?~  w    ~
+        `[tim %writs [tim u.w] ~ ~]
+      ==
+    ==
+  ::
+  ++  voc-2-to-3
+    |=  voc=(map [flag:two id:two] (unit said:two))
+    ^-  (map [flag:three id:three] (unit said:three))
+    %-  ~(run by voc)
+    |=  s=(unit said:two)
+    ?~  s
+      ~
+    `u=[p.u.s (writ-2-to-3 q.u.s)]
+  ::
+  ++  writs-2-to-3
+    |=  writs=writs:two
+    ^-  writs:three
+    (run:on:writs:two writs |=(=writ:two `(writ-2-to-3 writ)))
+  ::
+  ++  writ-2-to-3
+    |=  =writ:two
+    writ(feels (~(run by feels.writ) |=(=feel:two [0 `feel])))
+  ::
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -194,6 +280,8 @@
   ::
   ++  clubs-1-to-2
     |=  clubs=(map id:club:one club:one)
+    ~!  one=one
+    ~!  two=two
     ^-  (map id:club:two club:two)
     %-  ~(run by clubs)
     |=  =club:one
@@ -524,10 +612,10 @@
   %-  ~(gas pac *pact:c)
   %+  murn  (tap:orm-gra:c graph)
   |=  [=time =node:gra:c]
-  ^-  (unit [_time writ:c])
+  ^-  (unit [_time (unit writ:c)])
   ?~  wit=(node-to-writ time node flag)
     ~
-  `[time u.wit]
+  `[time `u.wit]
 ::  TODO: review crashing semantics
 ::        check graph ordering (backwards iirc)
 ++  node-to-writ
@@ -1491,9 +1579,13 @@
     ?.  =((scag 4 path) (snoc ca-area %updates))
       out
     (~(put in out) [ship path])
+  ::  give updates to our subscribers
+  ::
+  ::    This uses the old "split-diff" format for compatibility with
+  ::    existing frontends.  It would be better to send modern diffs.
   ::
   ++  ca-give-updates
-    |=  [=time d=diff:c]
+    |=  [=time d=split-diff:c]
     ^+  ca-core
     =/  paths=(set path)
       %-  ~(gas in *(set path))
@@ -1535,51 +1627,57 @@
     ^+  ca-core
     =.  log.chat
       (put:log-on:c log.chat time d)
-    =.  ca-core
-      (ca-give-updates time d)
     ?-    -.d
         %add-sects
+      =.  ca-core  (ca-give-updates time d)
       =*  p  perm.chat
       =.  writers.p  (~(uni in writers.p) p.d)
       ca-core
     ::
         %del-sects
+      =.  ca-core  (ca-give-updates time d)
       =*  p  perm.chat
       =.  writers.p  (~(dif in writers.p) p.d)
       ca-core
     ::
         %create
+      =.  ca-core  (ca-give-updates time d)
       =.  perm.chat  p.d
       =.  pact.chat  q.d
       ca-core
     ::
         %writs
-      =*  delta  q.p.d
       =/  old  wit.pact.chat
-      =.  pact.chat  (reduce:ca-pact time p.d)
+      =.  pact.chat  (reduce:ca-pact p.d)
       =/  diff  (walk:writs:c old wit.pact.chat)
-      ::  XX give-updates
-      =/  diffs=(list [=time wit=(unit writ)])  (tap:on:writs:c diff)
+      =/  diffs=(list [=^time wit=(unit writ:c)])  (tap:on:writs:c diff)
       |-  ^+  ca-core
       ?~  diffs
         ca-core
       =.  ca-core
+        =/  split-diffs  (split-walk:writs:c old diff)
+        |-
+        ?~  split-diffs
+          ca-core
+        =.  ca-core  (ca-give-updates time %writs i.split-diffs)
+        $(split-diffs t.split-diffs)
+      =.  ca-core
         ?~  wit.i.diffs
           ca-core
-        ?:  (has:on:writs:c time.i.diffs)
+        ?:  (has:on:writs:c old time.i.diffs)
           ca-core
         ::  got new message
         ::
-        =?  remark.chat  =(author.memo.u.wit.i.diffs our.bowl)
+        =?  remark.chat  =(author.u.wit.i.diffs our.bowl)
           remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief flag/flag ca-brief)
-        (ca-maybe-mention-hark memo.u.wit.i.diffs)
+        (ca-maybe-mention-hark id.u.wit.i.diffs +.u.wit.i.diffs)
       $(diffs t.diffs)
     ==
   ::  got new message, decide whether to notify
   ::
   ++  ca-maybe-mention-hark
-    |=  =memo:c
+    |=  [=id:c =memo:c]
     ^+  ca-core
     ?-  -.content.memo
         %notice  ca-core
@@ -1589,7 +1687,7 @@
           ==
         ca-core
       ?:  (mentioned q.p.content.memo our.bowl)
-        =/  yarn  (ca-mention-hark memo p.content.memo p.p.d)
+        =/  yarn  (ca-mention-hark memo p.content.memo id)
         =.  cor  (emit (pass-hark & & yarn))
         ca-core
       =/  replying  (need replying.memo)

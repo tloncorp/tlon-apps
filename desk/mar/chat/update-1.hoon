@@ -1,6 +1,6 @@
 /-  c=chat
 /+  j=chat-json
-|_  =update:c
+|_  update=split-update:c
 ++  grad  %noun
 ++  grow
   |%
@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  update:c
+  ++  noun  split-update:c
 
   --
 --

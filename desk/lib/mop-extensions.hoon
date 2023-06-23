@@ -6,6 +6,7 @@
 |=  compare=$-([key key] ?)
 ~%  %mope-core  ..zuse  ~
 |%
+++  on  ((^on key val) compare)
 ::  +bat: tabulate a subset excluding start element with a max count (backwards)
 ::
 ++  bat
@@ -136,12 +137,20 @@
       (items-with-remainder l.a (dec q.right-result))
     [(zing ~[p.left-result ~[n.a] p.right-result]) q.left-result]
   --
+::  +urn: run, supplying key
+::
+++  urn
+  ~/  %urn
+  |*  [a=(tree item) b=$-(val *)]
+  |-
+  ?~  a  a
+  [n=[key.n.a (b n.a)] l=$(a l.a) r=$(a r.a)]
 ::  +bif: split by node (used internally by +dif)
 ::
 ++  bif
-  ~/
+  ~/  %bif
   |=  [a=(tree item) b=key c=val]
-  ^-  [l=(tree item) r=(tree item)
+  ^-  [l=(tree item) r=(tree item)]
   =<  +
   |-  ^-  (tree item)
   ?~  a
@@ -186,7 +195,8 @@
   ?~  b  a
   ?~  a  b
   ?:  =(key.n.a key.n.b)
-    [n=(meg key.n.a val.n.a val.n.b) l=$(a l.a, b l.b) r=$(a r.a, b r.b)]
+    :-  n=[key.n.a (meg key.n.a val.n.a val.n.b)]
+    [l=$(a l.a, b l.b) r=$(a r.a, b r.b)]
   ?:  (mor key.n.a key.n.b)
     ?:  (compare key.n.b key.n.a)
       $(l.a $(a l.a, r.b ~), b r.b)
@@ -222,7 +232,7 @@
   ?:  =(key.n.a key.n.b)
     ?:  =(val.n.a val.n.b)
       b(l $(b l.b, a l.a), r $(b r.b, a r.a))
-    (uni:on $(b l.b, a l.a), r $(b r.b, a r.a))
+    (uni:on $(b l.b, a l.a) $(b r.b, a r.a))
   ?:  (compare key.n.b key.n.a)
     %+  uni:on
       $(a l.a, r.b ~)   ::  left side of b must be in the left side of a
