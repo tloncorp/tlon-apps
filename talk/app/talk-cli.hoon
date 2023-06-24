@@ -1855,6 +1855,9 @@
         ["[ #bait: ]"]~  ::TODO  implement once %lure is released
       ::
           %chan   =,  cite.block
+        :: only %chat channel rendering is currently supported
+        ?.  ?=(%chat p.nest)
+          ["[ #{(scow %tas p.nest)}: channel reference not supported ]"]~
         =/  =path   (flop wer)
         =/  =id:chat
           :-  (slav %p +<.path)
