@@ -30,6 +30,7 @@ import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 import DiaryHeader from './DiaryHeader';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 function DiaryChannel() {
   const [joining, setJoining] = useState(false);
@@ -159,6 +160,14 @@ function DiaryChannel() {
     },
     [loadingOlderNotes]
   );
+
+  useGroupsAnalyticsEvent({
+    name: 'open_channel',
+    leaveName: 'leave_channel',
+    groupFlag: flag,
+    chFlag,
+    channelType: 'diary',
+  });
 
   return (
     <Layout

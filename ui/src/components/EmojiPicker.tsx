@@ -8,6 +8,9 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useChatState } from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
+import { useRouteGroup } from '@/state/groups';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 interface EmojiPickerProps extends Record<string, any> {
   open?: boolean;
@@ -33,6 +36,8 @@ export default function EmojiPicker({
   }>();
   const currentTheme = useCurrentTheme();
   const whom = chShip ? `${chShip}/${chName}` : ship;
+  const groupFlag = useRouteGroup();
+  const { privacy } = useGroupPrivacy(groupFlag);
   const writId = `${writShip}/${writTime}`;
   const isMobile = useIsMobile();
   const width = window.innerWidth;
@@ -52,9 +57,16 @@ export default function EmojiPicker({
   const onEmojiSelect = useCallback(
     (emoji: { shortcodes: string }) => {
       useChatState.getState().addFeel(whom!, writId, emoji.shortcodes);
+      captureGroupsAnalyticsEvent({
+        name: 'react_item',
+        groupFlag,
+        chFlag: whom,
+        channelType: 'chat',
+        privacy,
+      });
       dismss();
     },
-    [whom, writId, dismss]
+    [whom, groupFlag, privacy, writId, dismss]
   );
 
   return (

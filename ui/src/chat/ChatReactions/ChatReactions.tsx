@@ -1,12 +1,15 @@
+import _ from 'lodash';
+import React, { useCallback, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatState } from '@/state/chat';
-import _ from 'lodash';
-import React, { useCallback, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 import { ChatSeal } from '../../types/chat';
 import ChatReaction from './ChatReaction';
+import { useRouteGroup } from '@/state/groups';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 interface ChatReactionsProps {
   whom: string;
@@ -19,13 +22,22 @@ export default function ChatReactions({ whom, seal }: ChatReactionsProps) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+  const groupFlag = useRouteGroup();
+  const { privacy } = useGroupPrivacy(groupFlag);
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       useChatState.getState().addFeel(whom, seal.id, emoji.shortcodes);
+      captureGroupsAnalyticsEvent({
+        name: 'react_item',
+        groupFlag,
+        chFlag: whom,
+        channelType: 'chat',
+        privacy,
+      });
       setPickerOpen(false);
     },
-    [whom, seal]
+    [whom, groupFlag, privacy, seal]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

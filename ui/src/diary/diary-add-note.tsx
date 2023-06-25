@@ -21,12 +21,15 @@ import PencilIcon from '@/components/icons/PencilIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const [loaded, setLoaded] = useState(false);
   const chFlag = `${chShip}/${chName}`;
   const group = useRouteGroup();
+  const { privacy } = useGroupPrivacy(group);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const {
@@ -133,13 +136,31 @@ export default function DiaryAddNote() {
             sent,
           },
         });
+        captureGroupsAnalyticsEvent({
+          name: 'post_item',
+          groupFlag: group,
+          chFlag,
+          channelType: 'diary',
+          privacy,
+        });
       }
 
       reset();
     } catch (error) {
       console.error(error);
     }
-  }, [chFlag, editor, getValues, id, note, reset, addNote, editNote]);
+  }, [
+    group,
+    chFlag,
+    privacy,
+    editor,
+    getValues,
+    id,
+    note,
+    reset,
+    addNote,
+    editNote,
+  ]);
 
   useEffect(() => {
     if (editStatus === 'success') {

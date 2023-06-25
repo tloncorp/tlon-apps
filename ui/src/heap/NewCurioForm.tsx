@@ -22,6 +22,8 @@ import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import { useHeapDisplayMode } from '@/state/settings';
 import { useUploader } from '@/state/storage';
 import HeapTextInput from './HeapTextInput';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 export default function NewCurioForm() {
   const [inputMode, setInputMode] = useState<CurioInputMode>(LINK);
@@ -29,6 +31,7 @@ export default function NewCurioForm() {
   const [draftText, setDraftText] = useState<JSONContent>();
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const { privacy } = useGroupPrivacy(flag);
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const displayMode = useHeapDisplayMode(chFlag);
@@ -77,12 +80,13 @@ export default function NewCurioForm() {
         sent: Date.now(),
         replying: null,
       });
+      captureGroupsAnalyticsEvent(flag, chFlag, 'post_item', 'heap', privacy);
 
       setDraftLink(undefined);
       uploader?.clear();
       reset();
     },
-    [chFlag, reset, uploader]
+    [flag, chFlag, privacy, reset, uploader]
   );
 
   const watchedContent = watch('content');
@@ -210,6 +214,7 @@ export default function NewCurioForm() {
             draft={draftText}
             setDraft={setDraftText}
             flag={chFlag}
+            groupFlag={flag}
             className={cn(
               isListMode ? 'flex-1' : 'h-full w-full overflow-y-hidden'
             )}

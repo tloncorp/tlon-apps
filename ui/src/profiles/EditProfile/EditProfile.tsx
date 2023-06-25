@@ -14,10 +14,10 @@ import { useGroups } from '@/state/groups';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import GroupSelector, { GroupOption } from '@/components/GroupSelector';
-import { getFlagParts } from '@/logic/utils';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
+import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];
@@ -215,6 +215,8 @@ function EditProfileContent() {
 }
 
 export default function EditProfile({ title }: ViewProps) {
+  useAnalyticsEvent('profile_edit');
+
   return (
     <div className="flex grow overflow-y-scroll bg-gray-50">
       <Helmet>

@@ -81,6 +81,7 @@ import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
 import SettingsDialog from './components/SettingsDialog';
+import { captureAnalyticsEvent } from './logic/analytics';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -286,6 +287,14 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+  useEffect(() => {
+    captureAnalyticsEvent('app_open');
+
+    return () => {
+      captureAnalyticsEvent('app_close');
+    };
+  }, []);
+
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>

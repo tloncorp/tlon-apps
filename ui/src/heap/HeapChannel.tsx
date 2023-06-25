@@ -26,6 +26,7 @@ import { useLastReconnect } from '@/state/local';
 import { useChannelIsJoined } from '@/logic/channel';
 import NewCurioForm from './NewCurioForm';
 import HeapHeader from './HeapHeader';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 function HeapChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
@@ -198,6 +199,14 @@ function HeapChannel({ title }: ViewProps) {
       ? { main: 200, reverse: 200 }
       : { main: 400, reverse: 400 },
   };
+
+  useGroupsAnalyticsEvent({
+    name: 'open_channel',
+    leaveName: 'leave_channel',
+    groupFlag: flag,
+    chFlag,
+    channelType: 'heap',
+  });
 
   return (
     <Layout

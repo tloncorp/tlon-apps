@@ -26,6 +26,7 @@ import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
 import DiaryNoteHeadline from './DiaryNoteHeadline';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 function groupQuips(
   noteId: string,
@@ -111,6 +112,13 @@ export default function DiaryNote() {
     }
   }, [joined, joinChannel]);
 
+  useGroupsAnalyticsEvent({
+    name: 'view_item',
+    groupFlag,
+    chFlag,
+    channelType: 'diary',
+  });
+
   if (!note || status === 'loading') {
     return (
       <Layout
@@ -174,7 +182,11 @@ export default function DiaryNote() {
               </Divider>
             </div>
             {canWrite ? (
-              <DiaryCommentField flag={chFlag} replyTo={noteId} />
+              <DiaryCommentField
+                flag={chFlag}
+                groupFlag={groupFlag}
+                replyTo={noteId}
+              />
             ) : null}
             <ul className="mt-12">
               {groupedQuips.map(([t, g]) =>

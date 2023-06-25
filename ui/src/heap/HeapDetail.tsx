@@ -18,6 +18,7 @@ import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComment
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 import useCurioFromParams from './useCurioFromParams';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 export default function HeapDetail() {
   const [joining, setJoining] = useState(false);
@@ -107,6 +108,13 @@ export default function HeapDetail() {
         break;
       }
     }
+  });
+
+  useGroupsAnalyticsEvent({
+    name: 'view_item',
+    groupFlag,
+    chFlag,
+    channelType: 'heap',
   });
 
   return loading ? (

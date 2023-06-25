@@ -27,6 +27,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import queryClient from './queryClient';
 import indexedDBPersistor from './indexedDBPersistor';
 import UpdateNotice from './components/UpdateNotice';
+import { analyticsClient } from './logic/analytics';
 
 const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -49,13 +50,7 @@ render(
       }}
     >
       <UpdateNotice />
-      <PostHogProvider
-        apiKey={import.meta.env.VITE_POSTHOG_KEY}
-        options={{
-          api_host: 'https://eu.posthog.com',
-          opt_out_capturing_by_default: import.meta.env.DEV,
-        }}
-      >
+      <PostHogProvider client={analyticsClient}>
         <App />
       </PostHogProvider>
     </PersistQueryClientProvider>

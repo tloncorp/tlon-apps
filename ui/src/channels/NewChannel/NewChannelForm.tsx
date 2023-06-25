@@ -43,6 +43,8 @@ export default function NewChannelForm() {
     mode: 'onChange',
   });
 
+  console.log(addChannelStatus);
+
   const onSubmit = useCallback(
     async (values: NewChannelFormSchema) => {
       const { type, ...nextChannel } = values;

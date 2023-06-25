@@ -10,6 +10,7 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
+import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 export default function ProfileModal() {
   const { ship } = useParams();
@@ -28,6 +29,8 @@ export default function ProfileModal() {
   const onCopy = useCallback(() => {
     doCopy();
   }, [doCopy]);
+
+  useAnalyticsEvent('profile_view');
 
   if (!ship) {
     return null;
