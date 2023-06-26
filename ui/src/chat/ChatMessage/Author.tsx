@@ -1,11 +1,6 @@
 import React from 'react';
 import cn from 'classnames';
-import {
-  makePrettyDayAndDateAndTime,
-  makePrettyDayAndTime,
-  makePrettyTime,
-  useCopy,
-} from '@/logic/utils';
+import { makePrettyDayAndDateAndTime, useCopy } from '@/logic/utils';
 import { useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
 import Avatar from '@/components/Avatar';
@@ -33,11 +28,7 @@ export default function Author({
   const location = useLocation();
   const { didCopy, doCopy } = useCopy(ship);
   const modalNavigate = useModalNavigate();
-  const prettyTime = date ? makePrettyTime(date) : undefined;
-  const prettyDayAndTime = date ? makePrettyDayAndTime(date) : undefined;
-  const prettyDayAndDateAndTime = date
-    ? makePrettyDayAndDateAndTime(date)
-    : undefined;
+  const timeDisplay = date ? makePrettyDayAndDateAndTime(date) : undefined;
 
   const handleProfileClick = () => {
     modalNavigate(`/profile/${ship}`, {
@@ -45,7 +36,7 @@ export default function Author({
     });
   };
 
-  if (!date) {
+  if (!timeDisplay) {
     return (
       <div
         className={cn(
@@ -112,15 +103,34 @@ export default function Author({
       <RoleBadges ship={ship} />
       {hideTime ? (
         <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
-          {prettyDayAndTime}
+          {timeDisplay.day} <span role="presentation">&#x2022;</span>{' '}
+          <time dateTime={timeDisplay.time}>{timeDisplay.time}</time>
         </span>
       ) : (
         <>
           <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
-            {prettyDayAndDateAndTime}
+            {timeDisplay.diff >= 8 ? (
+              <time dateTime={timeDisplay.original.toISOString()}>
+                {timeDisplay.fullDate} <span aria-hidden>&#x2022;</span>{' '}
+                {timeDisplay.time}
+              </time>
+            ) : (
+              <>
+                {timeDisplay.day} <span aria-hidden>&#x2022;</span>{' '}
+                <time dateTime={timeDisplay.original.toISOString()}>
+                  {timeDisplay.time} <span aria-hidden>&#x2022;</span>{' '}
+                  {timeDisplay.fullDate}
+                </time>
+              </>
+            )}
           </span>
           <span className="-mb-0.5 block shrink-0 text-sm font-semibold text-gray-500 group-two-hover:hidden">
-            {timeOnly ? prettyTime : prettyDayAndTime}
+            {!timeOnly && (
+              <>
+                {timeDisplay.day} <span aria-hidden>&#x2022;</span>{' '}
+              </>
+            )}
+            <time dateTime={timeDisplay.time}>{timeDisplay.time}</time>
           </span>
         </>
       )}

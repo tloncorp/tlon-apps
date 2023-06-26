@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useGroups } from '@/state/groups';
-import { useCheckChannelUnread } from './useIsChannelUnread';
+import { useCheckChannelUnread } from './channel';
 
 export default function useIsGroupUnread() {
   const groups = useGroups();

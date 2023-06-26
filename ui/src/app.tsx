@@ -160,13 +160,16 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               <Route index element={<NewDM />} />
               <Route path=":ship" element={<Message />} />
             </Route>
-            <Route path=":ship" element={<Message />}>
-              {isSmall ? null : (
-                <Route
-                  path="message/:idShip/:idTime"
-                  element={<ChatThread />}
-                />
-              )}
+            <Route path=":ship">
+              <Route index element={<Message />} />
+              <Route path="*" element={<Message />}>
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<ChatThread />}
+                  />
+                )}
+              </Route>
             </Route>
             {isSmall && (
               <Route
@@ -179,20 +182,9 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
             <Route path="channels/chat/:chShip/:chName">
               <Route
-                index
-                element={<ChatChannel title={` • ${appHead('').title}`} />}
-              />
-              <Route
                 path="*"
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
-              >
-                {isSmall ? null : (
-                  <Route
-                    path="message/:idShip/:idTime"
-                    element={<ChatThread />}
-                  />
-                )}
-              </Route>
+              />
               {isSmall ? (
                 <Route
                   path="message/:idShip/:idTime"

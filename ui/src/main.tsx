@@ -4,7 +4,7 @@
 // }
 
 /* eslint-disable */
-import { EditorView } from 'prosemirror-view';
+import { EditorView } from '@tiptap/pm/view';
 
 const oldUpdateState = EditorView.prototype.updateState;
 
@@ -44,6 +44,7 @@ render(
       client={queryClient}
       persistOptions={{
         persister: indexedDBPersistor(`${window.our}-landscape`),
+        buster: `${window.our}-landscape-4.0.1`,
       }}
     >
       <UpdateNotice />

@@ -35,7 +35,7 @@ const Item = React.forwardRef<HTMLDivElement, DropdownMenu.MenuItemProps>(
     <DropdownMenu.Item
       ref={ref}
       {...props}
-      className="default-ring block w-full select-none rounded leading-none mix-blend-hard-light ring-gray-600"
+      className="default-focus block w-full select-none rounded leading-none mix-blend-hard-light ring-gray-600"
     >
       {children}
     </DropdownMenu.Item>
@@ -64,7 +64,7 @@ export default function TileMenu({
     <DropdownMenu.Root open={open} onOpenChange={(isOpen) => setOpen(isOpen)}>
       <DropdownMenu.Trigger
         className={classNames(
-          'default-ring flex h-8 w-8 items-center justify-center rounded-full transition-opacity duration-75',
+          'default-focus flex h-8 w-8 items-center justify-center rounded-full transition-opacity duration-75',
           open && 'opacity-100',
           className
         )}

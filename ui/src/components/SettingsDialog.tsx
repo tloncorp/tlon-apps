@@ -84,8 +84,8 @@ export default function SettingsDialog() {
             name="Disable wayfinding"
           >
             <p className="leading-5 text-gray-600">
-              Turn off the "wayfinding" helper menu menu in the bottom left of
-              the {isTalk ? 'Talk' : 'Groups'} sidebar
+              Turn off the "wayfinding" helper menu in the bottom left of the{' '}
+              {isTalk ? 'Talk' : 'Groups'} sidebar
             </p>
           </Setting>
         </div>

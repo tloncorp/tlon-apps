@@ -4,13 +4,14 @@
 /-  e=epic
 /-  contacts
 /+  default-agent, verb-lib=verb, dbug
-/+  chat-json
 /+  pac=dm
 /+  ch=chat-hark
 /+  gra=graph-store
 /+  epos-lib=saga
 /+  wood-lib=wood
 /+  mig=chat-graph
+::  performance, keep warm
+/+  chat-json
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -1085,11 +1086,31 @@
     cu-core
   ::
   ++  cu-peek
-    |=  [care=@tas =path]
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  path  [~ ~]
-      [%writs *]  (peek:cu-pact care t.path)
+    ?+  pole  [~ ~]
+      [%writs rest=*]  (peek:cu-pact care rest.pole)
       [%crew ~]   ``club-crew+!>(crew.club)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:cu-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:cu-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  cu-watch

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import CodeBlock, { CodeBlockOptions } from '@tiptap/extension-code-block';
-import { Plugin, PluginKey } from 'prosemirror-state';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { findChildren, NodeViewProps } from '@tiptap/core';
-import { Node as ProsemirrorNode } from 'prosemirror-model';
-import { Decoration, DecorationSet } from 'prosemirror-view';
+import { Node as ProsemirrorNode } from '@tiptap/pm/model';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { refractor } from 'refractor/lib/common.js';
 import hoon from 'refractor/lang/hoon.js';
 

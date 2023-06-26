@@ -1,8 +1,7 @@
 import _ from 'lodash';
-import f from 'lodash/fp';
 import React from 'react';
 import { useNavigate } from 'react-router';
-import { DiaryLetter, DiaryNote, NoteEssay } from '@/types/diary';
+import { DiaryLetter, NoteEssay } from '@/types/diary';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import IconButton from '@/components/IconButton';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
@@ -10,9 +9,9 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import { makePrettyDate, sampleQuippers } from '@/logic/utils';
 import { daToUnix } from '@urbit/api';
 import DiaryCommenters from '@/diary/DiaryCommenters';
-import { useChannelFlag } from '@/hooks';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { useCalm } from '@/state/settings';
+import { useChannelFlag } from '@/logic/channel';
 import DiaryNoteOptionsDropdown from '../DiaryNoteOptionsDropdown';
 import useDiaryActions from '../useDiaryActions';
 

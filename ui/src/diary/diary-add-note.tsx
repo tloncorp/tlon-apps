@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -24,6 +24,7 @@ import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
+  const [loaded, setLoaded] = useState(false);
   const chFlag = `${chShip}/${chName}`;
   const group = useRouteGroup();
   const isMobile = useIsMobile();
@@ -69,11 +70,13 @@ export default function DiaryAddNote() {
       !editor.isDestroyed &&
       !loadingNote &&
       note?.essay &&
-      editor?.getText() === ''
+      editor?.isEmpty &&
+      !loaded
     ) {
+      setLoaded(true);
       editor.commands.setContent(diaryMixedToJSON(note.essay.content));
     }
-  }, [editor, loadingNote, note]);
+  }, [editor, loadingNote, note, loaded]);
 
   const publish = useCallback(async () => {
     if (!editor?.getText()) {

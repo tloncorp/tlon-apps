@@ -5,7 +5,17 @@
 ++  grow
   |%
   ++  noun  scan
-  ++  json  a/(turn scan writ:enjs:j)
+  ++  json
+    =,  enjs:format
+    :-  %a
+    %+  turn
+      scan
+    |=  [t=@da =writ:c]
+    ^-  ^json
+    %-  pairs
+    :~  time/s/(scot %ud t)
+        writ/(writ:enjs:j writ)
+    ==
   --
 ++  grab
   |%
