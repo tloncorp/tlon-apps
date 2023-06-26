@@ -28,7 +28,6 @@ export const actionMenuItems: ActionMenuItemProps[] = [
         .chain()
         .focus()
         .deleteRange(range)
-        .splitBlock()
         .insertContent([{ type: 'diary-image' }, { type: 'paragraph' }])
         .selectNodeBackward()
         .run();
@@ -51,7 +50,13 @@ export const actionMenuItems: ActionMenuItemProps[] = [
     title: 'Code block',
     icon: <CodeIcon className="mr-2 h-4 w-4 text-gray-600" />,
     command: ({ editor, range }) => {
-      editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .toggleCodeBlock()
+        .selectNodeBackward()
+        .run();
     },
   },
 ];
