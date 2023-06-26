@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import CodeBlock, { CodeBlockOptions } from '@tiptap/extension-code-block';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { findChildren, NodeViewProps } from '@tiptap/core';
@@ -6,7 +7,6 @@ import { Node as ProsemirrorNode } from '@tiptap/pm/model';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { refractor } from 'refractor/lib/common.js';
 import hoon from 'refractor/lang/hoon.js';
-
 import {
   NodeViewContent,
   NodeViewWrapper,
@@ -103,29 +103,58 @@ function CodeBlockView(props: NodeViewProps) {
     value: l,
     label: l.toUpperCase(),
   }));
-  const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newValue = e.target.value;
-    if (newValue) {
-      setSelectedLanguage(newValue);
-      updateAttributes({ language: newValue });
-    }
-  };
 
   return (
-    <NodeViewWrapper className={'relative'}>
-      <select
-        className="absolute top-1.5 right-1.5 w-[130px] rounded-md border border-solid border-gray-200 bg-gray-700 text-gray-50"
-        onChange={onChange}
-      >
-        {options.map((o) => (
-          <option value={o.value} selected={selectedLanguage === o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <pre>
-        <NodeViewContent as="code" />
-      </pre>
+    <NodeViewWrapper>
+      <div className="my-2">
+        <div className="mb-2 rounded-xl bg-gray-50 p-3">
+          <div contentEditable={false} className="flex items-center justify-between">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger className="w-[130px] rounded-md border border-solid border-gray-200 bg-gray-700 text-gray-50">
+                {selectedLanguage.toUpperCase()}
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content className="dropdown">
+                {options.map((o) => (
+                  <DropdownMenu.Item
+                    className="dropdown-item"
+                    onSelect={() => {
+                      setSelectedLanguage(o.value);
+                      updateAttributes({ language: o.value });
+                    }}
+                  >
+                    {o.label}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+              {/*
+              <select
+                className="w-[130px] rounded-md border border-solid border-gray-200 bg-gray-700 text-gray-50"
+                onChange={onChange}
+              >
+                {options.map((o) => (
+                  <option
+                    value={o.value}
+                    selected={selectedLanguage === o.value}
+                  >
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              */}
+            </DropdownMenu.Root>
+            <button
+              title="Remove"
+              className="small-button"
+              onClick={props.deleteNode}
+            >
+              Remove
+            </button>
+          </div>
+          <pre>
+            <NodeViewContent as="code" />
+          </pre>
+        </div>
+      </div>
     </NodeViewWrapper>
   );
 }

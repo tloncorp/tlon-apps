@@ -15,13 +15,20 @@ function DiaryCiteComponent(props: NodeViewProps) {
     <NodeViewWrapper>
       <div className="my-4">
         <div className="mb-2 rounded-xl bg-gray-50 p-3">
-          <div className="flex items-center space-x-3 rounded-lg bg-white p-2">
+          <div className="input flex items-center space-x-3 rounded-lg bg-white p-2">
             <Sig16Icon className="h-4 w-4" />
             <input
               className="input-transparent w-full flex-1 bg-transparent leading-5"
               {...bind}
               placeholder="Add an urbit reference"
             />
+            <button
+              title="Remove"
+              className="small-button"
+              onClick={props.deleteNode}
+            >
+              Remove
+            </button>
           </div>
         </div>
         {cite && <ContentReference cite={cite} />}

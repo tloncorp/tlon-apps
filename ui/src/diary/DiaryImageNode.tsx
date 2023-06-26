@@ -132,7 +132,15 @@ function DiaryImageComponent(props: NodeViewProps) {
                 Retry
               </button>
             </div>
-          ) : null}
+          ) : (
+            <button
+              title="Remove"
+              className="small-button"
+              onClick={props.deleteNode}
+            >
+              Remove
+            </button>
+          )}
         </div>
         {src && !error && !calm?.disableRemoteContent ? (
           <img

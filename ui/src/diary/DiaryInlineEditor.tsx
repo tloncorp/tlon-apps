@@ -2,6 +2,7 @@ import cn from 'classnames';
 import * as Popover from '@radix-ui/react-popover';
 import { EditorView } from '@tiptap/pm/view';
 import { EditorOptions, KeyboardShortcutCommand, Range } from '@tiptap/core';
+import { useState } from 'react';
 import {
   Editor,
   EditorContent,
@@ -33,6 +34,8 @@ import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Heading from '@tiptap/extension-heading';
 import Mention from '@tiptap/extension-mention';
 import MentionPopup from '@/components/Mention/MentionPopup';
+import AddIcon16 from '@/components/icons/Add16Icon';
+import IconButton from '@/components/IconButton';
 import ActionMenu, {
   ActionMenuBar,
   actionMenuItems,
@@ -41,9 +44,6 @@ import PrismCodeBlock from './PrismCodeBlock';
 import DiaryCiteNode from './DiaryCiteNode';
 import DiaryLinkNode from './DiaryLinkNode';
 import DiaryImageNode from './DiaryImageNode';
-import AddIcon16 from '@/components/icons/Add16Icon';
-import IconButton from '@/components/IconButton';
-import { useState } from 'react';
 
 EditorView.prototype.updateState = function updateState(state) {
   if (!(this as any).docView) return; // This prevents the matchesNode error on hot reloads
