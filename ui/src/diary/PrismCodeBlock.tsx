@@ -126,21 +126,6 @@ function CodeBlockView(props: NodeViewProps) {
                   </DropdownMenu.Item>
                 ))}
               </DropdownMenu.Content>
-              {/*
-              <select
-                className="w-[130px] rounded-md border border-solid border-gray-200 bg-gray-700 text-gray-50"
-                onChange={onChange}
-              >
-                {options.map((o) => (
-                  <option
-                    value={o.value}
-                    selected={selectedLanguage === o.value}
-                  >
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              */}
             </DropdownMenu.Root>
             <button
               title="Remove"
