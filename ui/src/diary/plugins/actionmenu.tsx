@@ -56,6 +56,7 @@ export const actionMenuItems: ActionMenuItemProps[] = [
         .deleteRange(range)
         .toggleCodeBlock()
         .selectNodeBackward()
+        .insertContent([{ type: 'paragraph' }])
         .run();
     },
   },
