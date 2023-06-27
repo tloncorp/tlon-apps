@@ -116,7 +116,10 @@ export default function EditChannelForm({
           values.writers
         );
 
-        await addSects(channelFlag, values.writers);
+        await addSects(
+          channelFlag,
+          values.writers.filter((w) => w !== 'members')
+        );
         await delSects(
           channelFlag,
           writersIncludesMembers ? sects : writersToRemove
