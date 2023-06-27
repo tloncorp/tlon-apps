@@ -32,7 +32,10 @@ export function GroupsAppMenu() {
   const location = useLocation();
 
   return (
-    <DropdownMenu.Root onOpenChange={() => setMenuOpen(!menuOpen)}>
+    <DropdownMenu.Root
+      modal={false}
+      onOpenChange={() => setMenuOpen(!menuOpen)}
+    >
       <DropdownMenu.Trigger asChild className="appearance-none">
         <SidebarItem
           className={cn(
@@ -77,6 +80,11 @@ export function GroupsAppMenu() {
                 'h-6 w-6 no-underline',
                 menuOpen ? 'block' : 'hidden group-hover:block'
               )}
+              // Prevents the dropdown trigger from being fired (therefore, opening the menu)
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                return false;
+              }}
             >
               <ArrowNWIcon className="text-gray-400" />
             </a>
@@ -84,7 +92,7 @@ export function GroupsAppMenu() {
         </SidebarItem>
       </DropdownMenu.Trigger>
       <DropdownMenu.Content className="dropdown" align="start">
-        <DropdownMenu.Item className="dropdown-item-blue">
+        <DropdownMenu.Item asChild className="dropdown-item-blue">
           <a
             href="https://airtable.com/shrflFkf5UyDFKhmW"
             target="_blank"
@@ -93,12 +101,12 @@ export function GroupsAppMenu() {
             Submit Feedback
           </a>
         </DropdownMenu.Item>
-        <DropdownMenu.Item className="dropdown-item">
+        <DropdownMenu.Item asChild className="dropdown-item">
           <Link to="/about" state={{ backgroundLocation: location }}>
             About Groups
           </Link>
         </DropdownMenu.Item>
-        <DropdownMenu.Item className="dropdown-item">
+        <DropdownMenu.Item asChild className="dropdown-item">
           <Link
             to="/settings"
             className=""
