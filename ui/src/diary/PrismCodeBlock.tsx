@@ -108,7 +108,10 @@ function CodeBlockView(props: NodeViewProps) {
     <NodeViewWrapper>
       <div className="my-2">
         <div className="mb-2 rounded-xl bg-gray-50 p-3">
-          <div contentEditable={false} className="flex items-center justify-between">
+          <div
+            contentEditable={false}
+            className="flex items-center justify-between"
+          >
             <DropdownMenu.Root>
               <DropdownMenu.Trigger className="w-[130px] rounded-md border border-solid border-gray-200 bg-gray-700 text-gray-50">
                 {selectedLanguage.toUpperCase()}
