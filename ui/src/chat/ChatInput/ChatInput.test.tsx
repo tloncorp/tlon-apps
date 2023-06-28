@@ -18,6 +18,10 @@ vi.mock('@/logic/useGroupPrivacy', () => ({
   default: () => 'public',
 }));
 
+vi.mock('@/logic/analytics', () => ({
+  captureGroupsAnalyticsEvent: () => ({}),
+}));
+
 describe('ChatInput', () => {
   it('renders as expected', () => {
     const { asFragment } = render(
