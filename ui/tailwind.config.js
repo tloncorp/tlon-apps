@@ -203,6 +203,10 @@ module.exports = {
               marginBottom: '1rem',
               fontSize: '1rem',
             },
+            hr: {
+              marginTop: '2rem',
+              marginBottom: '2rem',
+            },
             'hr + *': {
               marginTop: '0',
             },
