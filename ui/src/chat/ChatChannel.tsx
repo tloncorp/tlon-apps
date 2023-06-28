@@ -24,7 +24,6 @@ import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useChannelIsJoined } from '@/logic/channel';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
-import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 function ChatChannel({ title }: ViewProps) {
   const navigate = useNavigate();
@@ -102,14 +101,6 @@ function ChatChannel({ title }: ViewProps) {
       setRecentChannel('');
     }
   }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);
-
-  useGroupsAnalyticsEvent({
-    name: 'open_channel',
-    leaveName: 'leave_channel',
-    groupFlag,
-    chFlag,
-    channelType: 'chat',
-  });
 
   return (
     <>

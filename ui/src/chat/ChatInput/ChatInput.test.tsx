@@ -14,6 +14,10 @@ vi.mock('@/state/groups', () => ({
   useGroups: () => ({}),
 }));
 
+vi.mock('@/logic/useGroupPrivacy', () => ({
+  default: () => 'public',
+}));
+
 describe('ChatInput', () => {
   it('renders as expected', () => {
     const { asFragment } = render(

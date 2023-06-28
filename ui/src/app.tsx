@@ -82,6 +82,7 @@ import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
 import SettingsDialog from './components/SettingsDialog';
 import { captureAnalyticsEvent } from './logic/analytics';
+import GroupChannel from './groups/GroupChannel';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -182,7 +183,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
 
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
-            <Route path="channels/chat/:chShip/:chName">
+            <Route
+              path="channels/chat/:chShip/:chName"
+              element={<GroupChannel type="chat" />}
+            >
               <Route
                 path="*"
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
@@ -367,7 +371,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 }
               />
             </Route>
-            <Route path="channels/chat/:chShip/:chName">
+            <Route
+              path="channels/chat/:chShip/:chName"
+              element={<GroupChannel type="chat" />}
+            >
               <Route
                 index
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
@@ -390,14 +397,20 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               ) : null}
             </Route>
-            <Route path="channels/heap/:chShip/:chName">
+            <Route
+              path="channels/heap/:chShip/:chName"
+              element={<GroupChannel type="heap" />}
+            >
               <Route
                 index
                 element={<HeapChannel title={` • ${appHead('').title}`} />}
               />
               <Route path="curio/:idCurio" element={<HeapDetail />} />
             </Route>
-            <Route path="channels/diary/:chShip/:chName">
+            <Route
+              path="channels/diary/:chShip/:chName"
+              element={<GroupChannel type="diary" />}
+            >
               <Route index element={<DiaryChannel />} />
               <Route path="note/:noteId" element={<DiaryNote />} />
               <Route path="edit">
