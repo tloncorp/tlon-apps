@@ -12,9 +12,9 @@ import { ChatBlock } from '@/types/chat';
 import { Inline } from '@/types/content';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useChannelFlag } from '@/logic/channel';
+import { useRouteGroup } from '@/state/groups';
 import useCurioFromParams from './useCurioFromParams';
 import HeapTextInput from './HeapTextInput';
-import { useRouteGroup } from '@/state/groups';
 
 export default function EditCurioForm() {
   const dismiss = useDismissNavigate();

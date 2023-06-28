@@ -13,12 +13,12 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import useLeap from '@/components/Leap/useLeap';
 import keyMap from '@/keyMap';
 import { useChannelIsJoined } from '@/logic/channel';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 import useCurioFromParams from './useCurioFromParams';
-import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 export default function HeapDetail() {
   const [joining, setJoining] = useState(false);

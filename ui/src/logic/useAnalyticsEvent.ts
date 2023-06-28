@@ -20,19 +20,21 @@ export const useGroupsAnalyticsEvent = ({
   chFlag,
   channelType,
 }: GroupsAnalyticsEvent) => {
-  const { privacy } = useGroupPrivacy(groupFlag);
+  const { privacy, isFetched: isPrivacyFetched } = useGroupPrivacy(groupFlag);
 
   useEffect(() => {
-    captureGroupsAnalyticsEvent({
-      name,
-      groupFlag,
-      chFlag,
-      channelType,
-      privacy,
-    });
+    if (isPrivacyFetched) {
+      captureGroupsAnalyticsEvent({
+        name,
+        groupFlag,
+        chFlag,
+        channelType,
+        privacy,
+      });
+    }
 
     return () => {
-      if (leaveName) {
+      if (leaveName && isPrivacyFetched) {
         captureGroupsAnalyticsEvent({
           name: leaveName,
           groupFlag,
@@ -42,5 +44,13 @@ export const useGroupsAnalyticsEvent = ({
         });
       }
     };
-  }, [name, leaveName, groupFlag, chFlag, channelType, privacy]);
+  }, [
+    name,
+    leaveName,
+    groupFlag,
+    chFlag,
+    channelType,
+    privacy,
+    isPrivacyFetched,
+  ]);
 };

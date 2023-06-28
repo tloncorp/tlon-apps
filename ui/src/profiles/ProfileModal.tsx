@@ -7,10 +7,10 @@ import Avatar from '@/components/Avatar';
 import Dialog from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
 import useNavigateByApp from '@/logic/useNavigateByApp';
+import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
-import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 export default function ProfileModal() {
   const { ship } = useParams();

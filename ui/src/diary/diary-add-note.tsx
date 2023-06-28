@@ -20,9 +20,9 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();

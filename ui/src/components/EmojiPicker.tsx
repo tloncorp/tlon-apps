@@ -7,10 +7,10 @@ import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatState } from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
-import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 interface EmojiPickerProps extends Record<string, any> {
   open?: boolean;

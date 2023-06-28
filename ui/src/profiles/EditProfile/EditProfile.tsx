@@ -14,10 +14,10 @@ import { useGroups } from '@/state/groups';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import GroupSelector, { GroupOption } from '@/components/GroupSelector';
+import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
-import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];

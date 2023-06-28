@@ -5,11 +5,11 @@ import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatState } from '@/state/chat';
-import { ChatSeal } from '../../types/chat';
-import ChatReaction from './ChatReaction';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import ChatReaction from './ChatReaction';
+import { ChatSeal } from '../../types/chat';
 
 interface ChatReactionsProps {
   whom: string;

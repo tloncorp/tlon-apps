@@ -21,12 +21,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import { useChannelIsJoined } from '@/logic/channel';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
 import DiaryNoteHeadline from './DiaryNoteHeadline';
-import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 
 function groupQuips(
   noteId: string,
