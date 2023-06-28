@@ -178,6 +178,7 @@ export default function DiaryInlineEditor({
                       command,
                     }: {
                       command: ({
+                        // eslint-disable-next-line no-shadow
                         editor,
                         range,
                       }: {
