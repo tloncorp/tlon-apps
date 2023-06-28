@@ -119,7 +119,7 @@ function CodeBlockView(props: NodeViewProps) {
                 <CaretDown16Icon className="ml-2 h-4 w-4" />
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
-                <DropdownMenu.Content className="dropdown max-h-64 overflow-y-auto">
+                <DropdownMenu.Content className="dropdown max-h-64 w-48 overflow-y-auto">
                   {options.map((o) => (
                     <DropdownMenu.Item
                       className="dropdown-item"
