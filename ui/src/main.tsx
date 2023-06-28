@@ -4,7 +4,7 @@
 // }
 
 /* eslint-disable */
-import { EditorView } from 'prosemirror-view';
+import { EditorView } from '@tiptap/pm/view';
 
 const oldUpdateState = EditorView.prototype.updateState;
 

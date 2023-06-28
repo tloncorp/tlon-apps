@@ -153,6 +153,12 @@ module.exports = {
       typography: {
         DEFAULT: {
           css: {
+            a: {
+              color: lightColors.blue.DEFAULT,
+              textDecoration: 'underline',
+              textUnderlineOffset: '0.125em',
+              fontWeight: 'inherit',
+            },
             code: {
               display: 'inline-block',
               padding: '0 0.25rem',
