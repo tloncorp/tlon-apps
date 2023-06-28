@@ -177,10 +177,7 @@ export default function DiaryInlineEditor({
                     command={({
                       command,
                     }: {
-                      command: ({
-                        editor,
-                        range,
-                      }: {
+                      command: (params: {
                         editor: Editor;
                         range: Range;
                       }) => void;
