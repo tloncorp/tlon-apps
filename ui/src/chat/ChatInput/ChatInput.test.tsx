@@ -10,7 +10,7 @@ vi.mock('@/components/Leap/useLeap', () => ({
 }));
 
 vi.mock('@/state/groups', () => ({
-  useGroupFlag: () => ({}),
+  useGroupFlag: () => '~sampel-palnet/test',
   useGroups: () => ({}),
 }));
 
