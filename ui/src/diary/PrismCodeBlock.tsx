@@ -13,6 +13,7 @@ import {
   ReactNodeViewRenderer,
 } from '@tiptap/react';
 import './PrismCodeBlock.css';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 
 export interface CodeBlockPrismOptions extends CodeBlockOptions {
   defaultLanguage: string | null | undefined;
@@ -107,25 +108,31 @@ function CodeBlockView(props: NodeViewProps) {
   return (
     <NodeViewWrapper>
       <div className="my-2">
-        <div className="mb-2 rounded-xl bg-gray-50 p-3">
-          <div contentEditable={false} className="flex items-center justify-between">
+        <div className="mb-2 rounded-xl bg-gray-100 p-3">
+          <div
+            contentEditable={false}
+            className="flex items-center justify-between"
+          >
             <DropdownMenu.Root>
-              <DropdownMenu.Trigger className="w-[130px] rounded-md border border-solid border-gray-200 bg-gray-700 text-gray-50">
+              <DropdownMenu.Trigger className="small-button">
                 {selectedLanguage.toUpperCase()}
+                <CaretDown16Icon className="ml-2 h-4 w-4" />
               </DropdownMenu.Trigger>
-              <DropdownMenu.Content className="dropdown">
-                {options.map((o) => (
-                  <DropdownMenu.Item
-                    className="dropdown-item"
-                    onSelect={() => {
-                      setSelectedLanguage(o.value);
-                      updateAttributes({ language: o.value });
-                    }}
-                  >
-                    {o.label}
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.Content>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content className="dropdown max-h-64 overflow-y-auto">
+                  {options.map((o) => (
+                    <DropdownMenu.Item
+                      className="dropdown-item"
+                      onSelect={() => {
+                        setSelectedLanguage(o.value);
+                        updateAttributes({ language: o.value });
+                      }}
+                    >
+                      {o.label}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
             </DropdownMenu.Root>
             <button
               title="Remove"
@@ -135,8 +142,8 @@ function CodeBlockView(props: NodeViewProps) {
               Remove
             </button>
           </div>
-          <pre>
-            <NodeViewContent as="code" />
+          <pre className="not-prose">
+            <NodeViewContent spellcheck="false" as="code" />
           </pre>
         </div>
       </div>
