@@ -359,6 +359,7 @@ export interface ChannelFormSchema extends GroupChannel {
   privacy: ChannelPrivacyType;
   writers: string[];
   sort?: 'time' | 'alpha' | 'arranged';
+  view?: 'grid' | 'list';
 }
 
 export interface NewChannelFormSchema extends ChannelFormSchema {

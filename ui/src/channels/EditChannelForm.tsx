@@ -24,11 +24,13 @@ import {
   useDeleteSectsDiaryMutation,
   useDiary,
   useSortDiaryMutation,
+  useViewDiaryMutation,
 } from '@/state/diary';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChannel } from '@/logic/channel';
 import { DiarySortMode } from '@/types/diary';
 import ChannelSortSelector from './ChannelSortSelector';
+import ChannelViewSelector from './ChannelViewSelector';
 
 interface EditChannelFormProps {
   nest: string;
@@ -60,6 +62,7 @@ export default function EditChannelForm({
   const { mutateAsync: addDiarySects } = useAddSectsDiaryMutation();
   const { mutateAsync: delDiarySects } = useDeleteSectsDiaryMutation();
   const { mutate: changeDiarySort } = useSortDiaryMutation();
+  const { mutate: changeDiaryView } = useViewDiaryMutation();
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -74,6 +77,7 @@ export default function EditChannelForm({
     },
     privacy: getPrivacyFromChannel(channel, chan),
     sort: diary?.sort,
+    view: diary?.view,
   };
 
   const form = useForm<ChannelFormSchema>({
@@ -82,10 +86,14 @@ export default function EditChannelForm({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
-      const { privacy, readers, sort, ...nextChannel } = values;
+      const { privacy, readers, sort, view, ...nextChannel } = values;
 
       if (sort) {
         changeDiarySort({ flag: channelFlag, sort: sort as DiarySortMode });
+      }
+
+      if (view) {
+        changeDiaryView({ flag: channelFlag, view });
       }
 
       if (presetSection) {
@@ -161,6 +169,7 @@ export default function EditChannelForm({
       addDiarySects,
       delDiarySects,
       changeDiarySort,
+      changeDiaryView,
     ]
   );
 
@@ -198,10 +207,16 @@ export default function EditChannelForm({
           <ChannelPermsSelector />
         </label>
         {app === 'diary' && (
-          <label className="mb-3 font-semibold">
-            Default Sort
-            <ChannelSortSelector />
-          </label>
+          <>
+            <label className="mb-3 font-semibold">
+              Default Sort
+              <ChannelSortSelector />
+            </label>
+            <label className="mb-3 font-semibold">
+              Default View
+              <ChannelViewSelector />
+            </label>
+          </>
         )}
 
         <footer className="mt-4 flex items-center justify-between space-x-2">

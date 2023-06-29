@@ -132,9 +132,7 @@ function DiaryChannel() {
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
-
     if (sortMode === 'arranged') {
-
       // if only one note is arranged, put it first
       if (
         arrangedNotes.includes(a.toString()) &&
@@ -220,7 +218,8 @@ function DiaryChannel() {
       <div className="h-full">
         {isLoading ? (
           <DiaryChannelListPlaceholder count={4} />
-        ) : userDisplayMode === 'grid' ? (
+        ) : (displayMode === 'grid' && userDisplayMode === undefined) ||
+          userDisplayMode === 'grid' ? (
           <DiaryGridView
             notes={sortedNotes}
             loadOlderNotes={() => {
