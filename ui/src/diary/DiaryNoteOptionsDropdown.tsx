@@ -70,7 +70,7 @@ export default function DiaryNoteOptionsDropdown({
                     className="dropdown-item"
                     onSelect={() => removeFromArrangedNotes()}
                   >
-                    Remove from Arranged Notes
+                    Remove from Pinned Notes
                   </Dropdown.Item>
                 </>
               ) : (
@@ -78,7 +78,7 @@ export default function DiaryNoteOptionsDropdown({
                   className="dropdown-item"
                   onSelect={() => addToArrangedNotes()}
                 >
-                  Add to Arranged Notes
+                  Add to Pinned Notes
                 </Dropdown.Item>
               )}
               <Dropdown.Item className="dropdown-item" asChild>
