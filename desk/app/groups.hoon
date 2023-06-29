@@ -1074,9 +1074,9 @@
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
     =.  cor
-      (give %fact ~(tap in paths) upd:mar:g !>(`update:g`[time diff]))
-    =.  cor
       (give %fact ~[/groups /groups/ui] act:mar:g !>(`action:g`[flag time diff]))
+    =.  cor
+      (give %fact ~(tap in paths) upd:mar:g !>(`update:g`[time diff]))
     go-core
   ::
   ++  go-tell-update

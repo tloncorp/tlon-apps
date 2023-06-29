@@ -353,21 +353,20 @@
     =/  he  (he-abed:he-core:ci flag)
     he-abet:(he-revoke:he ship)
   ::
-      [%fleet * %del-sects *]
-    ~&  "%heap recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:h co=_cor]
-    =/  he  (he-abed:he-core:co flag)
-    he-abet:he-recheck:he
-  ::
-      [%channel * %del-sects *]
-    ~&  "%heap recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:h co=_cor]
-    =/  he  (he-abed:he-core:co flag)
-    he-abet:he-recheck:he
+    [%fleet * %add-sects *]    (recheck-perms affected)
+    [%fleet * %del-sects *]    (recheck-perms affected)
+    [%channel * %edit *]       (recheck-perms affected)
+    [%channel * %del-sects *]  (recheck-perms affected)
+    [%channel * %add-sects *]  (recheck-perms affected)
   ==
 ::
+++  recheck-perms
+  |=  [affected=(list flag:h)]
+  ~&  "%heap recheck permissions for {<affected>}"
+  %+  roll  affected
+  |=  [=flag:h co=_cor]
+  =/  he  (he-abed:he-core:co flag)
+  he-abet:he-recheck:he
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -700,6 +699,9 @@
     he(cor (emit %give %kick ~[path] `ship))
   ::
   ++  he-recheck
+    ::  if our read permissions restored, re-subscribe
+    =?  he-core  (he-can-read our.bowl)  he-safe-sub
+    ::  if subs read permissions removed, kick 
     %+  roll  ~(tap in he-subscriptions)
     |=  [[=ship =path] he=_he-core]
     ?:  (he-can-read:he ship)  he
@@ -872,9 +874,9 @@
       (turn ~(tap in he-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc he-area %ui))
     =/  cag=cage  [upd:mar:h !>([time d])]
+    =.  cor  (give %fact ~[/ui] act:mar:h !>([flag [time d]]))
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] act:mar:h !>([flag [time d]]))
     he-core
   ::
   ++  he-remark-diff

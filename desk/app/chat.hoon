@@ -682,21 +682,20 @@
     =/  ca  (ca-abed:ca-core:ci flag)
     ca-abet:(ca-revoke:ca ship)
   ::
-      [%fleet * %del-sects *]
-    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
-    %+  roll  affected
-    |=  [=flag:c co=_cor]
-    =/  ca  (ca-abed:ca-core:co flag)
-    ca-abet:ca-recheck:ca
-  ::
-      [%channel * %del-sects *]
-    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
-    %+  roll  affected
-    |=  [=flag:c co=_cor]
-    =/  ca  (ca-abed:ca-core:co flag)
-    ca-abet:ca-recheck:ca
+    [%fleet * %add-sects *]    (recheck-perms affected)
+    [%fleet * %del-sects *]    (recheck-perms affected)
+    [%channel * %edit *]       (recheck-perms affected)
+    [%channel * %del-sects *]  (recheck-perms affected)
+    [%channel * %add-sects *]  (recheck-perms affected)
   ==
 ::
+++  recheck-perms
+  |=  affected=(list flag:c)
+  %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
+  %+  roll  affected
+  |=  [=flag:c co=_cor]
+  =/  ca  (ca-abed:ca-core:co flag)
+  ca-abet:ca-recheck:ca
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -1325,6 +1324,9 @@
     ca(cor (emit %give %kick ~[path] `ship))
   ::
   ++  ca-recheck
+    ::  if our read permissions restored, re-subscribe
+    =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
+    ::  if subs read permissions removed, kick 
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
     ?:  (ca-can-read:ca ship)  ca
@@ -1500,12 +1502,11 @@
       (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
     =/  cag=cage  [upd:mar:c !>([time d])]
-    =.  cor
-      (give %fact ~(tap in paths) cag)
     =.  cor  (give %fact ~[/ui] act:mar:c !>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
+    =.  cor  (give %fact ~(tap in paths) cag)
     ca-core
   ::
   ++  ca-remark-diff

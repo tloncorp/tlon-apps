@@ -477,21 +477,20 @@
     =/  di  (di-abed:di-core:ci flag)
     di-abet:(di-revoke:di ship)
   ::
-      [%fleet * %del-sects *]
-    ~&  "%diary recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:d co=_cor]
-    =/  di  (di-abed:di-core:co flag)
-    di-abet:di-recheck:di
-  ::
-      [%channel * %del-sects *]
-    ~&  "%diary recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:d co=_cor]
-    =/  di  (di-abed:di-core:co flag)
-    di-abet:di-recheck:di
+    [%fleet * %add-sects *]    (recheck-perms affected)
+    [%fleet * %del-sects *]    (recheck-perms affected)
+    [%channel * %edit *]       (recheck-perms affected)
+    [%channel * %del-sects *]  (recheck-perms affected)
+    [%channel * %add-sects *]  (recheck-perms affected)
   ==
 ::
+++  recheck-perms
+  |=  [affected=(list flag:d)]
+  ~&  "%diary recheck permissions for {<affected>}"
+  %+  roll  affected
+  |=  [=flag:d co=_cor]
+  =/  di  (di-abed:di-core:co flag)
+  di-abet:di-recheck:di
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -719,11 +718,14 @@
   ++  di-revoke
     |=  her=ship
     %+  roll  ~(tap in di-subscriptions)
-    |=  [[=ship =path] he=_di-core]
-    ?.  =(ship her)  he
-    he(cor (emit %give %kick ~[path] `ship))
+    |=  [[=ship =path] di=_di-core]
+    ?.  =(ship her)  di
+    di(cor (emit %give %kick ~[path] `ship))
   ::
   ++  di-recheck
+    ::  if our read permissions restored, re-subscribe
+    =?  di-core  (di-can-read our.bowl)  di-safe-sub
+    ::  if subs read permissions removed, kick 
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
     ?:  (di-can-read:di ship)  di

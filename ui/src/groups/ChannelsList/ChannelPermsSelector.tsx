@@ -170,7 +170,7 @@ export default function PrivacySelector() {
   const { watch, setValue, getValues } = useFormContext<ChannelFormSchema>();
   const { readers, writers } = getValues();
   const [readerRoles, setReaderRoles] = useState<RoleOption[]>(
-    readers.length > 1
+    readers.length > 0
       ? options.filter((o) => readers.includes(o.value) || o.value === 'admin')
       : options
   );
