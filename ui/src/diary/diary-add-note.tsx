@@ -21,6 +21,8 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 
 export default function DiaryAddNote() {
@@ -30,6 +32,7 @@ export default function DiaryAddNote() {
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const { privacy } = useGroupPrivacy(flag);
   const channel = useChannel(flag, nest);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -137,13 +140,31 @@ export default function DiaryAddNote() {
             sent,
           },
         });
+        captureGroupsAnalyticsEvent({
+          name: 'post_item',
+          groupFlag: flag,
+          chFlag,
+          channelType: 'diary',
+          privacy,
+        });
       }
 
       reset();
     } catch (error) {
       console.error(error);
     }
-  }, [chFlag, editor, getValues, id, note, reset, addNote, editNote]);
+  }, [
+    flag,
+    chFlag,
+    privacy,
+    editor,
+    getValues,
+    id,
+    note,
+    reset,
+    addNote,
+    editNote,
+  ]);
 
   useEffect(() => {
     if (editStatus === 'success') {

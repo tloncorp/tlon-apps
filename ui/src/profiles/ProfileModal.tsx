@@ -7,6 +7,7 @@ import Avatar from '@/components/Avatar';
 import Dialog from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
 import useNavigateByApp from '@/logic/useNavigateByApp';
+import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
@@ -28,6 +29,8 @@ export default function ProfileModal() {
   const onCopy = useCallback(() => {
     doCopy();
   }, [doCopy]);
+
+  useAnalyticsEvent('profile_view');
 
   if (!ship) {
     return null;

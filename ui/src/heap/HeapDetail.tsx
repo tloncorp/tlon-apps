@@ -14,6 +14,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import useLeap from '@/components/Leap/useLeap';
 import keyMap from '@/keyMap';
 import { useChannelIsJoined } from '@/logic/channel';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
@@ -109,6 +110,13 @@ export default function HeapDetail({ title }: ViewProps) {
         break;
       }
     }
+  });
+
+  useGroupsAnalyticsEvent({
+    name: 'view_item',
+    groupFlag,
+    chFlag,
+    channelType: 'heap',
   });
 
   return loading ? (

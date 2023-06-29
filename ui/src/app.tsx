@@ -80,6 +80,8 @@ import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
 import SettingsDialog from './components/SettingsDialog';
+import { captureAnalyticsEvent } from './logic/analytics';
+import GroupChannel from './groups/GroupChannel';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -180,7 +182,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
 
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
-            <Route path="channels/chat/:chShip/:chName">
+            <Route
+              path="channels/chat/:chShip/:chName"
+              element={<GroupChannel type="chat" />}
+            >
               <Route
                 path="*"
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
@@ -286,6 +291,13 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   const groupsTitle = appHead('').title;
+  useEffect(() => {
+    captureAnalyticsEvent('app_open');
+
+    return () => {
+      captureAnalyticsEvent('app_close');
+    };
+  }, []);
 
   return (
     <>
@@ -349,7 +361,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<GroupChannelManager title={` • ${groupsTitle}`} />}
               />
             </Route>
-            <Route path="channels/chat/:chShip/:chName">
+            <Route
+              path="channels/chat/:chShip/:chName"
+              element={<GroupChannel type="chat" />}
+            >
               <Route
                 index
                 element={<ChatChannel title={` • ${groupsTitle}`} />}
@@ -372,7 +387,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               ) : null}
             </Route>
-            <Route path="channels/heap/:chShip/:chName">
+            <Route
+              path="channels/heap/:chShip/:chName"
+              element={<GroupChannel type="heap" />}
+            >
               <Route
                 index
                 element={<HeapChannel title={` • ${groupsTitle}`} />}
@@ -382,7 +400,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<HeapDetail title={` • ${groupsTitle}`} />}
               />
             </Route>
-            <Route path="channels/diary/:chShip/:chName">
+            <Route
+              path="channels/diary/:chShip/:chName"
+              element={<GroupChannel type="diary" />}
+            >
               <Route
                 index
                 element={<DiaryChannel title={` • ${groupsTitle}`} />}

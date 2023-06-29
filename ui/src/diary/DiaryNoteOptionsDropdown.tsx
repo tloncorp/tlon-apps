@@ -1,4 +1,5 @@
 import React, { PropsWithChildren, useState } from 'react';
+import classNames from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -28,7 +29,7 @@ export default function DiaryNoteOptionsDropdown({
     <>
       <Dropdown.Root open={isOpen} onOpenChange={setIsOpen}>
         <Dropdown.Trigger
-          className={`h-8 w-8 p-0 ${triggerClassName}`}
+          className={classNames('h-8 w-8 p-0', triggerClassName)}
           aria-label="Note menu"
         >
           {children}

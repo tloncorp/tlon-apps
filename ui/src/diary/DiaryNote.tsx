@@ -23,6 +23,7 @@ import {
 import { DiaryBrief, DiaryQuip } from '@/types/diary';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import { useChannelIsJoined } from '@/logic/channel';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
@@ -115,6 +116,13 @@ export default function DiaryNote({ title }: ViewProps) {
     }
   }, [joined, joinChannel]);
 
+  useGroupsAnalyticsEvent({
+    name: 'view_item',
+    groupFlag,
+    chFlag,
+    channelType: 'diary',
+  });
+
   if (!note || status === 'loading') {
     return (
       <Layout
@@ -187,7 +195,11 @@ export default function DiaryNote({ title }: ViewProps) {
               </Divider>
             </div>
             {canWrite ? (
-              <DiaryCommentField flag={chFlag} replyTo={noteId} />
+              <DiaryCommentField
+                flag={chFlag}
+                groupFlag={groupFlag}
+                replyTo={noteId}
+              />
             ) : null}
             <ul className="mt-12">
               {groupedQuips.map(([t, g]) =>
