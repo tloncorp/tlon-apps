@@ -16,7 +16,11 @@
 ::  $view: the persisted display format for a diary
 +$  view  ?(%grid %list)
 ::  $sort: the persisted sort type for a diary
-+$  sort  ?(%alpha %time)
++$  sort  ?(%alpha %time %arranged)
+::  $arranged-notes: an array of noteIds
++$  arranged-notes  (unit (list time))
+::  $shelf: my ship's diaries
++$  shelf-0  (map flag diary-0)
 ::  $shelf: my ship's diaries
 +$  shelf  (map flag diary)
 ::  $said: used for references
@@ -40,6 +44,17 @@
 ::    banter: comments organized by post
 ::
 +$  diary
+  $:  =arranged-notes
+      =net
+      =log
+      =perm
+      =view
+      =sort
+      =notes
+      =remark
+  ==
+::
++$  diary-0
   $:  =net
       =log
       =perm
@@ -236,6 +251,7 @@
       [%create p=perm q=notes]
       [%view p=view]
       [%sort p=sort]
+      [%arranged-notes p=arranged-notes]
     ::
   ==
 ::

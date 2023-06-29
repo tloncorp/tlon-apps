@@ -22,9 +22,13 @@ import { useHeapState } from '@/state/heap/heap';
 import {
   useAddSectsDiaryMutation,
   useDeleteSectsDiaryMutation,
+  useDiary,
+  useSortDiaryMutation,
 } from '@/state/diary';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChannel } from '@/logic/channel';
+import { DiarySortMode } from '@/types/diary';
+import ChannelSortSelector from './ChannelSortSelector';
 
 interface EditChannelFormProps {
   nest: string;
@@ -49,11 +53,13 @@ export default function EditChannelForm({
   const group = useGroup(groupFlag);
   const sects = Object.keys(group?.cabals || {});
   const [app, channelFlag] = nestToFlag(nest);
+  const diary = useDiary(channelFlag);
   const chan = useChannel(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
     useEditChannelMutation();
   const { mutateAsync: addDiarySects } = useAddSectsDiaryMutation();
   const { mutateAsync: delDiarySects } = useDeleteSectsDiaryMutation();
+  const { mutate: changeDiarySort } = useSortDiaryMutation();
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -67,6 +73,7 @@ export default function EditChannelForm({
       color: '',
     },
     privacy: getPrivacyFromChannel(channel, chan),
+    sort: diary?.sort,
   };
 
   const form = useForm<ChannelFormSchema>({
@@ -75,7 +82,11 @@ export default function EditChannelForm({
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
-      const { privacy, readers, ...nextChannel } = values;
+      const { privacy, readers, sort, ...nextChannel } = values;
+
+      if (sort) {
+        changeDiarySort({ flag: channelFlag, sort: sort as DiarySortMode });
+      }
 
       if (presetSection) {
         nextChannel.zone = presetSection;
@@ -149,6 +160,7 @@ export default function EditChannelForm({
       chan?.perms.writers,
       addDiarySects,
       delDiarySects,
+      changeDiarySort,
     ]
   );
 
@@ -160,7 +172,7 @@ export default function EditChannelForm({
             {prettyChannelTypeName(app)} Channel Details
           </h2>
           <p className="text-sm leading-5 text-gray-800">
-            Edit the channel's details
+            Edit the channel&apos;s details
           </p>
         </header>
       </div>
@@ -185,6 +197,12 @@ export default function EditChannelForm({
           Channel Permissions
           <ChannelPermsSelector />
         </label>
+        {app === 'diary' && (
+          <label className="mb-3 font-semibold">
+            Default Sort
+            <ChannelSortSelector />
+          </label>
+        )}
 
         <footer className="mt-4 flex items-center justify-between space-x-2">
           <div className="ml-auto flex items-center space-x-2">

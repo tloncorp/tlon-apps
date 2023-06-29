@@ -2,6 +2,7 @@ import React, { PropsWithChildren, useState } from 'react';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { useArrangedNotes } from '@/state/diary';
 import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
@@ -19,7 +20,18 @@ export default function DiaryNoteOptionsDropdown({
   canEdit,
 }: DiaryNoteOptionsDropdownProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const { isOpen, didCopy, onCopy, delNote, setIsOpen } = useDiaryActions({
+  const arrangedNotes = useArrangedNotes(flag);
+  const {
+    isOpen,
+    didCopy,
+    onCopy,
+    delNote,
+    setIsOpen,
+    addToArrangedNotes,
+    removeFromArrangedNotes,
+    moveUpInArrangedNotes,
+    moveDownInArrangedNotes,
+  } = useDiaryActions({
     flag,
     time,
   });
@@ -40,6 +52,35 @@ export default function DiaryNoteOptionsDropdown({
 
           {canEdit ? (
             <>
+              {arrangedNotes?.includes(time) ? (
+                <>
+                  <Dropdown.Item
+                    className="dropdown-item"
+                    onSelect={() => moveUpInArrangedNotes()}
+                  >
+                    Move Up
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    className="dropdown-item"
+                    onSelect={() => moveDownInArrangedNotes()}
+                  >
+                    Move Down
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    className="dropdown-item"
+                    onSelect={() => removeFromArrangedNotes()}
+                  >
+                    Remove from Arranged Notes
+                  </Dropdown.Item>
+                </>
+              ) : (
+                <Dropdown.Item
+                  className="dropdown-item"
+                  onSelect={() => addToArrangedNotes()}
+                >
+                  Add to Arranged Notes
+                </Dropdown.Item>
+              )}
               <Dropdown.Item className="dropdown-item" asChild>
                 <Link to={`edit/${time}`}>Edit Note</Link>
               </Dropdown.Item>

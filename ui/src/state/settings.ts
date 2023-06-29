@@ -5,7 +5,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import api from '../api';
+import { DiaryDisplayMode } from '@/types/diary';
+import api from '@/api';
 
 interface ChannelSetting {
   flag: string;
@@ -17,8 +18,9 @@ export interface HeapSetting extends ChannelSetting {
 }
 
 export interface DiarySetting extends ChannelSetting {
-  sortMode: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
+  sortMode: 'arranged' | 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
   commentSortMode: 'asc' | 'dsc';
+  displayMode: DiaryDisplayMode;
 }
 
 interface GroupSideBarSort {
@@ -352,12 +354,20 @@ export function useDiarySettings(): DiarySetting[] {
   }, [isLoading, data]);
 }
 
-export function useDiarySortMode(
+export function useUserDiarySortMode(
   flag: string
-): 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc' {
+): 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc' | 'arranged' | undefined {
   const settings = useDiarySettings();
-  const heapSetting = getChannelSetting(settings, flag);
-  return heapSetting?.sortMode ?? 'time-dsc';
+  const diarySetting = getChannelSetting(settings, flag);
+  return diarySetting?.sortMode;
+}
+
+export function useUserDiaryDisplayMode(
+  flag: string
+): DiaryDisplayMode | undefined {
+  const settings = useDiarySettings();
+  const diarySetting = getChannelSetting(settings, flag);
+  return diarySetting?.displayMode;
 }
 
 export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {

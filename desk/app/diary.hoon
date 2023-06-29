@@ -14,7 +14,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %0
+    $:  %1
         =shelf:d
         voc=(map [flag:d plan:d] (unit said:d))
         ::  true represents imported, false pending import
@@ -89,19 +89,53 @@
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
-  =.  state  old
-  =.  cor  restore-missing-subs
-  =.  cor
-    (emil (drop load:epos))
-  =/  diaries  ~(tap in ~(key by shelf))
+  :: =.  state  old
   |-
-  ?~  diaries
-    cor
-  =.  cor
-    di-abet:di-upgrade:(di-abed:di-core i.diaries)
-  $(diaries t.diaries)
+  ?-  -.old
+    %0  $(old (state-0-to-1 old))
+    ::
+      %1
+    =.  state  old
+    =.  cor  restore-missing-subs
+    =.  cor
+      (emil (drop load:epos))
+    =/  diaries  ~(tap in ~(key by shelf))
+    |-
+    ?~  diaries
+      cor
+    =.  cor
+      di-abet:di-upgrade:(di-abed:di-core i.diaries)
+    $(diaries t.diaries)
+  ==
   ::
-  +$  versioned-state  $%(current-state)
+  +$  versioned-state  $%(current-state state-0)
+  +$  state-0
+    $:  %0
+        shelf=shelf-0:d
+        voc=(map [flag:d plan:d] (unit said:d))
+        ::  true represents imported, false pending import
+        imp=(map flag:d ?)
+    ==
+  +$  state-1  current-state
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    %*  .  *state-1
+      shelf  (convert-shelf shelf.s)
+      voc    voc.s
+      imp    imp.s
+    ==
+  ::
+++  convert-shelf
+    |=  old-shelf=shelf-0:d
+    ^-  shelf:d
+    %-  malt
+    %+  turn
+      ~(tap by old-shelf)
+    |=  [=flag:d old-diary=diary-0:d]
+    ^-  [flag:d diary:d]
+    [flag [~ old-diary]]
+  ::
   ++  restore-missing-subs
     %+  roll
       ~(tap by shelf)
@@ -251,7 +285,8 @@
     [now.bowl | ~]
   =/  =notes:d  graph-to-notes
   =/  =diary:d
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
+    :*  arranged-notes=~
+        net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
         log=(import-log notes perm)
         perm
         %grid  :: TODO: check defaults with design
@@ -942,6 +977,10 @@
     ::
         %view
       =.  view.diary  p.dif
+      di-core
+    ::
+        %arranged-notes
+      =.  arranged-notes.diary  p.dif
       di-core
     ==
   --

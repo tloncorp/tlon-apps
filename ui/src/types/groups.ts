@@ -358,6 +358,7 @@ export interface GroupFormSchema extends GroupMeta {
 export interface ChannelFormSchema extends GroupChannel {
   privacy: ChannelPrivacyType;
   writers: string[];
+  sort?: 'time' | 'alpha' | 'arranged';
 }
 
 export interface NewChannelFormSchema extends ChannelFormSchema {

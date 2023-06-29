@@ -238,6 +238,14 @@ interface DiaryDiffDelSects {
   'del-sects': string[];
 }
 
+interface DiaryDiffArrangedNotes {
+  'arranged-notes': string[];
+}
+
+interface DiaryDiffSort {
+  sort: DiarySortMode;
+}
+
 interface NoteDeltaQuips {
   quips: QuipDiff;
 }
@@ -263,7 +271,9 @@ export type DiaryDiff =
   | { notes: NoteDiff }
   | DiaryDiffView
   | DiaryDiffAddSects
-  | DiaryDiffDelSects;
+  | DiaryDiffDelSects
+  | DiaryDiffArrangedNotes
+  | DiaryDiffSort;
 
 export interface DiaryUpdate {
   time: string;
@@ -307,9 +317,13 @@ export interface QuipDiff {
 
 export type DiaryDisplayMode = 'list' | 'grid';
 
+export type DiarySortMode = 'alpha' | 'time' | 'arranged';
+
 export interface Diary {
   perms: DiaryPerm;
   view: DiaryDisplayMode;
+  'arranged-notes': string[];
+  sort: DiarySortMode;
 }
 
 export interface Shelf {

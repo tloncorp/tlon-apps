@@ -20,6 +20,7 @@ import {
   DiaryQuip,
   DiaryAction,
   DiaryDisplayMode,
+  DiarySortMode,
   DiaryLetter,
   DiarySaid,
   DiaryUpdate,
@@ -234,6 +235,16 @@ const defaultPerms = {
   writers: [],
 };
 
+export function useArrangedNotes(flag: DiaryFlag) {
+  const diary = useDiary(flag);
+
+  if (diary === undefined) {
+    return [];
+  }
+
+  return diary['arranged-notes'].map((t) => udToDec(t));
+}
+
 export function useDiaryPerms(flag: DiaryFlag) {
   const diary = useDiary(flag);
 
@@ -368,6 +379,11 @@ export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
   return diary?.view ?? 'list';
 }
 
+export function useDiarySortMode(flag: string): DiarySortMode {
+  const diary = useDiary(flag);
+  return diary?.sort ?? 'time';
+}
+
 export function useRemoteOutline(
   flag: string,
   time: string,
@@ -482,6 +498,90 @@ export function useViewDiaryMutation() {
             [variables.flag]: {
               ...prev[variables.flag],
               view: variables.view,
+            },
+          }
+        );
+      }
+    },
+  });
+}
+
+export function useSortDiaryMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: {
+    flag: string;
+    sort: DiarySortMode;
+  }) => {
+    await api.poke(diaryAction(variables.flag, { sort: variables.sort }));
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['diary', 'shelf']);
+
+      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
+        'diary',
+        'shelf',
+      ]);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData<{ [flag: string]: Diary }>(
+          ['diary', 'shelf'],
+          {
+            ...prev,
+            [variables.flag]: {
+              ...prev[variables.flag],
+              sort: variables.sort,
+            },
+          }
+        );
+      }
+    },
+  });
+}
+
+export function useArrangedNotesDiaryMutation() {
+  const queryClient = useQueryClient();
+  const { mutate: changeSortMutation } = useSortDiaryMutation();
+
+  const mutationFn = async (variables: {
+    flag: string;
+    arrangedNotes: string[];
+  }) => {
+
+    // change sort mode automatically if arrangedNotes is empty/not-empty
+    if (variables.arrangedNotes.length === 0) {
+      changeSortMutation({ flag: variables.flag, sort: 'time' });
+    } else {
+      changeSortMutation({ flag: variables.flag, sort: 'arranged' });
+    }
+
+    await api.poke(
+      diaryAction(variables.flag, {
+        'arranged-notes': variables.arrangedNotes.map((t) => decToUd(t)),
+      })
+    );
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['diary', 'shelf']);
+
+      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
+        'diary',
+        'shelf',
+      ]);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData<{ [flag: string]: Diary }>(
+          ['diary', 'shelf'],
+          {
+            ...prev,
+            [variables.flag]: {
+              ...prev[variables.flag],
+              'arranged-notes': variables.arrangedNotes.map((t) => decToUd(t)),
             },
           }
         );
@@ -698,6 +798,8 @@ export function useCreateDiaryMutation() {
             [`${window.our}/${variables.name}`]: {
               perms: { writers: [], group: variables.group },
               view: 'list',
+              'arranged-notes': [],
+              sort: 'time',
             },
           }
         );

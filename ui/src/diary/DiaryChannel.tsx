@@ -13,13 +13,18 @@ import {
 import {
   useNotes,
   useDiaryDisplayMode,
+  useDiarySortMode,
   useDiaryPerms,
   useOlderNotes,
   useJoinDiaryMutation,
   useDiaryIsJoined,
   useMarkReadDiaryMutation,
+  useArrangedNotes,
 } from '@/state/diary';
-import { useDiarySortMode } from '@/state/settings';
+import {
+  useUserDiarySortMode,
+  useUserDiaryDisplayMode,
+} from '@/state/settings';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryLetter } from '@/types/diary';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
@@ -71,10 +76,12 @@ function DiaryChannel() {
     time: newNote || '',
   });
 
-  // for now sortMode is not actually doing anything.
-  // need input from design/product on what we want it to actually do, it's not spelled out in figma.
+  // user can override admin-set display and sort mode for this channel type
+  const userDisplayMode = useUserDiaryDisplayMode(chFlag);
+  const userSortMode = useUserDiarySortMode(chFlag);
   const displayMode = useDiaryDisplayMode(chFlag);
   const sortMode = useDiarySortMode(chFlag);
+  const arrangedNotes = useArrangedNotes(chFlag);
 
   const perms = useDiaryPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
@@ -125,19 +132,36 @@ function DiaryChannel() {
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
-    if (sortMode === 'time-dsc') {
+
+    if (sortMode === 'arranged') {
+
+      // if only one note is arranged, put it first
+      if (
+        arrangedNotes.includes(a.toString()) &&
+        !arrangedNotes.includes(b.toString())
+      ) {
+        return -1;
+      }
+
+      // if both notes are arranged, sort by their position in the arranged list
+      if (
+        arrangedNotes.includes(a.toString()) &&
+        arrangedNotes.includes(b.toString())
+      ) {
+        return arrangedNotes.indexOf(a.toString()) >
+          arrangedNotes.indexOf(b.toString())
+          ? 1
+          : -1;
+      }
+    }
+
+    if (userSortMode === 'time-dsc') {
       return b.compare(a);
     }
-    if (sortMode === 'time-asc') {
+    if (userSortMode === 'time-asc') {
       return a.compare(b);
     }
-    // TODO: get the time of most recent quip from each diary note, and compare that way
-    if (sortMode === 'quip-asc') {
-      return b.compare(a);
-    }
-    if (sortMode === 'quip-dsc') {
-      return b.compare(a);
-    }
+
     return b.compare(a);
   });
 
@@ -170,8 +194,8 @@ function DiaryChannel() {
           flag={flag}
           nest={nest}
           canWrite={canWrite}
-          display={displayMode}
-          sort={sortMode}
+          display={userDisplayMode ?? displayMode}
+          sort={userSortMode ?? sortMode === 'time' ? 'time-dsc' : 'arranged'}
         />
       }
     >
@@ -196,7 +220,7 @@ function DiaryChannel() {
       <div className="h-full">
         {isLoading ? (
           <DiaryChannelListPlaceholder count={4} />
-        ) : displayMode === 'grid' ? (
+        ) : userDisplayMode === 'grid' ? (
           <DiaryGridView
             notes={sortedNotes}
             loadOlderNotes={() => {
