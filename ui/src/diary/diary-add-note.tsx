@@ -219,7 +219,7 @@ export default function DiaryAddNote() {
               {channel && group
                 ? id && note
                   ? `Editing ${note.essay.title} in ${channel.meta.title} • ${group.meta.title} • Groups`
-                  : `Adding Note to ${channel.meta.title} • ${group.meta.title} • Groups`
+                  : `Creating Note in ${channel.meta.title} • ${group.meta.title} • Groups`
                 : 'Groups'}
             </title>
           </Helmet>
