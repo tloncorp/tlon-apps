@@ -91,7 +91,7 @@ export default function DiaryCommentField({
     content: '',
     uploadKey: `diary-comment-field-${flag}`,
     placeholder: 'Add a comment',
-    editorClass: 'p-0',
+    editorClass: 'p-0 !min-h-[72px]',
     allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
@@ -171,7 +171,7 @@ export default function DiaryCommentField({
           editor={messageEditor}
           className="h-full w-full rounded-lg"
           inputClassName={cn(
-            'min-h-[104px] p-4 leading-5',
+            'p-4 leading-5',
             // Since TipTap simulates an input using a <p> tag, only style
             // the fake placeholder when the field is empty
             messageEditor.getText() === '' ? 'text-gray-400' : ''
