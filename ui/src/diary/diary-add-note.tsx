@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -13,7 +14,7 @@ import {
   useEditNoteMutation,
   useNote,
 } from '@/state/diary';
-import { useRouteGroup } from '@/state/groups';
+import { useChannel, useGroup, useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
 import { Inline } from '@/types/content';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -26,7 +27,10 @@ export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const [loaded, setLoaded] = useState(false);
   const chFlag = `${chShip}/${chName}`;
-  const group = useRouteGroup();
+  const nest = `diary/${chFlag}`;
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
+  const channel = useChannel(flag, nest);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const {
@@ -143,11 +147,11 @@ export default function DiaryAddNote() {
 
   useEffect(() => {
     if (editStatus === 'success') {
-      navigate(`/groups/${group}/channels/diary/${chFlag}`);
+      navigate(`/groups/${flag}/channels/diary/${chFlag}`);
     } else if (addStatus === 'success' && returnTime) {
-      navigate(`/groups/${group}/channels/diary/${chFlag}?new=${returnTime}`);
+      navigate(`/groups/${flag}/channels/diary/${chFlag}?new=${returnTime}`);
     }
-  }, [addStatus, chFlag, editStatus, group, navigate, returnTime]);
+  }, [addStatus, chFlag, editStatus, flag, navigate, returnTime]);
 
   return (
     <Layout
@@ -209,22 +213,33 @@ export default function DiaryAddNote() {
           <LoadingSpinner className="h-6 w-6" />
         </div>
       ) : (
-        <FormProvider {...form}>
-          <div className="mx-auto max-w-xl p-4">
-            <form className="space-y-6">
-              <CoverImageInput url="" noteId={id} />
-              <input
-                placeholder="New Title"
-                className="input-transparent text-3xl font-semibold"
-                type="text"
-                {...register('title')}
-              />
-            </form>
-            <div className="py-6">
-              {editor ? <DiaryInlineEditor editor={editor} /> : null}
+        <>
+          <Helmet>
+            <title>
+              {channel && group
+                ? id && note
+                  ? `Editing ${note.essay.title} in ${channel.meta.title} • ${group.meta.title} • Groups`
+                  : `Creating Note in ${channel.meta.title} • ${group.meta.title} • Groups`
+                : 'Groups'}
+            </title>
+          </Helmet>
+          <FormProvider {...form}>
+            <div className="mx-auto max-w-xl p-4">
+              <form className="space-y-6">
+                <CoverImageInput url="" noteId={id} />
+                <input
+                  placeholder="New Title"
+                  className="input-transparent text-3xl font-semibold"
+                  type="text"
+                  {...register('title')}
+                />
+              </form>
+              <div className="py-6">
+                {editor ? <DiaryInlineEditor editor={editor} /> : null}
+              </div>
             </div>
-          </div>
-        </FormProvider>
+          </FormProvider>
+        </>
       )}
     </Layout>
   );
