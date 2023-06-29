@@ -32,8 +32,8 @@ export const useStorage = createState<BaseStorageState>(
   {},
   [
     (set, get) =>
-      createSubscription('s3-store', '/all', (e) => {
-        const data = _.get(e, 's3-update', false);
+      createSubscription('storage', '/all', (e) => {
+        const data = _.get(e, 'storage-update', false);
         if (data) {
           reduceStateN(get(), data, reduce);
         }

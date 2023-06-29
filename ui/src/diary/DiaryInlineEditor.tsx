@@ -103,7 +103,7 @@ export function useDiaryInlineEditor({
         Paragraph,
         Placeholder.configure({
           placeholder:
-            'Start writing here. Highlight text to add formatting, click the "+" button on the left, or type the forward slash (/) to insert block content.',
+            'Start writing here, or click the menu to add a link block',
           showOnlyCurrent: true,
           showOnlyWhenEditable: false,
           includeChildren: true,
@@ -177,7 +177,11 @@ export default function DiaryInlineEditor({
                     command={({
                       command,
                     }: {
-                      command: (params: {
+                      command: ({
+                        // eslint-disable-next-line no-shadow
+                        editor,
+                        range,
+                      }: {
                         editor: Editor;
                         range: Range;
                       }) => void;
