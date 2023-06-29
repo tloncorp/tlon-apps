@@ -82,6 +82,7 @@ function DiaryChannel() {
   const displayMode = useDiaryDisplayMode(chFlag);
   const sortMode = useDiarySortMode(chFlag);
   const arrangedNotes = useArrangedNotes(chFlag);
+  const lastArrangedNote = arrangedNotes[arrangedNotes.length - 1];
 
   const perms = useDiaryPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
@@ -169,6 +170,13 @@ function DiaryChannel() {
   ) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
       <DiaryListItem letter={letter} time={time} />
+      {lastArrangedNote === time.toString() && (
+        <div className="mt-6 flex justify-center">
+          <div className="flex items-center space-x-2 text-gray-500">
+            <div className="h-1 w-1 rounded-full bg-gray-500" />
+          </div>
+        </div>
+      )}
     </div>
   );
 
