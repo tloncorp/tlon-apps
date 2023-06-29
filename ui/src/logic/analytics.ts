@@ -38,7 +38,7 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   disable_session_recording: true,
   mask_all_text: true,
   mask_all_element_attributes: true,
-  opt_out_capturing_by_default: import.meta.env.DEV,
+  opt_out_capturing_by_default: true,
 });
 
 export const analyticsClient = posthog;
