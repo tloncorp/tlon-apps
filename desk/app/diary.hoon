@@ -89,7 +89,6 @@
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
-  :: =.  state  old
   |-
   ?-  -.old
     %0  $(old (state-0-to-1 old))

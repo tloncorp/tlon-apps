@@ -19,7 +19,7 @@
 +$  sort  ?(%alpha %time %arranged)
 ::  $arranged-notes: an array of noteIds
 +$  arranged-notes  (unit (list time))
-::  $shelf: my ship's diaries
+::  $shelf-0: my ship's diaries (old)
 +$  shelf-0  (map flag diary-0)
 ::  $shelf: my ship's diaries
 +$  shelf  (map flag diary)
@@ -34,6 +34,7 @@
 ::
 ::  $diary: written longform communication
 ::
+::    arranged-notes: a list of noteIds, used for manual sorting
 ::    net: an indicator of whether I'm a host or subscriber
 ::    log: the history of all modifications
 ::    perm: holds the diary's permissions
