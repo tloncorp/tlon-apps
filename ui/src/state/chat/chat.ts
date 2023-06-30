@@ -492,7 +492,6 @@ export const useChatState = createState<ChatState>(
     },
     sendMessage: async (whom, mem) => {
       const isDM = whomIsDm(whom);
-      const isMultiDm = whomIsMultiDm(whom);
       // ensure time and ID match up
       const { id, time } = makeId();
       const memo: ChatMemo = {
@@ -725,17 +724,9 @@ export function useMessagesForChat(whom: string, near?: BigInteger) {
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
 
   return useMemo(() => {
-    let messages;
-
-    if (window) {
-      messages = writs
-        ? newWritMap(writs.getRange(window.oldest, window.newest, true))
-        : emptyWrits;
-    } else {
-      messages = writs ? writs : emptyWrits;
-    }
-
-    return messages;
+    return window && writs
+      ? newWritMap(writs.getRange(window.oldest, window.newest, true))
+      : writs || emptyWrits;
   }, [writs, window]);
 }
 
