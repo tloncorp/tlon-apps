@@ -725,10 +725,16 @@ export function useMessagesForChat(whom: string, near?: BigInteger) {
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
 
   return useMemo(() => {
-    const messages =
-      window && writs
+    let messages;
+
+    if (window) {
+      messages = writs
         ? newWritMap(writs.getRange(window.oldest, window.newest, true))
         : emptyWrits;
+    } else {
+      messages = writs ? writs : emptyWrits;
+    }
+
     return messages;
   }, [writs, window]);
 }
