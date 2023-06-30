@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import _ from 'lodash';
+import cn from 'classnames';
 import { usePals } from '@/state/pals';
 
 const outgoingSvg = (
@@ -99,7 +100,7 @@ Z"
   </svg>
 );
 
-export default function PalIcon(props: { ship: string }) {
+export default function PalIcon(props: { ship: string; className: string }) {
   const { ship } = props;
   const pals = usePals();
 
@@ -116,29 +117,26 @@ export default function PalIcon(props: { ship: string }) {
     [ship, pals]
   );
 
+  const className = cn(
+    'h-5 w-5 p-1 rounded-full inline-block align-middle',
+    props.className
+  );
+
   if (!tags) {
     if (!incoming) {
       return null;
     }
-    return (
-      <div className="h-5 w-5 rounded-full bg-gray-100 p-1">{incomingSvg}</div>
-    );
+    return <div className={cn('bg-gray-100', className)}>{incomingSvg}</div>;
   }
   if (!incoming) {
     return (
-      <div
-        className="h-5 w-5 rounded-full bg-yellow-soft p-1"
-        title={tags.join(', ')}
-      >
+      <div className={cn('bg-yellow-soft', className)} title={tags.join(', ')}>
         {outgoingSvg}
       </div>
     );
   }
   return (
-    <div
-      className="h-5 w-5 rounded-full bg-green-100 p-1"
-      title={tags.join(', ')}
-    >
+    <div className={cn('bg-green-100', className)} title={tags.join(', ')}>
       {mutualSvg}
     </div>
   );
