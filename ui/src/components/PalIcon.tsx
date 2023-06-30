@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import _ from 'lodash';
 import { usePals } from '@/state/pals';
-import * as Tooltip from '@radix-ui/react-tooltip';
 
 const outgoingSvg = (
   <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
