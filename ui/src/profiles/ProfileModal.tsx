@@ -6,6 +6,8 @@ import useContactState, { useContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
 import Dialog from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
+import PalIcon from '@/components/PalIcon';
+import usePalsState from '@/state/pals';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import ProfileCoverImage from './ProfileCoverImage';
@@ -19,6 +21,7 @@ export default function ProfileModal() {
   const cover = contact?.cover || '';
   const dismiss = useDismissNavigate();
   const navigateByApp = useNavigateByApp();
+  const pals = usePalsState();
 
   useEffect(() => {
     if (ship) {
@@ -107,6 +110,7 @@ export default function ProfileModal() {
           {contact.nickname ? (
             <ShipName name={ship} className="ml-2 text-gray-600" />
           ) : null}
+          <PalIcon className="ml-2" ship={ship} />
         </div>
         <ProfileBio bio={contact.bio} />
         {contact.groups.length > 0 && (
@@ -117,7 +121,22 @@ export default function ProfileModal() {
         )}
       </div>
       <footer className="flex items-center py-4 px-6">
-        <button className="secondary-button ml-auto" onClick={handleCopyClick}>
+        {pals.installed && pals.pals.outgoing[ship.slice(1)] ? (
+          <button
+            className="secondary-button ml-auto bg-red-100"
+            onClick={() => pals.removePal(ship.slice(1))}
+          >
+            Remove Pal
+          </button>
+        ) : (
+          <button
+            className="secondary-button ml-auto"
+            onClick={() => pals.addPal(ship.slice(1))}
+          >
+            Add Pal
+          </button>
+        )}
+        <button className="secondary-button ml-2" onClick={handleCopyClick}>
           {didCopy ? 'Copied!' : 'Copy Name'}
         </button>
         <button className="button ml-2" onClick={handleMessageClick}>
