@@ -100,7 +100,7 @@ Z"
   </svg>
 );
 
-export default function PalIcon(props: { ship: string; className: string }) {
+export default function PalIcon(props: { ship: string; className?: string }) {
   const { ship } = props;
   const pals = usePals();
 
