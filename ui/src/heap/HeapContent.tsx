@@ -64,6 +64,7 @@ export function InlineContent({ inline }: InlineContentProps) {
       <a
         target="_blank"
         rel="noreferrer"
+        className="break-all text-blue underline"
         href={containsProtocol ? inline.link.href : `//${inline.link.href}`}
       >
         {inline.link.content || inline.link.href}
@@ -117,7 +118,9 @@ export default function HeapContent({ content, className }: HeapContentProps) {
     <div className={className}>
       {content.block.map((b, idx) => {
         if ('cite' in b) {
-          return <ContentReference key={idx} cite={b.cite} />;
+          return (
+            <ContentReference contextApp="heap-block" key={idx} cite={b.cite} />
+          );
         }
         return '??';
       })}

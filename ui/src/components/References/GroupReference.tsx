@@ -5,6 +5,7 @@ import { useGang, useGangPreview } from '@/state/groups';
 import GroupAvatar from '@/groups/GroupAvatar';
 import {
   getFlagParts,
+  isImageUrl,
   matchesBans,
   pluralRank,
   toTitleCase,
@@ -19,6 +20,7 @@ interface GroupReferenceProps {
   plain?: boolean;
   onlyButton?: boolean;
   description?: string;
+  contextApp?: string;
 }
 
 function GroupReference({
@@ -27,6 +29,7 @@ function GroupReference({
   plain = false,
   onlyButton = false,
   description,
+  contextApp,
 }: GroupReferenceProps) {
   const gang = useGang(flag);
   const preview = useGangPreview(flag, isScrolling);
@@ -93,20 +96,53 @@ function GroupReference({
     );
   }
 
+  if (contextApp === 'heap-block') {
+    const { title, cover } = meta || {
+      title: '',
+      cover: '',
+    };
+    return (
+      <div className={cn('h-full w-full')}>
+        {isImageUrl(cover) ? (
+          <img
+            src={cover}
+            loading="lazy"
+            className="absolute top-0 left-0 h-full w-full"
+          />
+        ) : (
+          <div
+            style={{ background: cover }}
+            className="absolute top-0 left-0 h-full w-full"
+          />
+        )}
+        <div className="absolute top-2 left-2 flex items-center space-x-2 rounded p-2 text-base font-bold">
+          <GroupAvatar {...meta} size="h-6 w-6" />
+          <span
+            className="text-white"
+            style={{ textShadow: 'black 0px 1px 3px' }}
+          >
+            {title}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        'not-prose relative mb-2 flex max-w-[300px] items-center rounded-lg bg-white text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
+        'not-prose items-top relative flex max-w-[300px] rounded-lg bg-white text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
         {
           'border-2 border-gray-50': !plain,
-        }
+        },
+        contextApp === 'heap-detail' ? 'mb-0 h-full border-none' : 'mb-2'
       )}
     >
       <button
         className="flex w-full items-center justify-start rounded-lg p-2 text-left"
         onClick={open}
       >
-        <div className="flex items-center space-x-3 font-semibold">
+        <div className="items-top flex space-x-3 font-semibold">
           <GroupAvatar {...meta} size="h-12 w-12" />
           <div className="overflow-hidden text-ellipsis text-sm leading-5">
             <h3 className="line-clamp-1">{meta?.title || flag} </h3>
@@ -120,17 +156,17 @@ function GroupReference({
               </span>
             )}
             {!plain && (
-              <span className="text-sm capitalize text-gray-400">
-                Group • {privacy}
-              </span>
-            )}
-            {description && (
-              <span className="text-sm text-gray-400">{description}</span>
+              <>
+                <span className="text-sm capitalize text-gray-400">
+                  Group • {privacy}
+                </span>
+                <p className="text-sm text-gray-800">{meta?.description}</p>
+              </>
             )}
           </div>
         </div>
       </button>
-      <div className="mr-2 flex flex-row">
+      <div className="mr-2 flex flex-row pt-2">
         {banned ? (
           <div className="rounded-lg bg-gray-100 p-2 text-center text-xs font-semibold leading-3 text-gray-600">
             {banned === 'ship'

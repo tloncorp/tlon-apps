@@ -26,6 +26,7 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { useNavigate } from 'react-router';
 import useLongPress from '@/logic/useLongPress';
+import Avatar from '@/components/Avatar';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -66,7 +67,7 @@ function TopBar({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className={cn('absolute w-full select-none items-center px-4', {
+      className={cn('absolute z-40 w-full select-none items-center px-4', {
         'justify-between': hasIcon || isTwitter,
         'justify-end': !hasIcon && !isTwitter,
         flex: longPress,
@@ -175,25 +176,12 @@ function TopBar({
 
 interface BottomBarProps {
   curio: HeapCurio;
-  provider: string;
-  longPress: boolean;
-  title?: string;
   asRef?: boolean;
 }
 
-function BottomBar({
-  curio,
-  provider,
-  title,
-  asRef,
-  longPress,
-}: BottomBarProps) {
-  const { content, sent } = curio.heart;
+function BottomBar({ curio, asRef }: BottomBarProps) {
+  const { sent } = curio.heart;
   const replyCount = curio.seal.replied.length;
-  const url =
-    content.inline.length > 0 && isLink(content.inline[0])
-      ? content.inline[0].link.href
-      : '';
   const prettySent = formatDistanceToNow(sent);
 
   if (asRef) {
@@ -201,31 +189,20 @@ function BottomBar({
   }
 
   return (
-    <div className="absolute bottom-0 -mx-2 h-[50px] w-full select-none">
-      <div
-        className={cn(
-          'h-[50px] w-full border-t-2 border-gray-100 bg-white p-2',
-          {
-            'hidden group-hover:block': !longPress,
-          }
-        )}
-      >
-        <div className="flex flex-col">
-          <span className="truncate font-semibold text-gray-800">
-            {title ? title : url}
-          </span>
-          <div className="items center flex justify-between">
-            <div className="flex items-center space-x-1 text-sm font-semibold">
-              <span className="text-gray-600">{provider}</span>
-              <span className="text-lg text-gray-200"> • </span>
-              <span className="text-gray-400">{prettySent} ago</span>
-            </div>
-            <div className="flex items-center space-x-1 text-sm font-semibold text-gray-400">
-              <span>{replyCount > 0 && replyCount}</span>
-              <ChatSmallIcon className="h-4 w-4" />
-            </div>
+    <div
+      className={cn(
+        'absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:bg-white/50 group-hover:backdrop-blur'
+      )}
+    >
+      <Avatar ship={curio.heart.author} size="xs" />
+      <div className="hidden w-full justify-between align-middle group-hover:flex">
+        <span className="truncate font-semibold">{prettySent} ago</span>
+        {replyCount > 0 ? (
+          <div className="flex space-x-1 align-middle font-semibold">
+            <ChatSmallIcon className="h-4 w-4" />
+            <span>{replyCount}</span>
           </div>
-        </div>
+        ) : null}
       </div>
     </div>
   );
@@ -335,11 +312,7 @@ export default function HeapBlock({
               story={{ block: content.block, inline: content.inline }}
             />
           </div>
-          <BottomBar
-            {...botBar}
-            provider="Urbit Reference"
-            title={curio.heart.title || 'Urbit Reference'}
-          />
+          <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
     );
@@ -356,11 +329,7 @@ export default function HeapBlock({
               content={content}
             />
           </div>
-          <BottomBar
-            {...botBar}
-            provider="Urbit Reference"
-            title={curio.heart.title || 'Urbit Reference'}
-          />
+          <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
     );
@@ -372,17 +341,12 @@ export default function HeapBlock({
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <HeapContent
-            className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
+            className={cn('mx-3 my-2 leading-6', asRef ? 'line-clamp-9' : '')}
             leading-6
             content={content}
           />
-          <BottomBar
-            {...botBar}
-            provider="Text"
-            title={
-              curio.heart.title || _.truncate(textFallbackTitle, { length: 20 })
-            }
-          />
+          <div className="from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent" />
+          <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
     );
@@ -400,11 +364,7 @@ export default function HeapBlock({
           }}
         >
           <TopBar canEdit={canEdit} {...topBar} />
-          <BottomBar
-            {...botBar}
-            provider="Image"
-            title={curio.heart.title || url}
-          />
+          <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
     );
@@ -418,11 +378,7 @@ export default function HeapBlock({
           <div className="flex grow flex-col items-center justify-center">
             <MusicLargeIcon className="h-16 w-16 text-gray-300" />
           </div>
-          <BottomBar
-            {...botBar}
-            provider="Audio"
-            title={curio.heart.title || url}
-          />
+          <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
     );
@@ -431,7 +387,7 @@ export default function HeapBlock({
   const isOembed = validOembedCheck(embed, url);
 
   if (isOembed && !calm?.disableRemoteContent) {
-    const { title, thumbnail_url: thumbnail, provider_name: provider } = embed;
+    const { thumbnail_url: thumbnail, provider_name: provider } = embed;
 
     if (thumbnail) {
       return (
@@ -443,7 +399,7 @@ export default function HeapBlock({
             }}
           >
             <TopBar canEdit={canEdit} {...topBar} />
-            <BottomBar {...botBar} provider={provider} title={title || url} />
+            <BottomBar {...botBar} />
           </div>
         </HeapBlockWrapper>
       );
@@ -465,11 +421,7 @@ export default function HeapBlock({
               <span className="font-semibold text-black">{author}</span>
               <span className="text-gray-300">@{twitterHandle}</span>
             </div>
-            <BottomBar
-              {...botBar}
-              provider={provider}
-              title={twitterHandle || url}
-            />
+            <BottomBar {...botBar} />
           </div>
         </HeapBlockWrapper>
       );
@@ -481,11 +433,7 @@ export default function HeapBlock({
           <div className="flex grow flex-col items-center justify-center">
             <LinkIcon className="h-16 w-16 text-gray-300" />
           </div>
-          <BottomBar
-            {...botBar}
-            provider={provider ? provider : 'Link'}
-            title={title || url}
-          />
+          <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
     );
@@ -498,11 +446,7 @@ export default function HeapBlock({
         <div className="flex grow flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
         </div>
-        <BottomBar
-          {...botBar}
-          provider="Link"
-          title={curio.heart.title || url}
-        />
+        <BottomBar {...botBar} />
       </div>
     </HeapBlockWrapper>
   );

@@ -141,7 +141,7 @@
 }
 
 .heap-block {
-  @apply absolute flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat object-cover object-center p-2 shadow;
+  @apply absolute flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-lg bg-white bg-cover bg-center bg-no-repeat object-cover object-center p-2;
 }
 
 .heap-inline-block {

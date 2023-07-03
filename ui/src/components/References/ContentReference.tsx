@@ -18,12 +18,23 @@ import NoteCommentReference from './NoteCommentReference';
 function ContentReference({
   cite,
   isScrolling = false,
+  contextApp,
+  plain,
 }: {
   cite: Cite;
   isScrolling?: boolean;
+  contextApp?: string;
+  plain?: boolean;
 }) {
   if ('group' in cite) {
-    return <GroupReference flag={cite.group} isScrolling={isScrolling} />;
+    return (
+      <GroupReference
+        plain={plain}
+        contextApp={contextApp}
+        flag={cite.group}
+        isScrolling={isScrolling}
+      />
+    );
   }
 
   if ('desk' in cite) {
