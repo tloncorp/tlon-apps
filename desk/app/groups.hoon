@@ -94,6 +94,7 @@
       %noun
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
+      %verify-cabals    verify-cabals
     ==
   ::
       %group-import  (import-groups !<(imports:g vase))
@@ -180,9 +181,9 @@
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
 ++  channel-scry
-  |=  app=@tas
+  |=  =nest:g
   ^-  path
-  /(scot %p our.bowl)/[app]/(scot %da now.bowl)
+  /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
 ::
 ++  reset-all-perms
   (~(rep by groups) (reset-group-perms cor))
@@ -206,9 +207,9 @@
       =/  cage  [act:mar:g !>(action)]
       [%pass wire %agent dock %poke cage]
     ^-  card
+    =/  =path  (welp (channel-scry nest) /perm/noun)
     ?+  -.nest  *card
         %chat
-      =/  =path  (welp (channel-scry %chat) /chat/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
       =/  perms  .^(perm:c %gx path)
       =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /chat
@@ -217,7 +218,6 @@
       [%pass wire %agent dock %poke cage]
     ::
         %diary
-      =/  =path  (welp (channel-scry %diary) /diary/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
       =/  perms  .^(perm:d %gx path)
       =/  =action:d  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /diary
@@ -226,7 +226,6 @@
       [%pass wire %agent dock %poke cage]
     ::
         %heap
-      =/  path   (welp (channel-scry %heap) /heap/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
       =/  perms  .^(perm:h %gx path)
       =/  =action:h  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /heap
@@ -236,6 +235,38 @@
     ==
   core
 ::
+++  verify-cabals
+  %+  roll
+    ~(tap by groups)
+  |=  [[=flag:g [* =group:g]] core=_cor]
+  =.  core
+    %+  roll
+      ~(tap by fleet.group)
+    |=  [[s=ship =vessel:fleet:g] cr=_core]
+    =/  diff  (~(dif in sects.vessel) ~(key by cabals.group))
+    ?:  =(~(wyt in diff) 0)  cr
+    =/  action  [flag now.bowl %fleet (~(gas in *(set ship)) ~[s]) %del-sects diff]
+    cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
+  %+  roll
+    ~(tap by channels.group)
+  |=  [[=nest:g =channel:g] cr=_core]
+  =.  cr
+    =/  readers  (~(dif in readers.channel) ~(key by cabals.group))
+    ?.  (gth ~(wyt in readers) 0)  cr
+    =/  action  [flag now.bowl %channel nest %del-sects readers]
+    cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
+  =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
+  =/  diff  (~(dif in writers) ~(key by cabals.group))
+  ?.  (gth ~(wyt in diff) 0)  cr
+  ?.  =(p.nest ?(%chat %heap %diary))  cr
+  =/  update  [q.nest [now.bowl [%del-sects diff]]]
+  =-  cr(cards [[%pass /groups/role %agent [p.q.nest p.nest] %poke -] cards.cr])
+  ?+  p.nest  *cage
+    %chat   [act:mar:c !>(update)]
+    %heap   [act:mar:h !>(update)]
+    %diary  [act:mar:d !>(update)]
+  ==
+::
 ::  +load: load next state
 ++  load
   |=  =vase
@@ -243,6 +274,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
+  =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
   ?:  =(okay:g cool)  cor
   =.  cor  (emil (drop load:epos))
   =/  groups  ~(tap in ~(key by groups))
@@ -338,6 +370,7 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%helm *]  cor
+      [%groups %role ~]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
   ::
@@ -1299,6 +1332,7 @@
     ::
         %del
       =.  cabals.group  (~(del by cabals.group) sect)
+      =.  cor  verify-cabals
       go-core
     ==
   ::

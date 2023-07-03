@@ -465,32 +465,38 @@
     |=  [=flag:d =diary:d]
     ?.  =(p.action group.perm.diary)  ~
     `flag
-  ?+    q.q.action  cor
+  =/  diff  q.q.action
+  ?+  diff  cor
       [%fleet * %del ~]
     ~&  "%diary: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     ^+  cor
-    %+  roll  ~(tap in p.q.q.action)
+    %+  roll  ~(tap in p.diff)
     |=  [=ship ci=_cor]
     ^+  cor
     =/  di  (di-abed:di-core:ci flag)
     di-abet:(di-revoke:di ship)
   ::
-    [%fleet * %add-sects *]    (recheck-perms affected)
-    [%fleet * %del-sects *]    (recheck-perms affected)
-    [%channel * %edit *]       (recheck-perms affected)
-    [%channel * %del-sects *]  (recheck-perms affected)
-    [%channel * %add-sects *]  (recheck-perms affected)
+    [%fleet * %add-sects *]    (recheck-perms affected ~)
+    [%fleet * %del-sects *]    (recheck-perms affected ~)
+    [%channel * %edit *]       (recheck-perms affected ~)
+    [%channel * %del-sects *]  (recheck-perms affected ~)
+    [%channel * %add-sects *]  (recheck-perms affected ~)
+  ::
+      [%cabal * %del *]
+    =/  =sect:g  (slav %tas p.diff)
+    %+  recheck-perms  affected
+    `(~(gas in *(set sect:g)) ~[p.diff])
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list flag:d)]
+  |=  [affected=(list flag:d) sects=(unit (set sect:g))]
   ~&  "%diary recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=flag:d co=_cor]
   =/  di  (di-abed:di-core:co flag)
-  di-abet:di-recheck:di
+  di-abet:(di-recheck:di sects)
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -723,6 +729,11 @@
     di(cor (emit %give %kick ~[path] `ship))
   ::
   ++  di-recheck
+    |=  sects=(unit (set sect:g))
+    ::  if we have sects, we need to delete them from writers
+    =?  cor  &(!=(sects ~) =(p.flag our.bowl))
+      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects (need sects)])]  
+      (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  di-core  (di-can-read our.bowl)  di-safe-sub
     ::  if subs read permissions removed, kick 
@@ -789,6 +800,7 @@
     =*  group  group.perm.diary
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
+  ++  di-is-host  |(=(p.flag src.bowl) =(p.group.perm.diary src.bowl))
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
     =/  =path
@@ -923,16 +935,19 @@
       di-core
     ::
         %add-sects
+      ?>  di-is-host
       =*  p  perm.diary
       =.  writers.p  (~(uni in writers.p) p.dif)
       di-core
     ::
         %del-sects
+      ?>  di-is-host
       =*  p  perm.diary
       =.  writers.p  (~(dif in writers.p) p.dif)
       di-core
     ::
         %create
+      ?>  di-is-host
       =:  notes.diary  q.dif
           perm.diary   p.dif
         ==

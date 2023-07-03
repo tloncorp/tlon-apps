@@ -370,7 +370,8 @@ export default function GroupRoles({ title }: { title: string }) {
               >
                 remove all members
               </Link>{' '}
-              from this role before it can be deleted.
+              from this role and remove it from all channels before it can be
+              deleted.
             </p>
           )}
           <div className="mt-8 flex justify-end space-x-2">
