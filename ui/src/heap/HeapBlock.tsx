@@ -445,6 +445,9 @@ export default function HeapBlock({
         <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <div className="flex grow flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
+          <div className="text-underline m-3 block break-all rounded bg-gray-50 p-2 text-center font-semibold">
+            {url}
+          </div>
         </div>
         <BottomBar {...botBar} />
       </div>
