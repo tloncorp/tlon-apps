@@ -1,6 +1,9 @@
 /-  c=chat
 /-  meta
 /+  cite=cite-json
+::
+::  TODO update json logic for new types
+::
 |%
 ++  enjs
   =,  enjs:format

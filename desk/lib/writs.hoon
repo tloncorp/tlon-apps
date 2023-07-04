@@ -1,58 +1,63 @@
 /-  c=chat
 /+  mp=mop-extensions
 |_  pac=pact:c
-++  mope  ((mp time writ:c) lte)
+++  mope  ((mp time wool:c) lte)
 ++  gas
-  |=  ls=(list [=time =writ:c])
+  |=  ls=(list [=time =wool:c])
   ^+  pac
   %_    pac
-      wit  (gas:on:writs:c wit.pac ls)
+      wit  (gas:on:wools:c wit.pac ls)
   ::
       dex  
     %-  ~(gas by dex.pac)
     %+  turn  ls
-    |=  [=time =writ:c]
+    |=  [=time =wool:c]
     ^-  [id:c _time]
-    [id.writ time]
+    [id.parent.wool time]
   ==
 ::
 ++  brief
   |=  [our=ship last-read=time]
   ^-  brief:briefs:c
   =/  =time
-    ?~  tim=(ram:on:writs:c wit.pac)  *time
+    ?~  tim=(ram:on:wools:c wit.pac)  *time
     key.u.tim
   =/  unreads
-    (lot:on:writs:c wit.pac `last-read ~)
+    (lot:on:wools:c wit.pac `last-read ~)
   =/  read-id=(unit id:c)  
-    (bind (pry:on:writs:c unreads) |=([key=@da val=writ:c] id.val))
+    (bind (pry:on:wools:c unreads) |=([key=@da val=wool:c] id.parent.val))
   =/  count
-    (lent (skim ~(tap by unreads) |=([tim=^time =writ:c] !=(author.writ our))))
+    (lent (skim ~(tap by unreads) |=([tim=^time =wool:c] !=(author.parent.wool our))))
   [time count read-id]
 ::
 ++  get
   |=  =id:c
-  ^-  (unit [=time =writ:c])
+  ^-  (unit [=time =wool:c])
   ?~  tim=(~(get by dex.pac) id)
     ~
-  ?~  wit=(get:on:writs:c wit.pac u.tim)
+  ?~  wit=(get:on:wools:c wit.pac u.tim)
     ~
   `[u.tim u.wit]
 ::
 ++  jab
-  |=  [=id:c fun=$-(writ:c writ:c)]
+  |=  [=id:c fun=$-(wool:c wool:c)]
   ^+  pac
   ?~  v=(get id)  pac
-  =.  wit.pac  (put:on:writs:c wit.pac time.u.v (fun writ.u.v))
+  =.  wit.pac  (put:on:wools:c wit.pac time.u.v (fun wool.u.v))
   pac
 ::
 ++  got
   |=  =id:c
-  ^-  [=time =writ:c]
+  ^-  [=time =wool:c]
   (need (get id))
 ::
+++  weave
+  |=  [wit=wools:c =time =seal:c =delta:wools:c]
+  ^-  wools:c
+  ::  TODO thread weave
+  wit
 ++  reduce
-  |=  [now=time =id:c del=delta:writs:c]
+  |=  [now=time =id:c del=delta:wools:c]
   ^+  pac
   ?-  -.del
       %add
@@ -60,75 +65,79 @@
     ?:  (~(has by dex.pac) id)
       pac
     |-
-    ?:  (has:on:writs:c wit.pac now)  
+    ?:  (has:on:wools:c wit.pac now)  
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
-      ::  TODO thread
-      (put:on:writs:c wit.pac now seal p.del *thread:c)
+      ?~  thread.p.del
+        (put:on:wools:c wit.pac now *stitch:c *writs:c [seal p.del])
+      (weave wit.pac now seal del)
     =.  dex.pac  (~(put by dex.pac) id now)
-    ?~  replying.p.del  pac
-    =*  replying  u.replying.p.del
-    (jab replying |=(writ:c +<(replied (~(put in replied) ^id))))
+    pac
   ::
       %del
     =/  tim=(unit time)  (~(get by dex.pac) id)
     ?~  tim  pac
     =/  =time  (need tim)
-    =^  wit=(unit writ:c)  wit.pac
-      (del:on:writs:c wit.pac time)
+    =^  wit=(unit wool:c)  wit.pac
+      (del:on:wools:c wit.pac time)
     =.  dex.pac  (~(del by dex.pac) id)
-    ?~  wit  pac
-    ?~  replying.u.wit  pac
-    (jab u.replying.u.wit |=(writ:c +<(replied (~(del in replied) ^id))))
+    pac
   ::
       %add-feel
     %+  jab  id
-    |=  =writ:c
-    writ(feels (~(put by feels.writ) [p q]:del))
+    |=  =wool:c
+    ::  TODO thread handle thread reaction
+    :*  stitch.wool
+        thread.wool
+        parent.wool(feels (~(put by feels.parent.wool) [p q]:del))
+    ==
   ::
       %del-feel
     %+  jab  id
-    |=  =writ:c
-    writ(feels (~(del by feels.writ) p.del))
+    |=  =wool:c
+    :*  stitch.wool
+        thread.wool
+        parent.wool(feels (~(del by feels.parent.wool) p.del))
+    ==
   ==
 ::
 ++  peek
   |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
-  =*  on   on:writs:c
+  =*  on   on:wools:c
   ?+    pole  [~ ~]
   ::
       [%newest count=@ ~]
     =/  count  (slav %ud count.pole)
-    ``chat-writs+!>((gas:on *writs:c (top:mope wit.pac count)))
+    ``chat-wools+!>((gas:on *wools:c (top:mope wit.pac count)))
   ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((gas:on *writs:c (bat:mope wit.pac `start count)))
+    ``chat-wools+!>((gas:on *wools:c (bat:mope wit.pac `start count)))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((gas:on *writs:c (tab:on wit.pac `start count)))
+    ``chat-wools+!>((gas:on *wools:c (tab:on wit.pac `start count)))
   ::
       [%around time=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  time  (slav %ud time.pole)
     =/  older  (bat:mope wit.pac `time count)
-    =/  newer  (tab:on:writs:c wit.pac `time count)
-    =/  writ   (get:on:writs:c wit.pac time)
-    =-  ``chat-writs+!>(-)
-    %+  gas:on  *writs:c
-    ?~  writ
+    =/  newer  (tab:on:wools:c wit.pac `time count)
+    =/  wool   (get:on:wools:c wit.pac time)
+    =-  ``chat-wools+!>(-)
+    %+  gas:on  *wools:c
+    ?~  wool
       (welp older newer)
-    (welp (snoc older [time u.writ]) newer)
+    (welp (snoc older [time u.wool]) newer)
   ::
-      [%writ %id ship=@ time=@ ~]
+      [%wool %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
     =/  time  (slav %ud time.pole)
     ?.  ?=(%u care)
-      ``writ+!>((got ship `@da`time))
+      ``wool+!>((got ship `@da`time))
     ``flag+!>(?~((get ship `@da`time) | &))
   ==
 ::
@@ -151,34 +160,34 @@
         =scan:c
     ==
   ++  scour
-    |=  [sip=@ud len=@ud matc=$-(writ:c ?)]
+    |=  [sip=@ud len=@ud matc=$-(wool:c ?)]
     ?>  (gth len 0)
     ^-  scan:c
     %-  flop
     =<  scan.-
     %^    (dop:mope query)
-        wit.pac     :: (gas:on:writs:c wit.pac ls)
+        wit.pac     :: (gas:on:wools:c wit.pac ls)
       [sip len ~]   :: (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
     |=  $:  =query
             =time
-            =writ:c
+            =wool:c
         ==
-    ^-  [(unit writ:c) stop=? _query]
+    ^-  [(unit wool:c) stop=? _query]
     :-  ~
-    ?:  (matc writ)
+    ?:  (matc wool)
       ?:  =(0 skip.query)
         :-  =(1 more.query)
-        query(more (dec more.query), scan [[time writ] scan.query])
+        query(more (dec more.query), scan [[time wool] scan.query])
       [| query(skip (dec skip.query))]
     [| query]
   ++  mntn
     |=  nedl=ship
-    ^-  $-(writ:c ?)
-    |=  =writ:c
+    ^-  $-(wool:c ?)
+    |=  =wool:c
     ^-  ?
-    ?.  ?=(%story -.content.writ)
+    ?.  ?=(%story -.content.parent.wool)
       |
-    =/  ls=(list inline:c)   q.p.content.writ
+    =/  ls=(list inline:c)   q.p.content.parent.wool
     |-
     ?~  ls    |
     ?@  i.ls  $(ls t.ls)
@@ -189,13 +198,13 @@
   ::
   ++  txt
     |=  nedl=@t
-    ^-  $-(writ:c ?)
-    |=  =writ:c
+    ^-  $-(wool:c ?)
+    |=  =wool:c
     ^-  ?
-    ?.  ?=(%story -.content.writ)
+    ?.  ?=(%story -.content.parent.wool)
       |
     |^
-      =/  ls=(list inline:c)  q.p.content.writ
+      =/  ls=(list inline:c)  q.p.content.parent.wool
       |-
       ?~  ls  |
       ?@  i.ls

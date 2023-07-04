@@ -165,7 +165,7 @@
       %add-sects  old-diff
       %del-sects  old-diff
       %writs
-    :*  %writs
+    :*  %wools
         p.p.old-diff
         ?-  -.q.p.old-diff
           %add  [%add (log-memo-2-to-3 +.q.p.old-diff)]
@@ -186,13 +186,13 @@
   ^-  pact:c
   :_  dex.old-pact
   ::  take only the resulting state from dip and ignore the old mop
-  ^-  writs:c
+  ^-  wools:c
   =-  -<
-  %^  (dip:on:writs:two writs:c)  wit.old-pact  *writs:c
+  %^  (dip:on:writs:two wools:c)  wit.old-pact  *wools:c
   ::  insert the old writs into a new mop of writs
   ::  when a writ is a reply, find its parent and put it there
-  |=  [state=writs:c kv=(pair time writ:two)]
-  ^-  [(unit writ:two) %.n writs:c]
+  |=  [state=wools:c kv=(pair time writ:two)]
+  ^-  [(unit writ:two) %.n wools:c]
   =/  [tim=time [oldseal=seal:two oldmemo=memo:two]]  kv
   :+  ~  %.n
   =/  newseal=seal:c
@@ -202,29 +202,31 @@
     ==
   =/  newmemo=memo:c
     :*  replying=~
+        thread=replying.oldmemo
         author.oldmemo
         sent.oldmemo
         content.oldmemo
     ==
   ?~  replying.oldmemo
-    (put:on:writs:c state tim [newseal newmemo *thread:c])
-  =/  parent  (get:on:writs:c state q.u.replying.oldmemo)
+    (put:on:wools:c state tim [*stitch:c *writs:c newseal newmemo])
+  =/  parent  (get:on:wools:c state q.u.replying.oldmemo)
   ?~  parent  state
-  =/  [parent-seal=seal:c parent-memo=memo:c parent-thread=thread:c]  u.parent
-  %^  put:on:writs:c  state  q.u.replying.oldmemo
-  :*  parent-seal
-      parent-memo
-      :*  (~(put in authors.parent-thread) author.newmemo)
-          +(count.parent-thread)
-          remark.parent-thread
-          (put:on:strands:c strands.parent-thread tim [newseal newmemo])
+  =/  [parent-stitch=stitch:c parent-thread=writs:c parent-seal=seal:c parent-memo=memo:c]  u.parent
+  %^  put:on:wools:c  state  q.u.replying.oldmemo
+  :*  :*  (~(put in authors.parent-stitch) author.newmemo)
+          +(count.parent-stitch)
+          remark.parent-stitch
       ==
+      (put:on:writs:c parent-thread tim [newseal newmemo])
+      parent-seal
+      parent-memo
   ==
 ::
 ++  log-memo-2-to-3
   |=  old-memo=memo:two
   ^-  memo:c
   :*  replying=~
+      thread=~
       author=author.old-memo
       sent=sent.old-memo
       content=content.old-memo
@@ -234,18 +236,16 @@
   |=  [tim=time old-writ=writ:two]
   ^-  [time writ:c]
   :*  tim
-      ^-  seal:c
       :*  id.old-writ
           feels.old-writ
           replied.old-writ
       ==
-      ^-  memo:c
       :*  replying.old-writ
+          ~
           author.old-writ
           tim
           content.old-writ
       ==
-      *thread:c
   ==
 ::
 ++  clubs-1-to-2

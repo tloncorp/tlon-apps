@@ -21,7 +21,7 @@
   --
 ::
 ::  $scan: search results
-+$  scan  (list (pair time writ))
++$  scan  (list (pair time wool))
 ::  $writ: a chat message
 +$  writ     [seal memo]
 ::  $wool: a writ and a thread
@@ -105,13 +105,13 @@
 ::
 ::  $diff: represents an update to state
 ::
-::    %writs: a chat message update
+::    %wools: a chat message update
 ::    %add-sects: add sects to writer permissions
 ::    %del-sects: delete sects from writers
 ::    %create: create a new chat
 ::
 +$  diff
-  $%  [%writs p=diff:writs]
+  $%  [%wools p=diff:wools]
     ::
       [%add-sects p=(set sect:g)]
       [%del-sects p=(set sect:g)]
@@ -129,7 +129,7 @@
 ::    dex: map of chat messages id -> time
 ::
 +$  pact
-  $:  wit=writs
+  $:  wit=wools
       dex=index
   ==
 ::
@@ -199,6 +199,14 @@
     ((mop time writ) lte)
   ++  on
     ((^on time writ) lte)
+  --
+++  wools
+  =<  wools
+  |%
+  +$  wools
+    ((mop time wool) lte)
+  ++  on
+    ((^on time wool) lte)
   +$  diff
     (pair id delta)
   +$  delta
@@ -207,17 +215,6 @@
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
     ==
-  --
-::
-::  $writs: a set of time ordered threaded chat messages
-::
-++  strands
-  =<  strands
-  |%
-  +$  strands
-    ((mop time strand) lte)
-  ++  on
-    ((^on time strand) lte)
   --
 ::
 ::  $dm: a direct line of communication between two ships
