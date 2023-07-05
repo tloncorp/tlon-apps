@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import { Editor } from '@tiptap/react';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { DiaryInline } from '@/types/diary';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
@@ -8,14 +9,16 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useAddQuipMutation, useQuip } from '@/state/diary';
 import useRequestState from '@/logic/useRequestState';
 import { normalizeInline, JSONToInlines, makeMention } from '@/logic/tiptap';
-import { useParams, useSearchParams } from 'react-router-dom';
 import X16Icon from '@/components/icons/X16Icon';
 import { pathToCite } from '@/logic/utils';
 import { Cite } from '@/types/chat';
 import NoteCommentReference from '@/components/References/NoteCommentReference';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 interface DiaryCommentFieldProps {
   flag: string;
+  groupFlag: string;
   replyTo: string;
   className?: string;
   sendDisabled?: boolean;
@@ -23,6 +26,7 @@ interface DiaryCommentFieldProps {
 
 export default function DiaryCommentField({
   flag,
+  groupFlag,
   replyTo,
   className,
   sendDisabled = false,
@@ -36,6 +40,7 @@ export default function DiaryCommentField({
   const quipReply = useQuip(chFlag, replyTo, quipReplyId || '');
   const { isPending, setPending, setReady } = useRequestState();
   const { mutateAsync: addQuip } = useAddQuipMutation();
+  const { privacy } = useGroupPrivacy(groupFlag);
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -64,6 +69,13 @@ export default function DiaryCommentField({
           inline,
         },
       });
+      captureGroupsAnalyticsEvent({
+        name: 'comment_item',
+        groupFlag,
+        chFlag: flag,
+        channelType: 'diary',
+        privacy,
+      });
       setReplyCite(undefined);
       setSearchParms();
       setReady();
@@ -73,6 +85,8 @@ export default function DiaryCommentField({
       setPending,
       replyTo,
       flag,
+      groupFlag,
+      privacy,
       setReady,
       replyCite,
       setReplyCite,
@@ -91,7 +105,7 @@ export default function DiaryCommentField({
     content: '',
     uploadKey: `diary-comment-field-${flag}`,
     placeholder: 'Add a comment',
-    editorClass: 'p-0',
+    editorClass: 'p-0 !min-h-[72px]',
     allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
@@ -171,7 +185,7 @@ export default function DiaryCommentField({
           editor={messageEditor}
           className="h-full w-full rounded-lg"
           inputClassName={cn(
-            'min-h-[104px] p-4 leading-5',
+            'p-4 leading-5',
             // Since TipTap simulates an input using a <p> tag, only style
             // the fake placeholder when the field is empty
             messageEditor.getText() === '' ? 'text-gray-400' : ''

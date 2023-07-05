@@ -47,6 +47,8 @@ import * as Popover from '@radix-ui/react-popover';
 import { useSearchParams } from 'react-router-dom';
 import { useGroupFlag } from '@/state/groups';
 import { useLocalStorage } from 'usehooks-ts';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 interface ChatInputProps {
   whom: string;
@@ -112,6 +114,7 @@ export default function ChatInput({
   );
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const groupFlag = useGroupFlag();
+  const { privacy } = useGroupPrivacy(groupFlag);
   const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
@@ -266,6 +269,13 @@ export default function ChatInput({
 
         sendMessage(whom, memo);
       }
+      captureGroupsAnalyticsEvent({
+        name: reply ? 'comment_item' : 'post_item',
+        groupFlag,
+        chFlag: whom,
+        channelType: 'chat',
+        privacy,
+      });
       editor?.commands.setContent('');
       onUpdate.current.flush();
       setDraft(inlinesToJSON(['']));
@@ -276,6 +286,8 @@ export default function ChatInput({
     },
     [
       whom,
+      groupFlag,
+      privacy,
       id,
       setDraft,
       clearAttachments,

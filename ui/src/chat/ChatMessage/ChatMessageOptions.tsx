@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
+import { useSearchParams } from 'react-router-dom';
 import { useCopy, canWriteChannel } from '@/logic/utils';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import { useChatPerms, useChatState } from '@/state/chat';
@@ -7,19 +8,18 @@ import { ChatWrit } from '@/types/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import FaceIcon from '@/components/icons/FaceIcon';
 import HashIcon from '@/components/icons/HashIcon';
-import ShareIcon from '@/components/icons/ShareIcon';
 import XIcon from '@/components/icons/XIcon';
-import { useChatDialog, useChatStore } from '@/chat/useChatStore';
+import { useChatDialog } from '@/chat/useChatStore';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
-import { useSearchParams } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 export default function ChatMessageOptions(props: {
   whom: string;
@@ -49,13 +49,14 @@ export default function ChatMessageOptions(props: {
     setReady,
   } = useRequestState();
   const { chShip, chName } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
   const chFlag = `${chShip}/${chName}`;
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
+  const { privacy } = useGroupPrivacy(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
@@ -81,9 +82,16 @@ export default function ChatMessageOptions(props: {
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       useChatState.getState().addFeel(whom, writ.seal.id, emoji.shortcodes);
+      captureGroupsAnalyticsEvent({
+        name: 'react_item',
+        groupFlag,
+        chFlag: whom,
+        channelType: 'chat',
+        privacy,
+      });
       setPickerOpen(false);
     },
-    [whom, writ, setPickerOpen]
+    [whom, groupFlag, privacy, writ, setPickerOpen]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

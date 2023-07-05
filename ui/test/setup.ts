@@ -16,6 +16,12 @@ vi.stubGlobal('fetch', (url: string, init: any) => {
   return fetch(`http://localhost:3000${url}`, init);
 });
 
+vi.mock('posthog-js', () => ({
+  default: {
+    init: () => ({}),
+  },
+}));
+
 // Prevent vite from failing when resizeObserver is used
 
 Object.defineProperty(global, 'ResizeObserver', {

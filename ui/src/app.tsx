@@ -80,6 +80,8 @@ import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
 import SettingsDialog from './components/SettingsDialog';
+import { captureAnalyticsEvent } from './logic/analytics';
+import GroupChannel from './groups/GroupChannel';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -180,7 +182,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           </Route>
 
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
-            <Route path="channels/chat/:chShip/:chName">
+            <Route
+              path="channels/chat/:chShip/:chName"
+              element={<GroupChannel type="chat" />}
+            >
               <Route
                 path="*"
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
@@ -285,6 +290,15 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
+  const groupsTitle = appHead('').title;
+  useEffect(() => {
+    captureAnalyticsEvent('app_open');
+
+    return () => {
+      captureAnalyticsEvent('app_close');
+    };
+  }, []);
+
   return (
     <>
       <Routes location={state?.backgroundLocation || location}>
@@ -296,35 +310,27 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               element={
                 <Notifications
                   child={GroupNotification}
-                  title={`Activity • ${appHead('').title}`}
+                  title={`Activity • ${groupsTitle}`}
                 />
               }
             />
             {/* Find by Invite URL */}
             <Route
               path="/find/:ship/:name"
-              element={
-                <FindGroups title={`Find Groups • ${appHead('').title}`} />
-              }
+              element={<FindGroups title={`Discover • ${groupsTitle}`} />}
             />
             {/* Find by Nickname or @p */}
             <Route
               path="/find/:ship"
-              element={
-                <FindGroups title={`Find Groups • ${appHead('').title}`} />
-              }
+              element={<FindGroups title={`Discover • ${groupsTitle}`} />}
             />
             <Route
               path="/find"
-              element={
-                <FindGroups title={`Find Groups • ${appHead('').title}`} />
-              }
+              element={<FindGroups title={`Discover • ${groupsTitle}`} />}
             />
             <Route
               path="/profile/edit"
-              element={
-                <EditProfile title={`Edit Profile • ${appHead('').title}`} />
-              }
+              element={<EditProfile title={`Edit Profile • ${groupsTitle}`} />}
             />
             <Route
               path="/leap"
@@ -346,25 +352,26 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={
                   <Notifications
                     child={GroupNotification}
-                    title={`• ${appHead('').title}`}
+                    title={`• ${groupsTitle}`}
                   />
                 }
               />
               <Route
                 path="channels"
-                element={
-                  <GroupChannelManager title={` • ${appHead('').title}`} />
-                }
+                element={<GroupChannelManager title={` • ${groupsTitle}`} />}
               />
             </Route>
-            <Route path="channels/chat/:chShip/:chName">
+            <Route
+              path="channels/chat/:chShip/:chName"
+              element={<GroupChannel type="chat" />}
+            >
               <Route
                 index
-                element={<ChatChannel title={` • ${appHead('').title}`} />}
+                element={<ChatChannel title={` • ${groupsTitle}`} />}
               />
               <Route
                 path="*"
-                element={<ChatChannel title={` • ${appHead('').title}`} />}
+                element={<ChatChannel title={` • ${groupsTitle}`} />}
               >
                 {isSmall ? null : (
                   <Route
@@ -380,16 +387,31 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               ) : null}
             </Route>
-            <Route path="channels/heap/:chShip/:chName">
+            <Route
+              path="channels/heap/:chShip/:chName"
+              element={<GroupChannel type="heap" />}
+            >
               <Route
                 index
-                element={<HeapChannel title={` • ${appHead('').title}`} />}
+                element={<HeapChannel title={` • ${groupsTitle}`} />}
               />
-              <Route path="curio/:idCurio" element={<HeapDetail />} />
+              <Route
+                path="curio/:idCurio"
+                element={<HeapDetail title={` • ${groupsTitle}`} />}
+              />
             </Route>
-            <Route path="channels/diary/:chShip/:chName">
-              <Route index element={<DiaryChannel />} />
-              <Route path="note/:noteId" element={<DiaryNote />} />
+            <Route
+              path="channels/diary/:chShip/:chName"
+              element={<GroupChannel type="diary" />}
+            >
+              <Route
+                index
+                element={<DiaryChannel title={` • ${groupsTitle}`} />}
+              />
+              <Route
+                path="note/:noteId"
+                element={<DiaryNote title={` • ${groupsTitle}`} />}
+              />
               <Route path="edit">
                 <Route index element={SuspendedDiaryAddNote} />
                 <Route path=":id" element={SuspendedDiaryAddNote} />
@@ -434,16 +456,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
             <Route
               index
-              element={<GroupInfoEditor title={`• ${appHead('').title}`} />}
+              element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
             />
             <Route path="invites-privacy" element={<GroupInvitesPrivacy />} />
             <Route
               path="members"
-              element={<GroupMembers title={`• ${appHead('').title}`} />}
+              element={<GroupMembers title={`• ${groupsTitle}`} />}
             />
             <Route
               path="roles"
-              element={<GroupRoles title={`• ${appHead('').title}`} />}
+              element={<GroupRoles title={`• ${groupsTitle}`} />}
             />
             <Route path="delete" element={<GroupDelete />} />
           </Route>

@@ -17,12 +17,15 @@ import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, getFlagParts } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 
 function Groups() {
   const navigate = useNavigate();
   const flag = useRouteGroup();
   const group = useGroup(flag, true);
   const gang = useGang(flag);
+  const { privacy } = useGroupPrivacy(flag);
   const { ship } = getFlagParts(flag);
   const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
   const diaryBriefs = useDiaryBriefs();
@@ -106,6 +109,13 @@ function Groups() {
     navigate,
     diaryBriefs,
   ]);
+
+  useGroupsAnalyticsEvent({
+    name: 'open_group',
+    leaveName: 'leave_group',
+    groupFlag: flag,
+    privacy,
+  });
 
   if (!connection && !group) {
     return (

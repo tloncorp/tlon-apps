@@ -79,7 +79,7 @@ function extendCurrentWindow(
 ) {
   if (!windows) {
     return {
-      latest: newWindow.latest ? newWindow : undefined,
+      latest: newWindow.latest || !time ? newWindow : undefined,
       windows: [newWindow],
     };
   }

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import cn from 'classnames';
 import { useForm } from 'react-hook-form';
+import { JSONContent } from '@tiptap/react';
 import LinkIcon from '@/components/icons/LinkIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
@@ -8,7 +9,6 @@ import { canWriteChannel, isValidUrl, nestToFlag } from '@/logic/utils';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
-import { JSONContent } from '@tiptap/react';
 import {
   CurioInputMode,
   GRID,
@@ -21,6 +21,8 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import { useHeapDisplayMode } from '@/state/settings';
 import { useUploader } from '@/state/storage';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
@@ -29,6 +31,7 @@ export default function NewCurioForm() {
   const [draftText, setDraftText] = useState<JSONContent>();
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const { privacy } = useGroupPrivacy(flag);
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
   const displayMode = useHeapDisplayMode(chFlag);
@@ -77,12 +80,19 @@ export default function NewCurioForm() {
         sent: Date.now(),
         replying: null,
       });
+      captureGroupsAnalyticsEvent({
+        name: 'post_item',
+        groupFlag: flag,
+        chFlag,
+        channelType: 'heap',
+        privacy,
+      });
 
       setDraftLink(undefined);
       uploader?.clear();
       reset();
     },
-    [chFlag, reset, uploader]
+    [flag, chFlag, privacy, reset, uploader]
   );
 
   const watchedContent = watch('content');
@@ -210,6 +220,7 @@ export default function NewCurioForm() {
             draft={draftText}
             setDraft={setDraftText}
             flag={chFlag}
+            groupFlag={flag}
             className={cn(
               isListMode ? 'flex-1' : 'h-full w-full overflow-y-hidden'
             )}
