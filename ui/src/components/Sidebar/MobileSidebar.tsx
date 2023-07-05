@@ -87,7 +87,7 @@ export default function MobileSidebar() {
               >
                 <Link
                   to="/settings"
-                  className="dropdown-item flex flex-row items-center p-2 no-underline"
+                  className="no-underline"
                   state={{ backgroundLocation: location }}
                 >
                   App Settings
