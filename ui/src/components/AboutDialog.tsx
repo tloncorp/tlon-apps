@@ -28,7 +28,13 @@ export default function AboutDialog() {
   };
 
   return (
-    <Dialog defaultOpen modal onOpenChange={onOpenChange} className="w-[500px]">
+    <Dialog
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+      containerClass="w-full"
+      className="mx-auto max-w-[500px]"
+    >
       <div className="flex flex-col space-y-2">
         <span className="text-lg font-bold">
           About {isTalk ? 'Talk' : 'Groups'}
