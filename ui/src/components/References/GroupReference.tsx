@@ -118,7 +118,7 @@ function GroupReference({
         <div className="absolute top-2 left-2 flex items-center space-x-2 rounded p-2 text-base font-bold">
           <GroupAvatar {...meta} size="h-6 w-6" />
           <span
-            className="text-white"
+            className="text-white dark:text-black"
             style={{ textShadow: 'black 0px 1px 3px' }}
           >
             {title}
