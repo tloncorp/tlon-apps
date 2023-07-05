@@ -167,7 +167,7 @@ export function useTheme() {
 
     const { display } = data;
 
-    return display.theme;
+    return display.theme || 'auto';
   }, [isLoading, data]);
 }
 
