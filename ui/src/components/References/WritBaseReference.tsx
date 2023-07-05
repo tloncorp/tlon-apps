@@ -10,13 +10,18 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import { useChatState } from '@/state/chat';
 import { unixToDa } from '@urbit/api';
 import { useChannelFlag } from '@/logic/channel';
+import { isImageUrl } from '@/logic/utils';
 import ReferenceBar from './ReferenceBar';
+import ShipName from '../ShipName';
+import Sig16Icon from '../icons/Sig16Icon';
 
 interface WritBaseReferenceProps {
   nest: string;
   chFlag: string;
   writ?: ChatWrit;
   isScrolling: boolean;
+  contextApp?: string;
+  children?: React.ReactNode;
 }
 
 function WritBaseReference({
@@ -24,6 +29,8 @@ function WritBaseReference({
   writ,
   chFlag,
   isScrolling,
+  contextApp,
+  children,
 }: WritBaseReferenceProps) {
   const isReply = useChannelFlag() === chFlag;
   const preview = useChannelPreview(nest, isScrolling);
@@ -58,6 +65,49 @@ function WritBaseReference({
     }
     navigate(`/groups/${groupFlag}/channels/${nest}?msg=${time}`);
   };
+
+  if (contextApp === 'heap-row') {
+    return (
+      <>
+        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded">
+          {group && isImageUrl(group.meta.image) ? (
+            <img
+              src={group?.meta.image}
+              loading="lazy"
+              className="h-[72px] w-[72px] rounded object-cover"
+            />
+          ) : (
+            <div
+              style={{ background: group?.meta.image }}
+              className=" flex h-[72px] w-[72px] items-center justify-center rounded"
+            >
+              <Sig16Icon className="h-6 w-6 text-black/50" />
+            </div>
+          )}
+        </div>
+        <div className="flex grow flex-col">
+          <div className="text-lg font-semibold line-clamp-1">
+            {writ.memo.content.story.block.length > 0 ? (
+              <span>Nested content references</span>
+            ) : (
+              <ChatContent
+                className="line-clamp-1"
+                story={writ.memo.content.story}
+                isScrolling={false}
+              />
+            )}
+          </div>
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+            <span className="">
+              Post by <ShipName name={writ.memo.author} showAlias /> in{' '}
+              {preview?.meta?.title}
+            </span>
+          </div>
+          {children}
+        </div>
+      </>
+    );
+  }
 
   return (
     <div

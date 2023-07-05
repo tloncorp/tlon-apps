@@ -31,6 +31,7 @@ import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
 import Sig16Icon from '@/components/icons/Sig16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ContentReference from '@/components/References/ContentReference';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -250,15 +251,7 @@ export default function HeapRow({
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (
       <div className={cnm()}>
-        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
-          <Sig16Icon className="h-6 w-6 text-gray-400" />
-        </div>
-        <div className="flex grow flex-col">
-          <div className="text-lg font-semibold line-clamp-1" />
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
-            <span>Urbit Reference</span>
-            <span>{replyCount} comments</span>
-          </div>
+        <ContentReference contextApp="heap-row" cite={content.block[0].cite}>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
             <Avatar
               size="xxs"
@@ -269,9 +262,11 @@ export default function HeapRow({
               showAlias={!calm.disableNicknames}
               name={curio.heart.author}
             />
-            <span className="text-gray-400">{prettySent} ago</span>
+            <span className="hidden text-gray-400 sm:inline">
+              {prettySent} ago
+            </span>
           </div>
-        </div>
+        </ContentReference>
         <div className="shrink-0">
           <Actions
             longPress={false}
@@ -293,7 +288,7 @@ export default function HeapRow({
           <div className="text-lg font-semibold line-clamp-1">
             <HeapContent className={cn('line-clamp-1')} content={content} />
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
             <span>Text</span>
             <span>{replyCount} comments</span>
           </div>
@@ -307,7 +302,9 @@ export default function HeapRow({
               showAlias={!calm.disableNicknames}
               name={curio.heart.author}
             />
-            <span className="text-gray-400">{prettySent} ago</span>
+            <span className="hidden text-gray-400 sm:inline">
+              {prettySent} ago
+            </span>
           </div>
         </div>
         <div className="shrink-0">
@@ -340,7 +337,7 @@ export default function HeapRow({
           <div className="break-all text-lg font-semibold line-clamp-1">
             {textFallbackTitle}
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
             <span>Image</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -357,7 +354,9 @@ export default function HeapRow({
               showAlias={!calm.disableNicknames}
               name={curio.heart.author}
             />
-            <span className="text-gray-400">{prettySent} ago</span>
+            <span className="hidden text-gray-400 sm:inline">
+              {prettySent} ago
+            </span>
           </div>
         </div>
         <div className="shrink-0">
@@ -381,7 +380,7 @@ export default function HeapRow({
           <div className="break-all text-lg font-semibold line-clamp-1">
             {textFallbackTitle}
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
             <span>Audio</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -398,7 +397,9 @@ export default function HeapRow({
               showAlias={!calm.disableNicknames}
               name={curio.heart.author}
             />
-            <span className="text-gray-400">{prettySent} ago</span>
+            <span className="hidden text-gray-400 sm:inline">
+              {prettySent} ago
+            </span>
           </div>
         </div>
         <div className="shrink-0">
@@ -434,8 +435,8 @@ export default function HeapRow({
             <div className="break-all text-lg font-semibold line-clamp-1">
               Tweet by @{twitterHandle}
             </div>
-            <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
-              <span>Twitter Link</span>
+            <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+              <span>Tweet</span>
               <a href={url} target="_blank" rel="noreferrer">
                 Source
               </a>
@@ -451,7 +452,9 @@ export default function HeapRow({
                 showAlias={!calm.disableNicknames}
                 name={curio.heart.author}
               />
-              <span className="text-gray-400">{prettySent} ago</span>
+              <span className="hidden text-gray-400 sm:inline">
+                {prettySent} ago
+              </span>
             </div>
           </div>
           <div className="shrink-0">
@@ -483,7 +486,7 @@ export default function HeapRow({
           <div className="break-all text-lg font-semibold line-clamp-1">
             {title && !calm.disableRemoteContent ? title : textFallbackTitle}
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
             <span>Link</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -500,7 +503,9 @@ export default function HeapRow({
               showAlias={!calm.disableNicknames}
               name={curio.heart.author}
             />
-            <span className="text-gray-400">{prettySent} ago</span>
+            <span className="hidden text-gray-400 sm:inline">
+              {prettySent} ago
+            </span>
           </div>
         </div>
         <div className="shrink-0">
@@ -523,7 +528,7 @@ export default function HeapRow({
         <div className="break-all text-lg font-semibold line-clamp-1">
           {textFallbackTitle}
         </div>
-        <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
+        <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
           <span>Link</span>
           <a href={url} target="_blank" rel="noreferrer">
             Source
@@ -540,7 +545,9 @@ export default function HeapRow({
             showAlias={!calm.disableNicknames}
             name={curio.heart.author}
           />
-          <span className="text-gray-400">{prettySent} ago</span>
+          <span className="hidden text-gray-400 sm:inline">
+            {prettySent} ago
+          </span>
         </div>
       </div>
       <div className="shrink-0">

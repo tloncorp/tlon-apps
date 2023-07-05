@@ -13,6 +13,7 @@ import {
 import ShipName from '@/components/ShipName';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
+import Sig16Icon from '../icons/Sig16Icon';
 
 interface GroupReferenceProps {
   flag: string;
@@ -21,6 +22,7 @@ interface GroupReferenceProps {
   onlyButton?: boolean;
   description?: string;
   contextApp?: string;
+  children?: React.ReactNode;
 }
 
 function GroupReference({
@@ -30,6 +32,7 @@ function GroupReference({
   onlyButton = false,
   description,
   contextApp,
+  children,
 }: GroupReferenceProps) {
   const gang = useGang(flag);
   const preview = useGangPreview(flag, isScrolling);
@@ -125,6 +128,40 @@ function GroupReference({
           </span>
         </div>
       </div>
+    );
+  }
+
+  if (contextApp === 'heap-row') {
+    const { title, image } = meta || {
+      title: '',
+      image: '',
+    };
+    return (
+      <>
+        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded">
+          {isImageUrl(image) ? (
+            <img
+              src={image}
+              loading="lazy"
+              className="h-[72px] w-[72px] rounded object-cover"
+            />
+          ) : (
+            <div
+              style={{ background: image }}
+              className=" flex h-[72px] w-[72px] items-center justify-center rounded"
+            >
+              <Sig16Icon className="h-6 w-6 text-black/50" />
+            </div>
+          )}
+        </div>
+        <div className="flex grow flex-col">
+          <div className="text-lg font-semibold line-clamp-1">{title}</div>
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
+            <span className="capitalize">{privacy} Group</span>
+          </div>
+          {children}
+        </div>
+      </>
     );
   }
 

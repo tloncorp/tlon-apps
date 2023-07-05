@@ -64,6 +64,10 @@ function TopBar({
     navigateToCurio,
   } = useCurioActions({ nest, time, refToken });
 
+  if (asRef) {
+    return null;
+  }
+
   return (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -194,7 +198,7 @@ function BottomBar({ curio, asRef }: BottomBarProps) {
         'absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:bg-white/50 group-hover:backdrop-blur'
       )}
     >
-      <Avatar ship={curio.heart.author} size="xs" />
+      <Avatar ship={curio?.heart.author} size="xs" />
       <div className="hidden w-full justify-between align-middle group-hover:flex">
         <span className="truncate font-semibold">{prettySent} ago</span>
         {replyCount > 0 ? (
@@ -299,7 +303,7 @@ export default function HeapBlock({
 
   const cnm = (refClass?: string) =>
     asRef ? refClass || '' : 'heap-block group';
-  const topBar = { time, refToken, longPress };
+  const topBar = { time, asRef, refToken, longPress };
   const botBar = { curio, asRef, longPress };
 
   if (isComment) {
@@ -345,7 +349,9 @@ export default function HeapBlock({
             leading-6
             content={content}
           />
-          <div className="from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent" />
+          {!asRef && (
+            <div className="from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent" />
+          )}
           <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
