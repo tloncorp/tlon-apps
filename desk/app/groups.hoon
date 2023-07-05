@@ -94,7 +94,7 @@
       %noun
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
-      %verify-cabals    verify-cabals
+      %verify-cabals  verify-cabals
     ==
   ::
       %group-import  (import-groups !<(imports:g vase))
@@ -235,18 +235,17 @@
     ==
   core
 ::
-++  verify-cabals
-  %+  roll
-    ~(tap by groups)
+++  verify-cabals  (roll ~(tap by groups) verify-group-cabals)
+++  verify-group-cabals
   |=  [[=flag:g [* =group:g]] core=_cor]
   =.  core
     %+  roll
       ~(tap by fleet.group)
-    |=  [[s=ship =vessel:fleet:g] cr=_core]
+    |=  [[s=ship =vessel:fleet:g] cre=_core]
     =/  diff  (~(dif in sects.vessel) ~(key by cabals.group))
-    ?:  =(~(wyt in diff) 0)  cr
+    ?:  =(~(wyt in diff) 0)  cre
     =/  action  [flag now.bowl %fleet (~(gas in *(set ship)) ~[s]) %del-sects diff]
-    cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
+    cre(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cre])
   %+  roll
     ~(tap by channels.group)
   |=  [[=nest:g =channel:g] cr=_core]
@@ -1332,7 +1331,7 @@
     ::
         %del
       =.  cabals.group  (~(del by cabals.group) sect)
-      =.  cor  verify-cabals
+      =.  cor  (verify-group-cabals [flag ~ group] cor)
       go-core
     ==
   ::
@@ -1435,8 +1434,8 @@
       go-core
     ::
         %add-sects
-      ~|  strange-sect/sect
       ?>  go-is-bloc
+      ~|  strange-sect/sects.diff
       ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
       =.  fleet.group
         %-  ~(rut by fleet.group)
@@ -1560,6 +1559,8 @@
       go-core
     ::
         %add-sects
+      ~|  strange-sect/sects.diff
+      ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
       =/  =channel:g  (got:by-ch ch)
       =.  readers.channel  (~(uni in readers.channel) sects.diff)
       =.  channels.group  (put:by-ch ch channel)

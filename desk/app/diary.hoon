@@ -487,11 +487,11 @@
       [%cabal * %del *]
     =/  =sect:g  (slav %tas p.diff)
     %+  recheck-perms  affected
-    `(~(gas in *(set sect:g)) ~[p.diff])
+    (~(gas in *(set sect:g)) ~[p.diff])
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list flag:d) sects=(unit (set sect:g))]
+  |=  [affected=(list flag:d) sects=(set sect:g)]
   ~&  "%diary recheck permissions for {<affected>}"
   %+  roll  affected
   |=  [=flag:d co=_cor]
@@ -729,10 +729,10 @@
     di(cor (emit %give %kick ~[path] `ship))
   ::
   ++  di-recheck
-    |=  sects=(unit (set sect:g))
+    |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
-      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects (need sects)])]  
+      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]  
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  di-core  (di-can-read our.bowl)  di-safe-sub
