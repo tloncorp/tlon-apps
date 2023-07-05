@@ -361,18 +361,6 @@ export default function GroupRoles({ title }: { title: string }) {
             value={deleteField}
             onChange={onDeleteChange}
           />
-          {currentlyUsedRoles.includes(editRole) && (
-            <p className="text-red-600">
-              You must{' '}
-              <Link
-                state={{ backgroundLocation: state.backgroundLocation }}
-                to={`/groups/${flag}/edit/members`}
-              >
-                remove all members
-              </Link>{' '}
-              from this role before it can be deleted.
-            </p>
-          )}
           <div className="mt-8 flex justify-end space-x-2">
             <button
               className="secondary-button"
@@ -383,13 +371,7 @@ export default function GroupRoles({ title }: { title: string }) {
             </button>
             <button
               className="button center-items flex bg-red"
-              title={
-                currentlyUsedRoles.includes(editRole)
-                  ? 'This role is currently in use and cannot be deleted'
-                  : 'Delete role'
-              }
               disabled={
-                currentlyUsedRoles.includes(editRole) ||
                 deleteStatus === 'loading' ||
                 !eqRoleName(
                   deleteField,

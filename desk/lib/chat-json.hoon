@@ -521,7 +521,7 @@
   ::
   ++  add-sects  (as (se %tas))
   ::
-  ++  del-sects  (as (se %tas))
+  ++  del-sects  (as so)
   ::
   ++  add-feel
     %-  ot

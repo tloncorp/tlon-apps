@@ -295,10 +295,7 @@ export function getPrivacyFromChannel(
     return 'public';
   }
 
-  if (
-    groupChannel.readers.includes('admin') ||
-    channel.perms.writers.includes('admin')
-  ) {
+  if (groupChannel.readers.length > 0 || channel.perms.writers.length > 0) {
     return 'custom';
   }
 
