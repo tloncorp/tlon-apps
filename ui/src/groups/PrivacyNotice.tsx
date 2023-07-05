@@ -110,7 +110,7 @@ export default function PrivacyNotice() {
               <NavLink
                 to="/settings"
                 className=""
-                state={{ backgroundLocation: state.backgroundLlocation }}
+                state={{ backgroundLocation: state.backgroundLocation }}
               >
                 opt out in App Settings
               </NavLink>{' '}
