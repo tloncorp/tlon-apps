@@ -53,42 +53,6 @@ export default function ProfileModal() {
     onCopy();
   };
 
-  if (!contact) {
-    return (
-      <Dialog
-        defaultOpen
-        onOpenChange={onOpenChange}
-        className="overflow-y-auto p-0"
-        containerClass="w-full sm:max-w-lg"
-      >
-        <ProfileCoverImage className="flex items-end" cover={cover}>
-          <Avatar
-            ship={ship}
-            icon={false}
-            size="huge"
-            className="translate-y-9"
-          />
-        </ProfileCoverImage>
-        <div className="p-5 pt-14">
-          <div className="text-lg font-bold">
-            <ShipName name={ship} showAlias />
-          </div>
-        </div>
-        <footer className="flex items-center py-4 px-6">
-          <button
-            className="secondary-button ml-auto"
-            onClick={handleCopyClick}
-          >
-            {didCopy ? 'Copied!' : 'Copy Name'}
-          </button>
-          <button className="button ml-2" onClick={handleMessageClick}>
-            Message
-          </button>
-        </footer>
-      </Dialog>
-    );
-  }
-
   return (
     <Dialog
       defaultOpen
@@ -107,13 +71,13 @@ export default function ProfileModal() {
       <div className="p-5 pt-14">
         <div className="text-lg font-bold">
           <ShipName name={ship} showAlias />
-          {contact.nickname ? (
+          {contact && contact.nickname ? (
             <ShipName name={ship} className="ml-2 text-gray-600" />
           ) : null}
           <PalIcon className="ml-2" ship={ship} />
         </div>
-        <ProfileBio bio={contact.bio} />
-        {contact.groups.length > 0 && (
+        {contact && <ProfileBio bio={contact.bio} />}
+        {contact && contact.groups.length > 0 && (
           <div className="mt-5">
             <h2 className="mb-3 font-semibold">Favorite Groups</h2>
             <FavoriteGroupGrid groupFlags={contact.groups} />
@@ -121,22 +85,29 @@ export default function ProfileModal() {
         )}
       </div>
       <footer className="flex items-center py-4 px-6">
-        {pals.installed && pals.pals.outgoing[ship.slice(1)] ? (
-          <button
-            className="secondary-button ml-auto bg-red-100"
-            onClick={() => pals.removePal(ship.slice(1))}
-          >
-            Remove Pal
-          </button>
-        ) : (
-          <button
-            className="secondary-button ml-auto"
-            onClick={() => pals.addPal(ship.slice(1))}
-          >
-            Add Pal
-          </button>
-        )}
-        <button className="secondary-button ml-2" onClick={handleCopyClick}>
+        {pals.installed &&
+          ship !== window.our &&
+          (pals.pals.outgoing[ship.slice(1)] ? (
+            <button
+              className="secondary-button ml-auto bg-red-100"
+              onClick={() => pals.removePal(ship.slice(1))}
+            >
+              Remove Pal
+            </button>
+          ) : (
+            <button
+              className="secondary-button ml-auto"
+              onClick={() => pals.addPal(ship.slice(1))}
+            >
+              Add Pal
+            </button>
+          ))}
+        <button
+          className={`secondary-button ${
+            pals.installed && ship !== window.our ? 'ml-2' : 'ml-auto'
+          }`}
+          onClick={handleCopyClick}
+        >
           {didCopy ? 'Copied!' : 'Copy Name'}
         </button>
         <button className="button ml-2" onClick={handleMessageClick}>
