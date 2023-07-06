@@ -89,7 +89,7 @@ export default function ProfileModal() {
           ship !== window.our &&
           (pals.pals.outgoing[ship.slice(1)] ? (
             <button
-              className="secondary-button ml-auto bg-red-100"
+              className="secondary-button ml-auto bg-red-100 dark:bg-red dark:text-white"
               onClick={() => pals.removePal(ship.slice(1))}
             >
               Remove Pal
