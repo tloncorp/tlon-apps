@@ -4,99 +4,58 @@ import cn from 'classnames';
 import { usePals } from '@/state/pals';
 
 const outgoingSvg = (
-  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <path
-      d="M50 95
-C44.0905 95 38.2389 93.836 32.7792 91.5746
-C27.3196 89.3131 22.3588 85.9984 18.1802 81.8198
-C14.0016 77.6412 10.6869 72.6804 8.42542 67.2208
-C6.16396 61.7611 5 55.9095 5 50"
+      d="M5.5 10.5L10.5 5.5M10.5 5.5H6.5M10.5 5.5V9"
       stroke="currentColor"
-      strokeWidth="10"
-    />
-    <path
-      d="M30.5546 65.9099
-L28.7868 67.6777
-L32.3223 71.2132
-L34.0901 69.4454
-L30.5546 65.9099
-Z
-M67.6777 32.3223
-L39.7938 39.7938
-L60.2062 60.2062
-L67.6777 32.3223
-Z
-M34.0901 69.4454
-L53.5355 50
-L50 46.4645
-L30.5546 65.9099
-L34.0901 69.4454
-Z"
-      fill="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
 
 const incomingSvg = (
-  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <path
-      d="M95 50
-C95 55.9095 93.836 61.7611 91.5746 67.2208
-C89.3131  72.6804 85.9984 77.6412 81.8198 81.8198
-C77.6412 85.9984 72.6804 89.3131 67.2208 91.5746
-C61.7611 93.836 55.9095 95 50 95"
+      d="M10.5 5.5L5.5 10.5M5.5 10.5H9.5M5.5 10.5V7"
       stroke="currentColor"
-      strokeWidth="10"
-    />
-    <path
-      d="M67.2383 68.7383
-L59.7669 40.8545
-L39.3545 61.2669
-L67.2383 68.7383
-Z
-M31.5294 29.4939
-L29.7617 27.7262
-L26.2261 31.2617
-L27.9939 33.0295
-L31.5294 29.4939
-Z
-M53.0962 51.0607
-L31.5294 29.4939
-L27.9939 33.0295
-L49.5607 54.5962
-L53.0962 51.0607
-Z"
-      fill="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
 
 const mutualSvg = (
-  <svg viewBox="13 0 113 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path
-      d="M108 50
-C108 61.9348 103.259 73.3807 94.8198 81.8198
-C86.3807 90.2589 74.9347 95 63 95
-C51.0653 95 39.6193 90.2589 31.1802 81.8198
-C22.7411 73.3807 18 61.9347 18 50"
-      stroke="currentColor"
-      strokeWidth="10"
-    />
-    <path
-      d="M87.5114 31.5994
-C87.5114 28.4354 84.9226 25.8466 81.7585 25.8466
-C78.5945 25.8466 76.0057 28.4354 76.0057 31.5994
-C76.0057 34.7635 78.5945 37.3523 81.7585 37.3523
-C84.9226 37.3523 87.5114 34.7635 87.5114 31.5994
-Z
-M51.0767 31.5994
-C51.0767 28.4354 48.4879 25.8466 45.3239 25.8466
-C42.1598 25.8466 39.571 28.4354 39.571 31.5994
-C39.571 34.7635 42.1598 37.3523 45.3239 37.3523
-C48.4879 37.3523 51.0767 34.7635 51.0767 31.5994
-Z"
-      fill="currentColor"
-    />
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <g id="Utility Icons (16px)">
+      <path
+        id="Union"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M6.5 5.5C6.5 5.08579 6.16421 4.75 5.75 4.75C5.33579 4.75 5 5.08579 5 5.5V6.87923C5 7.29345 5.33579 7.62923 5.75 7.62923C6.16421 7.62923 6.5 7.29345 6.5 6.87923V5.5ZM10.2484 4.75C10.6626 4.75 10.9984 5.08579 10.9984 5.5V6.87923C10.9984 7.29345 10.6626 7.62923 10.2484 7.62923C9.83419 7.62923 9.4984 7.29345 9.4984 6.87923V5.5C9.4984 5.08579 9.83419 4.75 10.2484 4.75ZM10.6718 9.70353C10.9766 9.98395 10.9766 10.4386 10.6718 10.719C9.19575 12.0767 6.80265 12.0767 5.32664 10.719C5.02177 10.4386 5.02177 9.98395 5.32664 9.70353C5.6315 9.42312 6.12577 9.42312 6.43063 9.70353C7.29693 10.5004 8.70147 10.5004 9.56777 9.70353C9.87263 9.42312 10.3669 9.42312 10.6718 9.70353Z"
+        fill="currentColor"
+      />
+    </g>
   </svg>
 );
 
@@ -118,7 +77,7 @@ export default function PalIcon(props: { ship: string; className?: string }) {
   );
 
   const className = cn(
-    'h-5 w-5 p-1 rounded-full inline-block align-middle',
+    'rounded-full inline-block align-middle',
     props.className
   );
 
@@ -126,17 +85,38 @@ export default function PalIcon(props: { ship: string; className?: string }) {
     if (!incoming) {
       return null;
     }
-    return <div className={cn('bg-gray-100', className)}>{incomingSvg}</div>;
+    return (
+      <div
+        className={cn(
+          'rounded-full bg-gray-100 text-gray-600 dark:bg-gray-400 dark:text-white',
+          className
+        )}
+      >
+        {incomingSvg}
+      </div>
+    );
   }
   if (!incoming) {
     return (
-      <div className={cn('bg-yellow-soft', className)} title={tags.join(', ')}>
+      <div
+        className={cn(
+          'rounded-full bg-gray-100 text-gray-600 dark:bg-gray-400 dark:text-white',
+          className
+        )}
+        title={tags.join(', ')}
+      >
         {outgoingSvg}
       </div>
     );
   }
   return (
-    <div className={cn('bg-green-100', className)} title={tags.join(', ')}>
+    <div
+      className={cn(
+        'rounded-full bg-green-100 text-green-500 dark:bg-green-500 dark:text-white',
+        className
+      )}
+      title={tags.join(', ')}
+    >
       {mutualSvg}
     </div>
   );
