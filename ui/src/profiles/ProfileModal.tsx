@@ -84,33 +84,28 @@ export default function ProfileModal() {
           </div>
         )}
       </div>
-      <footer className="flex items-center py-4 px-6">
+      <footer className="flex items-center justify-end space-x-2 py-4 px-6">
         {pals.installed &&
           ship !== window.our &&
           (pals.pals.outgoing[ship.slice(1)] ? (
             <button
-              className="secondary-button ml-auto bg-red-100 dark:bg-red dark:text-white"
+              className="secondary-button bg-red-100 dark:bg-red dark:text-white"
               onClick={() => pals.removePal(ship.slice(1))}
             >
               Remove Pal
             </button>
           ) : (
             <button
-              className="secondary-button ml-auto"
+              className="secondary-button"
               onClick={() => pals.addPal(ship.slice(1))}
             >
               Add Pal
             </button>
           ))}
-        <button
-          className={`secondary-button ${
-            pals.installed && ship !== window.our ? 'ml-2' : 'ml-auto'
-          }`}
-          onClick={handleCopyClick}
-        >
+        <button className="secondary-button" onClick={handleCopyClick}>
           {didCopy ? 'Copied!' : 'Copy Name'}
         </button>
-        <button className="button ml-2" onClick={handleMessageClick}>
+        <button className="button" onClick={handleMessageClick}>
           Message
         </button>
       </footer>
