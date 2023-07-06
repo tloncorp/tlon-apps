@@ -114,8 +114,6 @@ export default function Notifications({
     </button>
   );
 
-  console.log('GROUP:', group);
-
   return (
     <>
       {isMobile && (

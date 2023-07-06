@@ -44,6 +44,15 @@ import { Bold, Italics, Strikethrough } from '@/types/content';
 import { isNativeApp, postActionToNativeApp } from './native';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
+export const isGroups = import.meta.env.VITE_APP === 'groups';
+export const isHosted =
+  import.meta.env.DEV || window.location.hostname.endsWith('.tlon.network');
+
+export function log(...args: any[]) {
+  if (import.meta.env.DEV) {
+    console.log(...args);
+  }
+}
 
 type App = 'chat' | 'heap' | 'diary';
 

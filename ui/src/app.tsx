@@ -22,7 +22,7 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useTheme } from '@/state/settings';
+import { useCalm, useSettingsLoaded, useTheme } from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -83,6 +83,7 @@ import SettingsDialog from './components/SettingsDialog';
 import { captureAnalyticsEvent } from './logic/analytics';
 import GroupChannel from './groups/GroupChannel';
 import PrivacyNotice from './groups/PrivacyNotice';
+import ActivityModal, { ActivityChecker } from './components/ActivityModal';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -292,16 +293,23 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   const groupsTitle = appHead('').title;
+  const loaded = useSettingsLoaded();
+
   useEffect(() => {
-    captureAnalyticsEvent('app_open');
+    if (loaded) {
+      captureAnalyticsEvent('app_open');
+    }
 
     return () => {
-      captureAnalyticsEvent('app_close');
+      if (loaded) {
+        captureAnalyticsEvent('app_close');
+      }
     };
-  }, []);
+  }, [loaded]);
 
   return (
     <>
+      <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<GroupsNav />}>
           <Route element={isMobile ? <MobileSidebar /> : undefined}>
@@ -426,6 +434,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/about" element={<AboutDialog />} />
           <Route path="/privacy" element={<PrivacyNotice />} />
           <Route path="/settings" element={<SettingsDialog />} />
+          <Route path="/activity-collection" element={<ActivityModal />} />
           <Route
             path="/grid"
             element={

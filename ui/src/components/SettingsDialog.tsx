@@ -3,15 +3,18 @@ import {
   Theme,
   useCalm,
   useCalmSettingMutation,
+  useLogActivity,
+  usePutEntryMutation,
   useTheme,
   useThemeMutation,
 } from '@/state/settings';
-import { isTalk } from '@/logic/utils';
+import { isGroups, isTalk } from '@/logic/utils';
 import Dialog from './Dialog';
 import Setting from './Setting';
 import SettingDropdown from './SettingDropdown';
 
 export default function SettingsDialog() {
+  const logActivity = useLogActivity();
   const {
     disableAvatars,
     disableNicknames,
@@ -32,6 +35,8 @@ export default function SettingsDialog() {
     useCalmSettingMutation('disableRemoteContent');
   const { mutate: toggleWayfinding, status: wayfindingStatus } =
     useCalmSettingMutation('disableWayfinding');
+  const { mutate: toggleLogActivity, status: logActivityStatus } =
+    usePutEntryMutation({ bucket: window.desk, key: 'logActivity' });
   const onOpenChange = (open: boolean) => {
     if (!open) {
       dismiss();
@@ -97,6 +102,20 @@ export default function SettingsDialog() {
               services in {isTalk ? 'Talk' : 'Groups'}
             </span>
           </div>
+          {isGroups && (
+            <Setting
+              on={logActivity}
+              toggle={() => toggleLogActivity({ val: !logActivity })}
+              status={logActivityStatus}
+              name="Log Groups Usage"
+            >
+              <p className="leading-5 text-gray-600">
+                Enable or disable basic activity tracking in Groups. Tlon uses
+                this data to make product decisions and to bring you a better
+                Groups experience.
+              </p>
+            </Setting>
+          )}
           <Setting
             on={disableSpellcheck}
             toggle={() => toggleSpellcheck(!disableSpellcheck)}

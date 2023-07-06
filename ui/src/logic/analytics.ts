@@ -1,6 +1,8 @@
 import posthog, { Properties } from 'posthog-js';
 import { PrivacyType } from '@/types/groups';
-import { isTalk } from './utils';
+import queryClient from '@/queryClient';
+import { SettingsState } from '@/state/settings';
+import { isTalk, log } from './utils';
 import { isNativeApp } from './native';
 
 export type AnalyticsEventName =
@@ -47,19 +49,32 @@ export const captureAnalyticsEvent = (
   name: AnalyticsEventName,
   properties?: Properties
 ) => {
+  log('Attempting to capture analytics event', name);
   // Do not capture any analytics events for the Talk web or Talk Android
   if (isTalk || isNativeApp()) {
     return;
   }
 
-  posthog.capture(name, {
+  // Do not capture any analytics events if the user has opted out
+  const settings = queryClient.getQueryData<{ desk: SettingsState }>([
+    'settings',
+    window.desk,
+  ]);
+  if (!settings || !settings?.desk?.groups?.logActivity) {
+    return;
+  }
+
+  const captureProperties: Properties = {
     // The following default properties stop PostHog from auto-logging the URL,
     // which can inadvertently reveal private info on Urbit
     $current_url: null,
     $pathname: null,
     $set_once: null,
     ...(properties || {}),
-  });
+  };
+
+  log('Capturing analytics event', name, captureProperties);
+  posthog.capture(name, captureProperties);
 };
 
 export const captureGroupsAnalyticsEvent = ({
