@@ -32,8 +32,7 @@ export default function AboutDialog() {
       defaultOpen
       modal
       onOpenChange={onOpenChange}
-      containerClass="w-full"
-      className="mx-auto max-w-[500px]"
+      containerClass="p-0 w-[95vw] max-w-[500px]"
     >
       <div className="flex flex-col space-y-2">
         <span className="text-lg font-bold">
