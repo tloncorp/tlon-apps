@@ -6,7 +6,8 @@ import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import produce from 'immer';
-import { isHosted } from '@/logic/utils';
+import { isHosted, isTalk } from '@/logic/utils';
+import { isNativeApp } from '@/logic/native';
 import api from '../api';
 
 interface ChannelSetting {
@@ -322,6 +323,11 @@ export function useLogActivity() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
+    // Do not capture any analytics events for Talk
+    if (isTalk || isNativeApp()) {
+      return false;
+    }
+
     if (isLoading || data === undefined || data.groups === undefined) {
       return isHosted;
     }
