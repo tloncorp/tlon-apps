@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useQuip } from '@/state/diary';
+import { useQuip, useRemoteOutline } from '@/state/diary';
 import { useChannelPreview, useGang } from '@/state/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -12,6 +12,8 @@ import { ChatBlock, ChatStory } from '@/types/chat';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { useChannelFlag } from '@/logic/channel';
 import ReferenceBar from './ReferenceBar';
+import Sig16Icon from '../icons/Sig16Icon';
+import ShipName from '../ShipName';
 
 function NoteCommentReference({
   chFlag,
@@ -19,12 +21,16 @@ function NoteCommentReference({
   noteId,
   quipId,
   isScrolling = false,
+  contextApp,
+  children,
 }: {
   chFlag: string;
   nest: string;
   noteId: string;
   quipId: string;
   isScrolling?: boolean;
+  contextApp?: string;
+  children?: React.ReactNode;
 }) {
   const preview = useChannelPreview(nest);
   const isReply = useChannelFlag() === chFlag;
@@ -35,6 +41,7 @@ function NoteCommentReference({
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
+  const outline = useRemoteOutline(chFlag, noteId, isScrolling);
 
   const handleOpenReferenceClick = () => {
     if (!group) {
@@ -57,6 +64,44 @@ function NoteCommentReference({
       (b) => 'image' in b || 'cite' in b
     ) as ChatBlock[],
   };
+
+  if (contextApp === 'heap-row') {
+    return (
+      <>
+        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded">
+          <div
+            style={{ background: group?.meta.image }}
+            className="flex h-[72px] w-[72px] items-center justify-center rounded"
+          >
+            <Sig16Icon className="h-6 w-6 text-black/50" />
+          </div>
+        </div>
+        <div className="flex grow flex-col">
+          <ChatContent
+            className="text-lg font-semibold line-clamp-1"
+            story={normalizedContent}
+            isScrolling={false}
+          />
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+            <span className="">
+              Comment by <ShipName name={quip.memo.author} showAlias /> on{' '}
+              {outline.title}
+            </span>
+          </div>
+          {children}
+        </div>
+      </>
+    );
+  }
+
+  if (contextApp === 'heap-block') {
+    return (
+      <div className="absolute top-0 left-0 h-full w-full px-5 py-4">
+        <ChatContent story={normalizedContent} isScrolling={false} />
+        <div className="from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="writ-inline-block not-prose group">

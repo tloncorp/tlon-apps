@@ -121,7 +121,10 @@ function ContentReference({
             nest={nest}
             noteId={idNote}
             quipId={idQuip}
-          />
+            contextApp={contextApp}
+          >
+            {children}
+          </NoteCommentReference>
         );
       }
 
@@ -131,7 +134,10 @@ function ContentReference({
           nest={nest}
           id={idNote}
           isScrolling={isScrolling}
-        />
+          contextApp={contextApp}
+        >
+          {children}
+        </NoteReference>
       );
     }
   }
