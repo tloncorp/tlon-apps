@@ -2,6 +2,7 @@ import { useDismissNavigate, useModalNavigate } from '@/logic/routing';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { useLocation } from 'react-router-dom';
 import {
+  useLogActivity,
   useLogActivityMutation,
   usePutEntryMutation,
   useShowActivityMessage,
@@ -9,6 +10,7 @@ import {
 import { useGroups } from '@/state/groups';
 import React, { useEffect } from 'react';
 import { isHosted } from '@/logic/utils';
+import { analyticsClient } from '@/logic/analytics';
 import { PrivacyContents } from '@/groups/PrivacyNotice';
 import Dialog from './Dialog';
 
@@ -16,7 +18,17 @@ export function ActivityChecker() {
   const location = useLocation();
   const navigate = useModalNavigate();
   const groups = useGroups();
+  const logActivity = useLogActivity();
   const showActivityMessage = useShowActivityMessage();
+
+  useEffect(() => {
+    // manage analytics opt-in/out based on settings
+    if (analyticsClient.has_opted_out_capturing() && logActivity) {
+      analyticsClient.opt_in_capturing();
+    } else if (analyticsClient.has_opted_in_capturing() && !logActivity) {
+      analyticsClient.opt_out_capturing();
+    }
+  }, [logActivity]);
 
   useEffect(() => {
     if (
@@ -36,7 +48,6 @@ export function ActivityChecker() {
 }
 
 export default function ActivityModal() {
-  const { state } = useLocation();
   const dismiss = useDismissNavigate();
   const [open, setOpen] = React.useState(false);
   const { mutate: toggleLogActivity } = useLogActivityMutation();
@@ -44,17 +55,15 @@ export default function ActivityModal() {
     bucket: 'groups',
     key: 'showActivityMessage',
   });
-  const onContinue =
-    (action: 'ignore' | 'disable' | 'enable', nav = true) =>
-    async () => {
-      if (action !== 'ignore') {
-        toggleLogActivity(action === 'enable');
-      }
+  const onContinue = (action: 'ignore' | 'disable' | 'enable') => async () => {
+    if (action !== 'ignore') {
+      toggleLogActivity(action === 'enable');
+    }
 
-      // stop showing message and nav away
-      await mutate({ val: false });
-      dismiss();
-    };
+    // stop showing message and nav away
+    await mutate({ val: false });
+    dismiss();
+  };
 
   return (
     <Dialog

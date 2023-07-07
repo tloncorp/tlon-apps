@@ -1,9 +1,6 @@
 import posthog, { Properties } from 'posthog-js';
 import { PrivacyType } from '@/types/groups';
-import queryClient from '@/queryClient';
-import { SettingsState } from '@/state/settings';
-import { isTalk, log } from './utils';
-import { isNativeApp } from './native';
+import { log } from './utils';
 
 export type AnalyticsEventName =
   | 'app_open'
@@ -40,8 +37,15 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   disable_session_recording: true,
   mask_all_text: true,
   mask_all_element_attributes: true,
+  // this stops all capturing from happening until we manually opt-in.
+  // this is to prevent accidentally capturing data. all opting is managed
+  // in the activity checker in ActivityModal.
   opt_out_capturing_by_default: true,
 });
+
+if (import.meta.env.DEV) {
+  posthog.debug();
+}
 
 export const analyticsClient = posthog;
 
@@ -50,20 +54,6 @@ export const captureAnalyticsEvent = (
   properties?: Properties
 ) => {
   log('Attempting to capture analytics event', name);
-  // Do not capture any analytics events for the Talk web or Talk Android
-  if (isTalk || isNativeApp()) {
-    return;
-  }
-
-  // Do not capture any analytics events if the user has opted out
-  const settings = queryClient.getQueryData<{ desk: SettingsState }>([
-    'settings',
-    window.desk,
-  ]);
-  if (!settings || !settings?.desk?.groups?.logActivity) {
-    return;
-  }
-
   const captureProperties: Properties = {
     // The following default properties stop PostHog from auto-logging the URL,
     // which can inadvertently reveal private info on Urbit
@@ -73,7 +63,6 @@ export const captureAnalyticsEvent = (
     ...(properties || {}),
   };
 
-  log('Capturing analytics event', name, captureProperties);
   posthog.capture(name, captureProperties);
 };
 
