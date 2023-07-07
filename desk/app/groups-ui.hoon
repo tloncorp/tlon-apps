@@ -75,8 +75,8 @@
 ::
 ++  init
   ^+  cor
-  =/  =cage  settings-event+!>([%put-entry %groups %groups %'showVitaMessage' [%b &]])
-  =?  cor  first-load  (emit %pass /set-vita %agent [our.bowl %settings-store] %poke cage)
+  =/  =cage  settings-event+!>([%put-entry %groups %groups %'showActivityMessage' [%b &]])
+  =?  cor  first-load  (emit %pass /set-activity %agent [our.bowl %settings] %poke cage)
   =.  first-load  |
   cor
 ::
@@ -84,7 +84,7 @@
   |=  =vase
   ^+  cor
   =+  !<(old=versioned-state vase)
-  =.  state  ?~(old *current-state old)
+  =.  state  *current-state
   init
 ::
 ++  peek
@@ -128,7 +128,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-take/pole !!)
     ~  cor
-    [%set-vita ~]  cor
+    [%set-activity ~]  cor
     [%vita-toggle ~]  cor
   ==
 ::
