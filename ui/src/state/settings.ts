@@ -330,6 +330,26 @@ export function useLogActivity() {
   }, [isLoading, data]);
 }
 
+export function useLogActivityMutation() {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'logActivity',
+  });
+
+  // also wrap vita toggling
+  return {
+    mutate: (val: boolean) => {
+      api.poke({
+        app: 'groups-ui',
+        mark: 'ui-vita-toggle',
+        json: val,
+      });
+      return mutate({ val });
+    },
+    status,
+  };
+}
+
 export function parseSettings<T>(settings: Stringified<T[]>): T[] {
   return settings !== '' ? JSON.parse(settings) : [];
 }
