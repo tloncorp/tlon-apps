@@ -9,9 +9,11 @@ import {
   useThemeMutation,
 } from '@/state/settings';
 import { isGroups, isTalk } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
 import Dialog from './Dialog';
 import Setting from './Setting';
 import SettingDropdown from './SettingDropdown';
+import Sheet, { SheetContent } from './Sheet';
 
 export default function SettingsDialog() {
   const logActivity = useLogActivity();
@@ -42,15 +44,11 @@ export default function SettingsDialog() {
       dismiss();
     }
   };
+  const isMobile = useIsMobile();
 
-  return (
-    <Dialog
-      defaultOpen
-      modal
-      onOpenChange={onOpenChange}
-      className="w-[340px] md:w-[500px]"
-    >
-      <div className="flex flex-col space-y-8">
+  function renderContent() {
+    return (
+      <div className="flex flex-col space-y-8 overflow-y-auto">
         <span className="text-lg font-bold">App Settings</span>
         <div className="inner-section relative space-y-4">
           <div className="mb-6 flex flex-col">
@@ -167,6 +165,23 @@ export default function SettingsDialog() {
           </SettingDropdown>
         </div>
       </div>
+    );
+  }
+
+  return isMobile ? (
+    <Sheet open={true} onOpenChange={onOpenChange}>
+      <SheetContent className="flex flex-col" showClose={false}>
+        {renderContent()}
+      </SheetContent>
+    </Sheet>
+  ) : (
+    <Dialog
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+      className="w-[340px] md:w-[500px]"
+    >
+      {renderContent()}
     </Dialog>
   );
 }
