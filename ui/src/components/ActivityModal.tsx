@@ -111,7 +111,7 @@ export default function ActivityModal() {
                   Disable
                 </button>
                 <button className="button" onClick={onContinue('enable')}>
-                  Enable and Continue
+                  Leave Enabled
                 </button>
               </>
             ) : (
@@ -123,7 +123,7 @@ export default function ActivityModal() {
                   Enable
                 </button>
                 <button className="button" onClick={onContinue('ignore')}>
-                  Ignore and Continue
+                  Leave Disabled
                 </button>
               </>
             )}
