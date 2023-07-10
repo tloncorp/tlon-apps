@@ -1412,7 +1412,7 @@
         |=  [=ship =vessel:fleet:g]
         (~(has in ships) ship)
       ?:  from-self  go-core
-      =/  link  (go-link /info/members)
+      =/  link  (go-link /edit/members)
       =/  yarn
         %-  spin
         :*  (go-rope /leaves)
@@ -1443,7 +1443,7 @@
         ?.  (~(has in ships) ship)  vessel
         vessel(sects (~(uni in sects.vessel) sects.diff))
       ?:  from-self  go-core
-      =/  link  (go-link /info/members)
+      =/  link  (go-link /edit/members)
       =/  ship-list=(list content:ha)
         %+  join  `content:ha`', '
         `(list content:ha)`(turn ~(tap in ships) |=(=ship ship/ship))
