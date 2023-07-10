@@ -66,12 +66,12 @@ export const captureAnalyticsEvent = (
     ...(properties || {}),
     // The following default properties stop PostHog from auto-logging the URL,
     // which can inadvertently reveal private info on Urbit
-    $host: null,
     $current_url: null,
-    $initial_current_url: null,
     $pathname: null,
     $set_once: null,
+    $host: null,
     $referrer: null,
+    $initial_current_url: null,
     $initial_referrer_url: null,
     $referring_domain: null,
     $initial_referring_domain: null,
@@ -88,7 +88,16 @@ export const captureAnalyticsEvent = (
   };
 
   posthog.capture(name, captureProperties, {
-    $set_once: {},
+    $set_once: {
+      $host: null,
+      $referrer: null,
+      $current_url: null,
+      $pathname: null,
+      $initial_current_url: null,
+      $initial_referrer_url: null,
+      $referring_domain: null,
+      $initial_referring_domain: null,
+    },
   });
 };
 
