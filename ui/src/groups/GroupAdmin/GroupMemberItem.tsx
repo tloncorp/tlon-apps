@@ -123,11 +123,11 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
                 {contact?.nickname ? (
                   contact.nickname
                 ) : (
-                  <ShipName name={member} />
+                  <ShipName name={member} full />
                 )}
               </h2>
               {contact?.nickname ? (
-                <p className="text-gray-400">{member}</p>
+                <ShipName name={member} full className="text-gray-400" />
               ) : null}
             </div>
             {isHost ? (

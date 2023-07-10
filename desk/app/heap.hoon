@@ -341,33 +341,38 @@
     |=  [=flag:h =heap:h]
     ?.  =(p.action group.perm.heap)  ~
     `flag
-  ?+    q.q.action  cor
+  =/  diff  q.q.action
+  ?+  diff  cor
       [%fleet * %del ~]
     ~&  "%heap: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=flag:h co=_cor]
     ^+  cor
-    %+  roll  ~(tap in p.q.q.action)
+    %+  roll  ~(tap in p.diff)
     |=  [=ship ci=_cor]
     ^+  cor
     =/  he  (he-abed:he-core:ci flag)
     he-abet:(he-revoke:he ship)
   ::
-      [%fleet * %del-sects *]
-    ~&  "%heap recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:h co=_cor]
-    =/  he  (he-abed:he-core:co flag)
-    he-abet:he-recheck:he
+    [%fleet * %add-sects *]    (recheck-perms affected ~)
+    [%fleet * %del-sects *]    (recheck-perms affected ~)
+    [%channel * %edit *]       (recheck-perms affected ~)
+    [%channel * %del-sects *]  (recheck-perms affected ~)
+    [%channel * %add-sects *]  (recheck-perms affected ~)
   ::
-      [%channel * %del-sects *]
-    ~&  "%heap recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:h co=_cor]
-    =/  he  (he-abed:he-core:co flag)
-    he-abet:he-recheck:he
+      [%cabal * %del *]
+    =/  =sect:g  (slav %tas p.diff)
+    %+  recheck-perms  affected
+    (~(gas in *(set sect:g)) ~[p.diff])
   ==
 ::
+++  recheck-perms
+  |=  [affected=(list flag:h) sects=(set sect:g)]
+  ~&  "%heap recheck permissions for {<affected>}"
+  %+  roll  affected
+  |=  [=flag:h co=_cor]
+  =/  he  (he-abed:he-core:co flag)
+  he-abet:(he-recheck:he sects)
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -700,6 +705,14 @@
     he(cor (emit %give %kick ~[path] `ship))
   ::
   ++  he-recheck
+    |=  sects=(set sect:g)
+    ::  if we have sects, we need to delete them from writers
+    =?  cor  &(!=(sects ~) =(p.flag our.bowl))
+      =/  =cage  [act:mar:h !>([flag now.bowl %del-sects sects])]  
+      (emit %pass he-area %agent [our.bowl dap.bowl] %poke cage)
+    ::  if our read permissions restored, re-subscribe
+    =?  he-core  (he-can-read our.bowl)  he-safe-sub
+    ::  if subs read permissions removed, kick 
     %+  roll  ~(tap in he-subscriptions)
     |=  [[=ship =path] he=_he-core]
     ?:  (he-can-read:he ship)  he
@@ -778,8 +791,9 @@
     =*  group  group.perm.heap
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
+  ++  he-is-host  |(=(p.flag src.bowl) =(p.group.perm.heap src.bowl))
   ++  he-can-write
-    ?:  =(p.flag src.bowl)  &
+    ?:  he-is-host  &
     =/  =path
       %+  welp  he-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
@@ -872,9 +886,9 @@
       (turn ~(tap in he-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc he-area %ui))
     =/  cag=cage  [upd:mar:h !>([time d])]
+    =.  cor  (give %fact ~[/ui] act:mar:h !>([flag [time d]]))
     =.  cor
       (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] act:mar:h !>([flag [time d]]))
     he-core
   ::
   ++  he-remark-diff
@@ -951,16 +965,19 @@
       ==
     ::
         %add-sects
+      ?>  he-is-host
       =*  p  perm.heap
       =.  writers.p  (~(uni in writers.p) p.d)
       he-core
     ::
         %del-sects
+      ?>  he-is-host
       =*  p  perm.heap
       =.  writers.p  (~(dif in writers.p) p.d)
       he-core
     ::
         %create
+      ?>  he-is-host
       =:  perm.heap  p.d
           curios.heap  q.d
         ==

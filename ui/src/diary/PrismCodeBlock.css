@@ -1,8 +1,10 @@
 .ProseMirror pre {
   background-color: rgba(0, 0, 0, 0.7);
   overflow-x: auto;
-  padding: 7px;
-  border-radius: 8px;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  margin-bottom: 0;
 }
 
 .ProseMirror pre code {

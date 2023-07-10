@@ -109,17 +109,13 @@ export default function EditChannelForm({
           : useChatState.getState().delSects;
 
       if (privacy !== 'public') {
-        const writersIncludesMembers = values.writers.includes('members');
-
-        const writersToRemove = _.difference(
-          chan?.perms.writers || [],
-          values.writers
+        await addSects(
+          channelFlag,
+          values.writers.filter((w) => w !== 'members')
         );
-
-        await addSects(channelFlag, values.writers);
         await delSects(
           channelFlag,
-          writersIncludesMembers ? sects : writersToRemove
+          _.difference(chan?.perms.writers || [], values.writers)
         );
       } else {
         await delSects(channelFlag, sects);
@@ -159,7 +155,7 @@ export default function EditChannelForm({
           <h2 className="text-lg font-bold leading-6">
             {prettyChannelTypeName(app)} Channel Details
           </h2>
-          <p className="text-sm leading-5 text-gray-800">
+          <p className="text-sm leading-5 text-gray-600">
             Edit the channel's details
           </p>
         </header>

@@ -229,13 +229,11 @@ function ChatContent({
             if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
               return (
                 <div
+                  key={`${storyItem.toString()}-${index}`}
                   className="rounded bg-gray-100 py-2"
                   style={{ maxWidth: 'calc(100% - 2rem)' }}
                 >
-                  <InlineContent
-                    key={`${storyItem.toString()}-${index}`}
-                    story={storyItem}
-                  />
+                  <InlineContent story={storyItem} />
                 </div>
               );
             }

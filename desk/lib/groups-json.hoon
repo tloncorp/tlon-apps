@@ -378,7 +378,7 @@
         edit/channel
         del/ul
         add-sects/(as sym)
-        del-sects/(as sym)
+        del-sects/(as so)
         zone/sym
         join/bo
     ==
@@ -389,7 +389,7 @@
         added/di
         zone/(se %tas)
         join/bo
-        readers/(as sym)
+        readers/(as so)
     ==
   ++  cordon
     %-  of

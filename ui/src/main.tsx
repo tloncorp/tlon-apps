@@ -4,7 +4,7 @@
 // }
 
 /* eslint-disable */
-import { EditorView } from 'prosemirror-view';
+import { EditorView } from '@tiptap/pm/view';
 
 const oldUpdateState = EditorView.prototype.updateState;
 
@@ -18,6 +18,7 @@ EditorView.prototype.updateState = function updateState(state) {
 
 import React from 'react';
 import { render } from 'react-dom';
+import { PostHogProvider } from 'posthog-js/react';
 import App from './app';
 import _api from './api';
 
@@ -26,6 +27,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import queryClient from './queryClient';
 import indexedDBPersistor from './indexedDBPersistor';
 import UpdateNotice from './components/UpdateNotice';
+import { analyticsClient } from './logic/analytics';
 
 const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -48,7 +50,9 @@ render(
       }}
     >
       <UpdateNotice />
-      <App />
+      <PostHogProvider client={analyticsClient}>
+        <App />
+      </PostHogProvider>
     </PersistQueryClientProvider>
   </React.StrictMode>,
   root

@@ -670,33 +670,38 @@
     |=  [=flag:c =chat:c]
     ?.  =(p.action group.perm.chat)  ~
     `flag
-  ?+    q.q.action  cor
+  =/  diff  q.q.action
+  ?+  diff  cor
       [%fleet * %del ~]
     %-  (note:wood %veb leaf/"revoke perms for {<affected>}" ~)
     %+  roll  affected
     |=  [=flag:c co=_cor]
     ^+  cor
-    %+  roll  ~(tap in p.q.q.action)
+    %+  roll  ~(tap in p.diff)
     |=  [=ship ci=_cor]
     ^+  cor
     =/  ca  (ca-abed:ca-core:ci flag)
     ca-abet:(ca-revoke:ca ship)
   ::
-      [%fleet * %del-sects *]
-    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
-    %+  roll  affected
-    |=  [=flag:c co=_cor]
-    =/  ca  (ca-abed:ca-core:co flag)
-    ca-abet:ca-recheck:ca
+    [%fleet * %add-sects *]    (recheck-perms affected ~)
+    [%fleet * %del-sects *]    (recheck-perms affected ~)
+    [%channel * %edit *]       (recheck-perms affected ~)
+    [%channel * %del-sects *]  (recheck-perms affected ~)
+    [%channel * %add-sects *]  (recheck-perms affected ~)
   ::
-      [%channel * %del-sects *]
-    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
-    %+  roll  affected
-    |=  [=flag:c co=_cor]
-    =/  ca  (ca-abed:ca-core:co flag)
-    ca-abet:ca-recheck:ca
+      [%cabal * %del *]
+    =/  =sect:g  (slav %tas p.diff)
+    %+  recheck-perms  affected
+    (~(gas in *(set sect:g)) ~[p.diff])
   ==
 ::
+++  recheck-perms
+  |=  [affected=(list flag:c) sects=(set sect:g)]
+  %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
+  %+  roll  affected
+  |=  [=flag:c co=_cor]
+  =/  ca  (ca-abed:ca-core:co flag)
+  ca-abet:(ca-recheck:ca sects)
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -1325,6 +1330,14 @@
     ca(cor (emit %give %kick ~[path] `ship))
   ::
   ++  ca-recheck
+    |=  sects=(set sect:g)
+    ::  if we have sects, we need to delete them from writers
+    =?  cor  &(!=(sects ~) =(p.flag our.bowl))
+      =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]  
+      (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
+    ::  if our read permissions restored, re-subscribe
+    =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
+    ::  if subs read permissions removed, kick 
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
     ?:  (ca-can-read:ca ship)  ca
@@ -1407,8 +1420,9 @@
     =*  group  group.perm.chat
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
+  ++  ca-is-host  |(=(p.flag src.bowl) =(p.group.perm.chat src.bowl))
   ++  ca-can-write
-    ?:  =(p.flag src.bowl)  &
+    ?:  ca-is-host  &
     =/  =path
       %+  welp  ca-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
@@ -1500,12 +1514,11 @@
       (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
     =/  cag=cage  [upd:mar:c !>([time d])]
-    =.  cor
-      (give %fact ~(tap in paths) cag)
     =.  cor  (give %fact ~[/ui] act:mar:c !>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
+    =.  cor  (give %fact ~(tap in paths) cag)
     ca-core
   ::
   ++  ca-remark-diff
@@ -1538,16 +1551,19 @@
       (ca-give-updates time d)
     ?-    -.d
         %add-sects
+      ?>  ca-is-host
       =*  p  perm.chat
       =.  writers.p  (~(uni in writers.p) p.d)
       ca-core
     ::
         %del-sects
+      ?>  ca-is-host
       =*  p  perm.chat
       =.  writers.p  (~(dif in writers.p) p.d)
       ca-core
     ::
         %create
+      ?>  ca-is-host
       =.  perm.chat  p.d
       =.  pact.chat  q.d
       ca-core

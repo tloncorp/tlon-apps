@@ -533,15 +533,26 @@ export function useAddNoteMutation() {
       ]);
 
       if (notes !== undefined) {
+        // for the unlikely case that the user navigates away from the editor
+        // before the mutation is complete, we update the cache optimistically
         queryClient.setQueryData<DiaryOutline>(
           ['diary', 'notes', variables.flag],
           {
             ...notes,
-            [timePosted]: variables.essay,
-            quipCount: 0,
-            quippers: [],
-            title: variables.essay.title,
-            image: variables.essay.image,
+            // this time will be wrong if the mutation fails or doesn't complete
+            // but it will be corrected when fact returns on the subscription.
+            // as long as the user doesn't try to immediately navigate to
+            // the note, this will be fine.
+            [timePosted ?? variables.essay.sent]: {
+              content: variables.essay.content,
+              author: variables.essay.author,
+              quipCount: 0,
+              quippers: [],
+              title: variables.essay.title,
+              image: variables.essay.image,
+              sent: variables.essay.sent,
+              type: 'outline',
+            },
           }
         );
       }

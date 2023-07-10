@@ -3,15 +3,20 @@ import {
   Theme,
   useCalm,
   useCalmSettingMutation,
+  useLogActivity,
+  usePutEntryMutation,
   useTheme,
   useThemeMutation,
 } from '@/state/settings';
-import { isTalk } from '@/logic/utils';
+import { isGroups, isTalk } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
 import Dialog from './Dialog';
 import Setting from './Setting';
 import SettingDropdown from './SettingDropdown';
+import Sheet, { SheetContent } from './Sheet';
 
 export default function SettingsDialog() {
+  const logActivity = useLogActivity();
   const {
     disableAvatars,
     disableNicknames,
@@ -32,20 +37,18 @@ export default function SettingsDialog() {
     useCalmSettingMutation('disableRemoteContent');
   const { mutate: toggleWayfinding, status: wayfindingStatus } =
     useCalmSettingMutation('disableWayfinding');
+  const { mutate: toggleLogActivity, status: logActivityStatus } =
+    usePutEntryMutation({ bucket: window.desk, key: 'logActivity' });
   const onOpenChange = (open: boolean) => {
     if (!open) {
       dismiss();
     }
   };
+  const isMobile = useIsMobile();
 
-  return (
-    <Dialog
-      defaultOpen
-      modal
-      onOpenChange={onOpenChange}
-      className="w-[340px] md:w-[500px]"
-    >
-      <div className="flex flex-col space-y-8">
+  function renderContent() {
+    return (
+      <div className="flex flex-col space-y-8 overflow-y-auto">
         <span className="text-lg font-bold">App Settings</span>
         <div className="inner-section relative space-y-4">
           <div className="mb-6 flex flex-col">
@@ -84,8 +87,8 @@ export default function SettingsDialog() {
             name="Disable wayfinding"
           >
             <p className="leading-5 text-gray-600">
-              Turn off the "wayfinding" helper menu menu in the bottom left of
-              the {isTalk ? 'Talk' : 'Groups'} sidebar
+              Turn off the "wayfinding" helper menu in the bottom left of the{' '}
+              {isTalk ? 'Talk' : 'Groups'} sidebar
             </p>
           </Setting>
         </div>
@@ -97,6 +100,20 @@ export default function SettingsDialog() {
               services in {isTalk ? 'Talk' : 'Groups'}
             </span>
           </div>
+          {isGroups && (
+            <Setting
+              on={logActivity}
+              toggle={() => toggleLogActivity({ val: !logActivity })}
+              status={logActivityStatus}
+              name="Log Groups Usage"
+            >
+              <p className="leading-5 text-gray-600">
+                Enable or disable basic activity tracking in Groups. Tlon uses
+                this data to make product decisions and to bring you a better
+                Groups experience.
+              </p>
+            </Setting>
+          )}
           <Setting
             on={disableSpellcheck}
             toggle={() => toggleSpellcheck(!disableSpellcheck)}
@@ -148,6 +165,23 @@ export default function SettingsDialog() {
           </SettingDropdown>
         </div>
       </div>
+    );
+  }
+
+  return isMobile ? (
+    <Sheet open={true} onOpenChange={onOpenChange}>
+      <SheetContent className="flex flex-col" showClose={false}>
+        {renderContent()}
+      </SheetContent>
+    </Sheet>
+  ) : (
+    <Dialog
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+      className="w-[340px] md:w-[500px]"
+    >
+      {renderContent()}
     </Dialog>
   );
 }

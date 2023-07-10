@@ -29,7 +29,7 @@ export default function RoleBadges(props: { ship: string }) {
                       {displaySects.map((sect) => {
                         if (sect !== 'member') {
                           return (
-                            <div className="mb-2">
+                            <div key={sect} className="mb-2">
                               {getSectTitle(group.cabals, sect)}
                             </div>
                           );
@@ -64,7 +64,10 @@ export default function RoleBadges(props: { ship: string }) {
         {displaySects.map((sect) => {
           if (sect !== 'member') {
             return (
-              <span className="shrink-0 rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium">
+              <span
+                key={sect}
+                className="shrink-0 rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium"
+              >
                 {getSectTitle(group.cabals, sect)}
               </span>
             );

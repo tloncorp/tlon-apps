@@ -45,22 +45,24 @@ export default function ImageURLUploadField({
   }, [mostRecentFile, formSetValue, formValue]);
 
   return (
-    <div className="input relative flex h-8 w-full items-center justify-end">
-      <input
-        className={cn('input-inner w-full py-0 pl-0 pr-2')}
-        onFocus={() => setIsFocused(true)}
-        {...formRegister(formValue, {
-          onBlur: () => setIsFocused(false),
-          validate: (value: string) =>
-            value && value.length ? isValidUrl(value) : true,
-        })}
-      />
-      {!isFocused && !urlHasLength ? (
-        <div className="pointer-events-none absolute left-[0.5625rem] flex cursor-pointer items-center">
-          <LinkIcon className="mr-1 inline h-4 w-4 fill-gray-100" />
-          <span className="pointer-events-none">Paste an image URL</span>
-        </div>
-      ) : null}
+    <div className="input flex h-8 w-full items-center justify-end">
+      <div className="relative mr-2 w-full">
+        <input
+          className="input-inner w-full p-0"
+          onFocus={() => setIsFocused(true)}
+          {...formRegister(formValue, {
+            onBlur: () => setIsFocused(false),
+            validate: (value: string) =>
+              value && value.length ? isValidUrl(value) : true,
+          })}
+        />
+        {!isFocused && !urlHasLength ? (
+          <div className="pointer-events-none absolute top-0 left-0 flex h-full w-full cursor-pointer items-center">
+            <LinkIcon className="mr-1 inline h-4 w-4 shrink-0 fill-gray-100" />
+            <span className="pointer-events-none">Paste an image URL</span>
+          </div>
+        ) : null}
+      </div>
       {uploader ? (
         <button
           title={'Upload an image'}

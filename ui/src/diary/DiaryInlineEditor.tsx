@@ -1,21 +1,15 @@
 import cn from 'classnames';
-import { EditorView } from 'prosemirror-view';
-import { PluginKey } from 'prosemirror-state';
+import * as Popover from '@radix-ui/react-popover';
+import { EditorView } from '@tiptap/pm/view';
 import { EditorOptions, KeyboardShortcutCommand, Range } from '@tiptap/core';
+import { useState } from 'react';
 import {
   Editor,
   EditorContent,
-  Extension,
   JSONContent,
-  ReactRenderer,
   useEditor,
+  FloatingMenu as FloatingMenuComponent,
 } from '@tiptap/react';
-import React, {
-  useEffect,
-  useImperativeHandle,
-  useState,
-  forwardRef,
-} from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -28,12 +22,11 @@ import Text from '@tiptap/extension-text';
 import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
+import FloatingMenu from '@tiptap/extension-floating-menu';
 import { useCalm } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { Shortcuts } from '@/logic/tiptap';
-import Suggestion, { SuggestionOptions } from '@tiptap/suggestion';
-import tippy from 'tippy.js';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import ListItem from '@tiptap/extension-list-item';
@@ -41,8 +34,12 @@ import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Heading from '@tiptap/extension-heading';
 import Mention from '@tiptap/extension-mention';
 import MentionPopup from '@/components/Mention/MentionPopup';
-import useLeap from '@/components/Leap/useLeap';
-import keyMap from '@/keyMap';
+import AddIcon16 from '@/components/icons/Add16Icon';
+import IconButton from '@/components/IconButton';
+import ActionMenu, {
+  ActionMenuBar,
+  actionMenuItems,
+} from './plugins/actionmenu';
 import PrismCodeBlock from './PrismCodeBlock';
 import DiaryCiteNode from './DiaryCiteNode';
 import DiaryLinkNode from './DiaryLinkNode';
@@ -60,229 +57,6 @@ interface useDiaryInlineEditorParams {
   onUpdate?: EditorOptions['onUpdate'];
   autofocus?: boolean;
 }
-const ActionMenuPluginKey = new PluginKey('action-menu');
-
-interface ActionMenuItemProps {
-  title: string;
-  command: (p: { editor: Editor; range: Range }) => void;
-}
-
-const ActionMenuBar = forwardRef<
-  any,
-  { items: ActionMenuItemProps[]; command: any }
->((props, ref) => {
-  const { isOpen: leapIsOpen } = useLeap();
-  const { items = [] } = props;
-  const [selected, setSelected] = useState(0);
-  const selectItem = (index: number) => {
-    const item = items[index];
-    if (item) {
-      props.command(item);
-    }
-  };
-
-  useEffect(() => setSelected(0), [items]);
-
-  useImperativeHandle(ref, () => ({
-    onKeyDown: ({ event }: any) => {
-      if (leapIsOpen) return false;
-      const len = items.length;
-      if (event.key === keyMap.tippy.prevItem) {
-        setSelected((s) => (s + len - 1) % len);
-        return true;
-      }
-
-      if (event.key === keyMap.tippy.nextItem) {
-        setSelected((s) => (s + 1) % len);
-        return true;
-      }
-
-      if (event.key === keyMap.tippy.selectItem) {
-        selectItem(selected);
-        return true;
-      }
-
-      return false;
-    },
-  }));
-
-  return (
-    <ul className="w-32 border border-black bg-white" ref={ref}>
-      {items.map((s: ActionMenuItemProps, idx: number) => (
-        <li
-          key={s.title}
-          onClick={() => selectItem(idx)}
-          className={cn(
-            'w-100 cursor-pointer p-2 hover:bg-gray-50',
-            selected === idx ? 'bg-gray-100' : 'bg-white'
-          )}
-        >
-          {s.title}
-        </li>
-      ))}
-    </ul>
-  );
-});
-
-interface ActionMenuOptions {
-  suggestion: Omit<SuggestionOptions, 'editor'>;
-}
-
-const ActionMenu = Extension.create<ActionMenuOptions>({
-  name: 'action-menu',
-
-  addOptions() {
-    return {
-      suggestion: {
-        char: '/',
-        pluginKey: ActionMenuPluginKey,
-        allow: ({ editor }) => {
-          const anchor = editor.state.selection.$anchor;
-          let inList = false;
-
-          for (let i = anchor.depth; i > 0; i -= 1) {
-            const node = editor.state.selection.$anchor.node(i);
-            if (node.type.name === 'listItem') {
-              inList = true;
-            }
-          }
-
-          return !inList;
-        },
-        command: ({ editor, range, props }) => {
-          props.command({ editor, range });
-        },
-        items: ({ query }: any): ActionMenuItemProps[] => {
-          const nedl = query.toLowerCase();
-
-          const hstk: ActionMenuItemProps[] = [
-            {
-              title: 'Image',
-              command: ({ editor, range }) => {
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange(range)
-                  .splitBlock()
-                  .insertContent([
-                    { type: 'diary-image' },
-                    { type: 'paragraph' },
-                  ])
-                  .selectNodeBackward()
-                  .run();
-              },
-            },
-            {
-              title: 'Web Link',
-              command: ({ editor, range }) => {
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange(range)
-                  .insertContent([
-                    { type: 'diary-link' },
-                    { type: 'paragraph' },
-                  ])
-                  .selectNodeBackward()
-                  .run();
-              },
-            },
-            {
-              title: 'Urbit Reference',
-              command: ({ editor, range }) => {
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange(range)
-                  .insertContent([
-                    { type: 'diary-cite' },
-                    { type: 'paragraph' },
-                  ])
-                  .selectNodeBackward()
-                  .run();
-              },
-            },
-            {
-              title: 'Blockquote',
-              command: ({ editor, range }) => {
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange(range)
-                  .toggleBlockquote()
-                  .run();
-              },
-            },
-            {
-              title: 'Code block',
-              command: ({ editor, range }) => {
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange(range)
-                  .toggleCodeBlock()
-                  .run();
-              },
-            },
-          ];
-          return hstk.filter(
-            ({ title }) => title.toLowerCase().search(nedl) !== -1
-          );
-        },
-        render: () => {
-          let component: ReactRenderer<any, any> | null;
-          let popup: any;
-          return {
-            onStart: (props) => {
-              component = new ReactRenderer<any, any>(ActionMenuBar, props);
-              component.updateProps(props);
-
-              if (!props.clientRect) {
-                return;
-              }
-
-              popup = tippy('body', {
-                getReferenceClientRect: props.clientRect as any,
-                appendTo: () => document.body,
-                content: component.element,
-                showOnCreate: true,
-                interactive: true,
-                trigger: 'manual',
-                placement: 'bottom-start',
-              });
-            },
-            onUpdate: (props) => {
-              if (props.items.length === 0) {
-                popup[0]?.hide();
-                return true;
-              }
-              component?.updateProps(props);
-
-              popup[0].setProps({
-                getBoundingClientRect: props.clientRect,
-              });
-              return true;
-            },
-            onKeyDown: (props) => {
-              if (props.event.key === keyMap.tippy.close) {
-                popup[0]?.hide();
-                return true;
-              }
-              return component?.ref?.onKeyDown(props);
-            },
-            onExit: () => {
-              popup[0].destroy();
-              component?.destroy();
-            },
-          };
-        },
-      },
-    };
-  },
-  addProseMirrorPlugins() {
-    return [Suggestion({ ...this.options.suggestion, editor: this.editor })];
-  },
-});
 
 export function useDiaryInlineEditor({
   content,
@@ -309,6 +83,7 @@ export function useDiaryInlineEditor({
         }),
         PrismCodeBlock,
         Document,
+        FloatingMenu,
         HardBreak,
         Heading,
         History.configure({ newGroupDelay: 100 }),
@@ -328,8 +103,8 @@ export function useDiaryInlineEditor({
         Paragraph,
         Placeholder.configure({
           placeholder:
-            'Start writing here. Highlight text to add formatting, or type the forward slash (/) to insert block content.',
-          showOnlyCurrent: false,
+            'Start writing here, or click the menu to add a link block',
+          showOnlyCurrent: true,
           showOnlyWhenEditable: false,
           includeChildren: true,
         }),
@@ -373,9 +148,59 @@ export default function DiaryInlineEditor({
   className,
 }: DiaryInlineEditorProps) {
   const isMobile = useIsMobile();
+  const [showMenu, setShowMenu] = useState(false);
 
   return (
     <div className={cn('input-transparent block p-0', className)}>
+      {editor && (
+        <FloatingMenuComponent
+          editor={editor}
+          tippyOptions={{ duration: 0, offset: [0, -50] }}
+        >
+          <div className="flex items-center justify-center">
+            <Popover.Root open={showMenu} onOpenChange={setShowMenu}>
+              <Popover.Anchor>
+                <IconButton
+                  icon={
+                    <AddIcon16 className="h-6 w-6 rounded bg-gray-50 p-1 text-gray-600" />
+                  }
+                  label="Insert"
+                  showTooltip
+                  action={() => setShowMenu(!showMenu)}
+                />
+              </Popover.Anchor>
+              <Popover.Content>
+                <div className="flex items-center justify-center">
+                  <ActionMenuBar
+                    highlight={false}
+                    items={actionMenuItems}
+                    command={({
+                      command,
+                    }: {
+                      command: ({
+                        // eslint-disable-next-line no-shadow
+                        editor,
+                        range,
+                      }: {
+                        editor: Editor;
+                        range: Range;
+                      }) => void;
+                    }) => {
+                      command({
+                        editor,
+                        range: {
+                          from: editor.state.selection.from,
+                          to: editor.state.selection.to,
+                        },
+                      });
+                    }}
+                  />
+                </div>
+              </Popover.Content>
+            </Popover.Root>
+          </div>
+        </FloatingMenuComponent>
+      )}
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
       <EditorContent
         className="prose-lg prose w-full dark:prose-invert"
