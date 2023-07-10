@@ -1,6 +1,7 @@
 import posthog, { Properties } from 'posthog-js';
 import { PrivacyType } from '@/types/groups';
-import { log } from './utils';
+import { isTalk, log } from './utils';
+import { isNativeApp } from './native';
 
 export type AnalyticsEventName =
   | 'app_open'
@@ -49,21 +50,55 @@ if (import.meta.env.DEV) {
 
 export const analyticsClient = posthog;
 
+// Once someone is opted in this will fire no matter what so we need
+// additional guarding here to prevent accidentally capturing data.
 export const captureAnalyticsEvent = (
   name: AnalyticsEventName,
   properties?: Properties
 ) => {
+  // Do not capture any analytics events for Talk
+  if (isTalk || isNativeApp()) {
+    return;
+  }
+
   log('Attempting to capture analytics event', name);
   const captureProperties: Properties = {
+    ...(properties || {}),
     // The following default properties stop PostHog from auto-logging the URL,
     // which can inadvertently reveal private info on Urbit
     $current_url: null,
     $pathname: null,
     $set_once: null,
-    ...(properties || {}),
+    $host: null,
+    $referrer: null,
+    $initial_current_url: null,
+    $initial_referrer_url: null,
+    $referring_domain: null,
+    $initial_referring_domain: null,
+    $unset: [
+      'initial_referrer_url',
+      'initial_referring_domain',
+      'initial_current_url',
+      'current_url',
+      'pathname',
+      'host',
+      'referrer',
+      'referring_domain',
+    ],
   };
 
-  posthog.capture(name, captureProperties);
+  posthog.capture(name, captureProperties, {
+    $set_once: {
+      $host: null,
+      $referrer: null,
+      $current_url: null,
+      $pathname: null,
+      $initial_current_url: null,
+      $initial_referrer_url: null,
+      $referring_domain: null,
+      $initial_referring_domain: null,
+    },
+  });
 };
 
 export const captureGroupsAnalyticsEvent = ({
