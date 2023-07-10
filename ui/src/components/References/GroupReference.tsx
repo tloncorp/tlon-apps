@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import cn from 'classnames';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useGang, useGangPreview } from '@/state/groups';
@@ -13,7 +13,7 @@ import {
 import ShipName from '@/components/ShipName';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
-import Sig16Icon from '../icons/Sig16Icon';
+import ReferenceInHeap from './ReferenceInHeap';
 
 interface GroupReferenceProps {
   flag: string;
@@ -99,69 +99,66 @@ function GroupReference({
     );
   }
 
-  if (contextApp === 'heap-block') {
-    const { title, cover } = meta || {
-      title: '',
-      cover: '',
-    };
-    return (
-      <div className={cn('h-full w-full')}>
-        {isImageUrl(cover) ? (
+  if (contextApp === 'heap-row') {
+    const refImage = () => {
+      if (meta && isImageUrl(meta.image)) {
+        return (
           <img
-            src={cover}
-            loading="lazy"
-            className="absolute top-0 left-0 h-full w-full"
+            src={meta?.image}
+            className="h-[72px] w-[72px] rounded object-cover"
           />
-        ) : (
-          <div
-            style={{ background: cover }}
-            className="absolute top-0 left-0 h-full w-full"
-          />
-        )}
-        <div className="absolute top-2 left-2 flex items-center space-x-2 rounded p-2 text-base font-bold">
-          <GroupAvatar {...meta} size="h-6 w-6" />
-          <span
-            className="text-white dark:text-black"
-            style={{ textShadow: 'black 0px 1px 3px' }}
-          >
-            {title}
-          </span>
-        </div>
-      </div>
+        );
+      }
+      return (
+        <div
+          className="h-[72px] w-[72px] rounded"
+          style={{ background: meta?.image }}
+        />
+      );
+    };
+
+    return (
+      <ReferenceInHeap
+        contextApp={contextApp}
+        image={refImage()}
+        title={meta?.title}
+        byline={<span className="capitalize">{privacy} Group</span>}
+      >
+        {children}
+      </ReferenceInHeap>
     );
   }
 
-  if (contextApp === 'heap-row') {
-    const { title, image } = meta || {
-      title: '',
-      image: '',
-    };
+  if (contextApp === 'heap-block') {
     return (
-      <>
-        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded">
-          {isImageUrl(image) ? (
-            <img
-              src={image}
-              loading="lazy"
-              className="h-[72px] w-[72px] rounded object-cover"
-            />
-          ) : (
-            <div
-              style={{ background: image }}
-              className=" flex h-[72px] w-[72px] items-center justify-center rounded"
-            >
-              <Sig16Icon className="h-6 w-6 text-black/50" />
+      <ReferenceInHeap
+        contextApp={contextApp}
+        image={
+          <div className={cn('h-full w-full')}>
+            {meta && isImageUrl(meta.cover) ? (
+              <img
+                src={meta.cover}
+                loading="lazy"
+                className="absolute top-0 left-0 h-full w-full"
+              />
+            ) : (
+              <div
+                style={{ background: meta?.cover }}
+                className="absolute top-0 left-0 h-full w-full"
+              />
+            )}
+            <div className="absolute top-2 left-2 flex items-center space-x-2 rounded p-2 text-base font-bold">
+              <GroupAvatar {...meta} size="h-6 w-6" />
+              <span
+                className="text-white dark:text-black"
+                style={{ textShadow: 'black 0px 1px 3px' }}
+              >
+                {meta?.title}
+              </span>
             </div>
-          )}
-        </div>
-        <div className="flex grow flex-col">
-          <div className="text-lg font-semibold line-clamp-1">{title}</div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400">
-            <span className="capitalize">{privacy} Group</span>
           </div>
-          {children}
-        </div>
-      </>
+        }
+      />
     );
   }
 

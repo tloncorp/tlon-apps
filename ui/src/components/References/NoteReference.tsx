@@ -4,7 +4,12 @@ import cn from 'classnames';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useRemoteOutline } from '@/state/diary';
 import { useChannelPreview, useGang } from '@/state/groups';
-import { makePrettyDate, pluralize, truncateProse } from '@/logic/utils';
+import {
+  isImageUrl,
+  makePrettyDate,
+  pluralize,
+  truncateProse,
+} from '@/logic/utils';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
@@ -14,7 +19,8 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 import DiaryContent from '@/diary/DiaryContent/DiaryContent';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
-import Sig16Icon from '../icons/Sig16Icon';
+import ReferenceInHeap from './ReferenceInHeap';
+import NotebookIcon from '../icons/NotebookIcon';
 
 function NoteReference({
   chFlag,
@@ -72,52 +78,39 @@ function NoteReference({
 
   if (contextApp === 'heap-row') {
     return (
-      <>
-        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded">
-          {outline.image ? (
+      <ReferenceInHeap
+        contextApp={contextApp}
+        image={
+          isImageUrl(outline.image) ? (
             <img
               src={outline.image}
-              loading="lazy"
               className="h-[72px] w-[72px] rounded object-cover"
             />
           ) : (
-            <div
-              style={{ background: group?.meta.image }}
-              className="flex h-[72px] w-[72px] items-center justify-center rounded"
-            >
-              <Sig16Icon className="h-6 w-6 text-black/50" />
-            </div>
-          )}
-        </div>
-        <div className="flex grow flex-col">
-          <div className="text-lg font-semibold line-clamp-1">
-            {outline.title}
-          </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
-            <span className="">
-              Post by <ShipName name={outline.author} showAlias /> in{' '}
-              {preview?.meta?.title}
-            </span>
-          </div>
-          {children}
-        </div>
-      </>
+            <NotebookIcon className="h-6 w-6 text-gray-400" />
+          )
+        }
+        title={outline.title}
+        byline={
+          <span>
+            Note by <ShipName name={outline.author} showAlias /> in{' '}
+            {preview?.meta?.title}
+          </span>
+        }
+      >
+        {children}
+      </ReferenceInHeap>
     );
   }
 
   if (contextApp === 'heap-block') {
     return (
-      <div className={cn('absolute top-0 left-0 h-full w-full px-5 py-4')}>
-        <div className="relative z-10 mb-4 text-xl font-semibold line-clamp-1">
-          {outline.title}
-        </div>
-        {contentPreview}
-        <div
-          className={cn(
-            'from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent'
-          )}
-        />
-      </div>
+      <ReferenceInHeap
+        type="text"
+        title={<h2 className="mb-2 text-lg font-semibold">{outline.title}</h2>}
+        contextApp={contextApp}
+        image={contentPreview}
+      />
     );
   }
 

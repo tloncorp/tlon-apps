@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import cn from 'classnames';
-import { useHeapState, useRemoteCurio } from '@/state/heap/heap';
+import { useRemoteCurio } from '@/state/heap/heap';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 // eslint-disable-next-line import/no-cycle
 import HeapBlock from '@/heap/HeapBlock';
@@ -15,8 +15,8 @@ import { isImageUrl } from '@/logic/utils';
 import { inlineToString } from '@/logic/tiptap';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
-import Sig16Icon from '../icons/Sig16Icon';
-import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
+import ReferenceInHeap from './ReferenceInHeap';
+import ShapesIcon from '../icons/ShapesIcon';
 
 function CurioReference({
   chFlag,
@@ -51,6 +51,10 @@ function CurioReference({
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
+  const textFallbackTitle = curio?.heart?.content.inline
+    .map((inline) => inlineToString(inline))
+    .join(' ')
+    .toString();
 
   const handleOpenReferenceClick = () => {
     if (!group) {
@@ -66,64 +70,63 @@ function CurioReference({
     return <HeapLoadingBlock reference />;
   }
 
+  if (contextApp === 'heap-row') {
+    return (
+      <ReferenceInHeap
+        contextApp={contextApp}
+        image={
+          isImageUrl(inlineToString(curio?.heart?.content?.inline[0])) ? (
+            <img
+              src={inlineToString(curio?.heart?.content?.inline[0])}
+              className={cn('h-[72px] w-[72px] rounded object-cover')}
+            />
+          ) : (
+            <ShapesIcon className="h-6 w-6 text-gray-400" />
+          )
+        }
+        title={textFallbackTitle}
+        byline={
+          <span>
+            Post by <ShipName name={curio?.heart.author} showAlias /> in{' '}
+            {preview?.meta?.title}
+          </span>
+        }
+      >
+        {children}
+      </ReferenceInHeap>
+    );
+  }
+
   if (contextApp === 'heap-block') {
     const href = inlineToString(curio?.heart?.content?.inline[0]);
+
     if (isImageUrl(href)) {
       return (
-        <img
-          src={href}
-          loading="lazy"
-          className="absolute top-0 left-0 h-full w-full object-cover"
+        <ReferenceInHeap
+          contextApp={contextApp}
+          image={
+            <img
+              src={href}
+              loading="lazy"
+              className="absolute top-0 left-0 h-full w-full object-cover"
+            />
+          }
         />
       );
     }
     return (
-      <HeapContent
-        className={cn(
-          'absolute top-0 left-0 h-full w-full py-4 px-5 leading-6 line-clamp-3'
-        )}
-        content={curio?.heart.content}
+      <ReferenceInHeap
+        type="text"
+        contextApp={contextApp}
+        image={
+          <HeapContent
+            className={cn(
+              'absolute top-0 left-0 h-full w-full py-4 px-5 leading-6 line-clamp-3'
+            )}
+            content={curio?.heart.content}
+          />
+        }
       />
-    );
-  }
-
-  if (contextApp === 'heap-row') {
-    const href = inlineToString(curio?.heart?.content?.inline[0]);
-    const textFallbackTitle = curio?.heart?.content.inline
-      .map((inline) => inlineToString(inline))
-      .join(' ')
-      .toString();
-    return (
-      <>
-        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded">
-          {curio?.heart?.content.inline && isImageUrl(href) ? (
-            <img
-              src={href}
-              loading="lazy"
-              className="h-[72px] w-[72px] rounded object-cover"
-            />
-          ) : (
-            <div
-              style={{ background: group?.meta.image }}
-              className="flex h-[72px] w-[72px] items-center justify-center rounded"
-            >
-              <Sig16Icon className="h-6 w-6 text-black/50" />
-            </div>
-          )}
-        </div>
-        <div className="flex grow flex-col">
-          <div className="text-lg font-semibold line-clamp-1">
-            {textFallbackTitle}
-          </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
-            <span className="">
-              Post by <ShipName name={curio?.heart.author} showAlias /> in{' '}
-              {preview?.meta?.title}
-            </span>
-          </div>
-          {children}
-        </div>
-      </>
     );
   }
 

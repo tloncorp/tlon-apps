@@ -12,8 +12,9 @@ import { ChatBlock, ChatStory } from '@/types/chat';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { useChannelFlag } from '@/logic/channel';
 import ReferenceBar from './ReferenceBar';
-import Sig16Icon from '../icons/Sig16Icon';
 import ShipName from '../ShipName';
+import ReferenceInHeap from './ReferenceInHeap';
+import BubbleIcon from '../icons/BubbleIcon';
 
 function NoteCommentReference({
   chFlag,
@@ -67,39 +68,42 @@ function NoteCommentReference({
 
   if (contextApp === 'heap-row') {
     return (
-      <>
-        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded">
-          <div
-            style={{ background: group?.meta.image }}
-            className="flex h-[72px] w-[72px] items-center justify-center rounded"
-          >
-            <Sig16Icon className="h-6 w-6 text-black/50" />
-          </div>
-        </div>
-        <div className="flex grow flex-col">
+      <ReferenceInHeap
+        contextApp={contextApp}
+        image={<BubbleIcon className="h-6 w-6 text-gray-400" />}
+        title={
           <ChatContent
             className="text-lg font-semibold line-clamp-1"
             story={normalizedContent}
             isScrolling={false}
           />
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
-            <span className="">
-              Comment by <ShipName name={quip.memo.author} showAlias /> on{' '}
-              {outline.title}
-            </span>
-          </div>
-          {children}
-        </div>
-      </>
+        }
+        byline={
+          <span className="">
+            Comment by <ShipName name={quip.memo.author} showAlias /> on{' '}
+            {outline.title}
+          </span>
+        }
+      >
+        {children}
+      </ReferenceInHeap>
     );
   }
 
   if (contextApp === 'heap-block') {
     return (
-      <div className="absolute top-0 left-0 h-full w-full px-5 py-4">
-        <ChatContent story={normalizedContent} isScrolling={false} />
-        <div className="from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent" />
-      </div>
+      <ReferenceInHeap
+        type="text"
+        contextApp={contextApp}
+        image={<ChatContent story={normalizedContent} isScrolling={false} />}
+        title={
+          <h2 className="mb-2 text-lg font-semibold">
+            Comment on {outline.title}
+          </h2>
+        }
+      >
+        {children}
+      </ReferenceInHeap>
     );
   }
 
