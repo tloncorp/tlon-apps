@@ -1,2 +1,2 @@
-/=  mark  /mar/dummy
+/=  mark  /mar/group/update-0
 mark

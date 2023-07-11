@@ -32,16 +32,19 @@ export function GroupsAppMenu() {
   const location = useLocation();
 
   return (
-    <SidebarItem
-      className={cn(
-        menuOpen
-          ? 'bg-gray-100 text-gray-800'
-          : 'text-black hover:text-gray-800',
-        'group'
-      )}
-      icon={
-        <DropdownMenu.Root onOpenChange={() => setMenuOpen(!menuOpen)}>
-          <DropdownMenu.Trigger asChild className="appearance-none">
+    <DropdownMenu.Root
+      modal={false}
+      onOpenChange={() => setMenuOpen(!menuOpen)}
+    >
+      <DropdownMenu.Trigger asChild className="appearance-none">
+        <SidebarItem
+          className={cn(
+            menuOpen
+              ? 'bg-gray-100 text-gray-800'
+              : 'text-black hover:text-gray-800',
+            'group'
+          )}
+          icon={
             <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
               <AppGroupsIcon
                 className={cn(
@@ -57,58 +60,63 @@ export function GroupsAppMenu() {
                 )}
               />
             </div>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content className="dropdown">
-            <DropdownMenu.Item className="dropdown-item-blue">
-              <a
-                href="https://airtable.com/shrflFkf5UyDFKhmW"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Submit Feedback
-              </a>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className="dropdown-item">
-              <Link to="/about" state={{ backgroundLocation: location }}>
-                About Groups
-              </Link>
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className="dropdown-item">
-              <Link
-                to="/settings"
-                className=""
-                state={{ backgroundLocation: location }}
-              >
-                App Settings
-              </Link>
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      }
-    >
-      <div className="flex items-center justify-between">
-        Groups
-        <ReconnectingSpinner
-          className={cn(
-            'h-4 w-4 group-hover:hidden',
-            menuOpen ? 'hidden' : 'block'
-          )}
-        />
-        <a
-          title="Back to Landscape"
-          aria-label="Back to Landscape"
-          href="/apps/grid"
-          target="_blank"
-          rel="noreferrer"
-          className={cn(
-            'h-6 w-6 no-underline',
-            menuOpen ? 'block' : 'hidden group-hover:block'
-          )}
+          }
         >
-          <ArrowNWIcon className="text-gray-400" />
-        </a>
-      </div>
-    </SidebarItem>
+          <div className="flex items-center justify-between">
+            Groups
+            <ReconnectingSpinner
+              className={cn(
+                'h-4 w-4 group-hover:hidden',
+                menuOpen ? 'hidden' : 'block'
+              )}
+            />
+            <a
+              title="Back to Landscape"
+              aria-label="Back to Landscape"
+              href="/apps/grid"
+              target="_blank"
+              rel="noreferrer"
+              className={cn(
+                'h-6 w-6 no-underline',
+                menuOpen ? 'block' : 'hidden group-hover:block'
+              )}
+              // Prevents the dropdown trigger from being fired (therefore, opening the menu)
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                return false;
+              }}
+            >
+              <ArrowNWIcon className="text-gray-400" />
+            </a>
+          </div>
+        </SidebarItem>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content className="dropdown" align="start">
+        <DropdownMenu.Item asChild className="dropdown-item-blue">
+          <a
+            href="https://airtable.com/shrflFkf5UyDFKhmW"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Submit Feedback
+          </a>
+        </DropdownMenu.Item>
+        <DropdownMenu.Item asChild className="dropdown-item">
+          <Link to="/about" state={{ backgroundLocation: location }}>
+            About Groups
+          </Link>
+        </DropdownMenu.Item>
+        <DropdownMenu.Item asChild className="dropdown-item">
+          <Link
+            to="/settings"
+            className=""
+            state={{ backgroundLocation: location }}
+          >
+            App Settings
+          </Link>
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
   );
 }
 
@@ -165,7 +173,7 @@ export default function Sidebar() {
           to={`/notifications`}
           defaultRoute
         >
-          Notifications
+          Activity
         </SidebarItem>
         <SidebarItem
           icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
@@ -220,8 +228,8 @@ export default function Sidebar() {
 
               {!sortedGroups.length && (
                 <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
-                  Check out <strong>Find Groups</strong> above to find new
-                  groups in your network or view group invites.
+                  Check out <strong>Discovery</strong> above to find new groups
+                  in your network or view group invites.
                 </div>
               )}
             </div>

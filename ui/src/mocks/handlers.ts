@@ -121,7 +121,7 @@ const contactSub = {
   path: '/all',
   initialResponder: (req) =>
     createResponse(req, 'diff', {
-      'contact-update': {
+      'contact-update-0': {
         initial: {
           'is-public': false,
           rolodex: mockContacts,
@@ -152,7 +152,7 @@ const groups: Handler[] = [
   {
     action: 'poke',
     app: 'groups',
-    mark: 'group-action-0',
+    mark: 'group-action-1',
     returnSubscription: specificGroupSub,
     dataResponder: (req: Message & Poke<GroupAction>) =>
       createResponse(req, 'diff', {

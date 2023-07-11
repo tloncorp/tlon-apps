@@ -7,7 +7,9 @@ declare global {
     our: string;
     scroller?: string;
     bootstrapApi: boolean;
-    ReactNativeWebView?: any;
+    ReactNativeWebView?: {
+      postMessage: (message: string) => void;
+    };
     markRead: Rope;
     recents: any;
     colorscheme: any;

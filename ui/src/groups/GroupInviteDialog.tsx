@@ -10,13 +10,14 @@ import {
   useGroupInviteMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
+import { useIsMobile } from '@/logic/useMedia';
 import { getPrivacyFromGroup, preSig } from '@/logic/utils';
+import Sheet, { SheetContent } from '@/components/Sheet';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import LureInviteBlock from './LureInviteBlock';
 
-export default function GroupInviteDialog() {
-  const dismiss = useDismissNavigate();
+export function GroupInviteBlock() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const privacy = group ? getPrivacyFromGroup(group) : 'public';
@@ -45,8 +46,13 @@ export default function GroupInviteDialog() {
       } else {
         addMembersMutation({ flag, ships: shipList });
       }
-      dismiss();
+      setShips([]);
+      setTimeout(() => {
+        resetInvite();
+        resetAddMembers();
+      }, 3000);
     } catch (e) {
+      // eslint-disable-next-line no-console
       console.error('Error inviting/adding members: poke failed');
       setTimeout(() => {
         resetInvite();
@@ -57,7 +63,6 @@ export default function GroupInviteDialog() {
     flag,
     privacy,
     ships,
-    dismiss,
     inviteMutation,
     addMembersMutation,
     resetInvite,
@@ -65,6 +70,86 @@ export default function GroupInviteDialog() {
   ]);
 
   return (
+    <div className="card">
+      <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
+      <p className="mb-4 text-gray-600">
+        (e.g. ~sampel-palnet) or display name
+      </p>
+      <div className="w-full py-3">
+        <ShipSelector
+          ships={ships}
+          setShips={setShips}
+          onEnter={onInvite}
+          placeholder="Search"
+          autoFocus={false}
+        />
+      </div>
+      <div className="flex items-center justify-end space-x-2">
+        <DialogClose className="secondary-button">Cancel</DialogClose>
+        {addMembersStatus === 'success' ? (
+          <button disabled className="button">
+            Invites Sent
+          </button>
+        ) : (
+          <button
+            onClick={onInvite}
+            className={cn('button', {
+              'bg-red':
+                inviteStatus === 'error' || addMembersStatus === 'error',
+            })}
+            disabled={
+              !validShips ||
+              inviteStatus === 'loading' ||
+              inviteStatus === 'error' ||
+              addMembersStatus === 'loading' ||
+              addMembersStatus === 'error'
+            }
+          >
+            Send Invites
+            {inviteStatus === 'loading' || addMembersStatus === 'loading' ? (
+              <LoadingSpinner className="ml-2 h-4 w-4" />
+            ) : null}
+            {inviteStatus === 'error' || addMembersStatus === 'error' ? (
+              <ExclamationPoint className="ml-2 h-4 w-4" />
+            ) : null}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function GroupInviteDialog() {
+  const dismiss = useDismissNavigate();
+  const flag = useRouteGroup();
+  const group = useGroup(flag);
+  const isMobile = useIsMobile();
+
+  function renderContent() {
+    return (
+      <div
+        className={cn(
+          'flex flex-col space-y-6',
+          isMobile ? 'overflow-y-auto' : 'mt-10'
+        )}
+      >
+        {group && (
+          <>
+            <LureInviteBlock flag={flag} group={group} />
+            <GroupInviteBlock />
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return isMobile ? (
+    <Sheet open={true} onOpenChange={(o) => !o && dismiss()}>
+      <SheetContent className="flex flex-col" showClose={false}>
+        {renderContent()}
+      </SheetContent>
+    </Sheet>
+  ) : (
     <Dialog
       open={true}
       onOpenChange={(isOpen) => !isOpen && dismiss()}
@@ -72,51 +157,7 @@ export default function GroupInviteDialog() {
       className="mb-64 bg-transparent p-0"
       close="none"
     >
-      <div className="flex flex-col space-y-6">
-        {group && <LureInviteBlock flag={flag} group={group} />}
-        <div className="card">
-          <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
-          <p className="mb-4 text-gray-600">
-            (e.g. ~sampel-palnet) or display name.
-          </p>
-          <div className="w-full py-3">
-            <ShipSelector
-              ships={ships}
-              setShips={setShips}
-              onEnter={onInvite}
-              placeholder="Search"
-            />
-          </div>
-          <div className="flex items-center justify-end space-x-2">
-            <DialogClose className="secondary-button">Cancel</DialogClose>
-
-            <button
-              onClick={onInvite}
-              className={cn('button text-white dark:text-black', {
-                'bg-red':
-                  inviteStatus === 'error' || addMembersStatus === 'error',
-                'bg-blue':
-                  inviteStatus !== 'error' && addMembersStatus !== 'error',
-              })}
-              disabled={
-                !validShips ||
-                inviteStatus === 'loading' ||
-                inviteStatus === 'error' ||
-                addMembersStatus === 'loading' ||
-                addMembersStatus === 'error'
-              }
-            >
-              Send Invites
-              {inviteStatus === 'loading' || addMembersStatus === 'loading' ? (
-                <LoadingSpinner className="ml-2 h-4 w-4" />
-              ) : null}
-              {inviteStatus === 'error' || addMembersStatus === 'error' ? (
-                <ExclamationPoint className="ml-2 h-4 w-4" />
-              ) : null}
-            </button>
-          </div>
-        </div>
-      </div>
+      {renderContent()}
     </Dialog>
   );
 }

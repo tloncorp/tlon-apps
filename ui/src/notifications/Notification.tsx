@@ -11,7 +11,8 @@ import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import { useSawRopeMutation } from '@/state/hark';
 import { Skein, YarnContent } from '@/types/hark';
 import { useChatState } from '@/state/chat';
-import { isComment, isMention, isReply } from './useNotifications';
+import useRecentChannel from '@/logic/useRecentChannel';
+import { isComment, isGroupMeta, isMention, isReply } from './useNotifications';
 
 interface NotificationProps {
   bin: Skein;
@@ -136,21 +137,32 @@ export default function Notification({
   const { mutate: sawRopeMutation } = useSawRopeMutation();
   const mentionBool = isMention(bin.top);
   const commentBool = isComment(bin.top);
+  const groupMetaBool = isGroupMeta(bin.top);
   const replyBool = isReply(bin.top);
   const path = mentionBool ? mentionPath(bin) : bin.top.wer;
   const onClick = useCallback(() => {
     sawRopeMutation({ rope });
   }, [rope, sawRopeMutation]);
+  const { recentChannel } = useRecentChannel(rope.group || '');
 
   return (
     <div
       className={cn(
         'relative flex space-x-3 rounded-xl p-3 text-gray-600',
-        bin.unread ? 'bg-blue-soft dark:bg-blue-900' : 'bg-white'
+        bin.unread ? 'bg-blue-soft dark:bg-blue-900' : 'bg-gray-50'
       )}
     >
       <Link
         to={path}
+        state={
+          groupMetaBool
+            ? {
+                backgroundLocation: {
+                  pathname: `/groups/${rope.group}/channels/${recentChannel}`,
+                },
+              }
+            : undefined
+        }
         className="flex w-full min-w-0 flex-1 space-x-3"
         onClick={onClick}
       >
@@ -176,7 +188,7 @@ export default function Notification({
           {mentionBool || commentBool || replyBool ? (
             <p
               className={cn(
-                'small-button bg-gray-50 text-gray-800',
+                'small-button bg-blue-soft text-blue',
                 moreCount > 0 ? 'mt-2' : 'mt-0'
               )}
             >

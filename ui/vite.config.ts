@@ -135,7 +135,6 @@ export default ({ mode }: { mode: string }) => {
         'any-ascii': ['any-ascii'],
         'react-beautiful-dnd': ['react-beautiful-dnd'],
         'emoji-mart': ['emoji-mart'],
-        'prosemirror-view': ['prosemirror-view'],
         '@tiptap/core': ['@tiptap/core'],
         '@tiptap/extension-placeholder': ['@tiptap/extension-placeholder'],
         '@tiptap/extension-link': ['@tiptap/extension-link'],

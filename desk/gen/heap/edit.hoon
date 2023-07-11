@@ -4,7 +4,7 @@
         [[[her=ship name=term] id=time title=@t mess=(list inline:h) ~] ~]
     ==
 ::
-:-  %heap-action
+:-  act:mar:h
 ^-  action:h
 =/  cur=diff:curios:h
   :-  id

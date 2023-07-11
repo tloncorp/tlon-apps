@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
-import { Link } from 'react-router-dom';
 import * as Toast from '@radix-ui/react-toast';
 import Layout from '@/components/Layout/Layout';
 import {
@@ -16,31 +16,24 @@ import {
   useDiaryDisplayMode,
   useDiaryPerms,
   useOlderNotes,
-  useViewDiaryMutation,
   useJoinDiaryMutation,
   useDiaryIsJoined,
   useMarkReadDiaryMutation,
 } from '@/state/diary';
-import {
-  DiarySetting,
-  setChannelSetting,
-  useDiarySettings,
-  useDiarySortMode,
-  usePutEntryMutation,
-} from '@/state/settings';
-import ChannelHeader from '@/channels/ChannelHeader';
+import { useDiarySortMode } from '@/state/settings';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryDisplayMode, DiaryLetter } from '@/types/diary';
+import { DiaryLetter } from '@/types/diary';
+import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
-import AddIcon16 from '@/components/icons/Add16Icon';
 import { useLastReconnect } from '@/state/local';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
+import DiaryHeader from './DiaryHeader';
 
-function DiaryChannel() {
+function DiaryChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
   const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
@@ -50,7 +43,6 @@ function DiaryChannel() {
   const vessel = useVessel(flag, window.our);
   const { letters, isLoading } = useNotes(chFlag);
   const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
-  const { mutate: changeDiaryView } = useViewDiaryMutation();
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const { mutateAsync: markRead } = useMarkReadDiaryMutation();
   const location = useLocation();
@@ -60,10 +52,6 @@ function DiaryChannel() {
   const channel = useChannel(flag, nest);
   const joined = useDiaryIsJoined(chFlag);
   const lastReconnect = useLastReconnect();
-  const { mutate } = usePutEntryMutation({
-    bucket: 'diary',
-    key: 'settings',
-  });
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -85,31 +73,12 @@ function DiaryChannel() {
     time: newNote || '',
   });
 
-  const settings = useDiarySettings();
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const displayMode = useDiaryDisplayMode(chFlag);
   const sortMode = useDiarySortMode(chFlag);
 
-  const setDisplayMode = async (view: DiaryDisplayMode) => {
-    changeDiaryView({ flag: chFlag, view });
-  };
-
-  const setSortMode = (
-    setting: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc'
-  ) => {
-    const newSettings = setChannelSetting<DiarySetting>(
-      settings,
-      { sortMode: setting },
-      chFlag
-    );
-    mutate({
-      val: JSON.stringify(newSettings),
-    });
-  };
-
   const perms = useDiaryPerms(chFlag);
-
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
@@ -154,7 +123,7 @@ function DiaryChannel() {
 
   useDismissChannelNotifications({
     nest,
-    markRead: () => markRead({ flag: chFlag }),
+    markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
@@ -199,30 +168,22 @@ function DiaryChannel() {
       className="flex-1 bg-gray-50"
       aside={<Outlet />}
       header={
-        <ChannelHeader
-          isDiary
+        <DiaryHeader
           flag={flag}
           nest={nest}
-          showControls
-          displayMode={displayMode}
-          setDisplayMode={setDisplayMode}
-          sortMode={sortMode}
-          setSortMode={setSortMode}
-        >
-          {canWrite ? (
-            <Link
-              to="edit"
-              className={
-                'small-button shrink-0 bg-blue px-1 text-white sm:px-2'
-              }
-            >
-              <AddIcon16 className="h-4 w-4 sm:hidden" />
-              <span className="hidden sm:inline">Add Note</span>
-            </Link>
-          ) : null}
-        </ChannelHeader>
+          canWrite={canWrite}
+          display={displayMode}
+          sort={sortMode}
+        />
       }
     >
+      <Helmet>
+        <title>
+          {channel && group
+            ? `${channel.meta.title} in ${group.meta.title} ${title}`
+            : title}
+        </title>
+      </Helmet>
       <Toast.Provider>
         <div className="relative flex flex-col items-center">
           <Toast.Root duration={3000} defaultOpen={false} open={showToast}>

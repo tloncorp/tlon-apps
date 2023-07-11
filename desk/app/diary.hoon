@@ -4,14 +4,14 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
-/+  diary-json
 /+  migrate=diary-graph
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
+::  performance, keep warm
+/+  diary-json
 ^-  agent:gall
 =>
   |%
-  ++  okay  `epic:e`0
   +$  card  card:agent:gall
   +$  current-state
     $:  %0
@@ -36,7 +36,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay])
+  ++  on-save  !>([state okay:d])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -76,7 +76,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
-+*  epos  ~(. epos-lib [bowl %diary-update okay])
++*  epos  ~(. epos-lib [bowl %diary-update okay:d])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -85,11 +85,6 @@
 ++  init
   ^+  cor
   watch-groups
-++  mar
-  |%
-  ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
-  ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
-  --
 ++  load
   |=  =vase
   |^  ^+  cor
@@ -135,7 +130,7 @@
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay)
+    ?.  =(epic okay:d)
       cor
     ~&  >>  "good news everyone!"
     %+  roll  ~(tap by shelf)
@@ -358,7 +353,7 @@
       [%ui ~]      ?>(from-self cor)
       [%imp ~]      ?>(from-self cor)
     ::
-      [%epic ~]    (give %fact ~ epic+!>(okay))
+      [%epic ~]    (give %fact ~ epic+!>(okay:d))
     ::
       [%diary ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -453,13 +448,13 @@
     ::
         %watch-ack
       ?~  p.sign
-       (give %fact ~ epic+!>(okay))
+       (give %fact ~ epic+!>(okay:d))
       =/  =tank
         leaf/"Failed groups subscription in {<dap.bowl>}, unexpected"
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      ?.  =(%group-action-0 p.cage.sign)  cor
+      ?.  =(act:mar:g p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
@@ -470,33 +465,38 @@
     |=  [=flag:d =diary:d]
     ?.  =(p.action group.perm.diary)  ~
     `flag
-  ?+    q.q.action  cor
+  =/  diff  q.q.action
+  ?+  diff  cor
       [%fleet * %del ~]
     ~&  "%diary: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     ^+  cor
-    %+  roll  ~(tap in p.q.q.action)
+    %+  roll  ~(tap in p.diff)
     |=  [=ship ci=_cor]
     ^+  cor
     =/  di  (di-abed:di-core:ci flag)
     di-abet:(di-revoke:di ship)
   ::
-      [%fleet * %del-sects *]
-    ~&  "%diary recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:d co=_cor]
-    =/  di  (di-abed:di-core:co flag)
-    di-abet:di-recheck:di
+    [%fleet * %add-sects *]    (recheck-perms affected ~)
+    [%fleet * %del-sects *]    (recheck-perms affected ~)
+    [%channel * %edit *]       (recheck-perms affected ~)
+    [%channel * %del-sects *]  (recheck-perms affected ~)
+    [%channel * %add-sects *]  (recheck-perms affected ~)
   ::
-      [%channel * %del-sects *]
-    ~&  "%diary recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:d co=_cor]
-    =/  di  (di-abed:di-core:co flag)
-    di-abet:di-recheck:di
+      [%cabal * %del *]
+    =/  =sect:g  (slav %tas p.diff)
+    %+  recheck-perms  affected
+    (~(gas in *(set sect:g)) ~[p.diff])
   ==
 ::
+++  recheck-perms
+  |=  [affected=(list flag:d) sects=(set sect:g)]
+  ~&  "%diary recheck permissions for {<affected>}"
+  %+  roll  affected
+  |=  [=flag:d co=_cor]
+  =/  di  (di-abed:di-core:co flag)
+  di-abet:(di-recheck:di sects)
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -595,7 +595,7 @@
       di-core
     ?.  ?=(%dex -.saga.net.diary)
       di-core
-    ?.  =(okay ver.saga.net.diary)
+    ?.  =(okay:d ver.saga.net.diary)
       ~&  future-shock/[ver.saga.net.diary flag]
       di-core
     =>  .(saga.net.diary `saga:e`saga.net.diary)
@@ -652,7 +652,7 @@
       =/  =dock      [our.bowl %groups] :: [p.p.action %groups] XX: check?
       =/  =wire      (snoc di-area term)
       =.  cor
-        (emit %pass wire %agent dock %poke group-action-0+!>(action))
+        (emit %pass wire %agent dock %poke act:mar:g !>(action))
       di-core
     ::
     ++  create-channel
@@ -720,11 +720,19 @@
   ++  di-revoke
     |=  her=ship
     %+  roll  ~(tap in di-subscriptions)
-    |=  [[=ship =path] he=_di-core]
-    ?.  =(ship her)  he
-    he(cor (emit %give %kick ~[path] `ship))
+    |=  [[=ship =path] di=_di-core]
+    ?.  =(ship her)  di
+    di(cor (emit %give %kick ~[path] `ship))
   ::
   ++  di-recheck
+    |=  sects=(set sect:g)
+    ::  if we have sects, we need to delete them from writers
+    =?  cor  &(!=(sects ~) =(p.flag our.bowl))
+      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]  
+      (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
+    ::  if our read permissions restored, re-subscribe
+    =?  di-core  (di-can-read our.bowl)  di-safe-sub
+    ::  if subs read permissions removed, kick 
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
     ?:  (di-can-read:di ship)  di
@@ -734,9 +742,9 @@
     |=  her=epic:e
     ^+  di-core
     ?>  ?=(%sub -.net.diary)
-    ?:  =(her okay)
+    ?:  =(her okay:d)
       di-core
-    ?:  (gth her okay)
+    ?:  (gth her okay:d)
       =.  saga.net.diary  dex+her
       di-core
     di-make-lev
@@ -779,7 +787,7 @@
     ^+  di-core
     ?>  di-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  [act:mar !>([flag update])]
+    =/  =cage  [act:mar:d !>([flag update])]
     =.  cor
       (emit %pass di-area %agent dock %poke cage)
     di-core
@@ -788,6 +796,7 @@
     =*  group  group.perm.diary
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
+  ++  di-is-host  |(=(p.flag src.bowl) =(p.group.perm.diary src.bowl))
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
     =/  =path
@@ -814,8 +823,7 @@
       ?~  path  log.diary
       =/  =time  (slav %da i.path)
       (lot:log-on:d log.diary `time ~)
-    =/  =cage  diary-logs+!>(log)
-    =.  cor  (give %fact ~ cage)
+    =.  cor  (give %fact ~ log:mar:d !>(log))
     di-core
   ::
   ++  di-sub
@@ -873,8 +881,8 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
-    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
-    =/  cag=cage  [upd:mar !>([time d])]
+    =.  cor  (give %fact ~[/ui] act:mar:^d !>([flag [time d]]))
+    =/  cag=cage  [upd:mar:^d !>([time d])]
     =.  cor
       (give %fact ~(tap in paths) cag)
     di-core
@@ -923,16 +931,19 @@
       di-core
     ::
         %add-sects
+      ?>  di-is-host
       =*  p  perm.diary
       =.  writers.p  (~(uni in writers.p) p.dif)
       di-core
     ::
         %del-sects
+      ?>  di-is-host
       =*  p  perm.diary
       =.  writers.p  (~(dif in writers.p) p.dif)
       di-core
     ::
         %create
+      ?>  di-is-host
       =:  notes.diary  q.dif
           perm.diary   p.dif
         ==

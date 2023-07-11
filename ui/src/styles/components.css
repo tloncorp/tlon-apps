@@ -50,8 +50,8 @@
   overflow-wrap: anywhere !important;
 }
 
-/* Placeholder (at the top) */
-.ProseMirror:not(.ProseMirror-focused) p.is-editor-empty:first-child::before {
+/* Placeholder (on every new line) */
+.ProseMirror:not(.ProseMirror-focused) p.is-empty::before {
   content: attr(data-placeholder);
   @apply pointer-events-none float-left h-0 text-gray-400;
 }
@@ -85,7 +85,7 @@
 }
 
 .sheet {
-  @apply relative max-h-[calc(100vh-2rem)] w-full rounded-t-xl bg-white p-6 pb-12;
+  @apply relative max-h-[75vh] w-full rounded-t-xl bg-white p-6 pb-12;
 }
 
 .dialog-inner-container {
@@ -141,7 +141,7 @@
 }
 
 .heap-block {
-  @apply absolute flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-lg border-2 border-gray-100 bg-white bg-cover bg-center bg-no-repeat object-cover object-center p-2 shadow;
+  @apply absolute flex h-full w-full cursor-pointer flex-col justify-between overflow-hidden rounded-lg bg-white bg-cover bg-center bg-no-repeat object-cover object-center p-2;
 }
 
 .heap-inline-block {

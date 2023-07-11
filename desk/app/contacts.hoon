@@ -1,34 +1,9 @@
 /-  *contacts
 /+  default-agent, dbug, verb
+::  performance, keep warm
+/+  contacts-json
 ::
 |%
-::  [compat] protocol-versioning scheme
-::
-::    adopted from :groups, slightly modified.
-::
-::    for our action/update marks, we
-::      - *must* support our version (+okay)
-::      - *should* support previous versions (especially actions)
-::      - but *can't* support future versions
-::
-::    in the case of updates at unsupported protocol versions,
-::    we backoff and subscribe for version changes (/epic).
-::    (this alone is unlikely to help with future versions,
-::    but perhaps our peer will downgrade. in the meantime,
-::    we wait to be upgraded.)
-::
-+|  %compat
-++  okay  `epic`0
-++  mar
-  |%
-  ++  base
-    |%
-    +$  act  %contact-action
-    +$  upd  %contact-update
-    --
-  ++  act  `mark`^~((rap 3 *act:base '-' (scot %ud okay) ~))
-  ++  upd  `mark`^~((rap 3 *upd:base '-' (scot %ud okay) ~))
-  --
 ::  conventions
 ::
 ::    .con: a contact
@@ -173,7 +148,7 @@
         ++  fact
           |=  [pat=(set path) u=update]
           ^-  gift:agent:gall
-          [%fact ~(tap in pat) %contact-update-0 !>(u)]
+          [%fact ~(tap in pat) upd:mar !>(u)]
         --
     ::
     |%

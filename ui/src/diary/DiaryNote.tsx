@@ -1,11 +1,12 @@
+import bigInt from 'big-integer';
+import { isSameDay } from 'date-fns';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import { useParams } from 'react-router';
+import { daToUnix } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import {
-  canWriteChannel,
-  isChannelJoined,
-  pluralize,
-  sampleQuippers,
-} from '@/logic/utils';
+import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
 import {
   useDiaryBrief,
   useNote,
@@ -17,15 +18,13 @@ import {
   useVessel,
   useAmAdmin,
   useGroup,
+  useChannel,
 } from '@/state/groups/groups';
 import { DiaryBrief, DiaryQuip } from '@/types/diary';
-import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
-import { isSameDay } from 'date-fns';
-import React, { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router';
-import useAllBriefs from '@/logic/useAllBriefs';
 import { useDiaryCommentSortMode } from '@/state/settings';
+import { useChannelIsJoined } from '@/logic/channel';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
+import { ViewProps } from '@/types/groups';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -87,20 +86,18 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
   });
 }
 
-export default function DiaryNote() {
+export default function DiaryNote({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
+  const channel = useChannel(groupFlag, nest);
   // const [id, note] = useNote(chFlag, noteId)!;
   const { note, status } = useNote(chFlag, noteId);
   const vessel = useVessel(groupFlag, window.our);
-  const briefs = useAllBriefs();
-  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
-    ? isChannelJoined(nest, briefs)
-    : true;
+  const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
   const brief = useDiaryBrief(chFlag);
   // const settings = useDiarySettings();
@@ -118,6 +115,13 @@ export default function DiaryNote() {
       joinChannel();
     }
   }, [joined, joinChannel]);
+
+  useGroupsAnalyticsEvent({
+    name: 'view_item',
+    groupFlag,
+    chFlag,
+    channelType: 'diary',
+  });
 
   if (!note || status === 'loading') {
     return (
@@ -162,6 +166,15 @@ export default function DiaryNote() {
         />
       }
     >
+      <Helmet>
+        <title>
+          {note && channel && group
+            ? `${note.essay.title} in ${channel.meta.title} • ${
+                group.meta.title || ''
+              } ${title}`
+            : title}
+        </title>
+      </Helmet>
       <div className="h-full overflow-y-scroll p-6">
         <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
           <DiaryNoteHeadline
@@ -182,7 +195,11 @@ export default function DiaryNote() {
               </Divider>
             </div>
             {canWrite ? (
-              <DiaryCommentField flag={chFlag} replyTo={noteId} />
+              <DiaryCommentField
+                flag={chFlag}
+                groupFlag={groupFlag}
+                replyTo={noteId}
+              />
             ) : null}
             <ul className="mt-12">
               {groupedQuips.map(([t, g]) =>

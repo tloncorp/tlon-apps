@@ -14,5 +14,6 @@ export default function useGroupPrivacy(flag: string) {
   return {
     visible: ['public', 'private'].includes(privacy),
     privacy,
+    isFetched: !!group || !!gang.preview,
   };
 }

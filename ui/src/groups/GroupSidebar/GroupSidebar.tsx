@@ -22,6 +22,7 @@ import AddIcon from '@/components/icons/AddIcon';
 import { Link, useLocation } from 'react-router-dom';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import InviteIcon from '@/components/icons/InviteIcon';
+import HomeIcon from '@/components/icons/HomeIcon';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -111,13 +112,13 @@ export default function GroupSidebar() {
   const privacy = group ? getPrivacyFromGroup(group) : 'public';
 
   return (
-    <nav className="flex h-full w-64 flex-none flex-col bg-white">
+    <nav className="flex h-full min-w-64 flex-none flex-col bg-white">
       <div className="flex min-h-0 flex-col">
         <div className="flex flex-col space-y-0.5 px-2 pt-2 pb-4">
           <GroupHeader />
           <SidebarItem
             icon={
-              <BellIcon
+              <HomeIcon
                 className={cn('h-6 w-6 rounded', {
                   'mix-blend-multiply': !isDark,
                 })}
@@ -125,7 +126,7 @@ export default function GroupSidebar() {
             }
             to={`/groups/${flag}/activity`}
           >
-            Activity
+            Home
           </SidebarItem>
           <SidebarItem
             icon={

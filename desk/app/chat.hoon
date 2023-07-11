@@ -2,14 +2,16 @@
 /-  meta
 /-  ha=hark
 /-  e=epic
+/-  contacts
 /+  default-agent, verb-lib=verb, dbug
-/+  chat-json
 /+  pac=dm
 /+  ch=chat-hark
 /+  gra=graph-store
 /+  epos-lib=saga
 /+  wood-lib=wood
 /+  mig=chat-graph
+::  performance, keep warm
+/+  chat-json
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -22,7 +24,6 @@
         odd=&
         veb=|
     ==
-  ++  okay  `epic:e`0
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
     $:  %2
@@ -54,7 +55,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay])
+  ++  on-save  !>([state okay:c])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -94,7 +95,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
-+*  epos  ~(. epos-lib [bowl %chat-update okay])
++*  epos  ~(. epos-lib [bowl %chat-update okay:c])
     wood   ~(. wood-lib [bowl wood-state])
 ++  abet  [(flop cards) state]
 ++  cor   .
@@ -105,12 +106,6 @@
 ++  init
   ^+  cor
   watch-groups
-::  +mar:  mark name
-++  mar
-  |%
-  ++  act  `mark`(rap 3 %chat-action '-' (scot %ud okay) ~)
-  ++  upd  `mark`(rap 3 %chat-update '-' (scot %ud okay) ~)
-  --
 ::  +load: load next state
 ++  load
   |=  =vase
@@ -124,7 +119,7 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
-    ?:  =(okay cool)  cor
+    ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
     %-  (note:wood %ver leaf/"New Epic" ~)
     =.  cor  (emil (drop load:epos))
@@ -372,7 +367,7 @@
       [%dm %invited ~]  ?>(from-self cor)
   ::
       [%epic ~]
-    (give %fact ~ epic+!>(okay))
+    (give %fact ~ epic+!>(okay:c))
   ::
       [%said host=@ name=@ %msg sender=@ time=@ ~]
     =/  host=ship  (slav %p host.pole)
@@ -453,7 +448,7 @@
       (slog tank u.p.sign)
     ::
         %fact
-      ?.  =(%group-action-0 p.cage.sign)  cor
+      ?.  =(act:mar:g p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
   ==
@@ -653,7 +648,7 @@
       %-  (note:wood %odd leaf/"!!! weird fact on /epic" ~)
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay)  :: is now our guy
+    ?.  =(epic okay:c)  :: is now our guy
       cor
     %+  roll  ~(tap by chats)
     |=  [[=flag:g =chat:c] out=_cor]
@@ -675,33 +670,38 @@
     |=  [=flag:c =chat:c]
     ?.  =(p.action group.perm.chat)  ~
     `flag
-  ?+    q.q.action  cor
+  =/  diff  q.q.action
+  ?+  diff  cor
       [%fleet * %del ~]
     %-  (note:wood %veb leaf/"revoke perms for {<affected>}" ~)
     %+  roll  affected
     |=  [=flag:c co=_cor]
     ^+  cor
-    %+  roll  ~(tap in p.q.q.action)
+    %+  roll  ~(tap in p.diff)
     |=  [=ship ci=_cor]
     ^+  cor
     =/  ca  (ca-abed:ca-core:ci flag)
     ca-abet:(ca-revoke:ca ship)
   ::
-      [%fleet * %del-sects *]
-    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
-    %+  roll  affected
-    |=  [=flag:c co=_cor]
-    =/  ca  (ca-abed:ca-core:co flag)
-    ca-abet:ca-recheck:ca
+    [%fleet * %add-sects *]    (recheck-perms affected ~)
+    [%fleet * %del-sects *]    (recheck-perms affected ~)
+    [%channel * %edit *]       (recheck-perms affected ~)
+    [%channel * %del-sects *]  (recheck-perms affected ~)
+    [%channel * %add-sects *]  (recheck-perms affected ~)
   ::
-      [%channel * %del-sects *]
-    %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
-    %+  roll  affected
-    |=  [=flag:c co=_cor]
-    =/  ca  (ca-abed:ca-core:co flag)
-    ca-abet:ca-recheck:ca
+      [%cabal * %del *]
+    =/  =sect:g  (slav %tas p.diff)
+    %+  recheck-perms  affected
+    (~(gas in *(set sect:g)) ~[p.diff])
   ==
 ::
+++  recheck-perms
+  |=  [affected=(list flag:c) sects=(set sect:g)]
+  %-  (note:wood %veb leaf/"recheck permissions for {<affected>}" ~)
+  %+  roll  affected
+  |=  [=flag:c co=_cor]
+  =/  ca  (ca-abed:ca-core:co flag)
+  ca-abet:(ca-recheck:ca sects)
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -1087,11 +1087,31 @@
     cu-core
   ::
   ++  cu-peek
-    |=  [care=@tas =path]
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  path  [~ ~]
-      [%writs *]  (peek:cu-pact care t.path)
+    ?+  pole  [~ ~]
+      [%writs rest=*]  (peek:cu-pact care rest.pole)
       [%crew ~]   ``club-crew+!>(crew.club)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:cu-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:cu-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  cu-watch
@@ -1187,7 +1207,7 @@
     ^+  ca-core
     ?.  ?=(%sub -.net.chat)  ca-core
     ?.  ?=(%dex -.saga.net.chat)  ca-core
-    ?.  =(okay ver.saga.net.chat)
+    ?.  =(okay:c ver.saga.net.chat)
       %-  (note:wood %ver leaf/"%future-shock {<[ver.saga.net.chat flag]>}" ~)
       ca-core
     ca-make-chi
@@ -1212,7 +1232,7 @@
       =/  =dock      [our.bowl %groups]  :: XX: which ship?
       =/  =wire      (snoc ca-area term)
       =.  cor
-        (emit %pass wire %agent dock %poke group-action-0+!>(action))
+        (emit %pass wire %agent dock %poke act:mar:g !>(action))
       ca-core
     ::
     ++  create-channel
@@ -1271,9 +1291,32 @@
   ++  ca-peek
     |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  pole  [~ ~]
-      [%writs rest=*]  (peek:ca-pact care rest.pole)
-      [%perm ~]        ``chat-perm+!>(perm.chat)
+    ?+    pole  [~ ~]
+        [%writs rest=*]
+      (peek:ca-pact care rest.pole)
+    ::
+        [%perm ~]
+      ``chat-perm+!>(perm.chat)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:ca-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:ca-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  ca-revoke
@@ -1284,6 +1327,14 @@
     ca(cor (emit %give %kick ~[path] `ship))
   ::
   ++  ca-recheck
+    |=  sects=(set sect:g)
+    ::  if we have sects, we need to delete them from writers
+    =?  cor  &(!=(sects ~) =(p.flag our.bowl))
+      =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]  
+      (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
+    ::  if our read permissions restored, re-subscribe
+    =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
+    ::  if subs read permissions removed, kick 
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
     ?:  (ca-can-read:ca ship)  ca
@@ -1344,9 +1395,9 @@
     |=  her=epic:e
     ^+  ca-core
     ?>  ?=(%sub -.net.chat)
-    ?:  =(her okay)
+    ?:  =(her okay:c)
       ca-make-chi
-    ?:  (gth her okay)
+    ?:  (gth her okay:c)
       =.  saga.net.chat  dex/her
       %-  (note:wood %ver leaf/"took dex epic: {<[flag her]>}" ~)
       ca-core
@@ -1357,7 +1408,7 @@
     ^+  ca-core
     ?>  ca-can-write
     =/  =dock  [p.flag dap.bowl]
-    =/  =cage  [act:mar !>([flag update])]
+    =/  =cage  [act:mar:c !>([flag update])]
     =.  cor
       (emit %pass ca-area %agent dock %poke cage)
     ca-core
@@ -1366,8 +1417,9 @@
     =*  group  group.perm.chat
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
+  ++  ca-is-host  |(=(p.flag src.bowl) =(p.group.perm.chat src.bowl))
   ++  ca-can-write
-    ?:  =(p.flag src.bowl)  &
+    ?:  ca-is-host  &
     =/  =path
       %+  welp  ca-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
@@ -1392,8 +1444,7 @@
       ?~  path  log.chat
       =/  =time  (slav %da i.path)
       (lot:log-on:c log.chat `time ~)
-    =/  =cage  chat-logs+!>(logs)
-    =.  cor  (give %fact ~ cage)
+    =.  cor  (give %fact ~ log:mar:c !>(logs))
     ca-core
   ::
   ++  ca-safe-sub
@@ -1459,13 +1510,12 @@
       %-  ~(gas in *(set path))
       (turn ~(tap in ca-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc ca-area %ui))
-    =/  cag=cage  [upd:mar !>([time d])]
-    =.  cor
-      (give %fact ~(tap in paths) cag)
-    =.  cor  (give %fact ~[/ui] act:mar !>([flag [time d]]))
+    =/  cag=cage  [upd:mar:c !>([time d])]
+    =.  cor  (give %fact ~[/ui] act:mar:c !>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
       =/  =cage  writ-diff+!>(p.d)
       (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
+    =.  cor  (give %fact ~(tap in paths) cag)
     ca-core
   ::
   ++  ca-remark-diff
@@ -1498,16 +1548,19 @@
       (ca-give-updates time d)
     ?-    -.d
         %add-sects
+      ?>  ca-is-host
       =*  p  perm.chat
       =.  writers.p  (~(uni in writers.p) p.d)
       ca-core
     ::
         %del-sects
+      ?>  ca-is-host
       =*  p  perm.chat
       =.  writers.p  (~(dif in writers.p) p.d)
       ca-core
     ::
         %create
+      ?>  ca-is-host
       =.  perm.chat  p.d
       =.  pact.chat  q.d
       ca-core
@@ -1674,7 +1727,7 @@
     =/  =path  (snoc di-area %ui)
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  =wire  /contacts/(scot %p ship)
-    =/  =cage  contact-action-0+!>([%heed ~[ship]])
+    =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
@@ -1759,10 +1812,31 @@
     ==
   ::
   ++  di-peek
-    |=  [care=@tas =path]
+    |=  [care=@tas =(pole knot)]
     ^-  (unit (unit cage))
-    ?+  path  [~ ~]
-      [%writs *]  (peek:di-pact care t.path)
+    ?+    pole  [~ ~]
+        [%writs rest=*]
+      (peek:di-pact care rest.pole)
+    ::
+        [%search %text skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    text:search:di-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      %-  some
+      %-  some
+      :-  %chat-scan
+      !>
+      %^    mention:search:di-pact
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  di-brief  (brief:di-pact our.bowl last-read.remark.dm)

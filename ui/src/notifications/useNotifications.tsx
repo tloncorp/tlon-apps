@@ -31,6 +31,18 @@ export const isComment = (yarn: Yarn) =>
 export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
+export const isJoin = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' has joined ');
+
+export const isLeave = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' has left ');
+
+export const isRoleChange = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' is now a(n) ');
+
+export const isGroupMeta = (yarn: Yarn) =>
+  isJoin(yarn) || isRoleChange(yarn) || isLeave(yarn);
+
 export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
   const { data: skeins, status: skeinsStatus } = useSkeins(flag);
 

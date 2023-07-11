@@ -1,27 +1,29 @@
+import bigInt from 'big-integer';
 import React, { useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import { Link } from 'react-router-dom';
 import { useNavigate, useParams } from 'react-router';
+import { useEventListener } from 'usehooks-ts';
 import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
 import Layout from '@/components/Layout/Layout';
 import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { canReadChannel, isChannelJoined } from '@/logic/utils';
-import { Link } from 'react-router-dom';
-import bigInt from 'big-integer';
+import { canReadChannel } from '@/logic/utils';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
-import { useEventListener } from 'usehooks-ts';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import useLeap from '@/components/Leap/useLeap';
-import useAllBriefs from '@/logic/useAllBriefs';
 import keyMap from '@/keyMap';
+import { useChannelIsJoined } from '@/logic/channel';
+import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
+import { ViewProps } from '@/types/groups';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 import useCurioFromParams from './useCurioFromParams';
 
-export default function HeapDetail() {
+export default function HeapDetail({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
-  const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const { chShip, chName } = useParams<{ chShip: string; chName: string }>();
   const chFlag = `${chShip}/${chName}`;
@@ -32,14 +34,9 @@ export default function HeapDetail() {
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
-  const briefs = useAllBriefs();
-  const joined = Object.keys(briefs).some((k) => k.includes('heap/'))
-    ? isChannelJoined(nest, briefs)
-    : true;
+  const joined = useChannelIsJoined(nest);
   const { time, curio } = useCurioFromParams();
   const [loading, setLoading] = useState(false);
-  const { isOpen: leapIsOpen } = useLeap();
-
   const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
     chFlag,
     time || ''
@@ -87,29 +84,11 @@ export default function HeapDetail() {
     initializeChannel,
   ]);
 
-  useEventListener('keydown', (e) => {
-    if (leapIsOpen) return;
-    switch (e.key) {
-      case keyMap.curio.close: {
-        navigate('..');
-        break;
-      }
-      case keyMap.curio.next: {
-        if (hasPrev) {
-          navigate(curioHref(prevCurio?.[0]));
-        }
-        break;
-      }
-      case keyMap.curio.prev: {
-        if (hasNext) {
-          navigate(curioHref(nextCurio?.[0]));
-        }
-        break;
-      }
-      default: {
-        break;
-      }
-    }
+  useGroupsAnalyticsEvent({
+    name: 'view_item',
+    groupFlag,
+    chFlag,
+    channelType: 'heap',
   });
 
   return loading ? (
@@ -127,6 +106,15 @@ export default function HeapDetail() {
         />
       }
     >
+      <Helmet>
+        <title>
+          {curio && channel && group
+            ? `${curio.heart.title || 'Gallery Item'} in ${
+                channel.meta.title
+              } • ${group.meta.title || ''} ${title}`
+            : title}
+        </title>
+      </Helmet>
       <div className="flex h-full flex-col overflow-y-auto lg:flex-row">
         <div className="group relative flex flex-1">
           {hasNext ? (
