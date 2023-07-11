@@ -83,6 +83,10 @@ import SettingsDialog from './components/SettingsDialog';
 import { captureAnalyticsEvent } from './logic/analytics';
 import GroupChannel from './groups/GroupChannel';
 import PrivacyNotice from './groups/PrivacyNotice';
+import {
+  usePendingGangs,
+} from '@/state/groups/groups';
+import AutoJoinLureInvites from './groups/autoJoinLureInvites'
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -270,6 +274,7 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   const navigate = useNavigate();
   const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
   const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
+  const pendingGangs = usePendingGangs();
 
   useEffect(() => {
     if (!isInGroups && redirectToFind) {
@@ -281,6 +286,10 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   if (isMobile) {
     return <MobileGroupsNavHome />;
   }
+
+  useEffect(() => {
+    AutoJoinLureInvites(pendingGangs)
+  }, [pendingGangs])
 
   return (
     <Notifications
