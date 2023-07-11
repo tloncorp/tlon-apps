@@ -23,11 +23,14 @@ import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import Toggle from '@/components/Toggle';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
+import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const [loaded, setLoaded] = useState(false);
+  const [editWithMarkdown, setEditWithMarkdown] = useState(false);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
@@ -256,7 +259,19 @@ export default function DiaryAddNote() {
                 />
               </form>
               <div className="py-6">
-                {editor ? <DiaryInlineEditor editor={editor} /> : null}
+                <div className="flex items-center space-x-2 mb-4">
+                  <Toggle
+                    pressed={editWithMarkdown}
+                    onPressedChange={(pressed) => setEditWithMarkdown(pressed)}
+                  />
+                  <span>Edit with Markdown</span>
+                </div>
+                {editWithMarkdown && editor ? (
+                  <DiaryMarkdownEditor editor={editor} />
+                ) : null}
+                {!editWithMarkdown && editor ? (
+                  <DiaryInlineEditor editor={editor} />
+                ) : null}
               </div>
             </div>
           </FormProvider>
