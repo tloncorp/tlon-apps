@@ -339,9 +339,8 @@
 ++  filter-notifications
   |=  =action:ha
   ^-  (unit update)
-  =/  id  `@uvH`0
   ?.  ?=(%add-yarn -.action)  ~
-  `[?~(id.yarn.action id u.id.yarn.action) %notify]
+  `[id.yarn.action %notify]
 ::
 ++  is-whitelisted
   |=  [who=@p entry=provider-entry]

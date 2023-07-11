@@ -17,12 +17,22 @@
 +$  id   @uvH
 ::  $yarn: notification
 +$  yarn
-  $:  id=(unit id)                   :: optional identifier
+  $:  =id
       rop=rope                       :: origin
-      tim=(unit time)                :: time sent
+      tim=time                       :: time sent
       con=(list content)             :: content of notification
       wer=path                       :: where to link to in FE
       but=(unit button)              :: action, if any
+  ==
+::
+::  $new-yarn: type for creating yarns
++$  new-yarn
+  $:  all=?
+      desk=?
+      rop=rope
+      con=(list content)
+      wer=path
+      but=(unit button)
   ==
 ::
 +$  button

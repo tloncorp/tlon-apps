@@ -109,9 +109,9 @@
     |=  y=yarn:h
     ^-  json
     %-  pairs
-    :~  id/?~(id.y ~ s/(scot %uv u.id.y))
+    :~  id/s/(scot %uv id.y)
         rope/(rope rop.y)
-        time/?~(tim.y ~ s/(scot %da u.tim.y))
+        time/(time tim.y)
         con/a/(turn con.y content)
         wer/s/(spat wer.y)
         button/~
@@ -175,6 +175,16 @@
         yarn/yarn
     ==
   ::
+  ++  new-yarn
+    %-  ot
+    :~  all/bo
+        desk/bo
+        rope/rope
+        con/(ar content)
+        wer/pa
+        but/(mu button)
+    ==
+  ::
   ++  button
     %-  ot
     :~  title/so
@@ -194,9 +204,9 @@
   ::
   ++  yarn
     %-  ot
-    :~  id/(mu (se %uvh))
+    :~  id/(se %uvh)
         rope/rope
-        time/(mu (se %da))
+        time/(se %da)
         con/(ar content)
         wer/pa
         but/(mu button)

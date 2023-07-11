@@ -821,16 +821,12 @@
   (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))
 ::
 ++  pass-hark
-  |=  [all=? desk=? =yarn:ha]
+  |=  =new-yarn:ha
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  =/  =cage  hark-new-yarn+!>(new-yarn)
   [%pass wire %agent dock %poke cage]
-++  spin
-  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
-  ^-  yarn:ha
-  [~ rope ~ con wer but]
 ++  flatten
   |=  content=(list inline:c)
   ^-  cord
@@ -910,10 +906,11 @@
   ::
   ++  cu-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %talk /club/(scot %uv id)]
     =/  link  /dm/(scot %uv id)
-    (spin rope con link but)
+    [& & rope con link but]
   ::
   ++  cu-pass
     |%
@@ -1024,14 +1021,14 @@
         ?-  -.content.memo
             %notice  cu-core
             %story
-          =/  yarn
+          =/  new-yarn
             %+  cu-spin
               :~  [%ship author.memo]
                   ': '
                   (flatten q.p.content.memo)
               ==
             ~
-          =.  cor  (emit (pass-hark & & yarn))
+          =.  cor  (emit (pass-hark new-yarn))
           cu-core
         ==
       ==
@@ -1145,12 +1142,13 @@
   ::
   ++  ca-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] rest)
-    (spin rope con link but)
+    [& & rope con link but]
   ::
   ++  ca-watch
     |=  =(pole knot)
@@ -1532,8 +1530,8 @@
               ==
             ca-core
           ?:  (mentioned q.p.content.memo our.bowl)
-            =/  yarn  (ca-mention-hark memo p.content.memo p.p.d)
-            =.  cor  (emit (pass-hark & & yarn))
+            =/  new-yarn  (ca-mention-hark memo p.content.memo p.p.d)
+            =.  cor  (emit (pass-hark new-yarn))
             ca-core
           =/  replying  (need replying.memo)
           =/  op  (~(get pac pact.chat) replying)
@@ -1550,7 +1548,7 @@
           ?-  -.content.opwrit
               %notice  ca-core
               %story
-            =/  yarn
+            =/  new-yarn
               %^  ca-spin
                 /message/(scot %p p.replying)/(scot %ud q.replying)
                 :~  [%ship author.memo]
@@ -1562,7 +1560,7 @@
                     (flatten q.p.content.memo)
                 ==
               ~
-            =.  cor  (emit (pass-hark & & yarn))
+            =.  cor  (emit (pass-hark new-yarn))
             ca-core
           ==
         ==
@@ -1636,10 +1634,11 @@
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %talk /dm/(scot %p ship)]
     =/  link  /dm/(scot %p ship)
-    (spin rope con link but)
+    [& & rope con link but]
   ::
   ++  di-proxy
     |=  =diff:dm:c
@@ -1695,7 +1694,7 @@
       ?-  -.content.memo
           %notice  di-core
           %story
-        =/  yarn
+        =/  new-yarn
           %+  di-spin
             :~  [%ship author.memo]
                 ?:  =(net.dm %invited)  ' has invited you to a direct message'
@@ -1703,7 +1702,7 @@
                 ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
             ==
           ~
-        =.  cor  (emit (pass-hark & & yarn))
+        =.  cor  (emit (pass-hark new-yarn))
         di-core
       ==
     ==

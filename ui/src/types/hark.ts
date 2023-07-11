@@ -8,9 +8,9 @@ export interface Threads {
 }
 
 export interface Yarn {
-  id?: Id | null;
+  id: Id;
   rope: Rope;
-  time?: number | null;
+  time: number;
   con: YarnContent[];
   wer: string;
   but: YarnButton | null;
@@ -90,6 +90,11 @@ export interface HarkUpdate {
   yarns: Yarns;
   seam: Seam;
   threads: Threads;
+}
+
+export interface NewYarn extends Omit<Yarn, 'id' | 'time'> {
+  all: boolean;
+  desk: boolean;
 }
 
 export interface Skein {
