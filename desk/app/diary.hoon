@@ -533,17 +533,12 @@
   (give %fact ~[/briefs] diary-brief-update+!>([flag brief]))
 ::
 ++  pass-hark
-  |=  [all=? desk=? =yarn:ha]
+  |=  =new-yarn:ha
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
-++  spin
-  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
-  ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -561,12 +556,13 @@
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     =*  group  group.perm.diary
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
-    (spin rope con link but)
+    [& & rope con link but]
   ::  TODO: add metadata
   ::        maybe delay the watch?
   ++  di-import
@@ -931,7 +927,7 @@
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
+        (pass-hark (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
       di-core
     ::
         %add-sects

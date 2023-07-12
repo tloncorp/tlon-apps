@@ -519,17 +519,12 @@
   (give %fact ~[/briefs] heap-brief-update+!>([flag brief]))
 ::
 ++  pass-hark
-  |=  [all=? desk=? =yarn:ha]
+  |=  =new-yarn:ha
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
-++  spin
-  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
-  ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
 ++  flatten
   |=  content=(list inline:h)
   ^-  cord
@@ -565,12 +560,13 @@
   ++  he-area  `path`/heap/(scot %p p.flag)/[q.flag]
   ++  he-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     =*  group  group.perm.heap
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] rest)
-    (spin rope con link but)
+    [& & rope con link but]
   ::
   ++  he-said
     |=  =time
@@ -945,7 +941,7 @@
           ?:  !=(title.heart ~)  (need title.heart)
           ?:  (lte (lent content) 80)  (crip content)
           (crip (weld (swag [0 77] content) "..."))
-        =/  yarn
+        =/  new-yarn
           %^  he-spin
             /curio/(rsh 4 (scot %ui u.replying.heart))
             :~  [%ship author.heart]
@@ -960,7 +956,7 @@
         =/  am-op-author  =(author.curio.u.op our.bowl)
         =/  am-author  =(author.heart our.bowl)
         =?  cor  |(&(!am-author in-replies) &(am-op-author !am-author))
-          (emit (pass-hark & & yarn))
+          (emit (pass-hark new-yarn))
         he-core
       ==
     ::
