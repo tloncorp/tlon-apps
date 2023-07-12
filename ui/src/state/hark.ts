@@ -5,6 +5,7 @@ import {
   Carpet,
   Flag,
   HarkAction,
+  HarkAction1,
   NewYarn,
   Rope,
   Seam,
@@ -127,10 +128,12 @@ export function useSawSeamMutation() {
 export function useAddYarnMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { newYarn: NewYarn }) =>
-    api.poke({
+    api.poke<HarkAction1>({
       app: 'hark',
-      mark: 'hark-new-yarn',
-      json: variables.newYarn,
+      mark: 'hark-action-1',
+      json: {
+        'add-new-yarn': variables.newYarn,
+      },
     });
 
   return useMutation(mutationFn, {

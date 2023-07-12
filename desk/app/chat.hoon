@@ -825,7 +825,7 @@
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-new-yarn+!>(new-yarn)
+  =/  =cage  hark-action-1+!>([%add-new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
 ++  flatten
   |=  content=(list inline:c)

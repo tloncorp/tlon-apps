@@ -88,15 +88,31 @@
   ?+    mark  ~|(bad-mark/mark !!)
       %hark-action
     =+  !<(act=action:h vase)
+    =.  cor  (give-ui act)
     ?-  -.act
       %saw-rope       (saw-rope rope.act)
       %saw-seam       (saw-seam seam.act)
       %add-yarn       (add-yarn +.act)
     ==
   ::
-      %hark-new-yarn
-    =+  !<(=new-yarn:h vase)
-    (new:add-yarn new-yarn)
+      %hark-action-1
+    =+  !<(act=action-1:h vase)
+    ?+  -.act  $(mark %hark-action)
+        %add-new-yarn
+      =/  =action:h
+        :*  %add-yarn
+          all.act
+          desk.act
+          :*  (end [7 1] (shax eny.bowl))
+            rop.act
+            now.bowl
+            con.act
+            wer.act
+            but.act
+          ==
+        ==
+      $(mark %hark-action, vase !>(action))
+    ==
   ==
 ++  peek
   |=  =(pole knot)
@@ -272,7 +288,6 @@
 ::
 ++  saw-rope
   |=  =rope:h
-  =.  cor  (give-ui [%saw-rope rope])
   =/  saw  (saw-thread rope)
   =.  all  (saw all)
   =.  desks
@@ -356,7 +371,6 @@
   --
 ++  saw-seam
   |=  =seam:h
-  =.  cor  (give-ui [%saw-seam seam])
   =/  fun
     |=  =rug:h
     =/  start  (quilt-idx qul.rug)
@@ -379,22 +393,7 @@
 ++  add-yarn
   =|  [add-all=? add-desk=? =yarn:h]
   |%
-  ++  new
-    |=  ny=new-yarn:h
-    %=  ^$
-      add-all   all.ny
-      add-desk  desk.ny
-      yarn
-        :*  (end [7 1] (shax eny.bowl))
-          rop.ny
-          now.bowl
-          con.ny
-          wer.ny
-          but.ny
-        ==
-    ==
   ++  $
-    =.  cor  (give-ui [%add-yarn add-all add-desk yarn])
     =.  yarns  (~(put by yarns) id.yarn yarn)
     =.  cor  weave-all
     =.  cor  weave-group

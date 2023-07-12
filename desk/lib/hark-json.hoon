@@ -161,6 +161,14 @@
         add-yarn/add-yarn
     ==
   ::
+  ++  action-1
+    ^-  $-(json action-1:h)
+    %-  of
+    :~  saw-seam/seam
+        saw-rope/rope
+        add-yarn/add-yarn
+        add-new-yarn/new-yarn
+    ==
   ++  seam
     %-  of
     :~  all/ul

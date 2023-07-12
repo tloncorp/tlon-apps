@@ -59,6 +59,12 @@
       [%saw-rope =rope]
   ==
 ::
+::  $action-1: Actions for hark pt 2
++$  action-1
+  $%  [%add-new-yarn new-yarn]
+      action
+  ==
+::
 +$  update
   $:  yarns=(map id yarn)
       =seam
