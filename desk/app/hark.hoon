@@ -98,18 +98,18 @@
       %hark-action-1
     =+  !<(act=action-1:h vase)
     ?+  -.act  $(mark %hark-action)
-        %add-new-yarn
+        %new-yarn
       =/  =action:h
         :*  %add-yarn
-          all.act
-          desk.act
-          :*  (end [7 1] (shax eny.bowl))
-            rop.act
-            now.bowl
-            con.act
-            wer.act
-            but.act
-          ==
+            all.act
+            desk.act
+            :*  (end [7 1] (shax eny.bowl))
+              rop.act
+              now.bowl
+              con.act
+              wer.act
+              but.act
+            ==
         ==
       $(mark %hark-action, vase !>(action))
     ==

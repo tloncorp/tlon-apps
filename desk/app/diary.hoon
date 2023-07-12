@@ -537,7 +537,7 @@
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action-1+!>([%add-new-yarn new-yarn])
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
 ++  from-self  =(our src):bowl
 ++  di-core

@@ -99,7 +99,7 @@ export interface NewYarn extends Omit<Yarn, 'id' | 'time'> {
 }
 
 export interface HarkAddNewYarn {
-  'add-new-yarn': NewYarn;
+  'new-yarn': NewYarn;
 }
 
 export interface Skein {

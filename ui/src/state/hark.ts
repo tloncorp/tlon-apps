@@ -132,7 +132,7 @@ export function useAddYarnMutation() {
       app: 'hark',
       mark: 'hark-action-1',
       json: {
-        'add-new-yarn': variables.newYarn,
+        'new-yarn': variables.newYarn,
       },
     });
 
