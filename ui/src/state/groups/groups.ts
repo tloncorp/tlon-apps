@@ -709,7 +709,7 @@ export function useDeleteGroupMutation() {
   return useGroupMutation(mutationFn);
 }
 
-export function useGroupJoinMutation() {
+export function useGroupJoinMutation(onSuccess?: () => void) {
   const queryClient = useQueryClient();
 
   const mutationFn = (variables: { flag: string }) =>
@@ -737,6 +737,7 @@ export function useGroupJoinMutation() {
       queryClient.invalidateQueries(['gangs']);
       queryClient.invalidateQueries(['gangs', variables.flag]);
       queryClient.invalidateQueries([GROUPS_KEY]);
+      onSuccess?.();
     },
   });
 }

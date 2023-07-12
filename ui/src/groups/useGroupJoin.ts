@@ -48,7 +48,25 @@ export default function useGroupJoin(
   const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
-  const { mutate: joinMutation, status } = useGroupJoinMutation();
+
+  function handleJoinSuccess() {
+    if (!redirectItem) {
+      return navigateByApp(`/groups/${flag}`);
+    }
+
+    if (redirectItem.type === 'chat') {
+      return navigateByApp(
+        `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}`
+      );
+    }
+
+    return navigateByApp(
+      `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}`
+    );
+  }
+
+  const { mutate: joinMutation, status } =
+    useGroupJoinMutation(handleJoinSuccess);
   const { mutate: knockMutation, status: knockStatus } =
     useGroupKnockMutation();
   const { mutate: rescindMutation, status: rescindStatus } =
@@ -92,17 +110,6 @@ export default function useGroupJoin(
 
       try {
         joinMutation({ flag });
-        if (redirectItem) {
-          if (redirectItem.type === 'chat') {
-            return navigateByApp(
-              `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}`
-            );
-          }
-          return navigateByApp(
-            `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}`
-          );
-        }
-        return navigateByApp(`/groups/${flag}`);
       } catch (e) {
         if (requested) {
           rescindMutation({ flag });
@@ -118,7 +125,6 @@ export default function useGroupJoin(
     invited,
     flag,
     requested,
-    redirectItem,
     navigateByApp,
     joinMutation,
     knockMutation,
