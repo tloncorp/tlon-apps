@@ -83,76 +83,87 @@ function DiaryImageComponent(props: NodeViewProps) {
     <NodeViewWrapper>
       <div
         className={cn(
-          'not-prose min-h-12 br-1 relative flex w-full items-center justify-center rounded-xl bg-gray-100 bg-cover bg-center',
+          'not-prose relative w-full rounded-xl bg-gray-100 bg-cover bg-center',
           className
         )}
       >
-        <div className="input absolute inset-x-4 bottom-4 flex h-8 items-center space-x-2 rounded-lg border border-gray-100 bg-white px-2">
-          <LinkIcon className="h-4 w-4" />
-          <input
-            className="input-transparent grow"
-            type="text"
-            {...bind}
-            onKeyDown={onKeyDown}
-            placeholder="Enter an image/embed/web URL"
-          />
-          {uploader ? (
-            <button
-              title={'Upload an image'}
-              className="small-button whitespace-nowrap"
-              aria-label="Add attachment"
-              onClick={(e) => {
-                e.preventDefault();
-                uploader.prompt();
-              }}
-            >
-              {mostRecentFile && mostRecentFile.status === 'loading' ? (
-                <LoadingSpinner secondary="black" className="h-4 w-4" />
-              ) : (
-                'Upload Image'
-              )}
-            </button>
-          ) : null}
-          {uploadError ? (
-            <div className="absolute mr-2">
-              <UploadErrorPopover
-                errorMessage={uploadError}
-                setUploadError={setUploadError}
-              />
-            </div>
-          ) : null}
-          {error ? (
-            <div className="flex space-x-2">
-              <AsteriskIcon className="h-4 w-4" />
-              <div className="grow">Failed to Load</div>
-              <button type="button" onClick={props.deleteNode}>
-                Cancel
-              </button>
-              <button type="button" onClick={onRetry}>
-                Retry
-              </button>
-            </div>
-          ) : (
-            <button
-              title="Remove"
-              className="small-button"
-              onClick={props.deleteNode}
-            >
-              Remove
-            </button>
-          )}
-        </div>
         {src && !error && !calm?.disableRemoteContent ? (
           <img
             ref={image}
-            className="rounded-xl"
+            className="w-full rounded-xl object-cover"
             src={src}
             onError={onError}
             onLoad={onLoad}
           />
         ) : (
-          <div className="h-16 w-full" />
+          <div />
         )}
+        <div
+          className={cn(
+            'w-full p-3',
+            src && !error && !calm?.disableRemoteContent && 'absolute bottom-0'
+          )}
+        >
+          <div
+            className={cn(
+              'input relative flex w-full items-center space-x-2 rounded-lg border border-gray-100 bg-white p-2'
+            )}
+          >
+            <LinkIcon className="h-4 w-4" />
+            <input
+              className="input-transparent grow"
+              type="text"
+              {...bind}
+              onKeyDown={onKeyDown}
+              placeholder="Enter an image/embed/web URL"
+            />
+            {uploader ? (
+              <button
+                title={'Upload an image'}
+                className="small-button whitespace-nowrap"
+                aria-label="Add attachment"
+                onClick={(e) => {
+                  e.preventDefault();
+                  uploader.prompt();
+                }}
+              >
+                {mostRecentFile && mostRecentFile.status === 'loading' ? (
+                  <LoadingSpinner secondary="black" className="h-4 w-4" />
+                ) : (
+                  'Upload Image'
+                )}
+              </button>
+            ) : null}
+            {uploadError ? (
+              <div className="absolute mr-2">
+                <UploadErrorPopover
+                  errorMessage={uploadError}
+                  setUploadError={setUploadError}
+                />
+              </div>
+            ) : null}
+            {error ? (
+              <div className="flex space-x-2">
+                <AsteriskIcon className="h-4 w-4" />
+                <div className="grow">Failed to Load</div>
+                <button type="button" onClick={props.deleteNode}>
+                  Cancel
+                </button>
+                <button type="button" onClick={onRetry}>
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <button
+                title="Remove"
+                className="small-button"
+                onClick={props.deleteNode}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </NodeViewWrapper>
   );

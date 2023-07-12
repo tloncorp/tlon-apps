@@ -16,9 +16,13 @@ import WritBaitReference from './WritBaitReference';
 function BaitReference({
   bait,
   isScrolling,
+  contextApp,
+  children,
 }: {
   isScrolling: boolean;
   bait: BaitCite['bait'];
+  contextApp?: string;
+  children: React.ReactNode;
 }) {
   const { group, graph, where } = bait;
   const theGroup = useGroup(group);
@@ -46,8 +50,11 @@ function BaitReference({
         idCurio={id}
         chFlag={graph}
         nest={`heap/${graph}`}
+        contextApp={contextApp}
         isScrolling={isScrolling}
-      />
+      >
+        {children}
+      </CurioReference>
     );
   }
 
@@ -57,6 +64,7 @@ function BaitReference({
         chFlag={graph}
         nest={nest}
         index={where}
+        contextApp={contextApp}
         isScrolling={isScrolling}
       />
     );

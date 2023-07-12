@@ -12,15 +12,15 @@ exports[`Sidebar > renders as expected 1`] = `
         class="group relative my-0.5 flex w-full items-center justify-between rounded-lg text-gray-800 sm:text-gray-600 hover:bg-gray-50"
       >
         <button
-          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 text-black hover:text-gray-800 group"
+          aria-expanded="false"
+          aria-haspopup="menu"
+          class="default-focus flex w-full flex-1 items-center space-x-3 rounded-lg p-2 appearance-none text-black hover:text-gray-800 group"
+          data-state="closed"
+          id="radix-0"
+          type="button"
         >
           <div
-            aria-expanded="false"
-            aria-haspopup="menu"
-            class="appearance-none h-6 w-6 rounded group-hover:bg-gray-100"
-            data-state="closed"
-            id="radix-0"
-            type="button"
+            class="h-6 w-6 rounded group-hover:bg-gray-100"
           >
             <svg
               class="h-6 w-6 group-hover:hidden"

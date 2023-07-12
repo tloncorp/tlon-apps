@@ -10,7 +10,9 @@ import {
   useGroupInviteMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
+import { useIsMobile } from '@/logic/useMedia';
 import { getPrivacyFromGroup, preSig } from '@/logic/utils';
+import Sheet, { SheetContent } from '@/components/Sheet';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import LureInviteBlock from './LureInviteBlock';
@@ -121,16 +123,16 @@ export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const isMobile = useIsMobile();
 
-  return (
-    <Dialog
-      open={true}
-      onOpenChange={(isOpen) => !isOpen && dismiss()}
-      containerClass="w-full max-w-xl"
-      className="mb-64 bg-transparent p-0"
-      close="none"
-    >
-      <div className="flex flex-col space-y-6">
+  function renderContent() {
+    return (
+      <div
+        className={cn(
+          'flex flex-col space-y-6',
+          isMobile ? 'overflow-y-auto' : 'mt-10'
+        )}
+      >
         {group && (
           <>
             <LureInviteBlock flag={flag} group={group} />
@@ -138,6 +140,24 @@ export default function GroupInviteDialog() {
           </>
         )}
       </div>
+    );
+  }
+
+  return isMobile ? (
+    <Sheet open={true} onOpenChange={(o) => !o && dismiss()}>
+      <SheetContent className="flex flex-col" showClose={false}>
+        {renderContent()}
+      </SheetContent>
+    </Sheet>
+  ) : (
+    <Dialog
+      open={true}
+      onOpenChange={(isOpen) => !isOpen && dismiss()}
+      containerClass="w-full max-w-xl"
+      className="mb-64 bg-transparent p-0"
+      close="none"
+    >
+      {renderContent()}
     </Dialog>
   );
 }

@@ -10,8 +10,16 @@ vi.mock('@/components/Leap/useLeap', () => ({
 }));
 
 vi.mock('@/state/groups', () => ({
-  useGroupFlag: () => ({}),
+  useGroupFlag: () => '~sampel-palnet/test',
   useGroups: () => ({}),
+}));
+
+vi.mock('@/logic/useGroupPrivacy', () => ({
+  default: () => 'public',
+}));
+
+vi.mock('@/logic/analytics', () => ({
+  captureGroupsAnalyticsEvent: () => ({}),
 }));
 
 describe('ChatInput', () => {

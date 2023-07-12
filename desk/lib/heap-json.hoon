@@ -272,7 +272,7 @@
   ::
   ++  add-sects  (as (se %tas))
   ::
-  ++  del-sects  (as (se %tas))
+  ++  del-sects  (as so)
   ::
   ++  heart
     ^-  $-(json heart:h)

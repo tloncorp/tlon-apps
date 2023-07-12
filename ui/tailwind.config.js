@@ -171,6 +171,100 @@ module.exports = {
             },
           },
         },
+        sm: {
+          css: {
+            h1: {
+              marginBottom: '0.5rem',
+              fontWeight: '600',
+              fontSize: '1rem',
+              paddingBottom: '0.3em',
+              borderBottom: '1px solid var(--tw-prose-hr)',
+            },
+            h2: {
+              fontWeight: '600',
+              fontSize: '1rem',
+              marginTop: '0',
+              marginBottom: '0.5rem',
+              paddingBottom: '0.3em',
+              borderBottom: '1px solid var(--tw-prose-hr)',
+            },
+            h3: {
+              fontWeight: '600',
+              fontSize: '1rem',
+              marginTop: '0',
+              marginBottom: '0.5rem',
+            },
+            h4: {
+              fontWeight: '600',
+              marginTop: '0',
+              marginBottom: '0.5rem',
+            },
+            pre: {
+              marginBottom: '1rem',
+              fontSize: '1rem',
+            },
+            hr: {
+              marginTop: '2rem',
+              marginBottom: '2rem',
+            },
+            'hr + *': {
+              marginTop: '0',
+            },
+            'h1 + *, h2 + *, h3 + *, h4 + *, hr + *': {
+              marginTop: '0',
+            },
+            '.node-diary-image + *,.node-diary-cite + *, .node-codeBlock + *': {
+              marginTop: '1.33333rem',
+            },
+          },
+        },
+        lg: {
+          css: {
+            h1: {
+              marginBottom: '1rem',
+              fontWeight: '600',
+              fontSize: '2rem',
+              paddingBottom: '0.3em',
+              borderBottom: '1px solid var(--tw-prose-hr)',
+            },
+            h2: {
+              fontWeight: '600',
+              fontSize: '1.5rem',
+              marginTop: '0',
+              marginBottom: '1rem',
+              paddingBottom: '0.3em',
+              borderBottom: '1px solid var(--tw-prose-hr)',
+            },
+            h3: {
+              fontWeight: '600',
+              fontSize: '1.25rem',
+              marginTop: '0',
+              marginBottom: '1rem',
+            },
+            h4: {
+              fontWeight: '600',
+              marginTop: '0',
+              marginBottom: '1rem',
+            },
+            pre: {
+              marginBottom: '1rem',
+              fontSize: '1rem',
+            },
+            hr: {
+              marginTop: '2rem',
+              marginBottom: '2rem',
+            },
+            'hr + *': {
+              marginTop: '0',
+            },
+            'h1 + *, h2 + *, h3 + *, h4 + *, hr + *': {
+              marginTop: '0',
+            },
+            '.node-diary-image + *,.node-diary-cite + *, .node-codeBlock + *': {
+              marginTop: '1.33333rem',
+            },
+          },
+        },
       },
     },
   },
