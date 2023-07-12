@@ -10,6 +10,8 @@ import PalIcon from '@/components/PalIcon';
 import usePalsState from '@/state/pals';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
+import ShipConnection from '@/components/ShipConnection';
+import { useConnectivityCheck } from '@/state/vitals';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
@@ -22,6 +24,7 @@ export default function ProfileModal() {
   const dismiss = useDismissNavigate();
   const navigateByApp = useNavigateByApp();
   const pals = usePalsState();
+  const { data, showConnection } = useConnectivityCheck(ship || '');
 
   useEffect(() => {
     if (ship) {
@@ -75,6 +78,9 @@ export default function ProfileModal() {
             <ShipName name={ship} className="ml-2 text-gray-600" />
           ) : null}
           <PalIcon className="ml-2" ship={ship} />
+        </div>
+        <div className="my-3 inline-block rounded-lg bg-gray-50 p-2 text-sm">
+          <ShipConnection ship={ship} status={data?.status} />
         </div>
         {contact && <ProfileBio bio={contact.bio} />}
         {contact && contact.groups.length > 0 && (
