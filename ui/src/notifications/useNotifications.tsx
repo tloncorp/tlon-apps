@@ -40,7 +40,8 @@ export const isLeave = (yarn: Yarn) =>
 export const isRoleChange = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' is now a(n) ');
 
-export const isGroupMeta = (yarn: Yarn) => isJoin(yarn) || isRoleChange(yarn) || isLeave(yarn);
+export const isGroupMeta = (yarn: Yarn) =>
+  isJoin(yarn) || isRoleChange(yarn) || isLeave(yarn);
 
 export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
   const { data: skeins, status: skeinsStatus } = useSkeins(flag);

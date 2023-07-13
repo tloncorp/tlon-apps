@@ -549,7 +549,6 @@ export function useArrangedNotesDiaryMutation() {
     flag: string;
     arrangedNotes: string[];
   }) => {
-
     // change sort mode automatically if arrangedNotes is empty/not-empty
     if (variables.arrangedNotes.length === 0) {
       changeSortMutation({ flag: variables.flag, sort: 'time' });
