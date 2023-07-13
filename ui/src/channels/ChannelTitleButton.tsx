@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import { get } from 'lodash';
+import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import ChannelIcon from './ChannelIcon';
 
 interface ChannelTitleButtonProps {
@@ -45,7 +46,13 @@ export default function ChannelTitleButton({
         </div>
       ) : null}
       <ChannelIcon nest={nest} className="h-6 w-6 shrink-0 text-gray-600" />
-      <ShipConnection ship={ship} showText={false} status={data?.status} />
+      {ship !== window.our ? (
+        <ShipConnection ship={ship} showText={false} status={data?.status} />
+      ) : (
+        <span title="You host this channel">
+          <Bullet16Icon className="h-4 w-4 text-green-300" />
+        </span>
+      )}
       <div className="flex w-full flex-col justify-center">
         <span
           className={cn(

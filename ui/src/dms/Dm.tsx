@@ -19,6 +19,8 @@ import ShipName from '@/components/ShipName';
 import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { Contact } from '@/types/contact';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
+import ShipConnection from '@/components/ShipConnection';
+import { useConnectivityCheck } from '@/state/vitals';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -31,6 +33,8 @@ function TitleButton({
   isMobile: boolean;
 }) {
   const BackButton = isMobile ? Link : 'div';
+  const { data, showConnection } = useConnectivityCheck(ship || '');
+
   return (
     <BackButton
       to="/"
@@ -47,6 +51,7 @@ function TitleButton({
       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-center">
         <Avatar size="xs" ship={ship} />
       </div>
+      <ShipConnection ship={ship} showText={false} status={data?.status} />
       <div className="flex w-full flex-col justify-center">
         {contact?.nickname ? (
           <>

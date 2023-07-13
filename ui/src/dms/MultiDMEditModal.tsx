@@ -7,9 +7,17 @@ import { useMultiDm } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import BubbleIcon from '@/components/icons/BubbleIcon';
+import ShipConnection from '@/components/ShipConnection';
+import { useConnectivityCheck } from '@/state/vitals';
+import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import Dialog from '../components/Dialog';
 import MultiDMInfoForm from './MultiDMInfoForm';
 import MultiDmAvatar from './MultiDmAvatar';
+
+function ShipConnectionData(ship: string) {
+  const { data, showConnection } = useConnectivityCheck(ship || '');
+  return data;
+}
 
 export default function MultiDMEditModal() {
   const dismiss = useDismissNavigate();
@@ -78,6 +86,11 @@ export default function MultiDMEditModal() {
                         key={ship}
                       >
                         <Avatar size="small" ship={ship} />
+                        <ShipConnection
+                          ship={ship}
+                          showText={false}
+                          status={ShipConnectionData(ship).status}
+                        />
                         <div className="flex grow flex-col">
                           <ShipName
                             name={ship}
@@ -108,6 +121,17 @@ export default function MultiDMEditModal() {
                     key={ship}
                   >
                     <Avatar size="small" ship={ship} />
+                    {ship !== window.our ? (
+                      <ShipConnection
+                        ship={ship}
+                        showText={false}
+                        status={ShipConnectionData(ship).status}
+                      />
+                    ) : (
+                      <span title="This is you">
+                        <Bullet16Icon className="h-4 w-4 text-green-300" />
+                      </span>
+                    )}
                     <div className="flex grow flex-col">
                       <ShipName
                         name={ship}
