@@ -101,6 +101,10 @@ const parserRules: ParseRule[] = [
     },
   },
   { tag: 'br', node: 'hardBreak' },
+  { tag: 'strong', mark: 'bold' },
+  { tag: 'b', mark: 'bold' },
+  { tag: 'em', mark: 'italic' },
+  { tag: 'i', mark: 'italic' },
   {
     tag: 'a',
     mark: 'link',
