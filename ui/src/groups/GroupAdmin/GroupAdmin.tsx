@@ -87,7 +87,9 @@ export default function GroupAdmin() {
                 </SidebarItem>
               </nav>
               <div className="rounded-lg bg-gray-50 p-2 pl-3 text-sm">
-                <ShipConnection ship={host} status={data?.status} />
+                {host !== window.ship && (
+                  <ShipConnection ship={host} status={data?.status} />
+                )}
               </div>
             </aside>
             <main

@@ -79,9 +79,11 @@ export default function ProfileModal() {
           ) : null}
           <PalIcon className="ml-2" ship={ship} />
         </div>
-        <div className="my-3 inline-block rounded-lg bg-gray-50 p-2 text-sm">
-          <ShipConnection ship={ship} status={data?.status} />
-        </div>
+        {ship !== window.our && (
+          <div className="my-3 inline-block rounded-lg bg-gray-50 p-2 text-sm">
+            <ShipConnection ship={ship} status={data?.status} />
+          </div>
+        )}
         {contact && <ProfileBio bio={contact.bio} />}
         {contact && contact.groups.length > 0 && (
           <div className="mt-5">
