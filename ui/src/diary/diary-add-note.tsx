@@ -16,7 +16,7 @@ import {
 } from '@/state/diary';
 import { useChannel, useGroup, useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
-import { Inline } from '@/types/content';
+import { Inline, JSONContent } from '@/types/content';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { useIsMobile } from '@/logic/useMedia';
@@ -30,7 +30,10 @@ import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const [loaded, setLoaded] = useState(false);
-  const [editWithMarkdown, setEditWithMarkdown] = useState(false);
+  const [editWithMarkdown, setEditWithMarkdown] = useState(true);
+  const [updateMarkdown, setUpdateMarkdown] = useState(false);
+  const [updateTipTap, setUpdateTipTap] = useState(true);
+  const [editorContent, setEditorContent] = useState<JSONContent | null>(null);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
@@ -75,25 +78,57 @@ export default function DiaryAddNote() {
   });
 
   useEffect(() => {
+    if (!loadingNote && note?.essay && !loaded) {
+      setLoaded(true);
+      setEditorContent(diaryMixedToJSON(note.essay.content));
+    }
+  }, [editor, loadingNote, note, loaded]);
+
+  useEffect(() => {
     if (
       editor &&
       !editor.isDestroyed &&
       !loadingNote &&
       note?.essay &&
-      editor?.isEmpty &&
-      !loaded
+      !editWithMarkdown &&
+      updateTipTap &&
+      editorContent
     ) {
-      setLoaded(true);
-      editor.commands.setContent(diaryMixedToJSON(note.essay.content));
+      editor.commands.setContent(editorContent);
+      setUpdateTipTap(false);
     }
-  }, [editor, loadingNote, note, loaded]);
+  }, [
+    editor,
+    loadingNote,
+    note,
+    editWithMarkdown,
+    editorContent,
+    updateTipTap,
+  ]);
+
+  useEffect(() => {
+    if (
+      editor &&
+      !editor.isDestroyed &&
+      !loadingNote &&
+      !editor.isEmpty &&
+      editWithMarkdown
+    ) {
+      setUpdateMarkdown(true);
+      setEditorContent(editor.getJSON());
+    }
+  }, [editor, loadingNote, editWithMarkdown]);
 
   const publish = useCallback(async () => {
-    if (!editor?.getText()) {
+    if (!editorContent) {
       return;
     }
 
-    const data = JSONToInlines(editor?.getJSON(), false, true);
+    const data = JSONToInlines(
+      editWithMarkdown ? editorContent : editor?.getJSON() ?? [],
+      false,
+      true
+    );
     const values = getValues();
 
     const sent = Date.now();
@@ -167,6 +202,8 @@ export default function DiaryAddNote() {
     reset,
     addNote,
     editNote,
+    editorContent,
+    editWithMarkdown,
   ]);
 
   useEffect(() => {
@@ -211,7 +248,7 @@ export default function DiaryAddNote() {
             {isMobile && <ReconnectingSpinner />}
             <button
               disabled={
-                !editor?.getText() ||
+                !editorContent ||
                 editStatus === 'loading' ||
                 addStatus === 'loading'
               }
@@ -259,7 +296,7 @@ export default function DiaryAddNote() {
                 />
               </form>
               <div className="py-6">
-                <div className="flex items-center space-x-2 mb-4">
+                <div className="mb-4 flex items-center space-x-2">
                   <Toggle
                     pressed={editWithMarkdown}
                     onPressedChange={(pressed) => setEditWithMarkdown(pressed)}
@@ -267,7 +304,13 @@ export default function DiaryAddNote() {
                   <span>Edit with Markdown</span>
                 </div>
                 {editWithMarkdown && editor ? (
-                  <DiaryMarkdownEditor editor={editor} />
+                  <DiaryMarkdownEditor
+                    editorContent={editorContent}
+                    setEditorContent={setEditorContent}
+                    updateMarkdown={updateMarkdown}
+                    setUpdateMarkdown={setUpdateMarkdown}
+                    setUpdateTipTap={setUpdateTipTap}
+                  />
                 ) : null}
                 {!editWithMarkdown && editor ? (
                   <DiaryInlineEditor editor={editor} />

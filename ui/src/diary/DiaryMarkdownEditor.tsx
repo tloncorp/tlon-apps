@@ -1,30 +1,19 @@
 import { useEffect, useState } from 'react';
 import ob from 'urbit-ob';
+// currently importing from tiptap, but this could be imported directly from
+// prosemirror when/if we ditch tiptap
 import { DOMParser as PMDomParser, Node, Schema } from '@tiptap/pm/model';
-import { Content, Editor } from '@tiptap/core';
-import { deSig } from '@urbit/api';
 import { marked } from 'marked';
 import {
   MarkdownSerializer,
   defaultMarkdownSerializer,
   MarkdownSerializerState,
 } from 'prosemirror-markdown';
-import Blockquote from '@tiptap/extension-blockquote';
-import Bold from '@tiptap/extension-bold';
-import Code from '@tiptap/extension-code';
-import Italic from '@tiptap/extension-italic';
-import Strike from '@tiptap/extension-strike';
-import Mention from '@tiptap/extension-mention';
-import Paragraph from '@tiptap/extension-paragraph';
-import HardBreak from '@tiptap/extension-hard-break';
-import BulletList from '@tiptap/extension-bullet-list';
-import OrderedList from '@tiptap/extension-ordered-list';
-import ListItem from '@tiptap/extension-list-item';
-import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import { JSONContent } from '@/types/content';
 import { PATP_REGEX, REF_REGEX } from '@/logic/utils';
 import PrismCodeBlock from './PrismCodeBlock';
-import DiaryImageNode from './DiaryImageNode';
-import DiaryCiteNode from './DiaryCiteNode';
+import schema from './schema';
+import parserRules from './parserRules';
 
 const tableMap = new WeakMap();
 const isInTable = (node: Node) => tableMap.has(node);
@@ -63,9 +52,7 @@ const replaceMention = (el: Element) => {
   const text = el.innerHTML;
   const newText = text.replace(PATP_REGEX, (match) => {
     if (ob.isValidPatp(match)) {
-      return `<span data-type="mention" data-id="${deSig(
-        match
-      )}">${match}</span>`;
+      return `<span data-type="mention" data-id="${match}">${match}</span>`;
     }
     return match;
   });
@@ -84,23 +71,29 @@ const replaceCite = (el: Element) => {
 };
 
 const unwrapElement = (el: Element) => {
-  const parent = el.parentNode;
+  const parent = el.parentNode as HTMLElement;
 
   if (!parent) {
     return;
   }
 
-  // create a div to wrap the img
-  const wrapper = document.createElement('div');
+  // clone the original element
+  const clonedEl = el.cloneNode(true) as HTMLElement;
 
-  // move the img to the new wrapper
-  wrapper.appendChild(el.cloneNode(true));
+  // split remaining text of the parent if there is any after the img
+  if (el.nextSibling) {
+    const nextP = document.createElement('p');
+    while (el.nextSibling) {
+      nextP.appendChild(el.nextSibling);
+    }
+    parent.parentNode?.insertBefore(nextP, parent.nextSibling);
+  }
 
-  // insert the wrapper after the parent p in the body
-  parent.parentNode?.insertBefore(wrapper, parent.nextSibling);
+  // insert the cloned img after the parent p in the body
+  parent.parentNode?.insertBefore(clonedEl, parent.nextSibling);
 
   // remove the original img
-  parent.removeChild(el);
+  el.remove();
 };
 
 const unwrapImages = (el: Element) => {
@@ -113,15 +106,16 @@ const parseHTML = (str: string) => {
   // we need to parse the HTML to handle mentions, citations and images
   const parser = new DOMParser();
   const doc = parser.parseFromString(str, 'text/html');
-  const paragraphs = doc.querySelectorAll('p');
+  let paragraphs = doc.querySelectorAll('p');
   const listItems = doc.querySelectorAll('li');
+  paragraphs.forEach(unwrapImages);
+
+  // re-query for paragraphs after unwrapImages operation
+  paragraphs = doc.querySelectorAll('p');
+
   paragraphs.forEach(replaceCite);
   paragraphs.forEach(replaceMention);
   listItems.forEach(replaceMention);
-  paragraphs.forEach(unwrapImages);
-
-  // remove wrapping divs for images
-  doc.body.innerHTML.replace(/<div>(.*?)<\/div>/g, '$1');
 
   // wrap all text that starts with \n in <p>
   doc.body.innerHTML = doc.body.innerHTML.replace(
@@ -137,30 +131,30 @@ const parseHTML = (str: string) => {
 
 const serializerMarks = {
   ...defaultMarkdownSerializer.marks,
-  [Bold.name]: defaultMarkdownSerializer.marks.strong,
-  [Strike.name]: {
+  bold: defaultMarkdownSerializer.marks.strong,
+  strike: {
     open: '~~',
     close: '~~',
     mixable: true,
     expelEnclosingWhitespace: true,
   },
-  [Italic.name]: {
+  italic: {
     open: '_',
     close: '_',
     mixable: true,
     expelEnclosingWhitespace: true,
   },
-  [Code.name]: defaultMarkdownSerializer.marks.code,
+  code: defaultMarkdownSerializer.marks.code,
 };
 
 const serializerNodes = {
   ...defaultMarkdownSerializer.nodes,
-  [Paragraph.name]: defaultMarkdownSerializer.nodes.paragraph,
-  [BulletList.name]: defaultMarkdownSerializer.nodes.bullet_list,
-  [ListItem.name]: defaultMarkdownSerializer.nodes.list_item,
-  [HorizontalRule.name]: defaultMarkdownSerializer.nodes.horizontal_rule,
-  [OrderedList.name]: renderOrderedList,
-  [HardBreak.name]: renderHardBreak,
+  paragraph: defaultMarkdownSerializer.nodes.paragraph,
+  bulletList: defaultMarkdownSerializer.nodes.bullet_list,
+  listItem: defaultMarkdownSerializer.nodes.list_item,
+  horizontalRule: defaultMarkdownSerializer.nodes.horizontal_rule,
+  orderedList: renderOrderedList,
+  hardBreak: renderHardBreak,
   [PrismCodeBlock.name]: (state: MarkdownSerializerState, node: Node) => {
     state.write(`\`\`\`${node.attrs.language || ''}\n`);
     state.text(node.textContent, false);
@@ -168,7 +162,7 @@ const serializerNodes = {
     state.write('```');
     state.closeBlock(node);
   },
-  [Blockquote.name]: (state: MarkdownSerializerState, node: Node) => {
+  blockquote: (state: MarkdownSerializerState, node: Node) => {
     if (node.attrs.multiline) {
       state.write('>>>');
       state.ensureNewLine();
@@ -180,21 +174,21 @@ const serializerNodes = {
       state.wrapBlock('> ', null, node, () => state.renderContent(node));
     }
   },
-  [Mention.name]: (state: MarkdownSerializerState, node: Node) => {
-    state.write(`~${node.attrs.id}`);
+  mention: (state: MarkdownSerializerState, node: Node) => {
+    state.write(`${node.attrs.id}`);
   },
-  [DiaryImageNode.name]: (state: MarkdownSerializerState, node: Node) => {
+  'diary-image': (state: MarkdownSerializerState, node: Node) => {
     state.write(`![${node.attrs.alt}](${node.attrs.src})`);
     state.ensureNewLine();
   },
-  [DiaryCiteNode.name]: (state: MarkdownSerializerState, node: Node) => {
+  'diary-cite': (state: MarkdownSerializerState, node: Node) => {
     state.write(node.attrs.path);
     state.ensureNewLine();
   },
 };
 
-function serialize(schema: Schema, content: Content) {
-  const proseMirrorDocument = schema.nodeFromJSON(content);
+function serialize(_schema: Schema, content: JSONContent) {
+  const proseMirrorDocument = _schema.nodeFromJSON(content);
   const serializer = new MarkdownSerializer(serializerNodes, serializerMarks);
 
   return serializer.serialize(proseMirrorDocument, {
@@ -202,7 +196,7 @@ function serialize(schema: Schema, content: Content) {
   });
 }
 
-function deserialize(schema: Schema, markdown: string) {
+function deserialize(_schema: Schema, markdown: string) {
   const html = marked.parse(markdown);
 
   if (!html) {
@@ -212,22 +206,41 @@ function deserialize(schema: Schema, markdown: string) {
   const parser = new DOMParser();
   const { body } = parser.parseFromString(parseHTML(html), 'text/html');
 
-  const state = PMDomParser.fromSchema(schema).parse(body);
+  const pmParser = new PMDomParser(_schema, parserRules);
+
+  const state = pmParser.parse(body);
 
   return state.toJSON();
 }
 
-export default function DiaryMarkdownEditor({ editor }: { editor: Editor }) {
+export default function DiaryMarkdownEditor({
+  editorContent,
+  setEditorContent,
+  updateMarkdown,
+  setUpdateMarkdown,
+  setUpdateTipTap,
+}: {
+  editorContent: JSONContent | null;
+  setEditorContent: (content: JSONContent) => void;
+  updateMarkdown: boolean;
+  setUpdateMarkdown: (update: boolean) => void;
+  setUpdateTipTap: (update: boolean) => void;
+}) {
   const [markdownInput, setMarkdownInput] = useState('');
 
   useEffect(() => {
-    setMarkdownInput(serialize(editor.schema, editor.getJSON()));
-  }, [editor]);
+    if (editorContent && (markdownInput === '' || updateMarkdown)) {
+      const markdown = serialize(schema, editorContent);
+      setMarkdownInput(markdown);
+      setUpdateMarkdown(false);
+    }
+  }, [editorContent, markdownInput, updateMarkdown, setUpdateMarkdown]);
 
   useEffect(() => {
-    const newContent = deserialize(editor.schema, markdownInput);
-    editor.commands.setContent(newContent);
-  }, [markdownInput, editor]);
+    const newContent = deserialize(schema, markdownInput);
+    setEditorContent(newContent);
+    setUpdateTipTap(true);
+  }, [markdownInput, setEditorContent, setUpdateTipTap]);
 
   return (
     <div className="h-[600px] w-full">
