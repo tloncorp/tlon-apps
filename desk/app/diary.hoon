@@ -110,12 +110,14 @@
   +$  versioned-state  $%(current-state state-0)
   +$  state-0
     $:  %0
-        shelf=shelf-0:d
-        voc=(map [flag:d plan:d] (unit said:d))
+        shelf=shelf:zero
+        voc=(map [flag:zero plan:zero] (unit said:zero))
         ::  true represents imported, false pending import
-        imp=(map flag:d ?)
+        imp=(map flag:zero ?)
     ==
   +$  state-1  current-state
+  ++  zero  zero:old:d
+  ++  one  d
   ++  state-0-to-1
     |=  s=state-0
     ^-  state-1
@@ -126,12 +128,12 @@
     ==
   ::
 ++  convert-shelf
-    |=  old-shelf=shelf-0:d
+    |=  old-shelf=shelf:zero
     ^-  shelf:d
     %-  malt
     %+  turn
       ~(tap by old-shelf)
-    |=  [=flag:d old-diary=diary-0:d]
+    |=  [=flag:d old-diary=diary:zero]
     ^-  [flag:d diary:d]
     [flag [~ old-diary]]
   ::
@@ -216,7 +218,7 @@
     =+  !<(req=create:d vase)
     (create req)
   ::
-      ?(%diary-action-0 %diary-action)
+      ?(%diary-action-1 %diary-action-0 %diary-action)
     =+  !<(=action:d vase)
     =/  diary-core  (di-abed:di-core p.action)
     ?:  =(p.p.action our.bowl)
@@ -807,8 +809,8 @@
       =*  cage  cage.sign
       ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
-        ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
-        ?(%diary-update %diary-update-0)  (di-update !<(update:d q.cage))
+        ?(%diary-logs %diary-logs-0 %diary-logs-1)      (di-apply-logs !<(log:d q.cage))
+        ?(%diary-update %diary-update-0 %diary-update-1)  (di-update !<(update:d q.cage))
       ==
     ==
   ::
