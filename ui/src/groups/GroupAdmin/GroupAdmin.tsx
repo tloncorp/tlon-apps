@@ -86,11 +86,11 @@ export default function GroupAdmin() {
                   Delete Group
                 </SidebarItem>
               </nav>
-              <div className="rounded-lg bg-gray-50 p-2 pl-3 text-sm">
-                {host !== window.ship && (
+              {host !== window.our && (
+                <div className="rounded-lg bg-gray-50 p-2 pl-3 text-sm">
                   <ShipConnection ship={host} status={data?.status} />
-                )}
-              </div>
+                </div>
+              )}
             </aside>
             <main
               className={cn(
