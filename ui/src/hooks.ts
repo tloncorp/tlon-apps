@@ -1,15 +1,6 @@
 /* eslint-disable import/prefer-default-export */
 import { useCallback, useMemo } from 'react';
-import { useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
-
-export function useChannelFlag() {
-  const { chShip, chName } = useParams();
-  return useMemo(
-    () => (chShip && chName ? `${chShip}/${chName}` : null),
-    [chShip, chName]
-  );
-}
 
 export function useSearchParam<T>(
   key: string

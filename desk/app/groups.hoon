@@ -4,9 +4,10 @@
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
-/+  groups-json  :: unused, nice for perf
 /+  of
 /+  epos-lib=saga
+::  performance, keep warm
+/+  groups-json
 /*  desk-bill  %bill  /desk/bill
 ^-  agent:gall
 =>
@@ -93,6 +94,7 @@
       %noun
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
+      %verify-cabals  verify-cabals
     ==
   ::
       %group-import  (import-groups !<(imports:g vase))
@@ -179,9 +181,9 @@
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ==
 ++  channel-scry
-  |=  app=@tas
+  |=  =nest:g
   ^-  path
-  /(scot %p our.bowl)/[app]/(scot %da now.bowl)
+  /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
 ::
 ++  reset-all-perms
   (~(rep by groups) (reset-group-perms cor))
@@ -205,9 +207,9 @@
       =/  cage  [act:mar:g !>(action)]
       [%pass wire %agent dock %poke cage]
     ^-  card
+    =/  =path  (welp (channel-scry nest) /perm/noun)
     ?+  -.nest  *card
         %chat
-      =/  =path  (welp (channel-scry %chat) /chat/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
       =/  perms  .^(perm:c %gx path)
       =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /chat
@@ -216,7 +218,6 @@
       [%pass wire %agent dock %poke cage]
     ::
         %diary
-      =/  =path  (welp (channel-scry %diary) /diary/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
       =/  perms  .^(perm:d %gx path)
       =/  =action:d  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /diary
@@ -225,7 +226,6 @@
       [%pass wire %agent dock %poke cage]
     ::
         %heap
-      =/  path   (welp (channel-scry %heap) /heap/(scot %p p.q.nest)/[q.q.nest]/perm/noun)
       =/  perms  .^(perm:h %gx path)
       =/  =action:h  [+.nest [now.bowl [%del-sects writers.perms]]]
       =/  =wire  /heap
@@ -235,6 +235,37 @@
     ==
   core
 ::
+++  verify-cabals  (roll ~(tap by groups) verify-group-cabals)
+++  verify-group-cabals
+  |=  [[=flag:g [* =group:g]] core=_cor]
+  =.  core
+    %+  roll
+      ~(tap by fleet.group)
+    |=  [[s=ship =vessel:fleet:g] cre=_core]
+    =/  diff  (~(dif in sects.vessel) ~(key by cabals.group))
+    ?:  =(~(wyt in diff) 0)  cre
+    =/  action  [flag now.bowl %fleet (~(gas in *(set ship)) ~[s]) %del-sects diff]
+    cre(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cre])
+  %+  roll
+    ~(tap by channels.group)
+  |=  [[=nest:g =channel:g] cr=_core]
+  =.  cr
+    =/  readers  (~(dif in readers.channel) ~(key by cabals.group))
+    ?.  (gth ~(wyt in readers) 0)  cr
+    =/  action  [flag now.bowl %channel nest %del-sects readers]
+    cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
+  =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
+  =/  diff  (~(dif in writers) ~(key by cabals.group))
+  ?.  (gth ~(wyt in diff) 0)  cr
+  ?.  =(p.nest ?(%chat %heap %diary))  cr
+  =/  update  [q.nest [now.bowl [%del-sects diff]]]
+  =-  cr(cards [[%pass /groups/role %agent [p.q.nest p.nest] %poke -] cards.cr])
+  ?+  p.nest  *cage
+    %chat   [act:mar:c !>(update)]
+    %heap   [act:mar:h !>(update)]
+    %diary  [act:mar:d !>(update)]
+  ==
+::
 ::  +load: load next state
 ++  load
   |=  =vase
@@ -242,6 +273,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
+  =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
   ?:  =(okay:g cool)  cor
   =.  cor  (emil (drop load:epos))
   =/  groups  ~(tap in ~(key by groups))
@@ -346,6 +378,7 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%helm *]  cor
+      [%groups %role ~]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
   ::
@@ -503,17 +536,16 @@
 ::
 ++  from-self  =(our src):bowl
 ++  pass-hark
-  |=  [all=? desk=? =yarn:ha]
+  |=  =new-yarn:ha
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
 ++  spin
   |=  [=rope:ha wer=path but=(unit button:ha) con=(list content:ha)]
-  ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
+  ^-  new-yarn:ha
+  [& & rope con wer but]
 ::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]
@@ -1082,9 +1114,9 @@
       (~(put in out) path)
     =.  paths  (~(put in paths) (snoc go-area %ui))
     =.  cor
-      (give %fact ~(tap in paths) upd:mar:g !>(`update:g`[time diff]))
-    =.  cor
       (give %fact ~[/groups /groups/ui] act:mar:g !>(`action:g`[flag time diff]))
+    =.  cor
+      (give %fact ~(tap in paths) upd:mar:g !>(`update:g`[time diff]))
     go-core
   ::
   ++  go-tell-update
@@ -1261,7 +1293,7 @@
         =/  ships  q.diff
         ?:  from-self  go-core
         =/  link  (go-link /info/members/pending)
-        =/  yarn
+        =/  =new-yarn:ha
           %-  spin
           :*  (go-rope /asks)
               link
@@ -1277,7 +1309,7 @@
               ==
           ==
         =?  cor  go-is-our-bloc
-          (emit (pass-hark & & yarn))
+          (emit (pass-hark new-yarn))
         go-core
       ::
           [%del-ships %ask]
@@ -1307,6 +1339,7 @@
     ::
         %del
       =.  cabals.group  (~(del by cabals.group) sect)
+      =.  cor  (verify-group-cabals [flag ~ group] cor)
       go-core
     ==
   ::
@@ -1346,8 +1379,8 @@
           =/  vessel  (~(gut by fleet.group) ship *vessel:fleet:g)
           [ship [sects=sects.vessel joined=joined]]
       ?:  from-self  go-core
-      =/  link  (go-link /info/members)
-      =/  yarn
+      =/  link  (go-link /edit/members)
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /joins)
             link
@@ -1362,7 +1395,7 @@
             ==
         ==
       =?  cor  go-is-our-bloc
-        (emit (pass-hark & & yarn))
+        (emit (pass-hark new-yarn))
       ?-  -.cordon
           ?(%open %afar)  go-core
           %shut
@@ -1387,8 +1420,8 @@
         |=  [=ship =vessel:fleet:g]
         (~(has in ships) ship)
       ?:  from-self  go-core
-      =/  link  (go-link /info/members)
-      =/  yarn
+      =/  link  (go-link /edit/members)
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /leaves)
             link
@@ -1403,14 +1436,14 @@
             ==
         ==
       =?  cor  go-is-our-bloc
-        (emit (pass-hark & & yarn))
+        (emit (pass-hark new-yarn))
       ?:  (~(has in ships) our.bowl)
         go-core(gone &)
       go-core
     ::
         %add-sects
-      ~|  strange-sect/sect
       ?>  go-is-bloc
+      ~|  strange-sect/sects.diff
       ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
       =.  fleet.group
         %-  ~(rut by fleet.group)
@@ -1418,7 +1451,7 @@
         ?.  (~(has in ships) ship)  vessel
         vessel(sects (~(uni in sects.vessel) sects.diff))
       ?:  from-self  go-core
-      =/  link  (go-link /info/members)
+      =/  link  (go-link /edit/members)
       =/  ship-list=(list content:ha)
         %+  join  `content:ha`', '
         `(list content:ha)`(turn ~(tap in ships) |=(=ship ship/ship))
@@ -1430,7 +1463,7 @@
         |=  =sect:g
         =/  cabal  (~(got by cabals.group) sect)
         title.meta.cabal
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /add-roles)
             link
@@ -1443,7 +1476,7 @@
             ==
         ==
       =?  cor  go-is-our-bloc
-        (emit (pass-hark & & yarn))
+        (emit (pass-hark new-yarn))
       go-core
     ::
         %del-sects
@@ -1470,7 +1503,7 @@
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
       =/  link  (go-link /channels)
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /channel/add)
             link
@@ -1480,7 +1513,7 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =.  cor  (emit (pass-hark new-yarn))
       ?:  =(our.bowl p.flag)  go-core
       =.  cor  (emil (join-channels:go-pass ~[ch]))
       go-core
@@ -1494,7 +1527,7 @@
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
       =/  link  (go-link /channels)
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /channel/edit)
             link
@@ -1508,7 +1541,7 @@
                 ' has been edited'
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =.  cor  (emit (pass-hark new-yarn))
       go-core
     ::
         %del
@@ -1520,7 +1553,7 @@
       =.  channels.group  (del:by-ch ch)
       ?:  from-self  go-core
       =/  link  (go-link /channels)
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /channel/del)
             link
@@ -1530,10 +1563,12 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =.  cor  (emit (pass-hark new-yarn))
       go-core
     ::
         %add-sects
+      ~|  strange-sect/sects.diff
+      ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
       =/  =channel:g  (got:by-ch ch)
       =.  readers.channel  (~(uni in readers.channel) sects.diff)
       =.  channels.group  (put:by-ch ch channel)
@@ -1739,7 +1774,7 @@
           ?~  pev.gang   ga-core
           ?~  vit.gang   ga-core
           =/  link  /find
-          =/  yarn
+          =/  =new-yarn:ha
             %-  spin
             :*  [`flag ~ q.byk.bowl /(scot %p p.flag)/[q.flag]/invite]
                 link
@@ -1750,7 +1785,7 @@
                 ==
             ==
           =?  cor  !(~(has by groups) flag)
-            (emit (pass-hark & & yarn))
+            (emit (pass-hark new-yarn))
           ga-core
           ::
             %kick

@@ -13,7 +13,6 @@ import {
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import {
   getPrivacyFromChannel,
-  isChannelJoined,
   nestToFlag,
   WritePermissions,
 } from '@/logic/utils';
@@ -26,7 +25,7 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
 import useRequestState from '@/logic/useRequestState';
-import useAllBriefs from '@/logic/useAllBriefs';
+import { useChannelIsJoined } from '@/logic/channel';
 
 interface ChannelsListItemProps {
   nest: string;
@@ -67,8 +66,7 @@ export default function ChannelsListItem({
   const isChannelHost = nest.includes(window.ship);
   const { meta } = channel;
   const [app, channelFlag] = nestToFlag(nest);
-  const briefs = useAllBriefs();
-  const joined = isChannelJoined(nest, briefs);
+  const joined = useChannelIsJoined(nest);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);

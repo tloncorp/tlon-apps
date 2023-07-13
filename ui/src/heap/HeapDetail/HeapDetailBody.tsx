@@ -37,7 +37,10 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
     return (
       <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[18px] leading-[26px]">
         <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
-          <ContentReference cite={content.block[0].cite} />
+          <ContentReference
+            contextApp="heap-detail"
+            cite={content.block[0].cite}
+          />
         </div>
       </div>
     );

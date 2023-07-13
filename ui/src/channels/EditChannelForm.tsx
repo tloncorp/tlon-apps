@@ -23,8 +23,8 @@ import {
   useAddSectsDiaryMutation,
   useDeleteSectsDiaryMutation,
 } from '@/state/diary';
-import useChannel from '@/logic/useChannel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { useChannel } from '@/logic/channel';
 
 interface EditChannelFormProps {
   nest: string;
@@ -93,36 +93,32 @@ export default function EditChannelForm({
         console.log(e);
       }
 
-      const chState =
-        app === 'chat' ? useChatState.getState() : useHeapState.getState();
+      const addSects =
+        app === 'diary'
+          ? (flag: string, writers: string[]) =>
+              addDiarySects({ flag, writers })
+          : app === 'heap'
+          ? useHeapState.getState().addSects
+          : useChatState.getState().addSects;
+      const delSects =
+        app === 'diary'
+          ? (flag: string, writers: string[]) =>
+              delDiarySects({ flag, writers })
+          : app === 'heap'
+          ? useHeapState.getState().delSects
+          : useChatState.getState().delSects;
 
       if (privacy !== 'public') {
-        const writersIncludesMembers = values.writers.includes('members');
-
-        const writersToRemove = _.difference(
-          chan?.perms.writers || [],
-          values.writers
+        await addSects(
+          channelFlag,
+          values.writers.filter((w) => w !== 'members')
         );
-
-        if (writersIncludesMembers) {
-          if (app === 'diary') {
-            await delDiarySects({
-              flag: channelFlag,
-              writers: writersToRemove,
-            });
-          } else {
-            await chState.delSects(channelFlag, sects);
-          }
-        } else if (app === 'diary') {
-          await addDiarySects({
-            flag: channelFlag,
-            writers: values.writers,
-          });
-        } else {
-          await chState.delSects(channelFlag, writersToRemove);
-        }
+        await delSects(
+          channelFlag,
+          _.difference(chan?.perms.writers || [], values.writers)
+        );
       } else {
-        await chState.delSects(channelFlag, sects);
+        await delSects(channelFlag, sects);
       }
 
       if (retainRoute === true && setEditIsOpen) {
@@ -159,7 +155,7 @@ export default function EditChannelForm({
           <h2 className="text-lg font-bold leading-6">
             {prettyChannelTypeName(app)} Channel Details
           </h2>
-          <p className="text-sm leading-5 text-gray-800">
+          <p className="text-sm leading-5 text-gray-600">
             Edit the channel's details
           </p>
         </header>

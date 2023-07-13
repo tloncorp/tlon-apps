@@ -1,9 +1,7 @@
 import _ from 'lodash';
-import React, { useCallback, useState } from 'react';
-import f from 'lodash/fp';
-import { DiaryLetter, DiaryNote, NoteEssay } from '@/types/diary';
+import React from 'react';
+import { NoteEssay } from '@/types/diary';
 import { format } from 'date-fns';
-import { useChannelFlag } from '@/hooks';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import IconButton from '@/components/IconButton';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -12,10 +10,9 @@ import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import DiaryNoteOptionsDropdown from '@/diary/DiaryNoteOptionsDropdown';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
-import { useGroupFlag } from '@/state/groups';
 import { useNavigate } from 'react-router-dom';
 import Author from '@/chat/ChatMessage/Author';
-import { sampleQuippers } from '@/logic/utils';
+import { useChannelFlag } from '@/logic/channel';
 import useDiaryActions from './useDiaryActions';
 
 interface DiaryListItemProps {

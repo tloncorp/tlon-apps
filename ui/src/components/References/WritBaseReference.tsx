@@ -7,16 +7,21 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useChannelFlag } from '@/hooks';
 import { useChatState } from '@/state/chat';
 import { unixToDa } from '@urbit/api';
+import { useChannelFlag } from '@/logic/channel';
+import { isImageUrl } from '@/logic/utils';
 import ReferenceBar from './ReferenceBar';
+import ShipName from '../ShipName';
+import ReferenceInHeap from './ReferenceInHeap';
 
 interface WritBaseReferenceProps {
   nest: string;
   chFlag: string;
   writ?: ChatWrit;
   isScrolling: boolean;
+  contextApp?: string;
+  children?: React.ReactNode;
 }
 
 function WritBaseReference({
@@ -24,6 +29,8 @@ function WritBaseReference({
   writ,
   chFlag,
   isScrolling,
+  contextApp,
+  children,
 }: WritBaseReferenceProps) {
   const isReply = useChannelFlag() === chFlag;
   const preview = useChannelPreview(nest, isScrolling);
@@ -58,6 +65,47 @@ function WritBaseReference({
     }
     navigate(`/groups/${groupFlag}/channels/${nest}?msg=${time}`);
   };
+
+  if (contextApp === 'heap-row') {
+    return (
+      <ReferenceInHeap
+        type="text"
+        contextApp={contextApp}
+        image={
+          group && isImageUrl(group.meta.image) ? (
+            <img
+              src={group.meta.image}
+              className="h-[72px] w-[72px] rounded object-cover"
+            />
+          ) : (
+            <div
+              className="h-[72px] w-[72px] rounded"
+              style={{ background: group?.meta.image }}
+            />
+          )
+        }
+        title={
+          writ.memo.content.story.block.length > 0 ? (
+            <span>Nested content references</span>
+          ) : (
+            <ChatContent
+              className="line-clamp-1"
+              story={writ.memo.content.story}
+              isScrolling={false}
+            />
+          )
+        }
+        byline={
+          <span>
+            Chat message by <ShipName name={writ.memo.author} showAlias /> in{' '}
+            {preview?.meta?.title}
+          </span>
+        }
+      >
+        {children}
+      </ReferenceInHeap>
+    );
+  }
 
   return (
     <div

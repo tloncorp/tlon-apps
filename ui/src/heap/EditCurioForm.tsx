@@ -4,7 +4,6 @@ import { useDismissNavigate } from '@/logic/routing';
 import { EditCurioFormSchema } from '@/types/heap';
 import { useForm } from 'react-hook-form';
 import { useHeapState } from '@/state/heap/heap';
-import { useChannelFlag } from '@/hooks';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
@@ -12,6 +11,8 @@ import { inlinesToJSON, JSONToInlines } from '@/logic/tiptap';
 import { ChatBlock } from '@/types/chat';
 import { Inline } from '@/types/content';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { useChannelFlag } from '@/logic/channel';
+import { useRouteGroup } from '@/state/groups';
 import useCurioFromParams from './useCurioFromParams';
 import HeapTextInput from './HeapTextInput';
 
@@ -20,6 +21,7 @@ export default function EditCurioForm() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [draftLink, setDraftLink] = useState<string>();
   const [draftText, setDraftText] = useState<JSONContent>();
+  const groupFlag = useRouteGroup();
   const chFlag = useChannelFlag() || '';
   const { curio, time } = useCurioFromParams();
   const isLinkMode = curio ? isLinkCurio(curio.heart.content) : false;
@@ -159,6 +161,7 @@ export default function EditCurioForm() {
             draft={draftText}
             setDraft={setDraftText}
             flag={chFlag}
+            groupFlag={groupFlag}
             sendDisabled={true}
           />
         )}

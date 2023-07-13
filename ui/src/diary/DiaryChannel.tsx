@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
@@ -22,6 +23,7 @@ import {
 import { useDiarySortMode } from '@/state/settings';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryLetter } from '@/types/diary';
+import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
@@ -31,7 +33,7 @@ import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 import DiaryHeader from './DiaryHeader';
 
-function DiaryChannel() {
+function DiaryChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
   const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
@@ -121,7 +123,7 @@ function DiaryChannel() {
 
   useDismissChannelNotifications({
     nest,
-    markRead: () => markRead({ flag: chFlag }),
+    markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
@@ -175,6 +177,13 @@ function DiaryChannel() {
         />
       }
     >
+      <Helmet>
+        <title>
+          {channel && group
+            ? `${channel.meta.title} in ${group.meta.title} ${title}`
+            : title}
+        </title>
+      </Helmet>
       <Toast.Provider>
         <div className="relative flex flex-col items-center">
           <Toast.Root duration={3000} defaultOpen={false} open={showToast}>

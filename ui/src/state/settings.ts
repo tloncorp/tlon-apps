@@ -5,6 +5,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import produce from 'immer';
+import { isHosted, isTalk } from '@/logic/utils';
+import { isNativeApp } from '@/logic/native';
 import api from '../api';
 
 interface ChannelSetting {
@@ -85,8 +88,9 @@ export interface SettingsState {
     orderedGroupPins: string[];
     sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
     groupSideBarSort: Stringified<GroupSideBarSort>;
-    showVitaMessage: boolean;
     hasBeenUsed: boolean;
+    showActivityMessage?: boolean;
+    logActivity?: boolean;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -157,6 +161,12 @@ export const useMergedSettings = () => {
   }, [isSettingsLoading, isLandscapeSettingsLoading, settings, lsSettings]);
 };
 
+export const useSettingsLoaded = () => {
+  const { isLoading } = useMergedSettings();
+
+  return !isLoading;
+};
+
 export function useTheme() {
   const { data, isLoading } = useMergedSettings();
 
@@ -167,7 +177,7 @@ export function useTheme() {
 
     const { display } = data;
 
-    return display.theme;
+    return display.theme || 'auto';
   }, [isLoading, data]);
 }
 
@@ -263,7 +273,35 @@ export function usePutEntryMutation({
   };
 
   return useMutation(['put-entry', bucket, key], mutationFn, {
-    onMutate: () => {
+    onMutate: ({ val }) => {
+      const previousSettings = queryClient.getQueryData<{
+        desk: SettingsState;
+      }>(['settings', window.desk]);
+      queryClient.setQueryData<{ desk: SettingsState }>(
+        ['settings', window.desk],
+        // eslint-disable-next-line consistent-return
+        produce((draft) => {
+          if (!draft) {
+            return { desk: { [bucket]: { [key]: val } } };
+          }
+
+          if (!(draft.desk as any)[bucket]) {
+            (draft.desk as any)[bucket] = { [key]: val };
+          } else {
+            (draft.desk as any)[bucket][key] = val;
+          }
+        })
+      );
+
+      return { previousSettings };
+    },
+    onError: (err, variables, rollback) => {
+      queryClient.setQueryData<{ desk: SettingsState }>(
+        ['settings', window.desk],
+        rollback?.previousSettings
+      );
+    },
+    onSettled: () => {
       queryClient.invalidateQueries(['settings', window.desk]);
     },
   });
@@ -277,6 +315,43 @@ export function useCalmSettingMutation(key: keyof SettingsState['calmEngine']) {
 
   return {
     mutate: (val: boolean) => mutate({ val }),
+    status,
+  };
+}
+
+export function useLogActivity() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    // Do not capture any analytics events for Talk
+    if (isTalk || isNativeApp()) {
+      return false;
+    }
+
+    if (isLoading || data === undefined || data.groups === undefined) {
+      return isHosted;
+    }
+
+    return data.groups?.logActivity ?? isHosted;
+  }, [isLoading, data]);
+}
+
+export function useLogActivityMutation() {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'logActivity',
+  });
+
+  // also wrap vita toggling
+  return {
+    mutate: (val: boolean) => {
+      api.poke({
+        app: 'groups-ui',
+        mark: 'ui-vita-toggle',
+        json: val,
+      });
+      return mutate({ val });
+    },
     status,
   };
 }
@@ -395,15 +470,27 @@ export function useSideBarSortMode() {
   }, [isLoading, data]);
 }
 
+export function useShowActivityMessage() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || window.desk !== 'groups') {
+      return false;
+    }
+
+    return data.groups?.showActivityMessage || false;
+  }, [isLoading, data]);
+}
+
 export function useShowVitaMessage() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
-    if (isLoading || data === undefined) {
+    if (isLoading || data === undefined || window.desk !== 'talk') {
       return false;
     }
 
-    const setting = data[window.desk as 'groups' | 'talk']?.showVitaMessage;
+    const setting = data[window.desk]?.showVitaMessage;
     return setting;
   }, [isLoading, data]);
 }

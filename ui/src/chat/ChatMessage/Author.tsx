@@ -6,6 +6,7 @@ import { useModalNavigate } from '@/logic/routing';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import RoleBadges from '@/components/RoleBadges';
+import PalIcon from '@/components/PalIcon';
 
 interface AuthorProps {
   ship: string;
@@ -100,6 +101,7 @@ export default function Author({
           />
         )}
       </div>
+      <PalIcon ship={ship} />
       <RoleBadges ship={ship} />
       {hideTime ? (
         <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">

@@ -6,6 +6,9 @@ import { useChatState } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
+import { useRouteGroup } from '@/state/groups';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 interface ChatReactionProps {
   whom: string;
@@ -20,6 +23,8 @@ export default function ChatReaction({
   feel,
   ships,
 }: ChatReactionProps) {
+  const groupFlag = useRouteGroup();
+  const { privacy } = useGroupPrivacy(groupFlag);
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
@@ -34,8 +39,15 @@ export default function ChatReaction({
       useChatState.getState().delFeel(whom, seal.id);
     } else {
       useChatState.getState().addFeel(whom, seal.id, feel);
+      captureGroupsAnalyticsEvent({
+        name: 'react_item',
+        groupFlag,
+        chFlag: whom,
+        channelType: 'chat',
+        privacy,
+      });
     }
-  }, [isMine, whom, seal, feel]);
+  }, [isMine, whom, groupFlag, privacy, seal, feel]);
 
   return (
     <div>

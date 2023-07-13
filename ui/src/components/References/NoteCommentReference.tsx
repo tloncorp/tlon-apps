@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useQuip } from '@/state/diary';
+import { useQuip, useRemoteOutline } from '@/state/diary';
 import { useChannelPreview, useGang } from '@/state/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -10,8 +10,11 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 import { ChatBlock, ChatStory } from '@/types/chat';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-import { useChannelFlag } from '@/hooks';
+import { useChannelFlag } from '@/logic/channel';
 import ReferenceBar from './ReferenceBar';
+import ShipName from '../ShipName';
+import ReferenceInHeap from './ReferenceInHeap';
+import BubbleIcon from '../icons/BubbleIcon';
 
 function NoteCommentReference({
   chFlag,
@@ -19,12 +22,16 @@ function NoteCommentReference({
   noteId,
   quipId,
   isScrolling = false,
+  contextApp,
+  children,
 }: {
   chFlag: string;
   nest: string;
   noteId: string;
   quipId: string;
   isScrolling?: boolean;
+  contextApp?: string;
+  children?: React.ReactNode;
 }) {
   const preview = useChannelPreview(nest);
   const isReply = useChannelFlag() === chFlag;
@@ -35,6 +42,7 @@ function NoteCommentReference({
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
+  const outline = useRemoteOutline(chFlag, noteId, isScrolling);
 
   const handleOpenReferenceClick = () => {
     if (!group) {
@@ -57,6 +65,47 @@ function NoteCommentReference({
       (b) => 'image' in b || 'cite' in b
     ) as ChatBlock[],
   };
+
+  if (contextApp === 'heap-row') {
+    return (
+      <ReferenceInHeap
+        contextApp={contextApp}
+        image={<BubbleIcon className="h-6 w-6 text-gray-400" />}
+        title={
+          <ChatContent
+            className="text-lg font-semibold line-clamp-1"
+            story={normalizedContent}
+            isScrolling={false}
+          />
+        }
+        byline={
+          <span className="">
+            Comment by <ShipName name={quip.memo.author} showAlias /> on{' '}
+            {outline.title}
+          </span>
+        }
+      >
+        {children}
+      </ReferenceInHeap>
+    );
+  }
+
+  if (contextApp === 'heap-block') {
+    return (
+      <ReferenceInHeap
+        type="text"
+        contextApp={contextApp}
+        image={<ChatContent story={normalizedContent} isScrolling={false} />}
+        title={
+          <h2 className="mb-2 text-lg font-semibold">
+            Comment on {outline.title}
+          </h2>
+        }
+      >
+        {children}
+      </ReferenceInHeap>
+    );
+  }
 
   return (
     <div className="writ-inline-block not-prose group">

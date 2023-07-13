@@ -102,7 +102,7 @@ export default function NewChannelForm() {
           title: values.meta.title,
           description: values.meta.description,
           readers: values.readers.includes('members') ? [] : values.readers,
-          writers: values.writers,
+          writers: values.writers.includes('members') ? [] : values.writers,
         });
       } catch (e) {
         console.log('NewChannelForm::onSubmit::createChannel', e);

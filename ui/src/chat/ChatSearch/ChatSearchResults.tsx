@@ -2,17 +2,17 @@ import { debounce } from 'lodash';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { BigIntOrderedMap } from '@urbit/api';
+import BTree from 'sorted-btree';
 import { ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatState } from '@/state/chat';
-import ChatScrollerPlaceholder from '../ChatScoller/ChatScrollerPlaceholder';
+import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
 
 interface ChatSearchResultsProps {
   whom: string;
   root: string;
-  scan: BigIntOrderedMap<ChatWrit> | null;
+  scan: BTree<BigInteger, ChatWrit> | null;
   isLoading: boolean;
   query?: string;
   selected?: number;
@@ -73,7 +73,7 @@ const ChatSearchResults = React.forwardRef<
 
   const entries = useMemo(() => {
     return scan
-      ? [...scan].map(
+      ? scan.toArray().map(
           ([int, writ], i): ChatSearchResultEntry => ({
             whom,
             root,

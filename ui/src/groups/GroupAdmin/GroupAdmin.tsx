@@ -5,6 +5,7 @@ import { useAmAdmin, useRouteGroup, useGroup } from '@/state/groups/groups';
 import Dialog from '@/components/Dialog';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { useDismissNavigate } from '@/logic/routing';
+import { useIsMobile } from '@/logic/useMedia';
 import HomeIcon from '@/components/icons/HomeIcon';
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
 import PeopleIcon from '@/components/icons/PeopleIcon';
@@ -18,6 +19,7 @@ export default function GroupAdmin() {
   const isAdmin = useAmAdmin(flag);
   const group = useGroup(flag);
   const dismiss = useDismissNavigate();
+  const isMobile = useIsMobile();
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
@@ -80,7 +82,12 @@ export default function GroupAdmin() {
                 </SidebarItem>
               </nav>
             </aside>
-            <main className="order-1 h-full w-full overflow-auto bg-gray-50 p-6 sm:order-2">
+            <main
+              className={cn(
+                'order-1 h-full w-full overflow-auto bg-gray-50 sm:order-2',
+                isMobile ? 'p-3' : 'p-6'
+              )}
+            >
               <Outlet />
             </main>
           </div>

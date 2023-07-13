@@ -421,7 +421,7 @@
   ::
   ++  add-sects  (as (se %tas))
   ::
-  ++  del-sects  (as (se %tas))
+  ++  del-sects  (as so)
   ::
   ++  essay
     ^-  $-(json essay:d)

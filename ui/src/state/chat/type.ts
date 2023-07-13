@@ -32,7 +32,7 @@ export interface WritWindows {
 }
 
 export interface ChatState {
-  set: (fn: (sta: BasedChatState) => void) => void;
+  // set: (fn: (sta: BasedChatState) => void) => void;
   batchSet: (fn: (sta: BasedChatState) => void) => void;
   chats: Chats;
   multiDms: Clubs;

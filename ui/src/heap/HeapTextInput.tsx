@@ -1,13 +1,13 @@
 import cn from 'classnames';
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
-import { HeapInline, CurioHeart, HeapInlineKey, LIST } from '@/types/heap';
+import { reduce } from 'lodash';
+import { HeapInline, CurioHeart, HeapInlineKey } from '@/types/heap';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import { useHeapState } from '@/state/heap/heap';
-import { reduce } from 'lodash';
 import useRequestState from '@/logic/useRequestState';
 import { JSONToInlines } from '@/logic/tiptap';
 import {
@@ -17,9 +17,12 @@ import {
 } from '@/chat/useChatStore';
 import X16Icon from '@/components/icons/X16Icon';
 import ArrowNIcon16 from '@/components/icons/ArrowNIcon16';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 interface HeapTextInputProps {
   flag: string;
+  groupFlag: string;
   draft: JSONContent | undefined;
   setDraft: React.Dispatch<React.SetStateAction<JSONContent | undefined>>;
   placeholder?: string;
@@ -70,6 +73,7 @@ function SubmitLabel({ comment }: { comment?: boolean }) {
 
 export default function HeapTextInput({
   flag,
+  groupFlag,
   draft,
   setDraft,
   replyTo = null,
@@ -82,6 +86,7 @@ export default function HeapTextInput({
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
   const chatInfo = useChatInfo(flag);
+  const { privacy } = useGroupPrivacy(groupFlag);
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -121,9 +126,26 @@ export default function HeapTextInput({
       useChatStore.getState().setBlocks(flag, []);
 
       await useHeapState.getState().addCurio(flag, heart);
+      captureGroupsAnalyticsEvent({
+        name: comment ? 'comment_item' : 'post_item',
+        groupFlag,
+        chFlag: flag,
+        channelType: 'heap',
+        privacy,
+      });
       setReady();
     },
-    [sendDisabled, setPending, replyTo, flag, setDraft, setReady]
+    [
+      sendDisabled,
+      setPending,
+      replyTo,
+      flag,
+      groupFlag,
+      privacy,
+      comment,
+      setDraft,
+      setReady,
+    ]
   );
 
   const onUpdate = useCallback(

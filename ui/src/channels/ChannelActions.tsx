@@ -5,11 +5,11 @@ import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import { Status } from '@/logic/status';
-import useIsChannelHost from '@/logic/useIsChannelHost';
 import { useIsMobile } from '@/logic/useMedia';
 import { nestToFlag, getFlagParts } from '@/logic/utils';
 import { useRouteGroup, useDeleteChannelMutation } from '@/state/groups';
 import { GroupChannel } from '@/types/groups';
+import { useIsChannelHost } from '@/logic/channel';
 
 interface ChannelActionsProps {
   nest: string;

@@ -453,6 +453,7 @@ export default function ShipSelector({
   if (!isMulti) {
     return (
       <CreatableSelect
+        menuPlacement="auto"
         handleEnter={handleEnter}
         ref={selectRef}
         formatCreateLabel={AddNewOption}
@@ -544,6 +545,7 @@ export default function ShipSelector({
   return (
     <CreatableSelect
       ref={selectRef}
+      menuPlacement="auto"
       formatCreateLabel={AddNewOption}
       autoFocus={autoFocus}
       isMulti

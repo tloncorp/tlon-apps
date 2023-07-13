@@ -4,10 +4,11 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
-/+  diary-json
 /+  migrate=diary-graph
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
+::  performance, keep warm
+/+  diary-json
 ^-  agent:gall
 =>
   |%
@@ -464,33 +465,38 @@
     |=  [=flag:d =diary:d]
     ?.  =(p.action group.perm.diary)  ~
     `flag
-  ?+    q.q.action  cor
+  =/  diff  q.q.action
+  ?+  diff  cor
       [%fleet * %del ~]
     ~&  "%diary: revoke perms for {<affected>}"
     %+  roll  affected
     |=  [=flag:d co=_cor]
     ^+  cor
-    %+  roll  ~(tap in p.q.q.action)
+    %+  roll  ~(tap in p.diff)
     |=  [=ship ci=_cor]
     ^+  cor
     =/  di  (di-abed:di-core:ci flag)
     di-abet:(di-revoke:di ship)
   ::
-      [%fleet * %del-sects *]
-    ~&  "%diary recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:d co=_cor]
-    =/  di  (di-abed:di-core:co flag)
-    di-abet:di-recheck:di
+    [%fleet * %add-sects *]    (recheck-perms affected ~)
+    [%fleet * %del-sects *]    (recheck-perms affected ~)
+    [%channel * %edit *]       (recheck-perms affected ~)
+    [%channel * %del-sects *]  (recheck-perms affected ~)
+    [%channel * %add-sects *]  (recheck-perms affected ~)
   ::
-      [%channel * %del-sects *]
-    ~&  "%diary recheck permissions for {<affected>}"
-    %+  roll  affected
-    |=  [=flag:d co=_cor]
-    =/  di  (di-abed:di-core:co flag)
-    di-abet:di-recheck:di
+      [%cabal * %del *]
+    =/  =sect:g  (slav %tas p.diff)
+    %+  recheck-perms  affected
+    (~(gas in *(set sect:g)) ~[p.diff])
   ==
 ::
+++  recheck-perms
+  |=  [affected=(list flag:d) sects=(set sect:g)]
+  ~&  "%diary recheck permissions for {<affected>}"
+  %+  roll  affected
+  |=  [=flag:d co=_cor]
+  =/  di  (di-abed:di-core:co flag)
+  di-abet:(di-recheck:di sects)
 ++  arvo
   |=  [=wire sign=sign-arvo]
   ^+  cor
@@ -527,17 +533,12 @@
   (give %fact ~[/briefs] diary-brief-update+!>([flag brief]))
 ::
 ++  pass-hark
-  |=  [all=? desk=? =yarn:ha]
+  |=  =new-yarn:ha
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
-++  spin
-  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
-  ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -555,12 +556,13 @@
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     =*  group  group.perm.diary
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
-    (spin rope con link but)
+    [& & rope con link but]
   ::  TODO: add metadata
   ::        maybe delay the watch?
   ++  di-import
@@ -718,11 +720,19 @@
   ++  di-revoke
     |=  her=ship
     %+  roll  ~(tap in di-subscriptions)
-    |=  [[=ship =path] he=_di-core]
-    ?.  =(ship her)  he
-    he(cor (emit %give %kick ~[path] `ship))
+    |=  [[=ship =path] di=_di-core]
+    ?.  =(ship her)  di
+    di(cor (emit %give %kick ~[path] `ship))
   ::
   ++  di-recheck
+    |=  sects=(set sect:g)
+    ::  if we have sects, we need to delete them from writers
+    =?  cor  &(!=(sects ~) =(p.flag our.bowl))
+      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]  
+      (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
+    ::  if our read permissions restored, re-subscribe
+    =?  di-core  (di-can-read our.bowl)  di-safe-sub
+    ::  if subs read permissions removed, kick 
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
     ?:  (di-can-read:di ship)  di
@@ -786,6 +796,7 @@
     =*  group  group.perm.diary
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
+  ++  di-is-host  |(=(p.flag src.bowl) =(p.group.perm.diary src.bowl))
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
     =/  =path
@@ -916,20 +927,23 @@
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
+        (pass-hark (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
       di-core
     ::
         %add-sects
+      ?>  di-is-host
       =*  p  perm.diary
       =.  writers.p  (~(uni in writers.p) p.dif)
       di-core
     ::
         %del-sects
+      ?>  di-is-host
       =*  p  perm.diary
       =.  writers.p  (~(dif in writers.p) p.dif)
       di-core
     ::
         %create
+      ?>  di-is-host
       =:  notes.diary  q.dif
           perm.diary   p.dif
         ==

@@ -2,7 +2,7 @@ import React from 'react';
 import { HeapCurio } from '@/types/heap';
 import Author from '@/chat/ChatMessage/Author';
 import HeapContent from '@/heap/HeapContent';
-import { useChannelFlag } from '@/hooks';
+import { useChannelFlag } from '@/logic/channel';
 import HeapCommentOptions from './HeapCommentOptions';
 import HeapCommentReactions from './HeapCommentReactions';
 

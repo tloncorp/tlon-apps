@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import CodeBlock, { CodeBlockOptions } from '@tiptap/extension-code-block';
-import { Plugin, PluginKey } from 'prosemirror-state';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { findChildren, NodeViewProps } from '@tiptap/core';
-import { Node as ProsemirrorNode } from 'prosemirror-model';
-import { Decoration, DecorationSet } from 'prosemirror-view';
+import { Node as ProsemirrorNode } from '@tiptap/pm/model';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { refractor } from 'refractor/lib/common.js';
 import hoon from 'refractor/lang/hoon.js';
-
 import {
   NodeViewContent,
   NodeViewWrapper,
   ReactNodeViewRenderer,
 } from '@tiptap/react';
 import './PrismCodeBlock.css';
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 
 export interface CodeBlockPrismOptions extends CodeBlockOptions {
   defaultLanguage: string | null | undefined;
@@ -103,29 +104,47 @@ function CodeBlockView(props: NodeViewProps) {
     value: l,
     label: l.toUpperCase(),
   }));
-  const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newValue = e.target.value;
-    if (newValue) {
-      setSelectedLanguage(newValue);
-      updateAttributes({ language: newValue });
-    }
-  };
 
   return (
-    <NodeViewWrapper className={'relative'}>
-      <select
-        className="absolute top-1.5 right-1.5 w-[130px] rounded-md border border-solid border-gray-200 bg-gray-700 text-gray-50"
-        onChange={onChange}
-      >
-        {options.map((o) => (
-          <option value={o.value} selected={selectedLanguage === o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <pre>
-        <NodeViewContent as="code" />
-      </pre>
+    <NodeViewWrapper>
+      <div className="not-prose rounded-xl bg-gray-100 p-3">
+        <div
+          contentEditable={false}
+          className="flex items-center justify-between"
+        >
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger className="small-button">
+              {selectedLanguage.toUpperCase()}
+              <CaretDown16Icon className="ml-2 h-4 w-4" />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className="dropdown max-h-64 w-48 overflow-y-auto">
+                {options.map((o) => (
+                  <DropdownMenu.Item
+                    className="dropdown-item"
+                    onSelect={() => {
+                      setSelectedLanguage(o.value);
+                      updateAttributes({ language: o.value });
+                    }}
+                  >
+                    {o.label}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+          <button
+            title="Remove"
+            className="small-button"
+            onClick={props.deleteNode}
+          >
+            Remove
+          </button>
+        </div>
+        <pre className="not-prose">
+          <NodeViewContent spellcheck="false" as="code" />
+        </pre>
+      </div>
     </NodeViewWrapper>
   );
 }

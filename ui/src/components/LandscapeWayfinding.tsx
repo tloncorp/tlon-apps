@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import cn from 'classnames';
 import ob from 'urbit-ob';
-import { useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import useAppName from '@/logic/useAppName';
 import GroupReference from '@/components/References/GroupReference';
@@ -129,6 +129,11 @@ export default function LandscapeWayfinding() {
           <Dropdown.Separator asChild>
             <hr className="my-2 border-[1px] border-gray-50" />
           </Dropdown.Separator>
+          <Dropdown.Item asChild className="dropdown-item">
+            <NavLink to="/privacy" state={{ backgroundLocation: location }}>
+              Privacy Notice
+            </NavLink>
+          </Dropdown.Item>
           <Dropdown.Item asChild className="dropdown-item">
             <span className="cursor-pointer" onClick={open}>
               Help & Support

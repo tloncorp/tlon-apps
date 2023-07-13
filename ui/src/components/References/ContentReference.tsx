@@ -6,9 +6,11 @@ import { udToDec } from '@urbit/api';
 import CurioReference from './CurioReference';
 // eslint-disable-next-line import/no-cycle
 import WritChanReference from './WritChanReference';
+// eslint-disable-next-line import/no-cycle
 import GroupReference from './GroupReference';
 // eslint-disable-next-line import/no-cycle
 import NoteReference from './NoteReference';
+// eslint-disable-next-line import/no-cycle
 import AppReference from './AppReference';
 // eslint-disable-next-line import/no-cycle
 import BaitReference from './BaitReference';
@@ -18,12 +20,27 @@ import NoteCommentReference from './NoteCommentReference';
 function ContentReference({
   cite,
   isScrolling = false,
+  contextApp,
+  plain,
+  children,
 }: {
   cite: Cite;
   isScrolling?: boolean;
+  contextApp?: string;
+  plain?: boolean;
+  children?: React.ReactNode;
 }) {
   if ('group' in cite) {
-    return <GroupReference flag={cite.group} isScrolling={isScrolling} />;
+    return (
+      <GroupReference
+        plain={plain}
+        contextApp={contextApp}
+        flag={cite.group}
+        isScrolling={isScrolling}
+      >
+        {children}
+      </GroupReference>
+    );
   }
 
   if ('desk' in cite) {
@@ -32,7 +49,15 @@ function ContentReference({
   }
 
   if ('bait' in cite) {
-    return <BaitReference bait={cite.bait} isScrolling={isScrolling} />;
+    return (
+      <BaitReference
+        bait={cite.bait}
+        contextApp={contextApp}
+        isScrolling={isScrolling}
+      >
+        {children}
+      </BaitReference>
+    );
   }
   if ('chan' in cite) {
     const { nest, where } = cite.chan;
@@ -51,7 +76,10 @@ function ContentReference({
             idCurio={idCurio}
             idCurioComment={idCurioComment}
             isScrolling={isScrolling}
-          />
+            contextApp={contextApp}
+          >
+            {children}
+          </CurioReference>
         );
       }
 
@@ -61,7 +89,10 @@ function ContentReference({
           nest={nest}
           idCurio={idCurio}
           isScrolling={isScrolling}
-        />
+          contextApp={contextApp}
+        >
+          {children}
+        </CurioReference>
       );
     }
     if (app === 'chat') {
@@ -71,8 +102,11 @@ function ContentReference({
           isScrolling={isScrolling}
           chFlag={chFlag}
           nest={nest}
+          contextApp={contextApp}
           idWrit={idWrit}
-        />
+        >
+          {children}
+        </WritChanReference>
       );
     }
     if (app === 'diary') {
@@ -87,7 +121,10 @@ function ContentReference({
             nest={nest}
             noteId={idNote}
             quipId={idQuip}
-          />
+            contextApp={contextApp}
+          >
+            {children}
+          </NoteCommentReference>
         );
       }
 
@@ -97,7 +134,10 @@ function ContentReference({
           nest={nest}
           id={idNote}
           isScrolling={isScrolling}
-        />
+          contextApp={contextApp}
+        >
+          {children}
+        </NoteReference>
       );
     }
   }

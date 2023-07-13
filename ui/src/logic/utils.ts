@@ -41,13 +41,25 @@ import {
   DiaryListing,
 } from '@/types/diary';
 import { Bold, Italics, Strikethrough } from '@/types/content';
+import { isNativeApp, postActionToNativeApp } from './native';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
+export const isGroups = import.meta.env.VITE_APP === 'groups';
+export const isHosted =
+  import.meta.env.DEV || window.location.hostname.endsWith('.tlon.network');
 
-export function nestToFlag(nest: string): [string, string] {
+export function log(...args: any[]) {
+  if (import.meta.env.DEV) {
+    console.log(...args);
+  }
+}
+
+type App = 'chat' | 'heap' | 'diary';
+
+export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
 
-  return [app, rest.join('/')];
+  return [app as App, rest.join('/')];
 }
 
 export function sampleQuippers(quips: DiaryQuipMap) {
@@ -292,10 +304,7 @@ export function getPrivacyFromChannel(
     return 'public';
   }
 
-  if (
-    groupChannel.readers.includes('admin') ||
-    channel.perms.writers.includes('admin')
-  ) {
+  if (groupChannel.readers.length > 0 || channel.perms.writers.length > 0) {
     return 'custom';
   }
 
@@ -427,12 +436,11 @@ export async function jsonFetch<T>(
 }
 
 export function isChannelJoined(
-  nest: string,
+  flag: string,
   briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
 ) {
-  const [, chFlag] = nestToFlag(nest);
-  const isChannelHost = window.our === chFlag?.split('/')[0];
-  return isChannelHost || (nest && nest in briefs);
+  const isChannelHost = window.our === flag?.split('/')[0];
+  return isChannelHost || (flag && flag in briefs);
 }
 
 export function isGroupHost(flag: string) {
@@ -555,12 +563,29 @@ export function pathToCite(path: string): Cite | undefined {
 export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
   const [, copy] = useCopyToClipboard();
-  const doCopy = useCallback(() => {
-    copy(copied);
-    setDidCopy(true);
-    setTimeout(() => {
+
+  const doCopy = useCallback(async () => {
+    let success = false;
+    if (isNativeApp()) {
+      postActionToNativeApp('copy', copied);
+      success = true;
+    } else {
+      success = await copy(copied);
+    }
+
+    setDidCopy(success);
+
+    let timeout: NodeJS.Timeout;
+    if (success) {
+      timeout = setTimeout(() => {
+        setDidCopy(false);
+      }, 2000);
+    }
+
+    return () => {
       setDidCopy(false);
-    }, 2000);
+      clearTimeout(timeout);
+    };
   }, [copied, copy]);
 
   return { doCopy, didCopy };
