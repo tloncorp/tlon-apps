@@ -36,9 +36,41 @@ const schema = new Schema({
       defining: true,
       group: 'block',
       marks: '',
-      parseDOM: [{ tag: 'pre', preserveWhitespace: 'full' }],
-      toDOM() {
-        return ['pre', ['code', 0]];
+      attrs: {
+        language: {
+          default: null,
+        },
+      },
+      parseDOM: [
+        {
+          tag: 'pre',
+          preserveWhitespace: 'full',
+          getAttrs: (node: HTMLElement | string) => {
+            if (typeof node === 'string') {
+              return {};
+            }
+            const child = node.firstChild as HTMLElement;
+            const language = child
+              .getAttribute('class')
+              ?.replace('language-', '');
+
+            return {
+              language,
+            };
+          },
+        },
+      ],
+      toDOM(node: Node) {
+        return [
+          'pre',
+          [
+            'code',
+            {
+              spellCheck: 'false',
+              class: `language-${node.attrs.language}`,
+            },
+          ],
+        ];
       },
     },
     'diary-cite': {
@@ -53,6 +85,13 @@ const schema = new Schema({
       parseDOM: [
         {
           tag: 'div',
+          getAttrs: (node: HTMLElement | string) => {
+            if (typeof node === 'string') {
+              return {};
+            }
+
+            return { path: node.getAttribute('path') };
+          },
         },
       ],
       toDOM({ attrs }: { attrs: any }) {
@@ -81,6 +120,15 @@ const schema = new Schema({
     parseDOM: [
       {
         tag: 'img[src]',
+        getAttrs: (node: string | HTMLElement) => {
+          if (typeof node === 'string') {
+            return {};
+          }
+          return {
+            src: node.getAttribute('src'),
+            alt: node.getAttribute('alt'),
+          };
+        },
       },
     ],
     toDOM({ attrs }: { attrs: any }) {
@@ -147,56 +195,22 @@ const schema = new Schema({
       group: 'inline',
       inline: true,
       selectable: false,
-      // attrs: {
-      // id: {
-      // default: null,
-      // parseHTML: (element: HTMLElement) => element.getAttribute('data-id'),
-      // renderHTML: (attributes: any) => {
-      // if (!attributes.id) {
-      // return {};
-      // }
-
-      // return {
-      // 'data-id': attributes.id,
-      // };
-      // },
-      // },
-
-      // label: {
-      // default: null,
-      // parseHTML: (element: HTMLElement) =>
-      // element.getAttribute('data-label'),
-      // renderHTML: (attributes: any) => {
-      // if (!attributes.label) {
-      // return {};
-      // }
-
-      // return {
-      // 'data-label': attributes.label,
-      // };
-      // },
-      // },
-      // },
       parseDOM: [
         {
           tag: 'span[data-type="mention"]',
           getAttrs: (node: HTMLElement | string) => {
-            console.log({ node });
             if (typeof node === 'string') {
               return {};
             }
-            const id = node.getAttribute('data-mention-id');
-            const label = node.textContent;
+            const id = node.getAttribute('data-id');
 
             return {
-              'data-id': id,
-              label,
+              id,
             };
           },
         },
       ],
       toDOM(node: Node) {
-        console.log({ node });
         return [
           'span',
           {

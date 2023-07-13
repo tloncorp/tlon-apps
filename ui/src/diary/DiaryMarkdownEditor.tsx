@@ -11,6 +11,7 @@ import {
 } from 'prosemirror-markdown';
 import { JSONContent } from '@/types/content';
 import { PATP_REGEX, REF_REGEX } from '@/logic/utils';
+import { deSig } from '@urbit/api';
 import PrismCodeBlock from './PrismCodeBlock';
 import schema from './schema';
 import parserRules from './parserRules';
@@ -53,7 +54,9 @@ const replaceMention = (el: Element) => {
   const text = el.innerHTML;
   const newText = text.replace(PATP_REGEX, (match) => {
     if (ob.isValidPatp(match)) {
-      return `<span data-type="mention" data-id="${match}">${match}</span>`;
+      return `<span data-type="mention" data-id="${deSig(
+        match
+      )}">${match}</span>`;
     }
     return match;
   });
@@ -156,7 +159,7 @@ const serializerNodes = {
   horizontalRule: defaultMarkdownSerializer.nodes.horizontal_rule,
   orderedList: renderOrderedList,
   hardBreak: renderHardBreak,
-  [PrismCodeBlock.name]: (state: MarkdownSerializerState, node: Node) => {
+  codeBlock: (state: MarkdownSerializerState, node: Node) => {
     state.write(`\`\`\`${node.attrs.language || ''}\n`);
     state.text(node.textContent, false);
     state.ensureNewLine();
@@ -176,7 +179,7 @@ const serializerNodes = {
     }
   },
   mention: (state: MarkdownSerializerState, node: Node) => {
-    state.write(`${node.attrs.id}`);
+    state.write(`~${node.attrs.id}`);
   },
   'diary-image': (state: MarkdownSerializerState, node: Node) => {
     state.write(`![${node.attrs.alt}](${node.attrs.src})`);

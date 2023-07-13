@@ -7,7 +7,22 @@ const parserRules: ParseRule[] = [
   { tag: 'ol', node: 'orderedList' },
   { tag: 'li', node: 'listItem' },
   { tag: 'hr', node: 'horizontalRule' },
-  { tag: 'pre', node: 'codeBlock' },
+  {
+    tag: 'pre',
+    node: 'codeBlock',
+    preserveWhitespace: 'full',
+    getAttrs: (node: HTMLElement | string) => {
+      if (typeof node === 'string') {
+        return {};
+      }
+      const child = node.firstChild as HTMLElement;
+      const language = child.getAttribute('class')?.replace('language-', '');
+
+      return {
+        language,
+      };
+    },
+  },
   {
     tag: 'div',
     node: 'diary-cite',
