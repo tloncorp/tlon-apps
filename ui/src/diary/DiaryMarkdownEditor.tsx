@@ -47,6 +47,7 @@ const renderOrderedList = (state: MarkdownSerializerState, node: Node) => {
 
 const replaceMention = (el: Element) => {
   if (el.innerHTML.includes('path=')) {
+    // avoid destroying the cite element
     return;
   }
   const text = el.innerHTML;
@@ -199,10 +200,6 @@ function serialize(_schema: Schema, content: JSONContent) {
 function deserialize(_schema: Schema, markdown: string) {
   const html = marked.parse(markdown);
 
-  if (!html) {
-    return null;
-  }
-
   const parser = new DOMParser();
   const { body } = parser.parseFromString(parseHTML(html), 'text/html');
 
@@ -226,10 +223,10 @@ export default function DiaryMarkdownEditor({
   setUpdateMarkdown: (update: boolean) => void;
   setUpdateTipTap: (update: boolean) => void;
 }) {
-  const [markdownInput, setMarkdownInput] = useState('');
+  const [markdownInput, setMarkdownInput] = useState<string | null>(null);
 
   useEffect(() => {
-    if (editorContent && (markdownInput === '' || updateMarkdown)) {
+    if (editorContent && (markdownInput === null || updateMarkdown)) {
       const markdown = serialize(schema, editorContent);
       setMarkdownInput(markdown);
       setUpdateMarkdown(false);
@@ -237,6 +234,9 @@ export default function DiaryMarkdownEditor({
   }, [editorContent, markdownInput, updateMarkdown, setUpdateMarkdown]);
 
   useEffect(() => {
+    if (markdownInput === null) {
+      return;
+    }
     const newContent = deserialize(schema, markdownInput);
     setEditorContent(newContent);
     setUpdateTipTap(true);
@@ -245,7 +245,7 @@ export default function DiaryMarkdownEditor({
   return (
     <div className="h-[600px] w-full">
       <textarea
-        value={markdownInput}
+        value={markdownInput ?? ''}
         onChange={(e) => setMarkdownInput(e.target.value)}
         className="input h-full w-full"
       />

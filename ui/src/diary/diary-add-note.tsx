@@ -88,8 +88,6 @@ export default function DiaryAddNote() {
     if (
       editor &&
       !editor.isDestroyed &&
-      !loadingNote &&
-      note?.essay &&
       !editWithMarkdown &&
       updateTipTap &&
       editorContent
@@ -99,8 +97,6 @@ export default function DiaryAddNote() {
     }
   }, [
     editor,
-    loadingNote,
-    note,
     editWithMarkdown,
     editorContent,
     updateTipTap,
