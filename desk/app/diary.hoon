@@ -117,7 +117,6 @@
     ==
   +$  state-1  current-state
   ++  zero  zero:old:d
-  ++  one  d
   ++  state-0-to-1
     |=  s=state-0
     ^-  state-1
