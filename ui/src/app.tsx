@@ -277,7 +277,7 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   const pendingGangs = usePendingGangs();
   const autojoin = useAutoJoinLureInvites();
 
-  autojoin(pendingGangs);
+  useEffect(() => autojoin(pendingGangs), [pendingGangs]);
 
   useEffect(() => {
     if (!isInGroups && redirectToFind) {
