@@ -3,14 +3,22 @@ import { Gangs } from '@/types/groups';
 import {
   useGroupJoinMutation,
 } from '@/state/groups';
+import useNavigateByApp from '@/logic/useNavigateByApp';
 
 export default function useAutoJoinLureInvites() {
-  const { mutate: joinMutation } = useGroupJoinMutation();
+  const { mutateAsync: joinMutation } = useGroupJoinMutation();
+  const navigateByApp = useNavigateByApp();
 
   return function (pendingGangs: Gangs) {
-    Object.entries(pendingGangs).map(function([flag, _]) {
-      if (cookies.get(`lure-join-${flag}`.replace('/', '--'))) {
-        joinMutation({flag})
+    Object.entries(pendingGangs).map(async ([flag, gang]) => {
+      const cookieName = `lure-join-${flag}`.replace('/', '--');
+
+      if (!gang.claim) {
+        if (cookies.get(cookieName)) {
+          await joinMutation({flag});
+          cookies.erase(cookieName)
+          return navigateByApp(`/groups/${flag}`);
+        }
       }
     })
   }

@@ -84,7 +84,7 @@ import { captureAnalyticsEvent } from './logic/analytics';
 import GroupChannel from './groups/GroupChannel';
 import PrivacyNotice from './groups/PrivacyNotice';
 import {
-  usePendingGangs,
+  usePendingGangsWithoutClaim,
 } from '@/state/groups/groups';
 import useAutoJoinLureInvites from './groups/autoJoinLureInvites'
 
@@ -274,10 +274,14 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   const navigate = useNavigate();
   const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
   const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
-  const pendingGangs = usePendingGangs();
+  const pendingGangsWithoutClaim = usePendingGangsWithoutClaim();
   const autojoin = useAutoJoinLureInvites();
 
-  useEffect(() => autojoin(pendingGangs), [pendingGangs]);
+  useEffect(() => {
+    if (Object.keys(pendingGangsWithoutClaim).length) {
+      autojoin(pendingGangsWithoutClaim);
+    }
+  }, [pendingGangsWithoutClaim]);
 
   useEffect(() => {
     if (!isInGroups && redirectToFind) {
