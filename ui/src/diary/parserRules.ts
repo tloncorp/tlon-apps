@@ -7,6 +7,7 @@ const parserRules: ParseRule[] = [
   { tag: 'ol', node: 'orderedList' },
   { tag: 'li', node: 'listItem' },
   { tag: 'hr', node: 'horizontalRule' },
+  { tag: 'code', mark: 'code' },
   {
     tag: 'pre',
     node: 'codeBlock',
