@@ -128,7 +128,7 @@
     =/  time  (slav %ud time.pole)
     ?.  ?=(%u care)
       ``writ+!>((got ship `@da`time))
-    ``flag+!>(?~((get ship `@da`time) | &))
+    ``loob+!>(?~((get ship `@da`time) | &))
   ==
 ::
 ++  search

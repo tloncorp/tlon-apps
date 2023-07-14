@@ -503,21 +503,23 @@
   ~&  arvo/wire
   cor
 ++  peek
-  |=  =path
+  |=  =(pole knot)
   ^-  (unit (unit cage))
-  ?+  path  [~ ~]
+  ?+  pole  [~ ~]
   ::
     [%x %imp ~]    ``migrate-map+!>(imp)
     [%x %shelf ~]  ``shelf+!>(shelf)
     [%x %init ~]   ``noun+!>([briefs shelf])
     [%x %briefs ~]  ``diary-briefs+!>(briefs)
   ::
-      [%x %diary @ @ *]
-    =/  =ship  (slav %p i.t.t.path)
-    =*  name   i.t.t.t.path
-    (di-peek:(di-abed:di-core ship name) t.t.t.t.path)
+      [%x %diary ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    (di-peek:(di-abed:di-core ship name.pole) rest.pole)
     ::
-
+      [%u %diary ship=@ name=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    ``loob+!>((~(has by shelf) [ship name.pole]))
+  ::
   ==
 ::
 ++  briefs

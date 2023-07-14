@@ -379,20 +379,23 @@
   ~&  arvo/wire
   cor
 ++  peek
-  |=  =path
+  |=  =(pole knot)
   ^-  (unit (unit cage))
-  ?+  path  [~ ~]
+  ?+  pole  [~ ~]
   ::
     [%x %stash ~]  ``stash+!>(stash)
     [%x %imp ~]    ``migrate-map+!>(imp)
     [%x %init ~]  ``noun+!>([briefs stash])
     [%x %briefs ~]  ``heap-briefs+!>(briefs)
   ::
-      [%x %heap @ @ *]
-    =/  =ship  (slav %p i.t.t.path)
-    =*  name   i.t.t.t.path
-    (he-peek:(he-abed:he-core ship name) t.t.t.t.path)
-    ::
+      [%x %heap ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    (he-peek:(he-abed:he-core ship name.pole) rest.pole)
+  ::
+      [%u %heap ship=@ name=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    ``loob+!>((~(has by stash) [ship name.pole]))
+  ::
   ==
 ::
 ++  briefs
