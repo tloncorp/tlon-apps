@@ -139,7 +139,7 @@ function GroupReference({
               <img
                 src={meta.cover}
                 loading="lazy"
-                className="absolute top-0 left-0 h-full w-full"
+                className="absolute top-0 left-0 h-full w-full object-cover"
               />
             ) : (
               <div
