@@ -80,7 +80,7 @@ export interface Group {
   'zone-ord': Zone[];
   bloc: string[];
   secret: boolean;
-  saga: Saga;
+  saga: Saga | null;
 }
 
 export interface Fleet {
