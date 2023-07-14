@@ -704,11 +704,11 @@
     |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
-      =/  =cage  [act:mar:h !>([flag now.bowl %del-sects sects])]  
+      =/  =cage  [act:mar:h !>([flag now.bowl %del-sects sects])]
       (emit %pass he-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  he-core  (he-can-read our.bowl)  he-safe-sub
-    ::  if subs read permissions removed, kick 
+    ::  if subs read permissions removed, kick
     %+  roll  ~(tap in he-subscriptions)
     |=  [[=ship =path] he=_he-core]
     ?:  (he-can-read:he ship)  he
@@ -843,6 +843,7 @@
   ++  he-join
     |=  j=join:h
     ^+  he-core
+    ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
     =.  stash  (~(put by stash) chan.j *heap:h)
     =.  he-core  (he-abed chan.j)
     =.  group.perm.heap  group.j
