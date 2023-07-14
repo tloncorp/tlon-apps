@@ -86,7 +86,7 @@ import PrivacyNotice from './groups/PrivacyNotice';
 import {
   usePendingGangs,
 } from '@/state/groups/groups';
-import AutoJoinLureInvites from './groups/autoJoinLureInvites'
+import useAutoJoinLureInvites from './groups/autoJoinLureInvites'
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -275,6 +275,9 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
   const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
   const pendingGangs = usePendingGangs();
+  const autojoin = useAutoJoinLureInvites();
+
+  autojoin(pendingGangs);
 
   useEffect(() => {
     if (!isInGroups && redirectToFind) {
@@ -286,10 +289,6 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   if (isMobile) {
     return <MobileGroupsNavHome />;
   }
-
-  useEffect(() => {
-    AutoJoinLureInvites(pendingGangs)
-  }, [pendingGangs])
 
   return (
     <Notifications
