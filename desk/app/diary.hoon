@@ -533,17 +533,12 @@
   (give %fact ~[/briefs] diary-brief-update+!>([flag brief]))
 ::
 ++  pass-hark
-  |=  [all=? desk=? =yarn:ha]
+  |=  =new-yarn:ha
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
-++  spin
-  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
-  ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -561,12 +556,13 @@
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     =*  group  group.perm.diary
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
-    (spin rope con link but)
+    [& & rope con link but]
   ::  TODO: add metadata
   ::        maybe delay the watch?
   ++  di-import
@@ -732,11 +728,11 @@
     |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
-      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]  
+      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  di-core  (di-can-read our.bowl)  di-safe-sub
-    ::  if subs read permissions removed, kick 
+    ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
     ?:  (di-can-read:di ship)  di
@@ -847,6 +843,7 @@
   ++  di-join
     |=  j=join:d
     ^+  di-core
+    ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
     =.  shelf  (~(put by shelf) chan.j *diary:d)
     =.  di-core  (di-abed chan.j)
     =.  group.perm.diary  group.j
@@ -931,7 +928,7 @@
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark & & (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
+        (pass-hark (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
       di-core
     ::
         %add-sects

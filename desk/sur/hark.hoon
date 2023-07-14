@@ -1,7 +1,7 @@
 /-  g=groups
 |%
 ::  $rope: notification origin
-::    
+::
 ::    Shows where a notification has come from. Used to group
 ::    notifications into threads
 +$  rope
@@ -25,6 +25,16 @@
       but=(unit button)              :: action, if any
   ==
 ::
+::  $new-yarn: type for creating yarns
++$  new-yarn
+  $:  all=?
+      desk=?
+      rop=rope
+      con=(list content)
+      wer=path
+      but=(unit button)
+  ==
+::
 +$  button
   $:  title=cord
       handler=path
@@ -37,16 +47,22 @@
       [%emph p=cord]
   ==
 ::  $action: Actions for hark
-::  
+::
 ::    %add-yarn adds a notification to the relevant inboxes, indicated
 ::    by the loobs in the type
 ::    %saw-seam marks all notifications in an inbox as unread
 ::    %saw-rope marks a particular rope as read in all inboxes
 ::
 +$  action
-  $%  [%add-yarn all=? desk=? =yarn] 
+  $%  [%add-yarn all=? desk=? =yarn]
       [%saw-seam =seam]
       [%saw-rope =rope]
+  ==
+::
+::  $action-1: Actions for hark pt 2
++$  action-1
+  $%  [%new-yarn new-yarn]
+      action
   ==
 ::
 +$  update
@@ -75,7 +91,6 @@
       [%all ~]
   ==
 ::  $rug: notifications inbox
-::  
 ::    .new contains all "unread" notifications, grouped by $rope
 ::    .qul is an archive
 ::
@@ -85,7 +100,6 @@
   =<  quilt
   |%
   ::  $quilt: inbox archive
-  ::  
   ::    Threads are keyed by an autoincrementing counter that starts at
   ::    0
   ::

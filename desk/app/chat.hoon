@@ -117,7 +117,7 @@
     %1  $(old (state-1-to-2 old))
     ::
       %2
-    =.  state  old      
+    =.  state  old
     =.  cor  restore-missing-subs
     ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
@@ -129,7 +129,7 @@
       cor
     =.  cor
       ca-abet:ca-upgrade:(ca-abed:ca-core i.chats)
-    $(chats t.chats)  
+    $(chats t.chats)
   ==
   ::
   ++  restore-missing-subs
@@ -263,7 +263,7 @@
     =+  !<(f=flag:c vase)
     ?<  =(our.bowl p.f)
     (join [*flag:g f])
-  ::  
+  ::
       %channel-join
     =+  !<(j=join:c vase)
     ?<  =(our.bowl p.chan.j)
@@ -821,17 +821,12 @@
   (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))
 ::
 ++  pass-hark
-  |=  [all=? desk=? =yarn:ha]
+  |=  =new-yarn:ha
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
-++  spin
-  |=  [=rope:ha con=(list content:ha) wer=path but=(unit button:ha)]
-  ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
 ++  flatten
   |=  content=(list inline:c)
   ^-  cord
@@ -911,10 +906,11 @@
   ::
   ++  cu-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %talk /club/(scot %uv id)]
     =/  link  /dm/(scot %uv id)
-    (spin rope con link but)
+    [& & rope con link but]
   ::
   ++  cu-pass
     |%
@@ -1005,7 +1001,7 @@
               !=(~ team.crew.club)
               !=(*data:meta met.crew.club)
           ==
-        cu-core  
+        cu-core
       =:  hive.crew.club  hive.delta
           team.crew.club  team.delta
           met.crew.club   met.delta
@@ -1014,25 +1010,25 @@
     ::
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
-      ?-  -.q.diff.delta  
+      ?-  -.q.diff.delta
           ?(%del %add-feel %del-feel)  cu-core
           %add
         =/  memo=memo:c  p.q.diff.delta
-        =?  remark.club  =(author.memo our.bowl)  
+        =?  remark.club  =(author.memo our.bowl)
           remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief club/id cu-brief)
         ?:  =(our.bowl author.memo)  cu-core
         ?-  -.content.memo
             %notice  cu-core
             %story
-          =/  yarn
+          =/  new-yarn
             %+  cu-spin
               :~  [%ship author.memo]
                   ': '
                   (flatten q.p.content.memo)
               ==
             ~
-          =.  cor  (emit (pass-hark & & yarn))
+          =.  cor  (emit (pass-hark new-yarn))
           cu-core
         ==
       ==
@@ -1052,7 +1048,7 @@
         (cu-post-notice ship '' ' declined the invite')
       =.  cor  (give-brief club/id cu-brief)
       =.  team.crew.club  (~(put in team.crew.club) ship)
-      =?  last-read.remark.club  =(ship our.bowl)  now.bowl  
+      =?  last-read.remark.club  =(ship our.bowl)  now.bowl
       (cu-post-notice ship '' ' joined the chat')
     ::
         %hive
@@ -1166,12 +1162,13 @@
   ::
   ++  ca-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] rest)
-    (spin rope con link but)
+    [& & rope con link but]
   ::
   ++  ca-watch
     |=  =(pole knot)
@@ -1333,11 +1330,11 @@
     |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
-      =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]  
+      =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
-    ::  if subs read permissions removed, kick 
+    ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
     ?:  (ca-can-read:ca ship)  ca
@@ -1428,7 +1425,7 @@
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
     =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
     ?~  write  |
-    =/  perms  (need write) 
+    =/  perms  (need write)
     ?:  |(bloc.perms =(~ writers.perm.chat))  &
     !=(~ (~(int in writers.perm.chat) sects.perms))
   ::
@@ -1475,6 +1472,7 @@
   ++  ca-join
     |=  j=join:c
     ^+  ca-core
+    ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
     =.  chats  (~(put by chats) chan.j *chat:c)
     =.  ca-core  (ca-abed chan.j)
     =.  last-read.remark.chat  now.bowl
@@ -1575,7 +1573,7 @@
           ?(%del %add-feel %del-feel)  ca-core
           %add
         =/  memo=memo:c  p.delta
-        =?  remark.chat  =(author.memo our.bowl)  
+        =?  remark.chat  =(author.memo our.bowl)
           remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief flag/flag ca-brief)
         ?-  -.content.memo
@@ -1586,8 +1584,8 @@
               ==
             ca-core
           ?:  (mentioned q.p.content.memo our.bowl)
-            =/  yarn  (ca-mention-hark memo p.content.memo p.p.d)
-            =.  cor  (emit (pass-hark & & yarn))
+            =/  new-yarn  (ca-mention-hark memo p.content.memo p.p.d)
+            =.  cor  (emit (pass-hark new-yarn))
             ca-core
           =/  replying  (need replying.memo)
           =/  op  (~(get pac pact.chat) replying)
@@ -1604,7 +1602,7 @@
           ?-  -.content.opwrit
               %notice  ca-core
               %story
-            =/  yarn
+            =/  new-yarn
               %^  ca-spin
                 /message/(scot %p p.replying)/(scot %ud q.replying)
                 :~  [%ship author.memo]
@@ -1616,7 +1614,7 @@
                     (flatten q.p.content.memo)
                 ==
               ~
-            =.  cor  (emit (pass-hark & & yarn))
+            =.  cor  (emit (pass-hark new-yarn))
             ca-core
           ==
         ==
@@ -1634,7 +1632,7 @@
           ' mentioned you :'
           (flatten q.story)
       ==
-    ~  
+    ~
   --
 ::
 ++  pending-dms
@@ -1690,10 +1688,11 @@
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
     ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %talk /dm/(scot %p ship)]
     =/  link  /dm/(scot %p ship)
-    (spin rope con link but)
+    [& & rope con link but]
   ::
   ++  di-proxy
     |=  =diff:dm:c
@@ -1741,7 +1740,7 @@
         ?(%del %add-feel %del-feel)  di-core
         %add
       =/  memo=memo:c  p.q.diff
-      =?  remark.dm  =(author.memo our.bowl)  
+      =?  remark.dm  =(author.memo our.bowl)
         remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
       =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
         (give-brief ship/ship di-brief)
@@ -1749,7 +1748,7 @@
       ?-  -.content.memo
           %notice  di-core
           %story
-        =/  yarn
+        =/  new-yarn
           %+  di-spin
             :~  [%ship author.memo]
                 ?:  =(net.dm %invited)  ' has invited you to a direct message'
@@ -1757,7 +1756,7 @@
                 ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
             ==
           ~
-        =.  cor  (emit (pass-hark & & yarn))
+        =.  cor  (emit (pass-hark new-yarn))
         di-core
       ==
     ==

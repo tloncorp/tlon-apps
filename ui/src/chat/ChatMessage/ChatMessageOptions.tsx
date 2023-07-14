@@ -103,101 +103,90 @@ export default function ChatMessageOptions(props: {
   }, [isMobile, loadEmoji]);
 
   return (
-    <div
-      data-testid="chat-message-options"
-      className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
-    >
-      {canWrite && !isMobile ? (
-        <EmojiPicker
-          open={pickerOpen}
-          setOpen={setPickerOpen}
-          onEmojiSelect={onEmoji}
-          withTrigger={false}
-        >
+    <div className="absolute right-2 -top-5 z-10 h-full">
+      <div
+        data-testid="chat-message-options"
+        className="sticky top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
+      >
+        {canWrite && !isMobile ? (
+          <EmojiPicker
+            open={pickerOpen}
+            setOpen={setPickerOpen}
+            onEmojiSelect={onEmoji}
+            withTrigger={false}
+          >
+            <IconButton
+              icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
+              label="React"
+              showTooltip
+              aria-label="React"
+              action={openPicker}
+            />
+          </EmojiPicker>
+        ) : null}
+        {canWrite && isMobile ? (
           <IconButton
             icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
             label="React"
-            showTooltip
             aria-label="React"
-            action={openPicker}
+            showTooltip
+            action={() =>
+              navigate(`picker/${writ.seal.id}`, {
+                state: { backgroundLocation: location },
+              })
+            }
           />
-        </EmojiPicker>
-      ) : null}
-      {canWrite && isMobile ? (
-        <IconButton
-          icon={<FaceIcon className="h-6 w-6 text-gray-400" />}
-          label="React"
-          aria-label="React"
-          showTooltip
-          action={() =>
-            navigate(`picker/${writ.seal.id}`, {
-              state: { backgroundLocation: location },
-            })
-          }
+        ) : null}
+        {!hideReply ? (
+          <IconButton
+            icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
+            label="Reply"
+            showTooltip
+            action={reply}
+          />
+        ) : null}
+        {!writ.memo.replying &&
+        writ.memo.replying?.length !== 0 &&
+        !hideThreadReply ? (
+          <IconButton
+            icon={<HashIcon className="h-6 w-6 text-gray-400" />}
+            label="Start Thread"
+            showTooltip
+            action={() => navigate(`message/${writ.seal.id}`)}
+          />
+        ) : null}
+        {groupFlag ? (
+          <IconButton
+            icon={
+              didCopy ? (
+                <CheckIcon className="h-6 w-6 text-gray-400" />
+              ) : (
+                <CopyIcon className="h-6 w-6 text-gray-400" />
+              )
+            }
+            label="Copy"
+            showTooltip
+            action={onCopy}
+          />
+        ) : null}
+        {isAdmin || window.our === writ.memo.author ? (
+          <IconButton
+            icon={<XIcon className="h-6 w-6 text-red" />}
+            label="Delete"
+            showTooltip
+            action={() => setDeleteOpen(true)}
+          />
+        ) : null}
+        <ConfirmationModal
+          title="Delete Message"
+          message="Are you sure you want to delete this message?"
+          onConfirm={onDelete}
+          open={deleteOpen}
+          setOpen={setDeleteOpen}
+          confirmText="Delete"
+          loading={isDeletePending}
         />
-      ) : null}
-      {!hideReply ? (
-        <IconButton
-          icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
-          label="Reply"
-          showTooltip
-          action={reply}
-        />
-      ) : null}
-      {!writ.memo.replying &&
-      writ.memo.replying?.length !== 0 &&
-      !hideThreadReply ? (
-        <IconButton
-          icon={<HashIcon className="h-6 w-6 text-gray-400" />}
-          label="Start Thread"
-          showTooltip
-          action={() => navigate(`message/${writ.seal.id}`)}
-        />
-      ) : null}
-      {groupFlag ? (
-        <IconButton
-          icon={
-            didCopy ? (
-              <CheckIcon className="h-6 w-6 text-gray-400" />
-            ) : (
-              <CopyIcon className="h-6 w-6 text-gray-400" />
-            )
-          }
-          label="Copy"
-          showTooltip
-          action={onCopy}
-        />
-      ) : null}
-      {/* <IconButton
-        icon={<ShareIcon className="h-6 w-6 text-gray-400" />}
-        label="Send to..."
-        showTooltip
-        action={() => console.log('send to..')}
-      /> */}
-      {isAdmin || window.our === writ.memo.author ? (
-        <IconButton
-          icon={<XIcon className="h-6 w-6 text-red" />}
-          label="Delete"
-          showTooltip
-          action={() => setDeleteOpen(true)}
-        />
-      ) : null}
-
-      {/* <IconButton
-        icon={<EllipsisIcon className="h-6 w-6 text-gray-400" />}
-        label="More..."
-        showTooltip
-        action={() => console.log('More...')}
-      /> */}
-      <ConfirmationModal
-        title="Delete Message"
-        message="Are you sure you want to delete this message?"
-        onConfirm={onDelete}
-        open={deleteOpen}
-        setOpen={setDeleteOpen}
-        confirmText="Delete"
-        loading={isDeletePending}
-      />
+      </div>
     </div>
   );
 }

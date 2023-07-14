@@ -1,6 +1,6 @@
 import posthog, { Properties } from 'posthog-js';
 import { PrivacyType } from '@/types/groups';
-import { isTalk } from './utils';
+import { isTalk, log } from './utils';
 import { isNativeApp } from './native';
 
 export type AnalyticsEventName =
@@ -38,27 +38,66 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   disable_session_recording: true,
   mask_all_text: true,
   mask_all_element_attributes: true,
+  // this stops all capturing from happening until we manually opt-in.
+  // this is to prevent accidentally capturing data. all opting is managed
+  // in the activity checker in ActivityModal.
   opt_out_capturing_by_default: true,
 });
 
+if (import.meta.env.DEV) {
+  posthog.debug();
+}
+
 export const analyticsClient = posthog;
 
+// Once someone is opted in this will fire no matter what so we need
+// additional guarding here to prevent accidentally capturing data.
 export const captureAnalyticsEvent = (
   name: AnalyticsEventName,
   properties?: Properties
 ) => {
-  // Do not capture any analytics events for the Talk web or Talk Android
+  // Do not capture any analytics events for Talk
   if (isTalk || isNativeApp()) {
     return;
   }
 
-  posthog.capture(name, {
+  log('Attempting to capture analytics event', name);
+  const captureProperties: Properties = {
+    ...(properties || {}),
     // The following default properties stop PostHog from auto-logging the URL,
     // which can inadvertently reveal private info on Urbit
     $current_url: null,
     $pathname: null,
     $set_once: null,
-    ...(properties || {}),
+    $host: null,
+    $referrer: null,
+    $initial_current_url: null,
+    $initial_referrer_url: null,
+    $referring_domain: null,
+    $initial_referring_domain: null,
+    $unset: [
+      'initial_referrer_url',
+      'initial_referring_domain',
+      'initial_current_url',
+      'current_url',
+      'pathname',
+      'host',
+      'referrer',
+      'referring_domain',
+    ],
+  };
+
+  posthog.capture(name, captureProperties, {
+    $set_once: {
+      $host: null,
+      $referrer: null,
+      $current_url: null,
+      $pathname: null,
+      $initial_current_url: null,
+      $initial_referrer_url: null,
+      $referring_domain: null,
+      $initial_referring_domain: null,
+    },
   });
 };
 

@@ -45,54 +45,56 @@ export default function MobileSidebar() {
           </ul>
           <Sheet open={showSheet} onOpenChange={(o) => setShowSheet(o)}>
             <SheetContent containerClass="" showClose={true}>
-              <SidebarItem
-                icon={
-                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                    <AsteriskIcon className="h-6 w-6" />
-                  </div>
-                }
+              <a
+                className="no-underline"
+                href="https://airtable.com/shrflFkf5UyDFKhmW"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Submit Feedback"
               >
-                <a
-                  className="no-underline"
-                  href="https://airtable.com/shrflFkf5UyDFKhmW"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Submit Feedback"
+                <SidebarItem
+                  icon={
+                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                      <AsteriskIcon className="h-6 w-6" />
+                    </div>
+                  }
+                  onClick={() => setShowSheet(false)}
                 >
                   Submit Feedback
-                </a>
-              </SidebarItem>
-              <SidebarItem
-                icon={
-                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                    <AppGroupsIcon className="h-6 w-6" />
-                  </div>
-                }
+                </SidebarItem>
+              </a>
+              <Link
+                to="/about"
+                className="no-underline"
+                state={{ backgroundLocation: location }}
               >
-                <Link
-                  to="/about"
-                  className="no-underline"
-                  state={{ backgroundLocation: location }}
+                <SidebarItem
+                  icon={
+                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                      <AppGroupsIcon className="h-6 w-6" />
+                    </div>
+                  }
+                  onClick={() => setShowSheet(false)}
                 >
                   About Groups
-                </Link>
-              </SidebarItem>
-              <SidebarItem
-                icon={
-                  <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                    <PencilSettingsIcon className="h-6 w-6" />
-                  </div>
-                }
-                onClick={() => setShowSheet(false)}
+                </SidebarItem>
+              </Link>
+              <Link
+                to="/settings"
+                className="no-underline"
+                state={{ backgroundLocation: location }}
               >
-                <Link
-                  to="/settings"
-                  className="dropdown-item flex flex-row items-center p-2 no-underline"
-                  state={{ backgroundLocation: location }}
+                <SidebarItem
+                  icon={
+                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                      <PencilSettingsIcon className="h-6 w-6" />
+                    </div>
+                  }
+                  onClick={() => setShowSheet(false)}
                 >
                   App Settings
-                </Link>
-              </SidebarItem>
+                </SidebarItem>
+              </Link>
             </SheetContent>
           </Sheet>
         </nav>

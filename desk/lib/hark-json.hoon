@@ -153,12 +153,18 @@
 ++  dejs
   =,  dejs:format
   |%
-  ++  action
-    ^-  $-(json action:h)
-    %-  of
+  ++  action-tags
     :~  saw-seam/seam
         saw-rope/rope
+        add-yarn/add-yarn
     ==
+  ++  action
+    ^-  $-(json action:h)
+    (of action-tags)
+  ::
+  ++  action-1
+    ^-  $-(json action-1:h)
+    (of new-yarn/new-yarn action-tags)
   ::
   ++  seam
     %-  of
@@ -167,9 +173,53 @@
         group/flag
     ==
   ::
+  ++  add-yarn
+    %-  ot
+    :~  all/bo
+        desk/bo
+        yarn/yarn
+    ==
+  ::
+  ++  new-yarn
+    %-  ot
+    :~  all/bo
+        desk/bo
+        rope/rope
+        con/(ar content)
+        wer/pa
+        but/(mu button)
+    ==
+  ::
+  ++  button
+    %-  ot
+    :~  title/so
+        hanlder/pa
+    ==
+  ::
+  ++  content
+    |=  j=json
+    ^-  content:h
+    ?:  ?=([%s *] j)  p.j
+    =>  .(j `json`j)
+    %.  j
+    %-  of
+    :~  ship/ship
+        emph/so
+    ==
+  ::
+  ++  yarn
+    %-  ot
+    :~  id/(se %uvh)
+        rope/rope
+        time/(se %da)
+        con/(ar content)
+        wer/pa
+        but/(mu button)
+    ==
+  ::
   ++  flag  flag:dejs:groups-json
   ++  nest  nest:dejs:groups-json
-  ::
+  ++  ship  ship:dejs:groups-json
   ++  rope
     %-  ot
     :~  group/(mu flag)
