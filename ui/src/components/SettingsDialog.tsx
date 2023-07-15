@@ -48,7 +48,7 @@ export default function SettingsDialog() {
 
   function renderContent() {
     return (
-      <div className="flex flex-col space-y-8 overflow-y-auto">
+      <div className="flex flex-col space-y-8">
         <span className="text-lg font-bold">App Settings</span>
         <div className="inner-section relative space-y-4">
           <div className="mb-6 flex flex-col">
@@ -170,7 +170,7 @@ export default function SettingsDialog() {
 
   return isMobile ? (
     <Sheet open={true} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col" showClose={false}>
+      <SheetContent className="flex flex-col overflow-y-auto" showClose={false}>
         {renderContent()}
       </SheetContent>
     </Sheet>
@@ -179,7 +179,8 @@ export default function SettingsDialog() {
       defaultOpen
       modal
       onOpenChange={onOpenChange}
-      className="w-[340px] md:w-[500px]"
+      containerClass="flex"
+      className="w-[340px] overflow-y-auto md:w-[500px]"
     >
       {renderContent()}
     </Dialog>
