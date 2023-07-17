@@ -2,7 +2,7 @@
     info+'Send encrypted direct messages to one or many friends. Talk is a simple chat tool for catching up, getting work done, and everything in between.'
     color+0x10.5ec7
     image+'https://bootstrap.urbit.org/icon-talk.svg?v=1'
-    glob-http+['https://bootstrap.urbit.org/glob-0v5.gh08v.3pu21.9ns6q.gh0ti.jqnb1.glob' 0v5.gh08v.3pu21.9ns6q.gh0ti.jqnb1]
+    glob-http+['https://bootstrap.urbit.org/glob-0v1.2a4d4.t52q8.v18hi.b93bo.1rahg.glob' 0v1.2a4d4.t52q8.v18hi.b93bo.1rahg]
     base+'talk'
     version+[4 1 0]
     website+'https://tlon.io'
