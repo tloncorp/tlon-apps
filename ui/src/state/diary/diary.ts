@@ -116,6 +116,7 @@ export const useDiaryState = createState<DiaryState>(
         get().set(fn);
       });
     },
+    pendingNotes: [],
     pendingImports: {},
     initImports: (init) => {
       get().batchSet((draft) => {
@@ -126,6 +127,14 @@ export const useDiaryState = createState<DiaryState>(
   {},
   []
 );
+
+export function usePendingNotes() {
+  return useDiaryState((s) => s.pendingNotes);
+}
+
+export function useIsNotePending(noteId: string) {
+  return useDiaryState((s) => s.pendingNotes.includes(noteId));
+}
 
 export function useNotes(flag: DiaryFlag) {
   const { data, ...rest } = useReactQuerySubscription({
@@ -249,6 +258,7 @@ export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
     () => ['diary', 'notes', flag, noteId],
     [flag, noteId]
   );
+
   const path = useMemo(
     () => `/diary/${flag}/notes/note/${decToUd(noteId)}`,
     [flag, noteId]
@@ -492,13 +502,18 @@ export function useViewDiaryMutation() {
 
 export function useAddNoteMutation() {
   const queryClient = useQueryClient();
-  const now = decToUd(unixToDa(Date.now()).toString());
-  let timePosted = now;
-  const mutationFn = async (variables: { flag: DiaryFlag; essay: NoteEssay }) =>
+
+  let timePosted: string;
+  const mutationFn = async (variables: {
+    initialTime: string;
+    flag: DiaryFlag;
+    essay: NoteEssay;
+  }) =>
     new Promise<string>((resolve) => {
+      timePosted = variables.initialTime;
       api
         .trackedPoke<DiaryAction, DiaryUpdate>(
-          diaryNoteDiff(variables.flag, now, {
+          diaryNoteDiff(variables.flag, decToUd(variables.initialTime), {
             add: variables.essay,
           }),
           { app: 'diary', path: `/diary/${variables.flag}/ui` },
@@ -510,6 +525,7 @@ export function useAddNoteMutation() {
                 timePosted = time;
                 return true;
               }
+              return false;
             }
 
             return false;
@@ -525,6 +541,10 @@ export function useAddNoteMutation() {
     onMutate: async (variables) => {
       await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
       await queryClient.cancelQueries(['diary', 'briefs']);
+
+      useDiaryState.getState().set((state) => ({
+        pendingNotes: [variables.initialTime, ...state.pendingNotes],
+      }));
 
       const notes = queryClient.getQueryData<DiaryOutline>([
         'diary',
@@ -543,7 +563,7 @@ export function useAddNoteMutation() {
             // but it will be corrected when fact returns on the subscription.
             // as long as the user doesn't try to immediately navigate to
             // the note, this will be fine.
-            [timePosted ?? variables.essay.sent]: {
+            [variables.initialTime]: {
               content: variables.essay.content,
               author: variables.essay.author,
               quipCount: 0,
@@ -555,7 +575,29 @@ export function useAddNoteMutation() {
             },
           }
         );
+
+        queryClient.setQueryData(
+          ['diary', 'notes', variables.flag, variables.initialTime],
+          {
+            type: 'note',
+            seal: {
+              time: variables.initialTime,
+              quips: [],
+              feels: {},
+            },
+            essay: {
+              ...variables.essay,
+            },
+          }
+        );
       }
+    },
+    onSuccess: async (_data, variables) => {
+      useDiaryState.getState().set((state) => ({
+        pendingNotes: state.pendingNotes.filter(
+          (time) => time !== variables.initialTime
+        ),
+      }));
     },
     onSettled: async (_data, _error, variables) => {
       await queryClient.refetchQueries(['diary', 'notes', variables.flag], {

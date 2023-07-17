@@ -3,6 +3,7 @@ import { isSameDay } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router';
+import { useLocalStorage } from 'usehooks-ts';
 import { daToUnix } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
@@ -12,6 +13,7 @@ import {
   useNote,
   useDiaryPerms,
   useJoinDiaryMutation,
+  useIsNotePending,
 } from '@/state/diary';
 import {
   useRouteGroup,
@@ -87,27 +89,23 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 }
 
 export default function DiaryNote({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
+  const isPending = useIsNotePending(noteId);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const channel = useChannel(groupFlag, nest);
-  // const [id, note] = useNote(chFlag, noteId)!;
   const { note, status } = useNote(chFlag, noteId);
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
   const brief = useDiaryBrief(chFlag);
-  // const settings = useDiarySettings();
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = useDiaryPerms(chFlag);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const joinChannel = useCallback(async () => {
-    setJoining(true);
     await joinDiary({ group: groupFlag, chan: chFlag });
-    setJoining(false);
   }, [chFlag, groupFlag, joinDiary]);
 
   useEffect(() => {
@@ -183,6 +181,13 @@ export default function DiaryNote({ title }: ViewProps) {
             essay={note.essay}
             time={bigInt(noteId)}
           />
+          {isPending ? (
+            <div className="flex flex-col space-y-4">
+              <span className="text-gray-400">
+                This post is not yet available on the notebook host.
+              </span>
+            </div>
+          ) : null}
           <DiaryContent content={note.essay.content} />
           <footer id="comments">
             <div className="mb-3 flex items-center py-3">

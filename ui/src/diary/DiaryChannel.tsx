@@ -4,6 +4,9 @@ import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import * as Toast from '@radix-ui/react-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import api from '@/api';
+import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import Layout from '@/components/Layout/Layout';
 import {
   useChannel,
@@ -19,8 +22,11 @@ import {
   useJoinDiaryMutation,
   useDiaryIsJoined,
   useMarkReadDiaryMutation,
+  usePendingNotes,
+  useDiaryState,
 } from '@/state/diary';
 import { useDiarySortMode } from '@/state/settings';
+import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryLetter } from '@/types/diary';
 import { ViewProps } from '@/types/groups';
@@ -38,10 +44,15 @@ function DiaryChannel({ title }: ViewProps) {
   const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
+  const {
+    data: { status: shipStatus },
+  } = useConnectivityCheck(chShip ?? '');
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
   const { letters, isLoading } = useNotes(chFlag);
+  const pendingNotes = usePendingNotes();
+  const queryClient = useQueryClient();
   const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const { mutateAsync: markRead } = useMarkReadDiaryMutation();
@@ -65,6 +76,38 @@ function DiaryChannel({ title }: ViewProps) {
       setRecentChannel('');
     }
   }, [flag, group, channel, vessel, navigate, setRecentChannel]);
+
+  useEffect(() => {
+    // if we have pending notes and the ship is connected
+    // we can check if the notes have been posted
+    // if they have, we can refetch the data to get the new note
+    // and clear the pending notes
+    const notesOnHost = async () =>
+      api.scry({
+        app: 'diary',
+        path: `/diary/${chFlag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+      });
+
+    if (
+      pendingNotes.length > 0 &&
+      'complete' in shipStatus &&
+      shipStatus.complete === 'yes'
+    ) {
+      notesOnHost().then((notes) => {
+        if (Array.isArray(notes) && notes.length === letters.size) {
+          queryClient.refetchQueries({
+            queryKey: ['diary', 'notes', chFlag],
+            exact: true,
+          });
+
+          useDiaryState.getState().set((s) => ({
+            ...s,
+            pendingNotes: [],
+          }));
+        }
+      });
+    }
+  }, [pendingNotes, chFlag, queryClient, shipStatus, letters.size]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
