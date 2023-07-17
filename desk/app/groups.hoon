@@ -135,7 +135,7 @@
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) ~)
   ::
-      ?(%group-action-1 %group-action-0)
+      ?(%group-action-2 %group-action-1 %group-action-0)
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
@@ -1012,9 +1012,9 @@
       ::  XX: does init need to be handled specially?
       ?+  p.cage  (go-odd-update p.cage)
         %epic            (go-take-epic !<(epic:e q.cage))
-        %group-log-1     (go-apply-log !<(log:g q.cage))
-        %group-update-1  (go-update !<(update:g q.cage))
-        %group-init-1    (go-fact-init !<(init:g q.cage))
+        %group-log-2     (go-apply-log !<(log:g q.cage))
+        %group-update-2  (go-update !<(update:g q.cage))
+        %group-init-2    (go-fact-init !<(init:g q.cage))
       ==
     ==
   ::
