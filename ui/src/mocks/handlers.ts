@@ -152,7 +152,7 @@ const groups: Handler[] = [
   {
     action: 'poke',
     app: 'groups',
-    mark: 'group-action-1',
+    mark: 'group-action-2',
     returnSubscription: specificGroupSub,
     dataResponder: (req: Message & Poke<GroupAction>) =>
       createResponse(req, 'diff', {
