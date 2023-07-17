@@ -254,7 +254,7 @@
     ?.  (gth ~(wyt in readers) 0)  cr
     =/  action  [flag now.bowl %channel nest %del-sects readers]
     cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
-  =+  .^(has=? %gu (welp (channel-scry nest) ~))
+  =+  .^(has=? %gu (channel-scry nest))
   ?.  has  cr
   =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
   =/  diff  (~(dif in writers) ~(key by cabals.group))
