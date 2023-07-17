@@ -771,14 +771,18 @@
   ::
       [%u %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
-    ?.  (~(has by dms) ship)
+    =/  has  (~(has by dms) ship)
+    ?.  has
       ``loob+!>(|)
+    ?~  t.t.t.path  ``loob+!>(has)
     (di-peek:(di-abed:di-core ship) %u t.t.t.path)
   ::
       [%u %club @ *]
     =/  =id:club:c  (slav %uv i.t.t.path)
-    ?.  (~(has by clubs) id)
+    =/  has  (~(has by clubs) id)
+    ?.  has
       ``loob+!>(|)
+    ?~  t.t.t.path  ``loob+!>(has)
     (cu-peek:(cu-abed:cu-core id) %u t.t.t.path)
   ::
       [%u %chat @ @ *]
