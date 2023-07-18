@@ -1,9 +1,9 @@
 import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams } from 'react-router';
-import { useLocalStorage } from 'usehooks-ts';
+import { useNavigate, useParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { daToUnix } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
@@ -14,6 +14,7 @@ import {
   useDiaryPerms,
   useJoinDiaryMutation,
   useIsNotePending,
+  useDiaryState,
 } from '@/state/diary';
 import {
   useRouteGroup,
@@ -22,11 +23,14 @@ import {
   useGroup,
   useChannel,
 } from '@/state/groups/groups';
-import { DiaryBrief, DiaryQuip } from '@/types/diary';
+import { DiaryBrief, DiaryNotes, DiaryOutline, DiaryQuip } from '@/types/diary';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import { useChannelIsJoined } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
+import { useConnectivityCheck } from '@/state/vitals';
+import api from '@/api';
+import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -91,6 +95,11 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 export default function DiaryNote({ title }: ViewProps) {
   const { chShip, chName, noteId = '' } = useParams();
   const isPending = useIsNotePending(noteId);
+  const {
+    data: { status: shipStatus },
+  } = useConnectivityCheck(chShip ?? '');
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
@@ -113,6 +122,48 @@ export default function DiaryNote({ title }: ViewProps) {
       joinChannel();
     }
   }, [joined, joinChannel]);
+
+  useEffect(() => {
+    const notesOnHost = async () =>
+      api.scry({
+        app: 'diary',
+        path: `/diary/${chFlag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+      });
+    if (
+      note &&
+      isPending &&
+      'complete' in shipStatus &&
+      shipStatus.complete === 'yes'
+    ) {
+      notesOnHost().then((notes: DiaryNotes | unknown) => {
+        if (
+          Array.isArray(notes) &&
+          notes.find((n: DiaryOutline) => n.sent === note.essay.sent)
+        ) {
+          queryClient.refetchQueries({
+            queryKey: ['diary', 'notes', chFlag],
+          });
+
+          useDiaryState.getState().set((s) => ({
+            ...s,
+            pendingNotes: [],
+          }));
+
+          navigate(
+            `/groups/${groupFlag}/diary/${chFlag}/notes/${note.seal.time}`
+          );
+        }
+      });
+    }
+  }, [
+    isPending,
+    shipStatus,
+    chFlag,
+    groupFlag,
+    navigate,
+    note,
+    queryClient,
+  ]);
 
   useGroupsAnalyticsEvent({
     name: 'view_item',
@@ -183,9 +234,11 @@ export default function DiaryNote({ title }: ViewProps) {
           />
           {isPending ? (
             <div className="flex flex-col space-y-4">
-              <span className="text-gray-400">
-                This post is not yet available on the notebook host.
-              </span>
+              <p className="text-gray-400">This post is not yet published.</p>
+              <p className="text-gray-400">
+                It will be visible to others when the notebook host publishes it
+                (the host may be offline).
+              </p>
             </div>
           ) : null}
           <DiaryContent content={note.essay.content} />
@@ -207,7 +260,7 @@ export default function DiaryNote({ title }: ViewProps) {
               />
             ) : null}
             <ul className="mt-12">
-              {groupedQuips.map(([t, g]) =>
+              {groupedQuips.map(([_t, g]) =>
                 g.map((props) => (
                   <li key={props.time.toString()}>
                     <DiaryComment {...props} />

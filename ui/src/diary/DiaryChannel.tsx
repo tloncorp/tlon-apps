@@ -28,7 +28,7 @@ import {
 import { useDiarySortMode } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryLetter } from '@/types/diary';
+import { DiaryLetter, DiaryNotes, DiaryOutline } from '@/types/diary';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
@@ -93,8 +93,13 @@ function DiaryChannel({ title }: ViewProps) {
       'complete' in shipStatus &&
       shipStatus.complete === 'yes'
     ) {
-      notesOnHost().then((notes) => {
-        if (Array.isArray(notes) && notes.length === letters.size) {
+      notesOnHost().then((notes: DiaryNotes | unknown) => {
+        if (
+          Array.isArray(notes) &&
+          !notes.every((n: DiaryOutline) =>
+            Array.from(letters).find(([_t, l]) => l.sent === n.sent)
+          )
+        ) {
           queryClient.refetchQueries({
             queryKey: ['diary', 'notes', chFlag],
             exact: true,
@@ -107,7 +112,7 @@ function DiaryChannel({ title }: ViewProps) {
         }
       });
     }
-  }, [pendingNotes, chFlag, queryClient, shipStatus, letters.size]);
+  }, [pendingNotes, chFlag, queryClient, shipStatus, letters]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);

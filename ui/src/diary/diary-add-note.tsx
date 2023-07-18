@@ -1,11 +1,12 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
-import { unixToDa } from '@urbit/api';
+import { daToUnix, unixToDa } from '@urbit/api';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import _ from 'lodash';
+import bigInt from 'big-integer';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
@@ -96,8 +97,6 @@ export default function DiaryAddNote() {
     const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
 
-    const sent = Date.now();
-
     const isBlock = (c: Inline | DiaryBlock) =>
       ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
         (k) => typeof c !== 'string' && k in c
@@ -142,7 +141,7 @@ export default function DiaryAddNote() {
               ...values,
               content: noteContent,
               author: window.our,
-              sent,
+              sent: daToUnix(bigInt(initialTime)),
             },
           }),
           3000
