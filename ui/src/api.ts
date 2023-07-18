@@ -1,3 +1,4 @@
+/* eslint-disable import/no-cycle */
 import type UrbitMock from '@tloncorp/mock-http-api';
 import UrbitBase, {
   Message,

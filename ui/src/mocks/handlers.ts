@@ -1,3 +1,4 @@
+/* eslint-disable import/no-cycle */
 import UrbitMock, {
   createResponse,
   Handler,
