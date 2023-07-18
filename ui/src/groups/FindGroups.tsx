@@ -15,6 +15,8 @@ import { useNavigate, useParams, useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
 import GroupReference from '@/components/References/GroupReference';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import ShipConnection from '@/components/ShipConnection';
+import { useConnectivityCheck } from '@/state/vitals';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 import GroupAvatar from './GroupAvatar';
@@ -88,6 +90,8 @@ export default function FindGroups({ title }: ViewProps) {
     ? selectedShip.label || selectedShip.value
     : '';
 
+  const { data, showConnection } = useConnectivityCheck(ship || presentedShip);
+
   // once a ship is selected, redirect to find/[selected query]
   useEffect(() => {
     if (selectedShip) {
@@ -115,14 +119,22 @@ export default function FindGroups({ title }: ViewProps) {
     if (fetchStatus === 'fetching') {
       return (
         <>
-          <span>Searching for groups hosted by&nbsp;</span>
-          <span
-            onClick={handleProfileClick}
-            className="cursor-pointer text-gray-800"
-          >
-            {presentedShip === '' ? ship : presentedShip}
-          </span>
-          <span>&nbsp;...</span>
+          <div className="mb-3 inline-block rounded bg-gray-50 p-2">
+            <ShipConnection
+              ship={ship || presentedShip}
+              status={data?.status}
+            />
+          </div>
+          <p>
+            Searching for groups hosted by&nbsp;
+            <span
+              onClick={handleProfileClick}
+              className="cursor-pointer text-gray-800"
+            >
+              {presentedShip === '' ? ship : presentedShip}
+            </span>
+            <span>&nbsp;...</span>
+          </p>
         </>
       );
     }
@@ -131,14 +143,22 @@ export default function FindGroups({ title }: ViewProps) {
       if (hasKeys(indexedGangs)) {
         return (
           <>
-            <span>Groups hosted by&nbsp;</span>
-            <span
-              onClick={handleProfileClick}
-              className="cursor-pointer text-gray-800"
-            >
-              {presentedShip === '' ? ship : presentedShip}
-            </span>
-            <span>:</span>
+            <div className="mb-3 inline-block rounded bg-gray-50 p-2">
+              <ShipConnection
+                ship={ship || presentedShip}
+                status={data?.status}
+              />
+            </div>
+            <p>
+              Groups hosted by&nbsp;
+              <span
+                onClick={handleProfileClick}
+                className="cursor-pointer text-gray-800"
+              >
+                {presentedShip === '' ? ship : presentedShip}
+              </span>
+              <span>:</span>
+            </p>
           </>
         );
       }
@@ -146,14 +166,19 @@ export default function FindGroups({ title }: ViewProps) {
 
     return (
       <span>
-        Your search timed out, which may happen when a ship hosts no groups, is
-        under heavy load, or is offline.{' '}
-        <span
-          onClick={() => refetch()}
-          className="cursor-pointer text-gray-800"
-        >
-          Try again?
-        </span>
+        <div className="mb-3 inline-block rounded bg-gray-50 p-2">
+          <ShipConnection ship={ship || presentedShip} status={data?.status} />
+        </div>
+        <p>
+          Your search timed out, which may happen when a ship hosts no groups,
+          is under heavy load, or is offline.{' '}
+          <span
+            onClick={() => refetch()}
+            className="cursor-pointer text-gray-800"
+          >
+            Try again?
+          </span>
+        </p>
       </span>
     );
   };

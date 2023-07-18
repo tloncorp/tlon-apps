@@ -1,3 +1,4 @@
+/* eslint-disable import/no-cycle */
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
 import faker from '@faker-js/faker';
