@@ -3,7 +3,7 @@
 /-  grp=group-store
 /-  metadata-store
 |%
-++  okay  `epic:e`1
+++  okay  `epic:e`2
 ++  mar
   |%
   ++  act  `mark`(rap 3 %group-action '-' (scot %ud okay) ~)

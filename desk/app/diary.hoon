@@ -503,21 +503,23 @@
   ~&  arvo/wire
   cor
 ++  peek
-  |=  =path
+  |=  =(pole knot)
   ^-  (unit (unit cage))
-  ?+  path  [~ ~]
+  ?+  pole  [~ ~]
   ::
     [%x %imp ~]    ``migrate-map+!>(imp)
     [%x %shelf ~]  ``shelf+!>(shelf)
     [%x %init ~]   ``noun+!>([briefs shelf])
     [%x %briefs ~]  ``diary-briefs+!>(briefs)
   ::
-      [%x %diary @ @ *]
-    =/  =ship  (slav %p i.t.t.path)
-    =*  name   i.t.t.t.path
-    (di-peek:(di-abed:di-core ship name) t.t.t.t.path)
+      [%x %diary ship=@ name=@ rest=*]
+    =/  =ship  (slav %p ship.pole)
+    (di-peek:(di-abed:di-core ship name.pole) rest.pole)
     ::
-
+      [%u %diary ship=@ name=@ ~]
+    =/  =ship  (slav %p ship.pole)
+    ``loob+!>((~(has by shelf) [ship name.pole]))
+  ::
   ==
 ::
 ++  briefs
@@ -728,11 +730,11 @@
     |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
-      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]  
+      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  di-core  (di-can-read our.bowl)  di-safe-sub
-    ::  if subs read permissions removed, kick 
+    ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
     ?:  (di-can-read:di ship)  di
@@ -843,6 +845,7 @@
   ++  di-join
     |=  j=join:d
     ^+  di-core
+    ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
     =.  shelf  (~(put by shelf) chan.j *diary:d)
     =.  di-core  (di-abed chan.j)
     =.  group.perm.diary  group.j
