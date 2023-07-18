@@ -2,7 +2,7 @@ import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useHasMigratedChannels } from '@/logic/useMigrationInfo';
 import { getFlagParts } from '@/logic/utils';
-import { useGroup } from '@/state/groups';
+import { useGroups } from '@/state/groups';
 import React from 'react';
 import Bullet16Icon from '../icons/Bullet16Icon';
 import MigrationTooltip from '../MigrationTooltip';
@@ -10,7 +10,8 @@ import { useGroupsScrolling } from './GroupsScrollingContext';
 import SidebarItem from './SidebarItem';
 
 const GroupsSidebarItem = React.memo(({ flag }: { flag: string }) => {
-  const group = useGroup(flag);
+  const groups = useGroups();
+  const group = groups[flag];
   const { ship } = getFlagParts(flag);
   const isMigrated = useHasMigratedChannels(flag);
   const isScrolling = useGroupsScrolling();
