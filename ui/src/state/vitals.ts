@@ -164,7 +164,7 @@ export function useConnectivityCheck(
       },
     });
     setSubbed(true);
-  }, [ship]);
+  }, [ship, queryClient]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
