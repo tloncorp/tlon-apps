@@ -1,8 +1,6 @@
 import cookies from 'browser-cookies';
 import { Gangs } from '@/types/groups';
-import {
-  useGroupJoinMutation,
-} from '@/state/groups';
+import { useGroupJoinMutation } from '@/state/groups';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 
 export default function useAutoJoinLureInvites() {
@@ -15,11 +13,13 @@ export default function useAutoJoinLureInvites() {
 
       if (!gang.claim) {
         if (cookies.get(cookieName)) {
-          await joinMutation({flag});
-          cookies.erase(cookieName)
+          await joinMutation({ flag });
+          cookies.erase(cookieName);
           return navigateByApp(`/groups/${flag}`);
         }
       }
-    })
-  }
+
+      return null;
+    });
+  };
 }

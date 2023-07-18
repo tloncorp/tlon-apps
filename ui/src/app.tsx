@@ -45,6 +45,7 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
+import { usePendingGangsWithoutClaim } from '@/state/groups/groups';
 import GroupInvitesPrivacy from './groups/GroupAdmin/GroupInvitesPrivacy';
 import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
@@ -83,10 +84,7 @@ import SettingsDialog from './components/SettingsDialog';
 import { captureAnalyticsEvent } from './logic/analytics';
 import GroupChannel from './groups/GroupChannel';
 import PrivacyNotice from './groups/PrivacyNotice';
-import {
-  usePendingGangsWithoutClaim,
-} from '@/state/groups/groups';
-import useAutoJoinLureInvites from './groups/autoJoinLureInvites'
+import useAutoJoinLureInvites from './groups/autoJoinLureInvites';
 import ActivityModal, { ActivityChecker } from './components/ActivityModal';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
@@ -282,7 +280,7 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
     if (Object.keys(pendingGangsWithoutClaim).length) {
       autojoin(pendingGangsWithoutClaim);
     }
-  }, [pendingGangsWithoutClaim]);
+  }, [pendingGangsWithoutClaim, autojoin]);
 
   useEffect(() => {
     if (!isInGroups && redirectToFind) {
