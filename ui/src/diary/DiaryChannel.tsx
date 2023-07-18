@@ -5,8 +5,6 @@ import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import * as Toast from '@radix-ui/react-toast';
 import { useQueryClient } from '@tanstack/react-query';
-import api from '@/api';
-import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import Layout from '@/components/Layout/Layout';
 import {
   useChannel,
