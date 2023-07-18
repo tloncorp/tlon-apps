@@ -1,6 +1,6 @@
 /-  d=diary
 /-  meta
-/+  cite=cite-json
+/+  cite=cite-json, gj=groups-json
 |%
 ++  enjs
   =,  enjs:format
@@ -94,6 +94,13 @@
     :~  perms/(perm perm.di)
         view/s/view.di
         sort/s/sort.di
+        saga/(saga net.di)
+    ==
+  ++  saga
+    |=  n=net:d
+    ?-  -.n
+      %pub  ~
+      %sub  (saga:enjs:gj saga.n)
     ==
   ++  perm
     |=  p=perm:d

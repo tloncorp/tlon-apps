@@ -123,7 +123,7 @@ export default function Dm() {
   return (
     <>
       <Layout
-        className="h-full grow"
+        className="flex-1"
         header={
           isSelecting ? (
             <MessageSelector />

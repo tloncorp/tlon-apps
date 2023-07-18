@@ -5,6 +5,7 @@ import { useChannel, useAmAdmin } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import ChannelActions from './ChannelActions';
 import ChannelTitleButton from './ChannelTitleButton';
+import ChannelVersionStatus from './ChannelVersionStatus';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -33,6 +34,7 @@ export default function ChannelHeader({
       <ChannelTitleButton flag={flag} nest={nest} />
       <div className="flex shrink-0 flex-row items-center space-x-3">
         {isMobile && <ReconnectingSpinner />}
+        <ChannelVersionStatus saga={{ ahead: 'test' }} />
         {children}
         <ChannelActions {...{ nest, prettyAppName, channel, isAdmin, leave }} />
       </div>

@@ -14,6 +14,7 @@ import {
   Tag,
 } from './content';
 import { Flag } from './hark';
+import { Saga } from './groups';
 
 export type Patda = string;
 export type Ship = string;
@@ -310,6 +311,7 @@ export type DiaryDisplayMode = 'list' | 'grid';
 export interface Diary {
   perms: DiaryPerm;
   view: DiaryDisplayMode;
+  saga: Saga | null;
 }
 
 export interface Shelf {
