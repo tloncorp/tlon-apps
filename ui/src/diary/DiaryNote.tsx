@@ -3,8 +3,7 @@ import { isSameDay } from 'date-fns';
 import React, { useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, useParams } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
-import { daToUnix } from '@urbit/api';
+import { daToUnix, udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
@@ -14,7 +13,7 @@ import {
   useDiaryPerms,
   useJoinDiaryMutation,
   useIsNotePending,
-  useDiaryState,
+  useNotesOnHost,
 } from '@/state/diary';
 import {
   useRouteGroup,
@@ -23,14 +22,17 @@ import {
   useGroup,
   useChannel,
 } from '@/state/groups/groups';
-import { DiaryBrief, DiaryNotes, DiaryOutline, DiaryQuip } from '@/types/diary';
+import {
+  DiaryBrief,
+  DiaryOutline,
+  DiaryOutlines,
+  DiaryQuip,
+} from '@/types/diary';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import { useChannelIsJoined } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
-import api from '@/api';
-import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -99,7 +101,6 @@ export default function DiaryNote({ title }: ViewProps) {
     data: { status: shipStatus },
   } = useConnectivityCheck(chShip ?? '');
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
@@ -116,6 +117,42 @@ export default function DiaryNote({ title }: ViewProps) {
   const joinChannel = useCallback(async () => {
     await joinDiary({ group: groupFlag, chan: chFlag });
   }, [chFlag, groupFlag, joinDiary]);
+  const notesOnHost = useNotesOnHost(chFlag);
+  const checkIfPreviouslyCached = useCallback(() => {
+    // If we have a note, and the host ship is online, and we have a noteId, and
+    // the noteId matches the note's seal time, then we have a cached note.
+    // If we have a note and noteeId and no seal time, then we probably did have a cached note
+    // but the cache was cleared (user probably refreshed).
+    // If we have notes on the host, and we can find the real note via the sent time matching the noteId
+    // then we redirect to the real note.
+    if (
+      'complete' in shipStatus &&
+      shipStatus.complete === 'yes' &&
+      note &&
+      noteId !== '' &&
+      (noteId === note.seal.time || note.seal.time === undefined)
+    ) {
+      if (notesOnHost && typeof notesOnHost === 'object') {
+        const foundNote = Object.keys(notesOnHost).filter((n: string) => {
+          if ('sent' in (notesOnHost as DiaryOutlines)[n]) {
+            const outline: DiaryOutline = (notesOnHost as DiaryOutlines)[n];
+            return outline.sent === daToUnix(bigInt(noteId));
+          }
+          return false;
+        });
+
+        if (foundNote) {
+          const foundNoteId = udToDec(foundNote[0]);
+
+          if (foundNoteId !== noteId) {
+            navigate(
+              `/groups/${groupFlag}/channels/diary/${chFlag}/note/${foundNoteId}`
+            );
+          }
+        }
+      }
+    }
+  }, [chFlag, noteId, notesOnHost, groupFlag, navigate, note, shipStatus]);
 
   useEffect(() => {
     if (!joined) {
@@ -124,46 +161,8 @@ export default function DiaryNote({ title }: ViewProps) {
   }, [joined, joinChannel]);
 
   useEffect(() => {
-    const notesOnHost = async () =>
-      api.scry({
-        app: 'diary',
-        path: `/diary/${chFlag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
-      });
-    if (
-      note &&
-      isPending &&
-      'complete' in shipStatus &&
-      shipStatus.complete === 'yes'
-    ) {
-      notesOnHost().then((notes: DiaryNotes | unknown) => {
-        if (
-          Array.isArray(notes) &&
-          notes.find((n: DiaryOutline) => n.sent === note.essay.sent)
-        ) {
-          queryClient.refetchQueries({
-            queryKey: ['diary', 'notes', chFlag],
-          });
-
-          useDiaryState.getState().set((s) => ({
-            ...s,
-            pendingNotes: [],
-          }));
-
-          navigate(
-            `/groups/${groupFlag}/diary/${chFlag}/notes/${note.seal.time}`
-          );
-        }
-      });
-    }
-  }, [
-    isPending,
-    shipStatus,
-    chFlag,
-    groupFlag,
-    navigate,
-    note,
-    queryClient,
-  ]);
+    checkIfPreviouslyCached();
+  }, [checkIfPreviouslyCached]);
 
   useGroupsAnalyticsEvent({
     name: 'view_item',
@@ -172,7 +171,7 @@ export default function DiaryNote({ title }: ViewProps) {
     channelType: 'diary',
   });
 
-  if (!note || status === 'loading') {
+  if (!note.essay || status === 'loading') {
     return (
       <Layout
         className="h-full flex-1 bg-white"

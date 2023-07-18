@@ -24,11 +24,12 @@ import {
   useMarkReadDiaryMutation,
   usePendingNotes,
   useDiaryState,
+  useNotesOnHost,
 } from '@/state/diary';
 import { useDiarySortMode } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryLetter, DiaryNotes, DiaryOutline } from '@/types/diary';
+import { DiaryLetter, DiaryOutline } from '@/types/diary';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
@@ -63,6 +64,36 @@ function DiaryChannel({ title }: ViewProps) {
   const channel = useChannel(flag, nest);
   const joined = useDiaryIsJoined(chFlag);
   const lastReconnect = useLastReconnect();
+  const notesOnHost = useNotesOnHost(chFlag);
+
+  const checkForNotes = useCallback(async () => {
+    // if we have pending notes and the ship is connected
+    // we can check if the notes have been posted
+    // if they have, we can refetch the data to get the new note
+    // and clear the pending notes
+    if (
+      pendingNotes.length > 0 &&
+      'complete' in shipStatus &&
+      shipStatus.complete === 'yes'
+    ) {
+      if (
+        Array.isArray(notesOnHost) &&
+        !notesOnHost.every((n: DiaryOutline) =>
+          Array.from(letters).find(([_t, l]) => l.sent === n.sent)
+        )
+      ) {
+        queryClient.refetchQueries({
+          queryKey: ['diary', 'notes', chFlag],
+          exact: true,
+        });
+
+        useDiaryState.getState().set((s) => ({
+          ...s,
+          pendingNotes: [],
+        }));
+      }
+    }
+  }, [pendingNotes, chFlag, queryClient, shipStatus, letters, notesOnHost]);
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -78,41 +109,8 @@ function DiaryChannel({ title }: ViewProps) {
   }, [flag, group, channel, vessel, navigate, setRecentChannel]);
 
   useEffect(() => {
-    // if we have pending notes and the ship is connected
-    // we can check if the notes have been posted
-    // if they have, we can refetch the data to get the new note
-    // and clear the pending notes
-    const notesOnHost = async () =>
-      api.scry({
-        app: 'diary',
-        path: `/diary/${chFlag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
-      });
-
-    if (
-      pendingNotes.length > 0 &&
-      'complete' in shipStatus &&
-      shipStatus.complete === 'yes'
-    ) {
-      notesOnHost().then((notes: DiaryNotes | unknown) => {
-        if (
-          Array.isArray(notes) &&
-          !notes.every((n: DiaryOutline) =>
-            Array.from(letters).find(([_t, l]) => l.sent === n.sent)
-          )
-        ) {
-          queryClient.refetchQueries({
-            queryKey: ['diary', 'notes', chFlag],
-            exact: true,
-          });
-
-          useDiaryState.getState().set((s) => ({
-            ...s,
-            pendingNotes: [],
-          }));
-        }
-      });
-    }
-  }, [pendingNotes, chFlag, queryClient, shipStatus, letters]);
+    checkForNotes();
+  }, [checkForNotes]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);

@@ -2,7 +2,7 @@ import bigInt from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   QueryClient,
   useMutation,
@@ -30,6 +30,7 @@ import {
   NoteEssay,
   DiaryStory,
   DiaryNotes,
+  DiaryOutlines,
 } from '@/types/diary';
 import api from '@/api';
 import { restoreMap } from '@/logic/utils';
@@ -167,6 +168,25 @@ export function useNotes(flag: DiaryFlag) {
     letters: noteMap as BigIntOrderedMap<DiaryOutline>,
     ...rest,
   };
+}
+
+export function useNotesOnHost(flag: DiaryFlag): DiaryOutlines | undefined {
+  const notes = useRef<DiaryOutlines | undefined>(undefined);
+
+  useEffect(() => {
+    const getNotes = async () =>
+      api.scry({
+        app: 'diary',
+        path: `/diary/${flag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+      });
+    getNotes().then((n) => {
+      if (n !== null && typeof n === 'object') {
+        notes.current = n as DiaryOutlines;
+      }
+    });
+  }, [flag]);
+
+  return notes.current;
 }
 
 export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
