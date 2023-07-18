@@ -1,5 +1,4 @@
-/// <reference types="vitest" />
-import packageJson from './package.json';
+/// <reference types="vitest" />z
 import { loadEnv, defineConfig, BuildOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 import analyze from 'rollup-plugin-analyzer';
@@ -8,6 +7,7 @@ import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import { fileURLToPath } from 'url';
 import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import packageJson from './package.json';
 import manifest from './src/assets/manifest';
 import chatmanifest from './src/assets/chatmanifest';
 
@@ -30,6 +30,7 @@ export default ({ mode }: { mode: string }) => {
     'http://localhost:8080';
   console.log(SHIP_URL2);
 
+  // eslint-disable-next-line
   const base = (mode: string, app: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return '';
@@ -43,6 +44,7 @@ export default ({ mode }: { mode: string }) => {
     }
   };
 
+  // eslint-disable-next-line
   const plugins = (mode: string, app: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return [
@@ -98,7 +100,7 @@ export default ({ mode }: { mode: string }) => {
           }),
           VitePWA({
             base: '/apps/groups/',
-            manifest: manifest,
+            manifest,
             injectRegister: 'inline',
             registerType: 'prompt',
             strategies: 'injectManifest',
