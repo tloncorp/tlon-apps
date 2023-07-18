@@ -574,15 +574,13 @@ export function useAddNoteMutation() {
 
       if (notes !== undefined) {
         // for the unlikely case that the user navigates away from the editor
-        // before the mutation is complete, we update the cache optimistically
+        // before the mutation is complete, or if the host ship is offlie,
+        // we update the cache optimistically.
         queryClient.setQueryData<DiaryOutline>(
           ['diary', 'notes', variables.flag],
           {
             ...notes,
-            // this time will be wrong if the mutation fails or doesn't complete
-            // but it will be corrected when fact returns on the subscription.
-            // as long as the user doesn't try to immediately navigate to
-            // the note, this will be fine.
+            // this time is temporary, and will be replaced by the actual time
             [variables.initialTime]: {
               content: variables.essay.content,
               author: variables.essay.author,

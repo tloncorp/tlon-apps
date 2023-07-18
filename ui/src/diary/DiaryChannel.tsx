@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
+import { unixToDa } from '@urbit/api';
 import * as Toast from '@radix-ui/react-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
@@ -27,7 +28,7 @@ import {
 import { useDiarySortMode } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryLetter, DiaryOutline } from '@/types/diary';
+import { DiaryLetter } from '@/types/diary';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
@@ -67,16 +68,13 @@ function DiaryChannel({ title }: ViewProps) {
   const checkForNotes = useCallback(async () => {
     // if we have pending notes and the ship is connected
     // we can check if the notes have been posted
-    // if they have, we can refetch the data to get the new note
-    // and clear the pending notes
-    if (
-      pendingNotes.length > 0 &&
-      'complete' in shipStatus &&
-      shipStatus.complete === 'yes'
-    ) {
+    // if they have, we can refetch the data to get the new note.
+    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
+    if ('complete' in shipStatus && shipStatus.complete === 'yes') {
       if (
-        Array.isArray(notesOnHost) &&
-        !notesOnHost.every((n: DiaryOutline) =>
+        pendingNotes.length > 0 &&
+        notesOnHost &&
+        !Object.entries(notesOnHost).every(([_time, n]) =>
           Array.from(letters).find(([_t, l]) => l.sent === n.sent)
         )
       ) {
@@ -84,14 +82,39 @@ function DiaryChannel({ title }: ViewProps) {
           queryKey: ['diary', 'notes', chFlag],
           exact: true,
         });
-
         useDiaryState.getState().set((s) => ({
           ...s,
           pendingNotes: [],
         }));
       }
     }
-  }, [pendingNotes, chFlag, queryClient, shipStatus, letters, notesOnHost]);
+  }, [chFlag, queryClient, shipStatus, letters, notesOnHost, pendingNotes]);
+
+  const clearPendingNotes = useCallback(() => {
+    // if we have pending notes and the ship is connected
+    // we can check if the notes have been posted
+    // if they have, we can clear the pending notes
+    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
+    if (
+      pendingNotes.length > 0 &&
+      'complete' in shipStatus &&
+      shipStatus.complete === 'yes'
+    ) {
+      pendingNotes.forEach((id) => {
+        if (
+          notesOnHost &&
+          Object.entries(notesOnHost).find(
+            ([_t, l]) => unixToDa(l.sent).toString() === id
+          )
+        ) {
+          useDiaryState.getState().set((s) => ({
+            ...s,
+            pendingNotes: s.pendingNotes.filter((n) => n !== id),
+          }));
+        }
+      });
+    }
+  }, [pendingNotes, notesOnHost, shipStatus]);
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -108,7 +131,8 @@ function DiaryChannel({ title }: ViewProps) {
 
   useEffect(() => {
     checkForNotes();
-  }, [checkForNotes]);
+    clearPendingNotes();
+  }, [checkForNotes, clearPendingNotes]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);

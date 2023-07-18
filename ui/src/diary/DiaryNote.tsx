@@ -121,7 +121,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const checkIfPreviouslyCached = useCallback(() => {
     // If we have a note, and the host ship is online, and we have a noteId, and
     // the noteId matches the note's seal time, then we have a cached note.
-    // If we have a note and noteeId and no seal time, then we probably did have a cached note
+    // If we have a note and noteId and no seal time, then we probably did have a cached note
     // but the cache was cleared (user probably refreshed).
     // If we have notes on the host, and we can find the real note via the sent time matching the noteId
     // then we redirect to the real note.
