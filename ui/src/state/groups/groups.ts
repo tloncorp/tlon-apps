@@ -38,7 +38,7 @@ export const GROUPS_KEY = 'groups';
 function groupAction(flag: string, diff: GroupDiff): Poke<GroupAction> {
   return {
     app: 'groups',
-    mark: 'group-action-1',
+    mark: 'group-action-2',
     json: {
       flag,
       update: {

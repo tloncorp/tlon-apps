@@ -1,17 +1,19 @@
-import _ from 'lodash';
+import { decToUd } from '@urbit/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Blanket,
   Carpet,
   Flag,
   HarkAction,
+  HarkAction1,
+  NewYarn,
   Rope,
   Seam,
   Skein,
+  Yarn,
 } from '@/types/hark';
 import api from '@/api';
-import { decToUd } from '@urbit/api';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 function harkAction(action: HarkAction) {
   return {
@@ -119,6 +121,27 @@ export function useSawSeamMutation() {
       } else {
         await queryClient.invalidateQueries(['skeins', window.desk]);
       }
+    },
+  });
+}
+
+export function useAddYarnMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: { newYarn: NewYarn }) =>
+    api.poke<HarkAction1>({
+      app: 'hark',
+      mark: 'hark-action-1',
+      json: {
+        'new-yarn': variables.newYarn,
+      },
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: async () => {
+      await queryClient.cancelQueries(['skeins']);
+    },
+    onSettled: async (_data, _error) => {
+      await queryClient.invalidateQueries(['skeins']);
     },
   });
 }

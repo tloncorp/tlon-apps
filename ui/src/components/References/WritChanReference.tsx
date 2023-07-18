@@ -8,10 +8,16 @@ function WritChanReference(props: {
   nest: string;
   idWrit: string;
   isScrolling: boolean;
+  contextApp?: string;
+  children?: React.ReactNode;
 }) {
-  const { chFlag, idWrit, isScrolling } = props;
+  const { chFlag, idWrit, isScrolling, contextApp, children } = props;
   const writ = useWritByFlagAndWritId(chFlag, idWrit, isScrolling);
-  return <WritBaseReference writ={writ} {...props} />;
+  return (
+    <WritBaseReference writ={writ} contextApp={contextApp} {...props}>
+      {children}
+    </WritBaseReference>
+  );
 }
 
 export default React.memo(WritChanReference);

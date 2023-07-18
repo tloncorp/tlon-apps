@@ -1,9 +1,15 @@
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import cn from 'classnames';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useRemoteOutline } from '@/state/diary';
 import { useChannelPreview, useGang } from '@/state/groups';
-import { makePrettyDate, pluralize, truncateProse } from '@/logic/utils';
+import {
+  isImageUrl,
+  makePrettyDate,
+  pluralize,
+  truncateProse,
+} from '@/logic/utils';
 import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
@@ -12,17 +18,24 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 // eslint-disable-next-line import/no-cycle
 import DiaryContent from '@/diary/DiaryContent/DiaryContent';
 import ReferenceBar from './ReferenceBar';
+import ShipName from '../ShipName';
+import ReferenceInHeap from './ReferenceInHeap';
+import NotebookIcon from '../icons/NotebookIcon';
 
 function NoteReference({
   chFlag,
   nest,
   id,
   isScrolling = false,
+  contextApp,
+  children,
 }: {
   chFlag: string;
   nest: string;
   id: string;
   isScrolling?: boolean;
+  contextApp?: string;
+  children?: React.ReactNode;
 }) {
   const preview = useChannelPreview(nest, isScrolling);
   const groupFlag = preview?.group?.flag || '~zod/test';
@@ -62,6 +75,44 @@ function NoteReference({
   }
 
   const prettyDate = makePrettyDate(new Date(outline.sent));
+
+  if (contextApp === 'heap-row') {
+    return (
+      <ReferenceInHeap
+        contextApp={contextApp}
+        image={
+          isImageUrl(outline.image) ? (
+            <img
+              src={outline.image}
+              className="h-[72px] w-[72px] rounded object-cover"
+            />
+          ) : (
+            <NotebookIcon className="h-6 w-6 text-gray-400" />
+          )
+        }
+        title={outline.title}
+        byline={
+          <span>
+            Note by <ShipName name={outline.author} showAlias /> in{' '}
+            {preview?.meta?.title}
+          </span>
+        }
+      >
+        {children}
+      </ReferenceInHeap>
+    );
+  }
+
+  if (contextApp === 'heap-block') {
+    return (
+      <ReferenceInHeap
+        type="text"
+        title={<h2 className="mb-2 text-lg font-semibold">{outline.title}</h2>}
+        contextApp={contextApp}
+        image={contentPreview}
+      />
+    );
+  }
 
   return (
     <div className="note-inline-block group max-w-[600px] text-base">
