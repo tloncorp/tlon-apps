@@ -72,18 +72,20 @@ export default function ProfileModal() {
         />
       </ProfileCoverImage>
       <div className="p-5 pt-14">
-        <div className="text-lg font-bold">
+        <div className="flex items-center space-x-2 text-lg font-bold">
           <ShipName name={ship} showAlias />
           {contact && contact.nickname ? (
             <ShipName name={ship} className="ml-2 text-gray-600" />
           ) : null}
+          {ship !== window.our && (
+            <ShipConnection
+              ship={ship}
+              showText={false}
+              status={data?.status}
+            />
+          )}
           <PalIcon className="ml-2" ship={ship} />
         </div>
-        {ship !== window.our && (
-          <div className="my-3 inline-block rounded-lg bg-gray-50 p-2 text-sm">
-            <ShipConnection ship={ship} status={data?.status} />
-          </div>
-        )}
         {contact && <ProfileBio bio={contact.bio} />}
         {contact && contact.groups.length > 0 && (
           <div className="mt-5">

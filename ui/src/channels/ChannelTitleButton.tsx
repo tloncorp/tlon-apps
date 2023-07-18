@@ -46,22 +46,27 @@ export default function ChannelTitleButton({
         </div>
       ) : null}
       <ChannelIcon nest={nest} className="h-6 w-6 shrink-0 text-gray-600" />
-      {ship !== window.our ? (
-        <ShipConnection ship={ship} showText={false} status={data?.status} />
-      ) : (
-        <span title="You host this channel">
-          <Bullet16Icon className="h-4 w-4 text-green-300" />
-        </span>
-      )}
       <div className="flex w-full flex-col justify-center">
-        <span
+        <div
           className={cn(
-            'ellipsis font-bold line-clamp-1 sm:font-semibold',
+            'ellipsis flex flex-row items-center space-x-1 font-bold  sm:font-semibold',
             channel?.meta.description ? 'text-sm' : 'text-lg sm:text-sm'
           )}
         >
-          {channel?.meta.title}
-        </span>
+          <span className="line-clamp-1">{channel?.meta.title}</span>
+          {ship !== window.our ? (
+            <ShipConnection
+              ship={ship}
+              showBullet={true}
+              showText={false}
+              status={data?.status}
+            />
+          ) : (
+            <span title="You host this channel">
+              <Bullet16Icon className="h-4 w-4 text-green-300" />
+            </span>
+          )}
+        </div>
         <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
           {channel?.meta.description}
         </span>

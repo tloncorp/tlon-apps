@@ -86,17 +86,19 @@ export default function MultiDMEditModal() {
                         key={ship}
                       >
                         <Avatar size="small" ship={ship} />
-                        <ShipConnection
-                          ship={ship}
-                          showText={false}
-                          status={ShipConnectionData(ship).status}
-                        />
                         <div className="flex grow flex-col">
-                          <ShipName
-                            name={ship}
-                            showAlias={true}
-                            className="font-semibold text-gray-800"
-                          />
+                          <div className="flex items-center space-x-1">
+                            <ShipName
+                              name={ship}
+                              showAlias={true}
+                              className="font-semibold text-gray-800"
+                            />
+                            <ShipConnection
+                              ship={ship}
+                              showText={false}
+                              status={ShipConnectionData(ship).status}
+                            />
+                          </div>
                           <ShipName
                             name={ship}
                             showAlias={false}
@@ -121,23 +123,25 @@ export default function MultiDMEditModal() {
                     key={ship}
                   >
                     <Avatar size="small" ship={ship} />
-                    {ship !== window.our ? (
-                      <ShipConnection
-                        ship={ship}
-                        showText={false}
-                        status={ShipConnectionData(ship).status}
-                      />
-                    ) : (
-                      <span title="This is you">
-                        <Bullet16Icon className="h-4 w-4 text-green-300" />
-                      </span>
-                    )}
                     <div className="flex grow flex-col">
-                      <ShipName
-                        name={ship}
-                        showAlias={true}
-                        className="font-semibold text-gray-800"
-                      />
+                      <div className="flex items-center space-x-1">
+                        <ShipName
+                          name={ship}
+                          showAlias={true}
+                          className="font-semibold text-gray-800"
+                        />
+                        {ship !== window.our ? (
+                          <ShipConnection
+                            ship={ship}
+                            showText={false}
+                            status={ShipConnectionData(ship).status}
+                          />
+                        ) : (
+                          <span title="This is you">
+                            <Bullet16Icon className="h-4 w-4 text-green-300" />
+                          </span>
+                        )}
+                      </div>
                       <ShipName
                         name={ship}
                         showAlias={false}
