@@ -213,11 +213,11 @@ const serializerNodes = {
   },
   'diary-image': (state: MarkdownSerializerState, node: Node) => {
     state.write(`![${node.attrs.alt}](${node.attrs.src})`);
-    state.ensureNewLine();
+    state.closeBlock(node);
   },
   'diary-cite': (state: MarkdownSerializerState, node: Node) => {
     state.write(node.attrs.path);
-    state.ensureNewLine();
+    state.closeBlock(node);
   },
 };
 
@@ -268,12 +268,11 @@ export default function DiaryMarkdownEditor({
   }, [markdownInput, setEditorContent]);
 
   return (
-    <div className="h-[600px] w-full">
-      <textarea
-        value={markdownInput ?? ''}
-        onChange={(e) => setMarkdownInput(e.target.value)}
-        className="input h-full w-full"
-      />
-    </div>
+    <textarea
+      value={markdownInput ?? ''}
+      onChange={(e) => setMarkdownInput(e.target.value)}
+      className="input-transparent block h-full w-full resize-none pt-2 font-mono text-lg leading-8 placeholder:h-0 placeholder:text-[18px] placeholder:leading-8 placeholder:text-gray-400"
+      placeholder="Start writing markdown here."
+    />
   );
 }

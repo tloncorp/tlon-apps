@@ -258,7 +258,7 @@ export default function DiaryAddNote() {
             </title>
           </Helmet>
           <FormProvider {...form}>
-            <div className="mx-auto max-w-xl p-4">
+            <div className="h-full mx-auto max-w-xl p-4">
               <form className="space-y-6">
                 <CoverImageInput url="" noteId={id} />
                 <input
@@ -268,7 +268,7 @@ export default function DiaryAddNote() {
                   {...register('title')}
                 />
               </form>
-              <div className="py-6">
+              <div className="h-full py-6">
                 <div className="mb-4 flex items-center space-x-2">
                   <Toggle
                     pressed={editWithMarkdown}
