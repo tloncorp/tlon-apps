@@ -228,8 +228,8 @@ export default function Sidebar() {
 
               {!sortedGroups.length && (
                 <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
-                  Check out <strong>Find Groups</strong> above to find new
-                  groups in your network or view group invites.
+                  Check out <strong>Discovery</strong> above to find new groups
+                  in your network or view group invites.
                 </div>
               )}
             </div>

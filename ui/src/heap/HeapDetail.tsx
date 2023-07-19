@@ -24,7 +24,6 @@ import useCurioFromParams from './useCurioFromParams';
 
 export default function HeapDetail({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
-  const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const { chShip, chName } = useParams<{ chShip: string; chName: string }>();
   const chFlag = `${chShip}/${chName}`;
@@ -38,8 +37,6 @@ export default function HeapDetail({ title }: ViewProps) {
   const joined = useChannelIsJoined(nest);
   const { time, curio } = useCurioFromParams();
   const [loading, setLoading] = useState(false);
-  const { isOpen: leapIsOpen } = useLeap();
-
   const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
     chFlag,
     time || ''
@@ -86,31 +83,6 @@ export default function HeapDetail({ title }: ViewProps) {
     joining,
     initializeChannel,
   ]);
-
-  useEventListener('keydown', (e) => {
-    if (leapIsOpen) return;
-    switch (e.key) {
-      case keyMap.curio.close: {
-        navigate('..');
-        break;
-      }
-      case keyMap.curio.next: {
-        if (hasPrev) {
-          navigate(curioHref(prevCurio?.[0]));
-        }
-        break;
-      }
-      case keyMap.curio.prev: {
-        if (hasNext) {
-          navigate(curioHref(nextCurio?.[0]));
-        }
-        break;
-      }
-      default: {
-        break;
-      }
-    }
-  });
 
   useGroupsAnalyticsEvent({
     name: 'view_item',

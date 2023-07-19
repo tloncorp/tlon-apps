@@ -89,8 +89,8 @@ export default function DmOptions({
     await useChatState.getState().multiDmRsvp(whom, false);
   };
 
-  if (!isHovered && !alwaysShowEllipsis) {
-    return !isOpen && hasActivity ? (
+  if (!isHovered && !alwaysShowEllipsis && !isOpen) {
+    return hasActivity ? (
       <button className={cn('relative h-6 w-6 appearance-none', className)}>
         <BulletIcon
           className="h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"

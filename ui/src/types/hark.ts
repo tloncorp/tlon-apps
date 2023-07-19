@@ -85,11 +85,21 @@ export interface HarkSawRope {
 }
 
 export type HarkAction = HarkAddYarn | HarkSawSeam | HarkSawRope;
+export type HarkAction1 = HarkAddNewYarn | HarkAction;
 
 export interface HarkUpdate {
   yarns: Yarns;
   seam: Seam;
   threads: Threads;
+}
+
+export interface NewYarn extends Omit<Yarn, 'id' | 'time'> {
+  all: boolean;
+  desk: boolean;
+}
+
+export interface HarkAddNewYarn {
+  'new-yarn': NewYarn;
 }
 
 export interface Skein {

@@ -11,8 +11,10 @@ export default function WritBaitReference(props: {
   nest: string;
   index: string;
   isScrolling: boolean;
+  contextApp?: string;
+  children?: React.ReactNode;
 }) {
-  const { chFlag, nest, index, isScrolling } = props;
+  const { chFlag, nest, index, isScrolling, contextApp, children } = props;
   const writ = useWritByFlagAndGraphIndex(chFlag, index, isScrolling);
   const [, udId] = index.split('/');
   if (writ === 'loading') {
@@ -20,6 +22,12 @@ export default function WritBaitReference(props: {
     return <UnavailableReference time={time} nest={nest} preview={null} />;
   }
   return (
-    <WritBaseReference writ={writ === 'error' ? undefined : writ} {...props} />
+    <WritBaseReference
+      writ={writ === 'error' ? undefined : writ}
+      contextApp={contextApp}
+      {...props}
+    >
+      {children}
+    </WritBaseReference>
   );
 }
