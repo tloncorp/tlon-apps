@@ -39,7 +39,6 @@ export default function useDiaryNode(
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      console.log(e.key);
       const foc = (n: number) =>
         editor.chain().focus(n, { scrollIntoView: true }).run();
       const pos = getPos();

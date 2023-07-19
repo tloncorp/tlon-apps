@@ -11,8 +11,7 @@ import {
 } from 'prosemirror-markdown';
 import { JSONContent } from '@/types/content';
 import { PATP_REGEX, REF_REGEX } from '@/logic/utils';
-import { deSig } from '@urbit/api';
-import PrismCodeBlock from './PrismCodeBlock';
+import { deSig, preSig } from '@urbit/api';
 import schema from './schema';
 import parserRules from './parserRules';
 
@@ -130,6 +129,37 @@ const parseHTML = (str: string) => {
   // remove empty paragraphs
   doc.body.innerHTML = doc.body.innerHTML.replace(/<p><\/p>/g, '');
 
+  // remove del tags within the path attribute in <div path="..."></div>
+  doc.body.innerHTML = doc.body.innerHTML.replace(
+    /path="([^"]*)<del>([^"]*)<\/del>([^"]*)"/g,
+    'path="$1$2$3"'
+  );
+
+  // prepend valid deSigged patps within div paths with sigs
+  const pathDivs = doc.querySelectorAll('div[path]');
+  pathDivs.forEach((div) => {
+    const path = div.getAttribute('path');
+    if (path) {
+      const newPath = path
+        .split('/')
+        .map((part) => {
+          const hasSig = part.includes('~');
+
+          if (hasSig && ob.isValidPatp(part)) {
+            return part;
+          }
+
+          if (ob.isValidPatp(preSig(part))) {
+            return `~${part}`;
+          }
+          return part;
+        })
+        .join('/');
+
+      div.setAttribute('path', newPath);
+    }
+  });
+
   return doc.body.innerHTML;
 };
 
@@ -216,25 +246,18 @@ function deserialize(_schema: Schema, markdown: string) {
 export default function DiaryMarkdownEditor({
   editorContent,
   setEditorContent,
-  updateMarkdown,
-  setUpdateMarkdown,
-  setUpdateTipTap,
 }: {
   editorContent: JSONContent | null;
   setEditorContent: (content: JSONContent) => void;
-  updateMarkdown: boolean;
-  setUpdateMarkdown: (update: boolean) => void;
-  setUpdateTipTap: (update: boolean) => void;
 }) {
   const [markdownInput, setMarkdownInput] = useState<string | null>(null);
 
   useEffect(() => {
-    if (editorContent && (markdownInput === null || updateMarkdown)) {
+    if (editorContent && markdownInput === null) {
       const markdown = serialize(schema, editorContent);
       setMarkdownInput(markdown);
-      setUpdateMarkdown(false);
     }
-  }, [editorContent, markdownInput, updateMarkdown, setUpdateMarkdown]);
+  }, [editorContent, markdownInput]);
 
   useEffect(() => {
     if (markdownInput === null) {
@@ -242,8 +265,7 @@ export default function DiaryMarkdownEditor({
     }
     const newContent = deserialize(schema, markdownInput);
     setEditorContent(newContent);
-    setUpdateTipTap(true);
-  }, [markdownInput, setEditorContent, setUpdateTipTap]);
+  }, [markdownInput, setEditorContent]);
 
   return (
     <div className="h-[600px] w-full">

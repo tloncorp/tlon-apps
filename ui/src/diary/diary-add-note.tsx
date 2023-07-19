@@ -30,10 +30,7 @@ import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const [loaded, setLoaded] = useState(false);
-  const [editWithMarkdown, setEditWithMarkdown] = useState(true);
-  const [updateMarkdown, setUpdateMarkdown] = useState(false);
-  const [updateTipTap, setUpdateTipTap] = useState(true);
-  const [editorContent, setEditorContent] = useState<JSONContent | null>(null);
+  const [editWithMarkdown, setEditWithMarkdown] = useState(false);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
@@ -77,54 +74,36 @@ export default function DiaryAddNote() {
     onEnter: () => false,
   });
 
-  useEffect(() => {
-    if (!loadingNote && note?.essay && !loaded) {
-      setLoaded(true);
-      setEditorContent(diaryMixedToJSON(note.essay.content));
-    }
-  }, [editor, loadingNote, note, loaded]);
-
-  useEffect(() => {
-    if (
-      editor &&
-      !editor.isDestroyed &&
-      !editWithMarkdown &&
-      updateTipTap &&
-      editorContent
-    ) {
-      editor.commands.setContent(editorContent);
-      setUpdateTipTap(false);
-    }
-  }, [
-    editor,
-    editWithMarkdown,
-    editorContent,
-    updateTipTap,
-  ]);
+  const setEditorContent = useCallback(
+    (content: JSONContent) => {
+      if (editor?.isDestroyed) {
+        return;
+      }
+      editor?.commands.setContent(content);
+    },
+    [editor]
+  );
 
   useEffect(() => {
     if (
       editor &&
       !editor.isDestroyed &&
       !loadingNote &&
-      !editor.isEmpty &&
-      editWithMarkdown
+      note?.essay &&
+      editor.isEmpty &&
+      !loaded
     ) {
-      setUpdateMarkdown(true);
-      setEditorContent(editor.getJSON());
+      editor.commands.setContent(diaryMixedToJSON(note?.essay?.content || []));
+      setLoaded(true);
     }
-  }, [editor, loadingNote, editWithMarkdown]);
+  }, [editor, loadingNote, note, loaded]);
 
   const publish = useCallback(async () => {
-    if (!editorContent) {
+    if (!editor?.getText()) {
       return;
     }
 
-    const data = JSONToInlines(
-      editWithMarkdown ? editorContent : editor?.getJSON() ?? [],
-      false,
-      true
-    );
+    const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
 
     const sent = Date.now();
@@ -198,8 +177,6 @@ export default function DiaryAddNote() {
     reset,
     addNote,
     editNote,
-    editorContent,
-    editWithMarkdown,
   ]);
 
   useEffect(() => {
@@ -244,7 +221,7 @@ export default function DiaryAddNote() {
             {isMobile && <ReconnectingSpinner />}
             <button
               disabled={
-                !editorContent ||
+                !editor?.getText() ||
                 editStatus === 'loading' ||
                 addStatus === 'loading'
               }
@@ -301,11 +278,8 @@ export default function DiaryAddNote() {
                 </div>
                 {editWithMarkdown && editor ? (
                   <DiaryMarkdownEditor
-                    editorContent={editorContent}
+                    editorContent={editor.getJSON()}
                     setEditorContent={setEditorContent}
-                    updateMarkdown={updateMarkdown}
-                    setUpdateMarkdown={setUpdateMarkdown}
-                    setUpdateTipTap={setUpdateTipTap}
                   />
                 ) : null}
                 {!editWithMarkdown && editor ? (
