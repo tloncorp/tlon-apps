@@ -23,14 +23,14 @@ import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
-import Toggle from '@/components/Toggle';
+import Setting from '@/components/Setting';
+import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const [loaded, setLoaded] = useState(false);
-  const [editWithMarkdown, setEditWithMarkdown] = useState(false);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
@@ -50,6 +50,9 @@ export default function DiaryAddNote() {
     mutateAsync: addNote,
     status: addStatus,
   } = useAddNoteMutation();
+  const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
+    usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
+  const editWithMarkdown = useMarkdownInDiaries();
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
@@ -85,14 +88,7 @@ export default function DiaryAddNote() {
   );
 
   useEffect(() => {
-    if (
-      editor &&
-      !editor.isDestroyed &&
-      !loadingNote &&
-      note?.essay &&
-      editor.isEmpty &&
-      !loaded
-    ) {
+    if (editor && !loadingNote && note?.essay && editor.isEmpty && !loaded) {
       editor.commands.setContent(diaryMixedToJSON(note?.essay?.content || []));
       setLoaded(true);
     }
@@ -258,7 +254,7 @@ export default function DiaryAddNote() {
             </title>
           </Helmet>
           <FormProvider {...form}>
-            <div className="h-full mx-auto max-w-xl p-4">
+            <div className="mx-auto h-full max-w-xl p-4">
               <form className="space-y-6">
                 <CoverImageInput url="" noteId={id} />
                 <input
@@ -269,17 +265,19 @@ export default function DiaryAddNote() {
                 />
               </form>
               <div className="h-full py-6">
-                <div className="mb-4 flex items-center space-x-2">
-                  <Toggle
-                    pressed={editWithMarkdown}
-                    onPressedChange={(pressed) => setEditWithMarkdown(pressed)}
-                  />
-                  <span>Edit with Markdown</span>
-                </div>
+                <Setting
+                  on={editWithMarkdown}
+                  toggle={() => toggleMarkdown({ val: !editWithMarkdown })}
+                  name="Edit with Markdown"
+                  status={toggleMarkdownStatus}
+                  bold={false}
+                  className="mb-4"
+                />
                 {editWithMarkdown && editor ? (
                   <DiaryMarkdownEditor
                     editorContent={editor.getJSON()}
                     setEditorContent={setEditorContent}
+                    loaded={loaded}
                   />
                 ) : null}
                 {!editWithMarkdown && editor ? (

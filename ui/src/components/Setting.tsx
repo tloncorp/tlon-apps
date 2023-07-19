@@ -1,4 +1,5 @@
 import React, { HTMLAttributes } from 'react';
+import cn from 'classnames';
 import slugify from 'slugify';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 import Toggle from './Toggle';
@@ -9,6 +10,7 @@ type SettingProps = {
   disabled?: boolean;
   toggle: (open: boolean) => void;
   status: 'loading' | 'error' | 'success' | 'idle';
+  bold?: boolean;
 } & HTMLAttributes<HTMLDivElement>;
 
 export default function Setting({
@@ -19,6 +21,7 @@ export default function Setting({
   children,
   toggle,
   status,
+  bold = true,
 }: SettingProps) {
   const id = slugify(name);
 
@@ -34,7 +37,12 @@ export default function Setting({
           loading={status === 'loading'}
         />
         <div className="flex flex-1 flex-col justify-center">
-          <h3 id={id} className="flex items-center font-semibold leading-6">
+          <h3
+            id={id}
+            className={cn('flex items-center leading-6', {
+              'font-semibold': bold,
+            })}
+          >
             {name}{' '}
             {status === 'loading' && (
               <LoadingSpinner className="ml-2 h-4 w-4" />

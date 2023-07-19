@@ -246,18 +246,20 @@ function deserialize(_schema: Schema, markdown: string) {
 export default function DiaryMarkdownEditor({
   editorContent,
   setEditorContent,
+  loaded,
 }: {
   editorContent: JSONContent | null;
   setEditorContent: (content: JSONContent) => void;
+  loaded: boolean;
 }) {
   const [markdownInput, setMarkdownInput] = useState<string | null>(null);
 
   useEffect(() => {
-    if (editorContent && markdownInput === null) {
+    if (editorContent && markdownInput === null && loaded) {
       const markdown = serialize(schema, editorContent);
       setMarkdownInput(markdown);
     }
-  }, [editorContent, markdownInput]);
+  }, [editorContent, markdownInput, loaded]);
 
   useEffect(() => {
     if (markdownInput === null) {
