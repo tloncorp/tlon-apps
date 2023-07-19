@@ -3,12 +3,12 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, isTalk } from '@/logic/utils';
 import { useChannel } from '@/state/groups';
+import { useChannel as useChannelSpecific } from '@/logic/channel';
 import { Link } from 'react-router-dom';
-import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
-import { get } from 'lodash';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import ChannelIcon from './ChannelIcon';
+import HostConnection from './HostConnection';
 
 interface ChannelTitleButtonProps {
   flag: string;
@@ -23,7 +23,9 @@ export default function ChannelTitleButton({
   const channel = useChannel(flag, nest);
   const { ship } = getFlagParts(flag);
   const BackButton = isMobile ? Link : 'div';
-  const { data, showConnection } = useConnectivityCheck(ship || '');
+  const { data } = useConnectivityCheck(ship || '');
+  const chan = useChannelSpecific(nest);
+  const saga = chan?.saga || null;
 
   function backTo() {
     if (isMobile && isTalk) {
@@ -55,10 +57,10 @@ export default function ChannelTitleButton({
         >
           <span className="line-clamp-1">{channel?.meta.title}</span>
           {ship !== window.our ? (
-            <ShipConnection
+            <HostConnection
               ship={ship}
-              showBullet={true}
-              showText={false}
+              saga={saga}
+              type="bullet"
               status={data?.status}
             />
           ) : (
