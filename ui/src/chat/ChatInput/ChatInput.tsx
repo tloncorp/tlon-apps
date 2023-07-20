@@ -49,6 +49,8 @@ import { useGroupFlag } from '@/state/groups';
 import { useLocalStorage } from 'usehooks-ts';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 
 interface ChatInputProps {
   whom: string;
@@ -80,7 +82,7 @@ export function UploadErrorPopover({
       >
         <div className="flex w-[200px] flex-col items-center justify-center rounded-lg bg-white p-4 leading-5 shadow-xl">
           <span className="mb-2 font-semibold text-gray-800">
-            This file can't be posted.
+            This file can&apos;t be posted.
           </span>
           <div className="flex flex-col justify-start">
             <span className="mt-2 text-gray-800">{errorMessage}</span>
@@ -101,6 +103,8 @@ export default function ChatInput({
   sendMessage,
   inThread = false,
 }: ChatInputProps) {
+  const { isDragging, isOver, droppedFiles } = useDragAndDrop();
+  console.log({ isDragging, isOver, droppedFiles });
   const id = replying ? `${whom}-${replying}` : whom;
   const [draft, setDraft] = useLocalStorage(
     createStorageKey(`chat-${id}`),
@@ -124,9 +128,41 @@ export default function ChatInput({
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
+  console.log({ uploader });
   const files = uploader?.files;
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
+
+  const handleDrop = useCallback(
+    (fileList: FileList) => {
+      console.log('handleDrop', { fileList });
+      if (!whom) {
+        return false;
+      }
+
+      const localUploader = useFileStore.getState().getUploader(uploadKey);
+
+      console.log({
+        localUploader,
+        some: Array.from(fileList).some((f) =>
+          PASTEABLE_IMAGE_TYPES.includes(f.type)
+        ),
+      });
+
+      if (
+        localUploader &&
+        Array.from(fileList).some((f) => PASTEABLE_IMAGE_TYPES.includes(f.type))
+      ) {
+        console.log('uploading files', { fileList });
+        // TODO should blocks first be updated here to show the loading state?
+        localUploader.uploadFiles(fileList);
+        return true;
+      }
+
+      return false;
+    },
+    [whom, uploadKey]
+  );
 
   const closeReply = useCallback(() => {
     setSearchParams({}, { replace: true });
@@ -150,6 +186,12 @@ export default function ChatInput({
       closeReply();
     }
   }, [id, uploadKey, closeReply, replyCite]);
+
+  useEffect(() => {
+    if (droppedFiles && droppedFiles.length) {
+      handleDrop(droppedFiles);
+    }
+  }, [droppedFiles, handleDrop]);
 
   // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
@@ -446,6 +488,16 @@ export default function ChatInput({
 
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
+
+  if (isDragging || isOver) {
+    return (
+      <div className="flex w-full bg-gray-50">
+        <div className="m-[7px] flex w-full justify-center rounded border-2 border-dashed border-gray-200 bg-gray-50">
+          <p className="m-4 text-sm font-bold">Drop Attachments Here</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

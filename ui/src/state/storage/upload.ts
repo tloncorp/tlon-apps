@@ -225,6 +225,7 @@ export function useUploader(key: string): Uploader | undefined {
     }
   }, [client, currentBucket, key]);
 
+  console.log({ uploader });
   return uploader;
 }
 (window as any).fileUploader = useFileStore.getState;

@@ -22,10 +22,12 @@ import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useChannelIsJoined } from '@/logic/channel';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
+  const { isDragging, isOver } = useDragAndDrop();
   const navigate = useNavigate();
   const { chShip, chName, idTime, idShip } = useParams<{
     name: string;
@@ -155,7 +157,9 @@ function ChatChannel({ title }: ViewProps) {
         footer={
           <div
             className={cn(
-              canWrite ? 'border-t-2 border-gray-50 p-3 sm:p-4' : ''
+              !canWrite || isDragging || isOver
+                ? ''
+                : 'border-t-2 border-gray-50 p-3 sm:p-4'
             )}
           >
             {canWrite ? (

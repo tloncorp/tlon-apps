@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
-import React, { useCallback, useEffect, useMemo } from 'react';
-import _ from 'lodash';
+import React, { useCallback, useMemo } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -70,30 +69,6 @@ export function useMessageEditor({
       setBlocks(whom, [...chatBlocks, { cite: r }]);
     },
     [chatBlocks, setBlocks, whom]
-  );
-
-  const handleDrop = useCallback(
-    (_view, event: DragEvent, _slice) => {
-      if (!whom) {
-        return false;
-      }
-
-      const uploader = useFileStore.getState().getUploader(uploadKey);
-      if (
-        uploader &&
-        event.dataTransfer &&
-        Array.from(event.dataTransfer.files).some((f) =>
-          PASTEABLE_IMAGE_TYPES.includes(f.type)
-        )
-      ) {
-        // TODO should blocks first be updated here to show the loading state?
-        uploader.uploadFiles(event.dataTransfer.files);
-        return true;
-      }
-
-      return false;
-    },
-    [uploadKey, whom]
   );
 
   const handlePaste = useCallback(
@@ -192,7 +167,6 @@ export function useMessageEditor({
           'aria-label': 'Message editor with formatting menu',
           spellcheck: `${!calm.disableSpellcheck}`,
         },
-        handleDrop,
         handlePaste,
       },
       onUpdate: ({ editor }) => {

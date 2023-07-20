@@ -86,6 +86,7 @@ import GroupChannel from './groups/GroupChannel';
 import PrivacyNotice from './groups/PrivacyNotice';
 import useAutoJoinLureInvites from './groups/autoJoinLureInvites';
 import ActivityModal, { ActivityChecker } from './components/ActivityModal';
+import { DragAndDropProvider } from './logic/DragAndDropContext';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -603,24 +604,26 @@ function App() {
       {!disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
-        {isTalk ? (
-          <>
-            <TalkHead />
-            <ChatRoutes
+        <DragAndDropProvider>
+          {isTalk ? (
+            <>
+              <TalkHead />
+              <ChatRoutes
+                state={state}
+                location={location}
+                isMobile={isMobile}
+                isSmall={isSmall}
+              />
+            </>
+          ) : (
+            <GroupsRoutes
               state={state}
               location={location}
               isMobile={isMobile}
               isSmall={isSmall}
             />
-          </>
-        ) : (
-          <GroupsRoutes
-            state={state}
-            location={location}
-            isMobile={isMobile}
-            isSmall={isSmall}
-          />
-        )}
+          )}
+        </DragAndDropProvider>
         <Leap />
       </LeapProvider>
       <VitaMessage />
