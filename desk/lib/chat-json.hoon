@@ -1,6 +1,6 @@
 /-  c=chat
 /-  meta
-/+  cite=cite-json
+/+  cite=cite-json, gj=groups-json
 |%
 ++  enjs
   =,  enjs:format

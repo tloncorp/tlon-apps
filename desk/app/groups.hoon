@@ -346,9 +346,11 @@
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
+    =/  group  (~(got by groups) [ship name.pole])
     ?~  rest.pole
-      =/  group  (~(got by groups) [ship name.pole])
-      ``group+!>(`group-ui:g`(to-group-ui group))
+      ``group+!>(group)
+    ?:  =(/ui rest.pole)
+      ``group-ui+!>(`group-ui:g`(to-group-ui group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
       [%x %exists ship=@ name=@ rest=*]

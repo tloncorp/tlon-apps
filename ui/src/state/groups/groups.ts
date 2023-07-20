@@ -124,7 +124,7 @@ export function useGroup(flag: string, updating = false) {
   const { data, ...rest } = useReactQueryScry<Group>({
     queryKey,
     app: 'groups',
-    path: `/groups/${flag}`,
+    path: `/groups/${flag}/ui`,
     options: {
       enabled: !!flag && flag !== '' && updating && connection,
       initialData: group,
