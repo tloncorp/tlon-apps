@@ -79,6 +79,7 @@ export interface SettingsState {
   };
   diary: {
     settings: Stringified<DiarySetting[]>;
+    markdown: boolean;
   };
   talk: {
     messagesFilter: SidebarFilter;
@@ -317,6 +318,20 @@ export function useCalmSettingMutation(key: keyof SettingsState['calmEngine']) {
     mutate: (val: boolean) => mutate({ val }),
     status,
   };
+}
+
+export function useMarkdownInDiaries() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.diary === undefined) {
+      return false;
+    }
+
+    const { diary } = data;
+
+    return diary.markdown || false;
+  }, [isLoading, data]);
 }
 
 export function useLogActivity() {

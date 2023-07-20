@@ -63,6 +63,7 @@ export default function SettingsDialog() {
             toggle={() => toggleAvatars(!disableAvatars)}
             status={avatarStatus}
             name="Disable avatars"
+            labelClassName='font-semibold'
           >
             <p className="leading-5 text-gray-600">
               Turn user-set visual avatars off and only display urbit sigils in{' '}
@@ -74,6 +75,7 @@ export default function SettingsDialog() {
             toggle={() => toggleNicknames(!disableNicknames)}
             status={nicknameStatus}
             name="Disable nicknames"
+            labelClassName='font-semibold'
           >
             <p className="leading-5 text-gray-600">
               Turn user-set nicknames off and only display urbit-style names
@@ -85,6 +87,7 @@ export default function SettingsDialog() {
             toggle={() => toggleWayfinding(!disableWayfinding)}
             status={wayfindingStatus}
             name="Disable wayfinding"
+            labelClassName='font-semibold'
           >
             <p className="leading-5 text-gray-600">
               Turn off the "wayfinding" helper menu in the bottom left of the{' '}
@@ -106,6 +109,7 @@ export default function SettingsDialog() {
               toggle={() => toggleLogActivity({ val: !logActivity })}
               status={logActivityStatus}
               name="Log Groups Usage"
+            labelClassName='font-semibold'
             >
               <p className="leading-5 text-gray-600">
                 Enable or disable basic activity tracking in Groups. Tlon uses
@@ -119,6 +123,7 @@ export default function SettingsDialog() {
             toggle={() => toggleSpellcheck(!disableSpellcheck)}
             status={spellcheckStatus}
             name="Disable spell-check"
+            labelClassName='font-semibold'
           >
             <p className="leading-5 text-gray-600">
               Turn spell-check off across all text inputs in{' '}
@@ -131,6 +136,7 @@ export default function SettingsDialog() {
             toggle={() => toggleRemoteContent(!disableRemoteContent)}
             status={remoteContentStatus}
             name="Disable remote content"
+            labelClassName='font-semibold'
           >
             <p className="leading-5 text-gray-600">
               Turn off automatically-displaying media embeds across{' '}
