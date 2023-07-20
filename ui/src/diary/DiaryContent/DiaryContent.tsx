@@ -173,7 +173,7 @@ export function ListingContent({ content }: { content: DiaryListing }) {
     return (
       <>
         {content.item.map((con, i) => (
-          <InlineContent key={i} story={con} />
+          <InlineContent key={`${i}-${con}`} story={con} />
         ))}
       </>
     );
