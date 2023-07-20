@@ -10,7 +10,7 @@ type SettingProps = {
   disabled?: boolean;
   toggle: (open: boolean) => void;
   status: 'loading' | 'error' | 'success' | 'idle';
-  bold?: boolean;
+  labelClassName?: string;
 } & HTMLAttributes<HTMLDivElement>;
 
 export default function Setting({
@@ -19,9 +19,9 @@ export default function Setting({
   disabled = false,
   className,
   children,
+  labelClassName,
   toggle,
   status,
-  bold = true,
 }: SettingProps) {
   const id = slugify(name);
 
@@ -39,9 +39,7 @@ export default function Setting({
         <div className="flex flex-1 flex-col justify-center">
           <h3
             id={id}
-            className={cn('flex items-center leading-6', {
-              'font-semibold': bold,
-            })}
+            className={cn('flex items-center leading-6', labelClassName)}
           >
             {name}{' '}
             {status === 'loading' && (
