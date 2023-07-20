@@ -270,7 +270,6 @@ export default function DiaryAddNote() {
                   toggle={() => toggleMarkdown({ val: !editWithMarkdown })}
                   name="Edit with Markdown"
                   status={toggleMarkdownStatus}
-                  bold={false}
                   className="mb-4"
                 />
                 {editWithMarkdown && editor ? (
