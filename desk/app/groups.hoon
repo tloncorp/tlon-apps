@@ -1188,8 +1188,9 @@
       go-core
     ::
         %mov-nest
+      ?.  (~(has by zones.group) zone)  go-core
       =/  =realm:zone:g  (~(got by zones.group) zone)
-      ?>  (~(has of ord.realm) nest.delta)
+      ?.  (~(has of ord.realm) nest.delta)  go-core
       =.  ord.realm
         (~(into of ord.realm) [idx nest]:delta)
       =.  zones.group    (~(put by zones.group) zone realm)
