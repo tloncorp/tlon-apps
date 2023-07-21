@@ -771,22 +771,28 @@
   ::
       [%u %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
-    ?.  (~(has by dms) ship)
-      ``flag+!>(|)
+    =/  has  (~(has by dms) ship)
+    ?.  has
+      ``loob+!>(|)
+    ?~  t.t.t.path  ``loob+!>(has)
     (di-peek:(di-abed:di-core ship) %u t.t.t.path)
   ::
       [%u %club @ *]
     =/  =id:club:c  (slav %uv i.t.t.path)
-    ?.  (~(has by clubs) id)
-      ``flag+!>(|)
+    =/  has  (~(has by clubs) id)
+    ?.  has
+      ``loob+!>(|)
+    ?~  t.t.t.path  ``loob+!>(has)
     (cu-peek:(cu-abed:cu-core id) %u t.t.t.path)
   ::
       [%u %chat @ @ *]
     =/  =flag:c
       :-  (slav %p i.t.t.path)
       (slav %tas i.t.t.t.path)
-    ?.  (~(has by chats) flag)
-      ``flag+!>(|)
+    =/  has  (~(has by chats) flag)
+    ?.  has
+      ``loob+!>(|)
+    ?~  t.t.t.t.path  ``loob+!>(has)
     (ca-peek:(ca-abed:ca-core flag) %u t.t.t.t.path)
   ::
   ==
@@ -1330,11 +1336,11 @@
     |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
-      =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]  
+      =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
-    ::  if subs read permissions removed, kick 
+    ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
     ?:  (ca-can-read:ca ship)  ca
@@ -1472,6 +1478,7 @@
   ++  ca-join
     |=  j=join:c
     ^+  ca-core
+    ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
     =.  chats  (~(put by chats) chan.j *chat:c)
     =.  ca-core  (ca-abed chan.j)
     =.  last-read.remark.chat  now.bowl

@@ -18,7 +18,7 @@ import {
 } from '@/state/diary';
 import { useChannel, useGroup, useRouteGroup } from '@/state/groups';
 import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
-import { Inline } from '@/types/content';
+import { Inline, JSONContent } from '@/types/content';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { useIsMobile } from '@/logic/useMedia';
@@ -26,7 +26,10 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
+import Setting from '@/components/Setting';
+import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
+import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
@@ -51,6 +54,9 @@ export default function DiaryAddNote() {
     mutateAsync: addNote,
     status: addStatus,
   } = useAddNoteMutation();
+  const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
+    usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
+  const editWithMarkdown = useMarkdownInDiaries();
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
@@ -75,17 +81,20 @@ export default function DiaryAddNote() {
     onEnter: () => false,
   });
 
+  const setEditorContent = useCallback(
+    (content: JSONContent) => {
+      if (editor?.isDestroyed) {
+        return;
+      }
+      editor?.commands.setContent(content);
+    },
+    [editor]
+  );
+
   useEffect(() => {
-    if (
-      editor &&
-      !editor.isDestroyed &&
-      !loadingNote &&
-      note?.essay &&
-      editor?.isEmpty &&
-      !loaded
-    ) {
+    if (editor && !loadingNote && note?.essay && editor.isEmpty && !loaded) {
+      editor.commands.setContent(diaryMixedToJSON(note?.essay?.content || []));
       setLoaded(true);
-      editor.commands.setContent(diaryMixedToJSON(note.essay.content));
     }
   }, [editor, loadingNote, note, loaded]);
 
@@ -254,7 +263,7 @@ export default function DiaryAddNote() {
             </title>
           </Helmet>
           <FormProvider {...form}>
-            <div className="mx-auto max-w-xl p-4">
+            <div className="mx-auto h-full max-w-xl p-4">
               <form className="space-y-6">
                 <CoverImageInput url="" noteId={id} />
                 <input
@@ -264,8 +273,24 @@ export default function DiaryAddNote() {
                   {...register('title')}
                 />
               </form>
-              <div className="py-6">
-                {editor ? <DiaryInlineEditor editor={editor} /> : null}
+              <div className="h-full py-6">
+                <Setting
+                  on={editWithMarkdown}
+                  toggle={() => toggleMarkdown({ val: !editWithMarkdown })}
+                  name="Edit with Markdown"
+                  status={toggleMarkdownStatus}
+                  className="mb-4"
+                />
+                {editWithMarkdown && editor ? (
+                  <DiaryMarkdownEditor
+                    editorContent={editor.getJSON()}
+                    setEditorContent={setEditorContent}
+                    loaded={loaded}
+                  />
+                ) : null}
+                {!editWithMarkdown && editor ? (
+                  <DiaryInlineEditor editor={editor} />
+                ) : null}
               </div>
             </div>
           </FormProvider>

@@ -135,7 +135,7 @@
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) ~)
   ::
-      ?(%group-action-1 %group-action-0)
+      ?(%group-action-2 %group-action-1 %group-action-0)
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
@@ -254,6 +254,8 @@
     ?.  (gth ~(wyt in readers) 0)  cr
     =/  action  [flag now.bowl %channel nest %del-sects readers]
     cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
+  =+  .^(has=? %gu (channel-scry nest))
+  ?.  has  cr
   =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
   =/  diff  (~(dif in writers) ~(key by cabals.group))
   ?.  (gth ~(wyt in diff) 0)  cr
@@ -1010,9 +1012,9 @@
       ::  XX: does init need to be handled specially?
       ?+  p.cage  (go-odd-update p.cage)
         %epic            (go-take-epic !<(epic:e q.cage))
-        %group-log-1     (go-apply-log !<(log:g q.cage))
-        %group-update-1  (go-update !<(update:g q.cage))
-        %group-init-1    (go-fact-init !<(init:g q.cage))
+        %group-log-2     (go-apply-log !<(log:g q.cage))
+        %group-update-2  (go-update !<(update:g q.cage))
+        %group-init-2    (go-fact-init !<(init:g q.cage))
       ==
     ==
   ::
@@ -1691,6 +1693,7 @@
       ^-  card
       [%pass (welp ga-area wire) %agent [p.flag dap.bowl] task]
     ++  add-self
+      ?>  =(src.bowl our.bowl)
       =/  =vessel:fleet:g  [~ now.bowl]
       =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
       (poke-host /join/add act:mar:g !>(action))
