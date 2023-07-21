@@ -1828,7 +1828,7 @@
   ::
   ++  ga-watched
     |=  p=(unit tang)
-    ?>  ?=(^ cam.gang)
+    ?~  cam.gang  ga-core
     ?^  p
       %-  (slog leaf/"Failed to join" u.p)
       =.  progress.u.cam.gang  %error
