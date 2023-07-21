@@ -14,11 +14,15 @@ interface HostConnectionProps {
   ship: string;
   saga: Saga | null;
   status?: ConnectionStatus;
-  type?: 'default' | 'bullet' | 'text';
+  type?: 'default' | 'combo' | 'text';
   className?: string;
 }
 
 function getText(saga: Saga | null, ship: string, status?: ConnectionStatus) {
+  if (ship === window.our) {
+    return 'You are the host';
+  }
+
   if (saga && 'behind' in saga) {
     return 'Channel host requires an update';
   }
@@ -52,7 +56,7 @@ export default function HostConnection({
 }: HostConnectionProps) {
   return (
     <span className={cn('flex space-x-1 font-semibold', className)}>
-      {type === 'bullet' && (
+      {type === 'default' && (
         <Tooltip.Provider>
           <Tooltip.Root delayDuration={0}>
             <Tooltip.Trigger>
@@ -84,12 +88,12 @@ export default function HostConnection({
           </Tooltip.Root>
         </Tooltip.Provider>
       )}
-      {type === 'default' && (
+      {type === 'combo' && (
         <Bullet16Icon
           className={cn('h-4 w-4', getHostConnectionColor(saga, status))}
         />
       )}
-      {type !== 'bullet' && <span>{getText(saga, ship, status)}</span>}
+      {type !== 'default' && <span>{getText(saga, ship, status)}</span>}
     </span>
   );
 }

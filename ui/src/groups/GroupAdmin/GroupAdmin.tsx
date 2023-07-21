@@ -12,7 +12,7 @@ import PeopleIcon from '@/components/icons/PeopleIcon';
 import BadgeIcon from '@/components/icons/BadgeIcon';
 import XIcon from '@/components/icons/XIcon';
 import { getFlagParts } from '@/logic/utils';
-import ShipConnection from '@/components/ShipConnection';
+import HostConnection from '@/channels/HostConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import GroupAvatar from '../GroupAvatar';
 
@@ -24,7 +24,7 @@ export default function GroupAdmin() {
   const dismiss = useDismissNavigate();
   const isMobile = useIsMobile();
   const host = getFlagParts(flag).ship;
-  const { data, showConnection } = useConnectivityCheck(host || '');
+  const { data } = useConnectivityCheck(host || '');
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
@@ -86,11 +86,14 @@ export default function GroupAdmin() {
                   Delete Group
                 </SidebarItem>
               </nav>
-              {host !== window.our && (
-                <div className="rounded-lg bg-gray-50 p-2 pl-3 text-sm">
-                  <ShipConnection ship={host} status={data?.status} />
-                </div>
-              )}
+              <div className="rounded-lg bg-gray-50 p-2 pl-3 text-sm">
+                <HostConnection
+                  type="combo"
+                  ship={host}
+                  status={data?.status}
+                  saga={group?.saga || null}
+                />
+              </div>
             </aside>
             <main
               className={cn(

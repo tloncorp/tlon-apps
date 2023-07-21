@@ -56,18 +56,7 @@ export default function ChannelTitleButton({
           )}
         >
           <span className="line-clamp-1">{channel?.meta.title}</span>
-          {ship !== window.our ? (
-            <HostConnection
-              ship={ship}
-              saga={saga}
-              type="bullet"
-              status={data?.status}
-            />
-          ) : (
-            <span title="You host this channel">
-              <Bullet16Icon className="h-4 w-4 text-green-300" />
-            </span>
-          )}
+          <HostConnection ship={ship} saga={saga} status={data?.status} />
         </div>
         <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
           {channel?.meta.description}

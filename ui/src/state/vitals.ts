@@ -113,6 +113,7 @@ export function useConnectivityCheck(
     staleTime = 30 * 1000,
     waitToDisplay = 700,
   } = options || {};
+  const self = window.our === ship;
   const [subbed, setSubbed] = useState(false);
   const [showConnection, setShowConnection] = useState(false);
   const queryClient = useQueryClient();
@@ -145,9 +146,15 @@ export function useConnectivityCheck(
       return resp;
     },
     {
-      enabled: enabled && subbed,
+      enabled: enabled && subbed && !self,
       cacheTime: 0,
-      initialData: {
+      initialData: self
+        ? {
+            status: { complete: 'yes' },
+            timestamp: Date.now(),
+          }
+        : undefined,
+      placeholderData: {
         status: {
           pending: 'setting-up',
         },
@@ -157,6 +164,10 @@ export function useConnectivityCheck(
   );
 
   useEffect(() => {
+    if (subbed || self) {
+      return;
+    }
+
     api.subscribe({
       app: 'vitals',
       path: `/status/${ship}`,
@@ -165,7 +176,7 @@ export function useConnectivityCheck(
       },
     });
     setSubbed(true);
-  }, [ship, queryClient]);
+  }, [ship, subbed, self, queryClient]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {

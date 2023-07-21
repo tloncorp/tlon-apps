@@ -1067,5 +1067,5 @@ export function getConnectionColor(status?: ConnectionStatus) {
     return 'text-yellow-400';
   }
 
-  return status.complete === 'yes' ? 'text-green-300' : 'text-red-400';
+  return status.complete === 'yes' ? 'text-green-400' : 'text-red-400';
 }
