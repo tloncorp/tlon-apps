@@ -52,7 +52,11 @@ function GroupReference({
     !(gang?.invite && gang.invite.ship === window.our);
 
   if (referenceUnavailable) {
-    return (
+    return onlyButton ? (
+      <button className="small-button" disabled={true}>
+        Unavailable
+      </button>
+    ) : (
       <div className="relative flex h-16 items-center space-x-3 rounded-lg border-2 border-gray-50 bg-gray-50 p-2 text-base font-semibold text-gray-600">
         <ExclamationPoint className="h-8 w-8 text-gray-400" />
         <span>This content is unavailable to you</span>
