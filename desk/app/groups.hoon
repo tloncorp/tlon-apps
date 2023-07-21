@@ -1489,12 +1489,10 @@
     ^+  go-core
     ?>  go-is-bloc
     =*  by-ch  ~(. by channels.group)
+    ?.  |(=(-.diff %add) (has:by-ch ch))  go-core
     ?-    -.diff
         %add
-      =/  =zone:g  zone.channel.diff
-      =.  zones.group
-        %+  ~(jab by zones.group)  zone
-        |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
+      =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
       =/  link  (go-link /channels)
@@ -1515,10 +1513,7 @@
     ::
         %edit
       =/  prev=channel:g  (got:by-ch ch)
-      =/  =zone:g  zone.channel.diff
-      =.  zones.group
-        %+  ~(jab by zones.group)  zone
-        |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
+      =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
       =/  link  (go-link /channels)
@@ -1540,9 +1535,9 @@
       go-core
     ::
         %del
-      ?.  (has:by-ch ch)  go-core
       =/  =channel:g   (got:by-ch ch)
       =.  zones.group
+        ?.  (~(has by zones.group) zone.channel)  zones.group
         %+  ~(jab by zones.group)  zone.channel
         |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  channels.group  (del:by-ch ch)
@@ -1577,14 +1572,13 @@
       go-core
     ::
         %zone
-      ?.  (has:by-ch ch)  go-core
       =/  =channel:g  (got:by-ch ch)
+      ?.  (~(has by zones.group) zone.diff)  go-core
       =.  zones.group
         %+  ~(jab by zones.group)  zone.channel
         |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  zone.channel   zone.diff
       =.  channels.group  (put:by-ch ch channel)
-      ?.  (~(has by zones.group) zone.diff)  go-core
       =/  =realm:zone:g  (~(got by zones.group) zone.diff)
       =.  ord.realm  (~(push of ord.realm) ch)
       =.  zones.group  (~(put by zones.group) zone.diff realm)
@@ -1596,6 +1590,12 @@
       =.  channels.group  (put:by-ch ch channel)
       go-core
     ==
+  ++  go-bump-zone
+    |=  [ch=nest:g =channel:g]
+    =/  =zone:g  zone.channel
+    ?.  (~(has by zones.group) zone)  zones.group
+    %+  ~(jab by zones.group)  zone
+    |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
   --
 ::
 ++  res-gang-index
