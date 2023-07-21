@@ -2,7 +2,7 @@ import bigInt from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import {
   QueryClient,
   useMutation,
@@ -170,23 +170,31 @@ export function useNotes(flag: DiaryFlag) {
   };
 }
 
-export function useNotesOnHost(flag: DiaryFlag): DiaryOutlines | undefined {
-  const notes = useRef<DiaryOutlines | undefined>(undefined);
+export function useNotesOnHost(
+  flag: DiaryFlag,
+  enabled: boolean
+): DiaryOutlines | undefined {
+  const { data } = useReactQueryScry({
+    queryKey: ['diary', 'notes', 'live', flag],
+    app: 'diary',
+    path: `/diary/${flag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    priority: 2,
+    options: {
+      cacheTime: 0,
+      enabled,
+      refetchInterval: 1000,
+    },
+  });
 
-  useEffect(() => {
-    const getNotes = async () =>
-      api.scry({
-        app: 'diary',
-        path: `/diary/${flag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
-      });
-    getNotes().then((n) => {
-      if (n !== null && typeof n === 'object') {
-        notes.current = n as DiaryOutlines;
-      }
-    });
-  }, [flag]);
+  if (
+    data === undefined ||
+    data === null ||
+    Object.entries(data as object).length === 0
+  ) {
+    return undefined;
+  }
 
-  return notes.current;
+  return data as DiaryOutlines;
 }
 
 export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {

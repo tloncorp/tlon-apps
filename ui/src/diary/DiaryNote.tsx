@@ -117,7 +117,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const joinChannel = useCallback(async () => {
     await joinDiary({ group: groupFlag, chan: chFlag });
   }, [chFlag, groupFlag, joinDiary]);
-  const notesOnHost = useNotesOnHost(chFlag);
+  const notesOnHost = useNotesOnHost(chFlag, isPending);
   const checkIfPreviouslyCached = useCallback(() => {
     // If we have a note, and the host ship is online, and we have a noteId, and
     // the noteId matches the note's seal time, then we have a cached note.
@@ -141,7 +141,7 @@ export default function DiaryNote({ title }: ViewProps) {
           return false;
         });
 
-        if (foundNote) {
+        if (foundNote.length > 0) {
           const foundNoteId = udToDec(foundNote[0]);
 
           if (foundNoteId !== noteId) {

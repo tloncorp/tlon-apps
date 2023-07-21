@@ -63,7 +63,7 @@ function DiaryChannel({ title }: ViewProps) {
   const channel = useChannel(flag, nest);
   const joined = useDiaryIsJoined(chFlag);
   const lastReconnect = useLastReconnect();
-  const notesOnHost = useNotesOnHost(chFlag);
+  const notesOnHost = useNotesOnHost(chFlag, pendingNotes.length > 0);
 
   const checkForNotes = useCallback(async () => {
     // if we have pending notes and the ship is connected
