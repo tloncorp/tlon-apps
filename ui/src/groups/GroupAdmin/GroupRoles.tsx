@@ -145,7 +145,7 @@ export default function GroupRoles({ title }: { title: string }) {
   const updateRole = () => {
     mutate({
       flag,
-      sect: editRole.toLowerCase().replace(/ /g, '-'),
+      sect: editRole,
       meta: {
         title: roleTitle,
         description,
