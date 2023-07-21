@@ -574,7 +574,7 @@ export function useAddNoteMutation() {
 
       if (notes !== undefined) {
         // for the unlikely case that the user navigates away from the editor
-        // before the mutation is complete, or if the host ship is offlie,
+        // before the mutation is complete, or if the host ship is offline,
         // we update the cache optimistically.
         queryClient.setQueryData<DiaryOutline>(
           ['diary', 'notes', variables.flag],
