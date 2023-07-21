@@ -255,7 +255,7 @@ export default function DiaryMarkdownEditor({
   const [markdownInput, setMarkdownInput] = useState<string | null>(null);
 
   useEffect(() => {
-    if (editorContent && markdownInput === null && loaded) {
+    if (editorContent && (markdownInput === null || loaded)) {
       const markdown = serialize(schema, editorContent);
       setMarkdownInput(markdown);
     }
