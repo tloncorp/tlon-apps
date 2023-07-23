@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import { useNavigate, useParams, useLocation } from 'react-router';
 import cn from 'classnames';
 import ob from 'urbit-ob';
 import {
@@ -11,7 +12,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { Gangs, ViewProps } from '@/types/groups';
 import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
-import { useNavigate, useParams, useLocation } from 'react-router';
 import { useModalNavigate } from '@/logic/routing';
 import GroupReference from '@/components/References/GroupReference';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
@@ -52,33 +52,26 @@ export default function FindGroups({ title }: ViewProps) {
           // Hide secret gangs
           return !('afar' in preview.cordon);
         })
-        .reduce((memo, [flag, preview]) => {
-          // Invite URL case: only show the linked group
-          if (name) {
-            return flag === preSig(`${ship}/${name}`)
-              ? {
-                  ...memo,
-                  [flag]: {
-                    preview,
-                    invite: null,
-                    claim:
-                      flag in existingGangs ? existingGangs[flag].claim : null,
-                  },
-                }
-              : memo;
-          }
-
-          // Otherwise, show all indexed groups
-          return {
+        .reduce(
+          (memo, [flag, preview]) => ({
             ...memo,
             [flag]: {
               preview,
               invite: null,
               claim: flag in existingGangs ? existingGangs[flag].claim : null,
             },
-          };
-        }, {} as Gangs)
+          }),
+          {} as Gangs
+        )
     : null;
+
+  const flag = name ? preSig(`${ship}/${name}`) : ship ? preSig(ship) : '';
+  const gangToDisplay = name ? indexedGangs?.[flag] : null;
+  // If needed group found - show it, otherwise show all groups
+  const gangsToDisplay = gangToDisplay
+    ? { [flag]: gangToDisplay }
+    : indexedGangs;
+  const hasResults = gangsToDisplay && hasKeys(gangsToDisplay);
 
   const [shipSelectorShips, setShipSelectorShips] = useState<ShipOption[]>([]);
 
@@ -127,21 +120,19 @@ export default function FindGroups({ title }: ViewProps) {
       );
     }
 
-    if (indexedGangs) {
-      if (hasKeys(indexedGangs)) {
-        return (
-          <>
-            <span>Groups hosted by&nbsp;</span>
-            <span
-              onClick={handleProfileClick}
-              className="cursor-pointer text-gray-800"
-            >
-              {presentedShip === '' ? ship : presentedShip}
-            </span>
-            <span>:</span>
-          </>
-        );
-      }
+    if (hasResults) {
+      return (
+        <>
+          <span>Groups hosted by&nbsp;</span>
+          <span
+            onClick={handleProfileClick}
+            className="cursor-pointer text-gray-800"
+          >
+            {presentedShip === '' ? ship : presentedShip}
+          </span>
+          <span>:</span>
+        </>
+      );
     }
 
     return (
@@ -283,8 +274,8 @@ export default function FindGroups({ title }: ViewProps) {
                 <p className="font-semibold text-gray-400">{resultsTitle()}</p>
                 {fetchStatus === 'fetching' ? (
                   <GroupJoinListPlaceholder />
-                ) : indexedGangs && hasKeys(indexedGangs) ? (
-                  <GroupJoinList gangs={indexedGangs} />
+                ) : hasResults ? (
+                  <GroupJoinList gangs={gangsToDisplay} />
                 ) : null}
               </section>
             ) : null}
