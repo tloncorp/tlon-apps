@@ -110,7 +110,6 @@ export default function ChatThread() {
       className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
     >
-      {console.log('render thread')}
       <header className={'header z-40'}>
         <div
           className={cn(
