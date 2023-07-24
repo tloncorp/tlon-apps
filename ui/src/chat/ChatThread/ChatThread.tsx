@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import _ from 'lodash';
 import ob from 'urbit-ob';
+import { udToDec } from '@urbit/api';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -82,9 +83,16 @@ export default function ChatThread() {
 
   const initializeChannel = useCallback(async () => {
     setLoading(true);
-    await useChatState.getState().initialize(`${chShip}/${chName}`);
+    if (!idTime) return;
+    await useChatState
+      .getState()
+      .fetchMessagesAround(
+        `${chShip}/${chName}`,
+        '50',
+        bigInt(udToDec(idTime))
+      );
     setLoading(false);
-  }, [chName, chShip]);
+  }, [chName, chShip, idTime]);
 
   useEffect(() => {
     if (!time || !writ) {
@@ -102,6 +110,7 @@ export default function ChatThread() {
       className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
     >
+      {console.log('render thread')}
       <header className={'header z-40'}>
         <div
           className={cn(
