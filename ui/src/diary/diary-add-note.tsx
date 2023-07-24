@@ -196,7 +196,7 @@ export default function DiaryAddNote() {
           )}
         >
           <Link
-            to={!editor?.getText() ? `../..` : `../../note/${id}`}
+            to={!editor?.getText() && !id ? `../..` : `../../note/${id}`}
             className={cn(
               'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2',
               isMobile && ''
