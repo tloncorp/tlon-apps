@@ -77,9 +77,14 @@ export default function FindGroups({ title }: ViewProps) {
 
   const selectedShip =
     shipSelectorShips.length > 0 ? shipSelectorShips[0] : null;
-  const presentedShip = selectedShip
+  let presentedShip = selectedShip
     ? selectedShip.label || selectedShip.value
     : '';
+
+  // Show only the name of the ship if the needed group is not in the results
+  if (name && gangsToDisplay && !gangToDisplay) {
+    [presentedShip] = presentedShip.split('/');
+  }
 
   // once a ship is selected, redirect to find/[selected query]
   useEffect(() => {
