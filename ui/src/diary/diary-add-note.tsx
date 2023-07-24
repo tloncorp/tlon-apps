@@ -280,6 +280,7 @@ export default function DiaryAddNote() {
                     editorContent={editor.getJSON()}
                     setEditorContent={setEditorContent}
                     loaded={loaded}
+                    newNote={!id}
                   />
                 ) : null}
                 {!editWithMarkdown && editor ? (
