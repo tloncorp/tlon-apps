@@ -12,36 +12,38 @@ import Bullet16Icon from './icons/Bullet16Icon';
 interface ShipConnectionProps {
   ship: string;
   status?: ConnectionStatus;
-  showBullet?: boolean;
-  showText?: boolean;
+  type?: 'default' | 'combo' | 'text';
   className?: string;
 }
 
 export default function ShipConnection({
   status,
   ship,
-  showBullet = true,
-  showText = true,
+  type = 'default',
   className,
 }: ShipConnectionProps) {
+  const isSelf = ship === window.our;
+  const color = isSelf ? 'text-green-400' : getConnectionColor(status);
+  const text = isSelf
+    ? 'This is you'
+    : !status
+    ? 'No connection data'
+    : 'pending' in status
+    ? getPendingText(status, ship)
+    : getCompletedText(status, ship);
+
   return (
-    <span className={cn('flex space-x-1 font-semibold', className)}>
-      {showBullet && (
+    <span className={cn('flex items-start space-x-1 font-semibold', className)}>
+      {type === 'default' && (
         <Tooltip.Provider>
           <Tooltip.Root delayDuration={0}>
             <Tooltip.Trigger>
-              <Bullet16Icon
-                className={cn('h-4 w-4', getConnectionColor(status))}
-              />
+              <Bullet16Icon className={cn('h-4 w-4 flex-none', color)} />
             </Tooltip.Trigger>
             <Tooltip.Portal>
               <Tooltip.Content asChild>
-                <div className="pointer-events-none z-50 w-fit cursor-none rounded bg-gray-800 px-3 py-1 font-semibold text-white">
-                  {!status
-                    ? 'No connection data'
-                    : 'pending' in status
-                    ? getPendingText(status, ship)
-                    : getCompletedText(status, ship)}
+                <div className="pointer-events-none z-50 w-fit max-w-[300px] cursor-none rounded bg-gray-800 px-3 py-1 font-semibold text-white">
+                  {text}
                   <Tooltip.Arrow asChild>
                     <svg
                       width="17"
@@ -61,16 +63,11 @@ export default function ShipConnection({
             </Tooltip.Portal>
           </Tooltip.Root>
         </Tooltip.Provider>
-      )}{' '}
-      {showText && (
-        <span>
-          {!status
-            ? 'No connection data'
-            : 'pending' in status
-            ? getPendingText(status, ship)
-            : getCompletedText(status, ship)}
-        </span>
       )}
+      {type === 'combo' && (
+        <Bullet16Icon className={cn('h-4 w-4 flex-none', color)} />
+      )}
+      {type !== 'default' && <span>{text}</span>}
     </span>
   );
 }

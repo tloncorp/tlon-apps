@@ -1,8 +1,11 @@
 import { useIsMobile } from '@/logic/useMedia';
-import { useAmAdmin, useRouteGroup } from '@/state/groups';
+import { useAmAdmin, useGroup, useRouteGroup } from '@/state/groups';
 import cn from 'classnames';
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import HostConnection from '@/channels/HostConnection';
+import { getFlagParts } from '@/logic/utils';
+import { useConnectivityCheck } from '@/state/vitals';
 import ChannelsListSearch from './ChannelsListSearch';
 
 interface ChannelManagerHeaderProps {
@@ -16,6 +19,15 @@ export default function ChannelManagerHeader({
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const isMobile = useIsMobile();
+  const host = getFlagParts(flag).ship;
+  const { data } = useConnectivityCheck(host);
+  const group = useGroup(flag);
+  const saga = group?.saga || null;
+  const hasIssue =
+    (saga !== null && !('synced' in saga)) ||
+    (data?.status &&
+      'complete' in data.status &&
+      data.status.complete !== 'yes');
 
   return (
     <div className="my-4 flex w-full flex-col justify-between space-y-2 sm:flex-row sm:items-center sm:space-x-2">
@@ -42,8 +54,16 @@ export default function ChannelManagerHeader({
           </Link>
         </div>
       ) : null}
-      <div className="w-full md:w-[300px]">
-        <ChannelsListSearch />
+      <div className="flex flex-wrap items-center gap-2">
+        <ChannelsListSearch className="w-full flex-1 md:w-[300px]" />
+        {hasIssue && (
+          <HostConnection
+            className={cn(isAdmin && 'order-0')}
+            ship={host}
+            status={data?.status}
+            saga={group?.saga || null}
+          />
+        )}
       </div>
     </div>
   );

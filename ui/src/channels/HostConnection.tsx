@@ -55,18 +55,21 @@ export default function HostConnection({
   className,
 }: HostConnectionProps) {
   return (
-    <span className={cn('flex space-x-1 font-semibold', className)}>
+    <span className={cn('flex items-start space-x-1 font-semibold', className)}>
       {type === 'default' && (
         <Tooltip.Provider>
           <Tooltip.Root delayDuration={0}>
             <Tooltip.Trigger>
               <Bullet16Icon
-                className={cn('h-4 w-4', getHostConnectionColor(saga, status))}
+                className={cn(
+                  'h-4 w-4 flex-none',
+                  getHostConnectionColor(saga, status)
+                )}
               />
             </Tooltip.Trigger>
             <Tooltip.Portal>
               <Tooltip.Content asChild>
-                <div className="pointer-events-none z-50 w-fit cursor-none rounded bg-gray-800 px-3 py-1 font-semibold text-white">
+                <div className="pointer-events-none z-50 w-fit max-w-[300px] cursor-none rounded bg-gray-800 px-3 py-1 font-semibold text-white">
                   {getText(saga, ship, status)}
                   <Tooltip.Arrow asChild>
                     <svg
@@ -90,7 +93,10 @@ export default function HostConnection({
       )}
       {type === 'combo' && (
         <Bullet16Icon
-          className={cn('h-4 w-4', getHostConnectionColor(saga, status))}
+          className={cn(
+            'h-4 w-4 flex-none',
+            getHostConnectionColor(saga, status)
+          )}
         />
       )}
       {type !== 'default' && <span>{getText(saga, ship, status)}</span>}

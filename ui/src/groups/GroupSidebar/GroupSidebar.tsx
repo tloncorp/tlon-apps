@@ -9,10 +9,9 @@ import {
   useGroupFlag,
 } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
-import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { useCalm } from '@/state/settings';
-import { isColor, getPrivacyFromGroup, getFlagParts } from '@/logic/utils';
+import { isColor, getPrivacyFromGroup } from '@/logic/utils';
 import { foregroundFromBackground } from '@/components/Avatar';
 import ChannelList from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
@@ -23,8 +22,6 @@ import { Link, useLocation } from 'react-router-dom';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import InviteIcon from '@/components/icons/InviteIcon';
 import HomeIcon from '@/components/icons/HomeIcon';
-import HostConnection from '@/channels/HostConnection';
-import { useConnectivityCheck } from '@/state/vitals';
 
 function GroupHeader() {
   const flag = useGroupFlag();
@@ -33,8 +30,6 @@ function GroupHeader() {
   const defaultImportCover = group?.meta.cover === '0x0';
   const calm = useCalm();
   const isDark = useIsDark();
-  const host = getFlagParts(flag).ship;
-  const { data } = useConnectivityCheck(host || '');
 
   const bgStyle = () => {
     if (
@@ -91,15 +86,8 @@ function GroupHeader() {
           icon={<GroupAvatar {...group?.meta} />}
           {...fgStyle()}
         >
-          <div className="flex items-center space-x-1">
-            <div className="max-w-[130px] truncate">
-              {claim ? preview?.meta.title : group?.meta.title}
-            </div>
-            <HostConnection
-              ship={host}
-              status={data?.status}
-              saga={group?.saga || null}
-            />
+          <div className="max-w-[130px] truncate">
+            {claim ? preview?.meta.title : group?.meta.title}
           </div>
           <CaretDown16Icon className="absolute top-3 right-2 h-4 w-4" />
         </SidebarItem>

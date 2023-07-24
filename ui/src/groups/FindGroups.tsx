@@ -121,6 +121,7 @@ export default function FindGroups({ title }: ViewProps) {
         <>
           <div className="mb-3 inline-block rounded bg-gray-50 p-2">
             <ShipConnection
+              type="combo"
               ship={ship || presentedShip}
               status={data?.status}
             />
@@ -145,6 +146,7 @@ export default function FindGroups({ title }: ViewProps) {
           <>
             <div className="mb-3 inline-block rounded bg-gray-50 p-2">
               <ShipConnection
+                type="combo"
                 ship={ship || presentedShip}
                 status={data?.status}
               />
@@ -167,7 +169,11 @@ export default function FindGroups({ title }: ViewProps) {
     return (
       <span>
         <div className="mb-3 inline-block rounded bg-gray-50 p-2">
-          <ShipConnection ship={ship || presentedShip} status={data?.status} />
+          <ShipConnection
+            type="combo"
+            ship={ship || presentedShip}
+            status={data?.status}
+          />
         </div>
         <p>
           Your search timed out, which may happen when a ship hosts no groups,

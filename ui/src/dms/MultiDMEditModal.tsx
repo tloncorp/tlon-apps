@@ -9,14 +9,36 @@ import ShipName from '@/components/ShipName';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
-import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import Dialog from '../components/Dialog';
 import MultiDMInfoForm from './MultiDMInfoForm';
 import MultiDmAvatar from './MultiDmAvatar';
 
-function ShipConnectionData(ship: string) {
-  const { data, showConnection } = useConnectivityCheck(ship || '');
-  return data;
+function MultiDMParticipant({ ship }: { ship: string }) {
+  const { data } = useConnectivityCheck(ship || '');
+
+  return (
+    <div className="flex items-center space-x-2 rounded-lg p-2 hover:bg-gray-50">
+      <Avatar size="small" ship={ship} />
+      <div className="flex grow flex-col">
+        <div className="flex items-center space-x-1">
+          <ShipName
+            name={ship}
+            showAlias={true}
+            className="font-semibold text-gray-800"
+          />
+          <ShipConnection ship={ship} status={data?.status} />
+        </div>
+        <ShipName
+          name={ship}
+          showAlias={false}
+          className="text-sm font-semibold text-gray-400"
+        />
+      </div>
+      <Link to={`/dm/${ship}`} aria-label={`Message ${ship}`}>
+        <BubbleIcon className="h-6 w-6 text-gray-400" />
+      </Link>
+    </div>
+  );
 }
 
 export default function MultiDMEditModal() {
@@ -81,34 +103,7 @@ export default function MultiDMEditModal() {
                   </h3>
                   <div className="flex w-full flex-col space-y-1">
                     {club.hive.map((ship) => (
-                      <div
-                        className="flex items-center space-x-2 rounded-lg p-2 hover:bg-gray-50"
-                        key={ship}
-                      >
-                        <Avatar size="small" ship={ship} />
-                        <div className="flex grow flex-col">
-                          <div className="flex items-center space-x-1">
-                            <ShipName
-                              name={ship}
-                              showAlias={true}
-                              className="font-semibold text-gray-800"
-                            />
-                            <ShipConnection
-                              ship={ship}
-                              showText={false}
-                              status={ShipConnectionData(ship).status}
-                            />
-                          </div>
-                          <ShipName
-                            name={ship}
-                            showAlias={false}
-                            className="text-sm font-semibold text-gray-400"
-                          />
-                        </div>
-                        <Link to={`/dm/${ship}`} aria-label={`Message ${ship}`}>
-                          <BubbleIcon className="h-6 w-6 text-gray-400" />
-                        </Link>
-                      </div>
+                      <MultiDMParticipant key={ship} ship={ship} />
                     ))}
                   </div>
                 </>
@@ -118,40 +113,7 @@ export default function MultiDMEditModal() {
               </h3>
               <div className="flex w-full flex-col space-y-1">
                 {club.team.map((ship) => (
-                  <div
-                    className="flex items-center space-x-2 rounded-lg p-2 hover:bg-gray-50"
-                    key={ship}
-                  >
-                    <Avatar size="small" ship={ship} />
-                    <div className="flex grow flex-col">
-                      <div className="flex items-center space-x-1">
-                        <ShipName
-                          name={ship}
-                          showAlias={true}
-                          className="font-semibold text-gray-800"
-                        />
-                        {ship !== window.our ? (
-                          <ShipConnection
-                            ship={ship}
-                            showText={false}
-                            status={ShipConnectionData(ship).status}
-                          />
-                        ) : (
-                          <span title="This is you">
-                            <Bullet16Icon className="h-4 w-4 text-green-300" />
-                          </span>
-                        )}
-                      </div>
-                      <ShipName
-                        name={ship}
-                        showAlias={false}
-                        className="text-sm font-semibold text-gray-400"
-                      />
-                    </div>
-                    <Link to={`/dm/${ship}`} aria-label={`Message ${ship}`}>
-                      <BubbleIcon className="h-6 w-6 text-gray-400" />
-                    </Link>
-                  </div>
+                  <MultiDMParticipant key={ship} ship={ship} />
                 ))}
               </div>
             </div>

@@ -63,11 +63,7 @@ function TitleButton({
               >
                 {contact.nickname}
               </span>
-              <ShipConnection
-                ship={ship}
-                showText={false}
-                status={data?.status}
-              />
+              <ShipConnection ship={ship} status={data?.status} />
             </div>
             <ShipName
               full
@@ -82,11 +78,7 @@ function TitleButton({
               name={ship}
               className="text-sm font-bold text-gray-800 sm:font-semibold"
             />
-            <ShipConnection
-              ship={ship}
-              showText={false}
-              status={data?.status}
-            />
+            <ShipConnection ship={ship} status={data?.status} />
           </div>
         )}
       </div>

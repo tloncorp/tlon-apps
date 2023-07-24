@@ -77,13 +77,7 @@ export default function ProfileModal() {
           {contact && contact.nickname ? (
             <ShipName name={ship} className="ml-2 text-gray-600" />
           ) : null}
-          {ship !== window.our && (
-            <ShipConnection
-              ship={ship}
-              showText={false}
-              status={data?.status}
-            />
-          )}
+          <ShipConnection ship={ship} status={data?.status} />
           <PalIcon className="ml-2" ship={ship} />
         </div>
         {contact && <ProfileBio bio={contact.bio} />}
