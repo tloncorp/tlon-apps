@@ -1,4 +1,4 @@
-import { Mark, Node, Schema } from '@tiptap/pm/model';
+import { Mark, Node, Schema, SchemaSpec } from '@tiptap/pm/model';
 
 const schema = new Schema({
   nodes: {
@@ -116,23 +116,24 @@ const schema = new Schema({
           default: 0,
         },
       },
-    },
-    parseDOM: [
-      {
-        tag: 'img[src]',
-        getAttrs: (node: string | HTMLElement) => {
-          if (typeof node === 'string') {
-            return {};
-          }
-          return {
-            src: node.getAttribute('src'),
-            alt: node.getAttribute('alt'),
-          };
+      parseDOM: [
+        {
+          tag: 'img[src]',
+          getAttrs: (node: string | HTMLElement) => {
+            if (typeof node === 'string') {
+              return {};
+            }
+            return {
+              src: node.getAttribute('src'),
+              alt: node.getAttribute('alt'),
+            };
+          },
         },
+      ],
+
+      toDOM({ attrs }: { attrs: any }) {
+        return ['img', attrs];
       },
-    ],
-    toDOM({ attrs }: { attrs: any }) {
-      return ['img', attrs];
     },
     text: {
       group: 'inline',
