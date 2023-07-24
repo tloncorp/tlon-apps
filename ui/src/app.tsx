@@ -694,7 +694,7 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
-        <TooltipProvider skipDelayDuration={400}>
+        <TooltipProvider delayDuration={0} skipDelayDuration={400}>
           <App />
           <Scheduler />
           {import.meta.env.DEV && <Eyrie />}

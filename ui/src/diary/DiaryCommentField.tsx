@@ -15,6 +15,8 @@ import { Cite } from '@/types/chat';
 import NoteCommentReference from '@/components/References/NoteCommentReference';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import { useChannelCompatibility } from '@/logic/channel';
+import Tooltip from '@/components/Tooltip';
 
 interface DiaryCommentFieldProps {
   flag: string;
@@ -41,6 +43,7 @@ export default function DiaryCommentField({
   const { isPending, setPending, setReady } = useRequestState();
   const { mutateAsync: addQuip } = useAddQuipMutation();
   const { privacy } = useGroupPrivacy(groupFlag);
+  const { compatible, text } = useChannelCompatibility(`diary/${chFlag}`);
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -192,15 +195,19 @@ export default function DiaryCommentField({
           )}
         />
         {!sendDisabled ? (
-          <button
-            className="button mt-2"
-            disabled={
-              isPending || (messageEditor.getText() === '' && !replyCite)
-            }
-            onClick={onClick}
-          >
-            {isPending ? 'Posting...' : 'Post'}
-          </button>
+          <Tooltip content={text} open={compatible ? false : undefined}>
+            <button
+              className="button mt-2"
+              disabled={
+                !compatible ||
+                isPending ||
+                (messageEditor.getText() === '' && !replyCite)
+              }
+              onClick={onClick}
+            >
+              {isPending ? 'Posting...' : 'Post'}
+            </button>
+          </Tooltip>
         ) : null}
       </div>
       {isMobile && messageEditor.isFocused ? (

@@ -13,50 +13,48 @@ export default function RoleBadges(props: { ship: string }) {
   if (group && sects.length) {
     if (displaySects.length >= 3) {
       return (
-        <Tooltip.Provider>
-          <Tooltip.Root delayDuration={0}>
-            <Tooltip.Trigger asChild>
-              <div className="relative shrink-0 cursor-pointer rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium">
-                {displaySects.length}
-                <span className="sr-only">Roles</span>
-              </div>
-            </Tooltip.Trigger>
-            <Tooltip.Portal>
-              <Tooltip.Content asChild>
-                <div className="z-50">
-                  <div className="z-[100] w-fit cursor-none rounded bg-gray-400 px-4 py-2">
-                    <label className="whitespace-nowrap font-semibold text-white">
-                      {displaySects.map((sect) => {
-                        if (sect !== 'member') {
-                          return (
-                            <div key={sect} className="mb-2">
-                              {getSectTitle(group.cabals, sect)}
-                            </div>
-                          );
-                        }
-                        return null;
-                      })}
-                    </label>
-                  </div>
-                  <Tooltip.Arrow asChild>
-                    <svg
-                      width="17"
-                      height="8"
-                      viewBox="0 0 17 8"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
-                        className="fill-gray-400"
-                      />
-                    </svg>
-                  </Tooltip.Arrow>
+        <Tooltip.Root>
+          <Tooltip.Trigger asChild>
+            <div className="relative shrink-0 cursor-pointer rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium">
+              {displaySects.length}
+              <span className="sr-only">Roles</span>
+            </div>
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content asChild>
+              <div className="z-50">
+                <div className="z-[100] w-fit cursor-none rounded bg-gray-400 px-4 py-2">
+                  <label className="whitespace-nowrap font-semibold text-white">
+                    {displaySects.map((sect) => {
+                      if (sect !== 'member') {
+                        return (
+                          <div key={sect} className="mb-2">
+                            {getSectTitle(group.cabals, sect)}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                  </label>
                 </div>
-              </Tooltip.Content>
-            </Tooltip.Portal>
-          </Tooltip.Root>
-        </Tooltip.Provider>
+                <Tooltip.Arrow asChild>
+                  <svg
+                    width="17"
+                    height="8"
+                    viewBox="0 0 17 8"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M16.5 0L0.5 0L7.08579 6.58579C7.86684 7.36684 9.13316 7.36684 9.91421 6.58579L16.5 0Z"
+                      className="fill-gray-400"
+                    />
+                  </svg>
+                </Tooltip.Arrow>
+              </div>
+            </Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
       );
     }
     return (

@@ -27,6 +27,7 @@ import {
   Group,
   GroupPreview,
   Vessel,
+  Saga,
 } from '@/types/groups';
 import { CurioContent, HeapBrief } from '@/types/heap';
 import {
@@ -1068,4 +1069,16 @@ export function getConnectionColor(status?: ConnectionStatus) {
   }
 
   return status.complete === 'yes' ? 'text-green-400' : 'text-red-400';
+}
+
+export function getCompatibilityText(saga: Saga | null) {
+  if (saga && 'behind' in saga) {
+    return 'Host requires an update to communicate';
+  }
+
+  if (saga && 'ahead' in saga) {
+    return 'Your Groups app requires an update to communicate';
+  }
+
+  return "You're synced with host";
 }
