@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import Tooltip from '@/components/Tooltip';
 import {
@@ -6,8 +8,7 @@ import {
   useGroup,
   useGroupCompatibility,
 } from '@/state/groups';
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
+import { strToSym } from '@/logic/utils';
 
 export default function GroupRoleCreate() {
   const { cabal } = useParams<{ cabal: string }>();
@@ -28,7 +29,7 @@ export default function GroupRoleCreate() {
   const createRole = () => {
     mutate({
       flag,
-      sect: title.toLowerCase().replace(/ /g, '-'),
+      sect: strToSym(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1'),
       meta: {
         title,
         description,

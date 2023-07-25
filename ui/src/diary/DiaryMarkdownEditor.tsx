@@ -247,19 +247,21 @@ export default function DiaryMarkdownEditor({
   editorContent,
   setEditorContent,
   loaded,
+  newNote,
 }: {
   editorContent: JSONContent | null;
   setEditorContent: (content: JSONContent) => void;
   loaded: boolean;
+  newNote: boolean;
 }) {
   const [markdownInput, setMarkdownInput] = useState<string | null>(null);
 
   useEffect(() => {
-    if (editorContent && markdownInput === null && loaded) {
+    if (editorContent && markdownInput === null && (newNote || loaded)) {
       const markdown = serialize(schema, editorContent);
       setMarkdownInput(markdown);
     }
-  }, [editorContent, markdownInput, loaded]);
+  }, [editorContent, markdownInput, newNote, loaded]);
 
   useEffect(() => {
     if (markdownInput === null) {

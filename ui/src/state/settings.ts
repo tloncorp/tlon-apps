@@ -432,7 +432,12 @@ export function useDiarySettings(): DiarySetting[] {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
-    if (isLoading || data === undefined || data.diary === undefined) {
+    if (
+      isLoading ||
+      data === undefined ||
+      data.diary === undefined ||
+      data.diary.settings === undefined
+    ) {
       return [];
     }
 

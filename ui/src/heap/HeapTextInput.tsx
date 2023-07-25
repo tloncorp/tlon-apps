@@ -163,6 +163,7 @@ export default function HeapTextInput({
     content: draft || '',
     uploadKey: `heap-text-input-${flag}`,
     placeholder: placeholder || 'Enter Text Here',
+    editorClass: '!max-h-[108px] overflow-y-auto',
     onUpdate,
     onEnter: useCallback(
       ({ editor }) => {
