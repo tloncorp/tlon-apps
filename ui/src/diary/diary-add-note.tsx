@@ -61,7 +61,8 @@ export default function DiaryAddNote() {
     },
   });
 
-  const { reset, register, getValues, setValue } = form;
+  const { reset, register, getValues, setValue, watch } = form;
+  const watchedTitle = watch('title');
 
   useEffect(() => {
     const { title, image } = getValues();
@@ -95,7 +96,7 @@ export default function DiaryAddNote() {
   }, [editor, loadingNote, note, loaded]);
 
   const publish = useCallback(async () => {
-    if (!editor?.getText()) {
+    if (!editor?.getText() || watchedTitle === '') {
       return;
     }
 
@@ -173,6 +174,7 @@ export default function DiaryAddNote() {
     reset,
     addNote,
     editNote,
+    watchedTitle,
   ]);
 
   useEffect(() => {
@@ -194,7 +196,7 @@ export default function DiaryAddNote() {
           )}
         >
           <Link
-            to={!editor?.getText() ? `../..` : `../../note/${id}`}
+            to={!editor?.getText() && !id ? `../..` : `../../note/${id}`}
             className={cn(
               'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2',
               isMobile && ''
@@ -219,7 +221,8 @@ export default function DiaryAddNote() {
               disabled={
                 !editor?.getText() ||
                 editStatus === 'loading' ||
-                addStatus === 'loading'
+                addStatus === 'loading' ||
+                watchedTitle === ''
               }
               className={cn(
                 'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
@@ -277,6 +280,7 @@ export default function DiaryAddNote() {
                     editorContent={editor.getJSON()}
                     setEditorContent={setEditorContent}
                     loaded={loaded}
+                    newNote={!id}
                   />
                 ) : null}
                 {!editWithMarkdown && editor ? (
