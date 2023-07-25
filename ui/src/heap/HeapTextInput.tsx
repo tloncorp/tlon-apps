@@ -34,7 +34,7 @@ interface HeapTextInputProps {
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
-function isMergeable(x: HeapInlineKey): x is typeof MERGEABLE_KEYS[number] {
+function isMergeable(x: HeapInlineKey): x is (typeof MERGEABLE_KEYS)[number] {
   return MERGEABLE_KEYS.includes(x as any);
 }
 function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {

@@ -697,7 +697,7 @@ export function diaryMixedToJSON(note: NoteContent): JSONContent {
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
-function isMergeable(x: InlineKey): x is typeof MERGEABLE_KEYS[number] {
+function isMergeable(x: InlineKey): x is (typeof MERGEABLE_KEYS)[number] {
   return MERGEABLE_KEYS.includes(x as any);
 }
 export function normalizeInline(inline: Inline[]): Inline[] {
