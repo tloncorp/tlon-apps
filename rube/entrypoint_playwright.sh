@@ -39,7 +39,6 @@ hood-zod "commit %talk"
 hood-bus "commit %groups"
 hood-bus "commit %talk"
 
-
 # keep container running
 tail -f /dev/null
 

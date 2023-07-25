@@ -84,13 +84,20 @@ export default function GroupMemberManager({
   }
 
   return (
-    <div className={cn('card flex flex-col', half ? 'h-1/2' : 'h-full')}>
+    <section
+      className={cn('card flex flex-col', half ? 'h-1/2' : 'h-full')}
+      role="region"
+      aria-labelledby="members"
+    >
       <div
         className={cn(
           'flex w-full flex-col items-center justify-between space-y-2 pb-2 md:flex-row'
         )}
       >
-        <h2 className="flex w-full items-center text-lg font-bold md:w-auto">
+        <h2
+          id="members"
+          className="flex w-full items-center text-lg font-bold md:w-auto"
+        >
           Members{' '}
           <div className="ml-2 rounded border border-gray-800 px-2 py-0.5 text-xs font-medium uppercase text-gray-800">
             {members.length}
@@ -112,6 +119,6 @@ export default function GroupMemberManager({
       <div className={cn('grow')}>
         <MemberScroller members={results} />
       </div>
-    </div>
+    </section>
   );
 }
