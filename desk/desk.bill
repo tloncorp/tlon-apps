@@ -3,6 +3,7 @@
     %contacts
     %heap
     %diary
+    %quorum
     %hark
     %notify
     %groups-ui
