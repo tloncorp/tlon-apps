@@ -1,8 +1,10 @@
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import Tooltip from '@/components/Tooltip';
 import {
   useRouteGroup,
   useGroupAddRoleMutation,
   useGroup,
+  useGroupCompatibility,
 } from '@/state/groups';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
@@ -11,6 +13,7 @@ export default function GroupRoleCreate() {
   const { cabal } = useParams<{ cabal: string }>();
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const { compatible, text } = useGroupCompatibility(flag);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const { mutate, status } = useGroupAddRoleMutation();
@@ -59,24 +62,31 @@ export default function GroupRoleCreate() {
         />
       </div>
       <div className="flex flex-row justify-end space-x-2">
-        <button
-          className="button bg-blue text-white"
-          onClick={() => createRole()}
-          disabled={status === 'loading' || !title || status === 'success'}
-        >
-          {status === 'loading' ? (
-            <div className="flex flex-row space-x-2">
-              {cabal ? 'Updating...' : 'Creating...'}
-              <LoadingSpinner className="h-4 w-4" />
-            </div>
-          ) : cabal ? (
-            'Submit'
-          ) : status === 'success' ? (
-            'Created'
-          ) : (
-            'Create'
-          )}
-        </button>
+        <Tooltip content={text} open={compatible ? false : undefined}>
+          <button
+            className="button bg-blue text-white"
+            onClick={() => createRole()}
+            disabled={
+              !compatible ||
+              status === 'loading' ||
+              !title ||
+              status === 'success'
+            }
+          >
+            {status === 'loading' ? (
+              <div className="flex flex-row space-x-2">
+                {cabal ? 'Updating...' : 'Creating...'}
+                <LoadingSpinner className="h-4 w-4" />
+              </div>
+            ) : cabal ? (
+              'Submit'
+            ) : status === 'success' ? (
+              'Created'
+            ) : (
+              'Create'
+            )}
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

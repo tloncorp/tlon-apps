@@ -8,6 +8,7 @@ import { GroupFormSchema, GroupMeta, PrivacyType } from '@/types/groups';
 import {
   useEditGroupMutation,
   useGroup,
+  useGroupCompatibility,
   useGroupSetSecretMutation,
   useGroupSwapCordonMutation,
   useRouteGroup,
@@ -15,6 +16,7 @@ import {
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useLure } from '@/state/lure/lure';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import Tooltip from '@/components/Tooltip';
 
 interface PrivacySetting {
   title: string;
@@ -139,8 +141,8 @@ export function PrivacySelector({ horizontal = false }: PrivacySelectorProps) {
 
 export function PrivacySelectorForm() {
   const groupFlag = useRouteGroup();
-  const group = useGroup(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
+  const { compatible, text } = useGroupCompatibility(groupFlag);
   const form = useForm<GroupFormSchema>({
     defaultValues: {
       privacy,
@@ -230,19 +232,21 @@ export function PrivacySelectorForm() {
           >
             Reset
           </button>
-          <button
-            type="submit"
-            className="button"
-            disabled={!form.formState.isDirty}
-          >
-            {editStatus === 'loading' ? (
-              <LoadingSpinner />
-            ) : editStatus === 'error' ? (
-              'Error'
-            ) : (
-              'Save'
-            )}
-          </button>
+          <Tooltip content={text} open={compatible ? false : undefined}>
+            <button
+              type="submit"
+              className="button"
+              disabled={!form.formState.isDirty || !compatible}
+            >
+              {editStatus === 'loading' ? (
+                <LoadingSpinner />
+              ) : editStatus === 'error' ? (
+                'Error'
+              ) : (
+                'Save'
+              )}
+            </button>
+          </Tooltip>
         </footer>
       </form>
     </FormProvider>

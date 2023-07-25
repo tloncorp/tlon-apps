@@ -4,9 +4,11 @@ import Dialog, { DialogClose } from '@/components/Dialog';
 import {
   useDeleteGroupMutation,
   useGroup,
+  useGroupCompatibility,
   useRouteGroup,
 } from '@/state/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import Tooltip from '@/components/Tooltip';
 
 const removeSpecialChars = (s: string) =>
   s.toLocaleLowerCase().replace(/[^\w\s]/gi, '');
@@ -19,6 +21,7 @@ function GroupDelete() {
   const navigate = useNavigate();
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
+  const { compatible, text } = useGroupCompatibility(groupFlag);
   const [deleteField, setDeleteField] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -49,12 +52,15 @@ function GroupDelete() {
       <p className="mb-4 text-gray-600">
         Deleting this group will permanently remove all content and members.
       </p>
-      <button
-        onClick={() => setDeleteDialogOpen(true)}
-        className="button bg-red text-white dark:text-black"
-      >
-        Delete {group?.meta.title}
-      </button>
+      <Tooltip content={text} open={compatible ? false : undefined}>
+        <button
+          disabled={!compatible}
+          onClick={() => setDeleteDialogOpen(true)}
+          className="button bg-red text-white dark:text-black"
+        >
+          Delete {group?.meta.title}
+        </button>
+      </Tooltip>
       <Dialog
         open={deleteDialogOpen}
         onOpenChange={(open) => setDeleteDialogOpen(open)}

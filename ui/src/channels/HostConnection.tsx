@@ -59,13 +59,14 @@ export default function HostConnection({
     <span className={cn('flex items-start space-x-1 font-semibold', className)}>
       {type === 'default' && (
         <Tooltip content={getText(saga, ship, status)}>
-          <Bullet16Icon
-            className={cn(
-              'h-4 w-4 flex-none',
-              getHostConnectionColor(saga, status)
-            )}
-            tabIndex={0}
-          />
+          <span tabIndex={0}>
+            <Bullet16Icon
+              className={cn(
+                'h-4 w-4 flex-none',
+                getHostConnectionColor(saga, status)
+              )}
+            />
+          </span>
         </Tooltip>
       )}
       {type === 'combo' && (
