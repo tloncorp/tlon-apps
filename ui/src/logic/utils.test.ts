@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { describe, expect, it } from 'vitest';
-import { normalizeUrbitColor, whomIsFlag } from './utils';
+import { IMAGE_REGEX, normalizeUrbitColor, whomIsFlag } from './utils';
 
 describe('whomIsFlag', () => {
   it('passes valid flags', () => {
@@ -84,5 +84,35 @@ describe('normalizeUrbitColor', () => {
 
   it('passes through color hexes', () => {
     expect(normalizeUrbitColor('#ffffff')).toEqual('#ffffff');
+  });
+});
+
+describe('Image URL embed regex', () => {
+  const validUrls = [
+    'https://i.imgur.com/1234567.jpg',
+    'https://i.imgur.com/1234567.png',
+    'https://i.imgur.com/1234567.gif',
+    'https://i.imgur.com/1234567.webp',
+    'https://i.imgur.com/1234567.jpeg',
+    'https://i.imgur.com/1234567.JPEG',
+    'https://i.imgur.com/1234567.JPG',
+    'https://i.imgur.com/1234567.jpg?test=123',
+    'https://i.imgur.com/1234567.jpg?test=123&test2=456',
+    'https://i.imgur.com/1234567.jpg?test=123&test2=456&test3=789'
+  ];
+
+  const invalidUrls = [
+    'https://i.imgur.com/1234567',
+    'https://i.imgur.com/1234567.',
+    'https://i.imgur.com/1234567.pdf',
+    'https://i.imgur.com/1234567.jpgg',
+  ];
+
+  it('passes valid image urls', () => {
+    validUrls.forEach((url) => expect(url.match(IMAGE_REGEX)).toBeTruthy());
+  });
+
+  it('fails invalid image urls', () => {
+    invalidUrls.forEach((url) => expect(url.match(IMAGE_REGEX)).toBeFalsy());
   });
 });
