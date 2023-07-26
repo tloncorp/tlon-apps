@@ -39,6 +39,14 @@ vi.mock('react-dom', () => {
   };
 });
 
+vi.mock('posthog-js', () => ({
+  default: {
+    capture: vi.fn(),
+    debug: vi.fn(),
+    init: vi.fn(),
+  },
+}));
+
 class MockPointerEvent extends Event {
   button: number;
 

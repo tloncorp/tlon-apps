@@ -1,10 +1,12 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import { daToUnix, unixToDa } from '@urbit/api';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import _ from 'lodash';
+import bigInt from 'big-integer';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
@@ -23,6 +25,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import Setting from '@/components/Setting';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
@@ -30,6 +33,7 @@ import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
+  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const [loaded, setLoaded] = useState(false);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
@@ -61,7 +65,8 @@ export default function DiaryAddNote() {
     },
   });
 
-  const { reset, register, getValues, setValue } = form;
+  const { reset, register, getValues, setValue, watch } = form;
+  const watchedTitle = watch('title');
 
   useEffect(() => {
     const { title, image } = getValues();
@@ -95,14 +100,12 @@ export default function DiaryAddNote() {
   }, [editor, loadingNote, note, loaded]);
 
   const publish = useCallback(async () => {
-    if (!editor?.getText()) {
+    if (!editor?.getText() || watchedTitle === '') {
       return;
     }
 
     const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
-
-    const sent = Date.now();
 
     const isBlock = (c: Inline | DiaryBlock) =>
       ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
@@ -140,15 +143,19 @@ export default function DiaryAddNote() {
           },
         });
       } else {
-        await addNote({
-          flag: chFlag,
-          essay: {
-            ...values,
-            content: noteContent,
-            author: window.our,
-            sent,
-          },
-        });
+        await asyncCallWithTimeout(
+          addNote({
+            initialTime,
+            flag: chFlag,
+            essay: {
+              ...values,
+              content: noteContent,
+              author: window.our,
+              sent: daToUnix(bigInt(initialTime)),
+            },
+          }),
+          3000
+        );
         captureGroupsAnalyticsEvent({
           name: 'post_item',
           groupFlag: flag,
@@ -160,6 +167,7 @@ export default function DiaryAddNote() {
 
       reset();
     } catch (error) {
+      navigate(`/groups/${flag}/channels/diary/${chFlag}`);
       console.error(error);
     }
   }, [
@@ -173,6 +181,9 @@ export default function DiaryAddNote() {
     reset,
     addNote,
     editNote,
+    initialTime,
+    navigate,
+    watchedTitle,
   ]);
 
   useEffect(() => {
@@ -194,7 +205,7 @@ export default function DiaryAddNote() {
           )}
         >
           <Link
-            to={!editor?.getText() ? `../..` : `../../note/${id}`}
+            to={!editor?.getText() && !id ? `../..` : `../../note/${id}`}
             className={cn(
               'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2',
               isMobile && ''
@@ -219,7 +230,8 @@ export default function DiaryAddNote() {
               disabled={
                 !editor?.getText() ||
                 editStatus === 'loading' ||
-                addStatus === 'loading'
+                addStatus === 'loading' ||
+                watchedTitle === ''
               }
               className={cn(
                 'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
@@ -277,6 +289,7 @@ export default function DiaryAddNote() {
                     editorContent={editor.getJSON()}
                     setEditorContent={setEditorContent}
                     loaded={loaded}
+                    newNote={!id}
                   />
                 ) : null}
                 {!editWithMarkdown && editor ? (
