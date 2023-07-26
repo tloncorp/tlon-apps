@@ -1,8 +1,10 @@
 import React from 'react';
+import cn from 'classnames';
 import { DiaryLetter } from '@/types/diary';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
 import { sampleQuippers } from '@/logic/utils';
+import { useIsNotePending } from '@/state/diary';
 
 interface DiaryListItemProps {
   letter: DiaryLetter;
@@ -10,6 +12,7 @@ interface DiaryListItemProps {
 }
 
 export default function DiaryListItem({ letter, time }: DiaryListItemProps) {
+  const isPending = useIsNotePending(time.toString());
   const navigate = useNavigate();
   const essay = letter.type === 'outline' ? letter : letter.essay;
   const quippers =
@@ -21,7 +24,9 @@ export default function DiaryListItem({ letter, time }: DiaryListItemProps) {
 
   return (
     <div
-      className="card cursor-pointer"
+      className={cn('card cursor-pointer', {
+        'bg-gray-100': isPending,
+      })}
       role="link"
       tabIndex={0}
       onClick={() => navigate(`note/${time.toString()}`)}

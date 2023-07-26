@@ -1,10 +1,12 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import { daToUnix, unixToDa } from '@urbit/api';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import _ from 'lodash';
+import bigInt from 'big-integer';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
@@ -23,6 +25,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import Setting from '@/components/Setting';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
@@ -30,6 +33,7 @@ import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
+  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const [loaded, setLoaded] = useState(false);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
@@ -103,8 +107,6 @@ export default function DiaryAddNote() {
     const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
 
-    const sent = Date.now();
-
     const isBlock = (c: Inline | DiaryBlock) =>
       ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
         (k) => typeof c !== 'string' && k in c
@@ -141,15 +143,19 @@ export default function DiaryAddNote() {
           },
         });
       } else {
-        await addNote({
-          flag: chFlag,
-          essay: {
-            ...values,
-            content: noteContent,
-            author: window.our,
-            sent,
-          },
-        });
+        await asyncCallWithTimeout(
+          addNote({
+            initialTime,
+            flag: chFlag,
+            essay: {
+              ...values,
+              content: noteContent,
+              author: window.our,
+              sent: daToUnix(bigInt(initialTime)),
+            },
+          }),
+          3000
+        );
         captureGroupsAnalyticsEvent({
           name: 'post_item',
           groupFlag: flag,
@@ -161,6 +167,7 @@ export default function DiaryAddNote() {
 
       reset();
     } catch (error) {
+      navigate(`/groups/${flag}/channels/diary/${chFlag}`);
       console.error(error);
     }
   }, [
@@ -174,6 +181,8 @@ export default function DiaryAddNote() {
     reset,
     addNote,
     editNote,
+    initialTime,
+    navigate,
     watchedTitle,
   ]);
 
