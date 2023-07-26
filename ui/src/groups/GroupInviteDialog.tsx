@@ -127,12 +127,7 @@ export default function GroupInviteDialog() {
 
   function renderContent() {
     return (
-      <div
-        className={cn(
-          'flex flex-col space-y-6',
-          isMobile ? 'overflow-y-auto' : 'mt-10'
-        )}
-      >
+      <div className={cn('flex flex-col space-y-6', !isMobile && 'mt-10')}>
         {group && (
           <>
             <LureInviteBlock flag={flag} group={group} />
@@ -145,7 +140,7 @@ export default function GroupInviteDialog() {
 
   return isMobile ? (
     <Sheet open={true} onOpenChange={(o) => !o && dismiss()}>
-      <SheetContent className="flex flex-col" showClose={false}>
+      <SheetContent className="flex flex-col overflow-y-auto" showClose={false}>
         {renderContent()}
       </SheetContent>
     </Sheet>
