@@ -107,8 +107,6 @@ export default function ChatInput({
 }: ChatInputProps) {
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
-  const disableDropZone =
-    targetId === 'chat-thread-input-dropzone' && !inThread;
   const [didDrop, setDidDrop] = useState(false);
   const isTargetId = useMemo(
     () => targetId === dropZoneId,
@@ -191,7 +189,9 @@ export default function ChatInput({
   }, [id, uploadKey, closeReply, replyCite]);
 
   useEffect(() => {
+    console.log('droppedFiles', droppedFiles);
     if (droppedFiles && droppedFiles[dropZoneId]) {
+      console.log('droppedFiles[dropZoneId]', droppedFiles[dropZoneId]);
       handleDrop(droppedFiles[dropZoneId]);
       setDidDrop(true);
     }
@@ -515,7 +515,7 @@ export default function ChatInput({
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
 
   // only allow dropping if this component is the target
-  if ((isDragging || isOver) && !disableDropZone) {
+  if ((isDragging || isOver) && isTargetId) {
     return (
       <div id={dropZoneId} className="flex w-full bg-gray-50">
         <div
@@ -533,7 +533,11 @@ export default function ChatInput({
   return (
     <>
       <div className={cn('flex w-full items-end space-x-2', className)}>
-        <div id={dropZoneId} className="flex-1">
+        <div
+          // sometimes a race condition causes the dropzone to be removed before the drop event fires
+          id={dropZoneId}
+          className="flex-1"
+        >
           {imageBlocks.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center">
               {imageBlocks.map((img, idx) => (

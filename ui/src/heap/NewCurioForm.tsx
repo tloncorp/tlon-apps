@@ -28,9 +28,6 @@ import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
-  const dropZoneId = 'new-curio-input';
-  const { isDragging, isOver, droppedFiles, targetId } =
-    useDragAndDrop(dropZoneId);
   const [inputMode, setInputMode] = useState<CurioInputMode>(LINK);
   const [draftLink, setDraftLink] = useState<string>();
   const [draftText, setDraftText] = useState<JSONContent>();
@@ -39,6 +36,8 @@ export default function NewCurioForm() {
   const { privacy } = useGroupPrivacy(flag);
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
+  const dropZoneId = `new-curio-input-${chFlag}`;
+  const { isDragging, isOver, droppedFiles } = useDragAndDrop(dropZoneId);
   const displayMode = useHeapDisplayMode(chFlag);
   const isGridMode = displayMode === GRID;
   const isListMode = displayMode === LIST;
@@ -143,10 +142,10 @@ export default function NewCurioForm() {
   );
 
   useEffect(() => {
-    if (droppedFiles && droppedFiles.length) {
-      handleDrop(droppedFiles);
+    if (droppedFiles && droppedFiles[dropZoneId]) {
+      handleDrop(droppedFiles[dropZoneId]);
     }
-  }, [droppedFiles, handleDrop]);
+  }, [droppedFiles, handleDrop, dropZoneId]);
 
   useEffect(() => {
     if (watchedContent) {
@@ -219,6 +218,8 @@ export default function NewCurioForm() {
 
   return (
     <div
+      // sometimes a race condition causes the dropzone to be removed before the drop event fires
+      id={dropZoneId}
       className={cn(isGridMode && 'virtuoso-grid-item aspect-h-1 aspect-w-1')}
     >
       {isListMode ? modeToggle() : null}

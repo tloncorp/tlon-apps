@@ -14,6 +14,7 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Club } from '@/types/chat';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import ChatSearch from '@/chat/ChatSearch/ChatSearch';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -64,6 +65,8 @@ function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
 export default function MultiDm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const clubId = useParams<{ ship: string }>().ship!;
+  const dropZoneId = `chat-dm-input-dropzone-${clubId}`;
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const isMobile = useIsMobile();
   const inSearch = useMatch(`/dm/${clubId}/search/*`);
   const isAccepted = !useMultiDmIsPending(clubId);
@@ -140,7 +143,11 @@ export default function MultiDm() {
         }
         footer={
           isAccepted ? (
-            <div className="border-t-2 border-gray-50 p-4">
+            <div
+              className={cn(
+                isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
+              )}
+            >
               <ChatInput
                 key={clubId}
                 whom={clubId}
@@ -149,6 +156,7 @@ export default function MultiDm() {
                 }
                 showReply
                 autoFocus={!isSelecting && !inSearch}
+                dropZoneId={dropZoneId}
               />
             </div>
           ) : null

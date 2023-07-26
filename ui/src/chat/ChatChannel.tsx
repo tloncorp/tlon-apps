@@ -27,9 +27,6 @@ import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
-  const dropZoneId = 'chat-input-dropzone';
-  const { isDragging, isOver, targetId } = useDragAndDrop(dropZoneId);
-  const isTargetId = targetId === dropZoneId;
   const navigate = useNavigate();
   const { chShip, chName, idTime, idShip } = useParams<{
     name: string;
@@ -40,6 +37,8 @@ function ChatChannel({ title }: ViewProps) {
     idTime: string;
   }>();
   const chFlag = `${chShip}/${chName}`;
+  const dropZoneId = `chat-input-dropzone-${chFlag}`;
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
   const { setRecentChannel } = useRecentChannel(groupFlag);
@@ -159,7 +158,7 @@ function ChatChannel({ title }: ViewProps) {
         footer={
           <div
             className={cn(
-              (!canWrite || isDragging || isOver) && !inThread
+              !canWrite || ((isDragging || isOver) && !inThread)
                 ? ''
                 : 'border-t-2 border-gray-50 p-3 sm:p-4'
             )}

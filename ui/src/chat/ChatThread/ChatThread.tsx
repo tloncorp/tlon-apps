@@ -31,8 +31,6 @@ export default function ChatThread() {
     idShip: string;
     idTime: string;
   }>();
-  const dropZoneId = 'chat-thread-input-dropzone';
-  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const scrollerRef = useRef<VirtuosoHandle>(null);
@@ -45,6 +43,8 @@ export default function ChatThread() {
   const channel = useChannel(groupFlag, `chat/${flag}`)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
+  const dropZoneId = `chat-thread-input-dropzone-${id}`;
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
   const navigate = useNavigate();

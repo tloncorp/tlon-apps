@@ -79,7 +79,7 @@ function TitleButton({
 export default function Dm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const ship = useParams<{ ship: string }>().ship!;
-  const dropZoneId = 'chat-dm-input-dropzone';
+  const dropZoneId = `chat-dm-input-dropzone-${ship}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
