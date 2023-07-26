@@ -6,11 +6,12 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
+import { uniq } from 'lodash';
 
 interface DragTargetContext {
   targetIdStack: string[];
   pushTargetID: (id: string) => void;
-  popTargetID: () => void;
+  popTargetID: (id: string) => void;
 }
 
 export const DragTargetContext = createContext<DragTargetContext>({
@@ -22,7 +23,10 @@ export const DragTargetContext = createContext<DragTargetContext>({
 interface DragAndDropContext {
   isDragging: boolean;
   isOver: boolean;
-  droppedFiles?: FileList;
+  droppedFiles?: Record<string, FileList>;
+  setDroppedFiles: React.Dispatch<
+    React.SetStateAction<Record<string, FileList> | undefined>
+  >;
   handleDrop: (e: DragEvent, dropZone: string) => void;
 }
 
@@ -31,6 +35,7 @@ export const DragAndDropContext = createContext<DragAndDropContext>({
   isOver: false,
   droppedFiles: undefined,
   handleDrop: () => ({}),
+  setDroppedFiles: () => ({}),
 });
 
 export function DragAndDropProvider({
@@ -40,16 +45,20 @@ export function DragAndDropProvider({
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isOver, setIsOver] = useState(false);
-  const [droppedFiles, setDroppedFiles] = useState<FileList>();
+  const [droppedFiles, setDroppedFiles] = useState<Record<string, FileList>>();
   const [targetIdStack, setTargetIdStack] = useState<string[]>([]);
   const dragCounter = useRef(0);
 
   const pushTargetID = useCallback((id: string) => {
-    setTargetIdStack((stack) => [...stack, id]);
+    setTargetIdStack((stack) =>
+      stack.includes(id) ? stack : uniq([...stack, id])
+    );
   }, []);
 
-  const popTargetID = useCallback(() => {
-    setTargetIdStack((stack) => stack.slice(0, stack.length - 1));
+  const popTargetID = useCallback((id: string) => {
+    setTargetIdStack((stack) =>
+      !stack.includes(id) ? stack : stack.filter((targetId) => targetId !== id)
+    );
   }, []);
 
   const preventDefault = (e: DragEvent) => {
@@ -82,21 +91,27 @@ export function DragAndDropProvider({
     setIsOver(true);
   }, []);
 
-  const handleDrop = useCallback((e: DragEvent, dropZone: string) => {
-    preventDefault(e);
+  const handleDrop = useCallback(
+    (e: DragEvent, dropZone: string) => {
+      preventDefault(e);
 
-    e.stopPropagation();
+      e.stopPropagation();
 
-    setIsDragging(false);
-    setIsOver(false);
+      setIsDragging(false);
+      setIsOver(false);
 
-    const targetElement = e.target as HTMLElement;
+      const targetElement = e.target as HTMLElement;
 
-    if (targetElement && targetElement.id !== dropZone) return;
+      if (targetElement && targetElement.id !== dropZone) return;
 
-    if (e.dataTransfer === null || !e.dataTransfer.files.length) return;
-    setDroppedFiles(e.dataTransfer.files);
-  }, []);
+      if (e.dataTransfer === null || !e.dataTransfer.files.length) return;
+      setDroppedFiles({
+        ...droppedFiles,
+        [dropZone]: e.dataTransfer.files,
+      });
+    },
+    [droppedFiles]
+  );
 
   useEffect(() => {
     window.addEventListener('dragenter', handleDragEnter);
@@ -111,7 +126,7 @@ export function DragAndDropProvider({
   }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop]);
 
   const value = useMemo(
-    () => ({ isDragging, isOver, droppedFiles, handleDrop }),
+    () => ({ isDragging, isOver, droppedFiles, setDroppedFiles, handleDrop }),
     [isDragging, isOver, droppedFiles, handleDrop]
   );
 
@@ -134,7 +149,7 @@ export function useDragAndDrop(targetId: string) {
     React.useContext(DragTargetContext);
   const currentTargetId = targetIdStack[targetIdStack.length - 1];
 
-  const { isDragging, isOver, droppedFiles, handleDrop } =
+  const { isDragging, isOver, droppedFiles, setDroppedFiles, handleDrop } =
     React.useContext(DragAndDropContext);
 
   const handleDropWithTarget = useCallback(
@@ -154,10 +169,16 @@ export function useDragAndDrop(targetId: string) {
     window.addEventListener('drop', handleDropWithTarget);
 
     return () => {
-      popTargetID();
+      popTargetID(targetId);
       window.removeEventListener('drop', handleDropWithTarget);
     };
   }, [handleDropWithTarget, popTargetID, pushTargetID, targetId]);
 
-  return { isDragging, isOver, droppedFiles, targetId: currentTargetId };
+  return {
+    isDragging,
+    isOver,
+    droppedFiles,
+    setDroppedFiles,
+    targetId: currentTargetId,
+  };
 }

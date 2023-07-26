@@ -105,11 +105,15 @@ export default function ChatInput({
   inThread = false,
   dropZoneId,
 }: ChatInputProps) {
-  const { isDragging, isOver, droppedFiles, targetId } =
+  const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
   const disableDropZone =
     targetId === 'chat-thread-input-dropzone' && !inThread;
-  const isTargetId = targetId === dropZoneId;
+  const [didDrop, setDidDrop] = useState(false);
+  const isTargetId = useMemo(
+    () => targetId === dropZoneId,
+    [targetId, dropZoneId]
+  );
   const id = replying ? `${whom}-${replying}` : whom;
   const [draft, setDraft] = useLocalStorage(
     createStorageKey(`chat-${id}`),
@@ -139,7 +143,6 @@ export default function ChatInput({
 
   const handleDrop = useCallback(
     (fileList: FileList) => {
-
       const localUploader = useFileStore.getState().getUploader(uploadKey);
 
       if (
@@ -148,12 +151,20 @@ export default function ChatInput({
       ) {
         localUploader.uploadFiles(fileList);
         useFileStore.getState().setUploadType(uploadKey, 'drag');
+        setDroppedFiles((prev) => {
+          if (prev) {
+            const { [dropZoneId]: _files, ...rest } = prev;
+            return rest;
+          }
+          return prev;
+        });
+
         return true;
       }
 
       return false;
     },
-    [uploadKey]
+    [uploadKey, dropZoneId, setDroppedFiles]
   );
 
   const closeReply = useCallback(() => {
@@ -180,10 +191,11 @@ export default function ChatInput({
   }, [id, uploadKey, closeReply, replyCite]);
 
   useEffect(() => {
-    if (droppedFiles && droppedFiles.length) {
-      handleDrop(droppedFiles);
+    if (droppedFiles && droppedFiles[dropZoneId]) {
+      handleDrop(droppedFiles[dropZoneId]);
+      setDidDrop(true);
     }
-  }, [droppedFiles, handleDrop]);
+  }, [droppedFiles, handleDrop, dropZoneId]);
 
   // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
@@ -194,10 +206,9 @@ export default function ChatInput({
       !_.some(Object.values(files), (f) => f.size === undefined) &&
       !_.some(Object.values(files), (f) => f.url === '')
     ) {
-
       const uploadType = useFileStore.getState().getUploadType(uploadKey);
 
-      if (isTargetId && uploadType === 'drag') {
+      if (isTargetId && uploadType === 'drag' && didDrop) {
         // TODO: handle existing blocks (other refs)
         useChatStore.getState().setBlocks(
           id,
@@ -210,6 +221,7 @@ export default function ChatInput({
             },
           }))
         );
+        setDidDrop(false);
       }
 
       if (uploadType !== 'drag') {
@@ -227,7 +239,7 @@ export default function ChatInput({
         );
       }
     }
-  }, [files, id, uploader, isTargetId, uploadKey]);
+  }, [files, id, uploader, isTargetId, uploadKey, didDrop, targetId]);
 
   const onUpdate = useRef(
     debounce(({ editor }: HandlerParams) => {
