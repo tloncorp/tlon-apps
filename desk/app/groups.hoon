@@ -1343,21 +1343,19 @@
     ^+  go-core
     =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
     =/  am-host  =(p.flag our.bowl)
+    =/  from-host  =(p.flag src.bowl)
     =/  has-host  (~(has in ships) p.flag)
     =*  cordon  cordon.group
     ?-    -.diff
         %add
-      ?>  ?|  am-host
-              =(p.flag src.bowl) :: subscription
-              user-join
-          ==
+      ?>  |(am-host from-host user-join)
       ?<  (go-is-banned src.bowl)
-      ?<  ?&  =(-.cordon %shut)
+      ?>  ?|  from-host
               ?-  -.cordon
-                  ?(%open %afar)  |
+                  ?(%open %afar)  &
                   %shut
                 =/  cross  (~(int in pend.cordon) ships)
-                !=(~(wyt in ships) ~(wyt in cross))
+                =(~(wyt in ships) ~(wyt in cross))
               ==
           ==
       =?  cor  &(!user-join am-host)  (give-invites flag ships)
@@ -1439,7 +1437,8 @@
         %add-sects
       ?>  go-is-bloc
       ~|  strange-sect/sects.diff
-      ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
+      =.  sects.diff  (~(int in sects.diff) ~(key by cabals.group))
+      ?:  =(~ sects.diff)  go-core
       =.  fleet.group
         %-  ~(rut by fleet.group)
         |=  [=ship =vessel:fleet:g]
