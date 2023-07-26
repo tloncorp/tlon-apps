@@ -27,7 +27,9 @@ import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
-  const { isDragging, isOver } = useDragAndDrop();
+  const dropZoneId = 'chat-input-dropzone';
+  const { isDragging, isOver, targetId } = useDragAndDrop(dropZoneId);
+  const isTargetId = targetId === dropZoneId;
   const navigate = useNavigate();
   const { chShip, chName, idTime, idShip } = useParams<{
     name: string;
@@ -157,7 +159,7 @@ function ChatChannel({ title }: ViewProps) {
         footer={
           <div
             className={cn(
-              !canWrite || isDragging || isOver
+              (!canWrite || isDragging || isOver) && !inThread
                 ? ''
                 : 'border-t-2 border-gray-50 p-3 sm:p-4'
             )}
@@ -169,6 +171,7 @@ function ChatChannel({ title }: ViewProps) {
                 sendMessage={sendMessage}
                 showReply
                 autoFocus={!inThread && !inSearch}
+                dropZoneId={dropZoneId}
               />
             ) : null}
           </div>

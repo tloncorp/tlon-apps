@@ -19,6 +19,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useChannelFlag } from '@/logic/channel';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -30,6 +31,8 @@ export default function ChatThread() {
     idShip: string;
     idTime: string;
   }>();
+  const dropZoneId = 'chat-thread-input-dropzone';
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const scrollerRef = useRef<VirtuosoHandle>(null);
@@ -163,7 +166,13 @@ export default function ChatThread() {
           />
         )}
       </div>
-      <div className="sticky bottom-0 border-t-2 border-gray-50 bg-white p-4">
+      <div
+        className={cn(
+          isDragging || isOver
+            ? 'sticky'
+            : 'sticky bottom-0 border-t-2 border-gray-50 bg-white p-4'
+        )}
+      >
         {canWrite && (
           <ChatInput
             whom={whom}
@@ -171,6 +180,7 @@ export default function ChatThread() {
             sendMessage={sendMessage}
             inThread
             autoFocus
+            dropZoneId={dropZoneId}
           />
         )}
       </div>

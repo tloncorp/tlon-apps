@@ -19,6 +19,7 @@ import ShipName from '@/components/ShipName';
 import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { Contact } from '@/types/contact';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -78,6 +79,8 @@ function TitleButton({
 export default function Dm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const ship = useParams<{ ship: string }>().ship!;
+  const dropZoneId = 'chat-dm-input-dropzone';
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
   const isMobile = useIsMobile();
@@ -161,7 +164,11 @@ export default function Dm() {
         }
         footer={
           isAccepted ? (
-            <div className="border-t-2 border-gray-50 p-4">
+            <div
+              className={cn(
+                isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
+              )}
+            >
               <ChatInput
                 key={ship}
                 whom={ship}
@@ -170,6 +177,7 @@ export default function Dm() {
                 }
                 showReply
                 autoFocus={!isSelecting && !inSearch}
+                dropZoneId={dropZoneId}
               />
             </div>
           ) : null

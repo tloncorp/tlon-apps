@@ -87,6 +87,7 @@ export function useMessageEditor({
       ) {
         // TODO should blocks first be updated here to show the loading state?
         uploader.uploadFiles(event.clipboardData.files);
+        useFileStore.getState().setUploadType(uploadKey, 'paste');
         return true;
       }
 
