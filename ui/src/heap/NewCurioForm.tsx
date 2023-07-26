@@ -224,6 +224,7 @@ export default function NewCurioForm() {
     >
       {isListMode ? modeToggle() : null}
       <div
+        id={dropZoneId}
         className={cn(
           isGridMode ? 'heap-block flex-col p-1' : 'heap-row h-min flex-row',
           'flex cursor-auto'
