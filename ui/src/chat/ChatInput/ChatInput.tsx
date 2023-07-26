@@ -139,9 +139,6 @@ export default function ChatInput({
 
   const handleDrop = useCallback(
     (fileList: FileList) => {
-      if (!whom) {
-        return false;
-      }
 
       const localUploader = useFileStore.getState().getUploader(uploadKey);
 
@@ -156,7 +153,7 @@ export default function ChatInput({
 
       return false;
     },
-    [whom, uploadKey]
+    [uploadKey]
   );
 
   const closeReply = useCallback(() => {

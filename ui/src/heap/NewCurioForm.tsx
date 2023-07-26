@@ -20,12 +20,17 @@ import {
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import { useHeapDisplayMode } from '@/state/settings';
-import { useUploader } from '@/state/storage';
+import { useFileStore, useUploader } from '@/state/storage';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
+  const dropZoneId = 'new-curio-input';
+  const { isDragging, isOver, droppedFiles, targetId } =
+    useDragAndDrop(dropZoneId);
   const [inputMode, setInputMode] = useState<CurioInputMode>(LINK);
   const [draftLink, setDraftLink] = useState<string>();
   const [draftText, setDraftText] = useState<JSONContent>();
@@ -44,7 +49,8 @@ export default function NewCurioForm() {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const uploader = useUploader('new-curio-input');
+  const uploadKey = `${chFlag}-new-curio-input`;
+  const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
   const { register, handleSubmit, reset, watch, setValue } =
     useForm<NewCurioFormSchema>({
@@ -118,6 +124,30 @@ export default function NewCurioForm() {
     [handleSubmit, isPending, isValidInput, onSubmit, setPending, setReady]
   );
 
+  const handleDrop = useCallback(
+    (fileList: FileList) => {
+      const localUploader = useFileStore.getState().getUploader(uploadKey);
+
+      if (
+        localUploader &&
+        Array.from(fileList).some((f) => PASTEABLE_IMAGE_TYPES.includes(f.type))
+      ) {
+        localUploader.uploadFiles(fileList);
+        useFileStore.getState().setUploadType(uploadKey, 'drag');
+        return true;
+      }
+
+      return false;
+    },
+    [uploadKey]
+  );
+
+  useEffect(() => {
+    if (droppedFiles && droppedFiles.length) {
+      handleDrop(droppedFiles);
+    }
+  }, [droppedFiles, handleDrop]);
+
   useEffect(() => {
     if (watchedContent) {
       setDraftLink(watchedContent);
@@ -156,6 +186,36 @@ export default function NewCurioForm() {
       </button>
     </div>
   );
+
+  if (isGridMode && isDragging && isOver) {
+    return (
+      <div id={dropZoneId} className="virtuoso-grid-item aspect-h-1 aspect-w-1">
+        <div
+          id={dropZoneId}
+          className="heap-block flex-col items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 p-1"
+        >
+          <div id={dropZoneId} className="text-sm font-bold">
+            Drop Attachments Here
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isListMode && isDragging && isOver) {
+    return (
+      <div id={dropZoneId} className="virtuoso-list-item">
+        <div
+          id={dropZoneId}
+          className="heap-row flex h-[108px] items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 p-1"
+        >
+          <div id={dropZoneId} className="text-sm font-bold">
+            Drop Attachments Here
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
