@@ -12,5 +12,6 @@ docker rm -f $CONTAINER_NAME 2>/dev/null || true
 docker build --platform=linux/amd64 -t $IMAGE_NAME -f ../rube/Dockerfile.playwright ../
 docker run --platform=linux/amd64 -d --name $CONTAINER_NAME -p 35453:8081 -p 36963:8082 $IMAGE_NAME
 
-echo "Waiting for ships to compile"
-sleep 120
+TIME=${WAIT_TIME:-"120"}
+echo "Waiting "$TIME"s for ships to compile"
+sleep $TIME
