@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
@@ -36,6 +36,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const [loadingBan, setLoadingBan] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const adminRef = useRef(document.getElementById('admin-dialog'));
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const sects = useSects(flag);
@@ -151,7 +152,11 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
           <Dropdown.Trigger className="default-focus ml-auto items-center text-gray-600 opacity-0 group-hover:opacity-100">
             <AddBadgeIcon className="h-6 w-6" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown min-w-52 text-gray-800">
+          <Dropdown.Content
+            className="dropdown min-w-52 text-gray-800"
+            avoidCollisions={true}
+            collisionBoundary={adminRef.current}
+          >
             {sects.map((s) => (
               <Dropdown.Item
                 key={s}

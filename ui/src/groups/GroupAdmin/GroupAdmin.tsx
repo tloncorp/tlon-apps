@@ -34,6 +34,7 @@ export default function GroupAdmin() {
       onOpenChange={onOpenChange}
       close="header"
       className="h-[90vh] w-[90vw] overflow-hidden p-0 sm:h-[75vh] sm:max-h-[800px] sm:w-[75vw] sm:max-w-[800px]"
+      id="admin-dialog"
       onInteractOutside={(e) => e.preventDefault()}
     >
       {isAdmin ? (
