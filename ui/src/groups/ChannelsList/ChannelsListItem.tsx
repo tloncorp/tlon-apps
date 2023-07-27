@@ -8,6 +8,7 @@ import { useHeapState } from '@/state/heap/heap';
 import {
   useAmAdmin,
   useDeleteChannelMutation,
+  useGroupCompatibility,
   useRouteGroup,
 } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
@@ -32,6 +33,8 @@ interface ChannelsListItemProps {
   nest: string;
   channel: GroupChannel;
   sectionKey: string;
+  groupCompatible: boolean;
+  groupCompatibleText: string;
   provided?: DraggableProvided;
   snapshot?: DraggableStateSnapshot;
   onChannelDelete: (channelFlag: string, sectionKey: string) => void;
@@ -60,6 +63,8 @@ export default function ChannelsListItem({
   provided,
   snapshot,
   sectionKey,
+  groupCompatible,
+  groupCompatibleText,
   onChannelDelete,
 }: ChannelsListItemProps) {
   const groupFlag = useRouteGroup();
@@ -68,13 +73,16 @@ export default function ChannelsListItem({
   const { meta } = channel;
   const [app, channelFlag] = nestToFlag(nest);
   const joined = useChannelIsJoined(nest);
-  const { compatible, text } = useChannelCompatibility(nest);
+  const { compatible: chanCompatible, text: chanText } =
+    useChannelCompatibility(nest);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
     useRequestState();
+  const compatible = chanCompatible && groupCompatible;
+  const text = !groupCompatible ? groupCompatibleText : chanText;
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
