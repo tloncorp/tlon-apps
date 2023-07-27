@@ -99,11 +99,15 @@
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
+    =.  cor  
+      %+  roll
+        ~(tap in (~(gas in *(set ship)) (turn diaries head)))
+      |=  [=ship cr=_cor]
+      (watch-epic:cr ship &)
     |-
     ?~  diaries
       cor
-    =.  cor
-      di-abet:di-upgrade:(di-abed:di-core i.diaries)
+    =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
     $(diaries t.diaries)
   ==
   ::
@@ -144,29 +148,26 @@
   --
 ::
 ++  watch-epic
-  |=  her=ship
+  |=  [her=ship leave=?]
   ^+  cor
   =/  =wire  /epic
   =/  =dock  [her dap.bowl]
-  ?:  (~(has by wex.bowl) [wire dock])
-    cor
-  (emit %pass wire %agent [her dap.bowl] %watch /epic)
+  =?  cor  leave  (emit %pass wire %agent dock %leave ~)
+  (emit %pass wire %agent dock %watch /epic)
 ::
 ++  take-epic
   |=  =sign:agent:gall
   ^+  cor
   ?+    -.sign  cor
       %kick
-    (watch-epic src.bowl)
+    (watch-epic src.bowl |)
   ::
       %fact
     ?.  =(%epic p.cage.sign)
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay:d)
-      cor
-    ~&  >>  "good news everyone!"
+    ~&  >>  "resolving epic change, current: {<okay:d>} received: {<epic>}"
     %+  roll  ~(tap by shelf)
     |=  [[=flag:g =diary:d] out=_cor]
     ?.  =(src.bowl p.flag)
@@ -628,21 +629,31 @@
   ::
   ++  di-upgrade
     ^+  di-core
+    ::  we're the host so ignore
     ?.  ?=(%sub -.net.diary)
       di-core
+    ::  we're ahead or synced so ignore
     ?.  ?=(%dex -.saga.net.diary)
       di-core
+    ::  we're still behind even with the upgrade, so ignore
     ?.  =(okay:d ver.saga.net.diary)
       ~&  future-shock/[ver.saga.net.diary flag]
       di-core
+    ::  safe to sync
     =>  .(saga.net.diary `saga:e`saga.net.diary)
     di-make-chi
+  ::
+  ++  di-make-dex
+    |=  her=epic:e
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    =.  saga.net.diary  dex+her
+    di-core
   ::
   ++  di-make-lev
     ?.  ?=(%sub -.net.diary)
       di-core
     =.  saga.net.diary  lev/~
-    =.  cor  (watch-epic p.flag)
     di-core
   ::
   ++  di-make-chi
@@ -779,12 +790,9 @@
     |=  her=epic:e
     ^+  di-core
     ?>  ?=(%sub -.net.diary)
-    ?:  =(her okay:d)
-      di-core
-    ?:  (gth her okay:d)
-      =.  saga.net.diary  dex+her
-      di-core
-    di-make-lev
+    ?:  (lth her okay:d)  di-make-lev
+    ?:  (gth her okay:d)  (di-make-dex her)
+    di-make-chi
  ::
  ++  di-take-update
     |=  =sign:agent:gall
