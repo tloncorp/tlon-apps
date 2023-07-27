@@ -59,16 +59,6 @@
       =remark
   ==
 ::
-+$  diary-0
-  $:  =net
-      =log
-      =perm
-      =view
-      =sort
-      =notes
-      =remark
-  ==
-::
 ::  $notes: a set of time ordered diary posts
 ::
 ++  notes

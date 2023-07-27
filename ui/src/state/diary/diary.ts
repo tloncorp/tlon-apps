@@ -87,7 +87,7 @@ async function updateNotesInCache(
 function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   return {
     app: 'diary',
-    mark: 'diary-action-0',
+    mark: 'diary-action-1',
     json: {
       flag,
       update: {
