@@ -5,6 +5,7 @@ import {
   useCalmSettingMutation,
   useLogActivity,
   usePutEntryMutation,
+  useResetAnalyticsIdMutation,
   useTheme,
   useThemeMutation,
 } from '@/state/settings';
@@ -14,6 +15,7 @@ import Dialog from './Dialog';
 import Setting from './Setting';
 import SettingDropdown from './SettingDropdown';
 import Sheet, { SheetContent } from './Sheet';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function SettingsDialog() {
   const logActivity = useLogActivity();
@@ -39,6 +41,9 @@ export default function SettingsDialog() {
     useCalmSettingMutation('disableWayfinding');
   const { mutate: toggleLogActivity, status: logActivityStatus } =
     usePutEntryMutation({ bucket: window.desk, key: 'logActivity' });
+  const { mutate: resetAnalyticsId, status: resetAnalyticsIdStatus } =
+    useResetAnalyticsIdMutation();
+
   const onOpenChange = (open: boolean) => {
     if (!open) {
       dismiss();
@@ -117,6 +122,23 @@ export default function SettingsDialog() {
                 Groups experience.
               </p>
             </Setting>
+          )}
+          {isGroups && logActivity && (
+            <div className="flex flex-col items-center space-y-2">
+              <div className="flex flex-row items-center space-x-2">
+                <button
+                  onClick={() => resetAnalyticsId()}
+                  className="small-button"
+                  disabled={resetAnalyticsIdStatus === 'loading'}
+                >
+                  {resetAnalyticsIdStatus === 'loading' ? (
+                    <LoadingSpinner />
+                  ) : (
+                    'Reset Analytics ID'
+                  )}
+                </button>
+              </div>
+            </div>
           )}
           <Setting
             on={disableSpellcheck}
