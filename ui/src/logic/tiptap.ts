@@ -18,6 +18,7 @@ import {
   KeyboardShortcutCommand,
   PasteRule,
 } from '@tiptap/core';
+import { deSig } from '@urbit/api';
 import { Cite } from '@/types/chat';
 import {
   DiaryBlock,
@@ -436,7 +437,7 @@ const makeLink = (link: Link['link']) => ({
 });
 export const makeMention = (ship: string) => ({
   type: 'mention',
-  attrs: { id: ship },
+  attrs: { id: deSig(ship) },
 });
 export const makeParagraph = (content?: JSONContent[]): JSONContent => {
   const p = { type: 'paragraph' };
@@ -696,7 +697,7 @@ export function diaryMixedToJSON(note: NoteContent): JSONContent {
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
-function isMergeable(x: InlineKey): x is typeof MERGEABLE_KEYS[number] {
+function isMergeable(x: InlineKey): x is (typeof MERGEABLE_KEYS)[number] {
   return MERGEABLE_KEYS.includes(x as any);
 }
 export function normalizeInline(inline: Inline[]): Inline[] {

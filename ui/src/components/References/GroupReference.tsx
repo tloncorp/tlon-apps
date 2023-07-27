@@ -12,6 +12,7 @@ import {
 } from '@/logic/utils';
 import ShipName from '@/components/ShipName';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import { useCalm } from '@/state/settings';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import ReferenceInHeap from './ReferenceInHeap';
 
@@ -30,10 +31,10 @@ function GroupReference({
   isScrolling = false,
   plain = false,
   onlyButton = false,
-  description,
   contextApp,
   children,
 }: GroupReferenceProps) {
+  const calm = useCalm();
   const gang = useGang(flag);
   const preview = useGangPreview(flag, isScrolling);
   const { group, privacy, open, reject, button, status } = useGroupJoin(
@@ -43,7 +44,6 @@ function GroupReference({
   const { ship } = getFlagParts(flag);
   const cordon = preview?.cordon || group?.cordon;
   const banned = cordon ? matchesBans(cordon, window.our) : null;
-
   const meta = group?.meta || preview?.meta;
 
   const referenceUnavailable =
@@ -52,7 +52,11 @@ function GroupReference({
     !(gang?.invite && gang.invite.ship === window.our);
 
   if (referenceUnavailable) {
-    return (
+    return onlyButton ? (
+      <button className="small-button" disabled={true}>
+        Unavailable
+      </button>
+    ) : (
       <div className="relative flex h-16 items-center space-x-3 rounded-lg border-2 border-gray-50 bg-gray-50 p-2 text-base font-semibold text-gray-600">
         <ExclamationPoint className="h-8 w-8 text-gray-400" />
         <span>This content is unavailable to you</span>
@@ -139,7 +143,7 @@ function GroupReference({
               <img
                 src={meta.cover}
                 loading="lazy"
-                className="absolute top-0 left-0 h-full w-full"
+                className="absolute top-0 left-0 h-full w-full object-cover"
               />
             ) : (
               <div
@@ -165,42 +169,40 @@ function GroupReference({
   return (
     <div
       className={cn(
-        'not-prose items-top relative flex max-w-[300px] rounded-lg bg-white text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white',
+        'not-prose flex min-w-[300px] max-w-[600px] items-center space-x-2 rounded-lg bg-white p-2 transition-colors hover:border-gray-100 group-one-hover:border-gray-100 group-one-hover:bg-white',
         {
           'border-2 border-gray-50': !plain,
         },
-        contextApp === 'heap-detail' ? 'mb-0 h-full border-none' : 'mb-2'
+        contextApp === 'heap-detail'
+          ? 'mb-0 border-transparent hover:border-transparent'
+          : ''
       )}
     >
       <button
-        className="flex w-full items-center justify-start rounded-lg p-2 text-left"
+        className="flex w-full items-center justify-between space-x-2 text-left"
         onClick={open}
       >
-        <div className="items-top flex space-x-3 font-semibold">
-          <GroupAvatar {...meta} size="h-12 w-12" />
-          <div className="overflow-hidden text-ellipsis text-sm leading-5">
-            <h3 className="line-clamp-1">{meta?.title || flag} </h3>
-            {!plain && (
-              <span className="flex space-x-1 text-sm font-semibold text-gray-400 line-clamp-1">
-                <span>by</span>
-                <ShipName
-                  className="overflow-hidden text-ellipsis whitespace-nowrap"
-                  name={ship}
-                />
-              </span>
-            )}
-            {!plain && (
-              <>
-                <span className="text-sm capitalize text-gray-400">
-                  Group • {privacy}
-                </span>
-                <p className="text-sm text-gray-800">{meta?.description}</p>
-              </>
-            )}
-          </div>
+        <GroupAvatar {...meta} size="h-12 w-12 shrink-0" />
+        <div className="grow text-sm font-semibold leading-4">
+          <h3 className="line-clamp-1">{meta?.title || flag} </h3>
+          {!plain && (
+            <p className="font-medium text-gray-400 line-clamp-1">
+              by{' '}
+              <ShipName
+                className="overflow-hidden text-ellipsis whitespace-nowrap"
+                name={ship}
+                showAlias={!calm.disableNicknames}
+              />
+            </p>
+          )}
+          {!plain && (
+            <p className="font-medium capitalize text-gray-400">
+              {privacy} Group
+            </p>
+          )}
         </div>
       </button>
-      <div className="mr-2 flex flex-row pt-2">
+      <div className="h-full shrink-0">
         {banned ? (
           <div className="rounded-lg bg-gray-100 p-2 text-center text-xs font-semibold leading-3 text-gray-600">
             {banned === 'ship'
@@ -219,12 +221,14 @@ function GroupReference({
             ) : null}
             {status === 'loading' ? (
               <div className="flex items-center space-x-2">
-                <span className="text-gray-400">Joining...</span>
+                <span className="text-sm font-semibold text-gray-400">
+                  Joining...
+                </span>
                 <LoadingSpinner />
               </div>
             ) : (
               <button
-                className="small-button ml-3 whitespace-nowrap bg-blue-softer text-blue dark:text-black"
+                className="small-button whitespace-nowrap bg-blue-softer text-blue dark:text-black"
                 onClick={button.action}
                 disabled={button.disabled || status === 'error'}
               >

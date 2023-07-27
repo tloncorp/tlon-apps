@@ -1,9 +1,11 @@
+import cn from 'classnames';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Draggable } from 'react-beautiful-dnd';
 import SixDotIcon from '@/components/icons/SixDotIcon';
 import {
   useAddChannelMutation,
   useAmAdmin,
+  useGroupCompatibility,
   useGroupDeleteZoneMutation,
   useRouteGroup,
 } from '@/state/groups';
@@ -37,6 +39,7 @@ export default function Section({
 }: SectionProps) {
   const group = useRouteGroup();
   const isAdmin = useAmAdmin(group);
+  const { compatible, text } = useGroupCompatibility(group);
   const [isEditing, setIsEditing] = useState(false);
   const isSectionless = sectionKey === 'default';
   const { mutate: addChannelMutation, status: saveStatus } =
@@ -95,14 +98,24 @@ export default function Section({
         index={index}
       >
         {(provided) => (
-          <div ref={provided.innerRef} {...provided.draggableProps}>
+          <div
+            ref={provided.innerRef}
+            {...(compatible ? provided.draggableProps : {})}
+          >
             <div className="card mb-4 px-0 pt-0 pb-3">
               <header className="flex items-center justify-between rounded-t-lg bg-white px-2 pb-2 pt-4 md:px-8 md:pt-8">
                 <div className="flex flex-col">
                   <div className="flex w-full items-center">
                     {isSectionless || isEditing ? null : (
-                      <div {...provided.dragHandleProps}>
-                        <SixDotIcon className="my-2 mr-3 h-5 w-5 fill-gray-600" />
+                      <div {...(compatible ? provided.dragHandleProps : {})}>
+                        <SixDotIcon
+                          className={cn(
+                            'mr-3 h-5 w-5',
+                            compatible
+                              ? 'fill-gray-600'
+                              : 'cursor-not-allowed fill-gray-200'
+                          )}
+                        />
                       </div>
                     )}
                     {isSectionless ? (

@@ -135,7 +135,7 @@
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) ~)
   ::
-      ?(%group-action-1 %group-action-0)
+      ?(%group-action-2 %group-action-1 %group-action-0)
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
@@ -254,6 +254,8 @@
     ?.  (gth ~(wyt in readers) 0)  cr
     =/  action  [flag now.bowl %channel nest %del-sects readers]
     cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
+  =+  .^(has=? %gu (channel-scry nest))
+  ?.  has  cr
   =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
   =/  diff  (~(dif in writers) ~(key by cabals.group))
   ?.  (gth ~(wyt in diff) 0)  cr
@@ -340,12 +342,15 @@
       [%x %groups %light ~]  ``groups+!>(groups-light)
   ::
       [%x %groups ~]
-    ``groups+!>(`groups:g`(~(run by groups) tail))
+    ``groups+!>(`groups:g`(~(run by groups) to-group-ui))
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
+    =/  group  (~(got by groups) [ship name.pole])
     ?~  rest.pole
-      ``group+!>(`group:g`+:(~(got by groups) [ship name.pole]))
+      ``group+!>(+.group)
+    ?:  =(/ui rest.pole)
+      ``group-ui+!>(`group-ui:g`(to-group-ui group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
       [%x %exists ship=@ name=@ rest=*]
@@ -361,7 +366,15 @@
     %+  ~(put by *fleet:g)
       our.bowl
     (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-  group
+  (to-group-ui net group)
+::
+++  to-group-ui
+  |=  [=net:g =group:g]
+  ^-  group-ui:g
+  :-  group
+  ?+  -.net  ~
+      %sub  `saga.net
+  ==
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
@@ -527,17 +540,16 @@
 ::
 ++  from-self  =(our src):bowl
 ++  pass-hark
-  |=  [all=? desk=? =yarn:ha]
+  |=  =new-yarn:ha
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
-  =/  =cage  hark-action+!>([%add-yarn all desk yarn])
+  =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
 ++  spin
   |=  [=rope:ha wer=path but=(unit button:ha) con=(list content:ha)]
-  ^-  yarn:ha
-  =/  id  (end [7 1] (shax eny.bowl))
-  [id rope now.bowl con wer but]
+  ^-  new-yarn:ha
+  [& & rope con wer but]
 ::
 ++  give-invites
   |=  [=flag:g ships=(set ship)]
@@ -1011,9 +1023,9 @@
       ::  XX: does init need to be handled specially?
       ?+  p.cage  (go-odd-update p.cage)
         %epic            (go-take-epic !<(epic:e q.cage))
-        %group-log-1     (go-apply-log !<(log:g q.cage))
-        %group-update-1  (go-update !<(update:g q.cage))
-        %group-init-1    (go-fact-init !<(init:g q.cage))
+        %group-log-2     (go-apply-log !<(log:g q.cage))
+        %group-update-2  (go-update !<(update:g q.cage))
+        %group-init-2    (go-fact-init !<(init:g q.cage))
       ==
     ==
   ::
@@ -1187,8 +1199,9 @@
       go-core
     ::
         %mov-nest
+      ?.  (~(has by zones.group) zone)  go-core
       =/  =realm:zone:g  (~(got by zones.group) zone)
-      ?>  (~(has of ord.realm) nest.delta)
+      ?.  (~(has of ord.realm) nest.delta)  go-core
       =.  ord.realm
         (~(into of ord.realm) [idx nest]:delta)
       =.  zones.group    (~(put by zones.group) zone realm)
@@ -1285,7 +1298,7 @@
         =/  ships  q.diff
         ?:  from-self  go-core
         =/  link  (go-link /info/members/pending)
-        =/  yarn
+        =/  =new-yarn:ha
           %-  spin
           :*  (go-rope /asks)
               link
@@ -1301,7 +1314,7 @@
               ==
           ==
         =?  cor  go-is-our-bloc
-          (emit (pass-hark & & yarn))
+          (emit (pass-hark new-yarn))
         go-core
       ::
           [%del-ships %ask]
@@ -1340,21 +1353,19 @@
     ^+  go-core
     =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
     =/  am-host  =(p.flag our.bowl)
+    =/  from-host  =(p.flag src.bowl)
     =/  has-host  (~(has in ships) p.flag)
     =*  cordon  cordon.group
     ?-    -.diff
         %add
-      ?>  ?|  am-host
-              =(p.flag src.bowl) :: subscription
-              user-join
-          ==
+      ?>  |(am-host from-host user-join)
       ?<  (go-is-banned src.bowl)
-      ?<  ?&  =(-.cordon %shut)
+      ?>  ?|  from-host
               ?-  -.cordon
-                  ?(%open %afar)  |
+                  ?(%open %afar)  &
                   %shut
                 =/  cross  (~(int in pend.cordon) ships)
-                !=(~(wyt in ships) ~(wyt in cross))
+                =(~(wyt in ships) ~(wyt in cross))
               ==
           ==
       =?  cor  &(!user-join am-host)  (give-invites flag ships)
@@ -1372,7 +1383,7 @@
           [ship [sects=sects.vessel joined=joined]]
       ?:  from-self  go-core
       =/  link  (go-link /edit/members)
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /joins)
             link
@@ -1387,7 +1398,7 @@
             ==
         ==
       =?  cor  go-is-our-bloc
-        (emit (pass-hark & & yarn))
+        (emit (pass-hark new-yarn))
       ?-  -.cordon
           ?(%open %afar)  go-core
           %shut
@@ -1413,7 +1424,7 @@
         (~(has in ships) ship)
       ?:  from-self  go-core
       =/  link  (go-link /edit/members)
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /leaves)
             link
@@ -1428,7 +1439,7 @@
             ==
         ==
       =?  cor  go-is-our-bloc
-        (emit (pass-hark & & yarn))
+        (emit (pass-hark new-yarn))
       ?:  (~(has in ships) our.bowl)
         go-core(gone &)
       go-core
@@ -1436,7 +1447,8 @@
         %add-sects
       ?>  go-is-bloc
       ~|  strange-sect/sects.diff
-      ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
+      =.  sects.diff  (~(int in sects.diff) ~(key by cabals.group))
+      ?:  =(~ sects.diff)  go-core
       =.  fleet.group
         %-  ~(rut by fleet.group)
         |=  [=ship =vessel:fleet:g]
@@ -1455,7 +1467,7 @@
         |=  =sect:g
         =/  cabal  (~(got by cabals.group) sect)
         title.meta.cabal
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /add-roles)
             link
@@ -1468,7 +1480,7 @@
             ==
         ==
       =?  cor  go-is-our-bloc
-        (emit (pass-hark & & yarn))
+        (emit (pass-hark new-yarn))
       go-core
     ::
         %del-sects
@@ -1486,16 +1498,14 @@
     ^+  go-core
     ?>  go-is-bloc
     =*  by-ch  ~(. by channels.group)
+    ?.  |(=(-.diff %add) (has:by-ch ch))  go-core
     ?-    -.diff
         %add
-      =/  =zone:g  zone.channel.diff
-      =.  zones.group
-        %+  ~(jab by zones.group)  zone
-        |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
+      =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
       =/  link  (go-link /channels)
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /channel/add)
             link
@@ -1505,21 +1515,18 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =.  cor  (emit (pass-hark new-yarn))
       ?:  =(our.bowl p.flag)  go-core
       =.  cor  (emil (join-channels:go-pass ~[ch]))
       go-core
     ::
         %edit
       =/  prev=channel:g  (got:by-ch ch)
-      =/  =zone:g  zone.channel.diff
-      =.  zones.group
-        %+  ~(jab by zones.group)  zone
-        |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
+      =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
       =/  link  (go-link /channels)
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /channel/edit)
             link
@@ -1533,19 +1540,19 @@
                 ' has been edited'
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =.  cor  (emit (pass-hark new-yarn))
       go-core
     ::
         %del
-      ?.  (has:by-ch ch)  go-core
       =/  =channel:g   (got:by-ch ch)
       =.  zones.group
+        ?.  (~(has by zones.group) zone.channel)  zones.group
         %+  ~(jab by zones.group)  zone.channel
         |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  channels.group  (del:by-ch ch)
       ?:  from-self  go-core
       =/  link  (go-link /channels)
-      =/  yarn
+      =/  =new-yarn:ha
         %-  spin
         :*  (go-rope /channel/del)
             link
@@ -1555,7 +1562,7 @@
                 [%emph title.meta.group]
             ==
         ==
-      =.  cor  (emit (pass-hark & & yarn))
+      =.  cor  (emit (pass-hark new-yarn))
       go-core
     ::
         %add-sects
@@ -1574,12 +1581,15 @@
       go-core
     ::
         %zone
+      ?.  (has:by-ch ch)  go-core
       =/  =channel:g  (got:by-ch ch)
+      ?.  (~(has by zones.group) zone.diff)  go-core
       =.  zones.group
         %+  ~(jab by zones.group)  zone.channel
         |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  zone.channel   zone.diff
       =.  channels.group  (put:by-ch ch channel)
+      ?.  (~(has by zones.group) zone.diff)  go-core
       =/  =realm:zone:g  (~(got by zones.group) zone.diff)
       =.  ord.realm  (~(push of ord.realm) ch)
       =.  zones.group  (~(put by zones.group) zone.diff realm)
@@ -1591,6 +1601,12 @@
       =.  channels.group  (put:by-ch ch channel)
       go-core
     ==
+  ++  go-bump-zone
+    |=  [ch=nest:g =channel:g]
+    =/  =zone:g  zone.channel
+    ?.  (~(has by zones.group) zone)  zones.group
+    %+  ~(jab by zones.group)  zone
+    |=(=realm:zone:g realm(ord (~(push of ord.realm) ch)))
   --
 ::
 ++  res-gang-index
@@ -1692,6 +1708,7 @@
       ^-  card
       [%pass (welp ga-area wire) %agent [p.flag dap.bowl] task]
     ++  add-self
+      ?>  =(src.bowl our.bowl)
       =/  =vessel:fleet:g  [~ now.bowl]
       =/  =action:g  [flag now.bowl %fleet (silt ~[our.bowl]) %add ~]
       (poke-host /join/add act:mar:g !>(action))
@@ -1766,7 +1783,7 @@
           ?~  pev.gang   ga-core
           ?~  vit.gang   ga-core
           =/  link  /find
-          =/  yarn
+          =/  =new-yarn:ha
             %-  spin
             :*  [`flag ~ q.byk.bowl /(scot %p p.flag)/[q.flag]/invite]
                 link
@@ -1777,7 +1794,7 @@
                 ==
             ==
           =?  cor  !(~(has by groups) flag)
-            (emit (pass-hark & & yarn))
+            (emit (pass-hark new-yarn))
           ga-core
           ::
             %kick
@@ -1824,7 +1841,7 @@
   ::
   ++  ga-watched
     |=  p=(unit tang)
-    ?>  ?=(^ cam.gang)
+    ?~  cam.gang  ga-core
     ?^  p
       %-  (slog leaf/"Failed to join" u.p)
       =.  progress.u.cam.gang  %error

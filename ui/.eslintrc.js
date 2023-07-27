@@ -12,6 +12,10 @@ module.exports = {
           'error',
           { ignore: ['^@', '^virtual:pwa-register'] },
         ],
+        'import/no-extraneous-dependencies': [
+          'error',
+          { devDependencies: true },
+        ],
       },
     },
   ],

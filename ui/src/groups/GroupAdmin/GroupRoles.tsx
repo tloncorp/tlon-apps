@@ -14,6 +14,7 @@ import { getPrivacyFromGroup, nestToFlag } from '@/logic/utils';
 import {
   useAmAdmin,
   useGroup,
+  useGroupCompatibility,
   useGroupDelRoleMutation,
   useGroupEditRoleMutation,
   useRouteGroup,
@@ -28,6 +29,7 @@ import StarIcon from '@/components/icons/StarIcon';
 import KeyIcon from '@/components/icons/KeyIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import IconButton from '@/components/IconButton';
+import Tooltip from '@/components/Tooltip';
 import RoleCreate from './GroupRoleCreate';
 
 function eqRoleName(a: string, b: string) {
@@ -44,6 +46,7 @@ export default function GroupRoles({ title }: { title: string }) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const amAdmin = useAmAdmin(flag);
+  const { compatible, text } = useGroupCompatibility(flag);
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
   const [editRole, setEditRole] = useState('');
@@ -145,7 +148,7 @@ export default function GroupRoles({ title }: { title: string }) {
   const updateRole = () => {
     mutate({
       flag,
-      sect: editRole.toLowerCase().replace(/ /g, '-'),
+      sect: editRole,
       meta: {
         title: roleTitle,
         description,
@@ -243,20 +246,22 @@ export default function GroupRoles({ title }: { title: string }) {
               />
             </div>
             <div className="flex flex-row justify-end space-x-2">
-              <button
-                className="button bg-blue text-white"
-                onClick={() => updateRole()}
-                disabled={status === 'loading'}
-              >
-                {status === 'loading' ? (
-                  <div className="flex flex-row space-x-2">
-                    Saving...
-                    <LoadingSpinner className="h-4 w-4" />
-                  </div>
-                ) : (
-                  'Save Role'
-                )}
-              </button>
+              <Tooltip content={text} open={compatible ? false : undefined}>
+                <button
+                  className="button bg-blue text-white"
+                  onClick={() => updateRole()}
+                  disabled={status === 'loading' || !compatible}
+                >
+                  {status === 'loading' ? (
+                    <div className="flex flex-row space-x-2">
+                      Saving...
+                      <LoadingSpinner className="h-4 w-4" />
+                    </div>
+                  ) : (
+                    'Save Role'
+                  )}
+                </button>
+              </Tooltip>
             </div>
           </div>
         )}
@@ -369,26 +374,29 @@ export default function GroupRoles({ title }: { title: string }) {
             >
               Cancel
             </button>
-            <button
-              className="button center-items flex bg-red"
-              disabled={
-                deleteStatus === 'loading' ||
-                !eqRoleName(
-                  deleteField,
-                  group?.cabals[editRole].meta.title || ''
-                )
-              }
-              onClick={() => handleDeleteRole(editRole)}
-            >
-              {deleteStatus === 'loading' ? (
-                <>
-                  <LoadingSpinner h-4 w-4 mr-2 />
-                  Deleting...
-                </>
-              ) : (
-                'Delete'
-              )}
-            </button>
+            <Tooltip content={text} open={compatible ? false : undefined}>
+              <button
+                className="button center-items flex bg-red"
+                disabled={
+                  !compatible ||
+                  deleteStatus === 'loading' ||
+                  !eqRoleName(
+                    deleteField,
+                    group?.cabals[editRole].meta.title || ''
+                  )
+                }
+                onClick={() => handleDeleteRole(editRole)}
+              >
+                {deleteStatus === 'loading' ? (
+                  <>
+                    <LoadingSpinner h-4 w-4 mr-2 />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </Tooltip>
           </div>
         </div>
       )}
