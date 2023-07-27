@@ -14,7 +14,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %0
+    $:  %1
         =shelf:d
         voc=(map [flag:d plan:d] (unit said:d))
         ::  true represents imported, false pending import
@@ -89,19 +89,53 @@
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
-  =.  state  old
-  =.  cor  restore-missing-subs
-  =.  cor
-    (emil (drop load:epos))
-  =/  diaries  ~(tap in ~(key by shelf))
   |-
-  ?~  diaries
-    cor
-  =.  cor
-    di-abet:di-upgrade:(di-abed:di-core i.diaries)
-  $(diaries t.diaries)
+  ?-  -.old
+    %0  $(old (state-0-to-1 old))
+    ::
+      %1
+    =.  state  old
+    =.  cor  restore-missing-subs
+    =.  cor
+      (emil (drop load:epos))
+    =/  diaries  ~(tap in ~(key by shelf))
+    |-
+    ?~  diaries
+      cor
+    =.  cor
+      di-abet:di-upgrade:(di-abed:di-core i.diaries)
+    $(diaries t.diaries)
+  ==
   ::
-  +$  versioned-state  $%(current-state)
+  +$  versioned-state  $%(current-state state-0)
+  +$  state-0
+    $:  %0
+        shelf=shelf:zero
+        voc=(map [flag:zero plan:zero] (unit said:zero))
+        ::  true represents imported, false pending import
+        imp=(map flag:zero ?)
+    ==
+  +$  state-1  current-state
+  ++  zero  zero:old:d
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    %*  .  *state-1
+      shelf  (convert-shelf shelf.s)
+      voc    voc.s
+      imp    imp.s
+    ==
+  ::
+++  convert-shelf
+    |=  old-shelf=shelf:zero
+    ^-  shelf:d
+    %-  malt
+    %+  turn
+      ~(tap by old-shelf)
+    |=  [=flag:d old-diary=diary:zero]
+    ^-  [flag:d diary:d]
+    [flag [~ old-diary]]
+  ::
   ++  restore-missing-subs
     %+  roll
       ~(tap by shelf)
@@ -183,7 +217,7 @@
     =+  !<(req=create:d vase)
     (create req)
   ::
-      ?(%diary-action-0 %diary-action)
+      ?(%diary-action-1 %diary-action-0 %diary-action)
     =+  !<(=action:d vase)
     =/  diary-core  (di-abed:di-core p.action)
     ?:  =(p.p.action our.bowl)
@@ -251,7 +285,8 @@
     [now.bowl | ~]
   =/  =notes:d  graph-to-notes
   =/  =diary:d
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
+    :*  arranged-notes=~
+        net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
         log=(import-log notes perm)
         perm
         %grid  :: TODO: check defaults with design
@@ -771,8 +806,8 @@
       =*  cage  cage.sign
       ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
-        ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
-        ?(%diary-update %diary-update-0)  (di-update !<(update:d q.cage))
+        ?(%diary-logs %diary-logs-0 %diary-logs-1)      (di-apply-logs !<(log:d q.cage))
+        ?(%diary-update %diary-update-0 %diary-update-1)  (di-update !<(update:d q.cage))
       ==
     ==
   ::
@@ -958,6 +993,10 @@
     ::
         %view
       =.  view.diary  p.dif
+      di-core
+    ::
+        %arranged-notes
+      =.  arranged-notes.diary  p.dif
       di-core
     ==
   --
