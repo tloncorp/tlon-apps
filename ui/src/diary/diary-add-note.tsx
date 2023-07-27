@@ -28,6 +28,8 @@ import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import Setting from '@/components/Setting';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
+import { useChannelCompatibility } from '@/logic/channel';
+import Tooltip from '@/components/Tooltip';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
@@ -57,6 +59,7 @@ export default function DiaryAddNote() {
   const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
     usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
   const editWithMarkdown = useMarkdownInDiaries();
+  const { compatible, text } = useChannelCompatibility(`diary/${chFlag}`);
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
@@ -226,26 +229,29 @@ export default function DiaryAddNote() {
 
           <div className="flex shrink-0 flex-row items-center space-x-3">
             {isMobile && <ReconnectingSpinner />}
-            <button
-              disabled={
-                !editor?.getText() ||
-                editStatus === 'loading' ||
-                addStatus === 'loading' ||
-                watchedTitle === ''
-              }
-              className={cn(
-                'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
-              )}
-              onClick={publish}
-            >
-              {editStatus === 'loading' || addStatus === 'loading' ? (
-                <LoadingSpinner className="h-4 w-4" />
-              ) : editStatus === 'error' || addStatus === 'error' ? (
-                'Error'
-              ) : (
-                'Save'
-              )}
-            </button>
+            <Tooltip content={text} open={compatible ? false : undefined}>
+              <button
+                disabled={
+                  !compatible ||
+                  !editor?.getText() ||
+                  editStatus === 'loading' ||
+                  addStatus === 'loading' ||
+                  watchedTitle === ''
+                }
+                className={cn(
+                  'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
+                )}
+                onClick={publish}
+              >
+                {editStatus === 'loading' || addStatus === 'loading' ? (
+                  <LoadingSpinner className="h-4 w-4" />
+                ) : editStatus === 'error' || addStatus === 'error' ? (
+                  'Error'
+                ) : (
+                  'Save'
+                )}
+              </button>
+            </Tooltip>
           </div>
         </header>
       }

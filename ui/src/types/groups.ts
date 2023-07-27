@@ -1,5 +1,5 @@
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
-export type Rank = typeof allRanks[number];
+export type Rank = (typeof allRanks)[number];
 
 export interface ViewProps {
   title?: string;
@@ -80,6 +80,7 @@ export interface Group {
   'zone-ord': Zone[];
   bloc: string[];
   secret: boolean;
+  saga: Saga | null;
 }
 
 export interface Fleet {
@@ -296,6 +297,20 @@ export interface GroupCreate extends GroupMeta {
   members: Record<string, string[]>;
   secret: boolean;
 }
+
+export interface SagaAhead {
+  ahead: string;
+}
+
+export interface SagaBehind {
+  behind: null;
+}
+
+export interface SagaSynced {
+  synced: null;
+}
+
+export type Saga = SagaAhead | SagaBehind | SagaSynced;
 
 export interface GroupJoin {
   flag: string;

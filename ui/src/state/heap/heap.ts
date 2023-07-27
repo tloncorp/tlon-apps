@@ -188,6 +188,7 @@ export const useHeapState = createState<HeapState>(
         draft.stash[flag] = {
           perms: { writers: [], group: req.group },
           view: 'grid',
+          saga: null,
         };
         draft.curios[flag] = new BigIntOrderedMap<HeapCurio>();
       });
@@ -263,7 +264,7 @@ export const useHeapState = createState<HeapState>(
           path: `/heap/${flag}/perm`,
         });
         get().batchSet((draft) => {
-          const heap = { perms, view: 'grid' as HeapDisplayMode };
+          const heap = { perms, view: 'grid' as HeapDisplayMode, saga: null };
           draft.stash[flag] = heap;
         });
       }, 1);

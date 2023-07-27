@@ -6,12 +6,18 @@ import GroupAvatar from '@/groups/GroupAvatar';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Add16Icon from '@/components/icons/Add16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import HostConnection from '@/channels/HostConnection';
+import { getFlagParts } from '@/logic/utils';
+import { useConnectivityCheck } from '@/state/vitals';
 
 export default function MobileGroupChannelList() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const isAdmin = useAmAdmin(flag);
   const location = useLocation();
+  const host = getFlagParts(flag).ship;
+  const { data } = useConnectivityCheck(host);
+  const saga = group?.saga || null;
 
   return (
     <>
@@ -25,11 +31,12 @@ export default function MobileGroupChannelList() {
             <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
           </div>
 
-          <GroupAvatar {...group?.meta} size="h-6 w-6" />
-          <div className="flex w-full flex-col justify-center">
+          <GroupAvatar {...group?.meta} size="h-6 w-6 flex-none" />
+          <div className="flex w-full items-center justify-center space-x-1">
             <h1 className="text-lg font-bold text-gray-800 line-clamp-1">
               {group?.meta.title}
             </h1>
+            <HostConnection ship={host} status={data?.status} saga={saga} />
           </div>
         </Link>
 

@@ -766,6 +766,7 @@ export function useCreateDiaryMutation() {
             [`${window.our}/${variables.name}`]: {
               perms: { writers: [], group: variables.group },
               view: 'list',
+              saga: { synced: null },
             },
           }
         );

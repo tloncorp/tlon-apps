@@ -3,7 +3,11 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { NewChannelFormSchema } from '@/types/groups';
-import { useAddChannelMutation, useRouteGroup } from '@/state/groups';
+import {
+  useAddChannelMutation,
+  useGroupCompatibility,
+  useRouteGroup,
+} from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
@@ -12,12 +16,14 @@ import { useCreateDiaryMutation, useDiaries } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import Tooltip from '@/components/Tooltip';
 
 export default function NewChannelForm() {
   const { section } = useParams<{ section: string }>();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
+  const { compatible, text } = useGroupCompatibility(groupFlag);
   const shelf = useDiaries();
   const { mutate: mutateAddChannel, status: addChannelStatus } =
     useAddChannelMutation();
@@ -170,27 +176,30 @@ export default function NewChannelForm() {
             <DialogPrimitive.Close asChild>
               <button className="secondary-button ml-auto">Cancel</button>
             </DialogPrimitive.Close>
-            <button
-              type="submit"
-              className="button"
-              disabled={
-                !form.formState.isValid ||
-                !form.formState.isDirty ||
-                addChannelStatus === 'loading' ||
-                addChannelStatus === 'success' ||
-                addChannelStatus === 'error'
-              }
-            >
-              {addChannelStatus === 'loading' ? (
-                <LoadingSpinner className="h-4 w-4" />
-              ) : addChannelStatus === 'error' ? (
-                'Error'
-              ) : addChannelStatus === 'success' ? (
-                'Saved'
-              ) : (
-                'Add Channel'
-              )}
-            </button>
+            <Tooltip content={text} open={compatible ? false : undefined}>
+              <button
+                type="submit"
+                className="button"
+                disabled={
+                  !compatible ||
+                  !form.formState.isValid ||
+                  !form.formState.isDirty ||
+                  addChannelStatus === 'loading' ||
+                  addChannelStatus === 'success' ||
+                  addChannelStatus === 'error'
+                }
+              >
+                {addChannelStatus === 'loading' ? (
+                  <LoadingSpinner className="h-4 w-4" />
+                ) : addChannelStatus === 'error' ? (
+                  'Error'
+                ) : addChannelStatus === 'success' ? (
+                  'Saved'
+                ) : (
+                  'Add Channel'
+                )}
+              </button>
+            </Tooltip>
           </div>
         </footer>
       </form>

@@ -4,6 +4,7 @@ import { FormProvider, useForm } from 'react-hook-form';
 import {
   useEditGroupMutation,
   useGroup,
+  useGroupCompatibility,
   useGroupSetSecretMutation,
   useGroupSwapCordonMutation,
   useRouteGroup,
@@ -17,6 +18,7 @@ import {
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useLure } from '@/state/lure/lure';
+import Tooltip from '@/components/Tooltip';
 import GroupInfoFields from './GroupInfoFields';
 
 const emptyMeta = {
@@ -29,6 +31,7 @@ const emptyMeta = {
 export default function GroupInfoEditor({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
+  const { compatible, text } = useGroupCompatibility(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
   const form = useForm<GroupFormSchema>({
     defaultValues: {
@@ -136,19 +139,21 @@ export default function GroupInfoEditor({ title }: ViewProps) {
             >
               Reset
             </button>
-            <button
-              type="submit"
-              className="button"
-              disabled={!form.formState.isDirty}
-            >
-              {editStatus === 'loading' ? (
-                <LoadingSpinner />
-              ) : editStatus === 'error' ? (
-                'Error'
-              ) : (
-                'Save'
-              )}
-            </button>
+            <Tooltip content={text} open={compatible ? false : undefined}>
+              <button
+                type="submit"
+                className="button"
+                disabled={!form.formState.isDirty || !compatible}
+              >
+                {editStatus === 'loading' ? (
+                  <LoadingSpinner />
+                ) : editStatus === 'error' ? (
+                  'Error'
+                ) : (
+                  'Save'
+                )}
+              </button>
+            </Tooltip>
           </footer>
         </form>
       </FormProvider>

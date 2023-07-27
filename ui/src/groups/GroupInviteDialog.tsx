@@ -11,15 +11,19 @@ import {
   useRouteGroup,
 } from '@/state/groups/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import { getPrivacyFromGroup, preSig } from '@/logic/utils';
+import { getFlagParts, getPrivacyFromGroup, preSig } from '@/logic/utils';
 import Sheet, { SheetContent } from '@/components/Sheet';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import HostConnection from '@/channels/HostConnection';
+import { useConnectivityCheck } from '@/state/vitals';
 import LureInviteBlock from './LureInviteBlock';
 
 export function GroupInviteBlock() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const host = getFlagParts(flag).ship;
+  const { data } = useConnectivityCheck(host);
   const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const [ships, setShips] = useState<ShipOption[]>([]);
   const validShips =
@@ -36,6 +40,12 @@ export function GroupInviteBlock() {
     status: addMembersStatus,
     reset: resetAddMembers,
   } = useGroupAddMembersMutation();
+  const saga = group?.saga || null;
+  const hasIssue =
+    (saga !== null && !('synced' in saga)) ||
+    (data?.status &&
+      'complete' in data.status &&
+      data.status.complete !== 'yes');
 
   const onInvite = useCallback(async () => {
     const shipList = ships.map((s) => preSig(s.value));
@@ -75,6 +85,15 @@ export function GroupInviteBlock() {
       <p className="mb-4 text-gray-600">
         (e.g. ~sampel-palnet) or display name
       </p>
+      {hasIssue && (
+        <HostConnection
+          type="combo"
+          className="mb-4 text-sm"
+          ship={host}
+          status={data?.status}
+          saga={group?.saga || null}
+        />
+      )}
       <div className="w-full py-3">
         <ShipSelector
           ships={ships}

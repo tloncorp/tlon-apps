@@ -473,7 +473,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
-          <Route path="/groups/:ship/:name/info" element={<GroupInfo />} />
+          <Route
+            path="/groups/:ship/:name/info"
+            element={<GroupInfo title={`• ${groupsTitle}`} />}
+          />
           <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
             <Route
               index
@@ -691,7 +694,7 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
-        <TooltipProvider skipDelayDuration={400}>
+        <TooltipProvider delayDuration={0} skipDelayDuration={400}>
           <App />
           <Scheduler />
           {import.meta.env.DEV && <Eyrie />}

@@ -11,6 +11,9 @@ import AddPersonIcon from '@/components/icons/AddPersonIcon';
 import PeopleIcon from '@/components/icons/PeopleIcon';
 import BadgeIcon from '@/components/icons/BadgeIcon';
 import XIcon from '@/components/icons/XIcon';
+import { getFlagParts } from '@/logic/utils';
+import HostConnection from '@/channels/HostConnection';
+import { useConnectivityCheck } from '@/state/vitals';
 import GroupAvatar from '../GroupAvatar';
 
 export default function GroupAdmin() {
@@ -20,6 +23,8 @@ export default function GroupAdmin() {
   const group = useGroup(flag);
   const dismiss = useDismissNavigate();
   const isMobile = useIsMobile();
+  const host = getFlagParts(flag).ship;
+  const { data } = useConnectivityCheck(host || '');
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
@@ -43,8 +48,8 @@ export default function GroupAdmin() {
             <h2 className="font-semibold">Settings</h2>
           </div>
           <div className="flex h-full flex-col overflow-hidden sm:flex-row">
-            <aside className="order-2 p-2 sm:order-1 sm:h-full sm:w-[266px]">
-              <nav>
+            <aside className="order-2 flex flex-col p-2 sm:order-1 sm:h-full sm:w-[266px]">
+              <nav className="grow">
                 <SidebarItem
                   to={`/groups/${flag}/edit`}
                   icon={<HomeIcon className="h-6 w-6" />}
@@ -81,6 +86,14 @@ export default function GroupAdmin() {
                   Delete Group
                 </SidebarItem>
               </nav>
+              <div className="rounded-lg bg-gray-50 p-2 pl-3 text-sm">
+                <HostConnection
+                  type="combo"
+                  ship={host}
+                  status={data?.status}
+                  saga={group?.saga || null}
+                />
+              </div>
             </aside>
             <main
               className={cn(

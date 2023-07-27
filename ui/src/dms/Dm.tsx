@@ -19,6 +19,8 @@ import ShipName from '@/components/ShipName';
 import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { Contact } from '@/types/contact';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
+import ShipConnection from '@/components/ShipConnection';
+import { useConnectivityCheck } from '@/state/vitals';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -31,6 +33,8 @@ function TitleButton({
   isMobile: boolean;
 }) {
   const BackButton = isMobile ? Link : 'div';
+  const { data, showConnection } = useConnectivityCheck(ship || '');
+
   return (
     <BackButton
       to="/"
@@ -47,16 +51,20 @@ function TitleButton({
       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-center">
         <Avatar size="xs" ship={ship} />
       </div>
+
       <div className="flex w-full flex-col justify-center">
         {contact?.nickname ? (
           <>
-            <span
-              className={cn(
-                'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
-              )}
-            >
-              {contact.nickname}
-            </span>
+            <div className="flex space-x-1 align-middle">
+              <span
+                className={cn(
+                  'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                )}
+              >
+                {contact.nickname}
+              </span>
+              <ShipConnection ship={ship} status={data?.status} />
+            </div>
             <ShipName
               full
               name={ship}
@@ -64,11 +72,14 @@ function TitleButton({
             />
           </>
         ) : (
-          <ShipName
-            full
-            name={ship}
-            className="text-sm font-bold text-gray-800 sm:font-semibold"
-          />
+          <div className="flex space-x-1 align-middle">
+            <ShipName
+              full
+              name={ship}
+              className="text-sm font-bold text-gray-800 sm:font-semibold"
+            />
+            <ShipConnection ship={ship} status={data?.status} />
+          </div>
         )}
       </div>
     </BackButton>

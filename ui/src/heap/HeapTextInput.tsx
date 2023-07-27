@@ -19,6 +19,8 @@ import X16Icon from '@/components/icons/X16Icon';
 import ArrowNIcon16 from '@/components/icons/ArrowNIcon16';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import Tooltip from '@/components/Tooltip';
+import { useChannelCompatibility } from '@/logic/channel';
 
 interface HeapTextInputProps {
   flag: string;
@@ -34,7 +36,7 @@ interface HeapTextInputProps {
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
-function isMergeable(x: HeapInlineKey): x is typeof MERGEABLE_KEYS[number] {
+function isMergeable(x: HeapInlineKey): x is (typeof MERGEABLE_KEYS)[number] {
   return MERGEABLE_KEYS.includes(x as any);
 }
 function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
@@ -87,6 +89,7 @@ export default function HeapTextInput({
   const { isPending, setPending, setReady } = useRequestState();
   const chatInfo = useChatInfo(flag);
   const { privacy } = useGroupPrivacy(groupFlag);
+  const { compatible, text } = useChannelCompatibility(`heap/${flag}`);
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -230,23 +233,27 @@ export default function HeapTextInput({
             )}
           />
           {!sendDisabled ? (
-            <button
-              className={cn(
-                'button px-2',
-                comment ? 'ml-2 shrink-0' : 'absolute bottom-2 right-2'
-              )}
-              disabled={
-                isPending ||
-                (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
-              }
-              onClick={onClick}
-            >
-              {isPending ? (
-                <LoadingSpinner secondary="black" />
-              ) : (
-                <SubmitLabel comment={comment} />
-              )}
-            </button>
+            <Tooltip content={text} open={compatible ? false : undefined}>
+              <button
+                className={cn(
+                  'button rounded-md px-2 py-1',
+                  comment ? 'ml-2 shrink-0' : 'absolute bottom-3 right-3'
+                )}
+                disabled={
+                  isPending ||
+                  !compatible ||
+                  (messageEditor.getText() === '' &&
+                    chatInfo.blocks.length === 0)
+                }
+                onClick={onClick}
+              >
+                {isPending ? (
+                  <LoadingSpinner secondary="black" />
+                ) : (
+                  <SubmitLabel comment={comment} />
+                )}
+              </button>
+            </Tooltip>
           ) : null}
         </div>
       </div>

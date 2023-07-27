@@ -37,7 +37,9 @@ export default function GroupInfo({ title }: ViewProps) {
       </Helmet>
       <div className="card mb-6">
         <GroupSummary flag={flag} preview={{ ...group, flag }} />
-        <p className="mt-4 w-full leading-5">{meta.description}</p>
+        {meta.description && (
+          <p className="mt-4 w-full leading-5">{meta.description}</p>
+        )}
       </div>
       <div className="grow">
         <GroupMemberManager />
