@@ -894,6 +894,7 @@
     =.  group.perm.diary  group.j
     =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
+    =.  cor  (watch-epic p.flag &)
     di-sub
   ::
   ++  di-leave
