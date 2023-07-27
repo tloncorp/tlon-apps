@@ -8,7 +8,6 @@ import { useHeapState } from '@/state/heap/heap';
 import {
   useAmAdmin,
   useDeleteChannelMutation,
-  useGroupCompatibility,
   useRouteGroup,
 } from '@/state/groups';
 import SixDotIcon from '@/components/icons/SixDotIcon';
