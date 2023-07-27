@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
+import { isNativeApp } from '@/logic/native';
 import NavTab from '../NavTab';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
 import ElipsisIcon from '../icons/EllipsisIcon';
@@ -11,6 +12,7 @@ import AsteriskIcon from '../icons/Asterisk16Icon';
 import SidebarItem from './SidebarItem';
 import PencilSettingsIcon from '../icons/PencilSettingsIcon';
 import BubbleIcon from '../icons/BubbleIcon';
+import GridIcon from '../icons/GridIcon';
 
 export default function MobileSidebar() {
   const [showSheet, setShowSheet] = useState(false);
@@ -26,10 +28,12 @@ export default function MobileSidebar() {
               <AppGroupsIcon className="mb-0.5 h-6 w-6" />
               Groups
             </NavTab>
-            <NavTab to="/messages" linkClass="basis-1/5">
-              <BubbleIcon className="mb-0.5 h-6 w-6" />
-              Messages
-            </NavTab>
+            {isNativeApp() && (
+              <NavTab to="/messages" linkClass="basis-1/5">
+                <BubbleIcon className="mb-0.5 h-6 w-6" />
+                Messages
+              </NavTab>
+            )}
             <NavTab to="/notifications" linkClass="basis-1/5">
               <BellIcon className="mb-0.5 h-6 w-6" />
               Activity
@@ -38,6 +42,12 @@ export default function MobileSidebar() {
               <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
               Discover
             </NavTab>
+            {!isNativeApp() && (
+              <NavTab to="/leap">
+                <GridIcon className="-mx-1 h-7 w-7" />
+                Leap
+              </NavTab>
+            )}
             <NavTab onClick={() => setShowSheet(true)} linkClass="basis-1/5">
               <ElipsisIcon className="mb-0.5 h-6 w-6" />
               Options
