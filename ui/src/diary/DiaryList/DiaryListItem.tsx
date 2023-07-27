@@ -1,26 +1,20 @@
 import React from 'react';
 import cn from 'classnames';
-import { DiaryLetter } from '@/types/diary';
+import { DiaryOutline } from '@/types/diary';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
-import { sampleQuippers } from '@/logic/utils';
 import { useIsNotePending } from '@/state/diary';
 
 interface DiaryListItemProps {
-  letter: DiaryLetter;
+  outline: DiaryOutline;
   time: bigInt.BigInteger;
 }
 
-export default function DiaryListItem({ letter, time }: DiaryListItemProps) {
+export default function DiaryListItem({ outline, time }: DiaryListItemProps) {
   const isPending = useIsNotePending(time.toString());
   const navigate = useNavigate();
-  const essay = letter.type === 'outline' ? letter : letter.essay;
-  const quippers =
-    letter.type === 'outline'
-      ? letter.quippers
-      : sampleQuippers(letter.seal.quips);
-  const quipCount =
-    letter.type === 'outline' ? letter.quipCount : letter.seal.quips.size;
+  const essay = outline;
+  const { quippers, quipCount } = outline;
 
   return (
     <div

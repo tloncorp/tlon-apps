@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import React from 'react';
 import { useNavigate } from 'react-router';
-import { DiaryLetter, NoteEssay } from '@/types/diary';
+import { DiaryOutline, NoteEssay } from '@/types/diary';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import IconButton from '@/components/IconButton';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
@@ -16,18 +16,17 @@ import DiaryNoteOptionsDropdown from '../DiaryNoteOptionsDropdown';
 import useDiaryActions from '../useDiaryActions';
 
 interface DiaryGridItemProps {
-  letter: DiaryLetter;
+  outline: DiaryOutline;
   time: bigInt.BigInteger;
 }
 
-export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
+export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
   const chFlag = useChannelFlag();
-  const essay: NoteEssay = letter.type === 'outline' ? letter : letter.essay;
+  const essay: NoteEssay = outline;
   const unix = new Date(daToUnix(time));
   const date = makePrettyDate(unix);
   const navigate = useNavigate();
-  const hasImage =
-    (letter.type === 'note' ? letter.essay.image : letter.image)?.length !== 0;
+  const hasImage = outline.image?.length !== 0;
   const { didCopy, onCopy } = useDiaryActions({
     flag: chFlag || '',
     time: time.toString(),
@@ -35,18 +34,11 @@ export default function DiaryGridItem({ letter, time }: DiaryGridItemProps) {
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit =
-    isAdmin ||
-    window.our ===
-      (letter.type === 'note' ? letter.essay.author : letter.author);
+  const canEdit = isAdmin || window.our === outline.author;
   const calm = useCalm();
 
-  const commenters =
-    letter.type === 'outline'
-      ? letter.quippers
-      : sampleQuippers(letter.seal.quips);
-  const quipCount =
-    letter.type === 'outline' ? letter.quipCount : letter.seal.quips.size;
+  const commenters = outline.quippers;
+  const { quipCount } = outline;
 
   return (
     <div

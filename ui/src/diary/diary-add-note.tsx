@@ -1,4 +1,10 @@
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, {
+  useCallback,
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { daToUnix, unixToDa } from '@urbit/api';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -37,6 +43,8 @@ export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const [loaded, setLoaded] = useState(false);
+  const [extraTitleRow, setExtraTitleRow] = useState(false);
+  const titleRef = useRef<HTMLTextAreaElement | null>(null);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
@@ -69,6 +77,7 @@ export default function DiaryAddNote() {
   });
 
   const { reset, register, getValues, setValue, watch } = form;
+  const { ref, ...titleRegisterRest } = register('title');
   const watchedTitle = watch('title');
 
   useEffect(() => {
@@ -78,6 +87,15 @@ export default function DiaryAddNote() {
       setValue('image', note.essay.image);
     }
   }, [note, setValue, loadingNote, getValues]);
+
+  // expand title to 2 rows if needed, beyond that we can scroll
+  useEffect(() => {
+    if (extraTitleRow) return;
+    const { scrollHeight, clientHeight } = titleRef.current!;
+    if (scrollHeight > clientHeight) {
+      setExtraTitleRow(true);
+    }
+  }, [watchedTitle, extraTitleRow]);
 
   const editor = useDiaryInlineEditor({
     content: '',
@@ -275,11 +293,15 @@ export default function DiaryAddNote() {
             <div className="mx-auto h-full max-w-xl p-4">
               <form className="space-y-6">
                 <CoverImageInput url="" noteId={id} />
-                <input
+                <textarea
                   placeholder="New Title"
-                  className="input-transparent text-3xl font-semibold"
-                  type="text"
-                  {...register('title')}
+                  className="input-transparent w-full resize-none text-3xl font-semibold"
+                  rows={extraTitleRow ? 2 : 1}
+                  ref={(e) => {
+                    ref(e);
+                    titleRef.current = e;
+                  }}
+                  {...titleRegisterRest}
                 />
               </form>
               <div className="h-full py-6">

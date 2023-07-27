@@ -20,12 +20,14 @@ import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import GridIcon from '@/components/icons/GridIcon';
 import useLeap from '@/components/Leap/useLeap';
+import useAppName from '@/logic/useAppName';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
+  const appName = useAppName();
   const { setIsOpen } = useLeap();
   const messagesFilter = useMessagesFilter();
   const { mutate } = usePutEntryMutation({
@@ -62,7 +64,7 @@ export default function MobileMessagesSidebar() {
         </h1>
         <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
           <ReconnectingSpinner />
-          {!window.ReactNativeWebView && (
+          {!window.ReactNativeWebView && appName === 'Talk' && (
             <button title="Open Leap" onClick={() => setIsOpen(true)}>
               <GridIcon className="h-6 w-6 text-gray-400" />
             </button>

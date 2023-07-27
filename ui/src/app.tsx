@@ -14,6 +14,7 @@ import {
   NavigateFunction,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
+import { usePostHog } from 'posthog-js/react';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import Groups from '@/groups/Groups';
 import { IS_MOCK } from '@/api';
@@ -22,7 +23,13 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useSettingsLoaded, useTheme } from '@/state/settings';
+import {
+  useAnalyticsId,
+  useCalm,
+  useLogActivity,
+  useSettingsLoaded,
+  useTheme,
+} from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -333,6 +340,28 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               }
             />
+            <Route path="/messages" element={<MobileMessagesSidebar />} />
+            <Route path="/dm/" element={<Dms />}>
+              <Route index element={<DMHome />} />
+              <Route path="new">
+                <Route index element={<NewDM />} />
+                <Route path=":ship" element={<Message />} />
+              </Route>
+              <Route path=":ship" element={<Message />}>
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<ChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall && (
+                <Route
+                  path=":ship/message/:idShip/:idTime"
+                  element={<ChatThread />}
+                />
+              )}
+            </Route>
             {/* Find by Invite URL */}
             <Route
               path="/find/:ship/:name"
@@ -636,6 +665,9 @@ function RoutedApp() {
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
+  const logActivity = useLogActivity();
+  const posthog = usePostHog();
+  const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
 
@@ -677,6 +709,12 @@ function RoutedApp() {
       body?.style.setProperty('padding-bottom', '0px');
     }
   }, [isStandAlone, body]);
+
+  useEffect(() => {
+    if (posthog && analyticsId !== '' && logActivity) {
+      posthog.identify(analyticsId);
+    }
+  }, [posthog, analyticsId, logActivity]);
 
   return (
     <ErrorBoundary

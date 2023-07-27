@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Value, PutBucket, DelEntry, DelBucket } from '@urbit/api';
 import _ from 'lodash';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -94,6 +95,7 @@ export interface SettingsState {
     hasBeenUsed: boolean;
     showActivityMessage?: boolean;
     logActivity?: boolean;
+    analyticsId?: string;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -562,3 +564,58 @@ export function useThemeMutation() {
     status,
   };
 }
+
+export function createAnalyticsId() {
+  return uuidv4();
+}
+
+export function useAnalyticsIdMutation() {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'analyticsId',
+  });
+
+  return {
+    mutate: (analyticsId: string) => mutate({ val: analyticsId }),
+    status,
+  };
+}
+
+export function useResetAnalyticsIdMutation() {
+  const { mutate, status } = useAnalyticsIdMutation();
+
+  const newAnalyticsId = createAnalyticsId();
+
+  return {
+    mutate: () => mutate(newAnalyticsId),
+    status,
+  };
+}
+
+export const useAnalyticsId = () => {
+  const { data, isLoading } = useMergedSettings();
+  const { mutate, status } = useAnalyticsIdMutation();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      return '';
+    }
+
+    if (
+      status !== 'loading' &&
+      (data.groups.analyticsId === undefined || data.groups.analyticsId === '')
+    ) {
+      const newAnalyticsId = createAnalyticsId();
+
+      mutate(newAnalyticsId);
+
+      if (status !== 'success') {
+        return '';
+      }
+
+      return newAnalyticsId;
+    }
+
+    return data.groups.analyticsId;
+  }, [isLoading, data, mutate, status]);
+};

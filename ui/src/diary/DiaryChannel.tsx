@@ -33,12 +33,12 @@ import {
 } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryLetter } from '@/types/diary';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
 import { useLastReconnect } from '@/state/local';
+import { DiaryOutline } from '@/types/diary';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
@@ -239,10 +239,10 @@ function DiaryChannel({ title }: ViewProps) {
 
   const itemContent = (
     i: number,
-    [time, letter]: [bigInt.BigInteger, DiaryLetter]
+    [time, outline]: [bigInt.BigInteger, DiaryOutline]
   ) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
-      <DiaryListItem letter={letter} time={time} />
+      <DiaryListItem outline={outline} time={time} />
       {lastArrangedNote === time.toString() && (
         <div className="mt-6 flex justify-center">
           <div className="flex items-center space-x-2 text-gray-500">
@@ -309,7 +309,7 @@ function DiaryChannel({ title }: ViewProps) {
         ) : (displayMode === 'grid' && userDisplayMode === undefined) ||
           userDisplayMode === 'grid' ? (
           <DiaryGridView
-            notes={sortedNotes}
+            outlines={sortedNotes}
             loadOlderNotes={() => {
               if (!loadingOlderNotes) {
                 setShouldLoadOlderNotes(true);
