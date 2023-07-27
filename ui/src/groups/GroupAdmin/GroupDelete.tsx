@@ -56,7 +56,9 @@ function GroupDelete() {
         <button
           disabled={!compatible}
           onClick={() => setDeleteDialogOpen(true)}
-          className="button bg-red text-white dark:text-black"
+          className={
+            !compatible ? 'button' : 'button bg-red text-white dark:text-black'
+          }
         >
           Delete {group?.meta.title}
         </button>
