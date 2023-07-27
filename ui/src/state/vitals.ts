@@ -107,7 +107,7 @@ export function useConnectivityCheck(
   options?: ConnectivityCheckOptions
 ) {
   const {
-    useStale = false,
+    useStale = true,
     enabled = true,
     staleTime = 30 * 1000,
     waitToDisplay = 700,

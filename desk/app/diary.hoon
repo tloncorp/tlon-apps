@@ -103,6 +103,7 @@
       %+  roll
         ~(tap in (~(gas in *(set ship)) (turn diaries head)))
       |=  [=ship cr=_cor]
+      ?:  =(ship our.bowl)  cr
       (watch-epic:cr ship &)
     |-
     ?~  diaries
@@ -789,7 +790,6 @@
   ++  di-take-epic
     |=  her=epic:e
     ^+  di-core
-    ?>  ?=(%sub -.net.diary)
     ?:  (lth her okay:d)  di-make-lev
     ?:  (gth her okay:d)  (di-make-dex her)
     di-make-chi
