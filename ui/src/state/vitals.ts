@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-// eslint-disable-next-line import/no-cycle
 import api from '@/api';
 import { useEffect, useState } from 'react';
 

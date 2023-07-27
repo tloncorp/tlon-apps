@@ -3,7 +3,9 @@ import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
+import { unixToDa } from '@urbit/api';
 import * as Toast from '@radix-ui/react-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
 import {
   useChannel,
@@ -19,8 +21,12 @@ import {
   useJoinDiaryMutation,
   useDiaryIsJoined,
   useMarkReadDiaryMutation,
+  usePendingNotes,
+  useDiaryState,
+  useNotesOnHost,
 } from '@/state/diary';
 import { useDiarySortMode } from '@/state/settings';
+import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { DiaryLetter } from '@/types/diary';
 import { ViewProps } from '@/types/groups';
@@ -38,10 +44,15 @@ function DiaryChannel({ title }: ViewProps) {
   const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
+  const {
+    data: { status: shipStatus },
+  } = useConnectivityCheck(chShip ?? '');
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
   const { letters, isLoading } = useNotes(chFlag);
+  const pendingNotes = usePendingNotes();
+  const queryClient = useQueryClient();
   const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const { mutateAsync: markRead } = useMarkReadDiaryMutation();
@@ -52,6 +63,58 @@ function DiaryChannel({ title }: ViewProps) {
   const channel = useChannel(flag, nest);
   const joined = useDiaryIsJoined(chFlag);
   const lastReconnect = useLastReconnect();
+  const notesOnHost = useNotesOnHost(chFlag, pendingNotes.length > 0);
+
+  const checkForNotes = useCallback(async () => {
+    // if we have pending notes and the ship is connected
+    // we can check if the notes have been posted
+    // if they have, we can refetch the data to get the new note.
+    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
+    if ('complete' in shipStatus && shipStatus.complete === 'yes') {
+      if (
+        pendingNotes.length > 0 &&
+        notesOnHost &&
+        !Object.entries(notesOnHost).every(([_time, n]) =>
+          Array.from(letters).find(([_t, l]) => l.sent === n.sent)
+        )
+      ) {
+        queryClient.refetchQueries({
+          queryKey: ['diary', 'notes', chFlag],
+          exact: true,
+        });
+        useDiaryState.getState().set((s) => ({
+          ...s,
+          pendingNotes: [],
+        }));
+      }
+    }
+  }, [chFlag, queryClient, shipStatus, letters, notesOnHost, pendingNotes]);
+
+  const clearPendingNotes = useCallback(() => {
+    // if we have pending notes and the ship is connected
+    // we can check if the notes have been posted
+    // if they have, we can clear the pending notes
+    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
+    if (
+      pendingNotes.length > 0 &&
+      'complete' in shipStatus &&
+      shipStatus.complete === 'yes'
+    ) {
+      pendingNotes.forEach((id) => {
+        if (
+          notesOnHost &&
+          Object.entries(notesOnHost).find(
+            ([_t, l]) => unixToDa(l.sent).toString() === id
+          )
+        ) {
+          useDiaryState.getState().set((s) => ({
+            ...s,
+            pendingNotes: s.pendingNotes.filter((n) => n !== id),
+          }));
+        }
+      });
+    }
+  }, [pendingNotes, notesOnHost, shipStatus]);
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -65,6 +128,11 @@ function DiaryChannel({ title }: ViewProps) {
       setRecentChannel('');
     }
   }, [flag, group, channel, vessel, navigate, setRecentChannel]);
+
+  useEffect(() => {
+    checkForNotes();
+    clearPendingNotes();
+  }, [checkForNotes, clearPendingNotes]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);

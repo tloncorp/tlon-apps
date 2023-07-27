@@ -30,6 +30,7 @@ import {
   NoteEssay,
   DiaryStory,
   DiaryNotes,
+  DiaryOutlines,
 } from '@/types/diary';
 import api from '@/api';
 import { restoreMap } from '@/logic/utils';
@@ -116,6 +117,7 @@ export const useDiaryState = createState<DiaryState>(
         get().set(fn);
       });
     },
+    pendingNotes: [],
     pendingImports: {},
     initImports: (init) => {
       get().batchSet((draft) => {
@@ -126,6 +128,14 @@ export const useDiaryState = createState<DiaryState>(
   {},
   []
 );
+
+export function usePendingNotes() {
+  return useDiaryState((s) => s.pendingNotes);
+}
+
+export function useIsNotePending(noteId: string) {
+  return useDiaryState((s) => s.pendingNotes.includes(noteId));
+}
 
 export function useNotes(flag: DiaryFlag) {
   const { data, ...rest } = useReactQuerySubscription({
@@ -158,6 +168,33 @@ export function useNotes(flag: DiaryFlag) {
     letters: noteMap as BigIntOrderedMap<DiaryOutline>,
     ...rest,
   };
+}
+
+export function useNotesOnHost(
+  flag: DiaryFlag,
+  enabled: boolean
+): DiaryOutlines | undefined {
+  const { data } = useReactQueryScry({
+    queryKey: ['diary', 'notes', 'live', flag],
+    app: 'diary',
+    path: `/diary/${flag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    priority: 2,
+    options: {
+      cacheTime: 0,
+      enabled,
+      refetchInterval: 1000,
+    },
+  });
+
+  if (
+    data === undefined ||
+    data === null ||
+    Object.entries(data as object).length === 0
+  ) {
+    return undefined;
+  }
+
+  return data as DiaryOutlines;
 }
 
 export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
@@ -249,6 +286,7 @@ export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
     () => ['diary', 'notes', flag, noteId],
     [flag, noteId]
   );
+
   const path = useMemo(
     () => `/diary/${flag}/notes/note/${decToUd(noteId)}`,
     [flag, noteId]
@@ -492,13 +530,18 @@ export function useViewDiaryMutation() {
 
 export function useAddNoteMutation() {
   const queryClient = useQueryClient();
-  const now = decToUd(unixToDa(Date.now()).toString());
-  let timePosted = now;
-  const mutationFn = async (variables: { flag: DiaryFlag; essay: NoteEssay }) =>
+
+  let timePosted: string;
+  const mutationFn = async (variables: {
+    initialTime: string;
+    flag: DiaryFlag;
+    essay: NoteEssay;
+  }) =>
     new Promise<string>((resolve) => {
+      timePosted = variables.initialTime;
       api
         .trackedPoke<DiaryAction, DiaryUpdate>(
-          diaryNoteDiff(variables.flag, now, {
+          diaryNoteDiff(variables.flag, decToUd(variables.initialTime), {
             add: variables.essay,
           }),
           { app: 'diary', path: `/diary/${variables.flag}/ui` },
@@ -510,6 +553,7 @@ export function useAddNoteMutation() {
                 timePosted = time;
                 return true;
               }
+              return false;
             }
 
             return false;
@@ -526,6 +570,10 @@ export function useAddNoteMutation() {
       await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
       await queryClient.cancelQueries(['diary', 'briefs']);
 
+      useDiaryState.getState().set((state) => ({
+        pendingNotes: [variables.initialTime, ...state.pendingNotes],
+      }));
+
       const notes = queryClient.getQueryData<DiaryOutline>([
         'diary',
         'notes',
@@ -534,16 +582,14 @@ export function useAddNoteMutation() {
 
       if (notes !== undefined) {
         // for the unlikely case that the user navigates away from the editor
-        // before the mutation is complete, we update the cache optimistically
+        // before the mutation is complete, or if the host ship is offline,
+        // we update the cache optimistically.
         queryClient.setQueryData<DiaryOutline>(
           ['diary', 'notes', variables.flag],
           {
             ...notes,
-            // this time will be wrong if the mutation fails or doesn't complete
-            // but it will be corrected when fact returns on the subscription.
-            // as long as the user doesn't try to immediately navigate to
-            // the note, this will be fine.
-            [timePosted ?? variables.essay.sent]: {
+            // this time is temporary, and will be replaced by the actual time
+            [variables.initialTime]: {
               content: variables.essay.content,
               author: variables.essay.author,
               quipCount: 0,
@@ -555,7 +601,29 @@ export function useAddNoteMutation() {
             },
           }
         );
+
+        queryClient.setQueryData(
+          ['diary', 'notes', variables.flag, variables.initialTime],
+          {
+            type: 'note',
+            seal: {
+              time: variables.initialTime,
+              quips: [],
+              feels: {},
+            },
+            essay: {
+              ...variables.essay,
+            },
+          }
+        );
       }
+    },
+    onSuccess: async (_data, variables) => {
+      useDiaryState.getState().set((state) => ({
+        pendingNotes: state.pendingNotes.filter(
+          (time) => time !== variables.initialTime
+        ),
+      }));
     },
     onSettled: async (_data, _error, variables) => {
       await queryClient.refetchQueries(['diary', 'notes', variables.flag], {
