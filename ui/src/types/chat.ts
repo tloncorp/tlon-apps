@@ -13,7 +13,7 @@ import {
   Strikethrough,
   Tag,
 } from './content';
-import { GroupMeta } from './groups';
+import { GroupMeta, Saga } from './groups';
 
 export type Patda = string;
 export type Ship = string;
@@ -171,6 +171,7 @@ export interface ChatAction {
 
 export interface Chat {
   perms: ChatPerm;
+  saga: Saga | null;
 }
 
 export interface Chats {

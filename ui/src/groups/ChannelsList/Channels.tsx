@@ -1,6 +1,10 @@
 import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
-import { useAmAdmin, useRouteGroup } from '@/state/groups';
+import {
+  useAmAdmin,
+  useGroupCompatibility,
+  useRouteGroup,
+} from '@/state/groups';
 import ChannelsListItem from '@/groups/ChannelsList/ChannelsListItem';
 import { ChannelListItem } from './types';
 import EmptySectionTools from './EmptySectionTools';
@@ -20,6 +24,8 @@ export default function Channels({
 }: ChannelsProps) {
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
+  const { compatible: groupCompatible, text: groupCompatibleText } =
+    useGroupCompatibility(flag);
 
   if (isAdmin) {
     return (
@@ -45,6 +51,8 @@ export default function Channels({
                           snapshot={dragSnapshot}
                           nest={channel.key}
                           channel={channel.channel}
+                          groupCompatible={groupCompatible}
+                          groupCompatibleText={groupCompatibleText}
                           provided={dragProvided}
                         />
                       )}
@@ -78,6 +86,8 @@ export default function Channels({
             onChannelDelete={onChannelDelete}
             nest={channel.key}
             channel={channel.channel}
+            groupCompatible={groupCompatible}
+            groupCompatibleText={groupCompatibleText}
             key={channel.key}
           />
         ))

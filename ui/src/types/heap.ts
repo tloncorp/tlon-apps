@@ -13,6 +13,7 @@ import {
   Inline,
 } from './content';
 import { Flag } from './hark';
+import { Saga } from './groups';
 
 export type Patda = string;
 export type Ship = string;
@@ -180,6 +181,7 @@ export interface HeapAction {
 export interface Heap {
   perms: HeapPerm;
   view: HeapDisplayMode;
+  saga: Saga | null;
 }
 
 export interface Stash {

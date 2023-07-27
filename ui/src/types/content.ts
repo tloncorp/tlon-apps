@@ -11,7 +11,6 @@ export type JSONContent = {
   [key: string]: any;
 };
 
-
 export interface Ship {
   ship: string;
 }

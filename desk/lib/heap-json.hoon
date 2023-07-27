@@ -1,6 +1,6 @@
 /-  h=heap
 /-  meta
-/+  cite=cite-json
+/+  cite=cite-json, gj=groups-json
 |%
 ++  enjs
   =,  enjs:format
@@ -55,6 +55,13 @@
     %-  pairs
     :~  perms/(perm perm.he)
         view/s/view.he
+        saga/(saga net.he)
+    ==
+  ++  saga
+    |=  n=net:h
+    ?-  -.n
+      %pub  ~
+      %sub  (saga:enjs:gj saga.n)
     ==
   ++  perm
     |=  p=perm:h

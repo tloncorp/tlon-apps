@@ -1,8 +1,13 @@
+import cn from 'classnames';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import React, { ChangeEvent } from 'react';
 import useChannelSearch from './useChannelSearch';
 
-export default function ChannelsListSearch() {
+export default function ChannelsListSearch({
+  className,
+}: {
+  className?: string;
+}) {
   const { searchInput, setSearchInput } = useChannelSearch();
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -13,7 +18,7 @@ export default function ChannelsListSearch() {
   };
 
   return (
-    <label className="relative flex w-full items-center">
+    <label className={cn('relative flex w-full items-center', className)}>
       <span className="sr-only">Search Prefences</span>
       <span className="absolute inset-y-[5px] left-0 flex h-8 w-8 items-center pl-2 text-gray-400">
         <MagnifyingGlass16Icon className="h-4 w-4" />

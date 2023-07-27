@@ -44,9 +44,7 @@ function DiaryChannel({ title }: ViewProps) {
   const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
-  const {
-    data: { status: shipStatus },
-  } = useConnectivityCheck(chShip ?? '');
+  const { data } = useConnectivityCheck(chShip ?? '');
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
@@ -70,7 +68,11 @@ function DiaryChannel({ title }: ViewProps) {
     // we can check if the notes have been posted
     // if they have, we can refetch the data to get the new note.
     // only called if onSuccess in useAddNoteMutation fails to clear pending notes
-    if ('complete' in shipStatus && shipStatus.complete === 'yes') {
+    if (
+      data?.status &&
+      'complete' in data.status &&
+      data.status.complete === 'yes'
+    ) {
       if (
         pendingNotes.length > 0 &&
         notesOnHost &&
@@ -88,7 +90,7 @@ function DiaryChannel({ title }: ViewProps) {
         }));
       }
     }
-  }, [chFlag, queryClient, shipStatus, letters, notesOnHost, pendingNotes]);
+  }, [chFlag, queryClient, data, letters, notesOnHost, pendingNotes]);
 
   const clearPendingNotes = useCallback(() => {
     // if we have pending notes and the ship is connected
@@ -97,8 +99,9 @@ function DiaryChannel({ title }: ViewProps) {
     // only called if onSuccess in useAddNoteMutation fails to clear pending notes
     if (
       pendingNotes.length > 0 &&
-      'complete' in shipStatus &&
-      shipStatus.complete === 'yes'
+      data?.status &&
+      'complete' in data.status &&
+      data.status.complete === 'yes'
     ) {
       pendingNotes.forEach((id) => {
         if (
@@ -114,7 +117,7 @@ function DiaryChannel({ title }: ViewProps) {
         }
       });
     }
-  }, [pendingNotes, notesOnHost, shipStatus]);
+  }, [pendingNotes, notesOnHost, data]);
 
   const joinChannel = useCallback(async () => {
     setJoining(true);

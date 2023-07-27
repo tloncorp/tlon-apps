@@ -29,7 +29,7 @@ import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { getFlagParts, preSig } from '@/logic/utils';
+import { getCompatibilityText, getFlagParts, preSig } from '@/logic/utils';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -124,7 +124,7 @@ export function useGroup(flag: string, updating = false) {
   const { data, ...rest } = useReactQueryScry<Group>({
     queryKey,
     app: 'groups',
-    path: `/groups/${flag}`,
+    path: `/groups/${flag}/ui`,
     options: {
       enabled: !!flag && flag !== '' && updating && connection,
       initialData: group,
@@ -1139,4 +1139,14 @@ export function useGroupUnbanRanksMutation() {
   };
 
   return useGroupMutation(mutationFn);
+}
+
+export function useGroupCompatibility(flag: string) {
+  const group = useGroup(flag);
+  const saga = group?.saga || null;
+  return {
+    saga,
+    compatible: saga === null || 'synced' in saga,
+    text: getCompatibilityText(saga),
+  };
 }

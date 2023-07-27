@@ -14,6 +14,7 @@ import {
   NavigateFunction,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
+import { usePostHog } from 'posthog-js/react';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import Groups from '@/groups/Groups';
 import { IS_MOCK } from '@/api';
@@ -22,7 +23,13 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useSettingsLoaded, useTheme } from '@/state/settings';
+import {
+  useAnalyticsId,
+  useCalm,
+  useLogActivity,
+  useSettingsLoaded,
+  useTheme,
+} from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -495,7 +502,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
-          <Route path="/groups/:ship/:name/info" element={<GroupInfo />} />
+          <Route
+            path="/groups/:ship/:name/info"
+            element={<GroupInfo title={`• ${groupsTitle}`} />}
+          />
           <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
             <Route
               index
@@ -655,6 +665,9 @@ function RoutedApp() {
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
+  const logActivity = useLogActivity();
+  const posthog = usePostHog();
+  const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
 
@@ -697,6 +710,12 @@ function RoutedApp() {
     }
   }, [isStandAlone, body]);
 
+  useEffect(() => {
+    if (posthog && analyticsId !== '' && logActivity) {
+      posthog.identify(analyticsId);
+    }
+  }, [posthog, analyticsId, logActivity]);
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
@@ -713,7 +732,7 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
-        <TooltipProvider skipDelayDuration={400}>
+        <TooltipProvider delayDuration={0} skipDelayDuration={400}>
           <App />
           <Scheduler />
           {import.meta.env.DEV && <Eyrie />}
