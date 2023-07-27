@@ -43,8 +43,7 @@ import {
 } from '@/types/diary';
 import { Bold, Italics, Strikethrough } from '@/types/content';
 import { isNativeApp, postActionToNativeApp } from './native';
-// eslint-disable-next-line import/no-cycle
-import {
+import type {
   ConnectionCompleteStatus,
   ConnectionPendingStatus,
   ConnectionStatus,

@@ -97,9 +97,7 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 export default function DiaryNote({ title }: ViewProps) {
   const { chShip, chName, noteId = '' } = useParams();
   const isPending = useIsNotePending(noteId);
-  const {
-    data: { status: shipStatus },
-  } = useConnectivityCheck(chShip ?? '');
+  const { data } = useConnectivityCheck(chShip ?? '');
   const navigate = useNavigate();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
@@ -126,8 +124,9 @@ export default function DiaryNote({ title }: ViewProps) {
     // If we have notes on the host, and we can find the real note via the sent time matching the noteId
     // then we redirect to the real note.
     if (
-      'complete' in shipStatus &&
-      shipStatus.complete === 'yes' &&
+      data?.status &&
+      'complete' in data.status &&
+      data.status.complete === 'yes' &&
       note &&
       noteId !== '' &&
       (noteId === note.seal.time || note.seal.time === undefined)
@@ -152,7 +151,7 @@ export default function DiaryNote({ title }: ViewProps) {
         }
       }
     }
-  }, [chFlag, noteId, notesOnHost, groupFlag, navigate, note, shipStatus]);
+  }, [chFlag, noteId, notesOnHost, groupFlag, navigate, note, data]);
 
   useEffect(() => {
     if (!joined) {
