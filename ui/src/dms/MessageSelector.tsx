@@ -3,17 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import ShipSelector from '@/components/ShipSelector';
 import useMessageSelector from '@/logic/useMessageSelector';
 import { useIsMobile } from '@/logic/useMedia';
+import useAppName from '@/logic/useAppName';
 
 export default function MessageSelector() {
   const { action, onEnter, setShips, ships, validShips } = useMessageSelector();
   const isMobile = useIsMobile();
+  const appName = useAppName();
 
   const navigate = useNavigate();
 
   const onCancel = useCallback(() => {
     setShips([]);
-    navigate('/');
-  }, [navigate, setShips]);
+    if (appName === 'Groups' && isMobile) {
+      navigate('/messages');
+    } else {
+      navigate('/');
+    }
+  }, [navigate, setShips, appName, isMobile]);
 
   return (
     <div className="relative z-50 flex w-full flex-col items-center py-3 px-4 sm:flex-row sm:space-x-2">

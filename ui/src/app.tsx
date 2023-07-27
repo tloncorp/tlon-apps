@@ -340,6 +340,28 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               }
             />
+            <Route path="/messages" element={<MobileMessagesSidebar />} />
+            <Route path="/dm/" element={<Dms />}>
+              <Route index element={<DMHome />} />
+              <Route path="new">
+                <Route index element={<NewDM />} />
+                <Route path=":ship" element={<Message />} />
+              </Route>
+              <Route path=":ship" element={<Message />}>
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<ChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall && (
+                <Route
+                  path=":ship/message/:idShip/:idTime"
+                  element={<ChatThread />}
+                />
+              )}
+            </Route>
             {/* Find by Invite URL */}
             <Route
               path="/find/:ship/:name"
