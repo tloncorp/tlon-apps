@@ -19,6 +19,7 @@ import ShipName from '@/components/ShipName';
 import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { Contact } from '@/types/contact';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
+import useAppName from '@/logic/useAppName';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -30,10 +31,11 @@ function TitleButton({
   contact: Contact;
   isMobile: boolean;
 }) {
+  const appName = useAppName();
   const BackButton = isMobile ? Link : 'div';
   return (
     <BackButton
-      to="/"
+      to={appName === 'Groups' && isMobile ? '/messages' : '/'}
       className={cn(
         'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
       )}
