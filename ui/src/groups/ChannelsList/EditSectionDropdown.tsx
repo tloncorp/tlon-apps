@@ -20,11 +20,7 @@ export default function EditSectionDropDown({
   return (
     <>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger
-          asChild
-          disabled={!compatible}
-          className="cursor-pointer"
-        >
+        <DropdownMenu.Trigger disabled={!compatible} className="cursor-pointer">
           <ElipsisIcon
             className={cn(
               'h-5 w-5',
