@@ -176,13 +176,7 @@ export interface DiaryOutlines {
 
 export type DiaryOutlinesMap = BigIntOrderedMap<DiaryOutline>;
 
-export type DiaryLetter = DiaryOutline | DiaryNote;
-
-export interface DiaryNotes {
-  [time: string]: DiaryLetter;
-}
-
-export type DiaryNoteMap = BigIntOrderedMap<DiaryLetter>;
+export type DiaryNoteMap = BigIntOrderedMap<DiaryNote>;
 
 export interface DiaryQuip {
   cork: NoteCork;
