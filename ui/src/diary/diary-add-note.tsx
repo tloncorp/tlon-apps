@@ -41,7 +41,7 @@ export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
   const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const [loaded, setLoaded] = useState(false);
-  const [bigTextarea, setBigTextarea] = useState(false);
+  const [extraTitleRow, setExtraTitleRow] = useState(false);
   const titleRef = useRef<HTMLTextAreaElement | null>(null);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
@@ -87,11 +87,12 @@ export default function DiaryAddNote() {
 
   // expand title to 2 rows if needed, beyond that we can scroll
   useEffect(() => {
+    if (extraTitleRow) return;
     const { scrollHeight, clientHeight } = titleRef.current!;
     if (scrollHeight > clientHeight) {
-      setBigTextarea(true);
+      setExtraTitleRow(true);
     }
-  }, [watchedTitle]);
+  }, [watchedTitle, extraTitleRow]);
 
   const editor = useDiaryInlineEditor({
     content: '',
@@ -289,7 +290,7 @@ export default function DiaryAddNote() {
                 <textarea
                   placeholder="New Title"
                   className="input-transparent w-full resize-none text-3xl font-semibold"
-                  rows={bigTextarea ? 2 : 1}
+                  rows={extraTitleRow ? 2 : 1}
                   ref={(e) => {
                     ref(e);
                     titleRef.current = e;
