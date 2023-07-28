@@ -180,7 +180,7 @@ export default function ChannelsListItem({
     <>
       <div
         ref={provided?.innerRef}
-        {...(compatible ? provided?.draggableProps : {})}
+        {...(groupCompatible ? provided?.draggableProps : {})}
       >
         <div
           className={cn(
@@ -193,11 +193,11 @@ export default function ChannelsListItem({
         >
           <div className="flex items-center">
             {isAdmin && (
-              <div {...(compatible ? provided?.dragHandleProps : {})}>
+              <div {...(groupCompatible ? provided?.dragHandleProps : {})}>
                 <SixDotIcon
                   className={cn(
                     'mr-3 h-5 w-5',
-                    compatible
+                    groupCompatible
                       ? 'fill-gray-600'
                       : 'cursor-not-allowed fill-gray-200'
                   )}
