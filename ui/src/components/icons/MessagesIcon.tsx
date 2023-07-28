@@ -1,7 +1,6 @@
-import React from 'react';
 import { IconProps } from './icon';
 
-export default function BellIcon({
+export default function MessagesIcon({
   className,
   isInactive,
 }: { isInactive?: boolean } & IconProps) {
@@ -9,15 +8,15 @@ export default function BellIcon({
     return (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={className}
         viewBox="0 0 25 24"
+        className={className}
         fill="none"
       >
         <path
           className="stroke-current"
           strokeOpacity=".2"
           strokeWidth="2"
-          d="M5.454 9.546a7.5 7.5 0 0 1 14.971 0l.409 6.741a.672.672 0 0 1-.671.713H5.716a.672.672 0 0 1-.67-.713l.408-6.741ZM15.94 18a3 3 0 0 1-6 0"
+          d="M3.34 6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4h-2.95a.123.123 0 0 0-.086.036L9.55 21.79a.123.123 0 0 1-.21-.087v-4.58A.123.123 0 0 0 9.217 17H7.34a4 4 0 0 1-4-4V6Z"
         />
       </svg>
     );
@@ -26,18 +25,12 @@ export default function BellIcon({
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      className={className}
       viewBox="0 0 25 24"
-      fill="none"
+      className={className}
     >
       <path
         className="fill-current"
-        d="M4.455 9.485a8.5 8.5 0 0 1 16.968 0l.409 6.742A1.672 1.672 0 0 1 20.163 18H5.716a1.672 1.672 0 0 1-1.67-1.773l.41-6.742Z"
-      />
-      <path
-        className="stroke-current"
-        strokeWidth="2"
-        d="M15.94 18a3 3 0 0 1-6 0"
+        d="M3.34 6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4h-2.95a.123.123 0 0 0-.086.036l-4.11 4.11a.5.5 0 0 1-.854-.353v-3.67A.123.123 0 0 0 9.217 17H7.34a4 4 0 0 1-4-4V6Z"
       />
     </svg>
   );

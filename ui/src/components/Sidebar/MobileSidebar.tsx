@@ -7,50 +7,60 @@ import AppGroupsIcon from '../icons/AppGroupsIcon';
 import ElipsisIcon from '../icons/EllipsisIcon';
 import BellIcon from '../icons/BellIcon';
 import Sheet, { SheetContent } from '../Sheet';
-import MagnifyingGlassIcon from '../icons/MagnifyingGlass16Icon';
 import AsteriskIcon from '../icons/Asterisk16Icon';
 import SidebarItem from './SidebarItem';
 import PencilSettingsIcon from '../icons/PencilSettingsIcon';
-import BubbleIcon from '../icons/BubbleIcon';
 import GridIcon from '../icons/GridIcon';
+import HomeIconMobileNav from '../icons/HomeIconMobileNav';
+import MagnifyingGlassMobileNavIcon from '../icons/MagnifyingGlassMobileNavIcon';
+import MessagesIcon from '../icons/MessagesIcon';
+import Avatar from '../Avatar';
+import ShipName from '../ShipName';
 
 export default function MobileSidebar() {
   const [showSheet, setShowSheet] = useState(false);
   const location = useLocation();
+  const isInactive = (path: string) => location.pathname !== path;
 
   return (
-    <section className="fixed inset-0 z-40 flex h-full w-full flex-col  border-gray-50 bg-white">
+    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white">
       <Outlet />
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex">
             <NavTab to="/" linkClass="basis-1/5">
-              <AppGroupsIcon className="mb-0.5 h-6 w-6" />
-              Groups
+              <HomeIconMobileNav
+                isInactive={isInactive('/')}
+                className="mb-0.5 h-6 w-6"
+              />
             </NavTab>
-            {isNativeApp() && (
+            {!isNativeApp() && (
               <NavTab to="/messages" linkClass="basis-1/5">
-                <BubbleIcon className="mb-0.5 h-6 w-6" />
-                Messages
+                <MessagesIcon
+                  isInactive={isInactive('/messages')}
+                  className="mb-0.5 h-6 w-6"
+                />
               </NavTab>
             )}
             <NavTab to="/notifications" linkClass="basis-1/5">
-              <BellIcon className="mb-0.5 h-6 w-6" />
-              Activity
+              <BellIcon
+                isInactive={isInactive('/notifications')}
+                className="mb-0.5 h-6 w-6"
+              />
             </NavTab>
             <NavTab to="/find" linkClass="basis-1/5">
-              <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
-              Discover
+              <MagnifyingGlassMobileNavIcon
+                isInactive={isInactive('/find')}
+                className="mb-0.5 h-6 w-6"
+              />
             </NavTab>
-            {!isNativeApp() && (
+            {isNativeApp() && (
               <NavTab to="/leap">
                 <GridIcon className="-mx-1 h-7 w-7" />
-                Leap
               </NavTab>
             )}
             <NavTab onClick={() => setShowSheet(true)} linkClass="basis-1/5">
-              <ElipsisIcon className="mb-0.5 h-6 w-6" />
-              Options
+              <Avatar size="xs" className="mb-0.5" ship={window.our} />
             </NavTab>
           </ul>
           <Sheet open={showSheet} onOpenChange={(o) => setShowSheet(o)}>
@@ -103,6 +113,14 @@ export default function MobileSidebar() {
                   onClick={() => setShowSheet(false)}
                 >
                   App Settings
+                </SidebarItem>
+
+                <SidebarItem
+                  icon={<Avatar ship={window.our} />}
+                  to={'/profile/edit'}
+                  onClick={() => setShowSheet(false)}
+                >
+                  <ShipName showAlias name={window.our} />
                 </SidebarItem>
               </Link>
             </SheetContent>

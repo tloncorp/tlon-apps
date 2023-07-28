@@ -15,6 +15,10 @@ import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import GroupSelector, { GroupOption } from '@/components/GroupSelector';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
+import { useIsMobile } from '@/logic/useMedia';
+import Layout from '@/components/Layout/Layout';
+import { Link } from 'react-router-dom';
+import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
@@ -134,7 +138,7 @@ function EditProfileContent() {
   const watchCover = form.watch('cover');
 
   return (
-    <div className="w-full">
+    <div className="w-full p-6">
       <FormProvider {...form}>
         <div>
           <ProfileCoverImage
@@ -216,15 +220,37 @@ function EditProfileContent() {
 
 export default function EditProfile({ title }: ViewProps) {
   useAnalyticsEvent('profile_edit');
+  const isMobile = useIsMobile();
 
   return (
     <div className="flex grow overflow-y-scroll bg-gray-50">
       <Helmet>
         <title>{title}</title>
       </Helmet>
-      <div className="w-full p-6">
+      <Layout
+        header={
+          isMobile ? (
+            <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
+              <Link
+                to=".."
+                className="default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2"
+              >
+                <div className="flex h-6 w-6 items-center justify-center">
+                  <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
+                </div>
+                <div className="flex w-full flex-col justify-center">
+                  <span className="ellipsis text-sm font-bold line-clamp-1 sm:font-semibold">
+                    Edit Profile
+                  </span>
+                </div>
+              </Link>
+            </div>
+          ) : null
+        }
+        className="flex-1"
+      >
         <EditProfileContent />
-      </div>
+      </Layout>
     </div>
   );
 }
