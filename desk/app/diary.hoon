@@ -626,20 +626,28 @@
       =.  cor  (give %kick ~ ~)
       di-core
     --
+  ::  when we get a new %diary agent update, we need to check if we should
+  ::  upgrade any lagging diaries. if we're lagging, we need to change
+  ::  the saga to "chi" to resume syncing updates from the host. otherwise
+  ::  we can no-op, because we're not in sync yet.
   ::
   ++  di-upgrade
     ^+  di-core
-    ::  we're the host so ignore
+    ::  if we're the host, no-op
+    ::
     ?.  ?=(%sub -.net.diary)
       di-core
-    ::  we're ahead or synced so ignore
+    ::  if we're ahead or synced, no-op
+    ::
     ?.  ?=(%dex -.saga.net.diary)
       di-core
-    ::  we're still behind even with the upgrade, so ignore
+    ::  if we're still behind even with the upgrade, no-op
+    ::
     ?.  =(okay:d ver.saga.net.diary)
       ~&  future-shock/[ver.saga.net.diary flag]
       di-core
-    ::  safe to sync
+    ::  safe to sync and resume updates from host
+    ::
     =>  .(saga.net.diary `saga:e`saga.net.diary)
     di-make-chi
   ::
