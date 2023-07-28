@@ -168,7 +168,6 @@
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ~&  >>  "resolving epic change, current: {<okay:d>} received: {<epic>}"
     %+  roll  ~(tap by shelf)
     |=  [[=flag:g =diary:d] out=_cor]
     ?.  =(src.bowl p.flag)
