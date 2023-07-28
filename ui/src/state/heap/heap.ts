@@ -22,6 +22,7 @@ import {
   HeapCurioTuple,
   CurioHeart,
   HeapUpdate,
+  HeapCurioWithComments,
 } from '@/types/heap';
 import api from '@/api';
 import { nestToFlag, canWriteChannel, restoreMap } from '@/logic/utils';
@@ -36,7 +37,7 @@ import { useGroup, useVessel } from '../groups';
 import { createState } from '../base';
 import useSchedulerStore from '../scheduler';
 
-const CURIO_PAGE_SIZE = 500;
+const CURIO_PAGE_SIZE = 2;
 
 setAutoFreeze(false);
 
@@ -89,35 +90,46 @@ function formatCurios(curios: HeapCurios): HeapCurioMap {
 }
 
 export function useCuriosNew(flag: HeapFlag): HeapCurioMap {
+  console.log('useCuriosNew');
   const def = useMemo(() => new BigIntOrderedMap<HeapCurio>(), []);
 
   const { data, isLoading, isError, ...rest } = useReactQuerySubscription({
     queryKey: ['heap', 'curios', flag],
     app: 'heap',
     path: `/heap/${flag}/ui`,
-    scry: `/heap/${flag}/curios/newest/${CURIO_PAGE_SIZE}`,
+    scry: `/heap/${flag}/curios/newest/${CURIO_PAGE_SIZE}/blocks`,
+    options: {
+      refetchOnMount: true,
+      retryOnMount: true,
+    },
   });
 
   return data ? formatCurios(data as HeapCurios) : def;
 }
 
-export function useCurioNew(
-  flag: HeapFlag,
-  time: string
-): HeapCurioTuple | undefined {
-  const curios = useCuriosNew(flag);
+export function useCurioWithCommentsNew(flag: HeapFlag, time: string) {
   const ud = useMemo(() => decToUd(time), [time]);
-  const t = useMemo(() => bigInt(time), [time]);
-  const cachedCurio = useMemo(() => curios.get(t), [t, curios]);
+  const { data, ...query } = useReactQueryScry<HeapCurios>({
+    queryKey: ['heap', 'curios', flag, 'curio', time],
+    app: 'heap',
+    path: `/heap/${flag}/curios/curio/id/${ud}/full`,
+  });
 
-  // TODO: update as needed with hunter
-  // const { data, isLoading, isError } = useReactQueryScry({
-  //   queryKey: ['heap', 'curios', flag, 'curio', time],
-  //   app: 'heap',
-  //   path: `/heap/${flag}/curios/curio/${ud}`
-  // });
+  return useMemo(() => {
+    if (!data) {
+      return { ...query, time: bigInt(time), curio: null, comments: null };
+    }
 
-  return [t, cachedCurio];
+    const curio = _.get(data, ud);
+    const comments = _.omit(data, ud);
+
+    return {
+      ...query,
+      time: bigInt(time),
+      curio,
+      comments: formatCurios(comments),
+    };
+  }, [time, ud, data, query]);
 }
 
 export function useAddCurioMutation(flag: HeapFlag) {

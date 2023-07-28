@@ -106,9 +106,8 @@ export interface HeapCurio {
 }
 
 export interface HeapCurioWithComments {
-  seal: CurioSeal;
-  heart: CurioHeart;
-  comments: HeapCurio[];
+  curio: HeapCurio;
+  comments: HeapCurioMap;
 }
 
 export interface HeapCurios {

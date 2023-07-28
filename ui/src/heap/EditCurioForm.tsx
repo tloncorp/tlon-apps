@@ -3,7 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useDismissNavigate } from '@/logic/routing';
 import { EditCurioFormSchema } from '@/types/heap';
 import { useForm } from 'react-hook-form';
-import { useHeapState } from '@/state/heap/heap';
+import { useCurioWithCommentsNew, useHeapState } from '@/state/heap/heap';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
@@ -13,7 +13,7 @@ import { Inline } from '@/types/content';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useChannelFlag } from '@/logic/channel';
 import { useRouteGroup } from '@/state/groups';
-import useCurioFromParams from './useCurioFromParams';
+import { useParams } from 'react-router';
 import HeapTextInput from './HeapTextInput';
 
 export default function EditCurioForm() {
@@ -23,7 +23,8 @@ export default function EditCurioForm() {
   const [draftText, setDraftText] = useState<JSONContent>();
   const groupFlag = useRouteGroup();
   const chFlag = useChannelFlag() || '';
-  const { curio, time } = useCurioFromParams();
+  const { idCurio } = useParams<{ idCurio: string }>();
+  const { time, curio } = useCurioWithCommentsNew(chFlag, idCurio || '');
   const isLinkMode = curio ? isLinkCurio(curio.heart.content) : false;
   const { isPending, setPending, setReady } = useRequestState();
   const firstInline = curio && curio.heart.content.inline[0];

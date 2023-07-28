@@ -12,12 +12,7 @@ import {
   useGroup,
   useVessel,
 } from '@/state/groups/groups';
-import {
-  useCurios,
-  useCuriosNew,
-  useHeapState,
-  useHeapPerms,
-} from '@/state/heap/heap';
+import { useCuriosNew, useHeapState, useHeapPerms } from '@/state/heap/heap';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
@@ -83,7 +78,7 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (joined && !joining && channel && canRead) {
-      initializeChannel();
+      // initializeChannel();
       setRecentChannel(nest);
     }
   }, [

@@ -80,6 +80,14 @@
     curio(feels (~(del by feels.curio) p.del))
   ==
 ::
+++  blocks-only
+  ^-  curios:h
+  =-  +:-
+  %^  (dip:on:curios:h @)  cur  ~
+  |=  [st=@ =time =curio:h]
+  :_  [%.n st]
+  ?^  replying.curio  ~
+  `curio
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
@@ -90,17 +98,44 @@
     =/  count  (slav %ud count.pole)
     ``heap-curios+!>((gas:on *curios:h (top:mope cur count)))
   ::
+      [%newest count=@ %blocks ~]
+    =/  count  (slav %ud count.pole)
+    ``heap-curios+!>((gas:on *curios:h (top:mope blocks-only count)))
+  ::
       [%older start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
     ``heap-curios+!>((gas:on *curios:h (bat:mope cur `start count)))
+  ::
+      [%older start=@ count=@ %blocks ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %ud start.pole)
+    ``heap-curios+!>((gas:on *curios:h (bat:mope blocks-only `start count)))
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
     ``heap-curios+!>((gas:on *curios:h (tab:on cur `start count)))
   ::
+      [%newer start=@ count=@ %blocks ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %ud start.pole)
+    ``heap-curios+!>((gas:on *curios:h (tab:on blocks-only `start count)))
+  ::
+      [%curio %id time=@ %full ~]
+    =/  time          (slav %ud time.pole)
+    =/  [* =curio:h]  (got time)
+    =-  ``heap-curios+!>(-)
+    %+  gas:on  *curios:h
+    %+  welp
+      ~[[time curio]]
+    %+  murn
+      ~(tap in replied.curio)
+    |=  t=^time
+    (get t)
+  ::
       [%curio %id time=@ ~]
+    ~&  time
     =/  time  (slav %ud time.pole)
     ``curio+!>(+:(got `@da`time))
   ==

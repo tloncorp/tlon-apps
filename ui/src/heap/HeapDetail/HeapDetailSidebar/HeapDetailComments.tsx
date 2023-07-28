@@ -6,23 +6,25 @@ import useNest from '@/logic/useNest';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useComments, useCommentsNew, useHeapPerms } from '@/state/heap/heap';
 import { canWriteChannel, nestToFlag } from '@/logic/utils';
-import { HeapCurio } from '@/types/heap';
+import { HeapCurio, HeapCurioMap } from '@/types/heap';
 import useMedia from '@/logic/useMedia';
 import HeapDetailCommentField from './HeapDetailCommentField';
 import HeapComment from './HeapComment';
 
 interface HeapDetailCommentsProps {
   time: BigInteger;
+  comments: HeapCurioMap;
 }
 
-export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
+export default function HeapDetailComments({
+  time,
+  comments,
+}: HeapDetailCommentsProps) {
   const nest = useNest();
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const [, chFlag] = nestToFlag(nest);
   const stringTime = time.toString();
-  // const comments = useComments(chFlag, stringTime);
-  const comments = useCommentsNew(chFlag, stringTime);
   const perms = useHeapPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);

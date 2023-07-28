@@ -3,10 +3,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { useNavigate, useParams } from 'react-router';
-import { useEventListener } from 'usehooks-ts';
 import {
+  useCurioWithCommentsNew,
   useHeapState,
-  useOrderedCurios,
   useOrderedCuriosNew,
 } from '@/state/heap/heap';
 import Layout from '@/components/Layout/Layout';
@@ -15,8 +14,6 @@ import { canReadChannel } from '@/logic/utils';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import useLeap from '@/components/Leap/useLeap';
-import keyMap from '@/keyMap';
 import { useChannelIsJoined } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
@@ -24,12 +21,15 @@ import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSide
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
-import useCurioFromParams from './useCurioFromParams';
 
 export default function HeapDetail({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
   const groupFlag = useRouteGroup();
-  const { chShip, chName } = useParams<{ chShip: string; chName: string }>();
+  const { chShip, chName, idCurio } = useParams<{
+    chShip: string;
+    chName: string;
+    idCurio: string;
+  }>();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
   const channel = useChannel(groupFlag, nest);
@@ -39,8 +39,10 @@ export default function HeapDetail({ title }: ViewProps) {
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
   const joined = useChannelIsJoined(nest);
-  const { time, curio } = useCurioFromParams();
-  const [loading, setLoading] = useState(false);
+  const { time, curio, comments, isLoading } = useCurioWithCommentsNew(
+    chFlag,
+    idCurio || ''
+  );
   // const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
   //   chFlag,
   //   time || ''
@@ -66,7 +68,6 @@ export default function HeapDetail({ title }: ViewProps) {
 
   const initializeChannel = useCallback(async () => {
     await useHeapState.getState().initialize(chFlag);
-    setLoading(false);
   }, [chFlag]);
 
   useEffect(() => {
@@ -76,8 +77,6 @@ export default function HeapDetail({ title }: ViewProps) {
   }, [joined, joinChannel]);
 
   useEffect(() => {
-    setLoading(true);
-
     if (joined && canRead && !joining) {
       initializeChannel();
     }
@@ -99,11 +98,16 @@ export default function HeapDetail({ title }: ViewProps) {
     channelType: 'heap',
   });
 
-  return loading ? (
-    <div className="flex flex-1 items-center justify-center">
-      <LoadingSpinner />
-    </div>
-  ) : (
+  // TODO handle curio not found
+  if (isLoading || !curio) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  return (
     <Layout
       className="flex-1 bg-white"
       header={
@@ -159,7 +163,7 @@ export default function HeapDetail({ title }: ViewProps) {
           {curio && time ? (
             <>
               <HeapDetailSidebarInfo curio={curio} />
-              <HeapDetailComments time={time} />
+              <HeapDetailComments time={time} comments={comments} />
             </>
           ) : null}
         </div>
