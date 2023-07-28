@@ -273,7 +273,7 @@ const defaultPerms = {
 export function useArrangedNotes(flag: DiaryFlag) {
   const diary = useDiary(flag);
 
-  if (diary === undefined) {
+  if (diary === undefined || diary['arranged-notes'] === undefined) {
     return [];
   }
 
