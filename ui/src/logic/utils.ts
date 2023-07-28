@@ -389,13 +389,13 @@ export function hasKeys(obj: Record<string, unknown>) {
 }
 
 export const IMAGE_REGEX =
-  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.webm|\.svg)$/i;
-export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
-export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
+  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.webm|\.svg)(?:\?.*)?$/i;
+export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)(?:\?.*)?$/i;
+export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)(?:\?.*)?$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
-  /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)$/i;
+  /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)(?:\?.*)?$/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
 // sig and hep explicitly left out
 export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
