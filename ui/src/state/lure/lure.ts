@@ -208,7 +208,7 @@ export function useLure(flag: string, disableLoading = false) {
   };
 }
 
-export function useLureLinkChecked(flag) {
+export function useLureLinkChecked(flag: string) {
   const [good, setGood] = useState(false);
 
   useEffect(() => { api.subscribeOnce<boolean>(
