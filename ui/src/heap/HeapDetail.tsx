@@ -4,7 +4,11 @@ import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { useNavigate, useParams } from 'react-router';
 import { useEventListener } from 'usehooks-ts';
-import { useHeapState, useOrderedCurios } from '@/state/heap/heap';
+import {
+  useHeapState,
+  useOrderedCurios,
+  useOrderedCuriosNew,
+} from '@/state/heap/heap';
 import Layout from '@/components/Layout/Layout';
 import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import { canReadChannel } from '@/logic/utils';
@@ -37,7 +41,11 @@ export default function HeapDetail({ title }: ViewProps) {
   const joined = useChannelIsJoined(nest);
   const { time, curio } = useCurioFromParams();
   const [loading, setLoading] = useState(false);
-  const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
+  // const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
+  //   chFlag,
+  //   time || ''
+  // );
+  const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCuriosNew(
     chFlag,
     time || ''
   );

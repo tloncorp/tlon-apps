@@ -19,16 +19,24 @@ import {
   HeapCreate,
   HeapCurios,
   HeapCurioMap,
+  HeapCurioTuple,
+  CurioHeart,
+  HeapUpdate,
 } from '@/types/heap';
 import api from '@/api';
 import { nestToFlag, canWriteChannel, restoreMap } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import useReactQueryScry from '@/logic/useReactQueryScry';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { HeapState } from './type';
 import makeCuriosStore from './curios';
 import { useGroup, useVessel } from '../groups';
 import { createState } from '../base';
 import useSchedulerStore from '../scheduler';
+
+const CURIO_PAGE_SIZE = 500;
 
 setAutoFreeze(false);
 
@@ -67,6 +75,133 @@ function heapCurioDiff(flag: HeapFlag, time: string, delta: CurioDelta) {
 
 function getTime() {
   return decToUd(unixToDa(Date.now()).toString());
+}
+
+function formatCurios(curios: HeapCurios): HeapCurioMap {
+  let curioMap = restoreMap<HeapCurio>({});
+  Object.entries(curios)
+    .map(([k, curio]) => ({ tim: bigInt(udToDec(k)), curio }))
+    .forEach(({ tim, curio }) => {
+      curioMap = curioMap.set(tim, curio);
+    });
+
+  return curioMap;
+}
+
+export function useCuriosNew(flag: HeapFlag): HeapCurioMap {
+  const def = useMemo(() => new BigIntOrderedMap<HeapCurio>(), []);
+
+  const { data, isLoading, isError, ...rest } = useReactQuerySubscription({
+    queryKey: ['heap', 'curios', flag],
+    app: 'heap',
+    path: `/heap/${flag}/ui`,
+    scry: `/heap/${flag}/curios/newest/${CURIO_PAGE_SIZE}`,
+  });
+
+  return data ? formatCurios(data as HeapCurios) : def;
+}
+
+export function useCurioNew(
+  flag: HeapFlag,
+  time: string
+): HeapCurioTuple | undefined {
+  const curios = useCuriosNew(flag);
+  const ud = useMemo(() => decToUd(time), [time]);
+  const t = useMemo(() => bigInt(time), [time]);
+  const cachedCurio = useMemo(() => curios.get(t), [t, curios]);
+
+  // TODO: update as needed with hunter
+  // const { data, isLoading, isError } = useReactQueryScry({
+  //   queryKey: ['heap', 'curios', flag, 'curio', time],
+  //   app: 'heap',
+  //   path: `/heap/${flag}/curios/curio/${ud}`
+  // });
+
+  return [t, cachedCurio];
+}
+
+export function useAddCurioMutation(flag: HeapFlag) {
+  const queryClient = useQueryClient();
+  const mutationFn = async ({
+    heart,
+  }: {
+    heart: CurioHeart;
+    parentKey?: string;
+  }) =>
+    new Promise<void>((resolve) => {
+      const diff = heapCurioDiff(flag, getTime(), { add: heart });
+      api
+        .trackedPoke<HeapAction, HeapUpdate>(
+          diff,
+          { app: 'diary', path: `/heap/${flag}/ui` },
+          (event) => {
+            const { diff: eventDiff } = event;
+            if ('curios' in eventDiff) {
+              const { delta } = eventDiff.curios;
+              if ('add' in delta && delta.add.sent === heart.sent) {
+                return true;
+              }
+            }
+            return false;
+          }
+        )
+        .then(() => resolve());
+    });
+
+  return useMutation({
+    mutationFn,
+    // onSettled: () => {
+    //   queryClient.invalidateQueries(['heap', 'curios', flag]);
+    // }
+  });
+}
+
+export function useCommentsNew(flag: HeapFlag, time: string) {
+  const curios = useCuriosNew(flag);
+  return useMemo(() => {
+    if (!curios) {
+      return new BigIntOrderedMap<HeapCurio>();
+    }
+
+    const curio = curios.get(bigInt(time));
+    const replies = (curio?.seal?.replied || ([] as number[]))
+      .map((r: string) => {
+        const t = bigInt(udToDec(r));
+        const c = curios.get(t);
+        return c ? ([t, c] as const) : undefined;
+      })
+      .filter((r: unknown): r is [BigInteger, HeapCurio] => !!r) as [
+      BigInteger,
+      HeapCurio
+    ][];
+    return new BigIntOrderedMap<HeapCurio>().gas(replies);
+  }, [curios, time]);
+}
+
+export function useOrderedCuriosNew(
+  flag: HeapFlag,
+  currentId: bigInt.BigInteger | string
+) {
+  const curios = useCuriosNew(flag);
+  const sortedCurios = Array.from(curios).filter(
+    ([, c]) => c.heart.replying === null
+  );
+  sortedCurios.sort(([a], [b]) => b.compare(a));
+
+  const curioId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
+  const hasNext = curios.size > 0 && curioId.lt(curios.peekLargest()[0]);
+  const hasPrev = curios.size > 0 && curioId.gt(curios.peekSmallest()[0]);
+  const currentIdx = sortedCurios.findIndex(([i, _c]) => i.eq(curioId));
+  const nextCurio = hasNext ? sortedCurios[currentIdx - 1] : null;
+  const prevCurio = hasPrev ? sortedCurios[currentIdx + 1] : null;
+
+  return {
+    hasNext,
+    hasPrev,
+    nextCurio,
+    prevCurio,
+    sortedCurios,
+  };
 }
 
 export const useHeapState = createState<HeapState>(

@@ -4,7 +4,7 @@ import { BigInteger } from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import useNest from '@/logic/useNest';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
-import { useComments, useHeapPerms } from '@/state/heap/heap';
+import { useComments, useCommentsNew, useHeapPerms } from '@/state/heap/heap';
 import { canWriteChannel, nestToFlag } from '@/logic/utils';
 import { HeapCurio } from '@/types/heap';
 import useMedia from '@/logic/useMedia';
@@ -21,7 +21,8 @@ export default function HeapDetailComments({ time }: HeapDetailCommentsProps) {
   const group = useGroup(flag);
   const [, chFlag] = nestToFlag(nest);
   const stringTime = time.toString();
-  const comments = useComments(chFlag, stringTime);
+  // const comments = useComments(chFlag, stringTime);
+  const comments = useCommentsNew(chFlag, stringTime);
   const perms = useHeapPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
