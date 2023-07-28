@@ -215,7 +215,7 @@ export function useLureLinkChecked(flag) {
     'grouper',
     `/check-link/${flag}`,
     12500
-  ).then((result: boolean) => { console.log(result); setGood(result); });}, [flag]);
+  ).then((result: boolean) => { setGood(result); })}, [flag]);
 
   return good;
 }

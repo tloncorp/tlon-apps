@@ -3,7 +3,6 @@ import { useLure, useLureLinkChecked } from '@/state/lure/lure';
 import TlonIcon from '@/components/icons/TlonIcon';
 import { getFlagParts, isGroupHost, useCopy } from '@/logic/utils';
 import CheckIcon from '@/components/icons/CheckIcon';
-import StrikeIcon from '@/components/icons/StrikeIcon';
 import { Group } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from '@/components/ShipName';
@@ -21,14 +20,21 @@ const emptyMeta = {
   cover: '',
 };
 
-function LureLinkChecked({ flag }: { flag: string }) {
+function LureLinkChecked({ flag, url }: { flag: string, url: string }) {
+  const { didCopy, doCopy } = useCopy(url);
   const good = useLureLinkChecked(flag);
 
-  if (good) {
-    return <p>good</p>
-  } else {
-    return <p>bad</p>
-  }
+  return <>
+  {!good ? <div>
+    <LoadingSpinner/>
+  </div> : null}
+  {good ? <span className="button ml-auto self-start bg-blue-soft uppercase text-blue mix-blend-multiply dark:bg-blue-softer dark:mix-blend-normal">
+    ✓
+  </span> : null}
+  {good ? <button className="button bg-blue" onClick={doCopy}>
+    {didCopy ? 'Copied!' : 'Copy'}
+  </button> : null}
+  </>
 }
 
 export default function LureInviteBlock({
@@ -38,7 +44,6 @@ export default function LureInviteBlock({
 }: LureInviteBlock) {
   const { supported, fetched, enabled, enableAcked, url, toggle } =
     useLure(flag);
-  const { didCopy, doCopy } = useCopy(url);
 
   if (!supported) {
     return null;
@@ -110,10 +115,7 @@ export default function LureInviteBlock({
               className="flex w-full flex-1 rounded-lg border-2 border-blue-soft bg-blue-soft py-1 px-2 text-lg font-semibold  leading-5 text-blue caret-blue-400 mix-blend-multiply focus:outline-none dark:mix-blend-screen sm:text-base sm:leading-5"
             />
           </div>
-          <button className="button bg-blue" onClick={doCopy}>
-            {didCopy ? 'Copied!' : 'Copy'}
-          </button>
-          <LureLinkChecked flag={flag} />
+          <LureLinkChecked flag={flag} url={url} />
         </div>
       ) : !isGroupHost(flag) ? (
         <div className="flex items-center space-x-2 font-semibold">
