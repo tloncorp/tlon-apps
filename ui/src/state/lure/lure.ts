@@ -9,7 +9,7 @@ import {
 } from '@/logic/utils';
 import { GroupMeta } from '@/types/groups';
 import produce from 'immer';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -206,4 +206,16 @@ export function useLure(flag: string, disableLoading = false) {
     describe,
     toggle,
   };
+}
+
+export function useLureLinkChecked(flag) {
+  const [good, setGood] = useState(false);
+
+  useEffect(() => { api.subscribeOnce<boolean>(
+    'grouper',
+    `/check-link/${flag}`,
+    12500
+  ).then((result: boolean) => { console.log(result); setGood(result); });}, [flag]);
+
+  return good;
 }

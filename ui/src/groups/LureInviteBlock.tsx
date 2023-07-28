@@ -1,8 +1,9 @@
 import cn from 'classnames';
-import { useLure } from '@/state/lure/lure';
+import { useLure, useLureLinkChecked } from '@/state/lure/lure';
 import TlonIcon from '@/components/icons/TlonIcon';
 import { getFlagParts, isGroupHost, useCopy } from '@/logic/utils';
 import CheckIcon from '@/components/icons/CheckIcon';
+import StrikeIcon from '@/components/icons/StrikeIcon';
 import { Group } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from '@/components/ShipName';
@@ -19,6 +20,16 @@ const emptyMeta = {
   image: '',
   cover: '',
 };
+
+function LureLinkChecked({ flag }: { flag: string }) {
+  const good = useLureLinkChecked(flag);
+
+  if (good) {
+    return <p>good</p>
+  } else {
+    return <p>bad</p>
+  }
+}
 
 export default function LureInviteBlock({
   flag,
@@ -102,6 +113,7 @@ export default function LureInviteBlock({
           <button className="button bg-blue" onClick={doCopy}>
             {didCopy ? 'Copied!' : 'Copy'}
           </button>
+          <LureLinkChecked flag={flag} />
         </div>
       ) : !isGroupHost(flag) ? (
         <div className="flex items-center space-x-2 font-semibold">
