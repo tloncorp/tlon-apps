@@ -34,7 +34,7 @@ export default function MobileSidebar() {
                 className="mb-0.5 h-6 w-6"
               />
             </NavTab>
-            {!isNativeApp() && (
+            {isNativeApp() && (
               <NavTab to="/messages" linkClass="basis-1/5">
                 <MessagesIcon
                   isInactive={isInactive('/messages')}
@@ -54,7 +54,7 @@ export default function MobileSidebar() {
                 className="mb-0.5 h-6 w-6"
               />
             </NavTab>
-            {isNativeApp() && (
+            {!isNativeApp() && (
               <NavTab to="/leap">
                 <GridIcon className="-mx-1 h-7 w-7" />
               </NavTab>
