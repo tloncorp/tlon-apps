@@ -25,7 +25,7 @@ export default function NewGroupForm({
       </div>
       <GroupInfoFields />
       <div className="flex justify-end space-x-2 pt-4">
-        <button className="secondary-button" onClick={cancel}>
+        <button className="secondary-button" onClick={() => cancel()}>
           Cancel
         </button>
         <button disabled={!isValid} className="button" onClick={goToNextStep}>

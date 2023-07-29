@@ -7,9 +7,11 @@ import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
 import { useCallback, useMemo } from 'react';
 import { useDiary } from '@/state/diary';
 import { useHeap } from '@/state/heap/heap';
+import { useBoardMeta } from '@/state/quorum';
 import { Chat } from '@/types/chat';
 import { Diary } from '@/types/diary';
 import { Heap } from '@/types/heap';
+import { Quorum } from '@/types/quorum';
 import { Zone, Channels, GroupChannel } from '@/types/groups';
 import { canReadChannel, isChannelJoined, nestToFlag } from './utils';
 import useSidebarSort, {
@@ -108,11 +110,12 @@ export function useIsChannelUnread(nest: string) {
 export const useIsChannelHost = (flag: string) =>
   window.our === flag?.split('/')[0];
 
-export function useChannel(nest: string): Chat | Heap | Diary | undefined {
+export function useChannel(nest: string): Chat | Heap | Diary | Quorum | undefined {
   const [app, flag] = nestToFlag(nest);
   const chat = useChat(flag);
   const heap = useHeap(flag);
   const diary = useDiary(flag);
+  const board = useBoardMeta(flag);
 
   switch (app) {
     case 'chat':
@@ -121,6 +124,13 @@ export function useChannel(nest: string): Chat | Heap | Diary | undefined {
       return heap;
     case 'diary':
       return diary;
+    case 'quorum':
+      return {
+        perms: {
+          writers: board?.writers ?? [],
+          group: board?.group ?? '',
+        }
+      };
     default:
       return undefined;
   }
@@ -225,7 +235,7 @@ function channelIsJoined(
 
   return briefs[app] && Object.keys(briefs[app]).length > 0
     ? isChannelJoined(flag, briefs[app])
-    : true;
+    : false;
 }
 
 export function useChannelIsJoined(nest: string) {

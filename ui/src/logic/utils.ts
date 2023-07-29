@@ -40,6 +40,7 @@ import {
   VerseBlock,
   DiaryListing,
 } from '@/types/diary';
+import { QuorumBrief } from '@/types/quorum';
 import { Bold, Italics, Strikethrough } from '@/types/content';
 import { isNativeApp, postActionToNativeApp } from './native';
 
@@ -54,7 +55,7 @@ export function log(...args: any[]) {
   }
 }
 
-type App = 'chat' | 'heap' | 'diary';
+type App = 'chat' | 'heap' | 'diary' | 'quorum';
 
 export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
@@ -437,7 +438,7 @@ export async function jsonFetch<T>(
 
 export function isChannelJoined(
   flag: string,
-  briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
+  briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief | QuorumBrief }
 ) {
   const isChannelHost = window.our === flag?.split('/')[0];
   return isChannelHost || (flag && flag in briefs);
@@ -615,6 +616,8 @@ export function prettyChannelTypeName(app: string) {
       return 'Collection';
     case 'diary':
       return 'Notebook';
+    case 'quorum':
+      return 'Quorum';
     default:
       return 'Unknown';
   }

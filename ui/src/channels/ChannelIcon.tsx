@@ -3,6 +3,7 @@ import { nestToFlag } from '@/logic/utils';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import NotebookIcon from '@/components/icons/NotebookIcon';
 import ShapesIcon from '@/components/icons/ShapesIcon';
+import QuorumIcon from '@/components/icons/QuorumIcon';
 import UnknownAvatarIcon from '@/components/icons/UnknownAvatarIcon';
 
 interface ChannelIconProps extends React.HTMLAttributes<SVGElement> {
@@ -18,6 +19,8 @@ export default function ChannelIcon({ nest, ...rest }: ChannelIconProps) {
       return <ShapesIcon {...rest} />;
     case 'diary':
       return <NotebookIcon {...rest} />;
+    case 'quorum':
+      return <QuorumIcon {...rest} />;
     default:
       return <UnknownAvatarIcon {...rest} />;
   }

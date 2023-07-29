@@ -279,6 +279,13 @@ module.exports = {
       display: ['group-hover'],
     },
   },
+  safelist: [
+    'bg-gray-50',
+    'bg-gray-200',
+    'bg-gray-400',
+    'bg-gray-600',
+    'bg-gray-800',
+  ],
   plugins: [
     require('tailwindcss-scoped-groups')({
       groups: ['one', 'two'],

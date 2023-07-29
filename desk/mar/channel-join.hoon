@@ -14,8 +14,8 @@
   --
 ++  grab
   |%
-  ++  noun  [group=flag:g chan=flag:g]
-  ++  json  
+  ++  noun  $:(group=flag:g chan=flag:g)
+  ++  json
     %-  ot:dejs:format
     :~  group/flag:dejs:j
         chan/flag:dejs:j

@@ -9,6 +9,7 @@ import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import { useHeapState } from '@/state/heap/heap';
 import { useCreateDiaryMutation, useDiaries } from '@/state/diary';
+import { useNewBoardMutation, useBoardMetas } from '@/state/quorum';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -19,9 +20,11 @@ export default function NewChannelForm() {
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
   const shelf = useDiaries();
+  const boards = useBoardMetas();
   const { mutate: mutateAddChannel, status: addChannelStatus } =
     useAddChannelMutation();
   const { mutateAsync: createDiary } = useCreateDiaryMutation();
+  const { mutateAsync: createQuorum } = useNewBoardMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
     zone: 'default',
@@ -70,6 +73,12 @@ export default function NewChannelForm() {
           return shelf[tempNewChannelFlag];
         }
 
+        if (type === 'quorum') {
+          return boards && boards.find(({board, group}) => (
+            group === groupFlag && board === tempNewChannelFlag
+          ));
+        }
+
         if (type === 'heap') {
           return useHeapState.getState().stash[tempNewChannelFlag];
         }
@@ -93,7 +102,9 @@ export default function NewChannelForm() {
           ? useChatState.getState().create
           : type === 'heap'
           ? useHeapState.getState().create
-          : createDiary;
+          : type === 'diary'
+          ? createDiary
+          : async (props: any) => createQuorum({create: props});
 
       try {
         await creator({
@@ -131,7 +142,9 @@ export default function NewChannelForm() {
       isMobile,
       mutateAddChannel,
       shelf,
+      boards,
       createDiary,
+      createQuorum,
     ]
   );
 

@@ -349,7 +349,7 @@ export type PrivacyType = 'public' | 'private' | 'secret';
 
 export type ChannelPrivacyType = 'public' | 'custom';
 
-export type ChannelType = 'chat' | 'heap' | 'diary';
+export type ChannelType = 'chat' | 'heap' | 'diary' | 'quorum';
 
 export interface GroupFormSchema extends GroupMeta {
   privacy: PrivacyType;

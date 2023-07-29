@@ -21,6 +21,11 @@ import {
   useJoinDiaryMutation,
   useLeaveDiaryMutation,
 } from '@/state/diary';
+import {
+  useBoardMetas,
+  useJoinBoardMutation,
+  useLeaveBoardMutation,
+} from '@/state/quorum';
 import ChannelIcon from '@/channels/ChannelIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
@@ -37,9 +42,11 @@ interface ChannelsListItemProps {
 }
 
 function useGetChannel(app: string, flag: string): WritePermissions {
+  const groupFlag = useRouteGroup();
   const { chats } = useChatState.getState();
   const { stash } = useHeapState.getState();
   const shelf = useDiaries();
+  const boards = useBoardMetas();
 
   switch (app) {
     case 'chat':
@@ -48,6 +55,10 @@ function useGetChannel(app: string, flag: string): WritePermissions {
       return stash[flag];
     case 'diary':
       return shelf[flag];
+    case 'quorum':
+      const board = boards &&
+        boards.find(({board, group}) => (group === groupFlag && board === flag));
+      return { perms: { writers: board?.writers ?? [] } };
     default:
       return { perms: { writers: [] } };
   }
@@ -69,6 +80,8 @@ export default function ChannelsListItem({
   const joined = useChannelIsJoined(nest);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
+  const { mutateAsync: joinQuorum } = useJoinBoardMutation();
+  const { mutateAsync: leaveQuorum } = useLeaveBoardMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
@@ -107,6 +120,10 @@ export default function ChannelsListItem({
         await joinDiary({ group: groupFlag, chan: chFlag });
         return;
       }
+      if (app === 'quorum') {
+        await joinQuorum({ join: { group: groupFlag, chan: chFlag } });
+        return;
+      }
 
       const joiner =
         app === 'chat'
@@ -115,12 +132,16 @@ export default function ChannelsListItem({
 
       await joiner(groupFlag, chFlag);
     },
-    [groupFlag, app, joinDiary]
+    [groupFlag, app, joinDiary, joinQuorum]
   );
   const leave = useCallback(
     async (chFlag: string) => {
       if (app === 'diary') {
         await leaveDiary({ flag: chFlag });
+        return;
+      }
+      if (app === 'quorum') {
+        await leaveQuorum({ flag: chFlag });
         return;
       }
 
@@ -131,7 +152,7 @@ export default function ChannelsListItem({
 
       await leaver(chFlag);
     },
-    [app, leaveDiary]
+    [app, leaveDiary, leaveQuorum]
   );
 
   const joinChannel = useCallback(async () => {

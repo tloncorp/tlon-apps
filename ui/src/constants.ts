@@ -34,4 +34,6 @@ export const AUTHORS = [
   '~mister-dister-dozzod-dozzod',
 ];
 
+export const CHANNEL_PATH='/groups/:ship/:name/channels/quorum/:chShip/:chName';
+
 export const lsDesk = 'garden';

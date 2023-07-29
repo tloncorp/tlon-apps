@@ -23,6 +23,10 @@ import {
   useAddSectsDiaryMutation,
   useDeleteSectsDiaryMutation,
 } from '@/state/diary';
+import {
+  useAddSectsMutation as useAddSectsQuorumMutation,
+  useDelSectsMutation as useDelSectsQuorumMutation,
+} from '@/state/quorum';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChannel } from '@/logic/channel';
 
@@ -54,6 +58,8 @@ export default function EditChannelForm({
     useEditChannelMutation();
   const { mutateAsync: addDiarySects } = useAddSectsDiaryMutation();
   const { mutateAsync: delDiarySects } = useDeleteSectsDiaryMutation();
+  const { mutateAsync: addQuorumSects } = useAddSectsQuorumMutation();
+  const { mutateAsync: delQuorumSects } = useDelSectsQuorumMutation();
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -97,6 +103,9 @@ export default function EditChannelForm({
         app === 'diary'
           ? (flag: string, writers: string[]) =>
               addDiarySects({ flag, writers })
+          : app === 'quorum'
+          ? (flag: string, writers: string[]) =>
+              addQuorumSects({ flag, update: {sects: writers} })
           : app === 'heap'
           ? useHeapState.getState().addSects
           : useChatState.getState().addSects;
@@ -104,6 +113,9 @@ export default function EditChannelForm({
         app === 'diary'
           ? (flag: string, writers: string[]) =>
               delDiarySects({ flag, writers })
+          : app === 'quorum'
+          ? (flag: string, writers: string[]) =>
+              delQuorumSects({ flag, update: {sects: writers} })
           : app === 'heap'
           ? useHeapState.getState().delSects
           : useChatState.getState().delSects;
@@ -145,6 +157,8 @@ export default function EditChannelForm({
       chan?.perms.writers,
       addDiarySects,
       delDiarySects,
+      addQuorumSects,
+      delQuorumSects,
     ]
   );
 

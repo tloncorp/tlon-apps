@@ -87,6 +87,18 @@ import PrivacyNotice from './groups/PrivacyNotice';
 import useAutoJoinLureInvites from './groups/autoJoinLureInvites';
 import ActivityModal, { ActivityChecker } from './components/ActivityModal';
 
+import QuorumChannel from '@/quorum/QuorumChannel';
+import QuorumProfileModal from '@/quorum/profiles/ProfileModal';
+import {
+  CreateDialog,
+  JoinDialog,
+  DeleteDialog,
+  DestroyDialog,
+  RefDialog,
+  PreviewDialog,
+} from '@/quorum/QuorumDialogs';
+
+
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
 const AppModal = React.lazy(() => import('./components/Grid/appmodal'));
@@ -420,6 +432,15 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
             </Route>
             <Route
+              path="channels/quorum/:chShip/:chName/*"
+              element={<GroupChannel type="quorum" />}
+            >
+              <Route
+                path="*"
+                element={<QuorumChannel />}
+              />
+            </Route>
+            <Route
               path="channels/diary/:chShip/:chName"
               element={<GroupChannel type="diary" />}
             >
@@ -503,6 +524,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             path="/groups/:ship/:name/channels/heap/:chShip/:chName/curio/:idCurio/edit"
             element={<EditCurioModal />}
           />
+          <Route path="/groups/:ship/:name/channels/quorum/:chShip/:chName/">
+            <Route path="profile/:ship" element={<QuorumProfileModal />} />
+            <Route path="question/ref" element={<RefDialog />} />
+            <Route path="question/pre" element={<PreviewDialog />} />
+            <Route path="thread/:thread">
+              <Route path="delete/:response" element={<DeleteDialog />} />
+              <Route path="response/:response?/ref" element={<RefDialog />} />
+              <Route path="response/:response?/pre" element={<PreviewDialog />} />
+            </Route>
+          </Route>
           <Route
             path="/groups/:ship/:name/channels/new"
             element={<NewChannelModal />}

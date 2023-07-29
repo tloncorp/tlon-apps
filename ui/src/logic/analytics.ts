@@ -17,7 +17,7 @@ export type AnalyticsEventName =
   | 'post_item'
   | 'view_item';
 
-export type AnalyticsChannelType = 'chat' | 'diary' | 'heap';
+export type AnalyticsChannelType = 'chat' | 'diary' | 'heap' | 'quorum';
 
 export type GroupsAnalyticsEvent = {
   name: AnalyticsEventName;

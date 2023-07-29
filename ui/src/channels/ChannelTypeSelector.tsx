@@ -5,6 +5,7 @@ import { useFormContext } from 'react-hook-form';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import NotebookIcon from '@/components/icons/NotebookIcon';
+import QuorumIcon from '@/components/icons/QuorumIcon';
 
 interface ChannelTypeMetadata {
   title: string;
@@ -31,6 +32,12 @@ const CHANNEL_TYPE: Record<ChannelType, ChannelTypeMetadata> = {
     title: 'Notebook',
     description: 'Longform publishing and discussion',
     color: 'bg-red-soft',
+  },
+  quorum: {
+    icon: <QuorumIcon className="h-6 w-6 text-gray-600" />,
+    title: 'Quorum',
+    description: 'Knowledge store in the form of Q&A',
+    color: 'bg-yellow-soft',
   },
 };
 
