@@ -2,6 +2,7 @@ import cn from 'classnames';
 import React, { PropsWithChildren, useCallback, useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Link, useLocation } from 'react-router-dom';
+import Drawer from '@/components/Drawer';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, usePinnedGroups } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
@@ -13,6 +14,7 @@ import {
   useGroup,
   useGroupCancelMutation,
 } from '@/state/groups';
+import { useIsMobile } from '@/logic/useMedia';
 
 const { ship } = window;
 
@@ -58,6 +60,7 @@ type GroupActionsProps = PropsWithChildren<{
 
 const GroupActions = React.memo(
   ({ flag, className, children }: GroupActionsProps) => {
+    const isMobile = useIsMobile();
     const { isGroupUnread } = useIsGroupUnread();
     const { preview, claim } = useGang(flag);
     const location = useLocation();
@@ -79,7 +82,105 @@ const GroupActions = React.memo(
       [onCopy]
     );
 
-    return (
+    return isMobile ? (
+      <div className={className}>
+        <Drawer.Root open={isOpen} onOpenChange={setIsOpen}>
+          <Drawer.Trigger asChild>
+            {children || (
+              <div className="relative h-6 w-6">
+                {!isOpen && hasActivity ? (
+                  <UnreadIndicator
+                    className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                    aria-label="Has Activity"
+                  />
+                ) : null}
+                <button
+                  className={cn(
+                    'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                    hasActivity && 'text-blue',
+                    isOpen ? 'opacity:100' : 'opacity-0'
+                  )}
+                  aria-label="Open Group Options"
+                >
+                  <EllipsisIcon className="h-6 w-6" />
+                </button>
+              </div>
+            )}
+          </Drawer.Trigger>
+          <Drawer.Portal>
+            <Drawer.Overlay className="fixed inset-0 z-[9999] bg-black/20" />
+            <Drawer.Content className="fixed inset-x-[32px] bottom-[32px] z-[9999] flex flex-col rounded-[32px] bg-white px-[32px] py-[16px]">
+              {(privacy === 'public' || isAdmin) && (
+                <div
+                  className="dropdown-item-blue py-[16px]"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Link
+                    to={`/groups/${flag}/invite`}
+                    state={{ backgroundLocation: location }}
+                  >
+                    Invite People
+                  </Link>
+                </div>
+              )}
+              <div
+                className="dropdown-item py-[16px]"
+                onClick={(event) => onCopySelect(event.nativeEvent)}
+              >
+                {copyItemText}
+              </div>
+              <div className="dropdown-item py-[16px]" onClick={onPinClick}>
+                {isPinned ? 'Unpin' : 'Pin'}
+              </div>
+              <div
+                className="dropdown-item py-[16px]"
+                onClick={() => setIsOpen(false)}
+              >
+                {isAdmin ? (
+                  <Link
+                    to={`/groups/${flag}/edit`}
+                    state={{ backgroundLocation: location }}
+                  >
+                    Group Settings
+                  </Link>
+                ) : (
+                  <Link
+                    to={`/groups/${flag}/info`}
+                    state={{ backgroundLocation: location }}
+                  >
+                    Group Members & Info
+                  </Link>
+                )}
+              </div>
+              {flag.includes(ship) ? null : (
+                <div
+                  className="dropdown-item-red py-[16px]"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Link
+                    to={`/groups/${flag}/leave`}
+                    state={{ backgroundLocation: location }}
+                  >
+                    Leave Group
+                  </Link>
+                </div>
+              )}
+              {claim && (
+                <div
+                  className="dropdown-item-red py-[16px]"
+                  onClick={() => {
+                    cancelJoinMutation({ flag });
+                    setIsOpen(false);
+                  }}
+                >
+                  Cancel Join
+                </div>
+              )}
+            </Drawer.Content>
+          </Drawer.Portal>
+        </Drawer.Root>
+      </div>
+    ) : (
       <div className={className}>
         <DropdownMenu.Root open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenu.Trigger asChild className="appearance-none">
