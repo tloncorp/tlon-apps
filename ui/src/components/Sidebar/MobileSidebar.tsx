@@ -63,7 +63,7 @@ export default function MobileSidebar() {
                 />
               </NavTab>
             )}
-            <NavTab onClick={() => setShowSheet(true)} linkClass="basis-1/5">
+            <NavTab to="/profile" linkClass="basis-1/5">
               <Avatar size="xs" className="mb-0.5" ship={window.our} />
             </NavTab>
           </ul>

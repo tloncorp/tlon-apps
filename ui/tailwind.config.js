@@ -108,6 +108,15 @@ module.exports = {
   },
   theme: {
     fontFamily: {
+      'system-sans': [
+        '-apple-system',
+        'BlinkMacSystemFont',
+        'San Francisco',
+        'Inter',
+        'Roboto',
+        'system-ui',
+        'sans-serif',
+      ],
       sans: [
         'Inter',
         '-apple-system',

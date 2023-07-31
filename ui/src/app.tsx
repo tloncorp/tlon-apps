@@ -87,12 +87,15 @@ import useIsStandaloneMode from './logic/useIsStandaloneMode';
 import Eyrie from './components/Eyrie';
 import queryClient from './queryClient';
 import EmojiPicker from './components/EmojiPicker';
-import SettingsDialog from './components/SettingsDialog';
+import SettingsDialog from './components/Settings/SettingsDialog';
 import { captureAnalyticsEvent } from './logic/analytics';
 import GroupChannel from './groups/GroupChannel';
 import PrivacyNotice from './groups/PrivacyNotice';
 import useAutoJoinLureInvites from './groups/autoJoinLureInvites';
 import ActivityModal, { ActivityChecker } from './components/ActivityModal';
+import Profile from './profiles/Profile';
+import Settings from './components/Settings/Settings';
+import SettingsView from './components/Settings/SettingsView';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -379,6 +382,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route
               path="/profile/edit"
               element={<EditProfile title={`Edit Profile • ${groupsTitle}`} />}
+            />
+            <Route
+              path="/profile"
+              element={<Profile title={`Profile • ${groupsTitle}`} />}
+            />
+            <Route
+              path="/profile/settings"
+              element={<SettingsView title={`Settings • ${groupsTitle}`} />}
             />
             <Route
               path="/leap"
