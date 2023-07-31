@@ -1,7 +1,7 @@
 name: CI (Test and Build)
 on: pull_request
 env:
-  WAIT_TIME: 240
+  WAIT_TIME: 10
 jobs:
   test-build:
     runs-on: ubuntu-latest

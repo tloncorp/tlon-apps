@@ -40,8 +40,9 @@ check_hash() {
   echo "~$3 ready!"
 }
 
-echo "Waiting for ships to compile"
-sleep 1
+TIME=${WAIT_TIME:-"1"}
+echo "Waiting "$TIME"s for ships to compile"
+sleep $TIME
 
 check_hash lidlut-tabwed-pillex-ridrup 35453 zod
 check_hash riddec-bicrym-ridlev-pocsef 36963 bus
