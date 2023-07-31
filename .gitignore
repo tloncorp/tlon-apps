@@ -8,3 +8,4 @@ bin
 /rube/urbit
 
 gha-creds-*
+.cookies*
