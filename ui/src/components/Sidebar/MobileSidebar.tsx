@@ -58,7 +58,7 @@ export default function MobileSidebar() {
               <NavTab to="/leap">
                 <GridIcon
                   className={cn('mb-0.5 h-8 w-8', {
-                    'text-gray-400': isInactive('/leap'),
+                    'text-gray-200': isInactive('/leap'),
                   })}
                 />
               </NavTab>
