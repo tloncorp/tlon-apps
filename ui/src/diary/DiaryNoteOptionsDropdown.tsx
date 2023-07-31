@@ -4,6 +4,7 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useArrangedNotes } from '@/state/diary';
+import { useChannel } from '@/logic/channel';
 import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
@@ -22,6 +23,8 @@ export default function DiaryNoteOptionsDropdown({
 }: DiaryNoteOptionsDropdownProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const arrangedNotes = useArrangedNotes(flag);
+  const chan = useChannel(flag);
+  const saga = chan?.saga || null;
   const {
     isOpen,
     didCopy,
@@ -51,7 +54,7 @@ export default function DiaryNoteOptionsDropdown({
             {didCopy ? 'Link Copied!' : 'Copy Note Link'}
           </Dropdown.Item>
 
-          {canEdit ? (
+          {canEdit && saga && 'synced' in saga ? (
             <>
               {arrangedNotes?.includes(time) ? (
                 <>
