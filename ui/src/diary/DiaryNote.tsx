@@ -209,7 +209,7 @@ export default function DiaryNote({ title }: ViewProps) {
         <DiaryNoteHeader
           title={note.essay.title}
           time={noteId}
-          canEdit={isAdmin || window.our === note.essay.author}
+          canEdit={(isAdmin || window.our === note.essay.author) && !isPending}
         />
       }
     >
