@@ -28,13 +28,13 @@ check_hash() {
   do
     printf '.'
     response=$(curl -b .cookies.$3.txt -s --connect-timeout 3 $path)
-    echo $response
     x=$(echo $response | jq '.groups.hash');
+    echo "$x"
     if [[ "$x" != "$hash" ]]; then 
       echo "compiled %groups hash: $x"
       break; 
     fi; 
-    sleep 0.5
+    sleep 1
   done
 
   echo "~$3 ready!"
