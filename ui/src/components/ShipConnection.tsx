@@ -16,18 +16,6 @@ interface ShipConnectionProps {
   className?: string;
 }
 
-export function getText(ship: string, status?: ConnectionStatus) {
-  if (ship === window.our) {
-    return 'This is you';
-  }
-
-  return !status
-    ? 'No connection data'
-    : 'pending' in status
-    ? getPendingText(status, ship)
-    : getCompletedText(status, ship);
-}
-
 export default function ShipConnection({
   status,
   ship,
@@ -36,6 +24,13 @@ export default function ShipConnection({
 }: ShipConnectionProps) {
   const isSelf = ship === window.our;
   const color = isSelf ? 'text-green-400' : getConnectionColor(status);
+  const text = isSelf
+    ? 'This is you'
+    : !status
+    ? 'No connection data'
+    : 'pending' in status
+    ? getPendingText(status, ship)
+    : getCompletedText(status, ship);
 
   return (
     <span
@@ -45,18 +40,16 @@ export default function ShipConnection({
       )}
     >
       {type === 'default' && (
-        <Tooltip content={getText(ship, status)}>
+        <Tooltip content={text}>
           <span tabIndex={0}>
-            <Bullet16Icon
-              className={cn('h-4 w-4 flex-none', color)}
-            />
+            <Bullet16Icon className={cn('h-4 w-4 flex-none', color)} />
           </span>
         </Tooltip>
       )}
       {type === 'combo' && (
         <Bullet16Icon className={cn('h-4 w-4 flex-none', color)} />
       )}
-      {type !== 'default' && <span>{getText(ship, status)}</span>}
+      {type !== 'default' && <span>{text}</span>}
     </span>
   );
 }
