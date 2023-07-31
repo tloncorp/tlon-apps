@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
+import cn from 'classnames';
 import { Outlet, useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 import { isNativeApp } from '@/logic/native';
 import NavTab from '../NavTab';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
-import ElipsisIcon from '../icons/EllipsisIcon';
 import BellIcon from '../icons/BellIcon';
 import Sheet, { SheetContent } from '../Sheet';
 import AsteriskIcon from '../icons/Asterisk16Icon';
@@ -56,7 +56,11 @@ export default function MobileSidebar() {
             </NavTab>
             {!isNativeApp() && (
               <NavTab to="/leap">
-                <GridIcon className="-mx-1 h-7 w-7" />
+                <GridIcon
+                  className={cn('mb-0.5 h-8 w-8', {
+                    'text-gray-400': isInactive('/leap'),
+                  })}
+                />
               </NavTab>
             )}
             <NavTab onClick={() => setShowSheet(true)} linkClass="basis-1/5">
