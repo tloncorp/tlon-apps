@@ -27,7 +27,7 @@ check_hash() {
   while true
   do
     printf '.'
-    response=$(curl -b .cookies.$3.txt -s --connect-timeout 1 $path)
+    response=$(curl -b .cookies.$3.txt -s --connect-timeout 3 $path)
     echo $response
     x=$(echo $response | jq '.groups.hash');
     if [[ "$x" != "$hash" ]]; then 
