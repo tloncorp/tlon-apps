@@ -49,7 +49,6 @@ export default function ShipConnection({
           <span tabIndex={0}>
             <Bullet16Icon
               className={cn('h-4 w-4 flex-none', color)}
-              tabIndex={0}
             />
           </span>
         </Tooltip>
