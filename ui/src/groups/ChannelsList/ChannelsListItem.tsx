@@ -42,7 +42,6 @@ interface ChannelsListItemProps {
 }
 
 function useGetChannel(app: string, flag: string): WritePermissions {
-  const groupFlag = useRouteGroup();
   const { chats } = useChatState.getState();
   const { stash } = useHeapState.getState();
   const shelf = useDiaries();
@@ -56,8 +55,7 @@ function useGetChannel(app: string, flag: string): WritePermissions {
     case 'diary':
       return shelf[flag];
     case 'quorum':
-      const board = boards &&
-        boards.find(({board, group}) => (group === groupFlag && board === flag));
+      const board = boards && boards.find(({board}) => board === flag);
       return { perms: { writers: board?.writers ?? [] } };
     default:
       return { perms: { writers: [] } };

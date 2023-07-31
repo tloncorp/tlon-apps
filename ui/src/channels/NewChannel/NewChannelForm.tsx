@@ -74,9 +74,7 @@ export default function NewChannelForm() {
         }
 
         if (type === 'quorum') {
-          return boards && boards.find(({board, group}) => (
-            group === groupFlag && board === tempNewChannelFlag
-          ));
+          return boards && boards.find(({board}) => board === tempNewChannelFlag);
         }
 
         if (type === 'heap') {
