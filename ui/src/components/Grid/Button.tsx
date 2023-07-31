@@ -1,5 +1,4 @@
-import React from 'react';
-import type * as Polymorphic from '@radix-ui/react-polymorphic';
+import React, { PropsWithChildren } from 'react';
 import classNames from 'classnames';
 
 type ButtonVariant =
@@ -10,13 +9,6 @@ type ButtonVariant =
   | 'alt-primary'
   | 'alt-secondary';
 
-type PolymorphicButton = Polymorphic.ForwardRefComponent<
-  'button',
-  {
-    variant?: ButtonVariant;
-  }
->;
-
 const variants: Record<ButtonVariant, string> = {
   primary: 'text-white bg-black',
   secondary: 'text-black bg-gray-100',
@@ -26,18 +18,14 @@ const variants: Record<ButtonVariant, string> = {
   'alt-secondary': 'text-blue-400 bg-blue-50',
 };
 
-interface ButtonProps {
+type ButtonProps = PropsWithChildren<{
   variant?: ButtonVariant;
-  as?: React.ElementType;
   className?: string;
-}
+}>;
 
-export const Button = React.forwardRef<React.ElementType, ButtonProps>(
-  (
-    { as: Comp = 'button', variant = 'primary', children, className, ...props },
-    ref
-  ) => (
-    <Comp
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = 'primary', children, className, ...props }, ref) => (
+    <button
       ref={ref}
       {...props}
       className={classNames(
@@ -47,9 +35,9 @@ export const Button = React.forwardRef<React.ElementType, ButtonProps>(
       )}
     >
       {children}
-    </Comp>
+    </button>
   )
-) as PolymorphicButton;
+);
 
 export const PillButton = React.forwardRef<
   React.ElementType,
@@ -65,4 +53,4 @@ export const PillButton = React.forwardRef<
   >
     {children}
   </Button>
-)) as PolymorphicButton;
+));
