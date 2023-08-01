@@ -6,7 +6,12 @@ import { useNavigate, useParams } from 'react-router';
 import { daToUnix, udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
+import {
+  canWriteChannel,
+  getFlagParts,
+  pluralize,
+  sampleQuippers,
+} from '@/logic/utils';
 import {
   useDiaryBrief,
   useNote,
@@ -29,7 +34,10 @@ import {
   DiaryQuip,
 } from '@/types/diary';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import { useChannelIsJoined } from '@/logic/channel';
+import {
+  useChannelIsJoined,
+  useChannel as useChannelSpecific,
+} from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
@@ -104,6 +112,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const channel = useChannel(groupFlag, nest);
+  const { ship } = getFlagParts(chFlag);
   const { note, status } = useNote(chFlag, noteId);
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
@@ -111,6 +120,8 @@ export default function DiaryNote({ title }: ViewProps) {
   const brief = useDiaryBrief(chFlag);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = useDiaryPerms(chFlag);
+  const chan = useChannelSpecific(chFlag);
+  const saga = chan?.saga;
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const joinChannel = useCallback(async () => {
     await joinDiary({ group: groupFlag, chan: chFlag });
@@ -179,6 +190,7 @@ export default function DiaryNote({ title }: ViewProps) {
             title={'Loading note...'}
             time={noteId}
             canEdit={false}
+            nest={nest}
           />
         }
       >
@@ -209,7 +221,8 @@ export default function DiaryNote({ title }: ViewProps) {
         <DiaryNoteHeader
           title={note.essay.title}
           time={noteId}
-          canEdit={isAdmin || window.our === note.essay.author}
+          canEdit={(isAdmin || window.our === note.essay.author) && !isPending}
+          nest={nest}
         />
       }
     >
@@ -250,7 +263,8 @@ export default function DiaryNote({ title }: ViewProps) {
                 </h2>
               </Divider>
             </div>
-            {canWrite ? (
+            {(canWrite && ship === window.our) ||
+            (canWrite && saga && 'synced' in saga) ? (
               <DiaryCommentField
                 flag={chFlag}
                 groupFlag={groupFlag}

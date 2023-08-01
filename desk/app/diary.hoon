@@ -99,11 +99,16 @@
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
+    =.  cor  
+      %+  roll
+        ~(tap in (~(gas in *(set ship)) (turn diaries head)))
+      |=  [=ship cr=_cor]
+      ?:  =(ship our.bowl)  cr
+      (watch-epic:cr ship &)
     |-
     ?~  diaries
       cor
-    =.  cor
-      di-abet:di-upgrade:(di-abed:di-core i.diaries)
+    =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
     $(diaries t.diaries)
   ==
   ::
@@ -144,29 +149,25 @@
   --
 ::
 ++  watch-epic
-  |=  her=ship
+  |=  [her=ship leave=?]
   ^+  cor
   =/  =wire  /epic
   =/  =dock  [her dap.bowl]
-  ?:  (~(has by wex.bowl) [wire dock])
-    cor
-  (emit %pass wire %agent [her dap.bowl] %watch /epic)
+  =?  cor  leave  (emit %pass wire %agent dock %leave ~)
+  (emit %pass wire %agent dock %watch /epic)
 ::
 ++  take-epic
   |=  =sign:agent:gall
   ^+  cor
   ?+    -.sign  cor
       %kick
-    (watch-epic src.bowl)
+    (watch-epic src.bowl |)
   ::
       %fact
     ?.  =(%epic p.cage.sign)
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay:d)
-      cor
-    ~&  >>  "good news everyone!"
     %+  roll  ~(tap by shelf)
     |=  [[=flag:g =diary:d] out=_cor]
     ?.  =(src.bowl p.flag)
@@ -625,24 +626,42 @@
       =.  cor  (give %kick ~ ~)
       di-core
     --
+  ::  when we get a new %diary agent update, we need to check if we should
+  ::  upgrade any lagging diaries. if we're lagging, we need to change
+  ::  the saga to "chi" to resume syncing updates from the host. otherwise
+  ::  we can no-op, because we're not in sync yet.
   ::
   ++  di-upgrade
     ^+  di-core
+    ::  if we're the host, no-op
+    ::
     ?.  ?=(%sub -.net.diary)
       di-core
+    ::  if we're ahead or synced, no-op
+    ::
     ?.  ?=(%dex -.saga.net.diary)
       di-core
+    ::  if we're still behind even with the upgrade, no-op
+    ::
     ?.  =(okay:d ver.saga.net.diary)
       ~&  future-shock/[ver.saga.net.diary flag]
       di-core
+    ::  safe to sync and resume updates from host
+    ::
     =>  .(saga.net.diary `saga:e`saga.net.diary)
     di-make-chi
+  ::
+  ++  di-make-dex
+    |=  her=epic:e
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    =.  saga.net.diary  dex+her
+    di-core
   ::
   ++  di-make-lev
     ?.  ?=(%sub -.net.diary)
       di-core
     =.  saga.net.diary  lev/~
-    =.  cor  (watch-epic p.flag)
     di-core
   ::
   ++  di-make-chi
@@ -778,13 +797,9 @@
   ++  di-take-epic
     |=  her=epic:e
     ^+  di-core
-    ?>  ?=(%sub -.net.diary)
-    ?:  =(her okay:d)
-      di-core
-    ?:  (gth her okay:d)
-      =.  saga.net.diary  dex+her
-      di-core
-    di-make-lev
+    ?:  (lth her okay:d)  di-make-lev
+    ?:  (gth her okay:d)  (di-make-dex her)
+    di-make-chi
  ::
  ++  di-take-update
     |=  =sign:agent:gall
@@ -886,6 +901,7 @@
     =.  group.perm.diary  group.j
     =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
+    =.  cor  (watch-epic p.flag &)
     di-sub
   ::
   ++  di-leave
