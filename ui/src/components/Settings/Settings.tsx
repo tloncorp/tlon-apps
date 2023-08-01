@@ -46,7 +46,7 @@ export default function Settings() {
       {!isMobile ? (
         <span className="text-lg font-bold">App Settings</span>
       ) : null}
-      <div className="inner-section relative space-y-4">
+      <div className="space-y-4">
         <div className="mb-6 flex flex-col">
           <h2 className="mb-2 text-lg font-bold">CalmEngine</h2>
           <span className="text-gray-600">
@@ -91,7 +91,7 @@ export default function Settings() {
           </p>
         </Setting>
       </div>
-      <div className="inner-section relative space-y-4">
+      <div className="space-y-4">
         <div className="mb-6 flex flex-col">
           <h2 className="mb-2 text-lg font-bold">Privacy</h2>
           <span className="text-gray-600">
@@ -158,7 +158,7 @@ export default function Settings() {
           </p>
         </Setting>
       </div>
-      <div className="inner-section relative space-y-2">
+      <div className="space-y-2">
         <div className="flex flex-col">
           <h2 className="mb-2 text-lg font-bold">Theme</h2>
         </div>

@@ -1,5 +1,5 @@
 import { Helmet } from 'react-helmet';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
@@ -8,36 +8,28 @@ import { useOurContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import AddIcon from '@/components/icons/AddIcon';
 import FeedbackIcon from '@/components/icons/FeedbackIcon';
 import GiftIcon from '@/components/icons/GiftIcon';
 import InfoIcon from '@/components/icons/InfoIcon';
+import AsteriskIcon from '@/components/icons/AsteriskIcon';
+import MobileHeader from '@/components/MobileHeader';
 import ProfileCoverImage from './ProfileCoverImage';
 
 export default function Profile({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const contact = useOurContact();
-  const location = useLocation();
 
   return (
     <Layout
-      header={
-        isMobile ? (
-          <div className="flex w-full items-center justify-center bg-white py-2 pl-2 pr-4">
-            <span className="ellipsis text-[18px] leading-5 text-gray-800 line-clamp-1">
-              Profile
-            </span>
-          </div>
-        ) : null
-      }
-      className="flex-1 p-4 font-system-sans"
+      header={isMobile ? <MobileHeader title="Profile" /> : null}
+      className="flex-1 px-4 pt-4 font-system-sans"
     >
       <Helmet>
         <title>{title}</title>
       </Helmet>
-      <div className="flex flex-col justify-center space-y-4 pt-[10px]">
+      <motion.div className="flex flex-col justify-center space-y-4 pt-[10px]">
         <ProfileCoverImage
-          className="flex h-[345px] w-full flex-col justify-between rounded-[36px] px-6 pt-6 shadow-xl"
+          className="flex h-[345px] w-full flex-col justify-between rounded-[36px] px-6 pt-6 shadow-2xl"
           cover={contact.cover || ''}
         >
           <div className="flex w-full justify-end">
@@ -75,7 +67,7 @@ export default function Profile({ title }: ViewProps) {
             )}
           </div>
         </ProfileCoverImage>
-        <div className="flex flex-col space-y-1">
+        <nav className="flex flex-col space-y-1">
           <Link to="/profile/settings" className="no-underline">
             <SidebarItem
               color="text-gray-900"
@@ -85,18 +77,14 @@ export default function Profile({ title }: ViewProps) {
               showCaret
               icon={
                 <div className="flex h-12 w-12 items-center justify-center">
-                  <AddIcon className="h-6 w-6 text-gray-400" />
+                  <AsteriskIcon className="h-6 w-6 text-gray-400" />
                 </div>
               }
             >
               App Settings
             </SidebarItem>
           </Link>
-          <Link
-            to="/about"
-            className="no-underline"
-            state={{ backgroundLocation: location }}
-          >
+          <Link to="/profile/about" className="no-underline">
             <SidebarItem
               color="text-gray-900"
               fontWeight="font-normal"
@@ -154,8 +142,8 @@ export default function Profile({ title }: ViewProps) {
               Share with Friends
             </SidebarItem>
           </a>
-        </div>
-      </div>
+        </nav>
+      </motion.div>
     </Layout>
   );
 }
