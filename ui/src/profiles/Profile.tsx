@@ -15,6 +15,27 @@ import AsteriskIcon from '@/components/icons/AsteriskIcon';
 import MobileHeader from '@/components/MobileHeader';
 import ProfileCoverImage from './ProfileCoverImage';
 
+const pageAnimationVariants = {
+  initial: {
+    opacity: 0,
+    x: '-100vw',
+  },
+  in: {
+    opacity: 1,
+    x: 0,
+  },
+  out: {
+    opacity: 0,
+    x: '100vw',
+  },
+};
+
+const pageTransition = {
+  type: 'tween',
+  ease: 'easeInOut',
+  duration: 0.2,
+};
+
 export default function Profile({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const contact = useOurContact();
@@ -27,7 +48,14 @@ export default function Profile({ title }: ViewProps) {
       <Helmet>
         <title>{title}</title>
       </Helmet>
-      <motion.div className="flex flex-col justify-center space-y-4 pt-[10px]">
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageAnimationVariants}
+        transition={pageTransition}
+        className="flex flex-col justify-center space-y-4 pt-[10px]"
+      >
         <ProfileCoverImage
           className="flex h-[345px] w-full flex-col justify-between rounded-[36px] px-6 pt-6 shadow-2xl"
           cover={contact.cover || ''}
