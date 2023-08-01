@@ -55,7 +55,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
       to,
       color = 'text-gray-800 sm:text-gray-600',
       highlight = 'bg-gray-50',
-      fontWeight = 'font-bold',
+      fontWeight,
       fontSize = 'text-lg',
       actions,
       className,
