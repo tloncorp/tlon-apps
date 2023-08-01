@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import { motion } from 'framer-motion';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ViewProps } from '@/types/groups';
@@ -17,8 +18,7 @@ import GroupSelector, { GroupOption } from '@/components/GroupSelector';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import Layout from '@/components/Layout/Layout';
-import { Link } from 'react-router-dom';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
+import MobileHeader from '@/components/MobileHeader';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
@@ -218,6 +218,27 @@ function EditProfileContent() {
   );
 }
 
+const pageAnimationVariants = {
+  initial: {
+    opacity: 0,
+    x: '100vw',
+  },
+  in: {
+    opacity: 1,
+    x: 0,
+  },
+  out: {
+    opacity: 0,
+    x: '-100vw',
+  },
+};
+
+const pageTransition = {
+  type: 'tween',
+  ease: 'easeInOut',
+  duration: 0.2,
+};
+
 export default function EditProfile({ title }: ViewProps) {
   useAnalyticsEvent('profile_edit');
   const isMobile = useIsMobile();
@@ -230,26 +251,24 @@ export default function EditProfile({ title }: ViewProps) {
       <Layout
         header={
           isMobile ? (
-            <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
-              <Link
-                to=".."
-                className="default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2"
-              >
-                <div className="flex h-6 w-6 items-center justify-center">
-                  <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
-                </div>
-                <div className="flex w-full flex-col justify-center">
-                  <span className="ellipsis text-sm font-bold line-clamp-1 sm:font-semibold">
-                    Edit Profile
-                  </span>
-                </div>
-              </Link>
-            </div>
+            <MobileHeader title="Edit Profile" pathBack="/profile" />
           ) : null
         }
         className="flex-1"
       >
-        <EditProfileContent />
+        {isMobile ? (
+          <motion.div
+            initial="initial"
+            animate="in"
+            exit="out"
+            variants={pageAnimationVariants}
+            transition={pageTransition}
+          >
+            <EditProfileContent />
+          </motion.div>
+        ) : (
+          <EditProfileContent />
+        )}
       </Layout>
     </div>
   );

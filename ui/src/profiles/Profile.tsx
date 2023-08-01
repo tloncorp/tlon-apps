@@ -57,43 +57,48 @@ export default function Profile({ title }: ViewProps) {
         className="flex flex-col justify-center space-y-4 pt-[10px]"
       >
         <ProfileCoverImage
-          className="flex h-[345px] w-full flex-col justify-between rounded-[36px] px-6 pt-6 shadow-2xl"
+          className="flex h-[345px] w-full shadow-2xl"
           cover={contact.cover || ''}
         >
-          <div className="flex w-full justify-end">
-            <Link
-              to="/profile/edit"
-              className="text-[18px] font-normal text-white"
-            >
-              Edit
-            </Link>
-          </div>
-          <div className="flex flex-col space-y-6">
-            <div className="flex space-x-2">
-              <Avatar size="big" icon={false} ship={window.our} />
-              <div className="flex flex-col items-start justify-center space-y-1">
-                <ShipName
-                  className="text-[18px] font-normal text-white"
-                  name={window.our}
-                  showAlias
-                />
-                <ShipName
-                  className="text-[17px] font-normal leading-snug text-white opacity-60"
-                  name={window.our}
-                />
-              </div>
+          <Link
+            to="/profile/edit"
+            className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 px-6 pt-6 font-normal"
+          >
+            <div className="flex w-full justify-end">
+              <Link
+                to="/profile/edit"
+                className="text-[18px] font-normal text-white"
+              >
+                Edit
+              </Link>
             </div>
-            {contact.bio && (
-              <div className="flex flex-col space-y-3">
-                <span className="text-[18px] font-normal text-white opacity-60">
-                  Info
-                </span>
-                <span className="h-[84px] bg-gradient-to-b from-white via-gray-50 bg-clip-text text-[17px] leading-snug text-transparent">
-                  {contact.bio}
-                </span>
+            <div className="flex flex-col space-y-6">
+              <div className="flex space-x-2">
+                <Avatar size="big" icon={false} ship={window.our} />
+                <div className="flex flex-col items-start justify-center space-y-1">
+                  <ShipName
+                    className="text-[18px] font-normal text-white"
+                    name={window.our}
+                    showAlias
+                  />
+                  <ShipName
+                    className="text-[17px] font-normal leading-snug text-white opacity-60"
+                    name={window.our}
+                  />
+                </div>
               </div>
-            )}
-          </div>
+              {contact.bio && (
+                <div className="flex flex-col space-y-3">
+                  <span className="text-[18px] font-normal text-white opacity-60">
+                    Info
+                  </span>
+                  <span className="h-[84px] bg-gradient-to-b from-white via-gray-50 bg-clip-text text-[17px] leading-snug text-transparent">
+                    {contact.bio}
+                  </span>
+                </div>
+              )}
+            </div>
+          </Link>
         </ProfileCoverImage>
         <nav className="flex flex-col space-y-1">
           <Link to="/profile/settings" className="no-underline">
