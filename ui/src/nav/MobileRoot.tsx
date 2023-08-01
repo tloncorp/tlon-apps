@@ -12,6 +12,7 @@ import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
 import GangItem from '@/components/Sidebar/GangItem';
 import { GroupsScrollingContext } from '@/components/Sidebar/GroupsScrollingContext';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import MobileHeader from '@/components/MobileHeader';
 
 export default function MobileRoot() {
   const location = useLocation();
@@ -33,16 +34,17 @@ export default function MobileRoot() {
   );
 
   return (
-    <>
-      <header className="flex items-center justify-between border-b-2 border-gray-50 px-6 py-4">
-        <h1 className="text-lg font-bold text-gray-800">All Groups</h1>
-        <div className="flex flex-row items-center space-x-3 self-end">
-          <ReconnectingSpinner />
+    <div className='flex-1 pt-4'>
+      <MobileHeader
+        title="All Groups"
+        action={
           <SidebarSorter
             sortFn={sortFn}
             setSortFn={setSortFn}
             sortOptions={sortOptions}
           />
+        }
+        secondaryAction={
           <Link
             className="default-focus flex items-center rounded-md bg-blue p-1 text-base"
             to="/groups/new"
@@ -50,9 +52,8 @@ export default function MobileRoot() {
           >
             <AddIcon16 className="h-4 w-4 text-white" />
           </Link>
-        </div>
-      </header>
-
+        }
+      />
       <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
         <div className="flex-1">
           <GroupsScrollingContext.Provider value={isScrolling}>
@@ -83,6 +84,6 @@ export default function MobileRoot() {
           </GroupsScrollingContext.Provider>
         </div>
       </nav>
-    </>
+    </div>
   );
 }
