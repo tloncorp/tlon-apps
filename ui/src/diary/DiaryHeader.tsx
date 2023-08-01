@@ -3,7 +3,7 @@ import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
 import DisplayDropdown from '@/channels/DisplayDropdown';
-import { useDiary, useLeaveDiaryMutation } from '@/state/diary';
+import { useLeaveDiaryMutation } from '@/state/diary';
 import { useChannel as useChannelSpecific } from '@/logic/channel';
 import {
   setChannelSetting,
@@ -12,10 +12,9 @@ import {
   usePutEntryMutation,
 } from '@/state/settings';
 import { DiaryDisplayMode } from '@/types/diary';
-import { nestToFlag } from '@/logic/utils';
+import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { Link } from 'react-router-dom';
 import AddIcon16 from '@/components/icons/Add16Icon';
-import { useChannel } from '@/state/groups';
 
 interface DiaryHeaderProps {
   flag: string;
@@ -34,6 +33,7 @@ export default function DiaryHeader({
 }: DiaryHeaderProps) {
   const [, chFlag] = nestToFlag(nest);
   const chan = useChannelSpecific(nest);
+  const { ship } = getFlagParts(flag);
   const saga = chan?.saga || null;
   const settings = useDiarySettings();
   const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
@@ -73,7 +73,8 @@ export default function DiaryHeader({
       prettyAppName="Notebook"
       leave={(ch) => leaveDiary({ flag: ch })}
     >
-      {canWrite && saga && 'synced' in saga ? (
+      {(canWrite && ship === window.our) ||
+      (canWrite && saga && 'synced' in saga) ? (
         <Link
           to="edit"
           className={'small-button shrink-0 bg-blue px-1 text-white sm:px-2'}
