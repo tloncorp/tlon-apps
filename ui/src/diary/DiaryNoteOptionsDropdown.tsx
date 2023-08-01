@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useArrangedNotes } from '@/state/diary';
 import { useChannel } from '@/logic/channel';
+import { getFlagParts } from '@/logic/utils';
 import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
@@ -23,6 +24,7 @@ export default function DiaryNoteOptionsDropdown({
 }: DiaryNoteOptionsDropdownProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const arrangedNotes = useArrangedNotes(flag);
+  const { ship } = getFlagParts(flag);
   const chan = useChannel(flag);
   const saga = chan?.saga || null;
   const {
@@ -54,7 +56,8 @@ export default function DiaryNoteOptionsDropdown({
             {didCopy ? 'Link Copied!' : 'Copy Note Link'}
           </Dropdown.Item>
 
-          {canEdit && saga && 'synced' in saga ? (
+          {(canEdit && ship === window.our) ||
+          (canEdit && saga && 'synced' in saga) ? (
             <>
               {arrangedNotes?.includes(time) ? (
                 <>

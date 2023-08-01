@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { useChannel as useChannelSpecific } from '@/logic/channel';
+import { getNestShip } from '@/logic/utils';
 
 export interface DiaryNoteHeaderProps {
   title: string;
@@ -21,7 +22,7 @@ export default function DiaryNoteHeader({
   nest,
 }: DiaryNoteHeaderProps) {
   const isMobile = useIsMobile();
-
+  const ship = getNestShip(nest);
   const chan = useChannelSpecific(nest);
   const saga = chan?.saga || null;
 
@@ -56,7 +57,8 @@ export default function DiaryNoteHeader({
 
       <div className="flex shrink-0 flex-row items-center space-x-3">
         {isMobile && <ReconnectingSpinner />}
-        {canEdit && saga && 'synced' in saga ? (
+        {(canEdit && ship === window.our) ||
+        (canEdit && saga && 'synced' in saga) ? (
           <Link to={`../edit/${time}`} className="small-button">
             Edit
           </Link>
