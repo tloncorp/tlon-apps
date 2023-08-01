@@ -6,7 +6,12 @@ import { useNavigate, useParams } from 'react-router';
 import { daToUnix, udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
+import {
+  canWriteChannel,
+  getFlagParts,
+  pluralize,
+  sampleQuippers,
+} from '@/logic/utils';
 import {
   useDiaryBrief,
   useNote,
@@ -107,6 +112,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const channel = useChannel(groupFlag, nest);
+  const { ship } = getFlagParts(chFlag);
   const { note, status } = useNote(chFlag, noteId);
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
@@ -257,7 +263,8 @@ export default function DiaryNote({ title }: ViewProps) {
                 </h2>
               </Divider>
             </div>
-            {canWrite && saga && 'synced' in saga ? (
+            {(canWrite && ship === window.our) ||
+            (canWrite && saga && 'synced' in saga) ? (
               <DiaryCommentField
                 flag={chFlag}
                 groupFlag={groupFlag}
