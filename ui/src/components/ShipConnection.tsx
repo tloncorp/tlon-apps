@@ -33,13 +33,17 @@ export default function ShipConnection({
     : getCompletedText(status, ship);
 
   return (
-    <span className={cn('flex items-start space-x-1 font-semibold', className)}>
+    <span
+      className={cn(
+        'relative flex items-start space-x-1 font-semibold',
+        className
+      )}
+    >
       {type === 'default' && (
         <Tooltip content={text}>
-          <Bullet16Icon
-            className={cn('h-4 w-4 flex-none', color)}
-            tabIndex={0}
-          />
+          <span tabIndex={0}>
+            <Bullet16Icon className={cn('h-4 w-4 flex-none', color)} />
+          </span>
         </Tooltip>
       )}
       {type === 'combo' && (
