@@ -113,7 +113,7 @@ export function useConnectivityCheck(
     waitToDisplay = 700,
   } = options || {};
   const self = window.our === ship;
-  const [subbed, setSubbed] = useState(false);
+  const [subbed, setSubbed] = useState<string | undefined>(undefined);
   const [showConnection, setShowConnection] = useState(false);
   const queryClient = useQueryClient();
   const query = useQuery(
@@ -145,7 +145,7 @@ export function useConnectivityCheck(
       return resp;
     },
     {
-      enabled: enabled && subbed && !self,
+      enabled: enabled && !!subbed && !self,
       cacheTime: 0,
       initialData: self
         ? {
@@ -163,7 +163,7 @@ export function useConnectivityCheck(
   );
 
   useEffect(() => {
-    if (subbed || self) {
+    if (self) {
       return;
     }
 
@@ -174,7 +174,8 @@ export function useConnectivityCheck(
         queryClient.setQueryData(['vitals', ship], data);
       },
     });
-    setSubbed(true);
+
+    setSubbed(ship);
   }, [ship, subbed, self, queryClient]);
 
   useEffect(() => {
