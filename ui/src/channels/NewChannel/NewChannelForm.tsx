@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -11,7 +11,7 @@ import {
 import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
-import { useHeapState } from '@/state/heap/heap';
+import { useCreateHeapMutation, useStash } from '@/state/heap/heap';
 import { useCreateDiaryMutation, useDiaries } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
@@ -25,9 +25,11 @@ export default function NewChannelForm() {
   const groupFlag = useRouteGroup();
   const { compatible, text } = useGroupCompatibility(groupFlag);
   const shelf = useDiaries();
+  const stash = useStash();
   const { mutate: mutateAddChannel, status: addChannelStatus } =
     useAddChannelMutation();
   const { mutateAsync: createDiary } = useCreateDiaryMutation();
+  const { mutateAsync: createHeap } = useCreateHeapMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
     zone: 'default',
@@ -77,7 +79,7 @@ export default function NewChannelForm() {
         }
 
         if (type === 'heap') {
-          return useHeapState.getState().stash[tempNewChannelFlag];
+          return stash[tempNewChannelFlag];
         }
 
         return false;
@@ -98,7 +100,7 @@ export default function NewChannelForm() {
         type === 'chat'
           ? useChatState.getState().create
           : type === 'heap'
-          ? useHeapState.getState().create
+          ? createHeap
           : createDiary;
 
       try {
@@ -138,6 +140,8 @@ export default function NewChannelForm() {
       mutateAddChannel,
       shelf,
       createDiary,
+      createHeap,
+      stash,
     ]
   );
 
