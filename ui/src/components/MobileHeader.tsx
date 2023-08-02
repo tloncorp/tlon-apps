@@ -8,7 +8,7 @@ export default function MobileHeader({
   action,
   secondaryAction,
 }: {
-  title: string;
+  title: string | React.ReactNode;
   pathBack?: string;
   pathBackText?: string;
   action?: React.ReactNode;
@@ -18,7 +18,7 @@ export default function MobileHeader({
     <div className="grid w-full grid-cols-3 items-center justify-between bg-white py-3 pl-2 pr-4 font-system-sans">
       {pathBack ? (
         <Link className="flex items-center" to={pathBack}>
-          <CaretLeftIcon className="h-6 w-6 text-gray-400" />
+          <CaretLeftIcon className="h-6 w-6 text-gray-900" />
           {pathBackText && (
             <span className="text-[17px] leading-6 text-gray-800 line-clamp-1">
               Cancel
