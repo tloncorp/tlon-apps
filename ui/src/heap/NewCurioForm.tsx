@@ -3,10 +3,10 @@ import cn from 'classnames';
 import { useForm } from 'react-hook-form';
 import { JSONContent } from '@tiptap/react';
 import LinkIcon from '@/components/icons/LinkIcon';
-import { useHeapPerms, useHeapState } from '@/state/heap/heap';
+import { useAddCurioMutation, useHeapPerms } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import { canWriteChannel, isValidUrl, nestToFlag } from '@/logic/utils';
-import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import { useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
 import {
@@ -45,6 +45,7 @@ export default function NewCurioForm() {
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { compatible, text } = useChannelCompatibility(nest);
+  const mutation = useAddCurioMutation();
 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const uploader = useUploader('new-curio-input');
@@ -76,26 +77,39 @@ export default function NewCurioForm() {
   const { isPending, setPending, setReady } = useRequestState();
   const onSubmit = useCallback(
     async ({ content }: NewCurioFormSchema) => {
-      await useHeapState.getState().addCurio(chFlag, {
-        title: '',
-        content: { block: [], inline: [{ link: { href: content, content } }] },
-        author: window.our,
-        sent: Date.now(),
-        replying: null,
-      });
-      captureGroupsAnalyticsEvent({
-        name: 'post_item',
-        groupFlag: flag,
-        chFlag,
-        channelType: 'heap',
-        privacy,
-      });
-
-      setDraftLink(undefined);
-      uploader?.clear();
-      reset();
+      mutation.mutate(
+        {
+          flag: chFlag,
+          heart: {
+            title: '',
+            content: {
+              block: [],
+              inline: [{ link: { href: content, content } }],
+            },
+            author: window.our,
+            sent: Date.now(),
+            replying: null,
+          },
+        },
+        {
+          onSuccess: () => {
+            captureGroupsAnalyticsEvent({
+              name: 'post_item',
+              groupFlag: flag,
+              chFlag,
+              channelType: 'heap',
+              privacy,
+            });
+          },
+          onSettled: () => {
+            setDraftLink(undefined);
+            uploader?.clear();
+            reset();
+          },
+        }
+      );
     },
-    [flag, chFlag, privacy, reset, uploader]
+    [flag, chFlag, privacy, reset, uploader, mutation]
   );
 
   const watchedContent = watch('content');

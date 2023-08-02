@@ -1,12 +1,12 @@
 import bigInt from 'big-integer';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import {
-  useCurioWithCommentsNew,
-  useHeapState,
-  useOrderedCuriosNew,
+  useCurioWithComments,
+  useOrderedCurios,
+  useJoinHeapMutation,
 } from '@/state/heap/heap';
 import Layout from '@/components/Layout/Layout';
 import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
@@ -39,15 +39,12 @@ export default function HeapDetail({ title }: ViewProps) {
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
   const joined = useChannelIsJoined(nest);
-  const { time, curio, comments, isLoading } = useCurioWithCommentsNew(
+  const { mutateAsync: joinHeap } = useJoinHeapMutation();
+  const { time, curio, comments, isLoading } = useCurioWithComments(
     chFlag,
     idCurio || ''
   );
-  // const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
-  //   chFlag,
-  //   time || ''
-  // );
-  const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCuriosNew(
+  const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
     chFlag,
     time || ''
   );
@@ -62,34 +59,15 @@ export default function HeapDetail({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await useHeapState.getState().joinHeap(groupFlag, chFlag);
+    await joinHeap({ group: groupFlag, chan: chFlag });
     setJoining(false);
-  }, [chFlag, groupFlag]);
-
-  const initializeChannel = useCallback(async () => {
-    await useHeapState.getState().initialize(chFlag);
-  }, [chFlag]);
+  }, [chFlag, groupFlag, joinHeap]);
 
   useEffect(() => {
     if (!joined) {
       joinChannel();
     }
   }, [joined, joinChannel]);
-
-  useEffect(() => {
-    if (joined && canRead && !joining) {
-      initializeChannel();
-    }
-  }, [
-    time,
-    curio,
-    joined,
-    joinChannel,
-    canRead,
-    channel,
-    joining,
-    initializeChannel,
-  ]);
 
   useGroupsAnalyticsEvent({
     name: 'view_item',

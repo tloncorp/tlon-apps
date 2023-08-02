@@ -7,7 +7,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { useHeapState, useAddCurioMutation } from '@/state/heap/heap';
+import { useAddCurioMutation } from '@/state/heap/heap';
 import useRequestState from '@/logic/useRequestState';
 import { JSONToInlines } from '@/logic/tiptap';
 import {
@@ -90,7 +90,7 @@ export default function HeapTextInput({
   const chatInfo = useChatInfo(flag);
   const { privacy } = useGroupPrivacy(groupFlag);
   const { compatible, text } = useChannelCompatibility(`heap/${flag}`);
-  const { mutate } = useAddCurioMutation(flag);
+  const { mutate } = useAddCurioMutation();
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -129,9 +129,8 @@ export default function HeapTextInput({
       editor?.commands.setContent('');
       useChatStore.getState().setBlocks(flag, []);
 
-      // await useHeapState.getState().addCurio(flag, heart);
       mutate(
-        { heart, parentKey: replyTo || undefined },
+        { flag, heart },
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({
