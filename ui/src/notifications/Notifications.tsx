@@ -115,10 +115,30 @@ export default function Notifications({
     </button>
   );
 
+  const MobileMarkAsRead = (
+    <button
+      disabled={isMarkReadPending || !hasUnreads}
+      className={cn('text-[17px] font-normal leading-6 text-blue', {
+        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+      })}
+      onClick={markAllRead}
+    >
+      Mark as Read
+    </button>
+  );
+
   return (
     <>
       {isMobile && (
-        <MobileHeader title="Activity" action={<ReconnectingSpinner />} />
+        <MobileHeader
+          title="Activity"
+          action={
+            <>
+              <ReconnectingSpinner />
+              {hasUnreads && MobileMarkAsRead}
+            </>
+          }
+        />
       )}
       <section className="flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-gray-50 p-6">
         <Helmet>
@@ -147,13 +167,14 @@ export default function Notifications({
         )}
 
         <div className="card">
-          <div className="mb-6 flex w-full items-center justify-between">
-            <h2 className="text-lg font-bold">
-              {group && 'Group '}Activity{!group && ' in All Groups'}
-            </h2>
-            {hasUnreads && MarkAsRead}
-          </div>
-
+          {!isMobile && (
+            <div className="mb-6 flex w-full items-center justify-between">
+              <h2 className="text-lg font-bold">
+                {group && 'Group '}Activity{!group && ' in All Groups'}
+              </h2>
+              {hasUnreads && MarkAsRead}
+            </div>
+          )}
           {loaded ? (
             notifications.length === 0 ? (
               <div className="mt-3 flex w-full items-center justify-center">
