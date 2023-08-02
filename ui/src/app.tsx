@@ -95,6 +95,8 @@ import Profile from '@/profiles/Profile';
 import SettingsView from '@/components/Settings/SettingsView';
 import AboutView from '@/components/About/AboutView';
 import LureAutojoiner from '@/groups/LureAutojoiner';
+import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
+import NewGroupView from './groups/NewGroup/NewGroupView';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -386,6 +388,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               path="/profile/about"
               element={<AboutView title={`About • ${groupsTitle}`} />}
             />
+            <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route
               path="/leap"
               element={
@@ -504,7 +507,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </SuspendedModal>
             }
           />
-          <Route path="/groups/new" element={<NewGroup />} />
+          <Route path="/groups/new" element={<NewGroupDialog />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>

@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
@@ -16,7 +15,6 @@ import Layout from '@/components/Layout/Layout';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 
 export default function MobileRoot() {
-  const location = useLocation();
   const [isScrolling, setIsScrolling] = useState(false);
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
@@ -53,10 +51,9 @@ export default function MobileRoot() {
           secondaryAction={
             <Link
               className="default-focus flex items-center p-1 text-base"
-              to="/groups/new"
-              state={{ backgroundLocation: location }}
+              to="/groups/new-mobile"
             >
-            <AddIconMobileNav className="h-8 w-8 text-black" />
+              <AddIconMobileNav className="h-8 w-8 text-black" />
             </Link>
           }
         />
@@ -71,17 +68,18 @@ export default function MobileRoot() {
               isScrolling={scroll.current}
             >
               {Object.entries(pinnedGroups).length > 0 && (
-                <div className="px-4">
-                  <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">
-                    Pinned Groups
+                <>
+                  <div className="px-4">
+                    <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">
+                      Pinned Groups
+                    </h2>
+                    {pinnedGroupsOptions}
+                  </div>
+                  <h2 className="my-2 ml-2 p-2 pl-4 text-lg font-bold text-gray-400">
+                    All Groups
                   </h2>
-                  {pinnedGroupsOptions}
-                </div>
+                </>
               )}
-
-              <h2 className="my-2 ml-2 p-2 pl-4 text-lg font-bold text-gray-400">
-                All Groups
-              </h2>
 
               <div className="px-4">
                 {gangs.map((flag) => (
