@@ -1,9 +1,9 @@
+import _ from 'lodash';
+import { useCallback, useState } from 'react';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
-import { useHeapState } from '@/state/heap/heap';
+import { useAddCurioFeelMutation } from '@/state/heap/heap';
 import { CurioSeal } from '@/types/heap';
-import _ from 'lodash';
-import React, { useCallback, useState } from 'react';
 import HeapCommentReaction from './HeapCommentReaction';
 
 interface HeapCommentReactionsProps {
@@ -18,15 +18,15 @@ export default function HeapCommentReactions({
   time,
 }: HeapCommentReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const addFeelMutation = useAddCurioFeelMutation();
   const feels = _.invertBy(seal.feels);
 
   const onEmoji = useCallback(
     async (emoji: { shortcodes: string }) => {
-      await useHeapState.getState().addFeel(whom, time, emoji.shortcodes);
-      await useHeapState.getState().fetchCurio(whom, time);
+      addFeelMutation.mutate({ flag: whom, time, feel: emoji.shortcodes });
       setPickerOpen(false);
     },
-    [whom, time]
+    [whom, time, addFeelMutation]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
