@@ -14,9 +14,8 @@ export default function MobileHeader({
   action?: React.ReactNode;
   secondaryAction?: React.ReactNode;
 }) {
-
   return (
-    <div className="grid w-full grid-cols-3 items-center justify-between bg-white py-3 pl-2 pr-4">
+    <div className="grid w-full grid-cols-3 items-center justify-between bg-white py-3 pl-2 pr-4 font-system-sans">
       {pathBack ? (
         <Link className="flex items-center" to={pathBack}>
           <CaretLeftIcon className="h-6 w-6 text-gray-400" />

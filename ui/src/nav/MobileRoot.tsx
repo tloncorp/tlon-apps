@@ -13,6 +13,7 @@ import GangItem from '@/components/Sidebar/GangItem';
 import { GroupsScrollingContext } from '@/components/Sidebar/GroupsScrollingContext';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
+import Layout from '@/components/Layout/Layout';
 
 export default function MobileRoot() {
   const location = useLocation();
@@ -34,29 +35,33 @@ export default function MobileRoot() {
   );
 
   return (
-    <div className="flex-1 pt-4">
-      <MobileHeader
-        title="All Groups"
-        action={
-          <>
-            <ReconnectingSpinner />
-            <SidebarSorter
-              sortFn={sortFn}
-              setSortFn={setSortFn}
-              sortOptions={sortOptions}
-            />
-          </>
-        }
-        secondaryAction={
-          <Link
-            className="default-focus flex items-center rounded-md bg-blue p-1 text-base"
-            to="/groups/new"
-            state={{ backgroundLocation: location }}
-          >
-            <AddIcon16 className="h-4 w-4 text-white" />
-          </Link>
-        }
-      />
+    <Layout
+      className="flex-1 pt-4"
+      header={
+        <MobileHeader
+          title="All Groups"
+          action={
+            <>
+              <ReconnectingSpinner />
+              <SidebarSorter
+                sortFn={sortFn}
+                setSortFn={setSortFn}
+                sortOptions={sortOptions}
+              />
+            </>
+          }
+          secondaryAction={
+            <Link
+              className="default-focus flex items-center rounded-md bg-blue p-1 text-base"
+              to="/groups/new"
+              state={{ backgroundLocation: location }}
+            >
+              <AddIcon16 className="h-4 w-4 text-white" />
+            </Link>
+          }
+        />
+      }
+    >
       <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
         <div className="flex-1">
           <GroupsScrollingContext.Provider value={isScrolling}>
@@ -87,6 +92,6 @@ export default function MobileRoot() {
           </GroupsScrollingContext.Provider>
         </div>
       </nav>
-    </div>
+    </Layout>
   );
 }
