@@ -7,13 +7,13 @@ import { usePinnedGroups } from '@/state/chat';
 import { useGangList, useGroups } from '@/state/groups';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
-import AddIcon16 from '@/components/icons/Add16Icon';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
 import GangItem from '@/components/Sidebar/GangItem';
 import { GroupsScrollingContext } from '@/components/Sidebar/GroupsScrollingContext';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import Layout from '@/components/Layout/Layout';
+import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 
 export default function MobileRoot() {
   const location = useLocation();
@@ -52,11 +52,11 @@ export default function MobileRoot() {
           }
           secondaryAction={
             <Link
-              className="default-focus flex items-center rounded-md bg-blue p-1 text-base"
+              className="default-focus flex items-center p-1 text-base"
               to="/groups/new"
               state={{ backgroundLocation: location }}
             >
-              <AddIcon16 className="h-4 w-4 text-white" />
+            <AddIconMobileNav className="h-8 w-8 text-black" />
             </Link>
           }
         />
