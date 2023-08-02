@@ -1,5 +1,4 @@
 import _ from 'lodash';
-import React from 'react';
 import { NoteEssay } from '@/types/diary';
 import { format } from 'date-fns';
 import DiaryCommenters from '@/diary/DiaryCommenters';

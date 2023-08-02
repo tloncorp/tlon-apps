@@ -165,6 +165,7 @@
     "urbit-ob": "^5.0.1",
     "use-pwa-install": "^1.0.1",
     "usehooks-ts": "^2.6.0",
+    "uuid": "^9.0.0",
     "validator": "^13.7.0",
     "workbox-precaching": "^6.5.4",
     "zustand": "^3.7.2"
@@ -191,6 +192,7 @@
     "@types/react-dom": "^17.0.2",
     "@types/react-helmet": "^6.1.5",
     "@types/react-test-renderer": "^17.0.2",
+    "@types/uuid": "^9.0.2",
     "@types/validator": "^13.7.2",
     "@types/ws": "^8.5.3",
     "@typescript-eslint/eslint-plugin": "^5.19.0",

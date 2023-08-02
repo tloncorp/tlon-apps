@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
@@ -12,6 +12,7 @@ import {
   useAmAdmin,
   useGroup,
   useGroupBanShipsMutation,
+  useGroupCompatibility,
   useGroupDelMembersMutation,
   useGroupFlag,
   useGroupSectMutation,
@@ -25,6 +26,7 @@ import { Vessel } from '@/types/groups';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import AddBadgeIcon from '@/components/icons/AddBadgeIcon';
+import useNavigateByApp from '@/logic/useNavigateByApp';
 
 interface GroupMemberItemProps {
   member: string;
@@ -36,6 +38,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const [loadingBan, setLoadingBan] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const adminRef = useRef(document.getElementById('admin-dialog'));
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const sects = useSects(flag);
@@ -44,6 +47,8 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const contact = useContact(member);
   const location = useLocation();
   const modalNavigate = useModalNavigate();
+  const navigateByApp = useNavigateByApp();
+  const { compatible } = useGroupCompatibility(flag);
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
   const { mutateAsync: sectMutation } = useGroupSectMutation();
@@ -53,6 +58,10 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
     modalNavigate(`/profile/${ship}`, {
       state: { backgroundLocation: location },
     });
+  };
+
+  const onSendMessage = (ship: string) => {
+    navigateByApp(`/dm/${ship}`);
   };
 
   const kick = useCallback(
@@ -148,10 +157,22 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       </div>
       {isAdmin && vessel ? (
         <Dropdown.Root>
-          <Dropdown.Trigger className="default-focus ml-auto items-center text-gray-600 opacity-0 group-hover:opacity-100">
+          <Dropdown.Trigger
+            className={cn(
+              'default-focus ml-auto items-center text-gray-600 opacity-0',
+              !compatible
+                ? 'cursor-not-allowed group-hover:opacity-20'
+                : 'group-hover:opacity-100'
+            )}
+            disabled={!compatible}
+          >
             <AddBadgeIcon className="h-6 w-6" />
           </Dropdown.Trigger>
-          <Dropdown.Content className="dropdown min-w-52 text-gray-800">
+          <Dropdown.Content
+            className="dropdown min-w-52 text-gray-800"
+            avoidCollisions={true}
+            collisionBoundary={adminRef.current}
+          >
             {sects.map((s) => (
               <Dropdown.Item
                 key={s}
@@ -174,7 +195,13 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
       {isAdmin && !isHost ? (
         <Dropdown.Root>
           {member !== window.our ? (
-            <Dropdown.Trigger className="default-focus ml-2 text-gray-400 group-hover:text-gray-800">
+            <Dropdown.Trigger
+              className={cn(
+                'default-focus ml-2 text-gray-400',
+                !compatible ? 'cursor-not-allowed' : 'group-hover:text-gray-800'
+              )}
+              disabled={!compatible}
+            >
               <ElipsisIcon className="h-6 w-6" />
             </Dropdown.Trigger>
           ) : (
@@ -212,7 +239,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
               </Dropdown.Item>
               <Dropdown.Item
                 className="dropdown-item flex items-center"
-                onSelect={(e) => e.preventDefault}
+                onSelect={() => onSendMessage(member)}
               >
                 Send Message
               </Dropdown.Item>

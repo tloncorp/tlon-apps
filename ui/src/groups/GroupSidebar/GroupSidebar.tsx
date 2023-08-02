@@ -9,7 +9,6 @@ import {
   useGroupFlag,
 } from '@/state/groups/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
-import BellIcon from '@/components/icons/BellIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { useCalm } from '@/state/settings';
 import { isColor, getPrivacyFromGroup } from '@/logic/utils';

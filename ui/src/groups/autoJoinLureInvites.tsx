@@ -15,11 +15,9 @@ export default function useAutoJoinLureInvites() {
         if (cookies.get(cookieName)) {
           await joinMutation({ flag });
           cookies.erase(cookieName);
-          return navigateByApp(`/groups/${flag}`);
+          navigateByApp(`/groups/${flag}`);
         }
       }
-
-      return null;
     });
   };
 }

@@ -7,9 +7,39 @@ import { useMultiDm } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import BubbleIcon from '@/components/icons/BubbleIcon';
+import ShipConnection from '@/components/ShipConnection';
+import { useConnectivityCheck } from '@/state/vitals';
 import Dialog from '../components/Dialog';
 import MultiDMInfoForm from './MultiDMInfoForm';
 import MultiDmAvatar from './MultiDmAvatar';
+
+function MultiDMParticipant({ ship }: { ship: string }) {
+  const { data } = useConnectivityCheck(ship || '');
+
+  return (
+    <div className="flex items-center space-x-2 rounded-lg p-2 hover:bg-gray-50">
+      <Avatar size="small" ship={ship} />
+      <div className="flex grow flex-col">
+        <div className="flex items-center space-x-1">
+          <ShipName
+            name={ship}
+            showAlias={true}
+            className="font-semibold text-gray-800"
+          />
+          <ShipConnection ship={ship} status={data?.status} />
+        </div>
+        <ShipName
+          name={ship}
+          showAlias={false}
+          className="text-sm font-semibold text-gray-400"
+        />
+      </div>
+      <Link to={`/dm/${ship}`} aria-label={`Message ${ship}`}>
+        <BubbleIcon className="h-6 w-6 text-gray-400" />
+      </Link>
+    </div>
+  );
+}
 
 export default function MultiDMEditModal() {
   const dismiss = useDismissNavigate();
@@ -73,27 +103,7 @@ export default function MultiDMEditModal() {
                   </h3>
                   <div className="flex w-full flex-col space-y-1">
                     {club.hive.map((ship) => (
-                      <div
-                        className="flex items-center space-x-2 rounded-lg p-2 hover:bg-gray-50"
-                        key={ship}
-                      >
-                        <Avatar size="small" ship={ship} />
-                        <div className="flex grow flex-col">
-                          <ShipName
-                            name={ship}
-                            showAlias={true}
-                            className="font-semibold text-gray-800"
-                          />
-                          <ShipName
-                            name={ship}
-                            showAlias={false}
-                            className="text-sm font-semibold text-gray-400"
-                          />
-                        </div>
-                        <Link to={`/dm/${ship}`} aria-label={`Message ${ship}`}>
-                          <BubbleIcon className="h-6 w-6 text-gray-400" />
-                        </Link>
-                      </div>
+                      <MultiDMParticipant key={ship} ship={ship} />
                     ))}
                   </div>
                 </>
@@ -103,27 +113,7 @@ export default function MultiDMEditModal() {
               </h3>
               <div className="flex w-full flex-col space-y-1">
                 {club.team.map((ship) => (
-                  <div
-                    className="flex items-center space-x-2 rounded-lg p-2 hover:bg-gray-50"
-                    key={ship}
-                  >
-                    <Avatar size="small" ship={ship} />
-                    <div className="flex grow flex-col">
-                      <ShipName
-                        name={ship}
-                        showAlias={true}
-                        className="font-semibold text-gray-800"
-                      />
-                      <ShipName
-                        name={ship}
-                        showAlias={false}
-                        className="text-sm font-semibold text-gray-400"
-                      />
-                    </div>
-                    <Link to={`/dm/${ship}`} aria-label={`Message ${ship}`}>
-                      <BubbleIcon className="h-6 w-6 text-gray-400" />
-                    </Link>
-                  </div>
+                  <MultiDMParticipant key={ship} ship={ship} />
                 ))}
               </div>
             </div>

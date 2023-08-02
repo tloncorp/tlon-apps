@@ -21,7 +21,7 @@ import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
-import { useChannelIsJoined } from '@/logic/channel';
+import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -54,6 +54,7 @@ function ChatChannel({ title }: ViewProps) {
   const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
   const isSmall = useMedia('(max-width: 1023px)');
+  const { compatible, text } = useChannelCompatibility(nest);
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -154,11 +155,9 @@ function ChatChannel({ title }: ViewProps) {
         }
         footer={
           <div
-            className={cn(
-              canWrite ? 'border-t-2 border-gray-50 p-3 sm:p-4' : ''
-            )}
+            className={cn(canWrite && 'border-t-2 border-gray-50 p-3 sm:p-4')}
           >
-            {canWrite ? (
+            {compatible && canWrite ? (
               <ChatInput
                 key={chFlag}
                 whom={chFlag}
@@ -166,7 +165,11 @@ function ChatChannel({ title }: ViewProps) {
                 showReply
                 autoFocus={!inThread && !inSearch}
               />
-            ) : null}
+            ) : !canWrite ? null : (
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+                {text}
+              </div>
+            )}
           </div>
         }
       >

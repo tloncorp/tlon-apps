@@ -7,21 +7,21 @@ import {
   useResizeObserver,
 } from 'masonic';
 import DiaryGridItem from '@/diary/DiaryList/DiaryGridItem';
-import { DiaryLetter } from '@/types/diary';
+import { DiaryOutline } from '@/types/diary';
 
 interface DiaryGridProps {
-  notes: [bigInt.BigInteger, DiaryLetter][];
+  outlines: [bigInt.BigInteger, DiaryOutline][];
   loadOlderNotes: () => void;
 }
 
 const masonryItem = ({
   data,
-}: RenderComponentProps<[bigInt.BigInteger, DiaryLetter]>) => (
-  <DiaryGridItem time={data[0]} letter={data[1]} />
+}: RenderComponentProps<[bigInt.BigInteger, DiaryOutline]>) => (
+  <DiaryGridItem time={data[0]} outline={data[1]} />
 );
 
 export default function DiaryGridView({
-  notes,
+  outlines,
   loadOlderNotes,
 }: DiaryGridProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -39,7 +39,7 @@ export default function DiaryGridView({
       width: gridContainerRef.current?.offsetWidth || 600,
       columnGutter: 16,
     },
-    [notes.length]
+    [outlines.length]
   );
   const height = scrollContainerRef.current?.offsetHeight || window.innerHeight;
   const resizeObserver = useResizeObserver(positioner);
@@ -51,14 +51,14 @@ export default function DiaryGridView({
     containerRef: scrollContainerRef,
     overscanBy: 10,
     render: masonryItem,
-    items: notes,
+    items: outlines,
     onRender: maybeLoadMore,
     height,
     itemHeightEstimate: 220,
     scrollTop,
   });
 
-  if (notes?.length !== 0) {
+  if (outlines?.length !== 0) {
     return (
       <div
         className="h-full w-full overflow-y-auto py-8"

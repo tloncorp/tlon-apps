@@ -1,6 +1,6 @@
 /-  d=diary
 /-  meta
-/+  cite=cite-json
+/+  cite=cite-json, gj=groups-json
 |%
 ++  enjs
   =,  enjs:format
@@ -88,12 +88,29 @@
     |=  [f=flag:d di=diary:d]
     [(rap 3 (scot %p p.f) '/' q.f ~) (diary di)]
   ::
+  ++  arranged-notes
+    |=  a=arranged-notes:d
+    :-  %a
+    =/  times=(list ^time)  ?~(a ~ u.a)
+    %+  turn
+      times
+    |=  t=^time
+    s/(scot %ud t)
+  ::
   ++  diary
     |=  di=diary:d
     %-  pairs
-    :~  perms/(perm perm.di)
+    :~  arranged-notes/(arranged-notes arranged-notes.di)
+        perms/(perm perm.di)
         view/s/view.di
         sort/s/sort.di
+        saga/(saga net.di)
+    ==
+  ++  saga
+    |=  n=net:d
+    ?-  -.n
+      %pub  ~
+      %sub  (saga:enjs:gj saga.n)
     ==
   ++  perm
     |=  p=perm:d
@@ -115,14 +132,15 @@
     ==
   ::
   ++  diff
-    |=  =diff:d
-    %+  frond  -.diff
-    ?+  -.diff  ~
-      %view       s/p.diff
-      %sort       s/p.diff
-      %notes     (notes-diff p.diff)
-      %add-sects  a/(turn ~(tap in p.diff) (lead %s))
-      %del-sects  a/(turn ~(tap in p.diff) (lead %s))
+    |=  dif=diff:d
+    %+  frond  -.dif
+    ?+  -.dif  ~
+      %view       s/p.dif
+      %sort       s/p.dif
+      %arranged-notes  (arranged-notes p.dif)
+      %notes     (notes-diff p.dif)
+      %add-sects  a/(turn ~(tap in p.dif) (lead %s))
+      %del-sects  a/(turn ~(tap in p.dif) (lead %s))
     ==
   ::
   ++  notes-diff
@@ -370,7 +388,8 @@
     %-  of
     :~  notes/notes-diff
         view/(su (perk %grid %list ~))
-        sort/(su (perk %time %alpha ~))
+        sort/(su (perk %time %alpha %arranged ~))
+        arranged-notes/(mu (ar (se %ud)))
         add-sects/add-sects
         del-sects/del-sects
     ==

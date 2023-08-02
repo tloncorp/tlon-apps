@@ -16,6 +16,7 @@ import {
 import {
   useNotes,
   useDiaryDisplayMode,
+  useDiarySortMode,
   useDiaryPerms,
   useOlderNotes,
   useJoinDiaryMutation,
@@ -24,16 +25,20 @@ import {
   usePendingNotes,
   useDiaryState,
   useNotesOnHost,
+  useArrangedNotes,
 } from '@/state/diary';
-import { useDiarySortMode } from '@/state/settings';
+import {
+  useUserDiarySortMode,
+  useUserDiaryDisplayMode,
+} from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { DiaryLetter } from '@/types/diary';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
 import { useLastReconnect } from '@/state/local';
+import { DiaryOutline } from '@/types/diary';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
@@ -44,9 +49,7 @@ function DiaryChannel({ title }: ViewProps) {
   const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
-  const {
-    data: { status: shipStatus },
-  } = useConnectivityCheck(chShip ?? '');
+  const { data } = useConnectivityCheck(chShip ?? '');
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
@@ -70,7 +73,11 @@ function DiaryChannel({ title }: ViewProps) {
     // we can check if the notes have been posted
     // if they have, we can refetch the data to get the new note.
     // only called if onSuccess in useAddNoteMutation fails to clear pending notes
-    if ('complete' in shipStatus && shipStatus.complete === 'yes') {
+    if (
+      data?.status &&
+      'complete' in data.status &&
+      data.status.complete === 'yes'
+    ) {
       if (
         pendingNotes.length > 0 &&
         notesOnHost &&
@@ -88,7 +95,7 @@ function DiaryChannel({ title }: ViewProps) {
         }));
       }
     }
-  }, [chFlag, queryClient, shipStatus, letters, notesOnHost, pendingNotes]);
+  }, [chFlag, queryClient, data, letters, notesOnHost, pendingNotes]);
 
   const clearPendingNotes = useCallback(() => {
     // if we have pending notes and the ship is connected
@@ -97,8 +104,9 @@ function DiaryChannel({ title }: ViewProps) {
     // only called if onSuccess in useAddNoteMutation fails to clear pending notes
     if (
       pendingNotes.length > 0 &&
-      'complete' in shipStatus &&
-      shipStatus.complete === 'yes'
+      data?.status &&
+      'complete' in data.status &&
+      data.status.complete === 'yes'
     ) {
       pendingNotes.forEach((id) => {
         if (
@@ -114,7 +122,7 @@ function DiaryChannel({ title }: ViewProps) {
         }
       });
     }
-  }, [pendingNotes, notesOnHost, shipStatus]);
+  }, [pendingNotes, notesOnHost, data]);
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -141,10 +149,13 @@ function DiaryChannel({ title }: ViewProps) {
     time: newNote || '',
   });
 
-  // for now sortMode is not actually doing anything.
-  // need input from design/product on what we want it to actually do, it's not spelled out in figma.
+  // user can override admin-set display and sort mode for this channel type
+  const userDisplayMode = useUserDiaryDisplayMode(chFlag);
+  const userSortMode = useUserDiarySortMode(chFlag);
   const displayMode = useDiaryDisplayMode(chFlag);
   const sortMode = useDiarySortMode(chFlag);
+  const arrangedNotes = useArrangedNotes(chFlag);
+  const lastArrangedNote = arrangedNotes[arrangedNotes.length - 1];
 
   const perms = useDiaryPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
@@ -195,28 +206,50 @@ function DiaryChannel({ title }: ViewProps) {
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
-    if (sortMode === 'time-dsc') {
+    if (sortMode === 'arranged') {
+      // if only one note is arranged, put it first
+      if (
+        arrangedNotes.includes(a.toString()) &&
+        !arrangedNotes.includes(b.toString())
+      ) {
+        return -1;
+      }
+
+      // if both notes are arranged, sort by their position in the arranged list
+      if (
+        arrangedNotes.includes(a.toString()) &&
+        arrangedNotes.includes(b.toString())
+      ) {
+        return arrangedNotes.indexOf(a.toString()) >
+          arrangedNotes.indexOf(b.toString())
+          ? 1
+          : -1;
+      }
+    }
+
+    if (userSortMode === 'time-dsc') {
       return b.compare(a);
     }
-    if (sortMode === 'time-asc') {
+    if (userSortMode === 'time-asc') {
       return a.compare(b);
     }
-    // TODO: get the time of most recent quip from each diary note, and compare that way
-    if (sortMode === 'quip-asc') {
-      return b.compare(a);
-    }
-    if (sortMode === 'quip-dsc') {
-      return b.compare(a);
-    }
+
     return b.compare(a);
   });
 
   const itemContent = (
     i: number,
-    [time, letter]: [bigInt.BigInteger, DiaryLetter]
+    [time, outline]: [bigInt.BigInteger, DiaryOutline]
   ) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
-      <DiaryListItem letter={letter} time={time} />
+      <DiaryListItem outline={outline} time={time} />
+      {lastArrangedNote === time.toString() && (
+        <div className="mt-6 flex justify-center">
+          <div className="flex items-center space-x-2 text-gray-500">
+            <div className="h-1 w-1 rounded-full bg-gray-500" />
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -240,8 +273,8 @@ function DiaryChannel({ title }: ViewProps) {
           flag={flag}
           nest={nest}
           canWrite={canWrite}
-          display={displayMode}
-          sort={sortMode}
+          display={userDisplayMode ?? displayMode}
+          sort={userSortMode ?? sortMode === 'time' ? 'time-dsc' : 'arranged'}
         />
       }
     >
@@ -273,9 +306,10 @@ function DiaryChannel({ title }: ViewProps) {
       <div className="h-full">
         {isLoading ? (
           <DiaryChannelListPlaceholder count={4} />
-        ) : displayMode === 'grid' ? (
+        ) : (displayMode === 'grid' && userDisplayMode === undefined) ||
+          userDisplayMode === 'grid' ? (
           <DiaryGridView
-            notes={sortedNotes}
+            outlines={sortedNotes}
             loadOlderNotes={() => {
               if (!loadingOlderNotes) {
                 setShouldLoadOlderNotes(true);

@@ -6,7 +6,12 @@ import { useNavigate, useParams } from 'react-router';
 import { daToUnix, udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
+import {
+  canWriteChannel,
+  getFlagParts,
+  pluralize,
+  sampleQuippers,
+} from '@/logic/utils';
 import {
   useDiaryBrief,
   useNote,
@@ -29,7 +34,10 @@ import {
   DiaryQuip,
 } from '@/types/diary';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import { useChannelIsJoined } from '@/logic/channel';
+import {
+  useChannelIsJoined,
+  useChannel as useChannelSpecific,
+} from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
@@ -97,15 +105,14 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 export default function DiaryNote({ title }: ViewProps) {
   const { chShip, chName, noteId = '' } = useParams();
   const isPending = useIsNotePending(noteId);
-  const {
-    data: { status: shipStatus },
-  } = useConnectivityCheck(chShip ?? '');
+  const { data } = useConnectivityCheck(chShip ?? '');
   const navigate = useNavigate();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const channel = useChannel(groupFlag, nest);
+  const { ship } = getFlagParts(chFlag);
   const { note, status } = useNote(chFlag, noteId);
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
@@ -113,6 +120,8 @@ export default function DiaryNote({ title }: ViewProps) {
   const brief = useDiaryBrief(chFlag);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = useDiaryPerms(chFlag);
+  const chan = useChannelSpecific(chFlag);
+  const saga = chan?.saga;
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const joinChannel = useCallback(async () => {
     await joinDiary({ group: groupFlag, chan: chFlag });
@@ -126,8 +135,9 @@ export default function DiaryNote({ title }: ViewProps) {
     // If we have notes on the host, and we can find the real note via the sent time matching the noteId
     // then we redirect to the real note.
     if (
-      'complete' in shipStatus &&
-      shipStatus.complete === 'yes' &&
+      data?.status &&
+      'complete' in data.status &&
+      data.status.complete === 'yes' &&
       note &&
       noteId !== '' &&
       (noteId === note.seal.time || note.seal.time === undefined)
@@ -152,7 +162,7 @@ export default function DiaryNote({ title }: ViewProps) {
         }
       }
     }
-  }, [chFlag, noteId, notesOnHost, groupFlag, navigate, note, shipStatus]);
+  }, [chFlag, noteId, notesOnHost, groupFlag, navigate, note, data]);
 
   useEffect(() => {
     if (!joined) {
@@ -180,6 +190,7 @@ export default function DiaryNote({ title }: ViewProps) {
             title={'Loading note...'}
             time={noteId}
             canEdit={false}
+            nest={nest}
           />
         }
       >
@@ -210,7 +221,8 @@ export default function DiaryNote({ title }: ViewProps) {
         <DiaryNoteHeader
           title={note.essay.title}
           time={noteId}
-          canEdit={isAdmin || window.our === note.essay.author}
+          canEdit={(isAdmin || window.our === note.essay.author) && !isPending}
+          nest={nest}
         />
       }
     >
@@ -251,7 +263,8 @@ export default function DiaryNote({ title }: ViewProps) {
                 </h2>
               </Divider>
             </div>
-            {canWrite ? (
+            {(canWrite && ship === window.our) ||
+            (canWrite && saga && 'synced' in saga) ? (
               <DiaryCommentField
                 flag={chFlag}
                 groupFlag={groupFlag}

@@ -5,6 +5,7 @@ import {
   useCalmSettingMutation,
   useLogActivity,
   usePutEntryMutation,
+  useResetAnalyticsIdMutation,
   useTheme,
   useThemeMutation,
 } from '@/state/settings';
@@ -14,6 +15,7 @@ import Dialog from './Dialog';
 import Setting from './Setting';
 import SettingDropdown from './SettingDropdown';
 import Sheet, { SheetContent } from './Sheet';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function SettingsDialog() {
   const logActivity = useLogActivity();
@@ -39,6 +41,9 @@ export default function SettingsDialog() {
     useCalmSettingMutation('disableWayfinding');
   const { mutate: toggleLogActivity, status: logActivityStatus } =
     usePutEntryMutation({ bucket: window.desk, key: 'logActivity' });
+  const { mutate: resetAnalyticsId, status: resetAnalyticsIdStatus } =
+    useResetAnalyticsIdMutation();
+
   const onOpenChange = (open: boolean) => {
     if (!open) {
       dismiss();
@@ -63,7 +68,7 @@ export default function SettingsDialog() {
             toggle={() => toggleAvatars(!disableAvatars)}
             status={avatarStatus}
             name="Disable avatars"
-            labelClassName='font-semibold'
+            labelClassName="font-semibold"
           >
             <p className="leading-5 text-gray-600">
               Turn user-set visual avatars off and only display urbit sigils in{' '}
@@ -75,7 +80,7 @@ export default function SettingsDialog() {
             toggle={() => toggleNicknames(!disableNicknames)}
             status={nicknameStatus}
             name="Disable nicknames"
-            labelClassName='font-semibold'
+            labelClassName="font-semibold"
           >
             <p className="leading-5 text-gray-600">
               Turn user-set nicknames off and only display urbit-style names
@@ -87,7 +92,7 @@ export default function SettingsDialog() {
             toggle={() => toggleWayfinding(!disableWayfinding)}
             status={wayfindingStatus}
             name="Disable wayfinding"
-            labelClassName='font-semibold'
+            labelClassName="font-semibold"
           >
             <p className="leading-5 text-gray-600">
               Turn off the "wayfinding" helper menu in the bottom left of the{' '}
@@ -109,7 +114,7 @@ export default function SettingsDialog() {
               toggle={() => toggleLogActivity({ val: !logActivity })}
               status={logActivityStatus}
               name="Log Groups Usage"
-            labelClassName='font-semibold'
+              labelClassName="font-semibold"
             >
               <p className="leading-5 text-gray-600">
                 Enable or disable basic activity tracking in Groups. Tlon uses
@@ -118,12 +123,29 @@ export default function SettingsDialog() {
               </p>
             </Setting>
           )}
+          {isGroups && logActivity && (
+            <div className="flex flex-col items-center space-y-2">
+              <div className="flex flex-row items-center space-x-2">
+                <button
+                  onClick={() => resetAnalyticsId()}
+                  className="small-button"
+                  disabled={resetAnalyticsIdStatus === 'loading'}
+                >
+                  {resetAnalyticsIdStatus === 'loading' ? (
+                    <LoadingSpinner />
+                  ) : (
+                    'Reset Analytics ID'
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
           <Setting
             on={disableSpellcheck}
             toggle={() => toggleSpellcheck(!disableSpellcheck)}
             status={spellcheckStatus}
             name="Disable spell-check"
-            labelClassName='font-semibold'
+            labelClassName="font-semibold"
           >
             <p className="leading-5 text-gray-600">
               Turn spell-check off across all text inputs in{' '}
@@ -136,7 +158,7 @@ export default function SettingsDialog() {
             toggle={() => toggleRemoteContent(!disableRemoteContent)}
             status={remoteContentStatus}
             name="Disable remote content"
-            labelClassName='font-semibold'
+            labelClassName="font-semibold"
           >
             <p className="leading-5 text-gray-600">
               Turn off automatically-displaying media embeds across{' '}

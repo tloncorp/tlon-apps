@@ -20,7 +20,7 @@ import {
   DiaryQuip,
   DiaryAction,
   DiaryDisplayMode,
-  DiaryLetter,
+  DiarySortMode,
   DiarySaid,
   DiaryUpdate,
   DiaryJoin,
@@ -29,7 +29,6 @@ import {
   DiaryOutline,
   NoteEssay,
   DiaryStory,
-  DiaryNotes,
   DiaryOutlines,
 } from '@/types/diary';
 import api from '@/api';
@@ -75,7 +74,7 @@ async function updateNoteInCache(
 
 async function updateNotesInCache(
   variables: { flag: DiaryFlag },
-  updater: (notes: DiaryNotes | undefined) => DiaryNotes | undefined,
+  updater: (notes: DiaryOutlines | undefined) => DiaryOutlines | undefined,
   queryClient: QueryClient
 ) {
   await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
@@ -86,7 +85,7 @@ async function updateNotesInCache(
 function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   return {
     app: 'diary',
-    mark: 'diary-action-0',
+    mark: 'diary-action-1',
     json: {
       flag,
       update: {
@@ -201,7 +200,7 @@ export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
   const queryClient = useQueryClient();
   const notes = useNotes(flag);
 
-  let noteMap = restoreMap<DiaryLetter>(notes);
+  let noteMap = restoreMap<DiaryOutline>(notes);
 
   const index = noteMap.peekSmallest()?.[0];
   const oldNotesSize = noteMap.size ?? 0;
@@ -234,7 +233,7 @@ export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    note: v as DiaryLetter,
+    note: v as DiaryOutline,
   }));
 
   diff.forEach(({ tim, note }) => {
@@ -270,6 +269,16 @@ export function useDiary(flag: DiaryFlag): Diary | undefined {
 const defaultPerms = {
   writers: [],
 };
+
+export function useArrangedNotes(flag: DiaryFlag) {
+  const diary = useDiary(flag);
+
+  if (diary === undefined || diary['arranged-notes'] === undefined) {
+    return [];
+  }
+
+  return diary['arranged-notes'].map((t) => udToDec(t));
+}
 
 export function useDiaryPerms(flag: DiaryFlag) {
   const diary = useDiary(flag);
@@ -406,6 +415,11 @@ export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
   return diary?.view ?? 'list';
 }
 
+export function useDiarySortMode(flag: string): DiarySortMode {
+  const diary = useDiary(flag);
+  return diary?.sort ?? 'time';
+}
+
 export function useRemoteOutline(
   flag: string,
   time: string,
@@ -520,6 +534,89 @@ export function useViewDiaryMutation() {
             [variables.flag]: {
               ...prev[variables.flag],
               view: variables.view,
+            },
+          }
+        );
+      }
+    },
+  });
+}
+
+export function useSortDiaryMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: {
+    flag: string;
+    sort: DiarySortMode;
+  }) => {
+    await api.poke(diaryAction(variables.flag, { sort: variables.sort }));
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['diary', 'shelf']);
+
+      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
+        'diary',
+        'shelf',
+      ]);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData<{ [flag: string]: Diary }>(
+          ['diary', 'shelf'],
+          {
+            ...prev,
+            [variables.flag]: {
+              ...prev[variables.flag],
+              sort: variables.sort,
+            },
+          }
+        );
+      }
+    },
+  });
+}
+
+export function useArrangedNotesDiaryMutation() {
+  const queryClient = useQueryClient();
+  const { mutate: changeSortMutation } = useSortDiaryMutation();
+
+  const mutationFn = async (variables: {
+    flag: string;
+    arrangedNotes: string[];
+  }) => {
+    // change sort mode automatically if arrangedNotes is empty/not-empty
+    if (variables.arrangedNotes.length === 0) {
+      changeSortMutation({ flag: variables.flag, sort: 'time' });
+    } else {
+      changeSortMutation({ flag: variables.flag, sort: 'arranged' });
+    }
+
+    await api.poke(
+      diaryAction(variables.flag, {
+        'arranged-notes': variables.arrangedNotes.map((t) => decToUd(t)),
+      })
+    );
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['diary', 'shelf']);
+
+      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
+        'diary',
+        'shelf',
+      ]);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData<{ [flag: string]: Diary }>(
+          ['diary', 'shelf'],
+          {
+            ...prev,
+            [variables.flag]: {
+              ...prev[variables.flag],
+              'arranged-notes': variables.arrangedNotes.map((t) => decToUd(t)),
             },
           }
         );
@@ -662,7 +759,7 @@ export function useEditNoteMutation() {
         };
       };
 
-      const notesUpdater = (prev: DiaryNotes | undefined) => {
+      const notesUpdater = (prev: DiaryOutlines | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -701,7 +798,7 @@ export function useDeleteNoteMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNotes | undefined) => {
+      const updater = (prev: DiaryOutlines | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -766,6 +863,9 @@ export function useCreateDiaryMutation() {
             [`${window.our}/${variables.name}`]: {
               perms: { writers: [], group: variables.group },
               view: 'list',
+              'arranged-notes': [],
+              sort: 'time',
+              saga: { synced: null },
             },
           }
         );
@@ -902,7 +1002,7 @@ export function useAddQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, DiaryLetter> | undefined) => {
+      const notesUpdater = (prev: Record<string, DiaryOutline> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -989,7 +1089,7 @@ export function useDeleteQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, DiaryLetter> | undefined) => {
+      const notesUpdater = (prev: Record<string, DiaryOutline> | undefined) => {
         if (prev === undefined) {
           return prev;
         }

@@ -1,7 +1,9 @@
+import cn from 'classnames';
 import React, { useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { useGroupCompatibility, useRouteGroup } from '@/state/groups';
 
 interface EditSectionDropDownProps {
   handleEditClick: () => void;
@@ -12,14 +14,19 @@ export default function EditSectionDropDown({
   handleEditClick,
   handleDeleteClick,
 }: EditSectionDropDownProps) {
+  const group = useRouteGroup();
+  const { compatible } = useGroupCompatibility(group);
   const [deleteOpen, setDeleteOpen] = useState(false);
   return (
     <>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <div className="cursor-pointer">
-            <ElipsisIcon className="h-5 w-5 fill-gray-600" />
-          </div>
+        <DropdownMenu.Trigger disabled={!compatible} className="cursor-pointer">
+          <ElipsisIcon
+            className={cn(
+              'h-5 w-5',
+              compatible ? 'text-gray-600' : 'text-gray-200'
+            )}
+          />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content className="dropdown">
           <DropdownMenu.Item
