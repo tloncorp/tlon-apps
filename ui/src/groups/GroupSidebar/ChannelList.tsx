@@ -38,8 +38,8 @@ import {
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import ChannelSortOptions from './ChannelSortOptions';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
+import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
 

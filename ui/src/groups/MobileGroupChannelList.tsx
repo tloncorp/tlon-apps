@@ -3,8 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useGroupFlag, useGroup, useAmAdmin } from '@/state/groups';
 import ChannelList, { ChannelSorter } from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
-import Add16Icon from '@/components/icons/Add16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import HostConnection from '@/channels/HostConnection';
 import { getFlagParts } from '@/logic/utils';
@@ -25,7 +23,8 @@ export default function MobileGroupChannelList() {
     <>
       <MobileHeader
         title={
-          <div className="flex items-center justify-center">
+          <div className="flex flex-col items-center space-y-3">
+            <GroupAvatar image={group?.meta.image} />
             <div className="flex w-full items-center justify-center space-x-1">
               <h1 className="text-[18px] text-gray-800 line-clamp-1">
                 {group?.meta.title}
