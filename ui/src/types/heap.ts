@@ -105,17 +105,12 @@ export interface HeapCurio {
   heart: CurioHeart;
 }
 
-export interface HeapCurioWithComments {
-  curio: HeapCurio;
-  comments: HeapCurioMap;
-}
-
 export interface HeapCurios {
   [time: string]: HeapCurio;
 }
 
 export type HeapCurioMap = BigIntOrderedMap<HeapCurio>;
-export type HeapCurioTuple = [bigInt.BigInteger, HeapCurio];
+export type HeapCurioTuple = [string, HeapCurio];
 
 interface CurioDeltaAdd {
   add: CurioHeart;
