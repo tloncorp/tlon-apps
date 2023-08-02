@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
@@ -12,7 +12,13 @@ import {
   useGroup,
   useVessel,
 } from '@/state/groups/groups';
-import { useCuriosNew, useHeapState, useHeapPerms } from '@/state/heap/heap';
+import {
+  useCurioBlocks,
+  useHeapPerms,
+  useMarkHeapReadMutation,
+  useJoinHeapMutation,
+  useInfiniteCurioBlocks,
+} from '@/state/heap/heap';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
@@ -20,7 +26,6 @@ import useDismissChannelNotifications from '@/logic/useDismissChannelNotificatio
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
 import { GRID, HeapCurio } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
-import makeCuriosStore from '@/state/heap/curios';
 import { useIsMobile } from '@/logic/useMedia';
 import { useLastReconnect } from '@/state/local';
 import { useChannelIsJoined } from '@/logic/channel';
@@ -43,8 +48,10 @@ function HeapChannel({ title }: ViewProps) {
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  // const curios = useCurios(chFlag);
-  const curios = useCuriosNew(chFlag);
+  // const curios = useCurioBlocks(chFlag);
+  const { curios, fetchNextPage, hasNextPage } = useInfiniteCurioBlocks(chFlag);
+  const { mutateAsync: markRead } = useMarkHeapReadMutation();
+  const { mutateAsync: joinHeap } = useJoinHeapMutation();
   const perms = useHeapPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const canRead = channel
@@ -55,13 +62,9 @@ function HeapChannel({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await useHeapState.getState().joinHeap(flag, chFlag);
+    await joinHeap({ group: flag, chan: chFlag });
     setJoining(false);
-  }, [flag, chFlag]);
-
-  const initializeChannel = useCallback(async () => {
-    await useHeapState.getState().initialize(chFlag);
-  }, [chFlag]);
+  }, [flag, chFlag, joinHeap]);
 
   const navigateToDetail = useCallback(
     (time: bigInt.BigInteger) => {
@@ -78,7 +81,6 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (joined && !joining && channel && canRead) {
-      // initializeChannel();
       setRecentChannel(nest);
     }
   }, [
@@ -87,7 +89,6 @@ function HeapChannel({ title }: ViewProps) {
     setRecentChannel,
     joined,
     joining,
-    initializeChannel,
     channel,
     canRead,
     lastReconnect,
@@ -101,7 +102,7 @@ function HeapChannel({ title }: ViewProps) {
   }, [flag, group, channel, vessel, navigate, setRecentChannel, canRead]);
   useDismissChannelNotifications({
     nest,
-    markRead: useHeapState.getState().markRead,
+    markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
   });
 
   const renderCurio = useCallback(
@@ -170,21 +171,23 @@ function HeapChannel({ title }: ViewProps) {
         }
         return b.compare(a);
       })
-      .filter(([, c]) => !c.heart.replying)
+      .filter(([, c]) => !c.heart.replying) // defensive, they should all be blocks
   );
 
+  // TODO: resolve infinite query issue
   const loadOlderCurios = useCallback(
     (atBottom: boolean) => {
-      if (atBottom) {
-        makeCuriosStore(
-          chFlag,
-          () => useHeapState.getState(),
-          `/heap/${chFlag}/curios`,
-          `/heap/${chFlag}/ui`
-        ).getOlder('50');
+      if (atBottom && hasNextPage) {
+        // makeCuriosStore(
+        //   chFlag,
+        //   () => useHeapState.getState(),
+        //   `/heap/${chFlag}/curios`,
+        //   `/heap/${chFlag}/ui`
+        // ).getOlder('50');
+        fetchNextPage();
       }
     },
-    [chFlag]
+    [fetchNextPage, hasNextPage]
   );
 
   const computeItemKey = (

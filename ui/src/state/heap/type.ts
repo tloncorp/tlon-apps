@@ -16,9 +16,9 @@ export interface HeapState {
   // stash: {
   //   [flag: string]: Heap;
   // };
-  // loadedRefs: {
-  //   [path: string]: HeapCurio;
-  // };
+  loadedRefs: {
+    [path: string]: HeapCurio;
+  };
   // curios: {
   //   [flag: HeapFlag]: HeapCurioMap;
   // };

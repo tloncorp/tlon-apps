@@ -89,6 +89,7 @@ export const useHeapState = createState<HeapState>(
       });
     },
     pendingImports: {},
+    loadedRefs: {},
     initImports: (init) => {
       get().batchSet((draft) => {
         draft.pendingImports = init;
@@ -723,30 +724,51 @@ export function useOrderedCurios(
 
 // TODO: test
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+// export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
+//   const path = useMemo(
+//     () => `/said/${flag}/curio/${decToUd(time)}`,
+//     [flag, time]
+//   );
+
+//   const queryFn = useCallback(
+//     () => async () => {
+//       if (!blockLoad && shouldLoad(path)) {
+//         newAttempt(path);
+//         const { curio } = await subscribeOnce<HeapSaid>('heap', path).finally(
+//           () => finished(path)
+//         );
+//         return curio;
+//       }
+//       return null;
+//     },
+//     [path, blockLoad]
+//   );
+
+//   const { data } = useQuery({
+//     queryKey: ['heap', 'ref', 'curio', time],
+//     queryFn,
+//   });
+
+//   return data;
+// }
+const selRefs = (s: HeapState) => s.loadedRefs;
 export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
-  const path = useMemo(
-    () => `/said/${flag}/curio/${decToUd(time)}`,
-    [flag, time]
-  );
+  const refs = useHeapState(selRefs);
+  const path = `/said/${flag}/curio/${decToUd(time)}`;
+  const cached = refs[path];
 
-  const queryFn = useCallback(
-    () => async () => {
-      if (!blockLoad && shouldLoad(path)) {
-        newAttempt(path);
-        const { curio } = await subscribeOnce<HeapSaid>('heap', path).finally(
-          () => finished(path)
-        );
-        return curio;
-      }
-      return null;
-    },
-    [path, blockLoad]
-  );
+  useEffect(() => {
+    if (!blockLoad && shouldLoad(path)) {
+      newAttempt(path);
+      subscribeOnce<HeapSaid>('heap', path)
+        .then(({ curio }) => {
+          useHeapState.getState().batchSet((draft) => {
+            draft.loadedRefs[path] = curio;
+          });
+        })
+        .finally(() => finished(path));
+    }
+  }, [path, blockLoad]);
 
-  const { data } = useQuery({
-    queryKey: ['heap', 'ref', 'curio', time],
-    queryFn,
-  });
-
-  return data;
+  return cached;
 }
