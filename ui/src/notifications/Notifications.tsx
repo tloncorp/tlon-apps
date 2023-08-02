@@ -6,6 +6,7 @@ import React, {
   PropsWithChildren,
 } from 'react';
 import { Helmet } from 'react-helmet';
+import { Link, useLocation } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
 import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
@@ -15,7 +16,7 @@ import { randomElement, randomIntInRange } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Skein } from '@/types/hark';
 import GroupSummary from '@/groups/GroupSummary';
-import { Link, useLocation } from 'react-router-dom';
+import MobileHeader from '@/components/MobileHeader';
 import { useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -117,13 +118,7 @@ export default function Notifications({
   return (
     <>
       {isMobile && (
-        <header className="flex items-center justify-between bg-white px-6 py-4">
-          <h1 className="text-lg font-bold text-gray-800">Activity</h1>
-          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
-            {isMobile && <ReconnectingSpinner />}
-            {isMobile && hasUnreads && MarkAsRead}
-          </div>
-        </header>
+        <MobileHeader title="Activity" action={<ReconnectingSpinner />} />
       )}
       <section className="flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-gray-50 p-6">
         <Helmet>
@@ -152,14 +147,12 @@ export default function Notifications({
         )}
 
         <div className="card">
-          {!isMobile && (
-            <div className="mb-6 flex w-full items-center justify-between">
-              <h2 className="text-lg font-bold">
-                {group && 'Group '}Activity{!group && ' in All Groups'}
-              </h2>
-              {hasUnreads && MarkAsRead}
-            </div>
-          )}
+          <div className="mb-6 flex w-full items-center justify-between">
+            <h2 className="text-lg font-bold">
+              {group && 'Group '}Activity{!group && ' in All Groups'}
+            </h2>
+            {hasUnreads && MarkAsRead}
+          </div>
 
           {loaded ? (
             notifications.length === 0 ? (
