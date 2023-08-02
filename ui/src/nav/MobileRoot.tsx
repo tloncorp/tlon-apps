@@ -34,15 +34,18 @@ export default function MobileRoot() {
   );
 
   return (
-    <div className='flex-1 pt-4'>
+    <div className="flex-1 pt-4">
       <MobileHeader
         title="All Groups"
         action={
-          <SidebarSorter
-            sortFn={sortFn}
-            setSortFn={setSortFn}
-            sortOptions={sortOptions}
-          />
+          <>
+            <ReconnectingSpinner />
+            <SidebarSorter
+              sortFn={sortFn}
+              setSortFn={setSortFn}
+              sortOptions={sortOptions}
+            />
+          </>
         }
         secondaryAction={
           <Link
