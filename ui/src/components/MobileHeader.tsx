@@ -21,7 +21,7 @@ export default function MobileHeader({
           <CaretLeftIcon className="h-6 w-6 text-gray-900" />
           {pathBackText && (
             <span className="text-[17px] leading-6 text-gray-800 line-clamp-1">
-              Cancel
+              {pathBackText}
             </span>
           )}
         </Link>
