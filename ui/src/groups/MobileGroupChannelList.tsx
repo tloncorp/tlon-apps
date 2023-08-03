@@ -23,7 +23,7 @@ export default function MobileGroupChannelList() {
     <>
       <MobileHeader
         title={
-          <div className="flex flex-col items-center space-y-3">
+          <div className="flex flex-col items-center space-y-2">
             <GroupAvatar image={group?.meta.image} />
             <div className="flex w-full items-center justify-center space-x-1">
               <h1 className="text-[18px] text-gray-800 line-clamp-1">
@@ -34,12 +34,12 @@ export default function MobileGroupChannelList() {
           </div>
         }
         action={
-          <div className="flex flex-row items-center space-x-3">
+          <div className="flex flex-row space-x-3">
             <ReconnectingSpinner />
             <ChannelSorter isMobile={true} />
             {isAdmin && (
               <Link
-                className="default-focus flex items-center p-1 text-base"
+                className="default-focus flex p-1 text-base"
                 to={`/groups/${flag}/channels/new`}
                 state={{ backgroundLocation: location }}
               >

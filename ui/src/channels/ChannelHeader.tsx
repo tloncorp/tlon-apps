@@ -39,10 +39,10 @@ export default function ChannelHeader({
     return (
       <MobileHeader
         title={
-          <div className="flex flex-col items-center space-y-3">
+          <div className="flex flex-col items-center space-y-2">
             <ChannelIcon
               nest={nest}
-              className="h-6 w-6 shrink-0 text-gray-600"
+              className="h-8 w-8 shrink-0 p-1 text-gray-600"
             />
             <div className="flex w-full items-center justify-center space-x-1">
               <h1 className="text-[18px] text-gray-800 line-clamp-1">
@@ -53,11 +53,11 @@ export default function ChannelHeader({
           </div>
         }
         action={
-          <div className="flex flex-row items-center space-x-3">
+          <div className="flex flex-row space-x-3">
             <ReconnectingSpinner />
             <Link
               to="search/"
-              className="flex h-8 w-8 items-center justify-center rounded hover:bg-gray-50"
+              className="flex h-8 w-8 rounded hover:bg-gray-50"
               aria-label="Search Chat"
             >
               <MagnifyingGlassMobileNavIcon className="h-8 w-8 p-1 text-gray-900" />

@@ -13,7 +13,7 @@ export default function GroupChannelManager({ title }: ViewProps) {
   const isMobile = useIsMobile();
 
   return (
-    <section className="flex w-full grow flex-col overflow-y-scroll">
+    <section className="flex w-full grow flex-col overflow-y-scroll pt-4">
       <Helmet>
         <title>
           {group ? `Channels in ${group.meta.title} ${title}` : title}

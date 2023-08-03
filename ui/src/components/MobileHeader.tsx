@@ -15,7 +15,7 @@ export default function MobileHeader({
   secondaryAction?: React.ReactNode;
 }) {
   return (
-    <div className="grid h-[48px] w-full grid-cols-3 justify-between bg-white py-2 px-6 font-system-sans">
+    <div className="grid min-h-[48px] w-full grid-cols-3 justify-between bg-white py-2 px-6 font-system-sans">
       {pathBack ? (
         <Link className="flex" to={pathBack}>
           <CaretLeftIconMobileNav className="h-8 w-8 text-gray-900" />
@@ -34,7 +34,7 @@ export default function MobileHeader({
         </span>
       </div>
       {action ? (
-        <div className="flex items-center justify-end space-x-3">
+        <div className="flex justify-end space-x-3">
           {action}
           {secondaryAction}
         </div>
