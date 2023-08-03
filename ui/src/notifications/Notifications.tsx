@@ -128,7 +128,7 @@ export default function Notifications({
   );
 
   return (
-    <>
+    <div className='pt-4 h-full'>
       {isMobile && (
         <MobileHeader
           title="Activity"
@@ -207,6 +207,6 @@ export default function Notifications({
           )}
         </div>
       </section>
-    </>
+    </div>
   );
 }

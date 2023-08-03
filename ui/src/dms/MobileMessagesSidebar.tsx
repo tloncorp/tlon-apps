@@ -52,7 +52,7 @@ export default function MobileMessagesSidebar() {
   );
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex h-full w-full flex-col pt-4">
       <MobileHeader
         title="Messages"
         action={
@@ -105,7 +105,7 @@ export default function MobileMessagesSidebar() {
             ) : null}
             <Link
               to="/dm/new"
-              className="default-focus flex items-center p-1 text-base"
+              className="default-focus flex items-center text-base"
               aria-label="New Direct Message"
             >
               <AddIconMobileNav className="h-8 w-8 text-black" />

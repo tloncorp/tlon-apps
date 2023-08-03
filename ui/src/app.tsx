@@ -388,14 +388,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               element={<AboutView title={`About • ${groupsTitle}`} />}
             />
             <Route path="/groups/new-mobile" element={<NewGroupView />} />
-            <Route
-              path="/leap"
-              element={
-                <MainWrapper title="Leap" isMobile={isMobile}>
-                  <Leap openDefault />
-                </MainWrapper>
-              }
-            />
+            <Route path="/leap" element={<Leap openDefault />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>

@@ -50,7 +50,7 @@ export default function MobileRoot() {
           }
           secondaryAction={
             <Link
-              className="default-focus flex items-center p-1 text-base"
+              className="default-focus flex items-center text-base"
               to="/groups/new-mobile"
             >
               <AddIconMobileNav className="h-8 w-8 text-black" />
