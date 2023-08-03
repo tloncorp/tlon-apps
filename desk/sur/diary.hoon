@@ -1,8 +1,14 @@
 /-  g=groups, c=cite, graph-store, e=epic
+/-  zer=diary-0
 /-  metadata-store
 /+  lib-graph=graph-store
 |%
-++  okay  `epic:e`0
+++  old
+  |%
+  ++  zero  zer
+  --
+::
+++  okay  `epic:e`1
 ++  mar
   |%
   ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
@@ -16,7 +22,9 @@
 ::  $view: the persisted display format for a diary
 +$  view  ?(%grid %list)
 ::  $sort: the persisted sort type for a diary
-+$  sort  ?(%alpha %time)
++$  sort  ?(%alpha %time %arranged)
+::  $arranged-notes: an array of noteIds
++$  arranged-notes  (unit (list time))
 ::  $shelf: my ship's diaries
 +$  shelf  (map flag diary)
 ::  $said: used for references
@@ -30,6 +38,7 @@
 ::
 ::  $diary: written longform communication
 ::
+::    arranged-notes: a list of noteIds, used for manual sorting
 ::    net: an indicator of whether I'm a host or subscriber
 ::    log: the history of all modifications
 ::    perm: holds the diary's permissions
@@ -40,7 +49,8 @@
 ::    banter: comments organized by post
 ::
 +$  diary
-  $:  =net
+  $:  =arranged-notes
+      =net
       =log
       =perm
       =view
@@ -236,6 +246,7 @@
       [%create p=perm q=notes]
       [%view p=view]
       [%sort p=sort]
+      [%arranged-notes p=arranged-notes]
     ::
   ==
 ::

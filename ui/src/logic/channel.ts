@@ -11,7 +11,12 @@ import { Chat } from '@/types/chat';
 import { Diary } from '@/types/diary';
 import { Heap } from '@/types/heap';
 import { Zone, Channels, GroupChannel } from '@/types/groups';
-import { canReadChannel, isChannelJoined, nestToFlag } from './utils';
+import {
+  canReadChannel,
+  getCompatibilityText,
+  isChannelJoined,
+  nestToFlag,
+} from './utils';
 import useSidebarSort, {
   useRecentSort,
   Sorter,
@@ -243,4 +248,15 @@ export function useCheckChannelJoined() {
     },
     [briefs]
   );
+}
+
+export function useChannelCompatibility(nest: string) {
+  const channel = useChannel(nest);
+  const saga = channel?.saga || null;
+
+  return {
+    saga,
+    compatible: saga === null || 'synced' in saga,
+    text: getCompatibilityText(saga),
+  };
 }

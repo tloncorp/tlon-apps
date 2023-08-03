@@ -14,7 +14,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %0
+    $:  %1
         =shelf:d
         voc=(map [flag:d plan:d] (unit said:d))
         ::  true represents imported, false pending import
@@ -89,19 +89,58 @@
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
-  =.  state  old
-  =.  cor  restore-missing-subs
-  =.  cor
-    (emil (drop load:epos))
-  =/  diaries  ~(tap in ~(key by shelf))
   |-
-  ?~  diaries
-    cor
-  =.  cor
-    di-abet:di-upgrade:(di-abed:di-core i.diaries)
-  $(diaries t.diaries)
+  ?-  -.old
+    %0  $(old (state-0-to-1 old))
+    ::
+      %1
+    =.  state  old
+    =.  cor  restore-missing-subs
+    =.  cor
+      (emil (drop load:epos))
+    =/  diaries  ~(tap in ~(key by shelf))
+    =.  cor  
+      %+  roll
+        ~(tap in (~(gas in *(set ship)) (turn diaries head)))
+      |=  [=ship cr=_cor]
+      ?:  =(ship our.bowl)  cr
+      (watch-epic:cr ship &)
+    |-
+    ?~  diaries
+      cor
+    =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
+    $(diaries t.diaries)
+  ==
   ::
-  +$  versioned-state  $%(current-state)
+  +$  versioned-state  $%(current-state state-0)
+  +$  state-0
+    $:  %0
+        shelf=shelf:zero
+        voc=(map [flag:zero plan:zero] (unit said:zero))
+        ::  true represents imported, false pending import
+        imp=(map flag:zero ?)
+    ==
+  +$  state-1  current-state
+  ++  zero  zero:old:d
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    %*  .  *state-1
+      shelf  (convert-shelf shelf.s)
+      voc    voc.s
+      imp    imp.s
+    ==
+  ::
+++  convert-shelf
+    |=  old-shelf=shelf:zero
+    ^-  shelf:d
+    %-  malt
+    %+  turn
+      ~(tap by old-shelf)
+    |=  [=flag:d old-diary=diary:zero]
+    ^-  [flag:d diary:d]
+    [flag [~ old-diary]]
+  ::
   ++  restore-missing-subs
     %+  roll
       ~(tap by shelf)
@@ -110,29 +149,25 @@
   --
 ::
 ++  watch-epic
-  |=  her=ship
+  |=  [her=ship leave=?]
   ^+  cor
   =/  =wire  /epic
   =/  =dock  [her dap.bowl]
-  ?:  (~(has by wex.bowl) [wire dock])
-    cor
-  (emit %pass wire %agent [her dap.bowl] %watch /epic)
+  =?  cor  leave  (emit %pass wire %agent dock %leave ~)
+  (emit %pass wire %agent dock %watch /epic)
 ::
 ++  take-epic
   |=  =sign:agent:gall
   ^+  cor
   ?+    -.sign  cor
       %kick
-    (watch-epic src.bowl)
+    (watch-epic src.bowl |)
   ::
       %fact
     ?.  =(%epic p.cage.sign)
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay:d)
-      cor
-    ~&  >>  "good news everyone!"
     %+  roll  ~(tap by shelf)
     |=  [[=flag:g =diary:d] out=_cor]
     ?.  =(src.bowl p.flag)
@@ -183,7 +218,7 @@
     =+  !<(req=create:d vase)
     (create req)
   ::
-      ?(%diary-action-0 %diary-action)
+      ?(%diary-action-1 %diary-action-0 %diary-action)
     =+  !<(=action:d vase)
     =/  diary-core  (di-abed:di-core p.action)
     ?:  =(p.p.action our.bowl)
@@ -251,7 +286,8 @@
     [now.bowl | ~]
   =/  =notes:d  graph-to-notes
   =/  =diary:d
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
+    :*  arranged-notes=~
+        net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
         log=(import-log notes perm)
         perm
         %grid  :: TODO: check defaults with design
@@ -590,24 +626,42 @@
       =.  cor  (give %kick ~ ~)
       di-core
     --
+  ::  when we get a new %diary agent update, we need to check if we should
+  ::  upgrade any lagging diaries. if we're lagging, we need to change
+  ::  the saga to "chi" to resume syncing updates from the host. otherwise
+  ::  we can no-op, because we're not in sync yet.
   ::
   ++  di-upgrade
     ^+  di-core
+    ::  if we're the host, no-op
+    ::
     ?.  ?=(%sub -.net.diary)
       di-core
+    ::  if we're ahead or synced, no-op
+    ::
     ?.  ?=(%dex -.saga.net.diary)
       di-core
+    ::  if we're still behind even with the upgrade, no-op
+    ::
     ?.  =(okay:d ver.saga.net.diary)
       ~&  future-shock/[ver.saga.net.diary flag]
       di-core
+    ::  safe to sync and resume updates from host
+    ::
     =>  .(saga.net.diary `saga:e`saga.net.diary)
     di-make-chi
+  ::
+  ++  di-make-dex
+    |=  her=epic:e
+    ?.  ?=(%sub -.net.diary)
+      di-core
+    =.  saga.net.diary  dex+her
+    di-core
   ::
   ++  di-make-lev
     ?.  ?=(%sub -.net.diary)
       di-core
     =.  saga.net.diary  lev/~
-    =.  cor  (watch-epic p.flag)
     di-core
   ::
   ++  di-make-chi
@@ -743,13 +797,9 @@
   ++  di-take-epic
     |=  her=epic:e
     ^+  di-core
-    ?>  ?=(%sub -.net.diary)
-    ?:  =(her okay:d)
-      di-core
-    ?:  (gth her okay:d)
-      =.  saga.net.diary  dex+her
-      di-core
-    di-make-lev
+    ?:  (lth her okay:d)  di-make-lev
+    ?:  (gth her okay:d)  (di-make-dex her)
+    di-make-chi
  ::
  ++  di-take-update
     |=  =sign:agent:gall
@@ -771,8 +821,8 @@
       =*  cage  cage.sign
       ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
-        ?(%diary-logs %diary-logs-0)      (di-apply-logs !<(log:d q.cage))
-        ?(%diary-update %diary-update-0)  (di-update !<(update:d q.cage))
+        ?(%diary-logs %diary-logs-0 %diary-logs-1)      (di-apply-logs !<(log:d q.cage))
+        ?(%diary-update %diary-update-0 %diary-update-1)  (di-update !<(update:d q.cage))
       ==
     ==
   ::
@@ -851,6 +901,7 @@
     =.  group.perm.diary  group.j
     =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
+    =.  cor  (watch-epic p.flag &)
     di-sub
   ::
   ++  di-leave
@@ -958,6 +1009,10 @@
     ::
         %view
       =.  view.diary  p.dif
+      di-core
+    ::
+        %arranged-notes
+      =.  arranged-notes.diary  p.dif
       di-core
     ==
   --

@@ -80,6 +80,7 @@ export interface Group {
   'zone-ord': Zone[];
   bloc: string[];
   secret: boolean;
+  saga: Saga | null;
 }
 
 export interface Fleet {
@@ -297,6 +298,20 @@ export interface GroupCreate extends GroupMeta {
   secret: boolean;
 }
 
+export interface SagaAhead {
+  ahead: string;
+}
+
+export interface SagaBehind {
+  behind: null;
+}
+
+export interface SagaSynced {
+  synced: null;
+}
+
+export type Saga = SagaAhead | SagaBehind | SagaSynced;
+
 export interface GroupJoin {
   flag: string;
   'join-all': boolean;
@@ -358,6 +373,8 @@ export interface GroupFormSchema extends GroupMeta {
 export interface ChannelFormSchema extends GroupChannel {
   privacy: ChannelPrivacyType;
   writers: string[];
+  sort?: 'time' | 'alpha' | 'arranged';
+  view?: 'grid' | 'list';
 }
 
 export interface NewChannelFormSchema extends ChannelFormSchema {

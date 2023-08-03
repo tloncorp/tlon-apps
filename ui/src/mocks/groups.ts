@@ -1,3 +1,4 @@
+/* eslint-disable import/no-cycle */
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
 import faker from '@faker-js/faker';
@@ -163,6 +164,7 @@ export function createMockGroup(title: string): Group {
     bloc: [],
     'zone-ord': ['default'],
     secret: false,
+    saga: { synced: null },
   };
 }
 const mockGroupOne: Group = {
@@ -234,6 +236,7 @@ const mockGroupOne: Group = {
   bloc: [],
   'zone-ord': ['default'],
   secret: false,
+  saga: { synced: null },
 };
 
 const mockGroupTwo: Group = {
@@ -310,6 +313,7 @@ const mockGroupTwo: Group = {
   bloc: [],
   'zone-ord': ['default'],
   secret: false,
+  saga: { synced: null },
 };
 
 const mockGroups: { [flag: string]: Group } = {

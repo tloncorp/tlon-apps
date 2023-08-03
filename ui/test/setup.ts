@@ -19,6 +19,7 @@ vi.stubGlobal('fetch', (url: string, init: any) => {
 vi.mock('posthog-js', () => ({
   default: {
     init: () => ({}),
+    debug: () => ({}),
   },
 }));
 

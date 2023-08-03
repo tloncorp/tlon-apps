@@ -14,6 +14,7 @@ import {
   NavigateFunction,
 } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
+import { usePostHog } from 'posthog-js/react';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import Groups from '@/groups/Groups';
 import { IS_MOCK } from '@/api';
@@ -22,7 +23,13 @@ import NewDM from '@/dms/NewDm';
 import ChatThread from '@/chat/ChatThread/ChatThread';
 import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
-import { useCalm, useSettingsLoaded, useTheme } from '@/state/settings';
+import {
+  useAnalyticsId,
+  useCalm,
+  useLogActivity,
+  useSettingsLoaded,
+  useTheme,
+} from '@/state/settings';
 import { useLocalState } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
@@ -45,7 +52,6 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
-import { usePendingGangsWithoutClaim } from '@/state/groups/groups';
 import GroupInvitesPrivacy from './groups/GroupAdmin/GroupInvitesPrivacy';
 import Notifications, { MainWrapper } from './notifications/Notifications';
 import ChatChannel from './chat/ChatChannel';
@@ -84,8 +90,8 @@ import SettingsDialog from './components/SettingsDialog';
 import { captureAnalyticsEvent } from './logic/analytics';
 import GroupChannel from './groups/GroupChannel';
 import PrivacyNotice from './groups/PrivacyNotice';
-import useAutoJoinLureInvites from './groups/autoJoinLureInvites';
 import ActivityModal, { ActivityChecker } from './components/ActivityModal';
+import LureAutojoiner from './groups/LureAutojoiner';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -273,14 +279,6 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   const navigate = useNavigate();
   const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
   const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
-  const pendingGangsWithoutClaim = usePendingGangsWithoutClaim();
-  const autojoin = useAutoJoinLureInvites();
-
-  useEffect(() => {
-    if (Object.keys(pendingGangsWithoutClaim).length) {
-      autojoin(pendingGangsWithoutClaim);
-    }
-  }, [pendingGangsWithoutClaim, autojoin]);
 
   useEffect(() => {
     if (!isInGroups && redirectToFind) {
@@ -333,6 +331,28 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               }
             />
+            <Route path="/messages" element={<MobileMessagesSidebar />} />
+            <Route path="/dm/" element={<Dms />}>
+              <Route index element={<DMHome />} />
+              <Route path="new">
+                <Route index element={<NewDM />} />
+                <Route path=":ship" element={<Message />} />
+              </Route>
+              <Route path=":ship" element={<Message />}>
+                {isSmall ? null : (
+                  <Route
+                    path="message/:idShip/:idTime"
+                    element={<ChatThread />}
+                  />
+                )}
+              </Route>
+              {isSmall && (
+                <Route
+                  path=":ship/message/:idShip/:idTime"
+                  element={<ChatThread />}
+                />
+              )}
+            </Route>
             {/* Find by Invite URL */}
             <Route
               path="/find/:ship/:name"
@@ -473,7 +493,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
-          <Route path="/groups/:ship/:name/info" element={<GroupInfo />} />
+          <Route
+            path="/groups/:ship/:name/info"
+            element={<GroupInfo title={`• ${groupsTitle}`} />}
+          />
           <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
             <Route
               index
@@ -633,6 +656,9 @@ function RoutedApp() {
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const isStandAlone = useIsStandaloneMode();
+  const logActivity = useLogActivity();
+  const posthog = usePostHog();
+  const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
 
@@ -675,6 +701,12 @@ function RoutedApp() {
     }
   }, [isStandAlone, body]);
 
+  useEffect(() => {
+    if (posthog && analyticsId !== '' && logActivity) {
+      posthog.identify(analyticsId);
+    }
+  }, [posthog, analyticsId, logActivity]);
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
@@ -691,11 +723,12 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
-        <TooltipProvider skipDelayDuration={400}>
+        <TooltipProvider delayDuration={0} skipDelayDuration={400}>
           <App />
           <Scheduler />
           {import.meta.env.DEV && <Eyrie />}
         </TooltipProvider>
+        <LureAutojoiner />
         <ReactQueryDevtools initialIsOpen={false} />
       </Router>
     </ErrorBoundary>

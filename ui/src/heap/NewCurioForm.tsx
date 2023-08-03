@@ -6,7 +6,7 @@ import LinkIcon from '@/components/icons/LinkIcon';
 import { useHeapPerms, useHeapState } from '@/state/heap/heap';
 import useNest from '@/logic/useNest';
 import { canWriteChannel, isValidUrl, nestToFlag } from '@/logic/utils';
-import { useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import Text16Icon from '@/components/icons/Text16Icon';
 import useRequestState from '@/logic/useRequestState';
 import {
@@ -23,6 +23,8 @@ import { useHeapDisplayMode } from '@/state/settings';
 import { useUploader } from '@/state/storage';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import { useChannelCompatibility } from '@/logic/channel';
+import Tooltip from '@/components/Tooltip';
 import HeapTextInput from './HeapTextInput';
 
 export default function NewCurioForm() {
@@ -42,6 +44,7 @@ export default function NewCurioForm() {
   const perms = useHeapPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const { compatible, text } = useChannelCompatibility(nest);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const uploader = useUploader('new-curio-input');
@@ -208,12 +211,14 @@ export default function NewCurioForm() {
                 />
               </div>
             ) : null}
-            <input
-              value={isPending ? 'Posting...' : 'Post'}
-              type="submit"
-              className="button absolute bottom-3 right-3 cursor-pointer rounded-md px-2 py-1"
-              disabled={isPending || !isValidInput}
-            />
+            <Tooltip content={text} open={compatible ? false : undefined}>
+              <input
+                value={isPending ? 'Posting...' : 'Post'}
+                type="submit"
+                className="button absolute bottom-3 right-3 cursor-pointer rounded-md px-2 py-1"
+                disabled={isPending || !isValidInput || !compatible}
+              />
+            </Tooltip>
           </form>
         ) : (
           <HeapTextInput

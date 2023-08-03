@@ -1,10 +1,18 @@
-/* Works on Firefox */
 * {
+  /* Scrollbar resizing for Firefox */
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--colors-gray-200)) transparent;
+  /* Hide gray box when tapping a link on iOS */
+  -webkit-tap-highlight-color: transparent;
+  /* Disable double-tap to zoom, removes click delay */
+  touch-action: manipulation;
+  /* Better font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: subpixel-antialiased;
 }
 
-/* Works on Chrome, Edge, and Safari */
+/* Scrollbar resizing for Chrome, Edge, and Safari */
 *::-webkit-scrollbar {
   width: 10px;
 }
