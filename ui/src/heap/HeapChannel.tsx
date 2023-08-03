@@ -13,7 +13,6 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import {
-  useCurioBlocks,
   useHeapPerms,
   useMarkHeapReadMutation,
   useJoinHeapMutation,
@@ -48,7 +47,6 @@ function HeapChannel({ title }: ViewProps) {
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  // const curios = useCurioBlocks(chFlag);
   const { curios, fetchNextPage, hasNextPage } = useInfiniteCurioBlocks(chFlag);
   const { mutateAsync: markRead } = useMarkHeapReadMutation();
   const { mutateAsync: joinHeap } = useJoinHeapMutation();
