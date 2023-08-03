@@ -10,12 +10,14 @@ interface HeapCommentReactionsProps {
   whom: string;
   seal: CurioSeal;
   time: string;
+  replying?: string;
 }
 
 export default function HeapCommentReactions({
   whom,
   seal,
   time,
+  replying,
 }: HeapCommentReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const addFeelMutation = useAddCurioFeelMutation();
@@ -23,10 +25,15 @@ export default function HeapCommentReactions({
 
   const onEmoji = useCallback(
     async (emoji: { shortcodes: string }) => {
-      addFeelMutation.mutate({ flag: whom, time, feel: emoji.shortcodes });
+      addFeelMutation.mutate({
+        flag: whom,
+        time,
+        feel: emoji.shortcodes,
+        replying,
+      });
       setPickerOpen(false);
     },
-    [whom, time, addFeelMutation]
+    [whom, time, addFeelMutation, replying]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
@@ -41,6 +48,7 @@ export default function HeapCommentReactions({
           feel={feel}
           whom={whom}
           time={time}
+          replying={replying}
         />
       ))}
       <EmojiPicker

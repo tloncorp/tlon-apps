@@ -66,10 +66,15 @@ export default function HeapCommentOptions(props: {
 
   const onEmoji = useCallback(
     async (emoji: { shortcodes: string }) => {
-      await addFeel({ flag: whom, time, feel: emoji.shortcodes });
+      await addFeel({
+        flag: whom,
+        time,
+        feel: emoji.shortcodes,
+        replying: curio.heart.replying || undefined,
+      });
       setPickerOpen(false);
     },
-    [time, whom, addFeel]
+    [time, whom, addFeel, curio.heart.replying]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

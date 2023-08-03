@@ -17,6 +17,7 @@ interface HeapCommentReactionProps {
   time: string;
   feel: string;
   ships: string[];
+  replying?: string;
 }
 
 export default function HeapCommentReaction({
@@ -25,6 +26,7 @@ export default function HeapCommentReaction({
   time,
   feel,
   ships,
+  replying,
 }: HeapCommentReactionProps) {
   const { load } = useEmoji();
   const addFeelMutation = useAddCurioFeelMutation();
@@ -39,13 +41,13 @@ export default function HeapCommentReaction({
   const editFeel = useCallback(async () => {
     if (isMine) {
       delFeelMutation.mutate(
-        { flag: whom, time },
+        { flag: whom, time, replying },
         { onError: (error) => console.log(error) }
       );
     } else {
-      addFeelMutation.mutate({ flag: whom, time, feel });
+      addFeelMutation.mutate({ flag: whom, time, feel, replying });
     }
-  }, [isMine, whom, feel, time, addFeelMutation, delFeelMutation]);
+  }, [isMine, whom, feel, time, addFeelMutation, delFeelMutation, replying]);
 
   return (
     <div>
