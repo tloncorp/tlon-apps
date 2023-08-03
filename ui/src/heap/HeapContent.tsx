@@ -17,6 +17,7 @@ import ContentReference from '@/components/References/ContentReference';
 interface HeapContentProps {
   content: CurioContent;
   className?: string;
+  isComment?: boolean;
 }
 
 interface InlineContentProps {
@@ -111,7 +112,11 @@ export function InlineContent({ inline }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(inline)}`);
 }
 
-export default function HeapContent({ content, className }: HeapContentProps) {
+export default function HeapContent({
+  content,
+  className,
+  isComment,
+}: HeapContentProps) {
   const inlineLength = content.inline.length;
 
   return (
@@ -119,7 +124,11 @@ export default function HeapContent({ content, className }: HeapContentProps) {
       {content.block.map((b, idx) => {
         if ('cite' in b) {
           return (
-            <ContentReference contextApp="heap-block" key={idx} cite={b.cite} />
+            <ContentReference
+              contextApp={isComment ? 'heap-comment' : 'heap-block'}
+              key={idx}
+              cite={b.cite}
+            />
           );
         }
         return '??';

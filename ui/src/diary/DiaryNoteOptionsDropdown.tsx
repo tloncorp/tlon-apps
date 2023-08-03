@@ -3,6 +3,9 @@ import classNames from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { useArrangedNotes } from '@/state/diary';
+import { useChannel } from '@/logic/channel';
+import { getFlagParts } from '@/logic/utils';
 import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
@@ -20,7 +23,21 @@ export default function DiaryNoteOptionsDropdown({
   canEdit,
 }: DiaryNoteOptionsDropdownProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const { isOpen, didCopy, onCopy, delNote, setIsOpen } = useDiaryActions({
+  const arrangedNotes = useArrangedNotes(flag);
+  const { ship } = getFlagParts(flag);
+  const chan = useChannel(flag);
+  const saga = chan?.saga || null;
+  const {
+    isOpen,
+    didCopy,
+    onCopy,
+    delNote,
+    setIsOpen,
+    addToArrangedNotes,
+    removeFromArrangedNotes,
+    moveUpInArrangedNotes,
+    moveDownInArrangedNotes,
+  } = useDiaryActions({
     flag,
     time,
   });
@@ -39,8 +56,38 @@ export default function DiaryNoteOptionsDropdown({
             {didCopy ? 'Link Copied!' : 'Copy Note Link'}
           </Dropdown.Item>
 
-          {canEdit ? (
+          {(canEdit && ship === window.our) ||
+          (canEdit && saga && 'synced' in saga) ? (
             <>
+              {arrangedNotes?.includes(time) ? (
+                <>
+                  <Dropdown.Item
+                    className="dropdown-item"
+                    onSelect={() => moveUpInArrangedNotes()}
+                  >
+                    Move Up
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    className="dropdown-item"
+                    onSelect={() => moveDownInArrangedNotes()}
+                  >
+                    Move Down
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    className="dropdown-item"
+                    onSelect={() => removeFromArrangedNotes()}
+                  >
+                    Remove from Pinned Notes
+                  </Dropdown.Item>
+                </>
+              ) : (
+                <Dropdown.Item
+                  className="dropdown-item"
+                  onSelect={() => addToArrangedNotes()}
+                >
+                  Add to Pinned Notes
+                </Dropdown.Item>
+              )}
               <Dropdown.Item className="dropdown-item" asChild>
                 <Link to={`edit/${time}`}>Edit Note</Link>
               </Dropdown.Item>

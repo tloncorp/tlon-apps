@@ -1,17 +1,24 @@
 import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams } from 'react-router';
-import { daToUnix } from '@urbit/api';
+import { useNavigate, useParams } from 'react-router';
+import { daToUnix, udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import { canWriteChannel, pluralize, sampleQuippers } from '@/logic/utils';
+import {
+  canWriteChannel,
+  getFlagParts,
+  pluralize,
+  sampleQuippers,
+} from '@/logic/utils';
 import {
   useDiaryBrief,
   useNote,
   useDiaryPerms,
   useJoinDiaryMutation,
+  useIsNotePending,
+  useNotesOnHost,
 } from '@/state/diary';
 import {
   useRouteGroup,
@@ -20,11 +27,20 @@ import {
   useGroup,
   useChannel,
 } from '@/state/groups/groups';
-import { DiaryBrief, DiaryQuip } from '@/types/diary';
+import {
+  DiaryBrief,
+  DiaryOutline,
+  DiaryOutlines,
+  DiaryQuip,
+} from '@/types/diary';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import { useChannelIsJoined } from '@/logic/channel';
+import {
+  useChannelIsJoined,
+  useChannel as useChannelSpecific,
+} from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
+import { useConnectivityCheck } from '@/state/vitals';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -87,34 +103,76 @@ function setNewDays(quips: [string, DiaryCommentProps[]][]) {
 }
 
 export default function DiaryNote({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
   const { chShip, chName, noteId = '' } = useParams();
+  const isPending = useIsNotePending(noteId);
+  const { data } = useConnectivityCheck(chShip ?? '');
+  const navigate = useNavigate();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const channel = useChannel(groupFlag, nest);
-  // const [id, note] = useNote(chFlag, noteId)!;
+  const { ship } = getFlagParts(chFlag);
   const { note, status } = useNote(chFlag, noteId);
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
   const brief = useDiaryBrief(chFlag);
-  // const settings = useDiarySettings();
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = useDiaryPerms(chFlag);
+  const chan = useChannelSpecific(chFlag);
+  const saga = chan?.saga;
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const joinChannel = useCallback(async () => {
-    setJoining(true);
     await joinDiary({ group: groupFlag, chan: chFlag });
-    setJoining(false);
   }, [chFlag, groupFlag, joinDiary]);
+  const notesOnHost = useNotesOnHost(chFlag, isPending);
+  const checkIfPreviouslyCached = useCallback(() => {
+    // If we have a note, and the host ship is online, and we have a noteId, and
+    // the noteId matches the note's seal time, then we have a cached note.
+    // If we have a note and noteId and no seal time, then we probably did have a cached note
+    // but the cache was cleared (user probably refreshed).
+    // If we have notes on the host, and we can find the real note via the sent time matching the noteId
+    // then we redirect to the real note.
+    if (
+      data?.status &&
+      'complete' in data.status &&
+      data.status.complete === 'yes' &&
+      note &&
+      noteId !== '' &&
+      (noteId === note.seal.time || note.seal.time === undefined)
+    ) {
+      if (notesOnHost && typeof notesOnHost === 'object') {
+        const foundNote = Object.keys(notesOnHost).filter((n: string) => {
+          if ('sent' in (notesOnHost as DiaryOutlines)[n]) {
+            const outline: DiaryOutline = (notesOnHost as DiaryOutlines)[n];
+            return outline.sent === daToUnix(bigInt(noteId));
+          }
+          return false;
+        });
+
+        if (foundNote.length > 0) {
+          const foundNoteId = udToDec(foundNote[0]);
+
+          if (foundNoteId !== noteId) {
+            navigate(
+              `/groups/${groupFlag}/channels/diary/${chFlag}/note/${foundNoteId}`
+            );
+          }
+        }
+      }
+    }
+  }, [chFlag, noteId, notesOnHost, groupFlag, navigate, note, data]);
 
   useEffect(() => {
     if (!joined) {
       joinChannel();
     }
   }, [joined, joinChannel]);
+
+  useEffect(() => {
+    checkIfPreviouslyCached();
+  }, [checkIfPreviouslyCached]);
 
   useGroupsAnalyticsEvent({
     name: 'view_item',
@@ -123,7 +181,7 @@ export default function DiaryNote({ title }: ViewProps) {
     channelType: 'diary',
   });
 
-  if (!note || status === 'loading') {
+  if (!note.essay || status === 'loading') {
     return (
       <Layout
         className="h-full flex-1 bg-white"
@@ -132,6 +190,7 @@ export default function DiaryNote({ title }: ViewProps) {
             title={'Loading note...'}
             time={noteId}
             canEdit={false}
+            nest={nest}
           />
         }
       >
@@ -162,7 +221,8 @@ export default function DiaryNote({ title }: ViewProps) {
         <DiaryNoteHeader
           title={note.essay.title}
           time={noteId}
-          canEdit={isAdmin || window.our === note.essay.author}
+          canEdit={(isAdmin || window.our === note.essay.author) && !isPending}
+          nest={nest}
         />
       }
     >
@@ -183,6 +243,15 @@ export default function DiaryNote({ title }: ViewProps) {
             essay={note.essay}
             time={bigInt(noteId)}
           />
+          {isPending ? (
+            <div className="flex flex-col space-y-4">
+              <p className="text-gray-400">This post is not yet published.</p>
+              <p className="text-gray-400">
+                It will be visible to others when the notebook host publishes it
+                (the host may be offline).
+              </p>
+            </div>
+          ) : null}
           <DiaryContent content={note.essay.content} />
           <footer id="comments">
             <div className="mb-3 flex items-center py-3">
@@ -194,7 +263,8 @@ export default function DiaryNote({ title }: ViewProps) {
                 </h2>
               </Divider>
             </div>
-            {canWrite ? (
+            {(canWrite && ship === window.our) ||
+            (canWrite && saga && 'synced' in saga) ? (
               <DiaryCommentField
                 flag={chFlag}
                 groupFlag={groupFlag}
@@ -202,7 +272,7 @@ export default function DiaryNote({ title }: ViewProps) {
               />
             ) : null}
             <ul className="mt-12">
-              {groupedQuips.map(([t, g]) =>
+              {groupedQuips.map(([_t, g]) =>
                 g.map((props) => (
                   <li key={props.time.toString()}>
                     <DiaryComment {...props} />

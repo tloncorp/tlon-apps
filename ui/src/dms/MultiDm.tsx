@@ -15,6 +15,7 @@ import { Club } from '@/types/chat';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import useAppName from '@/logic/useAppName';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -27,9 +28,11 @@ function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
   const hasPending = club.hive.length > 0;
   const groupName = club.meta.title || club.team.concat(club.hive).join(', ');
   const BackButton = isMobile ? Link : 'div';
+  const appName = useAppName();
+
   return (
     <BackButton
-      to="/"
+      to={appName === 'Groups' && isMobile ? '/messages' : '/'}
       className={cn(
         'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
       )}

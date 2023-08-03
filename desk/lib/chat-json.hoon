@@ -1,6 +1,6 @@
 /-  c=chat
 /-  meta
-/+  cite=cite-json
+/+  cite=cite-json, gj=groups-json
 |%
 ++  enjs
   =,  enjs:format
@@ -147,12 +147,19 @@
     |=  ch=chat:c
     %-  pairs
     :~  perms/(perm perm.ch)
+        saga/(saga net.ch)
     ==
   ++  perm
     |=  p=perm:c
     %-  pairs
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
         group/(flag group.p)
+    ==
+  ++  saga
+    |=  n=net:c
+    ?-  -.n
+      %pub  ~
+      %sub  (saga:enjs:gj saga.n)
     ==
   ++  ship
     |=  her=@p

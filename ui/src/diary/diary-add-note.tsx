@@ -1,10 +1,18 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, {
+  useCallback,
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
+import { daToUnix, unixToDa } from '@urbit/api';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import _ from 'lodash';
+import bigInt from 'big-integer';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
@@ -23,14 +31,20 @@ import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import Setting from '@/components/Setting';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
+import { useChannelCompatibility } from '@/logic/channel';
+import Tooltip from '@/components/Tooltip';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
+  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const [loaded, setLoaded] = useState(false);
+  const [extraTitleRow, setExtraTitleRow] = useState(false);
+  const titleRef = useRef<HTMLTextAreaElement | null>(null);
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
@@ -53,6 +67,7 @@ export default function DiaryAddNote() {
   const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
     usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
   const editWithMarkdown = useMarkdownInDiaries();
+  const { compatible, text } = useChannelCompatibility(`diary/${chFlag}`);
 
   const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
     defaultValues: {
@@ -62,6 +77,7 @@ export default function DiaryAddNote() {
   });
 
   const { reset, register, getValues, setValue, watch } = form;
+  const { ref, ...titleRegisterRest } = register('title');
   const watchedTitle = watch('title');
 
   useEffect(() => {
@@ -71,6 +87,15 @@ export default function DiaryAddNote() {
       setValue('image', note.essay.image);
     }
   }, [note, setValue, loadingNote, getValues]);
+
+  // expand title to 2 rows if needed, beyond that we can scroll
+  useEffect(() => {
+    if (extraTitleRow) return;
+    const { scrollHeight, clientHeight } = titleRef.current!;
+    if (scrollHeight > clientHeight) {
+      setExtraTitleRow(true);
+    }
+  }, [watchedTitle, extraTitleRow]);
 
   const editor = useDiaryInlineEditor({
     content: '',
@@ -102,8 +127,6 @@ export default function DiaryAddNote() {
 
     const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
-
-    const sent = Date.now();
 
     const isBlock = (c: Inline | DiaryBlock) =>
       ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
@@ -141,15 +164,19 @@ export default function DiaryAddNote() {
           },
         });
       } else {
-        await addNote({
-          flag: chFlag,
-          essay: {
-            ...values,
-            content: noteContent,
-            author: window.our,
-            sent,
-          },
-        });
+        await asyncCallWithTimeout(
+          addNote({
+            initialTime,
+            flag: chFlag,
+            essay: {
+              ...values,
+              content: noteContent,
+              author: window.our,
+              sent: daToUnix(bigInt(initialTime)),
+            },
+          }),
+          3000
+        );
         captureGroupsAnalyticsEvent({
           name: 'post_item',
           groupFlag: flag,
@@ -161,6 +188,7 @@ export default function DiaryAddNote() {
 
       reset();
     } catch (error) {
+      navigate(`/groups/${flag}/channels/diary/${chFlag}`);
       console.error(error);
     }
   }, [
@@ -174,6 +202,8 @@ export default function DiaryAddNote() {
     reset,
     addNote,
     editNote,
+    initialTime,
+    navigate,
     watchedTitle,
   ]);
 
@@ -217,26 +247,29 @@ export default function DiaryAddNote() {
 
           <div className="flex shrink-0 flex-row items-center space-x-3">
             {isMobile && <ReconnectingSpinner />}
-            <button
-              disabled={
-                !editor?.getText() ||
-                editStatus === 'loading' ||
-                addStatus === 'loading' ||
-                watchedTitle === ''
-              }
-              className={cn(
-                'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
-              )}
-              onClick={publish}
-            >
-              {editStatus === 'loading' || addStatus === 'loading' ? (
-                <LoadingSpinner className="h-4 w-4" />
-              ) : editStatus === 'error' || addStatus === 'error' ? (
-                'Error'
-              ) : (
-                'Save'
-              )}
-            </button>
+            <Tooltip content={text} open={compatible ? false : undefined}>
+              <button
+                disabled={
+                  !compatible ||
+                  !editor?.getText() ||
+                  editStatus === 'loading' ||
+                  addStatus === 'loading' ||
+                  watchedTitle === ''
+                }
+                className={cn(
+                  'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
+                )}
+                onClick={publish}
+              >
+                {editStatus === 'loading' || addStatus === 'loading' ? (
+                  <LoadingSpinner className="h-4 w-4" />
+                ) : editStatus === 'error' || addStatus === 'error' ? (
+                  'Error'
+                ) : (
+                  'Save'
+                )}
+              </button>
+            </Tooltip>
           </div>
         </header>
       }
@@ -260,11 +293,15 @@ export default function DiaryAddNote() {
             <div className="mx-auto h-full max-w-xl p-4">
               <form className="space-y-6">
                 <CoverImageInput url="" noteId={id} />
-                <input
+                <textarea
                   placeholder="New Title"
-                  className="input-transparent text-3xl font-semibold"
-                  type="text"
-                  {...register('title')}
+                  className="input-transparent w-full resize-none text-3xl font-semibold"
+                  rows={extraTitleRow ? 2 : 1}
+                  ref={(e) => {
+                    ref(e);
+                    titleRef.current = e;
+                  }}
+                  {...titleRegisterRest}
                 />
               </form>
               <div className="h-full py-6">

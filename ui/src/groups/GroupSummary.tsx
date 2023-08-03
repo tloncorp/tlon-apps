@@ -8,6 +8,10 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import GroupAvatar from '@/groups/GroupAvatar';
 import Globe16Icon from '@/components/icons/Globe16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import HostConnection from '@/channels/HostConnection';
+import { useConnectivityCheck } from '@/state/vitals';
+import { useGroup } from '@/state/groups';
+import ShipConnection from '@/components/ShipConnection';
 
 export type GroupSummarySize = 'default' | 'small';
 
@@ -15,39 +19,44 @@ interface GroupSummaryProps extends Partial<GroupPreview> {
   flag: string;
   preview: GroupPreview | null;
   size?: GroupSummarySize;
+  check?: boolean;
 }
 
 export default function GroupSummary({
   flag,
   preview,
   size = 'default',
+  check = true,
 }: GroupSummaryProps) {
   const { privacy } = useGroupPrivacy(flag);
+  const { ship } = getFlagParts(flag);
+  const group = useGroup(flag, false);
+  const { data } = useConnectivityCheck(ship, { enabled: check });
+  const meta = preview?.meta || group?.meta;
 
-  if (!preview) {
+  if (!meta) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <LoadingSpinner />
       </div>
     );
   }
-  const { meta } = preview;
-  const { ship } = getFlagParts(flag);
 
   return (
     <div className="flex items-center space-x-3 font-semibold">
       <GroupAvatar
         {...meta}
+        className="flex-none"
         size={size === 'default' ? 'h-[72px] w-[72px]' : 'h-12 w-12'}
       />
       <div className="space-y-2">
-        <h3>{meta?.title || flag}</h3>
+        <h3>{meta.title || flag}</h3>
         {size === 'default' ? (
           <p className="text-gray-400">
             Hosted by <ShipName name={ship} />
           </p>
         ) : null}
-        <div className="flex items-center space-x-2 text-gray-600">
+        <div className="flex flex-wrap items-center gap-2 text-gray-600">
           {privacy ? (
             <span className="inline-flex items-center space-x-1 capitalize">
               {privacy === 'public' ? (
@@ -60,6 +69,16 @@ export default function GroupSummary({
               <span>{privacy}</span>
             </span>
           ) : null}
+          {!check ? null : group ? (
+            <HostConnection
+              type="combo"
+              ship={ship}
+              status={data?.status}
+              saga={group?.saga || null}
+            />
+          ) : (
+            <ShipConnection type="combo" ship={ship} status={data?.status} />
+          )}
         </div>
       </div>
     </div>

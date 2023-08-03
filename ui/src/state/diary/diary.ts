@@ -20,7 +20,7 @@ import {
   DiaryQuip,
   DiaryAction,
   DiaryDisplayMode,
-  DiaryLetter,
+  DiarySortMode,
   DiarySaid,
   DiaryUpdate,
   DiaryJoin,
@@ -29,7 +29,7 @@ import {
   DiaryOutline,
   NoteEssay,
   DiaryStory,
-  DiaryNotes,
+  DiaryOutlines,
 } from '@/types/diary';
 import api from '@/api';
 import { restoreMap } from '@/logic/utils';
@@ -74,7 +74,7 @@ async function updateNoteInCache(
 
 async function updateNotesInCache(
   variables: { flag: DiaryFlag },
-  updater: (notes: DiaryNotes | undefined) => DiaryNotes | undefined,
+  updater: (notes: DiaryOutlines | undefined) => DiaryOutlines | undefined,
   queryClient: QueryClient
 ) {
   await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
@@ -85,7 +85,7 @@ async function updateNotesInCache(
 function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
   return {
     app: 'diary',
-    mark: 'diary-action-0',
+    mark: 'diary-action-1',
     json: {
       flag,
       update: {
@@ -116,6 +116,7 @@ export const useDiaryState = createState<DiaryState>(
         get().set(fn);
       });
     },
+    pendingNotes: [],
     pendingImports: {},
     initImports: (init) => {
       get().batchSet((draft) => {
@@ -126,6 +127,14 @@ export const useDiaryState = createState<DiaryState>(
   {},
   []
 );
+
+export function usePendingNotes() {
+  return useDiaryState((s) => s.pendingNotes);
+}
+
+export function useIsNotePending(noteId: string) {
+  return useDiaryState((s) => s.pendingNotes.includes(noteId));
+}
 
 export function useNotes(flag: DiaryFlag) {
   const { data, ...rest } = useReactQuerySubscription({
@@ -160,11 +169,38 @@ export function useNotes(flag: DiaryFlag) {
   };
 }
 
+export function useNotesOnHost(
+  flag: DiaryFlag,
+  enabled: boolean
+): DiaryOutlines | undefined {
+  const { data } = useReactQueryScry({
+    queryKey: ['diary', 'notes', 'live', flag],
+    app: 'diary',
+    path: `/diary/${flag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    priority: 2,
+    options: {
+      cacheTime: 0,
+      enabled,
+      refetchInterval: 1000,
+    },
+  });
+
+  if (
+    data === undefined ||
+    data === null ||
+    Object.entries(data as object).length === 0
+  ) {
+    return undefined;
+  }
+
+  return data as DiaryOutlines;
+}
+
 export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
   const queryClient = useQueryClient();
   const notes = useNotes(flag);
 
-  let noteMap = restoreMap<DiaryLetter>(notes);
+  let noteMap = restoreMap<DiaryOutline>(notes);
 
   const index = noteMap.peekSmallest()?.[0];
   const oldNotesSize = noteMap.size ?? 0;
@@ -197,7 +233,7 @@ export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    note: v as DiaryLetter,
+    note: v as DiaryOutline,
   }));
 
   diff.forEach(({ tim, note }) => {
@@ -234,6 +270,16 @@ const defaultPerms = {
   writers: [],
 };
 
+export function useArrangedNotes(flag: DiaryFlag) {
+  const diary = useDiary(flag);
+
+  if (diary === undefined || diary['arranged-notes'] === undefined) {
+    return [];
+  }
+
+  return diary['arranged-notes'].map((t) => udToDec(t));
+}
+
 export function useDiaryPerms(flag: DiaryFlag) {
   const diary = useDiary(flag);
 
@@ -249,6 +295,7 @@ export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
     () => ['diary', 'notes', flag, noteId],
     [flag, noteId]
   );
+
   const path = useMemo(
     () => `/diary/${flag}/notes/note/${decToUd(noteId)}`,
     [flag, noteId]
@@ -366,6 +413,11 @@ export function useDiaryBrief(flag: string) {
 export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
   const diary = useDiary(flag);
   return diary?.view ?? 'list';
+}
+
+export function useDiarySortMode(flag: string): DiarySortMode {
+  const diary = useDiary(flag);
+  return diary?.sort ?? 'time';
 }
 
 export function useRemoteOutline(
@@ -490,15 +542,103 @@ export function useViewDiaryMutation() {
   });
 }
 
+export function useSortDiaryMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = async (variables: {
+    flag: string;
+    sort: DiarySortMode;
+  }) => {
+    await api.poke(diaryAction(variables.flag, { sort: variables.sort }));
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['diary', 'shelf']);
+
+      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
+        'diary',
+        'shelf',
+      ]);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData<{ [flag: string]: Diary }>(
+          ['diary', 'shelf'],
+          {
+            ...prev,
+            [variables.flag]: {
+              ...prev[variables.flag],
+              sort: variables.sort,
+            },
+          }
+        );
+      }
+    },
+  });
+}
+
+export function useArrangedNotesDiaryMutation() {
+  const queryClient = useQueryClient();
+  const { mutate: changeSortMutation } = useSortDiaryMutation();
+
+  const mutationFn = async (variables: {
+    flag: string;
+    arrangedNotes: string[];
+  }) => {
+    // change sort mode automatically if arrangedNotes is empty/not-empty
+    if (variables.arrangedNotes.length === 0) {
+      changeSortMutation({ flag: variables.flag, sort: 'time' });
+    } else {
+      changeSortMutation({ flag: variables.flag, sort: 'arranged' });
+    }
+
+    await api.poke(
+      diaryAction(variables.flag, {
+        'arranged-notes': variables.arrangedNotes.map((t) => decToUd(t)),
+      })
+    );
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['diary', 'shelf']);
+
+      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
+        'diary',
+        'shelf',
+      ]);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData<{ [flag: string]: Diary }>(
+          ['diary', 'shelf'],
+          {
+            ...prev,
+            [variables.flag]: {
+              ...prev[variables.flag],
+              'arranged-notes': variables.arrangedNotes.map((t) => decToUd(t)),
+            },
+          }
+        );
+      }
+    },
+  });
+}
+
 export function useAddNoteMutation() {
   const queryClient = useQueryClient();
-  const now = decToUd(unixToDa(Date.now()).toString());
-  let timePosted = now;
-  const mutationFn = async (variables: { flag: DiaryFlag; essay: NoteEssay }) =>
+
+  let timePosted: string;
+  const mutationFn = async (variables: {
+    initialTime: string;
+    flag: DiaryFlag;
+    essay: NoteEssay;
+  }) =>
     new Promise<string>((resolve) => {
+      timePosted = variables.initialTime;
       api
         .trackedPoke<DiaryAction, DiaryUpdate>(
-          diaryNoteDiff(variables.flag, now, {
+          diaryNoteDiff(variables.flag, decToUd(variables.initialTime), {
             add: variables.essay,
           }),
           { app: 'diary', path: `/diary/${variables.flag}/ui` },
@@ -510,6 +650,7 @@ export function useAddNoteMutation() {
                 timePosted = time;
                 return true;
               }
+              return false;
             }
 
             return false;
@@ -526,6 +667,10 @@ export function useAddNoteMutation() {
       await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
       await queryClient.cancelQueries(['diary', 'briefs']);
 
+      useDiaryState.getState().set((state) => ({
+        pendingNotes: [variables.initialTime, ...state.pendingNotes],
+      }));
+
       const notes = queryClient.getQueryData<DiaryOutline>([
         'diary',
         'notes',
@@ -534,16 +679,14 @@ export function useAddNoteMutation() {
 
       if (notes !== undefined) {
         // for the unlikely case that the user navigates away from the editor
-        // before the mutation is complete, we update the cache optimistically
+        // before the mutation is complete, or if the host ship is offline,
+        // we update the cache optimistically.
         queryClient.setQueryData<DiaryOutline>(
           ['diary', 'notes', variables.flag],
           {
             ...notes,
-            // this time will be wrong if the mutation fails or doesn't complete
-            // but it will be corrected when fact returns on the subscription.
-            // as long as the user doesn't try to immediately navigate to
-            // the note, this will be fine.
-            [timePosted ?? variables.essay.sent]: {
+            // this time is temporary, and will be replaced by the actual time
+            [variables.initialTime]: {
               content: variables.essay.content,
               author: variables.essay.author,
               quipCount: 0,
@@ -555,7 +698,29 @@ export function useAddNoteMutation() {
             },
           }
         );
+
+        queryClient.setQueryData(
+          ['diary', 'notes', variables.flag, variables.initialTime],
+          {
+            type: 'note',
+            seal: {
+              time: variables.initialTime,
+              quips: [],
+              feels: {},
+            },
+            essay: {
+              ...variables.essay,
+            },
+          }
+        );
       }
+    },
+    onSuccess: async (_data, variables) => {
+      useDiaryState.getState().set((state) => ({
+        pendingNotes: state.pendingNotes.filter(
+          (time) => time !== variables.initialTime
+        ),
+      }));
     },
     onSettled: async (_data, _error, variables) => {
       await queryClient.refetchQueries(['diary', 'notes', variables.flag], {
@@ -594,7 +759,7 @@ export function useEditNoteMutation() {
         };
       };
 
-      const notesUpdater = (prev: DiaryNotes | undefined) => {
+      const notesUpdater = (prev: DiaryOutlines | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -633,7 +798,7 @@ export function useDeleteNoteMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNotes | undefined) => {
+      const updater = (prev: DiaryOutlines | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -698,6 +863,9 @@ export function useCreateDiaryMutation() {
             [`${window.our}/${variables.name}`]: {
               perms: { writers: [], group: variables.group },
               view: 'list',
+              'arranged-notes': [],
+              sort: 'time',
+              saga: { synced: null },
             },
           }
         );
@@ -834,7 +1002,7 @@ export function useAddQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, DiaryLetter> | undefined) => {
+      const notesUpdater = (prev: Record<string, DiaryOutline> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -921,7 +1089,7 @@ export function useDeleteQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, DiaryLetter> | undefined) => {
+      const notesUpdater = (prev: Record<string, DiaryOutline> | undefined) => {
         if (prev === undefined) {
           return prev;
         }

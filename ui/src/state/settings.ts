@@ -1,14 +1,16 @@
 import { useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Value, PutBucket, DelEntry, DelBucket } from '@urbit/api';
 import _ from 'lodash';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import { DiaryDisplayMode } from '@/types/diary';
 import produce from 'immer';
 import { isHosted, isTalk } from '@/logic/utils';
 import { isNativeApp } from '@/logic/native';
-import api from '../api';
+import api from '@/api';
 
 interface ChannelSetting {
   flag: string;
@@ -20,8 +22,9 @@ export interface HeapSetting extends ChannelSetting {
 }
 
 export interface DiarySetting extends ChannelSetting {
-  sortMode: 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
+  sortMode: 'arranged' | 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
   commentSortMode: 'asc' | 'dsc';
+  displayMode: DiaryDisplayMode;
 }
 
 interface GroupSideBarSort {
@@ -92,6 +95,7 @@ export interface SettingsState {
     hasBeenUsed: boolean;
     showActivityMessage?: boolean;
     logActivity?: boolean;
+    analyticsId?: string;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -447,12 +451,20 @@ export function useDiarySettings(): DiarySetting[] {
   }, [isLoading, data]);
 }
 
-export function useDiarySortMode(
+export function useUserDiarySortMode(
   flag: string
-): 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc' {
+): 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc' | 'arranged' | undefined {
   const settings = useDiarySettings();
-  const heapSetting = getChannelSetting(settings, flag);
-  return heapSetting?.sortMode ?? 'time-dsc';
+  const diarySetting = getChannelSetting(settings, flag);
+  return diarySetting?.sortMode;
+}
+
+export function useUserDiaryDisplayMode(
+  flag: string
+): DiaryDisplayMode | undefined {
+  const settings = useDiarySettings();
+  const diarySetting = getChannelSetting(settings, flag);
+  return diarySetting?.displayMode;
 }
 
 export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
@@ -552,3 +564,58 @@ export function useThemeMutation() {
     status,
   };
 }
+
+export function createAnalyticsId() {
+  return uuidv4();
+}
+
+export function useAnalyticsIdMutation() {
+  const { mutate, status } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'analyticsId',
+  });
+
+  return {
+    mutate: (analyticsId: string) => mutate({ val: analyticsId }),
+    status,
+  };
+}
+
+export function useResetAnalyticsIdMutation() {
+  const { mutate, status } = useAnalyticsIdMutation();
+
+  const newAnalyticsId = createAnalyticsId();
+
+  return {
+    mutate: () => mutate(newAnalyticsId),
+    status,
+  };
+}
+
+export const useAnalyticsId = () => {
+  const { data, isLoading } = useMergedSettings();
+  const { mutate, status } = useAnalyticsIdMutation();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      return '';
+    }
+
+    if (
+      status !== 'loading' &&
+      (data.groups.analyticsId === undefined || data.groups.analyticsId === '')
+    ) {
+      const newAnalyticsId = createAnalyticsId();
+
+      mutate(newAnalyticsId);
+
+      if (status !== 'success') {
+        return '';
+      }
+
+      return newAnalyticsId;
+    }
+
+    return data.groups.analyticsId;
+  }, [isLoading, data, mutate, status]);
+};

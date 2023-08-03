@@ -342,12 +342,15 @@
       [%x %groups %light ~]  ``groups+!>(groups-light)
   ::
       [%x %groups ~]
-    ``groups+!>(`groups:g`(~(run by groups) tail))
+    ``groups+!>(`groups:g`(~(run by groups) to-group-ui))
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
+    =/  group  (~(got by groups) [ship name.pole])
     ?~  rest.pole
-      ``group+!>(`group:g`+:(~(got by groups) [ship name.pole]))
+      ``group+!>(+.group)
+    ?:  =(/ui rest.pole)
+      ``group-ui+!>(`group-ui:g`(to-group-ui group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
       [%x %exists ship=@ name=@ rest=*]
@@ -363,7 +366,15 @@
     %+  ~(put by *fleet:g)
       our.bowl
     (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-  group
+  (to-group-ui net group)
+::
+++  to-group-ui
+  |=  [=net:g =group:g]
+  ^-  group-ui:g
+  :-  group
+  ?+  -.net  ~
+      %sub  `saga.net
+  ==
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
@@ -1342,21 +1353,19 @@
     ^+  go-core
     =/  user-join  &((~(has in ships) src.bowl) =(1 ~(wyt in ships)))
     =/  am-host  =(p.flag our.bowl)
+    =/  from-host  =(p.flag src.bowl)
     =/  has-host  (~(has in ships) p.flag)
     =*  cordon  cordon.group
     ?-    -.diff
         %add
-      ?>  ?|  am-host
-              =(p.flag src.bowl) :: subscription
-              user-join
-          ==
+      ?>  |(am-host from-host user-join)
       ?<  (go-is-banned src.bowl)
-      ?<  ?&  =(-.cordon %shut)
+      ?>  ?|  from-host
               ?-  -.cordon
-                  ?(%open %afar)  |
+                  ?(%open %afar)  &
                   %shut
                 =/  cross  (~(int in pend.cordon) ships)
-                !=(~(wyt in ships) ~(wyt in cross))
+                =(~(wyt in ships) ~(wyt in cross))
               ==
           ==
       =?  cor  &(!user-join am-host)  (give-invites flag ships)
@@ -1438,7 +1447,8 @@
         %add-sects
       ?>  go-is-bloc
       ~|  strange-sect/sects.diff
-      ?>  =(~ (~(dif in sects.diff) ~(key by cabals.group)))
+      =.  sects.diff  (~(int in sects.diff) ~(key by cabals.group))
+      ?:  =(~ sects.diff)  go-core
       =.  fleet.group
         %-  ~(rut by fleet.group)
         |=  [=ship =vessel:fleet:g]
@@ -1571,6 +1581,7 @@
       go-core
     ::
         %zone
+      ?.  (has:by-ch ch)  go-core
       =/  =channel:g  (got:by-ch ch)
       ?.  (~(has by zones.group) zone.diff)  go-core
       =.  zones.group
@@ -1578,6 +1589,7 @@
         |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  zone.channel   zone.diff
       =.  channels.group  (put:by-ch ch channel)
+      ?.  (~(has by zones.group) zone.diff)  go-core
       =/  =realm:zone:g  (~(got by zones.group) zone.diff)
       =.  ord.realm  (~(push of ord.realm) ch)
       =.  zones.group  (~(put by zones.group) zone.diff realm)

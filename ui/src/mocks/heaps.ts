@@ -17,6 +17,7 @@ const mockStash: Stash = {
   'heap/~zod/testHeap': {
     perms: mockPerms,
     view: 'grid',
+    saga: null,
   },
 };
 

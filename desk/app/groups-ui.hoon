@@ -8,7 +8,7 @@
   +$  card  card:agent:gall
   +$  state-0  [%0 first-load=?]
   +$  current-state  state-0
-  +$  versioned-state  $%(~ current-state)
+  +$  versioned-state  $?(~ current-state)
   --
 =|  current-state
 =*  state  -
@@ -84,7 +84,7 @@
   |=  =vase
   ^+  cor
   =+  !<(old=versioned-state vase)
-  =.  state  *current-state
+  =.  state  ?~(old *current-state old)
   init
 ::
 ++  peek

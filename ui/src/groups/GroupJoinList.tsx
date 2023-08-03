@@ -23,15 +23,17 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
   const banned = cordon ? matchesBans(cordon, window.our) : null;
 
   return (
-    <li className="relative flex items-center">
+    <li className="relative mb-2 flex items-center sm:mb-0">
       <button
-        className={cn(
-          'flex w-full items-center justify-start rounded-xl p-2 text-left hover:bg-gray-50',
-          isMobile && 'bg-gray-50'
-        )}
+        className="flex w-full items-center justify-start rounded-xl bg-gray-50 p-2 text-left hover:bg-gray-50 sm:bg-transparent"
         onClick={open}
       >
-        <GroupSummary flag={flag} preview={gang.preview} size={'small'} />
+        <GroupSummary
+          flag={flag}
+          preview={gang.preview}
+          size={'small'}
+          check={false}
+        />
       </button>
       <div className="absolute right-2 flex flex-row">
         {banned ? (

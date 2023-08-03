@@ -27,6 +27,7 @@ import {
   Group,
   GroupPreview,
   Vessel,
+  Saga,
 } from '@/types/groups';
 import { CurioContent, HeapBrief } from '@/types/heap';
 import {
@@ -42,6 +43,11 @@ import {
 } from '@/types/diary';
 import { Bold, Italics, Strikethrough } from '@/types/content';
 import { isNativeApp, postActionToNativeApp } from './native';
+import type {
+  ConnectionCompleteStatus,
+  ConnectionPendingStatus,
+  ConnectionStatus,
+} from '../state/vitals';
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 export const isGroups = import.meta.env.VITE_APP === 'groups';
@@ -383,13 +389,13 @@ export function hasKeys(obj: Record<string, unknown>) {
 }
 
 export const IMAGE_REGEX =
-  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.webm|\.svg)$/i;
-export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)$/i;
-export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)$/i;
+  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.webm|\.svg)(?:\?.*)?$/i;
+export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)(?:\?.*)?$/i;
+export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)(?:\?.*)?$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
-  /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)$/i;
+  /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)(?:\?.*)?$/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
 // sig and hep explicitly left out
 export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
@@ -1009,4 +1015,69 @@ export function truncateProse(
     });
 
   return truncatedContent;
+}
+
+export function getCompletedText(
+  status: ConnectionCompleteStatus,
+  ship: string
+) {
+  switch (status.complete) {
+    case 'no-data':
+      return 'No connection data';
+    case 'yes':
+      return 'Connected';
+    case 'no-dns':
+      return 'Unable to connect to DNS';
+    case 'no-our-planet':
+      return 'Unable to reach our planet';
+    case 'no-our-galaxy':
+      return 'Unable to reach our galaxy';
+    case 'no-their-galaxy':
+      return `Unable to reach ${ship}'s galaxy`;
+    case 'no-sponsor-miss':
+      return `${ship}'s sponsor can't reach them`;
+    case 'no-sponsor-hit':
+      return `${ship}'s sponsor can reach them, but we can't`;
+    default:
+      return `Unable to connect to ${ship}`;
+  }
+}
+
+export function getPendingText(status: ConnectionPendingStatus, ship: string) {
+  switch (status.pending) {
+    case 'trying-dns':
+      return 'Checking DNS';
+    case 'trying-local':
+      return 'Checking our galaxy';
+    case 'trying-target':
+      return `Checking ${ship}`;
+    case 'trying-sponsor':
+      return `Checking ${ship}'s sponsors (~${(status as any).ship})`;
+    default:
+      return 'Checking connection...';
+  }
+}
+
+export function getConnectionColor(status?: ConnectionStatus) {
+  if (!status) {
+    return 'text-gray-400';
+  }
+
+  if ('pending' in status) {
+    return 'text-yellow-400';
+  }
+
+  return status.complete === 'yes' ? 'text-green-400' : 'text-red-400';
+}
+
+export function getCompatibilityText(saga: Saga | null) {
+  if (saga && 'behind' in saga) {
+    return 'Host requires an update to communicate';
+  }
+
+  if (saga && 'ahead' in saga) {
+    return 'Your Groups app requires an update to communicate';
+  }
+
+  return "You're synced with host";
 }
