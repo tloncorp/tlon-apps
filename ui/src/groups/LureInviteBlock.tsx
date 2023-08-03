@@ -119,7 +119,7 @@ export default function LureInviteBlock({
               </button>
             </>
           )}
-          {url !== '' && good === true && (
+          {url !== '' && good && (
             <>
               <input
                 value={url}
