@@ -1,17 +1,17 @@
 import React, { PropsWithChildren } from 'react';
+import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChannel, useAmAdmin, useGroup } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
-import GroupAvatar from '@/groups/GroupAvatar';
 import { getFlagParts } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
+import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import ChannelActions from './ChannelActions';
 import ChannelTitleButton from './ChannelTitleButton';
 import HostConnection from './HostConnection';
-import { Link } from 'react-router-dom';
-import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+import ChannelIcon from './ChannelIcon';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   flag: string;
@@ -40,7 +40,10 @@ export default function ChannelHeader({
       <MobileHeader
         title={
           <div className="flex flex-col items-center space-y-3">
-            <GroupAvatar image={group?.meta.image} />
+            <ChannelIcon
+              nest={nest}
+              className="h-6 w-6 shrink-0 text-gray-600"
+            />
             <div className="flex w-full items-center justify-center space-x-1">
               <h1 className="text-[18px] text-gray-800 line-clamp-1">
                 {channel?.meta.title}
@@ -57,7 +60,7 @@ export default function ChannelHeader({
               className="flex h-8 w-8 items-center justify-center rounded hover:bg-gray-50"
               aria-label="Search Chat"
             >
-              <MagnifyingGlassMobileNavIcon className="h-8 w-8 text-gray-900 p-1" />
+              <MagnifyingGlassMobileNavIcon className="h-8 w-8 p-1 text-gray-900" />
             </Link>
             <ChannelActions
               {...{ nest, prettyAppName, channel, isAdmin, leave }}
