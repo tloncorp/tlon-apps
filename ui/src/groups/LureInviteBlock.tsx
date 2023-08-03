@@ -104,7 +104,7 @@ export default function LureInviteBlock({
               </span>
             </div>
           )}
-          {url !== '' && good === false && (
+          {url !== '' && !good && (
             <>
               <input
                 value="Link cannot be displayed"
