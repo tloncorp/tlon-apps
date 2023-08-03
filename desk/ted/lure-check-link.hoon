@@ -23,10 +23,12 @@
 ++  url
   |=  [baseurl=cord target=ship group=cord]
   ^-  cord
-  ?.  =(baseurl 'https://tlon.network/lure/')
-    (crip "{(trip baseurl)}{(trip (scot %p target))}/{(trip group)}")
   =/  target-tape  (trip (scot %p target))
-  ?~  target-tape  !!
+  ?~  target-tape
+    ~&  "lure link check: bad target ship"
+    !!
+  ?.  =(baseurl 'https://tlon.network/lure/')
+    (crip "{(trip baseurl)}{target-tape}/{(trip group)}")
   ::  it really is necessary to double-encode this
   =/  end  (en-urlt:html "%7E{t.target-tape}%2F{(trip group)}")
   (crip "https://tlon.network/v1/policies/lure/{end}")
