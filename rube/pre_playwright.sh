@@ -12,37 +12,33 @@ docker rm -f $CONTAINER_NAME 2>/dev/null || true
 docker build --platform=linux/amd64 -t $IMAGE_NAME -f ../rube/Dockerfile.playwright ../
 docker run --platform=linux/amd64 -d --name $CONTAINER_NAME -p 35453:8081 -p 36963:8082 $IMAGE_NAME
 
-check_hash() {
-  data="password=$1&redirect=/"
-  login="http://localhost:$2/~/login"
-  echo "Attempting ~$3 login: $data at $login"
-  curl -c .cookies.$3.txt -H "Content-Type: application/x-www-form-urlencoded" -d $data $login
+# zod=25752
+# bus=13731
 
-  if [ -z "$hash" ]; then
-    path="http://localhost:$2/~/scry/hood/kiln/pikes.json"
-    hash=$(curl -b .cookies.$3.txt -s $path | jq '.groups.hash')
-    echo "starting %groups hash: $hash"
-  fi;
+# hood () {
+#   curl -H "Content-Type: application/json" -d '{"source":{"dojo":"+hood/'"$2"'"},"sink":{"app":"hood"}}' http://localhost:$1 --trace-ascii /dev/stdout
+# }
 
-  while true
-  do
-    printf '.'
-    response=$(curl -b .cookies.$3.txt -s --connect-timeout 3 $path)
-    x=$(echo $response | jq '.groups.hash');
-    echo "$x"
-    if [[ "$x" != "$hash" ]]; then 
-      echo "compiled %groups hash: $x"
-      break; 
-    fi; 
-    sleep 1
-  done
+# echo "Wait for ship boot"
+# sleep 5
 
-  echo "~$3 ready!"
-}
+# echo "Logging in to fake ships and recording hash"
+# init lidlut-tabwed-pillex-ridrup 35453 zod
+# init riddec-bicrym-ridlev-pocsef 36963 bus
 
-TIME=${WAIT_TIME:-"1"}
-echo "Waiting "$TIME"s for ships to compile"
-sleep $TIME
+# echo "Wait for mounts and syncs"
+# sleep 10
 
-check_hash lidlut-tabwed-pillex-ridrup 35453 zod
-check_hash riddec-bicrym-ridlev-pocsef 36963 bus
+# echo "Committing changes to fake ships"
+# hood $zod "commit %groups"
+# hood $zod "commit %talk"
+# check_hash zod
+
+# hood $bus "commit %groups"
+# hood $bus "commit %talk"
+# check_hash bus
+
+# # TIME=${WAIT_TIME:-"1"}
+# # echo "Waiting "$TIME"s for ships to compile"
+# # sleep $TIME
+# echo "Compilation done"

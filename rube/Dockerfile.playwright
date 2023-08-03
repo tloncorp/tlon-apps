@@ -1,9 +1,9 @@
-# Use the latest Ubuntu image as the base, and specify the platform as linux/amd64
-FROM --platform=linux/amd64 ubuntu:latest
+# Use the latest playwright image as the base, and specify the platform as linux/amd64
+FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.36.0-jammy
 
 # Install necessary packages (curl, rsync)
 RUN apt-get update && \
-    apt-get install -y curl rsync
+    apt-get install -y curl rsync jq
 
 # Set working directory
 WORKDIR /app
@@ -25,6 +25,7 @@ RUN rm rube-zod3.tgz rube-bus3.tgz
 COPY rube/entrypoint_playwright.sh /app/entrypoint_playwright.sh
 COPY desk /app/desk
 COPY talk /app/talk
+COPY ui /app/ui
 
 # Set up the entrypoint to run executables from both extraced directories
 # and tail /dev/null to keep the container running
