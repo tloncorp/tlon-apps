@@ -31,14 +31,42 @@ import {
 import api from '@/api';
 import { canWriteChannel, restoreMap } from '@/logic/utils';
 import useNest from '@/logic/useNest';
-import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { CURIO_PAGE_SIZE } from '@/constants';
-import { HeapState } from './type';
+// import { HeapState } from './type';
 import { useGroup, useVessel } from '../groups';
 import { createState } from '../base';
 
 setAutoFreeze(false);
+export interface HeapState {
+  set: (fn: (sta: HeapState) => void) => void;
+  batchSet: (fn: (sta: HeapState) => void) => void;
+  pendingImports: Record<string, boolean>;
+  initImports: (init: Record<string, boolean>) => void;
+  [key: string]: unknown;
+}
+
+export const useHeapState = createState<HeapState>(
+  'heap',
+  (set, get) => ({
+    set: (fn) => {
+      set(produce(get(), fn));
+    },
+    batchSet: (fn) => {
+      batchUpdates(() => {
+        get().set(fn);
+      });
+    },
+    pendingImports: {},
+    initImports: (init) => {
+      get().batchSet((draft) => {
+        draft.pendingImports = init;
+      });
+    },
+  }),
+  {},
+  []
+);
 
 function subscribeOnce<T>(app: string, path: string) {
   return new Promise<T>((resolve) => {
@@ -76,29 +104,6 @@ function heapCurioDiff(flag: HeapFlag, time: string, delta: CurioDelta) {
 function getTime() {
   return decToUd(unixToDa(Date.now()).toString());
 }
-
-export const useHeapState = createState<HeapState>(
-  'heap',
-  (set, get) => ({
-    set: (fn) => {
-      set(produce(get(), fn));
-    },
-    batchSet: (fn) => {
-      batchUpdates(() => {
-        get().set(fn);
-      });
-    },
-    pendingImports: {},
-    loadedRefs: {},
-    initImports: (init) => {
-      get().batchSet((draft) => {
-        draft.pendingImports = init;
-      });
-    },
-  }),
-  {},
-  []
-);
 
 export function useHeapBriefs(): HeapBriefs {
   const emptyBriefs = useMemo(() => ({} as HeapBriefs), []);
@@ -740,54 +745,31 @@ export function useOrderedCurios(
   };
 }
 
-// TODO: test
-const { shouldLoad, newAttempt, finished } = getPreviewTracker();
-// export function useRemoteCurioNew(flag: string, time: string, blockLoad: boolean) {
-//   const path = useMemo(
-//     () => `/said/${flag}/curio/${decToUd(time)}`,
-//     [flag, time]
-//   );
-
-//   const queryFn = useCallback(
-//     () => async () => {
-//       if (!blockLoad && shouldLoad(path)) {
-//         newAttempt(path);
-//         const { curio } = await subscribeOnce<HeapSaid>('heap', path).finally(
-//           () => finished(path)
-//         );
-//         return curio;
-//       }
-//       return null;
-//     },
-//     [path, blockLoad]
-//   );
-
-//   const { data } = useQuery({
-//     queryKey: ['heap', 'ref', 'curio', time],
-//     queryFn,
-//   });
-
-//   return data;
-// }
-
-const selRefs = (s: HeapState) => s.loadedRefs;
 export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
-  const refs = useHeapState(selRefs);
-  const path = `/said/${flag}/curio/${decToUd(time)}`;
-  const cached = refs[path];
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(() => ['heap', 'ref', 'curio', time], [time]);
+  const path = useMemo(
+    () => `/said/${flag}/curio/${decToUd(time)}`,
+    [flag, time]
+  );
 
-  useEffect(() => {
-    if (!blockLoad && shouldLoad(path)) {
-      newAttempt(path);
-      subscribeOnce<HeapSaid>('heap', path)
-        .then(({ curio }) => {
-          useHeapState.getState().batchSet((draft) => {
-            draft.loadedRefs[path] = curio;
-          });
-        })
-        .finally(() => finished(path));
+  const queryFn = useCallback(async () => {
+    if (!blockLoad) {
+      const { curio } = await subscribeOnce<HeapSaid>('heap', path);
+      return curio;
     }
+    return null;
   }, [path, blockLoad]);
 
-  return cached;
+  useEffect(() => {
+    queryClient.refetchQueries(queryKey);
+  }, [blockLoad, path, queryKey, queryClient]);
+
+  const { data } = useQuery({
+    queryKey,
+    queryFn,
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  return data;
 }
