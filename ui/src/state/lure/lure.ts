@@ -211,11 +211,13 @@ export function useLure(flag: string, disableLoading = false) {
 export function useLureLinkChecked(flag: string) {
   const [good, setGood] = useState(false);
 
-  useEffect(() => { api.subscribeOnce<boolean>(
-    'grouper',
-    `/check-link/${flag}`,
-    12500
-  ).then((result: boolean) => { setGood(result); })}, [flag]);
+  useEffect(() => {
+    api.subscribeOnce<boolean>(
+      'grouper',
+      `/check-link/${flag}`,
+      12500
+    ).then((result: boolean) => setGood(result));
+  }, [flag]);
 
   return good;
 }
