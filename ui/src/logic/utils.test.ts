@@ -98,7 +98,7 @@ describe('Image URL embed regex', () => {
     'https://i.imgur.com/1234567.JPG',
     'https://i.imgur.com/1234567.jpg?test=123',
     'https://i.imgur.com/1234567.jpg?test=123&test2=456',
-    'https://i.imgur.com/1234567.jpg?test=123&test2=456&test3=789'
+    'https://i.imgur.com/1234567.jpg?test=123&test2=456&test3=789',
   ];
 
   const invalidUrls = [

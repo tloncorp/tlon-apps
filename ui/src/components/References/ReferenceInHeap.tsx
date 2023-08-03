@@ -32,6 +32,29 @@ function ReferenceInHeap({
     );
   }
 
+  if (contextApp === 'heap-comment') {
+    return (
+      <>
+        {image ? (
+          <div className="m-2 flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
+            {image}
+          </div>
+        ) : null}
+        <div className="flex grow flex-col">
+          {title && (
+            <div className="p-2 text-lg font-semibold line-clamp-1">
+              {title}
+            </div>
+          )}
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+            {byline}
+          </div>
+          {children}
+        </div>
+      </>
+    );
+  }
+
   if (contextApp === 'heap-block') {
     return (
       <div

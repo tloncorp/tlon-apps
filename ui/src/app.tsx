@@ -52,7 +52,6 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
-import { usePendingGangsWithoutClaim } from '@/state/groups/groups';
 import GroupInvitesPrivacy from '@/groups/GroupAdmin/GroupInvitesPrivacy';
 import Notifications, { MainWrapper } from '@/notifications/Notifications';
 import ChatChannel from '@/chat/ChatChannel';
@@ -91,11 +90,11 @@ import SettingsDialog from '@/components/Settings/SettingsDialog';
 import { captureAnalyticsEvent } from '@/logic/analytics';
 import GroupChannel from '@/groups/GroupChannel';
 import PrivacyNotice from '@/groups/PrivacyNotice';
-import useAutoJoinLureInvites from '@/groups/autoJoinLureInvites';
 import ActivityModal, { ActivityChecker } from '@/components/ActivityModal';
 import Profile from '@/profiles/Profile';
 import SettingsView from '@/components/Settings/SettingsView';
 import AboutView from '@/components/About/AboutView';
+import LureAutojoiner from '@/groups/LureAutojoiner';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -283,14 +282,6 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   const navigate = useNavigate();
   const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
   const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
-  const pendingGangsWithoutClaim = usePendingGangsWithoutClaim();
-  const autojoin = useAutoJoinLureInvites();
-
-  useEffect(() => {
-    if (Object.keys(pendingGangsWithoutClaim).length) {
-      autojoin(pendingGangsWithoutClaim);
-    }
-  }, [pendingGangsWithoutClaim, autojoin]);
 
   useEffect(() => {
     if (!isInGroups && redirectToFind) {
@@ -752,6 +743,7 @@ function RoutedApp() {
           <Scheduler />
           {import.meta.env.DEV && <Eyrie />}
         </TooltipProvider>
+        <LureAutojoiner />
         <ReactQueryDevtools initialIsOpen={false} />
       </Router>
     </ErrorBoundary>
