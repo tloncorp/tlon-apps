@@ -241,6 +241,7 @@ export function useAddCurioFeelMutation() {
     flag: HeapFlag;
     time: string;
     feel: string;
+    replying?: string;
   }) => {
     const ud = decToUd(time);
     await api.poke(
@@ -257,22 +258,26 @@ export function useAddCurioFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries([
-        'heap',
-        variables.flag,
-        'curio',
-        variables.time,
-      ]);
-      await queryClient.cancelQueries(['heap', variables.flag, 'blocks']);
+      if (variables.replying) {
+        queryClient.cancelQueries([
+          'heap',
+          variables.flag,
+          'curios',
+          udToDec(variables.replying),
+          'withComments',
+        ]);
+      }
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries([
-        'heap',
-        variables.flag,
-        'curio',
-        variables.time,
-      ]);
-      await queryClient.refetchQueries(['heap', variables.flag, 'blocks']);
+      if (variables.replying) {
+        queryClient.refetchQueries([
+          'heap',
+          variables.flag,
+          'curios',
+          udToDec(variables.replying),
+          'withComments',
+        ]);
+      }
     },
   });
 }
@@ -286,6 +291,7 @@ export function useDelCurioFeelMutation() {
   }: {
     flag: HeapFlag;
     time: string;
+    replying?: string;
   }) => {
     const ud = decToUd(time);
     await api.poke(heapCurioDiff(flag, ud, { 'del-feel': window.our }));
@@ -294,26 +300,31 @@ export function useDelCurioFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries([
-        'heap',
-        variables.flag,
-        'curio',
-        variables.time,
-      ]);
-      await queryClient.cancelQueries(['heap', variables.flag, 'blocks']);
+      if (variables.replying) {
+        queryClient.cancelQueries([
+          'heap',
+          variables.flag,
+          'curios',
+          udToDec(variables.replying),
+          'withComments',
+        ]);
+      }
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries([
-        'heap',
-        variables.flag,
-        'curio',
-        variables.time,
-      ]);
-      await queryClient.refetchQueries(['heap', variables.flag, 'blocks']);
+      if (variables.replying) {
+        queryClient.refetchQueries([
+          'heap',
+          variables.flag,
+          'curios',
+          udToDec(variables.replying),
+          'withComments',
+        ]);
+      }
     },
   });
 }
 
+// TODO update for infinite query
 export async function prefetchCurioBlocks({
   queryClient,
   flag,
@@ -376,26 +387,15 @@ export function useLeaveHeapMutation() {
     onMutate: async (variables) => {
       await queryClient.cancelQueries(['heap', 'stash']);
       await queryClient.cancelQueries(['heap', 'briefs']);
-      await queryClient.cancelQueries(['heap', 'blocks', variables.flag]);
+      await queryClient.cancelQueries(['heap', variables.flag]);
 
-      queryClient.removeQueries(['heap', 'blocks', variables.flag]);
+      queryClient.removeQueries(['heap', variables.flag]);
     },
-    onSettled: async (variables) => {
+    onSettled: async () => {
       await queryClient.refetchQueries(['heap', 'briefs']);
       await queryClient.refetchQueries(['heap', 'stash']);
     },
   });
-}
-
-function formatCurios(curios: HeapCurios): HeapCurioMap {
-  let curioMap = restoreMap<HeapCurio>({});
-  Object.entries(curios)
-    .map(([k, curio]) => ({ tim: bigInt(udToDec(k)), curio }))
-    .forEach(({ tim, curio }) => {
-      curioMap = curioMap.set(tim, curio);
-    });
-
-  return curioMap;
 }
 
 function generateCurioMap(curios: HeapCurioTuple[]): HeapCurioMap {
@@ -472,25 +472,6 @@ export function useInfiniteCurioBlocks(flag: HeapFlag) {
   };
 }
 
-export function useCurioBlocks(flag: HeapFlag): HeapCurioMap {
-  const def = useMemo(() => new BigIntOrderedMap<HeapCurio>(), []);
-
-  const { data, isLoading, isError, ...rest } = useReactQuerySubscription({
-    queryKey: ['heap', 'curios', flag],
-    app: 'heap',
-    path: `/heap/${flag}/ui`,
-    scry: `/heap/${flag}/curios/newest/${CURIO_PAGE_SIZE}/blocks`,
-    options: {
-      keepPreviousData: true,
-      refetchOnMount: true,
-      retryOnMount: true,
-    },
-  });
-
-  return data ? formatCurios(data as HeapCurios) : def;
-}
-
-// TODO: adjust for infinite query
 export async function prefetchCurioWithComments({
   queryClient,
   flag,
@@ -506,17 +487,43 @@ export async function prefetchCurioWithComments({
     path: `/heap/${flag}/curios/curio/id/${ud}/full`,
   })) as HeapCurio;
   if (data) {
-    queryClient.setQueryData(['heap', 'curios', flag, 'curio', time], data);
+    queryClient.setQueryData(
+      ['heap', flag, 'curios', time, 'withComments'],
+      data
+    );
   }
+}
+
+// TODO: add prefetch on block hover in channel view
+export function usePrefetchCurioWithComments() {
+  const queryClient = useQueryClient();
+  const prefetch = useCallback(
+    (flag: HeapFlag, time: string) => {
+      prefetchCurioWithComments({ queryClient, flag, time });
+    },
+    [queryClient]
+  );
+  return prefetch;
+}
+
+function formatCurioComments(curios: HeapCurios): HeapCurioMap {
+  let curioMap = restoreMap<HeapCurio>({});
+  Object.entries(curios)
+    .map(([k, curio]) => ({ tim: bigInt(udToDec(k)), curio }))
+    .forEach(({ tim, curio }) => {
+      curioMap = curioMap.set(tim, curio);
+    });
+
+  return curioMap;
 }
 
 export function useCurioWithComments(flag: HeapFlag, time: string) {
   const defComments = useMemo(() => new BigIntOrderedMap<HeapCurio>(), []);
   const ud = useMemo(() => decToUd(time), [time]);
   const { data, ...query } = useReactQuerySubscription({
-    queryKey: ['heap', 'curios', flag, 'curio', time],
+    queryKey: ['heap', flag, 'curios', time, 'withComments'],
     app: 'heap',
-    path: `heap/${flag}/ui/curios`,
+    path: `/heap/${flag}/ui`,
     scry: `/heap/${flag}/curios/curio/id/${ud}/full`,
     options: {
       keepPreviousData: true,
@@ -542,20 +549,9 @@ export function useCurioWithComments(flag: HeapFlag, time: string) {
       ...query,
       time: bigInt(time),
       curio,
-      comments: formatCurios(comments),
+      comments: formatCurioComments(comments),
     };
   }, [time, ud, data, query, defComments]);
-}
-
-export function usePrefetchCurioWithComments() {
-  const queryClient = useQueryClient();
-  const prefetch = useCallback(
-    (flag: HeapFlag, time: string) => {
-      prefetchCurioWithComments({ queryClient, flag, time });
-    },
-    [queryClient]
-  );
-  return prefetch;
 }
 
 export function useAddCurioMutation() {
@@ -590,8 +586,22 @@ export function useAddCurioMutation() {
 
   return useMutation({
     mutationFn,
-    onSettled: async (_data, _error, variables) => {
-      queryClient.refetchQueries(['heap', variables.flag, 'blocks']);
+    onSettled: (_data, _error, variables) => {
+      if (variables.heart.replying) {
+        queryClient.refetchQueries([
+          'heap',
+          variables.flag,
+          'curios',
+          udToDec(variables.heart.replying),
+          'withComments',
+        ]);
+      }
+      queryClient.refetchQueries([
+        'heap',
+        variables.flag,
+        'curios',
+        'infinite',
+      ]);
     },
   });
 }
@@ -611,17 +621,17 @@ export function useDelCurioMutation() {
 
   return useMutation({
     mutationFn,
-    onSuccess: async (_data, variables) => {
+    onSuccess: (_data, variables) => {
       queryClient.removeQueries([
         'heap',
         variables.flag,
-        'curio',
+        'curios',
         variables.time,
+        'withComments',
       ]);
     },
-    onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['heap', variables.flag, 'blocks']);
-      await queryClient.invalidateQueries(['heap', variables.flag]);
+    onSettled: (_data, _error, variables) => {
+      queryClient.refetchQueries(['heap', variables.flag, 'curios']);
     },
   });
 }
@@ -644,20 +654,28 @@ export function useEditCurioMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries([
+      queryClient.cancelQueries(['heap', variables.flag, 'curios', 'infinite']);
+      queryClient.cancelQueries([
         'heap',
         variables.flag,
-        'curio',
+        'curios',
         variables.time,
+        'withComments',
       ]);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['heap', variables.flag, 'blocks']);
-      await queryClient.refetchQueries([
+      queryClient.refetchQueries([
         'heap',
         variables.flag,
-        'curio',
+        'curios',
+        'infinite',
+      ]);
+      queryClient.refetchQueries([
+        'heap',
+        variables.flag,
+        'curios',
         variables.time,
+        'withComments',
       ]);
     },
   });
@@ -724,7 +742,7 @@ export function useOrderedCurios(
 
 // TODO: test
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();
-// export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
+// export function useRemoteCurioNew(flag: string, time: string, blockLoad: boolean) {
 //   const path = useMemo(
 //     () => `/said/${flag}/curio/${decToUd(time)}`,
 //     [flag, time]
@@ -751,6 +769,7 @@ const { shouldLoad, newAttempt, finished } = getPreviewTracker();
 
 //   return data;
 // }
+
 const selRefs = (s: HeapState) => s.loadedRefs;
 export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
   const refs = useHeapState(selRefs);
