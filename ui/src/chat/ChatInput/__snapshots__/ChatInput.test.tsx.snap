@@ -11,15 +11,19 @@ exports[`ChatInput > renders as expected 1`] = `
       <div
         class="relative flex items-end justify-end"
       >
-        <urbit-sigil
-          background="#000000"
-          class="overflow-hidden w-6 h-6 rounded"
-          detail="none"
-          foreground="white"
-          point="~finned-palmer"
-          size="24"
-          space="default"
-        />
+        <div
+          class="relative flex flex-none items-center justify-center rounded bg-black w-6 h-6 rounded p-1.5 mr-2 mb-1"
+          style="background-color: rgb(0, 0, 0);"
+        >
+          <urbit-sigil
+            background="#000000"
+            detail="none"
+            foreground="white"
+            point="~finned-palmer"
+            size="12"
+            space="none"
+          />
+        </div>
         <div
           class="input block p-0 w-full break-words"
         >

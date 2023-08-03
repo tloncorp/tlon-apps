@@ -33,11 +33,11 @@ interface AvatarMeta {
 }
 
 const sizeMap: Record<AvatarSizes, AvatarMeta> = {
-  xxs: { classes: 'h-4 w-4', size: 16 },
-  xs: { classes: 'w-6 h-6 rounded', size: 24 },
-  small: { classes: 'w-8 h-8 rounded', size: 32 },
-  default: { classes: 'w-12 h-12 rounded-lg', size: 48 },
-  huge: { classes: 'w-20 h-20 rounded-xl', size: 80 },
+  xxs: { classes: 'h-4 w-4', size: 10 },
+  xs: { classes: 'w-6 h-6 rounded', size: 12 },
+  small: { classes: 'w-8 h-8 rounded', size: 16 },
+  default: { classes: 'w-12 h-12 rounded-lg', size: 24 },
+  huge: { classes: 'w-20 h-20 rounded-xl', size: 48 },
 };
 
 export const foregroundFromBackground = (
@@ -111,10 +111,16 @@ export default function Avatar({
     point: citedShip || '~zod',
     size: sigilSize,
     detail: icon ? 'none' : 'default',
-    space: icon ? 'default' : 'large',
+    space: 'none',
     background: adjustedColor,
     foreground: foregroundColor,
   };
+  const invalidShip =
+    !ship ||
+    ship === 'undefined' ||
+    !isValidPatp(ship) ||
+    citedShip.match(/[_^]/) ||
+    citedShip.length > 14;
 
   if (
     showImage &&
@@ -150,27 +156,21 @@ export default function Avatar({
     );
   }
 
-  if (
-    !ship ||
-    ship === 'undefined' ||
-    !isValidPatp(ship) ||
-    citedShip.match(/[_^]/) ||
-    citedShip.length > 14
-  ) {
-    return (
-      <div
-        className={classNames(
-          'relative flex flex-none items-center justify-center rounded bg-black',
-          classes,
-          className
-        )}
-        style={{ backgroundColor: adjustedColor, ...style }}
-      />
-    );
-  }
-
   return (
-    <urbit-sigil {...props} class={classNames('overflow-hidden', classes)} />
+    <div
+      className={classNames(
+        'relative flex flex-none items-center justify-center rounded bg-black',
+        classes,
+        size === 'xs' && 'p-1.5',
+        size === 'small' && 'p-2',
+        size === 'default' && 'p-3',
+        size === 'huge' && 'p-3',
+        className
+      )}
+      style={{ backgroundColor: adjustedColor, ...style }}
+    >
+      {!invalidShip && <urbit-sigil {...props} />}
+    </div>
   );
 }
 
