@@ -118,9 +118,12 @@ export default function Notifications({
   const MobileMarkAsRead = (
     <button
       disabled={isMarkReadPending || !hasUnreads}
-      className={cn('text-[17px] font-normal leading-6 text-blue', {
-        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
-      })}
+      className={cn(
+        'whitespace-nowrap text-[17px] font-normal leading-6 text-blue',
+        {
+          'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+        }
+      )}
       onClick={markAllRead}
     >
       Mark as Read
@@ -128,7 +131,7 @@ export default function Notifications({
   );
 
   return (
-    <div className='pt-4 h-full'>
+    <div className="h-full pt-4">
       {isMobile && (
         <MobileHeader
           title="Activity"

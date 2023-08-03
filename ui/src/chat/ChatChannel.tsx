@@ -106,7 +106,7 @@ function ChatChannel({ title }: ViewProps) {
   return (
     <>
       <Layout
-        className="flex-1 bg-white"
+        className="flex-1 pt-4 bg-white"
         header={
           <Routes>
             <Route

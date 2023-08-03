@@ -34,7 +34,7 @@ export default function MobileRoot() {
 
   return (
     <Layout
-      className="flex-1 pt-4"
+      className="flex-1 pt-4 bg-white"
       header={
         <MobileHeader
           title="All Groups"
@@ -50,7 +50,7 @@ export default function MobileRoot() {
           }
           secondaryAction={
             <Link
-              className="default-focus flex items-center text-base"
+              className="default-focus flex text-base"
               to="/groups/new-mobile"
             >
               <AddIconMobileNav className="h-8 w-8 text-black" />
