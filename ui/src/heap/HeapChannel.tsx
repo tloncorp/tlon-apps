@@ -201,7 +201,7 @@ function HeapChannel({ title }: ViewProps) {
 
   return (
     <Layout
-      className="flex-1 pt-4 bg-white"
+      className="flex-1 pt-4 sm:pt-0 bg-white"
       aside={<Outlet />}
       header={
         <HeapHeader

@@ -17,10 +17,10 @@ import GroupReference from '@/components/References/GroupReference';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
+import MobileHeader from '@/components/MobileHeader';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 import GroupAvatar from './GroupAvatar';
-import MobileHeader from '@/components/MobileHeader';
 
 export default function FindGroups({ title }: ViewProps) {
   const { ship, name } = useParams<{ ship: string; name: string }>();
@@ -181,7 +181,7 @@ export default function FindGroups({ title }: ViewProps) {
     val ? ob.isValidPatp(preSig(val)) || whomIsFlag(val) : false;
 
   return (
-    <div className="flex h-full flex-col pt-4">
+    <div className="flex h-full w-full flex-col pt-4 sm:pt-0">
       {isMobile && (
         <MobileHeader title="Find Groups" action={<ReconnectingSpinner />} />
       )}
