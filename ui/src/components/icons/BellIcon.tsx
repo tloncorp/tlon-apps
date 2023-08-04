@@ -4,7 +4,8 @@ import { IconProps } from './icon';
 export default function BellIcon({
   className,
   isInactive,
-}: { isInactive?: boolean } & IconProps) {
+  isDarkMode,
+}: { isInactive?: boolean; isDarkMode?: boolean } & IconProps) {
   if (isInactive) {
     return (
       <svg
@@ -15,7 +16,7 @@ export default function BellIcon({
       >
         <path
           className="stroke-current"
-          strokeOpacity=".2"
+          strokeOpacity={isDarkMode ? '.8' : '.2'}
           strokeWidth="2"
           d="M5.454 9.546a7.5 7.5 0 0 1 14.971 0l.409 6.741a.672.672 0 0 1-.671.713H5.716a.672.672 0 0 1-.67-.713l.408-6.741ZM15.94 18a3 3 0 0 1-6 0"
         />
