@@ -52,7 +52,7 @@ export default function MobileMessagesSidebar() {
   );
 
   return (
-    <div className="flex h-full w-full flex-col pt-4">
+    <div className="flex h-full w-full flex-col">
       <MobileHeader
         title="Messages"
         action={

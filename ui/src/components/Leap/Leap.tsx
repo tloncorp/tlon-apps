@@ -81,7 +81,7 @@ export default function Leap({
   };
 
   return openDefault ? (
-    <div className="flex h-full flex-col pt-4">
+    <div className="flex h-full flex-col">
       <MobileHeader title="Leap" />
       <div className="h-full bg-gray-50 p-4">
         <div className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white text-base">

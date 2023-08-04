@@ -43,7 +43,7 @@ export default function Profile({ title }: ViewProps) {
   return (
     <Layout
       header={isMobile ? <MobileHeader title="Profile" /> : null}
-      className="flex-1 px-4 pt-4 font-system-sans"
+      className="flex-1 px-4 font-system-sans"
     >
       <Helmet>
         <title>{title}</title>

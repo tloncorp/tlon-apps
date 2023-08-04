@@ -181,7 +181,7 @@ export default function FindGroups({ title }: ViewProps) {
     val ? ob.isValidPatp(preSig(val)) || whomIsFlag(val) : false;
 
   return (
-    <div className="flex h-full w-full flex-col pt-4 sm:pt-0">
+    <div className="flex h-full w-full flex-col">
       {isMobile && (
         <MobileHeader title="Find Groups" action={<ReconnectingSpinner />} />
       )}

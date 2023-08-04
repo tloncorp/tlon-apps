@@ -37,7 +37,7 @@ export default function SettingsView({ title }: ViewProps) {
           <MobileHeader title="Settings" pathBack="/profile" />
         ) : null
       }
-      className="flex-1 h-full px-4 pt-4"
+      className="flex-1 h-full px-4"
     >
       <Helmet>
         <title>{title}</title>

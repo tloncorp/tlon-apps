@@ -14,7 +14,7 @@ export default function MobileSidebar() {
   const isInactive = (path: string) => location.pathname !== path;
 
   return (
-    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white">
+    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white pt-4">
       <Outlet />
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>

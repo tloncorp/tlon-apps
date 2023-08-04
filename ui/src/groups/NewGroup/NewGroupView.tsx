@@ -8,7 +8,7 @@ export default function NewGroupView() {
       header={
         <MobileHeader title="New Group" pathBack="/" pathBackText="Cancel" />
       }
-      className="flex-1 px-4 pt-4"
+      className="flex-1 px-4"
     >
       <div className="pt-4">
         <NewGroup />

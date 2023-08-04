@@ -34,7 +34,7 @@ export default function MobileRoot() {
 
   return (
     <Layout
-      className="flex-1 pt-4 bg-white"
+      className="flex-1 bg-white"
       header={
         <MobileHeader
           title="All Groups"
