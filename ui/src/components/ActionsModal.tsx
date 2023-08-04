@@ -16,14 +16,19 @@ export interface Action {
   type: ActionType;
   onClick?: React.MouseEventHandler<HTMLDivElement>;
   content: ReactNode;
+  keepOpenOnClick?: boolean;
 }
 
 type ActionsModalProps = PropsWithChildren<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   actions: Action[];
+  asChild?: boolean;
   align?: 'start' | 'end' | 'center';
+  ariaLabel?: string;
   className?: string;
+  triggerClassName?: string;
+  contentClassName?: string;
 }>;
 
 function classNameForType(type: ActionType) {
@@ -46,8 +51,12 @@ const ActionsModal = React.memo(
     open,
     onOpenChange,
     actions,
+    asChild = true,
     align,
+    ariaLabel,
     className,
+    triggerClassName,
+    contentClassName,
     children,
   }: ActionsModalProps) => {
     const isMobile = useIsMobile();
@@ -56,7 +65,11 @@ const ActionsModal = React.memo(
       <div className={className}>
         {isMobile ? (
           <Drawer.Root open={open} onOpenChange={onOpenChange}>
-            <Drawer.Trigger asChild className="appearance-none">
+            <Drawer.Trigger
+              asChild={asChild}
+              aria-label={ariaLabel}
+              className={cn('appearance-none', triggerClassName)}
+            >
               {children}
             </Drawer.Trigger>
             <Drawer.Portal>
@@ -65,7 +78,14 @@ const ActionsModal = React.memo(
                 {actions.map((action) => (
                   <div
                     key={action.key}
-                    onClick={action.onClick}
+                    onClick={
+                      action.keepOpenOnClick
+                        ? action.onClick
+                        : (event) => {
+                            onOpenChange(false);
+                            action.onClick?.(event);
+                          }
+                    }
                     className={cn(classNameForType(action.type), 'py-[16px]')}
                   >
                     {typeof action.content === 'string' ? (
@@ -80,14 +100,22 @@ const ActionsModal = React.memo(
           </Drawer.Root>
         ) : (
           <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
-            <DropdownMenu.Trigger asChild className="appearance-none">
+            <DropdownMenu.Trigger
+              asChild={asChild}
+              aria-label={ariaLabel}
+              className={cn('appearance-none', triggerClassName)}
+            >
               {children}
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content align={align} className="dropdown min-w-52">
+            <DropdownMenu.Content
+              align={align}
+              className={cn('dropdown min-w-52', contentClassName)}
+            >
               {actions.map((action) => (
                 <DropdownMenu.Item
                   asChild
                   key={action.key}
+                  disabled={action.type === 'disabled'}
                   onClick={action.onClick}
                   className={classNameForType(action.type)}
                 >

@@ -100,6 +100,7 @@ const GroupActions = React.memo(
         type: 'default',
         onClick: onCopySelect,
         content: copyItemText,
+        keepOpenOnClick: true,
       },
       {
         key: 'pin',
