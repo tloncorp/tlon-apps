@@ -304,6 +304,9 @@
   ::
       %dm-action
     =+  !<(=action:dm:c vase)
+    ::  don't proxy to self, creates an infinite loop
+    ~|  "%dm-action poke failed: can't dm self"
+    ?<  =(p.action our.bowl)
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %dm-diff
