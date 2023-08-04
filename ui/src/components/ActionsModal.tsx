@@ -22,6 +22,7 @@ type ActionsModalProps = PropsWithChildren<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   actions: Action[];
+  align?: 'start' | 'end' | 'center';
   className?: string;
 }>;
 
@@ -41,7 +42,14 @@ function classNameForType(type: ActionType) {
 }
 
 const ActionsModal = React.memo(
-  ({ open, onOpenChange, actions, className, children }: ActionsModalProps) => {
+  ({
+    open,
+    onOpenChange,
+    actions,
+    align,
+    className,
+    children,
+  }: ActionsModalProps) => {
     const isMobile = useIsMobile();
 
     return (
@@ -75,7 +83,7 @@ const ActionsModal = React.memo(
             <DropdownMenu.Trigger asChild className="appearance-none">
               {children}
             </DropdownMenu.Trigger>
-            <DropdownMenu.Content className="dropdown min-w-52">
+            <DropdownMenu.Content align={align} className="dropdown min-w-52">
               {actions.map((action) => (
                 <DropdownMenu.Item
                   asChild
