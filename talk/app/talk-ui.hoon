@@ -91,9 +91,9 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
-    =+  .^([=groups:g =gangs:g] (scry %gx %groups /init/noun))
+    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/noun))
     =/  =init:u
-      :*  groups
+      :*  groups-ui
           gangs
           .^(talk:u (scry %gx %chat /init/talk/noun))
       ==

@@ -338,11 +338,15 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %gangs ~]  ``gangs+!>(xeno)
-      [%x %init ~]  ``noun+!>([groups-light xeno])
+      [%x %init ~]  ``noun+!>([groups-light-ui xeno])
       [%x %groups %light ~]  ``groups+!>(groups-light)
+      [%x %groups %light %ui ~]  ``groups-ui+!>(groups-light-ui)
   ::
       [%x %groups ~]
-    ``groups+!>(`groups:g`(~(run by groups) to-group-ui))
+    ``groups+!>(`groups:g`(~(run by groups) tail))
+  ::
+      [%x %groups %ui ~]
+    ``groups-ui+!>(`groups-ui:g`(~(run by groups) to-group-ui))
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
@@ -358,16 +362,25 @@
       ``noun+!>((~(has by groups) [src name.pole]))
   ==
 ::
-++  groups-light
-  ^-  groups:g
-  %-  ~(run by groups)
-  |=  [=net:g =group:g]
+++  drop-fleet
+  |=  =group:g
+  ^-  group:g
   =.  fleet.group
     %+  ~(put by *fleet:g)
       our.bowl
     (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-  (to-group-ui net group)
+  group
+++  groups-light
+  ^-  groups:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  (drop-fleet group)
 ::
+++  groups-light-ui
+  ^-  groups-ui:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  (to-group-ui net (drop-fleet group))
 ++  to-group-ui
   |=  [=net:g =group:g]
   ^-  group-ui:g

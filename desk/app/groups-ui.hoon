@@ -92,9 +92,9 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
-    =+  .^([=groups:g =gangs:g] (scry %gx %groups /init/noun))
+    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/noun))
     =/  =init:u
-      :*  groups
+      :*  groups-ui
           gangs
           .^(chat:u (scry %gx %chat /init/noun))
           .^(heap:u (scry %gx %heap /init/noun))
