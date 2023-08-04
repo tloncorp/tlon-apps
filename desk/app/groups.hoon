@@ -1504,18 +1504,6 @@
       =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
-      =/  link  (go-link /channels)
-      =/  =new-yarn:ha
-        %-  spin
-        :*  (go-rope /channel/add)
-            link
-            `['Subscribe to channel' link]
-            :~  [%emph title.meta.channel.diff]
-                ' has been added to '
-                [%emph title.meta.group]
-            ==
-        ==
-      =.  cor  (emit (pass-hark new-yarn))
       ?:  =(our.bowl p.flag)  go-core
       =.  cor  (emil (join-channels:go-pass ~[ch]))
       go-core
@@ -1524,23 +1512,6 @@
       =/  prev=channel:g  (got:by-ch ch)
       =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
-      ?:  from-self  go-core
-      =/  link  (go-link /channels)
-      =/  =new-yarn:ha
-        %-  spin
-        :*  (go-rope /channel/edit)
-            link
-            `['Subscribe to channel' link]
-            ?:  !=(title.meta.channel.diff title.meta.prev)
-              :~  [%emph title.meta.prev]
-                  ' has been renamed to '
-                  [%emph title.meta.channel.diff]
-              ==
-            :~  [%emph title.meta.channel.diff]
-                ' has been edited'
-            ==
-        ==
-      =.  cor  (emit (pass-hark new-yarn))
       go-core
     ::
         %del
@@ -1550,19 +1521,6 @@
         %+  ~(jab by zones.group)  zone.channel
         |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  channels.group  (del:by-ch ch)
-      ?:  from-self  go-core
-      =/  link  (go-link /channels)
-      =/  =new-yarn:ha
-        %-  spin
-        :*  (go-rope /channel/del)
-            link
-            ~
-            :~  [%emph title.meta.channel]
-                ' has been removed from '
-                [%emph title.meta.group]
-            ==
-        ==
-      =.  cor  (emit (pass-hark new-yarn))
       go-core
     ::
         %add-sects
