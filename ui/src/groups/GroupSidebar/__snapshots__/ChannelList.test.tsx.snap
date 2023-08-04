@@ -19,7 +19,7 @@ exports[`ChannelList > renders as expected 1`] = `
         aria-label="Groups Sort Options"
         class="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
         data-state="closed"
-        id="radix-0"
+        id="radix-:r0:"
         type="button"
       >
         <svg
