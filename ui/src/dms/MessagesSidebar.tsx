@@ -88,6 +88,7 @@ export function TalkAppMenu() {
       <DropdownMenu.Content className="dropdown" align="start">
         <DropdownMenu.Item asChild className="dropdown-item-blue">
           <a
+            className="no-underline"
             href="https://airtable.com/shrflFkf5UyDFKhmW"
             target="_blank"
             rel="noreferrer"
