@@ -11,7 +11,7 @@
     |^
     ^-  ^json
     %-  pairs
-    :~  groups/(groups:enjs:gj groups.init)
+    :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
         chat/(chat chat.init)
         heap/(heap heap.init)

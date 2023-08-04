@@ -212,11 +212,9 @@ export function useLureLinkChecked(flag: string) {
   const [good, setGood] = useState(false);
 
   useEffect(() => {
-    api.subscribeOnce<boolean>(
-      'grouper',
-      `/check-link/${flag}`,
-      12500
-    ).then((result: boolean) => setGood(result));
+    api
+      .subscribeOnce<boolean>('grouper', `/check-link/${flag}`, 12500)
+      .then((result: boolean) => setGood(result));
   }, [flag]);
 
   return good;

@@ -88,7 +88,7 @@ export function useGroups() {
     queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
-    scry: `/groups/light`,
+    scry: `/groups/light/ui`,
     options: {
       refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },

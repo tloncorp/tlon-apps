@@ -114,12 +114,9 @@ function WritBaseReference({
         onClick={handleOpenReferenceClick}
         className="cursor-pointer rounded-lg border-2 border-gray-50 text-base"
       >
-        <ReferenceInHeap
-          type="text"
-          contextApp={contextApp}
-        >
+        <ReferenceInHeap type="text" contextApp={contextApp}>
           <ChatContent
-            className="line-clamp-1 p-2"
+            className="p-2 line-clamp-1"
             story={writ.memo.content.story}
             isScrolling={false}
           />
