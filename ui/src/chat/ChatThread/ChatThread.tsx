@@ -19,6 +19,7 @@ import useLeap from '@/components/Leap/useLeap';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
@@ -43,6 +44,8 @@ export default function ChatThread() {
   const channel = useChannel(groupFlag, `chat/${flag}`)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
+  const dropZoneId = `chat-thread-input-dropzone-${id}`;
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const maybeWrit = useWrit(whom, id);
   const replies = useReplies(whom, id);
   const navigate = useNavigate();
@@ -174,8 +177,9 @@ export default function ChatThread() {
       </div>
       <div
         className={cn(
-          canWrite &&
-            'sticky bottom-0 border-t-2 border-gray-50 bg-white p-3 sm:p-4'
+          isDragging || isOver || !canWrite
+            ? ''
+            : 'sticky bottom-0 border-t-2 border-gray-50 bg-white p-3 sm:p-4'
         )}
       >
         {compatible && canWrite ? (
@@ -185,6 +189,7 @@ export default function ChatThread() {
             sendMessage={sendMessage}
             inThread
             autoFocus
+            dropZoneId={dropZoneId}
           />
         ) : !canWrite ? null : (
           <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">

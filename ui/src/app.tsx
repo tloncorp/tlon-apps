@@ -91,6 +91,7 @@ import { captureAnalyticsEvent } from './logic/analytics';
 import GroupChannel from './groups/GroupChannel';
 import PrivacyNotice from './groups/PrivacyNotice';
 import ActivityModal, { ActivityChecker } from './components/ActivityModal';
+import { DragAndDropProvider } from './logic/DragAndDropContext';
 import LureAutojoiner from './groups/LureAutojoiner';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
@@ -626,24 +627,26 @@ function App() {
       {!disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
-        {isTalk ? (
-          <>
-            <TalkHead />
-            <ChatRoutes
+        <DragAndDropProvider>
+          {isTalk ? (
+            <>
+              <TalkHead />
+              <ChatRoutes
+                state={state}
+                location={location}
+                isMobile={isMobile}
+                isSmall={isSmall}
+              />
+            </>
+          ) : (
+            <GroupsRoutes
               state={state}
               location={location}
               isMobile={isMobile}
               isSmall={isSmall}
             />
-          </>
-        ) : (
-          <GroupsRoutes
-            state={state}
-            location={location}
-            isMobile={isMobile}
-            isSmall={isSmall}
-          />
-        )}
+          )}
+        </DragAndDropProvider>
         <Leap />
       </LeapProvider>
       <VitaMessage />
