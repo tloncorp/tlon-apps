@@ -12,6 +12,7 @@ import { PrivacyType } from '@/types/groups';
 import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import X16Icon from '@/components/icons/X16Icon';
+import ActionsModal, { Action } from '@/components/ActionsModal';
 
 interface NewGroupInviteProps {
   groupName: string;
@@ -43,33 +44,26 @@ function MemberRoleDropDownMenu({
   setSelectedRole,
 }: MemberRoleDropDownMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  const actions: Action[] = roles.map((role) => ({
+    key: role,
+    type: 'default',
+    onClick: () => setSelectedRole(role),
+    content: role,
+  }));
+
   return (
-    <div>
-      <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
-        <DropdownMenu.Trigger asChild className="appearance-none">
-          <button
-            className={cn(
-              'default-focus text-md mx-2 flex items-center rounded-lg bg-gray-400 py-0.5 px-2 font-bold text-black mix-blend-multiply transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 dark:mix-blend-screen'
-            )}
-            aria-label="Open Member Role Options"
-          >
-            <span>{selectedRole}</span>
-            <CaretDownIcon className="h-4 w-4" />
-          </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content className="dropdown">
-          {roles.map((role) => (
-            <DropdownMenu.Item
-              key={role}
-              className="dropdown-item flex items-center space-x-2"
-              onClick={() => setSelectedRole(role)}
-            >
-              {role}
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </div>
+    <ActionsModal open={isOpen} onOpenChange={setIsOpen} actions={actions}>
+      <button
+        className={cn(
+          'default-focus text-md mx-2 flex items-center rounded-lg bg-gray-400 py-0.5 px-2 font-bold text-black mix-blend-multiply transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 dark:mix-blend-screen'
+        )}
+        aria-label="Open Member Role Options"
+      >
+        <span>{selectedRole}</span>
+        <CaretDownIcon className="h-4 w-4" />
+      </button>
+    </ActionsModal>
   );
 }
 
