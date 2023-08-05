@@ -284,9 +284,11 @@
 ::
 +$  init  [=time =group]
 ::
-::  $groups: map for frontend to display groups
-+$  groups
+::  $groups-ui: map for frontend to display groups
++$  groups-ui
   (map flag group-ui)
++$  groups
+  (map flag group)
 +$  net-groups
   (map flag [net group])
 ::
