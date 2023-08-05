@@ -23,6 +23,7 @@ type ActionsModalProps = PropsWithChildren<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   actions: Action[];
+  disabled?: boolean;
   asChild?: boolean;
   align?: 'start' | 'end' | 'center';
   ariaLabel?: string;
@@ -52,6 +53,7 @@ const ActionsModal = React.memo(
     onOpenChange,
     actions,
     asChild = true,
+    disabled,
     align,
     ariaLabel,
     className,
@@ -66,6 +68,7 @@ const ActionsModal = React.memo(
         {isMobile ? (
           <Drawer.Root open={open} onOpenChange={onOpenChange}>
             <Drawer.Trigger
+              disabled={disabled}
               asChild={asChild}
               aria-label={ariaLabel}
               className={cn('appearance-none', triggerClassName)}
@@ -101,6 +104,7 @@ const ActionsModal = React.memo(
         ) : (
           <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
             <DropdownMenu.Trigger
+              disabled={disabled}
               asChild={asChild}
               aria-label={ariaLabel}
               className={cn('appearance-none', triggerClassName)}
@@ -109,7 +113,7 @@ const ActionsModal = React.memo(
             </DropdownMenu.Trigger>
             <DropdownMenu.Content
               align={align}
-              className={cn('dropdown min-w-52', contentClassName)}
+              className={cn('dropdown', contentClassName)}
             >
               {actions.map((action) => (
                 <DropdownMenu.Item

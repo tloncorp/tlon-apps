@@ -1,8 +1,8 @@
 import cn from 'classnames';
 import React, { useState } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import ActionsModal, { Action } from '@/components/ActionsModal';
 import { useGroupCompatibility, useRouteGroup } from '@/state/groups';
 
 interface EditSectionDropDownProps {
@@ -16,33 +16,40 @@ export default function EditSectionDropDown({
 }: EditSectionDropDownProps) {
   const group = useRouteGroup();
   const { compatible } = useGroupCompatibility(group);
+  const [open, setOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const actions: Action[] = [
+    {
+      key: 'edit',
+      type: 'default',
+      onClick: handleEditClick,
+      content: 'Edit Section',
+    },
+    {
+      key: 'delete',
+      type: 'destructive',
+      onClick: () => setDeleteOpen(true),
+      content: 'Delete Section',
+    },
+  ];
+
   return (
     <>
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger disabled={!compatible} className="cursor-pointer">
-          <ElipsisIcon
-            className={cn(
-              'h-5 w-5',
-              compatible ? 'text-gray-600' : 'text-gray-200'
-            )}
-          />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content className="dropdown">
-          <DropdownMenu.Item
-            className="dropdown-item flex items-center space-x-2"
-            onSelect={handleEditClick}
-          >
-            <span>Edit Section</span>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className="dropdown-item flex items-center space-x-2"
-            onSelect={() => setDeleteOpen(true)}
-          >
-            <span className="text-red">Delete Section</span>
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
+      <ActionsModal
+        open={open}
+        onOpenChange={setOpen}
+        actions={actions}
+        disabled={!compatible}
+        triggerClassName="cursor-pointer"
+      >
+        <ElipsisIcon
+          className={cn(
+            'h-5 w-5',
+            compatible ? 'text-gray-600' : 'text-gray-200'
+          )}
+        />
+      </ActionsModal>
       <ConfirmationModal
         open={deleteOpen}
         setOpen={setDeleteOpen}
