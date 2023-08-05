@@ -88,7 +88,7 @@ export function useGroups() {
     queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
-    scry: `/groups/light/ui`,
+    scry: `/groups/light/v0`,
     options: {
       refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
@@ -124,7 +124,7 @@ export function useGroup(flag: string, updating = false) {
   const { data, ...rest } = useReactQueryScry<Group>({
     queryKey,
     app: 'groups',
-    path: `/groups/${flag}/ui`,
+    path: `/groups/${flag}/v0`,
     options: {
       enabled: !!flag && flag !== '' && updating && connection,
       initialData: group,

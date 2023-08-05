@@ -1,6 +1,12 @@
 /-  g=groups, c=chat
 |%
 +$  init
+  $:  groups=groups:g
+      =gangs:g
+      talk
+  ==
+::
++$  init-0
   $:  groups=groups-ui:g
       =gangs:g
       talk
