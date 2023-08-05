@@ -47,7 +47,6 @@ function MemberRoleDropDownMenu({
 
   const actions: Action[] = roles.map((role) => ({
     key: role,
-    type: 'default',
     onClick: () => setSelectedRole(role),
     content: role,
   }));

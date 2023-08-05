@@ -97,20 +97,17 @@ const GroupActions = React.memo(
     actions.push(
       {
         key: 'copy',
-        type: 'default',
         onClick: onCopySelect,
         content: copyItemText,
         keepOpenOnClick: true,
       },
       {
         key: 'pin',
-        type: 'default',
         onClick: onPinClick,
         content: isPinned ? 'Unpin' : 'Pin',
       },
       {
         key: 'settings',
-        type: 'default',
         onClick: () => setIsOpen(false),
         content: isAdmin ? (
           <Link

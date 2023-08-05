@@ -13,7 +13,7 @@ export type ActionType =
 
 export interface Action {
   key: string;
-  type: ActionType;
+  type?: ActionType;
   onClick?: React.MouseEventHandler<HTMLDivElement>;
   content: ReactNode;
   keepOpenOnClick?: boolean;
@@ -32,7 +32,7 @@ type ActionsModalProps = PropsWithChildren<{
   contentClassName?: string;
 }>;
 
-function classNameForType(type: ActionType) {
+function classNameForType(type?: ActionType) {
   switch (type) {
     case 'disabled':
       return 'dropdown-item-disabled';

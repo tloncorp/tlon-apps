@@ -30,7 +30,6 @@ export default function SidebarSorter({
   Object.keys(sortOptions).forEach((k) => {
     actions.push({
       key: k,
-      type: 'default',
       onClick: () => setSortFn(k),
       content: k,
     });

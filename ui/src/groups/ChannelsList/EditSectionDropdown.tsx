@@ -22,7 +22,6 @@ export default function EditSectionDropDown({
   const actions: Action[] = [
     {
       key: 'edit',
-      type: 'default',
       onClick: handleEditClick,
       content: 'Edit Section',
     },

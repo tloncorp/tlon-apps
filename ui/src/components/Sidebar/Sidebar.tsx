@@ -49,7 +49,6 @@ export function GroupsAppMenu() {
     },
     {
       key: 'about',
-      type: 'default',
       content: (
         <Link to="/about" state={{ backgroundLocation: location }}>
           About Groups
@@ -58,7 +57,6 @@ export function GroupsAppMenu() {
     },
     {
       key: 'settings',
-      type: 'default',
       content: (
         <Link
           to="/settings"
