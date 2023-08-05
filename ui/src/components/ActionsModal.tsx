@@ -17,6 +17,7 @@ export interface Action {
   onClick?: React.MouseEventHandler<HTMLDivElement>;
   content: ReactNode;
   keepOpenOnClick?: boolean;
+  containerClassName?: string;
 }
 
 type ActionsModalProps = PropsWithChildren<{
@@ -121,7 +122,10 @@ const ActionsModal = React.memo(
                   key={action.key}
                   disabled={action.type === 'disabled'}
                   onClick={action.onClick}
-                  className={classNameForType(action.type)}
+                  className={cn(
+                    classNameForType(action.type),
+                    action.containerClassName
+                  )}
                 >
                   {typeof action.content === 'string' ? (
                     <span>{action.content}</span>

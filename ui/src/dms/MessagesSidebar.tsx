@@ -25,6 +25,7 @@ import SystemChrome from '@/components/Sidebar/SystemChrome';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
+import ActionsModal, { Action } from '@/components/ActionsModal';
 
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -118,6 +119,7 @@ export function TalkAppMenu() {
 export default function MessagesSidebar() {
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const messagesFilter = useMessagesFilter();
   const { mutate } = usePutEntryMutation({
     bucket: 'talk',
@@ -143,6 +145,36 @@ export default function MessagesSidebar() {
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
+
+  const filterActions: Action[] = [
+    {
+      key: 'all',
+      onClick: () => setFilterMode(filters.all),
+      content: 'All Messages',
+      containerClassName: cn(
+        'flex items-center space-x-2 rounded-none',
+        messagesFilter === filters.all && 'bg-gray-50 text-gray-800'
+      ),
+    },
+    {
+      key: 'direct',
+      onClick: () => setFilterMode(filters.dms),
+      content: 'Direct Messages',
+      containerClassName: cn(
+        'flex items-center space-x-2 rounded-none',
+        messagesFilter === filters.dms && 'bg-gray-50 text-gray-800'
+      ),
+    },
+    {
+      key: 'groups',
+      onClick: () => setFilterMode(filters.groups),
+      content: 'Group Talk Channels',
+      containerClassName: cn(
+        'flex items-center space-x-2 rounded-none',
+        messagesFilter === filters.groups && 'bg-gray-50 text-gray-800'
+      ),
+    },
+  ];
 
   return (
     <nav className="flex h-full min-w-64 flex-none resize-x flex-col overflow-hidden border-r-2 border-gray-50 bg-white">
@@ -188,46 +220,17 @@ export default function MessagesSidebar() {
               <h2 className="text-sm font-bold text-gray-400">
                 {messagesFilter}
               </h2>
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger
-                  className={'default-focus'}
-                  aria-label="Groups Filter Options"
-                >
-                  <Filter16Icon className="w-4 text-gray-400" />
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content className="dropdown w-56 text-gray-600">
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.all &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.all)}
-                  >
-                    All Messages
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.dms &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.dms)}
-                  >
-                    Direct Messages
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.groups &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.groups)}
-                  >
-                    Group Channels
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
+              <ActionsModal
+                open={filterOpen}
+                onOpenChange={setFilterOpen}
+                actions={filterActions}
+                asChild={false}
+                triggerClassName="default-focus"
+                contentClassName="w-56 text-gray-600"
+                ariaLabel="Groups Filter Options"
+              >
+                <Filter16Icon className="w-4 text-gray-400" />
+              </ActionsModal>
             </div>
           </MessagesList>
         </MessagesScrollingContext.Provider>
