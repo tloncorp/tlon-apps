@@ -92,15 +92,26 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/noun))
+    =+  .^([=groups:g =gangs:g] (scry %gx %groups /init/noun))
     =/  =init:u
-      :*  groups-ui
+      :*  groups
           gangs
           .^(chat:u (scry %gx %chat /init/noun))
           .^(heap:u (scry %gx %heap /init/noun))
           .^(diary:u (scry %gx %diary /init/noun))
       ==
     ``ui-init+!>(init)
+  ::
+      [%x %init %v0 ~]
+    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v0/noun))
+    =/  =init-0:u
+      :*  groups-ui
+          gangs
+          .^(chat:u (scry %gx %chat /init/noun))
+          .^(heap:u (scry %gx %heap /init/noun))
+          .^(diary:u (scry %gx %diary /init/noun))
+      ==
+    ``ui-init-0+!>(init-0)
   ::
       [%x %migration ~]
     =/  =migration:u

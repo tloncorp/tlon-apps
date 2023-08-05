@@ -338,14 +338,15 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %gangs ~]  ``gangs+!>(xeno)
-      [%x %init ~]  ``noun+!>([groups-light-ui xeno])
+      [%x %init ~]  ``noun+!>([groups-light xeno])
+      [%x %init %v0 ~]  ``noun+!>([groups-light-ui xeno])
       [%x %groups %light ~]  ``groups+!>(groups-light)
-      [%x %groups %light %ui ~]  ``groups-ui+!>(groups-light-ui)
+      [%x %groups %light %v0 ~]  ``groups-ui+!>(groups-light-ui)
   ::
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
   ::
-      [%x %groups %ui ~]
+      [%x %groups %v0 ~]
     ``groups-ui+!>(`groups-ui:g`(~(run by groups) to-group-ui))
   ::
       [%x %groups ship=@ name=@ rest=*]
@@ -353,7 +354,7 @@
     =/  group  (~(got by groups) [ship name.pole])
     ?~  rest.pole
       ``group+!>(+.group)
-    ?:  =(/ui rest.pole)
+    ?:  =(/v0 rest.pole)
       ``group-ui+!>(`group-ui:g`(to-group-ui group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::

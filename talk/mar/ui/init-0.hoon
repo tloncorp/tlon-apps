@@ -1,6 +1,6 @@
 /-  u=ui
 /+  gj=groups-json, cj=chat-json
-|_  =init:u
+|_  init=init-0:u
 ++  grad  %noun
 ++  grow
   |%
@@ -8,7 +8,7 @@
   ++  json
     =,  enjs:format
     %-  pairs
-    :~  groups/(groups:enjs:gj groups.init)
+    :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
         briefs/(briefs:enjs:cj briefs.init)
         chats/(chats:enjs:cj chats.init)
@@ -20,6 +20,6 @@
   --
 ++  grab
   |%
-  ++  noun  init:u
+  ++  noun  init-0:u
   --
 --
