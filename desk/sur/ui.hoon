@@ -1,6 +1,14 @@
 /-  g=groups, c=chat, d=diary, h=heap
 |%
 +$  init
+  $:  =groups:g
+      =gangs:g
+      =chat
+      =heap
+      =diary    
+  ==
+::
++$  init-0
   $:  groups=groups-ui:g
       =gangs:g
       =chat

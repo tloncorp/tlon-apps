@@ -1,7 +1,7 @@
 /-  u=ui
 /+  gj=groups-json, cj=chat-json, dj=diary-json, hj=heap-json
 ::  group flag + channel flag
-|_  =init:u
+|_  init=init-0:u
 ++  grad  %noun
 ++  grow
   |%
@@ -11,7 +11,7 @@
     |^
     ^-  ^json
     %-  pairs
-    :~  groups/(groups:enjs:gj groups.init)
+    :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
         chat/(chat chat.init)
         heap/(heap heap.init)
@@ -43,6 +43,6 @@
   --
 ++  grab
   |%
-  ++  noun  init:u
+  ++  noun  init-0:u
   --
 --
