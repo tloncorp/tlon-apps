@@ -14,6 +14,7 @@ import { isImageUrl } from '@/logic/utils';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
+import BubbleIcon from '../icons/BubbleIcon';
 
 interface WritBaseReferenceProps {
   nest: string;
@@ -104,6 +105,34 @@ function WritBaseReference({
       >
         {children}
       </ReferenceInHeap>
+    );
+  }
+
+  if (contextApp === 'heap-comment') {
+    return (
+      <div
+        onClick={handleOpenReferenceClick}
+        className="cursor-pointer rounded-lg border-2 border-gray-50 text-base"
+      >
+        <ReferenceInHeap type="text" contextApp={contextApp}>
+          <ChatContent
+            className="p-2 line-clamp-1"
+            story={writ.memo.content.story}
+            isScrolling={false}
+          />
+          {children}
+          <ReferenceBar
+            nest={nest}
+            time={time}
+            author={writ.memo.author}
+            groupFlag={preview?.group.flag}
+            groupImage={group?.meta.image}
+            groupTitle={preview?.group.meta.title}
+            channelTitle={preview?.meta?.title}
+            heapComment
+          />
+        </ReferenceInHeap>
+      </div>
     );
   }
 

@@ -8,6 +8,14 @@
       =diary    
   ==
 ::
++$  init-0
+  $:  groups=groups-ui:g
+      =gangs:g
+      =chat
+      =heap
+      =diary    
+  ==
+::
 +$  chat
   $:  =briefs:c
       chats=(map flag:c chat:c)

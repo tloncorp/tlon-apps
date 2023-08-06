@@ -70,6 +70,15 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
     fileList.forEach((f) => upload(uploader, f, bucket));
   },
+  setUploadType: (uploaderKey, type) => {
+    get().update(uploaderKey, (draft) => {
+      draft.uploadType = type;
+    });
+  },
+  getUploadType: (uploaderKey) => {
+    const uploader = get().getUploader(uploaderKey);
+    return uploader ? uploader.uploadType : 'prompt';
+  },
   upload: async (uploader, upload, bucket) => {
     const { client, updateStatus, updateFile } = get();
     if (!client) {
@@ -159,6 +168,7 @@ const emptyUploader = (key: string, bucket: string): Uploader => ({
     useFileStore.getState().uploadFiles(key, files, bucket),
   clear: () => useFileStore.getState().clear(key),
   removeByURL: (url) => useFileStore.getState().removeByURL(key, url),
+  uploadType: 'prompt',
   prompt: () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -223,6 +233,14 @@ export function useUploader(key: string): Uploader | undefined {
         })
       );
     }
+
+    return () => {
+      useFileStore.setState(
+        produce((draft) => {
+          delete draft.uploaders[key];
+        })
+      );
+    };
   }, [client, currentBucket, key]);
 
   return uploader;

@@ -1,6 +1,7 @@
 import { Editor } from '@tiptap/react';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
+import { useLocalStorage } from 'usehooks-ts';
 import React, {
   useCallback,
   useEffect,
@@ -8,6 +9,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { usePact } from '@/state/chat';
 import { ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, {
@@ -44,11 +46,11 @@ import {
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import * as Popover from '@radix-ui/react-popover';
-import { useSearchParams } from 'react-router-dom';
 import { useGroupFlag } from '@/state/groups';
-import { useLocalStorage } from 'usehooks-ts';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 
 interface ChatInputProps {
   whom: string;
@@ -59,6 +61,7 @@ interface ChatInputProps {
   sendDisabled?: boolean;
   sendMessage: (whom: string, memo: ChatMemo) => void;
   inThread?: boolean;
+  dropZoneId: string;
 }
 
 export function UploadErrorPopover({
@@ -80,7 +83,7 @@ export function UploadErrorPopover({
       >
         <div className="flex w-[200px] flex-col items-center justify-center rounded-lg bg-white p-4 leading-5 shadow-xl">
           <span className="mb-2 font-semibold text-gray-800">
-            This file can't be posted.
+            This file can&apos;t be posted.
           </span>
           <div className="flex flex-col justify-start">
             <span className="mt-2 text-gray-800">{errorMessage}</span>
@@ -100,7 +103,15 @@ export default function ChatInput({
   sendDisabled = false,
   sendMessage,
   inThread = false,
+  dropZoneId,
 }: ChatInputProps) {
+  const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
+    useDragAndDrop(dropZoneId);
+  const [didDrop, setDidDrop] = useState(false);
+  const isTargetId = useMemo(
+    () => targetId === dropZoneId,
+    [targetId, dropZoneId]
+  );
   const id = replying ? `${whom}-${replying}` : whom;
   const [draft, setDraft] = useLocalStorage(
     createStorageKey(`chat-${id}`),
@@ -124,9 +135,35 @@ export default function ChatInput({
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
-  const files = uploader?.files;
+  const files = useMemo(() => uploader?.files, [uploader]);
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
+
+  const handleDrop = useCallback(
+    (fileList: FileList) => {
+      const localUploader = useFileStore.getState().getUploader(uploadKey);
+
+      if (
+        localUploader &&
+        Array.from(fileList).some((f) => PASTEABLE_IMAGE_TYPES.includes(f.type))
+      ) {
+        localUploader.uploadFiles(fileList);
+        useFileStore.getState().setUploadType(uploadKey, 'drag');
+        setDroppedFiles((prev) => {
+          if (prev) {
+            const { [dropZoneId]: _files, ...rest } = prev;
+            return rest;
+          }
+          return prev;
+        });
+
+        return true;
+      }
+
+      return false;
+    },
+    [uploadKey, dropZoneId, setDroppedFiles]
+  );
 
   const closeReply = useCallback(() => {
     setSearchParams({}, { replace: true });
@@ -151,28 +188,58 @@ export default function ChatInput({
     }
   }, [id, uploadKey, closeReply, replyCite]);
 
+  useEffect(() => {
+    console.log('droppedFiles', droppedFiles);
+    if (droppedFiles && droppedFiles[dropZoneId]) {
+      console.log('droppedFiles[dropZoneId]', droppedFiles[dropZoneId]);
+      handleDrop(droppedFiles[dropZoneId]);
+      setDidDrop(true);
+    }
+  }, [droppedFiles, handleDrop, dropZoneId]);
+
   // update the Attached Items view when files finish uploading and have a size
   useEffect(() => {
     if (
       id &&
       files &&
       Object.values(files).length &&
-      !_.some(Object.values(files), (f) => f.size === undefined)
+      !_.some(Object.values(files), (f) => f.size === undefined) &&
+      !_.some(Object.values(files), (f) => f.url === '')
     ) {
-      // TODO: handle existing blocks (other refs)
-      useChatStore.getState().setBlocks(
-        id,
-        Object.values(files).map((f) => ({
-          image: {
-            src: f.url, // TODO: what to put when still loading?
-            width: f.size[0],
-            height: f.size[1],
-            alt: f.file.name,
-          },
-        }))
-      );
+      const uploadType = useFileStore.getState().getUploadType(uploadKey);
+
+      if (isTargetId && uploadType === 'drag' && didDrop) {
+        // TODO: handle existing blocks (other refs)
+        useChatStore.getState().setBlocks(
+          id,
+          Object.values(files).map((f) => ({
+            image: {
+              src: f.url, // TODO: what to put when still loading?
+              width: f.size[0],
+              height: f.size[1],
+              alt: f.file.name,
+            },
+          }))
+        );
+        setDidDrop(false);
+      }
+
+      if (uploadType !== 'drag') {
+        // TODO: handle existing blocks (other refs)
+        useChatStore.getState().setBlocks(
+          id,
+          Object.values(files).map((f) => ({
+            image: {
+              src: f.url, // TODO: what to put when still loading?
+              width: f.size[0],
+              height: f.size[1],
+              alt: f.file.name,
+            },
+          }))
+        );
+      }
     }
-  }, [files, id]);
+  }, [files, id, uploader, isTargetId, uploadKey, didDrop, targetId]);
 
   const onUpdate = useRef(
     debounce(({ editor }: HandlerParams) => {
@@ -427,17 +494,17 @@ export default function ChatInput({
 
   const onRemove = useCallback(
     (idx: number) => {
-      const blocks = fetchChatBlocks(whom);
-      if ('image' in blocks[idx]) {
+      const blocks = fetchChatBlocks(id);
+      if (blocks[idx] && 'image' in blocks[idx]) {
         // @ts-expect-error type check on previous line
         uploader.removeByURL(blocks[idx].image.src);
       }
       useChatStore.getState().setBlocks(
-        whom,
+        id,
         blocks.filter((_b, k) => k !== idx)
       );
     },
-    [whom, uploader]
+    [id, uploader]
   );
 
   if (!messageEditor) {
@@ -447,10 +514,30 @@ export default function ChatInput({
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
 
+  // only allow dropping if this component is the target
+  if ((isDragging || isOver) && isTargetId) {
+    return (
+      <div id={dropZoneId} className="flex w-full bg-gray-50">
+        <div
+          id={dropZoneId}
+          className="m-[7px] flex w-full justify-center rounded border-2 border-dashed border-gray-200 bg-gray-50"
+        >
+          <p id={dropZoneId} className="m-4 text-sm font-bold">
+            Drop Attachments Here
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className={cn('flex w-full items-end space-x-2', className)}>
-        <div className="flex-1">
+        <div
+          // sometimes a race condition causes the dropzone to be removed before the drop event fires
+          id={dropZoneId}
+          className="flex-1"
+        >
           {imageBlocks.length > 0 ? (
             <div className="mb-2 flex flex-wrap items-center">
               {imageBlocks.map((img, idx) => (

@@ -339,17 +339,22 @@
   ?+    pole  [~ ~]
       [%x %gangs ~]  ``gangs+!>(xeno)
       [%x %init ~]  ``noun+!>([groups-light xeno])
+      [%x %init %v0 ~]  ``noun+!>([groups-light-ui xeno])
       [%x %groups %light ~]  ``groups+!>(groups-light)
+      [%x %groups %light %v0 ~]  ``groups-ui+!>(groups-light-ui)
   ::
       [%x %groups ~]
-    ``groups+!>(`groups:g`(~(run by groups) to-group-ui))
+    ``groups+!>(`groups:g`(~(run by groups) tail))
+  ::
+      [%x %groups %v0 ~]
+    ``groups-ui+!>(`groups-ui:g`(~(run by groups) to-group-ui))
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
     =/  group  (~(got by groups) [ship name.pole])
     ?~  rest.pole
       ``group+!>(+.group)
-    ?:  =(/ui rest.pole)
+    ?:  =(/v0 rest.pole)
       ``group-ui+!>(`group-ui:g`(to-group-ui group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
@@ -358,16 +363,25 @@
       ``noun+!>((~(has by groups) [src name.pole]))
   ==
 ::
-++  groups-light
-  ^-  groups:g
-  %-  ~(run by groups)
-  |=  [=net:g =group:g]
+++  drop-fleet
+  |=  =group:g
+  ^-  group:g
   =.  fleet.group
     %+  ~(put by *fleet:g)
       our.bowl
     (~(gut by fleet.group) our.bowl *vessel:fleet:g)
-  (to-group-ui net group)
+  group
+++  groups-light
+  ^-  groups:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  (drop-fleet group)
 ::
+++  groups-light-ui
+  ^-  groups-ui:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  (to-group-ui net (drop-fleet group))
 ++  to-group-ui
   |=  [=net:g =group:g]
   ^-  group-ui:g
@@ -1504,18 +1518,6 @@
       =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
       ?:  from-self  go-core
-      =/  link  (go-link /channels)
-      =/  =new-yarn:ha
-        %-  spin
-        :*  (go-rope /channel/add)
-            link
-            `['Subscribe to channel' link]
-            :~  [%emph title.meta.channel.diff]
-                ' has been added to '
-                [%emph title.meta.group]
-            ==
-        ==
-      =.  cor  (emit (pass-hark new-yarn))
       ?:  =(our.bowl p.flag)  go-core
       =.  cor  (emil (join-channels:go-pass ~[ch]))
       go-core
@@ -1524,23 +1526,6 @@
       =/  prev=channel:g  (got:by-ch ch)
       =.  zones.group  (go-bump-zone ch channel.diff)
       =.  channels.group  (put:by-ch ch channel.diff)
-      ?:  from-self  go-core
-      =/  link  (go-link /channels)
-      =/  =new-yarn:ha
-        %-  spin
-        :*  (go-rope /channel/edit)
-            link
-            `['Subscribe to channel' link]
-            ?:  !=(title.meta.channel.diff title.meta.prev)
-              :~  [%emph title.meta.prev]
-                  ' has been renamed to '
-                  [%emph title.meta.channel.diff]
-              ==
-            :~  [%emph title.meta.channel.diff]
-                ' has been edited'
-            ==
-        ==
-      =.  cor  (emit (pass-hark new-yarn))
       go-core
     ::
         %del
@@ -1550,19 +1535,6 @@
         %+  ~(jab by zones.group)  zone.channel
         |=(=realm:zone:g realm(ord (~(del of ord.realm) ch)))
       =.  channels.group  (del:by-ch ch)
-      ?:  from-self  go-core
-      =/  link  (go-link /channels)
-      =/  =new-yarn:ha
-        %-  spin
-        :*  (go-rope /channel/del)
-            link
-            ~
-            :~  [%emph title.meta.channel]
-                ' has been removed from '
-                [%emph title.meta.group]
-            ==
-        ==
-      =.  cor  (emit (pass-hark new-yarn))
       go-core
     ::
         %add-sects
