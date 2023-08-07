@@ -33,7 +33,6 @@ import { canWriteChannel, restoreMap } from '@/logic/utils';
 import useNest from '@/logic/useNest';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { CURIO_PAGE_SIZE } from '@/constants';
-// import { HeapState } from './type';
 import { useGroup, useVessel } from '../groups';
 import { createState } from '../base';
 
@@ -329,23 +328,6 @@ export function useDelCurioFeelMutation() {
   });
 }
 
-// TODO update for infinite query
-export async function prefetchCurioBlocks({
-  queryClient,
-  flag,
-}: {
-  queryClient: QueryClient;
-  flag: HeapFlag;
-}) {
-  const data = (await api.scry({
-    app: 'heap',
-    path: `/heap/${flag}/curios/newest/${CURIO_PAGE_SIZE}/blocks`,
-  })) as HeapCurios;
-  if (data && data.length) {
-    queryClient.setQueryData(['heap', 'curios', flag], data);
-  }
-}
-
 export function useJoinHeapMutation() {
   const queryClient = useQueryClient();
 
@@ -371,7 +353,6 @@ export function useJoinHeapMutation() {
     onSettled: async (_data, _error, variables) => {
       await queryClient.refetchQueries(['heap', 'briefs']);
       await queryClient.refetchQueries(['heap', 'stash']);
-      await prefetchCurioBlocks({ queryClient, flag: variables.chan });
     },
   });
 }
@@ -477,6 +458,39 @@ export function useInfiniteCurioBlocks(flag: HeapFlag) {
   };
 }
 
+export async function prefetchCurioBlocks({
+  queryClient,
+  flag,
+  delay = 0,
+}: {
+  queryClient: QueryClient;
+  flag: HeapFlag;
+  delay?: number;
+}) {
+  const queryKey = ['heap', flag, 'curios', 'infinite'];
+
+  if (queryClient.getQueryCache().find(queryKey)) {
+    return;
+  }
+
+  async function fetchAndCache() {
+    const data = (await api.scry({
+      app: 'heap',
+      path: `/heap/${flag}/curios/newest/${CURIO_PAGE_SIZE}/blocks`,
+    })) as HeapCurios;
+    if (data && data.length) {
+      queryClient.setQueryData(['heap', flag, 'curios', 'infinite'], {
+        pages: [formatCurioResponse(data)],
+        pageParams: [null],
+      });
+    }
+  }
+
+  setTimeout(() => {
+    fetchAndCache();
+  }, delay);
+}
+
 export async function prefetchCurioWithComments({
   queryClient,
   flag,
@@ -499,7 +513,6 @@ export async function prefetchCurioWithComments({
   }
 }
 
-// TODO: add prefetch on block hover in channel view
 export function usePrefetchCurioWithComments() {
   const queryClient = useQueryClient();
   const prefetch = useCallback(
