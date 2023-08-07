@@ -120,7 +120,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const brief = useDiaryBrief(chFlag);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = useDiaryPerms(chFlag);
-  const chan = useChannelSpecific(chFlag);
+  const chan = useChannelSpecific(nest);
   const saga = chan?.saga;
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const joinChannel = useCallback(async () => {
