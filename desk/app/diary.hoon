@@ -837,6 +837,11 @@
   ++  di-proxy
     |=  =update:d
     ^+  di-core
+    ::  don't allow anyone else to proxy through us
+    ~|  "%diary-action poke failed: only allowed from self"
+    ?>  =(src.bowl our.bowl)
+    ::  must have permission to write
+    ~|  "%diary-action poke failed: can't write to host"
     ?>  di-can-write
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  [act:mar:d !>([flag update])]
