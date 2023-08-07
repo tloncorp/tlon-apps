@@ -304,6 +304,9 @@
   ::
       %dm-action
     =+  !<(=action:dm:c vase)
+    ::  don't allow anyone else to proxy through us
+    ~|  "%dm-action poke failed: only allowed from self"
+    ?>  =(src.bowl our.bowl)
     ::  don't proxy to self, creates an infinite loop
     ~|  "%dm-action poke failed: can't dm self"
     ?<  =(p.action our.bowl)
@@ -1415,6 +1418,11 @@
   ++  ca-proxy
     |=  =update:c
     ^+  ca-core
+    ::  don't allow anyone else to proxy through us
+    ~|  "%chat-action poke failed: only allowed from self"
+    ?>  =(src.bowl our.bowl)
+    ::  must have permission to write
+    ~|  "%chat-action poke failed: can't write to host"
     ?>  ca-can-write
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  [act:mar:c !>([flag update])]
