@@ -1,8 +1,8 @@
 import React, { PropsWithChildren, ReactNode } from 'react';
+import { Drawer } from 'vaul';
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useIsMobile } from '@/logic/useMedia';
-import Drawer from '@/components/Drawer';
 
 export type ActionType =
   | 'default'
@@ -78,7 +78,7 @@ const ActionsModal = React.memo(
             </Drawer.Trigger>
             <Drawer.Portal>
               <Drawer.Overlay className="fixed inset-0 z-[9999] bg-black/20" />
-              <Drawer.Content className="fixed inset-x-[32px] bottom-[32px] z-[9999] flex flex-col rounded-[32px] bg-white px-[32px] py-[16px]">
+              <Drawer.Content className="fixed inset-x-[32px] bottom-[32px] z-[9999] flex flex-col rounded-[32px] bg-white px-[32px] py-[16px] after:bg-transparent">
                 {actions.map((action) => (
                   <div
                     key={action.key}
