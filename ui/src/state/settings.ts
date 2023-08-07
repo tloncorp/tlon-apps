@@ -504,14 +504,24 @@ export function useSideBarSortMode() {
 
 export function useShowActivityMessage() {
   const { data, isLoading } = useMergedSettings();
+  const { mutate } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'hasBeenUsed',
+  });
 
   return useMemo(() => {
     if (isLoading || data === undefined || window.desk !== 'groups') {
       return false;
     }
 
+    if (!data.groups?.hasBeenUsed && data.groups?.showActivityMessage) {
+      mutate({ val: true });
+
+      return false;
+    }
+
     return data.groups?.showActivityMessage || false;
-  }, [isLoading, data]);
+  }, [isLoading, data, mutate]);
 }
 
 export function useShowVitaMessage() {
