@@ -50,6 +50,7 @@ export interface Uploader {
   removeByURL: (url: string) => void;
   clear: () => void;
   prompt: () => void;
+  uploadType: 'prompt' | 'paste' | 'drag';
 }
 
 export interface FileStore {
@@ -65,6 +66,8 @@ export interface FileStore {
   ) => Promise<void>;
   upload: (uploader: string, upload: Upload, bucket: string) => Promise<void>;
   clear: (uploader: string) => void;
+  setUploadType: (uploaderKey: string, type: Uploader['uploadType']) => void;
+  getUploadType: (uploaderKey: string) => Uploader['uploadType'];
   updateFile: (
     uploader: string,
     key: string,
