@@ -10,6 +10,9 @@ import { useIsMobile } from '@/logic/useMedia';
 import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
 import ContentReference from '@/components/References/ContentReference';
 import { useCalm } from '@/state/settings';
+import HeapYoutubePlayer from '../HeapYoutubePlayer';
+import HeapVimeoPlayer from '../HeapVimeoPlayer';
+import HeapVideoPlayer from '../HeapVideoPlayer';
 
 export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   const [embed, setEmbed] = useState<any>();
@@ -60,8 +63,8 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
     return <HeapAudioPlayer source={url} />;
   }
 
-  if (isVideo) {
-    // TODO: VIDEO PLAYER
+  if (isVideo && !calm.disableRemoteContent) {
+    return <HeapVideoPlayer source={url} />;
   }
 
   if (isImage && !calm.disableRemoteContent) {
@@ -75,7 +78,23 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
   const isOembed = validOembedCheck(embed, url);
 
   if (isOembed && embed !== undefined && !calm.disableRemoteContent) {
-    return <HeapDetailEmbed oembed={embed} url={url} />;
+    const provider = embed.provider_url as string;
+
+    let embedComponent = <HeapDetailEmbed oembed={embed} url={url} />;
+
+    if (provider.includes('youtube.com')) {
+      embedComponent = <HeapYoutubePlayer embed={embed} />;
+    }
+
+    if (provider.includes('vimeo.com')) {
+      embedComponent = <HeapVimeoPlayer embed={embed} />;
+    }
+
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        {embedComponent}
+      </div>
+    );
   }
 
   return <EmbedFallback url={url} />;
