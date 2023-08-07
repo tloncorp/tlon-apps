@@ -56,8 +56,6 @@ export default function useReactQuerySubscription({
   }, [app, path, queryClient, queryKey]);
 
   return useQuery(queryKey, fetchData, {
-    retryOnMount: false,
-    refetchOnMount: false,
     ...options,
   });
 }
