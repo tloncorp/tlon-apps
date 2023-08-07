@@ -1,5 +1,7 @@
+import getYoutubeId from 'get-youtube-id';
+
 export default function HeapYoutubePlayer({ embed }: { embed: any }) {
-  const id = embed.url.split('v=')[1];
+  const id = getYoutubeId(embed.url);
 
   return (
     <iframe
