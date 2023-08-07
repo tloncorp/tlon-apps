@@ -305,11 +305,11 @@
       %dm-action
     =+  !<(=action:dm:c vase)
     ::  don't allow anyone else to proxy through us
-    ~|  "%dm-action poke failed: only allowed from self"
-    ?>  =(src.bowl our.bowl)
+    ?.  =(src.bowl our.bowl)
+      ~|("%dm-action poke failed: only allowed from self" !!)
     ::  don't proxy to self, creates an infinite loop
-    ~|  "%dm-action poke failed: can't dm self"
-    ?<  =(p.action our.bowl)
+    ?:  =(p.action our.bowl)
+      ~|("%dm-action poke failed: can't dm self" !!)
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %dm-diff
@@ -1419,11 +1419,11 @@
     |=  =update:c
     ^+  ca-core
     ::  don't allow anyone else to proxy through us
-    ~|  "%chat-action poke failed: only allowed from self"
-    ?>  =(src.bowl our.bowl)
+    ?.  =(src.bowl our.bowl)
+      ~|("%chat-action poke failed: only allowed from self" !!)
     ::  must have permission to write
-    ~|  "%chat-action poke failed: can't write to host"
-    ?>  ca-can-write
+    ?.  ca-can-write
+      ~|("%chat-action poke failed: can't write to host" !!)
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  [act:mar:c !>([flag update])]
     =.  cor

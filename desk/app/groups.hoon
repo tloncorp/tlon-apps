@@ -1072,11 +1072,11 @@
     ^+  go-core
     =*  diff  q.update
     ::  don't allow anyone else to proxy through us
-    ~|  "%group-action poke failed: only allowed from self"
-    ?>  =(src.bowl our.bowl)
+    ?.  =(src.bowl our.bowl)
+      ~|("%group-action poke failed: only allowed from self" !!)
     ::  must have permission to write
-    ~|  "%group-action poke failed: can't write to host"
-    ?>  ?|(go-is-bloc ?&(?=(%fleet -.diff) ?=([%add ~] q.diff)))
+    ?.  ?|(go-is-bloc ?&(?=(%fleet -.diff) ?=([%add ~] q.diff)))
+      ~|("%group-action poke failed: can't write to host" !!)
     =/  =wire  (snoc go-area %proxy)
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  [act:mar:g !>([flag update])]
