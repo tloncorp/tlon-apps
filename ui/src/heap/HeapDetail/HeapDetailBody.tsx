@@ -91,7 +91,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
     }
 
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center bg-gray-50">
         {embedComponent}
       </div>
     );
