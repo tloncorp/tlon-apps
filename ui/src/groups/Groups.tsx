@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import cookies from 'browser-cookies';
 import { Outlet, useMatch, useNavigate } from 'react-router';
 import _ from 'lodash';
 import {
@@ -22,6 +23,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 
 function Groups() {
   const navigate = useNavigate();
+  const hasUsedGroupsCount = parseInt(cookies.get('hasUsedGroups') || '0', 10);
   const flag = useRouteGroup();
   const group = useGroup(flag, true);
   const gang = useGang(flag);
@@ -72,6 +74,8 @@ function Groups() {
     if (!group && !gang) {
       navigate('/');
     } else if (group && root) {
+      cookies.set('hasUsedGroups', (hasUsedGroupsCount + 1).toString());
+
       const found = Object.entries(group.channels).find(
         ([nest, _c]) => recentChannel === nest
       );
@@ -108,6 +112,7 @@ function Groups() {
     recentChannel,
     navigate,
     diaryBriefs,
+    hasUsedGroupsCount,
   ]);
 
   useGroupsAnalyticsEvent({

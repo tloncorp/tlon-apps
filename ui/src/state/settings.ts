@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import cookies from 'browser-cookies';
 import { v4 as uuidv4 } from 'uuid';
 import { Value, PutBucket, DelEntry, DelBucket } from '@urbit/api';
 import _ from 'lodash';
@@ -504,14 +505,27 @@ export function useSideBarSortMode() {
 
 export function useShowActivityMessage() {
   const { data, isLoading } = useMergedSettings();
+  const cookie = cookies.get('hasUsedGroups');
 
   return useMemo(() => {
     if (isLoading || data === undefined || window.desk !== 'groups') {
       return false;
     }
 
+    if ((!cookie || cookie === '1') && data.groups?.showActivityMessage) {
+      return false;
+    }
+
+    if (
+      cookie &&
+      cookie !== '1' &&
+      data.groups?.showActivityMessage === undefined
+    ) {
+      return true;
+    }
+
     return data.groups?.showActivityMessage || false;
-  }, [isLoading, data]);
+  }, [isLoading, data, cookie]);
 }
 
 export function useShowVitaMessage() {
