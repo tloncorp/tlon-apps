@@ -93,6 +93,7 @@ import ActivityModal, { ActivityChecker } from '@/components/ActivityModal';
 import Profile from '@/profiles/Profile';
 import SettingsView from '@/components/Settings/SettingsView';
 import AboutView from '@/components/About/AboutView';
+import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
@@ -636,24 +637,26 @@ function App() {
       {!disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
-        {isTalk ? (
-          <>
-            <TalkHead />
-            <ChatRoutes
+        <DragAndDropProvider>
+          {isTalk ? (
+            <>
+              <TalkHead />
+              <ChatRoutes
+                state={state}
+                location={location}
+                isMobile={isMobile}
+                isSmall={isSmall}
+              />
+            </>
+          ) : (
+            <GroupsRoutes
               state={state}
               location={location}
               isMobile={isMobile}
               isSmall={isSmall}
             />
-          </>
-        ) : (
-          <GroupsRoutes
-            state={state}
-            location={location}
-            isMobile={isMobile}
-            isSmall={isSmall}
-          />
-        )}
+          )}
+        </DragAndDropProvider>
         <Leap />
       </LeapProvider>
       <VitaMessage />

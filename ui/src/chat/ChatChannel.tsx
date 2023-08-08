@@ -21,6 +21,7 @@ import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
@@ -36,6 +37,8 @@ function ChatChannel({ title }: ViewProps) {
     idTime: string;
   }>();
   const chFlag = `${chShip}/${chName}`;
+  const dropZoneId = `chat-input-dropzone-${chFlag}`;
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
   const { setRecentChannel } = useRecentChannel(groupFlag);
@@ -155,7 +158,11 @@ function ChatChannel({ title }: ViewProps) {
         }
         footer={
           <div
-            className={cn(canWrite && 'border-t-2 border-gray-50 p-3 sm:p-4')}
+            className={cn(
+              !canWrite || ((isDragging || isOver) && !inThread)
+                ? ''
+                : 'border-t-2 border-gray-50 p-3 sm:p-4'
+            )}
           >
             {compatible && canWrite ? (
               <ChatInput
@@ -164,6 +171,7 @@ function ChatChannel({ title }: ViewProps) {
                 sendMessage={sendMessage}
                 showReply
                 autoFocus={!inThread && !inSearch}
+                dropZoneId={dropZoneId}
               />
             ) : !canWrite ? null : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">

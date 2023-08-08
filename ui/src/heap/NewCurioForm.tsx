@@ -20,9 +20,11 @@ import {
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import { useHeapDisplayMode } from '@/state/settings';
-import { useUploader } from '@/state/storage';
+import { useFileStore, useUploader } from '@/state/storage';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
 import HeapTextInput from './HeapTextInput';
@@ -36,6 +38,8 @@ export default function NewCurioForm() {
   const { privacy } = useGroupPrivacy(flag);
   const nest = useNest();
   const [, chFlag] = nestToFlag(nest);
+  const dropZoneId = `new-curio-input-${chFlag}`;
+  const { isDragging, isOver, droppedFiles } = useDragAndDrop(dropZoneId);
   const displayMode = useHeapDisplayMode(chFlag);
   const isGridMode = displayMode === GRID;
   const isListMode = displayMode === LIST;
@@ -47,7 +51,8 @@ export default function NewCurioForm() {
   const { compatible, text } = useChannelCompatibility(nest);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const uploader = useUploader('new-curio-input');
+  const uploadKey = `${chFlag}-new-curio-input`;
+  const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
   const { register, handleSubmit, reset, watch, setValue } =
     useForm<NewCurioFormSchema>({
@@ -121,6 +126,30 @@ export default function NewCurioForm() {
     [handleSubmit, isPending, isValidInput, onSubmit, setPending, setReady]
   );
 
+  const handleDrop = useCallback(
+    (fileList: FileList) => {
+      const localUploader = useFileStore.getState().getUploader(uploadKey);
+
+      if (
+        localUploader &&
+        Array.from(fileList).some((f) => PASTEABLE_IMAGE_TYPES.includes(f.type))
+      ) {
+        localUploader.uploadFiles(fileList);
+        useFileStore.getState().setUploadType(uploadKey, 'drag');
+        return true;
+      }
+
+      return false;
+    },
+    [uploadKey]
+  );
+
+  useEffect(() => {
+    if (droppedFiles && droppedFiles[dropZoneId]) {
+      handleDrop(droppedFiles[dropZoneId]);
+    }
+  }, [droppedFiles, handleDrop, dropZoneId]);
+
   useEffect(() => {
     if (watchedContent) {
       setDraftLink(watchedContent);
@@ -160,12 +189,45 @@ export default function NewCurioForm() {
     </div>
   );
 
+  if (isGridMode && isDragging && isOver) {
+    return (
+      <div id={dropZoneId} className="virtuoso-grid-item aspect-h-1 aspect-w-1">
+        <div
+          id={dropZoneId}
+          className="heap-block flex-col items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 p-1"
+        >
+          <div id={dropZoneId} className="text-sm font-bold">
+            Drop Attachments Here
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isListMode && isDragging && isOver) {
+    return (
+      <div id={dropZoneId} className="virtuoso-list-item">
+        <div
+          id={dropZoneId}
+          className="heap-row flex h-[108px] items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 p-1"
+        >
+          <div id={dropZoneId} className="text-sm font-bold">
+            Drop Attachments Here
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
+      // sometimes a race condition causes the dropzone to be removed before the drop event fires
+      id={dropZoneId}
       className={cn(isGridMode && 'virtuoso-grid-item aspect-h-1 aspect-w-1')}
     >
       {isListMode ? modeToggle() : null}
       <div
+        id={dropZoneId}
         className={cn(
           isGridMode ? 'heap-block flex-col p-1' : 'heap-row h-min flex-row',
           'flex cursor-auto'
