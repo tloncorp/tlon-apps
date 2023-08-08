@@ -7,7 +7,7 @@ test('accept group invite', async ({ page }) => {
   await page.getByText('Pending Invites').waitFor();
   await page.getByRole('button', { name: 'Join Group' }).first().click();
   await page
-    .getByText('Fetching messages from group host. This might take a sec...')
+    .getByText('Fetching messages from group host. This might take a minute...')
     .waitFor();
   await page.getByText('bus chat').first().waitFor();
   await page.getByText('bus chat').first().click();
