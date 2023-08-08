@@ -154,10 +154,6 @@ export function useDragAndDrop(targetId: string) {
 
   const handleDropWithTarget = useCallback(
     (e: DragEvent) => {
-      const targetElement = e.target as HTMLElement;
-
-      if (targetElement && targetElement.id !== targetId) return;
-
       handleDrop(e, targetId);
     },
     [handleDrop, targetId]
