@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
-import { getFlagParts, isTalk } from '@/logic/utils';
+import { getFlagParts, isTalk, nestToFlag } from '@/logic/utils';
 import { useChannel } from '@/state/groups';
 import { useChannel as useChannelSpecific } from '@/logic/channel';
 import { Link } from 'react-router-dom';
@@ -21,7 +21,8 @@ export default function ChannelTitleButton({
 }: ChannelTitleButtonProps) {
   const isMobile = useIsMobile();
   const channel = useChannel(flag, nest);
-  const { ship } = getFlagParts(flag);
+  const [, chFlag] = nestToFlag(nest);
+  const { ship } = getFlagParts(chFlag);
   const BackButton = isMobile ? Link : 'div';
   const { data } = useConnectivityCheck(ship || '');
   const chan = useChannelSpecific(nest);

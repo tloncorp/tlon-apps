@@ -1,4 +1,5 @@
 /$  init        %ui-init              %json
+/$  init-0      %ui-init-0            %json
 /$  migration   %ui-migration         %json
 /$  rolo        %contact-rolodex      %json
 /$  contact     %contact              %json
