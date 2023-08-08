@@ -94,6 +94,7 @@ import ActivityModal, { ActivityChecker } from '@/components/ActivityModal';
 import Profile from '@/profiles/Profile';
 import SettingsView from '@/components/Settings/SettingsView';
 import AboutView from '@/components/About/AboutView';
+import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
@@ -641,24 +642,26 @@ function App() {
       {!disableWayfinding && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
-        {isTalk ? (
-          <>
-            <TalkHead />
-            <ChatRoutes
+        <DragAndDropProvider>
+          {isTalk ? (
+            <>
+              <TalkHead />
+              <ChatRoutes
+                state={state}
+                location={location}
+                isMobile={isMobile}
+                isSmall={isSmall}
+              />
+            </>
+          ) : (
+            <GroupsRoutes
               state={state}
               location={location}
               isMobile={isMobile}
               isSmall={isSmall}
             />
-          </>
-        ) : (
-          <GroupsRoutes
-            state={state}
-            location={location}
-            isMobile={isMobile}
-            isSmall={isSmall}
-          />
-        )}
+          )}
+        </DragAndDropProvider>
         <Leap />
       </LeapProvider>
       <VitaMessage />

@@ -91,8 +91,8 @@ export default function DiaryAddNote() {
   // expand title to 2 rows if needed, beyond that we can scroll
   useEffect(() => {
     if (extraTitleRow) return;
-    const { scrollHeight, clientHeight } = titleRef.current!;
-    if (scrollHeight > clientHeight) {
+    if (!titleRef.current) return;
+    if (titleRef.current.scrollHeight > titleRef.current.clientHeight) {
       setExtraTitleRow(true);
     }
   }, [watchedTitle, extraTitleRow]);
