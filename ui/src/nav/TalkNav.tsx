@@ -7,7 +7,7 @@ export default function TalkNav() {
   const isMobile = useIsMobile();
 
   return (
-    <div className="flex h-full w-full">
+    <div className="fixed flex h-full w-full">
       {isMobile ? null : <MessagesSidebar />}
       <Outlet />
     </div>
