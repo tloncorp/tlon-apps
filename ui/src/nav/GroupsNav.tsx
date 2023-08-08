@@ -1,4 +1,3 @@
-import React from 'react';
 import { matchPath, Outlet, useLocation, useMatch } from 'react-router';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/Sidebar/Sidebar';
