@@ -210,12 +210,22 @@ export function useLure(flag: string, disableLoading = false) {
 
 export function useLureLinkChecked(flag: string) {
   const [good, setGood] = useState(false);
+  const [retryDisabled, setRetryDisabled] = useState(true);
 
   useEffect(() => {
-    api
-      .subscribeOnce<boolean>('grouper', `/check-link/${flag}`, 12500)
-      .then((result: boolean) => setGood(result));
+    const interval = setInterval(() => {
+      api.subscribeOnce<boolean>('grouper', `/check-link/${flag}`, 12500)
+        .then((result: boolean) => {
+          if (result) {
+            setGood(result);
+          }
+        });
+    }, 6000);
+
+    return () => clearInterval(interval);
   }, [flag]);
 
-  return good;
+  setTimeout(() => setRetryDisabled(false), 10_000);
+
+  return [good, retryDisabled];
 }

@@ -26,7 +26,7 @@ export default function LureInviteBlock({
 }: LureInviteBlock) {
   const { supported, fetched, enabled, enableAcked, url, toggle } =
     useLure(flag);
-  const good = useLureLinkChecked(flag);
+  const [good, retryDisabled] = useLureLinkChecked(flag);
   const { didCopy, doCopy } = useCopy(url);
 
   if (!supported) {
@@ -107,13 +107,18 @@ export default function LureInviteBlock({
           {url !== '' && !good && (
             <>
               <input
-                value="Link cannot be displayed"
+                value="Verifying link..."
                 readOnly
                 className="flex w-full flex-1 rounded-lg border-2 border-gray-100 bg-gray-100 py-1 px-2 text-lg font-semibold  leading-5 text-gray-600 mix-blend-multiply focus:outline-none dark:mix-blend-screen sm:text-base sm:leading-5"
               />
+              <LoadingSpinner />
               <button
+                disabled={retryDisabled}
                 className="button"
-                onClick={toggle(group?.meta || emptyMeta)}
+                onClick={() => {
+                  toggle(group?.meta || emptyMeta)();
+                  setTimeout(toggle(group?.meta || emptyMeta), 500);
+                }}
               >
                 Retry
               </button>
