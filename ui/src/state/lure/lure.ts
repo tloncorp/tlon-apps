@@ -220,12 +220,12 @@ export function useLureLinkChecked(flag: string) {
             setGood(result);
           }
         });
-    }, 6000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [flag]);
 
-  setTimeout(() => setRetryDisabled(false), 10_000);
+  setTimeout(() => setRetryDisabled(false), 6000);
 
   return [good, retryDisabled];
 }
