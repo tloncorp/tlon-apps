@@ -17,7 +17,6 @@ EditorView.prototype.updateState = function updateState(state) {
 };
 
 import React from 'react';
-import { render } from 'react-dom';
 import { PostHogProvider } from 'posthog-js/react';
 import App from './app';
 import _api from './api';
@@ -28,6 +27,7 @@ import queryClient from './queryClient';
 import indexedDBPersistor from './indexedDBPersistor';
 import UpdateNotice from './components/UpdateNotice';
 import { analyticsClient } from './logic/analytics';
+import { createRoot } from 'react-dom/client';
 
 const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -39,8 +39,9 @@ if (IS_MOCK) {
 
 window.our = `~${window.ship}`;
 
-const root = document.getElementById('app') as HTMLElement;
-render(
+const container = document.getElementById('app') as HTMLElement;
+const root = createRoot(container);
+root.render(
   <React.StrictMode>
     <PersistQueryClientProvider
       client={queryClient}
@@ -54,6 +55,5 @@ render(
         <App />
       </PostHogProvider>
     </PersistQueryClientProvider>
-  </React.StrictMode>,
-  root
+  </React.StrictMode>
 );

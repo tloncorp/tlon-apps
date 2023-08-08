@@ -18,7 +18,7 @@ export default function NoteReactions({ whom, seal, time }: NotReactionsProps) {
   const feels = _.invertBy(seal.feels);
 
   const onEmoji = useCallback(
-    async (emoji) => {
+    async (emoji: any) => {
       await addFeel({ flag: whom, noteId: time, feel: emoji.shortcodes });
     },
     [whom, time, addFeel]
