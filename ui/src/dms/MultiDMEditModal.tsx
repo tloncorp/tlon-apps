@@ -50,7 +50,7 @@ export default function MultiDMEditModal() {
   const hasPending = pendingCount && pendingCount > 0;
   const [editing, setEditing] = useState(false);
   const setEditingCb = useCallback(
-    (v) => {
+    (v: boolean) => {
       setEditing(v);
     },
     [setEditing]

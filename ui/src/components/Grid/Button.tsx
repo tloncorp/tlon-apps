@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from 'react';
+import React, { ButtonHTMLAttributes, PropsWithChildren } from 'react';
 import classNames from 'classnames';
 
 type ButtonVariant =
@@ -18,10 +18,9 @@ const variants: Record<ButtonVariant, string> = {
   'alt-secondary': 'text-blue-400 bg-blue-50',
 };
 
-type ButtonProps = PropsWithChildren<{
+type ButtonProps = {
   variant?: ButtonVariant;
-  className?: string;
-}>;
+} & ButtonHTMLAttributes<HTMLButtonElement>;
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = 'primary', children, className, ...props }, ref) => (
