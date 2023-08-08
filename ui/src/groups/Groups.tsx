@@ -132,9 +132,11 @@ function Groups() {
   if (!group || group.meta.title === '') {
     return (
       <div className="flex min-w-0 grow items-center justify-center bg-gray-50">
-        <div className="flex items-center justify-center">
+        <div className="items-top mx-6 flex max-w-prose justify-center">
           <LoadingSpinner className="h-4 w-4 text-gray-400" />
-          <span className="ml-2 text-gray-600">Wait a sec</span>
+          <span className="ml-3 text-gray-600">
+            Fetching messages from group host. This might take a sec...
+          </span>
         </div>
       </div>
     );
