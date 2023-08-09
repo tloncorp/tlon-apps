@@ -227,5 +227,6 @@ export function useLureLinkChecked(flag: string, enabled: boolean) {
   return {
     ...query,
     good: data,
+    checked: query.isFetched && !query.isLoading,
   };
 }

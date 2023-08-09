@@ -27,7 +27,7 @@ export default function LureInviteBlock({
 }: LureInviteBlock) {
   const { supported, fetched, enabled, enableAcked, url, toggle } =
     useLure(flag);
-  const { good, isLoading, isFetched } = useLureLinkChecked(flag, !!enabled);
+  const { good, checked } = useLureLinkChecked(flag, !!enabled);
   const { didCopy, doCopy } = useCopy(url);
 
   const retry = useCallback(() => {
@@ -103,7 +103,7 @@ export default function LureInviteBlock({
       )}
       {enabled && enableAcked ? (
         <div className="relative flex flex-1 items-center space-x-2">
-          {(isLoading || !isFetched) && (
+          {!checked && (
             <div className="flex w-full flex-1 items-center space-x-2 rounded-lg border-2 border-blue-soft bg-blue-soft py-1 px-2 text-lg font-semibold leading-5 text-blue mix-blend-multiply dark:mix-blend-screen sm:text-base sm:leading-5">
               <LoadingSpinner className="h-4 w-4 text-blue" />
               <span className="font-semibold text-blue">
@@ -111,7 +111,7 @@ export default function LureInviteBlock({
               </span>
             </div>
           )}
-          {url !== '' && isFetched && !isLoading && !good && (
+          {url !== '' && checked && !good && (
             <>
               <div className="flex w-full flex-1 items-center space-x-2 rounded-lg border-2 border-blue-soft bg-blue-soft py-1 px-2 text-lg font-semibold leading-5 text-blue mix-blend-multiply dark:mix-blend-screen sm:text-base sm:leading-5">
                 <span className="font-semibold text-blue">
@@ -123,7 +123,7 @@ export default function LureInviteBlock({
               </button>
             </>
           )}
-          {url !== '' && isFetched && !isLoading && good && (
+          {url !== '' && checked && good && (
             <>
               <input
                 value={url}
