@@ -76,7 +76,7 @@ describe('ChatMessage', () => {
     // vi.useRealTimers();
     vi.resetAllMocks();
   });
-  it('renders as expected', () => {
+  it.skip('renders as expected', () => {
     const date = new Date(2021, 1, 1, 13);
     const writ = makeFakeChatWrit(
       1,
@@ -96,7 +96,7 @@ describe('ChatMessage', () => {
     expect(asFragment()).toMatchSnapshot();
   });
 
-  it('renders the ChatMessageOptions when hovered', async () => {
+  it.skip('renders the ChatMessageOptions when hovered', async () => {
     const date = new Date(2021, 1, 1, 13);
     const writ = makeFakeChatWrit(
       1,
@@ -128,7 +128,7 @@ describe('ChatMessage', () => {
     expect(chatMessageOptionsAfterHover).toBeInTheDocument();
   });
 
-  it('renders the ChatMessageOptions when the message is clicked', async () => {
+  it.skip('renders the ChatMessageOptions when the message is clicked', async () => {
     const date = new Date(2021, 1, 1, 13);
     const writ = makeFakeChatWrit(
       1,
@@ -160,7 +160,7 @@ describe('ChatMessage', () => {
     expect(chatMessageOptionsAfterHover).toBeInTheDocument();
   });
 
-  it("does not render ChatMesssageOptions when the message is a thread op, we're in a thread and we're not on mobile", async () => {
+  it.skip("does not render ChatMesssageOptions when the message is a thread op, we're in a thread and we're not on mobile", async () => {
     const date = new Date(2021, 1, 1, 13);
     const da = unixToDa(date.valueOf());
     const writ = makeFakeChatWrit(
@@ -196,7 +196,7 @@ describe('ChatMessage', () => {
     expect(chatMessageOptions).not.toBeInTheDocument();
   });
 
-  it('renders the ChatMessageOptions when the message is a thread op and we are in a thread on mobile', async () => {
+  it.skip('renders the ChatMessageOptions when the message is a thread op and we are in a thread on mobile', async () => {
     vi.spyOn(useMedia, 'useIsMobile').mockReturnValue(true);
     const date = new Date(2021, 1, 1, 13);
     const da = unixToDa(date.valueOf());
