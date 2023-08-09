@@ -8,6 +8,8 @@ export type AnalyticsEventName =
   | 'app_close'
   | 'profile_edit'
   | 'profile_view'
+  | 'group_join'
+  | 'group_exit'
   | 'open_group'
   | 'leave_group'
   | 'open_channel'

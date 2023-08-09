@@ -24,5 +24,12 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["./src", "./e2e", "./*.config.ts", "./*.setup.ts", "./rube"]
+  "include": [
+    "./src",
+    "./e2e",
+    "./*.config.ts",
+    "./*.setup.ts",
+    "./rube",
+    "cosmos/setup.ts"
+  ]
 }
