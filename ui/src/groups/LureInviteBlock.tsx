@@ -115,7 +115,7 @@ export default function LureInviteBlock({
             <>
               <div className="flex w-full flex-1 items-center space-x-2 rounded-lg border-2 border-blue-soft bg-blue-soft py-1 px-2 text-lg font-semibold leading-5 text-blue mix-blend-multiply dark:mix-blend-screen sm:text-base sm:leading-5">
                 <span className="font-semibold text-blue">
-                  Failed to successfully create link with lure service
+                  Error creating link
                 </span>
               </div>
               <button className="button" onClick={retry}>
