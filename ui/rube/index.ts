@@ -6,7 +6,6 @@ import * as os from 'os';
 import * as zlib from 'zlib';
 import * as portscanner from 'portscanner';
 import * as fsExtra from 'fs-extra';
-import * as FormData from 'form-data';
 import { spawn } from 'child_process';
 
 const ships: Record<
@@ -46,8 +45,10 @@ const getUrbitBinaryUrlByPlatformAndArch = () => {
     case 'linux':
       switch (arch) {
         case 'x64':
+          console.log('Downloading linux-x86_64');
           return 'https://urbit.org/install/linux-x86_64/latest';
         case 'arm64':
+          console.log('Downloading linux-aarch64');
           return 'https://urbit.org/install/linux-aarch64/latest';
         default:
           throw new Error(`unsupported arch ${arch}`);
@@ -55,8 +56,10 @@ const getUrbitBinaryUrlByPlatformAndArch = () => {
     case 'darwin':
       switch (arch) {
         case 'x64':
+          console.log('Downloading macos-x86_64');
           return 'https://urbit.org/install/macos-x86_64/latest';
         case 'arm64':
+          console.log('Downloading macos-aarch64');
           return 'https://urbit.org/install/macos-aarch64/latest';
         default:
           throw new Error(`unsupported arch ${arch}`);
@@ -100,12 +103,15 @@ const getPiers = async () => {
   for (const { url, savePath, extractPath, ship } of Object.values(ships)) {
     if (!fs.existsSync(savePath)) {
       await downloadFile(url, savePath);
+      console.log(`Downloaded ${ship} to ${savePath}`);
     } else {
       console.log(`Skipping download of ${ship} as it already exists`);
       if (fs.existsSync(extractPath)) {
         fs.rmSync(extractPath, { recursive: true });
+        console.log(`Removed existing ${extractPath}`);
       }
       await extractFile(savePath, extractPath);
+      console.log(`Extracted ${ship} to ${extractPath}`);
     }
   }
 };
@@ -118,7 +124,9 @@ const getUrbitBinary = async () => {
 
   if (!fs.existsSync(finalName)) {
     await downloadFile(url, savePath);
+    console.log(`Downloaded urbit binary to ${savePath}`);
     await extractFile(savePath, extractPath);
+    console.log(`Extracted urbit binary to ${extractPath}`);
 
     const extracedFiles = fs.readdirSync(extractPath);
 
@@ -127,7 +135,7 @@ const getUrbitBinary = async () => {
       fs.renameSync(path.join(extractPath, mainFile), finalName);
     }
   } else {
-    console.log('Skipping download of urbit as it already exists');
+    console.log('Skipping download of urbit binary as it already exists');
   }
 };
 
@@ -339,10 +347,20 @@ const shipsAreReady = async () => {
 
       const json = JSON.parse(response);
 
-      return (
+      if (
         json['groups'].hash !== startHashes[ship.ship].groups &&
         json['talk'].hash !== startHashes[ship.ship].talk
-      );
+      ) {
+        console.log(`~${ship.ship} is ready`, {
+          groups: json['groups'].hash,
+          talk: json['talk'].hash,
+        });
+        return true;
+      }
+
+      console.log(`~${ship.ship} is not ready`);
+
+      return false;
     })
   );
 
@@ -376,6 +394,7 @@ const runPlaywrightTests = async () => {
 
   const runTestForShip = (ship: string) =>
     new Promise<void>((resolve, reject) => {
+      console.log(`Running tests for ${ship}`);
       const testProcess = spawn('npx', ['playwright', 'test', '--workers=1'], {
         env: {
           ...process.env,
@@ -401,6 +420,7 @@ const runPlaywrightTests = async () => {
     await runTestForShip('~bus');
     await runTestForShip('~zod');
     console.log('All tests passed successfully!');
+    process.exit(0);
   } catch (err) {
     console.error('Error running tests:', err);
     process.exit(1);
@@ -418,9 +438,8 @@ const main = async () => {
   setTimeout(
     async () =>
       await mountDesks(port1, port2).then(async () => {
-        await login().then(async () => {
-          await getStartHashes();
-        });
+        await login();
+        await getStartHashes();
         await copyDesks().then(async () => {
           await commitDesks(port1, port2).then(async () => {
             await runPlaywrightTests();
