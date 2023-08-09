@@ -149,6 +149,9 @@ const getUrbitBinary = async () => {
 };
 
 const bootShip = (binaryPath: string, pierPath: string, httpPort: string) => {
+  console.log(
+    `Booting ship ${pierPath} on port ${httpPort} with ${binaryPath}`
+  );
   const urbitProcess = spawn(binaryPath, [
     pierPath,
     '-t',
@@ -166,6 +169,10 @@ const bootShip = (binaryPath: string, pierPath: string, httpPort: string) => {
 
   urbitProcess.on('close', (code) => {
     console.log(`Urbit process exited with code ${code}`);
+  });
+
+  urbitProcess.on('error', (err) => {
+    console.error(`Urbit process errored with ${err}`);
   });
 
   process.on('exit', () => {
