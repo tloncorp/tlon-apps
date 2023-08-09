@@ -22,6 +22,7 @@ import MobileHeader from '@/components/MobileHeader';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
+import useAppName from '@/logic/useAppName';
 
 interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];
@@ -242,6 +243,7 @@ const pageTransition = {
 export default function EditProfile({ title }: ViewProps) {
   useAnalyticsEvent('profile_edit');
   const isMobile = useIsMobile();
+  const app = useAppName();
 
   return (
     <div className="flex grow overflow-y-scroll bg-gray-50">
@@ -251,7 +253,10 @@ export default function EditProfile({ title }: ViewProps) {
       <Layout
         header={
           isMobile ? (
-            <MobileHeader title="Edit Profile" pathBack="/profile" />
+            <MobileHeader
+              title="Edit Profile"
+              pathBack={app === 'Talk' ? '/' : '/profile'}
+            />
           ) : null
         }
         className="flex-1"
