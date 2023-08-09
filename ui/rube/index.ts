@@ -37,6 +37,8 @@ const ships: Record<
   },
 };
 
+const targetShip = process.env.SHIP_NAME;
+
 const getUrbitBinaryUrlByPlatformAndArch = () => {
   const platform = os.platform();
   const arch = os.arch();
@@ -101,6 +103,10 @@ const extractFile = async (filePath: string, extractPath: string) =>
 
 const getPiers = async () => {
   for (const { url, savePath, extractPath, ship } of Object.values(ships)) {
+    if (targetShip && targetShip !== ship) {
+      continue;
+    }
+
     if (!fs.existsSync(savePath)) {
       await downloadFile(url, savePath);
       console.log(`Downloaded ${ship} to ${savePath}`);
@@ -173,23 +179,22 @@ const copyDesks = async () => {
   const groups = path.resolve(__dirname, '../../../desk');
   const talk = path.resolve(__dirname, '../../../talk');
 
-  const zodGroups = path.join(ships.zod.extractPath, 'zod', 'groups');
-  const zodTalk = path.join(ships.zod.extractPath, 'zod', 'talk');
-  const busGroups = path.join(ships.bus.extractPath, 'bus', 'groups');
-  const busTalk = path.join(ships.bus.extractPath, 'bus', 'talk');
+  for (const ship of Object.values(ships)) {
+    if (targetShip && targetShip !== ship.ship) {
+      continue;
+    }
 
-  try {
-    console.log(`Copying ${groups} to ${zodGroups}`);
-    await fsExtra.copy(groups, zodGroups, { overwrite: true });
-    console.log(`Copying ${talk} to ${zodTalk}`);
-    await fsExtra.copy(talk, zodTalk, { overwrite: true, dereference: true });
+    const groupsDir = path.join(ship.extractPath, ship.ship, 'groups');
+    const talkDir = path.join(ship.extractPath, ship.ship, 'talk');
 
-    console.log(`Copying ${groups} to ${busGroups}`);
-    await fsExtra.copy(groups, busGroups, { overwrite: true });
-    console.log(`Copying ${talk} to ${busTalk}`);
-    await fsExtra.copy(talk, busTalk, { overwrite: true, dereference: true });
-  } catch (e) {
-    console.error('Error copying desks', e);
+    try {
+      console.log(`Copying ${groups} to ${groupsDir}`);
+      await fsExtra.copy(groups, groupsDir, { overwrite: true });
+      console.log(`Copying ${talk} to ${talkDir}`);
+      await fsExtra.copy(talk, talkDir, { overwrite: true, dereference: true });
+    } catch (e) {
+      console.error('Error copying desks', e);
+    }
   }
 };
 
@@ -211,6 +216,10 @@ const bootAllShips = () => {
   const binaryPath = path.join(__dirname, 'urbit_extracted', 'urbit');
 
   Object.values(ships).forEach(({ extractPath, ship, httpPort }) => {
+    if (targetShip && targetShip !== ship) {
+      return;
+    }
+
     bootShip(binaryPath, path.join(extractPath, ship), httpPort);
   });
 };
@@ -231,12 +240,22 @@ const postToUrbit = async (url: string, source: string, sink: any) => {
 };
 
 const hoodZod = async (command: string, port: number) => {
+  if (targetShip && targetShip !== 'zod') {
+    return;
+  }
+  console.log(`Running ${command} on zod`);
+
   await postToUrbit(`http://localhost:${port}`, `+hood/${command}`, {
     app: 'hood',
   });
 };
 
 const hoodBus = async (command: string, port: number) => {
+  if (targetShip && targetShip !== 'bus') {
+    return;
+  }
+  console.log(`Running ${command} on bus`);
+
   await postToUrbit(`http://localhost:${port}`, `+hood/${command}`, {
     app: 'hood',
   });
@@ -246,22 +265,38 @@ const mountDesks = async (port1: number, port2: number) => {
   console.log('Mounting desks on fake ships');
   await hoodZod('mount %groups', port1);
   await hoodZod('mount %talk', port1);
-  await hoodBus('mount %groups', port2);
-  await hoodBus('mount %talk', port2);
+  await hoodBus(
+    'mount %groups',
+    targetShip && targetShip === 'bus' ? port1 : port2
+  );
+  await hoodBus(
+    'mount %talk',
+    targetShip && targetShip === 'bus' ? port1 : port2
+  );
 };
 
 const commitDesks = async (port1: number, port2: number) => {
   console.log('Committing desks on fake ships');
   await hoodZod('commit %groups', port1);
   await hoodZod('commit %talk', port1);
-  await hoodBus('commit %groups', port2);
-  await hoodBus('commit %talk', port2);
+  await hoodBus(
+    'commit %groups',
+    targetShip && targetShip === 'bus' ? port1 : port2
+  );
+  await hoodBus(
+    'commit %talk',
+    targetShip && targetShip === 'bus' ? port1 : port2
+  );
 };
 
 const login = async () => {
   console.log('Logging in to fake ships');
 
   for (const ship of Object.values(ships)) {
+    if (targetShip && targetShip !== ship.ship) {
+      continue;
+    }
+
     const response = await fetch(`http://localhost:${ship.httpPort}/~/login`, {
       method: 'POST',
       body: `password=${ship.code}`,
@@ -321,6 +356,10 @@ let startHashes: { [ship: string]: { [desk: string]: string } } = {};
 
 const getStartHashes = async () => {
   for (const ship of Object.values(ships)) {
+    if (targetShip && targetShip !== ship.ship) {
+      continue;
+    }
+
     const response = await makeRequestWithCookies(
       ship.ship,
       `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`
@@ -340,6 +379,10 @@ const shipsAreReady = async () => {
   const shipsArray = Object.values(ships);
   const results = await Promise.all(
     shipsArray.map(async (ship) => {
+      if (targetShip && targetShip !== ship.ship) {
+        return true;
+      }
+
       const response = await makeRequestWithCookies(
         ship.ship,
         `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`
@@ -395,7 +438,13 @@ const runPlaywrightTests = async () => {
   const runTestForShip = (ship: string) =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests for ${ship}`);
-      const testProcess = spawn('npx', ['playwright', 'test', '--workers=1'], {
+      const playwrightArgs = ['playwright', 'test', '--workers=1'];
+
+      if (process.env.DEBUG_PLAYWRIGHT) {
+        playwrightArgs.push('--debug');
+      }
+
+      const testProcess = spawn('npx', playwrightArgs, {
         env: {
           ...process.env,
           SHIP: ship,
@@ -417,6 +466,12 @@ const runPlaywrightTests = async () => {
     });
 
   try {
+    if (targetShip) {
+      await runTestForShip(`~${targetShip}`);
+      console.log('All tests passed successfully!');
+      process.exit(0);
+      return;
+    }
     await runTestForShip('~bus');
     await runTestForShip('~zod');
     console.log('All tests passed successfully!');
@@ -428,6 +483,11 @@ const runPlaywrightTests = async () => {
 };
 
 const main = async () => {
+  if (targetShip && !ships[targetShip]) {
+    console.error(`Invalid ship name: ${targetShip}`);
+    process.exit(1);
+  }
+
   await getPiers();
   await getUrbitBinary();
   const port1 = await getAvailablePort(12321);
