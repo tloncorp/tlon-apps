@@ -1,3 +1,6 @@
+/* eslint no-restricted-syntax: 0 */
+/* eslint no-continue: 0 */
+/* eslint no-await-in-loop: 0 */
 import * as tar from 'tar-fs';
 import fetch from 'node-fetch';
 import * as fs from 'fs';
@@ -227,7 +230,7 @@ const bootAllShips = () => {
 const postToUrbit = async (url: string, source: string, sink: any) => {
   const payload = {
     source: { dojo: source },
-    sink: sink,
+    sink,
   };
 
   await fetch(url, {
@@ -352,7 +355,7 @@ const makeRequestWithCookies = async (ship: string, url: string) => {
   return responseBody;
 };
 
-let startHashes: { [ship: string]: { [desk: string]: string } } = {};
+const startHashes: { [ship: string]: { [desk: string]: string } } = {};
 
 const getStartHashes = async () => {
   for (const ship of Object.values(ships)) {
@@ -368,8 +371,8 @@ const getStartHashes = async () => {
     const json = JSON.parse(response);
 
     startHashes[ship.ship] = {
-      groups: json['groups'].hash,
-      talk: json['talk'].hash,
+      groups: json.groups.hash,
+      talk: json.talk.hash,
     };
     console.log(`Start hashes for ~${ship.ship}:`, startHashes[ship.ship]);
   }
@@ -391,12 +394,12 @@ const shipsAreReady = async () => {
       const json = JSON.parse(response);
 
       if (
-        json['groups'].hash !== startHashes[ship.ship].groups &&
-        json['talk'].hash !== startHashes[ship.ship].talk
+        json.groups.hash !== startHashes[ship.ship].groups &&
+        json.talk.hash !== startHashes[ship.ship].talk
       ) {
         console.log(`~${ship.ship} is ready`, {
-          groups: json['groups'].hash,
-          talk: json['talk'].hash,
+          groups: json.groups.hash,
+          talk: json.talk.hash,
         });
         return true;
       }
@@ -497,7 +500,7 @@ const main = async () => {
 
   setTimeout(
     async () =>
-      await mountDesks(port1, port2).then(async () => {
+      mountDesks(port1, port2).then(async () => {
         await login();
         await getStartHashes();
         await copyDesks().then(async () => {
