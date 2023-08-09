@@ -7,7 +7,6 @@ dist-ssr
 stats.html
 .eslintcache
 .vercel
-storybook-static
 /test-results/
 /playwright-report/
 /playwright/.cache/
