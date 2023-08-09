@@ -43,8 +43,7 @@
     "tsc": "tsc --noEmit",
     "postinstall": "patch-package",
     "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\"",
-    "cosmos": "cosmos",
-    "cosmos:export": "cosmos-export"
+    "cosmos": "cosmos"
   },
   "lint-staged": {
     "**/*.ts?(x)": [
