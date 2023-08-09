@@ -6,6 +6,7 @@ import {
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import useNavigateByApp from '@/logic/useNavigateByApp';
+import { getPrivacyFromGang } from '@/logic/utils';
 
 export default function LureAutojoiner(): React.ReactElement {
   const { mutateAsync: joinMutation } = useGroupJoinMutation();
@@ -16,11 +17,12 @@ export default function LureAutojoiner(): React.ReactElement {
   const autojoin = useCallback(
     (pendingGangs: Gangs) => {
       Object.entries(pendingGangs).map(async ([flag, gang]) => {
+        const privacy = getPrivacyFromGang(gang);
         const cookieName = `lure-join-${flag}`.replace('/', '--');
 
         if (!gang.claim) {
           if (cookies.get(cookieName)) {
-            await joinMutation({ flag });
+            await joinMutation({ flag, privacy });
             cookies.erase(cookieName);
             navigateByApp(`/groups/${flag}`);
           }

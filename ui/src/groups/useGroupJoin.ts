@@ -91,7 +91,7 @@ export default function useGroupJoin(
       }
 
       try {
-        joinMutation({ flag });
+        joinMutation({ flag, privacy });
         if (redirectItem) {
           if (redirectItem.type === 'chat') {
             return navigateByApp(
