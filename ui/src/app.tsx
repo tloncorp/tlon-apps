@@ -41,7 +41,6 @@ import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupDelete from '@/groups/GroupAdmin/GroupDelete';
 import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
-import NewGroup from '@/groups/NewGroup/NewGroup';
 import ProfileModal from '@/profiles/ProfileModal';
 import MultiDMEditModal from '@/dms/MultiDMEditModal';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
@@ -52,47 +51,52 @@ import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
-import GroupInvitesPrivacy from './groups/GroupAdmin/GroupInvitesPrivacy';
-import Notifications, { MainWrapper } from './notifications/Notifications';
-import ChatChannel from './chat/ChatChannel';
-import HeapChannel from './heap/HeapChannel';
-import DiaryChannel from './diary/DiaryChannel';
-import DiaryNote from './diary/DiaryNote';
-import DMNotification from './notifications/DMNotification';
-import GroupNotification from './notifications/GroupNotification';
-import EditCurioModal from './heap/EditCurioModal';
-import GroupMembers from './groups/GroupAdmin/GroupMembers';
-import GroupRoles from './groups/GroupAdmin/GroupRoles';
-import GroupInfoEditor from './groups/GroupAdmin/GroupInfoEditor';
-import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
-import DisconnectNotice from './components/DisconnectNotice';
-import MobileGroupSidebar from './groups/GroupSidebar/MobileGroupSidebar';
-import TalkNav from './nav/TalkNav';
-import TalkHead from './dms/TalkHead';
-import MobileMessagesSidebar from './dms/MobileMessagesSidebar';
-import MobileSidebar from './components/Sidebar/MobileSidebar';
-import MobileGroupsNavHome from './nav/MobileRoot';
-import Leap from './components/Leap/Leap';
-import { isTalk, preSig } from './logic/utils';
-import bootstrap from './state/bootstrap';
-import AboutDialog from './components/AboutDialog';
-import MobileGroupChannelList from './groups/MobileGroupChannelList';
-import LandscapeWayfinding from './components/LandscapeWayfinding';
-import { useScheduler } from './state/scheduler';
-import { LeapProvider } from './components/Leap/useLeap';
-import VitaMessage from './components/VitaMessage';
-import Dialog from './components/Dialog';
-import useIsStandaloneMode from './logic/useIsStandaloneMode';
-import Eyrie from './components/Eyrie';
-import queryClient from './queryClient';
-import EmojiPicker from './components/EmojiPicker';
-import SettingsDialog from './components/SettingsDialog';
-import { captureAnalyticsEvent } from './logic/analytics';
-import GroupChannel from './groups/GroupChannel';
-import PrivacyNotice from './groups/PrivacyNotice';
-import ActivityModal, { ActivityChecker } from './components/ActivityModal';
-import { DragAndDropProvider } from './logic/DragAndDropContext';
-import LureAutojoiner from './groups/LureAutojoiner';
+import GroupInvitesPrivacy from '@/groups/GroupAdmin/GroupInvitesPrivacy';
+import Notifications, { MainWrapper } from '@/notifications/Notifications';
+import ChatChannel from '@/chat/ChatChannel';
+import HeapChannel from '@/heap/HeapChannel';
+import DiaryChannel from '@/diary/DiaryChannel';
+import DiaryNote from '@/diary/DiaryNote';
+import DMNotification from '@/notifications/DMNotification';
+import GroupNotification from '@/notifications/GroupNotification';
+import EditCurioModal from '@/heap/EditCurioModal';
+import GroupMembers from '@/groups/GroupAdmin/GroupMembers';
+import GroupRoles from '@/groups/GroupAdmin/GroupRoles';
+import GroupInfoEditor from '@/groups/GroupAdmin/GroupInfoEditor';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import DisconnectNotice from '@/components/DisconnectNotice';
+import MobileGroupSidebar from '@/groups/GroupSidebar/MobileGroupSidebar';
+import TalkNav from '@/nav/TalkNav';
+import TalkHead from '@/dms/TalkHead';
+import MobileMessagesSidebar from '@/dms/MobileMessagesSidebar';
+import MobileSidebar from '@/components/Sidebar/MobileSidebar';
+import MobileGroupsNavHome from '@/nav/MobileRoot';
+import Leap from '@/components/Leap/Leap';
+import { isTalk, preSig } from '@/logic/utils';
+import bootstrap from '@/state/bootstrap';
+import AboutDialog from '@/components/About/AboutDialog';
+import MobileGroupChannelList from '@/groups/MobileGroupChannelList';
+import LandscapeWayfinding from '@/components/LandscapeWayfinding';
+import { useScheduler } from '@/state/scheduler';
+import { LeapProvider } from '@/components/Leap/useLeap';
+import VitaMessage from '@/components/VitaMessage';
+import Dialog from '@/components/Dialog';
+import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
+import Eyrie from '@/components/Eyrie';
+import queryClient from '@/queryClient';
+import EmojiPicker from '@/components/EmojiPicker';
+import SettingsDialog from '@/components/Settings/SettingsDialog';
+import { captureAnalyticsEvent } from '@/logic/analytics';
+import GroupChannel from '@/groups/GroupChannel';
+import PrivacyNotice from '@/groups/PrivacyNotice';
+import ActivityModal, { ActivityChecker } from '@/components/ActivityModal';
+import Profile from '@/profiles/Profile';
+import SettingsView from '@/components/Settings/SettingsView';
+import AboutView from '@/components/About/AboutView';
+import { DragAndDropProvider } from '@/logic/DragAndDropContext';
+import LureAutojoiner from '@/groups/LureAutojoiner';
+import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
+import NewGroupView from './groups/NewGroup/NewGroupView';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -267,6 +271,10 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="/dm/:ship/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
+              <Route
+                path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
             </>
           ) : null}
         </Routes>
@@ -373,13 +381,19 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               element={<EditProfile title={`Edit Profile • ${groupsTitle}`} />}
             />
             <Route
-              path="/leap"
-              element={
-                <MainWrapper title="Leap" isMobile={isMobile}>
-                  <Leap openDefault />
-                </MainWrapper>
-              }
+              path="/profile"
+              element={<Profile title={`Profile • ${groupsTitle}`} />}
             />
+            <Route
+              path="/profile/settings"
+              element={<SettingsView title={`Settings • ${groupsTitle}`} />}
+            />
+            <Route
+              path="/profile/about"
+              element={<AboutView title={`About • ${groupsTitle}`} />}
+            />
+            <Route path="/groups/new-mobile" element={<NewGroupView />} />
+            <Route path="/leap" element={<Leap openDefault />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
@@ -490,7 +504,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </SuspendedModal>
             }
           />
-          <Route path="/groups/new" element={<NewGroup />} />
+          <Route path="/groups/new" element={<NewGroupDialog />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>

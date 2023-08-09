@@ -1,8 +1,8 @@
 import { isValidPatp } from 'urbit-ob';
 import classNames from 'classnames';
-import React, { CSSProperties, useState } from 'react';
-import { sigil as sigilRaw, reactRenderer } from '@tlon/sigil-js';
-import { deSig, Contact, cite } from '@urbit/api';
+import React, { CSSProperties } from 'react';
+import '@urbit/sigil-js';
+import { Contact, cite } from '@urbit/api';
 import _ from 'lodash';
 import { darken, lighten, parseToHsla } from 'color2k';
 import { useCalm } from '@/state/settings';
@@ -10,8 +10,9 @@ import { useCurrentTheme } from '@/state/local';
 import { normalizeUrbitColor, isValidUrl } from '@/logic/utils';
 import { useContact } from '@/state/contact';
 import { useAvatar } from '@/state/avatar';
+import { SigilProps } from '@/types/sigil';
 
-export type AvatarSizes = 'xxs' | 'xs' | 'small' | 'default' | 'huge';
+export type AvatarSizes = 'xxs' | 'xs' | 'small' | 'default' | 'big' | 'huge';
 
 interface AvatarProps {
   ship: string;
@@ -36,6 +37,7 @@ const sizeMap: Record<AvatarSizes, AvatarMeta> = {
   xs: { classes: 'w-6 h-6 rounded', size: 12 },
   small: { classes: 'w-8 h-8 rounded', size: 16 },
   default: { classes: 'w-12 h-12 rounded-lg', size: 24 },
+  big: { classes: 'w-[72px] h-[72px] rounded-lg', size: 40 },
   huge: { classes: 'w-20 h-20 rounded-xl', size: 48 },
 };
 
@@ -79,59 +81,6 @@ function themeAdjustColor(color: string, theme: 'light' | 'dark'): string {
   return color;
 }
 
-interface SigilArgs {
-  patp: string;
-  size: number;
-  icon: boolean;
-  bg: string;
-  fg: string;
-}
-
-const DO_MEMOIZE = true;
-const sigil = DO_MEMOIZE
-  ? _.memoize(
-      ({ bg, fg, ...rest }: SigilArgs) =>
-        sigilRaw({
-          ...rest,
-          renderer: reactRenderer,
-          colors: [bg, fg],
-        }),
-      ({ bg, fg, patp, icon, size }) => `${bg}-${fg}-${patp}-${icon}-${size}`
-    )
-  : ({ bg, fg, ...rest }: SigilArgs) =>
-      sigilRaw({
-        ...rest,
-        renderer: reactRenderer,
-        colors: [bg, fg],
-      });
-
-function getSigilElement(
-  ship: string,
-  sigilSize: number,
-  icon: boolean,
-  bg: string,
-  fg: string
-) {
-  const citedShip = cite(ship);
-
-  if (
-    !ship ||
-    ship === 'undefined' ||
-    !isValidPatp(ship) ||
-    citedShip.match(/[_^]/) ||
-    citedShip.length > 14
-  ) {
-    return null;
-  }
-  return sigil({
-    patp: deSig(citedShip) || 'zod',
-    size: sigilSize,
-    icon,
-    bg,
-    fg,
-  });
-}
-
 export default function Avatar({
   ship,
   size = 'default',
@@ -158,13 +107,21 @@ export default function Avatar({
     currentTheme
   );
   const foregroundColor = foregroundFromBackground(adjustedColor);
-  const sigilElement = getSigilElement(
-    ship,
-    sigilSize,
-    icon,
-    adjustedColor,
-    foregroundColor
-  );
+  const citedShip = cite(ship);
+  const props: SigilProps = {
+    point: citedShip || '~zod',
+    size: sigilSize,
+    detail: icon ? 'none' : 'default',
+    space: 'none',
+    background: adjustedColor,
+    foreground: foregroundColor,
+  };
+  const invalidShip =
+    !ship ||
+    ship === 'undefined' ||
+    !isValidPatp(ship) ||
+    citedShip.match(/[_^]/) ||
+    citedShip.length > 14;
 
   if (
     showImage &&
@@ -208,14 +165,13 @@ export default function Avatar({
         size === 'xs' && 'p-1.5',
         size === 'small' && 'p-2',
         size === 'default' && 'p-3',
+        size === 'big' && 'p-4',
         size === 'huge' && 'p-3',
         className
       )}
       style={{ backgroundColor: adjustedColor, ...style }}
     >
-      {sigilElement || (
-        <div style={{ width: `${sigilSize}px`, height: `${sigilSize}px` }} />
-      )}
+      {!invalidShip && <urbit-sigil {...props} />}
     </div>
   );
 }

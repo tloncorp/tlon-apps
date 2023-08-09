@@ -5,7 +5,7 @@ import {
   useDeleteNoteMutation,
 } from '@/state/diary';
 import { decToUd } from '@urbit/api';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, MouseEvent } from 'react';
 import { useNavigate } from 'react-router';
 
 interface useDiaryActionsParams {
@@ -76,7 +76,7 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   }, [flag, time, deleteNote, navigate]);
 
   const onCopy = useCallback(
-    (e) => {
+    (e: Event | MouseEvent<any>) => {
       e.preventDefault();
       doCopy();
     },

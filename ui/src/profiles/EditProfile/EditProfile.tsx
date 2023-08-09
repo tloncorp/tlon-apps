@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
+import { motion } from 'framer-motion';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ViewProps } from '@/types/groups';
@@ -15,9 +16,13 @@ import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import GroupSelector, { GroupOption } from '@/components/GroupSelector';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
+import { useIsMobile } from '@/logic/useMedia';
+import Layout from '@/components/Layout/Layout';
+import MobileHeader from '@/components/MobileHeader';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
+import useAppName from '@/logic/useAppName';
 
 interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];
@@ -134,7 +139,7 @@ function EditProfileContent() {
   const watchCover = form.watch('cover');
 
   return (
-    <div className="w-full">
+    <div className="w-full p-6">
       <FormProvider {...form}>
         <div>
           <ProfileCoverImage
@@ -214,17 +219,62 @@ function EditProfileContent() {
   );
 }
 
+const pageAnimationVariants = {
+  initial: {
+    opacity: 0,
+    x: '100vw',
+  },
+  in: {
+    opacity: 1,
+    x: 0,
+  },
+  out: {
+    opacity: 0,
+    x: '-100vw',
+  },
+};
+
+const pageTransition = {
+  type: 'tween',
+  ease: 'easeInOut',
+  duration: 0.2,
+};
+
 export default function EditProfile({ title }: ViewProps) {
   useAnalyticsEvent('profile_edit');
+  const isMobile = useIsMobile();
+  const app = useAppName();
 
   return (
     <div className="flex grow overflow-y-scroll bg-gray-50">
       <Helmet>
         <title>{title}</title>
       </Helmet>
-      <div className="w-full p-6">
-        <EditProfileContent />
-      </div>
+      <Layout
+        header={
+          isMobile ? (
+            <MobileHeader
+              title="Edit Profile"
+              pathBack={app === 'Talk' ? '/' : '/profile'}
+            />
+          ) : null
+        }
+        className="flex-1"
+      >
+        {isMobile ? (
+          <motion.div
+            initial="initial"
+            animate="in"
+            exit="out"
+            variants={pageAnimationVariants}
+            transition={pageTransition}
+          >
+            <EditProfileContent />
+          </motion.div>
+        ) : (
+          <EditProfileContent />
+        )}
+      </Layout>
     </div>
   );
 }
