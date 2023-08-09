@@ -1,3 +1,5 @@
+// @ts-expect-error - apparently this works?
+// eslint-disable-next-line import/no-unresolved
 import { useSelect } from 'react-cosmos/client';
 import Avatar from '../Avatar';
 
@@ -10,7 +12,5 @@ export default function AvatarFixture() {
     options: ['xxs', 'xs', 'small', 'default', 'huge'],
   });
 
-  return (
-      <Avatar ship={ship} size={size} />
-  );
+  return <Avatar ship={ship} size={size} />;
 }
