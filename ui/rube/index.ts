@@ -1,6 +1,7 @@
 /* eslint no-restricted-syntax: 0 */
 /* eslint no-continue: 0 */
 /* eslint no-await-in-loop: 0 */
+/* eslint no-console: 0 */
 import * as tar from 'tar-fs';
 import fetch from 'node-fetch';
 import * as fs from 'fs';
@@ -119,9 +120,9 @@ const getPiers = async () => {
         fs.rmSync(extractPath, { recursive: true });
         console.log(`Removed existing ${extractPath}`);
       }
-      await extractFile(savePath, extractPath);
-      console.log(`Extracted ${ship} to ${extractPath}`);
     }
+    await extractFile(savePath, extractPath);
+    console.log(`Extracted ${ship} to ${extractPath}`);
   }
 };
 
@@ -137,10 +138,10 @@ const getUrbitBinary = async () => {
     await extractFile(savePath, extractPath);
     console.log(`Extracted urbit binary to ${extractPath}`);
 
-    const extracedFiles = fs.readdirSync(extractPath);
+    const extractedFiles = fs.readdirSync(extractPath);
 
-    if (extracedFiles.length > 0) {
-      const mainFile = extracedFiles[0];
+    if (extractedFiles.length > 0) {
+      const mainFile = extractedFiles[0];
       fs.renameSync(path.join(extractPath, mainFile), finalName);
     }
   } else {
@@ -208,8 +209,8 @@ const copyDesks = async () => {
   }
 };
 
-const getAvailablePort = (startPort: number): Promise<number> => {
-  return new Promise((resolve, reject) => {
+const getAvailablePort = (startPort: number): Promise<number> =>
+  new Promise((resolve, reject) => {
     portscanner.findAPortNotInUse(
       startPort,
       startPort + 100,
@@ -220,7 +221,6 @@ const getAvailablePort = (startPort: number): Promise<number> => {
       }
     );
   });
-};
 
 const bootAllShips = () => {
   const binaryPath = path.join(__dirname, 'urbit_extracted', 'urbit');
@@ -516,7 +516,7 @@ const main = async () => {
           });
         });
       }),
-    5000
+    2000
   );
 };
 
