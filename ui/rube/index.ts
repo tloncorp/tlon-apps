@@ -157,7 +157,35 @@ const getUrbitBinary = async () => {
   }
 };
 
-const bootShip = (binaryPath: string, pierPath: string, httpPort: string) => {
+const killExistingUrbitProcesses = () => new Promise<void>((resolve, reject) => {
+  const pathToBinary = path.join(__dirname, 'urbit_extracted/urbit');
+  console.log('Kill existing urbit processes');
+
+  const command = `ps aux | grep urbit | grep ${pathToBinary} | awk '{print $2}' | xargs kill -9`;
+
+  childProcess.exec(command, (error, stdout, stderr) => {
+    if (error && !error.message.includes('No such process')) {
+      console.error(`Error killing process: ${error.message}`);
+      reject(error);
+      return;
+    }
+    if (stderr && !stderr.includes('No such process')) {
+      console.error(`stderr: ${stderr}`);
+      resolve();
+      return;
+    }
+
+    resolve();
+    console.log(`stdout: ${stdout}`);
+  });
+});
+
+const bootShip = (
+  binaryPath: string,
+  pierPath: string,
+  httpPort: string,
+  ship: string
+) => {
   const lockPath = path.join(pierPath, '.vere.lock');
 
   if (fs.existsSync(lockPath)) {
@@ -178,11 +206,11 @@ const bootShip = (binaryPath: string, pierPath: string, httpPort: string) => {
   spawnedProcesses.push(urbitProcess);
 
   urbitProcess.stdout.on('data', (data) => {
-    console.log(`[Urbit STDOUT]: ${data}`);
+    console.log(`[Urbit STDOUT (${ship})]: ${data}`);
   });
 
   urbitProcess.stderr.on('data', (data) => {
-    console.error(`[Urbit STDERR]: ${data}`);
+    console.error(`[Urbit STDERR (${ship})]: ${data}`);
   });
 
   urbitProcess.on('close', (code) => {
@@ -247,7 +275,7 @@ const bootAllShips = () => {
       return;
     }
 
-    bootShip(binaryPath, path.join(extractPath, ship), httpPort);
+    bootShip(binaryPath, path.join(extractPath, ship), httpPort, ship);
   });
 };
 
@@ -540,7 +568,6 @@ const runPlaywrightTests = async () => {
     await runTestForShip('~bus');
     await runTestForShip('~zod');
     console.log('All tests passed successfully!');
-    process.exit(0);
   } catch (err) {
     console.error('Error running tests:', err);
     process.exit(1);
@@ -548,11 +575,12 @@ const runPlaywrightTests = async () => {
 };
 
 const cleanupSpawnedProcesses = () => {
-  for (const process of spawnedProcesses) {
-    if (!process.killed) {
-      process.kill();
+  for (const proc of spawnedProcesses) {
+    if (!proc.killed) {
+      proc.kill();
     }
   }
+  killExistingUrbitProcesses();
 };
 
 process.on('exit', cleanupSpawnedProcesses);
@@ -585,6 +613,8 @@ const main = async () => {
     const port1 = await getAvailablePort(12321);
     const port2 = await getAvailablePort(port1 + 1);
 
+    await killExistingUrbitProcesses();
+
     bootAllShips();
 
     await checkShipReadinessForCommands();
@@ -594,6 +624,7 @@ const main = async () => {
     await copyDesks();
     await commitDesks(port1, port2);
     await runPlaywrightTests();
+    process.exit(0);
   } catch (err) {
     console.error('Error running rube:', err);
     cleanupSpawnedProcesses();
