@@ -196,7 +196,7 @@
     "@types/react-beautiful-dnd": "^13.1.2",
     "@types/react-dom": "^18.2.7",
     "@types/react-helmet": "^6.1.5",
-    "@types/react-test-renderer": "^17.0.2",
+    "@types/react-test-renderer": "^18.0.0",
     "@types/tar-fs": "^2.0.1",
     "@types/uuid": "^9.0.2",
     "@types/validator": "^13.7.2",
