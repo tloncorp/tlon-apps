@@ -10,7 +10,10 @@ import * as os from 'os';
 import * as zlib from 'zlib';
 import * as portscanner from 'portscanner';
 import * as fsExtra from 'fs-extra';
-import { spawn } from 'child_process';
+import * as childProcess from 'child_process';
+
+const spawnedProcesses: childProcess.ChildProcess[] = [];
+const startHashes: { [ship: string]: { [desk: string]: string } } = {};
 
 const ships: Record<
   string,
@@ -123,6 +126,11 @@ const getPiers = async () => {
     }
     await extractFile(savePath, extractPath);
     console.log(`Extracted ${ship} to ${extractPath}`);
+    const httpPortsFilePath = path.join(extractPath, ship, '.http.ports');
+    if (fs.existsSync(httpPortsFilePath)) {
+      console.log('Remove existing .http-ports file');
+      fs.rmSync(httpPortsFilePath);
+    }
   }
 };
 
@@ -150,15 +158,24 @@ const getUrbitBinary = async () => {
 };
 
 const bootShip = (binaryPath: string, pierPath: string, httpPort: string) => {
+  const lockPath = path.join(pierPath, '.vere.lock');
+
+  if (fs.existsSync(lockPath)) {
+    console.log('Remove existing .vere.lock file');
+    fs.rmSync(lockPath);
+  }
+
   console.log(
     `Booting ship ${pierPath} on port ${httpPort} with ${binaryPath}`
   );
-  const urbitProcess = spawn(binaryPath, [
+  const urbitProcess = childProcess.spawn(binaryPath, [
     pierPath,
     '-d',
     '--http-port',
     httpPort,
   ]);
+
+  spawnedProcesses.push(urbitProcess);
 
   urbitProcess.stdout.on('data', (data) => {
     console.log(`[Urbit STDOUT]: ${data}`);
@@ -271,6 +288,44 @@ const hoodBus = async (command: string, port: number) => {
   });
 };
 
+const shipsAreReadyForCommands = () => {
+  const shipsArray = Object.values(ships);
+  const results = shipsArray.map(({ extractPath, ship }) => {
+    const httpPortFile = path.join(extractPath, ship, '.http.ports');
+    if (fs.existsSync(httpPortFile)) {
+      console.log(`Found ${httpPortFile}, ${ship} is ready for commands`);
+      return true;
+    }
+    console.log(`Did not find ${httpPortFile}, ${ship} is not ready`);
+    return false;
+  });
+
+  return results.every((result) => result);
+};
+
+const checkShipReadinessForCommands = async () =>
+  new Promise<void>((resolve, reject) => {
+    const maxAttempts = 10;
+    let attempts = 0;
+
+    const checkForHttpsPorts = async () => {
+      attempts += 1;
+
+      const ready = shipsAreReadyForCommands();
+
+      if (ready) {
+        console.log('Ships are ready for commands');
+        resolve();
+      } else if (attempts < maxAttempts) {
+        setTimeout(checkForHttpsPorts, 1000);
+      } else {
+        reject(new Error('Ships are not ready for commands'));
+      }
+    };
+
+    checkForHttpsPorts();
+  });
+
 const mountDesks = async (port1: number, port2: number) => {
   console.log('Mounting desks on fake ships');
   await hoodZod('mount %groups', port1);
@@ -362,8 +417,6 @@ const makeRequestWithCookies = async (ship: string, url: string) => {
   return responseBody;
 };
 
-const startHashes: { [ship: string]: { [desk: string]: string } } = {};
-
 const getStartHashes = async () => {
   for (const ship of Object.values(ships)) {
     if (targetShip && targetShip !== ship.ship) {
@@ -385,7 +438,7 @@ const getStartHashes = async () => {
   }
 };
 
-const shipsAreReady = async () => {
+const shipsAreReadyForTests = async () => {
   const shipsArray = Object.values(ships);
   const results = await Promise.all(
     shipsArray.map(async (ship) => {
@@ -420,7 +473,7 @@ const shipsAreReady = async () => {
   return results.every((result) => result);
 };
 
-const checkShipReadiness = async () =>
+const checkShipReadinessForTests = async () =>
   new Promise<void>((resolve, reject) => {
     const maxAttempts = 10;
     let attempts = 0;
@@ -428,7 +481,7 @@ const checkShipReadiness = async () =>
     const tryConnect = async () => {
       attempts += 1;
 
-      const ready = await shipsAreReady();
+      const ready = await shipsAreReadyForTests();
 
       if (ready) {
         resolve();
@@ -443,7 +496,7 @@ const checkShipReadiness = async () =>
   });
 
 const runPlaywrightTests = async () => {
-  await checkShipReadiness();
+  await checkShipReadinessForTests();
 
   const runTestForShip = (ship: string) =>
     new Promise<void>((resolve, reject) => {
@@ -454,13 +507,15 @@ const runPlaywrightTests = async () => {
         playwrightArgs.push('--debug');
       }
 
-      const testProcess = spawn('npx', playwrightArgs, {
+      const testProcess = childProcess.spawn('npx', playwrightArgs, {
         env: {
           ...process.env,
           SHIP: ship,
         },
         stdio: 'inherit',
       });
+
+      spawnedProcesses.push(testProcess);
 
       testProcess.on('close', (code) => {
         if (code !== 0) {
@@ -492,32 +547,58 @@ const runPlaywrightTests = async () => {
   }
 };
 
+const cleanupSpawnedProcesses = () => {
+  for (const process of spawnedProcesses) {
+    if (!process.killed) {
+      process.kill();
+    }
+  }
+};
+
+process.on('exit', cleanupSpawnedProcesses);
+process.on('SIGINT', () => {
+  // CTRL+C
+  cleanupSpawnedProcesses();
+  process.exit();
+});
+process.on('SIGTERM', () => {
+  // Kill command
+  cleanupSpawnedProcesses();
+  process.exit();
+});
+process.on('uncaughtException', (err) => {
+  // Unexpected error
+  console.error('Uncaught exception:', err);
+  cleanupSpawnedProcesses();
+  process.exit(1);
+});
+
 const main = async () => {
   if (targetShip && !ships[targetShip]) {
     console.error(`Invalid ship name: ${targetShip}`);
     process.exit(1);
   }
 
-  await getPiers();
-  await getUrbitBinary();
-  const port1 = await getAvailablePort(12321);
-  const port2 = await getAvailablePort(port1 + 1);
+  try {
+    await getPiers();
+    await getUrbitBinary();
+    const port1 = await getAvailablePort(12321);
+    const port2 = await getAvailablePort(port1 + 1);
 
-  bootAllShips();
+    bootAllShips();
 
-  setTimeout(
-    async () =>
-      mountDesks(port1, port2).then(async () => {
-        await login();
-        await getStartHashes();
-        await copyDesks().then(async () => {
-          await commitDesks(port1, port2).then(async () => {
-            await runPlaywrightTests();
-          });
-        });
-      }),
-    5000
-  );
+    await checkShipReadinessForCommands();
+    await mountDesks(port1, port2);
+    await login();
+    await getStartHashes();
+    await copyDesks();
+    await commitDesks(port1, port2);
+    await runPlaywrightTests();
+  } catch (err) {
+    console.error('Error running rube:', err);
+    cleanupSpawnedProcesses();
+    process.exit(1);
+  }
 };
 
 main();
