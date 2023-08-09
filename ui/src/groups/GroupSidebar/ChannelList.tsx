@@ -87,7 +87,7 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
 }
 
 interface UnmigratedChannelProps {
-  icon: ReactNode;
+  icon: ReactNode | ((active: boolean) => React.ReactNode);
   title: string;
   host: string;
   isMobile: boolean;

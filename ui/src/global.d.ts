@@ -13,6 +13,9 @@ namespace JSX {
       React.HTMLAttributes<HTMLElement> & { shortcodes: string },
       HTMLElement
     >;
+    'urbit-sigil': React.DetailedHTMLProps<
+      React.HTMLAttributes<HTMLElement> & import('types/sigil').SigilProps
+    >;
   }
 }
 
