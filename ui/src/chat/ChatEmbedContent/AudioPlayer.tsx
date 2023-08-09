@@ -1,5 +1,11 @@
 import LightBox from '@/components/LightBox';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useParams } from 'react-router';
 import { useChatDialog } from '../useChatStore';
 
@@ -38,7 +44,7 @@ function AudioPlayer({
   const [progress, setProgress] = useState(0);
 
   const playPause = useCallback(
-    (e) => {
+    (e: MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
       const audio = ref.current;
 

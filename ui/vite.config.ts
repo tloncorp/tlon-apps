@@ -133,7 +133,7 @@ export default ({ mode }: { mode: string }) => {
         'lodash/fp': ['lodash/fp'],
         '@urbit/api': ['@urbit/api'],
         '@urbit/http-api': ['@urbit/http-api'],
-        '@tlon/sigil-js': ['@tlon/sigil-js'],
+        '@urbit/sigil-js': ['@urbit/sigil-js'],
         'any-ascii': ['any-ascii'],
         'react-beautiful-dnd': ['react-beautiful-dnd'],
         'emoji-mart': ['emoji-mart'],

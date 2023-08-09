@@ -99,13 +99,8 @@ function ChatEmbedContent({
 
     if (provider === 'Twitter') {
       return (
-        <div className="flex flex-col">
-          <TwitterEmbed
-            authorUrl={authorUrl}
-            author={author}
-            embedHtml={embedHtml}
-            writId={writId}
-          />
+        <div className="flex w-[300px] flex-col sm:w-full">
+          <TwitterEmbed embedHtml={embedHtml} />
         </div>
       );
     }

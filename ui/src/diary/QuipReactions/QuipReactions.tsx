@@ -24,7 +24,7 @@ export default function QuipReactions({
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
 
   const onEmoji = useCallback(
-    async (emoji) => {
+    async (emoji: any) => {
       addQuipFeel({ flag: whom, noteId, quipId: time, feel: emoji.shortcodes });
     },
     [whom, time, noteId, addQuipFeel]

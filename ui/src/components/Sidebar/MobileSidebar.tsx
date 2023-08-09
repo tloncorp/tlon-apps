@@ -1,112 +1,69 @@
-import React, { useState } from 'react';
+import cn from 'classnames';
 import { Outlet, useLocation } from 'react-router';
-import { Link } from 'react-router-dom';
 import { isNativeApp } from '@/logic/native';
+import { useIsDark } from '@/logic/useMedia';
 import NavTab from '../NavTab';
-import AppGroupsIcon from '../icons/AppGroupsIcon';
-import ElipsisIcon from '../icons/EllipsisIcon';
 import BellIcon from '../icons/BellIcon';
-import Sheet, { SheetContent } from '../Sheet';
-import MagnifyingGlassIcon from '../icons/MagnifyingGlass16Icon';
-import AsteriskIcon from '../icons/Asterisk16Icon';
-import SidebarItem from './SidebarItem';
-import PencilSettingsIcon from '../icons/PencilSettingsIcon';
-import BubbleIcon from '../icons/BubbleIcon';
 import GridIcon from '../icons/GridIcon';
+import HomeIconMobileNav from '../icons/HomeIconMobileNav';
+import MagnifyingGlassMobileNavIcon from '../icons/MagnifyingGlassMobileNavIcon';
+import MessagesIcon from '../icons/MessagesIcon';
+import Avatar from '../Avatar';
 
 export default function MobileSidebar() {
-  const [showSheet, setShowSheet] = useState(false);
   const location = useLocation();
+  const isInactive = (path: string) => location.pathname !== path;
+  const isDarkMode = useIsDark();
 
   return (
-    <section className="fixed inset-0 z-40 flex h-full w-full flex-col  border-gray-50 bg-white">
+    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white pt-4">
       <Outlet />
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex">
             <NavTab to="/" linkClass="basis-1/5">
-              <AppGroupsIcon className="mb-0.5 h-6 w-6" />
-              Groups
+              <HomeIconMobileNav
+                isInactive={isInactive('/')}
+                isDarkMode={isDarkMode}
+                className="mb-0.5 h-6 w-6"
+              />
             </NavTab>
             {isNativeApp() && (
               <NavTab to="/messages" linkClass="basis-1/5">
-                <BubbleIcon className="mb-0.5 h-6 w-6" />
-                Messages
+                <MessagesIcon
+                  isInactive={isInactive('/messages')}
+                  isDarkMode={isDarkMode}
+                  className="mb-0.5 h-6 w-6"
+                />
               </NavTab>
             )}
             <NavTab to="/notifications" linkClass="basis-1/5">
-              <BellIcon className="mb-0.5 h-6 w-6" />
-              Activity
+              <BellIcon
+                isInactive={isInactive('/notifications')}
+                className="mb-0.5 h-6 w-6"
+                isDarkMode={isDarkMode}
+              />
             </NavTab>
             <NavTab to="/find" linkClass="basis-1/5">
-              <MagnifyingGlassIcon className="mb-0.5 h-6 w-6" />
-              Discover
+              <MagnifyingGlassMobileNavIcon
+                isInactive={isInactive('/find')}
+                isDarkMode={isDarkMode}
+                className="mb-0.5 h-6 w-6"
+              />
             </NavTab>
             {!isNativeApp() && (
               <NavTab to="/leap">
-                <GridIcon className="-mx-1 h-7 w-7" />
-                Leap
+                <GridIcon
+                  className={cn('mb-0.5 h-8 w-8', {
+                    'text-gray-200 dark:text-gray-700': isInactive('/leap'),
+                  })}
+                />
               </NavTab>
             )}
-            <NavTab onClick={() => setShowSheet(true)} linkClass="basis-1/5">
-              <ElipsisIcon className="mb-0.5 h-6 w-6" />
-              Options
+            <NavTab to="/profile" linkClass="basis-1/5">
+              <Avatar size="xs" className="mb-0.5" ship={window.our} />
             </NavTab>
           </ul>
-          <Sheet open={showSheet} onOpenChange={(o) => setShowSheet(o)}>
-            <SheetContent containerClass="" showClose={true}>
-              <a
-                className="no-underline"
-                href="https://airtable.com/shrflFkf5UyDFKhmW"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Submit Feedback"
-              >
-                <SidebarItem
-                  icon={
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                      <AsteriskIcon className="h-6 w-6" />
-                    </div>
-                  }
-                  onClick={() => setShowSheet(false)}
-                >
-                  Submit Feedback
-                </SidebarItem>
-              </a>
-              <Link
-                to="/about"
-                className="no-underline"
-                state={{ backgroundLocation: location }}
-              >
-                <SidebarItem
-                  icon={
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                      <AppGroupsIcon className="h-6 w-6" />
-                    </div>
-                  }
-                  onClick={() => setShowSheet(false)}
-                >
-                  About Groups
-                </SidebarItem>
-              </Link>
-              <Link
-                to="/settings"
-                className="no-underline"
-                state={{ backgroundLocation: location }}
-              >
-                <SidebarItem
-                  icon={
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                      <PencilSettingsIcon className="h-6 w-6" />
-                    </div>
-                  }
-                  onClick={() => setShowSheet(false)}
-                >
-                  App Settings
-                </SidebarItem>
-              </Link>
-            </SheetContent>
-          </Sheet>
         </nav>
       </footer>
     </section>

@@ -6,6 +6,7 @@ import React, {
   PropsWithChildren,
 } from 'react';
 import { Helmet } from 'react-helmet';
+import { Link, useLocation } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
 import { useSawRopeMutation, useSawSeamMutation } from '@/state/hark';
@@ -15,7 +16,7 @@ import { randomElement, randomIntInRange } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Skein } from '@/types/hark';
 import GroupSummary from '@/groups/GroupSummary';
-import { Link, useLocation } from 'react-router-dom';
+import MobileHeader from '@/components/MobileHeader';
 import { useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -114,16 +115,33 @@ export default function Notifications({
     </button>
   );
 
+  const MobileMarkAsRead = (
+    <button
+      disabled={isMarkReadPending || !hasUnreads}
+      className={cn(
+        'whitespace-nowrap text-[17px] font-normal leading-6 text-blue',
+        {
+          'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+        }
+      )}
+      onClick={markAllRead}
+    >
+      Mark as Read
+    </button>
+  );
+
   return (
     <>
       {isMobile && (
-        <header className="flex items-center justify-between bg-white px-6 py-4">
-          <h1 className="text-lg font-bold text-gray-800">Activity</h1>
-          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
-            {isMobile && <ReconnectingSpinner />}
-            {isMobile && hasUnreads && MarkAsRead}
-          </div>
-        </header>
+        <MobileHeader
+          title="Activity"
+          action={
+            <>
+              <ReconnectingSpinner />
+              {hasUnreads && MobileMarkAsRead}
+            </>
+          }
+        />
       )}
       <section className="flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-gray-50 p-6">
         <Helmet>
@@ -160,7 +178,6 @@ export default function Notifications({
               {hasUnreads && MarkAsRead}
             </div>
           )}
-
           {loaded ? (
             notifications.length === 0 ? (
               <div className="mt-3 flex w-full items-center justify-center">

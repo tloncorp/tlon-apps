@@ -201,7 +201,7 @@ function HeapChannel({ title }: ViewProps) {
 
   return (
     <Layout
-      className="flex-1 bg-gray-50"
+      className="flex-1 pt-4 sm:pt-0 bg-white"
       aside={<Outlet />}
       header={
         <HeapHeader
@@ -219,7 +219,7 @@ function HeapChannel({ title }: ViewProps) {
             : title}
         </title>
       </Helmet>
-      <div className="h-full p-4">
+      <div className="h-full bg-gray-50 p-4">
         <VirtuosoGrid
           data={canWrite ? sortedCurios : sortedCurios.slice(1)}
           itemContent={(i, [time, curio]) => renderCurio(i, curio, time)}
