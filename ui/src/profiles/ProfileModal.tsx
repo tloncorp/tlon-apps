@@ -63,7 +63,10 @@ export default function ProfileModal() {
       className="overflow-y-auto p-0"
       containerClass="w-full sm:max-w-lg"
     >
-      <ProfileCoverImage className="flex items-end rounded-t-xl rounded-b-none" cover={cover}>
+      <ProfileCoverImage
+        className="flex items-end rounded-t-xl rounded-b-none"
+        cover={cover}
+      >
         <Avatar
           icon={false}
           ship={ship}
