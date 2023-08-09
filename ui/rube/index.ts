@@ -155,7 +155,7 @@ const bootShip = (binaryPath: string, pierPath: string, httpPort: string) => {
   );
   const urbitProcess = spawn(binaryPath, [
     pierPath,
-    '-t',
+    '-d',
     '--http-port',
     httpPort,
   ]);
