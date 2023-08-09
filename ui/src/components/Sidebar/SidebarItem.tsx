@@ -9,6 +9,7 @@ import { Link, LinkProps, useMatch } from 'react-router-dom';
 import { useCurrentTheme } from '@/state/local';
 import { isColor } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
+import CaretRightIcon from '../icons/CaretRightIcon';
 
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
@@ -24,6 +25,9 @@ type SidebarProps = PropsWithChildren<{
   color?: string;
   highlight?: string;
   transparent?: boolean;
+  fontWeight?: string;
+  fontSize?: string;
+  showCaret?: boolean;
 }> &
   ButtonHTMLAttributes<HTMLButtonElement> &
   Omit<LinkProps, 'to'>;
@@ -51,12 +55,15 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
       to,
       color = 'text-gray-800 sm:text-gray-600',
       highlight = 'bg-gray-50',
+      fontWeight,
+      fontSize = 'text-lg',
       actions,
       className,
       children,
       inexact = false,
       defaultRoute = false,
       transparent = false,
+      showCaret = false,
       ...rest
     },
     ref
@@ -146,14 +153,19 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           <div
             title={typeof children === 'string' ? children : undefined}
             className={cn(
-              'max-w-full flex-1 text-left text-lg font-bold sm:text-base sm:font-semibold ',
+              'max-w-full flex-1 text-left sm:text-base',
               isMobile ? 'line-clamp-1' : 'truncate',
               actions && 'pr-4',
-              !color ? 'text-gray-800 sm:text-gray-600' : color
+              !fontWeight ? 'font-bold sm:font-semibold' : fontWeight,
+              !color ? 'text-gray-800 sm:text-gray-600' : color,
+              !fontSize ? 'text-lg' : fontSize
             )}
           >
             {children}
           </div>
+          {showCaret && (
+            <CaretRightIcon className="h-6 w-6 text-gray-200 group-hover:text-gray-500" />
+          )}
         </Action>
         {actions ? (
           <div className={cn('absolute right-2 sm:right-1')}>

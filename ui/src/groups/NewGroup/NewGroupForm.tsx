@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDismissNavigate } from '@/logic/routing';
-import GroupInfoFields from '../GroupAdmin/GroupInfoFields';
+import { useIsMobile } from '@/logic/useMedia';
+import GroupInfoFields from '@/groups/GroupAdmin/GroupInfoFields';
 
 interface NewGroupFormProps {
   isValid: boolean;
@@ -14,6 +15,8 @@ export default function NewGroupForm({
   // goToPrevStep,
   goToNextStep,
 }: NewGroupFormProps) {
+  const isMobile = useIsMobile();
+
   const cancel = useDismissNavigate();
   return (
     <div className="flex flex-col space-y-4">
@@ -25,9 +28,11 @@ export default function NewGroupForm({
       </div>
       <GroupInfoFields />
       <div className="flex justify-end space-x-2 pt-4">
-        <button className="secondary-button" onClick={cancel}>
-          Cancel
-        </button>
+        {isMobile ? null : (
+          <button className="secondary-button" onClick={cancel}>
+            Cancel
+          </button>
+        )}
         <button disabled={!isValid} className="button" onClick={goToNextStep}>
           Next: Privacy
         </button>

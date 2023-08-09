@@ -30,7 +30,7 @@ export default function ProfileCoverImage({
   return (
     <div
       className={classNames(
-        'relative h-36 w-full rounded-t-lg bg-gray-100 bg-cover bg-center px-4',
+        'relative h-36 w-full rounded-[36px] bg-gray-100 bg-cover bg-center px-4',
         className
       )}
       style={

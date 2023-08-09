@@ -81,7 +81,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
 
   if (!initialized) {
     return (
-      <div className="h-full">
+      <div>
         <ChatScrollerPlaceholder count={30} />
       </div>
     );
