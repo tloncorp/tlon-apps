@@ -43,7 +43,7 @@ export default function Profile({ title }: ViewProps) {
   return (
     <Layout
       header={isMobile ? <MobileHeader title="Profile" /> : null}
-      className="flex-1 px-4 pt-4 font-system-sans"
+      className="flex-1 px-4 font-system-sans"
     >
       <Helmet>
         <title>{title}</title>
@@ -62,12 +62,12 @@ export default function Profile({ title }: ViewProps) {
         >
           <Link
             to="/profile/edit"
-            className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 px-6 pt-6 font-normal"
+            className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 px-6 pt-6 font-normal dark:bg-white/30"
           >
             <div className="flex w-full justify-end">
               <Link
                 to="/profile/edit"
-                className="text-[18px] font-normal text-white"
+                className="text-[18px] font-normal text-white dark:text-black"
               >
                 Edit
               </Link>
@@ -77,22 +77,22 @@ export default function Profile({ title }: ViewProps) {
                 <Avatar size="big" icon={false} ship={window.our} />
                 <div className="flex flex-col items-start justify-center space-y-1">
                   <ShipName
-                    className="text-[18px] font-normal text-white"
+                    className="text-[18px] font-normal text-white dark:text-black"
                     name={window.our}
                     showAlias
                   />
                   <ShipName
-                    className="text-[17px] font-normal leading-snug text-white opacity-60"
+                    className="text-[17px] font-normal leading-snug text-white opacity-60 dark:text-black"
                     name={window.our}
                   />
                 </div>
               </div>
               {contact.bio && (
                 <div className="flex flex-col space-y-3">
-                  <span className="text-[18px] font-normal text-white opacity-60">
+                  <span className="text-[18px] font-normal text-white opacity-60 dark:text-black">
                     Info
                   </span>
-                  <span className="h-[84px] bg-gradient-to-b from-white via-gray-50 bg-clip-text text-[17px] leading-snug text-transparent">
+                  <span className="h-[84px] bg-gradient-to-b from-white via-gray-50 bg-clip-text text-[17px] leading-snug text-transparent dark:from-black">
                     {contact.bio}
                   </span>
                 </div>

@@ -3,7 +3,8 @@ import { IconProps } from './icon';
 export default function MessagesIcon({
   className,
   isInactive,
-}: { isInactive?: boolean } & IconProps) {
+  isDarkMode,
+}: { isInactive?: boolean; isDarkMode?: boolean } & IconProps) {
   if (isInactive) {
     return (
       <svg
@@ -14,7 +15,7 @@ export default function MessagesIcon({
       >
         <path
           className="stroke-current"
-          strokeOpacity=".2"
+          strokeOpacity={isDarkMode ? '0.8' : '0.2'}
           strokeWidth="2"
           d="M3.34 6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v7a4 4 0 0 1-4 4h-2.95a.123.123 0 0 0-.086.036L9.55 21.79a.123.123 0 0 1-.21-.087v-4.58A.123.123 0 0 0 9.217 17H7.34a4 4 0 0 1-4-4V6Z"
         />

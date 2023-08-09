@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import CaretLeftIcon from './icons/CaretLeftIcon';
+import CaretLeftIconMobileNav from './icons/CaretLeftIconMobileNav';
 
 export default function MobileHeader({
   title,
@@ -8,31 +8,33 @@ export default function MobileHeader({
   action,
   secondaryAction,
 }: {
-  title: string;
+  title: string | React.ReactNode;
   pathBack?: string;
   pathBackText?: string;
   action?: React.ReactNode;
   secondaryAction?: React.ReactNode;
 }) {
   return (
-    <div className="grid w-full grid-cols-3 items-center justify-between bg-white py-3 pl-2 pr-4 font-system-sans">
+    <div className="grid min-h-[48px] max-h-[72px] w-full grid-cols-4 justify-between bg-white p-2 font-system-sans">
       {pathBack ? (
         <Link className="flex items-center" to={pathBack}>
-          <CaretLeftIcon className="h-6 w-6 text-gray-400" />
+          <CaretLeftIconMobileNav className="h-8 w-8 text-gray-900" />
           {pathBackText && (
-            <span className="text-[17px] leading-6 text-gray-800 line-clamp-1">
-              Cancel
+            <span className="text-[17px] leading-6 text-gray-800">
+              {pathBackText}
             </span>
           )}
         </Link>
       ) : (
         <div className="h-6 w-6" />
       )}
-      <span className="ellipsis items-center text-center text-[18px] leading-6 text-gray-800 line-clamp-1">
-        {title}
-      </span>
+      <div className="col-span-2 flex items-center justify-center">
+        <span className="items-center text-center text-[18px] leading-6 text-gray-800 line-clamp-1">
+          {title}
+        </span>
+      </div>
       {action ? (
-        <div className="flex items-center justify-end space-x-3">
+        <div className="flex justify-end space-x-3">
           {action}
           {secondaryAction}
         </div>

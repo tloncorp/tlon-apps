@@ -35,7 +35,7 @@ export default function AboutView({ title }: ViewProps) {
       header={
         isMobile ? <MobileHeader title="About" pathBack="/profile" /> : null
       }
-      className="flex-1 px-4 pt-4"
+      className="flex-1 px-4"
     >
       <Helmet>
         <title>{title}</title>

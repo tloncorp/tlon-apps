@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import { Outlet, useLocation } from 'react-router';
 import { isNativeApp } from '@/logic/native';
+import { useIsDark } from '@/logic/useMedia';
 import NavTab from '../NavTab';
 import BellIcon from '../icons/BellIcon';
 import GridIcon from '../icons/GridIcon';
@@ -12,9 +13,10 @@ import Avatar from '../Avatar';
 export default function MobileSidebar() {
   const location = useLocation();
   const isInactive = (path: string) => location.pathname !== path;
+  const isDarkMode = useIsDark();
 
   return (
-    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white">
+    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white pt-4">
       <Outlet />
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>
@@ -22,6 +24,7 @@ export default function MobileSidebar() {
             <NavTab to="/" linkClass="basis-1/5">
               <HomeIconMobileNav
                 isInactive={isInactive('/')}
+                isDarkMode={isDarkMode}
                 className="mb-0.5 h-6 w-6"
               />
             </NavTab>
@@ -29,6 +32,7 @@ export default function MobileSidebar() {
               <NavTab to="/messages" linkClass="basis-1/5">
                 <MessagesIcon
                   isInactive={isInactive('/messages')}
+                  isDarkMode={isDarkMode}
                   className="mb-0.5 h-6 w-6"
                 />
               </NavTab>
@@ -37,11 +41,13 @@ export default function MobileSidebar() {
               <BellIcon
                 isInactive={isInactive('/notifications')}
                 className="mb-0.5 h-6 w-6"
+                isDarkMode={isDarkMode}
               />
             </NavTab>
             <NavTab to="/find" linkClass="basis-1/5">
               <MagnifyingGlassMobileNavIcon
                 isInactive={isInactive('/find')}
+                isDarkMode={isDarkMode}
                 className="mb-0.5 h-6 w-6"
               />
             </NavTab>
@@ -49,7 +55,7 @@ export default function MobileSidebar() {
               <NavTab to="/leap">
                 <GridIcon
                   className={cn('mb-0.5 h-8 w-8', {
-                    'text-gray-200': isInactive('/leap'),
+                    'text-gray-200 dark:text-gray-700': isInactive('/leap'),
                   })}
                 />
               </NavTab>

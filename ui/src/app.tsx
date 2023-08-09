@@ -41,7 +41,6 @@ import GroupAdmin from '@/groups/GroupAdmin/GroupAdmin';
 import GroupDelete from '@/groups/GroupAdmin/GroupDelete';
 import GroupChannelManager from '@/groups/ChannelsList/GroupChannelManager';
 import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
-import NewGroup from '@/groups/NewGroup/NewGroup';
 import ProfileModal from '@/profiles/ProfileModal';
 import MultiDMEditModal from '@/dms/MultiDMEditModal';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
@@ -96,6 +95,8 @@ import SettingsView from '@/components/Settings/SettingsView';
 import AboutView from '@/components/About/AboutView';
 import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
+import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
+import NewGroupView from './groups/NewGroup/NewGroupView';
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -387,14 +388,8 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               path="/profile/about"
               element={<AboutView title={`About • ${groupsTitle}`} />}
             />
-            <Route
-              path="/leap"
-              element={
-                <MainWrapper title="Leap" isMobile={isMobile}>
-                  <Leap openDefault />
-                </MainWrapper>
-              }
-            />
+            <Route path="/groups/new-mobile" element={<NewGroupView />} />
+            <Route path="/leap" element={<Leap openDefault />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
             <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
@@ -505,7 +500,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </SuspendedModal>
             }
           />
-          <Route path="/groups/new" element={<NewGroup />} />
+          <Route path="/groups/new" element={<NewGroupDialog />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>

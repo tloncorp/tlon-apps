@@ -3,7 +3,8 @@ import { IconProps } from './icon';
 export default function HomeIconMobileNav({
   className,
   isInactive,
-}: { isInactive?: boolean } & IconProps) {
+  isDarkMode,
+}: { isInactive?: boolean; isDarkMode?: boolean } & IconProps) {
   if (isInactive) {
     return (
       <svg
@@ -16,7 +17,7 @@ export default function HomeIconMobileNav({
           className="stroke-current"
           strokeWidth="2"
           d="M3.24 11.864a3.5 3.5 0 0 1 1.024-2.475l7.061-7.06a2 2 0 0 1 2.829 0l7.06 7.06a3.5 3.5 0 0 1 1.025 2.475V22a.5.5 0 0 1-.5.5h-6.5v-6.125c0-.76-.615-1.375-1.375-1.375h-2.25c-.76 0-1.375.616-1.375 1.375V22.5h-6.5a.5.5 0 0 1-.5-.5V11.864Z"
-          opacity=".2"
+          opacity={isDarkMode ? '.8' : '0.2'}
         />
       </svg>
     );

@@ -17,6 +17,7 @@ import GroupReference from '@/components/References/GroupReference';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
+import MobileHeader from '@/components/MobileHeader';
 import GroupJoinList from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
 import GroupAvatar from './GroupAvatar';
@@ -180,14 +181,9 @@ export default function FindGroups({ title }: ViewProps) {
     val ? ob.isValidPatp(preSig(val)) || whomIsFlag(val) : false;
 
   return (
-    <>
+    <div className="flex h-full w-full flex-col">
       {isMobile && (
-        <header className="flex items-center justify-between bg-white px-6 py-4 sm:hidden">
-          <h1 className="text-lg font-bold text-gray-800">Find Groups</h1>
-          <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
-            {isMobile && <ReconnectingSpinner />}
-          </div>
-        </header>
+        <MobileHeader title="Find Groups" action={<ReconnectingSpinner />} />
       )}
       <div className={cn('flex grow overflow-y-auto bg-gray-50')}>
         <Helmet>
@@ -308,6 +304,6 @@ export default function FindGroups({ title }: ViewProps) {
           </section>
         </div>
       </div>
-    </>
+    </div>
   );
 }

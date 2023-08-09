@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
@@ -7,16 +6,15 @@ import { usePinnedGroups } from '@/state/chat';
 import { useGangList, useGroups } from '@/state/groups';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
-import AddIcon16 from '@/components/icons/Add16Icon';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
 import GangItem from '@/components/Sidebar/GangItem';
 import { GroupsScrollingContext } from '@/components/Sidebar/GroupsScrollingContext';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import Layout from '@/components/Layout/Layout';
+import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 
 export default function MobileRoot() {
-  const location = useLocation();
   const [isScrolling, setIsScrolling] = useState(false);
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
@@ -36,7 +34,7 @@ export default function MobileRoot() {
 
   return (
     <Layout
-      className="flex-1 pt-4"
+      className="flex-1 bg-white"
       header={
         <MobileHeader
           title="All Groups"
@@ -52,11 +50,10 @@ export default function MobileRoot() {
           }
           secondaryAction={
             <Link
-              className="default-focus flex items-center rounded-md bg-blue p-1 text-base"
-              to="/groups/new"
-              state={{ backgroundLocation: location }}
+              className="default-focus flex text-base"
+              to="/groups/new-mobile"
             >
-              <AddIcon16 className="h-4 w-4 text-white" />
+              <AddIconMobileNav className="h-8 w-8 text-black" />
             </Link>
           }
         />
@@ -71,17 +68,18 @@ export default function MobileRoot() {
               isScrolling={scroll.current}
             >
               {Object.entries(pinnedGroups).length > 0 && (
-                <div className="px-4">
-                  <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">
-                    Pinned Groups
+                <>
+                  <div className="px-4">
+                    <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">
+                      Pinned Groups
+                    </h2>
+                    {pinnedGroupsOptions}
+                  </div>
+                  <h2 className="my-2 ml-2 p-2 pl-4 text-lg font-bold text-gray-400">
+                    All Groups
                   </h2>
-                  {pinnedGroupsOptions}
-                </div>
+                </>
               )}
-
-              <h2 className="my-2 ml-2 p-2 pl-4 text-lg font-bold text-gray-400">
-                All Groups
-              </h2>
 
               <div className="px-4">
                 {gangs.map((flag) => (

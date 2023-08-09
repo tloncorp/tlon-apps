@@ -1,4 +1,4 @@
-import React, { ReactElement, useState, useCallback } from 'react';
+import { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useStep } from 'usehooks-ts';
@@ -7,9 +7,7 @@ import { strToSym } from '@/logic/utils';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
 import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
-import Dialog from '@/components/Dialog';
 import NavigationDots from '@/components/NavigationDots';
-import { useDismissNavigate } from '@/logic/routing';
 import { Cordon, GroupFormSchema } from '@/types/groups';
 
 export type Role = 'Member' | 'Admin';
@@ -23,16 +21,9 @@ interface ShipWithRoles {
 
 export default function NewGroup() {
   const navigate = useNavigate();
-  const dismiss = useDismissNavigate();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
   const { mutate: createGroupMutation, status } = useCreateGroupMutation();
-
-  const onOpenChange = (isOpen: boolean) => {
-    if (!isOpen) {
-      dismiss();
-    }
-  };
 
   const maxStep = 3;
   const [currentStep, { goToNextStep, goToPrevStep, setStep }] =
@@ -144,14 +135,7 @@ export default function NewGroup() {
   }
 
   return (
-    <Dialog
-      defaultOpen
-      modal
-      onOpenChange={onOpenChange}
-      onInteractOutside={(e) => e.preventDefault()}
-      className="sm:inset-y-24"
-      containerClass="w-full h-full sm:max-w-2xl"
-    >
+    <>
       <FormProvider {...form}>
         <div className="flex flex-col">{currentStepComponent}</div>
       </FormProvider>
@@ -162,6 +146,6 @@ export default function NewGroup() {
           setStep={(step) => setStep(step + 1)}
         />
       </div>
-    </Dialog>
+    </>
   );
 }
