@@ -44,7 +44,9 @@
     "postinstall": "patch-package",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\""
+    "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\"",
+    "cosmos": "cosmos",
+    "cosmos:export": "cosmos-export"
   },
   "lint-staged": {
     "**/*.ts?(x)": [
@@ -229,6 +231,8 @@
     "postcss-import": "^14.1.0",
     "prettier": "^2.6.2",
     "react-test-renderer": "^18.2.0",
+    "react-cosmos": "^6.0.0-beta.6",
+    "react-cosmos-plugin-vite": "^6.0.0-beta.6",
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-visualizer": "^5.6.0",
     "storybook": "^7.0.27",
