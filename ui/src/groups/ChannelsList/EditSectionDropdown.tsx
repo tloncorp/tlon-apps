@@ -2,7 +2,7 @@ import cn from 'classnames';
 import React, { useState } from 'react';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import ActionsModal, { Action } from '@/components/ActionsModal';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useGroupCompatibility, useRouteGroup } from '@/state/groups';
 
 interface EditSectionDropDownProps {
@@ -35,7 +35,7 @@ export default function EditSectionDropDown({
 
   return (
     <>
-      <ActionsModal
+      <ActionMenu
         open={open}
         onOpenChange={setOpen}
         actions={actions}
@@ -48,7 +48,7 @@ export default function EditSectionDropDown({
             compatible ? 'text-gray-600' : 'text-gray-200'
           )}
         />
-      </ActionsModal>
+      </ActionMenu>
       <ConfirmationModal
         open={deleteOpen}
         setOpen={setDeleteOpen}

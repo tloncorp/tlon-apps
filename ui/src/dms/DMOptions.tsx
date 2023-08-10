@@ -10,7 +10,7 @@ import BulletIcon from '@/components/icons/BulletIcon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsChannelUnread } from '@/logic/channel';
 import DmInviteDialog from './DmInviteDialog';
-import ActionsModal, { Action } from '@/components/ActionsModal';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 
 interface DMOptionsProps {
   whom: string;
@@ -164,7 +164,7 @@ export default function DmOptions({
 
   return (
     <>
-      <ActionsModal
+      <ActionMenu
         open={isOpen}
         onOpenChange={(open) => setIsOpen(open)}
         actions={actions}
@@ -187,7 +187,7 @@ export default function DmOptions({
             <EllipsisIcon className="h-6 w-6 text-inherit" />
           </button>
         </div>
-      </ActionsModal>
+      </ActionMenu>
       <Dialog open={dialog} onOpenChange={setDialog} containerClass="max-w-md">
         <div className="flex flex-col">
           <h2 className="mb-4 text-lg font-bold">Leave Chat</h2>

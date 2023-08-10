@@ -25,7 +25,7 @@ import SystemChrome from '@/components/Sidebar/SystemChrome';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
-import ActionsModal, { Action } from '@/components/ActionsModal';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -69,7 +69,7 @@ export function TalkAppMenu() {
   ];
 
   return (
-    <ActionsModal
+    <ActionMenu
       open={menuOpen}
       onOpenChange={setMenuOpen}
       actions={actions}
@@ -123,7 +123,7 @@ export function TalkAppMenu() {
           </a>
         </div>
       </SidebarItem>
-    </ActionsModal>
+    </ActionMenu>
   );
 }
 
@@ -231,7 +231,7 @@ export default function MessagesSidebar() {
               <h2 className="text-sm font-bold text-gray-400">
                 {messagesFilter}
               </h2>
-              <ActionsModal
+              <ActionMenu
                 open={filterOpen}
                 onOpenChange={setFilterOpen}
                 actions={filterActions}
@@ -241,7 +241,7 @@ export default function MessagesSidebar() {
                 ariaLabel="Groups Filter Options"
               >
                 <Filter16Icon className="w-4 text-gray-400" />
-              </ActionsModal>
+              </ActionMenu>
             </div>
           </MessagesList>
         </MessagesScrollingContext.Provider>

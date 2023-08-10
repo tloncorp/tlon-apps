@@ -3,7 +3,7 @@ import SortIcon from '@/components/icons/SortIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import useSidebarSort from '@/logic/useSidebarSort';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
-import ActionsModal, { Action } from '@/components/ActionsModal';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 
 type SidebarSorterProps = Omit<
   ReturnType<typeof useSidebarSort>,
@@ -38,7 +38,7 @@ export default function SidebarSorter({
   });
 
   return (
-    <ActionsModal
+    <ActionMenu
       open={open}
       onOpenChange={setOpen}
       actions={actions}
@@ -52,6 +52,6 @@ export default function SidebarSorter({
       ) : (
         <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
       )}
-    </ActionsModal>
+    </ActionMenu>
   );
 }

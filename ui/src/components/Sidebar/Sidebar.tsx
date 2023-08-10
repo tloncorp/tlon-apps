@@ -26,7 +26,7 @@ import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import SystemChrome from './SystemChrome';
-import ActionsModal, { Action } from '../ActionsModal';
+import ActionMenu, { Action } from '../ActionMenu';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -70,7 +70,7 @@ export function GroupsAppMenu() {
   ];
 
   return (
-    <ActionsModal
+    <ActionMenu
       open={menuOpen}
       onOpenChange={setMenuOpen}
       actions={actions}
@@ -129,7 +129,7 @@ export function GroupsAppMenu() {
           </a>
         </div>
       </SidebarItem>
-    </ActionsModal>
+    </ActionMenu>
   );
 }
 

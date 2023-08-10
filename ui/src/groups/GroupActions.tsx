@@ -12,7 +12,7 @@ import {
   useGroup,
   useGroupCancelMutation,
 } from '@/state/groups';
-import ActionsModal, { Action } from '@/components/ActionsModal';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 
 const { ship } = window;
 
@@ -155,7 +155,7 @@ const GroupActions = React.memo(
     }
 
     return (
-      <ActionsModal
+      <ActionMenu
         open={isOpen}
         onOpenChange={setIsOpen}
         actions={actions}
@@ -181,7 +181,7 @@ const GroupActions = React.memo(
             </button>
           </div>
         )}
-      </ActionsModal>
+      </ActionMenu>
     );
   }
 );

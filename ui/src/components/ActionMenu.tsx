@@ -20,7 +20,7 @@ export interface Action {
   containerClassName?: string;
 }
 
-type ActionsModalProps = PropsWithChildren<{
+type ActionMenuProps = PropsWithChildren<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   actions: Action[];
@@ -48,7 +48,7 @@ function classNameForType(type?: ActionType) {
   }
 }
 
-const ActionsModal = React.memo(
+const ActionMenu = React.memo(
   ({
     open,
     onOpenChange,
@@ -61,7 +61,7 @@ const ActionsModal = React.memo(
     triggerClassName,
     contentClassName,
     children,
-  }: ActionsModalProps) => {
+  }: ActionMenuProps) => {
     const isMobile = useIsMobile();
 
     return (
@@ -142,4 +142,4 @@ const ActionsModal = React.memo(
   }
 );
 
-export default ActionsModal;
+export default ActionMenu;

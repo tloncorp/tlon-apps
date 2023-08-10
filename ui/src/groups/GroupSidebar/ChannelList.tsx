@@ -37,7 +37,7 @@ import {
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import ActionsModal, { Action } from '@/components/ActionsModal';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 
 const UNZONED = 'default';
@@ -93,7 +93,7 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
           {sortLabel()}
         </h2>
       )}
-      <ActionsModal
+      <ActionMenu
         open={open}
         onOpenChange={setOpen}
         actions={actions}
@@ -107,7 +107,7 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
         ) : (
           <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
         )}
-      </ActionsModal>
+      </ActionMenu>
     </div>
   );
 }

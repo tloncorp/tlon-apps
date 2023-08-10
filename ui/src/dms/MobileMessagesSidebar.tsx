@@ -22,7 +22,7 @@ import useAppName from '@/logic/useAppName';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
-import ActionsModal, { Action } from '@/components/ActionsModal';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
@@ -96,7 +96,7 @@ export default function MobileMessagesSidebar() {
           <>
             <ReconnectingSpinner />
             {appName === 'Talk' ? (
-              <ActionsModal
+              <ActionMenu
                 open={filterOpen}
                 onOpenChange={setFilterOpen}
                 actions={filterActions}
@@ -105,7 +105,7 @@ export default function MobileMessagesSidebar() {
                 ariaLabel="Groups Filter Options"
               >
                 <FilterIconMobileNav className="h-8 w-8 text-black" />
-              </ActionsModal>
+              </ActionMenu>
             ) : null}
             <Link
               to="/dm/new"
