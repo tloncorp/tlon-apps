@@ -1,6 +1,6 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import AsteriskIcon from '@/components/icons/Asterisk16Icon';
+import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import { isTalk } from '@/logic/utils';
 
 const updateInterval =
@@ -52,7 +52,7 @@ export default function UpdateNotice() {
   return (
     <div className="z-50 flex items-center justify-between bg-yellow py-1 px-2 text-sm font-medium text-black dark:text-white">
       <div className="flex items-center">
-        <AsteriskIcon className="mr-3 h-4 w-4" />
+        <Asterisk16Icon className="mr-3 h-4 w-4" />
         <span className="mr-1">
           {appName} has updated in the background. Please click update to load
           the latest version.

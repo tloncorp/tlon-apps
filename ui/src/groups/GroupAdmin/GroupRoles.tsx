@@ -21,7 +21,7 @@ import {
 } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import { useDiaries } from '@/state/diary';
-import { useHeapState } from '@/state/heap/heap';
+import { useHeapState, useStash } from '@/state/heap/heap';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GlobeIcon from '@/components/icons/GlobeIcon';
@@ -56,8 +56,10 @@ export default function GroupRoles({ title }: { title: string }) {
   const roles = group?.cabals;
   const fleet = group?.fleet;
   const shelf = useDiaries();
+  const stash = useStash();
   const { state } = useLocation();
 
+  // TODO: is this needed?
   const currentlyUsedRoles = group
     ? _.uniq([
         ...Object.entries(group.channels)
@@ -74,7 +76,7 @@ export default function GroupRoles({ title }: { title: string }) {
               app === 'chat'
                 ? useChatState.getState().chats
                 : app === 'heap'
-                ? useHeapState.getState().stash
+                ? stash
                 : shelf;
 
             const channel = chState[channelFlag];

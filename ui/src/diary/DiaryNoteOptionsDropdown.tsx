@@ -25,7 +25,8 @@ export default function DiaryNoteOptionsDropdown({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const arrangedNotes = useArrangedNotes(flag);
   const { ship } = getFlagParts(flag);
-  const chan = useChannel(flag);
+  const nest = `diary/${flag}`;
+  const chan = useChannel(nest);
   const saga = chan?.saga || null;
   const {
     isOpen,

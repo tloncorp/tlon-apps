@@ -1,14 +1,15 @@
 import cn from 'classnames';
-import React, { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import _ from 'lodash';
-import f from 'lodash/fp';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { useChatState } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
 import { CurioSeal } from '@/types/heap';
-import { useHeapState } from '@/state/heap/heap';
+import {
+  useAddCurioFeelMutation,
+  useDelCurioFeelMutation,
+} from '@/state/heap/heap';
 
 interface HeapCommentReactionProps {
   whom: string;
@@ -16,6 +17,7 @@ interface HeapCommentReactionProps {
   time: string;
   feel: string;
   ships: string[];
+  replying?: string;
 }
 
 export default function HeapCommentReaction({
@@ -24,8 +26,11 @@ export default function HeapCommentReaction({
   time,
   feel,
   ships,
+  replying,
 }: HeapCommentReactionProps) {
   const { load } = useEmoji();
+  const addFeelMutation = useAddCurioFeelMutation();
+  const delFeelMutation = useDelCurioFeelMutation();
   const isMine = ships.includes(window.our);
   const count = ships.length;
 
@@ -35,13 +40,14 @@ export default function HeapCommentReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await useHeapState.getState().delFeel(whom, time);
-      await useHeapState.getState().fetchCurio(whom, time);
+      delFeelMutation.mutate(
+        { flag: whom, time, replying },
+        { onError: (error) => console.log(error) }
+      );
     } else {
-      await useHeapState.getState().addFeel(whom, time, feel);
-      await useHeapState.getState().fetchCurio(whom, time);
+      addFeelMutation.mutate({ flag: whom, time, feel, replying });
     }
-  }, [isMine, whom, feel, time]);
+  }, [isMine, whom, feel, time, addFeelMutation, delFeelMutation, replying]);
 
   return (
     <div>

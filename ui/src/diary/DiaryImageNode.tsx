@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCalm } from '@/state/settings';
 import LinkIcon from '@/components/icons/LinkIcon';
-import AsteriskIcon from '@/components/icons/Asterisk16Icon';
+import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import { Node, NodeViewProps } from '@tiptap/core';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import cn from 'classnames';
@@ -144,7 +144,7 @@ function DiaryImageComponent(props: NodeViewProps) {
             ) : null}
             {error ? (
               <div className="flex space-x-2">
-                <AsteriskIcon className="h-4 w-4" />
+                <Asterisk16Icon className="h-4 w-4" />
                 <div className="grow">Failed to Load</div>
                 <button type="button" onClick={props.deleteNode}>
                   Cancel

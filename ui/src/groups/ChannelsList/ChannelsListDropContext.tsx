@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { DragDropContext, DraggableLocation } from 'react-beautiful-dnd';
+import {
+  DragDropContext,
+  DraggableLocation,
+  DropResult,
+} from 'react-beautiful-dnd';
 import bigInt from 'big-integer';
 import { formatUv } from '@urbit/aura';
 import {
@@ -199,7 +203,7 @@ export default function ChannelsListDropContext({
   );
 
   const onDragEnd = useCallback(
-    async (result) => {
+    async (result: DropResult) => {
       const { source, destination } = result;
 
       if (!destination) {

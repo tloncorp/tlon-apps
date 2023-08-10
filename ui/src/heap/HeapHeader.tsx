@@ -11,7 +11,7 @@ import {
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import { nestToFlag } from '@/logic/utils';
 import DisplayDropdown from '@/channels/DisplayDropdown';
-import { useHeapState } from '@/state/heap/heap';
+import { useLeaveHeapMutation } from '@/state/heap/heap';
 
 interface HeapHeaderProps {
   flag: string;
@@ -32,6 +32,7 @@ export default function HeapHeader({
     bucket: 'heaps',
     key: 'heapSettings',
   });
+  const leaveHeapMutation = useLeaveHeapMutation();
 
   const setDisplayMode = (setting: HeapDisplayMode) => {
     const newSettings = setChannelSetting<HeapSetting>(
@@ -62,7 +63,9 @@ export default function HeapHeader({
       flag={flag}
       nest={nest}
       prettyAppName="Gallery"
-      leave={useHeapState.getState().leaveHeap}
+      leave={(leaveFlag: string) =>
+        leaveHeapMutation.mutateAsync({ flag: leaveFlag })
+      }
     >
       <DisplayDropdown displayMode={display} setDisplayMode={setDisplayMode} />
       <Dropdown.Root>

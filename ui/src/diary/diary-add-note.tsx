@@ -32,7 +32,7 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import Setting from '@/components/Setting';
+import Setting from '@/components/Settings/Setting';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';

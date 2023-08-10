@@ -5,6 +5,7 @@ import ArrowEIcon16 from '../icons/ArrowEIcon16';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
 import AddIcon16 from '../icons/Add16Icon';
 import GridIcon from '../icons/GridIcon';
+import { IconProps } from '../icons/icon';
 
 function CommandBadge() {
   return (
@@ -23,7 +24,7 @@ function PlusBadge() {
 }
 
 export interface IMenuOption {
-  icon: React.ReactNode;
+  icon: (props: IconProps) => JSX.Element;
   title: string;
   subtitle: string;
   to: string;

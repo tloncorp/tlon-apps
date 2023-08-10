@@ -28,13 +28,10 @@ export default function NavTab({
         <NavLink
           {...props}
           to={props.to}
-          className={({ isActive }) =>
-            cn(
-              'flex h-full w-full flex-col items-center justify-center py-2 focus:text-gray-800 active:text-gray-800',
-              isActive ? 'text-gray-800' : 'text-gray-400',
-              linkClass
-            )
-          }
+          className={cn(
+            'flex h-full w-full flex-col items-center justify-center bg-white py-2 text-black',
+            linkClass
+          )}
         >
           {children}
         </NavLink>
@@ -42,7 +39,7 @@ export default function NavTab({
         <a
           {...props}
           className={cn(
-            'flex h-full w-full flex-col items-center justify-center p-2 text-gray-400 focus:text-gray-800 active:text-gray-800',
+            'flex h-full w-full flex-col items-center justify-center bg-white p-2 text-gray-400 text-black',
             linkClass
           )}
         >

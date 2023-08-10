@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import cookies from 'browser-cookies';
 import { Outlet, useMatch, useNavigate } from 'react-router';
 import _ from 'lodash';
 import {
@@ -11,7 +12,7 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { useChatState } from '@/state/chat';
-import { useHeapState } from '@/state/heap/heap';
+import { useHeapBriefs } from '@/state/heap/heap';
 import { useDiaryBriefs } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
@@ -22,6 +23,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 
 function Groups() {
   const navigate = useNavigate();
+  const hasUsedGroupsCount = parseInt(cookies.get('hasUsedGroups') || '0', 10);
   const flag = useRouteGroup();
   const group = useGroup(flag, true);
   const gang = useGang(flag);
@@ -29,6 +31,7 @@ function Groups() {
   const { ship } = getFlagParts(flag);
   const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
   const diaryBriefs = useDiaryBriefs();
+  const heapBriefs = useHeapBriefs();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -72,6 +75,8 @@ function Groups() {
     if (!group && !gang) {
       navigate('/');
     } else if (group && root) {
+      cookies.set('hasUsedGroups', (hasUsedGroupsCount + 1).toString());
+
       const found = Object.entries(group.channels).find(
         ([nest, _c]) => recentChannel === nest
       );
@@ -85,7 +90,8 @@ function Groups() {
       // done this way to prevent too many renders from useAllBriefs
       const allBriefs = {
         ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
-        ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
+        // ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
+        ..._.mapKeys(heapBriefs, (k, v) => `heap/${k}`),
         ..._.mapKeys(diaryBriefs, (v, k) => `diary/${k}`),
       };
       const channel = Object.entries(group.channels).find(
@@ -108,6 +114,8 @@ function Groups() {
     recentChannel,
     navigate,
     diaryBriefs,
+    heapBriefs,
+    hasUsedGroupsCount,
   ]);
 
   useGroupsAnalyticsEvent({
@@ -132,9 +140,11 @@ function Groups() {
   if (!group || group.meta.title === '') {
     return (
       <div className="flex min-w-0 grow items-center justify-center bg-gray-50">
-        <div className="flex items-center justify-center">
+        <div className="items-top mx-6 flex max-w-prose justify-center">
           <LoadingSpinner className="h-4 w-4 text-gray-400" />
-          <span className="ml-2 text-gray-600">Wait a sec</span>
+          <span className="ml-3 text-gray-600">
+            Fetching messages from group host. This might take a minute...
+          </span>
         </div>
       </div>
     );

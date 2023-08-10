@@ -106,7 +106,7 @@ export default function ChatSearch({
     [root, selected, scan, navigate]
   );
 
-  const preventClose = useCallback((e) => {
+  const preventClose = useCallback((e: Event) => {
     const target = e.target as HTMLElement;
     const hasNavAncestor = target.id === 'search' || target.closest('#search');
 

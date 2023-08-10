@@ -1,5 +1,15 @@
 import React from 'react';
-import LeapOption from './LeapOption';
+import { IconProps } from '../icons/icon';
+
+export interface LeapOption {
+  onSelect: () => void;
+  icon: (props: IconProps) => JSX.Element;
+  input?: string | undefined;
+  title: string;
+  subtitle: string;
+  to: string;
+  resultIndex: number;
+}
 
 function LeapRowTitle({
   title,
@@ -44,7 +54,6 @@ export default function LeapRow({
       } flex cursor-pointer items-center justify-between whitespace-nowrap p-3 text-base text-gray-700 hover:bg-gray-100`}
     >
       <div className="flex w-full items-center">
-        {/* @ts-expect-error tsc thinks icon is not callable, but it is :) */}
         <div className="mr-2 shrink-0">{icon({ className: 'w-6 h-6' })}</div>
         <LeapRowTitle title={title} input={input} />
         <span className="shrink-1 ml-2 truncate text-base font-semibold text-gray-400">

@@ -1,6 +1,7 @@
 import * as Popover from '@radix-ui/react-popover';
 import { useGroupLeaveMutation } from '@/state/groups';
 import React, { PropsWithChildren } from 'react';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import ShipName from './ShipName';
 
 type MigrationTooltipProps = PropsWithChildren<{
@@ -17,10 +18,11 @@ export default function MigrationTooltip({
   kind = 'channel',
   children,
 }: MigrationTooltipProps) {
+  const { privacy } = useGroupPrivacy(flag || '');
   const { mutate: mutateLeaveGroup } = useGroupLeaveMutation();
   const handleLeaveGroup = () => {
     if (flag) {
-      mutateLeaveGroup({ flag });
+      mutateLeaveGroup({ flag, privacy });
     }
   };
 

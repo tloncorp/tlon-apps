@@ -22,6 +22,9 @@ import { useCalm } from '@/state/settings';
 import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useFileStore } from '@/state/storage';
+import { Cite } from '@/types/chat';
+import { EditorView } from '@tiptap/pm/view';
+import { Slice } from '@tiptap/pm/model';
 import MentionPopup from './Mention/MentionPopup';
 
 export interface HandlerParams {
@@ -62,7 +65,7 @@ export function useMessageEditor({
   const { setBlocks } = useChatStore.getState();
 
   const onReference = useCallback(
-    (r) => {
+    (r: Cite) => {
       if (!whom) {
         return;
       }
@@ -72,7 +75,7 @@ export function useMessageEditor({
   );
 
   const handlePaste = useCallback(
-    (_view, event: ClipboardEvent, _slice) => {
+    (_view: EditorView, event: ClipboardEvent, _slice: Slice) => {
       if (!whom) {
         return false;
       }
