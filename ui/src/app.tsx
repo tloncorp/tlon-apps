@@ -30,7 +30,7 @@ import {
   useSettingsLoaded,
   useTheme,
 } from '@/state/settings';
-import { useLocalState } from '@/state/local';
+import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -52,7 +52,7 @@ import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
 import GroupInvitesPrivacy from '@/groups/GroupAdmin/GroupInvitesPrivacy';
-import Notifications, { MainWrapper } from '@/notifications/Notifications';
+import Notifications from '@/notifications/Notifications';
 import ChatChannel from '@/chat/ChatChannel';
 import HeapChannel from '@/heap/HeapChannel';
 import DiaryChannel from '@/diary/DiaryChannel';
@@ -97,6 +97,14 @@ import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
+
+const ReactQueryDevtoolsProduction = React.lazy(() =>
+  import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
+    (d) => ({
+      default: d.ReactQueryDevtools,
+    })
+  )
+);
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -672,6 +680,7 @@ function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
+  const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
   const logActivity = useLogActivity();
   const posthog = usePostHog();
@@ -694,6 +703,10 @@ function RoutedApp() {
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
+
+  useEffect(() => {
+    window.toggleDevTools = () => toggleDevTools();
+  }, []);
 
   useEffect(() => {
     if (
@@ -724,6 +737,12 @@ function RoutedApp() {
     }
   }, [posthog, analyticsId, logActivity]);
 
+  useEffect(() => {
+    if (posthog && showDevTools) {
+      posthog.debug();
+    }
+  }, [posthog, showDevTools]);
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
@@ -743,10 +762,15 @@ function RoutedApp() {
         <TooltipProvider delayDuration={0} skipDelayDuration={400}>
           <App />
           <Scheduler />
-          {import.meta.env.DEV && <Eyrie />}
         </TooltipProvider>
         <LureAutojoiner />
         <ReactQueryDevtools initialIsOpen={false} />
+        <Eyrie />
+        {showDevTools && (
+          <React.Suspense fallback={null}>
+            <ReactQueryDevtoolsProduction />
+          </React.Suspense>
+        )}
       </Router>
     </ErrorBoundary>
   );
