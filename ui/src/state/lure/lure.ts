@@ -8,6 +8,7 @@ import {
   storageVersion,
 } from '@/logic/utils';
 import { GroupMeta } from '@/types/groups';
+import { useQuery } from '@tanstack/react-query';
 import produce from 'immer';
 import { useEffect, useCallback, useState } from 'react';
 import create from 'zustand';
@@ -208,16 +209,24 @@ export function useLure(flag: string, disableLoading = false) {
   };
 }
 
-export function useLureLinkChecked(flag: string) {
-  const [good, setGood] = useState(false);
+export function useLureLinkChecked(flag: string, enabled: boolean) {
+  const { data, ...query } = useQuery(
+    ['lure-check', flag],
+    () =>
+      asyncWithDefault(
+        () =>
+          api.subscribeOnce<boolean>('grouper', `/check-link/${flag}`, 4500),
+        false
+      ),
+    {
+      enabled,
+      refetchInterval: 5000,
+    }
+  );
 
-  useEffect(() => {
-    api.subscribeOnce<boolean>(
-      'grouper',
-      `/check-link/${flag}`,
-      12500
-    ).then((result: boolean) => setGood(result));
-  }, [flag]);
-
-  return good;
+  return {
+    ...query,
+    good: data,
+    checked: query.isFetched && !query.isLoading,
+  };
 }

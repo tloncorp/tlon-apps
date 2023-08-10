@@ -7,7 +7,7 @@ import { nestToFlag } from './utils';
 
 interface UseDismissChannelProps {
   nest: string;
-  markRead: (flag: string) => Promise<void>;
+  markRead: (flag: string) => Promise<void> | void;
 }
 
 export default function useDismissChannelNotifications({

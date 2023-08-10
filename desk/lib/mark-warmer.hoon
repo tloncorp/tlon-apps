@@ -1,4 +1,5 @@
 /$  init        %ui-init              %json
+/$  init-0      %ui-init-0            %json
 /$  migration   %ui-migration         %json
 /$  shelf       %shelf                %json
 /$  briefs      %diary-briefs         %json

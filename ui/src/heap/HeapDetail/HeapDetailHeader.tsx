@@ -6,7 +6,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
-import { useCurio } from '@/state/heap/heap';
+import { useCurioWithComments } from '@/state/heap/heap';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import { isLink } from '@/types/heap';
@@ -26,10 +26,10 @@ export default function HeapDetailHeader({
   chFlag,
   idCurio,
 }: ChannelHeaderProps) {
-  const curioObject = useCurio(chFlag, idCurio);
+  // const curioObject = useCurio(chFlag, idCurio);
+  const { curio } = useCurioWithComments(chFlag, idCurio);
   const isMobile = useIsMobile();
   const nest = useNest();
-  const curio = curioObject ? curioObject[1] : null;
   const content = curio ? curio.heart.content : { block: [], inline: [] };
   const curioContent =
     (isLink(curio?.heart.content.inline[0])

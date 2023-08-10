@@ -1,19 +1,44 @@
 import React from 'react';
 import { IconProps } from './icon';
 
-export default function BellIcon({ className }: IconProps) {
+export default function BellIcon({
+  className,
+  isInactive,
+  isDarkMode,
+}: { isInactive?: boolean; isDarkMode?: boolean } & IconProps) {
+  if (isInactive) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+        viewBox="0 0 25 24"
+        fill="none"
+      >
+        <path
+          className="stroke-current"
+          strokeOpacity={isDarkMode ? '.8' : '.2'}
+          strokeWidth="2"
+          d="M5.454 9.546a7.5 7.5 0 0 1 14.971 0l.409 6.741a.672.672 0 0 1-.671.713H5.716a.672.672 0 0 1-.67-.713l.408-6.741ZM15.94 18a3 3 0 0 1-6 0"
+        />
+      </svg>
+    );
+  }
+
   return (
     <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      viewBox="0 0 25 24"
+      fill="none"
     >
       <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M6 11a6.002 6.002 0 0 1 5-5.917V3h2v2.083c2.838.476 5 2.944 5 5.917v2.382l.764.382a2.236 2.236 0 0 1-1 4.236H15a3 3 0 1 1-6 0H6.236a2.236 2.236 0 0 1-1-4.236L6 13.382V11Zm5 7a1 1 0 1 0 2 0h-2Zm-3-7a4 4 0 1 1 8 0v2.902c0 .439.248.84.64 1.036l1.23.615a.236.236 0 0 1-.106.447H6.236a.236.236 0 0 1-.106-.447l1.23-.615c.392-.196.64-.597.64-1.036V11Z"
         className="fill-current"
+        d="M4.455 9.485a8.5 8.5 0 0 1 16.968 0l.409 6.742A1.672 1.672 0 0 1 20.163 18H5.716a1.672 1.672 0 0 1-1.67-1.773l.41-6.742Z"
+      />
+      <path
+        className="stroke-current"
+        strokeWidth="2"
+        d="M15.94 18a3 3 0 0 1-6 0"
       />
     </svg>
   );

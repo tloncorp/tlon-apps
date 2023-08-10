@@ -25,7 +25,11 @@ export default function HeapComment({
     <div className="group-one flex w-full flex-col pb-2">
       <Author ship={author} date={unixDate} timeOnly />
       <div className="relative ml-[28px] rounded-md p-2 group-one-hover:bg-gray-50 ">
-        <HeapContent className="break-words leading-5" isComment content={content} />
+        <HeapContent
+          className="break-words leading-5"
+          isComment
+          content={content}
+        />
         <HeapCommentOptions
           whom={flag || ''}
           curio={curio}
@@ -37,6 +41,7 @@ export default function HeapComment({
             whom={flag || ''}
             seal={curio.seal}
             time={time.toString()}
+            replying={curio.heart.replying || undefined}
           />
         )}
       </div>

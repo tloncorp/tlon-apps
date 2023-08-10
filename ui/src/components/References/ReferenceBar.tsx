@@ -87,10 +87,7 @@ export default function ReferenceBar({
             </span>
           </div>
           <div className="flex shrink-0 cursor-pointer items-center whitespace-nowrap text-gray-400 group-hover:text-gray-600 peer-hover:hidden lg:peer-hover:flex">
-            <ChannelIcon
-              nest={nest}
-              className="h-4 w-4 lg:order-2 lg:block"
-            />
+            <ChannelIcon nest={nest} className="h-4 w-4 lg:order-2 lg:block" />
             <span className="ml-2 font-semibold lg:order-3">
               {channelTitle}
             </span>

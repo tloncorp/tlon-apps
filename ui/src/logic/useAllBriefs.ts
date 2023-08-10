@@ -1,5 +1,5 @@
 import { useBriefs } from '@/state/chat';
-import { useBriefs as useHeapBriefs } from '@/state/heap/heap';
+import { useHeapBriefs } from '@/state/heap/heap';
 import { useDiaryBriefs } from '@/state/diary';
 import _ from 'lodash';
 import { useMemo } from 'react';

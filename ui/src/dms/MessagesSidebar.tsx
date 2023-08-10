@@ -22,6 +22,7 @@ import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -30,93 +31,106 @@ export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
 
-  return (
-    <DropdownMenu.Root
-      modal={false}
-      onOpenChange={() => setMenuOpen(!menuOpen)}
-    >
-      <DropdownMenu.Trigger asChild className="appearance-none">
-        <SidebarItem
-          className={cn(
-            menuOpen
-              ? 'bg-gray-100 text-gray-800'
-              : 'text-black hover:text-gray-800',
-            'group'
-          )}
-          icon={
-            <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
-              <TalkIcon
-                className={cn(
-                  'h-6 w-6',
-                  menuOpen ? 'hidden' : 'group-hover:hidden'
-                )}
-              />
-              <MenuIcon
-                aria-label="Open Menu"
-                className={cn(
-                  'm-1 h-4 w-4 text-gray-800',
-                  menuOpen ? 'block' : 'hidden group-hover:block'
-                )}
-              />
-            </div>
-          }
+  const actions: Action[] = [
+    {
+      key: 'submit',
+      type: 'prominent',
+      content: (
+        <a
+          className="no-underline"
+          href="https://airtable.com/shrflFkf5UyDFKhmW"
+          target="_blank"
+          rel="noreferrer"
         >
-          <div className="flex items-center justify-between">
-            Talk
-            <ReconnectingSpinner className="h-4 w-4 group-hover:hidden" />
-            <a
-              title="Back to Landscape"
-              aria-label="Back to Landscape"
-              href="/apps/grid"
-              target="_blank"
-              rel="noreferrer"
+          Submit Feedback
+        </a>
+      ),
+    },
+    {
+      key: 'about',
+      content: (
+        <Link to="/about" state={{ backgroundLocation: location }}>
+          About Talk
+        </Link>
+      ),
+    },
+    {
+      key: 'settings',
+      content: (
+        <Link
+          to="/settings"
+          className=""
+          state={{ backgroundLocation: location }}
+        >
+          App Settings
+        </Link>
+      ),
+    },
+  ];
+
+  return (
+    <ActionMenu
+      open={menuOpen}
+      onOpenChange={setMenuOpen}
+      actions={actions}
+      align="start"
+    >
+      <SidebarItem
+        className={cn(
+          menuOpen
+            ? 'bg-gray-100 text-gray-800'
+            : 'text-black hover:text-gray-800',
+          'group'
+        )}
+        icon={
+          <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
+            <TalkIcon
               className={cn(
-                'h-6 w-6 no-underline',
+                'h-6 w-6',
+                menuOpen ? 'hidden' : 'group-hover:hidden'
+              )}
+            />
+            <MenuIcon
+              aria-label="Open Menu"
+              className={cn(
+                'm-1 h-4 w-4 text-gray-800',
                 menuOpen ? 'block' : 'hidden group-hover:block'
               )}
-              // Prevents the dropdown trigger from being fired (therefore, opening the menu)
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                return false;
-              }}
-            >
-              <ArrowNWIcon className="text-gray-400" />
-            </a>
+            />
           </div>
-        </SidebarItem>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content className="dropdown" align="start">
-        <DropdownMenu.Item asChild className="dropdown-item-blue">
+        }
+      >
+        <div className="flex items-center justify-between">
+          Talk
+          <ReconnectingSpinner className="h-4 w-4 group-hover:hidden" />
           <a
-            href="https://airtable.com/shrflFkf5UyDFKhmW"
+            title="Back to Landscape"
+            aria-label="Back to Landscape"
+            href="/apps/grid"
             target="_blank"
             rel="noreferrer"
+            className={cn(
+              'h-6 w-6 no-underline',
+              menuOpen ? 'block' : 'hidden group-hover:block'
+            )}
+            // Prevents the dropdown trigger from being fired (therefore, opening the menu)
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              return false;
+            }}
           >
-            Submit Feedback
+            <ArrowNWIcon className="text-gray-400" />
           </a>
-        </DropdownMenu.Item>
-        <DropdownMenu.Item asChild className="dropdown-item">
-          <Link to="/about" state={{ backgroundLocation: location }}>
-            About Talk
-          </Link>
-        </DropdownMenu.Item>
-        <DropdownMenu.Item asChild className="dropdown-item">
-          <Link
-            to="/settings"
-            className=""
-            state={{ backgroundLocation: location }}
-          >
-            App Settings
-          </Link>
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        </div>
+      </SidebarItem>
+    </ActionMenu>
   );
 }
 
 export default function MessagesSidebar() {
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const messagesFilter = useMessagesFilter();
   const { mutate } = usePutEntryMutation({
     bucket: 'talk',
@@ -142,6 +156,36 @@ export default function MessagesSidebar() {
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
+
+  const filterActions: Action[] = [
+    {
+      key: 'all',
+      onClick: () => setFilterMode(filters.all),
+      content: 'All Messages',
+      containerClassName: cn(
+        'flex items-center space-x-2 rounded-none',
+        messagesFilter === filters.all && 'bg-gray-50 text-gray-800'
+      ),
+    },
+    {
+      key: 'direct',
+      onClick: () => setFilterMode(filters.dms),
+      content: 'Direct Messages',
+      containerClassName: cn(
+        'flex items-center space-x-2 rounded-none',
+        messagesFilter === filters.dms && 'bg-gray-50 text-gray-800'
+      ),
+    },
+    {
+      key: 'groups',
+      onClick: () => setFilterMode(filters.groups),
+      content: 'Group Talk Channels',
+      containerClassName: cn(
+        'flex items-center space-x-2 rounded-none',
+        messagesFilter === filters.groups && 'bg-gray-50 text-gray-800'
+      ),
+    },
+  ];
 
   return (
     <nav className="flex h-full min-w-64 flex-none resize-x flex-col overflow-hidden border-r-2 border-gray-50 bg-white">
@@ -187,46 +231,17 @@ export default function MessagesSidebar() {
               <h2 className="text-sm font-bold text-gray-400">
                 {messagesFilter}
               </h2>
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger
-                  className={'default-focus'}
-                  aria-label="Groups Filter Options"
-                >
-                  <Filter16Icon className="w-4 text-gray-400" />
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content className="dropdown w-56 text-gray-600">
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.all &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.all)}
-                  >
-                    All Messages
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.dms &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.dms)}
-                  >
-                    Direct Messages
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.groups &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.groups)}
-                  >
-                    Group Channels
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
+              <ActionMenu
+                open={filterOpen}
+                onOpenChange={setFilterOpen}
+                actions={filterActions}
+                asChild={false}
+                triggerClassName="default-focus"
+                contentClassName="w-56 text-gray-600"
+                ariaLabel="Groups Filter Options"
+              >
+                <Filter16Icon className="w-4 text-gray-400" />
+              </ActionMenu>
             </div>
           </MessagesList>
         </MessagesScrollingContext.Provider>

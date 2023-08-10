@@ -32,7 +32,7 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import Setting from '@/components/Setting';
+import Setting from '@/components/Settings/Setting';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
@@ -91,8 +91,8 @@ export default function DiaryAddNote() {
   // expand title to 2 rows if needed, beyond that we can scroll
   useEffect(() => {
     if (extraTitleRow) return;
-    const { scrollHeight, clientHeight } = titleRef.current!;
-    if (scrollHeight > clientHeight) {
+    if (!titleRef.current) return;
+    if (titleRef.current.scrollHeight > titleRef.current.clientHeight) {
       setExtraTitleRow(true);
     }
   }, [watchedTitle, extraTitleRow]);

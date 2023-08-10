@@ -266,7 +266,7 @@ function DiaryChannel({ title }: ViewProps) {
   return (
     <Layout
       stickyHeader
-      className="flex-1 bg-gray-50"
+      className="flex-1 bg-white pt-4 sm:pt-0"
       aside={<Outlet />}
       header={
         <DiaryHeader
@@ -303,7 +303,7 @@ function DiaryChannel({ title }: ViewProps) {
           <Toast.Viewport label="Note successfully published" />
         </div>
       </Toast.Provider>
-      <div className="h-full">
+      <div className="h-full bg-gray-50">
         {isLoading ? (
           <DiaryChannelListPlaceholder count={4} />
         ) : (displayMode === 'grid' && userDisplayMode === undefined) ||

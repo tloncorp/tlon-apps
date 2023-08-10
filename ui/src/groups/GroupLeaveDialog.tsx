@@ -7,11 +7,13 @@ import {
   useGroupLeaveMutation,
 } from '@/state/groups/groups';
 import { useNavigate } from 'react-router';
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
 
 export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();
   const flag = useRouteGroup();
   const group = useGroup(flag);
+  const { privacy } = useGroupPrivacy(flag);
   const navigate = useNavigate();
   const { mutate: leaveGroupMutation } = useGroupLeaveMutation();
 
@@ -22,9 +24,9 @@ export default function GroupInviteDialog() {
   };
 
   const onLeave = useCallback(async () => {
-    leaveGroupMutation({ flag });
+    leaveGroupMutation({ flag, privacy });
     navigate('/');
-  }, [flag, navigate, leaveGroupMutation]);
+  }, [flag, privacy, navigate, leaveGroupMutation]);
 
   return (
     <Dialog

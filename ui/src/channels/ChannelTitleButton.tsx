@@ -6,7 +6,6 @@ import { useChannel } from '@/state/groups';
 import { useChannel as useChannelSpecific } from '@/logic/channel';
 import { Link } from 'react-router-dom';
 import { useConnectivityCheck } from '@/state/vitals';
-import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import ChannelIcon from './ChannelIcon';
 import HostConnection from './HostConnection';
 
