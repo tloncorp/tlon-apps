@@ -12,6 +12,7 @@ type SidebarSorterProps = Omit<
 
 export default function SidebarSorter({
   sortOptions,
+  sortFn,
   setSortFn,
 }: SidebarSorterProps) {
   const isMobile = useIsMobile();
@@ -30,6 +31,7 @@ export default function SidebarSorter({
   Object.keys(sortOptions).forEach((k) => {
     actions.push({
       key: k,
+      type: k === sortFn ? 'prominent' : 'default',
       onClick: () => setSortFn(k),
       content: k,
     });
