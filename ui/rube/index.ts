@@ -298,6 +298,10 @@ const hoodCommand = async (ship: string, command: string, port: string) => {
 const shipsAreReadyForCommands = () => {
   const shipsArray = Object.values(ships);
   const results = shipsArray.map(({ extractPath, ship }) => {
+    if (targetShip && targetShip !== ship) {
+      return true;
+    }
+
     const httpPortFile = path.join(extractPath, ship, '.http.ports');
     if (fs.existsSync(httpPortFile)) {
       console.log(`Found ${httpPortFile}, ${ship} is ready for commands`);
@@ -339,6 +343,10 @@ const getPortsFromFiles = async () =>
     const shipsArray = Object.values(ships);
 
     shipsArray.forEach(({ extractPath, ship }) => {
+      if (targetShip && targetShip !== ship) {
+        return;
+      }
+
       const httpPortFile = path.join(extractPath, ship, '.http.ports');
       const contents = fs.readFileSync(httpPortFile, 'utf8');
       const lines = contents.split('\n');
