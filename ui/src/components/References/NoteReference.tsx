@@ -103,6 +103,42 @@ function NoteReference({
     );
   }
 
+  if (contextApp === 'heap-comment') {
+    return (
+      <div
+        onClick={handleOpenReferenceClick}
+        className="cursor-pointer rounded-lg border-2 border-gray-50 text-base"
+      >
+        <ReferenceInHeap
+          contextApp={contextApp}
+          image={
+            isImageUrl(outline.image) ? (
+              <img
+                src={outline.image}
+                className="h-[72px] w-[72px] rounded object-cover"
+              />
+            ) : (
+              <NotebookIcon className="h-6 w-6 text-gray-400" />
+            )
+          }
+          title={outline.title}
+        >
+          {children}
+          <ReferenceBar
+            nest={nest}
+            time={bigInt(id)}
+            author={outline.author}
+            groupFlag={preview?.group.flag}
+            groupImage={group?.meta.image}
+            groupTitle={preview?.group.meta.title}
+            channelTitle={preview?.meta?.title}
+            heapComment
+          />
+        </ReferenceInHeap>
+      </div>
+    );
+  }
+
   if (contextApp === 'heap-block') {
     return (
       <ReferenceInHeap

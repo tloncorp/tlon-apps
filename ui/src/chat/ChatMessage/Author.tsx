@@ -13,6 +13,7 @@ interface AuthorProps {
   date?: Date;
   timeOnly?: boolean;
   hideTime?: boolean;
+  hideRoles?: boolean;
   isReply?: boolean;
   isRef?: boolean;
   className?: string;
@@ -22,6 +23,7 @@ export default function Author({
   date,
   timeOnly,
   hideTime,
+  hideRoles = false,
   className,
   isReply = false,
   isRef = false,
@@ -67,7 +69,7 @@ export default function Author({
             />
           )}
         </div>
-        <RoleBadges ship={ship} />
+        {hideRoles ? null : <RoleBadges ship={ship} />}
       </div>
     );
   }
@@ -102,7 +104,7 @@ export default function Author({
         )}
       </div>
       <PalIcon ship={ship} />
-      <RoleBadges ship={ship} />
+      {hideRoles ? null : <RoleBadges ship={ship} />}
       {hideTime ? (
         <span className="-mb-0.5 hidden shrink-0 text-sm font-semibold text-gray-500 group-two-hover:block">
           {timeDisplay.day} <span role="presentation">&#x2022;</span>{' '}

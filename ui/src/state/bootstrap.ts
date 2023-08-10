@@ -39,7 +39,7 @@ async function startGroups(talkStarted: boolean) {
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
-        path: '/init',
+        path: '/init/v0',
       }),
     emptyGroupsInit
   );
@@ -62,7 +62,7 @@ async function startTalk(groupsStarted: boolean) {
     () =>
       api.scry<TalkInit>({
         app: 'talk-ui',
-        path: '/init',
+        path: '/init/v0',
       }),
     async () => {
       const [
@@ -79,7 +79,7 @@ async function startTalk(groupsStarted: boolean) {
           () =>
             api.scry<Groups>({
               app: 'groups',
-              path: '/groups/light',
+              path: '/groups/light/v0',
             }),
           {}
         ),

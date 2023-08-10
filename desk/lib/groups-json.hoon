@@ -152,6 +152,13 @@
     |=  gs=groups:g
     %-  pairs
     %+  turn  ~(tap by gs)
+    |=  [f=flag:g gr=group:g]
+    [(flag f) (group gr)]
+  ::
+  ++  groups-ui
+    |=  gs=groups-ui:g
+    %-  pairs
+    %+  turn  ~(tap by gs)
     |=  [f=flag:g gr=group-ui:g]
     [(flag f) (group-ui gr)]
   ::

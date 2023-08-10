@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
-import React, { useCallback, useEffect, useMemo } from 'react';
-import _ from 'lodash';
+import React, { useCallback, useMemo } from 'react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -23,6 +22,9 @@ import { useCalm } from '@/state/settings';
 import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useFileStore } from '@/state/storage';
+import { Cite } from '@/types/chat';
+import { EditorView } from '@tiptap/pm/view';
+import { Slice } from '@tiptap/pm/model';
 import MentionPopup from './Mention/MentionPopup';
 
 export interface HandlerParams {
@@ -63,7 +65,7 @@ export function useMessageEditor({
   const { setBlocks } = useChatStore.getState();
 
   const onReference = useCallback(
-    (r) => {
+    (r: Cite) => {
       if (!whom) {
         return;
       }
@@ -72,32 +74,8 @@ export function useMessageEditor({
     [chatBlocks, setBlocks, whom]
   );
 
-  const handleDrop = useCallback(
-    (_view, event: DragEvent, _slice) => {
-      if (!whom) {
-        return false;
-      }
-
-      const uploader = useFileStore.getState().getUploader(uploadKey);
-      if (
-        uploader &&
-        event.dataTransfer &&
-        Array.from(event.dataTransfer.files).some((f) =>
-          PASTEABLE_IMAGE_TYPES.includes(f.type)
-        )
-      ) {
-        // TODO should blocks first be updated here to show the loading state?
-        uploader.uploadFiles(event.dataTransfer.files);
-        return true;
-      }
-
-      return false;
-    },
-    [uploadKey, whom]
-  );
-
   const handlePaste = useCallback(
-    (_view, event: ClipboardEvent, _slice) => {
+    (_view: EditorView, event: ClipboardEvent, _slice: Slice) => {
       if (!whom) {
         return false;
       }
@@ -112,6 +90,7 @@ export function useMessageEditor({
       ) {
         // TODO should blocks first be updated here to show the loading state?
         uploader.uploadFiles(event.clipboardData.files);
+        useFileStore.getState().setUploadType(uploadKey, 'paste');
         return true;
       }
 
@@ -192,7 +171,6 @@ export function useMessageEditor({
           'aria-label': 'Message editor with formatting menu',
           spellcheck: `${!calm.disableSpellcheck}`,
         },
-        handleDrop,
         handlePaste,
       },
       onUpdate: ({ editor }) => {
