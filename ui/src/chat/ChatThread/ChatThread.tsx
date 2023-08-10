@@ -21,6 +21,7 @@ import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
+import useAppName from '@/logic/useAppName';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -34,6 +35,7 @@ export default function ChatThread() {
   }>();
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
+  const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const whom = flag || ship || '';
@@ -120,7 +122,8 @@ export default function ChatThread() {
           secondaryTitle={
             <div className="flex w-full items-center justify-center space-x-1">
               <h1 className="text-[18px] text-gray-800">
-                Thread: {threadTitle}
+                Thread
+                {appName === 'Groups' && <span>: {threadTitle}</span>}
               </h1>
             </div>
           }
