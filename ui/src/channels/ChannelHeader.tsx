@@ -48,12 +48,8 @@ export default function ChannelHeader({
         action={
           <div className="flex h-12 flex-row items-center justify-end space-x-2">
             <ReconnectingSpinner />
-            <Link
-              to="search/"
-              className="flex h-8 w-8 rounded hover:bg-gray-50"
-              aria-label="Search Chat"
-            >
-              <MagnifyingGlassMobileNavIcon className="h-8 w-8 p-1 text-gray-900" />
+            <Link to="search/" aria-label="Search Chat">
+              <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-900" />
             </Link>
             <ChannelActions
               {...{ nest, prettyAppName, channel, isAdmin, leave }}

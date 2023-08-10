@@ -23,6 +23,8 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import useAppName from '@/logic/useAppName';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
+import MobileHeader from '@/components/MobileHeader';
+import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -96,7 +98,9 @@ export default function Dm() {
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
+  const { data, showConnection } = useConnectivityCheck(ship || '');
   const isMobile = useIsMobile();
+  const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState(
@@ -145,31 +149,72 @@ export default function Dm() {
               <Route
                 path="*"
                 element={
-                  <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
-                    <TitleButton
-                      ship={ship}
-                      contact={contact}
-                      isMobile={isMobile}
+                  isMobile ? (
+                    <MobileHeader
+                      title={
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-center">
+                          <Avatar size="xs" ship={ship} />
+                        </div>
+                      }
+                      secondaryTitle={
+                        <div className="-mr-4 flex w-full items-center justify-center space-x-1">
+                          <h1 className="text-[18px] text-gray-800">
+                            {contact.nickname ? (
+                              contact.nickname
+                            ) : (
+                              <ShipName full name={ship} />
+                            )}
+                          </h1>
+                          <ShipConnection ship={ship} status={data?.status} />
+                        </div>
+                      }
+                      pathBack={
+                        appName === 'Groups' && isMobile ? '/messages' : '/'
+                      }
+                      action={
+                        <div className="flex h-12 flex-row items-center justify-end space-x-3">
+                          <ReconnectingSpinner />
+                          <Link to="search/" aria-label="Search Chat">
+                            <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-800" />
+                          </Link>
+                          {canStart ? (
+                            <DmOptions
+                              whom={ship}
+                              pending={!isAccepted}
+                              alwaysShowEllipsis
+                              className="text-gray-800"
+                            />
+                          ) : null}
+                        </div>
+                      }
                     />
-                    <div className="flex shrink-0 flex-row items-center space-x-3">
-                      {isMobile && <ReconnectingSpinner />}
-                      <Link
-                        to="search/"
-                        className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
-                        aria-label="Search Chat"
-                      >
-                        <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
-                      </Link>
-                      {canStart ? (
-                        <DmOptions
-                          whom={ship}
-                          pending={!isAccepted}
-                          alwaysShowEllipsis
-                          className="text-gray-600"
-                        />
-                      ) : null}
+                  ) : (
+                    <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
+                      <TitleButton
+                        ship={ship}
+                        contact={contact}
+                        isMobile={isMobile}
+                      />
+                      <div className="flex shrink-0 flex-row items-center space-x-3">
+                        {isMobile && <ReconnectingSpinner />}
+                        <Link
+                          to="search/"
+                          className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
+                          aria-label="Search Chat"
+                        >
+                          <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
+                        </Link>
+                        {canStart ? (
+                          <DmOptions
+                            whom={ship}
+                            pending={!isAccepted}
+                            alwaysShowEllipsis
+                            className="text-gray-600"
+                          />
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
+                  )
                 }
               />
             </Routes>

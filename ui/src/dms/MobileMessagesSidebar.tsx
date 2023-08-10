@@ -58,7 +58,7 @@ export default function MobileMessagesSidebar() {
       type: messagesFilter === filters.all ? 'prominent' : 'default',
       onClick: () => setFilterMode(filters.all),
       content: (
-        <div className="flex">
+        <div className="flex items-center">
           <ChatSmallIcon className="mr-2 h-4 w-4" />
           All Messages
         </div>
@@ -69,7 +69,7 @@ export default function MobileMessagesSidebar() {
       type: messagesFilter === filters.dms ? 'prominent' : 'default',
       onClick: () => setFilterMode(filters.dms),
       content: (
-        <div className="flex">
+        <div className="flex items-center">
           <PersonSmallIcon className="mr-2 h-4 w-4" />
           Direct Messages
         </div>
@@ -80,7 +80,7 @@ export default function MobileMessagesSidebar() {
       type: messagesFilter === filters.groups ? 'prominent' : 'default',
       onClick: () => setFilterMode(filters.groups),
       content: (
-        <div className="flex">
+        <div className="flex items-center">
           <CmdSmallIcon className="mr-2 h-4 w-4" />
           Group Talk Channels
         </div>
@@ -93,7 +93,7 @@ export default function MobileMessagesSidebar() {
       <MobileHeader
         title="Messages"
         action={
-          <>
+          <div className="flex h-12 items-center justify-end space-x-2">
             <ReconnectingSpinner />
             {appName === 'Talk' ? (
               <ActionMenu
@@ -114,7 +114,7 @@ export default function MobileMessagesSidebar() {
             >
               <AddIconMobileNav className="h-8 w-8 text-black" />
             </Link>
-          </>
+          </div>
         }
       />
       <nav className={cn('flex h-full w-full flex-col bg-white')}>
@@ -123,7 +123,7 @@ export default function MobileMessagesSidebar() {
             {filteredPins && filteredPins.length > 0 ? (
               <>
                 <div className="px-4">
-                  <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
+                  <h2 className="my-0.5 p-2 font-system-sans text-lg text-gray-400 sm:text-base">
                     Pinned Messages
                   </h2>
                   {pinned.map((ship: string) => (
@@ -131,7 +131,7 @@ export default function MobileMessagesSidebar() {
                   ))}
                 </div>
                 <div className="flex flex-row items-center justify-between px-4">
-                  <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
+                  <h2 className="my-0.5 p-2 font-system-sans text-lg text-gray-400 sm:text-base">
                     {messagesFilter}
                   </h2>
                 </div>
