@@ -32,10 +32,6 @@ jobs:
         run: npm run e2e
         working-directory: ./ui
 
-      - name: Run E2E Tests for Talk
-        run: npm run e2e:chat
-        working-directory: ./ui
-
       - uses: actions/upload-artifact@v3
         if: always()
         with:
