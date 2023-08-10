@@ -9,8 +9,8 @@ import { useChatState, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsChannelUnread } from '@/logic/channel';
-import DmInviteDialog from './DmInviteDialog';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import DmInviteDialog from './DmInviteDialog';
 
 interface DMOptionsProps {
   whom: string;

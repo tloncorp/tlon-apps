@@ -19,10 +19,10 @@ import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import useAppName from '@/logic/useAppName';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
-import ActionMenu, { Action } from '@/components/ActionMenu';
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);

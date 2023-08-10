@@ -22,10 +22,10 @@ import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
-import ActionMenu, { Action } from '@/components/ActionMenu';
 
 export function TalkAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);

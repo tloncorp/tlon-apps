@@ -6,7 +6,7 @@ import { useScheduler } from './state/scheduler';
 
 /**
  * This component wraps all Cosmos fixtures. It supplies the necessary providers
- * and wraps displayed components with some basic styling. 
+ * and wraps displayed components with some basic styling.
  */
 function AppDecorator({ children }: PropsWithChildren) {
   useScheduler();

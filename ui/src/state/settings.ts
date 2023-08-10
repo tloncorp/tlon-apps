@@ -3,12 +3,12 @@ import cookies from 'browser-cookies';
 import { v4 as uuidv4 } from 'uuid';
 import { Value, PutBucket, DelEntry, DelBucket } from '@urbit/api';
 import _ from 'lodash';
+import produce from 'immer';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lsDesk } from '@/constants';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { DiaryDisplayMode } from '@/types/diary';
-import produce from 'immer';
 import { isHosted, isTalk } from '@/logic/utils';
 import { isNativeApp } from '@/logic/native';
 import api from '@/api';
@@ -508,7 +508,12 @@ export function useShowActivityMessage() {
   const cookie = cookies.get('hasUsedGroups');
 
   return useMemo(() => {
-    if (isLoading || data === undefined || window.desk !== 'groups') {
+    if (
+      isLoading ||
+      data === undefined ||
+      window.desk !== 'groups' ||
+      import.meta.env.DEV
+    ) {
       return false;
     }
 
