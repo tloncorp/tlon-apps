@@ -28,7 +28,7 @@ export default function MobileGroupSidebar() {
   const isAdmin = useAmAdmin(flag);
 
   return (
-    <section className="flex h-full w-full flex-col overflow-x-hidden  bg-white">
+    <section className="flex h-full w-full flex-col overflow-x-hidden bg-white pt-4">
       <Outlet />
       <footer className="mt-auto flex-none border-t-2 border-gray-50">
         <nav>

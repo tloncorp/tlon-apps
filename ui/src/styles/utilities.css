@@ -7,10 +7,6 @@
   @apply outline-none ring-2;
 }
 
-.active {
-  @apply bg-gray-50;
-}
-
 .bottom-shadow {
   box-shadow: 0px 8px 5px -5px rgba(0, 0, 0, 0.1);
 }

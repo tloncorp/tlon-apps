@@ -24,5 +24,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["./src", "./e2e", "./*.config.ts", "./*.setup.ts"]
+  "include": ["./src", "./e2e", "./*.config.ts", "./*.setup.ts", "cosmos/setup.ts"]
 }

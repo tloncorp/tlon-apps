@@ -103,7 +103,7 @@ const ChatMessage = React.memo<
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
-          (inView) => {
+          (inView: boolean) => {
             // if no tracked unread we don't need to take any action
             if (!unread) {
               return;

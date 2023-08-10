@@ -30,6 +30,7 @@ describe('ChatInput', () => {
         sendMessage={() => {
           // placeholder;
         }}
+        dropZoneId="dropzone"
       />
     );
     expect(asFragment()).toMatchSnapshot();

@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useState } from 'react';
 import SortIcon from '@/components/icons/SortIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import useSidebarSort from '@/logic/useSidebarSort';
-import ActionsModal, { Action } from '../ActionsModal';
+import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
+import ActionsModal, { Action } from '@/components/ActionsModal';
 
 type SidebarSorterProps = Omit<
   ReturnType<typeof useSidebarSort>,
@@ -41,11 +41,15 @@ export default function SidebarSorter({
       onOpenChange={setOpen}
       actions={actions}
       asChild={false}
-      triggerClassName="default-focus flex h-6 w-6 items-center rounded text-base font-semibold hover:bg-gray-50 sm:p-1"
+      triggerClassName="default-focus flex items-center rounded text-base font-semibold hover:bg-gray-50 sm:p-1"
       contentClassName="w-56"
       ariaLabel="Groups Sort Options"
     >
-      <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
+      {isMobile ? (
+        <FilterIconMobileNav className="h-8 w-8 text-gray-900" />
+      ) : (
+        <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
+      )}
     </ActionsModal>
   );
 }

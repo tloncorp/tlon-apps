@@ -114,6 +114,7 @@ function CurioReference({
         />
       );
     }
+
     return (
       <ReferenceInHeap
         type="text"
@@ -160,6 +161,7 @@ function CurioReference({
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
         channelTitle={preview?.meta?.title}
+        heapComment={contextApp === 'heap-comment'}
       />
     </div>
   );

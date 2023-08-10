@@ -779,7 +779,12 @@
   ++  he-proxy
     |=  =update:h
     ^+  he-core
-    ?>  he-can-write
+    ::  don't allow anyone else to proxy through us
+    ?.  =(src.bowl our.bowl)
+      ~|("%heap-action poke failed: only allowed from self" !!)
+    ::  must have permission to write
+    ?.  he-can-write
+      ~|("%heap-action poke failed: can't write to host" !!)
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  [act:mar:h !>([flag update])]
     =.  cor

@@ -1,7 +1,6 @@
-import React from 'react';
 import { IconProps } from './icon';
 
-export default function AsteriskIcon({ className }: IconProps) {
+export default function Asterisk16Icon({ className }: IconProps) {
   return (
     <svg
       className={className}

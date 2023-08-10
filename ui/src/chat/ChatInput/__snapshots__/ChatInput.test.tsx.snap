@@ -7,6 +7,7 @@ exports[`ChatInput > renders as expected 1`] = `
   >
     <div
       class="flex-1"
+      id="dropzone"
     >
       <div
         class="relative flex items-end justify-end"

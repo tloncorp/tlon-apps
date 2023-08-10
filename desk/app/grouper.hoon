@@ -54,6 +54,23 @@
     =/  [name=cord enabled=?]  !<([cord ?] vase)
     :_  this
     ~[[%give %fact ~[[%group-enabled (scot %p src.bowl) name ~]] %json !>(b+enabled)]]
+      %grouper-check-link
+    =+  !<(=path vase)
+    ?>  ?=([%check-link @ @ ~] path)
+    =/  baseurl  .^(cord %gx /(scot %p our.bowl)/reel/(scot %da now.bowl)/service/noun)
+    =/  target=ship  (slav %p i.t.path)
+    =/  group=cord  i.t.t.path
+    :_  this
+    :~  :*  %pass  path
+          %arvo  %k  %fard
+          q.byk.bowl  %lure-check-link  %noun
+          !>(`[baseurl target group path])
+        ==
+    ==
+      %grouper-link-checked
+    =+  !<([good=? =path] vase)
+    :_  this
+    ~[[%give %fact ~[path] %json !>(b+good)]]
   ==
 ::
 ++  on-watch
@@ -67,6 +84,9 @@
     ?:  (~(has in outstanding-pokes) [target group])  `this
     :_  this(outstanding-pokes (~(put in outstanding-pokes) [target group]))
     ~[[%pass path %agent [target %grouper] %poke %grouper-ask-enabled !>(group)]]
+      [%check-link @ @ ~]
+    :_  this
+    ~[[%pass path %agent [our.bowl %grouper] %poke %grouper-check-link !>(path)]]
   ==
 ::
 ++  on-agent

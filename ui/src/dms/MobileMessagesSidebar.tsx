@@ -5,8 +5,6 @@ import { Link } from 'react-router-dom';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
-import Filter16Icon from '@/components/icons/Filter16Icon';
-import AddIcon16 from '@/components/icons/AddIcon';
 import { usePinned } from '@/state/chat';
 import {
   filters,
@@ -17,8 +15,9 @@ import {
 import { useGroups } from '@/state/groups';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import GridIcon from '@/components/icons/GridIcon';
-import useLeap from '@/components/Leap/useLeap';
+import MobileHeader from '@/components/MobileHeader';
+import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import useAppName from '@/logic/useAppName';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
@@ -27,10 +26,9 @@ import ActionsModal, { Action } from '@/components/ActionsModal';
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
-  const appName = useAppName();
-  const { setIsOpen } = useLeap();
   const messagesFilter = useMessagesFilter();
   const [filterOpen, setFilterOpen] = useState(false);
+  const appName = useAppName();
   const { mutate } = usePutEntryMutation({
     bucket: 'talk',
     key: 'messagesFilter',
@@ -57,6 +55,7 @@ export default function MobileMessagesSidebar() {
   const filterActions: Action[] = [
     {
       key: 'all',
+      type: messagesFilter === filters.all ? 'prominent' : 'default',
       onClick: () => setFilterMode(filters.all),
       content: (
         <div className="flex">
@@ -67,6 +66,7 @@ export default function MobileMessagesSidebar() {
     },
     {
       key: 'direct',
+      type: messagesFilter === filters.dms ? 'prominent' : 'default',
       onClick: () => setFilterMode(filters.dms),
       content: (
         <div className="flex">
@@ -77,6 +77,7 @@ export default function MobileMessagesSidebar() {
     },
     {
       key: 'groups',
+      type: messagesFilter === filters.groups ? 'prominent' : 'default',
       onClick: () => setFilterMode(filters.groups),
       content: (
         <div className="flex">
@@ -89,46 +90,12 @@ export default function MobileMessagesSidebar() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <header
-        className="flex items-center justify-between border-b-2
-       border-gray-50 bg-white px-6 py-4"
-      >
-        <h1 className="text-lg font-bold text-gray-800 sm:text-base">
-          Messages
-        </h1>
-        <div className="flex shrink-0 flex-row items-center space-x-3 self-end">
-          <ReconnectingSpinner />
-          {!window.ReactNativeWebView && appName === 'Talk' && (
-            <button title="Open Leap" onClick={() => setIsOpen(true)}>
-              <GridIcon className="h-6 w-6 text-gray-400" />
-            </button>
-          )}
-          <Link
-            to="/dm/new"
-            className="default-focus flex items-center rounded-md bg-blue p-1 text-base"
-            aria-label="New Direct Message"
-          >
-            <AddIcon16 className="h-4 w-4 text-white" />
-          </Link>
-        </div>
-      </header>
-      <nav className={cn('flex h-full w-full flex-col bg-white')}>
-        <MessagesScrollingContext.Provider value={isScrolling}>
-          <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
-            {filteredPins && filteredPins.length > 0 ? (
-              <div className="px-4">
-                <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
-                  Pinned Messages
-                </h2>
-                {pinned.map((ship: string) => (
-                  <MessagesSidebarItem key={ship} whom={ship} />
-                ))}
-              </div>
-            ) : null}
-            <div className="flex flex-row items-center justify-between px-4">
-              <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
-                {messagesFilter}
-              </h2>
+      <MobileHeader
+        title="Messages"
+        action={
+          <>
+            <ReconnectingSpinner />
+            {appName === 'Talk' ? (
               <ActionsModal
                 open={filterOpen}
                 onOpenChange={setFilterOpen}
@@ -137,9 +104,39 @@ export default function MobileMessagesSidebar() {
                 triggerClassName="default-focus -mr-0.5 p-1"
                 ariaLabel="Groups Filter Options"
               >
-                <Filter16Icon className="h-4 w-4 text-gray-400" />
+                <FilterIconMobileNav className="h-8 w-8 text-black" />
               </ActionsModal>
-            </div>
+            ) : null}
+            <Link
+              to="/dm/new"
+              className="default-focus flex items-center text-base"
+              aria-label="New Direct Message"
+            >
+              <AddIconMobileNav className="h-8 w-8 text-black" />
+            </Link>
+          </>
+        }
+      />
+      <nav className={cn('flex h-full w-full flex-col bg-white')}>
+        <MessagesScrollingContext.Provider value={isScrolling}>
+          <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
+            {filteredPins && filteredPins.length > 0 ? (
+              <>
+                <div className="px-4">
+                  <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
+                    Pinned Messages
+                  </h2>
+                  {pinned.map((ship: string) => (
+                    <MessagesSidebarItem key={ship} whom={ship} />
+                  ))}
+                </div>
+                <div className="flex flex-row items-center justify-between px-4">
+                  <h2 className="my-0.5 p-2 text-lg font-bold text-gray-400 sm:text-base">
+                    {messagesFilter}
+                  </h2>
+                </div>
+              </>
+            ) : null}
           </MessagesList>
         </MessagesScrollingContext.Provider>
       </nav>

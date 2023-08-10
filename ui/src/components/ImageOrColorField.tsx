@@ -31,6 +31,7 @@ export default function ImageOrColorField<FormType extends FieldValues>({
   const status = state || type;
   const setStatus = setState || setType;
   const watchValue = watch(fieldName);
+  const error = errors[fieldName];
 
   useEffect(() => {
     if (isValidUrl(watchValue) && !isColor(watchValue) && status === 'color') {
@@ -87,8 +88,8 @@ export default function ImageOrColorField<FormType extends FieldValues>({
           </div>
         ) : null}
       </div>
-      {errors[fieldName] ? (
-        <span className="text-sm">{errors[fieldName]?.message}</span>
+      {error && typeof error.message === 'string' ? (
+        <span className="text-sm">{error.message}</span>
       ) : null}
     </>
   );

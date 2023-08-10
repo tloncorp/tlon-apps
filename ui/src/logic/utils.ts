@@ -28,6 +28,7 @@ import {
   GroupPreview,
   Vessel,
   Saga,
+  Gang,
 } from '@/types/groups';
 import { CurioContent, HeapBrief } from '@/types/heap';
 import {
@@ -294,6 +295,14 @@ export function getPrivacyFromGroup(group: Group): PrivacyType {
   }
 
   return getPrivacyFromCordon(group.cordon);
+}
+
+export function getPrivacyFromGang(gang: Gang): PrivacyType {
+  if (!gang.preview || gang.preview.secret) {
+    return 'secret';
+  }
+
+  return getPrivacyFromCordon(gang.preview.cordon);
 }
 
 export interface WritePermissions {

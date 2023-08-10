@@ -38,6 +38,7 @@ import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ActionsModal, { Action } from '@/components/ActionsModal';
+import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 
 const UNZONED = 'default';
 
@@ -101,14 +102,18 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
         contentClassName="w-56"
         ariaLabel="Groups Sort Options"
       >
-        <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
+        {isMobile ? (
+          <FilterIconMobileNav className="h-8 w-8 text-gray-900" />
+        ) : (
+          <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
+        )}
       </ActionsModal>
     </div>
   );
 }
 
 interface UnmigratedChannelProps {
-  icon: ReactNode;
+  icon: ReactNode | ((active: boolean) => React.ReactNode);
   title: string;
   host: string;
   isMobile: boolean;

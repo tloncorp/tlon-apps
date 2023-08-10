@@ -23,6 +23,7 @@ import {
   GroupMeta,
   GroupCreate,
   GroupJoin,
+  PrivacyType,
 } from '@/types/groups';
 import api from '@/api';
 import { BaitCite } from '@/types/chat';
@@ -30,6 +31,7 @@ import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import { getCompatibilityText, getFlagParts, preSig } from '@/logic/utils';
+import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -88,7 +90,7 @@ export function useGroups() {
     queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
-    scry: `/groups/light`,
+    scry: `/groups/light/v0`,
     options: {
       refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
@@ -124,7 +126,7 @@ export function useGroup(flag: string, updating = false) {
   const { data, ...rest } = useReactQueryScry<Group>({
     queryKey,
     app: 'groups',
-    path: `/groups/${flag}/ui`,
+    path: `/groups/${flag}/v0`,
     options: {
       enabled: !!flag && flag !== '' && updating && connection,
       initialData: group,
@@ -712,7 +714,7 @@ export function useDeleteGroupMutation() {
 export function useGroupJoinMutation() {
   const queryClient = useQueryClient();
 
-  const mutationFn = (variables: { flag: string }) =>
+  const mutationFn = (variables: { flag: string; privacy: PrivacyType }) =>
     api.trackedPoke<GroupJoin, GroupAction>(
       {
         app: 'groups',
@@ -737,6 +739,12 @@ export function useGroupJoinMutation() {
       queryClient.invalidateQueries(['gangs']);
       queryClient.invalidateQueries(['gangs', variables.flag]);
       queryClient.invalidateQueries([GROUPS_KEY]);
+
+      captureGroupsAnalyticsEvent({
+        name: 'group_join',
+        groupFlag: variables.flag,
+        privacy: variables.privacy,
+      });
     },
   });
 }
@@ -744,7 +752,7 @@ export function useGroupJoinMutation() {
 export function useGroupLeaveMutation() {
   const queryClient = useQueryClient();
   return useGroupMutation(
-    async (variables: { flag: string }) => {
+    async (variables: { flag: string; privacy: PrivacyType }) => {
       await api.poke({
         app: 'groups',
         mark: 'group-leave',
@@ -781,6 +789,13 @@ export function useGroupLeaveMutation() {
           delete newGroups[variables.flag];
 
           return newGroups;
+        });
+      },
+      onSuccess: (_data, variables) => {
+        captureGroupsAnalyticsEvent({
+          name: 'group_exit',
+          groupFlag: variables.flag,
+          privacy: variables.privacy,
         });
       },
       onSettled: async (_data, _error, variables) => {
