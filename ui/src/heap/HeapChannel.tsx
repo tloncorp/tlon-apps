@@ -172,16 +172,9 @@ function HeapChannel({ title }: ViewProps) {
       .filter(([, c]) => !c.heart.replying) // defensive, they should all be blocks
   );
 
-  // TODO: resolve infinite query issue
   const loadOlderCurios = useCallback(
     (atBottom: boolean) => {
       if (atBottom && hasNextPage) {
-        // makeCuriosStore(
-        //   chFlag,
-        //   () => useHeapState.getState(),
-        //   `/heap/${chFlag}/curios`,
-        //   `/heap/${chFlag}/ui`
-        // ).getOlder('50');
         fetchNextPage();
       }
     },
