@@ -48,9 +48,11 @@ export default function ChannelHeader({
         action={
           <div className="flex h-12 flex-row items-center justify-end space-x-2">
             <ReconnectingSpinner />
-            <Link to="search/" aria-label="Search Chat">
-              <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-900" />
-            </Link>
+            {prettyAppName === 'Chat' && (
+              <Link to="search/" aria-label="Search Chat">
+                <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-900" />
+              </Link>
+            )}
             <ChannelActions
               {...{ nest, prettyAppName, channel, isAdmin, leave }}
             />
