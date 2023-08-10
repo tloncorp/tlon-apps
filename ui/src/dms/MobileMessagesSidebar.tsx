@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import cn from 'classnames';
-import { debounce } from 'lodash';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { debounce, filter } from 'lodash';
 import { Link } from 'react-router-dom';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
@@ -23,10 +22,12 @@ import useAppName from '@/logic/useAppName';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
   const messagesFilter = useMessagesFilter();
+  const [filterOpen, setFilterOpen] = useState(false);
   const appName = useAppName();
   const { mutate } = usePutEntryMutation({
     bucket: 'talk',
@@ -51,6 +52,42 @@ export default function MobileMessagesSidebar() {
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
 
+  const filterActions: Action[] = [
+    {
+      key: 'all',
+      type: messagesFilter === filters.all ? 'prominent' : 'default',
+      onClick: () => setFilterMode(filters.all),
+      content: (
+        <div className="flex">
+          <ChatSmallIcon className="mr-2 h-4 w-4" />
+          All Messages
+        </div>
+      ),
+    },
+    {
+      key: 'direct',
+      type: messagesFilter === filters.dms ? 'prominent' : 'default',
+      onClick: () => setFilterMode(filters.dms),
+      content: (
+        <div className="flex">
+          <PersonSmallIcon className="mr-2 h-4 w-4" />
+          Direct Messages
+        </div>
+      ),
+    },
+    {
+      key: 'groups',
+      type: messagesFilter === filters.groups ? 'prominent' : 'default',
+      onClick: () => setFilterMode(filters.groups),
+      content: (
+        <div className="flex">
+          <CmdSmallIcon className="mr-2 h-4 w-4" />
+          Group Talk Channels
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex h-full w-full flex-col">
       <MobileHeader
@@ -59,49 +96,16 @@ export default function MobileMessagesSidebar() {
           <>
             <ReconnectingSpinner />
             {appName === 'Talk' ? (
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger
-                  className={'default-focus -mr-0.5 p-1'}
-                  aria-label="Groups Filter Options"
-                >
-                  <FilterIconMobileNav className="h-8 w-8 text-black" />
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content className="dropdown text-gray-600">
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.all &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.all)}
-                  >
-                    <ChatSmallIcon className="mr-2 h-4 w-4" />
-                    All Messages
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.dms &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.dms)}
-                  >
-                    <PersonSmallIcon className="mr-2 h-4 w-4" />
-                    Direct Messages
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item
-                    className={cn(
-                      'dropdown-item flex items-center space-x-2 rounded-none',
-                      messagesFilter === filters.groups &&
-                        'bg-gray-50 text-gray-800'
-                    )}
-                    onClick={() => setFilterMode(filters.groups)}
-                  >
-                    <CmdSmallIcon className="mr-2 h-4 w-4" />
-                    Group Talk Channels
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
+              <ActionMenu
+                open={filterOpen}
+                onOpenChange={setFilterOpen}
+                actions={filterActions}
+                asChild={false}
+                triggerClassName="default-focus -mr-0.5 p-1"
+                ariaLabel="Groups Filter Options"
+              >
+                <FilterIconMobileNav className="h-8 w-8 text-black" />
+              </ActionMenu>
             ) : null}
             <Link
               to="/dm/new"
