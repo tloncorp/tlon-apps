@@ -5,7 +5,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useChannel, useAmAdmin, useGroup } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
-import { getFlagParts } from '@/logic/utils';
+import { getFlagParts, isTalk } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import ChannelActions from './ChannelActions';
@@ -67,7 +67,7 @@ export default function ChannelHeader({
             />
           </div>
         }
-        pathBack={`/groups/${flag}`}
+        pathBack={isTalk ? '/' : `/groups/${flag}`}
       />
     );
   }
