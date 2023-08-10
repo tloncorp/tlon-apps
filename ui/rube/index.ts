@@ -8,7 +8,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as zlib from 'zlib';
-import * as portscanner from 'portscanner';
 import * as fsExtra from 'fs-extra';
 import * as childProcess from 'child_process';
 
@@ -24,6 +23,7 @@ const ships: Record<
     ship: string;
     code: string;
     httpPort: string;
+    loopbackPort: string;
   }
 > = {
   zod: {
@@ -33,6 +33,7 @@ const ships: Record<
     ship: 'zod',
     code: 'lidlut-tabwed-pillex-ridrup',
     httpPort: '35453',
+    loopbackPort: '',
   },
   bus: {
     url: 'https://bootstrap.urbit.org/rube-bus3.tgz',
@@ -41,6 +42,7 @@ const ships: Record<
     ship: 'bus',
     code: 'riddec-bicrym-ridlev-pocsef',
     httpPort: '36963',
+    loopbackPort: '',
   },
 };
 
@@ -157,28 +159,29 @@ const getUrbitBinary = async () => {
   }
 };
 
-const killExistingUrbitProcesses = () => new Promise<void>((resolve, reject) => {
-  const pathToBinary = path.join(__dirname, 'urbit_extracted/urbit');
-  console.log('Kill existing urbit processes');
+const killExistingUrbitProcesses = () =>
+  new Promise<void>((resolve, reject) => {
+    const pathToBinary = path.join(__dirname, 'urbit_extracted/urbit');
+    console.log('Kill existing urbit processes');
 
-  const command = `ps aux | grep urbit | grep ${pathToBinary} | awk '{print $2}' | xargs kill -9`;
+    const command = `ps aux | grep urbit | grep ${pathToBinary} | awk '{print $2}' | xargs kill -9`;
 
-  childProcess.exec(command, (error, stdout, stderr) => {
-    if (error && !error.message.includes('No such process')) {
-      console.error(`Error killing process: ${error.message}`);
-      reject(error);
-      return;
-    }
-    if (stderr && !stderr.includes('No such process')) {
-      console.error(`stderr: ${stderr}`);
+    childProcess.exec(command, (error, stdout, stderr) => {
+      if (error && !error.message.includes('No such process')) {
+        console.error(`Error killing process: ${error.message}`);
+        reject(error);
+        return;
+      }
+      if (stderr && !stderr.includes('No such process')) {
+        console.error(`stderr: ${stderr}`);
+        resolve();
+        return;
+      }
+
       resolve();
-      return;
-    }
-
-    resolve();
-    console.log(`stdout: ${stdout}`);
+      console.log(`stdout: ${stdout}`);
+    });
   });
-});
 
 const bootShip = (
   binaryPath: string,
@@ -254,19 +257,6 @@ const copyDesks = async () => {
   }
 };
 
-const getAvailablePort = (startPort: number): Promise<number> =>
-  new Promise((resolve, reject) => {
-    portscanner.findAPortNotInUse(
-      startPort,
-      startPort + 100,
-      '127.0.0.1',
-      (error, port) => {
-        if (error) reject(error);
-        else resolve(port);
-      }
-    );
-  });
-
 const bootAllShips = () => {
   const binaryPath = path.join(__dirname, 'urbit_extracted', 'urbit');
 
@@ -294,22 +284,11 @@ const postToUrbit = async (url: string, source: string, sink: any) => {
   });
 };
 
-const hoodZod = async (command: string, port: number) => {
-  if (targetShip && targetShip !== 'zod') {
+const hoodCommand = async (ship: string, command: string, port: string) => {
+  if (targetShip && targetShip !== ship) {
     return;
   }
-  console.log(`Running ${command} on zod`);
-
-  await postToUrbit(`http://localhost:${port}`, `+hood/${command}`, {
-    app: 'hood',
-  });
-};
-
-const hoodBus = async (command: string, port: number) => {
-  if (targetShip && targetShip !== 'bus') {
-    return;
-  }
-  console.log(`Running ${command} on bus`);
+  console.log(`Running ${command} on ${ship}`);
 
   await postToUrbit(`http://localhost:${port}`, `+hood/${command}`, {
     app: 'hood',
@@ -354,32 +333,53 @@ const checkShipReadinessForCommands = async () =>
     checkForHttpsPorts();
   });
 
-const mountDesks = async (port1: number, port2: number) => {
+const getPortsFromFiles = async () =>
+  new Promise<void>((resolve) => {
+    console.log('Getting loopback ports from .http.ports files');
+    const shipsArray = Object.values(ships);
+
+    shipsArray.forEach(({ extractPath, ship }) => {
+      const httpPortFile = path.join(extractPath, ship, '.http.ports');
+      const contents = fs.readFileSync(httpPortFile, 'utf8');
+      const lines = contents.split('\n');
+
+      lines.forEach((line) => {
+        const [port, _, type] = line.split(' ');
+        if (type === 'loopback') {
+          ships[ship].loopbackPort = port;
+        }
+      });
+      console.log(
+        `Found loopback port ${ships[ship].loopbackPort} for ${ship}`
+      );
+    });
+    resolve();
+  });
+
+const mountDesks = async () => {
   console.log('Mounting desks on fake ships');
-  await hoodZod('mount %groups', port1);
-  await hoodZod('mount %talk', port1);
-  await hoodBus(
-    'mount %groups',
-    targetShip && targetShip === 'bus' ? port1 : port2
-  );
-  await hoodBus(
-    'mount %talk',
-    targetShip && targetShip === 'bus' ? port1 : port2
-  );
+
+  for (const ship of Object.values(ships)) {
+    if (targetShip && targetShip !== ship.ship) {
+      continue;
+    }
+
+    await hoodCommand(ship.ship, `mount %groups`, ship.loopbackPort);
+    await hoodCommand(ship.ship, `mount %talk`, ship.loopbackPort);
+  }
 };
 
-const commitDesks = async (port1: number, port2: number) => {
+const commitDesks = async () => {
   console.log('Committing desks on fake ships');
-  await hoodZod('commit %groups', port1);
-  await hoodZod('commit %talk', port1);
-  await hoodBus(
-    'commit %groups',
-    targetShip && targetShip === 'bus' ? port1 : port2
-  );
-  await hoodBus(
-    'commit %talk',
-    targetShip && targetShip === 'bus' ? port1 : port2
-  );
+
+  for (const ship of Object.values(ships)) {
+    if (targetShip && targetShip !== ship.ship) {
+      continue;
+    }
+
+    await hoodCommand(ship.ship, `commit %groups`, ship.loopbackPort);
+    await hoodCommand(ship.ship, `commit %talk`, ship.loopbackPort);
+  }
 };
 
 const login = async () => {
@@ -610,19 +610,18 @@ const main = async () => {
   try {
     await getPiers();
     await getUrbitBinary();
-    const port1 = await getAvailablePort(12321);
-    const port2 = await getAvailablePort(port1 + 1);
 
     await killExistingUrbitProcesses();
 
     bootAllShips();
 
     await checkShipReadinessForCommands();
-    await mountDesks(port1, port2);
+    await getPortsFromFiles();
+    await mountDesks();
     await login();
     await getStartHashes();
     await copyDesks();
-    await commitDesks(port1, port2);
+    await commitDesks();
     await runPlaywrightTests();
     process.exit(0);
   } catch (err) {
