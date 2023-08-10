@@ -18,7 +18,10 @@ import {
 } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
-import { useHeapState } from '@/state/heap/heap';
+import {
+  useAddHeapSectsMutation,
+  useDelHeapSectsMutation,
+} from '@/state/heap/heap';
 import {
   useAddSectsDiaryMutation,
   useDeleteSectsDiaryMutation,
@@ -61,6 +64,8 @@ export default function EditChannelForm({
     useEditChannelMutation();
   const { mutateAsync: addDiarySects } = useAddSectsDiaryMutation();
   const { mutateAsync: delDiarySects } = useDeleteSectsDiaryMutation();
+  const { mutateAsync: addHeapSects } = useAddHeapSectsMutation();
+  const { mutateAsync: delHeapSects } = useDelHeapSectsMutation();
   const { mutate: changeDiarySort } = useSortDiaryMutation();
   const { mutate: changeDiaryView } = useViewDiaryMutation();
   const defaultValues: ChannelFormSchema = {
@@ -117,14 +122,16 @@ export default function EditChannelForm({
           ? (flag: string, writers: string[]) =>
               addDiarySects({ flag, writers })
           : app === 'heap'
-          ? useHeapState.getState().addSects
+          ? (flag: string, writers: string[]) =>
+              addHeapSects({ flag, sects: writers })
           : useChatState.getState().addSects;
       const delSects =
         app === 'diary'
           ? (flag: string, writers: string[]) =>
               delDiarySects({ flag, writers })
           : app === 'heap'
-          ? useHeapState.getState().delSects
+          ? (flag: string, writers: string[]) =>
+              delHeapSects({ flag, sects: writers })
           : useChatState.getState().delSects;
 
       if (privacy !== 'public') {
@@ -164,6 +171,8 @@ export default function EditChannelForm({
       chan?.perms.writers,
       addDiarySects,
       delDiarySects,
+      addHeapSects,
+      delHeapSects,
       changeDiarySort,
       changeDiaryView,
     ]

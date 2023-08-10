@@ -41,6 +41,7 @@ export default function HeapComment({
             whom={flag || ''}
             seal={curio.seal}
             time={time.toString()}
+            replying={curio.heart.replying || undefined}
           />
         )}
       </div>
