@@ -1,4 +1,5 @@
 import { BigIntOrderedMap } from '@urbit/api';
+import bigInt from 'big-integer';
 import { ChatBlock } from './chat';
 import {
   Italics,
@@ -109,6 +110,7 @@ export interface HeapCurios {
 }
 
 export type HeapCurioMap = BigIntOrderedMap<HeapCurio>;
+export type HeapCurioTuple = [string, HeapCurio];
 
 interface CurioDeltaAdd {
   add: CurioHeart;

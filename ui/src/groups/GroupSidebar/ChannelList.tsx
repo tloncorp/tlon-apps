@@ -1,6 +1,5 @@
 import cn from 'classnames';
-import React, { ReactNode } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import React, { ReactNode, useState } from 'react';
 import {
   channelHref,
   canReadChannel,
@@ -38,8 +37,8 @@ import {
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
-import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
 
@@ -53,6 +52,7 @@ interface ChannelListProps {
 
 export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   const { sortFn, sortOptions, setSortFn } = useChannelSort();
+  const [open, setOpen] = useState(false);
 
   function sortLabel() {
     switch (sortFn) {
@@ -66,6 +66,26 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
         return 'Channels';
     }
   }
+
+  const actions: Action[] = [];
+
+  if (!isMobile) {
+    actions.push({
+      key: 'ordering',
+      type: 'disabled',
+      content: 'Channel Ordering',
+    });
+  }
+
+  Object.keys(sortOptions).forEach((k) => {
+    actions.push({
+      key: k,
+      type: k === sortFn ? 'prominent' : 'default',
+      onClick: () => setSortFn(k),
+      content: k,
+    });
+  });
+
   return (
     <div className="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3">
       {!isMobile && (
@@ -73,20 +93,21 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
           {sortLabel()}
         </h2>
       )}
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger
-          className="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
-          aria-label="Groups Sort Options"
-        >
-          {isMobile ? (
-            <FilterIconMobileNav className="h-8 w-8 text-gray-900" />
-          ) : (
-            <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
-          )}
-        </DropdownMenu.Trigger>
-
-        <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
-      </DropdownMenu.Root>
+      <ActionMenu
+        open={open}
+        onOpenChange={setOpen}
+        actions={actions}
+        asChild={false}
+        triggerClassName="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
+        contentClassName="w-56"
+        ariaLabel="Groups Sort Options"
+      >
+        {isMobile ? (
+          <FilterIconMobileNav className="h-8 w-8 text-gray-900" />
+        ) : (
+          <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
+        )}
+      </ActionMenu>
     </div>
   );
 }

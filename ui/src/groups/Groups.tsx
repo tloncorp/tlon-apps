@@ -12,7 +12,7 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { useChatState } from '@/state/chat';
-import { useHeapState } from '@/state/heap/heap';
+import { useHeapBriefs } from '@/state/heap/heap';
 import { useDiaryBriefs } from '@/state/diary';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
@@ -31,6 +31,7 @@ function Groups() {
   const { ship } = getFlagParts(flag);
   const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
   const diaryBriefs = useDiaryBriefs();
+  const heapBriefs = useHeapBriefs();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -89,7 +90,8 @@ function Groups() {
       // done this way to prevent too many renders from useAllBriefs
       const allBriefs = {
         ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
-        ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
+        // ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
+        ..._.mapKeys(heapBriefs, (k, v) => `heap/${k}`),
         ..._.mapKeys(diaryBriefs, (v, k) => `diary/${k}`),
       };
       const channel = Object.entries(group.channels).find(
@@ -112,6 +114,7 @@ function Groups() {
     recentChannel,
     navigate,
     diaryBriefs,
+    heapBriefs,
     hasUsedGroupsCount,
   ]);
 

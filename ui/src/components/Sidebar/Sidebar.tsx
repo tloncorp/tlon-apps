@@ -26,97 +26,110 @@ import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import SystemChrome from './SystemChrome';
+import ActionMenu, { Action } from '../ActionMenu';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
 
-  return (
-    <DropdownMenu.Root
-      modal={false}
-      onOpenChange={() => setMenuOpen(!menuOpen)}
-    >
-      <DropdownMenu.Trigger asChild className="appearance-none">
-        <SidebarItem
-          className={cn(
-            menuOpen
-              ? 'bg-gray-100 text-gray-800'
-              : 'text-black hover:text-gray-800',
-            'group'
-          )}
-          icon={
-            <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
-              <AppGroupsIcon
-                className={cn(
-                  'h-6 w-6',
-                  menuOpen ? 'hidden' : 'group-hover:hidden'
-                )}
-              />
-              <MenuIcon
-                aria-label="Open Menu"
-                className={cn(
-                  'm-1 h-4 w-4 text-gray-800',
-                  menuOpen ? 'block' : 'hidden group-hover:block'
-                )}
-              />
-            </div>
-          }
+  const actions: Action[] = [
+    {
+      key: 'submit',
+      type: 'prominent',
+      content: (
+        <a
+          className="no-underline"
+          href="https://airtable.com/shrflFkf5UyDFKhmW"
+          target="_blank"
+          rel="noreferrer"
         >
-          <div className="flex items-center justify-between">
-            Groups
-            <ReconnectingSpinner
+          Submit Feedback
+        </a>
+      ),
+    },
+    {
+      key: 'about',
+      content: (
+        <Link to="/about" state={{ backgroundLocation: location }}>
+          About Groups
+        </Link>
+      ),
+    },
+    {
+      key: 'settings',
+      content: (
+        <Link
+          to="/settings"
+          className=""
+          state={{ backgroundLocation: location }}
+        >
+          App Settings
+        </Link>
+      ),
+    },
+  ];
+
+  return (
+    <ActionMenu
+      open={menuOpen}
+      onOpenChange={setMenuOpen}
+      actions={actions}
+      align="start"
+    >
+      <SidebarItem
+        className={cn(
+          menuOpen
+            ? 'bg-gray-100 text-gray-800'
+            : 'text-black hover:text-gray-800',
+          'group'
+        )}
+        icon={
+          <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
+            <AppGroupsIcon
               className={cn(
-                'h-4 w-4 group-hover:hidden',
-                menuOpen ? 'hidden' : 'block'
+                'h-6 w-6',
+                menuOpen ? 'hidden' : 'group-hover:hidden'
               )}
             />
-            <a
-              title="Back to Landscape"
-              aria-label="Back to Landscape"
-              href="/apps/grid"
-              target="_blank"
-              rel="noreferrer"
+            <MenuIcon
+              aria-label="Open Menu"
               className={cn(
-                'h-6 w-6 no-underline',
+                'm-1 h-4 w-4 text-gray-800',
                 menuOpen ? 'block' : 'hidden group-hover:block'
               )}
-              // Prevents the dropdown trigger from being fired (therefore, opening the menu)
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                return false;
-              }}
-            >
-              <ArrowNWIcon className="text-gray-400" />
-            </a>
+            />
           </div>
-        </SidebarItem>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content className="dropdown" align="start">
-        <DropdownMenu.Item asChild className="dropdown-item-blue">
+        }
+      >
+        <div className="flex items-center justify-between">
+          Groups
+          <ReconnectingSpinner
+            className={cn(
+              'h-4 w-4 group-hover:hidden',
+              menuOpen ? 'hidden' : 'block'
+            )}
+          />
           <a
-            href="https://airtable.com/shrflFkf5UyDFKhmW"
+            title="Back to Landscape"
+            aria-label="Back to Landscape"
+            href="/apps/grid"
             target="_blank"
             rel="noreferrer"
+            className={cn(
+              'h-6 w-6 no-underline',
+              menuOpen ? 'block' : 'hidden group-hover:block'
+            )}
+            // Prevents the dropdown trigger from being fired (therefore, opening the menu)
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              return false;
+            }}
           >
-            Submit Feedback
+            <ArrowNWIcon className="text-gray-400" />
           </a>
-        </DropdownMenu.Item>
-        <DropdownMenu.Item asChild className="dropdown-item">
-          <Link to="/about" state={{ backgroundLocation: location }}>
-            About Groups
-          </Link>
-        </DropdownMenu.Item>
-        <DropdownMenu.Item asChild className="dropdown-item">
-          <Link
-            to="/settings"
-            className=""
-            state={{ backgroundLocation: location }}
-          >
-            App Settings
-          </Link>
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+        </div>
+      </SidebarItem>
+    </ActionMenu>
   );
 }
 
