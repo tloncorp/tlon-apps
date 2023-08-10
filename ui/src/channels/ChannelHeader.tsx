@@ -38,22 +38,15 @@ export default function ChannelHeader({
   if (isMobile) {
     return (
       <MobileHeader
-        title={
-          <div className="flex flex-col items-center space-y-2">
-            <ChannelIcon
-              nest={nest}
-              className="h-7 w-7 shrink-0 px-0.5 pb-0.5 pt-1 text-gray-600"
-            />
-            <div className="flex w-full items-center justify-center space-x-1">
-              <h1 className="text-[18px] text-gray-800 line-clamp-1">
-                {channel?.meta.title}
-              </h1>
-              <HostConnection ship={host} status={data?.status} saga={saga} />
-            </div>
+        title={<ChannelIcon nest={nest} className="h-6 w-6 text-gray-600" />}
+        secondaryTitle={
+          <div className="-mr-4 flex w-full items-center justify-center space-x-1">
+            <h1 className="text-[18px] text-gray-800">{channel?.meta.title}</h1>
+            <HostConnection ship={host} status={data?.status} saga={saga} />
           </div>
         }
         action={
-          <div className="flex flex-row space-x-3">
+          <div className="flex h-12 flex-row items-center justify-end space-x-2">
             <ReconnectingSpinner />
             <Link
               to="search/"

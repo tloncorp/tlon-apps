@@ -16,11 +16,11 @@ import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { whomIsFlag } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
+import MobileHeader from '@/components/MobileHeader';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -114,43 +114,49 @@ export default function ChatThread() {
       className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
     >
-      <header className={'header z-40'}>
-        <div
-          className={cn(
-            'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
-          )}
-        >
-          <BackButton
-            to={returnURL()}
-            aria-label="Close"
+      {isMobile ? (
+        <MobileHeader
+          title={<BranchIcon className="h-6 w-6 text-gray-600" />}
+          secondaryTitle={
+            <div className="flex w-full items-center justify-center space-x-1">
+              <h1 className="text-[18px] text-gray-800">
+                Thread: {threadTitle}
+              </h1>
+            </div>
+          }
+          pathBack={returnURL()}
+        />
+      ) : (
+        <header className={'header z-40'}>
+          <div
             className={cn(
-              'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
+              'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
             )}
           >
-            {isMobile ? (
+            <BackButton
+              to={returnURL()}
+              aria-label="Close"
+              className={cn(
+                'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
+              )}
+            >
               <div className="flex h-6 w-6 items-center justify-center">
-                <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
+                <BranchIcon className="h-6 w-6 text-gray-600" />
               </div>
-            ) : null}
-            <div className="flex h-6 w-6 items-center justify-center">
-              <BranchIcon className="h-6 w-6 text-gray-600" />
-            </div>
+              <div className="flex w-full flex-col justify-center">
+                <span
+                  className={cn(
+                    'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                  )}
+                >
+                  Thread
+                </span>
+                <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+                  {threadTitle}
+                </span>
+              </div>
+            </BackButton>
 
-            <div className="flex w-full flex-col justify-center">
-              <span
-                className={cn(
-                  'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
-                )}
-              >
-                Thread
-              </span>
-              <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
-                {threadTitle}
-              </span>
-            </div>
-          </BackButton>
-
-          {!isMobile && (
             <Link
               to={returnURL()}
               aria-label="Close"
@@ -158,9 +164,9 @@ export default function ChatThread() {
             >
               <X16Icon className="h-4 w-4 text-gray-600" />
             </Link>
-          )}
-        </div>
-      </header>
+          </div>
+        </header>
+      )}
       <div className="flex flex-1 flex-col p-0 pr-2">
         {loading ? (
           <ChatScrollerPlaceholder count={30} />
