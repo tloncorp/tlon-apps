@@ -612,6 +612,7 @@ process.on('uncaughtException', (err) => {
 });
 
 const main = async () => {
+  console.time('Total Script Execution');
   if (targetShip && !ships[targetShip]) {
     console.error(`Invalid ship name: ${targetShip}`);
     process.exit(1);
@@ -633,10 +634,12 @@ const main = async () => {
     await copyDesks();
     await commitDesks();
     await runPlaywrightTests();
+
+    console.timeEnd('Total Script Execution');
     process.exit(0);
   } catch (err) {
     console.error('Error running rube:', err);
-    cleanupSpawnedProcesses();
+    console.timeEnd('Total Script Execution');
     process.exit(1);
   }
 };
