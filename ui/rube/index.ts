@@ -11,6 +11,8 @@ import * as zlib from 'zlib';
 import * as fsExtra from 'fs-extra';
 import * as childProcess from 'child_process';
 
+// TODO: write a script to update and package a pier then upload it to gcs
+
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
 
