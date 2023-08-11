@@ -13,6 +13,7 @@ import LinkIcon from '@/components/icons/LinkIcon';
 import LeaveIcon from '@/components/icons/LeaveIcon';
 import PersonIcon from '@/components/icons/PersonIcon';
 import { getPrivacyFromGroup } from '@/logic/utils';
+import { useIsDark } from '@/logic/useMedia';
 import GroupAvatar from '../GroupAvatar';
 import { useGroupActions } from '../GroupActions';
 
@@ -21,25 +22,35 @@ export default function MobileGroupSidebar() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const privacy = group ? getPrivacyFromGroup(group) : 'public';
-  const match = useMatch('/groups/:ship/:name/info');
+  const matchHome = useMatch('/groups/:ship/:name');
+  const matchActivity = useMatch('/groups/:ship/:name/activity');
+  const matchInfo = useMatch('/groups/:ship/:name/info');
   const location = useLocation();
   const [showSheet, setShowSheet] = useState(false);
   const { onCopy, copyItemText } = useGroupActions(flag);
   const isAdmin = useAmAdmin(flag);
+  const isDarkMode = useIsDark();
 
   return (
-    <section className="flex h-full w-full flex-col overflow-x-hidden bg-white ">
+    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white">
       <Outlet />
-      <footer className="mt-auto flex-none border-t-2 border-gray-50">
+      <footer className="flex-none border-t-2 border-gray-50">
         <nav>
-          <ul className="flex items-center">
+          <ul className="flex h-[50px] items-center">
             <NavTab to={`.`} className="basis-1/4">
-              <HashIcon className="mb-0.5 h-6 w-6" />
-              Channels
+              <HashIcon
+                className={cn(
+                  ' h-6 w-6',
+                  !matchHome && 'text-gray-200 dark:text-gray-600'
+                )}
+              />
             </NavTab>
             <NavTab to={`/groups/${flag}/activity`} className="basis-1/4">
-              <BellIcon className="mb-0.5 h-6 w-6" />
-              Activity
+              <BellIcon
+                isDarkMode={isDarkMode}
+                isInactive={!matchActivity}
+                className={'h-6 w-6'}
+              />
             </NavTab>
             <NavTab
               to={`/groups/${flag}/info`}
@@ -49,13 +60,11 @@ export default function MobileGroupSidebar() {
               <GroupAvatar
                 {...group?.meta}
                 size="h-6 w-6"
-                className={cn('mb-0.5', !match && 'opacity-50 grayscale')}
+                className={cn('', !matchInfo && 'opacity-50 grayscale')}
               />
-              Group Info
             </NavTab>
             <NavTab onClick={() => setShowSheet(true)} className="basis-1/4">
-              <ElipsisIcon className="mb-0.5 h-6 w-6" />
-              Options
+              <ElipsisIcon className="h-6 w-6 text-gray-200 dark:text-gray-600" />
             </NavTab>
           </ul>
           <Sheet open={showSheet} onOpenChange={(o) => setShowSheet(o)}>
