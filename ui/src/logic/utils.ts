@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
 import bigInt, { BigInteger } from 'big-integer';
+import isURL from 'validator/es/lib/isURL';
 import {
   BigIntOrderedMap,
   Docket,
@@ -411,6 +412,13 @@ export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 
 export function isImageUrl(url: string) {
   return IMAGE_URL_REGEX.test(url);
+}
+
+export function isMediaUrl(url: string) {
+  return (
+    isURL(url) &&
+    (IMAGE_REGEX.test(url) || VIDEO_REGEX.test(url) || AUDIO_REGEX.test(url))
+  );
 }
 
 export function isRef(text: string) {

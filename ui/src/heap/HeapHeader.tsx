@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import ChannelHeader from '@/channels/ChannelHeader';
@@ -12,12 +13,14 @@ import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import { nestToFlag } from '@/logic/utils';
 import DisplayDropdown from '@/channels/DisplayDropdown';
 import { useLeaveHeapMutation } from '@/state/heap/heap';
+import AddCurioModal from './AddCurioModal';
 
 interface HeapHeaderProps {
   flag: string;
   nest: string;
   display: HeapDisplayMode;
   sort: HeapSortMode;
+  canWrite: boolean;
 }
 
 export default function HeapHeader({
@@ -25,7 +28,9 @@ export default function HeapHeader({
   nest,
   display,
   sort,
+  canWrite,
 }: HeapHeaderProps) {
+  const [addCurioOpen, setAddCurioOpen] = useState(false);
   const [, chFlag] = nestToFlag(nest);
   const settings = useHeapSettings();
   const { mutate } = usePutEntryMutation({
@@ -67,6 +72,14 @@ export default function HeapHeader({
         leaveHeapMutation.mutateAsync({ flag: leaveFlag })
       }
     >
+      <button
+        className="button"
+        onClick={() => setAddCurioOpen(true)}
+        disabled={addCurioOpen}
+        hidden={!canWrite}
+      >
+        New Block
+      </button>
       <DisplayDropdown displayMode={display} setDisplayMode={setDisplayMode} />
       <Dropdown.Root>
         <Dropdown.Trigger asChild>
@@ -95,6 +108,12 @@ export default function HeapHeader({
           </Dropdown.Item>
         </Dropdown.Content>
       </Dropdown.Root>
+      <AddCurioModal
+        open={addCurioOpen}
+        setOpen={setAddCurioOpen}
+        flag={flag}
+        chFlag={chFlag}
+      />
     </ChannelHeader>
   );
 }
