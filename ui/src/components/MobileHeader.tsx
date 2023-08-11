@@ -23,7 +23,7 @@ export default function MobileHeader({
           <Link className="flex h-12 items-center" to={pathBack}>
             <CaretLeftIconMobileNav className="h-8 w-8 text-gray-900" />
             {pathBackText && (
-              <span className="text-[17px] leading-6 text-gray-800">
+              <span className="text-[17px] leading-6 text-gray-900">
                 {pathBackText}
               </span>
             )}

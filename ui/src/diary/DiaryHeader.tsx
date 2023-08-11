@@ -15,6 +15,8 @@ import { DiaryDisplayMode } from '@/types/diary';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { Link } from 'react-router-dom';
 import AddIcon16 from '@/components/icons/Add16Icon';
+import { useIsMobile } from '@/logic/useMedia';
+import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 
 interface DiaryHeaderProps {
   flag: string;
@@ -34,6 +36,7 @@ export default function DiaryHeader({
   const [, chFlag] = nestToFlag(nest);
   const chan = useChannelSpecific(nest);
   const { ship } = getFlagParts(flag);
+  const isMobile = useIsMobile();
   const saga = chan?.saga || null;
   const settings = useDiarySettings();
   const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
@@ -77,10 +80,19 @@ export default function DiaryHeader({
       (canWrite && saga && 'synced' in saga) ? (
         <Link
           to="edit"
-          className={'small-button shrink-0 bg-blue px-1 text-white sm:px-2'}
+          className={cn(
+            isMobile
+              ? ''
+              : 'small-button shrink-0 bg-blue px-1 text-white sm:px-2'
+          )}
         >
-          <AddIcon16 className="h-4 w-4 sm:hidden" />
-          <span className="hidden sm:inline">Add Note</span>
+          {isMobile ? (
+            <AddIconMobileNav className="h-8 w-8 text-black" />
+          ) : (
+            <AddIcon16 className="h-4 w-4 sm:hidden" />
+          )}
+
+          {!isMobile && <span className="hidden sm:inline">Add Note</span>}
         </Link>
       ) : null}
       <DisplayDropdown displayMode={display} setDisplayMode={setDisplayMode} />

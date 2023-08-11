@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { useNavigate } from 'react-router';
+import cn from 'classnames';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
@@ -18,10 +19,18 @@ interface ChannelActionsProps {
   channel: GroupChannel | undefined;
   isAdmin: boolean | undefined;
   leave: (flag: string) => Promise<void>;
+  children?: React.ReactNode | undefined;
 }
 
 const ChannelActions = React.memo(
-  ({ nest, prettyAppName, channel, isAdmin, leave }: ChannelActionsProps) => {
+  ({
+    nest,
+    prettyAppName,
+    channel,
+    isAdmin,
+    leave,
+    children,
+  }: ChannelActionsProps) => {
     const navigate = useNavigate();
     const isMobile = useIsMobile();
     const [_app, flag] = nestToFlag(nest);
@@ -33,6 +42,7 @@ const ChannelActions = React.memo(
     const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
     const isChannelHost = useIsChannelHost(flag);
     const { mutate: deleteChannelMutate } = useDeleteChannelMutation();
+    const hasChildren = !!children;
 
     const leaveChannel = useCallback(async () => {
       try {
@@ -106,12 +116,25 @@ const ChannelActions = React.memo(
 
     return (
       <>
-        <ActionMenu open={isOpen} onOpenChange={setIsOpen} actions={actions}>
+        <ActionMenu
+          className="w-full"
+          open={isOpen}
+          onOpenChange={setIsOpen}
+          actions={actions}
+        >
           <button
-            className="flex h-8 w-8 items-center justify-center rounded text-gray-800 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600"
+            className={cn(
+              hasChildren
+                ? ''
+                : 'flex h-8 w-8 items-center justify-center rounded text-gray-900 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600'
+            )}
             aria-label="Channel Options"
           >
-            <EllipsisIcon className="h-8 w-8 p-1 sm:h-6 sm:w-6 sm:p-0" />
+            {hasChildren ? (
+              children
+            ) : (
+              <EllipsisIcon className="h-8 w-8 p-1 sm:h-6 sm:w-6 sm:p-0" />
+            )}
           </button>
         </ActionMenu>
         {channel && (

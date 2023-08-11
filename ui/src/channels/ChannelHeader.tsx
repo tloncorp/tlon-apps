@@ -1,5 +1,4 @@
 import React, { PropsWithChildren } from 'react';
-import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChannel, useAmAdmin, useGroup } from '@/state/groups';
@@ -7,7 +6,6 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import { getFlagParts, isTalk } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
-import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import ChannelActions from './ChannelActions';
 import ChannelTitleButton from './ChannelTitleButton';
 import HostConnection from './HostConnection';
@@ -40,22 +38,22 @@ export default function ChannelHeader({
       <MobileHeader
         title={<ChannelIcon nest={nest} className="h-6 w-6 text-gray-600" />}
         secondaryTitle={
-          <div className="-mr-4 flex w-full items-center justify-center space-x-1">
-            <h1 className="text-[18px] text-gray-800">{channel?.meta.title}</h1>
-            <HostConnection ship={host} status={data?.status} saga={saga} />
-          </div>
+          <ChannelActions {...{ nest, prettyAppName, channel, isAdmin, leave }}>
+            <h1 className="flex items-center text-[18px] text-gray-800">
+              {channel?.meta.title}
+              <HostConnection
+                className="ml-1 inline-flex"
+                ship={host}
+                status={data?.status}
+                saga={saga}
+              />
+            </h1>
+          </ChannelActions>
         }
         action={
           <div className="flex h-12 flex-row items-center justify-end space-x-2">
             <ReconnectingSpinner />
-            {prettyAppName === 'Chat' && (
-              <Link to="search/" aria-label="Search Chat">
-                <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-900" />
-              </Link>
-            )}
-            <ChannelActions
-              {...{ nest, prettyAppName, channel, isAdmin, leave }}
-            />
+            {children}
           </div>
         }
         pathBack={isTalk ? '/' : `/groups/${flag}`}
