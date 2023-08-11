@@ -55,7 +55,7 @@ export default function Profile({ title }: ViewProps) {
         className="grow overflow-y-auto bg-white"
       >
         <ProfileCoverImage
-          className="m-auto h-[345px] w-[calc(100%-32px)] shadow-2xl"
+          className="m-auto h-[345px] w-[90%] shadow-2xl"
           cover={contact.cover || ''}
         >
           <Link
