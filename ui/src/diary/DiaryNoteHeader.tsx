@@ -32,7 +32,11 @@ export default function DiaryNoteHeader({
       <MobileHeader
         title={<ChannelIcon nest="diary" className="h-6 w-6 text-gray-600" />}
         secondaryTitle={
-          <h1 className={cn('ellipsis break-all px-4 text-lg line-clamp-1')}>
+          <h1
+            className={cn(
+              'max-w-xs truncate px-4 text-[18px] leading-5 text-gray-800'
+            )}
+          >
             {title}
           </h1>
         }

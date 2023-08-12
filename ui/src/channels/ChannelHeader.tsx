@@ -39,7 +39,7 @@ export default function ChannelHeader({
         title={<ChannelIcon nest={nest} className="h-6 w-6 text-gray-600" />}
         secondaryTitle={
           <ChannelActions {...{ nest, prettyAppName, channel, isAdmin, leave }}>
-            <h1 className="flex items-center text-[18px] text-gray-800">
+            <h1 className="flex max-w-xs items-center truncate px-4 text-[18px] leading-5 text-gray-800">
               {channel?.meta.title}
               <HostConnection
                 className="ml-1 inline-flex"

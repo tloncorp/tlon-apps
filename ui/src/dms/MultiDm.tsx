@@ -126,11 +126,9 @@ export default function MultiDm() {
                         </div>
                       }
                       secondaryTitle={
-                        <div className="flex w-full items-center justify-center space-x-1">
-                          <h1 className="max-w-xs truncate text-[18px] leading-5 text-gray-800">
-                            {groupName}
-                          </h1>
-                        </div>
+                        <h1 className="max-w-xs truncate px-4 text-[18px] leading-5 text-gray-800">
+                          {groupName}
+                        </h1>
                       }
                       pathBack={
                         appName === 'Groups' && isMobile ? '/messages' : '/'
