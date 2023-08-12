@@ -1,7 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import {
@@ -738,8 +737,12 @@ function RoutedApp() {
   }, [posthog, analyticsId, logActivity]);
 
   useEffect(() => {
-    if (posthog && showDevTools) {
-      posthog.debug();
+    if (posthog) {
+      if (showDevTools) {
+        posthog.debug();
+      } else {
+        posthog.debug(false);
+      }
     }
   }, [posthog, showDevTools]);
 
@@ -764,7 +767,6 @@ function RoutedApp() {
           <Scheduler />
         </TooltipProvider>
         <LureAutojoiner />
-        <ReactQueryDevtools initialIsOpen={false} />
         <Eyrie />
         {showDevTools && (
           <React.Suspense fallback={null}>

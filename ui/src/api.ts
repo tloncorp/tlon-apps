@@ -82,10 +82,7 @@ class API {
   private async setup() {
     const { showDevTools } = useLocalState.getState();
 
-    if (
-      this.client &&
-      (this.client.verbose === showDevTools || import.meta.env.DEV)
-    ) {
+    if (this.client && this.client.verbose === showDevTools) {
       return this.client;
     }
 
@@ -106,7 +103,7 @@ class API {
 
     this.client = new Urbit('', '', window.desk, hostingUrl);
     this.client.ship = window.ship;
-    this.client.verbose = import.meta.env.DEV || showDevTools;
+    this.client.verbose = showDevTools;
 
     (this.client as UrbitBase).onReconnect = () => {
       const { onReconnect } = useLocalState.getState();

@@ -29,7 +29,7 @@ export const useLocalState = create<LocalState>(
       currentTheme: 'light',
       browserId: '',
       subscription: 'connected',
-      showDevTools: false,
+      showDevTools: import.meta.env.DEV,
       errorCount: 0,
       airLockErrorCount: 0,
       lastReconnect: 0,

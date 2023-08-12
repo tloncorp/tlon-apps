@@ -17,7 +17,7 @@ declare global {
 export default function Eyrie() {
   const ref = useRef<Eyr>(null);
   const showDevTools = useShowDevTools();
-  const show = showDevTools || import.meta.env.DEV;
+  const show = showDevTools;
 
   useEffect(() => {
     if (!ref.current?.init) return;

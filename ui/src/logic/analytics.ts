@@ -46,10 +46,6 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   opt_out_capturing_by_default: true,
 });
 
-if (import.meta.env.DEV) {
-  posthog.debug();
-}
-
 export const analyticsClient = posthog;
 
 // Once someone is opted in this will fire no matter what so we need
