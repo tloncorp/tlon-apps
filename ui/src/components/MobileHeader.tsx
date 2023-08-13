@@ -3,43 +3,52 @@ import CaretLeftIconMobileNav from './icons/CaretLeftIconMobileNav';
 
 export default function MobileHeader({
   title,
+  secondaryTitle,
   pathBack,
   pathBackText,
   action,
   secondaryAction,
 }: {
   title: string | React.ReactNode;
+  secondaryTitle?: string | React.ReactNode;
   pathBack?: string;
   pathBackText?: string;
   action?: React.ReactNode;
   secondaryAction?: React.ReactNode;
 }) {
   return (
-    <div className="grid max-h-[72px] min-h-[48px] w-full grid-cols-4 justify-between bg-white p-2 font-system-sans">
+    <div className="grid w-full grid-cols-4 justify-between bg-white font-system-sans">
       {pathBack ? (
-        <Link className="flex items-center" to={pathBack}>
-          <CaretLeftIconMobileNav className="h-8 w-8 text-gray-900" />
-          {pathBackText && (
-            <span className="text-[17px] leading-6 text-gray-800">
-              {pathBackText}
-            </span>
-          )}
-        </Link>
+        <div className="h-12 pl-4">
+          <Link className="flex h-12 items-center" to={pathBack}>
+            <CaretLeftIconMobileNav className="h-8 w-8 text-gray-900" />
+            {pathBackText && (
+              <span className="text-[17px] leading-6 text-gray-900">
+                {pathBackText}
+              </span>
+            )}
+          </Link>
+        </div>
       ) : (
-        <div className="h-6 w-6" />
+        <div className="h-12 w-12" />
       )}
-      <div className="col-span-2 flex items-center justify-center">
-        <span className="items-center text-center text-[18px] leading-6 text-gray-800 line-clamp-1">
+      <div className="col-span-2 text-center text-[18px] leading-6 text-gray-800 line-clamp-1">
+        <div className="flex h-full w-full flex-col items-center justify-center">
           {title}
-        </span>
+        </div>
       </div>
       {action ? (
-        <div className="flex justify-end space-x-3">
+        <div className="h-12  pr-4">
           {action}
           {secondaryAction}
         </div>
       ) : (
-        <div className="h-6 w-6" />
+        <div className="h-12 w-12" />
+      )}
+      {secondaryTitle && (
+        <div className="col-span-4 flex h-6 items-center justify-center pb-2 text-center">
+          {secondaryTitle}
+        </div>
       )}
     </div>
   );
