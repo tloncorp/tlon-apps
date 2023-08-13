@@ -1,13 +1,11 @@
-import _ from 'lodash';
-import React from 'react';
 import { useNavigate } from 'react-router';
+import { daToUnix } from '@urbit/api';
 import { DiaryOutline, NoteEssay } from '@/types/diary';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import IconButton from '@/components/IconButton';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
-import { makePrettyDate, sampleQuippers } from '@/logic/utils';
-import { daToUnix } from '@urbit/api';
+import { makePrettyDate } from '@/logic/utils';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { useCalm } from '@/state/settings';
@@ -57,7 +55,7 @@ export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
       }
       onClick={() => navigate(`note/${time.toString()}`)}
     >
-      <h2 className="break-words text-2xl font-bold line-clamp-[7]">
+      <h2 className="line-clamp-[7] break-words text-2xl font-bold">
         {essay.title}
       </h2>
       <h3 className="text-lg font-semibold">{date}</h3>
