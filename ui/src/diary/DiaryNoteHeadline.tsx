@@ -84,7 +84,7 @@ export default function DiaryNoteHeadline({
                   <DiaryCommenters
                     commenters={commenters}
                     quipCount={quipCount}
-                    fullSize={!isInGrid}
+                    fullSize={false}
                   />
                 </span>
                 <IconButton
@@ -116,7 +116,7 @@ export default function DiaryNoteHeadline({
                 <DiaryCommenters
                   commenters={commenters}
                   quipCount={quipCount}
-                  fullSize={!isInGrid || !isInList}
+                  fullSize={true}
                 />
               </a>
             )}
