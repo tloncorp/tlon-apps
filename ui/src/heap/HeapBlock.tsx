@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router';
 import useLongPress from '@/logic/useLongPress';
 import Avatar from '@/components/Avatar';
 import useCurioActions from './useCurioActions';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 
 interface CurioDisplayProps {
   time: string;
@@ -67,6 +68,31 @@ function TopBar({
   if (asRef) {
     return null;
   }
+
+  const actions: Action[] = asRef
+    ? [
+        {
+          key: 'copy',
+          content: didCopy ? 'Copied' : 'Share',
+          onClick: onCopy,
+          keepOpenOnClick: true,
+        },
+      ]
+    : canEdit
+    ? [
+        {
+          key: 'edit',
+          content: 'Edit',
+          onClick: onEdit,
+        },
+        {
+          key: 'delete',
+          type: 'destructive',
+          content: 'Delete',
+          onClick: () => setDeleteOpen(true),
+        },
+      ]
+    : [];
 
   return (
     <div
@@ -111,57 +137,30 @@ function TopBar({
           )}
         </div>
         {canEdit && (
-          <div
-            className={
-              longPress ? 'relative' : 'relative hidden group-hover:block'
-            }
-          >
-            {asRef ? (
-              <IconButton
-                icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                action={() => setMenuOpen(true)}
-                label="expand"
-                className="rounded border border-gray-100 bg-white"
-                small
-              />
-            ) : (
-              <IconButton
-                icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                label="options"
-                className="rounded bg-white"
-                action={() => setMenuOpen(!menuOpen)}
-              />
-            )}
-            <div
-              className={cn(
-                'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
-                { hidden: !menuOpen }
-              )}
-              onMouseLeave={() => setMenuOpen(false)}
+          <div className={longPress ? '' : 'hidden group-hover:block'}>
+            <ActionMenu
+              open={menuOpen}
+              onOpenChange={setMenuOpen}
+              asChild={false}
+              actions={actions}
             >
               {asRef ? (
-                <button
-                  className="small-menu-button"
-                  onClick={onCopy}
-                  disabled={didCopy}
-                >
-                  {didCopy ? 'Copied' : 'Share'}
-                </button>
-              ) : null}
-              {!asRef && canEdit ? (
-                <>
-                  <button onClick={onEdit} className="small-menu-button">
-                    Edit
-                  </button>
-                  <button
-                    className="small-menu-button text-red"
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    Delete
-                  </button>
-                </>
-              ) : null}
-            </div>
+                <IconButton
+                  icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                  action={() => setMenuOpen(true)}
+                  label="expand"
+                  className="rounded border border-gray-100 bg-white"
+                  small
+                />
+              ) : (
+                <IconButton
+                  icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                  label="options"
+                  className="rounded bg-white"
+                  action={() => setMenuOpen(!menuOpen)}
+                />
+              )}
+            </ActionMenu>
           </div>
         )}
       </div>
@@ -195,7 +194,7 @@ function BottomBar({ curio, asRef }: BottomBarProps) {
   return (
     <div
       className={cn(
-        'absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:bg-white/50 group-hover:backdrop-blur'
+        'group-hover:bg-white/50 absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:backdrop-blur'
       )}
     >
       <Avatar ship={curio?.heart.author} size="xs" />
