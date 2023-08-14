@@ -12,6 +12,7 @@ import { useCalm } from '@/state/settings';
 import { useChannelFlag } from '@/logic/channel';
 import DiaryNoteOptionsDropdown from '../DiaryNoteOptionsDropdown';
 import useDiaryActions from '../useDiaryActions';
+import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
   outline: DiaryOutline;
@@ -55,7 +56,14 @@ export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
       }
       onClick={() => navigate(`note/${time.toString()}`)}
     >
-      <h2 className="line-clamp-[7] break-words text-2xl font-bold">
+      <DiaryNoteHeadline
+        quippers={commenters}
+        quipCount={quipCount}
+        essay={essay}
+        time={time}
+        isInGrid
+      />
+      {/* <h2 className="line-clamp-[7] break-words text-2xl font-bold">
         {essay.title}
       </h2>
       <h3 className="text-lg font-semibold">{date}</h3>
@@ -101,7 +109,7 @@ export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
             }
           />
         </DiaryNoteOptionsDropdown>
-      </div>
+      </div> */}
     </div>
   );
 }

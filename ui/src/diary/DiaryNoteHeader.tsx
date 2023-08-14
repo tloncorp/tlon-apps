@@ -30,22 +30,13 @@ export default function DiaryNoteHeader({
   if (isMobile) {
     return (
       <MobileHeader
-        title={<ChannelIcon nest="diary" className="h-6 w-6 text-gray-600" />}
-        secondaryTitle={
-          <h1
-            className={cn(
-              'max-w-xs truncate px-4 text-[18px] leading-5 text-gray-800'
-            )}
-          >
-            {title}
-          </h1>
-        }
+        title={null}
         pathBack=".."
         action={
           <div className="flex h-12 items-center justify-end space-x-2">
             <ReconnectingSpinner />
             {canEdit ? (
-              <Link to={`../edit/${time}`} className="no-underline">
+              <Link to={`../edit/${time}`} className="text-[17px] no-underline">
                 Edit
               </Link>
             ) : null}
