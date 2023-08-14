@@ -79,6 +79,9 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
     (e: Event | MouseEvent<any>) => {
       e.preventDefault();
       doCopy();
+      setTimeout(() => {
+        setIsOpen(false);
+      }, 1000);
     },
     [doCopy]
   );
