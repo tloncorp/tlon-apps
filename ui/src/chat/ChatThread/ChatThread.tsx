@@ -170,7 +170,7 @@ export default function ChatThread() {
           </div>
         </header>
       )}
-      <div className="flex flex-1 flex-col p-0 pr-2">
+      <div className="flex flex-1 flex-col overflow-hidden p-0 pr-2">
         {loading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
