@@ -22,7 +22,7 @@ jobs:
       - working-directory: ./ui
         run: |
           npm ci
-          npm run build
+          npm run build:chat
       - uses: actions/upload-artifact@v3
         with:
           name: 'ui-dist'
@@ -50,15 +50,16 @@ jobs:
         uses: ./.github/actions/glob
         with:
           folder: 'ui/dist/*'
-          docket: 'desk/desk.docket-0'
+          docket: 'talk/desk.docket-0'
       - name: Commit and Push Glob
         run: |
           git config --global user.name github-actions
           git config --global user.email github-actions@github.com
-          git add desk/desk.docket-0
+          git add talk/desk.docket-0
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
+          sleep 10
           INPUT=${{ github.event.inputs.tag }}
-          BRANCH=${INPUT:-"master"}
+          BRANCH=${INPUT:-"develop"}
           git pull origin $BRANCH --rebase --autostash
           git push
   deploy:
