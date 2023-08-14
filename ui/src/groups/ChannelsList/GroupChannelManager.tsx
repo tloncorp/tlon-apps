@@ -19,7 +19,7 @@ export default function GroupChannelManager({ title }: ViewProps) {
   const { data } = useConnectivityCheck(host);
 
   return (
-    <section className="flex h-full flex-col overflow-hidden bg-red">
+    <section className="flex h-full w-full flex-col overflow-hidden">
       <Helmet>
         <title>
           {group ? `Channels in ${group.meta.title} ${title}` : title}
