@@ -29,9 +29,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
     if (isError) {
       console.log(`HeapDetailBody: embed failed to load`, error);
     }
-  });
-
-  console.log(content);
+  }, [isError, error]);
 
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (
