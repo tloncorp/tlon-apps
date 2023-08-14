@@ -193,7 +193,6 @@ export default function ChannelList({ className }: ChannelListProps) {
               className={cn(
                 'flex h-12 w-12 items-center justify-center rounded-md',
                 !imported && 'opacity-60',
-                // !active && 'bg-gray-50',
                 active && 'bg-white'
               )}
             >
