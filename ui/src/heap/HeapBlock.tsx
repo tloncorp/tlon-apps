@@ -4,7 +4,7 @@ import { HeapCurio, isLink } from '@/types/heap';
 import cn from 'classnames';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
-import useEmbedState from '@/state/embed';
+import { useEmbed } from '@/state/embed';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
@@ -258,13 +258,18 @@ export default function HeapBlock({
   isComment = false,
   refToken = undefined,
 }: HeapBlockProps) {
-  const [embed, setEmbed] = useState<any>();
   const [longPress, setLongPress] = useState(false);
   const { content } = curio.heart;
   const url =
     content.inline.length > 0 && isLink(content.inline[0])
       ? content.inline[0].link.href
       : '';
+  const {
+    embed,
+    isLoading: embedLoading,
+    isError: embedErrored,
+    error: embedError,
+  } = useEmbed(url);
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
   const textFallbackTitle = content.inline
@@ -278,24 +283,15 @@ export default function HeapBlock({
   const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
 
   useEffect(() => {
-    const getOembed = async () => {
-      if (isValidUrl(url) && maybeEmbed && !calm.disableRemoteContent) {
-        try {
-          const oembed = await useEmbedState.getState().getEmbed(url);
-          setEmbed(oembed);
-        } catch (e) {
-          setEmbed(null);
-          console.log("HeapBlock::getOembed: couldn't get embed", e);
-        }
-      }
-    };
-    getOembed();
-  }, [url, maybeEmbed, calm]);
+    if (embedErrored) {
+      console.log("HeapBlock::getOembed: couldn't get embed", embedError);
+    }
+  }, [embedErrored, embedError]);
 
   if (
     isValidUrl(url) &&
-    embed === undefined &&
     maybeEmbed &&
+    embedLoading &&
     !calm.disableRemoteContent
   ) {
     return <HeapLoadingBlock />;
