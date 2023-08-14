@@ -1,35 +1,28 @@
 import _ from 'lodash';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HeapCurio, isLink } from '@/types/heap';
 import cn from 'classnames';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
-import useEmbedState from '@/state/embed';
+import { useEmbed } from '@/state/embed';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import { formatDistanceToNow } from 'date-fns';
 import IconButton from '@/components/IconButton';
-import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import useNest from '@/logic/useNest';
 import useHeapContentType from '@/logic/useHeapContentType';
-import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { inlineToString } from '@/logic/tiptap';
 import ConfirmationModal from '@/components/ConfirmationModal';
-// eslint-disable-next-line import/no-cycle
-import ChatContent from '@/chat/ChatContent/ChatContent';
-import { useNavigate } from 'react-router';
-import useLongPress from '@/logic/useLongPress';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
-import Sig16Icon from '@/components/icons/Sig16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
 import useCurioActions from './useCurioActions';
@@ -189,13 +182,12 @@ export default function HeapRow({
   isComment = false,
   refToken = undefined,
 }: HeapRowProps) {
-  const [embed, setEmbed] = useState<any>();
-  const [longPress, setLongPress] = useState(false);
   const { content } = curio.heart;
   const url =
     content.inline.length > 0 && isLink(content.inline[0])
       ? content.inline[0].link.href
       : '';
+  const { embed, isLoading, isError, error } = useEmbed(url);
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
   const textFallbackTitle = content.inline
@@ -209,24 +201,16 @@ export default function HeapRow({
   const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
 
   useEffect(() => {
-    const getOembed = async () => {
-      if (isValidUrl(url) && maybeEmbed && !calm.disableRemoteContent) {
-        try {
-          const oembed = await useEmbedState.getState().getEmbed(url);
-          setEmbed(oembed);
-        } catch (e) {
-          setEmbed(null);
-          console.log("HeapBlock::getOembed: couldn't get embed", e);
-        }
-      }
-    };
-    getOembed();
-  }, [url, maybeEmbed, calm]);
+    if (isError) {
+      console.log('HeapRow: could not load oembed', error);
+    }
+  }, [isError, error]);
 
   if (
     isValidUrl(url) &&
     embed === undefined &&
     maybeEmbed &&
+    isLoading &&
     !calm.disableRemoteContent
   ) {
     return (
