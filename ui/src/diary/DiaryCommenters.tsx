@@ -23,7 +23,7 @@ export default function DiaryCommenters({
       return (
         <>
           <Bubble16Icon className="mr-2 h-4 w-4" />
-          <span className="">No comments</span>
+          <span>No comments</span>
         </>
       );
     }
