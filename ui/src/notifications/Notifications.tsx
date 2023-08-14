@@ -118,12 +118,9 @@ export default function Notifications({
   const MobileMarkAsRead = (
     <button
       disabled={isMarkReadPending || !hasUnreads}
-      className={cn(
-        'whitespace-nowrap text-[17px] font-normal leading-6 text-blue',
-        {
-          'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
-        }
-      )}
+      className={cn('whitespace-nowrap text-[17px] font-normal text-blue', {
+        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
+      })}
       onClick={markAllRead}
     >
       Mark as Read
@@ -136,10 +133,10 @@ export default function Notifications({
         <MobileHeader
           title="Activity"
           action={
-            <>
+            <div className="flex h-12 items-center justify-end space-x-2">
               <ReconnectingSpinner />
               {hasUnreads && MobileMarkAsRead}
-            </>
+            </div>
           }
         />
       )}

@@ -181,11 +181,11 @@ export default function FindGroups({ title }: ViewProps) {
     val ? ob.isValidPatp(preSig(val)) || whomIsFlag(val) : false;
 
   return (
-    <div className="flex h-full w-full flex-col">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       {isMobile && (
         <MobileHeader title="Find Groups" action={<ReconnectingSpinner />} />
       )}
-      <div className={cn('flex grow overflow-y-auto bg-gray-50')}>
+      <div className={cn('grow overflow-y-auto bg-gray-50')}>
         <Helmet>
           <title>{title ? title : document.title}</title>
         </Helmet>

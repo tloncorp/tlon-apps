@@ -107,13 +107,13 @@ const MentionList = React.forwardRef<
   }));
 
   return (
-    <div className="dropdown min-w-96 p-1">
+    <div className="dropdown min-w-80 p-1">
       <ul className="w-full">
         {(props.items || []).map((i, index) => (
           <li key={i.id} className="w-full">
             <button
               className={cn(
-                'dropdown-item flex w-full items-center space-x-2 text-left',
+                'dropdown-item flex w-full items-center space-x-2 text-left text-sm',
                 index === selectedIndex && 'bg-gray-50'
               )}
               onClick={() => selectItem(index)}

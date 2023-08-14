@@ -41,23 +41,21 @@ export default function Profile({ title }: ViewProps) {
   const contact = useOurContact();
 
   return (
-    <Layout
-      header={isMobile ? <MobileHeader title="Profile" /> : null}
-      className="flex-1 px-4 font-system-sans"
-    >
+    <div className="flex h-full flex-col overflow-hidden">
       <Helmet>
         <title>{title}</title>
       </Helmet>
+      {isMobile ? <MobileHeader title="Profile" /> : null}
       <motion.div
         initial="initial"
         animate="in"
         exit="out"
         variants={pageAnimationVariants}
         transition={pageTransition}
-        className="flex flex-col justify-center space-y-4 pt-[10px]"
+        className="grow overflow-y-auto bg-white"
       >
         <ProfileCoverImage
-          className="flex h-[345px] w-full shadow-2xl"
+          className="m-auto h-[345px] w-[90%] shadow-2xl"
           cover={contact.cover || ''}
         >
           <Link
@@ -100,7 +98,7 @@ export default function Profile({ title }: ViewProps) {
             </div>
           </Link>
         </ProfileCoverImage>
-        <nav className="flex flex-col space-y-1">
+        <nav className="flex flex-col space-y-1 px-4">
           <Link to="/profile/settings" className="no-underline">
             <SidebarItem
               color="text-gray-900"
@@ -177,6 +175,6 @@ export default function Profile({ title }: ViewProps) {
           </a>
         </nav>
       </motion.div>
-    </Layout>
+    </div>
   );
 }

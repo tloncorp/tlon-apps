@@ -1,5 +1,4 @@
-import cn from 'classnames';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
+import React, { useState } from 'react';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
 import {
@@ -10,8 +9,10 @@ import {
 } from '@/state/settings';
 import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import { nestToFlag } from '@/logic/utils';
-import DisplayDropdown from '@/channels/DisplayDropdown';
 import { useLeaveHeapMutation } from '@/state/heap/heap';
+import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
+import ActionMenu, { Action } from '@/components/ActionMenu';
+import { useIsMobile } from '@/logic/useMedia';
 
 interface HeapHeaderProps {
   flag: string;
@@ -20,81 +21,92 @@ interface HeapHeaderProps {
   sort: HeapSortMode;
 }
 
-export default function HeapHeader({
-  flag,
-  nest,
-  display,
-  sort,
-}: HeapHeaderProps) {
-  const [, chFlag] = nestToFlag(nest);
-  const settings = useHeapSettings();
-  const { mutate } = usePutEntryMutation({
-    bucket: 'heaps',
-    key: 'heapSettings',
-  });
-  const leaveHeapMutation = useLeaveHeapMutation();
-
-  const setDisplayMode = (setting: HeapDisplayMode) => {
-    const newSettings = setChannelSetting<HeapSetting>(
-      settings,
-      { displayMode: setting },
-      chFlag
-    );
-
-    mutate({
-      val: JSON.stringify(newSettings),
+const HeapHeader = React.memo(
+  ({ flag, nest, display, sort }: HeapHeaderProps) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const isMobile = useIsMobile();
+    const [, chFlag] = nestToFlag(nest);
+    const settings = useHeapSettings();
+    const { mutate } = usePutEntryMutation({
+      bucket: 'heaps',
+      key: 'heapSettings',
     });
-  };
+    const leaveHeapMutation = useLeaveHeapMutation();
 
-  const setSortMode = (setting: HeapSortMode) => {
-    const newSettings = setChannelSetting<HeapSetting>(
-      settings,
-      { sortMode: setting },
-      chFlag
+    const setDisplayMode = (setting: HeapDisplayMode) => {
+      const newSettings = setChannelSetting<HeapSetting>(
+        settings,
+        { displayMode: setting },
+        chFlag
+      );
+
+      mutate({
+        val: JSON.stringify(newSettings),
+      });
+    };
+
+    const setSortMode = (setting: HeapSortMode) => {
+      const newSettings = setChannelSetting<HeapSetting>(
+        settings,
+        { sortMode: setting },
+        chFlag
+      );
+
+      mutate({
+        val: JSON.stringify(newSettings),
+      });
+    };
+
+    const actions: Action[] = [
+      {
+        content: 'Display: List',
+        key: 'display-list',
+        onClick: () => (setDisplayMode ? setDisplayMode('list') : null),
+        type: display === 'list' ? 'prominent' : 'default',
+      },
+      {
+        content: 'Display: Grid',
+        key: 'display-grid',
+        onClick: () => (setDisplayMode ? setDisplayMode('grid') : null),
+        type: display === 'grid' ? 'prominent' : 'default',
+      },
+      {
+        content: 'Sort: New Posts First',
+        key: 'sort-time-dsc',
+        onClick: () => (setSortMode ? setSortMode('time') : null),
+        type: sort === 'time' ? 'prominent' : 'default',
+      },
+      {
+        content: 'Sort: Alphabetical',
+        key: 'sort-time-asc',
+        onClick: () => (setSortMode ? setSortMode('alpha') : null),
+        type: sort === 'alpha' ? 'prominent' : 'default',
+      },
+    ];
+
+    return (
+      <ChannelHeader
+        flag={flag}
+        nest={nest}
+        prettyAppName="Gallery"
+        leave={(leaveFlag: string) =>
+          leaveHeapMutation.mutateAsync({ flag: leaveFlag })
+        }
+      >
+        <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">
+          <ActionMenu actions={actions} open={isOpen} onOpenChange={setIsOpen}>
+            <button>
+              {isMobile ? (
+                <FilterIconMobileNav className="mt-0.5 h-8 w-8 text-gray-900" />
+              ) : (
+                <SortIcon className="h-6 w-6 text-gray-600" />
+              )}
+            </button>
+          </ActionMenu>
+        </div>
+      </ChannelHeader>
     );
+  }
+);
 
-    mutate({
-      val: JSON.stringify(newSettings),
-    });
-  };
-
-  return (
-    <ChannelHeader
-      flag={flag}
-      nest={nest}
-      prettyAppName="Gallery"
-      leave={(leaveFlag: string) =>
-        leaveHeapMutation.mutateAsync({ flag: leaveFlag })
-      }
-    >
-      <DisplayDropdown displayMode={display} setDisplayMode={setDisplayMode} />
-      <Dropdown.Root>
-        <Dropdown.Trigger asChild>
-          <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-600 hover:bg-gray-50 ">
-            <SortIcon className="h-6 w-6" />
-          </button>
-        </Dropdown.Trigger>
-        <Dropdown.Content className="dropdown">
-          <Dropdown.Item
-            className={cn(
-              'dropdown-item',
-              sort === 'time' && 'bg-gray-100 hover:bg-gray-100'
-            )}
-            onClick={() => (setSortMode ? setSortMode('time') : null)}
-          >
-            Time
-          </Dropdown.Item>
-          <Dropdown.Item
-            className={cn(
-              'dropdown-item',
-              sort === 'alpha' && 'bg-gray-100 hover:bg-gray-100'
-            )}
-            onClick={() => (setSortMode ? setSortMode('alpha') : null)}
-          >
-            Alphabetical
-          </Dropdown.Item>
-        </Dropdown.Content>
-      </Dropdown.Root>
-    </ChannelHeader>
-  );
-}
+export default HeapHeader;

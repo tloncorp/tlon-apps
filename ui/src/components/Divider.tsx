@@ -13,7 +13,9 @@ export default function Divider({
 }: DividerProps) {
   if (isMobile) {
     return (
-      <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">{children}</h2>
+      <h2 className="mb-0.5 p-2 font-system-sans text-lg text-gray-400">
+        {children}
+      </h2>
     );
   }
 
