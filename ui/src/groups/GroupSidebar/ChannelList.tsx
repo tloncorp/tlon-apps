@@ -89,7 +89,7 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   return (
     <div className="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3">
       {!isMobile && (
-        <h2 className="px-2 pb-0 text-sm font-bold text-gray-400">
+        <h2 className="px-2 pb-0 text-sm font-semibold text-gray-400">
           {sortLabel()}
         </h2>
       )}
@@ -157,7 +157,7 @@ export default function ChannelList({ className }: ChannelListProps) {
   if (!group || group.meta.title === '') {
     return (
       <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
-        <h2 className="px-4 pb-0 text-sm font-bold text-gray-400">
+        <h2 className="px-4 pb-0 text-sm font-semibold text-gray-400">
           <div className="flex justify-between">
             {!connected ? (
               'Host is Offline.'
@@ -193,11 +193,10 @@ export default function ChannelList({ className }: ChannelListProps) {
               className={cn(
                 'flex h-12 w-12 items-center justify-center rounded-md',
                 !imported && 'opacity-60',
-                !active && 'bg-gray-50',
                 active && 'bg-white'
               )}
             >
-              <ChannelIcon nest={nest} className="h-6 w-6" />
+              <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
             </span>
           ) : (
             <ChannelIcon
@@ -245,8 +244,8 @@ export default function ChannelList({ className }: ChannelListProps) {
         {isMobile && (
           <SidebarItem
             icon={
-              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                <HashIcon16 className="m-1 h-4 w-4" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <HashIcon16 className="m-1 h-4 w-4 text-gray-400" />
               </div>
             }
             to={`/groups/${flag}/channels`}

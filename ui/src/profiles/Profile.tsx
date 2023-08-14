@@ -166,7 +166,7 @@ export default function Profile({ title }: ViewProps) {
               className="leading-5"
               icon={
                 <div className="flex h-12 w-12 items-center justify-center">
-                  <GiftIcon className="h-6 w-6 text-gray-400" />
+                  <GiftIcon className="h-6 w-6 -rotate-12 text-gray-400" />
                 </div>
               }
             >

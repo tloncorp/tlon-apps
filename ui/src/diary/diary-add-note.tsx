@@ -223,13 +223,10 @@ export default function DiaryAddNote() {
       header={
         isMobile ? (
           <MobileHeader
-            title={<PencilIcon className="h-6 w-6 text-gray-600" />}
-            secondaryTitle={
-              <h1
-                className={cn('ellipsis break-all px-4 text-lg line-clamp-1')}
-              >
-                Editing
-              </h1>
+            title={
+              <div className="w-full truncate">
+                {watchedTitle || 'New Note'}
+              </div>
             }
             pathBack=".."
             action={
@@ -245,7 +242,7 @@ export default function DiaryAddNote() {
                       watchedTitle === ''
                     }
                     className={cn(
-                      'disabled:text-gray-400 dark:disabled:text-gray-400'
+                      'text-[17px] disabled:text-gray-400 dark:disabled:text-gray-400'
                     )}
                     onClick={publish}
                   >
@@ -337,7 +334,7 @@ export default function DiaryAddNote() {
                 <CoverImageInput url="" noteId={id} />
                 <textarea
                   placeholder="New Title"
-                  className="input-transparent w-full resize-none text-3xl font-semibold"
+                  className="input-transparent w-full resize-none text-3xl font-medium leading-10"
                   rows={extraTitleRow ? 2 : 1}
                   ref={(e) => {
                     ref(e);

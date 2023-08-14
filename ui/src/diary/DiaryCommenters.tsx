@@ -23,27 +23,21 @@ export default function DiaryCommenters({
       return (
         <>
           <Bubble16Icon className="mr-2 h-4 w-4" />
-          <span className="text-gray-400">No comments</span>
+          <span>No comments</span>
         </>
       );
     }
     return (
       <IconButton
         label="comments"
-        icon={
-          <BubbleIcon
-            className={`h-5 w-5 ${
-              gridItemHasImage ? 'text-black' : 'text-gray-600'
-            }`}
-          />
-        }
+        icon={<BubbleIcon className={`h-5 w-5 text-white`} />}
       />
     );
   };
 
   return (
     <div
-      className={`relative flex items-center font-semibold text-gray-600 ${
+      className={`relative flex items-center text-gray-600 ${
         !fullSize && commenters.length > 0 && 'rounded-lg bg-white p-1.5'
       }`}
     >

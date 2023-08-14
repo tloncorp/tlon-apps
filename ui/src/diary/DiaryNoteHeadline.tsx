@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import cn from 'classnames';
 import { NoteEssay } from '@/types/diary';
 import { format } from 'date-fns';
 import DiaryCommenters from '@/diary/DiaryCommenters';
@@ -20,6 +20,7 @@ interface DiaryListItemProps {
   quippers: string[];
   time: bigInt.BigInteger;
   isInList?: boolean;
+  isInGrid?: boolean;
 }
 
 export default function DiaryNoteHeadline({
@@ -28,6 +29,7 @@ export default function DiaryNoteHeadline({
   quippers,
   time,
   isInList,
+  isInGrid,
 }: DiaryListItemProps) {
   const chFlag = useChannelFlag();
   const flag = useRouteGroup();
@@ -44,33 +46,36 @@ export default function DiaryNoteHeadline({
 
   return (
     <>
-      {essay.image && !calm.disableRemoteContent ? (
+      {essay.image && !calm.disableRemoteContent && !isInGrid ? (
         <img
           src={essay.image}
           alt=""
-          className="mb-8 h-auto w-full rounded-xl"
+          className="mb-4 h-auto w-full rounded-xl"
         />
       ) : null}
-      <header className="space-y-8">
-        <h1 className="break-words text-3xl font-semibold leading-10">
+      <header className="space-y-4">
+        <h1 className="break-words text-3xl font-medium leading-10">
           {essay.title}
         </h1>
-        <p className="font-semibold text-gray-400">
+        <p className={cn(isInGrid ? 'text-white' : 'text-gray-400')}>
           {format(essay.sent, 'LLLL do, yyyy')}
         </p>
-        <div className="flex items-center">
+        <div className="flex w-full items-center justify-between">
           <div
-            className="flex items-center space-x-2 font-semibold"
+            className="flex items-center space-x-2"
             onClick={(e) => e.stopPropagation()}
           >
-            <Author ship={essay.author} hideTime />
+            <Author ship={essay.author} hideTime hideRoles />
           </div>
 
           <div
-            className="ml-auto flex items-center space-x-2 text-gray-600"
+            className={cn(
+              'flex items-center justify-end space-x-1',
+              isInGrid ? 'text-white' : 'text-gray-400'
+            )}
             onClick={(e) => e.stopPropagation()}
           >
-            {isInList ? (
+            {isInList || isInGrid ? (
               <>
                 <span
                   role="link"
@@ -79,7 +84,7 @@ export default function DiaryNoteHeadline({
                   <DiaryCommenters
                     commenters={commenters}
                     quipCount={quipCount}
-                    fullSize={!isInList}
+                    fullSize={false}
                   />
                 </span>
                 <IconButton
@@ -111,7 +116,7 @@ export default function DiaryNoteHeadline({
                 <DiaryCommenters
                   commenters={commenters}
                   quipCount={quipCount}
-                  fullSize={!isInList}
+                  fullSize={true}
                 />
               </a>
             )}
