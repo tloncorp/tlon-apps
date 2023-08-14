@@ -1,7 +1,8 @@
-import _ from 'lodash';
-import React, { useCallback, useEffect, useState } from 'react';
-import { HeapCurio, isLink } from '@/types/heap';
 import cn from 'classnames';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { formatDistanceToNow } from 'date-fns';
+import { HeapCurio, isLink } from '@/types/heap';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import useEmbedState from '@/state/embed';
@@ -9,7 +10,6 @@ import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
-import { formatDistanceToNow } from 'date-fns';
 import IconButton from '@/components/IconButton';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
@@ -24,11 +24,10 @@ import { inlineToString } from '@/logic/tiptap';
 import ConfirmationModal from '@/components/ConfirmationModal';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-import { useNavigate } from 'react-router';
 import useLongPress from '@/logic/useLongPress';
 import Avatar from '@/components/Avatar';
-import useCurioActions from './useCurioActions';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
   time: string;
@@ -194,7 +193,7 @@ function BottomBar({ curio, asRef }: BottomBarProps) {
   return (
     <div
       className={cn(
-        'group-hover:bg-white/50 absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:backdrop-blur'
+        'absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:bg-white/50 group-hover:backdrop-blur'
       )}
     >
       <Avatar ship={curio?.heart.author} size="xs" />
