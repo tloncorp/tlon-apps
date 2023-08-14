@@ -21,7 +21,6 @@ import CheckIcon from './CheckIcon';
 import CmdSmallIcon from './CmdSmallIcon';
 import CodeBlockIcon from './CodeBlockIcon';
 import CodeIcon from './CodeIcon';
-import ColorBoxIcon from './ColorBoxIcon';
 import CopyIcon from './CopyIcon';
 import DefaultGroupIcon from './DefaultGroupIcon';
 import DoubleCaretRightIcon from './DoubleCaretRightIcon';
@@ -61,7 +60,6 @@ import ShareIcon from './ShareIcon';
 import SixDotIcon from './SixDotIcon';
 import SlidersIcon from './SlidersIcon';
 import SortIcon from './SortIcon';
-import SpinnerIcon from './SpinnerIcon';
 import StarIcon from './StarIcon';
 import StrikeIcon from './StrikeIcon';
 import TalkIcon from './TalkIcon';
@@ -120,7 +118,7 @@ const icons: Record<string, React.FC<IconProps>> = {
   CmdSmallIcon,
   CodeBlockIcon,
   CodeIcon,
-//   ColorBoxIcon,
+  //   ColorBoxIcon,
   CopyIcon,
   DefaultGroupIcon,
   DoubleCaretRightIcon,
@@ -160,7 +158,7 @@ const icons: Record<string, React.FC<IconProps>> = {
   SixDotIcon,
   SlidersIcon,
   SortIcon,
-//   SpinnerIcon,
+  //   SpinnerIcon,
   StarIcon,
   StrikeIcon,
   TalkIcon,
@@ -172,29 +170,29 @@ const icons: Record<string, React.FC<IconProps>> = {
 
 export default icons;
 
-export const smallIcons =  {
-    Add16Icon,
-    ArrowEIcon16,
-    ArrowNIcon16,
-    ArrowS16Icon,
-    Asterisk16Icon,
-    Bubble16Icon,
-    Bullet16Icon,
-    CaretDown16Icon,
-    CaretLeft16Icon,
-    CaretRight16Icon,
-    Filter16Icon,
-    Globe16Icon,
-    HashIcon16,
-    InviteIcon16,
-    LinkIcon16,
-    Lock16Icon,
-    LockOpen16Icon,
-    MagnifyingGlass16Icon,
-    Person16Icon,
-    PinIcon16,
-    Private16Icon,
-    Sig16Icon,
-    Text16Icon,
-    X16Icon,
-}
+export const smallIcons = {
+  Add16Icon,
+  ArrowEIcon16,
+  ArrowNIcon16,
+  ArrowS16Icon,
+  Asterisk16Icon,
+  Bubble16Icon,
+  Bullet16Icon,
+  CaretDown16Icon,
+  CaretLeft16Icon,
+  CaretRight16Icon,
+  Filter16Icon,
+  Globe16Icon,
+  HashIcon16,
+  InviteIcon16,
+  LinkIcon16,
+  Lock16Icon,
+  LockOpen16Icon,
+  MagnifyingGlass16Icon,
+  Person16Icon,
+  PinIcon16,
+  Private16Icon,
+  Sig16Icon,
+  Text16Icon,
+  X16Icon,
+};
