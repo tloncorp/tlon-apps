@@ -31,6 +31,9 @@ export const isComment = (yarn: Yarn) =>
 export const isReply = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' replied to your message “');
 
+export const isInvite = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' sent you an invite to ');
+
 export const isJoin = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' has joined ');
 
@@ -40,32 +43,53 @@ export const isLeave = (yarn: Yarn) =>
 export const isRoleChange = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' is now a(n) ');
 
-export const isGroupMeta = (yarn: Yarn) =>
-  isJoin(yarn) || isRoleChange(yarn) || isLeave(yarn);
+export const isChannelEdit = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' has been edited ');
 
-export const useNotifications = (flag?: Flag, mentionsOnly = false) => {
+export const isGroupMeta = (yarn: Yarn) =>
+  isJoin(yarn) || isRoleChange(yarn) || isLeave(yarn) || isChannelEdit(yarn);
+
+export type NotificationFilterType = 'mentions' | 'replies' | 'invites' | 'all';
+
+export const useNotifications = (
+  flag?: Flag,
+  showOnly: NotificationFilterType = 'all'
+) => {
   const { data: skeins, status: skeinsStatus } = useSkeins(flag);
 
-  return useMemo(() => {
-    if (skeinsStatus !== 'success') {
-      return {
-        notifications: [],
-        mentions: [],
-        count: 0,
-        loaded: skeinsStatus === 'error',
-      };
-    }
-
-    const unreads = skeins.filter((s) => s.unread);
-    const filteredSkeins = skeins.filter((s) =>
-      mentionsOnly ? isMention(s.top) : s
-    );
-
+  if (skeinsStatus !== 'success') {
     return {
-      notifications: groupSkeinsByDate(filteredSkeins),
-      mentions: unreads.filter((s) => isMention(s.top)),
-      count: unreads.length,
-      loaded: skeinsStatus === 'success' || skeinsStatus === 'error',
+      notifications: [],
+      mentions: [],
+      count: 0,
+      loaded: skeinsStatus === 'error',
     };
-  }, [skeins, mentionsOnly, skeinsStatus]);
+  }
+
+  const filter = (s: Skein) => {
+    switch (showOnly) {
+      case 'mentions':
+        return isMention(s.top);
+      case 'replies':
+        return isReply(s.top);
+      case 'invites':
+        return isInvite(s.top);
+      default:
+        return true;
+    }
+  };
+
+  const unreads = skeins.filter((s) => s.unread);
+  const filteredSkeins = skeins.filter(filter);
+
+  return {
+    notifications: groupSkeinsByDate(filteredSkeins),
+    unreadMentions: unreads.filter((s) => isMention(s.top)),
+    unreadReplies: unreads.filter((s) => isReply(s.top)),
+    unreadInvites: unreads.filter((s) => isInvite(s.top)),
+    count: unreads.length,
+    replyCount: unreads.filter((s) => isReply(s.top)).length,
+    inviteCount: unreads.filter((s) => isInvite(s.top)).length,
+    loaded: skeinsStatus === 'success' || skeinsStatus === 'error',
+  };
 };

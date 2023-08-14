@@ -1,10 +1,5 @@
 import cn from 'classnames';
-import React, {
-  ComponentType,
-  useCallback,
-  useState,
-  PropsWithChildren,
-} from 'react';
+import { ComponentType, useCallback, useState, PropsWithChildren } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import { useRouteGroup, useGroup, useAmAdmin } from '@/state/groups';
@@ -17,7 +12,8 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Skein } from '@/types/hark';
 import GroupSummary from '@/groups/GroupSummary';
 import MobileHeader from '@/components/MobileHeader';
-import { useNotifications } from './useNotifications';
+import ToggleGroup from '@/components/ToggleGroup';
+import { NotificationFilterType, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
   child: ComponentType<{ bin: Skein }>;
@@ -73,12 +69,18 @@ export default function Notifications({
   const isMobile = useIsMobile();
   const isAdmin = useAmAdmin(flag);
   const location = useLocation();
-  const [showMentionsOnly, setShowMentionsOnly] = useState(false);
-  const { loaded, notifications, mentions, count } = useNotifications(
-    flag,
-    showMentionsOnly
-  );
-  const { mutate: sawRopeMutation, status: sawRopeStatus } =
+  const [notificationFilter, setNotificationFilter] =
+    useState<NotificationFilterType>('all');
+  const {
+    loaded,
+    notifications,
+    unreadReplies,
+    unreadInvites,
+    count,
+    inviteCount,
+    replyCount,
+  } = useNotifications(flag, notificationFilter);
+  const { mutateAsync: sawRopeMutation, status: sawRopeStatus } =
     useSawRopeMutation();
   const { mutate: sawSeamMutation, status: sawSeamStatus } =
     useSawSeamMutation();
@@ -87,17 +89,33 @@ export default function Notifications({
   const hasUnreads = count > 0;
 
   const markAllRead = useCallback(async () => {
-    if (showMentionsOnly) {
-      mentions.map(async (m, index) =>
+    if (notificationFilter === 'invites' && unreadInvites) {
+      unreadInvites?.forEach((invite, index) => {
         sawRopeMutation({
-          rope: m.top.rope,
-          update: index === mentions.length - 1,
-        })
+          rope: invite.top.rope,
+          update: index === unreadInvites.length - 1,
+        });
+      });
+    } else if (notificationFilter === 'replies' && unreadReplies) {
+      await Promise.all(
+        unreadReplies.map(async (reply, index) =>
+          sawRopeMutation({
+            rope: reply.top.rope,
+            update: index === unreadReplies.length - 1,
+          })
+        )
       );
     } else {
       sawSeamMutation({ seam: flag ? { group: flag } : { desk: 'groups' } });
     }
-  }, [mentions, showMentionsOnly, flag, sawRopeMutation, sawSeamMutation]);
+  }, [
+    flag,
+    sawSeamMutation,
+    notificationFilter,
+    sawRopeMutation,
+    unreadInvites,
+    unreadReplies,
+  ]);
 
   const MarkAsRead = (
     <button
@@ -110,7 +128,7 @@ export default function Notifications({
       {isMarkReadPending ? (
         <LoadingSpinner className="h-4 w-4" />
       ) : (
-        `Mark ${showMentionsOnly ? 'Mentions' : 'All'} as Read`
+        `Mark All as Read`
       )}
     </button>
   );
@@ -118,12 +136,10 @@ export default function Notifications({
   const MobileMarkAsRead = (
     <button
       disabled={isMarkReadPending || !hasUnreads}
-      className={cn('whitespace-nowrap text-[17px] font-normal text-blue', {
-        'bg-gray-400 text-gray-800': isMarkReadPending || !hasUnreads,
-      })}
+      className="whitespace-nowrap text-[17px] font-normal text-gray-800"
       onClick={markAllRead}
     >
-      Mark as Read
+      Read All
     </button>
   );
 
@@ -140,10 +156,42 @@ export default function Notifications({
           }
         />
       )}
-      <section className="flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-gray-50 p-6">
+      <section className="flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50">
         <Helmet>
           <title>{group ? `${group?.meta?.title} ${title}` : title}</title>
         </Helmet>
+
+        {isMobile && (
+          <div className="fixed inset-x-0 top-11 z-10 w-full bg-white py-2">
+            <ToggleGroup
+              value={notificationFilter}
+              // @ts-expect-error NotificationFilterType is a string
+              setValue={setNotificationFilter}
+              options={[
+                {
+                  label: `All${count > 0 ? ` (${count})` : ''}`,
+                  value: 'all',
+                  ariaLabel: 'Show all notifications',
+                },
+                {
+                  label: `Invites${
+                    inviteCount && inviteCount > 0 ? ` (${inviteCount})` : ''
+                  }`,
+                  value: 'invites',
+                  ariaLabel: 'Show only invites',
+                },
+                {
+                  label: `Threads${
+                    replyCount && replyCount > 0 ? ` (${replyCount})` : ''
+                  } `,
+                  value: 'replies',
+                  ariaLabel: 'Show only threads',
+                },
+              ]}
+              defaultOption="all"
+            />
+          </div>
+        )}
 
         {group && (
           <div className="card">
@@ -166,7 +214,7 @@ export default function Notifications({
           </div>
         )}
 
-        <div className="card">
+        <div className="card pt-6">
           {!isMobile && (
             <div className="mb-6 flex w-full items-center justify-between">
               <h2 className="text-lg font-bold">
@@ -185,11 +233,9 @@ export default function Notifications({
             ) : (
               notifications.map((grouping) => (
                 <div key={grouping.date}>
-                  {grouping.date !== 'Today' && (
-                    <h2 className="mb-4 text-lg font-bold text-gray-400">
-                      {grouping.date}
-                    </h2>
-                  )}
+                  <h2 className="mb-4 font-system-sans text-[17px] font-normal leading-[22px] text-gray-400">
+                    {grouping.date}
+                  </h2>
                   <ul className="mb-4 space-y-2">
                     {grouping.skeins.map((b) => (
                       <li key={b.time}>
