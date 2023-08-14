@@ -1,5 +1,3 @@
-// @ts-expect-error - apparently this works?
-// eslint-disable-next-line import/no-unresolved
 import { useSelect } from 'react-cosmos/client';
 import Avatar from '../Avatar';
 

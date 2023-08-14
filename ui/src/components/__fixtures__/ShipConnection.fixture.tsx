@@ -1,5 +1,6 @@
 import { useSelect } from 'react-cosmos/client';
 import ShipConnection from '@/components/ShipConnection';
+import { ConnectionStatus } from '@/state/vitals';
 
 export default function ShipConnectionFixture() {
   const [type] = useSelect('Type', {
@@ -14,7 +15,7 @@ export default function ShipConnectionFixture() {
     pending: { pending: true },
     success: { complete: 'yes' },
     error: { complete: 'no' },
-  }[status];
+  }[status] as ConnectionStatus;
   return (
     <ShipConnection ship="~fabled-faster" type={type} status={statusObject} />
   );
