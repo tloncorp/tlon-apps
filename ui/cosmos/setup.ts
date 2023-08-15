@@ -15,6 +15,7 @@ import palsResponse from './fixtures/pals.json';
 
 // Since cosmos replaces `main.ts` we need to import styles here
 import '@/styles/index.css';
+import '@/styles/cosmos.css';
 
 // Global properties
 Object.defineProperty(window, 'ship', {
