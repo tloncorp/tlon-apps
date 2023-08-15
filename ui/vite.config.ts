@@ -202,5 +202,8 @@ export default ({ mode }: { mode: string }) => {
         },
       },
     },
+    optimizeDeps: {
+      exclude: ['@tloncorp/eyrie'],
+    },
   });
 };

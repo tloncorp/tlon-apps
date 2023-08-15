@@ -96,7 +96,7 @@
     "@tiptap/pm": "^2.0.3",
     "@tiptap/react": "^2.0.3",
     "@tiptap/suggestion": "^2.0.3",
-    "@tloncorp/eyrie": "^0.0.12",
+    "@tloncorp/eyrie": "^0.0.14",
     "@tloncorp/mock-http-api": "^1.2.0",
     "@types/marked": "^4.3.0",
     "@urbit/api": "^2.2.0",

@@ -81,7 +81,6 @@ import { LeapProvider } from '@/components/Leap/useLeap';
 import VitaMessage from '@/components/VitaMessage';
 import Dialog from '@/components/Dialog';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
-import Eyrie from '@/components/Eyrie';
 import queryClient from '@/queryClient';
 import EmojiPicker from '@/components/EmojiPicker';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
@@ -97,6 +96,7 @@ import LureAutojoiner from '@/groups/LureAutojoiner';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 
+const Eyrie = React.lazy(() => import('@/components/Eyrie'));
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
     (d) => ({
@@ -767,10 +767,10 @@ function RoutedApp() {
           <Scheduler />
         </TooltipProvider>
         <LureAutojoiner />
-        <Eyrie />
         {showDevTools && (
           <React.Suspense fallback={null}>
             <ReactQueryDevtoolsProduction />
+            <Eyrie />
           </React.Suspense>
         )}
       </Router>
