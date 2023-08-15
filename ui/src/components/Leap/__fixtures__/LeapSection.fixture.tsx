@@ -1,5 +1,5 @@
-import LeapSectionRow from "../LeapSectionRow";
+import LeapSectionRow from '../LeapSectionRow';
 
 export default function LeapSection() {
-    return <LeapSectionRow section={{section: "Leap Section"}} />;
+  return <LeapSectionRow section={{ section: 'Leap Section' }} />;
 }

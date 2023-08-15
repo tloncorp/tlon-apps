@@ -106,7 +106,9 @@ export default function Colors() {
         <div className="w-full">
           {group.map((c) => (
             <div>
-              <label className="mb-1 mt-3 block text-xs text-gray-400">{c}</label>
+              <label className="mb-1 mt-3 block text-xs text-gray-400">
+                {c}
+              </label>
               <div className={`${c} aspect-1 w-full flex-1 rounded`} />
             </div>
           ))}

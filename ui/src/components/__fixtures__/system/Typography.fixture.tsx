@@ -13,14 +13,14 @@ export default function Typography() {
   const [color] = useSelect('Color', {
     defaultValue: 'black',
     options: [
-      "black",
-      "blue",
-      "gray-50",
-      "gray-60",
-      "green-500",
-      "red-500",
-      "yellow-400",
-    ]
+      'black',
+      'blue',
+      'gray-50',
+      'gray-60',
+      'green-500',
+      'red-500',
+      'yellow-400',
+    ],
   });
 
   return (
@@ -28,10 +28,11 @@ export default function Typography() {
       {sizes.map((s) => (
         <div className="mb-5">
           <label className={'mb-1 text-sm text-gray-400'}>text-{s}</label>
-          <p className={`text-${s} text-${color} font-${weight}`}>{longSampleText}</p>
+          <p className={`text-${s} text-${color} font-${weight}`}>
+            {longSampleText}
+          </p>
         </div>
       ))}
     </div>
   );
 }
-

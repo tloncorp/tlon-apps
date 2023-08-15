@@ -1,5 +1,5 @@
-import { MemoryRouter } from "react-router";
-import LoadingSpinner from "../LoadingSpinner";
+import { MemoryRouter } from 'react-router';
+import LoadingSpinner from '../LoadingSpinner';
 
 export default function LoadingSpinnerFixture() {
   return (

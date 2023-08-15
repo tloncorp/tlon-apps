@@ -4,7 +4,7 @@ import GlobeIcon from '@/components/icons/GlobeIcon';
 import LeapRow from '../LeapRow';
 
 export default function LeapRowFixture() {
-    const [isSelected] = useValue('isSelected', { defaultValue: false });
+  const [isSelected] = useValue('isSelected', { defaultValue: false });
 
   const rowOptions = {
     icon: GlobeIcon,
