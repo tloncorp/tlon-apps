@@ -880,6 +880,18 @@
     $(content tail)
   ==
 ::
+++  check-writ-ownership
+  |=  diff=diff:writs:c
+  =*  her    p.p.diff
+  =*  delta  q.diff
+  ?.  =(her src.bowl)  |
+  ?-  -.delta
+      %add  =(src.bowl author.p.delta)
+      %del  &
+      %add-feel  =(src.bowl p.delta)
+      %del-feel  =(src.bowl p.delta)
+  ==  
+::
 ++  from-self  =(our src):bowl
 ++  cu-abed  cu-abed:cu-core
 ::
@@ -1434,9 +1446,10 @@
     =*  group  group.perm.chat
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
-  ++  ca-is-host  |(=(p.flag src.bowl) =(p.group.perm.chat src.bowl))
+  ++  ca-am-host  =(p.flag our.bowl)
+  ++  ca-from-host  |(=(p.flag src.bowl) =(p.group.perm.chat src.bowl))
   ++  ca-can-write
-    ?:  ca-is-host  &
+    ?:  ca-from-host  &
     =/  =path
       %+  welp  ca-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
@@ -1566,25 +1579,30 @@
       (ca-give-updates time d)
     ?-    -.d
         %add-sects
-      ?>  ca-is-host
+      ?>  ca-from-host
       =*  p  perm.chat
       =.  writers.p  (~(uni in writers.p) p.d)
       ca-core
     ::
         %del-sects
-      ?>  ca-is-host
+      ?>  ca-from-host
       =*  p  perm.chat
       =.  writers.p  (~(dif in writers.p) p.d)
       ca-core
     ::
         %create
-      ?>  ca-is-host
+      ?>  ca-from-host
       =.  perm.chat  p.d
       =.  pact.chat  q.d
       ca-core
     ::
         %writs
       =*  delta  q.p.d
+      ::  accept the fact from host unconditionally, otherwise make
+      ::  sure that it's coming from the right person
+      ?>  ?|  ca-from-host
+              &(ca-am-host (check-writ-ownership p.d))
+          ==
       =.  pact.chat  (reduce:ca-pact time p.d)
       ?-  -.delta
           ?(%del %add-feel %del-feel)  ca-core

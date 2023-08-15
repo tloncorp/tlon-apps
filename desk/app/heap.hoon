@@ -795,9 +795,10 @@
     =*  group  group.perm.heap
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
-  ++  he-is-host  |(=(p.flag src.bowl) =(p.group.perm.heap src.bowl))
+  ++  he-am-host  =(our.bowl p.flag)
+  ++  he-from-host  |(=(p.flag src.bowl) =(p.group.perm.heap src.bowl))
   ++  he-can-write
-    ?:  he-is-host  &
+    ?:  he-from-host  &
     =/  =path
       %+  welp  he-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
@@ -915,6 +916,23 @@
       (give-brief flag he-brief)
     he-core
   ::
+  ++  he-check-ownership
+    |=  =diff:curios:h
+    =*  delta  q.diff
+    =/  entry=(unit [=time =curio:h])  (get:he-curios p.diff)
+    ?-  -.delta
+        %add   =(src.bowl author.p.delta)
+        %add-feel  =(src.bowl p.delta)
+        %del-feel  =(src.bowl p.delta)
+      ::
+          %del  ?~(entry | =(src.bowl author.curio.u.entry))
+      ::
+          %edit  
+        ?&  =(src.bowl author.p.delta)
+            ?~(entry | =(src.bowl author.curio.u.entry))
+        ==
+    ==
+  ::
   ++  he-update
     |=  [=time d=diff:h]
     ^+  he-core
@@ -928,6 +946,11 @@
       (he-give-updates time d)
     ?-    -.d
         %curios
+      ::  accept the fact from host unconditionally, otherwise make
+      ::  sure that it's coming from the right person
+      ?>  ?|  he-from-host
+              &(he-am-host (he-check-ownership p.d))
+          ==
       =.  curios.heap  (reduce:he-curios time p.d)
       =.  cor  (give-brief flag he-brief)
       ?-  -.q.p.d
@@ -970,19 +993,19 @@
       ==
     ::
         %add-sects
-      ?>  he-is-host
+      ?>  he-from-host
       =*  p  perm.heap
       =.  writers.p  (~(uni in writers.p) p.d)
       he-core
     ::
         %del-sects
-      ?>  he-is-host
+      ?>  he-from-host
       =*  p  perm.heap
       =.  writers.p  (~(dif in writers.p) p.d)
       he-core
     ::
         %create
-      ?>  he-is-host
+      ?>  he-from-host
       =:  perm.heap  p.d
           curios.heap  q.d
         ==

@@ -601,8 +601,6 @@
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
     [& & rope con link but]
-  ::  TODO: add metadata
-  ::        maybe delay the watch?
   ++  di-import
     |=  [writers=(set ship) =association:met:d]
     ^+  di-core
@@ -853,7 +851,8 @@
     =*  group  group.perm.diary
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
-  ++  di-is-host  |(=(p.flag src.bowl) =(p.group.perm.diary src.bowl))
+  ++  di-am-host  =(our.bowl p.flag)
+  ++  di-from-host  |(=(p.flag src.bowl) =(p.group.perm.diary src.bowl))
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
     =/  =path
@@ -965,6 +964,37 @@
       (give-brief flag di-brief)
     di-core
   ::
+  ++  di-check-ownership
+    |=  =diff:notes:d
+    =*  delta  q.diff
+    =/  entry=(unit [=time =note:d])  (get:di-notes p.diff)
+    ?-  -.delta
+        %add   =(src.bowl author.p.delta)
+        %add-feel  =(src.bowl p.delta)
+        %del-feel  =(src.bowl p.delta)
+        %quips  (di-check-quips-ownership p.diff p.delta)
+      ::
+          %del  ?~(entry | =(src.bowl author.note.u.entry))
+      ::
+          %edit  
+        ?&  =(src.bowl author.p.delta)
+            ?~(entry | =(src.bowl author.note.u.entry))
+        ==
+    ==
+  ::
+  ++  di-check-quips-ownership
+    |=  [note-time=time =diff:quips:d]
+    =*  delta  q.diff
+    =/  parent=(unit [=time =note:d])  (get:di-notes note-time)
+    ?~  parent  |  :: note missing, nothing to do
+    =/  quips  ~(. qup quips.note.u.parent)
+    =/  entry=(unit [=time =quip:d])  (get:quips p.diff)
+    ?-  -.delta
+        %add   =(src.bowl author.p.delta)
+        %add-feel  =(src.bowl p.delta)
+        %del-feel  =(src.bowl p.delta)
+        %del  ?~(entry | =(src.bowl author.quip.u.entry))
+    ==
   ++  di-update
     |=  [=time dif=diff:d]
     ?>  di-can-write
@@ -978,6 +1008,11 @@
       (di-give-updates time dif)
     ?-    -.dif
         %notes
+      ::  accept the fact from host unconditionally, otherwise make
+      ::  sure that it's coming from the right person
+      ?>  ?|  di-from-host
+              &(di-am-host (di-check-ownership p.dif))
+          ==
       =.  notes.diary  (reduce:di-notes time p.dif)
       =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
@@ -990,19 +1025,19 @@
       di-core
     ::
         %add-sects
-      ?>  di-is-host
+      ?>  di-from-host
       =*  p  perm.diary
       =.  writers.p  (~(uni in writers.p) p.dif)
       di-core
     ::
         %del-sects
-      ?>  di-is-host
+      ?>  di-from-host
       =*  p  perm.diary
       =.  writers.p  (~(dif in writers.p) p.dif)
       di-core
     ::
         %create
-      ?>  di-is-host
+      ?>  di-from-host
       =:  notes.diary  q.dif
           perm.diary   p.dif
         ==
