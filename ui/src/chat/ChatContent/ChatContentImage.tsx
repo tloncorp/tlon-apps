@@ -76,9 +76,7 @@ export default function ChatContentImage({
           <img
             src={src}
             onError={() => setFailedToLoad(true)}
-            className="max-w-full cursor-pointer rounded"
-            height={height}
-            width={width}
+            className="max-h-[50vh] max-w-full cursor-pointer rounded"
             alt={altText ? altText : 'A chat image'}
           />
         </button>
