@@ -4,8 +4,19 @@ import { useCallback } from 'react';
 
 const OEMBED_PROVIDER = 'https://noembed.com/embed';
 
-export async function fetchEmbed(url: string, isMobile?: boolean) {
-  if (!url || !isValidUrl(url)) return null;
+function transformUrl(inputUrl: string): string {
+  const url = new URL(inputUrl);
+  if (url.hostname === 'x.com') {
+    url.hostname = 'twitter.com';
+  }
+
+  return url.href;
+}
+
+export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
+  if (!inputUrl || !isValidUrl(inputUrl)) return null;
+  const url = transformUrl(inputUrl);
+
   const search = new URLSearchParams({
     maxwidth: isMobile ? '320' : '600',
     url,

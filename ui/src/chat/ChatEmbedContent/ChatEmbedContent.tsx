@@ -14,7 +14,7 @@ const trustedProviders = [
   },
   {
     name: 'Twitter',
-    regex: /twitter\.com\/\w+\/status\//,
+    regex: /(?:twitter\.com|x\.com)\/\w+\/status\//,
   },
   {
     name: 'Spotify',
