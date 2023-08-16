@@ -202,10 +202,6 @@ export default function ChatMessageOptions(props: {
     });
   }
 
-  // if (!open) {
-  //   return null;
-  // }
-
   return (
     <>
       {isMobile ? (
