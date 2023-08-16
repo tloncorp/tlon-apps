@@ -41,7 +41,9 @@ export default function MobileMessagesSidebar() {
       ([, v]) => nest in v.channels
     )?.[0];
     const channel = groups[groupFlag || '']?.channels[nest];
-    return !!channel || whomIsDm(p) || whomIsMultiDm(p);
+    return (
+      (!!channel && appName !== 'Groups') || whomIsDm(p) || whomIsMultiDm(p)
+    );
   });
 
   const setFilterMode = (mode: SidebarFilter) => {
@@ -119,14 +121,17 @@ export default function MobileMessagesSidebar() {
       />
       <nav className={cn('flex h-full w-full flex-col bg-white')}>
         <MessagesScrollingContext.Provider value={isScrolling}>
-          <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
+          <MessagesList
+            filter={appName === 'Groups' ? filters.dms : messagesFilter}
+            isScrolling={scroll.current}
+          >
             {filteredPins && filteredPins.length > 0 ? (
               <>
                 <div className="px-4">
                   <h2 className="my-0.5 p-2 font-system-sans text-lg text-gray-400 sm:text-base">
                     Pinned Messages
                   </h2>
-                  {pinned.map((ship: string) => (
+                  {filteredPins.map((ship: string) => (
                     <MessagesSidebarItem key={ship} whom={ship} />
                   ))}
                 </div>
