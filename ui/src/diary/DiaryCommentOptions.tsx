@@ -17,6 +17,7 @@ import { useAddQuipFeelMutation, useDeleteQuipMutation } from '@/state/diary';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
 import { useSearchParams } from 'react-router-dom';
+import { useIsMobile } from '@/logic/useMedia';
 
 export default function DiaryCommentOptions({
   whom,
@@ -45,6 +46,7 @@ export default function DiaryCommentOptions({
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const isMobile = useIsMobile();
   const { mutateAsync: delQuip } = useDeleteQuipMutation();
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
   const {
@@ -96,7 +98,7 @@ export default function DiaryCommentOptions({
 
   return (
     <div className="absolute right-2 -top-5 z-10 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle opacity-0 group-one-hover:opacity-100">
-      {canWrite ? (
+      {canWrite && !isMobile ? (
         <EmojiPicker
           open={pickerOpen}
           setOpen={setPickerOpen}
