@@ -772,7 +772,9 @@ function RoutedApp() {
             <React.Suspense fallback={null}>
               <ReactQueryDevtoolsProduction />
             </React.Suspense>
-            <EyrieMenu />
+            <div className="fixed bottom-4 right-4">
+              <EyrieMenu />
+            </div>
           </>
         )}
       </Router>
