@@ -1,4 +1,5 @@
 import bigInt from 'big-integer';
+import cn from 'classnames';
 import { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
@@ -17,6 +18,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChannelIsJoined } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
+import { useIsMobile } from '@/logic/useMedia';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -38,6 +40,7 @@ export default function HeapDetail({ title }: ViewProps) {
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
+  const isMobile = useIsMobile();
   const joined = useChannelIsJoined(nest);
   const { mutateAsync: joinHeap } = useJoinHeapMutation();
   const { time, curio, comments, isLoading } = useCurioWithComments(
@@ -111,9 +114,11 @@ export default function HeapDetail({ title }: ViewProps) {
             <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
               <Link
                 to={curioHref(nextCurio?.[0])}
-                className={
-                  'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
-                }
+                className={cn(
+                  ' z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent',
+                  !isMobile &&
+                    'opacity-0 transition-opacity group-hover:opacity-100'
+                )}
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
                   <CaretLeftIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
@@ -126,9 +131,11 @@ export default function HeapDetail({ title }: ViewProps) {
             <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
               <Link
                 to={curioHref(prevCurio?.[0])}
-                className={
-                  'z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100'
-                }
+                className={cn(
+                  ' z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent',
+                  !isMobile &&
+                    'opacity-0 transition-opacity group-hover:opacity-100'
+                )}
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
                   <CaretRightIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
