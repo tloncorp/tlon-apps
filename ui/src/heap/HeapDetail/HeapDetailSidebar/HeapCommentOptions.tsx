@@ -16,6 +16,7 @@ import {
   useAddCurioFeelMutation,
   useDelCurioMutation,
 } from '@/state/heap/heap';
+import { useIsMobile } from '@/logic/useMedia';
 
 export default function HeapCommentOptions(props: {
   whom: string;
@@ -43,6 +44,7 @@ export default function HeapCommentOptions(props: {
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const isMobile = useIsMobile();
   const { mutateAsync: addFeel } = useAddCurioFeelMutation();
   const { mutateAsync: delCurio } = useDelCurioMutation();
 
@@ -81,7 +83,7 @@ export default function HeapCommentOptions(props: {
 
   return (
     <div className="absolute right-2 -top-7 z-40 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle opacity-0 group-one-hover:opacity-100">
-      {canWrite ? (
+      {canWrite && !isMobile ? (
         <EmojiPicker
           open={pickerOpen}
           setOpen={setPickerOpen}
