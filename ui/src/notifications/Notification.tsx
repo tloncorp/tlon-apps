@@ -151,7 +151,7 @@ export default function Notification({
   const { recentChannel } = useRecentChannel(rope.group || '');
   const group = useGroup(rope.group || '');
   const gang = useGang(rope.group || '');
-  const { join, reject } = useGroupJoin(rope.group || '', gang);
+  const { open, reject } = useGroupJoin(rope.group || '', gang);
 
   return (
     <div className="relative flex space-x-3 rounded-xl bg-white p-2 text-gray-400">
@@ -174,13 +174,13 @@ export default function Notification({
             {gang && !group && (
               <div className="mt-2 flex space-x-2">
                 <button
-                  onClick={() => join()}
+                  onClick={open}
                   className="small-button bg-blue-soft text-blue"
                 >
                   Accept
                 </button>
                 <button
-                  onClick={() => reject()}
+                  onClick={reject}
                   className="small-button bg-gray-50 text-gray-800"
                 >
                   Reject

@@ -1,4 +1,3 @@
-import React from 'react';
 import ShipName from '@/components/ShipName';
 import Lock16Icon from '@/components/icons/Lock16Icon';
 import Private16Icon from '@/components/icons/Private16Icon';
@@ -37,7 +36,7 @@ export default function GroupSummary({
   if (!meta) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoadingSpinner />
+        <LoadingSpinner /> <span className="ml-2">Loading...</span>
       </div>
     );
   }

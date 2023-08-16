@@ -229,7 +229,7 @@ function GroupReference({
             ) : (
               <button
                 className="small-button whitespace-nowrap bg-blue-softer text-blue dark:text-black"
-                onClick={button.action}
+                onClick={open}
                 disabled={button.disabled || status === 'error'}
               >
                 {status === 'error' ? 'Errored' : button.text}
