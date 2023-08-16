@@ -95,8 +95,8 @@ import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
+import EyrieMenu from './eyrie/EyrieMenu';
 
-const Eyrie = React.lazy(() => import('@/components/Eyrie'));
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
     (d) => ({
@@ -768,10 +768,12 @@ function RoutedApp() {
         </TooltipProvider>
         <LureAutojoiner />
         {showDevTools && (
-          <React.Suspense fallback={null}>
-            <ReactQueryDevtoolsProduction />
-            <Eyrie />
-          </React.Suspense>
+          <>
+            <React.Suspense fallback={null}>
+              <ReactQueryDevtoolsProduction />
+            </React.Suspense>
+            <EyrieMenu />
+          </>
         )}
       </Router>
     </ErrorBoundary>
