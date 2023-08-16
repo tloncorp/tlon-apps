@@ -4,6 +4,7 @@ import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useAddCurioFeelMutation } from '@/state/heap/heap';
 import { CurioSeal } from '@/types/heap';
+import { useIsMobile } from '@/logic/useMedia';
 import HeapCommentReaction from './HeapCommentReaction';
 
 interface HeapCommentReactionsProps {
@@ -20,6 +21,7 @@ export default function HeapCommentReactions({
   replying,
 }: HeapCommentReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const isMobile = useIsMobile();
   const addFeelMutation = useAddCurioFeelMutation();
   const feels = _.invertBy(seal.feels);
 
@@ -51,19 +53,21 @@ export default function HeapCommentReactions({
           replying={replying}
         />
       ))}
-      <EmojiPicker
-        open={pickerOpen}
-        setOpen={setPickerOpen}
-        onEmojiSelect={onEmoji}
-      >
-        <button
-          className="appearance-none border-none bg-transparent"
-          onClick={openPicker}
-          aria-label="Add Reaction"
+      {!isMobile && (
+        <EmojiPicker
+          open={pickerOpen}
+          setOpen={setPickerOpen}
+          onEmojiSelect={onEmoji}
         >
-          <AddReactIcon className="h-6 w-6 text-gray-400" />
-        </button>
-      </EmojiPicker>
+          <button
+            className="appearance-none border-none bg-transparent"
+            onClick={openPicker}
+            aria-label="Add Reaction"
+          >
+            <AddReactIcon className="h-6 w-6 text-gray-400" />
+          </button>
+        </EmojiPicker>
+      )}
     </div>
   );
 }
