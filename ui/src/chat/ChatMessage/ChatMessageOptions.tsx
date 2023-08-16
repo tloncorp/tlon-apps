@@ -202,17 +202,16 @@ export default function ChatMessageOptions(props: {
     });
   }
 
+  if (!open && !isMobile) {
+    return null;
+  }
+
   return (
     <>
       {isMobile ? (
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
-        <div
-          className={cn(
-            'absolute right-2 -top-5 z-10 h-full',
-            !open && 'hidden'
-          )}
-        >
+        <div className="absolute right-2 -top-5 z-10 h-full">
           <div
             data-testid="chat-message-options"
             className="sticky top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
