@@ -1,10 +1,10 @@
 import cn from 'classnames';
 import React, { useEffect, useRef, useState } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
-import { Fact, Subscription } from '@/state/eyre';
+import { Fact, Subscription as SubscriptionType } from '@/state/eyre';
 
 interface SubscriptionProps {
-  sub: Subscription;
+  sub: SubscriptionType;
   facts: Fact[];
 }
 
