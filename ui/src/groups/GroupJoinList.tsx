@@ -1,4 +1,3 @@
-import React from 'react';
 import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
 import { Gang, Gangs } from '@/types/groups';
@@ -74,8 +73,7 @@ function GroupJoinItem({ flag, gang }: GroupJoinItemProps) {
                   'ml-2 bg-blue-soft text-blue mix-blend-multiply disabled:bg-gray-100 dark:bg-blue-900 dark:mix-blend-screen dark:disabled:bg-gray-100',
                   isMobile ? 'small-button' : 'button'
                 )}
-                onClick={button.action}
-                disabled={button.disabled || status === 'error'}
+                onClick={open}
               >
                 {status === 'error' ? 'Errored' : button.text}
               </button>

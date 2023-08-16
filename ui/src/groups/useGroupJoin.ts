@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
@@ -41,10 +41,11 @@ export default function useGroupJoin(
 ) {
   const location = useLocation();
   const navigate = useNavigate();
+  const modalIsOpen = !!location.state?.backgroundLocation;
   const navigateByApp = useNavigateByApp();
   const modalNavigate = useModalNavigate();
   const dismiss = useDismissNavigate();
-  const group = useGroup(flag);
+  const group = useGroup(flag, modalIsOpen);
   const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
@@ -92,17 +93,6 @@ export default function useGroupJoin(
 
       try {
         joinMutation({ flag, privacy });
-        if (redirectItem) {
-          if (redirectItem.type === 'chat') {
-            return navigateByApp(
-              `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}`
-            );
-          }
-          return navigateByApp(
-            `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}`
-          );
-        }
-        return navigateByApp(`/groups/${flag}`);
       } catch (e) {
         if (requested) {
           rescindMutation({ flag });
@@ -118,7 +108,6 @@ export default function useGroupJoin(
     invited,
     flag,
     requested,
-    redirectItem,
     navigateByApp,
     joinMutation,
     knockMutation,
@@ -161,6 +150,24 @@ export default function useGroupJoin(
     navigateByApp,
     rejectMutation,
   ]);
+
+  useEffect(() => {
+    if (group && modalIsOpen) {
+      if (redirectItem) {
+        if (redirectItem.type === 'chat') {
+          navigateByApp(
+            `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}`
+          );
+        } else {
+          navigateByApp(
+            `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}`
+          );
+        }
+      } else {
+        navigateByApp(`/groups/${flag}`);
+      }
+    }
+  }, [group, navigateByApp, flag, redirectItem, modalIsOpen]);
 
   return {
     group,
