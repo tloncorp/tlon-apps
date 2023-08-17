@@ -251,14 +251,16 @@ export function useGangs() {
     [queryClient]
   );
 
-  if (rest.isLoading || rest.isError) {
-    return {} as Gangs;
-  }
+  return useMemo(() => {
+    if (rest.isLoading || rest.isError) {
+      return {} as Gangs;
+    }
 
-  return {
-    ...groupIndexDataAsGangs,
-    ...(data as Gangs),
-  };
+    return {
+      ...groupIndexDataAsGangs,
+      ...(data as Gangs),
+    };
+  }, [groupIndexDataAsGangs, data, rest.isLoading, rest.isError]);
 }
 
 export function useGang(flag: string) {

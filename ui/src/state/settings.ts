@@ -111,6 +111,9 @@ export const useLandscapeSettings = () => {
     app: 'settings',
     path: `/desk/${lsDesk}`,
     queryKey: ['settings', lsDesk],
+    // options: {
+    //   refetchOnMount: true,
+    // },
   });
 
   return useMemo(() => {
@@ -131,6 +134,9 @@ export const useSettings = () => {
     app: 'settings',
     path: `/desk/${window.desk}`,
     queryKey: ['settings', window.desk],
+    // options: {
+    //   refetchOnMount: true,
+    // },
   });
 
   return useMemo(() => {
