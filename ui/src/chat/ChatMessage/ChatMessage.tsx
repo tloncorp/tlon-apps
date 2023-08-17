@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import debounce from 'lodash/debounce';
@@ -28,6 +28,7 @@ import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
+import useLongPress from '@/logic/useLongPress';
 import {
   useChatDialog,
   useChatHovering,
@@ -211,6 +212,41 @@ const ChatMessage = React.memo<
         )
       );
 
+      const [optionsOpen, setOptionsOpen] = useState(false);
+      const { action, handlers } = useLongPress(true);
+
+      useEffect(() => {
+        if (!isMobile) {
+          return;
+        }
+
+        if (action === 'longpress') {
+          setOptionsOpen(true);
+        }
+      }, [action, isMobile]);
+
+      useEffect(() => {
+        if (isMobile) {
+          return;
+        }
+
+        // If we're the thread op, don't show options.
+        // Options are shown for the threadOp in the main scroll window.
+        setOptionsOpen(
+          (hovering || pickerOpen) &&
+            !hideOptions &&
+            !isScrolling &&
+            !isThreadOp
+        );
+      }, [
+        isMobile,
+        hovering,
+        pickerOpen,
+        hideOptions,
+        isScrolling,
+        isThreadOp,
+      ]);
+
       return (
         <div
           ref={mergeRefs(ref, container)}
@@ -219,9 +255,9 @@ const ChatMessage = React.memo<
             'pb-2': isLast,
           })}
           onMouseEnter={onOver}
-          onClick={onOver}
           onMouseLeave={onOut.current}
           data-testid="chat-message"
+          {...handlers}
         >
           {unread && briefMatches(unread.brief, writ.seal.id) ? (
             <DateDivider
@@ -233,26 +269,21 @@ const ChatMessage = React.memo<
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
           <div className="group-one relative z-0 flex w-full">
-            {hideOptions ||
-            isScrolling ||
-            (!hovering && !pickerOpen) ||
-            // If we're the thread op, don't show options.
-            // Options are shown for the threadOp in the main scroll window.
-            (isThreadOp && !isThreadOnMobile) ? null : (
-              <ChatMessageOptions
-                hideThreadReply={hideReplies}
-                whom={whom}
-                writ={writ}
-                hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
-              />
-            )}
-            <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 group-one-hover:opacity-100">
+            <ChatMessageOptions
+              open={optionsOpen}
+              onOpenChange={setOptionsOpen}
+              hideThreadReply={hideReplies}
+              whom={whom}
+              writ={writ}
+              hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
+            />
+            <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
             </div>
             <div className="wrap-anywhere flex w-full">
               <div
                 className={cn(
-                  'flex w-full grow flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50',
+                  'flex w-full grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
                   !isMessageDelivered && !isMessagePosted && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
@@ -289,7 +320,7 @@ const ChatMessage = React.memo<
                           <div
                             key={ship}
                             className={cn(
-                              'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white group-one-focus-within:outline-gray-50 group-one-hover:outline-gray-50',
+                              'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white sm:group-one-focus-within:outline-gray-50 sm:group-one-hover:outline-gray-50',
                               i !== 0 && '-mr-3'
                             )}
                           >
@@ -325,7 +356,7 @@ const ChatMessage = React.memo<
                   </NavLink>
                 ) : null}
               </div>
-              <div className="relative flex w-5 items-end rounded-r group-one-hover:bg-gray-50">
+              <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
                 {!isMessageDelivered && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
