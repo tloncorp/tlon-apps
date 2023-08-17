@@ -14,6 +14,7 @@ import _ from 'lodash';
 import { useLocalState } from '@/state/local';
 import useSchedulerStore from './state/scheduler';
 import { actionDrill, isHosted } from './logic/utils';
+import { useEyreState } from './state/eyre';
 
 export const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -291,10 +292,11 @@ class API {
     event: T,
     callback: (data: UrbitHttpApiEvent[T]) => void
   ) {
-    (this.client as UrbitBase).on(event, callback);
+    this.withClient((client) => (client as UrbitBase).on(event, callback));
   }
 }
 
 const api = new API();
+useEyreState.getState().start({ api });
 
 export default api;
