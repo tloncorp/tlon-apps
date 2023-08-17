@@ -268,7 +268,7 @@ const ChatMessage = React.memo<
           ) : null}
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
-          <div className="group-one relative z-0 flex w-full">
+          <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             <ChatMessageOptions
               open={optionsOpen}
               onOpenChange={setOptionsOpen}
