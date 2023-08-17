@@ -8,6 +8,7 @@ import {
 import { useEffect, useRef } from 'react';
 import api from '@/api';
 import useSchedulerStore from '@/state/scheduler';
+import { useShowDevTools } from '@/state/local';
 
 export default function useReactQuerySubscription({
   queryKey,
@@ -27,6 +28,7 @@ export default function useReactQuerySubscription({
   options?: UseQueryOptions;
 }): ReturnType<typeof useQuery> {
   const queryClient = useQueryClient();
+  const showDevTools = useShowDevTools();
   const invalidate = useRef(
     _.debounce(
       () => {
@@ -54,9 +56,15 @@ export default function useReactQuerySubscription({
     });
   }, [app, path, queryClient, queryKey]);
 
-  return useQuery(queryKey, fetchData, {
-    retryOnMount: false,
-    refetchOnMount: false,
-    ...options,
-  });
+  return useQuery(
+    queryKey,
+    fetchData,
+    showDevTools
+      ? {
+          retryOnMount: false,
+          refetchOnMount: false,
+          ...options,
+        }
+      : options
+  );
 }

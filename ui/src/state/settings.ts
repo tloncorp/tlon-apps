@@ -104,6 +104,7 @@ export interface SettingsState {
   [ref: string]: unknown;
 }
 
+const emptySettings = { data: {} as SettingsState, isLoading: true };
 export const useLandscapeSettings = () => {
   const { data, isLoading } = useReactQuerySubscription({
     scry: `/desk/${lsDesk}`,
@@ -118,7 +119,7 @@ export const useLandscapeSettings = () => {
 
   return useMemo(() => {
     if (!data) {
-      return { data: {} as SettingsState, isLoading };
+      return emptySettings;
     }
 
     const { desk } = data as { desk: SettingsState };
@@ -141,7 +142,7 @@ export const useSettings = () => {
 
   return useMemo(() => {
     if (!data) {
-      return { data: {} as SettingsState, isLoading };
+      return emptySettings;
     }
 
     const { desk } = data as { desk: SettingsState };
@@ -157,7 +158,7 @@ export const useMergedSettings = () => {
 
   return useMemo(() => {
     if (isSettingsLoading || isLandscapeSettingsLoading) {
-      return { data: {} as SettingsState, isLoading: true };
+      return emptySettings;
     }
 
     return {

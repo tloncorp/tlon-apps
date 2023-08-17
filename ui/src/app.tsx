@@ -675,31 +675,19 @@ function App() {
   );
 }
 
-function RoutedApp() {
-  const mode = import.meta.env.MODE;
-  const app = import.meta.env.VITE_APP;
-  const [userThemeColor, setUserThemeColor] = useState('#ffffff');
+function AppEffects({
+  setUserThemeColor,
+  isStandAlone,
+}: {
+  setUserThemeColor: (color: string) => void;
+  isStandAlone: boolean;
+}) {
   const showDevTools = useShowDevTools();
-  const isStandAlone = useIsStandaloneMode();
   const logActivity = useLogActivity();
   const posthog = usePostHog();
   const analyticsId = useAnalyticsId();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
-
-  const basename = (appName: string) => {
-    if (mode === 'mock' || mode === 'staging') {
-      return '/';
-    }
-
-    switch (appName) {
-      case 'chat':
-        return isStandAlone ? '/apps/talk/' : '/apps/talk';
-      default:
-        return isStandAlone ? '/apps/groups/' : '/apps/groups';
-    }
-  };
-
   const theme = useTheme();
   const isDarkMode = useIsDark();
 
@@ -721,7 +709,7 @@ function RoutedApp() {
       useLocalState.setState({ currentTheme: 'light' });
       setUserThemeColor('#ffffff');
     }
-  }, [isDarkMode, theme, colorSchemeFromNative]);
+  }, [isDarkMode, theme, colorSchemeFromNative, setUserThemeColor]);
 
   useEffect(() => {
     if (isStandAlone) {
@@ -746,6 +734,46 @@ function RoutedApp() {
     }
   }, [posthog, showDevTools]);
 
+  return null;
+}
+
+function DevTools() {
+  const showDevTools = useShowDevTools();
+  if (showDevTools) {
+    return null;
+  }
+
+  return (
+    <>
+      <React.Suspense fallback={null}>
+        <ReactQueryDevtoolsProduction />
+      </React.Suspense>
+      <div className="fixed bottom-4 right-4">
+        <EyrieMenu />
+      </div>
+    </>
+  );
+}
+
+function RoutedApp() {
+  const mode = import.meta.env.MODE;
+  const app = import.meta.env.VITE_APP;
+  const [userThemeColor, setUserThemeColor] = useState('#ffffff');
+  const isStandAlone = useIsStandaloneMode();
+
+  const basename = (appName: string) => {
+    if (mode === 'mock' || mode === 'staging') {
+      return '/';
+    }
+
+    switch (appName) {
+      case 'chat':
+        return isStandAlone ? '/apps/talk/' : '/apps/talk';
+      default:
+        return isStandAlone ? '/apps/groups/' : '/apps/groups';
+    }
+  };
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
@@ -767,16 +795,11 @@ function RoutedApp() {
           <Scheduler />
         </TooltipProvider>
         <LureAutojoiner />
-        {showDevTools && (
-          <>
-            <React.Suspense fallback={null}>
-              <ReactQueryDevtoolsProduction />
-            </React.Suspense>
-            <div className="fixed bottom-4 right-4">
-              <EyrieMenu />
-            </div>
-          </>
-        )}
+        <DevTools />
+        <AppEffects
+          setUserThemeColor={setUserThemeColor}
+          isStandAlone={isStandAlone}
+        />
       </Router>
     </ErrorBoundary>
   );

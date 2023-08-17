@@ -22,14 +22,41 @@ export default function MobileRoot() {
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const groups = useGroups();
   const gangs = useGangList();
-  const pinnedGroups = usePinnedGroups();
-  const sortedGroups = sortGroups(groups);
+  const pinnedGroups = Object.entries(usePinnedGroups());
+  const sortedGroups = useMemo(() => sortGroups(groups), [groups, sortGroups]);
   const pinnedGroupsOptions = useMemo(
     () =>
-      Object.entries(pinnedGroups).map(([flag]) => (
+      pinnedGroups.map(([flag]) => (
         <GroupsSidebarItem key={flag} flag={flag} />
       )),
     [pinnedGroups]
+  );
+
+  const header = useMemo(
+    () => (
+      <>
+        {pinnedGroups.length > 0 && (
+          <>
+            <div className="px-4">
+              <h2 className="mb-0.5 p-2 font-system-sans  text-gray-900">
+                Pinned Groups
+              </h2>
+              {pinnedGroupsOptions}
+            </div>
+            <h2 className="my-2 ml-2 p-2 pl-4 font-system-sans  text-gray-900">
+              All Groups
+            </h2>
+          </>
+        )}
+
+        <div className="px-4">
+          {gangs.map((flag) => (
+            <GangItem key={flag} flag={flag} />
+          ))}
+        </div>
+      </>
+    ),
+    [pinnedGroups, gangs, pinnedGroupsOptions]
   );
 
   return (
@@ -62,28 +89,10 @@ export default function MobileRoot() {
           <GroupsScrollingContext.Provider value={isScrolling}>
             <GroupList
               groups={sortedGroups}
-              pinnedGroups={Object.entries(pinnedGroups)}
+              pinnedGroups={pinnedGroups}
               isScrolling={scroll.current}
             >
-              {Object.entries(pinnedGroups).length > 0 && (
-                <>
-                  <div className="px-4">
-                    <h2 className="mb-0.5 p-2 font-system-sans  text-gray-900">
-                      Pinned Groups
-                    </h2>
-                    {pinnedGroupsOptions}
-                  </div>
-                  <h2 className="my-2 ml-2 p-2 pl-4 font-system-sans  text-gray-900">
-                    All Groups
-                  </h2>
-                </>
-              )}
-
-              <div className="px-4">
-                {gangs.map((flag) => (
-                  <GangItem key={flag} flag={flag} />
-                ))}
-              </div>
+              {header}
             </GroupList>
           </GroupsScrollingContext.Provider>
         </div>

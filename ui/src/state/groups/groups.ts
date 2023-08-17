@@ -85,6 +85,7 @@ export function useGroupConnection(flag: string) {
   return useGroupConnectionState((state) => state.groups[flag] ?? true);
 }
 
+const emptyGroups: Groups = {};
 export function useGroups() {
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: [GROUPS_KEY],
@@ -92,12 +93,14 @@ export function useGroups() {
     path: `/groups/ui`,
     scry: `/groups/light/v0`,
     options: {
+      refetchOnMount: false,
+      retryOnMount: false,
       refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
   });
 
   if (rest.isLoading || rest.isError) {
-    return {} as Groups;
+    return emptyGroups as Groups;
   }
 
   return data as Groups;
