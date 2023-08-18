@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import ChannelHeader from '@/channels/ChannelHeader';
@@ -23,11 +23,22 @@ interface HeapHeaderProps {
   display: HeapDisplayMode;
   sort: HeapSortMode;
   canWrite: boolean;
+  draggedFile: File | null;
+  clearDraggedFile: () => void;
 }
 
 const HeapHeader = React.memo(
-  ({ flag, nest, display, sort, canWrite }: HeapHeaderProps) => {
+  ({
+    flag,
+    nest,
+    display,
+    sort,
+    canWrite,
+    draggedFile,
+    clearDraggedFile,
+  }: HeapHeaderProps) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [addCurioOpen, setAddCurioOpen] = useState(false);
     const isMobile = useIsMobile();
     const [, chFlag] = nestToFlag(nest);
     const settings = useHeapSettings();
@@ -108,6 +119,22 @@ const HeapHeader = React.memo(
             </button>
           </ActionMenu>
         </div>
+        <AddCurioModal
+          open={addCurioOpen}
+          setOpen={setAddCurioOpen}
+          flag={flag}
+          chFlag={chFlag}
+          draggedFile={draggedFile}
+          clearDraggedFile={clearDraggedFile}
+        />
+        {/* <button
+          className="button"
+          onClick={() => setAddCurioOpen(true)}
+          disabled={addCurioOpen}
+          hidden={!canWrite}
+        >
+          New Block
+        </button> */}
       </ChannelHeader>
     );
   }

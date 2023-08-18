@@ -7,21 +7,27 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 export default function MediaPreview({ url }: { url: string }) {
   const [ready, setReady] = useState(false);
   const [portrait, setPortrait] = useState(false);
+  const isBlob = url.startsWith('blob:');
 
   useEffect(() => {
-    const image = new Image();
-    image.onload = () => {
-      if (image.naturalHeight > image.naturalWidth) setPortrait(true);
-      setReady(true);
-    };
-    image.src = url;
-  }, [url]);
+    if (isImageUrl(url) || isBlob) {
+      const image = new Image();
+      image.onload = () => {
+        if (image.naturalHeight > image.naturalWidth) setPortrait(true);
+        setReady(true);
+      };
+      image.onerror = (e) => console.log(e);
+      image.src = url;
+    }
+  }, [url, isBlob]);
 
   if (!ready) {
     return <LoadingSpinner className="h-6 w-6" />;
   }
 
-  if (isImageUrl(url)) {
+  console.log(`is portrait ${portrait}`);
+
+  if (isImageUrl(url) || isBlob) {
     return (
       <img
         className={cn(

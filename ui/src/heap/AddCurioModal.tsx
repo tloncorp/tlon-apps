@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Dialog from '@/components/Dialog';
 import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -15,6 +15,8 @@ interface AddCurioModalProps {
   setOpen: (open: boolean) => void;
   flag: string;
   chFlag: string;
+  draggedFile: File | null;
+  clearDraggedFile: () => void;
 }
 
 function BlockInput({
@@ -48,15 +50,24 @@ function BlockInput({
   );
 }
 
-export default function AddCurioModal(props: AddCurioModalProps) {
+export default function AddCurioModal({
+  open,
+  setOpen,
+  flag,
+  chFlag,
+  draggedFile,
+  clearDraggedFile,
+}: AddCurioModalProps) {
   const [status, setStatus] = useState<'initial' | 'loading' | 'error'>(
     'initial'
   );
   const [mode, setMode] = useState<'preview' | 'input'>('input');
   const [inputText, setInputText] = useState('');
+  const [dragPreview, setDragPreview] = useState<string | null>(null);
+  const uploadKey = `${chFlag}-new-curio-input`;
 
   const { mutate: addCurio } = useAddCurioMutation();
-  const { privacy } = useGroupPrivacy(props.flag);
+  const { privacy } = useGroupPrivacy(flag);
 
   function inputOnChange(newInput: string) {
     if (isMediaUrl(newInput)) {
@@ -66,26 +77,47 @@ export default function AddCurioModal(props: AddCurioModalProps) {
     setInputText(newInput);
   }
 
-  function reset() {
+  const reset = useCallback(() => {
     setMode('input');
     setInputText('');
     setStatus('initial');
-  }
+    if (draggedFile) {
+      setDragPreview(null);
+      clearDraggedFile();
+    }
+  }, [clearDraggedFile, draggedFile]);
 
-  const setOpen = useCallback(
-    (open: boolean) => {
-      if (!open) reset();
-      props.setOpen(open);
+  const onOpenChange = useCallback(
+    (newOpenState: boolean) => {
+      if (!newOpenState) reset();
+      setOpen(newOpenState);
     },
-    [props]
+    [setOpen, reset]
   );
 
+  // useEffect(function () {
+  //   if (draggedFile) {
+  //     setMode('preview');
+  //     const previewUrl = URL.createObjectURL(draggedFile);
+  //     setDragPreview(previewUrl);
+  //     return function () {
+  //       URL.revokeObjectURL(previewUrl)
+  //     };
+  //   }
+  // }, [draggedFile]);
+
   const postBlock = useCallback(async () => {
-    const { flag, chFlag } = props;
     const heart = createCurioHeart(
       inputText,
       isURL(inputText) ? 'link' : 'text'
     );
+
+    // const localUploader = useFileStore.getState().getUploader(uploadKey);
+    // if (uploadFile && localUploader) {
+    //   localUploader.uploadFiles([uploadFile]);
+    //   useFileStore.getState().setUploadType(uploadKey, 'drag');
+    //   return true;
+    // }
 
     addCurio(
       { flag: chFlag, heart },
@@ -104,12 +136,15 @@ export default function AddCurioModal(props: AddCurioModalProps) {
         },
       }
     );
-  }, [props, addCurio, inputText, setOpen, privacy]);
+  }, [flag, chFlag, addCurio, inputText, setOpen, privacy]);
+
+  console.log(`preview: ${dragPreview}`);
 
   return (
     <Dialog
-      open={props.open}
-      onOpenChange={() => setOpen(false)}
+      id="add-curio-modal"
+      open={open}
+      onOpenChange={() => onOpenChange(false)}
       containerClass="w-[500px] h-full overflow-auto focus-visible:border-none focus:outline-none"
       className="top-32"
     >
@@ -123,7 +158,7 @@ export default function AddCurioModal(props: AddCurioModalProps) {
         {mode === 'input' ? (
           <BlockInput value={inputText} onChange={(e) => inputOnChange(e)} />
         ) : (
-          <MediaPreview url={inputText} />
+          <MediaPreview url={dragPreview || inputText} />
         )}
       </div>
 

@@ -38,5 +38,3 @@ export function createCurioHeart(
     replying: null,
   };
 }
-
-export default createCurioHeart;

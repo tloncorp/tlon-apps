@@ -28,6 +28,9 @@ import useRecentChannel from '@/logic/useRecentChannel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useLastReconnect } from '@/state/local';
 import { useChannelIsJoined } from '@/logic/channel';
+import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { useFileStore, useUploader } from '@/state/storage';
+import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import NewCurioForm from './NewCurioForm';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
@@ -59,6 +62,11 @@ function HeapChannel({ title }: ViewProps) {
     : false;
   const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
+  const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
+  const { isDragging, isOver, droppedFiles } = useDragAndDrop(dropZoneId);
+  const uploadKey = `${chFlag}-new-curio-input`;
+  const [draftLink, setDraftLink] = useState<string>();
+  const [draggedFile, setDraggedFile] = useState<File | null>(null);
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -228,6 +236,54 @@ function HeapChannel({ title }: ViewProps) {
       : { main: 400, reverse: 400 },
   };
 
+  const handleDrop = useCallback((fileList: FileList) => {
+    const uploadFile = Array.from(fileList).find((file) =>
+      PASTEABLE_IMAGE_TYPES.includes(file.type)
+    );
+    if (uploadFile) {
+      setDraggedFile(uploadFile);
+    } else {
+      // TODO: warn file type not supported
+    }
+
+    // const localUploader = useFileStore.getState().getUploader(uploadKey);
+    // if (uploadFile && localUploader) {
+    //   localUploader.uploadFiles([uploadFile]);
+    //   useFileStore.getState().setUploadType(uploadKey, 'drag');
+    //   return true;
+    // }
+
+    // return false;
+  }, []);
+
+  useEffect(() => {
+    console.log(`triggered`);
+    console.log(droppedFiles);
+    if (droppedFiles && droppedFiles[dropZoneId]) {
+      handleDrop(droppedFiles[dropZoneId]);
+    }
+  }, [droppedFiles, handleDrop, dropZoneId]);
+
+  // useEffect(() => {
+  //   if (watchedContent) {
+  //     setDraftLink(watchedContent);
+  //   }
+  // }, [watchedContent]);
+
+  const DragDisplay = useCallback(
+    () => (
+      <div
+        id={dropZoneId}
+        className="absolute top-0 left-0 h-full w-full flex-col items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 opacity-95"
+      >
+        <div id={dropZoneId} className="text-lg font-bold">
+          Drop Attachments Here
+        </div>
+      </div>
+    ),
+    [dropZoneId]
+  );
+
   return (
     <Layout
       className="flex-1 bg-white sm:pt-0"
@@ -239,6 +295,8 @@ function HeapChannel({ title }: ViewProps) {
           display={displayMode}
           sort={sortMode}
           canWrite={canWrite}
+          draggedFile={draggedFile}
+          clearDraggedFile={() => setDraggedFile(null)}
         />
       }
     >
@@ -249,7 +307,10 @@ function HeapChannel({ title }: ViewProps) {
             : title}
         </title>
       </Helmet>
-      <div className="h-full bg-gray-50 p-4">
+      <div
+        id={dropZoneId}
+        className="h-full border-8 border-red bg-gray-50 p-4"
+      >
         {empty && isLoading ? (
           <div className="flex h-full w-full items-center justify-center">
             <HeapPlaceholder count={8} />
@@ -268,6 +329,7 @@ function HeapChannel({ title }: ViewProps) {
             {...thresholds}
           />
         )}
+        {!isLoading && isDragging && isOver && <DragDisplay />}
       </div>
     </Layout>
   );
