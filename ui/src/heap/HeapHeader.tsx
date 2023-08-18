@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import cn from 'classnames';
+import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
 import {
@@ -13,16 +15,18 @@ import { useLeaveHeapMutation } from '@/state/heap/heap';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useIsMobile } from '@/logic/useMedia';
+import AddCurioModal from './AddCurioModal';
 
 interface HeapHeaderProps {
   flag: string;
   nest: string;
   display: HeapDisplayMode;
   sort: HeapSortMode;
+  canWrite: boolean;
 }
 
 const HeapHeader = React.memo(
-  ({ flag, nest, display, sort }: HeapHeaderProps) => {
+  ({ flag, nest, display, sort, canWrite }: HeapHeaderProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const isMobile = useIsMobile();
     const [, chFlag] = nestToFlag(nest);
