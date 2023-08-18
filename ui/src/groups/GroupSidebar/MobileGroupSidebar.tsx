@@ -68,15 +68,15 @@ export default function MobileGroupSidebar() {
             </NavTab>
           </ul>
           <Sheet open={showSheet} onOpenChange={(o) => setShowSheet(o)}>
-            <SheetContent showClose={true}>
-              <div className="flex flex-col pt-4">
+            <SheetContent showClose={false}>
+              <div className="flex flex-col">
                 {(privacy === 'public' || isAdmin) && (
                   <SidebarItem
                     onClick={() => setShowSheet(false)}
                     to={`/groups/${flag}/invite`}
                     state={{ backgroundLocation: location }}
                     icon={
-                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-md">
                         <InviteIcon className="h-6 w-6" />
                       </div>
                     }
@@ -86,7 +86,7 @@ export default function MobileGroupSidebar() {
                 )}
                 <SidebarItem
                   icon={
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-md">
                       <LinkIcon className="h-6 w-6" />
                     </div>
                   }
@@ -100,7 +100,7 @@ export default function MobileGroupSidebar() {
                     to={`/groups/${flag}/edit`}
                     state={{ backgroundLocation: location }}
                     icon={
-                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-md">
                         <PersonIcon className="h-6 w-6" />
                       </div>
                     }
@@ -115,7 +115,7 @@ export default function MobileGroupSidebar() {
                     state={{ backgroundLocation: location }}
                     color="text-red"
                     icon={
-                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-red-soft dark:bg-red-800">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-md">
                         <LeaveIcon className="h-6 w-6" />
                       </div>
                     }

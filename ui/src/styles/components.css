@@ -85,7 +85,7 @@
 }
 
 .sheet {
-  @apply relative max-h-[75vh] w-full rounded-t-xl bg-white p-6 pb-12;
+  @apply fixed inset-x-[32px] bottom-[32px] z-[49] flex flex-col rounded-[32px] bg-white px-[32px] py-[16px] after:!bg-transparent;
 }
 
 .dialog-inner-container {
