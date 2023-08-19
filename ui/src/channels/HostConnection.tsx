@@ -15,7 +15,7 @@ interface HostConnectionProps {
   ship: string;
   saga: Saga | null;
   status?: ConnectionStatus;
-  type?: 'default' | 'combo' | 'text';
+  type?: 'default' | 'combo' | 'text' | 'bullet';
   className?: string;
 }
 
@@ -56,10 +56,10 @@ export default function HostConnection({
   className,
 }: HostConnectionProps) {
   return (
-    <span className={cn('flex items-start space-x-1 font-semibold', className)}>
+    <span className={cn('flex items-start space-x-1', className)}>
       {type === 'default' && (
         <Tooltip content={getText(saga, ship, status)}>
-          <span tabIndex={0}>
+          <span tabIndex={0} className="default-focus rounded-md">
             <Bullet16Icon
               className={cn(
                 'h-4 w-4 flex-none',
@@ -69,7 +69,7 @@ export default function HostConnection({
           </span>
         </Tooltip>
       )}
-      {type === 'combo' && (
+      {(type === 'combo' || type === 'bullet') && (
         <Bullet16Icon
           className={cn(
             'h-4 w-4 flex-none',
@@ -77,7 +77,9 @@ export default function HostConnection({
           )}
         />
       )}
-      {type !== 'default' && <span>{getText(saga, ship, status)}</span>}
+      {(type === 'combo' || type === 'text') && (
+        <span>{getText(saga, ship, status)}</span>
+      )}
     </span>
   );
 }

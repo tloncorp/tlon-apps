@@ -304,7 +304,7 @@ const ChatMessage = React.memo<
                     to={`message/${seal.id}`}
                     className={({ isActive }) =>
                       cn(
-                        'group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
+                        'default-focus group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
                         isActive
                           ? 'is-active bg-gray-50 [&>div>div>.reply-avatar]:outline-gray-50'
                           : '',

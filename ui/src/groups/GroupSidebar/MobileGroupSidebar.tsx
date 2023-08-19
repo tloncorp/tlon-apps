@@ -1,35 +1,27 @@
-import React, { useState } from 'react';
 import cn from 'classnames';
 import { Outlet, useLocation, useMatch } from 'react-router';
-import { useAmAdmin, useGroup, useGroupFlag } from '@/state/groups/groups';
+import { useGroup, useGroupFlag } from '@/state/groups/groups';
 import NavTab from '@/components/NavTab';
 import HashIcon from '@/components/icons/HashIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import BellIcon from '@/components/icons/BellIcon';
-import Sheet, { SheetContent } from '@/components/Sheet';
-import SidebarItem from '@/components/Sidebar/SidebarItem';
-import InviteIcon from '@/components/icons/InviteIcon';
-import LinkIcon from '@/components/icons/LinkIcon';
-import LeaveIcon from '@/components/icons/LeaveIcon';
-import PersonIcon from '@/components/icons/PersonIcon';
-import { getPrivacyFromGroup } from '@/logic/utils';
 import { useIsDark } from '@/logic/useMedia';
+import { getFlagParts } from '@/logic/utils';
+import { useConnectivityCheck } from '@/state/vitals';
 import GroupAvatar from '../GroupAvatar';
-import { useGroupActions } from '../GroupActions';
+import GroupActions from '../GroupActions';
 
 export default function MobileGroupSidebar() {
-  const { ship } = window;
   const flag = useGroupFlag();
   const group = useGroup(flag);
-  const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const matchHome = useMatch('/groups/:ship/:name');
   const matchActivity = useMatch('/groups/:ship/:name/activity');
   const matchInfo = useMatch('/groups/:ship/:name/info');
   const location = useLocation();
-  const [showSheet, setShowSheet] = useState(false);
-  const { onCopy, copyItemText } = useGroupActions(flag);
-  const isAdmin = useAmAdmin(flag);
   const isDarkMode = useIsDark();
+  const host = getFlagParts(flag).ship;
+  const { data } = useConnectivityCheck(host);
+  const saga = group?.saga || null;
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white">
@@ -63,69 +55,19 @@ export default function MobileGroupSidebar() {
                 className={cn('', !matchInfo && 'opacity-50 grayscale')}
               />
             </NavTab>
-            <NavTab onClick={() => setShowSheet(true)} className="basis-1/4">
-              <ElipsisIcon className="h-6 w-6 text-gray-200 dark:text-gray-600" />
-            </NavTab>
+            <li className="flex-1 basis-1/4 text-xs">
+              <GroupActions
+                flag={flag}
+                saga={saga}
+                status={data?.status}
+                className="flex h-full w-full flex-col items-center justify-center bg-white py-2 text-black"
+              >
+                <button>
+                  <ElipsisIcon className="h-6 w-6 text-gray-200 dark:text-gray-600" />
+                </button>
+              </GroupActions>
+            </li>
           </ul>
-          <Sheet open={showSheet} onOpenChange={(o) => setShowSheet(o)}>
-            <SheetContent showClose={true}>
-              <div className="flex flex-col pt-4">
-                {(privacy === 'public' || isAdmin) && (
-                  <SidebarItem
-                    onClick={() => setShowSheet(false)}
-                    to={`/groups/${flag}/invite`}
-                    state={{ backgroundLocation: location }}
-                    icon={
-                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                        <InviteIcon className="h-6 w-6" />
-                      </div>
-                    }
-                  >
-                    Invite People
-                  </SidebarItem>
-                )}
-                <SidebarItem
-                  icon={
-                    <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                      <LinkIcon className="h-6 w-6" />
-                    </div>
-                  }
-                  onClick={onCopy}
-                >
-                  {copyItemText}
-                </SidebarItem>
-                {isAdmin && (
-                  <SidebarItem
-                    onClick={() => setShowSheet(false)}
-                    to={`/groups/${flag}/edit`}
-                    state={{ backgroundLocation: location }}
-                    icon={
-                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                        <PersonIcon className="h-6 w-6" />
-                      </div>
-                    }
-                  >
-                    Group Settings
-                  </SidebarItem>
-                )}
-                {flag.includes(ship) ? null : (
-                  <SidebarItem
-                    onClick={() => setShowSheet(false)}
-                    to={`/groups/${flag}/leave`}
-                    state={{ backgroundLocation: location }}
-                    color="text-red"
-                    icon={
-                      <div className="flex h-12 w-12 items-center justify-center rounded-md bg-red-soft dark:bg-red-800">
-                        <LeaveIcon className="h-6 w-6" />
-                      </div>
-                    }
-                  >
-                    Leave Group
-                  </SidebarItem>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
         </nav>
       </footer>
     </section>
