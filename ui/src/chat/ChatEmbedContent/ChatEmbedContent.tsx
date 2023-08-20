@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { AUDIO_REGEX, validOembedCheck } from '@/logic/utils';
+import { Player } from 'video-react';
+import { AUDIO_REGEX, validOembedCheck, VIDEO_REGEX } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
 import YouTubeEmbed from './YouTubeEmbed';
@@ -34,6 +35,7 @@ function ChatEmbedContent({
   const { embed, isError, error } = useEmbed(url);
   const calm = useCalm();
   const isAudio = AUDIO_REGEX.test(url);
+  const isVideo = VIDEO_REGEX.test(url);
   const isTrusted = trustedProviders.some((provider) =>
     provider.regex.test(url)
   );
@@ -49,6 +51,14 @@ function ChatEmbedContent({
       <a target="_blank" rel="noreferrer" href={url}>
         {content}
       </a>
+    );
+  }
+
+  if (isVideo) {
+    return (
+      <div className="flex flex-col">
+        <Player playsInline src={url} />
+      </div>
     );
   }
 
