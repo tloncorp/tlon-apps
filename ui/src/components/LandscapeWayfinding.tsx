@@ -87,7 +87,7 @@ export default function LandscapeWayfinding() {
   const isMobile = useIsMobile();
   const app = useAppName();
   const gang = useGang('~nibset-napwyn/tlon');
-  const { open } = useGroupJoin('~nibset-napwyn/tlon', gang);
+  const { open } = useGroupJoin('~nibset-napwyn/tlon', gang, true);
   const location = useLocation();
   const { mutate } = useCalmSettingMutation('disableWayfinding');
 
@@ -98,7 +98,8 @@ export default function LandscapeWayfinding() {
   // Don't show the wayfinding button in DMs or Channels pages on mobile
   if (
     (isMobile && location.pathname.includes('dm')) ||
-    location.pathname.includes('channels/')
+    location.pathname.includes('channels/') ||
+    location.pathname.includes('profile/')
   ) {
     return null;
   }
