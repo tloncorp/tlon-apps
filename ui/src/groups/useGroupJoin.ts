@@ -41,7 +41,9 @@ export default function useGroupJoin(
 ) {
   const location = useLocation();
   const navigate = useNavigate();
-  const modalIsOpen = !!location.state?.backgroundLocation;
+  const modalIsOpen =
+    !!location.state?.backgroundLocation &&
+    location.pathname.includes('gangs/');
   const navigateByApp = useNavigateByApp();
   const modalNavigate = useModalNavigate();
   const dismiss = useDismissNavigate();
@@ -152,7 +154,7 @@ export default function useGroupJoin(
   ]);
 
   useEffect(() => {
-    if (group && modalIsOpen) {
+    if (group && modalIsOpen && !inModal) {
       if (redirectItem) {
         if (redirectItem.type === 'chat') {
           navigateByApp(
@@ -167,7 +169,7 @@ export default function useGroupJoin(
         navigateByApp(`/groups/${flag}`);
       }
     }
-  }, [group, navigateByApp, flag, redirectItem, modalIsOpen]);
+  }, [group, navigateByApp, flag, redirectItem, modalIsOpen, inModal]);
 
   return {
     group,
