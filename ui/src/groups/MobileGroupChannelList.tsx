@@ -25,10 +25,10 @@ export default function MobileGroupChannelList() {
       <MobileHeader
         title={
           <GroupActions flag={flag} saga={saga} status={data?.status}>
-            <button className="flex flex-col items-center">
+            <button className="flex w-full flex-col items-center">
               <GroupAvatar image={group?.meta.image} className="mt-3" />
-              <div className="my-1 flex w-full items-center justify-center space-x-1">
-                <h1 className="text-[17px] text-gray-800">
+              <div className="relative my-1 flex w-max items-center justify-center space-x-1">
+                <h1 className="max-w-xs truncate text-[17px] text-gray-800">
                   {group?.meta.title}
                 </h1>
                 <HostConnection
