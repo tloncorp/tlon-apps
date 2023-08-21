@@ -403,7 +403,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route path="/leap" element={<Leap openDefault />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
-            <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
+            <Route element={isMobile ? <MobileSidebar /> : undefined}>
               <Route
                 index
                 element={isMobile ? <MobileGroupChannelList /> : null}

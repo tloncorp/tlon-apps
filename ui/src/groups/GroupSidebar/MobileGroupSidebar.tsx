@@ -3,13 +3,11 @@ import { Outlet, useLocation, useMatch } from 'react-router';
 import { useGroup, useGroupFlag } from '@/state/groups/groups';
 import NavTab from '@/components/NavTab';
 import HashIcon from '@/components/icons/HashIcon';
-import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import BellIcon from '@/components/icons/BellIcon';
 import { useIsDark } from '@/logic/useMedia';
 import { getFlagParts } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
 import GroupAvatar from '../GroupAvatar';
-import GroupActions from '../GroupActions';
 
 export default function MobileGroupSidebar() {
   const flag = useGroupFlag();
@@ -29,7 +27,7 @@ export default function MobileGroupSidebar() {
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>
           <ul className="flex h-[50px] items-center">
-            <NavTab to={`.`} className="basis-1/4">
+            <NavTab to={`../`} className="basis-1/4">
               <HashIcon
                 className={cn(
                   ' h-6 w-6',
@@ -55,18 +53,6 @@ export default function MobileGroupSidebar() {
                 className={cn('', !matchInfo && 'opacity-50 grayscale')}
               />
             </NavTab>
-            <li className="flex-1 basis-1/4 text-xs">
-              <GroupActions
-                flag={flag}
-                saga={saga}
-                status={data?.status}
-                className="flex h-full w-full flex-col items-center justify-center bg-white py-2 text-black"
-              >
-                <button>
-                  <ElipsisIcon className="h-6 w-6 text-gray-200 dark:text-gray-600" />
-                </button>
-              </GroupActions>
-            </li>
           </ul>
         </nav>
       </footer>
