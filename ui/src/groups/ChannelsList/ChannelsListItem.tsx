@@ -4,7 +4,11 @@ import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { GroupChannel } from '@/types/groups';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import { useChatState } from '@/state/chat';
-import { useHeapState } from '@/state/heap/heap';
+import {
+  useStash,
+  useLeaveHeapMutation,
+  useJoinHeapMutation,
+} from '@/state/heap/heap';
 import {
   useAmAdmin,
   useDeleteChannelMutation,
@@ -41,7 +45,7 @@ interface ChannelsListItemProps {
 
 function useGetChannel(app: string, flag: string): WritePermissions {
   const { chats } = useChatState.getState();
-  const { stash } = useHeapState.getState();
+  const stash = useStash();
   const shelf = useDiaries();
 
   switch (app) {
@@ -76,6 +80,8 @@ export default function ChannelsListItem({
     useChannelCompatibility(nest);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
+  const { mutateAsync: joinHeap } = useJoinHeapMutation();
+  const { mutateAsync: leaveHeap } = useLeaveHeapMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
@@ -117,14 +123,14 @@ export default function ChannelsListItem({
         return;
       }
 
-      const joiner =
-        app === 'chat'
-          ? useChatState.getState().joinChat
-          : useHeapState.getState().joinHeap;
+      if (app === 'heap') {
+        await joinHeap({ group: groupFlag, chan: chFlag });
+        return;
+      }
 
-      await joiner(groupFlag, chFlag);
+      await useChatState.getState().joinChat(groupFlag, chFlag);
     },
-    [groupFlag, app, joinDiary]
+    [groupFlag, app, joinDiary, joinHeap]
   );
   const leave = useCallback(
     async (chFlag: string) => {
@@ -133,14 +139,14 @@ export default function ChannelsListItem({
         return;
       }
 
-      const leaver =
-        app === 'chat'
-          ? useChatState.getState().leaveChat
-          : useHeapState.getState().leaveHeap;
+      if (app === 'heap') {
+        await leaveHeap({ flag: chFlag });
+        return;
+      }
 
-      await leaver(chFlag);
+      await useChatState.getState().leaveChat(chFlag);
     },
-    [app, leaveDiary]
+    [app, leaveDiary, leaveHeap]
   );
 
   const joinChannel = useCallback(async () => {

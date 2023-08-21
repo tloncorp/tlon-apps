@@ -39,22 +39,20 @@ export default function MobileRoot() {
         <MobileHeader
           title="All Groups"
           action={
-            <>
+            <div className="flex h-12 items-center justify-end space-x-2">
               <ReconnectingSpinner />
               <SidebarSorter
                 sortFn={sortFn}
                 setSortFn={setSortFn}
                 sortOptions={sortOptions}
               />
-            </>
-          }
-          secondaryAction={
-            <Link
-              className="default-focus flex text-base"
-              to="/groups/new-mobile"
-            >
-              <AddIconMobileNav className="h-8 w-8 text-black" />
-            </Link>
+              <Link
+                className="default-focus flex text-base"
+                to="/groups/new-mobile"
+              >
+                <AddIconMobileNav className="h-8 w-8 text-black" />
+              </Link>
+            </div>
           }
         />
       }
@@ -70,12 +68,12 @@ export default function MobileRoot() {
               {Object.entries(pinnedGroups).length > 0 && (
                 <>
                   <div className="px-4">
-                    <h2 className="mb-0.5 p-2 text-lg font-bold text-gray-400">
+                    <h2 className="mb-0.5 p-2 font-system-sans  text-gray-900">
                       Pinned Groups
                     </h2>
                     {pinnedGroupsOptions}
                   </div>
-                  <h2 className="my-2 ml-2 p-2 pl-4 text-lg font-bold text-gray-400">
+                  <h2 className="my-2 ml-2 p-2 pl-4 font-system-sans  text-gray-900">
                     All Groups
                   </h2>
                 </>

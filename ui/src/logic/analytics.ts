@@ -8,6 +8,8 @@ export type AnalyticsEventName =
   | 'app_close'
   | 'profile_edit'
   | 'profile_view'
+  | 'group_join'
+  | 'group_exit'
   | 'open_group'
   | 'leave_group'
   | 'open_channel'
@@ -43,10 +45,6 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   // in the activity checker in ActivityModal.
   opt_out_capturing_by_default: true,
 });
-
-if (import.meta.env.DEV) {
-  posthog.debug();
-}
 
 export const analyticsClient = posthog;
 

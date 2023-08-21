@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { ForwardedRef, forwardRef } from 'react';
 import { Components as VirtuosoComponents, Virtuoso } from 'react-virtuoso';
 import { useIsMobile } from '@/logic/useMedia';
 import GroupMemberItem from './GroupMemberItem';
@@ -9,19 +9,23 @@ interface MemberScrollerProps {
 
 const Components: VirtuosoComponents<string> = {
   List: forwardRef((props, listRef) => (
-    <div className="h-full w-full" {...props} ref={listRef}>
+    <ul
+      className="h-full w-full"
+      {...props}
+      ref={listRef as ForwardedRef<HTMLUListElement>}
+    >
       {props.children}
-    </div>
+    </ul>
   )),
   Item: forwardRef((props, itemRef) => (
-    <div
+    <li
       className="group flex items-center justify-between rounded-lg py-3 px-2 hover:bg-gray-50"
       {...props}
       // @ts-expect-error tsc complains about the ref prop, but it's fine
       ref={itemRef}
     >
       {props.children}
-    </div>
+    </li>
   )),
 };
 

@@ -6,13 +6,14 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
-import { useCurio } from '@/state/heap/heap';
+import { useCurioWithComments } from '@/state/heap/heap';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import { isLink } from '@/types/heap';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useNest from '@/logic/useNest';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import MobileHeader from '@/components/MobileHeader';
 import useCurioActions from '../useCurioActions';
 
 export interface ChannelHeaderProps {
@@ -26,10 +27,10 @@ export default function HeapDetailHeader({
   chFlag,
   idCurio,
 }: ChannelHeaderProps) {
-  const curioObject = useCurio(chFlag, idCurio);
+  // const curioObject = useCurio(chFlag, idCurio);
+  const { curio } = useCurioWithComments(chFlag, idCurio);
   const isMobile = useIsMobile();
   const nest = useNest();
-  const curio = curioObject ? curioObject[1] : null;
   const content = curio ? curio.heart.content : { block: [], inline: [] };
   const curioContent =
     (isLink(curio?.heart.content.inline[0])
@@ -49,6 +50,49 @@ export default function HeapDetailHeader({
 
   function truncate({ str, n }: { str: string; n: number }) {
     return str.length > n ? `${str.slice(0, n - 1)}…` : str;
+  }
+
+  if (isMobile) {
+    return (
+      <MobileHeader
+        title={<ChannelIcon nest="heap" className="h-6 w-6 text-gray-600" />}
+        secondaryTitle={
+          <h1
+            className={cn(
+              'ellipsis max-w-xs truncate px-4 text-[18px] leading-5 text-gray-800'
+            )}
+          >
+            {isCite ? 'Reference' : `${description()}: `}
+            {curioTitle && truncate({ str: curioTitle, n: 50 })}
+            {isImageLink && !curioTitle
+              ? truncate({ str: curioContent, n: 50 })
+              : null}
+            {!isImageLink && !curioTitle
+              ? truncate({ str: prettyDayAndTime.asString, n: 50 })
+              : null}
+          </h1>
+        }
+        pathBack=".."
+        action={
+          <div className="flex h-12 items-center justify-end space-x-2">
+            <ReconnectingSpinner />
+            <button
+              className="h-6 w-6 rounded text-gray-800"
+              aria-controls="copy"
+              onClick={onCopy}
+              aria-label="Copy Link"
+            >
+              {didCopy ? (
+                <CheckIcon className="h-6 w-6" />
+              ) : (
+                <CopyIcon className="h-6 w-6" />
+              )}
+            </button>
+            {canEdit ? <button onClick={onEdit}>Edit</button> : null}
+          </div>
+        }
+      />
+    );
   }
 
   return (
@@ -87,7 +131,6 @@ export default function HeapDetailHeader({
         </div>
       </Link>
       <div className="shink-0 flex items-center space-x-3">
-        {isMobile && <ReconnectingSpinner />}
         {canEdit ? (
           <button onClick={onEdit} className="small-button">
             Edit

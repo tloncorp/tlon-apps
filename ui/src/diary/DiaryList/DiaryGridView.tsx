@@ -8,6 +8,7 @@ import {
 } from 'masonic';
 import DiaryGridItem from '@/diary/DiaryList/DiaryGridItem';
 import { DiaryOutline } from '@/types/diary';
+import { useIsMobile } from '@/logic/useMedia';
 
 interface DiaryGridProps {
   outlines: [bigInt.BigInteger, DiaryOutline][];
@@ -24,6 +25,7 @@ export default function DiaryGridView({
   outlines,
   loadOlderNotes,
 }: DiaryGridProps) {
+  const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const maybeLoadMore = useInfiniteLoader(
@@ -35,7 +37,7 @@ export default function DiaryGridView({
 
   const positioner = usePositioner(
     {
-      columnCount: 2,
+      columnCount: isMobile ? 1 : 2,
       width: gridContainerRef.current?.offsetWidth || 600,
       columnGutter: 16,
     },
@@ -61,7 +63,7 @@ export default function DiaryGridView({
   if (outlines?.length !== 0) {
     return (
       <div
-        className="h-full w-full overflow-y-auto py-8"
+        className="h-full w-full overflow-y-auto px-4 py-8"
         ref={scrollContainerRef}
       >
         <div

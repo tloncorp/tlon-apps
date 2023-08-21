@@ -1,18 +1,24 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import React, { ReactNode, useCallback } from 'react';
+import { ReactNode, useCallback } from 'react';
 import ob from 'urbit-ob';
 import { Link } from 'react-router-dom';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import { useSawRopeMutation } from '@/state/hark';
 import { Skein, YarnContent } from '@/types/hark';
 import { useChatState } from '@/state/chat';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { isComment, isGroupMeta, isMention, isReply } from './useNotifications';
+import { useGang, useGroup } from '@/state/groups';
+import useGroupJoin from '@/groups/useGroupJoin';
+import {
+  isComment,
+  isGroupMeta,
+  isMention,
+  isReply,
+  isInvite,
+} from './useNotifications';
 
 interface NotificationProps {
   bin: Skein;
@@ -48,9 +54,7 @@ function NotificationContent({
                 <ShipName name={s.replaceAll(PUNCTUATION_REGEX, '')} />
               </span>
             ) : (
-              <span className="break-word text-ellipsis" key={`${s}-${index}`}>
-                {s}{' '}
-              </span>
+              <span key={`${s}-${index}`}>{s} </span>
             )
           )}
         </span>
@@ -74,7 +78,7 @@ function NotificationContent({
   if (conIsMention) {
     return (
       <>
-        <p className="mb-2 leading-5 text-gray-400 line-clamp-2">
+        <p className="mb-2 leading-5 text-gray-400 line-clamp-4">
           {_.map(_.slice(content, 0, 2), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
@@ -91,7 +95,7 @@ function NotificationContent({
   if (conIsReply || conIsComment) {
     return (
       <>
-        <p className="mb-2 leading-5 text-gray-400 line-clamp-2">
+        <p className="mb-2 leading-5 text-gray-400 line-clamp-4">
           {_.map(_.slice(content, 0, 4), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
@@ -106,7 +110,7 @@ function NotificationContent({
   }
 
   return (
-    <p className="leading-5 text-gray-800 line-clamp-2">
+    <p className="leading-5 text-gray-800 line-clamp-3">
       {_.map(content, (c: YarnContent, i) => renderContent(c, i))}
     </p>
   );
@@ -137,6 +141,7 @@ export default function Notification({
   const { mutate: sawRopeMutation } = useSawRopeMutation();
   const mentionBool = isMention(bin.top);
   const commentBool = isComment(bin.top);
+  const inviteBool = isInvite(bin.top);
   const groupMetaBool = isGroupMeta(bin.top);
   const replyBool = isReply(bin.top);
   const path = mentionBool ? mentionPath(bin) : bin.top.wer;
@@ -144,82 +149,102 @@ export default function Notification({
     sawRopeMutation({ rope });
   }, [rope, sawRopeMutation]);
   const { recentChannel } = useRecentChannel(rope.group || '');
+  const group = useGroup(rope.group || '');
+  const gang = useGang(rope.group || '');
+  const { open, reject } = useGroupJoin(rope.group || '', gang);
 
   return (
-    <div
-      className={cn(
-        'relative flex space-x-3 rounded-xl p-3 text-gray-600',
-        bin.unread ? 'bg-blue-soft dark:bg-blue-900' : 'bg-gray-50'
-      )}
-    >
-      <Link
-        to={path}
-        state={
-          groupMetaBool
-            ? {
-                backgroundLocation: {
-                  pathname: `/groups/${rope.group}/channels/${recentChannel}`,
-                },
-              }
-            : undefined
-        }
-        className="flex w-full min-w-0 flex-1 space-x-3"
-        onClick={onClick}
-      >
-        <div className="relative flex-none self-start">{avatar}</div>
-        <div className="min-w-0 grow-0 break-words p-1">
-          {topLine}
-          <div className="my-2 leading-5">
-            {bin.top && (
-              <NotificationContent
-                time={bin.time}
-                content={bin.top.con}
-                conIsMention={mentionBool}
-                conIsComment={commentBool}
-                conIsReply={replyBool}
-              />
+    <div className="relative flex space-x-3 rounded-xl bg-white p-2 text-gray-400">
+      {inviteBool ? (
+        <div className="flex w-full min-w-0 flex-1 space-x-3">
+          <div className="relative flex-none self-start">{avatar}</div>
+          <div className="min-w-0 grow-0 break-words p-1">
+            {topLine}
+            <div className="my-2 leading-5">
+              {bin.top && (
+                <NotificationContent
+                  time={bin.time}
+                  content={bin.top.con}
+                  conIsMention={mentionBool}
+                  conIsComment={commentBool}
+                  conIsReply={replyBool}
+                />
+              )}
+            </div>
+            {gang && !group && (
+              <div className="mt-2 flex space-x-2">
+                <button
+                  onClick={open}
+                  className="small-button bg-blue-soft text-blue"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={reject}
+                  className="small-button bg-gray-50 text-gray-800"
+                >
+                  Reject
+                </button>
+              </div>
             )}
           </div>
-          {moreCount > 0 ? (
-            <p className="mt-2 text-sm font-semibold">
-              Latest of {moreCount} new messages
-            </p>
-          ) : null}
-          {mentionBool || commentBool || replyBool ? (
-            <p
-              className={cn(
-                'small-button bg-blue-soft text-blue',
-                moreCount > 0 ? 'mt-2' : 'mt-0'
-              )}
-            >
-              Reply
-            </p>
-          ) : null}
         </div>
-      </Link>
+      ) : (
+        <Link
+          to={path}
+          state={
+            groupMetaBool
+              ? {
+                  backgroundLocation: {
+                    pathname: `/groups/${rope.group}/channels/${recentChannel}`,
+                  },
+                }
+              : undefined
+          }
+          className="flex w-full min-w-0 flex-1 space-x-3"
+          onClick={onClick}
+        >
+          <div className="relative flex-none self-start">{avatar}</div>
+          <div className="min-w-0 grow-0 break-words p-1">
+            {topLine}
+            <div className="my-2 leading-5">
+              {bin.top && (
+                <NotificationContent
+                  time={bin.time}
+                  content={bin.top.con}
+                  conIsMention={mentionBool}
+                  conIsComment={commentBool}
+                  conIsReply={replyBool}
+                />
+              )}
+            </div>
+            {moreCount > 0 ? (
+              <p className="mt-2 text-sm font-semibold">
+                Latest of {moreCount} new messages
+              </p>
+            ) : null}
+            {mentionBool || commentBool || replyBool ? (
+              <p
+                className={cn(
+                  'small-button bg-blue-soft text-blue',
+                  moreCount > 0 ? 'mt-2' : 'mt-0'
+                )}
+              >
+                Reply
+              </p>
+            ) : null}
+          </div>
+        </Link>
+      )}
       <div className="absolute right-5 flex-none p-1">
-        {bin.unread ? (
-          <Dropdown.Root>
-            <Dropdown.Trigger className="flex items-center space-x-1 text-sm">
-              {bin.unread ? (
-                <Bullet16Icon className="h-4 w-4 text-blue" />
-              ) : null}
-              <span className="font-semibold">
-                {makePrettyTime(new Date(bin.time))}
-              </span>
-              <CaretDown16Icon className="h-4 w-4 text-gray-400" />
-            </Dropdown.Trigger>
-            <Dropdown.Content className="dropdown">
-              <Dropdown.Item className="dropdown-item" onSelect={onClick}>
-                Mark Read
-              </Dropdown.Item>
-            </Dropdown.Content>
-          </Dropdown.Root>
-        ) : (
+        <div className="flex items-center space-x-1">
+          {bin.unread ? (
+            <Bullet16Icon className="h-4 w-4 text-red sm:text-blue" />
+          ) : null}
           <span className="text-sm font-semibold">
             {makePrettyTime(new Date(bin.time))}
           </span>
-        )}
+        </div>
       </div>
     </div>
   );

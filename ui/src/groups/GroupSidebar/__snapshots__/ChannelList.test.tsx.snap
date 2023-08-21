@@ -9,33 +9,35 @@ exports[`ChannelList > renders as expected 1`] = `
       class="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3"
     >
       <h2
-        class="px-2 pb-0 text-sm font-bold text-gray-400"
+        class="px-2 pb-0 text-sm font-semibold text-gray-400"
       >
         Arranged Channels
       </h2>
-      <button
-        aria-expanded="false"
-        aria-haspopup="menu"
-        aria-label="Groups Sort Options"
-        class="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
-        data-state="closed"
-        id="radix-:r0:"
-        type="button"
-      >
-        <svg
-          class="h-6 w-6 text-gray-400 sm:h-4 sm:w-4"
-          fill="none"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
+      <div>
+        <button
+          aria-expanded="false"
+          aria-haspopup="menu"
+          aria-label="Groups Sort Options"
+          class="appearance-none default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
+          data-state="closed"
+          id="radix-:r0:"
+          type="button"
         >
-          <path
-            class="fill-current"
-            clip-rule="evenodd"
-            d="M17.207 4.793a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 1.414 1.414L15.5 7.914V17.5a1 1 0 1 0 2 0V7.914l1.293 1.293a1 1 0 1 0 1.414-1.414l-3-3ZM8.5 5.5a1 1 0 0 0-2 0v9.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l3-3a1 1 0 0 0-1.414-1.414L8.5 15.086V5.5Z"
-            fill-rule="evenodd"
-          />
-        </svg>
-      </button>
+          <svg
+            class="h-6 w-6 text-gray-400 sm:h-4 sm:w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              class="fill-current"
+              clip-rule="evenodd"
+              d="M17.207 4.793a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 1.414 1.414L15.5 7.914V17.5a1 1 0 1 0 2 0V7.914l1.293 1.293a1 1 0 1 0 1.414-1.414l-3-3ZM8.5 5.5a1 1 0 0 0-2 0v9.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l3-3a1 1 0 0 0-1.414-1.414L8.5 15.086V5.5Z"
+              fill-rule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
     <div
       class="mx-4 space-y-0.5 sm:mx-2"

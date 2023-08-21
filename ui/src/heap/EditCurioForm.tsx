@@ -3,7 +3,12 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useDismissNavigate } from '@/logic/routing';
 import { EditCurioFormSchema } from '@/types/heap';
 import { useForm } from 'react-hook-form';
-import { useHeapState } from '@/state/heap/heap';
+import {
+  useCurioWithComments,
+  useHeapState,
+  useDelCurioMutation,
+  useEditCurioMutation,
+} from '@/state/heap/heap';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
@@ -13,7 +18,7 @@ import { Inline } from '@/types/content';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useChannelFlag } from '@/logic/channel';
 import { useRouteGroup } from '@/state/groups';
-import useCurioFromParams from './useCurioFromParams';
+import { useParams, useNavigate } from 'react-router';
 import HeapTextInput from './HeapTextInput';
 
 export default function EditCurioForm() {
@@ -23,7 +28,11 @@ export default function EditCurioForm() {
   const [draftText, setDraftText] = useState<JSONContent>();
   const groupFlag = useRouteGroup();
   const chFlag = useChannelFlag() || '';
-  const { curio, time } = useCurioFromParams();
+  const navigate = useNavigate();
+  const { idCurio } = useParams<{ idCurio: string }>();
+  const { time, curio } = useCurioWithComments(chFlag, idCurio || '');
+  const editMutation = useEditCurioMutation();
+  const delMutation = useDelCurioMutation();
   const isLinkMode = curio ? isLinkCurio(curio.heart.content) : false;
   const { isPending, setPending, setReady } = useRequestState();
   const firstInline = curio && curio.heart.content.inline[0];
@@ -57,9 +66,18 @@ export default function EditCurioForm() {
       return;
     }
 
-    await useHeapState.getState().delCurio(chFlag, time.toString());
-    dismiss();
-  }, [chFlag, dismiss, time]);
+    delMutation.mutate(
+      {
+        flag: chFlag,
+        time: time.toString(),
+      },
+      {
+        onSuccess: () => {
+          navigate(`/groups/${groupFlag}/channels/heap/${chFlag}`);
+        },
+      }
+    );
+  }, [chFlag, time, delMutation, groupFlag, navigate]);
 
   const onSubmit = useCallback(
     async ({ content, title }: EditCurioFormSchema) => {
@@ -78,22 +96,36 @@ export default function EditCurioForm() {
         inline: editedContent,
       };
 
-      try {
-        setPending();
-        await useHeapState
-          .getState()
-          .editCurio(chFlag, time?.toString() || '', {
-            ...curio.heart,
-            ...{ title, content: con },
-          });
-        setReady();
-        dismiss();
-      } catch (error) {
-        setReady();
-        console.log(error);
-      }
+      setPending();
+      editMutation.mutate(
+        {
+          flag: chFlag,
+          time: time?.toString() || '',
+          heart: { ...curio.heart, title, content: con },
+        },
+        {
+          onSuccess: () => {
+            setReady();
+            dismiss();
+          },
+          onError: (error) => {
+            setReady();
+            console.error(error);
+          },
+        }
+      );
     },
-    [chFlag, curio, isLinkMode, draftText, setPending, time, setReady, dismiss]
+    [
+      chFlag,
+      curio,
+      isLinkMode,
+      draftText,
+      setPending,
+      time,
+      setReady,
+      dismiss,
+      editMutation,
+    ]
   );
 
   // For Link mode, prevent newline entry + allow submit with Enter

@@ -1,6 +1,5 @@
 import cn from 'classnames';
-import React, { ReactNode } from 'react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import React, { ReactNode, useState } from 'react';
 import {
   channelHref,
   canReadChannel,
@@ -38,8 +37,8 @@ import {
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
-import ChannelSortOptions from './ChannelSortOptions';
 
 const UNZONED = 'default';
 
@@ -53,6 +52,7 @@ interface ChannelListProps {
 
 export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   const { sortFn, sortOptions, setSortFn } = useChannelSort();
+  const [open, setOpen] = useState(false);
 
   function sortLabel() {
     switch (sortFn) {
@@ -66,27 +66,48 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
         return 'Channels';
     }
   }
+
+  const actions: Action[] = [];
+
+  if (!isMobile) {
+    actions.push({
+      key: 'ordering',
+      type: 'disabled',
+      content: 'Channel Ordering',
+    });
+  }
+
+  Object.keys(sortOptions).forEach((k) => {
+    actions.push({
+      key: k,
+      type: k === sortFn ? 'prominent' : 'default',
+      onClick: () => setSortFn(k),
+      content: k,
+    });
+  });
+
   return (
     <div className="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3">
       {!isMobile && (
-        <h2 className="px-2 pb-0 text-sm font-bold text-gray-400">
+        <h2 className="px-2 pb-0 text-sm font-semibold text-gray-400">
           {sortLabel()}
         </h2>
       )}
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger
-          className="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
-          aria-label="Groups Sort Options"
-        >
-          {isMobile ? (
-            <FilterIconMobileNav className="h-8 w-8 text-gray-900" />
-          ) : (
-            <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
-          )}
-        </DropdownMenu.Trigger>
-
-        <ChannelSortOptions sortOptions={sortOptions} setSortFn={setSortFn} />
-      </DropdownMenu.Root>
+      <ActionMenu
+        open={open}
+        onOpenChange={setOpen}
+        actions={actions}
+        asChild={false}
+        triggerClassName="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
+        contentClassName="w-56"
+        ariaLabel="Groups Sort Options"
+      >
+        {isMobile ? (
+          <FilterIconMobileNav className="h-8 w-8 text-gray-900" />
+        ) : (
+          <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
+        )}
+      </ActionMenu>
     </div>
   );
 }
@@ -136,7 +157,7 @@ export default function ChannelList({ className }: ChannelListProps) {
   if (!group || group.meta.title === '') {
     return (
       <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
-        <h2 className="px-4 pb-0 text-sm font-bold text-gray-400">
+        <h2 className="px-4 pb-0 text-sm font-semibold text-gray-400">
           <div className="flex justify-between">
             {!connected ? (
               'Host is Offline.'
@@ -172,11 +193,10 @@ export default function ChannelList({ className }: ChannelListProps) {
               className={cn(
                 'flex h-12 w-12 items-center justify-center rounded-md',
                 !imported && 'opacity-60',
-                !active && 'bg-gray-50',
                 active && 'bg-white'
               )}
             >
-              <ChannelIcon nest={nest} className="h-6 w-6" />
+              <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
             </span>
           ) : (
             <ChannelIcon
@@ -224,8 +244,8 @@ export default function ChannelList({ className }: ChannelListProps) {
         {isMobile && (
           <SidebarItem
             icon={
-              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                <HashIcon16 className="m-1 h-4 w-4" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-md">
+                <HashIcon16 className="m-1 h-4 w-4 text-gray-400" />
               </div>
             }
             to={`/groups/${flag}/channels`}

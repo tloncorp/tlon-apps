@@ -19,10 +19,10 @@ import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
+import useAppName from '@/logic/useAppName';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
-import useAppName from '@/logic/useAppName';
 
 interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];

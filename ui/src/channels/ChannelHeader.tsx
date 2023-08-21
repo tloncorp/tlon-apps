@@ -1,13 +1,11 @@
 import React, { PropsWithChildren } from 'react';
-import { Link } from 'react-router-dom';
 import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChannel, useAmAdmin, useGroup } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
-import { getFlagParts } from '@/logic/utils';
+import { getFlagParts, isTalk } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
-import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import ChannelActions from './ChannelActions';
 import ChannelTitleButton from './ChannelTitleButton';
 import HostConnection from './HostConnection';
@@ -38,36 +36,27 @@ export default function ChannelHeader({
   if (isMobile) {
     return (
       <MobileHeader
-        title={
-          <div className="flex flex-col items-center space-y-2">
-            <ChannelIcon
-              nest={nest}
-              className="h-7 w-7 shrink-0 pb-0.5 pt-1 px-0.5 text-gray-600"
-            />
-            <div className="flex w-full items-center justify-center space-x-1">
-              <h1 className="text-[18px] text-gray-800 line-clamp-1">
-                {channel?.meta.title}
-              </h1>
-              <HostConnection ship={host} status={data?.status} saga={saga} />
-            </div>
-          </div>
+        title={<ChannelIcon nest={nest} className="h-6 w-6 text-gray-600" />}
+        secondaryTitle={
+          <ChannelActions {...{ nest, prettyAppName, channel, isAdmin, leave }}>
+            <h1 className="flex max-w-xs items-center truncate px-4 text-[18px] leading-5 text-gray-800">
+              {channel?.meta.title}
+              <HostConnection
+                className="ml-1 inline-flex"
+                ship={host}
+                status={data?.status}
+                saga={saga}
+              />
+            </h1>
+          </ChannelActions>
         }
         action={
-          <div className="flex flex-row space-x-3">
+          <div className="flex h-12 flex-row items-center justify-end space-x-2">
             <ReconnectingSpinner />
-            <Link
-              to="search/"
-              className="flex h-8 w-8 rounded hover:bg-gray-50"
-              aria-label="Search Chat"
-            >
-              <MagnifyingGlassMobileNavIcon className="h-8 w-8 p-1 text-gray-900" />
-            </Link>
-            <ChannelActions
-              {...{ nest, prettyAppName, channel, isAdmin, leave }}
-            />
+            {children}
           </div>
         }
-        pathBack={`/groups/${flag}`}
+        pathBack={isTalk ? '/' : `/groups/${flag}`}
       />
     );
   }

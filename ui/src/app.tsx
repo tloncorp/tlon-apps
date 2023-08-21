@@ -1,7 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useState } from 'react';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import {
@@ -30,7 +29,7 @@ import {
   useSettingsLoaded,
   useTheme,
 } from '@/state/settings';
-import { useLocalState } from '@/state/local';
+import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -52,7 +51,7 @@ import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
 import talkFavicon from '@/assets/talk.svg';
 import GroupInvitesPrivacy from '@/groups/GroupAdmin/GroupInvitesPrivacy';
-import Notifications, { MainWrapper } from '@/notifications/Notifications';
+import Notifications from '@/notifications/Notifications';
 import ChatChannel from '@/chat/ChatChannel';
 import HeapChannel from '@/heap/HeapChannel';
 import DiaryChannel from '@/diary/DiaryChannel';
@@ -76,13 +75,14 @@ import { isTalk, preSig } from '@/logic/utils';
 import bootstrap from '@/state/bootstrap';
 import AboutDialog from '@/components/About/AboutDialog';
 import MobileGroupChannelList from '@/groups/MobileGroupChannelList';
-import LandscapeWayfinding from '@/components/LandscapeWayfinding';
+import LandscapeWayfinding, {
+  LandscapeWayfindingModal,
+} from '@/components/LandscapeWayfinding';
 import { useScheduler } from '@/state/scheduler';
 import { LeapProvider } from '@/components/Leap/useLeap';
 import VitaMessage from '@/components/VitaMessage';
 import Dialog from '@/components/Dialog';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
-import Eyrie from '@/components/Eyrie';
 import queryClient from '@/queryClient';
 import EmojiPicker from '@/components/EmojiPicker';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
@@ -97,6 +97,15 @@ import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
+import EyrieMenu from './eyrie/EyrieMenu';
+
+const ReactQueryDevtoolsProduction = React.lazy(() =>
+  import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
+    (d) => ({
+      default: d.ReactQueryDevtools,
+    })
+  )
+);
 
 const Grid = React.lazy(() => import('./components/Grid/grid'));
 const TileInfo = React.lazy(() => import('./components/Grid/tileinfo'));
@@ -226,6 +235,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
           <Route path="/settings" element={<SettingsDialog />} />
+          <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
           <Route
             path="/grid"
             element={
@@ -479,6 +489,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/about" element={<AboutDialog />} />
           <Route path="/privacy" element={<PrivacyNotice />} />
           <Route path="/settings" element={<SettingsDialog />} />
+          <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
           <Route path="/activity-collection" element={<ActivityModal />} />
           <Route
             path="/grid"
@@ -672,6 +683,7 @@ function RoutedApp() {
   const mode = import.meta.env.MODE;
   const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
+  const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
   const logActivity = useLogActivity();
   const posthog = usePostHog();
@@ -694,6 +706,10 @@ function RoutedApp() {
 
   const theme = useTheme();
   const isDarkMode = useIsDark();
+
+  useEffect(() => {
+    window.toggleDevTools = () => toggleDevTools();
+  }, []);
 
   useEffect(() => {
     if (
@@ -724,6 +740,16 @@ function RoutedApp() {
     }
   }, [posthog, analyticsId, logActivity]);
 
+  useEffect(() => {
+    if (posthog) {
+      if (showDevTools) {
+        posthog.debug();
+      } else {
+        posthog.debug(false);
+      }
+    }
+  }, [posthog, showDevTools]);
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
@@ -743,10 +769,18 @@ function RoutedApp() {
         <TooltipProvider delayDuration={0} skipDelayDuration={400}>
           <App />
           <Scheduler />
-          {import.meta.env.DEV && <Eyrie />}
         </TooltipProvider>
         <LureAutojoiner />
-        <ReactQueryDevtools initialIsOpen={false} />
+        {showDevTools && (
+          <>
+            <React.Suspense fallback={null}>
+              <ReactQueryDevtoolsProduction />
+            </React.Suspense>
+            <div className="fixed bottom-4 right-4">
+              <EyrieMenu />
+            </div>
+          </>
+        )}
       </Router>
     </ErrorBoundary>
   );

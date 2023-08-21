@@ -4,6 +4,7 @@ import { useAddQuipFeelMutation } from '@/state/diary';
 import { NoteCork } from '@/types/diary';
 import _ from 'lodash';
 import React, { useCallback, useState } from 'react';
+import { useIsMobile } from '@/logic/useMedia';
 import QuipReaction from './QuipReaction';
 
 interface QuipReactionsProps {
@@ -20,6 +21,7 @@ export default function QuipReactions({
   noteId,
 }: QuipReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const isMobile = useIsMobile();
   const feels = _.invertBy(cork.feels);
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
 
@@ -44,19 +46,21 @@ export default function QuipReactions({
           whom={whom}
         />
       ))}
-      <EmojiPicker
-        open={pickerOpen}
-        setOpen={setPickerOpen}
-        onEmojiSelect={onEmoji}
-      >
-        <button
-          className="appearance-none border-none bg-transparent"
-          onClick={openPicker}
-          aria-label="Add Reaction"
+      {!isMobile && (
+        <EmojiPicker
+          open={pickerOpen}
+          setOpen={setPickerOpen}
+          onEmojiSelect={onEmoji}
         >
-          <AddReactIcon className="h-6 w-6 text-gray-400" />
-        </button>
-      </EmojiPicker>
+          <button
+            className="appearance-none border-none bg-transparent"
+            onClick={openPicker}
+            aria-label="Add Reaction"
+          >
+            <AddReactIcon className="h-6 w-6 text-gray-400" />
+          </button>
+        </EmojiPicker>
+      )}
     </div>
   );
 }

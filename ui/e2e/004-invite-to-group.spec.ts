@@ -6,15 +6,18 @@ test('Invite to a group', async ({ page }) => {
   await page.goto('');
   await page.getByRole('link', { name: 'B Bus Club' }).waitFor();
   await page.getByRole('link', { name: 'B Bus Club' }).click();
-  await page.getByRole('link', { name: 'Add Note' }).waitFor();
+  await page.getByRole('link', { name: 'Invite People' }).waitFor();
   await page.getByRole('link', { name: 'Invite People' }).click();
-  await page.locator('.py-0\\.5').click();
+  await page.getByLabel('Ships').click({ force: true });
   await page.getByRole('combobox', { name: 'Ships' }).fill('~zod');
   await page.getByText('zod', { exact: true }).click();
   await page.getByRole('button', { name: 'Send Invites' }).click();
-  await page.getByText('A bus note').waitFor();
+  await page.getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('button', { name: 'B Bus Club' }).click();
-  await page.getByRole('menuitem', { name: 'Members & Group Info' }).click();
+  await page.getByRole('menuitem', { name: 'Group Settings' }).click();
   await page.getByRole('link', { name: 'Members' }).click();
-  await page.getByTestId('~zod-row').waitFor();
+  await page
+    .getByRole('region', { name: 'Members' })
+    .getByText('zod')
+    .waitFor();
 });

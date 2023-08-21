@@ -7,6 +7,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { useChannel as useChannelSpecific } from '@/logic/channel';
 import { getNestShip } from '@/logic/utils';
+import MobileHeader from '@/components/MobileHeader';
 
 export interface DiaryNoteHeaderProps {
   title: string;
@@ -25,6 +26,25 @@ export default function DiaryNoteHeader({
   const ship = getNestShip(nest);
   const chan = useChannelSpecific(nest);
   const saga = chan?.saga || null;
+
+  if (isMobile) {
+    return (
+      <MobileHeader
+        title={null}
+        pathBack=".."
+        action={
+          <div className="flex h-12 items-center justify-end space-x-2">
+            <ReconnectingSpinner />
+            {canEdit ? (
+              <Link to={`../edit/${time}`} className="text-[17px] no-underline">
+                Edit
+              </Link>
+            ) : null}
+          </div>
+        }
+      />
+    );
+  }
 
   return (
     <div

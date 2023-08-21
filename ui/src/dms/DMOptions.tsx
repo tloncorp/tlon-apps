@@ -9,6 +9,7 @@ import { useChatState, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsChannelUnread } from '@/logic/channel';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import DmInviteDialog from './DmInviteDialog';
 
 interface DMOptionsProps {
@@ -100,86 +101,93 @@ export default function DmOptions({
     ) : null;
   }
 
+  const actions: Action[] = [];
+
+  if (pending) {
+    actions.push(
+      {
+        key: 'accept',
+        onClick: isMulti ? handleMultiAccept : handleAccept,
+        content: 'Accept',
+      },
+      {
+        key: 'decline',
+        onClick: isMulti ? handleMultiDecline : handleDecline,
+        content: 'Decline',
+      }
+    );
+  } else {
+    if (hasActivity) {
+      actions.push({
+        key: 'mark',
+        type: 'prominent',
+        onClick: markRead,
+        content: 'Mark Read',
+      });
+    }
+
+    if (isMulti) {
+      actions.push({
+        key: 'info',
+        content: (
+          <Link
+            to={`/dm/${whom}/edit-info`}
+            state={{ backgroundLocation: location }}
+          >
+            Chat Info
+          </Link>
+        ),
+      });
+    }
+
+    actions.push({
+      key: 'pin',
+      onClick: handlePin,
+      content: pinned.includes(whom) ? 'Unpin' : 'Pin',
+    });
+
+    if (isMulti) {
+      actions.push({
+        key: 'invite',
+        onClick: handleInvite,
+        content: 'Invite',
+      });
+    }
+
+    actions.push({
+      key: 'leave',
+      type: 'destructive',
+      onClick: leaveMessage,
+      content: 'Leave Message',
+    });
+  }
+
   return (
     <>
-      <DropdownMenu.Root onOpenChange={(open) => setIsOpen(open)} open={isOpen}>
-        <DropdownMenu.Trigger asChild className="appearance-none">
-          <div className={cn('relative h-6 w-6', className)}>
-            {!alwaysShowEllipsis && !isOpen && hasActivity ? (
-              <BulletIcon
-                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-                aria-label="Has Activity"
-              />
-            ) : null}
-            <button
-              className={cn(
-                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                hasActivity && 'text-blue',
-                isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
-              )}
-              aria-label="Open Message Options"
-            >
-              <EllipsisIcon className="h-6 w-6 text-inherit" />
-            </button>
-          </div>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content className="dropdown">
-          {pending ? (
-            <>
-              <DropdownMenu.Item
-                className="dropdown-item"
-                onClick={isMulti ? handleMultiAccept : handleAccept}
-              >
-                Accept
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
-                className="dropdown-item"
-                onClick={isMulti ? handleMultiDecline : handleDecline}
-              >
-                Decline
-              </DropdownMenu.Item>
-            </>
-          ) : (
-            <>
-              {hasActivity ? (
-                <DropdownMenu.Item
-                  className="dropdown-item-blue"
-                  onClick={markRead}
-                >
-                  Mark Read
-                </DropdownMenu.Item>
-              ) : null}
-              {isMulti ? (
-                <DropdownMenu.Item className="dropdown-item" asChild>
-                  <Link
-                    to={`/dm/${whom}/edit-info`}
-                    state={{ backgroundLocation: location }}
-                  >
-                    Chat Info
-                  </Link>
-                </DropdownMenu.Item>
-              ) : null}
-              <DropdownMenu.Item className="dropdown-item " onClick={handlePin}>
-                {pinned.includes(whom) ? 'Unpin' : 'Pin'}
-              </DropdownMenu.Item>
-              {isMulti ? (
-                <DropdownMenu.Item
-                  className="dropdown-item "
-                  onClick={handleInvite}
-                >
-                  Invite
-                </DropdownMenu.Item>
-              ) : null}
-              <DropdownMenu.Item
-                onSelect={leaveMessage}
-                className="dropdown-item-red"
-              >
-                Leave Message
-              </DropdownMenu.Item>
-            </>
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
+      <ActionMenu
+        open={isOpen}
+        onOpenChange={(open) => setIsOpen(open)}
+        actions={actions}
+      >
+        <div className={cn('relative h-6 w-6', className)}>
+          {!alwaysShowEllipsis && !isOpen && hasActivity ? (
+            <BulletIcon
+              className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+              aria-label="Has Activity"
+            />
+          ) : null}
+          <button
+            className={cn(
+              'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+              hasActivity && 'text-blue',
+              isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
+            )}
+            aria-label="Open Message Options"
+          >
+            <EllipsisIcon className="h-6 w-6 text-inherit" />
+          </button>
+        </div>
+      </ActionMenu>
       <Dialog open={dialog} onOpenChange={setDialog} containerClass="max-w-md">
         <div className="flex flex-col">
           <h2 className="mb-4 text-lg font-bold">Leave Chat</h2>

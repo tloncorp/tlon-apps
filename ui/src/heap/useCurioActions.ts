@@ -1,7 +1,7 @@
 import { Status } from '@/logic/status';
 import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
 import { useGroupFlag } from '@/state/groups';
-import { useHeapState } from '@/state/heap/heap';
+import { useDelCurioMutation } from '@/state/heap/heap';
 import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 
@@ -31,12 +31,24 @@ export default function useCurioActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<Status>('idle');
 
+  const delMutation = useDelCurioMutation();
+
   const onDelete = useCallback(async () => {
     setMenuOpen(false);
     setDeleteStatus('loading');
-    await useHeapState.getState().delCurio(chFlag, time);
-    setDeleteStatus('success');
-  }, [chFlag, time]);
+    delMutation.mutate(
+      { flag: chFlag, time },
+      {
+        onSuccess: () => {
+          setDeleteStatus('success');
+          navigate(`/groups/${flag}/channels/heap/${chFlag}`);
+        },
+        onError: () => {
+          setDeleteStatus('error');
+        },
+      }
+    );
+  }, [chFlag, time, delMutation, flag, navigate]);
 
   const onEdit = useCallback(() => {
     setMenuOpen(false);
@@ -51,6 +63,9 @@ export default function useCurioActions({
 
   const onCopy = useCallback(() => {
     doCopy();
+    setTimeout(() => {
+      setMenuOpen(false);
+    }, 1000);
   }, [doCopy]);
 
   return {

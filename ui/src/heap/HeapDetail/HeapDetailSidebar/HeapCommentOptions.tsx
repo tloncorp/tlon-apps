@@ -1,24 +1,22 @@
-import React, { useCallback, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useCallback, useState } from 'react';
+import { useParams } from 'react-router';
 import { useCopy, canWriteChannel } from '@/logic/utils';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useChatPerms, useChatState } from '@/state/chat';
-import { ChatWrit } from '@/types/chat';
+import { useChatPerms } from '@/state/chat';
 import IconButton from '@/components/IconButton';
-import BubbleIcon from '@/components/icons/BubbleIcon';
-import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import FaceIcon from '@/components/icons/FaceIcon';
-import HashIcon from '@/components/icons/HashIcon';
-import ShareIcon from '@/components/icons/ShareIcon';
 import XIcon from '@/components/icons/XIcon';
-import { useChatStore } from '@/chat/useChatStore';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
 import { HeapCurio } from '@/types/heap';
-import { useHeapState } from '@/state/heap/heap';
+import {
+  useAddCurioFeelMutation,
+  useDelCurioMutation,
+} from '@/state/heap/heap';
+import { useIsMobile } from '@/logic/useMedia';
 
 export default function HeapCommentOptions(props: {
   whom: string;
@@ -46,11 +44,14 @@ export default function HeapCommentOptions(props: {
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const isMobile = useIsMobile();
+  const { mutateAsync: addFeel } = useAddCurioFeelMutation();
+  const { mutateAsync: delCurio } = useDelCurioMutation();
 
   const onDelete = async () => {
     setDeletePending();
     try {
-      await useHeapState.getState().delCurio(whom, time);
+      await delCurio({ flag: whom, time });
     } catch (e) {
       console.log('Failed to delete message', e);
     }
@@ -67,18 +68,22 @@ export default function HeapCommentOptions(props: {
 
   const onEmoji = useCallback(
     async (emoji: { shortcodes: string }) => {
-      await useHeapState.getState().addFeel(whom, time, emoji.shortcodes);
-      await useHeapState.getState().fetchCurio(whom, time);
+      await addFeel({
+        flag: whom,
+        time,
+        feel: emoji.shortcodes,
+        replying: curio.heart.replying || undefined,
+      });
       setPickerOpen(false);
     },
-    [time, whom]
+    [time, whom, addFeel, curio.heart.replying]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
   return (
     <div className="absolute right-2 -top-7 z-40 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle opacity-0 group-one-hover:opacity-100">
-      {canWrite ? (
+      {canWrite && !isMobile ? (
         <EmojiPicker
           open={pickerOpen}
           setOpen={setPickerOpen}

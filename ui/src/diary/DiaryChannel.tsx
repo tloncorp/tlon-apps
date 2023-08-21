@@ -266,7 +266,7 @@ function DiaryChannel({ title }: ViewProps) {
   return (
     <Layout
       stickyHeader
-      className="flex-1 bg-white pt-4 sm:pt-0"
+      className="flex-1 bg-white sm:pt-0"
       aside={<Outlet />}
       header={
         <DiaryHeader

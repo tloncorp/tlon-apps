@@ -14,6 +14,7 @@ import _ from 'lodash';
 import { useLocalState } from '@/state/local';
 import useSchedulerStore from './state/scheduler';
 import { actionDrill, isHosted } from './logic/utils';
+import { useEyreState } from './state/eyre';
 
 export const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -80,7 +81,9 @@ class API {
   }
 
   private async setup() {
-    if (this.client) {
+    const { showDevTools } = useLocalState.getState();
+
+    if (this.client && this.client.verbose === showDevTools) {
       return this.client;
     }
 
@@ -101,7 +104,7 @@ class API {
 
     this.client = new Urbit('', '', window.desk, hostingUrl);
     this.client.ship = window.ship;
-    this.client.verbose = import.meta.env.DEV;
+    this.client.verbose = showDevTools;
 
     (this.client as UrbitBase).onReconnect = () => {
       const { onReconnect } = useLocalState.getState();
@@ -133,7 +136,9 @@ class API {
   }
 
   private async withClient<T>(cb: (client: UrbitBase | UrbitMock) => T) {
-    if (!this.client) {
+    const { showDevTools } = useLocalState.getState();
+
+    if (!this.client || this.client.verbose !== showDevTools) {
       const client = await this.setup();
       return cb(client);
     }
@@ -287,10 +292,11 @@ class API {
     event: T,
     callback: (data: UrbitHttpApiEvent[T]) => void
   ) {
-    (this.client as UrbitBase).on(event, callback);
+    this.withClient((client) => (client as UrbitBase).on(event, callback));
   }
 }
 
 const api = new API();
+useEyreState.getState().start({ api });
 
 export default api;

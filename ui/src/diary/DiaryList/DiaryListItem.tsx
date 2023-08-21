@@ -18,7 +18,7 @@ export default function DiaryListItem({ outline, time }: DiaryListItemProps) {
 
   return (
     <div
-      className={cn('card cursor-pointer', {
+      className={cn('card cursor-pointer border border-gray-100', {
         'bg-gray-100': isPending,
       })}
       role="link"
