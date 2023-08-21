@@ -95,6 +95,22 @@ const ChannelActions = React.memo(
 
     const actions: Action[] = [];
 
+    if (isMobile) {
+      actions.push({
+        key: 'connectivity',
+        keepOpenOnClick: true,
+        content: (
+          <HostConnection
+            ship={ship}
+            saga={saga}
+            status={status}
+            type="combo"
+            className="-ml-1 text-[17px] font-medium text-gray-800"
+          />
+        ),
+      });
+    }
+
     if (isAdmin) {
       actions.push(
         {
@@ -117,22 +133,6 @@ const ChannelActions = React.memo(
         content: `Leave ${prettyAppName}`,
         onClick: leaveChannel,
         type: 'destructive',
-      });
-    }
-
-    if (isMobile) {
-      actions.push({
-        key: 'connectivity',
-        keepOpenOnClick: true,
-        content: (
-          <HostConnection
-            ship={ship}
-            saga={saga}
-            status={status}
-            type="combo"
-            className="-ml-1 text-base font-normal text-gray-600"
-          />
-        ),
       });
     }
 
