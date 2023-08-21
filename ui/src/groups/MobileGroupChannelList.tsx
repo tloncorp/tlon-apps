@@ -9,6 +9,7 @@ import { getFlagParts } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import GroupActions from './GroupActions';
 
 export default function MobileGroupChannelList() {
   const flag = useGroupFlag();
@@ -24,10 +25,12 @@ export default function MobileGroupChannelList() {
       <MobileHeader
         title={<GroupAvatar image={group?.meta.image} />}
         secondaryTitle={
-          <div className="flex w-full items-center justify-center space-x-1">
-            <h1 className="text-[18px] text-gray-800">{group?.meta.title}</h1>
-            <HostConnection ship={host} status={data?.status} saga={saga} />
-          </div>
+          <GroupActions flag={flag}>
+            <div className="flex w-full items-center justify-center space-x-1">
+              <h1 className="text-[18px] text-gray-800">{group?.meta.title}</h1>
+              <HostConnection ship={host} status={data?.status} saga={saga} />
+            </div>
+          </GroupActions>
         }
         action={
           <div className="flex h-12 items-center justify-end space-x-2">
