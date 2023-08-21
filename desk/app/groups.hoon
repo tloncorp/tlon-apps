@@ -809,6 +809,18 @@
         [flag now.bowl %fleet (silt our.bowl ~) %del ~]
       [%pass wire %agent dock %poke cage]
     ::
+    ++  leave-channels
+      |=  nests=(list nest:g)
+      ^-  (list card)
+      %+  turn
+          nests
+      |=  nes=nest:g
+      ^-  card
+      =/  =dock  [our.bowl p.nes]
+      =/  =cage  channel-leave+!>(q.nes)
+      =/  =wire  (snoc go-area %leave-channels)
+      [%pass wire %agent dock %poke cage]
+    ::
     ++  join-channels
       |=  nests=(list nest:g)
       ^-  (list card)
@@ -823,6 +835,13 @@
     --
   ::
   ++  go-leave
+    =/  joined-channels
+      %-  ~(gas in *(set nest:g))
+      %+  murn  ~(tap in channels.group)
+      |=  [ch=nest:g =channel:g]
+      [~ ch]
+    =.  cor
+      (emil (leave-channels:go-pass ~(tap in joined-channels)))
     =.  cor  (emit remove-self:go-pass)
     =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
@@ -987,6 +1006,13 @@
       ?~  p.sign
         go-core
       %-  (slog leaf/"Failed to autojoin channel" u.p.sign)
+      go-core
+    ::
+        [%leave-channels ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign
+        go-core
+      %-  (slog leaf/"Failed to leave channel" u.p.sign)
       go-core
     ::
         [%proxy ~]

@@ -96,10 +96,11 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  leave-channels-from-left-groups
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
-    =.  cor  
+    =.  cor
       %+  roll
         ~(tap in (~(gas in *(set ship)) (turn diaries head)))
       |=  [=ship cr=_cor]
@@ -130,6 +131,29 @@
       voc    voc.s
       imp    imp.s
     ==
+  ::
+  ++  leave-channels-from-left-groups
+    =/  shelf-path  /(scot %p our.bowl)/diary/(scot %da now.bowl)/shelf/noun
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  shelf  .^(shelf:d %gx shelf-path)
+    =/  diary-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [diary-nest=nest:g *]
+        ?:(=(%diary p.diary-nest) %.y %.n)
+      |=  [diary-nest=nest:g *]
+      q.diary-nest
+    =/  diaries-without-groups
+      %+  skim  ~(tap by shelf)
+      |=  diary=[=flag:g *]
+      ?:(=((find [diary]~ (zing diary-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      diaries-without-groups
+    |=  [[=flag:g *] core=_cor]
+    di-abet:di-leave:(di-abed:di-core:core flag)
   ::
 ++  convert-shelf
     |=  old-shelf=shelf:zero
@@ -209,7 +233,7 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %diary-leave
+      %channel-leave
     =+  !<(=leave:d vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)
@@ -976,7 +1000,7 @@
       ::
           %del  ?~(entry | =(src.bowl author.note.u.entry))
       ::
-          %edit  
+          %edit
         ?&  =(src.bowl author.p.delta)
             ?~(entry | =(src.bowl author.note.u.entry))
         ==

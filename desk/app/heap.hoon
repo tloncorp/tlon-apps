@@ -113,7 +113,7 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %heap-leave
+      %channel-leave
     =+  !<(=leave:h vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     he-abet:he-leave:(he-abed:he-core leave)
@@ -171,6 +171,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
+  =.  cor  leave-channels-from-left-groups
   ?:  =(okay:h cool)  cor
   ::  speak the good news
   =.  cor  (emil (drop load:epos))
@@ -183,6 +184,30 @@
   $(heaps t.heaps)
   ::
   +$  versioned-state  $%(current-state)
+  ::
+  ++  leave-channels-from-left-groups
+    =/  stash-path  /(scot %p our.bowl)/heap/(scot %da now.bowl)/stash/noun
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  stash  .^(stash:h %gx stash-path)
+    =/  heap-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [heap-nest=nest:g *]
+        ?:(=(%heap p.heap-nest) %.y %.n)
+      |=  [heap-nest=nest:g *]
+      q.heap-nest
+    =/  heaps-without-groups
+      %+  skim  ~(tap by stash)
+      |=  heap=[=flag:g *]
+      ?:(=((find [heap]~ (zing heap-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      heaps-without-groups
+    |=  [[=flag:g *] core=_cor]
+    he-abet:he-leave:(he-abed:he-core:core flag)
+  ::
   ++  restore-missing-subs
     %+  roll
       ~(tap by stash)
@@ -927,7 +952,7 @@
       ::
           %del  ?~(entry | =(src.bowl author.curio.u.entry))
       ::
-          %edit  
+          %edit
         ?&  =(src.bowl author.p.delta)
             ?~(entry | =(src.bowl author.curio.u.entry))
         ==

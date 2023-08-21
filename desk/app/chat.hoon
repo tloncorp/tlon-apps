@@ -119,6 +119,7 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  leave-channels-from-left-groups
     ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
     %-  (note:wood %ver leaf/"New Epic" ~)
@@ -137,6 +138,29 @@
       ~(tap by chats)
     |=  [[=flag:c *] core=_cor]
     ca-abet:ca-safe-sub:(ca-abed:ca-core:core flag)
+  ::
+  ++  leave-channels-from-left-groups
+    =/  chats-path  /(scot %p our.bowl)/chat/(scot %da now.bowl)/chat/noun
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  chats  .^((set flag:g) %gx chats-path)
+    =/  chat-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [chat-nest=nest:g *]
+        ?:(=(%chat p.chat-nest) %.y %.n)
+      |=  [chat-nest=nest:g *]
+      q.chat-nest
+    =/  chats-without-groups
+      %+  skim  ~(tap in chats)
+      |=  chat=flag:g
+      ?:(=((find [chat]~ (zing chat-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      chats-without-groups
+    |=  [=flag:g core=_cor]
+    ca-abet:ca-leave:(ca-abed:ca-core:core flag)
   ::
   ++  keep
     |=  bad=^vase
@@ -269,7 +293,7 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %chat-leave
+      %channel-leave
     =+  !<(=leave:c vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     ca-abet:ca-leave:(ca-abed:ca-core leave)
@@ -890,7 +914,7 @@
       %del  &
       %add-feel  =(src.bowl p.delta)
       %del-feel  =(src.bowl p.delta)
-  ==  
+  ==
 ::
 ++  from-self  =(our src):bowl
 ++  cu-abed  cu-abed:cu-core
