@@ -23,13 +23,22 @@ export default function MobileGroupChannelList() {
   return (
     <>
       <MobileHeader
-        title={<GroupAvatar image={group?.meta.image} />}
-        secondaryTitle={
-          <GroupActions flag={flag}>
-            <div className="flex w-full items-center justify-center space-x-1">
-              <h1 className="text-[18px] text-gray-800">{group?.meta.title}</h1>
-              <HostConnection ship={host} status={data?.status} saga={saga} />
-            </div>
+        title={
+          <GroupActions flag={flag} saga={saga} status={data?.status}>
+            <button className="flex flex-col items-center">
+              <GroupAvatar image={group?.meta.image} className="mt-3" />
+              <div className="my-1 flex w-full items-center justify-center space-x-1">
+                <h1 className="text-[17px] text-gray-800">
+                  {group?.meta.title}
+                </h1>
+                <HostConnection
+                  ship={host}
+                  status={data?.status}
+                  saga={saga}
+                  type="bullet"
+                />
+              </div>
+            </button>
           </GroupActions>
         }
         action={

@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from 'react';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
+import React, { useState, useCallback, PropsWithChildren } from 'react';
 import { useNavigate } from 'react-router';
 import cn from 'classnames';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
@@ -9,26 +8,33 @@ import { Status } from '@/logic/status';
 import { useIsMobile } from '@/logic/useMedia';
 import { nestToFlag, getFlagParts } from '@/logic/utils';
 import { useRouteGroup, useDeleteChannelMutation } from '@/state/groups';
-import { GroupChannel } from '@/types/groups';
+import { GroupChannel, Saga } from '@/types/groups';
 import { useIsChannelHost } from '@/logic/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { ConnectionStatus } from '@/state/vitals';
+import HostConnection from './HostConnection';
 
-interface ChannelActionsProps {
+export type ChannelActionsProps = PropsWithChildren<{
   nest: string;
   prettyAppName: string;
   channel: GroupChannel | undefined;
   isAdmin: boolean | undefined;
+  status?: ConnectionStatus;
+  saga: Saga | null;
   leave: (flag: string) => Promise<void>;
-  children?: React.ReactNode | undefined;
-}
+  className?: string;
+}>;
 
 const ChannelActions = React.memo(
   ({
     nest,
     prettyAppName,
     channel,
+    saga,
+    status,
     isAdmin,
     leave,
+    className,
     children,
   }: ChannelActionsProps) => {
     const navigate = useNavigate();
@@ -114,19 +120,35 @@ const ChannelActions = React.memo(
       });
     }
 
+    if (isMobile) {
+      actions.push({
+        key: 'connectivity',
+        keepOpenOnClick: true,
+        content: (
+          <HostConnection
+            ship={ship}
+            saga={saga}
+            status={status}
+            type="combo"
+            className="-ml-1 text-base font-normal text-gray-600"
+          />
+        ),
+      });
+    }
+
     return (
       <>
         <ActionMenu
-          className="w-full"
+          className="max-w-full"
           open={isOpen}
           onOpenChange={setIsOpen}
           actions={actions}
         >
           <button
             className={cn(
-              hasChildren
-                ? ''
-                : 'flex h-8 w-8 items-center justify-center rounded text-gray-900 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600'
+              !hasChildren &&
+                'default-focus flex h-8 w-8 items-center justify-center rounded text-gray-900 hover:bg-gray-50 sm:h-6 sm:w-6 sm:text-gray-600',
+              className
             )}
             aria-label="Channel Options"
           >
