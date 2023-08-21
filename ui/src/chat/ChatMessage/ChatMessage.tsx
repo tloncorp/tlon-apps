@@ -91,7 +91,7 @@ const ChatMessage = React.memo<
         idShip: string;
         idTime: string;
       }>();
-      const isThread = idShip && idTime;
+      const isThread = !!idShip && !!idTime;
       const threadOpId = isThread ? `${idShip}/${idTime}` : '';
       const isThreadOp = threadOpId === seal.id && hideReplies;
       const isMobile = useIsMobile();
@@ -267,7 +267,9 @@ const ChatMessage = React.memo<
             />
           ) : null}
           {newDay ? <DateDivider date={unix} /> : null}
-          {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
+          {newAuthor ? (
+            <Author ship={memo.author} date={unix} hideRoles={isThread} />
+          ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             <ChatMessageOptions
               open={optionsOpen}
