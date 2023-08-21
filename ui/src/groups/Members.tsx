@@ -7,6 +7,7 @@ import ShipName from '@/components/ShipName';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { useModalNavigate } from '@/logic/routing';
 import useNavigateByApp from '@/logic/useNavigateByApp';
+import { toTitleCase, getSectTitle } from '@/logic/utils';
 import { useContact } from '@/state/contact';
 import {
   useRouteGroup,
@@ -15,6 +16,7 @@ import {
   useGroupDelMembersMutation,
   useGroupFlag,
   useAmAdmin,
+  useVessel,
 } from '@/state/groups';
 import _ from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -26,6 +28,7 @@ interface GroupMemberItemProps {
 
 const Member = React.memo(({ member }: GroupMemberItemProps) => {
   const flag = useGroupFlag();
+  const group = useGroup(flag);
   const isAdmin = useAmAdmin(flag);
   const [isOpen, setIsOpen] = useState(false);
   const [showKickConfirm, setShowKickConfirm] = useState(false);
@@ -33,6 +36,7 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
   const [loadingBan, setLoadingBan] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const contact = useContact(member);
+  const vessel = useVessel(flag, member);
   const actions: Action[] = [];
   const location = useLocation();
   const modalNavigate = useModalNavigate();
@@ -120,7 +124,17 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
             contact.nickname
           ) : (
             <ShipName name={member} full />
-            /* TODO: role list */
+          )}
+          {group && (
+            <div className="mt-1 text-sm font-normal text-gray-400">
+              {vessel.sects.length > 0
+                ? _.pull(vessel.sects, 'member').map((s) => (
+                    <span key={s} className="mr-1">
+                      {toTitleCase(getSectTitle(group.cabals, s))}
+                    </span>
+                  ))
+                : null}
+            </div>
           )}
         </SidebarItem>
       </ActionMenu>
@@ -180,7 +194,7 @@ export default function Members() {
   }, [group]);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-white">
       <MobileHeader title="Members" pathBack=".." />
       <div className="h-full overflow-auto px-4">
         <Divider isMobile={true}>Admin</Divider>
