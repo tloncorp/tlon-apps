@@ -39,7 +39,8 @@ function GroupReference({
   const preview = useGangPreview(flag, isScrolling);
   const { group, privacy, open, reject, button, status } = useGroupJoin(
     flag,
-    gang
+    gang,
+    plain
   );
   const { ship } = getFlagParts(flag);
   const cordon = preview?.cordon || group?.cordon;
@@ -91,7 +92,7 @@ function GroupReference({
             ) : (
               <button
                 className="small-button ml-3 whitespace-nowrap bg-blue-soft text-blue dark:text-black"
-                onClick={button.action}
+                onClick={open}
                 disabled={button.disabled || status === 'error'}
               >
                 {status === 'error' ? 'Errored' : button.text}
@@ -229,7 +230,7 @@ function GroupReference({
             ) : (
               <button
                 className="small-button whitespace-nowrap bg-blue-softer text-blue dark:text-black"
-                onClick={open}
+                onClick={plain ? button.action : open}
                 disabled={button.disabled || status === 'error'}
               >
                 {status === 'error' ? 'Errored' : button.text}
