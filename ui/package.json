@@ -39,7 +39,7 @@
     "e2e": "npm run rube",
     "e2e:debug:zod": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=zod npm run e2e",
     "e2e:debug:bus": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=bus npm run e2e",
-    "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=bus npm run e2e && cross-env DEBUG_PLAYWRIGHT=true SHIP_NAME=zod npm run e2e",
+    "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true npm run e2e",
     "e2e:chat": "cross-env SHIP_NAME=zod APP=chat npm run e2e && cross-env SHIP_NAME=bus APP=chat npm run e2e",
     "tsc": "tsc --noEmit",
     "postinstall": "patch-package",
