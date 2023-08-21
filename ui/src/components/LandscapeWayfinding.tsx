@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import cn from 'classnames';
 import ob from 'urbit-ob';
 import { NavLink, useLocation } from 'react-router-dom';
@@ -10,6 +9,7 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import { useCalmSettingMutation } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { isTalk } from '@/logic/utils';
+import { useDismissNavigate } from '@/logic/routing';
 import Dialog from './Dialog';
 
 function GroupsDescription() {
@@ -83,9 +83,7 @@ function TalkDescription() {
 }
 
 export default function LandscapeWayfinding() {
-  const [showModal, setShowModal] = useState(false);
   const isMobile = useIsMobile();
-  const app = useAppName();
   const gang = useGang('~nibset-napwyn/tlon');
   const { open } = useGroupJoin('~nibset-napwyn/tlon', gang, true);
   const location = useLocation();
@@ -123,9 +121,13 @@ export default function LandscapeWayfinding() {
           className="dropdown mx-4 flex w-[208px] flex-col rounded-lg  drop-shadow-lg"
         >
           <Dropdown.Item asChild className="dropdown-item-blue">
-            <span onClick={() => setShowModal(true)} className="cursor-pointer">
+            <NavLink
+              to="/wayfinding"
+              state={{ backgroundLocation: location }}
+              className="cursor-pointer"
+            >
               Basic Wayfinding
-            </span>
+            </NavLink>
           </Dropdown.Item>
           <Dropdown.Separator asChild>
             <hr className="my-2 border-[1px] border-gray-50" />
@@ -136,9 +138,9 @@ export default function LandscapeWayfinding() {
             </NavLink>
           </Dropdown.Item>
           <Dropdown.Item asChild className="dropdown-item">
-            <span className="cursor-pointer" onClick={open}>
+            <button className="cursor-pointer" onClick={open}>
               Help & Support
-            </span>
+            </button>
           </Dropdown.Item>
           <Dropdown.Item asChild className="dropdown-item">
             <a
@@ -151,21 +153,34 @@ export default function LandscapeWayfinding() {
             </a>
           </Dropdown.Item>
           <Dropdown.Item asChild className="dropdown-item">
-            <span className="cursor-pointer" onClick={handleHide}>
+            <button className="cursor-pointer" onClick={handleHide}>
               Hide This Button
-            </span>
+            </button>
           </Dropdown.Item>
         </Dropdown.Content>
       </div>
-      <Dialog
-        open={showModal}
-        onOpenChange={(o) => setShowModal(o)}
-        containerClass="md:w-1/2 w-full z-50"
-        close="none"
-      >
-        {app === 'Groups' && <GroupsDescription />}
-        {app === 'Talk' && <TalkDescription />}
-      </Dialog>
     </Dropdown.Root>
+  );
+}
+
+export function LandscapeWayfindingModal() {
+  const app = useAppName();
+  const dismiss = useDismissNavigate();
+  const onOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      dismiss();
+    }
+  };
+
+  return (
+    <Dialog
+      defaultOpen
+      onOpenChange={onOpenChange}
+      containerClass="md:w-1/2 w-full z-50"
+      close="none"
+    >
+      {app === 'Groups' && <GroupsDescription />}
+      {app === 'Talk' && <TalkDescription />}
+    </Dialog>
   );
 }
