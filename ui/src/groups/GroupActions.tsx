@@ -85,6 +85,22 @@ const GroupActions = React.memo(
 
     const actions: Action[] = [];
 
+    if (isMobile) {
+      actions.push({
+        key: 'connectivity',
+        keepOpenOnClick: true,
+        content: (
+          <HostConnection
+            ship={flag}
+            status={status}
+            saga={saga}
+            type="combo"
+            className="-ml-1 text-[17px] font-medium text-gray-800"
+          />
+        ),
+      });
+    }
+
     if (privacy === 'public' || isAdmin) {
       actions.push({
         key: 'invite',
@@ -157,22 +173,6 @@ const GroupActions = React.memo(
           setIsOpen(false);
         },
         content: 'Cancel Join',
-      });
-    }
-
-    if (isMobile) {
-      actions.push({
-        key: 'connectivity',
-        keepOpenOnClick: true,
-        content: (
-          <HostConnection
-            ship={flag}
-            status={status}
-            saga={saga}
-            type="combo"
-            className="-ml-1 text-base font-normal text-gray-600"
-          />
-        ),
       });
     }
 

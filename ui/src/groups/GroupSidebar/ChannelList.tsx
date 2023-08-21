@@ -195,12 +195,12 @@ export default function ChannelList({ className }: ChannelListProps) {
           isMobile ? (
             <span
               className={cn(
-                'flex h-12 w-12 items-center justify-center rounded-md bg-gray-50',
+                'flex h-12 w-12 items-center justify-center rounded-md',
                 !imported && 'opacity-60',
                 active && 'bg-white'
               )}
             >
-              <ChannelIcon nest={nest} className="h-6 w-6 text-gray-900" />
+              <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
             </span>
           ) : (
             <ChannelIcon
@@ -249,8 +249,8 @@ export default function ChannelList({ className }: ChannelListProps) {
           <>
             <SidebarItem
               icon={
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
-                  <PeopleIcon className="m-1 h-6 w-6 text-gray-900" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
+                  <PeopleIcon className="m-1 h-6 w-6 text-gray-400" />
                 </div>
               }
               to={`/groups/${flag}/info`}
@@ -260,8 +260,8 @@ export default function ChannelList({ className }: ChannelListProps) {
             </SidebarItem>
             <SidebarItem
               icon={
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
-                  <HashIcon className="m-1 h-6 w-6 text-gray-900" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
+                  <HashIcon className="m-1 h-6 w-6 text-gray-400" />
                 </div>
               }
               to={`/groups/${flag}/channels`}
@@ -272,7 +272,7 @@ export default function ChannelList({ className }: ChannelListProps) {
               color="text-blue"
               highlight="bg-blue-soft"
               icon={
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-soft">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
                   <InviteIcon className="h-6 w-6" />
                 </div>
               }

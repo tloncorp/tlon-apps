@@ -56,7 +56,7 @@ export default function HostConnection({
   className,
 }: HostConnectionProps) {
   return (
-    <span className={cn('flex items-start space-x-1', className)}>
+    <span className={cn('flex items-center space-x-1', className)}>
       {type === 'default' && (
         <Tooltip content={getText(saga, ship, status)}>
           <span tabIndex={0} className="default-focus rounded-md">
