@@ -140,10 +140,8 @@
     ca-abet:ca-safe-sub:(ca-abed:ca-core:core flag)
   ::
   ++  leave-channels-from-left-groups
-    =/  chats-path  /(scot %p our.bowl)/chat/(scot %da now.bowl)/chat/noun
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
-    =/  chats  .^((set flag:g) %gx chats-path)
     =/  chat-flags-from-groups
       %+  turn  ~(tap by groups)
       |=  [group-flag=flag:g group=group:g]
@@ -154,7 +152,7 @@
       |=  [chat-nest=nest:g *]
       q.chat-nest
     =/  chats-without-groups
-      %+  skim  ~(tap in chats)
+      %+  skim  ~(tap in ~(key by chats))
       |=  chat=flag:g
       ?:(=((find [chat]~ (zing chat-flags-from-groups)) ~) %.y %.n)
     %+  roll
@@ -293,7 +291,7 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %channel-leave
+      ?(%channel-leave %heap-leave)
     =+  !<(=leave:c vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     ca-abet:ca-leave:(ca-abed:ca-core leave)

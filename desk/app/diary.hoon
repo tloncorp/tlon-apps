@@ -133,10 +133,8 @@
     ==
   ::
   ++  leave-channels-from-left-groups
-    =/  shelf-path  /(scot %p our.bowl)/diary/(scot %da now.bowl)/shelf/noun
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
-    =/  shelf  .^(shelf:d %gx shelf-path)
     =/  diary-flags-from-groups
       %+  turn  ~(tap by groups)
       |=  [group-flag=flag:g group=group:g]
@@ -233,7 +231,7 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %channel-leave
+      ?(%channel-leave %heap-leave)
     =+  !<(=leave:d vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)

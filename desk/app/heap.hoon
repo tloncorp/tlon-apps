@@ -113,7 +113,7 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %channel-leave
+      ?(%channel-leave %heap-leave)
     =+  !<(=leave:h vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     he-abet:he-leave:(he-abed:he-core leave)
@@ -186,10 +186,8 @@
   +$  versioned-state  $%(current-state)
   ::
   ++  leave-channels-from-left-groups
-    =/  stash-path  /(scot %p our.bowl)/heap/(scot %da now.bowl)/stash/noun
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
-    =/  stash  .^(stash:h %gx stash-path)
     =/  heap-flags-from-groups
       %+  turn  ~(tap by groups)
       |=  [group-flag=flag:g group=group:g]
