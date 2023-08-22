@@ -119,6 +119,7 @@ const ActionMenu = React.memo(
             <DropdownMenu.Content
               align={align}
               className={cn('dropdown', contentClassName)}
+              collisionPadding={8}
             >
               {actions.map((action) => (
                 <DropdownMenu.Item

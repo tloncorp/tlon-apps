@@ -59,7 +59,7 @@ export default function HeapDetailHeader({
         secondaryTitle={
           <h1
             className={cn(
-              'ellipsis max-w-xs truncate px-4 text-[18px] leading-5 text-gray-800'
+              'ellipsis max-w-xs truncate px-4 text-[17px] leading-5 text-gray-800'
             )}
           >
             {isCite ? 'Reference' : `${description()}: `}
