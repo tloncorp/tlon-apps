@@ -175,18 +175,17 @@
   @apply flex flex-col gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))];
 }
 
-.new-curio-input p.is-editor-empty:first-child::before{
+.new-curio-input p.is-editor-empty:first-child::before {
   @apply !text-gray-300;
   font-weight: 600 !important;
   content: attr(data-placeholder);
   float: left;
   height: 0;
   pointer-events: none;
-  
 }
 
 .new-curio-input::-webkit-scrollbar-corner {
-  background: rgba(0,0,0,0);
+  background: rgba(0, 0, 0, 0);
 }
 
 .small-menu-button {
