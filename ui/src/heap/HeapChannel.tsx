@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
 import bigInt from 'big-integer';
@@ -27,11 +26,10 @@ import { GRID, HeapCurio } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useLastReconnect } from '@/state/local';
-import { useChannelIsJoined } from '@/logic/channel';
+import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { useFileStore, useUploader } from '@/state/storage';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import NewCurioForm from './NewCurioForm';
+import { useUploader } from '@/state/storage';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
@@ -48,6 +46,7 @@ function HeapChannel({ title }: ViewProps) {
   const group = useGroup(flag);
   const { setRecentChannel } = useRecentChannel(flag);
   const displayMode = useHeapDisplayMode(chFlag);
+  const [addCurioOpen, setAddCurioOpen] = useState(false);
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
@@ -62,11 +61,16 @@ function HeapChannel({ title }: ViewProps) {
     : false;
   const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
+  const { compatible } = useChannelCompatibility(`heap/${chFlag}`);
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
-  const { isDragging, isOver, droppedFiles } = useDragAndDrop(dropZoneId);
-  const uploadKey = `${chFlag}-new-curio-input`;
-  const [draftLink, setDraftLink] = useState<string>();
+  const { isDragging, isOver, droppedFiles, setDroppedFiles } =
+    useDragAndDrop(dropZoneId);
   const [draggedFile, setDraggedFile] = useState<File | null>(null);
+  const uploadKey = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
+  const uploader = useUploader(uploadKey);
+  const dragEnabled = !isMobile && compatible && uploader;
+  const showDragTarget =
+    dragEnabled && !isLoading && !addCurioOpen && isDragging && isOver;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -115,25 +119,6 @@ function HeapChannel({ title }: ViewProps) {
 
   const renderCurio = useCallback(
     (i: number, curio: HeapCurio, time: bigInt.BigInteger) => (
-      // i === 0 && canWrite ? (
-      //   <NewCurioForm />
-      // ) : (
-      //   <div key={time.toString()} tabIndex={0} className="cursor-pointer">
-      //     {displayMode === GRID ? (
-      //       <div className="aspect-h-1 aspect-w-1">
-      //         <HeapBlock curio={curio} time={time.toString()} />
-      //       </div>
-      //     ) : (
-      //       <div onClick={() => navigateToDetail(time)}>
-      //         <HeapRow
-      //           key={time.toString()}
-      //           curio={curio}
-      //           time={time.toString()}
-      //         />
-      //       </div>
-      //     )}
-      //   </div>
-      // ),
       <div key={time.toString()} tabIndex={0} className="cursor-pointer">
         {displayMode === GRID ? (
           <div className="aspect-h-1 aspect-w-1">
@@ -156,47 +141,6 @@ function HeapChannel({ title }: ViewProps) {
   const getCurioTitle = (curio: HeapCurio) =>
     curio.heart.title ||
     curio.heart.content.toString().split(' ').slice(0, 3).join(' ');
-
-  const emptyCurio: HeapCurio = {
-    heart: {
-      title: 'Loading...',
-      content: {
-        inline: [],
-        block: [],
-      },
-      author: '',
-      sent: 0,
-      replying: null,
-    },
-    seal: {
-      time: bigInt(0).toString(),
-      feels: {
-        '': '',
-      },
-      replied: [''],
-    },
-  };
-
-  // const fakeCurioMap: [bigInt.BigInteger, HeapCurio][] = [
-  //   [bigInt(1), emptyCurio],
-  // ];
-
-  // const sortedCurios = fakeCurioMap.concat(
-  //   Array.from(curios)
-  //     .sort(([a], [b]) => {
-  //       if (sortMode === 'time') {
-  //         return b.compare(a);
-  //       }
-  //       if (sortMode === 'alpha') {
-  //         const curioA = curios.get(a);
-  //         const curioB = curios.get(b);
-
-  //         return getCurioTitle(curioA).localeCompare(getCurioTitle(curioB));
-  //       }
-  //       return b.compare(a);
-  //     })
-  //     .filter(([, c]) => !c.heart.replying) // defensive, they should all be blocks
-  // );
 
   const empty = useMemo(() => Array.from(curios).length === 0, [curios]);
   const sortedCurios = Array.from(curios)
@@ -245,39 +189,33 @@ function HeapChannel({ title }: ViewProps) {
     } else {
       // TODO: warn file type not supported
     }
-
-    // const localUploader = useFileStore.getState().getUploader(uploadKey);
-    // if (uploadFile && localUploader) {
-    //   localUploader.uploadFiles([uploadFile]);
-    //   useFileStore.getState().setUploadType(uploadKey, 'drag');
-    //   return true;
-    // }
-
-    // return false;
   }, []);
 
+  const clearDraggedFile = useCallback(() => {
+    setDraggedFile(null);
+    setDroppedFiles((prev) => {
+      if (prev) {
+        const { [dropZoneId]: _files, ...rest } = prev;
+        return rest;
+      }
+      return prev;
+    });
+  }, [dropZoneId, setDroppedFiles, setDraggedFile]);
+
   useEffect(() => {
-    console.log(`triggered`);
-    console.log(droppedFiles);
-    if (droppedFiles && droppedFiles[dropZoneId]) {
+    if (dragEnabled && droppedFiles && droppedFiles[dropZoneId]) {
       handleDrop(droppedFiles[dropZoneId]);
     }
-  }, [droppedFiles, handleDrop, dropZoneId]);
-
-  // useEffect(() => {
-  //   if (watchedContent) {
-  //     setDraftLink(watchedContent);
-  //   }
-  // }, [watchedContent]);
+  }, [droppedFiles, handleDrop, dropZoneId, dragEnabled]);
 
   const DragDisplay = useCallback(
     () => (
       <div
         id={dropZoneId}
-        className="absolute top-0 left-0 h-full w-full flex-col items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 opacity-95"
+        className="absolute top-0 left-0 flex h-full w-full items-center justify-center bg-gray-50 opacity-95"
       >
-        <div id={dropZoneId} className="text-lg font-bold">
-          Drop Attachments Here
+        <div className="mt-12 flex h-[90%] w-[95%] items-center justify-center rounded-lg border-[3px] border-dashed border-gray-200">
+          <div className="text-lg font-bold">Drop Attachments Here</div>
         </div>
       </div>
     ),
@@ -296,7 +234,9 @@ function HeapChannel({ title }: ViewProps) {
           sort={sortMode}
           canWrite={canWrite}
           draggedFile={draggedFile}
-          clearDraggedFile={() => setDraggedFile(null)}
+          clearDraggedFile={clearDraggedFile}
+          addCurioOpen={addCurioOpen}
+          setAddCurioOpen={setAddCurioOpen}
         />
       }
     >
@@ -307,10 +247,7 @@ function HeapChannel({ title }: ViewProps) {
             : title}
         </title>
       </Helmet>
-      <div
-        id={dropZoneId}
-        className="h-full border-8 border-red bg-gray-50 p-4"
-      >
+      <div id={dropZoneId} className="h-full bg-gray-50 p-4">
         {empty && isLoading ? (
           <div className="flex h-full w-full items-center justify-center">
             <HeapPlaceholder count={8} />
@@ -322,14 +259,17 @@ function HeapChannel({ title }: ViewProps) {
             computeItemKey={computeItemKey}
             style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
             atBottomStateChange={loadOlderCurios}
-            listClassName={cn(
-              `heap-${displayMode}`,
-              displayMode === 'grid' && 'grid-cols-minmax'
-            )}
+            listClassName={
+              displayMode === 'list'
+                ? 'heap-list'
+                : isMobile
+                ? 'heap-grid-mobile'
+                : 'heap-grid'
+            }
             {...thresholds}
           />
         )}
-        {!isLoading && isDragging && isOver && <DragDisplay />}
+        {showDragTarget && <DragDisplay />}
       </div>
     </Layout>
   );
