@@ -12,7 +12,6 @@
 ++  mar
   |%
   ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
-  ++  act  `mark`(rap 3 %diary-command '-' (scot %ud okay) ~)
   ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
   ++  log  `mark`(rap 3 %diary-logs '-' (scot %ud okay) ~)
   --
@@ -65,14 +64,17 @@
 ++  notes
   =<  rock
   |%
-  +$  id  time
-  +$  rock  ((mop id note) lte)
-  ++  on    ((^on id note) lte)
-  +$  command  delta
+  +$  rock
+    ((mop time note) lte)
+  ++  on
+    ((^on time note) lte)
+  +$  diff
+    (pair time delta)
   +$  delta
     $%  [%add p=essay]
         [%edit p=essay]
         [%del ~]
+        [%quips p=diff:quips]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
     ==
@@ -83,10 +85,12 @@
 ++  quips
   =<  rock
   |%
-  +$  id  time
-  +$  rock  ((mop id quip) lte)
-  ++  on    ((^on id quip) lte)
-  +$  command  delta
+  +$  rock
+    ((mop time quip) lte)
+  ++  on
+    ((^on time quip) lte)
+  +$  diff
+    (pair time delta)
   +$  delta
     $%  [%add p=memo]
         [%del ~]
@@ -221,48 +225,29 @@
 ++  log-on
   ((on time diff) lte)
 ::
-+$  flag-action  [=flag =action]
+::  $action: the complete set of data required to modify a diary
 ::
-::  $action: 
 +$  action
-  $%  [%create =create]
-      [%join group=flag:g]
-      [%leave ~]
-      [%read ~]
-      [%read-at =time]
-      [%watch ~]
-      [%unwatch ~]
-      command
-  ==
-::
-+$  flag-command  [=flag =command]
-::
-::  $command: 
-+$  command
-  $%  [%notes =id:notes =command:notes]
-      [%quips note=id:notes =id:quips =command:quips]
-      [%view =view]
-      [%sort =sort]
-      [%order notes=arranged-notes]
-      [%add-writers sects=(set sect:g)]
-      [%del-writers sects=(set sect:g)]
-  ==
+  (pair flag:g update)
 ::
 ::  $update: a representation in time of a modification to a diary
 ::
-+$  update  [=time =diff]
++$  update
+  (pair time diff)
 ::
 ::  $diff: the full suite of modifications that can be made to a diary
 ::
 +$  diff
-  $%  [%create =perm =notes]
-      [%notes =id:notes =delta:notes]
-      [%quips note=id:notes =id:quips =delta:quips]
-      [%add-writers sects=(set sect:g)]
-      [%del-writers sects=(set sect:g)]
-      [%view =view]
-      [%sort =sort]
-      [%order notes=arranged-notes]
+  $%  [%notes p=diff:notes]
+    ::
+      [%add-sects p=(set sect:g)]
+      [%del-sects p=(set sect:g)]
+    ::
+      [%create p=perm q=notes]
+      [%view p=view]
+      [%sort p=sort]
+      [%arranged-notes p=arranged-notes]
+    ::
   ==
 ::
 ::  $net: an indicator of whether I'm a host or subscriber
@@ -295,6 +280,15 @@
 +$  remark
   [last-read=time watching=_| ~]
 ::
++$  remark-action
+  (pair flag remark-diff)
+::
++$  remark-diff
+  $%  [%read ~]
+      [%read-at p=time]
+      [?(%watch %unwatch) ~]
+  ==
+::
 ::  $perm: represents the permissions for a diary channel and gives a
 ::  pointer back to the group it belongs to.
 ::
@@ -302,6 +296,15 @@
   $:  writers=(set sect:g)
       group=flag:g
   ==
+::  $join: a group + channel flag to join a channel, group required for perms
+::
++$  join
+  $:  group=flag:g
+      chan=flag:g
+  ==
+::  $leave: a flag to pass for a channel leave
+::
++$  leave  flag:g
 ::
 ::  $create: represents a request to create a channel
 ::

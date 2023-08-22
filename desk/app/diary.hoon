@@ -188,198 +188,19 @@
   |=  [=mark =vase]
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
+      %diary-action
+    =+  !<([=flag:d =action:d] vase)
+    =/  diary-core  
+      ?:  ?=(?(%join %create) -.action)  
+        (di-apex:di-core flag)
+      (di-abed:di-core flag)
+    di-abet:(di-action:diary-core action)
   ::
-      %graph-imports  (import !<(imports:d vase))
-      %import-flags
-    =+  !<(flags=(set flag:d) vase)
-    =.  imp  %-  ~(gas by *(map flag:d ?))
-      ^-  (list [flag:d ?])
-      %+  turn
-        ~(tap in flags)
-      |=(=flag:d [flag |])
-    cor
-  ::
-      %flag
-    =+  !<(f=flag:d vase)
-    ?<  =(our.bowl p.f)
-    (join [*flag:g f])
-  ::
-      %channel-join
-    =+  !<(j=join:d vase)
-    ?<  =(our.bowl p.chan.j)
-    (join j)
-  ::
-      %diary-leave
-    =+  !<(=leave:d vase)
-    ?<  =(our.bowl p.leave)  :: cannot leave chat we host
-    di-abet:di-leave:(di-abed:di-core leave)
-  ::
-      %diary-create
-    =+  !<(req=create:d vase)
-    (create req)
-  ::
-      ?(%diary-action-1 %diary-action-0 %diary-action)
-    =+  !<(=action:d vase)
-    =/  diary-core  (di-abed:di-core p.action)
-    ?:  =(p.p.action our.bowl)
-      di-abet:(di-update:diary-core q.action)
-    di-abet:(di-proxy:diary-core q.action)
-  ::
-      %diary-remark-action
-    =+  !<(act=remark-action:d vase)
-    di-abet:(di-remark-diff:(di-abed:di-core p.act) q.act)
+      %diary-command
+    =+  !<([=flag:d =command:d] vase)
+    =/  diary-core  (di-abed:di-core flag)
+    di-abet:(di-command:diary-core command)
   ==
-  ++  join
-    |=  =join:d
-    ^+  cor
-    ?<  (~(has by shelf) chan.join)
-    di-abet:(di-join:di-core join)
-  ::
-  ++  create
-    |=  req=create:d
-    |^  ^+  cor
-    ~_  leaf+"Create failed: check group permissions"
-    ?>  can-nest
-    ?>  ((sane %tas) name.req)
-    =/  =flag:d  [our.bowl name.req]
-    =|  =diary:d
-    =/  =perm:d  [writers.req group.req]
-    =.  perm.diary  perm
-    =.  net.diary  [%pub ~]
-    =.  shelf  (~(put by shelf) flag diary)
-    di-abet:(di-init:(di-abed:di-core flag) req)
-    ::  +can-nest: does group exist, are we allowed
-    ::
-    ++  can-nest
-      ^-  ?
-      =/  gop  (~(got by groups) group.req)
-      %-  ~(any in bloc.gop)
-      ~(has in sects:(~(got by fleet.gop) our.bowl))
-    ::  +groups:
-    ::
-    ::  this has to be duplicated because
-    ::  +di-groups-scry does not allow me
-    ::  to properly adjust for a possible
-    ::  group.
-    ::
-    ++  groups
-      .^  groups:g
-        %gx
-        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
-      ==
-    --
-  --
-::
-++  import
-  |=  =imports:d
-  ^+  cor
-  =/  imports  ~(tap by imports)
-  |-  =*  loop  $
-  ?~  imports  cor
-  =/  [=flag:d writers=(set ship) =association:met:d =update-log:gra:d =graph:gra:d]
-    i.imports
-  |^
-  =/  =perm:d
-    :_  group.association
-    ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
-  =/  =remark:d
-    [now.bowl | ~]
-  =/  =notes:d  graph-to-notes
-  =/  =diary:d
-    :*  arranged-notes=~
-        net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
-        log=(import-log notes perm)
-        perm
-        %grid  :: TODO: check defaults with design
-        %time
-        notes
-        remark
-    ==
-  =.  shelf  (~(put by shelf) flag diary)
-  =.  imp    (~(put by imp) flag &)
-  =.  cor
-    (give %fact ~[/imp] migrate-map+!>(imp))
-  =.  cor    di-abet:(di-import:(di-abed:di-core flag) writers association)
-  loop(imports t.imports)
-  ::
-  ++  import-log
-    |=  [=notes:d =perm:d]
-    ^-  log:d
-    =/  =time  (fall (bind (ram:orm-log-gra:d update-log) head) *time)
-    %+  gas:log-on:d  *log:d
-    :~  [time %create perm notes]
-    ==
-  ::
-  ++  graph-to-notes
-    %+  gas:on:notes:d  *notes:d
-    %+  murn  (tap:orm-gra:d graph)
-    |=  [=time =node:gra:d]
-    ^-  (unit [_time note:d])
-    ?~  not=(node-to-note time node)
-      ~
-    `[time u.not]
-  ++  orm  orm-gra:d
-  ++  node-to-children
-    |=  =node:gra:d
-    ^-  (unit graph:gra:d)
-    ?.  ?=(%graph -.children.node)
-      ~
-    `p.children.node
-  ::
-  ++  node-to-post
-    |=  =node:gra:d
-    ^-  (unit post:gra:d)
-    ?.  ?=(%& -.post.node)
-      ~
-    `p.post.node
-  ::
-  ++  get-latest-post
-    |=  =node:gra:d
-    ^-  (unit post:gra:d)
-    ;<  =graph:gra:d           _biff   (node-to-children node)
-    ;<  nod=node:gra:d         _biff   (get:orm graph 1)
-    ;<  revs=graph:gra:d       _biff   (node-to-children nod)
-    ;<  [@ recent=node:gra:d]  _biff   (pry:orm revs)
-    (node-to-post recent)
-  ::  TODO: review crashing semantics
-  ::        check graph ordering (backwards iirc)
-  ++  node-to-note
-    |=  [=time =node:gra:d]
-    ^-  (unit note:d)
-    ?~  pos=(get-latest-post node)
-      ~
-    =/  =seal:d  [time (node-to-quips node) ~]
-    ?.  ?=([[%text *] *] contents.u.pos)
-      ~  :: XX: should be invariant, don't want to risk it
-    =/  con=(list verse:d)  (migrate flag `@ud`time t.contents.u.pos)
-    =/  =essay:d
-      =,(u.pos [text.i.contents '' con author time-sent])
-    `[seal essay]
-  ::
-  ++  node-to-quips
-    |=  =node:gra:d
-    ^-  quips:d
-    =/  coms=(unit graph:gra:d)
-      ;<  =graph:gra:d      _biff  (node-to-children node)
-      ;<  coms=node:gra:d   _biff  (get:orm graph 2)
-      (node-to-children coms)
-    %+  gas:on:quips:d  *quips:d
-    %+  murn  ?~(coms ~ (tap:orm u.coms))
-    |=  [=time =node:gra:d]
-    ?~  qup=(node-to-quip time node)
-      ~
-    `[time u.qup]
-  ::
-  ++  node-to-quip
-    |=  [=time =node:gra:d]
-    ^-  (unit quip:d)
-    ;<  =graph:gra:d           _biff  (node-to-children node)
-    ;<  [@ latest=node:gra:d]  _biff  (pry:orm graph)
-    ;<  =post:gra:d            _biff  (node-to-post latest)
-    =/  =cork:d  [time ~]
-    =/  =memo:d  =,(post [(con:nert:chat-migrate contents) author time-sent])
-    `[cork memo]
-  --
 ::
 ++  watch
   |=  =(pole knot)
@@ -591,7 +412,35 @@
   ++  di-abed
     |=  f=flag:d
     di-core(flag f, diary (~(got by shelf) f))
+  ++  di-apex
+    |=  f=flag:d
+    di-core(flag f, diary (~(gut by shelf) f *diary))
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
+  ++  di-action
+    |=  =action:d
+    ?>  from-self
+    ?+  -.action  (di-send-command action)
+      %create     (di-create create.action)
+      %join       (di-join group.action)
+      %leave      di-leave
+      ?(%read %read-at %watch %unwatch)  (di-remark action)
+    ==
+  ::
+  ++  di-send-command
+    |=  =command:d
+    ^+  di-core
+    ?:  di-am-host
+      (di-command command)
+    =/  =dock  [p.flag dap.bowl]
+    =/  =cage  [cmd:mar:d !>([flag command])]
+    =.  cor  (emit %pass di-area %agent dock %poke cage)
+    di-core
+  ::
+  ++  di-command
+    |=  =command:d
+    ^+  di-core
+    di-core
+  ::
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
@@ -686,56 +535,15 @@
       [%ui %notes ~]  ?>(from-self di-core)
     ::
     ==
-  ++  di-pass
-    |%
-    ++  writer-sect
-      |=  [ships=(set ship) =association:met:d]
-      =/  =sect:g
-        (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~)
-      =/  title=@t
-        (rap 3 'Writers: ' title.metadatum.association ~)
-      =/  desc=@t
-        (rap 3 'The writers role for the ' title.metadatum.association ' notebook' ~)
-      %+  poke-group  %import-writers
-      :+  group.association   now.bowl
-      [%cabal sect %add title desc '' '']
-    ::
-    ++  poke-group
-      |=  [=term =action:g]
-      ^+  di-core
-      =/  =dock      [our.bowl %groups] :: [p.p.action %groups] XX: check?
-      =/  =wire      (snoc di-area term)
-      =.  cor
-        (emit %pass wire %agent dock %poke act:mar:g !>(action))
-      di-core
-    ::
-    ++  create-channel
-      |=  [=term group=flag:g =channel:g]
-      ^+  di-core
-      %+  poke-group  term
-      ^-  action:g
-      :+  group  now.bowl
-      [%channel [dap.bowl flag] %add channel]
-    ::
-    ++  import-channel
-      |=  =association:met:d
-      =/  meta=data:meta:g
-        [title description '' '']:metadatum.association
-      (create-channel %import group.association meta now.bowl zone=%default %| ~)
-    ::
-    ++  add-channel
-      |=  req=create:d
-      %+  create-channel  %create
-      [group.req =,(req [[title description '' ''] now.bowl %default | readers])]
-    ::
-    --
-  ++  di-init
-    |=  req=create:d
-    =/  =perm:d  [writers.req group.req]
-    =.  cor
-      (give-brief flag di-brief)
-    =.  di-core  (di-update now.bowl %create perm notes.diary)
-    (add-channel:di-pass req)
+  ++  di-create-channel
+    |=  create:d
+    ^+  di-core
+    =/  =channel:g  [group [[title description '' ''] now.bowl %default | readers]]
+    =/  =action:g   [group now.bowl %channel [dap.bowl flag] %add channel]
+    =/  =dock       [our.bowl %groups]
+    =/  =wire       (snoc di-area %create)
+    =.  cor  (emit %pass wire %agent dock %poke act:mar:g !>(action))
+    di-core
   ::
   ++  di-agent
     |=  [=wire =sign:agent:gall]
@@ -896,12 +704,46 @@
     =.  cor  (emit card)
     di-core
   ::
+  ++  di-create
+    |=  =create:d
+    |^  ^+  di-core
+    ~_  leaf+"Create failed: check group permissions"
+    ?>  can-nest
+    ?>  ((sane %tas) name.create)
+    =/  =flag:d  [our.bowl name.create]
+    =|  =diary:d
+    =/  =perm:d  [writers.create group.create]
+    =.  perm.diary  perm
+    =.  net.diary  [%pub ~]
+    =.  cor  (give-brief flag di-brief)
+    =.  di-core  (di-update now.bowl %create perm notes.diary)
+    (di-create-channel create)
+    ::  +can-nest: does group exist, are we allowed
+    ::
+    ++  can-nest
+      ^-  ?
+      =/  gop  (~(got by groups) group.req)
+      %-  ~(any in bloc.gop)
+      ~(has in sects:(~(got by fleet.gop) our.bowl))
+    ::  +groups:
+    ::
+    ::  this has to be duplicated because
+    ::  +di-groups-scry does not allow me
+    ::  to properly adjust for a possible
+    ::  group.
+    ::
+    ++  groups
+      .^  groups:g
+        %gx
+        /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+      ==
+    --
+  ::
   ++  di-join
     |=  j=join:d
     ^+  di-core
+    ?<  (~(has by shelf) flag)
     ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
-    =.  shelf  (~(put by shelf) chan.j *diary:d)
-    =.  di-core  (di-abed chan.j)
     =.  group.perm.diary  group.j
     =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
@@ -945,11 +787,11 @@
       (give %fact ~(tap in paths) cag)
     di-core
   ::
-  ++  di-remark-diff
-    |=  diff=remark-diff:d
+  ++  di-remark
+    |=  action=$>(?(%read %read-at %watch %unwatch) action:d)
     ^+  di-core
     =.  cor
-      (give %fact ~[(snoc di-area %ui)] diary-remark-action+!>([flag diff]))
+      (give %fact ~[(snoc di-area %ui)] diary-action+!>([flag action]))
     =.  remark.diary
       ?-  -.diff
         %watch    remark.diary(watching &)
@@ -960,8 +802,7 @@
       =/  [=time =note:d]  (need (ram:on:notes:d notes.diary))
       remark.diary(last-read `@da`(add time (div ~s1 100)))  ::  greater than last
       ==
-    =.  cor
-      (give-brief flag di-brief)
+    =.  cor  (give-brief flag di-brief)
     di-core
   ::
   ++  di-check-ownership
