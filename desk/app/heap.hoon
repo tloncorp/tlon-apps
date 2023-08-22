@@ -118,6 +118,27 @@
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     he-abet:he-leave:(he-abed:he-core leave)
   ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  heap-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [heap-nest=nest:g *]
+        ?:(=(%heap p.heap-nest) %.y %.n)
+      |=  [heap-nest=nest:g *]
+      q.heap-nest
+    =/  heaps-without-groups
+      %+  skim  ~(tap by stash)
+      |=  heap=[=flag:g *]
+      ?:(=((find [heap]~ (zing heap-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      heaps-without-groups
+    |=  [[=flag:g *] core=_cor]
+    he-abet:he-leave:(he-abed:he-core flag)
+  ::
       %heap-create
     =+  !<(req=create:h vase)
     (create req)
@@ -171,7 +192,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
-  =.  cor  leave-channels-from-left-groups
+  =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
   ?:  =(okay:h cool)  cor
   ::  speak the good news
   =.  cor  (emil (drop load:epos))
@@ -184,27 +205,6 @@
   $(heaps t.heaps)
   ::
   +$  versioned-state  $%(current-state)
-  ::
-  ++  leave-channels-from-left-groups
-    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
-    =/  groups  .^(groups:g %gx groups-path)
-    =/  heap-flags-from-groups
-      %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
-      %+  turn
-        %+  skim  ~(tap by channels.group)
-        |=  [heap-nest=nest:g *]
-        ?:(=(%heap p.heap-nest) %.y %.n)
-      |=  [heap-nest=nest:g *]
-      q.heap-nest
-    =/  heaps-without-groups
-      %+  skim  ~(tap by stash)
-      |=  heap=[=flag:g *]
-      ?:(=((find [heap]~ (zing heap-flags-from-groups)) ~) %.y %.n)
-    %+  roll
-      heaps-without-groups
-    |=  [[=flag:g *] core=_cor]
-    he-abet:he-leave:(he-abed:he-core:core flag)
   ::
   ++  restore-missing-subs
     %+  roll

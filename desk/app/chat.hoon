@@ -119,7 +119,7 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  leave-channels-from-left-groups
+    =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
     %-  (note:wood %ver leaf/"New Epic" ~)
@@ -138,27 +138,6 @@
       ~(tap by chats)
     |=  [[=flag:c *] core=_cor]
     ca-abet:ca-safe-sub:(ca-abed:ca-core:core flag)
-  ::
-  ++  leave-channels-from-left-groups
-    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
-    =/  groups  .^(groups:g %gx groups-path)
-    =/  chat-flags-from-groups
-      %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
-      %+  turn
-        %+  skim  ~(tap by channels.group)
-        |=  [chat-nest=nest:g *]
-        ?:(=(%chat p.chat-nest) %.y %.n)
-      |=  [chat-nest=nest:g *]
-      q.chat-nest
-    =/  chats-without-groups
-      %+  skim  ~(tap in ~(key by chats))
-      |=  chat=flag:g
-      ?:(=((find [chat]~ (zing chat-flags-from-groups)) ~) %.y %.n)
-    %+  roll
-      chats-without-groups
-    |=  [=flag:g core=_cor]
-    ca-abet:ca-leave:(ca-abed:ca-core:core flag)
   ::
   ++  keep
     |=  bad=^vase
@@ -295,6 +274,27 @@
     =+  !<(=leave:c vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     ca-abet:ca-leave:(ca-abed:ca-core leave)
+  ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  chat-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [chat-nest=nest:g *]
+        ?:(=(%chat p.chat-nest) %.y %.n)
+      |=  [chat-nest=nest:g *]
+      q.chat-nest
+    =/  chats-without-groups
+      %+  skim  ~(tap in ~(key by chats))
+      |=  chat=flag:g
+      ?:(=((find [chat]~ (zing chat-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      chats-without-groups
+    |=  [=flag:g core=_cor]
+    ca-abet:ca-leave:(ca-abed:ca-core flag)
   ::
       %chat-draft
     =+  !<(=draft:c vase)

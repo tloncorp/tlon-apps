@@ -96,7 +96,7 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  leave-channels-from-left-groups
+    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
@@ -131,27 +131,6 @@
       voc    voc.s
       imp    imp.s
     ==
-  ::
-  ++  leave-channels-from-left-groups
-    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
-    =/  groups  .^(groups:g %gx groups-path)
-    =/  diary-flags-from-groups
-      %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
-      %+  turn
-        %+  skim  ~(tap by channels.group)
-        |=  [diary-nest=nest:g *]
-        ?:(=(%diary p.diary-nest) %.y %.n)
-      |=  [diary-nest=nest:g *]
-      q.diary-nest
-    =/  diaries-without-groups
-      %+  skim  ~(tap by shelf)
-      |=  diary=[=flag:g *]
-      ?:(=((find [diary]~ (zing diary-flags-from-groups)) ~) %.y %.n)
-    %+  roll
-      diaries-without-groups
-    |=  [[=flag:g *] core=_cor]
-    di-abet:di-leave:(di-abed:di-core:core flag)
   ::
 ++  convert-shelf
     |=  old-shelf=shelf:zero
@@ -235,6 +214,27 @@
     =+  !<(=leave:d vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)
+  ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  diary-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [diary-nest=nest:g *]
+        ?:(=(%diary p.diary-nest) %.y %.n)
+      |=  [diary-nest=nest:g *]
+      q.diary-nest
+    =/  diaries-without-groups
+      %+  skim  ~(tap by shelf)
+      |=  diary=[=flag:g *]
+      ?:(=((find [diary]~ (zing diary-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      diaries-without-groups
+    |=  [[=flag:g *] core=_cor]
+    di-abet:di-leave:(di-abed:di-core flag)
   ::
       %diary-create
     =+  !<(req=create:d vase)
