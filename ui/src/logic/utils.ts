@@ -407,6 +407,7 @@ export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
   /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)(?:\?.*)?$/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
+export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
 // sig and hep explicitly left out
 export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 
@@ -422,7 +423,7 @@ export function isMediaUrl(url: string) {
 }
 
 export function isRef(text: string) {
-  return REF_REGEX.test(text);
+  return text.match(REF_URL_REGEX);
 }
 
 export function isValidUrl(str?: string): boolean {
