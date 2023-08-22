@@ -99,7 +99,7 @@
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
-    =.  cor  
+    =.  cor
       %+  roll
         ~(tap in (~(gas in *(set ship)) (turn diaries head)))
       |=  [=ship cr=_cor]
@@ -190,8 +190,8 @@
   ?+    mark  ~|(bad-poke/mark !!)
       %diary-action
     =+  !<([=flag:d =action:d] vase)
-    =/  diary-core  
-      ?:  ?=(?(%join %create) -.action)  
+    =/  diary-core
+      ?:  ?=(?(%join %create) -.action)
         (di-apex:di-core flag)
       (di-abed:di-core flag)
     di-abet:(di-action:diary-core action)
@@ -439,7 +439,46 @@
   ++  di-command
     |=  =command:d
     ^+  di-core
-    di-core
+    =;  new=_di-core
+      =.  di-core  new
+      ::  if the changes succeeded,
+      ::  we must update the log and send subscription updates
+      ::
+      =/  =update:d  [now.bowl command]
+      =.  log.diary  (put:log-on:d log.diary update)
+      (di-give-updates update)
+    ::  only accept commands for diaries we own
+    ::
+    ?>  di-am-host
+    ?-  -.command
+      %view   ?>(di-from-admin di-core(view.diary view.command))
+      %sort   ?>(di-from-admin di-core(sort.diary sort.command))
+      %order  ?>(di-from-admin di-core(arranged-notes.diary notes.command))
+    ::
+        %notes
+      ?>  di-can-write
+      ?>  (di-check-ownership +.command)
+      =.  notes.diary  (reduce:di-notes now.bowl command)
+      =.  cor  (give-brief flag di-brief)
+      =/  cons=(list (list content:ha))
+        (hark:di-notes our.bowl +.command)
+      =.  cor
+        %-  emil
+        %+  turn  cons
+        |=  cs=(list content:ha)
+        (pass-hark (di-spin /note/(rsh 4 (scot %ui id.command)) cs ~))
+      di-core
+    ::
+        ?(%add-writers %del-writers)
+      ?>  di-from-admin
+      =*  writers  writers.perm.diary
+      =.  writers
+        ?-  -.command
+          %add-writers  (~(uni in writers) sects.command)
+          %del-writers  (~(dif in writers) sects.command)
+        ==
+      di-core
+    ==
   ::
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
@@ -450,12 +489,6 @@
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
     [& & rope con link but]
-  ++  di-import
-    |=  [writers=(set ship) =association:met:d]
-    ^+  di-core
-    =?  di-core  ?=(%sub -.net.diary)
-      di-sub
-    di-core
   ::
   ++  di-said
     |=  =plan:d
@@ -628,7 +661,7 @@
       ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
         ?(%diary-logs %diary-logs-0 %diary-logs-1)      (di-apply-logs !<(log:d q.cage))
-        ?(%diary-update %diary-update-0 %diary-update-1)  (di-update !<(update:d q.cage))
+        ?(%diary-update %diary-update-0 %diary-update-1)  (di-apply-update !<(update:d q.cage))
       ==
     ==
   ::
@@ -656,10 +689,22 @@
     di-core
   ::
   ++  di-groups-scry
+    ^-  path
     =*  group  group.perm.diary
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
   ++  di-am-host  =(our.bowl p.flag)
+  ::
+  ++  di-from-admin
+    ?:  =(p.flag src.bowl)  &
+    .^  admin=?
+    ;:  weld
+        /gx
+        di-groups-scry
+        /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]
+        /fleet/(scot %p src.bowl)/is-bloc/loob
+    ==  ==
+  ::
   ++  di-from-host  |(=(p.flag src.bowl) =(p.group.perm.diary src.bowl))
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
@@ -716,7 +761,7 @@
     =.  perm.diary  perm
     =.  net.diary  [%pub ~]
     =.  cor  (give-brief flag di-brief)
-    =.  di-core  (di-update now.bowl %create perm notes.diary)
+    =.  di-core  (di-apply-update now.bowl %create perm notes.diary)
     (di-create-channel create)
     ::  +can-nest: does group exist, are we allowed
     ::
@@ -765,7 +810,7 @@
       (tap:log-on:d log)
     %+  roll  updates
     |=  [=update:d di=_di-core]
-    (di-update:di update)
+    (di-apply-update:di update)
   ::
   ++  di-subscriptions
     %+  roll  ~(val by sup.bowl)
@@ -806,94 +851,67 @@
     di-core
   ::
   ++  di-check-ownership
-    |=  =diff:notes:d
-    =*  delta  q.diff
-    =/  entry=(unit [=time =note:d])  (get:di-notes p.diff)
-    ?-  -.delta
-        %add   =(src.bowl author.p.delta)
-        %add-feel  =(src.bowl p.delta)
-        %del-feel  =(src.bowl p.delta)
-        %quips  (di-check-quips-ownership p.diff p.delta)
-      ::
-          %del  ?~(entry | =(src.bowl author.note.u.entry))
-      ::
-          %edit  
-        ?&  =(src.bowl author.p.delta)
-            ?~(entry | =(src.bowl author.note.u.entry))
-        ==
+    |=  [=id:notes:d =command:notes:d]
+    ^-  ?
+    =/  entry=(unit [=time =note:d])
+      (get:di-notes id)
+    ?-  -.command
+      %add       =(src.bowl author.p.command)
+      %add-feel  =(src.bowl p.command)
+      %del-feel  =(src.bowl p.command)
+      %quips     (di-check-quips-ownership id id.command)
+      %del       ?~(entry | =(src.bowl author.note.u.entry))
+    ::
+        %edit
+      ?&  =(src.bowl author.p.command)
+          ?~(entry | =(src.bowl author.note.u.entry))
+      ==
     ==
   ::
   ++  di-check-quips-ownership
-    |=  [note-time=time =diff:quips:d]
-    =*  delta  q.diff
-    =/  parent=(unit [=time =note:d])  (get:di-notes note-time)
-    ?~  parent  |  :: note missing, nothing to do
-    =/  quips  ~(. qup quips.note.u.parent)
-    =/  entry=(unit [=time =quip:d])  (get:quips p.diff)
-    ?-  -.delta
-        %add   =(src.bowl author.p.delta)
-        %add-feel  =(src.bowl p.delta)
-        %del-feel  =(src.bowl p.delta)
-        %del  ?~(entry | =(src.bowl author.quip.u.entry))
+    |=  [note-id=id:notes:d =id:quips:d =command:quips:d]
+    ^-  ?
+    =/  parent=(unit [* note:d])  (get:di-notes note-id)
+    ?~  parent  |  ::  note missing, nothing to do
+    =/  quips  ~(. qup quips.u.parent)
+    =/  entry=(unit [* quip:d])  (get:quips id)
+    ?-  -.command
+      %add       =(src.bowl author.p.command)
+      %add-feel  =(src.bowl p.command)
+      %del-feel  =(src.bowl p.command)
+      %del       ?~(entry | =(src.bowl author.u.entry))
     ==
-  ++  di-update
-    |=  [=time dif=diff:d]
-    ?>  di-can-write
+  ::
+  ++  di-apply-update
+    |=  update:d
+    ?>  di-from-host
     ^+  di-core
-    :: we use now on the host to enforce host ordering
-    =?  time  =(p.flag our.bowl)
-      now.bowl
-    =.  log.diary
-      (put:log-on:d log.diary time dif)
-    =.  di-core
-      (di-give-updates time dif)
-    ?-    -.dif
+    =.  di-core  (di-give-updates time diff)
+    ?-    -.diff
+      %create  di-core(notes.diary notes.diff, perm.diary perm.diff)
+      %sort    di-core(sort.diary sort.diff)
+      %view    di-core(view.diary view.diff)
+      %order   di-core(arranged-notes.diary sort.diff)
+    ::
         %notes
-      ::  accept the fact from host unconditionally, otherwise make
-      ::  sure that it's coming from the right person
-      ?>  ?|  di-from-host
-              &(di-am-host (di-check-ownership p.dif))
-          ==
-      =.  notes.diary  (reduce:di-notes time p.dif)
+      =.  notes.diary  (reduce:di-notes time [id delta]:diff)
       =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
-        (hark:di-notes our.bowl p.dif)
+        (hark:di-notes our.bowl id.diff)
       =.  cor
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
+        (pass-hark (di-spin /note/(rsh 4 (scot %ui id.diff)) cs ~))
       di-core
     ::
-        %add-sects
-      ?>  di-from-host
-      =*  p  perm.diary
-      =.  writers.p  (~(uni in writers.p) p.dif)
-      di-core
-    ::
-        %del-sects
-      ?>  di-from-host
-      =*  p  perm.diary
-      =.  writers.p  (~(dif in writers.p) p.dif)
-      di-core
-    ::
-        %create
-      ?>  di-from-host
-      =:  notes.diary  q.dif
-          perm.diary   p.dif
+        ?(%add-writers %del-writers)
+      =*  writers  writers.perm.diary
+      =.  writers
+        ?-  -.command
+          %add-writers  (~(uni in writers) sects.command)
+          %del-writers  (~(dif in writers) sects.command)
         ==
-      di-core
-    ::
-        %sort
-      =.  sort.diary  p.dif
-      di-core
-    ::
-        %view
-      =.  view.diary  p.dif
-      di-core
-    ::
-        %arranged-notes
-      =.  arranged-notes.diary  p.dif
       di-core
     ==
   --

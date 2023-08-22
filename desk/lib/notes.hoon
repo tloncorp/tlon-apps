@@ -61,7 +61,7 @@
       %quips
     %+  jab  existing
     |=  =note:d
-    note(quips (~(reduce qip quips.note) p.p.del q.p.del))
+    note(quips (~(reduce qip quips.note) [id command]:del))
   ::
       %add-feel
     %+  jab  existing

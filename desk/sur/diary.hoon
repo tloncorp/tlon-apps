@@ -73,6 +73,7 @@
     $%  [%add p=essay]
         [%edit p=essay]
         [%del ~]
+        [%quips =id:quips =command:quips]
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
     ==
@@ -222,8 +223,8 @@
   ((on time diff) lte)
 ::
 +$  flag-action  [=flag =action]
+::  $action: user action to/from local ship
 ::
-::  $action: 
 +$  action
   $%  [%create =create]
       [%join group=flag:g]
@@ -236,11 +237,10 @@
   ==
 ::
 +$  flag-command  [=flag =command]
+::  $command: change request sent between ships
 ::
-::  $command: 
 +$  command
   $%  [%notes =id:notes =command:notes]
-      [%quips note=id:notes =id:quips =command:quips]
       [%view =view]
       [%sort =sort]
       [%order notes=arranged-notes]

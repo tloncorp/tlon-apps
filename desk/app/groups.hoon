@@ -207,8 +207,9 @@
       =/  cage  [act:mar:g !>(action)]
       [%pass wire %agent dock %poke cage]
     ^-  card
+    ::TODO  this is bad but will be obliterated anyway
     =/  =path  (welp (channel-scry nest) /perm/noun)
-    ?+  -.nest  *card
+    ?+  -.nest  *card  ::TODO  weep
         %chat
       =/  perms  .^(perm:c %gx path)
       =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
