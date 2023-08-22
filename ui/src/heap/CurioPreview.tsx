@@ -55,4 +55,6 @@ export default function CurioPreview({ url }: { url: string }) {
       </div>
     );
   }
+
+  return <div>Bad Preview</div>;
 }

@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Dialog from '@/components/Dialog';
-import { Status } from '@/logic/status';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { isMediaUrl } from '@/logic/utils';
 import { useAddCurioMutation } from '@/state/heap/heap';
+import { JSONContent } from '@tiptap/react';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { createCurioHeart } from '@/logic/heap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
-import isURL from 'validator/lib/isURL';
-import MediaPreview from './MediaPreview';
+import { useIsMobile } from '@/logic/useMedia';
+import { useFileStore, useUploader } from '@/state/storage';
+import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import NewCurioInput, { EditorUpdate } from './NewCurioInput';
+import CurioPreview, { canPreview } from './CurioPreview';
 
 interface AddCurioModalProps {
   open: boolean;
@@ -17,37 +19,6 @@ interface AddCurioModalProps {
   chFlag: string;
   draggedFile: File | null;
   clearDraggedFile: () => void;
-}
-
-function BlockInput({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-
-  const handleChange = (e: any) => {
-    if (ref.current) {
-      ref.current.style.height = '1px';
-      const newHeight = ref.current.scrollHeight;
-      ref.current.style.height = `${Math.min(newHeight, 350)}px`;
-    }
-
-    onChange(e.target.value);
-  };
-
-  return (
-    <textarea
-      className="align-center flex w-full resize-none rounded-lg bg-gray-50 p-4 leading-5 focus:outline-none focus-visible:border-none focus-visible:bg-gray-50"
-      placeholder="Drag media to upload, or start typing to post text"
-      rows={1}
-      value={value}
-      ref={ref}
-      onChange={handleChange}
-    />
-  );
 }
 
 export default function AddCurioModal({
@@ -61,116 +32,205 @@ export default function AddCurioModal({
   const [status, setStatus] = useState<'initial' | 'loading' | 'error'>(
     'initial'
   );
+  const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
+  const uploadKey = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const [mode, setMode] = useState<'preview' | 'input'>('input');
-  const [inputText, setInputText] = useState('');
-  const [dragPreview, setDragPreview] = useState<string | null>(null);
-  const uploadKey = `${chFlag}-new-curio-input`;
-
-  const { mutate: addCurio } = useAddCurioMutation();
+  const isMobile = useIsMobile();
+  const [content, setContent] = useState<JSONContent>();
+  const [pastedFile, setPastedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const uploader = useUploader(uploadKey);
+  const mostRecentFile = uploader?.getMostRecent();
+  const { mutate } = useAddCurioMutation();
   const { privacy } = useGroupPrivacy(flag);
 
-  function inputOnChange(newInput: string) {
-    if (isMediaUrl(newInput)) {
-      setMode('preview');
-    }
-
-    setInputText(newInput);
-  }
+  const isEmpty = !content && !draggedFile && !pastedFile;
 
   const reset = useCallback(() => {
     setMode('input');
-    setInputText('');
+    setContent(undefined);
+    setPreviewUrl('');
     setStatus('initial');
     if (draggedFile) {
-      setDragPreview(null);
       clearDraggedFile();
     }
-  }, [clearDraggedFile, draggedFile]);
+    if (pastedFile) {
+      setPastedFile(null);
+    }
+  }, [clearDraggedFile, draggedFile, pastedFile]);
+
+  const onChange = useCallback((editorUpdate: EditorUpdate) => {
+    setContent(editorUpdate.json);
+
+    const normalizedText = editorUpdate.text.trim();
+    if (canPreview(normalizedText)) {
+      setPreviewUrl(normalizedText);
+      setMode('preview');
+    }
+  }, []);
 
   const onOpenChange = useCallback(
     (newOpenState: boolean) => {
-      if (!newOpenState) reset();
+      if (!newOpenState) {
+        reset();
+        clearDraggedFile();
+      }
       setOpen(newOpenState);
     },
-    [setOpen, reset]
+    [setOpen, reset, clearDraggedFile]
   );
 
-  // useEffect(function () {
-  //   if (draggedFile) {
-  //     setMode('preview');
-  //     const previewUrl = URL.createObjectURL(draggedFile);
-  //     setDragPreview(previewUrl);
-  //     return function () {
-  //       URL.revokeObjectURL(previewUrl)
-  //     };
-  //   }
-  // }, [draggedFile]);
+  const addCurio = useCallback(
+    async (input: JSONContent | string) => {
+      const heart = createCurioHeart(input);
+
+      mutate(
+        { flag: chFlag, heart },
+        {
+          onSuccess: () => {
+            captureGroupsAnalyticsEvent({
+              name: 'post_item',
+              groupFlag: flag,
+              chFlag,
+              channelType: 'heap',
+              privacy,
+            });
+          },
+          onSettled: () => {
+            uploader?.clear();
+            setStatus('initial');
+            onOpenChange(false);
+          },
+        }
+      );
+    },
+    [flag, chFlag, mutate, privacy, onOpenChange, uploader]
+  );
+
+  // eslint-disable-next-line consistent-return
+  useEffect(() => {
+    const file = draggedFile || pastedFile;
+    if (file) {
+      setMode('preview');
+      setPreviewUrl(URL.createObjectURL(file));
+      return () => URL.revokeObjectURL(previewUrl);
+    }
+  }, [draggedFile, pastedFile, previewUrl]);
+
+  useEffect(() => {
+    if (
+      mostRecentFile &&
+      mostRecentFile.status === 'error' &&
+      mostRecentFile.errorMessage
+    ) {
+      console.error(`Error uploading file`, mostRecentFile.errorMessage);
+      setStatus('error');
+    }
+
+    if (
+      mostRecentFile &&
+      mostRecentFile.status === 'success' &&
+      mostRecentFile.url
+    ) {
+      addCurio(mostRecentFile.url);
+    }
+  }, [mostRecentFile, addCurio]);
+
+  const onPastedFiles = useCallback(
+    (files: FileList) => {
+      if (!uploader) return;
+      const uploadFile = Array.from(files).find((file) =>
+        PASTEABLE_IMAGE_TYPES.includes(file.type)
+      );
+      if (uploadFile) {
+        setPastedFile(uploadFile);
+      } else {
+        // TODO: warn file type not supported
+      }
+    },
+    [uploader]
+  );
 
   const postBlock = useCallback(async () => {
-    const heart = createCurioHeart(
-      inputText,
-      isURL(inputText) ? 'link' : 'text'
-    );
+    if (isEmpty) return;
+    setStatus('loading');
 
-    // const localUploader = useFileStore.getState().getUploader(uploadKey);
-    // if (uploadFile && localUploader) {
-    //   localUploader.uploadFiles([uploadFile]);
-    //   useFileStore.getState().setUploadType(uploadKey, 'drag');
-    //   return true;
-    // }
+    if (mode === 'input') {
+      addCurio(content!);
+      return;
+    }
 
-    addCurio(
-      { flag: chFlag, heart },
-      {
-        onSuccess: () => {
-          captureGroupsAnalyticsEvent({
-            name: 'post_item',
-            groupFlag: flag,
-            chFlag,
-            channelType: 'heap',
-            privacy,
-          });
-        },
-        onSettled: () => {
-          setOpen(false);
-        },
+    if (mode === 'preview' && !draggedFile && !pastedFile) {
+      addCurio(previewUrl);
+      return;
+    }
+
+    if (draggedFile || pastedFile) {
+      const localUploader = useFileStore.getState().getUploader(uploadKey);
+      const file = draggedFile || pastedFile;
+      try {
+        if (localUploader) {
+          await localUploader.uploadFiles([file!]);
+          useFileStore.getState().setUploadType(uploadKey, 'drag');
+        } else {
+          // TODO: warn that unable
+        }
+      } catch (e: any) {
+        console.error(`Error initiating the upload`);
+        setStatus('error');
       }
-    );
-  }, [flag, chFlag, addCurio, inputText, setOpen, privacy]);
-
-  console.log(`preview: ${dragPreview}`);
+    }
+  }, [
+    draggedFile,
+    mode,
+    content,
+    addCurio,
+    isEmpty,
+    pastedFile,
+    previewUrl,
+    uploadKey,
+  ]);
 
   return (
     <Dialog
-      id="add-curio-modal"
+      id={dropZoneId}
       open={open}
       onOpenChange={() => onOpenChange(false)}
       containerClass="w-[500px] h-full overflow-auto focus-visible:border-none focus:outline-none"
       className="top-32"
     >
-      <div className="sm:w-96">
-        <header className="mb-3 flex items-center">
-          <h2 className="text-lg font-bold">Post New Block</h2>
-        </header>
-      </div>
+      <header className="mb-3 flex items-center">
+        <h2 className="text-lg font-bold">Post New Block</h2>
+      </header>
 
-      <div className="align-center mt-6 mb-6 flex w-full justify-center">
+      <section className="align-center mt-6 mb-6 flex w-full justify-center">
         {mode === 'input' ? (
-          <BlockInput value={inputText} onChange={(e) => inputOnChange(e)} />
+          <NewCurioInput
+            onChange={onChange}
+            onPastedFiles={onPastedFiles}
+            placeholder={
+              isMobile
+                ? 'Paste a link or type to post text'
+                : 'Drag media to upload, or start typing to post text'
+            }
+          />
         ) : (
-          <MediaPreview url={dragPreview || inputText} />
+          <CurioPreview url={previewUrl} />
         )}
-      </div>
+      </section>
 
       <footer className="mt-4 flex items-center justify-between space-x-2">
         <div className="ml-auto flex items-center space-x-2">
-          <button className="secondary-button" onClick={() => setOpen(false)}>
+          <button
+            className="secondary-button"
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </button>
           <button
             onClick={() => postBlock()}
             className="button"
-            disabled={status === 'loading'}
+            disabled={status === 'loading' || isEmpty}
           >
             {status === 'loading' ? (
               <LoadingSpinner className="h-4 w-4" />
