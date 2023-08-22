@@ -56,7 +56,7 @@ export function useGroupActions(flag: string) {
 
 type GroupActionsProps = PropsWithChildren<{
   flag: string;
-  saga: Saga | null;
+  saga?: Saga | null;
   status?: ConnectionStatus;
   className?: string;
 }>;
@@ -85,7 +85,7 @@ const GroupActions = React.memo(
 
     const actions: Action[] = [];
 
-    if (isMobile) {
+    if (saga && isMobile) {
       actions.push({
         key: 'connectivity',
         keepOpenOnClick: true,
