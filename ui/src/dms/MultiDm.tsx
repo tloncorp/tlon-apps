@@ -126,7 +126,7 @@ export default function MultiDm() {
                         </div>
                       }
                       secondaryTitle={
-                        <h1 className="max-w-xs truncate px-4 text-[18px] leading-5 text-gray-800">
+                        <h1 className="max-w-xs truncate px-4 text-[17px] leading-5 text-gray-800">
                           {groupName}
                         </h1>
                       }

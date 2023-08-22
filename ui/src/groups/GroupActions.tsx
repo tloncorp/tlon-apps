@@ -13,6 +13,10 @@ import {
   useGroupCancelMutation,
 } from '@/state/groups';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { Saga } from '@/types/groups';
+import { ConnectionStatus } from '@/state/vitals';
+import HostConnection from '@/channels/HostConnection';
+import { useIsMobile } from '@/logic/useMedia';
 
 const { ship } = window;
 
@@ -52,11 +56,13 @@ export function useGroupActions(flag: string) {
 
 type GroupActionsProps = PropsWithChildren<{
   flag: string;
+  saga: Saga | null;
+  status?: ConnectionStatus;
   className?: string;
 }>;
 
 const GroupActions = React.memo(
-  ({ flag, className, children }: GroupActionsProps) => {
+  ({ flag, saga, status, className, children }: GroupActionsProps) => {
     const { isGroupUnread } = useIsGroupUnread();
     const { claim } = useGang(flag);
     const location = useLocation();
@@ -64,8 +70,8 @@ const GroupActions = React.memo(
     const group = useGroup(flag);
     const privacy = group ? getPrivacyFromGroup(group) : 'public';
     const isAdmin = useAmAdmin(flag);
+    const isMobile = useIsMobile();
     const { mutate: cancelJoinMutation } = useGroupCancelMutation();
-
     const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
       useGroupActions(flag);
 
@@ -78,6 +84,22 @@ const GroupActions = React.memo(
     );
 
     const actions: Action[] = [];
+
+    if (isMobile) {
+      actions.push({
+        key: 'connectivity',
+        keepOpenOnClick: true,
+        content: (
+          <HostConnection
+            ship={flag}
+            status={status}
+            saga={saga}
+            type="combo"
+            className="-ml-1 text-[17px] font-medium text-gray-800"
+          />
+        ),
+      });
+    }
 
     if (privacy === 'public' || isAdmin) {
       actions.push({

@@ -158,7 +158,7 @@ export default function Dm() {
                       }
                       secondaryTitle={
                         <div className="-mr-4 flex w-full items-center justify-center space-x-1 px-4">
-                          <h1 className="max-w-xs truncate text-[18px] leading-5 text-gray-800">
+                          <h1 className="max-w-xs truncate text-[17px] leading-5 text-gray-800">
                             {contact.nickname ? (
                               contact.nickname
                             ) : (
