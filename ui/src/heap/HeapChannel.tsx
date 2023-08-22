@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
+import cn from 'classnames';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import { Helmet } from 'react-helmet';
 import bigInt from 'big-integer';
@@ -249,8 +250,8 @@ function HeapChannel({ title }: ViewProps) {
       </Helmet>
       <div id={dropZoneId} className="h-full bg-gray-50 p-4">
         {empty && isLoading ? (
-          <div className="flex h-full w-full items-center justify-center">
-            <HeapPlaceholder count={8} />
+          <div className="h-full w-full">
+            <HeapPlaceholder count={30} />
           </div>
         ) : (
           <VirtuosoGrid
