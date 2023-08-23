@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from 'react';
 import { uniq } from 'lodash';
+import { useIsMobile } from './useMedia';
 
 interface DragTargetContext {
   targetIdStack: string[];
@@ -145,6 +146,8 @@ export function DragAndDropProvider({
 }
 
 export function useDragAndDrop(targetId: string) {
+  const isMobile = useIsMobile();
+
   const { pushTargetID, popTargetID, targetIdStack } =
     React.useContext(DragTargetContext);
   const currentTargetId = targetIdStack[targetIdStack.length - 1];
@@ -160,6 +163,9 @@ export function useDragAndDrop(targetId: string) {
   );
 
   useEffect(() => {
+    if (isMobile) {
+      return () => ({});
+    }
     pushTargetID(targetId);
 
     window.addEventListener('drop', handleDropWithTarget);
@@ -168,7 +174,16 @@ export function useDragAndDrop(targetId: string) {
       popTargetID(targetId);
       window.removeEventListener('drop', handleDropWithTarget);
     };
-  }, [handleDropWithTarget, popTargetID, pushTargetID, targetId]);
+  }, [handleDropWithTarget, popTargetID, pushTargetID, targetId, isMobile]);
+
+  if (isMobile)
+    return {
+      isDragging: false,
+      isOver: false,
+      droppedFiles: undefined,
+      setDroppedFiles: () => ({}),
+      targetId: '',
+    };
 
   return {
     isDragging,
