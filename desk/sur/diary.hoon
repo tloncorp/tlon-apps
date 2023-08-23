@@ -12,7 +12,7 @@
 ++  mar
   |%
   ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
-  ++  act  `mark`(rap 3 %diary-command '-' (scot %ud okay) ~)
+  ++  cmd  `mark`(rap 3 %diary-command '-' (scot %ud okay) ~)
   ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
   ++  log  `mark`(rap 3 %diary-logs '-' (scot %ud okay) ~)
   --
@@ -257,7 +257,6 @@
 +$  diff
   $%  [%create =perm =notes]
       [%notes =id:notes =delta:notes]
-      [%quips note=id:notes =id:quips =delta:quips]
       [%add-writers sects=(set sect:g)]
       [%del-writers sects=(set sect:g)]
       [%view =view]

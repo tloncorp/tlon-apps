@@ -87,67 +87,69 @@
   watch-groups
 ++  load
   |=  =vase
-  |^  ^+  cor
-  =+  !<([old=versioned-state cool=epic:e] vase)
-  |-
-  ?-  -.old
-    %0  $(old (state-0-to-1 old))
-    ::
-      %1
-    =.  state  old
-    =.  cor  restore-missing-subs
-    =.  cor
-      (emil (drop load:epos))
-    =/  diaries  ~(tap in ~(key by shelf))
-    =.  cor
-      %+  roll
-        ~(tap in (~(gas in *(set ship)) (turn diaries head)))
-      |=  [=ship cr=_cor]
-      ?:  =(ship our.bowl)  cr
-      (watch-epic:cr ship &)
-    |-
-    ?~  diaries
-      cor
-    =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
-    $(diaries t.diaries)
-  ==
-  ::
-  +$  versioned-state  $%(current-state state-0)
-  +$  state-0
-    $:  %0
-        shelf=shelf:zero
-        voc=(map [flag:zero plan:zero] (unit said:zero))
-        ::  true represents imported, false pending import
-        imp=(map flag:zero ?)
-    ==
-  +$  state-1  current-state
-  ++  zero  zero:old:d
-  ++  state-0-to-1
-    |=  s=state-0
-    ^-  state-1
-    %*  .  *state-1
-      shelf  (convert-shelf shelf.s)
-      voc    voc.s
-      imp    imp.s
-    ==
-  ::
-++  convert-shelf
-    |=  old-shelf=shelf:zero
-    ^-  shelf:d
-    %-  malt
-    %+  turn
-      ~(tap by old-shelf)
-    |=  [=flag:d old-diary=diary:zero]
-    ^-  [flag:d diary:d]
-    [flag [~ old-diary]]
-  ::
-  ++  restore-missing-subs
-    %+  roll
-      ~(tap by shelf)
-    |=  [[=flag:d *] core=_cor]
-    di-abet:di-safe-sub:(di-abed:di-core:core flag)
-  --
-::
+  cor
+  ::  |^  ^+  cor
+  
+::    =+  !<([old=versioned-state cool=epic:e] vase)
+::    |-
+::    ?-  -.old
+::      %0  $(old (state-0-to-1 old))
+::      ::
+::        %1
+::      =.  state  old
+::      =.  cor  restore-missing-subs
+::      =.  cor
+::        (emil (drop load:epos))
+::      =/  diaries  ~(tap in ~(key by shelf))
+::      =.  cor
+::        %+  roll
+::          ~(tap in (~(gas in *(set ship)) (turn diaries head)))
+::        |=  [=ship cr=_cor]
+::        ?:  =(ship our.bowl)  cr
+::        (watch-epic:cr ship &)
+::      |-
+::      ?~  diaries
+::        cor
+::      =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
+::      $(diaries t.diaries)
+::    ==
+::    ::
+::    +$  versioned-state  $%(current-state state-0)
+::    +$  state-0
+::      $:  %0
+::          shelf=shelf:zero
+::          voc=(map [flag:zero plan:zero] (unit said:zero))
+::          ::  true represents imported, false pending import
+::          imp=(map flag:zero ?)
+::      ==
+::    +$  state-1  current-state
+::    ++  zero  zero:old:d
+::    ++  state-0-to-1
+::      |=  s=state-0
+::      ^-  state-1
+::      %*  .  *state-1
+::        shelf  (convert-shelf shelf.s)
+::        voc    voc.s
+::        imp    imp.s
+::      ==
+::    ::
+::  ++  convert-shelf
+::      |=  old-shelf=shelf:zero
+::      ^-  shelf:d
+::      %-  malt
+::      %+  turn
+::        ~(tap by old-shelf)
+::      |=  [=flag:d old-diary=diary:zero]
+::      ^-  [flag:d diary:d]
+::      [flag [~ old-diary]]
+::    ::
+::    ++  restore-missing-subs
+::      %+  roll
+::        ~(tap by shelf)
+::      |=  [[=flag:d *] core=_cor]
+::      di-abet:di-safe-sub:(di-abed:di-core:core flag)
+::    --
+::  ::
 ++  watch-epic
   |=  [her=ship leave=?]
   ^+  cor
@@ -186,7 +188,7 @@
 ::
 ++  poke
   |=  [=mark =vase]
-  |^  ^+  cor
+  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
       %diary-action
     =+  !<([=flag:d =action:d] vase)
@@ -414,7 +416,7 @@
     di-core(flag f, diary (~(got by shelf) f))
   ++  di-apex
     |=  f=flag:d
-    di-core(flag f, diary (~(gut by shelf) f *diary))
+    di-core(flag f, diary (~(gut by shelf) f *diary:d))
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-action
     |=  =action:d
@@ -458,7 +460,7 @@
         %notes
       ?>  di-can-write
       ?>  (di-check-ownership +.command)
-      =.  notes.diary  (reduce:di-notes now.bowl command)
+      =.  notes.diary  (reduce:di-notes now.bowl +.command)
       =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
         (hark:di-notes our.bowl +.command)
@@ -571,7 +573,7 @@
   ++  di-create-channel
     |=  create:d
     ^+  di-core
-    =/  =channel:g  [group [[title description '' ''] now.bowl %default | readers]]
+    =/  =channel:g  [[title description '' ''] now.bowl %default | readers]
     =/  =action:g   [group now.bowl %channel [dap.bowl flag] %add channel]
     =/  =dock       [our.bowl %groups]
     =/  =wire       (snoc di-area %create)
@@ -767,7 +769,7 @@
     ::
     ++  can-nest
       ^-  ?
-      =/  gop  (~(got by groups) group.req)
+      =/  gop  (~(got by groups) group.create)
       %-  ~(any in bloc.gop)
       ~(has in sects:(~(got by fleet.gop) our.bowl))
     ::  +groups:
@@ -785,11 +787,11 @@
     --
   ::
   ++  di-join
-    |=  j=join:d
+    |=  group=flag:d
     ^+  di-core
     ?<  (~(has by shelf) flag)
-    ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
-    =.  group.perm.diary  group.j
+    ?>  |(=(p.group src.bowl) =(src.bowl our.bowl))
+    =.  group.perm.diary  group
     =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
     =.  cor  (watch-epic p.flag &)
@@ -838,7 +840,7 @@
     =.  cor
       (give %fact ~[(snoc di-area %ui)] diary-action+!>([flag action]))
     =.  remark.diary
-      ?-  -.diff
+      ?-  -.action
         %watch    remark.diary(watching &)
         %unwatch  remark.diary(watching |)
         %read-at  !!
@@ -859,7 +861,7 @@
       %add       =(src.bowl author.p.command)
       %add-feel  =(src.bowl p.command)
       %del-feel  =(src.bowl p.command)
-      %quips     (di-check-quips-ownership id id.command)
+      %quips     (di-check-quips-ownership id +.command)
       %del       ?~(entry | =(src.bowl author.note.u.entry))
     ::
         %edit
@@ -891,13 +893,13 @@
       %create  di-core(notes.diary notes.diff, perm.diary perm.diff)
       %sort    di-core(sort.diary sort.diff)
       %view    di-core(view.diary view.diff)
-      %order   di-core(arranged-notes.diary sort.diff)
+      %order   di-core(arranged-notes.diary notes.diff)
     ::
         %notes
       =.  notes.diary  (reduce:di-notes time [id delta]:diff)
       =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
-        (hark:di-notes our.bowl id.diff)
+        (hark:di-notes our.bowl +.diff)
       =.  cor
         %-  emil
         %+  turn  cons
@@ -908,9 +910,9 @@
         ?(%add-writers %del-writers)
       =*  writers  writers.perm.diary
       =.  writers
-        ?-  -.command
-          %add-writers  (~(uni in writers) sects.command)
-          %del-writers  (~(dif in writers) sects.command)
+        ?-  -.diff
+          %add-writers  (~(uni in writers) sects.diff)
+          %del-writers  (~(dif in writers) sects.diff)
         ==
       di-core
     ==

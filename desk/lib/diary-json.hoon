@@ -33,13 +33,6 @@
     ^-  [cord json]
     [(scot %ud t) (outline o)]
   ::
-  ++  quips-diff
-    |=  d=diff:quips:d
-    %-  pairs
-    :~  time/s/(scot %ud p.d)
-        delta/(quips-delta q.d)
-    ==
-  ::
   ++  quips-delta
     |=  d=delta:quips:d
     %+  frond  -.d
@@ -97,6 +90,17 @@
     |=  t=^time
     s/(scot %ud t)
   ::
+  ++  create
+    |=  =create:d
+    %-  pairs
+    :~  group+(flag group.create)
+        name+s+name.create
+        title+s+title.create
+        description+s+description.create
+        readers+a+(turn ~(tap in readers.create) (lead %s))
+        writers+a+(turn ~(tap in writers.create) (lead %s))
+    ==
+  ::
   ++  diary
     |=  di=diary:d
     %-  pairs
@@ -118,48 +122,69 @@
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
         group/(flag group.p)
     ==
-  ++  action
-    |=  =action:d
+  ++  flag-action
+    |=  [=flag:d =action:d]
     %-  pairs
-    :~  flag/(flag p.action)
-        update/(update q.action)
+    :~  flag/(^flag flag)
+        action/(^action action)
     ==
   ++  update
     |=  =update:d
     %-  pairs
-    :~  time+s+(scot %ud p.update)
-        diff+(diff q.update)
+    :~  time+s+(scot %ud time.update)
+        diff+(diff diff.update)
+    ==
+  ++  action
+    |=  =action:d
+    %+  frond  -.action
+    ?+  -.action  (diff action)
+      %create     (create create.action)
+      %join       (flag group.action)
+      %leave      ~
+      %read       ~
+      %read-at    s+(scot %ud time.action)
+      %watch      ~
+      %unwatch    ~
     ==
   ::
   ++  diff
     |=  dif=diff:d
     %+  frond  -.dif
-    ?+  -.dif  ~
-      %view       s/p.dif
-      %sort       s/p.dif
-      %arranged-notes  (arranged-notes p.dif)
-      %notes     (notes-diff p.dif)
-      %add-sects  a/(turn ~(tap in p.dif) (lead %s))
-      %del-sects  a/(turn ~(tap in p.dif) (lead %s))
+    ?-  -.dif
+        %view         s/view.dif
+        %sort         s/sort.dif
+        %order        (arranged-notes notes.dif)
+        %notes        (notes-diff id.dif delta.dif)
+        %add-writers  a/(turn ~(tap in sects.dif) (lead %s))
+        %del-writers  a/(turn ~(tap in sects.dif) (lead %s))
+        %create
+      %-  pairs
+      :~  perm+(perm perm.dif)
+          notes+(notes notes.dif)
+      ==
     ==
   ::
   ++  notes-diff
-    |=  =diff:notes:d
+    |=  [=id:notes:d =delta:notes:d]
     %-  pairs
-    :~  time/s/(scot %ud p.diff)
-        delta/(notes-delta q.diff)
+    :~  time/s/(scot %ud id)
+        delta/(notes-delta delta)
     ==
   ::
   ++  notes-delta
     |=  =delta:notes:d
     %+  frond  -.delta
     ?-  -.delta
-      %add       (essay p.delta)
-      %edit      (essay p.delta)
-      %del       ~
-      %quips     (quips-diff p.delta)
-      %add-feel  (add-feel +.delta)
-      %del-feel  (ship p.delta)
+        %add       (essay p.delta)
+        %edit      (essay p.delta)
+        %del       ~
+        %add-feel  (add-feel +.delta)
+        %del-feel  (ship p.delta)
+        %quips
+      %-  pairs
+      :~  time+s+(scot %ud id.delta)
+          delta+(quips-delta command.delta)
+      ==
     ==
   ::
   ++  essay
@@ -337,19 +362,13 @@
         |=  [her=@p =feel:d]
         [(scot %p her) s+feel]
     ==
-  ++  remark-action
-    |=  act=remark-action:d
-    %-  pairs
-    :~  flag/(flag p.act)
-        diff/(remark-diff q.act)
-    ==
   ::
-  ++  remark-diff
-    |=  diff=remark-diff:d
-    %+  frond  -.diff
-    ~!  -.diff
-    ?-  -.diff
-      %read-at  (time p.diff)
+  ++  remark-action
+    |=  action=$>(?(%read %read-at %watch %unwatch) action:d)
+    %+  frond  -.action
+    ~!  -.action
+    ?-  -.action
+      %read-at  (time time.action)
       ?(%read %watch %unwatch)  ~
     ==
   ::
@@ -370,28 +389,40 @@
         readers+(as (se %tas))
         writers+(as (se %tas))
     ==
-  ++  action
-    ^-  $-(json action:d)
+  ++  flag-action
+    ^-  $-(json flag-action:d)
     %-  ot
     :~  flag+flag
-        update+update
+        action+action
+    ==
+  ++  action
+    ^-  $-(json action:d)
+    %-  of
+    :~  create+create
+        join+flag
+        leave+ul
+        read+ul
+        read-at+(se %ud)
+        watch+ul
+        unwatch+ul
+      ::
+        notes+notes-diff
+        view+(su (perk %grid %list ~))
+        sort+(su (perk %time %alpha %arranged ~))
+        order+(mu (ar (se %ud)))
+        add-writers+add-sects
+        del-writers+del-sects
     ==
   ::
-  ++  update
-    |=  j=json
-    ^-  update:d
-    ?>  ?=(%o -.j)
-    [*time (diff (~(got by p.j) %diff))]
-  ::
-  ++  diff
-    ^-  $-(json diff:d)
+  ++  command
+    ^-  $-(json command:d)
     %-  of
     :~  notes/notes-diff
         view/(su (perk %grid %list ~))
         sort/(su (perk %time %alpha %arranged ~))
-        arranged-notes/(mu (ar (se %ud)))
-        add-sects/add-sects
-        del-sects/del-sects
+        order/(mu (ar (se %ud)))
+        add-writers/add-sects
+        del-writers/del-sects
     ==
   ::
   ++  quips-diff
@@ -422,9 +453,9 @@
     ==
   ::
   ++  notes-diff
-    ^-  $-(json diff:notes:d)
+    ^-  $-(json [id:notes:d command:notes:d])
     %-  ot
-    :~  time/(se %ud)
+    :~  id/(se %ud)
         delta/notes-delta
     ==
   ++  notes-delta

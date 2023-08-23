@@ -99,10 +99,9 @@
   ?.  ?=(%quips -.delta)
     ~
   =/  [@ =note:d]  (got time)
-  ~!  q.p.delta
-  ?.  ?=(%add -.q.p.delta)
+  ?.  ?=(%add -.command.delta)
     ~
-  =/  =memo:d  p.q.p.delta
+  =/  =memo:d  p.command.delta
   =/  in-replies
     %+  lien  (tap:on:quips:d quips.note)
     |=  [=^time =quip:d]
