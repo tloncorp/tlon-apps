@@ -887,7 +887,7 @@
   =*  should  =(her src.bowl)
   ?-  -.delta
       %add  ?.(should | =(src.bowl author.p.delta))
-      %del  ?.(should | &)
+      %del  should
       %add-feel  =(src.bowl p.delta)
       %del-feel  =(src.bowl p.delta)
   ==
