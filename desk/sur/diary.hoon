@@ -1,9 +1,10 @@
 /-  g=groups, c=cite, e=epic
-/-  zer=diary-0
+/-  zer=diary-0, uno=diary-1
 |%
 ++  old
   |%
   ++  zero  zer
+  ++  one  uno
   --
 ::
 ++  okay  `epic:e`1
