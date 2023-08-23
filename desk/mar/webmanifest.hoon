@@ -8,7 +8,8 @@
 =,  eyre
 =,  format
 =,  html
-|_  jon=json
+~!  json=^json
+|_  jon=^json
 ::
 ++  grow                                                ::  convert to
   |%
@@ -17,8 +18,8 @@
   --
 ++  grab
   |%                                                    ::  convert from
-  ++  mime  |=([p=mite q=octs] (fall (rush (@t q.q) apex:de-json) *json))
-  ++  noun  json                                        ::  clam from %noun
+  ++  mime  |=([p=mite q=octs] (fall (de:json (@t q.q)) *^json))
+  ++  noun  ^json                                        ::  clam from %noun
   ++  numb  numb:enjs
   ++  time  time:enjs
   --

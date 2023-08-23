@@ -14,11 +14,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %2
         =shelf:d
         voc=(map [flag:d plan:d] (unit said:d))
-        ::  true represents imported, false pending import
-        imp=(map flag:d ?)
     ==
   --
 =|  current-state
@@ -87,69 +85,103 @@
   watch-groups
 ++  load
   |=  =vase
-  cor
-  ::  |^  ^+  cor
-  
-::    =+  !<([old=versioned-state cool=epic:e] vase)
-::    |-
-::    ?-  -.old
-::      %0  $(old (state-0-to-1 old))
-::      ::
-::        %1
-::      =.  state  old
-::      =.  cor  restore-missing-subs
-::      =.  cor
-::        (emil (drop load:epos))
-::      =/  diaries  ~(tap in ~(key by shelf))
-::      =.  cor
-::        %+  roll
-::          ~(tap in (~(gas in *(set ship)) (turn diaries head)))
-::        |=  [=ship cr=_cor]
-::        ?:  =(ship our.bowl)  cr
-::        (watch-epic:cr ship &)
-::      |-
-::      ?~  diaries
-::        cor
-::      =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
-::      $(diaries t.diaries)
-::    ==
-::    ::
-::    +$  versioned-state  $%(current-state state-0)
-::    +$  state-0
-::      $:  %0
-::          shelf=shelf:zero
-::          voc=(map [flag:zero plan:zero] (unit said:zero))
-::          ::  true represents imported, false pending import
-::          imp=(map flag:zero ?)
-::      ==
-::    +$  state-1  current-state
-::    ++  zero  zero:old:d
-::    ++  state-0-to-1
-::      |=  s=state-0
-::      ^-  state-1
-::      %*  .  *state-1
-::        shelf  (convert-shelf shelf.s)
-::        voc    voc.s
-::        imp    imp.s
-::      ==
-::    ::
-::  ++  convert-shelf
-::      |=  old-shelf=shelf:zero
-::      ^-  shelf:d
-::      %-  malt
-::      %+  turn
-::        ~(tap by old-shelf)
-::      |=  [=flag:d old-diary=diary:zero]
-::      ^-  [flag:d diary:d]
-::      [flag [~ old-diary]]
-::    ::
-::    ++  restore-missing-subs
-::      %+  roll
-::        ~(tap by shelf)
-::      |=  [[=flag:d *] core=_cor]
-::      di-abet:di-safe-sub:(di-abed:di-core:core flag)
-::    --
-::  ::
+  |^  ^+  cor
+  =+  !<([old=versioned-state cool=epic:e] vase)
+  |-
+  ?-  -.old
+    %0  $(old (state-0-to-1 old))
+    %1  $(old (state-1-to-2 old))
+    ::
+      %2
+    =.  state  old
+    =.  cor  restore-missing-subs
+    =.  cor
+      (emil (drop load:epos))
+    =/  diaries  ~(tap in ~(key by shelf))
+    =.  cor
+      %+  roll
+        ~(tap in (~(gas in *(set ship)) (turn diaries head)))
+      |=  [=ship cr=_cor]
+      ?:  =(ship our.bowl)  cr
+      (watch-epic:cr ship &)
+    |-
+    ?~  diaries
+      cor
+    =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
+    $(diaries t.diaries)
+  ==
+  ::
+  +$  versioned-state  $%(current-state state-0 state-1)
+  +$  state-0
+    $:  %0
+        shelf=shelf:zero
+        voc=(map [flag:zero plan:zero] (unit said:zero))
+        imp=(map flag:zero ?)
+    ==
+  +$  state-1
+    $:  %1
+        =shelf:one
+        voc=(map [flag:one plan:one] (unit said:one))
+        imp=(map flag:one ?)
+    ==
+  +$  state-2  current-state
+  ++  zero  zero:old:d
+  ++  one   one:old:d
+  ++  two   d
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    %*  .  *state-1
+      shelf  (shelf-0-to-1 shelf.s)
+      voc    voc.s
+      imp    imp.s
+    ==
+  ::
+  ++  shelf-0-to-1
+    |=  old-shelf=shelf:zero
+    ^-  shelf:one
+    %-  malt
+    %+  turn
+      ~(tap by old-shelf)
+    |=  [=flag:one old-diary=diary:zero]
+    ^-  [flag:one diary:one]
+    [flag [~ old-diary]]
+  ::
+  ++  state-1-to-2
+    |=  s=state-1
+    ^-  state-2
+    %*  .  *state-2
+      shelf  (shelf-1-to-2 shelf.s)
+      voc    voc.s
+    ==
+  ::
+  ++  shelf-1-to-2
+    |=  old-shelf=shelf:one
+    ^-  shelf:two
+    %-  ~(run by old-shelf)
+    |=  =diary:one
+    ^-  diary:two
+    diary(log (log-1-to-2))
+  ::
+  ++  log-1-to-2
+    |=  old-log=log:one
+    ^-  log:two
+    %-  ~(run by old-log)
+    |=  =diff:one
+    ^-  diff:two
+    ?+  -.diff  diff
+      %arranged-notes  [%order +.diff]
+      %add-sects  [%add-writers +.diff]
+      %del-sects  [%del-writers +.diff]
+    ==
+  ::
+  ++  restore-missing-subs
+    %+  roll
+      ~(tap by shelf)
+    |=  [[=flag:d *] core=_cor]
+    di-abet:di-safe-sub:(di-abed:di-core:core flag)
+  --
+::
 ++  watch-epic
   |=  [her=ship leave=?]
   ^+  cor
@@ -366,7 +398,6 @@
   ^-  (unit (unit cage))
   ?+  pole  [~ ~]
   ::
-    [%x %imp ~]    ``migrate-map+!>(imp)
     [%x %shelf ~]  ``shelf+!>(shelf)
     [%x %init ~]   ``noun+!>([briefs shelf])
     [%x %briefs ~]  ``diary-briefs+!>(briefs)
@@ -595,13 +626,6 @@
       %.  di-core  :: TODO rollback creation if poke fails?
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
-    ::
-        [%import ~]
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  di-core
-      %-  (slog u.p.sign)
-      ::  =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
-      di-core
     ==
   ::
   ++  di-brief  (brief:di-notes our.bowl last-read.remark.diary)

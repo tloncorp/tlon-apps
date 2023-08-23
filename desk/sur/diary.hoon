@@ -1,11 +1,12 @@
 /-  g=groups, c=cite, graph-store, e=epic
-/-  zer=diary-0
+/-  zer=diary-0, uno=diary-1
 /-  metadata-store
 /+  lib-graph=graph-store
 |%
 ++  old
   |%
   ++  zero  zer
+  ++  one  uno
   --
 ::
 ++  okay  `epic:e`1
