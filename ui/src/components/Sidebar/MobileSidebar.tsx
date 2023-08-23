@@ -12,7 +12,7 @@ import Avatar from '../Avatar';
 
 export default function MobileSidebar() {
   const location = useLocation();
-  const isInactive = (path: string) => location.pathname !== path;
+  const isInactive = (path: string) => !location.pathname.startsWith(path);
   const isDarkMode = useIsDark();
 
   return (
@@ -23,7 +23,7 @@ export default function MobileSidebar() {
           <ul className="flex">
             <NavTab to="/" linkClass="basis-1/5">
               <HomeIconMobileNav
-                isInactive={isInactive('/')}
+                isInactive={isInactive('/groups') && location.pathname !== '/'}
                 isDarkMode={isDarkMode}
                 className="mb-0.5 h-6 w-6"
               />
@@ -52,7 +52,7 @@ export default function MobileSidebar() {
               />
             </NavTab>
             {!isNativeApp() && (
-              <NavTab to="/leap">
+              <NavTab to="/leap" linkClass="basis-1/5">
                 <GridIcon
                   className={cn('mb-0.5 h-8 w-8', {
                     'text-gray-200 dark:text-gray-700': isInactive('/leap'),

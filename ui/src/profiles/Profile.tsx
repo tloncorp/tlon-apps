@@ -54,56 +54,58 @@ export default function Profile({ title }: ViewProps) {
         transition={pageTransition}
         className="grow overflow-y-auto bg-white"
       >
-        <ProfileCoverImage
-          className="m-auto h-[345px] w-[90%] shadow-2xl"
-          cover={contact.cover || ''}
-        >
-          <Link
-            to="/profile/edit"
-            className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 px-6 pt-6 font-normal dark:bg-white/30"
+        <div className="px-4">
+          <ProfileCoverImage
+            className="m-auto h-[345px] w-full shadow-2xl"
+            cover={contact.cover || ''}
           >
-            <div className="flex w-full justify-end">
-              <Link
-                to="/profile/edit"
-                className="text-[18px] font-normal text-white dark:text-black"
-              >
-                Edit
-              </Link>
-            </div>
-            <div className="flex flex-col space-y-6">
-              <div className="flex space-x-2">
-                <Avatar size="big" icon={false} ship={window.our} />
-                <div className="flex flex-col items-start justify-center space-y-1">
-                  <ShipName
-                    className="text-[18px] font-normal text-white dark:text-black"
-                    name={window.our}
-                    showAlias
-                  />
-                  <ShipName
-                    className="text-[17px] font-normal leading-snug text-white opacity-60 dark:text-black"
-                    name={window.our}
-                  />
-                </div>
+            <Link
+              to="/profile/edit"
+              className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 px-6 pt-6 font-normal dark:bg-white/30"
+            >
+              <div className="flex w-full justify-end">
+                <Link
+                  to="/profile/edit"
+                  className="text-[17px] font-normal text-white dark:text-black"
+                >
+                  Edit
+                </Link>
               </div>
-              {contact.bio && (
-                <div className="flex flex-col space-y-3">
-                  <span className="text-[18px] font-normal text-white opacity-60 dark:text-black">
-                    Info
-                  </span>
-                  <span className="h-[84px] bg-gradient-to-b from-white via-gray-50 bg-clip-text text-[17px] leading-snug text-transparent dark:from-black">
-                    {contact.bio}
-                  </span>
+              <div className="flex flex-col space-y-6">
+                <div className="flex space-x-2">
+                  <Avatar size="big" icon={false} ship={window.our} />
+                  <div className="flex flex-col items-start justify-center space-y-1">
+                    <ShipName
+                      className="text-[17px] font-normal text-white dark:text-black"
+                      name={window.our}
+                      showAlias
+                    />
+                    <ShipName
+                      className="text-[17px] font-normal leading-snug text-white opacity-60 dark:text-black"
+                      name={window.our}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
-          </Link>
-        </ProfileCoverImage>
+                {contact.bio && (
+                  <div className="flex flex-col space-y-3">
+                    <span className="text-[17px] font-normal text-white opacity-60 dark:text-black">
+                      Info
+                    </span>
+                    <span className="h-[84px] bg-gradient-to-b from-white via-gray-50 bg-clip-text text-[17px] leading-snug text-transparent dark:from-black">
+                      {contact.bio}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Link>
+          </ProfileCoverImage>
+        </div>
         <nav className="flex flex-col space-y-1 px-4">
           <Link to="/profile/settings" className="no-underline">
             <SidebarItem
               color="text-gray-900"
               fontWeight="font-normal"
-              fontSize="text-[18px]"
+              fontSize="text-[17px]"
               className="leading-5"
               showCaret
               icon={
@@ -119,7 +121,7 @@ export default function Profile({ title }: ViewProps) {
             <SidebarItem
               color="text-gray-900"
               fontWeight="font-normal"
-              fontSize="text-[18px]"
+              fontSize="text-[17px]"
               className="leading-5"
               showCaret
               icon={
@@ -141,7 +143,7 @@ export default function Profile({ title }: ViewProps) {
             <SidebarItem
               color="text-gray-900"
               fontWeight="font-normal"
-              fontSize="text-[18px]"
+              fontSize="text-[17px]"
               className="leading-5"
               icon={
                 <div className="flex h-12 w-12 items-center justify-center">
@@ -162,7 +164,7 @@ export default function Profile({ title }: ViewProps) {
             <SidebarItem
               color="text-gray-900"
               fontWeight="font-normal"
-              fontSize="text-[18px]"
+              fontSize="text-[17px]"
               className="leading-5"
               icon={
                 <div className="flex h-12 w-12 items-center justify-center">
