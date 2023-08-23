@@ -221,6 +221,10 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
+      %channel-join
+    =+  !<([group=flag:g chan=flag:g] vase)
+    $(mark %diary-action, vase !>([chan %join group]))
+  ::
       %diary-action
     =+  !<([=flag:d =action:d] vase)
     =/  diary-core
@@ -590,7 +594,7 @@
     (~(has by wex.bowl) [(snoc di-area %updates) p.flag dap.bowl])
   ::
   ++  di-safe-sub
-    ?:  |(di-has-sub =(our.bowl p.flag))
+    ?:  |(di-has-sub di-am-host)
       di-core
     di-sub
   ::
@@ -680,8 +684,8 @@
         %watch-ack
       =.  net.diary  [%sub src.bowl & [%chi ~]]
       ?~  p.sign  di-core
-      %-  (slog leaf/"Failed subscription" u.p.sign)
-      :: =.  gone  &
+      %-  (slog leaf/"{<dap.bowl>}: Failed subscription" u.p.sign)
+      ~&  'diary watch ack done'
       di-core
     ::
         %fact
@@ -844,7 +848,7 @@
     di-core
   ::
   ++  di-remark
-    |=  action=$>(?(%read %read-at %watch %unwatch) action:d)
+    |=  action=remark-action:d
     ^+  di-core
     =.  cor
       (give %fact ~[(snoc di-area %ui)] diary-action+!>([flag action]))

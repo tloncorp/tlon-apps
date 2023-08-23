@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  [flag:d action:d]
+  ++  noun  ,[flag:d action:d]
   ++  json  flag-action:dejs:j
   --
 --

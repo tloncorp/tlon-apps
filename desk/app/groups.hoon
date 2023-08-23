@@ -817,7 +817,7 @@
           nests
       |=  nes=nest:g
       ^-  card
-      =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
+      =/  =dock  [our.bowl p.nes]
       =/  =cage  channel-join+!>([flag q.nes])
       =/  =wire  (snoc go-area %join-channels)
       [%pass wire %agent dock %poke cage]

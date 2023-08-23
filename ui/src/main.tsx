@@ -28,6 +28,7 @@ import indexedDBPersistor from './indexedDBPersistor';
 import UpdateNotice from './components/UpdateNotice';
 import { analyticsClient } from './logic/analytics';
 import { createRoot } from 'react-dom/client';
+import { QueryClientProvider } from '@tanstack/react-query';
 
 const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -43,17 +44,11 @@ const container = document.getElementById('app') as HTMLElement;
 const root = createRoot(container);
 root.render(
   <React.StrictMode>
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        persister: indexedDBPersistor(`${window.our}-landscape`),
-        buster: `${window.our}-landscape-4.0.1`,
-      }}
-    >
-      <UpdateNotice />
+    <UpdateNotice />
+    <QueryClientProvider client={queryClient}>
       <PostHogProvider client={analyticsClient}>
         <App />
       </PostHogProvider>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 );

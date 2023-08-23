@@ -362,7 +362,7 @@
     ==
   ::
   ++  remark-action
-    |=  action=$>(?(%read %read-at %watch %unwatch) action:d)
+    |=  action=remark-action:d
     %+  frond  -.action
     ~!  -.action
     ?-  -.action

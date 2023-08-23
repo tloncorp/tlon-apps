@@ -235,6 +235,10 @@
       command
   ==
 ::
++$  remark-action  
+  $~  [%read ~]
+  $>(?(%read %read-at %watch %unwatch) action)
+::
 +$  flag-command  [=flag =command]
 ::  $command: change request sent between ships
 ::
