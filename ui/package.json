@@ -165,6 +165,7 @@
     "uuid": "^9.0.0",
     "validator": "^13.7.0",
     "vaul": "^0.2.0",
+    "video-react": "^0.16.0",
     "workbox-precaching": "^6.5.4",
     "zustand": "^3.7.2"
   },
@@ -193,6 +194,7 @@
     "@types/tar-fs": "^2.0.1",
     "@types/uuid": "^9.0.2",
     "@types/validator": "^13.7.2",
+    "@types/video-react": "^0.15.1",
     "@types/ws": "^8.5.3",
     "@typescript-eslint/eslint-plugin": "^5.19.0",
     "@typescript-eslint/parser": "^5.19.0",
