@@ -1,13 +1,27 @@
+import _, { debounce } from 'lodash';
+import React, {
+  ChangeEvent,
+  MouseEvent,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { deSig } from '@urbit/api';
+import { useLocation, useNavigate } from 'react-router';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import fuzzy from 'fuzzy';
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import Divider from '@/components/Divider';
+import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import MobileHeader from '@/components/MobileHeader';
 import ShipName from '@/components/ShipName';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
+import { isNativeApp } from '@/logic/native';
 import { useModalNavigate } from '@/logic/routing';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { toTitleCase, getSectTitle } from '@/logic/utils';
+import { getSectTitle } from '@/logic/utils';
 import { useContact } from '@/state/contact';
 import {
   useRouteGroup,
@@ -17,27 +31,97 @@ import {
   useGroupFlag,
   useAmAdmin,
   useVessel,
+  useSects,
+  useGroupSectMutation,
 } from '@/state/groups';
-import _ from 'lodash';
-import React, { useCallback, useMemo, useState } from 'react';
-import { useLocation } from 'react-router';
+import XIcon from '@/components/icons/XIcon';
+import { Vessel } from '@/types/groups';
+import CheckIcon from '@/components/icons/CheckIcon';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
 
 interface GroupMemberItemProps {
   member: string;
 }
 
-const Member = React.memo(({ member }: GroupMemberItemProps) => {
+function Role({ role, member }: { role: string; member: string }) {
   const flag = useGroupFlag();
   const group = useGroup(flag);
+  const vessel = useVessel(flag, member);
+  const [sectLoading, setSectLoading] = useState('');
+  const [isOwner, setIsOwner] = useState(false);
+  const { mutateAsync: sectMutation } = useGroupSectMutation();
+
+  const toggleSect = useCallback(
+    (ship: string, sect: string, v: Vessel) => async (event: MouseEvent) => {
+      event.preventDefault();
+
+      const inSect = v.sects.includes(sect);
+
+      if (inSect && sect === 'admin' && flag.includes(ship)) {
+        setIsOwner(true);
+        return;
+      }
+      if (inSect) {
+        try {
+          setSectLoading(sect);
+          await sectMutation({ flag, ship, sects: [sect], operation: 'del' });
+          setSectLoading('');
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        try {
+          setSectLoading(sect);
+          await sectMutation({ flag, ship, sects: [sect], operation: 'add' });
+          setSectLoading('');
+        } catch (e) {
+          console.log(e);
+        }
+      }
+    },
+    [flag, sectMutation]
+  );
+
+  if (!group) {
+    return null;
+  }
+
+  return (
+    <button
+      onClick={toggleSect(member, role, vessel)}
+      className="flex items-center"
+    >
+      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200">
+        {sectLoading === role ? (
+          <LoadingSpinner className="h-4 w-4" />
+        ) : isOwner ? (
+          <ExclamationPoint className="h-4 w-4 text-red" />
+        ) : vessel.sects.includes(role) ? (
+          <CheckIcon className="h-4 w-4" />
+        ) : null}
+      </div>
+      <span className="ml-4">{getSectTitle(group.cabals, role)}</span>
+    </button>
+  );
+}
+
+const Member = React.memo(({ member }: GroupMemberItemProps) => {
+  const navigate = useNavigate();
+  const flag = useGroupFlag();
+  const group = useGroup(flag);
+  const sects = useSects(flag);
+  const saga = group?.saga || null;
+  const comaptibileSaga = saga === null || 'synced' in saga;
   const isAdmin = useAmAdmin(flag);
   const [isOpen, setIsOpen] = useState(false);
+  const [rolesIsOpen, setRolesIsOpen] = useState(false);
   const [showKickConfirm, setShowKickConfirm] = useState(false);
   const [loadingKick, setLoadingKick] = useState(false);
   const [loadingBan, setLoadingBan] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const contact = useContact(member);
   const vessel = useVessel(flag, member);
-  const actions: Action[] = [];
   const location = useLocation();
   const modalNavigate = useModalNavigate();
   const navigateByApp = useNavigateByApp();
@@ -51,7 +135,11 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
   };
 
   const onSendMessage = (ship: string) => {
-    navigateByApp(`/dm/${ship}`);
+    if (isNativeApp()) {
+      navigate(`/dm/${ship}`);
+    } else {
+      navigateByApp(`/dm/${ship}`);
+    }
   };
 
   const kick = useCallback(
@@ -72,25 +160,39 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
     [flag, banShipsMutation]
   );
 
-  actions.push(
+  const actions: Action[] = [
     {
       key: 'profile',
       content: 'View Profile',
       onClick: () => onViewProfile(member),
     },
-    /* TODO: navigate here by app if we're not in the mobile app,
-       otherwise open the DM */
     {
       key: 'message',
       content: 'Send Message',
       onClick: () => onSendMessage(member),
-    }
-  );
+    },
+  ];
 
-  /* TODO: this check doesn't work,
-     also need to wrap in a saga-compatibility check */
-  if (member !== window.ship && isAdmin) {
+  if (!group) {
+    return null;
+  }
+
+  const roleActions: Action[] = sects.map((s) => ({
+    key: s,
+    content: <Role role={s} member={member} />,
+    keepOpenOnClick: true,
+  }));
+
+  if (member !== window.our && isAdmin && comaptibileSaga) {
     actions.push(
+      {
+        key: 'set-role',
+        content: 'Set Role',
+        onClick: () => {
+          setIsOpen(false);
+          setRolesIsOpen(true);
+        },
+      },
       {
         key: 'kick',
         content: 'Kick',
@@ -106,8 +208,6 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
     );
   }
 
-  /* TODO: role assignment actions */
-
   return (
     <>
       <ActionMenu
@@ -120,24 +220,30 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
           icon={<Avatar ship={member} size="default" icon={false} />}
           key={member}
         >
-          {contact?.nickname ? (
-            contact.nickname
-          ) : (
-            <ShipName name={member} full />
-          )}
-          {group && (
+          <div className="flex h-full w-full flex-col items-start justify-center">
+            {contact?.nickname ? (
+              contact.nickname
+            ) : (
+              <ShipName name={member} full />
+            )}
             <div className="mt-1 text-sm font-normal text-gray-400">
               {vessel.sects.length > 0
                 ? _.pull(vessel.sects, 'member').map((s) => (
                     <span key={s} className="mr-1">
-                      {toTitleCase(getSectTitle(group.cabals, s))}
+                      {getSectTitle(group.cabals, s)}
                     </span>
                   ))
                 : null}
             </div>
-          )}
+          </div>
         </SidebarItem>
       </ActionMenu>
+      <ActionMenu
+        className="w-full"
+        open={rolesIsOpen}
+        onOpenChange={setRolesIsOpen}
+        actions={roleActions}
+      />
       <ConfirmationModal
         title="Kick Member"
         message={`Are you sure you want to kick ${member}?`}
@@ -161,6 +267,14 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
 });
 
 export default function Members() {
+  const [toggleSearch, setToggleSearch] = useState(false);
+  const [search, setSearch] = useState('');
+  const [rawInput, setRawInput] = useState('');
+  const onUpdate = useRef(
+    debounce((value: string) => {
+      setSearch(value);
+    }, 150)
+  );
   const flag = useRouteGroup();
   const group = useGroup(flag, true);
   const members = useMemo(() => {
@@ -193,17 +307,68 @@ export default function Members() {
     });
   }, [group]);
 
+  const results = useMemo(
+    () =>
+      fuzzy
+        .filter(search, members)
+        .sort((a, b) => {
+          const filter = deSig(search) || '';
+          const left = deSig(a.string)?.startsWith(filter)
+            ? a.score + 1
+            : a.score;
+          const right = deSig(b.string)?.startsWith(filter)
+            ? b.score + 1
+            : b.score;
+
+          return right - left;
+        })
+        .map((result) => members[result.index]),
+    [search, members]
+  );
+
+  const onChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const { value } = event.target;
+    setRawInput(value);
+    onUpdate.current(value);
+  }, []);
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-white">
-      <MobileHeader title="Members" pathBack=".." />
+      <MobileHeader
+        title={
+          !toggleSearch ? (
+            'Members'
+          ) : (
+            <input
+              autoFocus
+              className="input"
+              placeholder="Filter Members"
+              value={rawInput}
+              onChange={onChange}
+            />
+          )
+        }
+        pathBack=".."
+        action={
+          <div className="flex h-12 flex-row items-center justify-end space-x-2">
+            <button onClick={() => setToggleSearch(!toggleSearch)}>
+              {toggleSearch ? (
+                <XIcon className="h-6 w-6 text-gray-800" />
+              ) : (
+                <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-800" />
+              )}
+            </button>
+          </div>
+        }
+      />
       <div className="h-full overflow-auto px-4">
         <Divider isMobile={true}>Admin</Divider>
         {admins.map((admin) => (
-          <Member member={admin} />
+          <Member key={admin} member={admin} />
         ))}
         <Divider isMobile={true}>Everyone else</Divider>
-        {members.map((member) => (
-          <Member member={member} />
+        {results.map((member) => (
+          <Member key={member} member={member} />
         ))}
       </div>
     </div>
