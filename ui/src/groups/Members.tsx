@@ -1,4 +1,4 @@
-import _, { debounce } from 'lodash';
+import { debounce } from 'lodash';
 import React, {
   ChangeEvent,
   MouseEvent,
@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import { deSig } from '@urbit/api';
 import { useLocation, useNavigate } from 'react-router';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -39,6 +40,7 @@ import { Vessel } from '@/types/groups';
 import CheckIcon from '@/components/icons/CheckIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import RoleBadges from '@/components/RoleBadges';
 
 interface GroupMemberItemProps {
   member: string;
@@ -121,7 +123,6 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
   const [loadingBan, setLoadingBan] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const contact = useContact(member);
-  const vessel = useVessel(flag, member);
   const location = useLocation();
   const modalNavigate = useModalNavigate();
   const navigateByApp = useNavigateByApp();
@@ -209,7 +210,7 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
   }
 
   return (
-    <>
+    <div key={member}>
       <ActionMenu
         className="w-full"
         open={isOpen}
@@ -226,13 +227,7 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
             ) : (
               <ShipName name={member} full />
             )}
-            {vessel.sects.length > 0
-              ? _.pull(vessel.sects, 'member').map((s) => (
-                  <div className="mt-1 rounded-[100px] bg-gray-50 px-2 py-[7px] text-sm font-normal text-gray-400">
-                    <span key={s}>{getSectTitle(group.cabals, s)}</span>
-                  </div>
-                ))
-              : null}
+            <RoleBadges ship={member} inList />
           </div>
         </SidebarItem>
       </ActionMenu>
@@ -260,9 +255,35 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
         open={showBanConfirm}
         setOpen={setShowBanConfirm}
       />
-    </>
+    </div>
   );
 });
+
+function MemberScroller({ members }: { members: string[] }) {
+  const thresholds = {
+    atBottomThreshold: 125,
+    atTopThreshold: 125,
+    overscan: { main: 200, reverse: 200 },
+  };
+
+  if (members.length === 0) {
+    return <p>No members</p>;
+  }
+
+  return (
+    <Virtuoso
+      {...thresholds}
+      data={members}
+      computeItemKey={(i, member: string) => member}
+      itemContent={(i, member: string) => (
+        <Member key={member} member={member} />
+      )}
+      style={{
+        minHeight: '100%',
+      }}
+    />
+  );
+}
 
 export default function Members() {
   const [toggleSearch, setToggleSearch] = useState(false);
@@ -365,9 +386,12 @@ export default function Members() {
           <Member key={admin} member={admin} />
         ))}
         <Divider isMobile={true}>Everyone else</Divider>
-        {results.map((member) => (
-          <Member key={member} member={member} />
-        ))}
+        {results.length === 0 ? (
+          <p className="mt-4 text-center text-gray-400">
+            No members match your search
+          </p>
+        ) : null}
+        <MemberScroller members={results} />
       </div>
     </div>
   );
