@@ -33,7 +33,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
 
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (
-      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[18px] leading-[26px]">
+      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
         <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
           <ContentReference
             contextApp="heap-detail"
@@ -46,7 +46,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
 
   if (isText) {
     return (
-      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[18px] leading-[26px]">
+      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
         <div className="max-h-[100%] max-w-prose overflow-y-auto">
           <HeapContent content={content} />
         </div>

@@ -118,10 +118,10 @@ export default function ChatThread() {
     >
       {isMobile ? (
         <MobileHeader
-          title={<BranchIcon className="h-6 w-6 text-gray-600" />}
-          secondaryTitle={
+          title={
             <div className="flex w-full items-center justify-center space-x-1">
-              <h1 className="text-[18px] text-gray-800">
+              <BranchIcon className="h-6 w-6 text-gray-600" />
+              <h1 className="text-[17px] text-gray-800">
                 Thread
                 {appName === 'Groups' && <span>: {threadTitle}</span>}
               </h1>
