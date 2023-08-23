@@ -1,23 +1,48 @@
 import React, { useEffect, useState } from 'react';
 import { useIsMobile } from './useMedia';
+import { logTime } from './utils';
+
+type Point = { x: number; y: number };
+type Action = 'click' | 'longpress' | '';
 
 export default function useLongPress() {
-  const [action, setAction] = useState('');
+  const [action, setAction] = useState<Action>('');
   const isMobile = useIsMobile();
   const timerRef = React.useRef<ReturnType<typeof setTimeout>>();
   const isLongPress = React.useRef(false);
+  const downPoint = React.useRef<Point>({ x: 0, y: 0 });
+  const currentPoint = React.useRef<Point>({ x: 0, y: 0 });
+
+  const release = (point: Point) => {
+    if (
+      isLongPress.current &&
+      Math.abs(point.x - downPoint.current.x) < 10 &&
+      Math.abs(point.y - downPoint.current.y) < 10
+    ) {
+      logTime('release', point, downPoint.current);
+      setAction('longpress');
+    } else {
+      logTime('release without longpress', point, downPoint.current);
+      setAction('');
+    }
+
+    isLongPress.current = false;
+  };
 
   const start = () => {
-    isLongPress.current = false;
+    logTime('start', downPoint.current);
+    setAction('');
+
     timerRef.current = setTimeout(() => {
       isLongPress.current = true;
-      setAction('longpress');
+      release(currentPoint.current);
     }, 300);
   };
 
-  const stop = () => {
+  const stop = (point: Point) => {
+    logTime('stop', point, isLongPress.current);
     clearTimeout(timerRef.current);
-    setAction('');
+    release(point);
   };
 
   const onClick = () => {
@@ -27,24 +52,46 @@ export default function useLongPress() {
     setAction('click');
   };
 
-  const onMouseDown = () => {
+  const onMouseDown = (e: React.MouseEvent) => {
+    downPoint.current = { x: e.pageX, y: e.pageY };
+    currentPoint.current = { x: e.pageX, y: e.pageY };
     start();
   };
 
-  const onMouseUp = () => {
-    stop();
+  const onMouseMove = (e: React.MouseEvent) => {
+    currentPoint.current = { x: e.pageX, y: e.pageY };
   };
 
-  const onTouchStart = () => {
+  const onMouseUp = (e: React.MouseEvent) => {
+    stop({ x: e.pageX, y: e.pageY });
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    downPoint.current = {
+      x: e.changedTouches[0].pageX,
+      y: e.changedTouches[0].pageY,
+    };
+    currentPoint.current = {
+      x: e.changedTouches[0].pageX,
+      y: e.changedTouches[0].pageY,
+    };
     start();
   };
 
-  const onTouchEnd = () => {
-    stop();
+  const onTouchMove = (e: React.TouchEvent) => {
+    currentPoint.current = {
+      x: e.changedTouches[0].pageX,
+      y: e.changedTouches[0].pageY,
+    };
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    stop({ x: e.changedTouches[0].pageX, y: e.changedTouches[0].pageY });
   };
 
   const onContextMenu = (e: React.MouseEvent) => {
-    if (isMobile && action === 'longpress') {
+    logTime('onContextMenu', action, isMobile, isLongPress.current);
+    if (isMobile && (action === 'longpress' || isLongPress.current)) {
       e.preventDefault();
     }
   };
@@ -62,8 +109,10 @@ export default function useLongPress() {
     handlers: {
       onClick,
       onMouseDown,
+      onMouseMove,
       onMouseUp,
       onTouchStart,
+      onTouchMove,
       onTouchEnd,
       onContextMenu,
     },
