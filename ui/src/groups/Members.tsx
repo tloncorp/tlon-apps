@@ -226,15 +226,13 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
             ) : (
               <ShipName name={member} full />
             )}
-            <div className="mt-1 text-sm font-normal text-gray-400">
-              {vessel.sects.length > 0
-                ? _.pull(vessel.sects, 'member').map((s) => (
-                    <span key={s} className="mr-1">
-                      {getSectTitle(group.cabals, s)}
-                    </span>
-                  ))
-                : null}
-            </div>
+            {vessel.sects.length > 0
+              ? _.pull(vessel.sects, 'member').map((s) => (
+                  <div className="mt-1 rounded-[100px] bg-gray-50 px-2 py-[7px] text-sm font-normal text-gray-400">
+                    <span key={s}>{getSectTitle(group.cabals, s)}</span>
+                  </div>
+                ))
+              : null}
           </div>
         </SidebarItem>
       </ActionMenu>
