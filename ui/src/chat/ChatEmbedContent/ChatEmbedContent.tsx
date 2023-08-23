@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Player } from 'video-react';
+import { BigPlayButton, Player } from 'video-react';
 import { AUDIO_REGEX, validOembedCheck, VIDEO_REGEX } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
@@ -56,8 +56,10 @@ function ChatEmbedContent({
 
   if (isVideo) {
     return (
-      <div className="flex flex-col">
-        <Player playsInline src={url} />
+      <div className="flex max-w-[600px] max-h-[340px] flex-col">
+        <Player playsInline src={url}>
+          <BigPlayButton position="center" />
+        </Player>
       </div>
     );
   }
