@@ -21,7 +21,6 @@ import {
 } from '@/state/groups';
 import { useChatState } from '@/state/chat';
 import { useDiaries } from '@/state/diary';
-import { useHeapState, useStash } from '@/state/heap/heap';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GlobeIcon from '@/components/icons/GlobeIcon';
@@ -30,6 +29,7 @@ import KeyIcon from '@/components/icons/KeyIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import IconButton from '@/components/IconButton';
 import Tooltip from '@/components/Tooltip';
+import { useStash } from '@/state/heap/heap';
 import RoleCreate from './GroupRoleCreate';
 
 function eqRoleName(a: string, b: string) {

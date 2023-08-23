@@ -1,12 +1,6 @@
 import cn from 'classnames';
 import React, { ReactNode, useState } from 'react';
-import {
-  channelHref,
-  canReadChannel,
-  nestToFlag,
-  getFlagParts,
-  isChannelImported,
-} from '@/logic/utils';
+import { channelHref, canReadChannel } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGroup,
@@ -27,13 +21,7 @@ import {
   useCheckChannelUnread,
 } from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import HashIcon16 from '@/components/icons/HashIcon16';
-import MigrationTooltip from '@/components/MigrationTooltip';
-import {
-  usePendingImports,
-  useStartedMigration,
-} from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -119,32 +107,10 @@ interface UnmigratedChannelProps {
   isMobile: boolean;
 }
 
-function UnmigratedChannel({
-  icon,
-  host,
-  title,
-  isMobile,
-}: UnmigratedChannelProps) {
-  return (
-    <MigrationTooltip ship={host} side="right">
-      <SidebarItem
-        icon={icon}
-        actions={
-          <Bullet16Icon className="m-2 h-4 w-4 text-orange opacity-60" />
-        }
-      >
-        <span className="opacity-60">{title}</span>
-      </SidebarItem>
-    </MigrationTooltip>
-  );
-}
-
 export default function ChannelList({ className }: ChannelListProps) {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const connected = useGroupConnection(flag);
-  const pendingImports = usePendingImports();
-  const { hasStarted } = useStartedMigration(flag);
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels } = useChannelSections(flag);
@@ -178,43 +144,22 @@ export default function ChannelList({ className }: ChannelListProps) {
     channels
       .filter(
         ([nest, chan]) =>
-          (isChannelJoined(nest) &&
-            canReadChannel(chan, vessel, group?.bloc)) ||
-          nest in pendingImports
+          isChannelJoined(nest) && canReadChannel(chan, vessel, group?.bloc)
       )
       .map(([nest, channel]) => {
-        const [, chFlag] = nestToFlag(nest);
-        const { ship } = getFlagParts(chFlag);
-        const imported =
-          isChannelImported(nest, pendingImports) && hasStarted(ship);
         const icon = (active: boolean) =>
           isMobile ? (
             <span
               className={cn(
                 'flex h-12 w-12 items-center justify-center rounded-md',
-                !imported && 'opacity-60',
                 active && 'bg-white'
               )}
             >
               <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
             </span>
           ) : (
-            <ChannelIcon
-              nest={nest}
-              className={cn('h-6 w-6', !imported && 'opacity-60')}
-            />
+            <ChannelIcon nest={nest} className="h-6 w-6" />
           );
-
-        if (!imported) {
-          return (
-            <UnmigratedChannel
-              icon={icon}
-              title={channel.meta.title || nest}
-              host={ship}
-              isMobile={isMobile}
-            />
-          );
-        }
 
         return (
           <SidebarItem

@@ -1,7 +1,5 @@
-/-  g=groups, c=cite, graph-store, e=epic
+/-  g=groups, c=cite, e=epic
 /-  zer=diary-0
-/-  metadata-store
-/+  lib-graph=graph-store
 |%
 ++  old
   |%
@@ -11,10 +9,10 @@
 ++  okay  `epic:e`1
 ++  mar
   |%
-  ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
-  ++  cmd  `mark`(rap 3 %diary-command '-' (scot %ud okay) ~)
-  ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
-  ++  log  `mark`(rap 3 %diary-logs '-' (scot %ud okay) ~)
+  ++  act  `mark`%diary-action
+  ++  cmd  `mark`%diary-command
+  ++  upd  `mark`%diary-update
+  ++  log  `mark`%diary-logs
   --
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
@@ -255,7 +253,7 @@
 ::  $diff: the full suite of modifications that can be made to a diary
 ::
 +$  diff
-  $%  [%create =perm =notes]
+  $%  [%create =create]
       [%notes =id:notes =delta:notes]
       [%add-writers sects=(set sect:g)]
       [%del-writers sects=(set sect:g)]
@@ -304,8 +302,7 @@
 ::
 ::  $create: represents a request to create a channel
 ::
-::    The name will be used as part of the flag which represents the
-::    channel. $create is consumed by the diary agent first and then
+::    $create is consumed by the diary agent first and then
 ::    passed to the groups agent to register the channel with the group.
 ::
 ::    Write permission is stored with the specific agent in the channel,
@@ -313,18 +310,9 @@
 ::
 +$  create
   $:  group=flag:g
-      name=term
       title=cord
       description=cord
       readers=(set sect:g)
       writers=(set sect:g)
   ==
-+$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
-::
-+$  imports  (map flag import)
-::
-++  gra  graph-store
-++  orm-gra  orm:lib-graph
-++  orm-log-gra  orm-log:lib-graph
-++  met  metadata-store
 --

@@ -8,8 +8,6 @@ import {
 } from '@tanstack/react-query';
 import _ from 'lodash';
 import bigInt from 'big-integer';
-import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
-import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import {
   CurioDelta,
@@ -34,38 +32,6 @@ import useNest from '@/logic/useNest';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { CURIO_PAGE_SIZE } from '@/constants';
 import { useGroup, useVessel } from '../groups';
-import { createState } from '../base';
-
-setAutoFreeze(false);
-export interface HeapState {
-  set: (fn: (sta: HeapState) => void) => void;
-  batchSet: (fn: (sta: HeapState) => void) => void;
-  pendingImports: Record<string, boolean>;
-  initImports: (init: Record<string, boolean>) => void;
-  [key: string]: unknown;
-}
-
-export const useHeapState = createState<HeapState>(
-  'heap',
-  (set, get) => ({
-    set: (fn) => {
-      set(produce(get(), fn));
-    },
-    batchSet: (fn) => {
-      batchUpdates(() => {
-        get().set(fn);
-      });
-    },
-    pendingImports: {},
-    initImports: (init) => {
-      get().batchSet((draft) => {
-        draft.pendingImports = init;
-      });
-    },
-  }),
-  {},
-  []
-);
 
 function subscribeOnce<T>(app: string, path: string) {
   return new Promise<T>((resolve) => {

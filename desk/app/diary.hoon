@@ -4,8 +4,6 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
-/+  migrate=diary-graph
-/+  chat-migrate=chat-graph
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  diary-json
@@ -431,6 +429,9 @@
   ++  di-send-command
     |=  =command:d
     ^+  di-core
+    ::  don't allow anyone else to proxy through us
+    ?.  =(src.bowl our.bowl)
+      ~|("%diary-action poke failed: only allowed from self" !!)
     ?:  di-am-host
       (di-command command)
     =/  =dock  [p.flag dap.bowl]
@@ -675,21 +676,6 @@
       di-core
     di-make-lev
   ::
-  ++  di-proxy
-    |=  =update:d
-    ^+  di-core
-        ::  don't allow anyone else to proxy through us
-    ?.  =(src.bowl our.bowl)
-      ~|("%diary-action poke failed: only allowed from self" !!)
-    ::  must have permission to write
-    ?.  di-can-write
-      ~|("%diary-action poke failed: can't write to host" !!)
-    =/  =dock  [p.flag dap.bowl]
-    =/  =cage  [act:mar:d !>([flag update])]
-    =.  cor
-      (emit %pass di-area %agent dock %poke cage)
-    di-core
-  ::
   ++  di-groups-scry
     ^-  path
     =*  group  group.perm.diary
@@ -756,14 +742,12 @@
     |^  ^+  di-core
     ~_  leaf+"Create failed: check group permissions"
     ?>  can-nest
-    ?>  ((sane %tas) name.create)
-    =/  =flag:d  [our.bowl name.create]
-    =|  =diary:d
-    =/  =perm:d  [writers.create group.create]
-    =.  perm.diary  perm
+    ?>  di-am-host
+    ?>  ((sane %tas) p.flag)
+    =.  perm.diary  [writers.create group.create]
     =.  net.diary  [%pub ~]
     =.  cor  (give-brief flag di-brief)
-    =.  di-core  (di-apply-update now.bowl %create perm notes.diary)
+    =.  di-core  (di-apply-update now.bowl %create create)
     (di-create-channel create)
     ::  +can-nest: does group exist, are we allowed
     ::
@@ -822,14 +806,14 @@
     (~(put in out) [ship path])
   ::
   ++  di-give-updates
-    |=  [=time d=diff:d]
+    |=  =update:d
     ^+  di-core
     =/  paths=(set path)
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
     =.  paths  (~(put in paths) (snoc di-area %ui))
-    =.  cor  (give %fact ~[/ui] act:mar:^d !>([flag [time d]]))
-    =/  cag=cage  [upd:mar:^d !>([time d])]
+    =.  cor  (give %fact ~[/ui] act:mar:d !>([flag diff.update]))
+    =/  cag=cage  [upd:mar:d !>(update)]
     =.  cor
       (give %fact ~(tap in paths) cag)
     di-core
@@ -890,10 +874,10 @@
     ^+  di-core
     =.  di-core  (di-give-updates time diff)
     ?-    -.diff
-      %create  di-core(notes.diary notes.diff, perm.diary perm.diff)
       %sort    di-core(sort.diary sort.diff)
       %view    di-core(view.diary view.diff)
       %order   di-core(arranged-notes.diary notes.diff)
+      %create  di-core(perm.diary [writers group]:create.diff)
     ::
         %notes
       =.  notes.diary  (reduce:di-notes time [id delta]:diff)

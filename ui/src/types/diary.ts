@@ -215,7 +215,6 @@ interface NoteDeltaDel {
 
 interface NoteDeltaAddFeel {
   'add-feel': {
-    time: string;
     feel: string;
     ship: string;
   };
@@ -225,16 +224,16 @@ interface NoteDeltaDelFeel {
   'del-feel': string;
 }
 
-interface DiaryDiffAddSects {
-  'add-sects': string[];
+interface DiaryDiffAddWriters {
+  'add-writers': string[];
 }
 
-interface DiaryDiffDelSects {
-  'del-sects': string[];
+interface DiaryDiffDelWriters {
+  'del-writers': string[];
 }
 
 interface DiaryDiffArrangedNotes {
-  'arranged-notes': string[];
+  order: string[];
 }
 
 interface DiaryDiffSort {
@@ -254,30 +253,19 @@ export type NoteDelta =
   | NoteDeltaQuips;
 
 export interface NoteDiff {
-  time: string;
-  delta: NoteDelta;
+  id: string;
+  command: NoteDelta;
 }
 
 export interface DiaryDiffView {
   view: DiaryDisplayMode;
 }
 
-export type DiaryDiff =
-  | { notes: NoteDiff }
-  | DiaryDiffView
-  | DiaryDiffAddSects
-  | DiaryDiffDelSects
-  | DiaryDiffArrangedNotes
-  | DiaryDiffSort;
-
-export interface DiaryUpdate {
-  time: string;
-  diff: DiaryDiff;
-}
-
-export interface DiaryAction {
-  flag: string;
-  update: DiaryUpdate;
+export interface DiaryCreateDiff {
+  create: {
+    perm: DiaryPerm;
+    notes: DiaryNoteMap;
+  };
 }
 
 export interface QuipDeltaAdd {
@@ -306,8 +294,8 @@ export type QuipDelta =
   | QuipDeltaDelFeel;
 
 export interface QuipDiff {
-  time: string;
-  delta: QuipDelta;
+  id: string;
+  command: QuipDelta;
 }
 
 export type DiaryDisplayMode = 'list' | 'grid';
@@ -365,12 +353,47 @@ export interface DiarySaid {
   outline: DiaryOutline;
 }
 
-export interface DiaryJoin {
-  group: string;
-  chan: DiaryFlag;
-}
-
 export interface DiaryInit {
   briefs: DiaryBriefs;
   shelf: Shelf;
+}
+
+export type DiaryDiff = DiaryCreateDiff | DiaryCommand;
+
+export interface DiaryUpdate {
+  time: string;
+  diff: DiaryDiff;
+}
+
+export interface DiaryFlagUpdate {
+  flag: DiaryFlag;
+  update: DiaryUpdate;
+}
+
+export type DiaryAction =
+  | { create: Omit<DiaryCreate, 'name'> }
+  | { join: DiaryFlag }
+  | { leave: null }
+  | { read: null }
+  | { 'read-at': string }
+  | { watch: null }
+  | { unwatch: null }
+  | DiaryCommand;
+
+export interface DiaryFlagAction {
+  flag: DiaryFlag;
+  action: DiaryAction;
+}
+
+export type DiaryCommand =
+  | { notes: NoteDiff }
+  | DiaryDiffView
+  | DiaryDiffAddWriters
+  | DiaryDiffDelWriters
+  | DiaryDiffArrangedNotes
+  | DiaryDiffSort;
+
+export interface DiaryFlagCommand {
+  flag: DiaryFlag;
+  command: DiaryCommand;
 }

@@ -90,7 +90,6 @@ function Groups() {
       // done this way to prevent too many renders from useAllBriefs
       const allBriefs = {
         ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
-        // ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
         ..._.mapKeys(heapBriefs, (k, v) => `heap/${k}`),
         ..._.mapKeys(diaryBriefs, (v, k) => `diary/${k}`),
       };

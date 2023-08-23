@@ -1,6 +1,4 @@
 import bigInt from 'big-integer';
-import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
-import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import { useMemo } from 'react';
 import {
@@ -13,7 +11,6 @@ import {
   Ship,
   DiaryQuips,
   Diary,
-  DiaryDiff,
   DiaryFlag,
   DiaryPerm,
   DiaryMemo,
@@ -22,14 +19,13 @@ import {
   DiaryDisplayMode,
   DiarySortMode,
   DiarySaid,
-  DiaryUpdate,
-  DiaryJoin,
   DiaryCreate,
   DiaryBriefs,
   DiaryOutline,
   NoteEssay,
   DiaryStory,
   DiaryOutlines,
+  DiaryFlagAction,
 } from '@/types/diary';
 import api from '@/api';
 import { restoreMap } from '@/logic/utils';
@@ -37,10 +33,8 @@ import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { DiaryState } from './type';
-import { createState } from '../base';
-
-setAutoFreeze(false);
+import { Poke } from '@urbit/http-api';
+import create from 'zustand';
 
 interface NoteSealInCache {
   time: string;
@@ -82,51 +76,37 @@ async function updateNotesInCache(
   queryClient.setQueryData(['diary', 'notes', variables.flag], updater);
 }
 
-function diaryAction(flag: DiaryFlag, diff: DiaryDiff) {
+function diaryAction(
+  flag: DiaryFlag,
+  action: DiaryAction
+): Poke<DiaryFlagAction> {
   return {
     app: 'diary',
-    mark: 'diary-action-1',
+    mark: 'diary-action',
     json: {
       flag,
-      update: {
-        time: '',
-        diff,
-      },
+      action,
     },
   };
 }
 
-function diaryNoteDiff(flag: DiaryFlag, time: string, delta: NoteDelta) {
+function diaryNoteDiff(flag: DiaryFlag, id: string, command: NoteDelta) {
   return diaryAction(flag, {
     notes: {
-      time,
-      delta,
+      id,
+      command,
     },
   });
 }
 
-export const useDiaryState = createState<DiaryState>(
-  'diary',
-  (set, get) => ({
-    set: (fn) => {
-      set(produce(get(), fn));
-    },
-    batchSet: (fn) => {
-      batchUpdates(() => {
-        get().set(fn);
-      });
-    },
-    pendingNotes: [],
-    pendingImports: {},
-    initImports: (init) => {
-      get().batchSet((draft) => {
-        draft.pendingImports = init;
-      });
-    },
-  }),
-  {},
-  []
-);
+export interface DiaryState {
+  pendingNotes: string[];
+  [key: string]: unknown;
+}
+
+export const useDiaryState = create<DiaryState>(() => ({
+  pendingNotes: [],
+}));
 
 export function usePendingNotes() {
   return useDiaryState((s) => s.pendingNotes);
@@ -446,14 +426,7 @@ export function useRemoteOutline(
 
 export function useMarkReadDiaryMutation() {
   const mutationFn = async (variables: { flag: string }) => {
-    await api.poke({
-      app: 'diary',
-      mark: 'diary-remark-action',
-      json: {
-        flag: variables.flag,
-        diff: { read: null },
-      },
-    });
+    await api.poke(diaryAction(variables.flag, { read: null }));
   };
 
   return useMutation({
@@ -462,18 +435,19 @@ export function useMarkReadDiaryMutation() {
 }
 
 export function useJoinDiaryMutation() {
-  const mutationFn = async (variables: { group: string; chan: string }) => {
-    await api.trackedPoke<DiaryJoin, DiaryAction>(
-      {
-        app: 'diary',
-        mark: 'channel-join',
-        json: {
-          group: variables.group,
-          chan: variables.chan,
-        },
-      },
+  const mutationFn = async ({
+    group,
+    chan,
+  }: {
+    group: string;
+    chan: string;
+  }) => {
+    await api.trackedPoke<DiaryFlagAction>(
+      diaryAction(chan, {
+        join: group,
+      }),
       { app: 'diary', path: '/ui' },
-      (event) => event.flag === variables.chan && 'create' in event.update.diff
+      (event) => event.flag === chan && 'create' in event.action
     );
   };
 
@@ -483,11 +457,7 @@ export function useJoinDiaryMutation() {
 export function useLeaveDiaryMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { flag: string }) => {
-    await api.poke({
-      app: 'diary',
-      mark: 'diary-leave',
-      json: variables.flag,
-    });
+    await api.poke(diaryAction(variables.flag, { leave: null }));
   };
 
   return useMutation({
@@ -594,7 +564,7 @@ export function useArrangedNotesDiaryMutation() {
 
     await api.poke(
       diaryAction(variables.flag, {
-        'arranged-notes': variables.arrangedNotes.map((t) => decToUd(t)),
+        order: variables.arrangedNotes.map((t) => decToUd(t)),
       })
     );
   };
@@ -637,17 +607,19 @@ export function useAddNoteMutation() {
     new Promise<string>((resolve) => {
       timePosted = variables.initialTime;
       api
-        .trackedPoke<DiaryAction, DiaryUpdate>(
+        .trackedPoke<DiaryFlagAction>(
           diaryNoteDiff(variables.flag, decToUd(variables.initialTime), {
             add: variables.essay,
           }),
           { app: 'diary', path: `/diary/${variables.flag}/ui` },
-          (event) => {
-            const { time, diff } = event;
-            if ('notes' in diff) {
-              const { delta } = diff.notes;
-              if ('add' in delta && delta.add.sent === variables.essay.sent) {
-                timePosted = time;
+          ({ action }) => {
+            if ('notes' in action) {
+              const { id, command } = action.notes;
+              if (
+                'add' in command &&
+                command.add.sent === variables.essay.sent
+              ) {
+                timePosted = id;
                 return true;
               }
               return false;
@@ -667,7 +639,7 @@ export function useAddNoteMutation() {
       await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
       await queryClient.cancelQueries(['diary', 'briefs']);
 
-      useDiaryState.getState().set((state) => ({
+      useDiaryState.setState((state) => ({
         pendingNotes: [variables.initialTime, ...state.pendingNotes],
       }));
 
@@ -716,7 +688,7 @@ export function useAddNoteMutation() {
       }
     },
     onSuccess: async (_data, variables) => {
-      useDiaryState.getState().set((state) => ({
+      useDiaryState.setState((state) => ({
         pendingNotes: state.pendingNotes.filter(
           (time) => time !== variables.initialTime
         ),
@@ -829,18 +801,12 @@ export function useCreateDiaryMutation() {
   const queryClient = useQueryClient();
 
   const mutationFn = async (variables: DiaryCreate) => {
-    await api.trackedPoke<DiaryCreate, DiaryAction>(
-      {
-        app: 'diary',
-        mark: 'diary-create',
-        json: variables,
-      },
+    await api.trackedPoke<DiaryFlagAction>(
+      diaryAction(`${window.our}/${variables.name}`, { create: variables }),
       { app: 'diary', path: '/ui' },
       (event) => {
-        const { update, flag } = event;
-        return (
-          'create' in update.diff && flag === `${window.our}/${variables.name}`
-        );
+        const { action, flag } = event;
+        return 'create' in action && flag === `${window.our}/${variables.name}`;
       }
     );
   };
@@ -890,7 +856,7 @@ export function useAddSectsDiaryMutation() {
     writers: string[];
   }) => {
     await api.poke(
-      diaryAction(variables.flag, { 'add-sects': variables.writers })
+      diaryAction(variables.flag, { 'add-writers': variables.writers })
     );
   };
 
@@ -933,7 +899,7 @@ export function useDeleteSectsDiaryMutation() {
     writers: string[];
   }) => {
     await api.poke(
-      diaryAction(variables.flag, { 'del-sects': variables.writers })
+      diaryAction(variables.flag, { 'del-writers': variables.writers })
     );
   };
 
@@ -982,13 +948,13 @@ export function useAddQuipMutation() {
       author: window.our,
       sent: Date.now(),
     };
-    const diff: DiaryDiff = {
+    const action: DiaryAction = {
       notes: {
-        time: replying,
-        delta: {
+        id: replying,
+        command: {
           quips: {
-            time: decToUd(unixToDa(Date.now()).toString()),
-            delta: {
+            id: decToUd(unixToDa(Date.now()).toString()),
+            command: {
               add: memo,
             },
           },
@@ -996,7 +962,7 @@ export function useAddQuipMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, diff));
+    await api.poke(diaryAction(variables.flag, action));
   };
 
   return useMutation({
@@ -1069,13 +1035,13 @@ export function useDeleteQuipMutation() {
     noteId: string;
     quipId: string;
   }) => {
-    const diff: DiaryDiff = {
+    const action: DiaryAction = {
       notes: {
-        time: decToUd(variables.noteId),
-        delta: {
+        id: decToUd(variables.noteId),
+        command: {
           quips: {
-            time: decToUd(variables.quipId),
-            delta: {
+            id: decToUd(variables.quipId),
+            command: {
               del: null,
             },
           },
@@ -1083,7 +1049,7 @@ export function useDeleteQuipMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, diff));
+    await api.poke(diaryAction(variables.flag, action));
   };
 
   return useMutation({
@@ -1145,12 +1111,11 @@ export function useAddNoteFeelMutation() {
     noteId: string;
     feel: string;
   }) => {
-    const diff: DiaryDiff = {
+    const action: DiaryAction = {
       notes: {
-        time: decToUd(variables.noteId),
-        delta: {
+        id: decToUd(variables.noteId),
+        command: {
           'add-feel': {
-            time: decToUd(unixToDa(Date.now()).toString()),
             feel: variables.feel,
             ship: window.our,
           },
@@ -1158,7 +1123,7 @@ export function useAddNoteFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, diff));
+    await api.poke(diaryAction(variables.flag, action));
   };
 
   return useMutation({
@@ -1202,16 +1167,16 @@ export function useAddNoteFeelMutation() {
 export function useDeleteNoteFeelMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { flag: DiaryFlag; noteId: string }) => {
-    const diff: DiaryDiff = {
+    const action: DiaryAction = {
       notes: {
-        time: decToUd(variables.noteId),
-        delta: {
+        id: decToUd(variables.noteId),
+        command: {
           'del-feel': window.our,
         },
       },
     };
 
-    await api.poke(diaryAction(variables.flag, diff));
+    await api.poke(diaryAction(variables.flag, action));
   };
 
   return useMutation({
@@ -1261,13 +1226,13 @@ export function useAddQuipFeelMutation() {
     quipId: string;
     feel: string;
   }) => {
-    const diff: DiaryDiff = {
+    const action: DiaryAction = {
       notes: {
-        time: decToUd(variables.noteId),
-        delta: {
+        id: decToUd(variables.noteId),
+        command: {
           quips: {
-            time: decToUd(variables.quipId),
-            delta: {
+            id: decToUd(variables.quipId),
+            command: {
               'add-feel': {
                 feel: variables.feel,
                 ship: window.our,
@@ -1278,7 +1243,7 @@ export function useAddQuipFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, diff));
+    await api.poke(diaryAction(variables.flag, action));
   };
 
   return useMutation({
@@ -1328,13 +1293,13 @@ export function useDeleteQuipFeelMutation() {
     noteId: string;
     quipId: string;
   }) => {
-    const diff: DiaryDiff = {
+    const action: DiaryAction = {
       notes: {
-        time: decToUd(variables.noteId),
-        delta: {
+        id: decToUd(variables.noteId),
+        command: {
           quips: {
-            time: decToUd(variables.quipId),
-            delta: {
+            id: decToUd(variables.quipId),
+            command: {
               'del-feel': window.our,
             },
           },
@@ -1342,7 +1307,7 @@ export function useDeleteQuipFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, diff));
+    await api.poke(diaryAction(variables.flag, action));
   };
 
   return useMutation({

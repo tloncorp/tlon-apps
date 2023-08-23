@@ -94,7 +94,6 @@
     |=  =create:d
     %-  pairs
     :~  group+(flag group.create)
-        name+s+name.create
         title+s+title.create
         description+s+description.create
         readers+a+(turn ~(tap in readers.create) (lead %s))
@@ -137,7 +136,7 @@
   ++  action
     |=  =action:d
     %+  frond  -.action
-    ?+  -.action  (diff action)
+    ?+  -.action  (diff-inner action)
       %create     (create create.action)
       %join       (flag group.action)
       %leave      ~
@@ -149,26 +148,25 @@
   ::
   ++  diff
     |=  dif=diff:d
-    %+  frond  -.dif
+    (frond -.dif (diff-inner dif))
+  ::
+  ++  diff-inner
+    |=  dif=diff:d
     ?-  -.dif
         %view         s/view.dif
         %sort         s/sort.dif
+        %create       (create create.dif)
         %order        (arranged-notes notes.dif)
         %notes        (notes-diff id.dif delta.dif)
         %add-writers  a/(turn ~(tap in sects.dif) (lead %s))
         %del-writers  a/(turn ~(tap in sects.dif) (lead %s))
-        %create
-      %-  pairs
-      :~  perm+(perm perm.dif)
-          notes+(notes notes.dif)
-      ==
     ==
   ::
   ++  notes-diff
-    |=  [=id:notes:d =delta:notes:d]
+    |=  [=id:notes:d =command:notes:d]
     %-  pairs
-    :~  time/s/(scot %ud id)
-        delta/(notes-delta delta)
+    :~  id/s/(scot %ud id)
+        command/(notes-delta command)
     ==
   ::
   ++  notes-delta
@@ -182,8 +180,8 @@
         %del-feel  (ship p.delta)
         %quips
       %-  pairs
-      :~  time+s+(scot %ud id.delta)
-          delta+(quips-delta command.delta)
+      :~  id+s+(scot %ud id.delta)
+          command+(quips-delta command.delta)
       ==
     ==
   ::
@@ -383,7 +381,6 @@
     ^-  $-(json create:d)
     %-  ot
     :~  group+flag
-        name+(se %tas)
         title+so
         description+so
         readers+(as (se %tas))
@@ -427,8 +424,8 @@
   ::
   ++  quips-diff
     %-  ot
-    :~  time/(se %ud)
-        delta/quips-delta
+    :~  id/(se %ud)
+        command/quips-delta
     ==
   ::
   ++  quips-delta
@@ -456,7 +453,7 @@
     ^-  $-(json [id:notes:d command:notes:d])
     %-  ot
     :~  id/(se %ud)
-        delta/notes-delta
+        command/notes-delta
     ==
   ++  notes-delta
     ^-  $-(json delta:notes:d)

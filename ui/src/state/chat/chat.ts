@@ -163,7 +163,6 @@ export const useChatState = createState<ChatState>(
     pacts: {},
     drafts: {},
     pendingDms: [],
-    pendingImports: {},
     pins: [],
     sentMessages: [],
     postedMessages: [],
@@ -660,11 +659,6 @@ export const useChatState = createState<ChatState>(
         `/chat/${whom}/writs`,
         `/chat/${whom}/ui/writs`
       ).initialize();
-    },
-    initImports: (init) => {
-      get().batchSet((draft) => {
-        draft.pendingImports = init;
-      });
     },
     getDraft: async (whom) => {
       const chatDraft = await api.scry<ChatDraft>({

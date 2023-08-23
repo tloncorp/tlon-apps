@@ -89,10 +89,9 @@ function DiaryChannel({ title }: ViewProps) {
           queryKey: ['diary', 'notes', chFlag],
           exact: true,
         });
-        useDiaryState.getState().set((s) => ({
-          ...s,
+        useDiaryState.setState({
           pendingNotes: [],
-        }));
+        });
       }
     }
   }, [chFlag, queryClient, data, letters, notesOnHost, pendingNotes]);
@@ -115,8 +114,7 @@ function DiaryChannel({ title }: ViewProps) {
             ([_t, l]) => unixToDa(l.sent).toString() === id
           )
         ) {
-          useDiaryState.getState().set((s) => ({
-            ...s,
+          useDiaryState.setState((s) => ({
             pendingNotes: s.pendingNotes.filter((n) => n !== id),
           }));
         }

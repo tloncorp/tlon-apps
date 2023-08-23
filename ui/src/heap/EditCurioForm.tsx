@@ -5,7 +5,6 @@ import { EditCurioFormSchema } from '@/types/heap';
 import { useForm } from 'react-hook-form';
 import {
   useCurioWithComments,
-  useHeapState,
   useDelCurioMutation,
   useEditCurioMutation,
 } from '@/state/heap/heap';
