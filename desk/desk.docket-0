@@ -2,7 +2,7 @@
     info+'Start, host, and cultivate communities. Own your communications, organize your resources, and share documents. Groups is a decentralized platform that integrates with Talk, Notebook, and Gallery for a full, communal suite of tools.'
     color+0xef.f0f4
     image+'https://bootstrap.urbit.org/icon-groups.svg?v=1'
-    glob-http+['https://bootstrap.urbit.org/glob-0v2.hcf1t.0lf0l.c4ngr.jgiql.13kti.glob' 0v2.hcf1t.0lf0l.c4ngr.jgiql.13kti]
+    glob-http+['https://bootstrap.urbit.org/glob-0v6.urpc9.532gb.ql7nq.2k59c.3n8lp.glob' 0v6.urpc9.532gb.ql7nq.2k59c.3n8lp]
     base+'groups'
     version+[4 4 0]
     website+'https://tlon.io'
