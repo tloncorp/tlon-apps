@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import React, { useCallback, useState } from 'react';
+import React, { PropsWithChildren, useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog from '@/components/Dialog';
@@ -12,14 +12,14 @@ import { useIsChannelUnread } from '@/logic/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import DmInviteDialog from './DmInviteDialog';
 
-interface DMOptionsProps {
+type DMOptionsProps = PropsWithChildren<{
   whom: string;
   pending: boolean;
   isHovered?: boolean;
   className?: string;
   isMulti?: boolean;
   alwaysShowEllipsis?: boolean;
-}
+}>;
 
 export default function DmOptions({
   whom,
@@ -28,6 +28,7 @@ export default function DmOptions({
   isMulti = false,
   alwaysShowEllipsis = false,
   className,
+  children,
 }: DMOptionsProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -168,25 +169,30 @@ export default function DmOptions({
         open={isOpen}
         onOpenChange={(open) => setIsOpen(open)}
         actions={actions}
+        className={className}
       >
-        <div className={cn('relative h-6 w-6', className)}>
-          {!alwaysShowEllipsis && !isOpen && hasActivity ? (
-            <BulletIcon
-              className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
-              aria-label="Has Activity"
-            />
-          ) : null}
-          <button
-            className={cn(
-              'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-              hasActivity && 'text-blue',
-              isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
-            )}
-            aria-label="Open Message Options"
-          >
-            <EllipsisIcon className="h-6 w-6 text-inherit" />
-          </button>
-        </div>
+        {!alwaysShowEllipsis && children ? (
+          children
+        ) : (
+          <div className={cn('relative h-6 w-6 text-gray-600', className)}>
+            {!alwaysShowEllipsis && !isOpen && hasActivity ? (
+              <BulletIcon
+                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                aria-label="Has Activity"
+              />
+            ) : null}
+            <button
+              className={cn(
+                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                hasActivity && 'text-blue',
+                isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
+              )}
+              aria-label="Open Message Options"
+            >
+              <EllipsisIcon className="h-6 w-6 text-inherit" />
+            </button>
+          </div>
+        )}
       </ActionMenu>
       <Dialog open={dialog} onOpenChange={setDialog} containerClass="max-w-md">
         <div className="flex flex-col">

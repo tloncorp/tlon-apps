@@ -12,7 +12,7 @@ import Tooltip from './Tooltip';
 interface ShipConnectionProps {
   ship: string;
   status?: ConnectionStatus;
-  type?: 'default' | 'combo' | 'text';
+  type?: 'default' | 'combo' | 'text' | 'bullet';
   className?: string;
 }
 
@@ -46,10 +46,10 @@ export default function ShipConnection({
           </span>
         </Tooltip>
       )}
-      {type === 'combo' && (
+      {(type === 'combo' || type === 'bullet') && (
         <Bullet16Icon className={cn('h-4 w-4 flex-none', color)} />
       )}
-      {type !== 'default' && <span>{text}</span>}
+      {(type === 'combo' || type === 'text') && <span>{text}</span>}
     </span>
   );
 }
