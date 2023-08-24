@@ -36,28 +36,95 @@
 +$  plan
   (pair time (unit time))
 ::
+++  rev
+  |$  [data]
+  [rev=@ud data]
+::
+++  apply-rev
+  |*  [old=(rev) new=(rev)]
+  ?:  (lth rev.old rev.new)
+    new
+  old
+::
+++  apply-feels
+  |=  [old=feels new=feels]
+  (~(uno by old) new apply-rev)
+::
+::
 ::  $diary: written longform communication
 ::
-::    arranged-notes: a list of noteIds, used for manual sorting
-::    net: an indicator of whether I'm a host or subscriber
-::    log: the history of all modifications
-::    perm: holds the diary's permissions
+::    notes: the actual contents of the diary
+::    order: a list of noteIds, used for manual sorting
 ::    view: what format to display
 ::    sort: how to order posts
-::    notes: the actual contents of the diary
+::    perm: holds the diary's permissions
+::    net: an indicator of whether I'm a host or subscriber
+::    log: the history of all modifications
 ::    remark: what is the last thing we've read
-::    banter: comments organized by post
 ::
-+$  diary
-  $:  =arranged-notes
-      =net
-      =log
-      =perm
-      =view
-      =sort
-      =notes
-      =remark
-  ==
+++  diary
+  |^  ,[=global =local]
+  ::
+  ::  $global: should be identical between ships
+  ::
+  +$  global
+    $:  =notes
+        order=(rev order=arranged-notes)
+        view=(rev =view)
+        sort=(rev =sort)
+        perm=(rev =perm)
+    ==
+  ::
+  ::  $window: sparse set of time ranges
+  ::
+  +$  window  (list [from=time to=time])
+  ::
+  ::  .window: time range for requested notes that we haven't received
+  ::  .diffs: diffs for notes in the window, to apply on receipt
+  ::
+  +$  future
+    [=window diffs=(jug id:notes diff:notes)]
+  ::
+  ::  $local: local-only information
+  ::
+  +$  local
+    $:  =net
+        =log
+        =remark
+        =window
+        =future
+    ==
+  ::
+  ::  $diff: can be applied to global
+  ::
+  +$  diff
+    %-  list
+    $%  [%notes =id:notes =diff:notes]
+        [%order (rev order=arranged-notes)]
+        [%view (rev =view)]
+        [%sort (rev =sort)]
+        [%perm (rev =perm)]
+    ==
+  ::
+  ++  apply-diff
+    |=  [=global =diff]
+    ^-  (each global id)
+    ?~  diff
+      global
+    =.  global
+      ?-    -.i.diff
+          %order  &+global(order (apply-rev order.global +.i.diff))
+          %view   &+global(view (apply-rev view.global +.i.diff))
+          %sort   &+global(sort (apply-rev sort.global +.i.diff))
+          %perm   &+global(perm (apply-rev perm.global +.i.diff))
+          %notes
+        =/  res  (apply-diff:notes notes.global +.i.diff)
+        ?~  res
+          |+id.i.diff
+        &+global(notes u.res)
+      ==
+    $(diff t.diff)
+  --
 ::
 ::  $notes: a set of time ordered diary posts
 ::
@@ -65,16 +132,59 @@
   =<  rock
   |%
   +$  id  time
-  +$  rock  ((mop id note) lte)
-  ++  on    ((^on id note) lte)
-  +$  command  delta
-  +$  delta
+  +$  rock  ((mop id (unit note)) lte)
+  ++  on    ((^on id (unit note)) lte)
+  +$  command
     $%  [%add p=essay]
-        [%edit p=essay]
-        [%del ~]
-        [%quips =id:quips =command:quips]
-        [%add-feel p=ship q=feel]
-        [%del-feel p=ship]
+        [%edit =id:notes p=essay]
+        [%del =id:notes]
+        [%quips =id:notes =command:quips]
+        [%add-feel =id:notes p=ship q=feel]
+        [%del-feel =id:notes p=ship]
+    ==
+  ::
+  +$  diff
+    $%  [%set note=(unit note)]
+        [%quip =id:quips =diff:quips]
+        [%feels feels=(map ship (rev feel=(unit feel)))]
+        [%essay (rev =essay)]
+    ==
+  ::
+  ++  apply-notes
+    |=  [old=notes new=notes]
+    (uno:mpn old new apply-note)
+  ::
+  ++  apply-diff
+    |=  [old=notes =id =diff]
+    ^-  (unit notes)
+    ?:  ?=(%set -.diff)
+      :-  ~
+      %^  put:on  old  id
+      ?~  note.diff
+        ~
+      =/  old-note  (~(get by old) id)
+      ?~  old-note
+        note.diff
+      `(apply-note old-note u.note.diff)
+    ::
+    =/  old-note  (~(get by old) id)
+    ?~  old-note
+      ~
+    :-  ~
+    %^  put:on  old  id
+    :-  ~
+    ?-  -.diff
+      %quip   u.old-note(quips (apply-diff:quips quips.old-note +.diff))
+      %feels  u.old-note(feels (apply-feels feels.old-note +.diff))
+      %essay  u.old-note(+ (apply-rev essay.old-note +.diff))
+    ==
+  ::
+  ++  apply-note
+    |=  [old=note new=note]
+    %=  old
+      feels  (apply-feels feels.old feels.new)
+      essay  (apply-rev +.old +.new)
+      quips  (apply-quips quips.old quips.new)
     ==
   --
 ::
@@ -84,14 +194,48 @@
   =<  rock
   |%
   +$  id  time
-  +$  rock  ((mop id quip) lte)
-  ++  on    ((^on id quip) lte)
+  +$  rock  ((mop id (unit quip)) lte)
+  ++  on    ((^on id (unit quip)) lte)
   +$  command  delta
   +$  delta
     $%  [%add p=memo]
-        [%del ~]
-        [%add-feel p=ship q=feel]
-        [%del-feel p=ship]
+        [%del =id:quips]
+        [%add-feel =id:quips p=ship q=feel]
+        [%del-feel =id:quips p=ship]
+    ==
+  +$  diff
+    $%  [%set quip=(unit quip)]
+        [%feels feels=(map ship (rev feel=(unit feel)))]
+    ==
+  ::
+  ++  apply-quips
+    (uno:mpn old new apply-note)
+  ::
+  ++  apply-diff
+    |=  [old=quips =id =diff]
+    ^-  (unit quips)
+    ?:  ?=(%set -.diff)
+      :-  ~
+      %^  put:on  old  id
+      ?~  quips.diff
+        ~
+      =/  old-quips  (~(get by old) id)
+      ?~  old-quips
+        quips.diff
+      `(apply-quips old-quips u.quips.diff)
+    ::
+    =/  old-quip  (~(get by old) id)
+    ?~  old-quip
+      ~
+    :-  ~
+    %^  put:on  old  id
+    `u.old-quip(feels (apply-feels feels.old-quip +.diff))
+  ::
+  ++  apply-quip
+    |=  [old=note new=note]
+    %=  old
+      feels  (apply-feels feels.old feels.new)
+      memo  (apply-rev +.old +.new)
     ==
   --
 ::
@@ -110,7 +254,7 @@
 ::
 ::  $note: a diary post
 ::
-+$  note  [seal essay]
++$  note  [seal (rev essay)]
 ::  $quip: a post comment
 ::
 +$  quip  [cork memo]
@@ -120,14 +264,14 @@
 +$  seal
   $:  =time
       =quips
-      feels=(map ship feel)
+      feels=(map ship (rev (unit feel)))
   ==
 ::
 ::  $cork: host-side data for a quip
 ::
 +$  cork
   $:  =time
-      feels=(map ship feel)
+      feels=(map ship (rev (unit feel)))
   ==
 ::  $essay: the post data itself
 ::
@@ -243,10 +387,10 @@
 ::  $command: change request sent between ships
 ::
 +$  command
-  $%  [%notes =id:notes =command:notes]
+  $%  [%notes =command:notes]
       [%view =view]
       [%sort =sort]
-      [%order notes=arranged-notes]
+      [%order order=arranged-notes]
       [%add-writers sects=(set sect:g)]
       [%del-writers sects=(set sect:g)]
   ==
@@ -257,15 +401,7 @@
 ::
 ::  $diff: the full suite of modifications that can be made to a diary
 ::
-+$  diff
-  $%  [%create =create]
-      [%notes =id:notes =delta:notes]
-      [%add-writers sects=(set sect:g)]
-      [%del-writers sects=(set sect:g)]
-      [%view =view]
-      [%sort =sort]
-      [%order notes=arranged-notes]
-  ==
++$  diff  diff:diary
 ::
 ::  $net: an indicator of whether I'm a host or subscriber
 ::
