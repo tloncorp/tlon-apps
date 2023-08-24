@@ -75,7 +75,9 @@ import { isTalk, preSig } from '@/logic/utils';
 import bootstrap from '@/state/bootstrap';
 import AboutDialog from '@/components/About/AboutDialog';
 import MobileGroupChannelList from '@/groups/MobileGroupChannelList';
-import LandscapeWayfinding from '@/components/LandscapeWayfinding';
+import LandscapeWayfinding, {
+  LandscapeWayfindingModal,
+} from '@/components/LandscapeWayfinding';
 import { useScheduler } from '@/state/scheduler';
 import { LeapProvider } from '@/components/Leap/useLeap';
 import VitaMessage from '@/components/VitaMessage';
@@ -233,6 +235,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
         <Routes>
           <Route path="/about" element={<AboutDialog />} />
           <Route path="/settings" element={<SettingsDialog />} />
+          <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
           <Route
             path="/grid"
             element={
@@ -403,7 +406,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route path="/leap" element={<Leap openDefault />} />
           </Route>
           <Route path="/groups/:ship/:name" element={<Groups />}>
-            <Route element={isMobile ? <MobileGroupSidebar /> : undefined}>
+            <Route element={isMobile ? <MobileSidebar /> : undefined}>
               <Route
                 index
                 element={isMobile ? <MobileGroupChannelList /> : null}
@@ -486,6 +489,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/about" element={<AboutDialog />} />
           <Route path="/privacy" element={<PrivacyNotice />} />
           <Route path="/settings" element={<SettingsDialog />} />
+          <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
           <Route path="/activity-collection" element={<ActivityModal />} />
           <Route
             path="/grid"

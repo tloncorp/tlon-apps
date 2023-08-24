@@ -25,7 +25,7 @@ export default function LightBox({
       {source && (
         <a
           href={source}
-          className="small-button absolute -top-2 right-6 m-4 cursor-pointer bg-white text-gray-800"
+          className="default-focus small-button absolute -top-2 right-6 m-4 cursor-pointer bg-white text-gray-800"
           target="_blank"
           rel="noreferrer"
         >

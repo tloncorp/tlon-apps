@@ -151,7 +151,7 @@ function ChatChannel({ title }: ViewProps) {
                     className={cn(
                       isMobile
                         ? ''
-                        : 'flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50'
+                        : 'default-focus flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50'
                     )}
                     aria-label="Search Chat"
                   >

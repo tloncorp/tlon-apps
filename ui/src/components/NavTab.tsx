@@ -39,7 +39,7 @@ export default function NavTab({
         <a
           {...props}
           className={cn(
-            'flex h-full w-full flex-col items-center justify-center bg-white p-2 text-gray-400 text-black',
+            'flex h-full w-full flex-col items-center justify-center bg-white p-2 text-black',
             linkClass
           )}
         >

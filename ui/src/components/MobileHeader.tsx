@@ -32,7 +32,7 @@ export default function MobileHeader({
       ) : (
         <div className="h-12 w-12" />
       )}
-      <div className="col-span-2 text-center text-[18px] leading-6 text-gray-800 line-clamp-1">
+      <div className="col-span-2 text-center text-[17px] leading-6 text-gray-800">
         <div className="flex h-full w-full flex-col items-center justify-center">
           {title}
         </div>
@@ -44,11 +44,6 @@ export default function MobileHeader({
         </div>
       ) : (
         <div className="h-12 w-12" />
-      )}
-      {secondaryTitle && (
-        <div className="col-span-4 flex h-6 items-center justify-center pb-2 text-center">
-          {secondaryTitle}
-        </div>
       )}
     </div>
   );
