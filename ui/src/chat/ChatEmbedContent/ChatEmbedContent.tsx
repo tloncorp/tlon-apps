@@ -56,8 +56,8 @@ function ChatEmbedContent({
 
   if (isVideo) {
     return (
-      <div className="flex max-w-[600px] max-h-[340px] flex-col">
-        <Player playsInline src={url}>
+      <div className="flex max-h-[340px] max-w-[600px] flex-col">
+        <Player playsInline src={url} fluid={false} width={600}>
           <BigPlayButton position="center" />
         </Player>
       </div>
