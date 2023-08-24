@@ -46,7 +46,7 @@ interface UpdateStatus {
 export interface Uploader {
   files: Record<string, Upload>;
   getMostRecent: () => Upload | null;
-  uploadFiles: (files: FileList | null) => Promise<void>;
+  uploadFiles: (files: FileList | File[] | null) => Promise<void>;
   removeByURL: (url: string) => void;
   clear: () => void;
   prompt: () => void;
@@ -61,7 +61,7 @@ export interface FileStore {
   update: (key: string, updateFn: (uploader: Uploader) => void) => void;
   uploadFiles: (
     uploader: string,
-    files: FileList | null,
+    files: FileList | File[] | null,
     bucket: string
   ) => Promise<void>;
   upload: (uploader: string, upload: Upload, bucket: string) => Promise<void>;

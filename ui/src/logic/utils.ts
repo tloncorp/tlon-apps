@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import ob from 'urbit-ob';
 import bigInt, { BigInteger } from 'big-integer';
+import isURL from 'validator/es/lib/isURL';
 import {
   BigIntOrderedMap,
   Docket,
@@ -410,6 +411,7 @@ export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
   /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)(?:\?.*)?$/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
+export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
 // sig and hep explicitly left out
 export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 
@@ -417,8 +419,15 @@ export function isImageUrl(url: string) {
   return IMAGE_URL_REGEX.test(url);
 }
 
+export function isMediaUrl(url: string) {
+  return (
+    isURL(url) &&
+    (IMAGE_REGEX.test(url) || VIDEO_REGEX.test(url) || AUDIO_REGEX.test(url))
+  );
+}
+
 export function isRef(text: string) {
-  return REF_REGEX.test(text);
+  return text.match(REF_URL_REGEX);
 }
 
 export function isValidUrl(str?: string): boolean {

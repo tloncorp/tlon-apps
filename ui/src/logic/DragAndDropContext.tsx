@@ -93,7 +93,7 @@ export function DragAndDropProvider({
   }, []);
 
   const handleDrop = useCallback(
-    (e: DragEvent, dropZone: string) => {
+    (e: DragEvent, dropZone: string, recurseNode?: HTMLElement) => {
       preventDefault(e);
 
       e.stopPropagation();
@@ -101,9 +101,14 @@ export function DragAndDropProvider({
       setIsDragging(false);
       setIsOver(false);
 
-      const targetElement = e.target as HTMLElement;
+      const targetElement = recurseNode || (e.target as HTMLElement);
 
-      if (targetElement && targetElement.id !== dropZone) return;
+      // if (targetElement && targetElement.id !== dropZone) return;
+      if (targetElement && targetElement.id !== dropZone) {
+        if (targetElement.parentElement) {
+          handleDrop(e, dropZone, targetElement.parentElement);
+        }
+      }
 
       if (e.dataTransfer === null || !e.dataTransfer.files.length) return;
       setDroppedFiles({

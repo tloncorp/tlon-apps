@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import cn from 'classnames';
+import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
 import {
@@ -13,20 +15,41 @@ import { useLeaveHeapMutation } from '@/state/heap/heap';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useIsMobile } from '@/logic/useMedia';
+import DisplayDropdown from '@/channels/DisplayDropdown';
+import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import { useChannelCompatibility } from '@/logic/channel';
+import Tooltip from '@/components/Tooltip';
+import AddCurioModal from './AddCurioModal';
 
 interface HeapHeaderProps {
   flag: string;
   nest: string;
   display: HeapDisplayMode;
   sort: HeapSortMode;
+  canWrite: boolean;
+  draggedFile: File | null;
+  clearDraggedFile: () => void;
+  addCurioOpen: boolean;
+  setAddCurioOpen: (open: boolean) => void;
 }
 
 const HeapHeader = React.memo(
-  ({ flag, nest, display, sort }: HeapHeaderProps) => {
+  ({
+    flag,
+    nest,
+    display,
+    sort,
+    canWrite,
+    draggedFile,
+    clearDraggedFile,
+    addCurioOpen,
+    setAddCurioOpen,
+  }: HeapHeaderProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const isMobile = useIsMobile();
     const [, chFlag] = nestToFlag(nest);
     const settings = useHeapSettings();
+    const { compatible, text } = useChannelCompatibility(`heap/${chFlag}`);
     const { mutate } = usePutEntryMutation({
       bucket: 'heaps',
       key: 'heapSettings',
@@ -56,6 +79,12 @@ const HeapHeader = React.memo(
         val: JSON.stringify(newSettings),
       });
     };
+
+    useEffect(() => {
+      if (draggedFile) {
+        setAddCurioOpen(true);
+      }
+    });
 
     const actions: Action[] = [
       {
@@ -93,17 +122,79 @@ const HeapHeader = React.memo(
           leaveHeapMutation.mutateAsync({ flag: leaveFlag })
         }
       >
-        <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">
-          <ActionMenu actions={actions} open={isOpen} onOpenChange={setIsOpen}>
-            <button>
-              {isMobile ? (
+        {isMobile ? (
+          <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">
+            <ActionMenu
+              actions={actions}
+              open={isOpen}
+              onOpenChange={setIsOpen}
+            >
+              <button>
                 <FilterIconMobileNav className="mt-0.5 h-8 w-8 text-gray-900" />
-              ) : (
-                <SortIcon className="h-6 w-6 text-gray-600" />
-              )}
+              </button>
+            </ActionMenu>
+            <button
+              onClick={() => setAddCurioOpen(true)}
+              disabled={!compatible}
+            >
+              <AddIconMobileNav className="h-8 w-8 text-black" />
             </button>
-          </ActionMenu>
-        </div>
+          </div>
+        ) : (
+          <>
+            {canWrite && (
+              <Tooltip content={text} open={compatible ? false : undefined}>
+                <button
+                  className="button whitespace-nowrap"
+                  onClick={() => setAddCurioOpen(true)}
+                  disabled={!compatible || addCurioOpen}
+                  hidden={!canWrite}
+                >
+                  New Block
+                </button>
+              </Tooltip>
+            )}
+            <DisplayDropdown
+              displayMode={display}
+              setDisplayMode={setDisplayMode}
+            />
+            <Dropdown.Root>
+              <Dropdown.Trigger asChild>
+                <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-600 hover:bg-gray-50 ">
+                  <SortIcon className="h-6 w-6" />
+                </button>
+              </Dropdown.Trigger>
+              <Dropdown.Content className="dropdown">
+                <Dropdown.Item
+                  className={cn(
+                    'dropdown-item',
+                    sort === 'time' && 'bg-gray-100 hover:bg-gray-100'
+                  )}
+                  onClick={() => (setSortMode ? setSortMode('time') : null)}
+                >
+                  Time
+                </Dropdown.Item>
+                <Dropdown.Item
+                  className={cn(
+                    'dropdown-item',
+                    sort === 'alpha' && 'bg-gray-100 hover:bg-gray-100'
+                  )}
+                  onClick={() => (setSortMode ? setSortMode('alpha') : null)}
+                >
+                  Alphabetical
+                </Dropdown.Item>
+              </Dropdown.Content>
+            </Dropdown.Root>
+          </>
+        )}
+        <AddCurioModal
+          open={addCurioOpen}
+          setOpen={setAddCurioOpen}
+          flag={flag}
+          chFlag={chFlag}
+          draggedFile={draggedFile}
+          clearDraggedFile={clearDraggedFile}
+        />
       </ChannelHeader>
     );
   }
