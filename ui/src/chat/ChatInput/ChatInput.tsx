@@ -189,9 +189,7 @@ export default function ChatInput({
   }, [id, uploadKey, closeReply, replyCite]);
 
   useEffect(() => {
-    console.log('droppedFiles', droppedFiles);
     if (droppedFiles && droppedFiles[dropZoneId]) {
-      console.log('droppedFiles[dropZoneId]', droppedFiles[dropZoneId]);
       handleDrop(droppedFiles[dropZoneId]);
       setDidDrop(true);
     }
