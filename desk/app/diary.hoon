@@ -96,6 +96,7 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  recheck-all-perms
     =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       (emil (drop load:epos))
@@ -141,6 +142,13 @@
     |=  [=flag:d old-diary=diary:zero]
     ^-  [flag:d diary:d]
     [flag [~ old-diary]]
+  ::
+  ++  recheck-all-perms
+    %+  roll
+      ~(tap by shelf)
+    |=  [[=flag:d *] core=_cor]
+    =/  di  (di-abed:di-core:core flag)
+    di-abet:(di-recheck:di ~)
   ::
   ++  restore-missing-subs
     %+  roll
@@ -808,6 +816,8 @@
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  di-core  (di-can-read our.bowl)  di-safe-sub
+    ::  if we can't read, leave the diary
+    =?  di-core  (di-can-read our.bowl)  di-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]

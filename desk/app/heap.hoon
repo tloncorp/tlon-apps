@@ -192,6 +192,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
+  =.  cor  recheck-all-perms
   =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
   ?:  =(okay:h cool)  cor
   ::  speak the good news
@@ -205,6 +206,13 @@
   $(heaps t.heaps)
   ::
   +$  versioned-state  $%(current-state)
+  ::
+  ++  recheck-all-perms
+    %+  roll
+      ~(tap by stash)
+    |=  [[=flag:h *] core=_cor]
+    =/  he  (he-abed:he-core:core flag)
+    he-abet:(he-recheck:he ~)
   ::
   ++  restore-missing-subs
     %+  roll
@@ -734,6 +742,8 @@
       (emit %pass he-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  he-core  (he-can-read our.bowl)  he-safe-sub
+    ::  if we can't read, leave the heap
+    =?  he-core  (he-can-read our.bowl)  he-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in he-subscriptions)
     |=  [[=ship =path] he=_he-core]

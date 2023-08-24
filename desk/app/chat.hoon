@@ -119,6 +119,7 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  recheck-all-perms
     =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
@@ -139,6 +140,12 @@
     |=  [[=flag:c *] core=_cor]
     ca-abet:ca-safe-sub:(ca-abed:ca-core:core flag)
   ::
+  ++  recheck-all-perms
+    %+  roll
+      ~(tap by chats)
+    |=  [[=flag:c *] core=_cor]
+    =/  ca  (ca-abed:ca-core:core flag)
+    ca-abet:(ca-recheck:ca ~)
   ++  keep
     |=  bad=^vase
     ^-  card
@@ -1380,6 +1387,8 @@
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
+    ::  if we can't read, leave the chat
+    =?  ca-core  !(ca-can-read our.bowl)  ca-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
