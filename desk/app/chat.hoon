@@ -270,7 +270,7 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      ?(%channel-leave %heap-leave)
+      ?(%channel-leave %chat-leave)
     =+  !<(=leave:c vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     ca-abet:ca-leave:(ca-abed:ca-core leave)

@@ -210,7 +210,7 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      ?(%channel-leave %heap-leave)
+      ?(%channel-leave %diary-leave)
     =+  !<(=leave:d vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)
