@@ -17,7 +17,7 @@ export default function MobileHeader({
   secondaryAction?: React.ReactNode;
 }) {
   return (
-    <div className="grid w-full grid-cols-4 justify-between bg-white font-system-sans">
+    <div className="grid w-full grid-cols-5 justify-between bg-white font-system-sans">
       {pathBack ? (
         <div className="h-12 pl-4">
           <Link className="flex h-12 items-center" to={pathBack}>
@@ -32,7 +32,7 @@ export default function MobileHeader({
       ) : (
         <div className="h-12 w-12" />
       )}
-      <div className="col-span-2 text-center text-[17px] leading-6 text-gray-800">
+      <div className="col-span-3 text-center text-[17px] leading-6 text-gray-800">
         <div className="flex h-full w-full flex-col items-center justify-center">
           {title}
         </div>
