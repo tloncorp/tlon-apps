@@ -149,7 +149,11 @@ export default function GroupInviteDialog() {
       <div className={cn('flex flex-col space-y-6', !isMobile && 'mt-10')}>
         {group && (
           <>
-            <LureInviteBlock flag={flag} group={group} />
+            <LureInviteBlock
+              className={cn(!isMobile && 'card')}
+              flag={flag}
+              group={group}
+            />
             <GroupInviteBlock />
           </>
         )}
