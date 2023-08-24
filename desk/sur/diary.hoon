@@ -77,6 +77,7 @@
   ::
   ::  $window: sparse set of time ranges
   ::
+  ::TODO  populate this
   +$  window  (list [from=time to=time])
   ::
   ::  .window: time range for requested notes that we haven't received
@@ -95,10 +96,10 @@
         =future
     ==
   ::
-  ::  $diff: can be applied to global
+  ::  $diffs: can be applied to global
   ::
+  +$  diffs  (list diff)
   +$  diff
-    %-  list
     $%  [%notes =id:notes =diff:notes]
         [%order (rev order=arranged-notes)]
         [%view (rev =view)]
@@ -106,24 +107,24 @@
         [%perm (rev =perm)]
     ==
   ::
-  ++  apply-diff
-    |=  [=global =diff]
-    ^-  (each global id)
-    ?~  diff
-      global
-    =.  global
-      ?-    -.i.diff
-          %order  &+global(order (apply-rev order.global +.i.diff))
-          %view   &+global(view (apply-rev view.global +.i.diff))
-          %sort   &+global(sort (apply-rev sort.global +.i.diff))
-          %perm   &+global(perm (apply-rev perm.global +.i.diff))
+  ++  apply-diffs
+    |=  [=global =diffs]
+    ^-  [(list [id:notes diff:notes]) _global]
+    ?~  diffs  [~ global]
+    =^  hed  global
+      ?-    -.i.diffs
+          %order  [~ global(order (apply-rev order.global +.i.diffs))]
+          %view   [~ global(view (apply-rev view.global +.i.diffs))]
+          %sort   [~ global(sort (apply-rev sort.global +.i.diffs))]
+          %perm   [~ global(perm (apply-rev perm.global +.i.diffs))]
           %notes
-        =/  res  (apply-diff:notes notes.global +.i.diff)
+        =/  res  (apply-diff:notes notes.global +.i.diffs)
         ?~  res
-          |+id.i.diff
-        &+global(notes u.res)
+          [[id.i.diffs diff.i.diffs]~ global]
+        [~ global(notes u.res)]
       ==
-    $(diff t.diff)
+    =^  tal  global  $(diffs t.diffs)
+    [(weld hed tal) global]
   --
 ::
 ::  $notes: a set of time ordered diary posts
@@ -379,7 +380,7 @@
       command
   ==
 ::
-+$  remark-action  
++$  remark-action
   $~  [%read ~]
   $>(?(%read %read-at %watch %unwatch) action)
 ::
@@ -401,7 +402,7 @@
 ::
 ::  $diff: the full suite of modifications that can be made to a diary
 ::
-+$  diff  diff:diary
++$  diff  diffs:diary
 ::
 ::  $net: an indicator of whether I'm a host or subscriber
 ::

@@ -1,7 +1,7 @@
 /-  d=diary, g=groups, ha=hark
 /-  meta
 /-  e=epic
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, sparse
 /+  not=notes
 /+  qup=quips
 /+  epos-lib=saga
@@ -251,6 +251,7 @@
     ::
       [%diary ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
+    ?>  =(our ship)
     di-abet:(di-watch:(di-abed:di-core ship name.pole) rest.pole)
     ::
       [%said host=@ name=@ %note time=@ quip=?(~ [@ ~])]
@@ -485,6 +486,7 @@
       ::
       =/  =update:d  [now.bowl command]
       =.  log.diary  (put:log-on:d log.diary update)
+      =.  di-core  (di-give-ui update)
       (di-give-updates update)
     ::  only accept commands for diaries we own
     ::
@@ -834,14 +836,16 @@
       out
     (~(put in out) [ship path])
   ::
+  ++  di-give-ui
+    |=  =update:d
+    (give %fact ~[/ui] act:mar:d !>([flag diff.update]))
+  ::
   ++  di-give-updates
     |=  =update:d
     ^+  di-core
     =/  paths=(set path)
       %-  ~(gas in *(set path))
       (turn ~(tap in di-subscriptions) tail)
-    =.  paths  (~(put in paths) (snoc di-area %ui))
-    =.  cor  (give %fact ~[/ui] act:mar:d !>([flag diff.update]))
     =/  cag=cage  [upd:mar:d !>(update)]
     =.  cor
       (give %fact ~(tap in paths) cag)
@@ -901,33 +905,32 @@
     |=  update:d
     ?>  di-from-host
     ^+  di-core
-    =.  di-core  (di-give-updates time diff)
-    ?-    -.diff
-      %sort    di-core(sort.diary sort.diff)
-      %view    di-core(view.diary view.diff)
-      %order   di-core(arranged-notes.diary notes.diff)
-      %create  di-core(perm.diary [writers group]:create.diff)
+    =.  di-core  (di-give-ui time diff)
+    =^  miss  global.diary
+      (apply-diffs:diary global.diary diff)
+    =.  diffs.future.local.diary
+      %+  roll  miss
+      |=  [[=id:notes:d =diff:notes:d] =_diffs.future.local.diary]
+      ::  if the item affected by the diff is not in the window we care about,
+      ::  then ignore it. otherwise, put it in the pending diffs set.
+      ::
+      ?.  (~(has as:sparse window.future.local.diary) id)
+        diffs
+      (~(put ju diffs) id diff)
+    ::  emit notifications if we need to
     ::
-        %notes
-      =.  notes.diary  (reduce:di-notes time [id delta]:diff)
-      =.  cor  (give-brief flag di-brief)
-      =/  cons=(list (list content:ha))
-        (hark:di-notes our.bowl +.diff)
-      =.  cor
-        %-  emil
-        %+  turn  cons
-        |=  cs=(list content:ha)
-        (pass-hark (di-spin /note/(rsh 4 (scot %ui id.diff)) cs ~))
-      di-core
-    ::
-        ?(%add-writers %del-writers)
-      =*  writers  writers.perm.diary
-      =.  writers
-        ?-  -.diff
-          %add-writers  (~(uni in writers) sects.diff)
-          %del-writers  (~(dif in writers) sects.diff)
-        ==
-      di-core
-    ==
+    |-
+    ?~  diff  di-core
+    =*  dd=diff:diary  i.diff
+    ?.  ?=(%notes -.dd)  $(diff t.diff)
+    =.  cor  (give-brief flag di-brief)
+    =/  cons=(list (list content:ha))
+      (hark:di-notes our.bowl +.dd)
+    =.  cor
+      %-  emil
+      %+  turn  cons
+      |=  cs=(list content:ha)
+      (pass-hark (di-spin /note/(rsh 4 (scot %ui id.dd)) cs ~))
+    $(diff t.diff)
   --
 --
