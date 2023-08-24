@@ -2,7 +2,7 @@
 /-  ha=hark
 /+  qip=quips, mp=mop-extensions
 |_  not=notes:d
-++  mope  ((mp time note:d) lte)
+++  mope  ((mp time (unit note:d)) lte)
 ++  brief
   |=  [our=ship last-read=time]
   ^-  brief:briefs:d
@@ -19,13 +19,13 @@
 ::
 ++  get
   |=  =time
-  ^-  (unit [=^time =note:d])
+  ^-  (unit [=^time note=(unit note:d)])
   ?~  not=(get:on:notes:d not time)
     ~
   `[time u.not]
 ::
 ++  jab
-  |=  [=time fun=$-(note:d note:d)]
+  |=  [=time fun=$-((unit note:d) (unit note:d))]
   ^+  not
   ?~  v=(get time)  not
   =.  not  (put:on:notes:d not time.u.v (fun note.u.v))
@@ -33,45 +33,61 @@
 ::
 ++  got
   |=  =time
-  ^-  [=^time =note:d]
+  ^-  [=^time note=(unit note:d)]
   (need (get time))
 ::
 ++  reduce
-  |=  [new=time existing=time del=delta:notes:d]
+  |=  [new=time existing=time com=command:notes:d]
   ^+  not
-  ?-  -.del
+  ?-  -.com
       %add
     =/  =seal:d  [new ~ ~]
     |-
     =/  note  (get new)
-    ?~  note  (put:on:notes:d not new [seal p.del])
-    ?:  =(+.+.u.note p.del)  not
+    ?~  note  (put:on:notes:d not new ~ [seal 0 p.com])
+    ?:  =(+.+.u.note p.com)  not
     $(new `@da`(add new ^~((div ~s1 (bex 16)))))
   ::
       %edit
     =/  note  (get existing)
-    ?~  note  not
-    (put:on:notes:d not existing [-.+.u.note p.del])
+    ?~  note         not
+    ?~  note.u.note  not
+    =*  noot    u.note.u.note
+    (put:on:notes:d not existing ~ [-.noot +(rev.noot) p.com])
   ::
       %del
-    =^  no=(unit note:d)  not
-      (del:on:notes:d not existing)
-    not
+    (put:on:notes:d not existing ~)
   ::
       %quips
     %+  jab  existing
-    |=  =note:d
-    note(quips (~(reduce qip quips.note) [id command]:del))
+    |=  note=(unit note:d)
+    ?~  note  ~
+    `u.note(quips (~(reduce qip quips.u.note) [id command]:com))
   ::
-      %add-feel
+      ?(%add-feel %del-feel)
     %+  jab  existing
-    |=  =note:d
-    note(feels (~(put by feels.note) [p q]:del))
-  ::
-      %del-feel
-    %+  jab  existing
-    |=  =note:d
-    note(feels (~(del by feels.note) p.del))
+    |=  un=(unit note:d)
+    ?~  un
+      ~
+    ::  this is necessary because p.del is at a different
+    ::  axis in each case
+    =/  =ship   ?:(?=(%add-feel -.com) p.com p.com)
+    =/  result  ?:(?=(%add-feel -.com) `q.com ~)
+    =/  r
+      =/  fel  (~(get by feels.u.un) ship)
+      ?~  fel
+        0
+      +(rev.u.fel)
+    `u.un(feels (~(put by feels.u.un) ship r result))
+  ::      %add-feel
+  ::    %+  jab  existing
+  ::    |=  =note:d
+  ::    `note(feels (~(put by feels.note) [p q]:com))
+  ::  ::
+  ::      %del-feel
+  ::    %+  jab  existing
+  ::    |=  =note:d
+  ::    `note(feels (~(put by feels.note) p.com ~))
   ==
 ++  flatten
   |=  content=(list inline:d)
@@ -127,9 +143,10 @@
     [~(wyt by quips.note) quippers +.note]
   =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
   %-  ~(gas in *(set ship))
-  %+  turn  (tap:on:quips:d quips.note)
-  |=  [@ =quip:d]
-  author.quip
+  %+  murn  (tap:on:quips:d quips.note)
+  |=  [@ quip=(unit quip:d)]
+  ?~  quip  ~
+  author.u.quip
 ::
 ++  peek
   |=  =(pole knot)
@@ -144,7 +161,10 @@
       ``diary-notes+!>((gas:on *notes:d ls))
     =-  ``diary-outlines+!>(-)
     %+  gas:on:outlines:d  *outlines:d
-    (turn ls |=([=time =note:d] [time (trace note)]))
+    %+  murn  ls
+    |=  [=time note=(unit note:d)]
+    ?~  note  ~
+    (some [time (trace u.note)])
   ::
       [%older start=@ count=@ mode=?(%outline %note) ~]
     =/  count  (slav %ud count.pole)

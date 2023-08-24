@@ -1,5 +1,6 @@
 /-  g=groups, c=cite, e=epic
 /-  zer=diary-0, uno=diary-1
+/+  mp=mop-extensions
 |%
 ++  old
   |%
@@ -19,6 +20,7 @@
 +$  flag  (pair ship term)
 ::  $feel: either an emoji identifier like :diff or a URL for custom
 +$  feel  @ta
++$  feels  (map ship (rev (unit feel)))
 ::  $view: the persisted display format for a diary
 +$  view  ?(%grid %list)
 ::  $sort: the persisted sort type for a diary
@@ -48,7 +50,10 @@
 ::
 ++  apply-feels
   |=  [old=feels new=feels]
-  (~(uno by old) new apply-rev)
+  ^-  feels
+  %-  (~(uno by old) new)
+  |=  [* a=(rev (unit feel)) b=(rev (unit feel))]
+  (apply-rev a b)
 ::
 ::
 ::  $diary: written longform communication
@@ -95,6 +100,12 @@
         =window
         =future
     ==
+  ::  $log: a time ordered history of modifications to a diary
+  ::
+  +$  log
+    ((mop time diff) lte)
+  ++  log-on
+    ((on time diff) lte)
   ::
   ::  $diffs: can be applied to global
   ::
@@ -135,57 +146,63 @@
   +$  id  time
   +$  rock  ((mop id (unit note)) lte)
   ++  on    ((^on id (unit note)) lte)
+  ++  mo    ((mp time (unit note)) lte)
   +$  command
     $%  [%add p=essay]
-        [%edit =id:notes p=essay]
-        [%del =id:notes]
-        [%quips =id:notes =command:quips]
-        [%add-feel =id:notes p=ship q=feel]
-        [%del-feel =id:notes p=ship]
+        [%edit =id p=essay]
+        [%del =id]
+        [%quips =id =command:quips]
+        [%add-feel =id p=ship q=feel]
+        [%del-feel =id p=ship]
     ==
   ::
   +$  diff
     $%  [%set note=(unit note)]
         [%quip =id:quips =diff:quips]
-        [%feels feels=(map ship (rev feel=(unit feel)))]
+        [%feels =feels]
         [%essay (rev =essay)]
     ==
   ::
   ++  apply-notes
-    |=  [old=notes new=notes]
-    (uno:mpn old new apply-note)
+    |=  [old=rock new=rock]
+    ((uno:mo old new) apply-note)
   ::
   ++  apply-diff
-    |=  [old=notes =id =diff]
-    ^-  (unit notes)
+    |=  [old=rock =id =diff]
+    ^-  (unit rock)
     ?:  ?=(%set -.diff)
       :-  ~
       %^  put:on  old  id
-      ?~  note.diff
-        ~
-      =/  old-note  (~(get by old) id)
+      =/  old-note  (get:on old id)
       ?~  old-note
         note.diff
-      `(apply-note old-note u.note.diff)
+      (apply-note id u.old-note note.diff)
     ::
-    =/  old-note  (~(get by old) id)
+    =/  old-note  (get:on old id)
     ?~  old-note
       ~
     :-  ~
     %^  put:on  old  id
+    ^-  (unit note)
+    ?~  u.old-note
+      ~
     :-  ~
     ?-  -.diff
-      %quip   u.old-note(quips (apply-diff:quips quips.old-note +.diff))
-      %feels  u.old-note(feels (apply-feels feels.old-note +.diff))
-      %essay  u.old-note(+ (apply-rev essay.old-note +.diff))
+      %quip   `note`u.u.old-note(quips (apply-diff:quips quips.u.u.old-note +.diff))
+      %feels  `note`u.u.old-note(feels (apply-feels feels.u.u.old-note +.diff))
+      %essay  `note`u.u.old-note(+ (apply-rev +.u.u.old-note +.diff))
     ==
   ::
   ++  apply-note
-    |=  [old=note new=note]
-    %=  old
-      feels  (apply-feels feels.old feels.new)
-      essay  (apply-rev +.old +.new)
-      quips  (apply-quips quips.old quips.new)
+    |=  [=id old=(unit note) new=(unit note)]
+    ^-  (unit note)
+    ?~  old  ~
+    ?~  new  ~
+    :-  ~
+    %=  u.old
+      quips  (apply-quips:quips quips.u.old quips.u.new)
+      feels  (apply-feels feels.u.old feels.u.new)
+      +      (apply-rev +.u.old +.u.new)
     ==
   --
 ::
@@ -197,46 +214,50 @@
   +$  id  time
   +$  rock  ((mop id (unit quip)) lte)
   ++  on    ((^on id (unit quip)) lte)
+  ++  mo    ((mp time (unit quip)) lte)
   +$  command  delta
   +$  delta
     $%  [%add p=memo]
-        [%del =id:quips]
-        [%add-feel =id:quips p=ship q=feel]
-        [%del-feel =id:quips p=ship]
+        [%del =id]
+        [%add-feel =id p=ship q=feel]
+        [%del-feel =id p=ship]
     ==
   +$  diff
     $%  [%set quip=(unit quip)]
-        [%feels feels=(map ship (rev feel=(unit feel)))]
+        [%feels =feels]
     ==
   ::
   ++  apply-quips
-    (uno:mpn old new apply-note)
+    |=  [old=rock new=rock]
+    ((uno:mo old new) apply-quip)
   ::
   ++  apply-diff
-    |=  [old=quips =id =diff]
-    ^-  (unit quips)
+    |=  [old=rock =id =diff]
+    ^-  rock
     ?:  ?=(%set -.diff)
-      :-  ~
       %^  put:on  old  id
-      ?~  quips.diff
-        ~
-      =/  old-quips  (~(get by old) id)
-      ?~  old-quips
-        quips.diff
-      `(apply-quips old-quips u.quips.diff)
+      =/  gotten  (get:on old id)
+      ?~  gotten  ~
+      (apply-quip id u.gotten quip.diff)
     ::
-    =/  old-quip  (~(get by old) id)
+    =/  old-quip  (get:on old id)
     ?~  old-quip
-      ~
-    :-  ~
+      %-  (slog 'diary: received diff for unknown quip' ~)
+      old
+    ?~  u.old-quip
+      old
     %^  put:on  old  id
-    `u.old-quip(feels (apply-feels feels.old-quip +.diff))
+    `u.u.old-quip(feels (apply-feels feels.u.u.old-quip +.diff))
   ::
   ++  apply-quip
-    |=  [old=note new=note]
-    %=  old
-      feels  (apply-feels feels.old feels.new)
-      memo  (apply-rev +.old +.new)
+    |=  [=id old=(unit quip) new=(unit quip)]
+    ^-  (unit quip)
+    ?~  old  ~
+    ?~  new  ~
+    :-  ~
+    %=  u.old
+      feels  (apply-feels feels.u.old feels.u.new)
+      +      +.u.new
     ==
   --
 ::
@@ -265,14 +286,14 @@
 +$  seal
   $:  =time
       =quips
-      feels=(map ship (rev (unit feel)))
+      =feels
   ==
 ::
 ::  $cork: host-side data for a quip
 ::
 +$  cork
   $:  =time
-      feels=(map ship (rev (unit feel)))
+      =feels
   ==
 ::  $essay: the post data itself
 ::
@@ -359,12 +380,6 @@
       [%link p=cord q=cord]
       [%break ~]
   ==
-::  $log: a time ordered history of modifications to a diary
-::
-+$  log
-  ((mop time diff) lte)
-++  log-on
-  ((on time diff) lte)
 ::
 +$  flag-action  [=flag =action]
 ::  $action: user action to/from local ship

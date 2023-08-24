@@ -1,19 +1,19 @@
 /-  d=diary
 /+  mp=mop-extensions
 |_  qup=quips:d
-++  mope  ((mp time quip:d) lte)
+++  mope  ((mp time (unit quip:d)) lte)
 ++  brief  !!
 :: TODO: confirm with design about whether or qup unreads get tracked on comments
 ::
 ++  get
   |=  =time
-  ^-  (unit [=^time =quip:d])
+  ^-  (unit [=^time quip=(unit quip:d)])
   ?~  qup=(get:on:quips:d qup time)
     ~
   `[time u.qup]
 ::
 ++  jab
-  |=  [=time fun=$-(quip:d quip:d)]
+  |=  [=time fun=$-((unit quip:d) (unit quip:d))]
   ^+  qup
   ?~  v=(get time)  qup
   =.  qup  (put:on:quips:d qup time.u.v (fun quip.u.v))
@@ -21,35 +21,39 @@
 ::
 ++  got
   |=  =time
-  ^-  [=^time =quip:d]
+  ^-  [=^time quip=(unit quip:d)]
   (need (get time))
 ::
 ++  reduce
-  |=  [=time del=delta:quips:d]
+  |=  [=time com=command:quips:d]
   ^+  qup
-  ?-  -.del
+  ?-  -.com
       %add
     =/  =cork:d  [time ~]
     |-
     =/  quip  (get time)
-    ?~  quip  (put:on:quips:d qup time [cork p.del])
-    ?:  =(+.+.u.quip p.del)  qup
+    ?~  quip  (put:on:quips:d qup time `[cork p.com])
+    ?:  =(+.+.u.quip p.com)  qup
     $(time `@da`(add time ^~((div ~s1 (bex 16)))))
   ::
       %del
-    =^  no=(unit quip:d)  qup
-      (del:on:quips:d qup time)
-    qup
+    (put:on:quips:d qup time ~)
   ::
-      %add-feel
+      ?(%add-feel %del-feel)
     %+  jab  time
-    |=  =quip:d
-    quip(feels (~(put by feels.quip) [p q]:del))
-  ::
-      %del-feel
-    %+  jab  time
-    |=  =quip:d
-    quip(feels (~(del by feels.quip) p.del))
+    |=  uq=(unit quip:d)
+    ?~  uq
+      ~
+    ::  this is necessary because p.del is at a different
+    ::  axis in each case
+    =/  =ship   ?:(?=(%add-feel -.com) p.com p.com)
+    =/  result  ?:(?=(%add-feel -.com) `q.com ~)
+    =/  r
+      =/  fel  (~(get by feels.u.uq) ship)
+      ?~  fel
+        0
+      +(rev.u.fel)
+    `u.uq(feels (~(put by feels.u.uq) ship r result))
   ==
 ::
 ++  peek
