@@ -96,11 +96,10 @@ function TopBar({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className={cn('absolute z-40 w-full select-none items-center px-4', {
+      className={cn('absolute z-40 flex w-full select-none items-center px-4', {
         'justify-between': hasIcon || isTwitter,
         'justify-end': !hasIcon && !isTwitter,
-        flex: longPress,
-        'hidden group-hover:flex': !longPress,
+        'hidden group-hover:flex': !longPress && !menuOpen,
       })}
     >
       {isTwitter ? <TwitterIcon className="m-2 h-6 w-6" /> : null}
@@ -112,7 +111,7 @@ function TopBar({
         })}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className={longPress ? 'block' : 'hidden group-hover:block'}>
+        <div>
           {asRef ? (
             <button
               onClick={navigateToCurio}
@@ -136,7 +135,7 @@ function TopBar({
           )}
         </div>
         {canEdit && (
-          <div className={longPress ? '' : 'hidden group-hover:block'}>
+          <div>
             <ActionMenu
               open={menuOpen}
               onOpenChange={setMenuOpen}

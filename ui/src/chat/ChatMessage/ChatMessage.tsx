@@ -91,7 +91,7 @@ const ChatMessage = React.memo<
         idShip: string;
         idTime: string;
       }>();
-      const isThread = idShip && idTime;
+      const isThread = !!idShip && !!idTime;
       const threadOpId = isThread ? `${idShip}/${idTime}` : '';
       const isThreadOp = threadOpId === seal.id && hideReplies;
       const isMobile = useIsMobile();
@@ -213,7 +213,7 @@ const ChatMessage = React.memo<
       );
 
       const [optionsOpen, setOptionsOpen] = useState(false);
-      const { action, handlers } = useLongPress(true);
+      const { action, handlers } = useLongPress();
 
       useEffect(() => {
         if (!isMobile) {
@@ -267,7 +267,9 @@ const ChatMessage = React.memo<
             />
           ) : null}
           {newDay ? <DateDivider date={unix} /> : null}
-          {newAuthor ? <Author ship={memo.author} date={unix} /> : null}
+          {newAuthor ? (
+            <Author ship={memo.author} date={unix} hideRoles={isThread} />
+          ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             <ChatMessageOptions
               open={optionsOpen}
@@ -304,7 +306,7 @@ const ChatMessage = React.memo<
                     to={`message/${seal.id}`}
                     className={({ isActive }) =>
                       cn(
-                        'group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
+                        'default-focus group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
                         isActive
                           ? 'is-active bg-gray-50 [&>div>div>.reply-avatar]:outline-gray-50'
                           : '',

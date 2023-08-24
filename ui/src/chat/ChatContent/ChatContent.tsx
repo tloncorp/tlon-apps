@@ -52,7 +52,7 @@ function ShipMention({ ship }: ShipMentionProps) {
   return (
     <Link
       to={`/profile/${ship}`}
-      className="inline-block rounded bg-blue-soft px-1.5 py-0 text-blue"
+      className="default-focus inline-block rounded bg-blue-soft px-1.5 py-0 text-blue"
       state={{ backgroundLocation: location }}
     >
       <ShipName name={ship} showAlias />

@@ -1,4 +1,5 @@
 import cn from 'classnames';
+import { useLocation } from 'react-router';
 import React, { ReactNode, useState } from 'react';
 import {
   channelHref,
@@ -28,8 +29,10 @@ import {
 } from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
-import HashIcon16 from '@/components/icons/HashIcon16';
+import HashIcon from '@/components/icons/HashIcon';
 import MigrationTooltip from '@/components/MigrationTooltip';
+import InviteIcon from '@/components/icons/InviteIcon';
+import PeopleIcon from '@/components/icons/PeopleIcon';
 import {
   usePendingImports,
   useStartedMigration,
@@ -153,6 +156,7 @@ export default function ChannelList({ className }: ChannelListProps) {
   const vessel = useVessel(flag, window.our);
   const isChannelJoined = useCheckChannelJoined();
   const isChannelUnread = useCheckChannelUnread();
+  const location = useLocation();
 
   if (!group || group.meta.title === '') {
     return (
@@ -242,16 +246,42 @@ export default function ChannelList({ className }: ChannelListProps) {
       {!isMobile && <ChannelSorter isMobile={false} />}
       <div className="mx-4 space-y-0.5 sm:mx-2">
         {isMobile && (
-          <SidebarItem
-            icon={
-              <div className="flex h-12 w-12 items-center justify-center rounded-md">
-                <HashIcon16 className="m-1 h-4 w-4 text-gray-400" />
-              </div>
-            }
-            to={`/groups/${flag}/channels`}
-          >
-            All Channels
-          </SidebarItem>
+          <>
+            <SidebarItem
+              icon={
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
+                  <PeopleIcon className="m-1 h-6 w-6 text-gray-400" />
+                </div>
+              }
+              to={`/groups/${flag}/info`}
+              state={{ backgroundLocation: location }}
+            >
+              Members
+            </SidebarItem>
+            <SidebarItem
+              icon={
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
+                  <HashIcon className="m-1 h-6 w-6 text-gray-400" />
+                </div>
+              }
+              to={`/groups/${flag}/channels`}
+            >
+              All Channels
+            </SidebarItem>
+            <SidebarItem
+              color="text-blue"
+              highlight="bg-blue-soft"
+              icon={
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
+                  <InviteIcon className="h-6 w-6" />
+                </div>
+              }
+              to={`/groups/${flag}/invite`}
+              state={{ backgroundLocation: location }}
+            >
+              Invite People
+            </SidebarItem>
+          </>
         )}
         {isDefaultSort
           ? filteredSections.map((s) => (

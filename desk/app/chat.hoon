@@ -884,13 +884,13 @@
   |=  diff=diff:writs:c
   =*  her    p.p.diff
   =*  delta  q.diff
-  ?.  =(her src.bowl)  |
+  =*  should  =(her src.bowl)
   ?-  -.delta
-      %add  =(src.bowl author.p.delta)
-      %del  &
+      %add  ?.(should | =(src.bowl author.p.delta))
+      %del  should
       %add-feel  =(src.bowl p.delta)
       %del-feel  =(src.bowl p.delta)
-  ==  
+  ==
 ::
 ++  from-self  =(our src):bowl
 ++  cu-abed  cu-abed:cu-core

@@ -61,6 +61,10 @@ export function log(...args: any[]) {
   }
 }
 
+export function logTime(...args: any[]) {
+  return log(...[performance.now(), ...args]);
+}
+
 type App = 'chat' | 'heap' | 'diary';
 
 export function nestToFlag(nest: string): [App, string] {
