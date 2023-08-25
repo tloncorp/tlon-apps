@@ -40,7 +40,7 @@
 ::
 +$  shelf  (map flag diary)
 ++  diary
-  |^  ,[=global =local]
+  |^  ,[global local]
   ::  $global: should be identical between ships
   ::
   +$  global
@@ -85,7 +85,7 @@
 ++  mo-quips  ((mp time (unit quip)) lte)
 ::  $seal: host-side data for a note
 ::
-+$  seal
++$  seal  $+  diary-seal
   $:  =time
       =quips
       =feels
@@ -145,7 +145,7 @@
 ::    %listing: a traditional HTML list, ul and ol
 ::    %code: a block of code
 ::
-+$  block
++$  block  $+  diary-block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
@@ -167,7 +167,7 @@
 ::    %link: link to a URL with a face
 ::    %break: line break
 ::
-+$  inline
++$  inline  $+  diary-inline
   $@  @t
   $%  [%italics p=(list inline)]
       [%bold p=(list inline)]
@@ -250,11 +250,15 @@
     new
   old
 ::
+++  next-rev
+  |*  [old=(rev) new=*]
+  old(rev +(rev.old), + new)
+::
 +|  %actions
 ::
 +$  a-shelf  [=flag =a-diary]
 +$  a-diary
-  $%  [%create =create-diary]
+  $%  [%create create=create-diary]
       [%join group=flag:g]
       [%leave ~]
       [%read ~]

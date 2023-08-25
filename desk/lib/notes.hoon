@@ -7,12 +7,12 @@
   |=  [our=ship last-read=time]
   ^-  brief:briefs:d
   =/  =time
-    ?~  tim=(ram:on:notes:d not)  *time
+    ?~  tim=(ram:on-notes:d not)  *time
     key.u.tim
   =/  unreads
-    (lot:on:notes:d not `last-read ~)
+    (lot:on-notes:d not `last-read ~)
   =/  read-id=(unit ^time)
-    =/  pried  (pry:on:notes:d unreads)
+    =/  pried  (pry:on-notes:d unreads)
     ?~  pried  ~
     ?~  val.u.pried  ~
     `time.u.val.u.pried
@@ -28,7 +28,7 @@
 ++  get
   |=  =time
   ^-  (unit [=^time note=(unit note:d)])
-  ?~  not=(get:on:notes:d not time)
+  ?~  not=(get:on-notes:d not time)
     ~
   `[time u.not]
 ::
@@ -36,7 +36,7 @@
   |=  [=time fun=$-((unit note:d) (unit note:d))]
   ^+  not
   ?~  v=(get time)  not
-  =.  not  (put:on:notes:d not time.u.v (fun note.u.v))
+  =.  not  (put:on-notes:d not time.u.v (fun note.u.v))
   not
 ::
 ++  got
@@ -45,32 +45,36 @@
   (need (get time))
 ::
 ++  reduce
-  |=  [new=time existing=time com=command:notes:d]
+  |=  [new=time com=c-note:d]
   ^+  not
-  ?-  -.com
-      %add
+  ?:  ?=(%add -.com)
     =/  =seal:d  [new ~ ~]
     |-
     =/  note  (get new)
-    ?~  note  (put:on:notes:d not new ~ [seal 0 p.com])
+    ?~  note  (put:on-notes:d not new ~ [seal 0 p.com])
     ?:  =(+.+.u.note p.com)  not
     $(new `@da`(add new ^~((div ~s1 (bex 16)))))
   ::
+  =/  existing=id-note:d
+    ?+  -.com  id.com
+      %del  id.com
+    ==
+  ?-  -.com
       %edit
     =/  note  (get existing)
     ?~  note         not
     ?~  note.u.note  not
     =*  noot    u.note.u.note
-    (put:on:notes:d not existing ~ [-.noot +(rev.noot) p.com])
+    (put:on-notes:d not existing ~ [-.noot +(rev.noot) p.com])
   ::
       %del
-    (put:on:notes:d not existing ~)
+    (put:on-notes:d not existing ~)
   ::
       %quips
     %+  jab  existing
     |=  note=(unit note:d)
     ?~  note  ~
-    `u.note(quips (~(reduce qip quips.u.note) [id command]:com))
+    `u.note(quips (~(reduce qip quips.u.note) [id c-quip]:com))
   ::
       ?(%add-feel %del-feel)
     %+  jab  existing
@@ -118,17 +122,17 @@
   ==
 ::
 ++  hark
-  |=  [our=ship =time =command:notes:d]
+  |=  [our=ship update:d]
   ^-  (list (list content:ha))
   ?.  ?=(%quips -.command)
     ~
   =/  [@ note=(unit note:d)]  (got time)
   ?~  note  ~
-  ?.  ?=(%add -.command.command)
+  ?.  ?=(%add -.c-quip.command)
     ~
-  =/  =memo:d  p.command.command
+  =/  =memo:d  p.c-quip.command
   =/  in-replies
-    %+  lien  (tap:on:quips:d quips.u.note)
+    %+  lien  (tap:on-quips:d quips.u.note)
     |=  [=^time quip=(unit quip:d)]
     ?~  quip  |
     =(author.u.quip our)
@@ -153,7 +157,7 @@
     [~(wyt by quips.note) quippers +>.note]
   =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
   %-  ~(gas in *(set ship))
-  %+  murn  (tap:on:quips:d quips.note)
+  %+  murn  (tap:on-quips:d quips.note)
   |=  [@ quip=(unit quip:d)]
   ?~  quip  ~
   (some author.u.quip)
@@ -161,7 +165,7 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  =*  on   on:notes:d
+  =*  on   on-notes:d
   ?+    pole  [~ ~]
   ::
       [%newest count=@ mode=?(%outline %note) ~]

@@ -8,7 +8,7 @@
 ++  get
   |=  =time
   ^-  (unit [=^time quip=(unit quip:d)])
-  ?~  qup=(get:on:quips:d qup time)
+  ?~  qup=(get:on-quips:d qup time)
     ~
   `[time u.qup]
 ::
@@ -16,7 +16,7 @@
   |=  [=time fun=$-((unit quip:d) (unit quip:d))]
   ^+  qup
   ?~  v=(get time)  qup
-  =.  qup  (put:on:quips:d qup time.u.v (fun quip.u.v))
+  =.  qup  (put:on-quips:d qup time.u.v (fun quip.u.v))
   qup
 ::
 ++  got
@@ -25,19 +25,19 @@
   (need (get time))
 ::
 ++  reduce
-  |=  [=time com=command:quips:d]
+  |=  [=time com=c-quip:d]
   ^+  qup
   ?-  -.com
       %add
     =/  =cork:d  [time ~]
     |-
     =/  quip  (get time)
-    ?~  quip  (put:on:quips:d qup time `[cork p.com])
+    ?~  quip  (put:on-quips:d qup time `[cork p.com])
     ?:  =(+.+.u.quip p.com)  qup
     $(time `@da`(add time ^~((div ~s1 (bex 16)))))
   ::
       %del
-    (put:on:quips:d qup time ~)
+    (put:on-quips:d qup time ~)
   ::
       ?(%add-feel %del-feel)
     %+  jab  time
@@ -59,7 +59,7 @@
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
-  =*  on   on:quips:d
+  =*  on   on-quips:d
   ?+    pole  [~ ~]
       [%all ~]
     ``diary-quips+!>(qup)
