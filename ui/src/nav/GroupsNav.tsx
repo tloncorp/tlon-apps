@@ -1,8 +1,10 @@
 import { matchPath, Outlet, useLocation, useMatch } from 'react-router';
+import cn from 'classnames';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import GroupSidebar from '@/groups/GroupSidebar/GroupSidebar';
 import { useIsMobile } from '@/logic/useMedia';
+import useIsIOSWebView from '@/logic/useIsIOSWebView';
 
 export function DesktopNav() {
   const location = useLocation();
@@ -51,8 +53,13 @@ export function DesktopNav() {
 
 export default function GroupsNav() {
   const isMobile = useIsMobile();
+  const isIOSWebView = useIsIOSWebView();
   return (
-    <div className="fixed flex h-full w-full">
+    <div
+      className={cn('fixed flex h-full w-full', {
+        'pb-3': isIOSWebView,
+      })}
+    >
       {isMobile ? null : <DesktopNav />}
       <Outlet />
     </div>

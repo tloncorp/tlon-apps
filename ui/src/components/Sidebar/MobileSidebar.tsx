@@ -2,6 +2,7 @@ import cn from 'classnames';
 import { Outlet, useLocation } from 'react-router';
 import { isNativeApp } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
+import useIsIOSWebView from '@/logic/useIsIOSWebView';
 import NavTab from '../NavTab';
 import BellIcon from '../icons/BellIcon';
 import GridIcon from '../icons/GridIcon';
@@ -14,11 +15,16 @@ export default function MobileSidebar() {
   const location = useLocation();
   const isInactive = (path: string) => !location.pathname.startsWith(path);
   const isDarkMode = useIsDark();
+  const isOSWebView = useIsIOSWebView();
 
   return (
     <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white">
       <Outlet />
-      <footer className="flex-none border-t-2 border-gray-50">
+      <footer
+        className={cn('flex-none border-t-2 border-gray-50', {
+          'pb-3': isOSWebView,
+        })}
+      >
         <nav>
           <ul className="flex">
             <NavTab to="/" linkClass="basis-1/5">
