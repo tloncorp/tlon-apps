@@ -19,6 +19,8 @@
 /-  zer=diary-0, uno=diary-1
 /+  mp=mop-extensions
 |%
++|  %ancients
+::
 ++  old
   |%
   ++  zero  zer
@@ -56,7 +58,7 @@
   ::  .diffs: diffs for notes in the window, to apply on receipt
   ::
   +$  future
-    [=window diffs=(jug id:notes diff:notes)]
+    [=window diffs=(jug id-note u-note)]
   ::  $local: local-only information
   ::
   +$  local
@@ -71,15 +73,15 @@
 ::
 +$  note      [seal (rev essay)]
 +$  id-note   time
-+$  notes     ((mop id (unit note)) lte)
-++  on-notes  ((^on id (unit note)) lte)
++$  notes     ((mop id-note (unit note)) lte)
+++  on-notes  ((on id-note (unit note)) lte)
 ++  mo-notes  ((mp time (unit note)) lte)
 ::  $quip: a post comment
 ::
 +$  quip      [cork memo]
 +$  id-quip   time
-+$  quips     ((mop id (unit quip)) lte)
-++  on-quips  ((^on id (unit quip)) lte)
++$  quips     ((mop id-quip (unit quip)) lte)
+++  on-quips  ((on id-quip (unit quip)) lte)
 ++  mo-quips  ((mp time (unit quip)) lte)
 ::  $seal: host-side data for a note
 ::
@@ -332,10 +334,15 @@
       [%view =view]
       [%sort =sort]
       [%perm =perm]
+    ::
+      [%read ~]
+      [%read-at =time]
+      [%watch ~]
+      [%unwatch ~]
   ==
 ::
 +$  r-note
-  $%  [%set note=(unit [r-seal essay])]
+  $%  [%set note=(unit rr-note)]
       [%quip id=id-quip =r-quip]
       [%feels feels=(map ship feel)]
       [%essay =essay]
@@ -348,12 +355,18 @@
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
 ::
++$  rr-note   [rr-seal essay]
 +$  rr-seal   [=time =rr-quips feels=(map ship feel)]
 +$  rr-quip   [rr-cork memo]
-+$  rr-quips  ((mop id rr-quip) lte)
++$  rr-quips  ((mop id-quip rr-quip) lte)
 +$  rr-cork   [=time feels=(map ship feel)]
 ::
 +|  %helper-types
+::
+::  $log: a time ordered history of modifications to a diary
+::
++$  log     ((mop time u-diary) lte)
+++  log-on  ((on time u-diary) lte)
 ::
 ::  $create-diary: represents a request to create a channel
 ::
@@ -385,7 +398,7 @@
 ::
 +$  remark-action
   $~  [%read ~]
-  $>(?(%read %read-at %watch %unwatch) action)
+  $>(?(%read %read-at %watch %unwatch) a-diary)
 ::
 :::::::::::::::::::::::::::::TODO  deleteme
 ::
