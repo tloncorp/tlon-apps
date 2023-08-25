@@ -355,11 +355,29 @@
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
 ::
++$  rr-shelf  (map flag rr-diary)
+++  rr-diary
+  |^  ,[global local]
+  +$  global
+    $:  notes=(map id-note rr-note)
+        order=arranged-notes
+        =view
+        =sort
+        =perm
+    ==
+  ::
+  +$  local
+    $:  =net
+        =remark
+    ==
+  --
 +$  rr-note   [rr-seal essay]
 +$  rr-seal   [=time =rr-quips feels=(map ship feel)]
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)
 +$  rr-cork   [=time feels=(map ship feel)]
+++  rr-on-notes  ((on id-quip rr-note) lte)
+++  rr-on-quips  ((on id-quip rr-quip) lte)
 ::
 +|  %helper-types
 ::
