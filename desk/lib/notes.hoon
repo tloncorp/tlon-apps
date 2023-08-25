@@ -12,9 +12,17 @@
   =/  unreads
     (lot:on:notes:d not `last-read ~)
   =/  read-id=(unit ^time)
-    (bind (pry:on:notes:d unreads) |=([key=@da val=note:d] time.val))
+    =/  pried  (pry:on:notes:d unreads)
+    ?~  pried  ~
+    ?~  val.u.pried  ~
+    `time.u.val.u.pried
   =/  count
-    (lent (skim ~(tap by unreads) |=([tim=^time =note:d] !=(author.note our))))
+    %-  lent
+    %+  skim  ~(tap by unreads)
+    |=  [tim=^time note=(unit note:d)]
+    ?&  ?=(^ note)
+        !=(author.u.note our)
+    ==
   [time count read-id]
 ::
 ++  get
@@ -110,23 +118,25 @@
   ==
 ::
 ++  hark
-  |=  [our=ship =time =delta:notes:d]
+  |=  [our=ship =time =command:notes:d]
   ^-  (list (list content:ha))
-  ?.  ?=(%quips -.delta)
+  ?.  ?=(%quips -.command)
     ~
-  =/  [@ =note:d]  (got time)
-  ?.  ?=(%add -.command.delta)
+  =/  [@ note=(unit note:d)]  (got time)
+  ?~  note  ~
+  ?.  ?=(%add -.command.command)
     ~
-  =/  =memo:d  p.command.delta
+  =/  =memo:d  p.command.command
   =/  in-replies
-    %+  lien  (tap:on:quips:d quips.note)
-    |=  [=^time =quip:d]
-    =(author.quip our)
-  ?:  |(=(author.memo our) &(!in-replies !=(author.note our)))  ~
+    %+  lien  (tap:on:quips:d quips.u.note)
+    |=  [=^time quip=(unit quip:d)]
+    ?~  quip  |
+    =(author.u.quip our)
+  ?:  |(=(author.memo our) &(!in-replies !=(author.u.note our)))  ~
   =-  ~[-]
   :~  [%ship author.memo]
       ' commented on '
-      [%emph title.note]
+      [%emph title.u.note]
       ': '
       [%ship author.memo]
       ': '
@@ -140,13 +150,13 @@
   |=  =note:d
   ^-  outline:d
   =;  quippers=(set ship)
-    [~(wyt by quips.note) quippers +.note]
+    [~(wyt by quips.note) quippers +>.note]
   =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
   %-  ~(gas in *(set ship))
   %+  murn  (tap:on:quips:d quips.note)
   |=  [@ quip=(unit quip:d)]
   ?~  quip  ~
-  author.u.quip
+  (some author.u.quip)
 ::
 ++  peek
   |=  =(pole knot)
@@ -174,7 +184,10 @@
       ``diary-notes+!>((gas:on *notes:d ls))
     =-  ``diary-outlines+!>(-)
     %+  gas:on:outlines:d  *outlines:d
-    (turn ls |=([=time =note:d] [time (trace note)]))
+    %+  murn  ls
+    |=  [=time note=(unit note:d)]
+    ?~  note  ~
+    (some [time (trace u.note)])
   ::
       [%newer start=@ count=@ ~]
     =/  count  (slav %ud count.pole)
@@ -187,6 +200,8 @@
   ::
       [%note %id time=@ %quips rest=*]
     =/  time  (slav %ud time.pole)
-    (~(peek qip quips:note:(got `@da`time)) rest.pole)
+    =/  note  note:(got `@da`time)
+    ?~  note  `~
+    (~(peek qip quips.u.note) rest.pole)
   ==
 --

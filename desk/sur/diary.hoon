@@ -109,7 +109,6 @@
   ::
   ::  $diffs: can be applied to global
   ::
-  +$  diffs  (list diff)
   +$  diff
     $%  [%notes =id:notes =diff:notes]
         [%order (rev order=arranged-notes)]
@@ -118,24 +117,20 @@
         [%perm (rev =perm)]
     ==
   ::
-  ++  apply-diffs
-    |=  [=global =diffs]
-    ^-  [(list [id:notes diff:notes]) _global]
-    ?~  diffs  [~ global]
-    =^  hed  global
-      ?-    -.i.diffs
-          %order  [~ global(order (apply-rev order.global +.i.diffs))]
-          %view   [~ global(view (apply-rev view.global +.i.diffs))]
-          %sort   [~ global(sort (apply-rev sort.global +.i.diffs))]
-          %perm   [~ global(perm (apply-rev perm.global +.i.diffs))]
-          %notes
-        =/  res  (apply-diff:notes notes.global +.i.diffs)
-        ?~  res
-          [[id.i.diffs diff.i.diffs]~ global]
-        [~ global(notes u.res)]
-      ==
-    =^  tal  global  $(diffs t.diffs)
-    [(weld hed tal) global]
+  ++  apply-diff
+    |=  [=global =diff]
+    ^-  (each _global [id:notes diff:notes])
+    ?-    -.diff
+        %order  &+global(order (apply-rev order.global +.diff))
+        %view   &+global(view (apply-rev view.global +.diff))
+        %sort   &+global(sort (apply-rev sort.global +.diff))
+        %perm   &+global(perm (apply-rev perm.global +.diff))
+        %notes
+      =/  res  (apply-diff:notes notes.global +.diff)
+      ?~  res
+        |+[id.diff diff.diff]
+      &+global(notes u.res)
+    ==
   --
 ::
 ::  $notes: a set of time ordered diary posts
@@ -162,6 +157,17 @@
         [%feels =feels]
         [%essay (rev =essay)]
     ==
+  +$  response
+    $%  [%set note=(unit response-note)]
+        [%quip =id:quips =response:quips]
+        [%feels feels=(map ship feel)]
+        [%essay =essay]
+    ==
+  +$  response-note   [response-seal essay]
+  +$  response-seal   [=time =response-quips feels=(map ship feel)]
+  +$  response-quips  ((mop id response-quip) lte)
+  +$  response-quip   [response-cork memo]
+  +$  response-cork   [=time feels=(map ship feel)]
   ::
   ++  apply-notes
     |=  [old=rock new=rock]
@@ -225,6 +231,10 @@
   +$  diff
     $%  [%set quip=(unit quip)]
         [%feels =feels]
+    ==
+  +$  response
+    $%  [%set quip=(unit response-quip:notes)]
+        [%feels feels=(map ship feel)]
     ==
   ::
   ++  apply-quips
@@ -410,14 +420,22 @@
       [%add-writers sects=(set sect:g)]
       [%del-writers sects=(set sect:g)]
   ==
+::  $response: sent to ui or third parties
 ::
++$  response
+  $%  [%notes =id:notes =response:notes]
+      [%order order=arranged-notes]
+      [%view =view]
+      [%sort =sort]
+      [%perm =perm]
+  ==
 ::  $update: a representation in time of a modification to a diary
 ::
 +$  update  [=time =diff]
 ::
 ::  $diff: the full suite of modifications that can be made to a diary
 ::
-+$  diff  diffs:diary
++$  diff  diff:diary
 ::
 ::  $net: an indicator of whether I'm a host or subscriber
 ::

@@ -838,7 +838,38 @@
   ::
   ++  di-give-ui
     |=  =update:d
+    |^  
+    =/  =response:d
+      ?-  -.diff.update
+          %order  [%order order.diff.update]
+          %view   [%view view.diff.update]
+          %sort   [%sort sort.diff.update]
+          %perm   [%perm perm.diff.update]
+          %notes
+        :+  %notes  id.diff.update
+        ?-  -.diff.diff.update
+            %set    diff.diff.update
+            %essay  [%essay essay.diff.diff.update]
+            %feels  [%feels (reduce-feels feels.diff.diff.update)]
+            %quip
+          :+  %quip  id.diff.diff.update
+          ?-  -.diff.diff.diff.update
+            %set  diff.diff.diff.update
+            %feels  [%feels (reduce-feels feels.diff.diff.diff.update)]
+          ==
+        ==
+      ==
     (give %fact ~[/ui] act:mar:d !>([flag diff.update]))
+    ::
+    ++  reduce-feels
+      |=  =feels:d
+      ^-  (map ship feel:d)
+      %-  ~(gas by *(map ship feel:d))
+      %+  murn  ~(tap by feels)
+      |=  [=ship (rev:d feel=(unit feel:d))]
+      ?~  feel  ~
+      (some ship u.feel)
+    --
   ::
   ++  di-give-updates
     |=  =update:d
@@ -906,31 +937,28 @@
     ?>  di-from-host
     ^+  di-core
     =.  di-core  (di-give-ui time diff)
-    =^  miss  global.diary
-      (apply-diffs:diary global.diary diff)
-    =.  diffs.future.local.diary
-      %+  roll  miss
-      |=  [[=id:notes:d =diff:notes:d] =_diffs.future.local.diary]
-      ::  if the item affected by the diff is not in the window we care about,
-      ::  then ignore it. otherwise, put it in the pending diffs set.
-      ::
-      ?.  (~(has as:sparse window.future.local.diary) id)
-        diffs
-      (~(put ju diffs) id diff)
+    =/  result
+      (apply-diff:diary global.diary diff)
+    ?:  ?=(%| -.result)
+      =.  diffs.future.local.diary
+        ::  if the item affected by the diff is not in the window we care about,
+        ::  then ignore it. otherwise, put it in the pending diffs set.
+        ::
+        ?.  (~(has as:sparse window.future.local.diary) id)
+          diffs.future.local.diary
+        (~(put ju diffs.future.local.diary) id diff)
+      di-core
     ::  emit notifications if we need to
     ::
-    |-
-    ?~  diff  di-core
-    =*  dd=diff:diary  i.diff
-    ?.  ?=(%notes -.dd)  $(diff t.diff)
+    ?.  ?=(%notes -.diff)  di-core
     =.  cor  (give-brief flag di-brief)
     =/  cons=(list (list content:ha))
-      (hark:di-notes our.bowl +.dd)
+      (hark:di-notes our.bowl +.diff)
     =.  cor
       %-  emil
       %+  turn  cons
       |=  cs=(list content:ha)
-      (pass-hark (di-spin /note/(rsh 4 (scot %ui id.dd)) cs ~))
-    $(diff t.diff)
+      (pass-hark (di-spin /note/(rsh 4 (scot %ui id.diff)) cs ~))
+    di-core
   --
 --

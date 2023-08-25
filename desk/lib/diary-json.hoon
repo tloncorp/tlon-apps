@@ -81,7 +81,7 @@
     |=  [f=flag:d di=diary:d]
     [(rap 3 (scot %p p.f) '/' q.f ~) (diary di)]
   ::
-  ++  arranged-notes
+  ++  order
     |=  a=arranged-notes:d
     :-  %a
     =/  times=(list ^time)  ?~(a ~ u.a)
@@ -103,11 +103,11 @@
   ++  diary
     |=  di=diary:d
     %-  pairs
-    :~  arranged-notes/(arranged-notes arranged-notes.di)
-        perms/(perm perm.di)
-        view/s/view.di
-        sort/s/sort.di
-        saga/(saga net.di)
+    :~  order/(order order.order.global.di)
+        perms/(perm perm.perm.global.di)
+        view/s/view.view.global.di
+        sort/s/sort.sort.global.di
+        saga/(saga net.local.di)
     ==
   ++  saga
     |=  n=net:d
@@ -136,7 +136,7 @@
   ++  action
     |=  =action:d
     %+  frond  -.action
-    ?+  -.action  (diff-inner action)
+    ?+  -.action  (response-inner action)
       %create     (create create.action)
       %join       (flag group.action)
       %leave      ~
@@ -146,42 +146,38 @@
       %unwatch    ~
     ==
   ::
-  ++  diff
-    |=  dif=diff:d
-    (frond -.dif (diff-inner dif))
+  ++  response
+    |=  rep=response:d
+    (frond -.rep (response-inner rep))
   ::
-  ++  diff-inner
-    |=  dif=diff:d
-    ?-  -.dif
-        %view         s/view.dif
-        %sort         s/sort.dif
-        %create       (create create.dif)
-        %order        (arranged-notes notes.dif)
-        %notes        (notes-diff id.dif delta.dif)
-        %add-writers  a/(turn ~(tap in sects.dif) (lead %s))
-        %del-writers  a/(turn ~(tap in sects.dif) (lead %s))
+  ++  response-inner
+    |=  rep=response:d
+    ?-  -.rep
+        %notes        (notes-responseer id.rep response.rep)
+        %view         s/view.rep
+        %sort         s/sort.rep
+        %order        (order notes.rep)
+        %add-writers  a/(turn ~(tap in sects.rep) (lead %s))
+        %del-writers  a/(turn ~(tap in sects.rep) (lead %s))
     ==
   ::
-  ++  notes-diff
-    |=  [=id:notes:d =command:notes:d]
+  ++  notes-responseer
+    |=  [=id:notes:d =response:notes:d]
     %-  pairs
     :~  id/s/(scot %ud id)
-        command/(notes-delta command)
+        response/(notes-response response)
     ==
   ::
-  ++  notes-delta
-    |=  =delta:notes:d
-    %+  frond  -.delta
-    ?-  -.delta
-        %add       (essay p.delta)
-        %edit      (essay p.delta)
-        %del       ~
-        %add-feel  (add-feel +.delta)
-        %del-feel  (ship p.delta)
+  ++  notes-response
+    |=  =response:notes:d
+    %+  frond  -.response
+    ?-  -.response
+        %set    ?~(note.response ~ (note u.note.response))
+        %feels  (feels feels.response)
         %quips
       %-  pairs
-      :~  id+s+(scot %ud id.delta)
-          command+(quips-delta command.delta)
+      :~  id+s+(scot %ud id.response)
+          response+(quips-response response.response)
       ==
     ==
   ::
@@ -286,9 +282,10 @@
     |=  =notes:d
     ^-  json
     %-  pairs
-    %+  turn  (tap:on:notes:d notes)
-    |=  [key=@da n=note:d]
-    [(scot %ud key) (note n)]
+    %+  murn  (tap:on:notes:d notes)
+    |=  [key=@da n=(unit note:d)]
+    ?~  n  ~
+    (some [(scot %ud key) (note u.n)])
   ::
   ++  quips
     |=  =quips:d
@@ -323,7 +320,7 @@
     ==
   ::
   ++  note
-    |=  =note:d
+    |=  note=response-note:notes:d
     %-  pairs
     :~  seal+(seal -.note)
         essay+(essay +.note)
@@ -331,20 +328,21 @@
     ==
   ::
   ++  cork
-    |=  =cork:d
+    |=  cork=response-cork:notes:d
     %-  pairs
     :~  time+(time time.cork)
-    ::
-        :-  %feels
-        %-  pairs
-        %+  turn  ~(tap by feels.cork)
-        |=  [her=@p =feel:d]
-        [(scot %p her) s+feel]
+        feels+(feels feels.cork)
     ==
-
+  ++  feels
+    |=  feels=(map ship feel:d)
+    ^-  json
+    %-  pairs
+    %+  turn  ~(tap by feels)
+    |=  [her=@p feel=feel:d]
+    [(scot %p her) s+feel]
   ::
   ++  seal
-    |=  =seal:d
+    |=  seal=response-seal:notes:d
     %-  pairs
     :~  time+(time time.seal)
     ::
@@ -354,11 +352,7 @@
         |=  [t=@da q=quip:d]
         [(scot %ud t) (quip q)]
     ::
-        :-  %feels
-        %-  pairs
-        %+  turn  ~(tap by feels.seal)
-        |=  [her=@p =feel:d]
-        [(scot %p her) s+feel]
+        feels+(feels feels.seal)
     ==
   ::
   ++  remark-action
