@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import GroupSidebar from '@/groups/GroupSidebar/GroupSidebar';
 import { useIsMobile } from '@/logic/useMedia';
-import useIsIOSWebView from '@/logic/useIsIOSWebView';
+import { isIOSWebView } from '@/logic/native';
 
 export function DesktopNav() {
   const location = useLocation();
@@ -53,11 +53,10 @@ export function DesktopNav() {
 
 export default function GroupsNav() {
   const isMobile = useIsMobile();
-  const isIOSWebView = useIsIOSWebView();
   return (
     <div
       className={cn('fixed flex h-full w-full', {
-        'pb-3': isIOSWebView,
+        'pb-3': isIOSWebView(),
       })}
     >
       {isMobile ? null : <DesktopNav />}

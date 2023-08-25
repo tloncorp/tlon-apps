@@ -7,3 +7,12 @@ const postJSONToNativeApp = (obj: Record<string, unknown>) =>
 
 export const postActionToNativeApp = (action: Action, value: unknown) =>
   postJSONToNativeApp({ action, value });
+
+export const isIOSWebView = () => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return (
+    isNativeApp() &&
+    /(iphone|ipod|ipad).*applewebkit/.test(userAgent) &&
+    !/safari/.test(userAgent)
+  );
+};
