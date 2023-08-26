@@ -1,3 +1,4 @@
+::  XX add /said subscriptions
 /-  d=diary, g=groups
 /-  e=epic
 /+  default-agent, verb, dbug
@@ -19,7 +20,12 @@
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       cor   ~(. +> [bowl ~])
-  ++  on-init    on-init:def
+  ++  on-init
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(inflate-io:cor vase)
+    [cards this]
+  ::
   ++  on-save  !>([state okay:d])
   ++  on-load
     |=  =vase
@@ -45,7 +51,13 @@
   ++  on-peek    on-peek:def
   ++  on-leave   on-leave:def
   ++  on-fail    on-fail:def
-  ++  on-agent   on-agent:def
+  ++  on-agent
+    |=  [=wire =sign:agent:gall]
+    ^-  (quip card _this)
+    =^  cards  state
+      abet:(agent:cor wire sign)
+    [cards this]
+  ::
   ++  on-arvo    on-arvo:def
   --
 ::
@@ -56,16 +68,25 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  safe-watch
+  |=  [=wire =dock =path]
+  ^+  cor
+  ?:  (~(has by wex.bowl) wire dock)  cor
+  (emit %pass wire %agent dock %watch path)
+::
 ++  load
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
   ?>  ?=(%0 -.old)
   =.  state  old
-  (give %fact [/epic]~ epic+!>(okay:d))
+  (give %fact ~[/epic] epic+!>(okay:d))
   ::
   +$  versioned-state  $%(current-state)
   --
+::
+++  inflate-io
+  (safe-watch /groups [our.bowl %groups] /groups)
 ::
 ++  poke
   |=  [=mark =vase]
@@ -112,6 +133,66 @@
     =<  di-abet
     (di-watch-note-page:(di-abed:di-core our.bowl name.pole) (slav %ud n.pole))
   ==
+::
+++  agent
+  |=  [=(pole knot) =sign:agent:gall]
+  ^+  cor
+  ?+    pole  ~|(bad-agent-wire+pole !!)
+      [%groups ~]
+    ?+    -.sign  !!
+        %kick       watch-groups
+        %watch-ack
+      ?~  p.sign
+        cor
+      =/  =tank
+        leaf+"Failed groups subscription in {<dap.bowl>}, unexpected"
+      ((slog tank u.p.sign) cor)
+    ::
+        %fact
+      ?.  =(act:mar:g p.cage.sign)  cor
+      (take-groups !<(=action:g q.cage.sign))
+    ==
+  ==
+::
+++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
+++  take-groups
+  |=  =action:g
+  =/  affected=(list flag:d)
+    %+  murn  ~(tap by shelf)
+    |=  [=flag:d =diary:d]
+    ?.  =(p.action group.perm.perm.diary)  ~
+    `flag
+  =/  diff  q.q.action
+  ?+    diff  cor
+      [%fleet * %del ~]
+    ~&  "%diary-server: revoke perms for {<affected>}"
+    %+  roll  affected
+    |=  [=flag:d co=_cor]
+    ^+  cor
+    %+  roll  ~(tap in p.diff)
+    |=  [=ship ci=_cor]
+    ^+  cor
+    =/  di  (di-abed:di-core:ci flag)
+    di-abet:(di-revoke:di ship)
+  ::
+      [%fleet * %add-sects *]    (recheck-perms affected ~)
+      [%fleet * %del-sects *]    (recheck-perms affected ~)
+      [%channel * %edit *]       (recheck-perms affected ~)
+      [%channel * %del-sects *]  (recheck-perms affected ~)
+      [%channel * %add-sects *]  (recheck-perms affected ~)
+      [%cabal * %del *]
+    =/  =sect:g  (slav %tas p.diff)
+    %+  recheck-perms  affected
+    (~(gas in *(set sect:g)) ~[p.diff])
+  ==
+::
+++  recheck-perms
+  |=  [affected=(list flag:d) sects=(set sect:g)]
+  ~&  "%diary-server recheck permissions for {<affected>}"
+  %+  roll  affected
+  |=  [=flag:d co=_cor]
+  =/  di  (di-abed:di-core:co flag)
+  di-abet:(di-recheck:di sects)
 ::
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -172,7 +253,7 @@
   ::
   ++  di-give-update
     |=  =update:d
-    (give %fact [/diary/[q.flag]]~ %diary-update !>(update))
+    (give %fact ~[/diary/[q.flag]] %diary-update !>(update))
   ::
   ++  di-watch-updates
     |=  =@da
@@ -396,5 +477,31 @@
     =/  =update:d  [time u-diary]
     =.  log.diary  (put:log-on:d log.diary update)
     (di-give-update update)
+  ::
+  ++  di-subscriptions
+    %+  roll  ~(val by sup.bowl)
+    |=  [[=ship =path] out=(set [ship path])]
+    ?.  =((scag 4 path) (snoc di-area %updates))
+      out
+    (~(put in out) [ship path])
+  ::
+  ++  di-revoke
+    |=  her=ship
+    %+  roll  ~(tap in di-subscriptions)
+    |=  [[=ship =path] di=_di-core]
+    ?.  =(ship her)  di
+    di(cor (emit %give %kick ~[path] `ship))
+  ::
+  ++  di-recheck
+    |=  sects=(set sect:g)
+    ::  if we have sects, we need to delete them from writers
+    =?  cor  &(!=(sects ~) =(p.flag our.bowl))
+      =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
+      (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
+    ::  if subs read permissions removed, kick
+    %+  roll  ~(tap in di-subscriptions)
+    |=  [[=ship =path] di=_di-core]
+    ?:  (di-can-read:di ship)  di
+    di(cor (emit %give %kick ~[path] `ship))
   --
 --

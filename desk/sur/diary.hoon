@@ -247,23 +247,23 @@
 ::
 ++  apply-rev
   |*  [old=(rev) new=(rev)]
+  ^+  [changed=& old]
   ?:  (lth rev.old rev.new)
-    new
-  old
+    &+new
+  |+old
 ::
 ++  next-rev
   |*  [old=(rev) new=*]
   ^+  [changed=& old]
   ?:  =(+.old new)
-    [%| old]
-  [%& old(rev +(rev.old), + new)]
+    |+old
+  &+old(rev +(rev.old), + new)
 ::
 +|  %actions
 ::
 +$  a-shelf  [=flag =a-diary]
 +$  a-diary
-  $%  [%create create=create-diary]
-      [%join group=flag:g]
+  $%  [%join group=flag:g]
       [%leave ~]
       [%read ~]
       [%read-at =time]
@@ -274,6 +274,10 @@
 ::
 +$  a-note  c-note
 +$  a-quip  c-quip
++$  a-remark
+  $~  [%read ~]
+  $>(?(%read %read-at %watch %unwatch) a-diary)
+::
 ::
 ++  action-to-command  !!
 ::
@@ -429,10 +433,6 @@
   ++  on        ((^on time outline) lte)
   --
 ::
-+$  remark-action
-  $~  [%read ~]
-  $>(?(%read %read-at %watch %unwatch) a-diary)
-::
 :::::::::::::::::::::::::::::TODO  deleteme
 ::
 ::
@@ -515,12 +515,11 @@
 :: ++  quips
 ::   =<  rock
 ::   |%
-
 ::   ++  apply-quips
 ::     |=  [old=rock new=rock]
 ::     ((uno:mo old new) apply-quip)
 ::   ::
-::   ++  apply-diff
+::  ++  apply-diff
 ::     |=  [old=rock =id =diff]
 ::     ^-  rock
 ::     ?:  ?=(%set -.diff)
