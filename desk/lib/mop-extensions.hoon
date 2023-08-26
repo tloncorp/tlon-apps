@@ -6,8 +6,6 @@
 |=  compare=$-([key key] ?)
 ~%  %mope-core  ..zuse  ~
 |%
-::  +bat: tabulate a subset excluding start element with a max count (backwards)
-::
 ::  +uno: merge with conflict resolution function
 ::
 ++  uno
@@ -27,6 +25,8 @@
   ?:  (compare key.n.a key.n.b)
     $(l.b $(b l.b, r.a ~), a r.a)
   $(r.b $(b r.b, l.a ~), a l.a)
+::  +bat: tabulate a subset excluding start element with a max count (backwards)
+::
 ++  bat
   |=  [a=(tree item) b=(unit key) c=@]
   ^-  (list item)

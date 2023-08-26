@@ -3,8 +3,9 @@
     %contacts
     %heap
     %diary
+    %diary-server
     %hark
     %notify
-    %groups-ui
     %grouper
+    %groups-ui
 ==

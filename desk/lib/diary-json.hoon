@@ -114,11 +114,11 @@
   ++  diary
     |=  di=diary:d
     %-  pairs
-    :~  order+(order order.order.global.di)
-        perms+(perm perm.perm.global.di)
-        view+s+view.view.global.di
-        sort+s+sort.sort.global.di
-        saga+(saga net.local.di)
+    :~  order+(order order.order.di)
+        perms+(perm perm.perm.di)
+        view+s+view.view.di
+        sort+s+sort.sort.di
+        saga+(saga net.di)
     ==
   ::
   ++  id

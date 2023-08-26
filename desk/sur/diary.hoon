@@ -34,6 +34,7 @@
   ++  cmd  `mark`%diary-command
   ++  upd  `mark`%diary-update
   ++  log  `mark`%diary-logs
+  ++  not  `mark`%diary-notes
   --
 ::
 +|  %primitives
@@ -86,14 +87,14 @@
 ::  $seal: host-side data for a note
 ::
 +$  seal  $+  diary-seal
-  $:  =time
+  $:  =time  ::  can differ from our id
       =quips
       =feels
   ==
 ::  $cork: host-side data for a quip
 ::
 +$  cork
-  $:  =time
+  $:  =time  ::  can differ from our id
       =feels
   ==
 ::  $essay: the post data itself
@@ -190,7 +191,7 @@
 ::  $view: the persisted display format for a diary
 +$  view  ?(%grid %list)
 ::  $sort: the persisted sort type for a diary
-+$  sort  ?(%alpha %time %arranged)
++$  sort  $~(%time ?(%alpha %time %arranged))
 ::  $arranged-notes: an array of noteIds
 +$  arranged-notes  (unit (list time))
 ::  $said: used for references
@@ -252,7 +253,10 @@
 ::
 ++  next-rev
   |*  [old=(rev) new=*]
-  old(rev +(rev.old), + new)
+  ^+  [changed=& old]
+  ?:  =(+.old new)
+    [%| old]
+  [%& old(rev +(rev.old), + new)]
 ::
 +|  %actions
 ::
@@ -275,7 +279,10 @@
 ::
 +|  %commands
 ::
-+$  c-shelf  [=flag =c-diary]
++$  c-shelf
+  $%  [%create name=term =create-diary]
+      [%diary =flag =c-diary]
+  ==
 +$  c-diary
   $%  [%notes =c-note]
       [%view =view]
@@ -286,19 +293,22 @@
   ==
 ::
 +$  c-note
-  $%  [%add p=essay]
-      [%edit id=id-note p=essay]
+  $%  [%add =essay]
+      [%edit id=id-note =essay]
       [%del id=id-note]
       [%quips id=id-note =c-quip]  ::TODO  consider singular (and %note)
-      [%add-feel id=id-note p=ship q=feel]
-      [%del-feel id=id-note p=ship]
+      c-feel
   ==
 ::
 +$  c-quip
-  $%  [%add p=memo]
+  $%  [%add =memo]
       [%del id=id-quip]
-      [%add-feel id=id-quip p=ship q=feel]
-      [%del-feel id=id-quip p=ship]
+      c-feel
+  ==
+::
++$  c-feel
+  $%  [%add-feel id=@da p=ship q=feel]
+      [%del-feel id=@da p=ship]
   ==
 ::
 ++  command-to-update  !!
@@ -308,18 +318,19 @@
 +$  update   [=time =u-diary]
 +$  u-shelf  [=flag =u-diary]
 +$  u-diary
-  $%  [%notes id=id-note =u-note]
+  $%  [%create =perm]
       [%order (rev order=arranged-notes)]
       [%view (rev =view)]
       [%sort (rev =sort)]
       [%perm (rev =perm)]
+      [%notes id=id-note =u-note]
   ==
 ::
 +$  u-note
   $%  [%set note=(unit note)]
-      [%quip id=id-quip =u-quip]
       [%feels =feels]
       [%essay (rev =essay)]
+      [%quip id=id-quip =u-quip]
   ==
 ::
 +$  u-quip

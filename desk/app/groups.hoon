@@ -220,10 +220,10 @@
     ::
         %diary
       =/  perms  .^(perm:d %gx path)
-      =/  =flag-command:d  [+.nest %del-writers writers.perms]
+      =/  =c-shelf:d  [%diary +.nest %del-writers writers.perms]
       =/  =wire  /diary
       =/  =dock  [our.bowl %diary]
-      =/  =cage  [act:mar:d !>(flag-command)]
+      =/  =cage  [act:mar:d !>(c-shelf)]
       [%pass wire %agent dock %poke cage]
     ::
         %heap
