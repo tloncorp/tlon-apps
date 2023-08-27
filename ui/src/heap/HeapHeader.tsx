@@ -28,9 +28,10 @@ interface HeapHeaderProps {
   sort: HeapSortMode;
   canWrite: boolean;
   draggedFile: File | null;
-  clearDraggedFile: () => void;
+  clearDragState: () => void;
   addCurioOpen: boolean;
   setAddCurioOpen: (open: boolean) => void;
+  dragErrorMessage?: string;
 }
 
 const HeapHeader = React.memo(
@@ -41,9 +42,10 @@ const HeapHeader = React.memo(
     sort,
     canWrite,
     draggedFile,
-    clearDraggedFile,
+    clearDragState,
     addCurioOpen,
     setAddCurioOpen,
+    dragErrorMessage,
   }: HeapHeaderProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const isMobile = useIsMobile();
@@ -193,7 +195,8 @@ const HeapHeader = React.memo(
           flag={flag}
           chFlag={chFlag}
           draggedFile={draggedFile}
-          clearDraggedFile={clearDraggedFile}
+          clearDragState={clearDragState}
+          dragErrorMessage={dragErrorMessage}
         />
       </ChannelHeader>
     );

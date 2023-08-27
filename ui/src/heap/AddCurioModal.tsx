@@ -18,7 +18,8 @@ interface AddCurioModalProps {
   flag: string;
   chFlag: string;
   draggedFile: File | null;
-  clearDraggedFile: () => void;
+  clearDragState: () => void;
+  dragErrorMessage?: string;
 }
 
 export default function AddCurioModal({
@@ -27,7 +28,8 @@ export default function AddCurioModal({
   flag,
   chFlag,
   draggedFile,
-  clearDraggedFile,
+  clearDragState,
+  dragErrorMessage,
 }: AddCurioModalProps) {
   const [status, setStatus] = useState<'initial' | 'loading' | 'error'>(
     'initial'
@@ -35,6 +37,7 @@ export default function AddCurioModal({
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const uploadKey = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const [mode, setMode] = useState<'preview' | 'input'>('input');
+  const [errorMessage, setErrorMessage] = useState('');
   const isMobile = useIsMobile();
   const [content, setContent] = useState<JSONContent>();
   const [pastedFile, setPastedFile] = useState<File | null>(null);
@@ -45,39 +48,42 @@ export default function AddCurioModal({
   const { privacy } = useGroupPrivacy(flag);
 
   const isEmpty = !content && !draggedFile && !pastedFile;
+  const errorForDisplay = errorMessage || dragErrorMessage;
 
   const reset = useCallback(() => {
     setMode('input');
     setContent(undefined);
     setPreviewUrl('');
     setStatus('initial');
-    if (draggedFile) {
-      clearDraggedFile();
-    }
-    if (pastedFile) {
-      setPastedFile(null);
-    }
-  }, [clearDraggedFile, draggedFile, pastedFile]);
+    clearDragState();
+    setPastedFile(null);
+    setErrorMessage('');
+  }, [clearDragState]);
 
-  const onChange = useCallback((editorUpdate: EditorUpdate) => {
-    setContent(editorUpdate.json);
+  const onChange = useCallback(
+    (editorUpdate: EditorUpdate) => {
+      setContent(editorUpdate.json);
+      setErrorMessage('');
+      clearDragState();
 
-    const normalizedText = editorUpdate.text.trim();
-    if (canPreview(normalizedText)) {
-      setPreviewUrl(normalizedText);
-      setMode('preview');
-    }
-  }, []);
+      const normalizedText = editorUpdate.text.trim();
+      if (canPreview(normalizedText)) {
+        setPreviewUrl(normalizedText);
+        setMode('preview');
+      }
+    },
+    [clearDragState]
+  );
 
   const onOpenChange = useCallback(
     (newOpenState: boolean) => {
       if (!newOpenState) {
         reset();
-        clearDraggedFile();
+        clearDragState();
       }
       setOpen(newOpenState);
     },
-    [setOpen, reset, clearDraggedFile]
+    [setOpen, reset, clearDragState]
   );
 
   const addCurio = useCallback(
@@ -138,14 +144,18 @@ export default function AddCurioModal({
 
   const onPastedFiles = useCallback(
     (files: FileList) => {
-      if (!uploader) return;
+      console.log('paste!');
+      if (!uploader) {
+        setErrorMessage('Remote storage must be enabled to upload files');
+        return;
+      }
       const uploadFile = Array.from(files).find((file) =>
         PASTEABLE_IMAGE_TYPES.includes(file.type)
       );
       if (uploadFile) {
         setPastedFile(uploadFile);
       } else {
-        // TODO: warn file type not supported
+        setErrorMessage('Only images can be uploaded');
       }
     },
     [uploader]
@@ -205,15 +215,20 @@ export default function AddCurioModal({
 
       <section className="align-center mt-6 mb-6 flex w-full justify-center">
         {mode === 'input' ? (
-          <NewCurioInput
-            onChange={onChange}
-            onPastedFiles={onPastedFiles}
-            placeholder={
-              isMobile
-                ? 'Paste a link or type to post text'
-                : 'Drag media to upload, or start typing to post text'
-            }
-          />
+          <div className="flex w-full flex-col">
+            <NewCurioInput
+              onChange={onChange}
+              onPastedFiles={onPastedFiles}
+              placeholder={
+                isMobile
+                  ? 'Paste a link or type to post text'
+                  : 'Drag media to upload, or start typing to post text'
+              }
+            />
+            <div hidden={errorForDisplay === ''} className="mt-3 pl-2 text-red">
+              {errorForDisplay}
+            </div>
+          </div>
         ) : (
           <CurioPreview url={previewUrl} />
         )}
