@@ -11,6 +11,7 @@ import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
+import { useIsMobile } from '@/logic/useMedia';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsChannelUnread } from '@/logic/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -25,6 +26,7 @@ type DMOptionsProps = PropsWithChildren<{
   className?: string;
   isMulti?: boolean;
   alwaysShowEllipsis?: boolean;
+  triggerDisabled?: boolean;
 }>;
 
 export default function DmOptions({
@@ -35,11 +37,13 @@ export default function DmOptions({
   isHovered = true,
   isMulti = false,
   alwaysShowEllipsis = false,
+  triggerDisabled,
   className,
   children,
 }: DMOptionsProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const pinned = usePinned();
   const isUnread = useIsChannelUnread(`chat/${whom}`);
   const hasActivity = isUnread || pending;
@@ -190,28 +194,32 @@ export default function DmOptions({
         open={isOpen}
         onOpenChange={handleOpenChange}
         actions={actions}
+        disabled={triggerDisabled}
+        asChild={!triggerDisabled}
         className={className}
       >
         {!alwaysShowEllipsis && children ? (
           children
         ) : (
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
-            {!alwaysShowEllipsis && !isOpen && hasActivity ? (
+            {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
               <BulletIcon
                 className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
                 aria-label="Has Activity"
               />
             ) : null}
-            <button
-              className={cn(
-                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                hasActivity && 'text-blue',
-                isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
-              )}
-              aria-label="Open Message Options"
-            >
-              <EllipsisIcon className="h-6 w-6 text-inherit" />
-            </button>
+            {!isMobile && (
+              <button
+                className={cn(
+                  'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                  hasActivity && 'text-blue',
+                  isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
+                )}
+                aria-label="Open Message Options"
+              >
+                <EllipsisIcon className="h-6 w-6 text-inherit" />
+              </button>
+            )}
           </div>
         )}
       </ActionMenu>

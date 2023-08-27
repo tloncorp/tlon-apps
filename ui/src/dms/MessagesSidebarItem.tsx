@@ -29,6 +29,7 @@ function ChannelSidebarItem({
   onOptionsOpenChange,
   ...props
 }: MessagesSidebarItemWithOptionsProps) {
+  const isMobile = useIsMobile();
   const groups = useGroups();
   const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
@@ -59,6 +60,7 @@ function ChannelSidebarItem({
           whom={whom}
           pending={!!pending}
           isHovered={hover}
+          triggerDisabled={isMobile}
         />
       )}
       {...props}
@@ -110,6 +112,7 @@ function DMSidebarItem({
           whom={whom}
           pending={!!pending}
           isHovered={hover}
+          triggerDisabled={isMobile}
         />
       )}
       {...props}
@@ -167,6 +170,7 @@ export function MultiDMSidebarItem({
           whom={whom}
           pending={!!pending}
           isHovered={hover}
+          triggerDisabled={isMobile}
         />
       )}
       {...props}
