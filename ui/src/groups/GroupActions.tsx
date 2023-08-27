@@ -1,5 +1,10 @@
 import cn from 'classnames';
-import React, { PropsWithChildren, useCallback, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, usePinnedGroups } from '@/state/chat';
@@ -20,9 +25,32 @@ import { useIsMobile } from '@/logic/useMedia';
 
 const { ship } = window;
 
-export function useGroupActions(flag: string) {
-  const { doCopy } = useCopy(citeToPath({ group: flag }));
+export function useGroupActions({
+  flag,
+  open = false,
+  onOpenChange,
+}: {
+  flag: string;
+  open?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
+  const handleOpenChange = useCallback(
+    (innerOpen: boolean) => {
+      if (onOpenChange) {
+        onOpenChange(innerOpen);
+      } else {
+        setIsOpen(innerOpen);
+      }
+    },
+    [onOpenChange]
+  );
+
+  useEffect(() => {
+    setIsOpen(open);
+  }, [open, setIsOpen]);
+
+  const { doCopy } = useCopy(citeToPath({ group: flag }));
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
   const pinned = usePinnedGroups();
   const isPinned = Object.keys(pinned).includes(flag);
@@ -32,9 +60,9 @@ export function useGroupActions(flag: string) {
     setCopyItemText('Copied!');
     setTimeout(() => {
       setCopyItemText('Copy Group Link');
-      setIsOpen(false);
+      handleOpenChange(false);
     }, 2000);
-  }, [doCopy]);
+  }, [doCopy, handleOpenChange]);
 
   const onPinClick = useCallback(
     (e: React.MouseEvent) => {
@@ -47,7 +75,7 @@ export function useGroupActions(flag: string) {
   return {
     isOpen,
     isPinned,
-    setIsOpen,
+    setIsOpen: handleOpenChange,
     copyItemText,
     onCopy,
     onPinClick,
@@ -55,6 +83,8 @@ export function useGroupActions(flag: string) {
 }
 
 type GroupActionsProps = PropsWithChildren<{
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   flag: string;
   saga?: Saga | null;
   status?: ConnectionStatus;
@@ -62,7 +92,15 @@ type GroupActionsProps = PropsWithChildren<{
 }>;
 
 const GroupActions = React.memo(
-  ({ flag, saga, status, className, children }: GroupActionsProps) => {
+  ({
+    open,
+    onOpenChange,
+    flag,
+    saga,
+    status,
+    className,
+    children,
+  }: GroupActionsProps) => {
     const { isGroupUnread } = useIsGroupUnread();
     const { claim } = useGang(flag);
     const location = useLocation();
@@ -73,7 +111,7 @@ const GroupActions = React.memo(
     const isMobile = useIsMobile();
     const { mutate: cancelJoinMutation } = useGroupCancelMutation();
     const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
-      useGroupActions(flag);
+      useGroupActions({ flag, open, onOpenChange });
 
     const onCopySelect = useCallback(
       (event: React.MouseEvent) => {
