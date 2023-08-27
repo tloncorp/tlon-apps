@@ -70,6 +70,7 @@ const GroupsSidebarItem = React.memo(({ flag }: { flag: string }) => {
           open={optionsOpen}
           onOpenChange={setOptionsOpen}
           flag={flag}
+          triggerDisabled={isMobile}
         />
       }
       to={`/groups/${flag}`}

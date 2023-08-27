@@ -88,6 +88,7 @@ type GroupActionsProps = PropsWithChildren<{
   flag: string;
   saga?: Saga | null;
   status?: ConnectionStatus;
+  triggerDisabled?: boolean;
   className?: string;
 }>;
 
@@ -98,6 +99,7 @@ const GroupActions = React.memo(
     flag,
     saga,
     status,
+    triggerDisabled,
     className,
     children,
   }: GroupActionsProps) => {
@@ -219,26 +221,30 @@ const GroupActions = React.memo(
         open={isOpen}
         onOpenChange={setIsOpen}
         actions={actions}
+        disabled={triggerDisabled}
+        asChild={!triggerDisabled}
         className={className}
       >
         {children || (
           <div className="relative h-6 w-6">
-            {!isOpen && hasActivity ? (
+            {(isMobile || !isOpen) && hasActivity ? (
               <UnreadIndicator
-                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 sm:group-hover:opacity-0"
                 aria-label="Has Activity"
               />
             ) : null}
-            <button
-              className={cn(
-                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                hasActivity && 'text-blue',
-                isOpen ? 'opacity:100' : 'opacity-0'
-              )}
-              aria-label="Open Group Options"
-            >
-              <EllipsisIcon className="h-6 w-6" />
-            </button>
+            {!isMobile && (
+              <button
+                className={cn(
+                  'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 group-focus-within:opacity-100 sm:hover:opacity-100 sm:group-hover:opacity-100',
+                  hasActivity && 'text-blue',
+                  isOpen ? 'opacity:100' : 'opacity-0'
+                )}
+                aria-label="Open Group Options"
+              >
+                <EllipsisIcon className="h-6 w-6" />
+              </button>
+            )}
           </div>
         )}
       </ActionMenu>
