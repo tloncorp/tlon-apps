@@ -1,6 +1,10 @@
 import cn from 'classnames';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import React, { PropsWithChildren, useCallback, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog from '@/components/Dialog';
@@ -13,6 +17,8 @@ import ActionMenu, { Action } from '@/components/ActionMenu';
 import DmInviteDialog from './DmInviteDialog';
 
 type DMOptionsProps = PropsWithChildren<{
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   whom: string;
   pending: boolean;
   isHovered?: boolean;
@@ -22,6 +28,8 @@ type DMOptionsProps = PropsWithChildren<{
 }>;
 
 export default function DmOptions({
+  open = false,
+  onOpenChange,
   whom,
   pending,
   isHovered = true,
@@ -35,7 +43,20 @@ export default function DmOptions({
   const pinned = usePinned();
   const isUnread = useIsChannelUnread(`chat/${whom}`);
   const hasActivity = isUnread || pending;
-  const [isOpen, setIsOpen] = useState(false);
+
+  const [isOpen, setIsOpen] = useState(open);
+  const handleOpenChange = (innerOpen: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(innerOpen);
+    } else {
+      setIsOpen(innerOpen);
+    }
+  };
+
+  useEffect(() => {
+    setIsOpen(open);
+  }, [open]);
+
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const onArchive = () => {
     navigate('/');
@@ -167,7 +188,7 @@ export default function DmOptions({
     <>
       <ActionMenu
         open={isOpen}
-        onOpenChange={(open) => setIsOpen(open)}
+        onOpenChange={handleOpenChange}
         actions={actions}
         className={className}
       >

@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import useLongPress from '@/logic/useLongPress';
 import Avatar, { AvatarSizes } from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
-import UnknownAvatarIcon from '../components/icons/UnknownAvatarIcon';
 import { useMultiDm } from '../state/chat';
 import { useChannel, useGroup, useGroups } from '../state/groups/groups';
 import useMedia, { useIsMobile } from '../logic/useMedia';
@@ -17,7 +17,18 @@ interface MessagesSidebarItemProps {
   pending?: boolean; // eslint-disable-line
 }
 
-function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
+interface MessagesSidebarItemWithOptionsProps extends MessagesSidebarItemProps {
+  optionsOpen: boolean;
+  onOptionsOpenChange: (open: boolean) => void;
+}
+
+function ChannelSidebarItem({
+  whom,
+  pending,
+  optionsOpen,
+  onOptionsOpenChange,
+  ...props
+}: MessagesSidebarItemWithOptionsProps) {
   const groups = useGroups();
   const nest = `chat/${whom}`;
   const groupFlag = Object.entries(groups).find(
@@ -42,15 +53,28 @@ function ChannelSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
         />
       }
       actions={({ hover }) => (
-        <DmOptions whom={whom} pending={!!pending} isHovered={hover} />
+        <DmOptions
+          open={optionsOpen}
+          onOpenChange={onOptionsOpenChange}
+          whom={whom}
+          pending={!!pending}
+          isHovered={hover}
+        />
       )}
+      {...props}
     >
       {channel.meta.title}
     </SidebarItem>
   );
 }
 
-function DMSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
+function DMSidebarItem({
+  whom,
+  pending,
+  optionsOpen,
+  onOptionsOpenChange,
+  ...props
+}: MessagesSidebarItemWithOptionsProps) {
   const isMobile = useIsMobile();
   const isScrolling = useMessagesScrolling();
   const isSmall = useMedia('(max-width: 768px) and (min-width: 640px)');
@@ -80,8 +104,15 @@ function DMSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
         />
       }
       actions={({ hover }) => (
-        <DmOptions whom={whom} pending={!!pending} isHovered={hover} />
+        <DmOptions
+          open={optionsOpen}
+          onOpenChange={onOptionsOpenChange}
+          whom={whom}
+          pending={!!pending}
+          isHovered={hover}
+        />
       )}
+      {...props}
     >
       <ShipName className="truncate" name={whom} showAlias />
     </SidebarItem>
@@ -91,7 +122,10 @@ function DMSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
 export function MultiDMSidebarItem({
   whom,
   pending,
-}: MessagesSidebarItemProps) {
+  optionsOpen,
+  onOptionsOpenChange,
+  ...props
+}: MessagesSidebarItemWithOptionsProps) {
   const isMobile = useIsMobile();
   const club = useMultiDm(whom);
   const allMembers = club?.team.concat(club.hive);
@@ -127,8 +161,15 @@ export function MultiDMSidebarItem({
         />
       }
       actions={({ hover }) => (
-        <DmOptions whom={whom} pending={!!pending} isMulti isHovered={hover} />
+        <DmOptions
+          open={optionsOpen}
+          onOpenChange={onOptionsOpenChange}
+          whom={whom}
+          pending={!!pending}
+          isHovered={hover}
+        />
       )}
+      {...props}
     >
       {groupName}
     </SidebarItem>
@@ -136,15 +177,39 @@ export function MultiDMSidebarItem({
 }
 
 function MessagesSidebarItem({ whom, pending }: MessagesSidebarItemProps) {
+  const isMobile = useIsMobile();
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const { action, handlers } = useLongPress();
+
+  useEffect(() => {
+    if (!isMobile) {
+      return;
+    }
+
+    if (action === 'longpress') {
+      setOptionsOpen(true);
+    }
+  }, [action, isMobile]);
+
+  let ResolvedSidebarItem = ChannelSidebarItem;
+
   if (whomIsDm(whom)) {
-    return <DMSidebarItem pending={pending} whom={whom} />;
+    ResolvedSidebarItem = DMSidebarItem;
   }
 
   if (whomIsMultiDm(whom)) {
-    return <MultiDMSidebarItem whom={whom} pending={pending} />;
+    ResolvedSidebarItem = MultiDMSidebarItem;
   }
 
-  return <ChannelSidebarItem whom={whom} pending={pending} />;
+  return (
+    <ResolvedSidebarItem
+      whom={whom}
+      pending={pending}
+      optionsOpen={optionsOpen}
+      onOptionsOpenChange={setOptionsOpen}
+      {...handlers}
+    />
+  );
 }
 
 export default React.memo(MessagesSidebarItem);
