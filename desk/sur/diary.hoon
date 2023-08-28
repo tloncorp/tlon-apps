@@ -203,15 +203,9 @@
 +$  plan
   (pair time (unit time))
 ::
-::  $net: an indicator of whether I'm a host or subscriber
+::  $net: subscriber-only state
 ::
-::    %pub: am publisher/host with fresh log
-::    %sub: subscribed to the ship at saga
-::
-+$  net
-  $%  [%sub p=ship load=_| =saga:e]
-      [%pub ~] :: TODO: permissions?
-  ==
++$  net  [p=ship load=_| =saga:e]
 ::
 ::  $briefs: a map of diary unread information
 ::

@@ -1,6 +1,8 @@
-::  XX add /said subscriptions
+::  TODO: import state from diary
+::
 /-  d=diary, g=groups
 /-  e=epic
+/+  libnotes=notes
 /+  default-agent, verb, dbug
 ^-  agent:gall
 =>
@@ -23,7 +25,7 @@
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state
-      abet:(inflate-io:cor vase)
+      abet:inflate-io:cor
     [cards this]
   ::
   ++  on-save  !>([state okay:d])
@@ -132,6 +134,13 @@
       [%diary name=@ %notes %before n=@ud ~]
     =<  di-abet
     (di-watch-note-page:(di-abed:di-core our.bowl name.pole) (slav %ud n.pole))
+  ::
+      [%said host=@ name=@ %note time=@ quip=?(~ [@ ~])]
+    =/  host=ship   (slav %p host.pole)
+    =/  =flag:d     [host name.pole]
+    =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
+    ?>  =(our.bowl host)
+    di-abet:(di-said:(di-abed:di-core flag) plan)
   ==
 ::
 ++  agent
@@ -479,6 +488,7 @@
     (di-give-update update)
   ::
   ++  di-subscriptions
+    ^-  (set [ship path])
     %+  roll  ~(val by sup.bowl)
     |=  [[=ship =path] out=(set [ship path])]
     ?.  =((scag 4 path) (snoc di-area %updates))
@@ -487,21 +497,32 @@
   ::
   ++  di-revoke
     |=  her=ship
+    ^+  di-core
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
     ?.  =(ship her)  di
-    di(cor (emit %give %kick ~[path] `ship))
+    (emit:di %give %kick ~[path] `ship)
   ::
   ++  di-recheck
     |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
-    =?  cor  &(!=(sects ~) =(p.flag our.bowl))
+    =?  di-core  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
     ?:  (di-can-read:di ship)  di
-    di(cor (emit %give %kick ~[path] `ship))
+    (emit:di %give %kick ~[path] `ship)
+  ::
+  ++  di-said
+    |=  =plan:d
+    ^+  di-core
+    =.  di-core
+      %^  give  %fact  ~
+      ?.  (di-can-read src.bowl)
+        diary-denied+!>(~)
+      (said:libnotes flag plan notes.diary)
+    (give %kick ~ ~)
   --
 --

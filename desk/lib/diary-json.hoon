@@ -153,10 +153,7 @@
   ::
   ++  saga
     |=  n=net:d
-    ?-  -.n
-      %pub  ~
-      %sub  (saga:enjs:gj saga.n)
-    ==
+    (saga:enjs:gj saga.n)
   ::
   ++  feels
     |=  feels=(map ship:..zuse feel:d)
@@ -337,8 +334,7 @@
   ++  a-diary
     ^-  $-(json a-diary:d)
     %-  of
-    :~  create+create-diary
-        join+flag
+    :~  join+flag
         leave+ul
         read+ul
         read-at+(se %ud)
