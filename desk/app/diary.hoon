@@ -21,7 +21,7 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  |
+  %+  verb  &
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
@@ -68,7 +68,6 @@
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
     ^-  (quip card _this)
-    ^+  cor
     ~&  strange-diary-arvo+wire
     `this
   --
@@ -79,6 +78,7 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+++  server  (cat 3 dap.bowl '-server')
 ::
 ::  does not overwite if wire and dock exist.  maybe it should
 ::  leave/rewatch if the path differs?
@@ -184,7 +184,7 @@
     ::
       [%diary ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    ?>  =(our ship)
+    ?>  =(our.bowl ship)
     di-abet:(di-watch:(di-abed:di-core ship name.pole) rest.pole)
     ::
       [%said host=@ name=@ %note time=@ quip=?(~ [@ ~])]
@@ -198,7 +198,7 @@
   |=  [=flag:d =plan:d]
   ?.  (~(has by shelf) flag)
     =/  wire  (said-wire flag plan)
-    (safe-watch wire [p.flag (cat 3 dap.bowl '-server')] wire)
+    (safe-watch wire [p.flag server] wire)
   di-abet:(di-said:(di-abed:di-core flag) plan)
 ::
 ++  said-wire
@@ -279,7 +279,7 @@
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
 ++  watch-epic
   |=  her=ship
-  (safe-watch /epic [her (cat 3 dap.bowl '-server')] /epic)
+  (safe-watch /epic [her server] /epic)
 ::
 ++  take-epic
   |=  =sign:agent:gall
@@ -289,6 +289,7 @@
       %fact
     ?.  =(%epic p.cage.sign)
       ~&  '!!! weird fact on /epic'
+      ~&  p.cage.sign
       cor
     =+  !<(=epic:e q.cage.sign)
     %+  roll  ~(tap by shelf)
@@ -384,6 +385,7 @@
     di-core(flag f, diary (~(got by shelf) f))
   ::
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
+  ++  di-sub-wire  `path`/diary/(scot %p p.flag)/[q.flag]/updates
   ::
   ++  di-join
     |=  [f=flag:d group=flag:g]
@@ -412,12 +414,12 @@
     =.  di-core
       (give %fact ~[(snoc di-area %ui)] diary-response+!>([flag a-remark]))
     =.  remark.diary
-      ?-    -.action
+      ?-    -.a-remark
           %watch    remark.diary(watching &)
           %unwatch  remark.diary(watching |)
           %read-at  !!
           %read
-        =/  [=time =note:d]  (need (ram:on:notes:d notes.diary))
+        =/  [=time note=(unit note:d)]  (need (ram:on-notes:d notes.diary))
         remark.diary(last-read `@da`(add time (div ~s1 100)))  ::  greater than last
       ==
     =.  cor  (give-brief flag di-brief)
@@ -429,8 +431,9 @@
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%diary-action poke failed: only allowed from self" !!)
-    =/  =cage  [%diary-command !>([flag command])]
-    =.  di-core  (emit %pass di-area %agent [p.flag dap.bowl] %poke cage)
+    =/  =c-shelf:d  [%diary flag command]
+    =/  =cage  [%diary-command !>(c-shelf)]
+    =.  di-core  (emit %pass di-area %agent [p.flag server] %poke cage)
     di-core
   ::
   ++  di-said
@@ -479,19 +482,18 @@
   ::
   ++  di-has-sub
     ^-  ?
-    (~(has by wex.bowl) [(snoc di-area %updates) p.flag dap.bowl])
+    (~(has by wex.bowl) [di-sub-wire p.flag dap.bowl])
   ::
   ++  di-safe-sub
     ?:  di-has-sub  di-core
-    ?.  ?=(%chi saga.net.diary)  di-core
-    =/  =wire  (snoc di-area %updates)
+    ?.  ?=(%chi -.saga.net.diary)  di-core
     =/  =path
       =/  tim=(unit time)
         (bind (ram:on-notes:d notes.diary) head)
       %+  weld  /diary/[q.flag]/updates
       ?~  tim  ~
       /(scot %da u.tim)
-    (safe-watch base [p.flag (cat 3 dap.bowl '-server')] path)
+    (safe-watch di-sub-wire [p.flag server] path)
   ::
   ++  di-watch
     |=  =path
@@ -499,7 +501,6 @@
     ?+    path  !!
       [%ui ~]         ?>(from-self di-core)
       [%ui %notes ~]  ?>(from-self di-core)
-    ::
     ==
   ::
   ++  di-agent
@@ -534,11 +535,9 @@
   ++  di-apply-logs
     |=  =log:d
     ^+  di-core
-    =/  updates=(list update:d)
-      (tap:log-on:d log)
-    %+  roll  updates
-    |=  [=u-diary:d di=_di-core]
-    (di-u-shelf:di update)
+    %+  roll  (tap:log-on:d log)
+    |=  [[=time =u-diary:d] di=_di-core]
+    (di-u-shelf:di time u-diary)
   ::
   ++  di-u-shelf
     |=  [=time =u-diary:d]  :: XX don't need time?
@@ -547,135 +546,133 @@
     ?-    -.u-diary
         %create
       ?.  =(0 rev.perm.diary)  di-core
-      =.  perm.diary  perm.u-diary
-      (di-response %perm perm)
+      =.  perm.perm.diary  perm.u-diary
+      (di-response %perm perm.u-diary)
     ::
         %order
-      =^  changed  order.diary  (apply-rev:d order.diary order.u-diary)
+      =^  changed  order.diary  (apply-rev:d order.diary +.u-diary)
       ?.  changed  di-core
-      (di-response %order order.diary)
+      (di-response %order order.order.diary)
     ::
         %view
-      =^  changed  view.diary  (apply-rev:d view.diary view.u-diary)
+      =^  changed  view.diary  (apply-rev:d view.diary +.u-diary)
       ?.  changed  di-core
-      (di-response %view view.diary)
+      (di-response %view view.view.diary)
     ::
         %sort
-      =^  changed  sort.diary  (apply-rev:d sort.diary sort.u-diary)
+      =^  changed  sort.diary  (apply-rev:d sort.diary +.u-diary)
       ?.  changed  di-core
-      (di-response %sort sort.diary)
+      (di-response %sort sort.sort.diary)
     ::
         %perm
-      =^  changed  perm.diary  (apply-rev:d perm.diary perm.u-diary)
+      =^  changed  perm.diary  (apply-rev:d perm.diary +.u-diary)
       ?.  changed  di-core
-      (di-response %perm perm.diary)
+      (di-response %perm perm.perm.diary)
     ::
         %notes
-      =^  [response=(unit r-note:d) new=(unit note:d)]  di-core
-        (di-u-note (get:on-notes:d id.r-note) u-note.u-diary)
-      ?~  response  di-core
-      =.  cor  (give-brief flag di-brief)
-      =.  notes.diary  (put:on-notes:d notes.diary id.r-note new)
-      (di-response %notes id.r-note u.response)
+      =/  old  notes.diary
+      =.  di-core  (di-u-note id.u-diary u-note.u-diary)
+      =?  cor  !=(old notes.diary)  (give-brief flag di-brief)
+      di-core
     ==
   ::
   ++  di-u-note
-    |=  [=id-note:d note=(unit (unit note:d)) =u-note:d]
-    ^-  [(unit r-note:d) _di-core]
-    ?:  ?=([~ ~] note)  `di-core
+    |=  [=id-note:d =u-note:d]
+    ^+  di-core
+    =/  note  (get:on-notes:d notes.diary id-note)
+    ?:  ?=([~ ~] note)  di-core
     ?:  ?=(%set -.u-note)
       ?~  note
-        =/  rr-note=(unit rr-note:d)
-          ?~  note.u-note  ~
-          :-  ~  :_  +>.u.note.u-note
-          :+  time.u.note.u-note
-            (di-rr-quips quips.u.note.u-note)
-          (di-reduce-feels feels.u.note.u-note)
+        =/  rr-note=(unit rr-note:d)  (bind note.u-note di-rr-note)
         =.  notes.diary  (put:on-notes:d notes.diary id-note note.u-note)
-        [`[%set rr-note] di-core]
+        (di-response %notes id-note %set rr-note)
       ::
       ?~  note.u-note
         =.  notes.diary  (put:on-notes:d notes.diary id-note ~)
-        [`[%set ~] di-core]
+        (di-response %notes id-note %set ~)
       ::
       =*  old  u.u.note
       =*  new  u.note.u-note
-      =/  merged  (di-apply-note old new)
-      ?:  =(merged old)  ``old
+      =/  merged  (di-apply-note id-note old new)
+      ?:  =(merged old)  di-core
       =.  notes.diary  (put:on-notes:d notes.diary id-note `merged)
-      [`[%set ~ merged] di-core]
+      (di-response %notes id-note %set `(di-rr-note merged))
     ::
     ?~  note
-      =.  diffs.future.local.diary
+      =.  diffs.future.diary
         ::  if the item affected by the update is not in the window we
         ::  care about, ignore it. otherwise, put it in the pending
         ::  diffs set.
         ::
-        ?.  (~(has as:sparse window.future.local.diary) id-note)
-          diffs.future.local.diary
-        (~(put ju diffs.future.local.diary) id-note %notes id.u-note u-note)
-      `di-core
+        ?.  (~(has as:sparse window.future.diary) id-note)
+          diffs.future.diary
+        (~(put ju diffs.future.diary) id-note u-note)
+      di-core
     ::
     ?-    -.u-note
+        %quip   (di-u-quip id-note u.u.note id.u-note u-quip.u-note)
         %feels
       =/  merged  (di-apply-feels feels.u.u.note feels.u-note)
-      ?:  =(merged feels.u.u.note)  ``u.u.note
+      ?:  =(merged feels.u.u.note)  di-core
       =.  notes.diary
         (put:on-notes:d notes.diary id-note `u.u.note(feels merged))
-      [`[%feels (di-reduce-feels merged)] di-core]
+      (di-response %notes id-note %feels (di-reduce-feels merged))
     ::
         %essay
-      =^  changed  +.u.u.note  (apply-rev +.u.u.note +.u-note)
-      ?.  changed  ``u.u.note
+      =^  changed  +.u.u.note  (apply-rev:d +.u.u.note +.u-note)
+      ?.  changed  di-core
       =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
-      [`[%essay +>.u.u.note] di-core]
-    ::
-        %quip
-      =/  [response=(unit r-quip:d) new=(unit quip:d) cr=_di-core]
-        %^  di-u-quip  id-note  u.u.note
-        [(get:on-quips:d id.r-quip) u-quip.u-note]
-      =.  di-core  cr
-      ?~  response  di-core
-      =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-note new)
-      =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
-      [`[%quip id.r-quip u.response] di-core]
+      (di-response %notes id-note %essay +>.u.u.note)
     ==
   ::
   ++  di-u-quip
-    |=  [=id-note:d =note:d quip=(unit (unit quip:d)) =u-quip:d]
-    ^-  [(unit r-quip:d) (unit quip:d) _di-core]
-    ?:  ?=([~ ~] quip)  ``di-core
+    |=  [=id-note:d =note:d =id-quip:d =u-quip:d]
+    ^+  di-core
+    =/  quip  (get:on-quips:d quips.note id-note)
+    ?:  ?=([~ ~] quip)  di-core
     ?:  ?=(%set -.u-quip)
       ?~  quip
-        =/  rr-quip=(unit rr-quip:d)
-          ?~  quip.u-quip  ~
-          (di-rr-quip quip.u-quip)
+        =/  rr-quip=(unit rr-quip:d)  (bind quip.u-quip di-rr-quip)
         =?  di-core  ?=(^ quip.u-quip)
           (di-hark id-note note u.quip.u-quip)
-        [`[%set rr-quip] quip.u-quip di-core]
+        =.  di-core  (di-put-quip id-note id-quip quip.u-quip)
+        (di-response %notes id-note %quip id-quip %set rr-quip)
       ::
       ?~  quip.u-quip
-        [`[%set ~] ~ di-core]
+        =.  di-core  (di-put-quip id-note id-quip ~)
+        (di-response %notes id-note %quip id-quip %set ~)
       ::
       =*  old  u.u.quip
       =*  new  u.quip.u-quip
-      =/  merged  (need (di-apply-quip `old `new))
-      ?:  =(merged old)  `[`old di-core]
-      [`[%set ~ (di-rr-quip merged)] `merged di-core]
+      =/  merged  (need (di-apply-quip id-quip `old `new))
+      ?:  =(merged old)  di-core
+      =.  di-core  (di-put-quip id-note id-quip `merged)
+      (di-response %notes id-note %quip id-quip %set `(di-rr-quip merged))
     ::
-    ?~  quip  ``di-core
+    ?~  quip  di-core
     ::
     =/  merged  (di-apply-feels feels.u.u.quip feels.u-quip)
-    ?:  =(merged feels.u.u.quip)  `[`u.u.quip di-core]
-    [`[%feels (di-reduce-feels merged)] `u.u.quip(feels merged) di-core]
+    ?:  =(merged feels.u.u.quip)  di-core
+    =.  di-core  (di-put-quip id-note id-quip `u.u.quip(feels merged))
+    (di-response %notes id-note %quip id-quip %feels (di-reduce-feels merged))
+  ::
+  ++  di-put-quip
+    |=  [=id-note:d =id-quip:d quip=(unit quip:d)]
+    ^+  di-core
+    =/  note  (get:on-notes:d notes.diary id-note)
+    ?~  note  di-core
+    ?~  u.note  di-core
+    =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-quip quip)
+    =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
+    di-core
   ::
   ++  di-apply-note
     |=  [=id-note:d old=note:d new=note:d]
     ^-  note:d
-    %=  u.old
-      quips  (di-apply-quips:quips quips.u.old quips.u.new)
-      feels  (di-apply-feels feels.u.old feels.u.new)
-      +      +:(apply-rev +.u.old +.u.new)
+    %_  old
+      quips  (di-apply-quips quips.old quips.new)
+      feels  (di-apply-feels feels.old feels.new)
+      +      +:(apply-rev:d +.old +.new)
     ==
   ::
   ++  di-apply-feels
@@ -700,6 +697,14 @@
       +      +.u.new
     ==
   ::
+  ++  di-rr-note
+    |=  =note:d
+    ^-  rr-note:d
+    :_  +>.note
+    :+  time.note
+      (di-rr-quips quips.note)
+    (di-reduce-feels feels.note)
+  ::
   ++  di-rr-quips
     |=  =quips:d
     ^-  rr-quips:d
@@ -709,14 +714,13 @@
     ^-  (unit [id-quip:d rr-quip:d])
     ?~  quip  ~
     %-  some
-    :-  time  :_  +.u.quip
-    [time.u.quip (di-reduce-feels feels.u.quip)]
+    [time (di-rr-quip u.quip)]
   ::
   ++  di-rr-quip
     |=  =quip:d
     ^-  rr-quip:d
-    :_  +>.u.quip
-    [time.u.quip (di-reduce-feels feels.u.quip)]
+    :_  +.quip
+    [time.quip (di-reduce-feels feels.quip)]
   ::
   ++  di-reduce-feels
     |=  =feels:d
@@ -728,21 +732,23 @@
     (some ship u.feel)
   ::
   ++  di-hark
-    |=  [=note:d =quip:d]
+    |=  [=id-note:d =note:d =quip:d]
+    ^+  di-core
     ::  checks for comments on our threads. should also check for
     ::  mentions?
     ::
     |^  =/  in-replies
           %+  lien  (tap:on-quips:d quips.note)
-          |=  [=^time quip=(unit quip:d)]
+          |=  [=time quip=(unit quip:d)]
           ?~  quip  |
-          =(author.u.quip our)
-        ?:  |(=(author.memo our) &(!in-replies !=(author.note our)))  ~
+          =(author.u.quip our.bowl)
+        ?:  |(=(author.quip our.bowl) &(!in-replies !=(author.note our.bowl)))
+          di-core
         =/  cs=(list content:ha)
-          :~  [%ship author.memo]  ' commented on '
+          :~  [%ship author.quip]  ' commented on '
               [%emph title.note]   ': '
-              [%ship author.memo]  ': '
-              (flatten q.content.memo)
+              [%ship author.quip]  ': '
+              (flatten q.content.quip)
           ==
         (emit (pass-hark (di-spin /note/(rsh 4 (scot %ui id-note)) cs ~)))
     ::
@@ -785,10 +791,10 @@
   ++  di-brief
     ^-  brief:briefs:d
     =/  =time
-      ?~  tim=(ram:on-notes:d not)  *time
+      ?~  tim=(ram:on-notes:d notes.diary)  *time
       key.u.tim
     =/  unreads
-      (lot:on-notes:d not `last-read.remark.diary ~)
+      (lot:on-notes:d notes.diary `last-read.remark.diary ~)
     =/  read-id=(unit ^time)
       =/  pried  (pry:on-notes:d unreads)
       ?~  pried  ~
@@ -886,7 +892,7 @@
     ::
         [%quip %id time=@ ~]
       =/  time  (slav %ud time.pole)
-      =/  quip  (get:on-quips:d `@da`time)
+      =/  quip  (get:on-quips:d quips `@da`time)
       ?~  quip  ~
       ?~  u.quip  `~
       ``quip+!>(u.u.quip)
@@ -940,23 +946,15 @@
     .^(? %gx path)
   ::
   ++  di-simple-leave
-    =/  =wire  (snoc di-area %updates)
+    =/  =wire  di-sub-wire
     (emit %pass wire %agent [p.flag dap.bowl] %leave ~)
   ::
   ++  di-leave
     =/  =dock  [p.flag dap.bowl]
-    =/  =wire  (snoc di-area %updates)
+    =/  =wire  di-sub-wire
     =.  di-core  (emit %pass wire %agent dock %leave ~)
     =.  di-core  (emit %give %fact ~[/briefs] diary-leave+!>(flag))
     =.  gone  &
     di-core
-  ::
-  ++  di-subscriptions
-    ^-  (set [ship path])
-    %+  roll  ~(val by sup.bowl)
-    |=  [[=ship =path] out=(set [ship path])]
-    ?.  =((scag 4 path) (snoc di-area %updates))
-      out
-    (~(put in out) [ship path])
   --
 --

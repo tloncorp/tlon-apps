@@ -16,7 +16,7 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  |
+  %+  verb  &
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
@@ -147,6 +147,15 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
+      [%diary *]
+    ?+    -.sign  !!
+        %poke-ack
+      ?~  p.sign
+        cor
+      %-  (slog 'diary-server: poke failure' >wire< u.p.sign)
+      cor
+    ==
+  ::
       [%groups ~]
     ?+    -.sign  !!
         %kick       watch-groups
@@ -225,6 +234,7 @@
     di-core(flag f, diary (~(gut by shelf) f *diary:d))
   ::
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
+  ++  di-sub-path  `path`/diary/[q.flag]/updates
   ++  di-am-host  =(our.bowl p.flag)
   ++  di-groups-scry
     ^-  path
@@ -255,6 +265,7 @@
   ::
   ++  di-can-read
     |=  her=ship
+    ?:  =(our.bowl her)  &
     =/  =path
       %+  welp  di-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
@@ -262,7 +273,14 @@
   ::
   ++  di-give-update
     |=  =update:d
-    (give %fact ~[/diary/[q.flag]] %diary-update !>(update))
+    ^+  di-core
+    =/  paths
+      %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
+      |=  =path
+      =((scag 3 path) di-sub-path)
+    ?:  =(~ paths)
+      di-core
+    (give %fact paths %diary-update !>(update))
   ::
   ++  di-watch-updates
     |=  =@da
@@ -491,7 +509,7 @@
     ^-  (set [ship path])
     %+  roll  ~(val by sup.bowl)
     |=  [[=ship =path] out=(set [ship path])]
-    ?.  =((scag 4 path) (snoc di-area %updates))
+    ?.  =((scag 3 path) di-sub-path)
       out
     (~(put in out) [ship path])
   ::
