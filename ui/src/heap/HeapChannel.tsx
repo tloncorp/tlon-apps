@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
-import cn from 'classnames';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
+import * as Toast from '@radix-ui/react-toast';
 import { Helmet } from 'react-helmet';
 import bigInt from 'big-integer';
 import { VirtuosoGrid } from 'react-virtuoso';
@@ -31,6 +31,7 @@ import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
+import X16Icon from '@/components/icons/X16Icon';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
@@ -63,15 +64,17 @@ function HeapChannel({ title }: ViewProps) {
   const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
   const { compatible } = useChannelCompatibility(`heap/${chFlag}`);
+
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const { isDragging, isOver, droppedFiles, setDroppedFiles } =
     useDragAndDrop(dropZoneId);
   const [draggedFile, setDraggedFile] = useState<File | null>(null);
   const uploadKey = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const uploader = useUploader(uploadKey);
-  const dragEnabled = !isMobile && compatible && uploader;
+  const dragEnabled = !isMobile && compatible;
   const showDragTarget =
     dragEnabled && !isLoading && !addCurioOpen && isDragging && isOver;
+  const [dragErrorMessage, setDragErrorMessage] = useState('');
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -188,11 +191,12 @@ function HeapChannel({ title }: ViewProps) {
     if (uploadFile) {
       setDraggedFile(uploadFile);
     } else {
-      // TODO: warn file type not supported
+      setDragErrorMessage('Only images can be uploaded');
     }
   }, []);
 
-  const clearDraggedFile = useCallback(() => {
+  const clearDragState = useCallback(() => {
+    setDragErrorMessage('');
     setDraggedFile(null);
     setDroppedFiles((prev) => {
       if (prev) {
@@ -205,17 +209,21 @@ function HeapChannel({ title }: ViewProps) {
 
   useEffect(() => {
     if (dragEnabled && droppedFiles && droppedFiles[dropZoneId]) {
-      handleDrop(droppedFiles[dropZoneId]);
+      if (uploader) {
+        handleDrop(droppedFiles[dropZoneId]);
+      } else {
+        setDragErrorMessage('Remote storage must be enabled to upload files');
+      }
     }
-  }, [droppedFiles, handleDrop, dropZoneId, dragEnabled]);
+  }, [droppedFiles, handleDrop, dropZoneId, dragEnabled, uploader]);
 
   const DragDisplay = useCallback(
     () => (
       <div
         id={dropZoneId}
-        className="absolute top-0 left-0 flex h-full w-full items-center justify-center bg-gray-50 opacity-95"
+        className="absolute top-0 left-0 flex h-full w-full items-center justify-center bg-gray-50 p-10 opacity-95"
       >
-        <div className="mt-12 flex h-[90%] w-[95%] items-center justify-center rounded-lg border-[3px] border-dashed border-gray-200">
+        <div className="flex h-full w-full items-center justify-center rounded-lg border-[3px] border-dashed border-gray-200">
           <div className="text-lg font-bold">Drop Attachments Here</div>
         </div>
       </div>
@@ -235,9 +243,10 @@ function HeapChannel({ title }: ViewProps) {
           sort={sortMode}
           canWrite={canWrite}
           draggedFile={draggedFile}
-          clearDraggedFile={clearDraggedFile}
+          clearDragState={clearDragState}
           addCurioOpen={addCurioOpen}
           setAddCurioOpen={setAddCurioOpen}
+          dragErrorMessage={dragErrorMessage}
         />
       }
     >
@@ -271,6 +280,27 @@ function HeapChannel({ title }: ViewProps) {
           />
         )}
         {showDragTarget && <DragDisplay />}
+        <Toast.Provider>
+          <Toast.Root
+            duration={5000}
+            defaultOpen={false}
+            open={!addCurioOpen && dragErrorMessage !== ''}
+            onOpenChange={() => setDragErrorMessage('')}
+          >
+            <Toast.Description asChild>
+              <div
+                className="absolute top-0 left-0 z-50 flex w-full cursor-pointer items-start justify-center border-green"
+                onClick={() => setDragErrorMessage('')}
+              >
+                <div className="mt-2 rounded-lg bg-red-100 p-4 font-semibold text-red shadow-sm">
+                  {dragErrorMessage}
+                  <X16Icon className="ml-2 inline h-4 w-4" />
+                </div>
+              </div>
+            </Toast.Description>
+          </Toast.Root>
+          <Toast.Viewport label="Note successfully published" />
+        </Toast.Provider>
       </div>
     </Layout>
   );
