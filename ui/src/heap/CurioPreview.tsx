@@ -12,22 +12,22 @@ export function canPreview(text: string) {
   );
 }
 export default function CurioPreview({ url }: { url: string }) {
-  const [ready, setReady] = useState(false);
-  const [spin, setSpin] = useState(false);
+  const [status, setStatus] = useState<'initial' | 'loading' | 'ready'>(
+    'initial'
+  );
   const [portrait, setPortrait] = useState(false);
   const isBlob = url.startsWith('blob:');
 
   useEffect(() => {
     if (isRef(url)) {
-      setReady(true);
+      setStatus('ready');
     }
 
     if (isImageUrl(url) || isBlob) {
       const image = new Image();
       image.onload = () => {
         if (image.naturalHeight > image.naturalWidth) setPortrait(true);
-        setReady(true);
-        setSpin(false);
+        setStatus('ready');
       };
       image.src = url;
     }
@@ -36,12 +36,12 @@ export default function CurioPreview({ url }: { url: string }) {
   // delay spinner to avoid flash on local file
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (!ready) setSpin(true);
+      if (status === 'initial') setStatus('loading');
     }, 500);
     return () => clearTimeout(timeout);
-  }, [ready]);
+  }, [status]);
 
-  if (!ready && spin) {
+  if (status === 'loading') {
     return <LoadingSpinner className="h-6 w-6" />;
   }
 
