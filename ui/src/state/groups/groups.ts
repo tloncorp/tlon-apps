@@ -272,7 +272,7 @@ export const useGangPreview = (
   flag: string,
   disabled = false
 ): GroupPreview | null => {
-  const [needToFetch, setNeedToFetch] = useState(false);
+  const [mustFetch, setMustFetch] = useState(false);
   const gangs = useGangs();
 
   const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
@@ -280,15 +280,16 @@ export const useGangPreview = (
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
-      enabled: needToFetch && !disabled,
+      enabled: mustFetch && !disabled,
     },
   });
 
   if (gangs[flag]?.preview) {
     return gangs[flag].preview;
   }
-  if (needToFetch === false) {
-    setNeedToFetch(true);
+
+  if (!mustFetch) {
+    setMustFetch(true);
   }
 
   if (rest.isLoading || rest.isError) {
