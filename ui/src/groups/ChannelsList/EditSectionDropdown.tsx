@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -42,12 +42,14 @@ export default function EditSectionDropDown({
         disabled={!compatible}
         triggerClassName="cursor-pointer"
       >
-        <ElipsisIcon
-          className={cn(
-            'h-5 w-5',
-            compatible ? 'text-gray-600' : 'text-gray-200'
-          )}
-        />
+        <button>
+          <ElipsisIcon
+            className={cn(
+              'h-5 w-5',
+              compatible ? 'text-gray-600' : 'text-gray-200'
+            )}
+          />
+        </button>
       </ActionMenu>
       <ConfirmationModal
         open={deleteOpen}
