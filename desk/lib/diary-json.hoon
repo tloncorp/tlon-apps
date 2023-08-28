@@ -106,7 +106,7 @@
     |=  =rr-cork:d
     %-  pairs
     :~  time+(time time.rr-cork)
-        feels+(feels feels.rr-cork)
+        feels+(feels rr-feels.rr-cork)
     ==
   ::
   +|  %primitives

@@ -388,7 +388,8 @@
 +$  rr-seal   [=time =rr-quips feels=(map ship feel)]
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [=time feels=(map ship feel)]
++$  rr-cork   [=time =rr-feels]
++$  rr-feels  (map ship feel)
 ++  rr-on-notes  ((on id-quip rr-note) lte)
 ++  rr-on-quips  ((on id-quip rr-quip) lte)
 ::

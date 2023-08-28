@@ -339,7 +339,7 @@
       [%x %shelf ~]  ``shelf+!>(shelf)
       [%x %init ~]   ``noun+!>([briefs shelf])
       [%x %briefs ~]  ``diary-briefs+!>(briefs)
-      [%x %diary ship=@ name=@ rest=*]  ::  XX
+      [%x %diary ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     (di-peek:(di-abed:di-core ship name.pole) rest.pole)
   ::
@@ -387,6 +387,8 @@
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-sub-wire  `path`/diary/(scot %p p.flag)/[q.flag]/updates
   ::
+  ::  handle joining a channel
+  ::
   ++  di-join
     |=  [f=flag:d group=flag:g]
     ?<  (~(has by shelf) flag)
@@ -398,6 +400,12 @@
     =.  cor  (give-brief flag di-brief)
     =.  cor  (watch-epic p.flag)
     di-safe-sub
+  ::
+  ::  handle an action from the client
+  ::
+  ::    typically this will either handle the action directly (for local
+  ::    things like marking channels read) or proxy the request to the
+  ::    host (for global things like posting a note).
   ::
   ++  di-a-diary
     |=  =a-diary:d
@@ -425,6 +433,8 @@
     =.  cor  (give-brief flag di-brief)
     (di-response a-remark)
   ::
+  ::  proxy command to host
+  ::
   ++  di-send-command
     |=  command=c-diary:d
     ^+  di-core
@@ -436,6 +446,8 @@
     =.  di-core  (emit %pass di-area %agent [p.flag server] %poke cage)
     di-core
   ::
+  ::  handle a said (previews) request where we have the data to respond
+  ::
   ++  di-said
     |=  =plan:d
     ^+  di-core
@@ -446,10 +458,10 @@
       (said:libnotes flag plan notes.diary)
     (give %kick ~ ~)
   ::
-  ::  when we get a new %diary agent update, we need to check if we should
-  ::  upgrade any lagging diaries. if we're lagging, we need to change
-  ::  the saga to "chi" to resume syncing updates from the host. otherwise
-  ::  we can no-op, because we're not in sync yet.
+  ::  when we get a new %diary agent update, we need to check if we
+  ::  should upgrade any lagging diaries. if we're lagging, we need to
+  ::  change the saga to "chi" to resume syncing updates from the host.
+  ::  otherwise we can no-op, because we're not in sync yet.
   ::
   ++  di-upgrade
     ^+  di-core
@@ -465,6 +477,15 @@
     ::  safe to sync and resume updates from host
     ::
     =>  .(saga.net.diary `saga:e`saga.net.diary)
+    di-make-chi
+  ::
+  ::  when we hear a version number from a publisher, check if we match
+  ::
+  ++  di-take-epic
+    |=  her=epic:e
+    ^+  di-core
+    ?:  (lth her okay:d)  di-make-lev
+    ?:  (gth her okay:d)  (di-make-dex her)
     di-make-chi
   ::
   ++  di-make-dex
@@ -539,8 +560,14 @@
     |=  [[=time =u-diary:d] di=_di-core]
     (di-u-shelf:di time u-diary)
   ::
+  ::  +di-u-* functions ingest updates and execute them
+  ::
+  ::    often this will modify the state and emit a "response" to our
+  ::    own subscribers.  it may also emit briefs and/or trigger hark
+  ::    events.
+  ::
   ++  di-u-shelf
-    |=  [=time =u-diary:d]  :: XX don't need time?
+    |=  [=time =u-diary:d]
     ?>  di-from-host
     ^+  di-core
     ?-    -.u-diary
@@ -616,7 +643,7 @@
       ?:  =(merged feels.u.u.note)  di-core
       =.  notes.diary
         (put:on-notes:d notes.diary id-note `u.u.note(feels merged))
-      (di-response %notes id-note %feels (di-reduce-feels merged))
+      (di-response %notes id-note %feels (di-rr-feels merged))
     ::
         %essay
       =^  changed  +.u.u.note  (apply-rev:d +.u.u.note +.u-note)
@@ -654,7 +681,9 @@
     =/  merged  (di-apply-feels feels.u.u.quip feels.u-quip)
     ?:  =(merged feels.u.u.quip)  di-core
     =.  di-core  (di-put-quip id-note id-quip `u.u.quip(feels merged))
-    (di-response %notes id-note %quip id-quip %feels (di-reduce-feels merged))
+    (di-response %notes id-note %quip id-quip %feels (di-rr-feels merged))
+  ::
+  ::  put a quip into a note by id
   ::
   ++  di-put-quip
     |=  [=id-note:d =id-quip:d quip=(unit quip:d)]
@@ -665,6 +694,9 @@
     =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-quip quip)
     =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
     di-core
+  ::
+  ::  +di-apply-* functions apply new copies of data to old copies,
+  ::  keeping the most recent versions of each sub-piece of data
   ::
   ++  di-apply-note
     |=  [=id-note:d old=note:d new=note:d]
@@ -697,13 +729,16 @@
       +      +.u.new
     ==
   ::
+  ::  +di-rr-* functions convert notes, quips, and feels into their "rr"
+  ::  forms, suitable for responses to our subscribers
+  ::
   ++  di-rr-note
     |=  =note:d
     ^-  rr-note:d
     :_  +>.note
     :+  time.note
       (di-rr-quips quips.note)
-    (di-reduce-feels feels.note)
+    (di-rr-feels feels.note)
   ::
   ++  di-rr-quips
     |=  =quips:d
@@ -720,9 +755,9 @@
     |=  =quip:d
     ^-  rr-quip:d
     :_  +.quip
-    [time.quip (di-reduce-feels feels.quip)]
+    [time.quip (di-rr-feels feels.quip)]
   ::
-  ++  di-reduce-feels
+  ++  di-rr-feels
     |=  =feels:d
     ^-  (map ship feel:d)
     %-  ~(gas by *(map ship feel:d))
@@ -730,6 +765,8 @@
     |=  [=ship (rev:d feel=(unit feel:d))]
     ?~  feel  ~
     (some ship u.feel)
+  ::
+  ::  emit hark notifications when necessary
   ::
   ++  di-hark
     |=  [=id-note:d =note:d =quip:d]
@@ -773,6 +810,8 @@
       ==
     --
   ::
+  ::  convert content into a full yarn suitable for hark
+  ::
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
@@ -783,10 +822,14 @@
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
     [& & rope con link but]
   ::
+  ::  give a "response" to our subscribers
+  ::
   ++  di-response
     |=  =r-diary:d
     =/  =r-shelf:d  [flag r-diary]
-    (give %fact ~[/ui] %diary-response !>(r-shelf))  :: XX create mark
+    (give %fact ~[/ui] %diary-response !>(r-shelf))
+  ::
+  ::  produce an up-to-date brief
   ::
   ++  di-brief
     ^-  brief:briefs:d
@@ -808,6 +851,8 @@
           !=(author.u.note our.bowl)
       ==
     [time count read-id]
+  ::
+  ::  handle scries
   ::
   ++  di-peek
     |=  =(pole knot)
@@ -898,23 +943,23 @@
       ``quip+!>(u.u.quip)
     ==
   ::
+  ::  when we receive an update from the group we're in, check if we
+  ::  need to change anything
+  ::
   ++  di-recheck
     |=  sects=(set sect:g)
     ::  if our read permissions restored, re-subscribe
     ?:  (di-can-read our.bowl)  di-safe-sub
     di-core
   ::
-  ++  di-take-epic
-    |=  her=epic:e
-    ^+  di-core
-    ?:  (lth her okay:d)  di-make-lev
-    ?:  (gth her okay:d)  (di-make-dex her)
-    di-make-chi
+  ::  scry from groups
   ::
   ++  di-groups-scry
     ^-  path
     =*  group  group.perm.perm.diary
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
+  ::
+  ::  assorted helpers
   ::
   ++  di-from-admin
     ?:  =(p.flag src.bowl)  &
@@ -945,14 +990,17 @@
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
   ::
+  ::  leave the subscription only
+  ::
   ++  di-simple-leave
     =/  =wire  di-sub-wire
     (emit %pass wire %agent [p.flag dap.bowl] %leave ~)
   ::
+  ::  Leave the subscription, tell people about it, and delete our local
+  ::  state for the channel
+  ::
   ++  di-leave
-    =/  =dock  [p.flag dap.bowl]
-    =/  =wire  di-sub-wire
-    =.  di-core  (emit %pass wire %agent dock %leave ~)
+    =.  di-core  di-simple-leave
     =.  di-core  (emit %give %fact ~[/briefs] diary-leave+!>(flag))
     =.  gone  &
     di-core
