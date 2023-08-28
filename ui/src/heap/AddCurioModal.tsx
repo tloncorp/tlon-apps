@@ -118,10 +118,11 @@ export default function AddCurioModal({
     const file = draggedFile || pastedFile;
     if (file) {
       setMode('preview');
-      setPreviewUrl(URL.createObjectURL(file));
-      return () => URL.revokeObjectURL(previewUrl);
+      const blobUrl = URL.createObjectURL(file);
+      setPreviewUrl(blobUrl);
+      return () => URL.revokeObjectURL(blobUrl);
     }
-  }, [draggedFile, pastedFile, previewUrl]);
+  }, [draggedFile, pastedFile]);
 
   useEffect(() => {
     if (
@@ -129,8 +130,8 @@ export default function AddCurioModal({
       mostRecentFile.status === 'error' &&
       mostRecentFile.errorMessage
     ) {
-      console.error(`Error uploading file`, mostRecentFile.errorMessage);
       setStatus('error');
+      setErrorMessage(mostRecentFile.errorMessage);
     }
 
     if (
@@ -144,18 +145,18 @@ export default function AddCurioModal({
 
   const onPastedFiles = useCallback(
     (files: FileList) => {
-      console.log('paste!');
       if (!uploader) {
-        setErrorMessage('Remote storage must be enabled to upload files');
+        setErrorMessage('Remote storage must be enabled to upload files.');
         return;
       }
       const uploadFile = Array.from(files).find((file) =>
         PASTEABLE_IMAGE_TYPES.includes(file.type)
       );
+
       if (uploadFile) {
         setPastedFile(uploadFile);
-      } else {
-        setErrorMessage('Only images can be uploaded');
+      } else if (files.length > 0) {
+        setErrorMessage('Only images can be uploaded.');
       }
     },
     [uploader]
@@ -176,17 +177,14 @@ export default function AddCurioModal({
     }
 
     if (draggedFile || pastedFile) {
-      const localUploader = useFileStore.getState().getUploader(uploadKey);
       const file = draggedFile || pastedFile;
       try {
-        if (localUploader) {
-          await localUploader.uploadFiles([file!]);
+        if (uploader) {
+          await uploader.uploadFiles([file!]);
           useFileStore.getState().setUploadType(uploadKey, 'drag');
-        } else {
-          // TODO: warn that unable
         }
       } catch (e: any) {
-        console.error(`Error initiating the upload`);
+        setErrorMessage('Error initiating file upload.');
         setStatus('error');
       }
     }
@@ -199,6 +197,7 @@ export default function AddCurioModal({
     pastedFile,
     previewUrl,
     uploadKey,
+    uploader,
   ]);
 
   return (
@@ -213,9 +212,9 @@ export default function AddCurioModal({
         <h2 className="text-lg font-bold">Post New Block</h2>
       </header>
 
-      <section className="align-center mt-6 mb-6 flex w-full justify-center">
+      <section className="align-center align-center mt-6 mb-6 flex w-full flex-col justify-center">
         {mode === 'input' ? (
-          <div className="flex w-full flex-col">
+          <div className="flex w-full">
             <NewCurioInput
               onChange={onChange}
               onPastedFiles={onPastedFiles}
@@ -225,13 +224,16 @@ export default function AddCurioModal({
                   : 'Drag media to upload, or start typing to post text'
               }
             />
-            <div hidden={errorForDisplay === ''} className="mt-3 pl-2 text-red">
-              {errorForDisplay}
-            </div>
           </div>
         ) : (
           <CurioPreview url={previewUrl} />
         )}
+        <div
+          hidden={errorForDisplay === ''}
+          className="text-md mt-4 pl-2 text-center font-medium text-red"
+        >
+          {errorForDisplay}
+        </div>
       </section>
 
       <footer className="mt-4 flex items-center justify-between space-x-2">
@@ -245,7 +247,7 @@ export default function AddCurioModal({
           <button
             onClick={() => postBlock()}
             className="button"
-            disabled={status === 'loading' || isEmpty}
+            disabled={['loading', 'error'].includes(status) || isEmpty}
           >
             {status === 'loading' ? (
               <LoadingSpinner className="h-4 w-4" />

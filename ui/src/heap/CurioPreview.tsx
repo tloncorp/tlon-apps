@@ -13,6 +13,7 @@ export function canPreview(text: string) {
 }
 export default function CurioPreview({ url }: { url: string }) {
   const [ready, setReady] = useState(false);
+  const [spin, setSpin] = useState(false);
   const [portrait, setPortrait] = useState(false);
   const isBlob = url.startsWith('blob:');
 
@@ -26,12 +27,21 @@ export default function CurioPreview({ url }: { url: string }) {
       image.onload = () => {
         if (image.naturalHeight > image.naturalWidth) setPortrait(true);
         setReady(true);
+        setSpin(false);
       };
       image.src = url;
     }
   }, [url, isBlob]);
 
-  if (!ready) {
+  // delay spinner to avoid flash on local file
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!ready) setSpin(true);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [ready]);
+
+  if (!ready && spin) {
     return <LoadingSpinner className="h-6 w-6" />;
   }
 

@@ -292,7 +292,7 @@ function HeapChannel({ title }: ViewProps) {
                 className="absolute top-0 left-0 z-50 flex w-full cursor-pointer items-start justify-center border-green"
                 onClick={() => setDragErrorMessage('')}
               >
-                <div className="mt-2 rounded-lg bg-red-100 p-4 font-semibold text-red shadow-xl">
+                <div className="mt-2 rounded-lg bg-red-100 p-4 font-semibold text-red shadow-sm">
                   {dragErrorMessage}
                   <X16Icon className="ml-2 inline h-4 w-4" />
                 </div>
