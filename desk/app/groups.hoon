@@ -949,17 +949,17 @@
       =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
       =/  =channel:g  (~(got by channels.group) nes)
       ?+    rest.pole  ~
-          [%can-read src=@ ~]
-        =/  src  (slav %p src.rest.pole)
-        `loob+!>((go-can-read src channel))
+          [%can-read member=@ ~]
+        =/  member  (slav %p member.rest.pole)
+        `loob+!>((go-can-read member channel))
         ::
-          [%can-write src=@ ~]
-        =/  src  (slav %p src.rest.pole)
+          [%can-write member=@ ~]
+        =/  member  (slav %p member.rest.pole)
         =-  `noun+!>(-)
-        ?:  |((go-is-banned src) !(~(has by fleet.group) src))  ~
+        ?:  |((go-is-banned member) !(~(has by fleet.group) member))  ~
         %-  some
-        :-  bloc=(~(has in go-bloc-who) src.bowl)
-        sects=sects:(~(got by fleet.group) src)
+        :-  bloc=(~(has in go-bloc-who) member)
+        sects=sects:(~(got by fleet.group) member)
       ==
     ==
   ::
