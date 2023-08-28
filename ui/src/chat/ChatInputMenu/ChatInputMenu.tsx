@@ -142,7 +142,7 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
     },
     [selected, status, editor, leapIsOpen]
   );
-  if (isMobile) {
+  if (isMobile && status === 'open') {
     return (
       <ChatInputMenuToolbar
         editor={editor}
@@ -156,6 +156,11 @@ export default function ChatInputMenu({ editor }: ChatInputMenuProps) {
       />
     );
   }
+
+  if (isMobile && status === 'closed') {
+    return null;
+  }
+
   return (
     <Popover.Root open={status !== 'closed'}>
       <Popover.Anchor
