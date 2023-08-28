@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 import {
   MutationFunction,
@@ -268,15 +268,28 @@ export function useGang(flag: string) {
   return data?.[flag] || defGang;
 }
 
-export const useGangPreview = (flag: string, disabled = false) => {
+export const useGangPreview = (
+  flag: string,
+  disabled = false
+): GroupPreview | null => {
+  const [needToFetch, setNeedToFetch] = useState(false);
+  const gangs = useGangs();
+
   const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
     queryKey: ['gang-preview', flag],
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
-      enabled: !disabled,
+      enabled: needToFetch && !disabled,
     },
   });
+
+  if (gangs[flag]?.preview) {
+    return gangs[flag].preview;
+  }
+  if (needToFetch === false) {
+    setNeedToFetch(true);
+  }
 
   if (rest.isLoading || rest.isError) {
     return null;
