@@ -115,7 +115,16 @@
         ?~  diary=(~(get by shelf) ship qflag)  |
         ?.  ?=(%chi -.saga.net.u.diary)  |
         ?.  ?=([%diary @ %updates ?(~ [@ ~])] path)  |
-        =(i.t.t.wire i.t.path)
+        =(qflag i.t.path)
+      ::
+          [%diary @ @ %checkpoint ~]
+        ?.  =(%diary-server dude)  |
+        ?.  =((scot %p ship) i.t.wire)  |
+        =*  qflag  i.t.t.wire
+        ?~  diary=(~(get by shelf) ship qflag)  |
+        ?.  ?=(%chi -.saga.net.u.diary)  |
+        ?.  ?=([%diary @ %checkpoint %before @] path)  |
+        =(qflag i.t.path)
       ::
           [%said @ @ %note @ ?(~ [@ ~])]
         ?.  =(%diary-server dude)  |       :: maybe %diary ?
@@ -399,7 +408,12 @@
     =.  group.perm.perm.diary  group
     =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
-    =.  cor  (watch-epic p.flag)
+    =.  di-core
+      =/  diaries=(list [fl=flag:d di=diary:d])  ~(tap by shelf)
+      |-
+      ?~  diaries  di-core(cor (watch-epic p.flag))
+      ?:  !=(p.fl.i.diaries p.flag)  $(diaries t.diaries)
+      di-core(saga.net.diary saga.net.di.i.diaries)
     di-safe-sub
   ::
   ::  handle an action from the client
@@ -509,13 +523,17 @@
   ++  di-safe-sub
     ?:  di-has-sub  di-core
     ?.  ?=(%chi -.saga.net.diary)  di-core
-    =/  =path
-      =/  tim=(unit time)
-        (bind (ram:on-notes:d notes.diary) head)
-      %+  weld  /diary/[q.flag]/updates
-      ?~  tim  ~
-      /(scot %da u.tim)
-    (safe-watch di-sub-wire [p.flag server] path)
+    ?^  notes.diary  di-start-updates
+    =.  load.net.diary  |
+    %^  safe-watch  (weld di-area /checkpoint)  [p.flag server]
+    /diary/[q.flag]/checkpoint/before/20
+  ::
+  ++  di-start-updates
+    ::  not most optimal time, should maintain last heard time instead
+    =/  tim=(unit time)
+      (bind (ram:on-notes:d notes.diary) head)
+    %^  safe-watch  di-sub-wire  [p.flag server] 
+    /diary/[q.flag]/updates/(scot %da (fall tim *@da))
   ::
   ++  di-watch
     |=  =path
@@ -530,7 +548,8 @@
     ^+  di-core
     ?+    wire  ~|(diary-strange-agent-wire+wire !!)
         ~  di-core  :: noop wire, should only send pokes
-        [%updates ~]  (di-take-update sign)
+        [%updates ~]      (di-take-update sign)
+        [%checkpoint ~]   (di-take-checkpoint sign)
     ==
   ::
   ++  di-take-update
@@ -542,7 +561,6 @@
       =.  net.diary  [src.bowl & [%chi ~]]
       ?~  p.sign  di-core
       %-  (slog leaf/"{<dap.bowl>}: Failed subscription" u.p.sign)
-      ~&  'diary watch ack done'
       di-core
     ::
         %fact
@@ -553,6 +571,56 @@
         %diary-notes   !!  ::  XX
       ==
     ==
+  ::
+  ++  di-take-checkpoint
+    |=  =sign:agent:gall
+    ^+  di-core
+    ?+    -.sign  di-core
+        :: only if kicked prematurely        
+        %kick       ?:(load.net.diary di-core di-safe-sub)
+        %watch-ack
+      =.  net.diary  [src.bowl & [%chi ~]]
+      ?~  p.sign  di-core
+      %-  (slog leaf/"{<dap.bowl>}: Failed partial checkpoint" u.p.sign)
+      di-core
+    ::
+        %fact
+      =*  cage  cage.sign
+      ?+    p.cage  ~|(diary-strange-fact+p.cage !!)
+          %diary-checkpoint  
+        (di-ingest-checkpoint !<(u-checkpoint:d q.cage))
+      ==
+    ==
+  ::
+  ++  di-ingest-checkpoint
+    |=  chk=u-checkpoint:d
+    ^+  di-core
+    =.  load.net.diary  &
+    =^  changed  sort.diary  (apply-rev:d sort.diary sort.chk)
+    =?  di-core  changed  (di-response %sort sort.sort.diary)
+    =^  changed  view.diary  (apply-rev:d view.diary view.chk)
+    =?  di-core  changed  (di-response %view view.view.diary)
+    =^  changed  perm.diary  (apply-rev:d perm.diary perm.chk)
+    =?  di-core  changed  (di-response %perm perm.perm.diary)
+    =^  changed  order.diary  (apply-rev:d order.diary order.chk)
+    =?  di-core  changed  (di-response %order order.order.diary)
+    =/  old  notes.diary
+    =.  notes.diary  
+      ((uno:mo-notes:d notes.diary notes.chk) di-apply-unit-note)
+    =?  di-core  !=(old notes.diary)
+      %+  di-response  %notes
+      %+  gas:rr-on-notes:d  *rr-notes:d
+      %+  murn  (turn (tap:on-notes:d notes.chk) head)
+      |=  id=id-note:d
+      ^-  (unit [id-note:d (unit rr-note:d)])
+      =/  note  (got:on-notes:d notes.diary id)
+      =/  old   (get:on-notes:d old id)
+      ?:  =(old `note)  ~
+      ?~  note  (some [id ~])
+      (some [id `(di-rr-note u.note)])
+    =.  di-core  di-start-updates
+    =/  wire  (weld di-area /checkpoint)
+    (emit %pass wire %agent [p.flag dap.bowl] %leave ~)
   ::
   ++  di-apply-logs
     |=  =log:d
@@ -597,7 +665,7 @@
       ?.  changed  di-core
       (di-response %perm perm.perm.diary)
     ::
-        %notes
+        %note
       =/  old  notes.diary
       =.  di-core  (di-u-note id.u-diary u-note.u-diary)
       =?  cor  !=(old notes.diary)  (give-brief flag di-brief)
@@ -613,18 +681,18 @@
       ?~  note
         =/  rr-note=(unit rr-note:d)  (bind note.u-note di-rr-note)
         =.  notes.diary  (put:on-notes:d notes.diary id-note note.u-note)
-        (di-response %notes id-note %set rr-note)
+        (di-response %note id-note %set rr-note)
       ::
       ?~  note.u-note
         =.  notes.diary  (put:on-notes:d notes.diary id-note ~)
-        (di-response %notes id-note %set ~)
+        (di-response %note id-note %set ~)
       ::
       =*  old  u.u.note
       =*  new  u.note.u-note
       =/  merged  (di-apply-note id-note old new)
       ?:  =(merged old)  di-core
       =.  notes.diary  (put:on-notes:d notes.diary id-note `merged)
-      (di-response %notes id-note %set `(di-rr-note merged))
+      (di-response %note id-note %set `(di-rr-note merged))
     ::
     ?~  note
       =.  diffs.future.diary
@@ -644,13 +712,13 @@
       ?:  =(merged feels.u.u.note)  di-core
       =.  notes.diary
         (put:on-notes:d notes.diary id-note `u.u.note(feels merged))
-      (di-response %notes id-note %feels (di-rr-feels merged))
+      (di-response %note id-note %feels (di-rr-feels merged))
     ::
         %essay
       =^  changed  +.u.u.note  (apply-rev:d +.u.u.note +.u-note)
       ?.  changed  di-core
       =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
-      (di-response %notes id-note %essay +>.u.u.note)
+      (di-response %note id-note %essay +>.u.u.note)
     ==
   ::
   ++  di-u-quip
@@ -664,25 +732,25 @@
         =?  di-core  ?=(^ quip.u-quip)
           (di-hark id-note note u.quip.u-quip)
         =.  di-core  (di-put-quip id-note id-quip quip.u-quip)
-        (di-response %notes id-note %quip id-quip %set rr-quip)
+        (di-response %note id-note %quip id-quip %set rr-quip)
       ::
       ?~  quip.u-quip
         =.  di-core  (di-put-quip id-note id-quip ~)
-        (di-response %notes id-note %quip id-quip %set ~)
+        (di-response %note id-note %quip id-quip %set ~)
       ::
       =*  old  u.u.quip
       =*  new  u.quip.u-quip
       =/  merged  (need (di-apply-quip id-quip `old `new))
       ?:  =(merged old)  di-core
       =.  di-core  (di-put-quip id-note id-quip `merged)
-      (di-response %notes id-note %quip id-quip %set `(di-rr-quip merged))
+      (di-response %note id-note %quip id-quip %set `(di-rr-quip merged))
     ::
     ?~  quip  di-core
     ::
     =/  merged  (di-apply-feels feels.u.u.quip feels.u-quip)
     ?:  =(merged feels.u.u.quip)  di-core
     =.  di-core  (di-put-quip id-note id-quip `u.u.quip(feels merged))
-    (di-response %notes id-note %quip id-quip %feels (di-rr-feels merged))
+    (di-response %note id-note %quip id-quip %feels (di-rr-feels merged))
   ::
   ::  put a quip into a note by id
   ::
@@ -698,6 +766,13 @@
   ::
   ::  +di-apply-* functions apply new copies of data to old copies,
   ::  keeping the most recent versions of each sub-piece of data
+  ::
+  ++  di-apply-unit-note
+    |=  [=id-note:d old=(unit note:d) new=(unit note:d)]
+    ^-  (unit note:d)
+    ?~  old  ~
+    ?~  new  ~
+    `(di-apply-note id-note u.old u.new)
   ::
   ++  di-apply-note
     |=  [=id-note:d old=note:d new=note:d]

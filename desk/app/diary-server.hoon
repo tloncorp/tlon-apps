@@ -82,7 +82,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   ?>  ?=(%0 -.old)
   =.  state  old
-  =.  cor  infate-io
+  =.  cor  inflate-io
   (give %fact ~[/epic] epic+!>(okay:d))
   ::
   +$  versioned-state  $%(current-state)
@@ -121,20 +121,20 @@
     %-  di-watch-updates:(di-abed:di-core our.bowl name.pole)
     (slav %da after.pole)
   ::
-      [%diary name=@ %notes %time-range from=@ ~]
+      [%diary name=@ %checkpoint %time-range from=@ ~]
     =<  di-abet
-    (di-watch-notes:(di-abed:di-core our.bowl name.pole) (slav %da from.pole) ~)
+    (di-watch-checkpoint:(di-abed:di-core our.bowl name.pole) (slav %da from.pole) ~)
   ::
-      [%diary name=@ %notes %time-range from=@ to=@ ~]
+      [%diary name=@ %checkpoint %time-range from=@ to=@ ~]
     =<  di-abet
-    %^  di-watch-notes:(di-abed:di-core our.bowl name.pole)
+    %^  di-watch-checkpoint:(di-abed:di-core our.bowl name.pole)
         (slav %da from.pole)
       ~
     (slav %da to.pole)
   ::
-      [%diary name=@ %notes %before n=@ud ~]
+      [%diary name=@ %checkpoint %before n=@ud ~]
     =<  di-abet
-    (di-watch-note-page:(di-abed:di-core our.bowl name.pole) (slav %ud n.pole))
+    (di-watch-checkpoint-page:(di-abed:di-core our.bowl name.pole) (slav %ud n.pole))
   ::
       [%said host=@ name=@ %note time=@ quip=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
@@ -276,20 +276,22 @@
     =.  di-core  (give %fact ~ %diary-logs !>(log))
     di-core
   ::
-  ++  di-watch-notes
+  ++  di-watch-checkpoint
     |=  [from=@da to=(unit @da)]
     ^+  di-core
     ?>  (di-can-read src.bowl)
     =/  =notes:d  (lot:on-notes:d notes.diary `from to)
-    =.  di-core  (give %fact ~ %diary-notes !>(notes))
+    =/  chk=u-checkpoint:d  -.diary(notes notes)
+    =.  di-core  (give %fact ~ %diary-checkpoint !>(chk))
     (give %kick ~ ~)
   ::
-  ++  di-watch-note-page
+  ++  di-watch-checkpoint-page
     |=  n=@
     ^+  di-core
     ?>  (di-can-read src.bowl)
     =/  =notes:d  (gas:on-notes:d *notes:d (bat:mo-notes:d notes.diary ~ n))
-    =.  di-core  (give %fact ~ %diary-notes !>(notes))
+    =/  chk=u-checkpoint:d  -.diary(notes notes)
+    =.  di-core  (give %fact ~ %diary-checkpoint !>(chk))
     (give %kick ~ ~)
   ::
   ++  di-create
@@ -370,7 +372,7 @@
       ?.  changed  di-core
       (di-update %perm perm.diary)
     ::
-        %notes
+        %note
       =^  update=(unit u-diary:d)  notes.diary
         (di-c-note c-note.c-diary)
       ?~  update  di-core
@@ -390,7 +392,7 @@
         ?~  note  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  new=note:d  [[now.bowl ~ ~] 0 essay.c-note]
-      :-  `[%notes id %set ~ new]
+      :-  `[%note id %set ~ new]
       (put:on-notes:d notes.diary id ~ new)
     ::
         %edit
@@ -400,7 +402,7 @@
       ?~  u.note  `notes.diary
       ?>  =(src.bowl author.u.u.note)
       =/  new=note:d  [-.u.u.note +(rev.u.u.note) essay.c-note]
-      :-  `[%notes id.c-note %set ~ new]
+      :-  `[%note id.c-note %set ~ new]
       (put:on-notes:d notes.diary id.c-note ~ new)
     ::
         %del
@@ -408,7 +410,7 @@
       ?~  note  `(put:on-notes:d notes.diary id.c-note ~)
       ?~  u.note  `notes.diary
       ?>  =(src.bowl author.u.u.note)
-      :-  `[%notes id.c-note %set ~]
+      :-  `[%note id.c-note %set ~]
       (put:on-notes:d notes.diary id.c-note ~)
     ::
         ?(%add-feel %del-feel)
@@ -417,17 +419,17 @@
       ?~  u.note  `notes.diary
       =/  [update=? =feels:d]  (di-c-feel feels.u.u.note c-note)
       ?.  update  `notes.diary
-      :-  `[%notes id.c-note %feels feels]
+      :-  `[%note id.c-note %feels feels]
       (put:on-notes:d notes.diary id.c-note ~ u.u.note(feels feels))
     ::
-        %quips
+        %quip
       =/  note  (get:on-notes:d notes.diary id.c-note)
       ?~  note  `notes.diary
       ?~  u.note  `notes.diary
       =^  update=(unit u-note:d)  quips.u.u.note
         (di-c-quip quips.u.u.note c-quip.c-note)
       ?~  update  `notes.diary
-      :-  `[%notes id.c-note u.update]
+      :-  `[%note id.c-note u.update]
       (put:on-notes:d notes.diary id.c-note ~ u.u.note)
     ==
   ::

@@ -18,7 +18,8 @@
     |=  =r-diary:d
     %+  frond  -.r-diary
     ?-  -.r-diary
-      %notes    (pairs id+(id id.r-diary) r-note+(r-note r-note.r-diary) ~)
+      %notes   (rr-notes rr-notes.r-diary)
+      %note    (pairs id+(id id.r-diary) r-note+(r-note r-note.r-diary) ~)
       %order    (order order.r-diary)
       %view     s+view.r-diary
       %sort     s+sort.r-diary
@@ -68,11 +69,11 @@
     ==
   ::
   ++  rr-notes
-    |=  notes=(map id-note:d rr-note:d)
+    |=  notes=rr-notes:d
     %-  pairs
     %+  turn  (tap:rr-on-notes:d notes)
-    |=  [id=id-note:d =rr-note:d]
-    [(scot %ud id) (^rr-note rr-note)]
+    |=  [id=id-note:d note=(unit rr-note:d)]
+    [(scot %ud id) ?~(note ~ (rr-note u.note))]
   ::
   ++  rr-note
     |=  [=rr-seal:d =essay:d]
@@ -93,7 +94,7 @@
     |=  =rr-seal:d
     %-  pairs
     :~  time+(time time.rr-seal)
-        feels+(feels feels.rr-seal)
+        feels+(feels rr-feels.rr-seal)
       ::
         :-  %quips
         %-  pairs
@@ -341,7 +342,7 @@
         watch+ul
         unwatch+ul
       ::
-        notes+a-note
+        note+a-note
         view+(su (perk %grid %list ~))
         sort+(su (perk %time %alpha %arranged ~))
         order+(mu (ar id))
@@ -355,7 +356,7 @@
     :~  add+essay
         edit+(ot id+id essay+essay ~)
         del+id
-        quips+(ot id+id a-quip+a-quip ~)
+        quip+(ot id+id a-quip+a-quip ~)
         add-feel+(ot id+id ship+ship feel+so ~)
         del-feel+(ot id+id ship+ship ~)
     ==

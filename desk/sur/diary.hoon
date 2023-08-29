@@ -282,7 +282,7 @@
       [%diary =flag =c-diary]
   ==
 +$  c-diary
-  $%  [%notes =c-note]
+  $%  [%note =c-note]
       [%view =view]
       [%sort =sort]
       [%order order=arranged-notes]
@@ -294,7 +294,7 @@
   $%  [%add =essay]
       [%edit id=id-note =essay]
       [%del id=id-note]
-      [%quips id=id-note =c-quip]  ::TODO  consider singular (and %note)
+      [%quip id=id-note =c-quip]
       c-feel
   ==
 ::
@@ -319,8 +319,10 @@
       [%view (rev =view)]
       [%sort (rev =sort)]
       [%perm (rev =perm)]
-      [%notes id=id-note =u-note]
+      [%note id=id-note =u-note]
   ==
+::
++$  u-checkpoint  global:diary
 ::
 +$  u-note
   $%  [%set note=(unit note)]
@@ -340,7 +342,8 @@
 ::
 +$  r-shelf  [=flag =r-diary]
 +$  r-diary
-  $%  [%notes id=id-note =r-note]
+  $%  [%notes =rr-notes]
+      [%note id=id-note =r-note]
       [%order order=arranged-notes]
       [%view =view]
       [%sort =sort]
@@ -370,7 +373,7 @@
 ++  rr-diary
   |^  ,[global local]
   +$  global
-    $:  notes=(map id-note rr-note)
+    $:  notes=rr-notes
         order=arranged-notes
         =view
         =sort
@@ -382,13 +385,14 @@
         =remark
     ==
   --
++$  rr-notes  ((mop id-note (unit rr-note)) lte)
 +$  rr-note   [rr-seal essay]
 +$  rr-seal   [=time =rr-quips =rr-feels]
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)
 +$  rr-cork   [=time =rr-feels]
 +$  rr-feels  (map ship feel)
-++  rr-on-notes  ((on id-quip rr-note) lte)
+++  rr-on-notes  ((on id-note (unit rr-note)) lte)
 ++  rr-on-quips  ((on id-quip rr-quip) lte)
 ::
 +|  %helper-types

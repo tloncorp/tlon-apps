@@ -20,14 +20,20 @@
 ;<  ~  bind:m  (com %create chan [our group] 'hack week' 'hacking all week' ~ ~)
 ;<  ~  bind:m  (act [our chan] %join [our group])
 ;<  ~  bind:m  (sleep:s `@dr`0)
-;<  note-send-time=@da  bind:m  get-time:s
-=/  =essay:d  ['on hacking' '' ~ our note-send-time]
-;<  ~  bind:m  (act [our chan] %notes %add essay)
-;<  ~  bind:m  (sleep:s `@dr`0)
-;<  now=@da  bind:m  get-time:s
-=/  =memo:d   [[~ 'hacking is bad' ~] our now]
-;<  ~  bind:m  (act [our chan] %notes %quips note-send-time %add memo)
-;<  ~  bind:m  (sleep:s `@dr`0)
+=|  count=@ud
+|-  
+?:  (lth count 30)
+  ;<  send=@da  bind:m  get-time:s
+  =/  =essay:d  [(cat 3 'on hacking' (scot %ud count)) '' ~ our send]
+  ;<  ~  bind:m  (act [our chan] %note %add essay)
+  ;<  ~  bind:m  (sleep:s `@dr`0)
+  ?:  =(count 29)
+    ;<  now=@da  bind:m  get-time:s
+    =/  =memo:d   [[~ 'hacking is bad' ~] our now]
+    ;<  ~  bind:m  (act [our chan] %note %quip send %add memo)
+    ;<  ~  bind:m  (sleep:s `@dr`0)
+    $(count +(count))
+  $(count +(count))
 ;<  ~  bind:m  (dbug %diary)
 ;<  ~  bind:m  (dbug %diary-server)
 (pure:m !>(%success))
