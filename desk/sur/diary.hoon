@@ -255,6 +255,9 @@
 ::
 +|  %actions
 ::
+::  some actions happen to be the same as commands, but this can freely
+::  change
+::
 +$  a-shelf  [=flag =a-diary]
 +$  a-diary
   $%  [%join group=flag:g]
@@ -271,9 +274,6 @@
 +$  a-remark
   $~  [%read ~]
   $>(?(%read %read-at %watch %unwatch) a-diary)
-::
-::
-++  action-to-command  !!
 ::
 +|  %commands
 ::
@@ -308,8 +308,6 @@
   $%  [%add-feel id=@da p=ship q=feel]
       [%del-feel id=@da p=ship]
   ==
-::
-++  command-to-update  !!
 ::
 +|  %updates
 ::
@@ -385,7 +383,7 @@
     ==
   --
 +$  rr-note   [rr-seal essay]
-+$  rr-seal   [=time =rr-quips feels=(map ship feel)]
++$  rr-seal   [=time =rr-quips =rr-feels]
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)
 +$  rr-cork   [=time =rr-feels]
@@ -427,121 +425,4 @@
   +$  outlines  ((mop time outline) lte)
   ++  on        ((^on time outline) lte)
   --
-::
-:::::::::::::::::::::::::::::TODO  deleteme
-::
-::
-:: ++  apply-feels
-::   |=  [old=feels new=feels]
-::   ^-  feels
-::   %-  (~(uno by old) new)
-::   |=  [* a=(rev (unit feel)) b=(rev (unit feel))]
-::   (apply-rev a b)
-:: ::
-:: ::
-:: ++  diary
-::   |^  !!
-::   ::  $log: a time ordered history of modifications to a diary
-::   ::
-::   ++  apply-diff
-::     |=  [=global =diff]
-::     ^-  (each _global [id:notes diff:notes])
-::     ?-    -.diff
-::         %order  &+global(order (apply-rev order.global +.diff))
-::         %view   &+global(view (apply-rev view.global +.diff))
-::         %sort   &+global(sort (apply-rev sort.global +.diff))
-::         %perm   &+global(perm (apply-rev perm.global +.diff))
-::         %notes
-::       =/  res  (apply-diff:notes notes.global +.diff)
-::       ?~  res
-::         |+[id.diff diff.diff]
-::       &+global(notes u.res)
-::     ==
-::   --
-:: ::
-:: ::  $notes: a set of time ordered diary posts
-:: ::
-:: ++  notes
-::   ++  apply-notes
-::     |=  [old=rock new=rock]
-::     ((uno:mo old new) apply-note)
-::   ::
-::   ++  apply-diff
-::     |=  [old=rock =id =diff]
-::     ^-  (unit rock)
-::     ?:  ?=(%set -.diff)
-::       :-  ~
-::       %^  put:on  old  id
-::       =/  old-note  (get:on old id)
-::       ?~  old-note
-::         note.diff
-::       (apply-note id u.old-note note.diff)
-::     ::
-::     =/  old-note  (get:on old id)
-::     ?~  old-note
-::       ~
-::     :-  ~
-::     %^  put:on  old  id
-::     ^-  (unit note)
-::     ?~  u.old-note
-::       ~
-::     :-  ~
-::     ?-  -.diff
-::       %quip   `note`u.u.old-note(quips (apply-diff:quips quips.u.u.old-note +.diff))
-::       %feels  `note`u.u.old-note(feels (apply-feels feels.u.u.old-note +.diff))
-::       %essay  `note`u.u.old-note(+ (apply-rev +.u.u.old-note +.diff))
-::     ==
-::   ::
-::   ++  apply-note
-::     |=  [=id old=(unit note) new=(unit note)]
-::     ^-  (unit note)
-::     ?~  old  ~
-::     ?~  new  ~
-::     :-  ~
-::     %=  u.old
-::       quips  (apply-quips:quips quips.u.old quips.u.new)
-::       feels  (apply-feels feels.u.old feels.u.new)
-::       +      (apply-rev +.u.old +.u.new)
-::     ==
-::   --
-:: ::
-:: ::  $quips: a set of time ordered note comments
-:: ::
-:: ++  quips
-::   =<  rock
-::   |%
-::   ++  apply-quips
-::     |=  [old=rock new=rock]
-::     ((uno:mo old new) apply-quip)
-::   ::
-::  ++  apply-diff
-::     |=  [old=rock =id =diff]
-::     ^-  rock
-::     ?:  ?=(%set -.diff)
-::       %^  put:on  old  id
-::       =/  gotten  (get:on old id)
-::       ?~  gotten  ~
-::       (apply-quip id u.gotten quip.diff)
-::     ::
-::     =/  old-quip  (get:on old id)
-::     ?~  old-quip
-::       %-  (slog 'diary: received diff for unknown quip' ~)
-::       old
-::     ?~  u.old-quip
-::       old
-::     %^  put:on  old  id
-::     `u.u.old-quip(feels (apply-feels feels.u.u.old-quip +.diff))
-::   ::
-::   ++  apply-quip
-::     |=  [=id old=(unit quip) new=(unit quip)]
-::     ^-  (unit quip)
-::     ?~  old  ~
-::     ?~  new  ~
-::     :-  ~
-::     %=  u.old
-::       feels  (apply-feels feels.u.old feels.u.new)
-::       +      +.u.new
-::     ==
-::   --
-::
 --

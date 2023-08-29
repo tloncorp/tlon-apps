@@ -1,4 +1,5 @@
-:: TODO: refactor initial subscription to actually fetch by notes
+::  TODO: refactor initial subscription to actually fetch by notes
+::  TODO: listen to groups to join channel
 ::
 /-  d=diary, g=groups, ha=hark
 /-  meta

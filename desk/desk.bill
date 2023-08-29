@@ -7,5 +7,5 @@
     %hark
     %notify
     %grouper
-    ::  %groups-ui
+    %groups-ui
 ==

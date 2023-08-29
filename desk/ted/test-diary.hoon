@@ -1,3 +1,4 @@
+::  TODO: move outside /desk directory
 /-  spider, d=diary, g=groups
 /+  s=strandio
 =,  strand=strand:spider

@@ -82,6 +82,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   ?>  ?=(%0 -.old)
   =.  state  old
+  =.  cor  infate-io
   (give %fact ~[/epic] epic+!>(okay:d))
   ::
   +$  versioned-state  $%(current-state)
@@ -229,10 +230,6 @@
     |=  f=flag:d
     di-core(flag f, diary (~(got by shelf) f))
   ::
-  ++  di-apex
-    |=  f=flag:d
-    di-core(flag f, diary (~(gut by shelf) f *diary:d))
-  ::
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-sub-path  `path`/diary/[q.flag]/updates
   ++  di-am-host  =(our.bowl p.flag)
@@ -270,17 +267,6 @@
       %+  welp  di-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
-  ::
-  ++  di-give-update
-    |=  =update:d
-    ^+  di-core
-    =/  paths
-      %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
-      |=  =path
-      =((scag 3 path) di-sub-path)
-    ?:  =(~ paths)
-      di-core
-    (give %fact paths %diary-update !>(update))
   ::
   ++  di-watch-updates
     |=  =@da
@@ -504,6 +490,17 @@
     =/  =update:d  [time u-diary]
     =.  log.diary  (put:log-on:d log.diary update)
     (di-give-update update)
+  ::
+  ++  di-give-update
+    |=  =update:d
+    ^+  di-core
+    =/  paths
+      %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
+      |=  =path
+      =((scag 3 path) di-sub-path)
+    ?:  =(~ paths)
+      di-core
+    (give %fact paths %diary-update !>(update))
   ::
   ++  di-subscriptions
     ^-  (set [ship path])
