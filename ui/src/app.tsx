@@ -573,6 +573,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
+              <Route
+                path="/dm/:ship/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
             </>
           ) : null}
         </Routes>
