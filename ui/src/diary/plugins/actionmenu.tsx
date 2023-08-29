@@ -10,6 +10,7 @@ import keyMap from '@/keyMap';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import Sig16Icon from '@/components/icons/Sig16Icon';
 import CodeIcon from '@/components/icons/CodeIcon';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 const ActionMenuPluginKey = new PluginKey('action-menu');
 
@@ -55,6 +56,20 @@ export const actionMenuItems: ActionMenuItemProps[] = [
         .focus()
         .deleteRange(range)
         .toggleCodeBlock()
+        .selectNodeBackward()
+        .insertContent([{ type: 'paragraph' }])
+        .run();
+    },
+  },
+  {
+    title: 'Task list',
+    icon: <CheckIcon className="mr-2 h-4 w-4 text-gray-600" />,
+    command: ({ editor, range }) => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .toggleTaskList()
         .selectNodeBackward()
         .insertContent([{ type: 'paragraph' }])
         .run();

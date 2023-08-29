@@ -106,11 +106,19 @@ const unwrapImages = (el: Element) => {
 };
 
 const parseHTML = (str: string) => {
-  // we need to parse the HTML to handle mentions, citations and images
+  // we need to parse the HTML to handle mentions, citations, images and tasks
   const parser = new DOMParser();
   const doc = parser.parseFromString(str, 'text/html');
   let paragraphs = doc.querySelectorAll('p');
   const listItems = doc.querySelectorAll('li');
+  const wrappedTaskItems = doc.querySelectorAll(
+    'li > p > input[type="checkbox"][disabled]'
+  );
+
+  wrappedTaskItems.forEach((el) => {
+    unwrapElement(el);
+  });
+
   paragraphs.forEach(unwrapImages);
 
   // re-query for paragraphs after unwrapImages operation
@@ -160,7 +168,38 @@ const parseHTML = (str: string) => {
     }
   });
 
-  return doc.body.innerHTML;
+  // prepare task items
+  const taskItems = doc.querySelectorAll(
+    'li > input[type="checkbox"][disabled]'
+  );
+  taskItems.forEach((input) => {
+    const li = input.parentNode as HTMLElement;
+    const checked = input.hasAttribute('checked');
+    li.removeChild(input);
+    const content = li.innerHTML.replace(/<p>|<\/p>/g, '');
+    const newP = document.createElement('p');
+    const label = document.createElement('label');
+    const span = document.createElement('span');
+
+    li.setAttribute('data-type', 'taskItem');
+    li.setAttribute('data-checked', String(checked));
+
+    input.removeAttribute('disabled');
+    label.appendChild(input);
+    label.appendChild(span);
+    newP.innerHTML = content;
+    li.innerHTML = '';
+    li.appendChild(label);
+    li.appendChild(newP);
+  });
+
+  const taskLists = doc.querySelectorAll('ul > li[data-type="taskItem"]');
+  taskLists.forEach((li) => {
+    const ul = li.parentNode as HTMLElement;
+    ul.setAttribute('data-type', 'taskList');
+  });
+
+  return doc.body;
 };
 
 const serializerMarks = {
@@ -219,6 +258,14 @@ const serializerNodes = {
     state.write(node.attrs.path);
     state.closeBlock(node);
   },
+  taskList: (state: MarkdownSerializerState, node: Node) => {
+    state.renderContent(node);
+  },
+  taskItem: (state: MarkdownSerializerState, node: Node) => {
+    state.write(`- [${node.attrs.checked ? 'x' : ' '}] `);
+    state.text(node.textContent, false);
+    state.ensureNewLine();
+  },
 };
 
 function serialize(_schema: Schema, content: JSONContent) {
@@ -233,12 +280,9 @@ function serialize(_schema: Schema, content: JSONContent) {
 function deserialize(_schema: Schema, markdown: string) {
   const html = marked.parse(markdown);
 
-  const parser = new DOMParser();
-  const { body } = parser.parseFromString(parseHTML(html), 'text/html');
-
   const pmParser = new PMDomParser(_schema, parserRules);
 
-  const state = pmParser.parse(body);
+  const state = pmParser.parse(parseHTML(html));
 
   return state.toJSON();
 }
