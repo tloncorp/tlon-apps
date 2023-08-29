@@ -30,14 +30,15 @@ export default function DiaryCommenters({
     return (
       <IconButton
         label="comments"
-        icon={<BubbleIcon className={`h-5 w-5 text-white`} />}
+        className="hover:text-gray-400"
+        icon={<BubbleIcon className="h-5 w-5" />}
       />
     );
   };
 
   return (
     <div
-      className={`relative flex items-center text-gray-600 ${
+      className={`relative flex items-center ${
         !fullSize && commenters.length > 0 && 'rounded-lg bg-white p-1.5'
       }`}
     >
@@ -55,7 +56,7 @@ export default function DiaryCommenters({
               }}
             />
           ))}
-          <span className="ml-2">
+          <span className="ml-2 text-gray-600">
             {quipCount} {fullSize && pluralize('comment', quipCount)}
           </span>
         </>
