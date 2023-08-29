@@ -55,7 +55,7 @@ export default function useReactQuerySubscription({
   }, [app, path, queryClient, queryKey]);
 
   return useQuery(queryKey, fetchData, {
-    staleTime: 20 * 60 * 1000,
+    staleTime: 60 * 1000,
     ...options,
   });
 }
