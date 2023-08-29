@@ -2,7 +2,7 @@ import bigInt from 'big-integer';
 import cn from 'classnames';
 import { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
 import {
   useCurioWithComments,
@@ -19,6 +19,7 @@ import { useChannelIsJoined } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
+import { HeapCurio } from '@/types/heap';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -26,6 +27,7 @@ import HeapDetailBody from './HeapDetail/HeapDetailBody';
 
 export default function HeapDetail({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
+  const location = useLocation();
   const groupFlag = useRouteGroup();
   const { chShip, chName, idCurio } = useParams<{
     chShip: string;
@@ -43,14 +45,18 @@ export default function HeapDetail({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const joined = useChannelIsJoined(nest);
   const { mutateAsync: joinHeap } = useJoinHeapMutation();
-  const { time, curio, comments, isLoading } = useCurioWithComments(
-    chFlag,
-    idCurio || ''
-  );
+  const {
+    time,
+    curio: fetchedCurio,
+    comments,
+    isLoading: curioLoading,
+  } = useCurioWithComments(chFlag, idCurio || '');
   const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
     chFlag,
     time || ''
   );
+  const initialCurio = location.state?.initialCurio as HeapCurio | undefined;
+  const curio = fetchedCurio || initialCurio;
 
   const curioHref = (id?: bigInt.BigInteger) => {
     if (!id) {
@@ -80,7 +86,7 @@ export default function HeapDetail({ title }: ViewProps) {
   });
 
   // TODO handle curio not found
-  if (isLoading || !curio) {
+  if (!curio) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <LoadingSpinner />
@@ -145,12 +151,14 @@ export default function HeapDetail({ title }: ViewProps) {
           ) : null}
         </div>
         <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
-          {curio && time ? (
-            <>
-              <HeapDetailSidebarInfo curio={curio} />
-              <HeapDetailComments time={time} comments={comments} />
-            </>
-          ) : null}
+          {curio && <HeapDetailSidebarInfo curio={curio} />}
+          {time && (
+            <HeapDetailComments
+              time={time}
+              comments={comments}
+              loading={curioLoading}
+            />
+          )}
         </div>
       </div>
     </Layout>
