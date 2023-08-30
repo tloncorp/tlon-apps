@@ -79,27 +79,26 @@
 ++  notes-1-to-2
   |=  old=notes:one
   ^-  notes:two
-  %-  ~(run by old)
-  |=  =note:one
-  `(note-1-to-2 note)
+  %-  ~(urn by old)
+  |=  [id=@da =note:one]
+  `(note-1-to-2 id note)
 ::
 ++  note-1-to-2
-  |=  old=note:one
+  |=  [id=@da old=note:one]
   ^-  note:two
-  :_  [%0 +.old]
-  -.old(quips (quips-1-to-2 quips.old), feels (feels-1-to-2 feels.old))
+  [[id (quips-1-to-2 quips.old) (feels-1-to-2 feels.old)] %0 +.old]
 ::
 ++  quips-1-to-2
   |=  old=quips:one
   ^-  quips:two
-  %-  ~(run by old)
-  |=  =quip:one
-  `(quip-1-to-2 quip)
+  %-  ~(urn by old)
+  |=  [id=@da =quip:one]
+  `(quip-1-to-2 id quip)
 ::
 ++  quip-1-to-2
-  |=  old=quip:one
+  |=  [id=@da old=quip:one]
   ^-  quip:two
-  [-.old(feels (feels-1-to-2 feels.old)) +.old]
+  [[id (feels-1-to-2 feels.old)] +.old]
 ::
 ++  feels-1-to-2
   |=  old=(map ship feel:one)
@@ -136,8 +135,12 @@
       `[%note p.p.diff u.nup]
     =/  old-note  (get:on:notes:one notes.old-diary p.p.diff)
     ?-    -.q.p.diff
-        ?(%add %edit)           `[%set (bind old-note note-1-to-2)]
         %del                    `[%set ~]
+        ?(%add %edit)
+      :+  ~  %set
+      ?~  old-note  ~
+      `(note-1-to-2 p.p.diff u.old-note)
+    ::
         ?(%add-feel %del-feel)
       ?~  old-note  ~
       `[%feels (feels-1-to-2 feels.u.old-note)]
@@ -150,8 +153,12 @@
         `[%quip p.diff-quip u.qup]
       =/  old-quip  (get:on:quips:one quips.u.old-note p.diff-quip)
       ?-    +<.diff-quip
-          %add  `[%set (bind old-quip quip-1-to-2)]
           %del  `[%set ~]
+          %add
+        :+  ~  %set
+        ?~  old-quip  ~
+        `(quip-1-to-2 p.diff-quip u.old-quip)
+      ::
           ?(%add-feel %del-feel)
         ^-  (unit u-quip:two)
         ?~  old-quip  ~
