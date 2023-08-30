@@ -129,7 +129,12 @@
   ^+  cor
   ?+    pole  ~|(bad-watch-path+pole !!)
       [%epic ~]  (give %fact ~ epic+!>(okay:d))
-      [%diary name=@ %create ~]  cor
+      [%diary name=@ %create ~]
+    ?>  =(our src):bowl
+    =*  flag  [our.bowl name.pole]
+    ?.  (~(has by shelf) flag)  cor
+    di-abet:di-watch-create:(di-abed:di-core flag)
+  ::
       [%diary name=@ %updates ~]
     ?>  (di-can-read:(di-abed:di-core our.bowl name.pole) src.bowl)
     cor
@@ -295,6 +300,10 @@
       /channel/diary/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
   ::
+  ++  di-watch-create
+    =/  =cage  [%diary-update !>([now.bowl %create perm.perm.diary])]
+    (give %fact ~[/diary/[q.flag]/create] cage)
+  ::
   ++  di-watch-updates
     |=  =@da
     ^+  di-core
@@ -420,7 +429,7 @@
         =/  note  (get:on-notes:d notes.diary now.bowl)
         ?~  note  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-      =/  new=note:d  [[now.bowl ~ ~] 0 essay.c-note]
+      =/  new=note:d  [[id ~ ~] 0 essay.c-note]
       :-  `[%note id %set ~ new]
       (put:on-notes:d notes.diary id ~ new)
     ::
@@ -473,7 +482,7 @@
         =/  quip  (get:on-quips:d quips now.bowl)
         ?~  quip  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-      =/  =cork:d  [now.bowl ~]
+      =/  =cork:d  [id ~]
       :-  `[%quip id %set ~ cork memo.c-quip]
       (put:on-quips:d quips id ~ cork memo.c-quip)
     ::

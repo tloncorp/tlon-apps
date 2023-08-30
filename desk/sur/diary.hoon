@@ -87,14 +87,14 @@
 ::  $seal: host-side data for a note
 ::
 +$  seal  $+  diary-seal
-  $:  =time  ::  can differ from our id
+  $:  id=id-note
       =quips
       =feels
   ==
 ::  $cork: host-side data for a quip
 ::
 +$  cork
-  $:  =time  ::  can differ from our id
+  $:  id=id-quip
       =feels
   ==
 ::  $essay: the post data itself
@@ -393,10 +393,10 @@
   --
 +$  rr-notes  ((mop id-note (unit rr-note)) lte)
 +$  rr-note   [rr-seal essay]
-+$  rr-seal   [=time =rr-quips =rr-feels]
++$  rr-seal   [id=id-note =rr-quips =rr-feels]
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [=time =rr-feels]
++$  rr-cork   [id=id-quip =rr-feels]
 +$  rr-feels  (map ship feel)
 ++  rr-on-notes  ((on id-note (unit rr-note)) lte)
 ++  rr-on-quips  ((on id-quip rr-quip) lte)

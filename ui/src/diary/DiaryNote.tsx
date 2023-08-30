@@ -61,7 +61,7 @@ function groupQuips(
     const time = t.toString();
     const newAuthor = author !== prev?.[1].memo.author;
     const unreadBrief =
-      brief && brief['read-id'] === q.cork.time.toString() ? brief : undefined;
+      brief && brief['read-id'] === q.cork.id ? brief : undefined;
 
     if (newAuthor) {
       currentTime = time;
@@ -140,7 +140,7 @@ export default function DiaryNote({ title }: ViewProps) {
       data.status.complete === 'yes' &&
       note &&
       noteId !== '' &&
-      (noteId === note.seal.time || note.seal.time === undefined)
+      (noteId === note.seal.id || note.seal.id === undefined)
     ) {
       if (notesOnHost && typeof notesOnHost === 'object') {
         const foundNote = Object.keys(notesOnHost).filter((n: string) => {

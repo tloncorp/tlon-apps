@@ -7,7 +7,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import {
-  NoteDelta,
+  NoteAction,
   Ship,
   DiaryQuips,
   Diary,
@@ -27,6 +27,7 @@ import {
   DiaryOutlines,
   DiaryShelfResponse,
   DiaryShelfAction,
+  DiaryNote,
 } from '@/types/diary';
 import api from '@/api';
 import { restoreMap } from '@/logic/utils';
@@ -93,12 +94,9 @@ function diaryAction(
   };
 }
 
-function diaryNoteDiff(flag: DiaryFlag, id: string, command: NoteDelta) {
+function diaryNoteAction(flag: DiaryFlag, action: NoteAction) {
   return diaryAction(flag, {
-    note: {
-      id,
-      command,
-    },
+    note: action,
   });
 }
 
@@ -256,11 +254,12 @@ const defaultPerms = {
 export function useArrangedNotes(flag: DiaryFlag) {
   const diary = useDiary(flag);
 
-  if (diary === undefined || diary['arranged-notes'] === undefined) {
+  if (diary === undefined || diary.order === undefined) {
     return [];
   }
 
-  return diary['arranged-notes'].map((t) => udToDec(t));
+  console.log('order', diary.order);
+  return diary.order;
 }
 
 export function useDiaryPerms(flag: DiaryFlag) {
@@ -324,7 +323,7 @@ export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
     quipMap = quipMap.set(tim, quip);
   });
 
-  const noteWithQuips = {
+  const noteWithQuips: DiaryNote = {
     ...note,
     seal: {
       ...note?.seal,
@@ -565,6 +564,11 @@ export function useArrangedNotesDiaryMutation() {
       changeSortMutation({ flag: variables.flag, sort: 'arranged' });
     }
 
+    console.log(
+      'sending order',
+      variables.arrangedNotes,
+      variables.arrangedNotes.map(decToUd)
+    );
     await api.poke(
       diaryAction(variables.flag, {
         order: variables.arrangedNotes.map((t) => decToUd(t)),
@@ -589,7 +593,7 @@ export function useArrangedNotesDiaryMutation() {
             ...prev,
             [variables.flag]: {
               ...prev[variables.flag],
-              'arranged-notes': variables.arrangedNotes.map((t) => decToUd(t)),
+              order: variables.arrangedNotes.map((t) => decToUd(t)),
             },
           }
         );
@@ -611,7 +615,7 @@ export function useAddNoteMutation() {
       timePosted = variables.initialTime;
       api
         .trackedPoke<DiaryShelfAction, DiaryShelfResponse>(
-          diaryNoteDiff(variables.flag, decToUd(variables.initialTime), {
+          diaryNoteAction(variables.flag, {
             add: variables.essay,
           }),
           { app: 'diary', path: `/diary/${variables.flag}/ui` },
@@ -715,8 +719,11 @@ export function useEditNoteMutation() {
     essay: NoteEssay;
   }) => {
     await api.poke(
-      diaryNoteDiff(variables.flag, decToUd(variables.time), {
-        edit: variables.essay,
+      diaryNoteAction(variables.flag, {
+        edit: {
+          id: decToUd(variables.time),
+          essay: variables.essay,
+        },
       })
     );
   };
@@ -766,9 +773,7 @@ export function useEditNoteMutation() {
 export function useDeleteNoteMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { flag: DiaryFlag; time: string }) => {
-    await api.poke(
-      diaryNoteDiff(variables.flag, variables.time, { del: null })
-    );
+    await api.poke(diaryNoteAction(variables.flag, { del: variables.time }));
   };
 
   return useMutation({
@@ -841,7 +846,7 @@ export function useCreateDiaryMutation() {
             [`${window.our}/${variables.name}`]: {
               perms: { writers: [], group: variables.group },
               view: 'list',
-              'arranged-notes': [],
+              order: [],
               sort: 'time',
               saga: { synced: null },
             },
@@ -954,7 +959,6 @@ export function useAddQuipMutation() {
     content: DiaryStory;
   }) => {
     const replying = decToUd(variables.noteId);
-    // const story: DiaryStory = { block: [], inline: content };
     const memo: DiaryMemo = {
       content: variables.content,
       author: window.our,
@@ -962,13 +966,10 @@ export function useAddQuipMutation() {
     };
     const action: DiaryAction = {
       note: {
-        id: replying,
-        command: {
-          quips: {
-            id: decToUd(unixToDa(Date.now()).toString()),
-            command: {
-              add: memo,
-            },
+        quip: {
+          id: replying,
+          action: {
+            add: memo,
           },
         },
       },
@@ -1049,13 +1050,10 @@ export function useDeleteQuipMutation() {
   }) => {
     const action: DiaryAction = {
       note: {
-        id: decToUd(variables.noteId),
-        command: {
-          quips: {
-            id: decToUd(variables.quipId),
-            command: {
-              del: null,
-            },
+        quip: {
+          id: decToUd(variables.noteId),
+          action: {
+            del: decToUd(variables.quipId),
           },
         },
       },
@@ -1125,12 +1123,10 @@ export function useAddNoteFeelMutation() {
   }) => {
     const action: DiaryAction = {
       note: {
-        id: decToUd(variables.noteId),
-        command: {
-          'add-feel': {
-            feel: variables.feel,
-            ship: window.our,
-          },
+        'add-feel': {
+          id: decToUd(variables.noteId),
+          feel: variables.feel,
+          ship: window.our,
         },
       },
     };
@@ -1181,9 +1177,9 @@ export function useDeleteNoteFeelMutation() {
   const mutationFn = async (variables: { flag: DiaryFlag; noteId: string }) => {
     const action: DiaryAction = {
       note: {
-        id: decToUd(variables.noteId),
-        command: {
-          'del-feel': window.our,
+        'del-feel': {
+          id: decToUd(variables.noteId),
+          ship: window.our,
         },
       },
     };
@@ -1240,15 +1236,13 @@ export function useAddQuipFeelMutation() {
   }) => {
     const action: DiaryAction = {
       note: {
-        id: decToUd(variables.noteId),
-        command: {
-          quips: {
-            id: decToUd(variables.quipId),
-            command: {
-              'add-feel': {
-                feel: variables.feel,
-                ship: window.our,
-              },
+        quip: {
+          id: decToUd(variables.noteId),
+          action: {
+            'add-feel': {
+              id: decToUd(variables.quipId),
+              feel: variables.feel,
+              ship: window.our,
             },
           },
         },
@@ -1307,12 +1301,12 @@ export function useDeleteQuipFeelMutation() {
   }) => {
     const action: DiaryAction = {
       note: {
-        id: decToUd(variables.noteId),
-        command: {
-          quips: {
-            id: decToUd(variables.quipId),
-            command: {
-              'del-feel': window.our,
+        quip: {
+          id: decToUd(variables.noteId),
+          action: {
+            'del-feel': {
+              id: decToUd(variables.quipId),
+              ship: window.our,
             },
           },
         },

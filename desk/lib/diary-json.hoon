@@ -86,6 +86,13 @@
         type+s+%note
     ==
   ::
+  ++  rr-quips
+    |=  quips=rr-quips:d
+    %-  pairs
+    %+  turn  (tap:rr-on-quips:d quips)
+    |=  [t=@da =rr-quip:d]
+    [(scot %ud t) (^rr-quip rr-quip)]
+  ::
   ++  rr-quip
     |=  [=rr-cork:d =memo:d]
     %-  pairs
@@ -96,20 +103,15 @@
   ++  rr-seal
     |=  =rr-seal:d
     %-  pairs
-    :~  time+(time time.rr-seal)
+    :~  id+(id id.rr-seal)
         feels+(feels rr-feels.rr-seal)
-      ::
-        :-  %quips
-        %-  pairs
-        %+  turn  (tap:rr-on-quips:d rr-quips.rr-seal)
-        |=  [t=@da =rr-quip:d]
-        [(scot %ud t) (^rr-quip rr-quip)]
+        quips+(rr-quips rr-quips.rr-seal)
     ==
   ::
   ++  rr-cork
     |=  =rr-cork:d
     %-  pairs
-    :~  time+(time time.rr-cork)
+    :~  id+(id id.rr-cork)
         feels+(feels rr-feels.rr-cork)
     ==
   ::
@@ -127,11 +129,7 @@
   ::
   ++  id
     |=  =@da
-    s+(scot %ud da)
-  ::
-  ++  time
-    |=  =@da
-    s+(scot %ud da)
+    s+`@t`(rsh 4 (scot %ui da))
   ::
   ++  flag
     |=  f=flag:d
@@ -293,9 +291,9 @@
   ++  brief
     |=  b=brief:briefs:d
     %-  pairs
-    :~  last/(time last.b)
+    :~  last/(id last.b)
         count/(numb count.b)
-        read-id/?~(read-id.b ~ (time u.read-id.b))
+        read-id/?~(read-id.b ~ (id u.read-id.b))
     ==
   ::
   +|  %said
@@ -364,7 +362,7 @@
     :~  add+essay
         edit+(ot id+id essay+essay ~)
         del+id
-        quip+(ot id+id a-quip+a-quip ~)
+        quip+(ot id+id action+a-quip ~)
         add-feel+(ot id+id ship+ship feel+so ~)
         del-feel+(ot id+id ship+ship ~)
     ==

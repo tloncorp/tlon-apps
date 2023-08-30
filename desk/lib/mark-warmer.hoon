@@ -4,12 +4,12 @@
 /$  rolo        %contact-rolodex      %json
 /$  contact     %contact              %json
 /$  shelf       %shelf                %json
-:: /$  briefs      %diary-briefs         %json
-:: /$  perm        %diary-perm           %json
-:: /$  note        %diary-note           %json
-:: /$  notes       %diary-notes          %json
-:: /$  quips       %diary-quips          %json
-:: /$  outlines    %diary-outlines       %json
+/$  briefs      %diary-briefs         %json
+/$  perm        %diary-perm           %json
+/$  note        %diary-note           %json
+/$  notes       %diary-notes          %json
+/$  quips       %diary-quips          %json
+/$  outlines    %diary-outlines       %json
 /$  groups      %groups               %json
 /$  group       %group                %json
 /$  gangs       %gangs                %json

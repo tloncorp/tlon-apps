@@ -887,11 +887,20 @@
       sort   +.sort.diary
       order  +.order.diary
     ==
+  ++  di-rr-notes
+    |=  =notes:d
+    ^-  rr-notes:d
+    %+  gas:rr-on-notes:d  *rr-notes:d
+    %+  turn  (tap:on-notes:d notes)
+    |=  [=id-note:d note=(unit note:d)]
+    ^-  [id-note:d (unit rr-note:d)]
+    [id-note ?~(note ~ `(di-rr-note u.note))]
+  ::
   ++  di-rr-note
     |=  =note:d
     ^-  rr-note:d
     :_  +>.note
-    :+  time.note
+    :+  id.note
       (di-rr-quips quips.note)
     (di-rr-feels feels.note)
   ::
@@ -910,7 +919,7 @@
     |=  =quip:d
     ^-  rr-quip:d
     :_  +.quip
-    [time.quip (di-rr-feels feels.quip)]
+    [id.quip (di-rr-feels feels.quip)]
   ::
   ++  di-rr-feels
     |=  =feels:d
@@ -997,7 +1006,7 @@
       =/  pried  (pry:on-notes:d unreads)
       ?~  pried  ~
       ?~  val.u.pried  ~
-      `time.u.val.u.pried
+      `id.u.val.u.pried
     =/  count
       %-  lent
       %+  skim  ~(tap by unreads)
@@ -1058,7 +1067,7 @@
       =/  note  (get:on notes.diary time)
       ?~  note  ~
       ?~  u.note  `~
-      ``diary-note+!>(u.u.note)
+      ``diary-note+!>((di-rr-note u.u.note))
     ::
         [%note %id time=@ %quips rest=*]
       =/  time  (slav %ud time.pole)

@@ -1,14 +1,14 @@
 /-  d=diary
 /+  j=diary-json
-|_  =notes:d
+|_  =rr-notes:d
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  notes
-  ++  json  (notes:enjs:j notes)
+  ++  noun  rr-notes
+  ++  json  (rr-notes:enjs:j rr-notes)
   --
 ++  grab
   |%
-  ++  noun  notes:d
+  ++  noun  rr-notes:d
   --
 --

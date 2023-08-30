@@ -34,15 +34,15 @@ export type DiaryInline =
   | Link;
 
 export interface NoteSeal {
-  time: string;
+  id: string;
   quips: DiaryQuipMap;
   feels: {
     [ship: Ship]: string;
   };
 }
 
-export interface NoteCork {
-  time: number;
+export interface QuipCork {
+  id: string;
   feels: {
     [ship: Ship]: string;
   };
@@ -180,7 +180,7 @@ export type DiaryOutlinesMap = BigIntOrderedMap<DiaryOutline>;
 export type DiaryNoteMap = BigIntOrderedMap<DiaryNote>;
 
 export interface DiaryQuip {
-  cork: NoteCork;
+  cork: QuipCork;
   memo: DiaryMemo;
 }
 
@@ -201,27 +201,34 @@ export interface DiaryQuips {
   [id: string]: DiaryQuip;
 }
 
-interface NoteDeltaAdd {
+interface NoteActionAdd {
   add: NoteEssay;
 }
 
-interface NoteDeltaEdit {
-  edit: NoteEssay;
+interface NoteActionEdit {
+  edit: {
+    id: string;
+    essay: NoteEssay;
+  };
 }
 
-interface NoteDeltaDel {
-  del: null;
+interface NoteActionDel {
+  del: string;
 }
 
-interface NoteDeltaAddFeel {
+interface NoteActionAddFeel {
   'add-feel': {
+    id: string;
     feel: string;
     ship: string;
   };
 }
 
-interface NoteDeltaDelFeel {
-  'del-feel': string;
+interface NoteActionDelFeel {
+  'del-feel': {
+    id: string;
+    ship: string;
+  };
 }
 
 interface DiaryDiffAddWriters {
@@ -240,22 +247,25 @@ interface DiaryDiffSort {
   sort: DiarySortMode;
 }
 
-interface NoteDeltaQuips {
-  quips: QuipDiff;
+interface NoteActionQuip {
+  quip: {
+    id: string; // note id
+    action: QuipAction;
+  };
 }
-
-export type NoteDelta =
-  | NoteDeltaAdd
-  | NoteDeltaEdit
-  | NoteDeltaDel
-  | NoteDeltaAddFeel
-  | NoteDeltaDelFeel
-  | NoteDeltaQuips;
 
 export interface NoteDiff {
   id: string;
-  command: NoteDelta;
+  command: NoteAction;
 }
+
+export type NoteAction =
+  | NoteActionAdd
+  | NoteActionEdit
+  | NoteActionDel
+  | NoteActionAddFeel
+  | NoteActionDelFeel
+  | NoteActionQuip;
 
 export interface DiaryDiffView {
   view: DiaryDisplayMode;
@@ -268,35 +278,34 @@ export interface DiaryCreateDiff {
   };
 }
 
-export interface QuipDeltaAdd {
+export interface QuipActionAdd {
   add: DiaryMemo;
 }
 
-export interface QuipDeltaDel {
-  del: null;
+export interface QuipActionDel {
+  del: string;
 }
 
-export interface QuipDeltaAddFeel {
+export interface QuipActionAddFeel {
   'add-feel': {
+    id: string;
     ship: string;
     feel: string;
   };
 }
 
-export interface QuipDeltaDelFeel {
-  'del-feel': string;
+export interface QuipActionDelFeel {
+  'del-feel': {
+    id: string;
+    ship: string;
+  };
 }
 
-export type QuipDelta =
-  | QuipDeltaAdd
-  | QuipDeltaDel
-  | QuipDeltaAddFeel
-  | QuipDeltaDelFeel;
-
-export interface QuipDiff {
-  id: string;
-  command: QuipDelta;
-}
+export type QuipAction =
+  | QuipActionAdd
+  | QuipActionDel
+  | QuipActionAddFeel
+  | QuipActionDelFeel;
 
 export type DiaryDisplayMode = 'list' | 'grid';
 
@@ -305,7 +314,7 @@ export type DiarySortMode = 'alpha' | 'time' | 'arranged';
 export interface Diary {
   perms: DiaryPerm;
   view: DiaryDisplayMode;
-  'arranged-notes': string[];
+  order: string[];
   sort: DiarySortMode;
   saga: Saga | null;
 }
@@ -374,7 +383,7 @@ export type DiaryShelfAction =
   | { create: DiaryCreate };
 
 export type DiaryCommand =
-  | { note: NoteDiff }
+  | { note: NoteAction }
   | DiaryDiffView
   | DiaryDiffAddWriters
   | DiaryDiffDelWriters
