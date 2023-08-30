@@ -5,7 +5,7 @@
 /-  contacts
 /+  default-agent, verb-lib=verb, dbug
 /+  pac=dm
-/+  ch=chat-hark
+/+  ch=chat-hark, volume
 /+  gra=graph-store
 /+  epos-lib=saga
 /+  wood-lib=wood
@@ -832,6 +832,16 @@
   |=  [=whom:c =brief:briefs:c]
   (give %fact ~[/briefs] chat-brief-update+!>([whom brief]))
 ::
+++  want-hark
+  |=  [flag=?(~ flag:g) kind=?(%msg %to-us)]
+  %+  (fit-level:volume [our now]:bowl)
+    ?~  flag  ~
+    [%channel %chat flag]
+  ?-  kind
+    %to-us  %soft
+    %msg    %loud
+  ==
+::
 ++  pass-hark
   |=  =new-yarn:ha
   ^-  card
@@ -1052,7 +1062,8 @@
                   (flatten q.p.content.memo)
               ==
             ~
-          =.  cor  (emit (pass-hark new-yarn))
+          =?  cor  (want-hark ~ %to-us)
+            (emit (pass-hark new-yarn))
           cu-core
         ==
       ==
@@ -1620,7 +1631,8 @@
             ca-core
           ?:  (mentioned q.p.content.memo our.bowl)
             =/  new-yarn  (ca-mention-hark memo p.content.memo p.p.d)
-            =.  cor  (emit (pass-hark new-yarn))
+            =?  cor  (want-hark flag %to-us)
+              (emit (pass-hark new-yarn))
             ca-core
           =/  replying  (need replying.memo)
           =/  op  (~(get pac pact.chat) replying)
@@ -1637,7 +1649,8 @@
           ?-  -.content.opwrit
               %notice  ca-core
               %story
-            =/  new-yarn
+            =?  cor  (want-hark flag %to-us)
+              %-  emit  %-  pass-hark
               %^  ca-spin
                 /message/(scot %p p.replying)/(scot %ud q.replying)
                 :~  [%ship author.memo]
@@ -1649,7 +1662,6 @@
                     (flatten q.p.content.memo)
                 ==
               ~
-            =.  cor  (emit (pass-hark new-yarn))
             ca-core
           ==
         ==
@@ -1791,7 +1803,8 @@
                 ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
             ==
           ~
-        =.  cor  (emit (pass-hark new-yarn))
+        =?  cor  (want-hark ~ %to-us)
+          (emit (pass-hark new-yarn))
         di-core
       ==
     ==
