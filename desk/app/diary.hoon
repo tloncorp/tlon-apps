@@ -548,13 +548,15 @@
     ?^  notes.diary  di-start-updates
     =.  load.net.diary  |
     %^  safe-watch  (weld di-area /checkpoint)  [p.flag server]
-    /diary/[q.flag]/checkpoint/before/20
+    ?.  =(our.bowl p.flag)
+      /diary/[q.flag]/checkpoint/before/20
+    /diary/[q.flag]/checkpoint/time-range/(scot %da *@da)
   ::
   ++  di-start-updates
     ::  not most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
       (bind (ram:on-notes:d notes.diary) head)
-    %^  safe-watch  di-sub-wire  [p.flag server] 
+    %^  safe-watch  di-sub-wire  [p.flag server]
     /diary/[q.flag]/updates/(scot %da (fall tim *@da))
   ::
   ++  di-watch
@@ -597,7 +599,7 @@
     |=  =sign:agent:gall
     ^+  di-core
     ?+    -.sign  di-core
-        :: only if kicked prematurely        
+        :: only if kicked prematurely
         %kick       ?:(load.net.diary di-core di-safe-sub)
         %watch-ack
       =.  net.diary  [src.bowl & [%chi ~]]
@@ -608,7 +610,7 @@
         %fact
       =*  cage  cage.sign
       ?+    p.cage  ~|(diary-strange-fact+p.cage !!)
-          %diary-checkpoint  
+          %diary-checkpoint
         (di-ingest-checkpoint !<(u-checkpoint:d q.cage))
       ==
     ==
@@ -626,7 +628,7 @@
     =^  changed  order.diary  (apply-rev:d order.diary order.chk)
     =?  di-core  changed  (di-response %order order.order.diary)
     =/  old  notes.diary
-    =.  notes.diary  
+    =.  notes.diary
       ((uno:mo-notes:d notes.diary notes.chk) di-apply-unit-note)
     =?  di-core  !=(old notes.diary)
       %+  di-response  %notes
