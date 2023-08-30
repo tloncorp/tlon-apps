@@ -60,20 +60,20 @@
 ++  shelf-1-to-2
   |=  old-shelf=shelf:one
   ^-  shelf:two
-  %-  ~(run by old-shelf)
-  |=  =diary:one
+  %-  ~(urn by old-shelf)
+  |=  [=flag:d =diary:one]
   ^-  diary:two
-  %*  .  *diary:two
-    notes   (notes-1-to-2 notes.diary)
-    order   [%0 arranged-notes.diary]
-    view    [%0 view.diary]
-    sort    [%0 sort.diary]
-    perm    [%0 perm.diary]
-    net     !!
-    log     (log-1-to-2 diary)
-    remark  remark.diary
-    window  *window:two
-    future  *future:two
+  :-  :*  (notes-1-to-2 notes.diary)
+          [%0 arranged-notes.diary]
+          [%0 view.diary]
+          [%0 sort.diary]
+          [%0 perm.diary]
+      ==
+  :*  (net-1-to-2 flag net.diary)
+      (log-1-to-2 diary)
+      remark.diary
+      *window:diary:two
+      *future:diary:two
   ==
 ::
 ++  notes-1-to-2
@@ -108,6 +108,14 @@
   |=  =feel:one
   [%0 `feel]
 ::
+++  net-1-to-2
+  |=  [=flag:two old-net=net:one]
+  ^-  net:two
+  ?-  -.old-net
+    %sub  +.old-net
+    %pub  [p.flag & %chi ~]  ::  we are the publisher, so we always match
+  ==
+::
 ++  log-1-to-2
   |=  old-diary=diary:one  ::NOTE  because we need the perm also
   ^-  log:two
@@ -123,8 +131,9 @@
       %sort                     `[%sort 0 p.diff]
       %arranged-notes           `[%order 0 p.diff]
       %notes
-    =-  ?~(- ~ `[%note p.p.diff -])
-    ^-  (unit u-note:two)
+    =;  nup=(unit u-note:two)
+      ?~  nup  ~
+      `[%note p.p.diff u.nup]
     =/  old-note  (get:on:notes:one notes.old-diary p.p.diff)
     ?-    -.q.p.diff
         ?(%add %edit)           `[%set (bind old-note note-1-to-2)]
@@ -136,12 +145,13 @@
         %quips
       ?~  old-note  ~
       =*  diff-quip  p.q.p.diff
-      =-  ?~(- ~ `[%quip p.diff-quip -])
-      ^-  (unit u-quip:two)
+      =;  qup=(unit u-quip:two)
+        ?~  qup  ~
+        `[%quip p.diff-quip u.qup]
       =/  old-quip  (get:on:quips:one quips.u.old-note p.diff-quip)
-      ?-    -.diff-quip
-          %add  `(unit u-quip:two)``[%set (bind old-quip quip-1-to-2)]
-          %del  `(unit u-quip:two)``[%set ~]
+      ?-    +<.diff-quip
+          %add  `[%set (bind old-quip quip-1-to-2)]
+          %del  `[%set ~]
           ?(%add-feel %del-feel)
         ^-  (unit u-quip:two)
         ?~  old-quip  ~
