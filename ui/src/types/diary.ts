@@ -360,19 +360,8 @@ export interface DiaryInit {
 
 export type DiaryDiff = DiaryCreateDiff | DiaryCommand;
 
-export interface DiaryUpdate {
-  time: string;
-  diff: DiaryDiff;
-}
-
-export interface DiaryFlagUpdate {
-  flag: DiaryFlag;
-  update: DiaryUpdate;
-}
-
 export type DiaryAction =
-  | { create: Omit<DiaryCreate, 'name'> }
-  | { join: DiaryFlag }
+  | { join: string } // group flag
   | { leave: null }
   | { read: null }
   | { 'read-at': string }
@@ -380,20 +369,34 @@ export type DiaryAction =
   | { unwatch: null }
   | DiaryCommand;
 
-export interface DiaryFlagAction {
-  flag: DiaryFlag;
-  action: DiaryAction;
-}
+export type DiaryShelfAction =
+  | { diary: { flag: DiaryFlag; action: DiaryAction } }
+  | { create: DiaryCreate };
 
 export type DiaryCommand =
-  | { notes: NoteDiff }
+  | { note: NoteDiff }
   | DiaryDiffView
   | DiaryDiffAddWriters
   | DiaryDiffDelWriters
   | DiaryDiffArrangedNotes
   | DiaryDiffSort;
 
-export interface DiaryFlagCommand {
+export type DiaryResponse =
+  | { notes: DiaryNoteMap }
+  | { note: NoteDiff }
+  | { order: string[] }
+  | { view: DiaryDisplayMode }
+  | { sort: DiarySortMode }
+  | { perm: DiaryPerm }
+  | { create: DiaryPerm }
+  | { join: string }
+  | { leave: null }
+  | { read: null }
+  | { 'read-at': string }
+  | { watch: null }
+  | { unwatch: null };
+
+export interface DiaryShelfResponse {
   flag: DiaryFlag;
-  command: DiaryCommand;
+  response: DiaryResponse;
 }

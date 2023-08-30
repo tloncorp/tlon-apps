@@ -11,7 +11,7 @@
     |=  [=flag:d =r-diary:d]
     %-  pairs
     :~  flag+(^flag flag)
-        r-diary+(^r-diary r-diary)
+        response+(^r-diary r-diary)
     ==
   ::
   ++  r-diary
@@ -25,6 +25,9 @@
       %sort     s+sort.r-diary
       %perm     (perm perm.r-diary)
     ::
+      %create   (perm perm.r-diary)
+      %join     (flag group.r-diary)
+      %leave    ~
       %read     ~
       %read-at  s+(scot %ud time.r-diary)
       %watch    ~
@@ -65,7 +68,7 @@
         order+(order order.rr-diary)
         view+s+view.rr-diary
         sort+s+sort.rr-diary
-        perm+(perm perm.rr-diary)
+        perms+(perm perm.rr-diary)
     ==
   ::
   ++  rr-notes
@@ -331,7 +334,12 @@
   |%
   +|  %actions
   ::
-  ++  a-shelf  (ot flag+flag a-diary+a-diary ~)
+  ++  a-shelf
+    ^-  $-(json a-shelf:d)
+    %-  of
+    :~  create+create-diary
+        diary+(ot flag+flag action+a-diary ~)
+    ==
   ++  a-diary
     ^-  $-(json a-diary:d)
     %-  of
@@ -378,7 +386,8 @@
   ++  create-diary
     ^-  $-(json create-diary:d)
     %-  ot
-    :~  group+flag
+    :~  name+(se %tas)
+        group+flag
         title+so
         description+so
         readers+(as (se %tas))

@@ -29,7 +29,7 @@
 ::
 +$  diary
   $:  =briefs:d
-      =shelf:d
+      shelf=rr-shelf:d
   ==
 ::
 +$  imported  (map flag:g ?)

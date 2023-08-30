@@ -37,7 +37,7 @@
       ^-  ^json
       %-  pairs
       :~  briefs/(briefs:enjs:dj -.diary)
-          shelf/(shelf:enjs:dj +.diary)
+          shelf/(rr-shelf:enjs:dj +.diary)
       ==
     --
   --

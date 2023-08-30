@@ -1,15 +1,14 @@
 /-  d=diary
 /+  j=diary-json
-|_  [=flag:d =action:d]
+|_  =a-shelf:d
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  [flag action]
-  ++  json  (flag-action:enjs:j [flag action])  
+  ++  noun  a-shelf
   --
 ++  grab
   |%
-  ++  noun  ,[flag:d action:d]
-  ++  json  flag-action:dejs:j
+  ++  noun  a-shelf:d
+  ++  json  a-shelf:dejs:j
   --
 --

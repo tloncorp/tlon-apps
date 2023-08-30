@@ -177,6 +177,8 @@
   ::
       %diary-action
     =+  !<(=a-shelf:d vase)
+    ?:  ?=(%create -.a-shelf)
+      di-abet:(di-create:di-core a-shelf)
     ?:  ?=(%join -.a-diary.a-shelf)
       di-abet:(di-join:di-core [flag group.a-diary]:a-shelf)
     di-abet:(di-a-diary:(di-abed:di-core flag.a-shelf) a-diary.a-shelf)
@@ -358,8 +360,8 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %shelf ~]  ``shelf+!>(shelf)
-      [%x %init ~]   ``noun+!>([briefs shelf])
+      [%x %shelf ~]  ``shelf+!>((di-rr-shelf:di-core shelf))
+      [%x %init ~]   ``noun+!>([briefs (di-rr-shelf:di-core shelf)])
       [%x %briefs ~]  ``diary-briefs+!>(briefs)
       [%x %diary ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -419,17 +421,37 @@
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-sub-wire  `path`/diary/(scot %p p.flag)/[q.flag]/updates
   ::
+  ::  handle creating a channel
+  ::
+  ++  di-create
+    |=  =a-shelf:d
+    ?>  from-self
+    ?>  ?=(%create -.a-shelf)
+    =*  create  create-diary.a-shelf
+    =.  flag  [our.bowl name.create]
+    ?<  (~(has by shelf) flag)
+    =.  diary  *diary:d
+    =.  group.perm.perm.diary  group.create
+    =.  last-read.remark.diary  now.bowl
+    =/  =path  /diary/[name.create]/create
+    =/  =wire  /diary/(scot %p our.bowl)/[name.create]/create
+    =.  di-core  
+      (emit %pass wire %agent [our.bowl server] %watch path)
+    (di-send-command a-shelf)
+  ::
+  ::
   ::  handle joining a channel
   ::
   ++  di-join
     |=  [f=flag:d group=flag:g]
     ?<  (~(has by shelf) flag)
-    ?>  |(=(p.group src.bowl) =(src.bowl our.bowl))
+    ?>  |(=(p.group src.bowl) from-self)
     =.  flag  f
     =.  diary  *diary:d
     =.  group.perm.perm.diary  group
     =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
+    =.  di-core  (di-response %join group)
     =.  di-core
       =/  diaries=(list [fl=flag:d di=diary:d])  ~(tap by shelf)
       |-
@@ -447,7 +469,7 @@
   ++  di-a-diary
     |=  =a-diary:d
     ?>  from-self
-    ?+  -.a-diary  (di-send-command a-diary)
+    ?+  -.a-diary  (di-send-command [%diary flag a-diary])
       %join       !!  ::  handled elsewhere
       %leave      di-leave
       ?(%read %read-at %watch %unwatch)  (di-a-remark a-diary)
@@ -473,14 +495,14 @@
   ::  proxy command to host
   ::
   ++  di-send-command
-    |=  command=c-diary:d
+    |=  command=c-shelf:d
     ^+  di-core
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%diary-action poke failed: only allowed from self" !!)
-    =/  =c-shelf:d  [%diary flag command]
-    =/  =cage  [%diary-command !>(c-shelf)]
-    =.  di-core  (emit %pass di-area %agent [p.flag server] %poke cage)
+    =/  =ship  ?:(?=(%create -.command) our.bowl p.flag.command)
+    =/  =cage  [%diary-command !>(command)]
+    =.  di-core  (emit %pass di-area %agent [ship server] %poke cage)
     di-core
   ::
   ::  handle a said (previews) request where we have the data to respond
@@ -572,8 +594,29 @@
     ^+  di-core
     ?+    wire  ~|(diary-strange-agent-wire+wire !!)
         ~  di-core  :: noop wire, should only send pokes
+        [%create ~]       (di-take-create sign)
         [%updates ~]      (di-take-update sign)
         [%checkpoint ~]   (di-take-checkpoint sign)
+    ==
+  ::
+  ++  di-take-create
+    |=  =sign:agent:gall
+    ^+  di-core
+    ?+    -.sign  di-core
+        %kick       di-safe-sub
+        %watch-ack
+      ?~  p.sign  di-core
+      %-  (slog leaf/"{<dap.bowl>}: Failed creation" u.p.sign)
+      di-core
+    ::
+        %fact
+      =*  cage  cage.sign
+      ?.  =(%diary-update p.cage)
+        ~|(diary-strange-fact+p.cage !!)
+      =+  !<(=update:d q.cage)
+      =.  di-core  (di-u-shelf update)
+      =.  cor  (give-brief flag di-brief)
+      di-safe-sub
     ==
   ::
   ++  di-take-update
@@ -666,7 +709,7 @@
         %create
       ?.  =(0 rev.perm.diary)  di-core
       =.  perm.perm.diary  perm.u-diary
-      (di-response %perm perm.u-diary)
+      (di-response %create perm.u-diary)
     ::
         %order
       =^  changed  order.diary  (apply-rev:d order.diary +.u-diary)
@@ -831,6 +874,19 @@
   ::  +di-rr-* functions convert notes, quips, and feels into their "rr"
   ::  forms, suitable for responses to our subscribers
   ::
+  ++  di-rr-shelf
+    |=  =shelf:d
+    ^-  rr-shelf:d
+    %-  ~(run by shelf)
+    |=  =diary:d
+    ^-  rr-diary:d
+    %*  .  *rr-diary:d
+      notes  *rr-notes:d
+      perm   +.perm.diary
+      view   +.view.diary
+      sort   +.sort.diary
+      order  +.order.diary
+    ==
   ++  di-rr-note
     |=  =note:d
     ^-  rr-note:d
@@ -1100,7 +1156,7 @@
   ::
   ++  di-leave
     =.  di-core  di-simple-leave
-    =.  di-core  (emit %give %fact ~[/briefs] diary-leave+!>(flag))
+    =.  di-core  (di-response %leave ~)
     =.  gone  &
     di-core
   --

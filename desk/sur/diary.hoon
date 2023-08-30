@@ -258,7 +258,10 @@
 ::  some actions happen to be the same as commands, but this can freely
 ::  change
 ::
-+$  a-shelf  [=flag =a-diary]
++$  a-shelf  
+  $%  [%create =create-diary] 
+      [%diary =flag =a-diary]
+  ==
 +$  a-diary
   $%  [%join group=flag:g]
       [%leave ~]
@@ -278,7 +281,7 @@
 +|  %commands
 ::
 +$  c-shelf
-  $%  [%create name=term =create-diary]
+  $%  [%create =create-diary]
       [%diary =flag =c-diary]
   ==
 +$  c-diary
@@ -349,6 +352,9 @@
       [%sort =sort]
       [%perm =perm]
     ::
+      [%create =perm]
+      [%join group=flag:g]
+      [%leave ~]
       [%read ~]
       [%read-at =time]
       [%watch ~]
@@ -411,7 +417,8 @@
 ::    read permission is stored with the group's data.
 ::
 +$  create-diary
-  $:  group=flag:g
+  $:  name=term
+      group=flag:g
       title=cord
       description=cord
       readers=(set sect:g)

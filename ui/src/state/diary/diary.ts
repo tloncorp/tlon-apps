@@ -25,7 +25,8 @@ import {
   NoteEssay,
   DiaryStory,
   DiaryOutlines,
-  DiaryFlagAction,
+  DiaryShelfResponse,
+  DiaryShelfAction,
 } from '@/types/diary';
 import api from '@/api';
 import { restoreMap } from '@/logic/utils';
@@ -79,20 +80,22 @@ async function updateNotesInCache(
 function diaryAction(
   flag: DiaryFlag,
   action: DiaryAction
-): Poke<DiaryFlagAction> {
+): Poke<DiaryShelfAction> {
   return {
     app: 'diary',
     mark: 'diary-action',
     json: {
-      flag,
-      action,
+      diary: {
+        flag,
+        action,
+      },
     },
   };
 }
 
 function diaryNoteDiff(flag: DiaryFlag, id: string, command: NoteDelta) {
   return diaryAction(flag, {
-    notes: {
+    note: {
       id,
       command,
     },
@@ -442,12 +445,12 @@ export function useJoinDiaryMutation() {
     group: string;
     chan: string;
   }) => {
-    await api.trackedPoke<DiaryFlagAction>(
+    await api.trackedPoke<DiaryShelfAction, DiaryShelfResponse>(
       diaryAction(chan, {
         join: group,
       }),
       { app: 'diary', path: '/ui' },
-      (event) => event.flag === chan && 'create' in event.action
+      (event) => event.flag === chan && 'create' in event.response
     );
   };
 
@@ -607,16 +610,17 @@ export function useAddNoteMutation() {
     new Promise<string>((resolve) => {
       timePosted = variables.initialTime;
       api
-        .trackedPoke<DiaryFlagAction>(
+        .trackedPoke<DiaryShelfAction, DiaryShelfResponse>(
           diaryNoteDiff(variables.flag, decToUd(variables.initialTime), {
             add: variables.essay,
           }),
           { app: 'diary', path: `/diary/${variables.flag}/ui` },
-          ({ action }) => {
-            if ('notes' in action) {
-              const { id, command } = action.notes;
+          ({ response }) => {
+            if ('note' in response) {
+              const { id, command } = response.note;
               if (
                 'add' in command &&
+                command.add.author === variables.essay.author &&
                 command.add.sent === variables.essay.sent
               ) {
                 timePosted = id;
@@ -801,12 +805,20 @@ export function useCreateDiaryMutation() {
   const queryClient = useQueryClient();
 
   const mutationFn = async (variables: DiaryCreate) => {
-    await api.trackedPoke<DiaryFlagAction>(
-      diaryAction(`${window.our}/${variables.name}`, { create: variables }),
+    await api.trackedPoke<DiaryShelfAction, DiaryShelfResponse>(
+      {
+        app: 'diary',
+        mark: 'diary-action',
+        json: {
+          create: variables,
+        },
+      },
       { app: 'diary', path: '/ui' },
       (event) => {
-        const { action, flag } = event;
-        return 'create' in action && flag === `${window.our}/${variables.name}`;
+        const { response, flag } = event;
+        return (
+          'create' in response && flag === `${window.our}/${variables.name}`
+        );
       }
     );
   };
@@ -949,7 +961,7 @@ export function useAddQuipMutation() {
       sent: Date.now(),
     };
     const action: DiaryAction = {
-      notes: {
+      note: {
         id: replying,
         command: {
           quips: {
@@ -1036,7 +1048,7 @@ export function useDeleteQuipMutation() {
     quipId: string;
   }) => {
     const action: DiaryAction = {
-      notes: {
+      note: {
         id: decToUd(variables.noteId),
         command: {
           quips: {
@@ -1112,7 +1124,7 @@ export function useAddNoteFeelMutation() {
     feel: string;
   }) => {
     const action: DiaryAction = {
-      notes: {
+      note: {
         id: decToUd(variables.noteId),
         command: {
           'add-feel': {
@@ -1168,7 +1180,7 @@ export function useDeleteNoteFeelMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { flag: DiaryFlag; noteId: string }) => {
     const action: DiaryAction = {
-      notes: {
+      note: {
         id: decToUd(variables.noteId),
         command: {
           'del-feel': window.our,
@@ -1227,7 +1239,7 @@ export function useAddQuipFeelMutation() {
     feel: string;
   }) => {
     const action: DiaryAction = {
-      notes: {
+      note: {
         id: decToUd(variables.noteId),
         command: {
           quips: {
@@ -1294,7 +1306,7 @@ export function useDeleteQuipFeelMutation() {
     quipId: string;
   }) => {
     const action: DiaryAction = {
-      notes: {
+      note: {
         id: decToUd(variables.noteId),
         command: {
           quips: {

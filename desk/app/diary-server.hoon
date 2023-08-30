@@ -105,7 +105,7 @@
     =+  !<(=c-shelf:d vase)
     ?-    -.c-shelf
         %create
-      di-abet:(di-create:di-core [our.bowl name.c-shelf] create-diary.c-shelf)
+      di-abet:(di-create:di-core [our.bowl name.create-diary.c-shelf] create-diary.c-shelf)
     ::
         %diary
       =/  diary-core  (di-abed:di-core flag.c-shelf)
@@ -129,6 +129,7 @@
   ^+  cor
   ?+    pole  ~|(bad-watch-path+pole !!)
       [%epic ~]  (give %fact ~ epic+!>(okay:d))
+      [%diary name=@ %create ~]  cor
       [%diary name=@ %updates ~]
     ?>  (di-can-read:(di-abed:di-core our.bowl name.pole) src.bowl)
     cor
@@ -271,7 +272,7 @@
     ;:  weld
         /gx
         di-groups-scry
-        /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]
+        /channel/diary/(scot %p p.flag)/[q.flag]
         /fleet/(scot %p src.bowl)/is-bloc/loob
     ==  ==
   ::
@@ -279,7 +280,7 @@
     ?:  =(p.flag src.bowl)  &
     =/  =path
       %+  welp  di-groups-scry
-      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
+      /channel/diary/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
     =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
     ?~  write  |
     =/  perms  (need write)
@@ -291,7 +292,7 @@
     ?:  =(our.bowl her)  &
     =/  =path
       %+  welp  di-groups-scry
-      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
+      /channel/diary/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
     .^(? %gx path)
   ::
   ++  di-watch-updates
@@ -335,12 +336,14 @@
       %*  .  *diary:d
         perm  [0 writers.new group.new]
       ==
-    =.  di-core  (di-give-update now.bowl %create perm.perm.diary)
+    =.  di-core  
+      =/  =cage  [%diary-update !>([now.bowl %create perm.perm.diary])]
+      (give %fact ~[/diary/[q.flag]/create] cage)
     =/  =channel:g
       :-  [title description '' '']:new
       [now.bowl %default | readers.new]
     =/  =action:g
-      [group.new now.bowl %channel [dap.bowl flag] %add channel]
+      [group.new now.bowl %channel [%diary flag] %add channel]
     =/  =dock    [our.bowl %groups]
     =/  =wire    (snoc di-area %create)
     (emit %pass wire %agent dock %poke act:mar:g !>(action))
