@@ -58,7 +58,7 @@ function DiaryChannel({ title }: ViewProps) {
   const queryClient = useQueryClient();
   const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
-  const { mutateAsync: markRead } = useMarkReadDiaryMutation();
+  const { mutate: markRead, isLoading: isMarking } = useMarkReadDiaryMutation();
   const location = useLocation();
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
@@ -203,6 +203,7 @@ function DiaryChannel({ title }: ViewProps) {
   useDismissChannelNotifications({
     nest,
     markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
+    isMarking,
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
