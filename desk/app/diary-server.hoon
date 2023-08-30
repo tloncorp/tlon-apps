@@ -25,7 +25,7 @@
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state
-      abet:inflate-io:cor
+      abet:init:cor
     [cards this]
   ::
   ++  on-save  !>([state okay:d])
@@ -88,6 +88,12 @@
   +$  versioned-state  $%(current-state)
   --
 ::
+++  init
+  ^+  cor
+  =.  cor
+    (emit %pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~))
+  inflate-io
+::
 ++  inflate-io
   (safe-watch /groups [our.bowl %groups] /groups)
 ::
@@ -105,6 +111,17 @@
       =/  diary-core  (di-abed:di-core flag.c-shelf)
       di-abet:(di-c-diary:diary-core c-diary.c-shelf)
     ==
+  ::
+      %diary-migration
+    =+  !<(new-shelf=shelf:d vase)
+    =+  ?^  shelf
+          %-  (slog 'diary-server: migration replacing non-empty shelf' ~)
+          ~
+        ~
+    =.  shelf  new-shelf
+    %+  roll  ~(tap by shelf)
+    |=  [[=flag:d =diary:d] cr=_cor]
+    di-abet:di-migrate:(di-abed:di-core:cr flag)
   ==
 ::
 ++  watch
@@ -170,6 +187,15 @@
         %fact
       ?.  =(act:mar:g p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
+    ==
+  ::
+      [%migrate ~]
+    ?+  -.sign  !!
+        %poke-ack
+      ?~  p.sign
+        cor
+      %-  (slog 'diary-server: migration poke failure' >wire< u.p.sign)
+      cor
     ==
   ==
 ::
@@ -493,13 +519,16 @@
     =.  log.diary  (put:log-on:d log.diary update)
     (di-give-update update)
   ::
+  ++  di-subscription-paths
+    ^-  (list path)
+    %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
+    |=  =path
+    =((scag 3 path) di-sub-path)
+  ::
   ++  di-give-update
     |=  =update:d
     ^+  di-core
-    =/  paths
-      %+  skim  ~(tap in (~(gas in *(set path)) (turn ~(val by sup.bowl) tail)))
-      |=  =path
-      =((scag 3 path) di-sub-path)
+    =/  paths  di-subscription-paths      
     ?:  =(~ paths)
       di-core
     (give %fact paths %diary-update !>(update))
@@ -511,6 +540,19 @@
     ?.  =((scag 3 path) di-sub-path)
       out
     (~(put in out) [ship path])
+  ::
+  ++  di-migrate
+    ^+  di-core
+    =/  paths  di-subscription-paths
+    %-  emil
+    %+  turn  paths
+    |=  =path
+    =/  =log:d
+      ?.  ?=([@ @ @ @ ~] path)  log.diary
+      =/  after  (slaw %da i.t.t.t.path)
+      ?~  after  log.diary
+      (lot:log-on:d log.diary after ~)
+    [%give %fact ~[path] %diary-logs !>(log)]
   ::
   ++  di-revoke
     |=  her=ship

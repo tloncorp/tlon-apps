@@ -180,6 +180,9 @@
     ?:  ?=(%join -.a-diary.a-shelf)
       di-abet:(di-join:di-core [flag group.a-diary]:a-shelf)
     di-abet:(di-a-diary:(di-abed:di-core flag.a-shelf) a-diary.a-shelf)
+  ::
+      %diary-migrate
+    migrate
   ==
 ::
 ++  watch
@@ -284,6 +287,15 @@
       ?.  =(act:mar:g p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
     ==
+  ::
+      [%migrate ~]
+    ?+  -.sign  !!
+        %poke-ack
+      ?~  p.sign
+        cor
+      %-  (slog 'diary: migration poke failure' >wire< u.p.sign)
+      cor
+    ==
   ==
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
@@ -377,6 +389,16 @@
   [%pass /hark %agent [our.bowl %hark] %poke cage]
 ::
 ++  from-self  =(our src):bowl
+::
+++  migrate
+  =/  server-shelf=shelf:d
+    %-  ~(gas by *shelf:d)
+    %+  skim  ~(tap by shelf)
+    |=  [=flag:d =diary:d]
+    ^-  ?
+    =(our.bowl p.flag)
+  =/  =cage  [%diary-migration !>(server-shelf)]
+  (emit %pass /migrate %agent [our.bowl server] %poke cage)
 ::
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
