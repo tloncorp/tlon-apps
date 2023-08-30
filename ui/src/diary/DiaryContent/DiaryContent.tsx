@@ -165,6 +165,22 @@ export function InlineContent({ story }: InlineContentProps) {
     return <span className="text-blue">{story.ship}</span>;
   }
 
+  if ('task' in story) {
+    return (
+      <div className="flex items-center">
+        <input
+          type="checkbox"
+          checked={story.task.checked}
+          className="pointer-events-none mr-2"
+          aria-disabled
+        />
+        {story.task.content.map((con, i) => (
+          <InlineContent key={`${con}-${i}`} story={con} />
+        ))}
+      </div>
+    );
+  }
+
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
@@ -175,6 +191,23 @@ export function ListingContent({ content }: { content: DiaryListing }) {
         {content.item.map((con, i) => (
           <InlineContent key={`${i}-${con}`} story={con} />
         ))}
+      </>
+    );
+  }
+
+  if (content.list.type === 'tasklist') {
+    return (
+      <>
+        {content.list.contents.map((con, i) => (
+          <InlineContent key={i} story={con} />
+        ))}
+        <ul className="list-none">
+          {content.list.items.map((con, i) => (
+            <li>
+              <ListingContent key={i} content={con} />
+            </li>
+          ))}
+        </ul>
       </>
     );
   }
