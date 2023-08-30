@@ -17,7 +17,11 @@
       |=  jon=^^json
       ^-  ^^scope
       ?~  jon  ~
-      ((of %group^flag:dejs:gjs %channel^nest:dejs:gjs ~) jon)
+      %.  jon
+      %-  of
+      :~  %group^flag:dejs:gjs
+          %channel^nest:dejs:gjs
+      ==
     ++  value
       |=  jon=^^json
       ^-  ^^value

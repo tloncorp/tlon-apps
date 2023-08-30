@@ -8,7 +8,7 @@
 +$  level
   $~  %soft
   $?  %loud  ::  always notify
-      %soft  ::  mentions & replies
+      %soft  ::  sometimes notify
       %hush  ::  never notify
   ==
 ::
