@@ -2,7 +2,7 @@ import cn from 'classnames';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { formatDistanceToNow } from 'date-fns';
-import { Heap, HeapCurio, isLink } from '@/types/heap';
+import { HeapCurio, isLink } from '@/types/heap';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
