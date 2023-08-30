@@ -189,6 +189,7 @@
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ::
       %volume-set
+    ?>  =(our src):bowl
     =+  !<([=scope:v =value:v] vase)
     ?-  scope
         ~
