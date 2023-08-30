@@ -392,7 +392,7 @@ export function useInfiniteCurioBlocks(flag: HeapFlag) {
     });
   }, [flag, invalidate]);
 
-  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
     queryKey,
     queryFn: async ({ pageParam }) => {
       const path = pageParam
@@ -421,6 +421,7 @@ export function useInfiniteCurioBlocks(flag: HeapFlag) {
     curios: data ? curios : def,
     fetchNextPage,
     hasNextPage,
+    isLoading,
   };
 }
 

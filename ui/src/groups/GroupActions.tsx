@@ -1,5 +1,10 @@
 import cn from 'classnames';
-import React, { PropsWithChildren, useCallback, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, usePinnedGroups } from '@/state/chat';
@@ -13,12 +18,39 @@ import {
   useGroupCancelMutation,
 } from '@/state/groups';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { Saga } from '@/types/groups';
+import { ConnectionStatus } from '@/state/vitals';
+import HostConnection from '@/channels/HostConnection';
+import { useIsMobile } from '@/logic/useMedia';
 
 const { ship } = window;
 
-export function useGroupActions(flag: string) {
-  const { doCopy } = useCopy(citeToPath({ group: flag }));
+export function useGroupActions({
+  flag,
+  open = false,
+  onOpenChange,
+}: {
+  flag: string;
+  open?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
+  const handleOpenChange = useCallback(
+    (innerOpen: boolean) => {
+      if (onOpenChange) {
+        onOpenChange(innerOpen);
+      } else {
+        setIsOpen(innerOpen);
+      }
+    },
+    [onOpenChange]
+  );
+
+  useEffect(() => {
+    setIsOpen(open);
+  }, [open, setIsOpen]);
+
+  const { doCopy } = useCopy(citeToPath({ group: flag }));
   const [copyItemText, setCopyItemText] = useState('Copy Group Link');
   const pinned = usePinnedGroups();
   const isPinned = Object.keys(pinned).includes(flag);
@@ -28,9 +60,9 @@ export function useGroupActions(flag: string) {
     setCopyItemText('Copied!');
     setTimeout(() => {
       setCopyItemText('Copy Group Link');
-      setIsOpen(false);
+      handleOpenChange(false);
     }, 2000);
-  }, [doCopy]);
+  }, [doCopy, handleOpenChange]);
 
   const onPinClick = useCallback(
     (e: React.MouseEvent) => {
@@ -43,7 +75,7 @@ export function useGroupActions(flag: string) {
   return {
     isOpen,
     isPinned,
-    setIsOpen,
+    setIsOpen: handleOpenChange,
     copyItemText,
     onCopy,
     onPinClick,
@@ -51,12 +83,26 @@ export function useGroupActions(flag: string) {
 }
 
 type GroupActionsProps = PropsWithChildren<{
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   flag: string;
+  saga?: Saga | null;
+  status?: ConnectionStatus;
+  triggerDisabled?: boolean;
   className?: string;
 }>;
 
 const GroupActions = React.memo(
-  ({ flag, className, children }: GroupActionsProps) => {
+  ({
+    open,
+    onOpenChange,
+    flag,
+    saga,
+    status,
+    triggerDisabled,
+    className,
+    children,
+  }: GroupActionsProps) => {
     const { isGroupUnread } = useIsGroupUnread();
     const { claim } = useGang(flag);
     const location = useLocation();
@@ -64,10 +110,10 @@ const GroupActions = React.memo(
     const group = useGroup(flag);
     const privacy = group ? getPrivacyFromGroup(group) : 'public';
     const isAdmin = useAmAdmin(flag);
+    const isMobile = useIsMobile();
     const { mutate: cancelJoinMutation } = useGroupCancelMutation();
-
     const { isOpen, setIsOpen, isPinned, copyItemText, onCopy, onPinClick } =
-      useGroupActions(flag);
+      useGroupActions({ flag, open, onOpenChange });
 
     const onCopySelect = useCallback(
       (event: React.MouseEvent) => {
@@ -78,6 +124,22 @@ const GroupActions = React.memo(
     );
 
     const actions: Action[] = [];
+
+    if (saga && isMobile) {
+      actions.push({
+        key: 'connectivity',
+        keepOpenOnClick: true,
+        content: (
+          <HostConnection
+            ship={flag}
+            status={status}
+            saga={saga}
+            type="combo"
+            className="-ml-1 text-[17px] font-medium text-gray-800"
+          />
+        ),
+      });
+    }
 
     if (privacy === 'public' || isAdmin) {
       actions.push({
@@ -159,26 +221,30 @@ const GroupActions = React.memo(
         open={isOpen}
         onOpenChange={setIsOpen}
         actions={actions}
+        disabled={triggerDisabled}
+        asChild={!triggerDisabled}
         className={className}
       >
         {children || (
           <div className="relative h-6 w-6">
-            {!isOpen && hasActivity ? (
+            {(isMobile || !isOpen) && hasActivity ? (
               <UnreadIndicator
-                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
+                className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 sm:group-hover:opacity-0"
                 aria-label="Has Activity"
               />
             ) : null}
-            <button
-              className={cn(
-                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                hasActivity && 'text-blue',
-                isOpen ? 'opacity:100' : 'opacity-0'
-              )}
-              aria-label="Open Group Options"
-            >
-              <EllipsisIcon className="h-6 w-6" />
-            </button>
+            {!isMobile && (
+              <button
+                className={cn(
+                  'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 group-focus-within:opacity-100 sm:hover:opacity-100 sm:group-hover:opacity-100',
+                  hasActivity && 'text-blue',
+                  isOpen ? 'opacity:100' : 'opacity-0'
+                )}
+                aria-label="Open Group Options"
+              >
+                <EllipsisIcon className="h-6 w-6" />
+              </button>
+            )}
           </div>
         )}
       </ActionMenu>

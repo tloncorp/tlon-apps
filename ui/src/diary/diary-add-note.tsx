@@ -77,17 +77,9 @@ export default function DiaryAddNote() {
     },
   });
 
-  const { reset, register, getValues, setValue, watch } = form;
+  const { reset, register, getValues, watch } = form;
   const { ref, ...titleRegisterRest } = register('title');
   const watchedTitle = watch('title');
-
-  useEffect(() => {
-    const { title, image } = getValues();
-    if (!loadingNote && title === '' && image === '' && note?.essay) {
-      setValue('title', note.essay.title);
-      setValue('image', note.essay.image);
-    }
-  }, [note, setValue, loadingNote, getValues]);
 
   // expand title to 2 rows if needed, beyond that we can scroll
   useEffect(() => {

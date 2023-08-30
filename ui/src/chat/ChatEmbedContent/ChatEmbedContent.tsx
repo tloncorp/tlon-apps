@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
-import { AUDIO_REGEX, validOembedCheck } from '@/logic/utils';
+import { BigPlayButton, Player } from 'video-react';
+import { AUDIO_REGEX, validOembedCheck, VIDEO_REGEX } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
 import YouTubeEmbed from './YouTubeEmbed';
@@ -33,7 +35,9 @@ function ChatEmbedContent({
 }) {
   const { embed, isError, error } = useEmbed(url);
   const calm = useCalm();
+  const isMobile = useIsMobile();
   const isAudio = AUDIO_REGEX.test(url);
+  const isVideo = VIDEO_REGEX.test(url);
   const isTrusted = trustedProviders.some((provider) =>
     provider.regex.test(url)
   );
@@ -49,6 +53,21 @@ function ChatEmbedContent({
       <a target="_blank" rel="noreferrer" href={url}>
         {content}
       </a>
+    );
+  }
+
+  if (isVideo) {
+    return (
+      <div className="flex max-h-[340px] max-w-[600px] flex-col">
+        <Player
+          playsInline
+          src={url}
+          fluid={false}
+          width={isMobile ? 300 : 600}
+        >
+          <BigPlayButton position="center" />
+        </Player>
+      </div>
     );
   }
 

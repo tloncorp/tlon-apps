@@ -43,10 +43,11 @@ export default function DiaryNoteHeadline({
   const calm = useCalm();
 
   const isAdmin = useAmAdmin(flag);
+  const showImage = essay.image && !calm.disableRemoteContent;
 
   return (
     <>
-      {essay.image && !calm.disableRemoteContent && !isInGrid ? (
+      {showImage && !isInGrid ? (
         <img
           src={essay.image}
           alt=""
@@ -57,7 +58,7 @@ export default function DiaryNoteHeadline({
         <h1 className="break-words text-3xl font-medium leading-10">
           {essay.title}
         </h1>
-        <p className={cn(isInGrid ? 'text-white' : 'text-gray-400')}>
+        <p className={cn((isInList || !showImage) && 'text-gray-400')}>
           {format(essay.sent, 'LLLL do, yyyy')}
         </p>
         <div className="flex w-full items-center justify-between">
@@ -71,7 +72,7 @@ export default function DiaryNoteHeadline({
           <div
             className={cn(
               'flex items-center justify-end space-x-1',
-              isInGrid ? 'text-white' : 'text-gray-400'
+              (isInList || !showImage) && 'text-gray-400'
             )}
             onClick={(e) => e.stopPropagation()}
           >
@@ -89,7 +90,7 @@ export default function DiaryNoteHeadline({
                 </span>
                 <IconButton
                   action={onCopy}
-                  className="h-8 w-8"
+                  className="h-8 w-8 hover:text-gray-400"
                   label="Share"
                   icon={
                     didCopy ? (
@@ -105,7 +106,7 @@ export default function DiaryNoteHeadline({
                   canEdit={isAdmin || window.our === essay.author}
                 >
                   <IconButton
-                    className="h-8 w-8"
+                    className="h-8 w-8 hover:text-gray-400"
                     label="Options"
                     icon={<ElipsisIcon className={`h-5 w-5`} />}
                   />

@@ -29,7 +29,7 @@ export default function Layout({
         </header>
       )}
       {aside && <aside className="aside">{aside}</aside>}
-      <main className={cn('main', mainClass)}>{children}</main>
+      <main className={cn('main relative', mainClass)}>{children}</main>
       {footer && <footer className="footer">{footer}</footer>}
     </div>
   );

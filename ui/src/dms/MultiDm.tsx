@@ -121,14 +121,21 @@ export default function MultiDm() {
                   isMobile ? (
                     <MobileHeader
                       title={
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-center">
-                          <MultiDmAvatar {...club.meta} size="xs" />
-                        </div>
-                      }
-                      secondaryTitle={
-                        <h1 className="max-w-xs truncate px-4 text-[18px] leading-5 text-gray-800">
-                          {groupName}
-                        </h1>
+                        <DmOptions
+                          className="w-full"
+                          whom={clubId}
+                          isMulti
+                          pending={!isAccepted}
+                        >
+                          <button className="flex w-full items-center justify-center">
+                            <div className="flex h-6 w-6 flex-none items-center justify-center rounded text-center">
+                              <MultiDmAvatar {...club.meta} size="xs" />
+                            </div>
+                            <h1 className="ml-2 flex overflow-hidden">
+                              <span className="truncate">{groupName}</span>
+                            </h1>
+                          </button>
+                        </DmOptions>
                       }
                       pathBack={
                         appName === 'Groups' && isMobile ? '/messages' : '/'
@@ -139,13 +146,6 @@ export default function MultiDm() {
                           <Link to="search/" aria-label="Search Chat">
                             <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-800" />
                           </Link>
-                          <DmOptions
-                            whom={clubId}
-                            pending={!isAccepted}
-                            isMulti
-                            alwaysShowEllipsis
-                            className="text-gray-800"
-                          />
                         </div>
                       }
                     />
@@ -165,7 +165,6 @@ export default function MultiDm() {
                           pending={!isAccepted}
                           isMulti
                           alwaysShowEllipsis
-                          className="text-gray-600"
                         />
                       </div>
                     </div>

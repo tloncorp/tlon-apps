@@ -275,7 +275,7 @@ export default function DiaryMarkdownEditor({
     <textarea
       value={markdownInput ?? ''}
       onChange={(e) => setMarkdownInput(e.target.value)}
-      className="input-transparent block h-full w-full resize-none pt-2 font-mono text-lg leading-8 placeholder:h-0 placeholder:text-[18px] placeholder:leading-8 placeholder:text-gray-400"
+      className="input-transparent block h-full w-full resize-none pt-2 font-mono text-lg leading-8 placeholder:h-0 placeholder:text-[17px] placeholder:leading-8 placeholder:text-gray-400"
       placeholder="Start writing markdown here."
     />
   );
