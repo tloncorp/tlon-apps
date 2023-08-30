@@ -590,7 +590,6 @@
       ?+  p.cage  ~|(diary-strange-fact+p.cage !!)
         %diary-logs    (di-apply-logs !<(log:d q.cage))
         %diary-update  (di-u-shelf !<(update:d q.cage))
-        %diary-notes   !!  ::  XX
       ==
     ==
   ::

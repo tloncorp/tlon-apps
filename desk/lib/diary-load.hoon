@@ -63,33 +63,90 @@
   %-  ~(run by old-shelf)
   |=  =diary:one
   ^-  diary:two
-  !!  ::TODO  diary(log (log-1-to-2 diary))
+  %*  .  *diary:two
+    notes   (notes-1-to-2 notes.diary)
+    order   [%0 arranged-notes.diary]
+    view    [%0 view.diary]
+    sort    [%0 sort.diary]
+    perm    [%0 perm.diary]
+    net     !!
+    log     (log-1-to-2 diary)
+    remark  remark.diary
+    window  *window:two
+    future  *future:two
+  ==
+::
+++  notes-1-to-2
+  |=  old=notes:one
+  ^-  notes:two
+  %-  ~(run by old)
+  |=  =note:one
+  `(note-1-to-2 note)
+::
+++  note-1-to-2
+  |=  old=note:one
+  ^-  note:two
+  :_  [%0 +.old]
+  -.old(quips (quips-1-to-2 quips.old), feels (feels-1-to-2 feels.old))
+::
+++  quips-1-to-2
+  |=  old=quips:one
+  ^-  quips:two
+  %-  ~(run by old)
+  |=  =quip:one
+  `(quip-1-to-2 quip)
+::
+++  quip-1-to-2
+  |=  old=quip:one
+  ^-  quip:two
+  [-.old(feels (feels-1-to-2 feels.old)) +.old]
+::
+++  feels-1-to-2
+  |=  old=(map ship feel:one)
+  ^-  feels:two
+  %-  ~(run by old)
+  |=  =feel:one
+  [%0 `feel]
 ::
 ++  log-1-to-2
   |=  old-diary=diary:one  ::NOTE  because we need the perm also
   ^-  log:two
-  %-  ~(gas in *log:two)  ::TODO  ordered map
+  %+  gas:log-on:two  *log:two
   %+  murn  ~(tap by log.old-diary)
   |=  [=time =diff:one]
   =;  new=(unit u-diary:two)
     (bind new (lead time))
-  !!  ::TODO
-  :: ::TODO  we invent rev numbers here. safe/sane??
-  :: ?-  -.diff
-  ::   ?(%add-sects %del-sects)  [%perm 0 perm.old-diary]  ::TODO  is this correct?
-  ::   %create                   ~
-  ::   ?(%view %sort)            `[- 0 +]:diff
-  ::   %arranged-notes           `[%order 0 +.diff]
-  :: ::
-  ::     %notes
-  ::   :+  %notes  p.p.diff
-  ::   ?-  -.q.p.diff
-  ::     ?(%add %edit)  xx ::TODO  how? get from old state?
-  ::     ?(%add-feel %del-feel)  xx ::TODO  how? get from old state?
-  ::     %del           [%set ~]
-  ::   ::
-  ::     %quips         xx
-  ::   ==
-  ::   ::  $note = [seal (rev essay)]
-  :: ==
+  ?-    -.diff
+      ?(%add-sects %del-sects)  `[%perm 0 perm.old-diary]
+      %create                   `[%create p.diff]
+      %view                     `[%view 0 p.diff]
+      %sort                     `[%sort 0 p.diff]
+      %arranged-notes           `[%order 0 p.diff]
+      %notes
+    =-  ?~(- ~ `[%note p.p.diff -])
+    ^-  (unit u-note:two)
+    =/  old-note  (get:on:notes:one notes.old-diary p.p.diff)
+    ?-    -.q.p.diff
+        ?(%add %edit)           `[%set (bind old-note note-1-to-2)]
+        %del                    `[%set ~]
+        ?(%add-feel %del-feel)
+      ?~  old-note  ~
+      `[%feels (feels-1-to-2 feels.u.old-note)]
+    ::
+        %quips
+      ?~  old-note  ~
+      =*  diff-quip  p.q.p.diff
+      =-  ?~(- ~ `[%quip p.diff-quip -])
+      ^-  (unit u-quip:two)
+      =/  old-quip  (get:on:quips:one quips.u.old-note p.diff-quip)
+      ?-    -.diff-quip
+          %add  `(unit u-quip:two)``[%set (bind old-quip quip-1-to-2)]
+          %del  `(unit u-quip:two)``[%set ~]
+          ?(%add-feel %del-feel)
+        ^-  (unit u-quip:two)
+        ?~  old-quip  ~
+        `[%feels (feels-1-to-2 feels.u.old-quip)]
+      ==
+    ==
+  ==
 --
