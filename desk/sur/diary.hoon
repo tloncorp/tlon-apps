@@ -258,8 +258,11 @@
 ::  some actions happen to be the same as commands, but this can freely
 ::  change
 ::
-+$  a-shelf  
-  $%  [%create =create-diary] 
+::NOTE  we might want to add a action-id=uuid to this eventually, threading
+::      that through all the way, so that an $r-shelf may indicate what
+::      originally caused it
++$  a-shelf
+  $%  [%create =create-diary]
       [%diary =flag =a-diary]
   ==
 +$  a-diary
