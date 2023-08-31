@@ -213,7 +213,7 @@ const ChatMessage = React.memo<
       );
 
       const [optionsOpen, setOptionsOpen] = useState(false);
-      const { action, handlers } = useLongPress(true);
+      const { action, handlers } = useLongPress();
 
       useEffect(() => {
         if (!isMobile) {

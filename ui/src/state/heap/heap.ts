@@ -426,7 +426,7 @@ export function useInfiniteCurioBlocks(flag: HeapFlag) {
     });
   }, [flag, invalidate]);
 
-  const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
     queryKey,
     queryFn: async ({ pageParam }) => {
       const path = pageParam
@@ -455,6 +455,7 @@ export function useInfiniteCurioBlocks(flag: HeapFlag) {
     curios: data ? curios : def,
     fetchNextPage,
     hasNextPage,
+    isLoading,
   };
 }
 
@@ -700,6 +701,7 @@ export function useEditCurioMutation() {
 }
 
 export function useMarkHeapReadMutation() {
+  const queryClient = useQueryClient();
   const mutationFn = async ({ flag }: { flag: HeapFlag }) => {
     await api.poke({
       app: 'heap',
@@ -713,6 +715,9 @@ export function useMarkHeapReadMutation() {
 
   return useMutation({
     mutationFn,
+    onSuccess: () => {
+      queryClient.refetchQueries(['heap', 'briefs']);
+    },
   });
 }
 

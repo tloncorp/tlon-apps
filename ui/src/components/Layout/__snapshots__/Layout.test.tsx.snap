@@ -1,11 +1,11 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+// Vitest Snapshot v1
 
 exports[`Layout > renders as expected 1`] = `
 <div
   className="layout"
 >
   <main
-    className="main"
+    className="main relative"
   >
     <p>
       content

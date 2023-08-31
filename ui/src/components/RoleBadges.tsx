@@ -3,8 +3,8 @@ import { getSectTitle } from '@/logic/utils';
 import { useGroup, useGroupFlag, useVessel } from '@/state/groups';
 import * as Tooltip from '@radix-ui/react-tooltip';
 
-export default function RoleBadges(props: { ship: string }) {
-  const { ship } = props;
+export default function RoleBadges(props: { ship: string; inList?: boolean }) {
+  const { ship, inList } = props;
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const { sects } = useVessel(flag, ship);
@@ -64,7 +64,11 @@ export default function RoleBadges(props: { ship: string }) {
             return (
               <span
                 key={sect}
-                className="shrink-0 rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium"
+                className={
+                  inList
+                    ? 'mt-1 rounded-[100px] bg-gray-50 px-2 py-[7px] text-sm font-normal text-gray-400'
+                    : 'shrink-0 rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium'
+                }
               >
                 {getSectTitle(group.cabals, sect)}
               </span>

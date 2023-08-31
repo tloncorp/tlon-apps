@@ -96,11 +96,10 @@ function TopBar({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className={cn('absolute z-40 w-full select-none items-center px-4', {
+      className={cn('absolute z-40 flex w-full select-none items-center px-4', {
         'justify-between': hasIcon || isTwitter,
         'justify-end': !hasIcon && !isTwitter,
-        flex: longPress,
-        'hidden group-hover:flex': !longPress,
+        'hidden group-hover:flex': !longPress && !menuOpen,
       })}
     >
       {isTwitter ? <TwitterIcon className="m-2 h-6 w-6" /> : null}
@@ -112,7 +111,7 @@ function TopBar({
         })}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className={longPress ? 'block' : 'hidden group-hover:block'}>
+        <div>
           {asRef ? (
             <button
               onClick={navigateToCurio}
@@ -136,7 +135,7 @@ function TopBar({
           )}
         </div>
         {canEdit && (
-          <div className={longPress ? '' : 'hidden group-hover:block'}>
+          <div>
             <ActionMenu
               open={menuOpen}
               onOpenChange={setMenuOpen}
@@ -214,17 +213,19 @@ function HeapBlockWrapper({
   time,
   setLongPress,
   children,
+  curio,
 }: React.PropsWithChildren<{
   time: string;
   setLongPress: (b: boolean) => void;
+  curio: HeapCurio;
 }>) {
   const navigate = useNavigate();
   const { action, handlers } = useLongPress();
   const navigateToDetail = useCallback(
     (blockTime: string) => {
-      navigate(`curio/${blockTime}`);
+      navigate(`curio/${blockTime}`, { state: { initialCurio: curio } });
     },
-    [navigate]
+    [navigate, curio]
   );
 
   useEffect(() => {
@@ -302,7 +303,7 @@ export default function HeapBlock({
 
   if (isComment) {
     return (
-      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col">
@@ -318,7 +319,7 @@ export default function HeapBlock({
 
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (
-      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
@@ -335,7 +336,7 @@ export default function HeapBlock({
 
   if (isText) {
     return (
-      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <HeapContent
@@ -354,7 +355,7 @@ export default function HeapBlock({
 
   if (isImage && !calm?.disableRemoteContent) {
     return (
-      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
         <div
           className={cnm(
             'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
@@ -372,7 +373,7 @@ export default function HeapBlock({
 
   if (isAudio && !calm?.disableRemoteContent) {
     return (
-      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
@@ -391,7 +392,7 @@ export default function HeapBlock({
 
     if (thumbnail) {
       return (
-        <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+        <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
           <div
             className={cnm('h-full w-full bg-cover bg-center bg-no-repeat')}
             style={{
@@ -409,7 +410,7 @@ export default function HeapBlock({
       const twitterHandle = embed.author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
-        <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+        <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
           <div className={cnm()}>
             <TopBar isTwitter canEdit={canEdit} {...topBar} />
             <div className="flex grow flex-col items-center justify-center space-y-2">
@@ -427,7 +428,7 @@ export default function HeapBlock({
       );
     }
     return (
-      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
@@ -440,7 +441,7 @@ export default function HeapBlock({
   }
 
   return (
-    <HeapBlockWrapper time={time} setLongPress={setLongPress}>
+    <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
       <div className={cnm()}>
         <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <div className="flex grow flex-col items-center justify-center">

@@ -152,21 +152,32 @@ export default function Dm() {
                   isMobile ? (
                     <MobileHeader
                       title={
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-center">
-                          <Avatar size="xs" ship={ship} />
-                        </div>
-                      }
-                      secondaryTitle={
-                        <div className="-mr-4 flex w-full items-center justify-center space-x-1 px-4">
-                          <h1 className="max-w-xs truncate text-[17px] leading-5 text-gray-800">
-                            {contact.nickname ? (
-                              contact.nickname
-                            ) : (
-                              <ShipName full name={ship} />
-                            )}
-                          </h1>
-                          <ShipConnection ship={ship} status={data?.status} />
-                        </div>
+                        <DmOptions
+                          className="w-full"
+                          whom={ship}
+                          pending={!isAccepted}
+                        >
+                          <button className="flex w-full items-center justify-center">
+                            <div className="flex h-6 w-6 flex-none items-center justify-center rounded text-center">
+                              <Avatar size="xs" ship={ship} />
+                            </div>
+                            <h1 className="ml-2 overflow-hidden">
+                              <span className="truncate">
+                                {contact.nickname ? (
+                                  contact.nickname
+                                ) : (
+                                  <ShipName full name={ship} />
+                                )}
+                              </span>
+                            </h1>
+                            <ShipConnection
+                              className="ml-1 inline-flex flex-none"
+                              type="bullet"
+                              ship={ship}
+                              status={data?.status}
+                            />
+                          </button>
+                        </DmOptions>
                       }
                       pathBack={
                         appName === 'Groups' && isMobile ? '/messages' : '/'
@@ -177,14 +188,6 @@ export default function Dm() {
                           <Link to="search/" aria-label="Search Chat">
                             <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-800" />
                           </Link>
-                          {canStart ? (
-                            <DmOptions
-                              whom={ship}
-                              pending={!isAccepted}
-                              alwaysShowEllipsis
-                              className="text-gray-800"
-                            />
-                          ) : null}
                         </div>
                       }
                     />
@@ -209,7 +212,6 @@ export default function Dm() {
                             whom={ship}
                             pending={!isAccepted}
                             alwaysShowEllipsis
-                            className="text-gray-600"
                           />
                         ) : null}
                       </div>

@@ -24,6 +24,7 @@ import {
   GroupCreate,
   GroupJoin,
   PrivacyType,
+  Vessel,
 } from '@/types/groups';
 import api from '@/api';
 import { BaitCite } from '@/types/chat';
@@ -103,7 +104,7 @@ export function useGroups() {
   return data as Groups;
 }
 
-export function useGroup(flag: string, updating = false) {
+export function useGroup(flag: string, updating = false): Group | undefined {
   const connection = useGroupConnection(flag);
   const queryClient = useQueryClient();
   const initialData = useGroups();
@@ -199,7 +200,7 @@ export function useGroupList(): string[] {
   return Object.keys(data || {});
 }
 
-export function useVessel(flag: string, ship: string) {
+export function useVessel(flag: string, ship: string): Vessel {
   const data = useGroup(flag);
 
   return (
@@ -267,13 +268,19 @@ export function useGang(flag: string) {
   return data?.[flag] || defGang;
 }
 
-export const useGangPreview = (flag: string, disabled = false) => {
+export const useGangPreview = (
+  flag: string,
+  disabled = false
+): GroupPreview | null => {
+  const gangs = useGangs();
+
   const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
     queryKey: ['gang-preview', flag],
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
       enabled: !disabled,
+      initialData: gangs[flag]?.preview || undefined,
     },
   });
 
