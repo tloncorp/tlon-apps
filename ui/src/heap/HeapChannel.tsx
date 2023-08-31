@@ -54,7 +54,8 @@ function HeapChannel({ title }: ViewProps) {
   const sortMode = useHeapSortMode(chFlag);
   const { curios, fetchNextPage, hasNextPage, isLoading } =
     useInfiniteCurioBlocks(chFlag);
-  const { mutateAsync: markRead } = useMarkHeapReadMutation();
+  const { mutate: markRead, isLoading: isMarking } =
+    useMarkHeapReadMutation();
   const { mutateAsync: joinHeap } = useJoinHeapMutation();
   const perms = useHeapPerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
@@ -119,6 +120,7 @@ function HeapChannel({ title }: ViewProps) {
   useDismissChannelNotifications({
     nest,
     markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
+    isMarking,
   });
 
   const renderCurio = useCallback(

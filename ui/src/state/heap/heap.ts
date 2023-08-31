@@ -701,6 +701,7 @@ export function useEditCurioMutation() {
 }
 
 export function useMarkHeapReadMutation() {
+  const queryClient = useQueryClient();
   const mutationFn = async ({ flag }: { flag: HeapFlag }) => {
     await api.poke({
       app: 'heap',
@@ -714,6 +715,9 @@ export function useMarkHeapReadMutation() {
 
   return useMutation({
     mutationFn,
+    onSuccess: () => {
+      queryClient.refetchQueries(['heap', 'briefs']);
+    },
   });
 }
 

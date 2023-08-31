@@ -8,11 +8,13 @@ import { nestToFlag } from './utils';
 interface UseDismissChannelProps {
   nest: string;
   markRead: (flag: string) => Promise<void> | void;
+  isMarking: boolean;
 }
 
 export default function useDismissChannelNotifications({
   nest,
   markRead,
+  isMarking,
 }: UseDismissChannelProps) {
   const flag = useRouteGroup();
   const [, chFlag] = nestToFlag(nest);
@@ -29,7 +31,7 @@ export default function useDismissChannelNotifications({
    */
   // dismiss unread notifications while viewing channel
   useEffect(() => {
-    if (nest && unread) {
+    if (nest && unread && !isMarking) {
       // dismiss brief
       markRead(chFlag);
       // iterate bins, saw each rope
@@ -45,5 +47,13 @@ export default function useDismissChannelNotifications({
         });
       });
     }
-  }, [nest, chFlag, markRead, unread, notifications, sawRopeMutation]);
+  }, [
+    nest,
+    chFlag,
+    markRead,
+    unread,
+    notifications,
+    sawRopeMutation,
+    isMarking,
+  ]);
 }
