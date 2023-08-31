@@ -1,9 +1,13 @@
 ::  TODO: move outside /desk directory, don't ship this
 ::
-::TODO  assert things about state
-::TODO  test all actions
-::TODO  test cross-ship comms
+::DONE  assert things about state
+::DONE  test all actions that don't require cross-ship comms
+::TODO  test cross-ship comms (will do manual)
+::
 ::  - test that partial checkpoint is partial
+::  - test join, leave, read, read-at
+::  - test permissions
+::
 /-  spider, d=diary, g=groups, e=epic
 /+  s=strandio, dl=diary-load
 =,  strand=strand:spider
@@ -33,7 +37,7 @@
 ::
 =|  count=@ud
 |-
-;<  =id-note:d  band:m  (add-essay count)
+;<  =id-note:d  band:m  (add-note count)
 ?:  (lth count 30)
   $(count +(count))
 ::  leave a single comment on the last post
@@ -59,10 +63,11 @@
 ::  post another essay, ensure we got it
 ::
 =.  count  +(count)
-;<  *  band:m  (add-essay count)
+;<  *  band:m  (add-note count)
 ;<  *  band:m  (check-note-count 21)
 ::
-;<  ~  band:m  test-revs-of-diary
+;<  ~  band:m  test-c-diary
+;<  ~  band:m  test-c-note
 ::
 (pure:m !>(%success))
 ::
@@ -153,7 +158,7 @@
   ?>  (eq !>(count) !>(~(wyt by notes.diary)))
   (pure:m notes.diary)
 ::
-++  add-essay
+++  add-note
   |=  count=@ud
   =/  m  (strand ,id-note:d)
   ^-  form:m
@@ -162,9 +167,18 @@
   ;<  ~  bind:m  (act %diary flag %note %add essay)
   (pure:m send)
 ::
+++  add-quip
+  |=  [=id-note:d text=cord]
+  =/  m  (strand ,id-quip:d)
+  ^-  form:m
+  ;<  send=@da  band:m  get-time:s
+  =/  =memo:d  [[~ ~[text]] our send]
+  ;<  ~  bind:m  (act %diary flag %note %quip id-note %add memo)
+  (pure:m send)
+::
 ::  test non-note diary commands
 ::
-++  test-revs-of-diary
+++  test-c-diary
   =/  m  (strand ,~)
   ^-  form:m
   ;<  ~  band:m  (act %diary flag %add-writers %del-role ~ ~)
@@ -195,4 +209,77 @@
   ?>  (eq !>(+(+(rev.perm.old))) !>(rev.perm.new))
   ?>  (eq !>(+(rev.order.old)) !>(rev.order.new))
   (pure:m ~)
+::
+::  test note diary commands
+::
+++  test-c-note
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  old=diary:d  band:m  get-diary
+  =/  count=@ud  ~(wyt by notes.old)
+  ;<  id=id-note:d  band:m  (add-note 1.000)
+  ;<  new=diary:d  band:m  get-diary
+  ?>  (eq !>(+(count)) !>(~(wyt by notes.new)))
+  ?>  (eq !>(&) !>((has:on-notes:d notes.new id)))
+  ::
+  ;<  ~  band:m  (act %diary flag %note %edit id ['yes' '' ~ our id])
+  ;<  new=note:d  band:m  (get-note id)
+  ?>  (eq !>('yes') !>(title.new))
+  ::
+  ?>  (eq !>(~) !>(feels.new))
+  ;<  ~  band:m  (act %diary flag %note %add-feel id our ':smile:')
+  ;<  new=note:d  band:m  (get-note id)
+  =/  feel  (~(got by feels.new) our)
+  ?>  (eq !>([0 `':smile:']) !>(feel))
+  ::
+  ;<  ~  band:m  (act %diary flag %note %del-feel id our)
+  ;<  new=note:d  band:m  (get-note id)
+  =/  feel  (~(got by feels.new) our)
+  ?>  (eq !>([1 ~]) !>(feel))
+  ::
+  ;<  ~  band:m  (act %diary flag %note %del id)
+  ;<  new=diary:d  band:m  get-diary
+  ?>  (eq !>(~) !>((got:on-notes:d notes.new id)))
+  ::
+  (pure:m ~)
+::
+++  get-note
+  |=  =id-note:d
+  =/  m  (strand ,note:d)
+  ^-  form:m
+  ;<  =diary:d  band:m  get-diary
+  (pure:m (need (got:on-notes:d notes.diary id-note)))
+::  test diary quip commands
+::
+++  test-c-quip
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  =id-note:d  band:m  (add-note 1.001)
+  ::
+  ;<  id=id-quip:d  band:m  (add-quip id-note 'hi')
+  ;<  =quip:d  band:m  (get-quip id-note id)
+  ?>  (eq !>([~ ~['hi']]) !>(content.quip))
+  ::
+  ;<  ~  band:m  (act %diary flag %note %quip id-note %add-feel id our ':smile:')
+  ;<  new=quip:d  band:m  (get-quip id-note id)
+  =/  feel  (~(got by feels.quip) our)
+  ?>  (eq !>([0 `':smile:']) !>(feel))
+  ::
+  ;<  ~  band:m  (act %diary flag %note %quip id-note %del-feel id our)
+  ;<  new=quip:d  band:m  (get-quip id-note id)
+  =/  feel  (~(got by feels.quip) our)
+  ?>  (eq !>([1 ~]) !>(feel))
+  ::
+  ;<  ~  band:m  (act %diary flag %note %quip id-note %del id)
+  ;<  =note:d  band:m  (get-note id-note)
+  ?>  (eq !>(~) !>((got:on-quips:d quips.note id)))
+  ::
+  (pure:m ~)
+::
+++  get-quip
+  |=  [=id-note:d =id-quip:d]
+  =/  m  (strand ,quip:d)
+  ^-  form:m
+  ;<  =note:d  band:m  (get-note id-note)
+  (pure:m (need (got:on-quips:d quips.note id-quip)))
 --
