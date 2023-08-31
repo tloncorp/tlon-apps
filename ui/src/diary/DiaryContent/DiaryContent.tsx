@@ -172,6 +172,7 @@ export function InlineContent({ story }: InlineContentProps) {
           type="checkbox"
           checked={story.task.checked}
           className="pointer-events-none mr-2"
+          aria-checked={story.task.checked}
           aria-disabled
         />
         {story.task.content.map((con, i) => (
