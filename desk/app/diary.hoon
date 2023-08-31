@@ -22,7 +22,7 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  &
+  %+  verb  |
   %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
@@ -178,7 +178,7 @@
       %diary-action
     =+  !<(=a-shelf:d vase)
     ?:  ?=(%create -.a-shelf)
-      di-abet:(di-create:di-core a-shelf)
+      di-abet:(di-create:di-core create-diary.a-shelf)
     ?:  ?=(%join -.a-diary.a-shelf)
       di-abet:(di-join:di-core [flag group.a-diary]:a-shelf)
     di-abet:(di-a-diary:(di-abed:di-core flag.a-shelf) a-diary.a-shelf)
@@ -424,20 +424,15 @@
   ::  handle creating a channel
   ::
   ++  di-create
-    |=  =a-shelf:d
+    |=  create=create-diary:d
     ?>  from-self
-    ?>  ?=(%create -.a-shelf)
-    =*  create  create-diary.a-shelf
     =.  flag  [our.bowl name.create]
     ?<  (~(has by shelf) flag)
     =.  diary  *diary:d
     =.  group.perm.perm.diary  group.create
     =.  last-read.remark.diary  now.bowl
-    =/  =path  /diary/[name.create]/create
-    =/  =wire  /diary/(scot %p our.bowl)/[name.create]/create
-    =.  di-core  
-      (emit %pass wire %agent [our.bowl server] %watch path)
-    (di-send-command a-shelf)
+    =/  =cage  [%diary-command !>([%create create])]
+    (emit %pass (weld di-area /create) %agent [our.bowl server] %poke cage)
   ::
   ::
   ::  handle joining a channel
@@ -497,13 +492,12 @@
   ++  di-send-command
     |=  command=c-shelf:d
     ^+  di-core
+    ?>  ?=(%diary -.command)
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%diary-action poke failed: only allowed from self" !!)
-    =/  =ship  ?:(?=(%create -.command) our.bowl p.flag.command)
     =/  =cage  [%diary-command !>(command)]
-    =.  di-core  (emit %pass di-area %agent [ship server] %poke cage)
-    di-core
+    (emit %pass di-area %agent [p.flag.command server] %poke cage)
   ::
   ::  handle a said (previews) request where we have the data to respond
   ::
@@ -570,9 +564,9 @@
     ?^  notes.diary  di-start-updates
     =.  load.net.diary  |
     %^  safe-watch  (weld di-area /checkpoint)  [p.flag server]
-    ?.  =(our.bowl p.flag)
+    ::  ?.  =(our.bowl p.flag)
       /diary/[q.flag]/checkpoint/before/20
-    /diary/[q.flag]/checkpoint/time-range/(scot %da *@da)
+    ::  /diary/[q.flag]/checkpoint/time-range/(scot %da *@da)
   ::
   ++  di-start-updates
     ::  not most optimal time, should maintain last heard time instead
@@ -602,11 +596,19 @@
   ++  di-take-create
     |=  =sign:agent:gall
     ^+  di-core
-    ?+    -.sign  di-core
+    ?-    -.sign
+        %poke-ack
+      =+  ?~  p.sign  ~
+          %-  (slog leaf+"{<dap.bowl>}: Failed creation (poke)" u.p.sign)
+          ~
+      =/  =path  /diary/[q.flag]/create
+      =/  =wire  (weld di-area /create)
+      (emit %pass wire %agent [our.bowl server] %watch path)
+    ::
         %kick       di-safe-sub
         %watch-ack
       ?~  p.sign  di-core
-      %-  (slog leaf/"{<dap.bowl>}: Failed creation" u.p.sign)
+      %-  (slog leaf+"{<dap.bowl>}: Failed creation" u.p.sign)
       di-core
     ::
         %fact

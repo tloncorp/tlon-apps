@@ -1,6 +1,6 @@
 /-  d=diary, e=epic
-|=  =vase
-|^  ^-  state-2
+|^  |=  =vase
+    ^-  state-2
     =+  !<([old=versioned-state cool=epic:e] vase)
     |-
     ?-  -.old

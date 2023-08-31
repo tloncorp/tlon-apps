@@ -35,7 +35,7 @@
   ==
 --
 %-  agent:dbug
-%+  verb  &
+%+  verb  |
 =|  state-0
 =*  state  -
 =<

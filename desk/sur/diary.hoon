@@ -189,7 +189,7 @@
 +$  feel  @ta
 +$  feels  (map ship (rev (unit feel)))
 ::  $view: the persisted display format for a diary
-+$  view  ?(%grid %list)
++$  view  $~(%list ?(%grid %list))
 ::  $sort: the persisted sort type for a diary
 +$  sort  $~(%time ?(%alpha %time %arranged))
 ::  $arranged-notes: an array of noteIds
