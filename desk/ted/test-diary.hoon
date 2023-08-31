@@ -19,57 +19,50 @@
 ;<  our=ship  bind:m  get-our:s
 =/  =flag:d  [our chan]
 |^
-;<  ~  bind:m  (poke-our:s %hood %kiln-nuke !>([%groups &]))
-;<  ~  bind:m  (sleep:s `@dr`0)
-;<  ~  bind:m  (poke-our:s %hood %kiln-revive !>(%groups))
-;<  ~  bind:m  (sleep:s `@dr`0)
-;<  ~  bind:m
+=/  m  (strand ,vase)
+;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([%groups &]))
+;<  ~  band:m  (poke-our:s %hood %kiln-revive !>(%groups))
+;<  ~  band:m
   =/  m  (strand ,~)
   ?.  verb  (pure:m ~)
-  ;<  ~  bind:m  (poke-our:s %diary %verb !>(%loud))
+  ;<  ~  band:m  (poke-our:s %diary %verb !>(%loud))
   (poke-our:s %diary-server %verb !>(%loud))
-;<  ~  bind:m  (group-create group 'hacking' 'hacked' '' '' [%open ~ ~] ~ |)
-;<  ~  bind:m  (act %create chan [our group] 'hack week' 'hacking all week' ~ ~)
-;<  ~  bind:m  (sleep:s `@dr`0)
+;<  ~  band:m  (group-create group 'hacking' 'hacked' '' '' [%open ~ ~] ~ |)
+;<  ~  band:m  (act %create chan [our group] 'hack week' 'hacking all week' ~ ~)
 ::  make a bunch of posts
 ::
 =|  count=@ud
 |-
-;<  =id-note:d  bind:m  (add-essay count)
+;<  =id-note:d  band:m  (add-essay count)
 ?:  (lth count 30)
   $(count +(count))
 ::  leave a single comment on the last post
 ::
-;<  now=@da  bind:m  get-time:s
+;<  now=@da  band:m  get-time:s
 =/  =memo:d   [[~ 'hacking is bad' ~] our now]
-;<  ~  bind:m  (act %diary [our chan] %note %quip id-note %add memo)
-;<  ~  bind:m  (sleep:s `@dr`0)
+;<  ~  band:m  (act %diary [our chan] %note %quip id-note %add memo)
 ::
 ::  ensure that we've got all the same notes on both sides
 ::
-;<  =notes:d  bind:m  (check-note-count +(count))
-;<  sst=server-state  bind:m  get-diary-state
+;<  =notes:d  band:m  (check-note-count +(count))
+;<  sst=server-state  band:m  get-diary-state
 ?>  (eq !>(notes) !>(notes:(~(got by shelf.sst) flag)))
 ::
 ::  nuke %diary and re-join the channel.  ensure we only got a partial
 ::  checkpoint
 ::
-;<  ~  bind:m  (poke-our:s %hood %kiln-nuke !>([%diary |]))
-;<  ~  bind:m  (sleep:s `@dr`0)
-;<  ~  bind:m  (poke-our:s %hood %kiln-revive !>(%groups))
-;<  ~  bind:m  (sleep:s `@dr`0)
-;<  ~  bind:m  (act %diary flag %join [our group])
-;<  ~  bind:m  (sleep:s `@dr`0)
-;<  *  bind:m  (check-note-count 20)
+;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([%diary |]))
+;<  ~  band:m  (poke-our:s %hood %kiln-revive !>(%groups))
+;<  ~  band:m  (act %diary flag %join [our group])
+;<  *  band:m  (check-note-count 20)
 ::
 ::  post another essay, ensure we got it
 ::
 =.  count  +(count)
-;<  *  bind:m  (add-essay count)
-;<  ~  bind:m  (sleep:s `@dr`0)
-;<  *  bind:m  (check-note-count 21)
+;<  *  band:m  (add-essay count)
+;<  *  band:m  (check-note-count 21)
 ::
-;<  ~  bind:m  test-revs-of-diary
+;<  ~  band:m  test-revs-of-diary
 ::
 (pure:m !>(%success))
 ::
@@ -89,6 +82,22 @@
   ?:  !=(q.a q.b)  &
   %-  (slog 'need different' (sell a) ~)
   |
+::
+++  strand
+  |*  a=mold
+  |%
+  ++  def  (^strand a)
+  ++  form  form:def
+  ++  pure  pure:def
+  ++  bind  bind:def
+  ++  band
+    |*  b=mold
+    =/  m  (strand ,a)
+    |=  [m-b=(strand-form-raw:rand b) fun=$-(b form:m)]
+    ^-  form:m
+    ;<  ~  bind:m  (sleep:s `@dr`0)
+    ((bind:m b) m-b fun)
+  --
 ::
 ++  act
   |=  =a-shelf:d
@@ -111,13 +120,13 @@
 ++  get-diary
   =/  m  (strand ,diary:d)
   ^-  form:m
-  ;<  st=state  bind:m  get-state
+  ;<  st=state  band:m  get-state
   (pure:m (~(got by shelf.st) flag))
 ::
 ++  get-state
   =/  m  (strand ,state)
   ^-  form:m
-  ;<  =bowl:spider  bind:m  get-bowl:s
+  ;<  =bowl:spider  band:m  get-bowl:s
   %-  pure:m
   =<  -
   !<  [state epic:e]
@@ -128,7 +137,7 @@
 ++  get-diary-state
   =/  m  (strand ,server-state)
   ^-  form:m
-  ;<  =bowl:spider  bind:m  get-bowl:s
+  ;<  =bowl:spider  band:m  get-bowl:s
   %-  pure:m
   =<  -
   !<  [server-state epic:e]
@@ -140,7 +149,7 @@
   |=  count=@ud
   =/  m  (strand ,notes:d)
   ^-  form:m
-  ;<  =diary:d  bind:m  get-diary
+  ;<  =diary:d  band:m  get-diary
   ?>  (eq !>(count) !>(~(wyt by notes.diary)))
   (pure:m notes.diary)
 ::
@@ -148,40 +157,42 @@
   |=  count=@ud
   =/  m  (strand ,id-note:d)
   ^-  form:m
-  ;<  ~  bind:m  (sleep:s `@dr`0)
-  ;<  send=@da  bind:m  get-time:s
+  ;<  send=@da  band:m  get-time:s
   =/  =essay:d  [(cat 3 'on hacking #' (scot %ud count)) '' ~ our send]
   ;<  ~  bind:m  (act %diary flag %note %add essay)
   (pure:m send)
 ::
-::  test changing view
+::  test non-note diary commands
 ::
 ++  test-revs-of-diary
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (sleep:s `@dr`0)
-  ;<  now=@da  bind:m  get-time:s
-  ;<  old=diary:d  bind:m  get-diary
+  ;<  ~  band:m  (act %diary flag %add-writers %del-role ~ ~)
+  ::
+  ;<  now=@da  band:m  get-time:s
+  ;<  old=diary:d  band:m  get-diary
   ?>  (neq !>(%grid) !>(view.view.old))
   ?>  (neq !>(%alpha) !>(sort.sort.old))
-  ?>  (neq !>(&) !>((~(has in writers.perm.perm.old) %write-role)))
+  ?>  (neq !>(&) !>((~(has in writers.perm.perm.old) %add-role)))
+  ?>  (neq !>(|) !>((~(has in writers.perm.perm.old) %del-role)))
   ?>  (neq !>(`~[now]) !>(order.order.old))
   ::
-  ;<  ~  bind:m  (act %diary flag %view %grid)
-  ;<  ~  bind:m  (act %diary flag %sort %alpha)
-  ;<  ~  bind:m  (act %diary flag %add-writers %write-role ~ ~)
-  ;<  ~  bind:m  (act %diary flag %order ~ now ~)
-  ;<  ~  bind:m  (sleep:s `@dr`0)
+  ;<  ~  band:m  (act %diary flag %view %grid)
+  ;<  ~  band:m  (act %diary flag %sort %alpha)
+  ;<  ~  band:m  (act %diary flag %add-writers %add-role ~ ~)
+  ;<  ~  band:m  (act %diary flag %del-writers %del-role ~ ~)
+  ;<  ~  band:m  (act %diary flag %order ~ now ~)
   ::
-  ;<  new=diary:d  bind:m  get-diary
+  ;<  new=diary:d  band:m  get-diary
   ?>  (eq !>(%grid) !>(view.view.new))
   ?>  (eq !>(%alpha) !>(sort.sort.new))
-  ?>  (eq !>(&) !>((~(has in writers.perm.perm.new) %write-role)))
+  ?>  (eq !>(&) !>((~(has in writers.perm.perm.new) %add-role)))
+  ?>  (eq !>(|) !>((~(has in writers.perm.perm.new) %del-role)))
   ?>  (eq !>(`~[now]) !>(order.order.new))
   ::
   ?>  (eq !>(+(rev.view.old)) !>(rev.view.new))
   ?>  (eq !>(+(rev.sort.old)) !>(rev.sort.new))
-  ?>  (eq !>(+(rev.perm.old)) !>(rev.perm.new))
+  ?>  (eq !>(+(+(rev.perm.old))) !>(rev.perm.new))
   ?>  (eq !>(+(rev.order.old)) !>(rev.order.new))
   (pure:m ~)
 --
