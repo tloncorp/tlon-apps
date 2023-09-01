@@ -324,7 +324,9 @@
       ==
     =.  di-core  
       =/  =cage  [%channel-update !>([now.bowl %create perm.perm.diary])]
-      (give %fact ~[/[han.nest]/[name.nest]/create] cage)
+      =/  =path  /[han.nest]/[name.nest]/create
+      =.  di-core  (give %fact ~[path] cage)
+      (give %kick ~[path] ~)
     =/  =channel:g
       :-  [title description '' '']:new
       [now.bowl %default | readers.new]

@@ -9,7 +9,7 @@
 ::  - test permissions
 ::
 /-  spider, d=diary, g=groups, e=epic
-/+  s=strandio, dl=diary-load
+/+  s=strandio
 =,  strand=strand:spider
 ^-  thread:spider
 |=  arg=vase
@@ -18,10 +18,10 @@
 =/  verb  (fall !<((unit ?) arg) |)
 =/  group  %hackers
 =/  chan  %hackweek
-=/  app  %diary
+=/  app  %channels
 =/  server  (cat 3 app '-server')
 ;<  our=ship  bind:m  get-our:s
-=/  =flag:d  [our chan]
+=/  =nest:d  [%diary our chan]
 |^
 =/  m  (strand ,vase)
 ;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([%groups &]))
@@ -29,10 +29,11 @@
 ;<  ~  band:m
   =/  m  (strand ,~)
   ?.  verb  (pure:m ~)
-  ;<  ~  band:m  (poke-our:s %diary %verb !>(%loud))
-  (poke-our:s %diary-server %verb !>(%loud))
+  ;<  ~  band:m  (poke-our:s app %verb !>(%loud))
+  (poke-our:s server %verb !>(%loud))
 ;<  ~  band:m  (group-create group 'hacking' 'hacked' '' '' [%open ~ ~] ~ |)
-;<  ~  band:m  (act %create chan [our group] 'hack week' 'hacking all week' ~ ~)
+;<  ~  band:m
+  (act %create %diary chan [our group] 'hack week' 'hacking all week' ~ ~)
 ::  make a bunch of posts
 ::
 =|  count=@ud
@@ -44,20 +45,20 @@
 ::
 ;<  now=@da  band:m  get-time:s
 =/  =memo:d   [[~ 'hacking is bad' ~] our now]
-;<  ~  band:m  (act %diary [our chan] %note %quip id-note %add memo)
+;<  ~  band:m  (act %diary nest %note %quip id-note %add memo)
 ::
 ::  ensure that we've got all the same notes on both sides
 ::
 ;<  =notes:d  band:m  (check-note-count +(count))
-;<  sst=server-state  band:m  get-diary-state
-?>  (eq !>(notes) !>(notes:(~(got by shelf.sst) flag)))
+;<  sst=server-state  band:m  get-server-state
+?>  (eq !>(notes) !>(notes:(~(got by shelf.sst) nest)))
 ::
 ::  nuke %diary and re-join the channel.  ensure we only got a partial
 ::  checkpoint
 ::
-;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([%diary |]))
+;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([app |]))
 ;<  ~  band:m  (poke-our:s %hood %kiln-revive !>(%groups))
-;<  ~  band:m  (act %diary flag %join [our group])
+;<  ~  band:m  (act %diary nest %join [our group])
 ;<  *  band:m  (check-note-count 20)
 ::
 ::  post another essay, ensure we got it
@@ -71,7 +72,7 @@
 ::
 (pure:m !>(%success))
 ::
-++  state         state-2:dl
++$  state         [%0 =shelf:d voc=(map [nest:d plan:d] (unit said:d))]
 +$  server-state  [%0 =shelf:d]
 ::
 ++  eq
@@ -108,7 +109,7 @@
   |=  =a-shelf:d
   =/  m  (strand ,~)
   ^-  form:m
-  (poke-our:s app (cat 3 app '-action') !>(a-shelf))
+  (poke-our:s app %channel-action !>(a-shelf))
 ::
 ++  group-create
   |=  =create:g
@@ -126,7 +127,7 @@
   =/  m  (strand ,diary:d)
   ^-  form:m
   ;<  st=state  band:m  get-state
-  (pure:m (~(got by shelf.st) flag))
+  (pure:m (~(got by shelf.st) nest))
 ::
 ++  get-state
   =/  m  (strand ,state)
@@ -136,10 +137,10 @@
   =<  -
   !<  [state epic:e]
   .^  vase
-      /gx/(scot %p our.bowl)/diary/(scot %da now.bowl)/dbug/state/noun
+      /gx/(scot %p our.bowl)/[app]/(scot %da now.bowl)/dbug/state/noun
   ==
 ::
-++  get-diary-state
+++  get-server-state
   =/  m  (strand ,server-state)
   ^-  form:m
   ;<  =bowl:spider  band:m  get-bowl:s
@@ -147,7 +148,7 @@
   =<  -
   !<  [server-state epic:e]
   .^  vase
-      /gx/(scot %p our.bowl)/diary-server/(scot %da now.bowl)/dbug/state/noun
+      /gx/(scot %p our.bowl)/[server]/(scot %da now.bowl)/dbug/state/noun
   ==
 ::
 ++  check-note-count
@@ -163,8 +164,8 @@
   =/  m  (strand ,id-note:d)
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
-  =/  =essay:d  [(cat 3 'on hacking #' (scot %ud count)) '' ~ our send]
-  ;<  ~  bind:m  (act %diary flag %note %add essay)
+  =/  =essay:d  [~ our send %diary (cat 3 'on hacking #' (scot %ud count)) '']
+  ;<  ~  bind:m  (act %diary nest %note %add essay)
   (pure:m send)
 ::
 ++  add-quip
@@ -173,7 +174,7 @@
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
   =/  =memo:d  [[~ ~[text]] our send]
-  ;<  ~  bind:m  (act %diary flag %note %quip id-note %add memo)
+  ;<  ~  bind:m  (act %diary nest %note %quip id-note %add memo)
   (pure:m send)
 ::
 ::  test non-note diary commands
@@ -181,7 +182,7 @@
 ++  test-c-diary
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  band:m  (act %diary flag %add-writers %del-role ~ ~)
+  ;<  ~  band:m  (act %diary nest %add-writers %del-role ~ ~)
   ::
   ;<  now=@da  band:m  get-time:s
   ;<  old=diary:d  band:m  get-diary
@@ -191,11 +192,11 @@
   ?>  (neq !>(|) !>((~(has in writers.perm.perm.old) %del-role)))
   ?>  (neq !>(`~[now]) !>(order.order.old))
   ::
-  ;<  ~  band:m  (act %diary flag %view %grid)
-  ;<  ~  band:m  (act %diary flag %sort %alpha)
-  ;<  ~  band:m  (act %diary flag %add-writers %add-role ~ ~)
-  ;<  ~  band:m  (act %diary flag %del-writers %del-role ~ ~)
-  ;<  ~  band:m  (act %diary flag %order ~ now ~)
+  ;<  ~  band:m  (act %diary nest %view %grid)
+  ;<  ~  band:m  (act %diary nest %sort %alpha)
+  ;<  ~  band:m  (act %diary nest %add-writers %add-role ~ ~)
+  ;<  ~  band:m  (act %diary nest %del-writers %del-role ~ ~)
+  ;<  ~  band:m  (act %diary nest %order ~ now ~)
   ::
   ;<  new=diary:d  band:m  get-diary
   ?>  (eq !>(%grid) !>(view.view.new))
@@ -222,22 +223,22 @@
   ?>  (eq !>(+(count)) !>(~(wyt by notes.new)))
   ?>  (eq !>(&) !>((has:on-notes:d notes.new id)))
   ::
-  ;<  ~  band:m  (act %diary flag %note %edit id ['yes' '' ~ our id])
+  ;<  ~  band:m  (act %diary nest %note %edit id [~ our id %diary 'yes' ''])
   ;<  new=note:d  band:m  (get-note id)
-  ?>  (eq !>('yes') !>(title.new))
+  ?>  (eq !>([%diary 'yes' '']) !>(han-data.new))
   ::
   ?>  (eq !>(~) !>(feels.new))
-  ;<  ~  band:m  (act %diary flag %note %add-feel id our ':smile:')
+  ;<  ~  band:m  (act %diary nest %note %add-feel id our ':smile:')
   ;<  new=note:d  band:m  (get-note id)
   =/  feel  (~(got by feels.new) our)
   ?>  (eq !>([0 `':smile:']) !>(feel))
   ::
-  ;<  ~  band:m  (act %diary flag %note %del-feel id our)
+  ;<  ~  band:m  (act %diary nest %note %del-feel id our)
   ;<  new=note:d  band:m  (get-note id)
   =/  feel  (~(got by feels.new) our)
   ?>  (eq !>([1 ~]) !>(feel))
   ::
-  ;<  ~  band:m  (act %diary flag %note %del id)
+  ;<  ~  band:m  (act %diary nest %note %del id)
   ;<  new=diary:d  band:m  get-diary
   ?>  (eq !>(~) !>((got:on-notes:d notes.new id)))
   ::
@@ -260,17 +261,17 @@
   ;<  =quip:d  band:m  (get-quip id-note id)
   ?>  (eq !>([~ ~['hi']]) !>(content.quip))
   ::
-  ;<  ~  band:m  (act %diary flag %note %quip id-note %add-feel id our ':smile:')
+  ;<  ~  band:m  (act %diary nest %note %quip id-note %add-feel id our ':smile:')
   ;<  new=quip:d  band:m  (get-quip id-note id)
   =/  feel  (~(got by feels.quip) our)
   ?>  (eq !>([0 `':smile:']) !>(feel))
   ::
-  ;<  ~  band:m  (act %diary flag %note %quip id-note %del-feel id our)
+  ;<  ~  band:m  (act %diary nest %note %quip id-note %del-feel id our)
   ;<  new=quip:d  band:m  (get-quip id-note id)
   =/  feel  (~(got by feels.quip) our)
   ?>  (eq !>([1 ~]) !>(feel))
   ::
-  ;<  ~  band:m  (act %diary flag %note %quip id-note %del id)
+  ;<  ~  band:m  (act %diary nest %note %quip id-note %del id)
   ;<  =note:d  band:m  (get-note id-note)
   ?>  (eq !>(~) !>((got:on-quips:d quips.note id)))
   ::

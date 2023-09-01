@@ -179,7 +179,7 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
-      %diary-action
+      %channel-action
     =+  !<(=a-shelf:d vase)
     ?:  ?=(%create -.a-shelf)
       di-abet:(di-create:di-core create-diary.a-shelf)
@@ -400,9 +400,9 @@
     =.  diary  *diary:d
     =.  group.perm.perm.diary  group.create
     =.  last-read.remark.diary  now.bowl
+    =.  saga.net.diary  chi+~
     =/  =cage  [%channel-command !>([%create create])]
     (emit %pass (weld di-area /create) %agent [our.bowl server] %poke cage)
-  ::
   ::
   ::  handle joining a channel
   ::
@@ -414,6 +414,7 @@
     =.  diary  *diary:d
     =.  group.perm.perm.diary  group
     =.  last-read.remark.diary  now.bowl
+    =?  saga.net.diary  =(our.bowl ship.nest)  chi+~
     =.  di-core  di-give-brief
     =.  di-core  (di-response %join group)
     =.  di-core
@@ -462,7 +463,7 @@
     ?>  ?=(%diary -.command)
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
-      ~|("%diary-action poke failed: only allowed from self" !!)
+      ~|("%channel-action poke failed: only allowed from self" !!)
     =/  =cage  [%channel-command !>(command)]
     (emit %pass di-area %agent [ship.nest.command server] %poke cage)
   ::
@@ -531,9 +532,9 @@
     ?^  notes.diary  di-start-updates
     =.  load.net.diary  |
     %^  safe-watch  (weld di-area /checkpoint)  [ship.nest server]
-    ?.  =(our.bowl ship.nest)
+    :: ?.  =(our.bowl ship.nest)  :: XX restore
       /[han.nest]/[name.nest]/checkpoint/before/20
-    /[han.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
+    :: /[han.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
   ::
   ++  di-start-updates
     ::  not most optimal time, should maintain last heard time instead
@@ -577,6 +578,8 @@
       =+  !<(=update:d q.cage)
       =.  di-core  (di-u-shelf update)
       =.  di-core  di-give-brief
+      =.  di-core
+        (emit %pass (weld di-area /create) %agent [ship.nest server] %leave ~)
       di-safe-sub
     ==
   ::
