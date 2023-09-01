@@ -9,4 +9,5 @@
     %grouper
     ::%groups-ui
     %channels
+    %channels-server
 ==

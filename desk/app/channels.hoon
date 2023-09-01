@@ -1,5 +1,6 @@
 ::  TODO: refactor initial subscription to actually fetch by notes
 ::  TODO: listen to groups to join channel
+::  TODO: migrate data from diary, heap
 ::
 /-  d=diary, g=groups, ha=hark
 /-  meta
@@ -235,8 +236,8 @@
     =.  cor  (give %fact ~[wire] cage.sign)
     =.  cor  (give %kick ~[wire] ~)
     ?+    p.cage.sign  ~|(funny-mark+p.cage.sign !!)
-        %diary-denied  cor(voc (~(put by voc) [nest plan] ~))
-        %diary-said
+        %channel-denied  cor(voc (~(put by voc) [nest plan] ~))
+        %channel-said
       =+  !<(=said:d q.cage.sign)
       cor(voc (~(put by voc) [nest plan] `said))
     ==
@@ -373,6 +374,7 @@
   ++  emil  |=(caz=(list card) di-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall di-core(cor (^give gift)))
   ++  safe-watch  |=([=wire =dock =path] di-core(cor (^safe-watch +<)))
+  ++  di-perms  ~(. perms:libnotes our.bowl now.bowl nest group.perm.perm.diary)
   ++  di-abet
     %_    cor
         shelf
@@ -471,8 +473,8 @@
     ^+  di-core
     =.  di-core
       %^  give  %fact  ~
-      ?.  (di-can-read src.bowl)
-        diary-denied+!>(~)
+      ?.  (can-read:di-perms src.bowl)
+        channel-denied+!>(~)
       (said:libnotes nest plan notes.diary)
     (give %kick ~ ~)
   ::
@@ -1081,49 +1083,12 @@
   ++  di-recheck
     |=  sects=(set sect:g)
     ::  if our read permissions restored, re-subscribe
-    ?:  (di-can-read our.bowl)  di-safe-sub
+    ?:  (can-read:di-perms our.bowl)  di-safe-sub
     di-core
-  ::
-  ::  scry from groups
-  ::
-  ++  di-groups-scry
-    ^-  path
-    =*  group  group.perm.perm.diary
-    :-  (scot %p our.bowl)
-    /groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
   ::  assorted helpers
   ::
-  ++  di-from-admin
-    ?:  =(ship.nest src.bowl)  &
-    .^  admin=?
-    ;:  weld
-        /gx
-        di-groups-scry
-        /channel/[han.nest]/(scot %p ship.nest)/[name.nest]
-        /fleet/(scot %p src.bowl)/is-bloc/loob
-    ==  ==
-  ::
   ++  di-from-host  |(=(ship.nest src.bowl) =(p.group.perm.perm.diary src.bowl))
-  ++  di-can-write
-    ?:  =(ship.nest src.bowl)  &
-    =/  =path
-      %+  welp  di-groups-scry
-      :+  %channel  han.nest
-      /(scot %p ship.nest)/[name.nest]/can-write/(scot %p src.bowl)/noun
-    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
-    ?~  write  |
-    =/  perms  (need write)
-    ?:  |(bloc.perms =(~ writers.perm.perm.diary))  &
-    !=(~ (~(int in writers.perm.perm.diary) sects.perms))
-  ::
-  ++  di-can-read
-    |=  her=ship
-    =/  =path
-      %+  welp  di-groups-scry
-      :+  %channel  han.nest
-      /(scot %p ship.nest)/[name.nest]/can-read/(scot %p her)/loob
-    .^(? %gx path)
   ::
   ::  leave the subscription only
   ::
