@@ -16,7 +16,7 @@
   +$  card  card:agent:gall
   +$  han  ?(%diary %heap)
   +$  current-state
-    $:  %2
+    $:  %0
         =shelf:d
         =stash:h
         vod=(map [flag:d plan:d] (unit said:d))
@@ -122,7 +122,7 @@
         ?.  =(%channel-server dude)  |
         ?.  =((scot %p ship) i.t.wire)  |
         =*  qflag  i.t.t.wire
-        ?+    i.wire  |
+        ?-    i.wire
             %diary
           ?~  diary=(~(get by shelf) ship qflag)  |
           ?.  ?=(%chi -.saga.net.u.diary)  |
@@ -140,7 +140,7 @@
         ?.  =(%channel-server dude)  |
         ?.  =((scot %p ship) i.t.wire)  |
         =*  qflag  i.t.t.wire
-        ?+    i.wire  |
+        ?-    i.wire
             %diary
           ?~  diary=(~(get by shelf) ship qflag)  |
           ?.  ?=(%chi -.saga.net.u.diary)  |
@@ -154,7 +154,7 @@
           =(qflag i.t.path)
         ==
       ::
-          [%said @ @ han @ rest=*]
+          [%said @ @ han @ *]
         ?.  =(%channel-server dude)  |       :: maybe %diary ?
         ?.  =((scot %p ship) i.t.wire)  |  :: ?
         =*  qflag  i.t.t.wire
@@ -174,7 +174,7 @@
             %heap
           ?.  ?=([@ ~] rest)  |
           ?~  id=(slaw %ud i.rest)  |
-          (~(has by voh) [ship qflag] id)
+          (~(has by voh) [ship qflag] u.id)
         ==
       ==
     ?:  keep  cor
@@ -220,10 +220,6 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
-      %channel-join
-    =+  !<([group=flag:g chan=flag:g] vase)
-    $(mark %diary-action, vase !>([chan %join group]))
-  ::
       %diary-action
     =+  !<(=a-shelf:d vase)
     ?:  ?=(%create -.a-shelf)
@@ -254,7 +250,7 @@
       [%said host=@ name=@ =han rest=*]
     =/  host=ship   (slav %p host.pole)
     =/  =flag:d     [host name.pole]
-    (watch-said han.pole flag)
+    (watch-said han.pole flag rest.pole)
   ==
 ::
 ++  watch-said
@@ -271,7 +267,7 @@
   ::
       %heap
     ?.  ?=([time=@ ~] pole)  cor
-    =/  =id-curio:h  (slav %ud time)
+    =/  =id-curio:h  (slav %ud time.pole)
     ?.  (~(has by stash) flag)
       =/  wire  (said-wire-heap flag id-curio)
       (safe-watch wire [p.flag server] wire)
@@ -286,7 +282,7 @@
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  said-wire-heap
-  |=  [=flag:d =id-curio:d]
+  |=  [=flag:d =id-curio:h]
   ^-  wire
   /said/(scot %p p.flag)/[q.flag]/heap/(scot %ud id-curio)
 ::
@@ -308,7 +304,7 @@
         %kick
       ?:  (~(has by vod) flag plan)
         cor  :: subscription ended politely
-      (give %kick ~[(said-wire-diary han flag plan)] ~)
+      (give %kick ~[(said-wire-diary flag plan)] ~)
     ::
         %fact
       =.  cor  (give %fact ~[wire] cage.sign)
@@ -323,13 +319,13 @@
   ::
       %heap
     ?.  ?=([time=@ ~] pole)  cor
-    =/  =id-curio:h  (slav %ud time)
+    =/  =id-curio:h  (slav %ud time.pole)
     =/  =wire  (said-wire-heap flag id-curio)
     ?-    -.sign
         %kick
       ?:  (~(has by voh) [flag id-curio])
         cor  :: subscription ended politely
-      (give %kick ~[(said-wire-heap han flag id-curio)] ~)
+      (give %kick ~[(said-wire-heap flag id-curio)] ~)
     ::
         %fact
       =.  cor  (give %fact ~[wire] cage.sign)
@@ -366,7 +362,7 @@
       [%said host=@ name=@ =han rest=*]
     =/  host=ship   (slav %p host.pole)
     =/  =flag:d     [host name.pole]
-    (take-said han.pole flag plan rest.pole sign)
+    (take-said han.pole flag rest.pole sign)
   ::
       [%groups ~]
     ?+    -.sign  !!
@@ -396,13 +392,13 @@
   |-
   ?^  diaries
     ?.  =(p.flag.i.diaries her)  $(diaries t.diaries)
-    [`saga.net.diary.i.diaries di-core]
+    [`saga.net.diary.i.diaries cor]
+  =/  heaps=(list [=flag:h =heap:h])  ~(tap by stash)
   |-
-  =/  heaps=(list [=flag:h =heap:d])  ~(tap by shelf)
   ?^  heaps
     ?.  =(p.flag.i.heaps her)  $(heaps t.heaps)
-    [`saga.net.heap.i.heaps di-core]
-  (watch-epic her)
+    [`saga.net.heap.i.heaps cor]
+  `(watch-epic her)
 ::
 ++  take-epic
   |=  =sign:agent:gall
@@ -423,7 +419,7 @@
     ::
     =.  cor
       %+  roll  ~(tap by stash)
-      |=  [[=flag:g =heap:d] out=_cor]
+      |=  [[=flag:g =heap:h] out=_cor]
       ?.  =(src.bowl p.flag)  out
       he-abet:(he-take-epic:(he-abed:he-core:out flag) epic)
     ::
@@ -438,13 +434,13 @@
 ++  take-groups
   |=  =action:g
   =/  affected=(list [han flag:d])
-    %+  weld
+    %+  welp
       %+  murn  ~(tap by shelf)
       |=  [=flag:d =diary:d]
       ?.  =(p.action group.perm.perm.diary)  ~
       `[%diary flag]
     %+  murn  ~(tap by stash)
-    |=  [=flag:d =heap:d]
+    |=  [=flag:h =heap:h]
     ?.  =(p.action group.perm.perm.heap)  ~
     `[%heap flag]
   ::
@@ -476,9 +472,9 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %shelf ~]  ``shelf+!>((di-rr-shelf:di-core shelf))
-      [%x %init ~]   ``noun+!>([briefs (di-rr-shelf:di-core shelf)])
-      [%x %diary %briefs ~]  ``diary-briefs+!>(briefs)
+      [%x %diary %shelf ~]  ``shelf+!>((di-rr-shelf:di-core shelf))
+      [%x %diary %init ~]    ``noun+!>([diary-briefs (di-rr-shelf:di-core shelf)])
+      [%x %diary %briefs ~]  ``diary-briefs+!>(diary-briefs)
       [%x %diary ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     (di-peek:(di-abed:di-core ship name.pole) rest.pole)
@@ -487,6 +483,8 @@
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by shelf) [ship name.pole]))
   ::
+      [%x %heap %stash ~]   ``stash+!>((he-rr-stash:he-core stash))
+      [%x %heap %init ~]    ``noun+!>([heap-briefs (he-rr-stash:he-core stash)])
       [%x %heap %briefs ~]  ``heap-briefs+!>(heap-briefs)
       [%x %heap ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -1079,24 +1077,24 @@
   ::
   ++  di-brief
     ^-  brief:d
-    =/  =time
-      ?~  tim=(ram:on-notes:d notes.diary)  *time
+    =/  =id-note:d
+      ?~  tim=(ram:on-notes:d notes.diary)  *id-note:d
       key.u.tim
     =/  unreads
       (lot:on-notes:d notes.diary `last-read.remark.diary ~)
-    =/  read-id=(unit ^time)
+    =/  read-id=(unit id-note:d)
       =/  pried  (pry:on-notes:d unreads)
       ?~  pried  ~
-      ?~  val.u.pried  ~
+      ?~  val.u.pried  ~  ::  should check next note?
       `id.u.val.u.pried
     =/  count
       %-  lent
       %+  skim  ~(tap by unreads)
-      |=  [tim=^time note=(unit note:d)]
+      |=  [=id-note:d note=(unit note:d)]
       ?&  ?=(^ note)
           !=(author.u.note our.bowl)
       ==
-    [time count read-id]
+    [id-note count read-id]
   ::
   ::  handle scries
   ::
@@ -1251,7 +1249,6 @@
   ++  he-area  `path`/heap/(scot %p p.flag)/[q.flag]
   ++  he-sub-wire  `path`/heap/(scot %p p.flag)/[q.flag]/updates
   ++  he-give-brief
-    |=  =flag:h
     (give %fact ~[/briefs] heap-brief-update+!>([flag he-brief]))
   ::
   ++  he-response
@@ -1278,23 +1275,23 @@
     =.  heap  *heap:h
     =.  group.perm.perm.heap  group
     =.  last-read.remark.heap  now.bowl
-    =.  he-core  (he-give-brief flag he-brief)
+    =.  he-core  he-give-brief
     =.  he-core  (he-response %join group)
     =^  sag=(unit saga:e)  cor  (safe-watch-epic p.flag)
     =?  saga.net.heap  ?=(^ sag)  u.sag
     he-safe-sub
   ::
   ++  he-a-heap
-    |=  =a-heap:d
+    |=  =a-heap:h
     ?>  from-self
-    ?+  -.a-heap  (he-send-command %heap flag a-heap)
+    ?+  -.a-heap  (he-send-command a-heap)
       %join   !!  ::  handled elsewhere
       %leave  he-leave
       ?(%read %read-at %watch %unwatch)  (he-a-remark a-heap)
     ==
   ::
   ++  he-a-remark
-    |=  a-remark:j
+    |=  =a-remark:j
     ^+  he-core
     =.  he-core
       (give %fact ~[(snoc he-area %ui)] heap-response+!>([flag a-remark]))
@@ -1324,7 +1321,7 @@
     =.  he-core
       %^  give  %fact  ~
       ?.  (he-can-read src.bowl)  heap-denied+!>(~)
-      (heap-said:libserver flag plan curios.heap)
+      (heap-said:libserver flag id-curio curios.heap)
     (give %kick ~ ~)
   ::
   ++  he-upgrade
@@ -1416,7 +1413,7 @@
       ?.  =(%heap-update p.cage)
         ~|(heap-strange-fact+p.cage !!)
       =+  !<(=update:h q.cage)
-      =.  he-core  (he-u-shelf update)
+      =.  he-core  (he-u-stash update)
       =.  he-core  he-give-brief
       he-safe-sub
     ==
@@ -1605,9 +1602,9 @@
     replied.curio
   ::
   ++  he-rr-curio-list
-    |=  curios=(list curio:h)
-    ^-  curios:h
-    %+  gas:on-curios:h  *curios:h
+    |=  curios=(list [id-curio:h (unit curio:h)])
+    ^-  rr-curios:h
+    %+  gas:rr-on-curios:h  *rr-curios:h
     %+  turn  curios
     |=  [=id-curio:h curio=(unit curio:h)]
     [id-curio (bind curio he-rr-curio)]
@@ -1671,19 +1668,24 @@
   ::
   ++  he-brief
     ^-  brief:h
-    =/  =time
-      ?~  tim=(ram:on:curios:h cur)  *time
+    =/  =id-curio:h
+      ?~  tim=(ram:on-curios:h curios.heap)  *id-curio:h
       key.u.tim
     =/  unreads
-      (lot:on:curios:h cur `last-read.remark.heap ~)
-    =/  read-id=(unit ^time)
-      (bind (pry:on:curios:h unreads) |=([key=@da val=curio:h] time.val))
+      (lot:on-curios:h curios.heap `last-read.remark.heap ~)
+    =/  read-id=(unit id-curio:h)
+      =/  pried  (pry:on-curios:h unreads)
+      ?~  pried  ~
+      ?~  val.u.pried  ~  ::  should check next note?
+      `id.u.val.u.pried
     =/  count
       %-  lent
       %+  skim  ~(tap by unreads)
-      |=  [tim=^time =curio:h]
-      !=(author.curio our.bowl)
-    [time count read-id]
+      |=  [=id-curio:h curio=(unit curio:h)]
+      ?&  ?=(^ curio)
+          !=(author.u.curio our.bowl)
+      ==
+    [id-curio count read-id]
   ::
   ++  he-peek
     |=  =(pole knot)
@@ -1691,58 +1693,6 @@
     ?+  pole  [~ ~]
         [%curios rest=*]  (he-peek-curios rest.pole)
         [%perm ~]         ``heap-perm+!>(perm.perm.heap)
-    ==
-  ::
-  ++  peek-curios
-    |=  =(pole knot)
-    ^-  (unit (unit cage))
-    =*  on   on:curios:h
-    ?+    pole  [~ ~]
-    ::
-        [%newest count=@ ~]
-      =/  count  (slav %ud count.pole)
-      ``heap-curios+!>((gas:on *curios:h (top:mope cur count)))
-    ::
-        [%newest count=@ %blocks ~]
-      =/  count  (slav %ud count.pole)
-      ``heap-curios+!>((gas:on *curios:h (top:mope blocks-only count)))
-    ::
-        [%older start=@ count=@ ~]
-      =/  count  (slav %ud count.pole)
-      =/  start  (slav %ud start.pole)
-      ``heap-curios+!>((gas:on *curios:h (bat:mope cur `start count)))
-    ::
-        [%older start=@ count=@ %blocks ~]
-      =/  count  (slav %ud count.pole)
-      =/  start  (slav %ud start.pole)
-      ``heap-curios+!>((gas:on *curios:h (bat:mope blocks-only `start count)))
-    ::
-        [%newer start=@ count=@ ~]
-      =/  count  (slav %ud count.pole)
-      =/  start  (slav %ud start.pole)
-      ``heap-curios+!>((gas:on *curios:h (tab:on cur `start count)))
-    ::
-        [%newer start=@ count=@ %blocks ~]
-      =/  count  (slav %ud count.pole)
-      =/  start  (slav %ud start.pole)
-      ``heap-curios+!>((gas:on *curios:h (tab:on blocks-only `start count)))
-    ::
-        [%curio %id time=@ %full ~]
-      =/  time          (slav %ud time.pole)
-      =/  [* =curio:h]  (got time)
-      =-  ``heap-curios+!>(-)
-      %+  gas:on  *curios:h
-      %+  welp
-        ~[[time curio]]
-      %+  murn
-        ~(tap in replied.curio)
-      |=  t=^time
-      (get t)
-    ::
-        [%curio %id time=@ ~]
-      ~&  time
-      =/  time  (slav %ud time.pole)
-      ``curio+!>(+:(got `@da`time))
     ==
   ::
   ++  he-peek-curios
@@ -1773,43 +1723,45 @@
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``heap-curios+!>((he-rr-curio-list (tab:mo curios.heap `start count)))
+      ``heap-curios+!>((he-rr-curio-list (tab:on curios.heap `start count)))
     ::
         [%newer start=@ count=@ %blocks ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``heap-curios+!>((he-rr-curio-list (tab:mo blocks-only `start count)))
+      ``heap-curios+!>((he-rr-curio-list (tab:on blocks-only `start count)))
     ::
         [%curio %id time=@ %full ~]
       =/  =id-curio:h  (slav %ud time.pole)
-      =/  curio  (get:on id-curio)
+      =/  curio  (get:on curios.heap id-curio)
       ?~  curio  ~
       ?~  u.curio  `~
       =-  ``heap-curios+!>(-)
       %-  he-rr-curio-list
       %+  welp
-        ~[[id-curio u.u.curio]]
+        ~[[id-curio `u.u.curio]]
       %+  murn
-        ~(tap in replied.curio)
+        ~(tap in replied.u.u.curio)
       |=  i=id-curio:h
-      =/  c  (get:on i)
+      ^-  (unit [id-curio:h (unit curio:h)])
+      =/  c  (get:on curios.heap i)
       ?~  c  ~
       ?~  u.c  ~
-      (some u.u.c)
+      (some [id-curio `u.u.c])
     ::
         [%curio %id time=@ ~]
       =/  =id-curio:h  (slav %ud time.pole)
-      ``curio+!>((need (need (get:on id-curio))))
+      ``curio+!>((need (need (get:on curios.heap id-curio))))
     ==
     ::
     ++  blocks-only
       ^-  curios:h
       =-  +:-
-      %^  (dip:on-curios:h @)  cur  ~
-      |=  [st=@ =time =curio:h]
+      %^  (dip:on-curios:h @)  curios.heap  ~
+      |=  [st=@ =time curio=(unit curio:h)]
       :_  [%.n st]
-      ?^  replying.curio  ~
-      `curio
+      ?~  curio  ~
+      ?^  replying.u.curio  ~
+      ``u.curio
     --
   ::
   ++  he-recheck

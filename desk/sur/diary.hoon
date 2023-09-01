@@ -202,7 +202,7 @@
 ::
 ::  $net: subscriber-only state
 ::
-+$  net  [load=_| =saga:e]
++$  net  [p=ship load=_| =saga:e]
 ::
 ::  $briefs: a map of diary unread information
 ::

@@ -888,8 +888,18 @@
           nests
       |=  nes=nest:g
       ^-  card
-      =/  =dock  [our.bowl p.nes]
-      =/  =cage  channel-join+!>([flag q.nes])
+      ?:  ?=(%chat p.nes)
+        =/  =dock  [our.bowl p.nes]
+        =/  =cage  channel-join+!>([flag q.nes])
+        =/  =wire  (snoc go-area %join-channels)
+        [%pass wire %agent dock %poke cage]
+      =/  =dock  [our.bowl %channels]
+      =/  =vase
+        ?+  p.nes  !!
+          %diary  !>([%diary flag q.nes])
+          %heap   !>([%heap flag q.nes])
+        ==
+      =/  =cage  [(cat 3 p.nes '-action') vase]
       =/  =wire  (snoc go-area %join-channels)
       [%pass wire %agent dock %poke cage]
     --

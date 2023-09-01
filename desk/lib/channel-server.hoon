@@ -33,9 +33,9 @@
   =/  curio=(unit (unit curio:h))  (get:on-curios:h curios id-curio)
   =/  =curio:h
     ?~  curio
-      [*seal:h `'Unkonwn link' [~ ~] ~nul *@da ~]
+      [*seal:h 0 `'Unkonwn link' [~ ~] ~nul *@da ~]
     ?~  u.curio
-      [*seal:h `'This link was deleted' [~ ~] ~nul *@da ~]
+      [*seal:h 0 `'This link was deleted' [~ ~] ~nul *@da ~]
     u.u.curio
   [%diary-said !>(`said:h`[flag curio])]
 --

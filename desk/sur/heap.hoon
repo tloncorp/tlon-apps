@@ -42,11 +42,11 @@
   --
 ::  $curio: an item in the collection or a comment about an item
 ::
-+$  curio      [seal heart]
++$  curio      [seal (rev:j heart)]
 +$  id-curio   time
 +$  curios     ((mop id-curio (unit curio)) lte)
 ++  on-curios  ((on id-curio (unit curio)) lte)
-++  mo-notes   ((mp id-curio (unit curio)) lte)
+++  mo-curios  ((mp id-curio (unit curio)) lte)
 ::
 ::  $seal: the id of a curio and its meta-responses
 ::
@@ -206,7 +206,7 @@
 ::
 +|  %updates
 ::
-+$  update   [=time =u-stash]
++$  update   [=time =u-heap]
 +$  u-stash  [=flag =u-heap]
 +$  u-heap
   $%  [%create =perm]
