@@ -381,7 +381,7 @@
   di-brief:(di-abed:di-core flag)
 ::
 ++  give-brief
-  |=  [=flag:d =brief:briefs:d]
+  |=  [=flag:d =brief:d]
   (give %fact ~[/briefs] diary-brief-update+!>([flag brief]))
 ::
 ++  pass-hark
@@ -998,7 +998,7 @@
   ::  produce an up-to-date brief
   ::
   ++  di-brief
-    ^-  brief:briefs:d
+    ^-  brief:d
     =/  =time
       ?~  tim=(ram:on-notes:d notes.diary)  *time
       key.u.tim

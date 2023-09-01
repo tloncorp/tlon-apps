@@ -1,11 +1,12 @@
 :~  %groups
     %chat
     %contacts
-    %heap
-    %diary
-    %diary-server
+    ::%heap
+    ::%diary
+    ::%diary-server
     %hark
     %notify
     %grouper
-    %groups-ui
+    ::%groups-ui
+    %channels
 ==

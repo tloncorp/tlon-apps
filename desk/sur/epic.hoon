@@ -5,6 +5,7 @@
 ::    %chi: full sync
 ::
 +$  saga
+  $~  [%lev ~]
   $%  [%dex ver=@ud]
       [%lev ~]
       [%chi ~]

@@ -1,4 +1,4 @@
-/-  d=diary
+/-  j=joint, d=diary
 /-  meta
 /+  cite=cite-json, gj=groups-json
 |%
@@ -158,11 +158,11 @@
     (saga:enjs:gj saga.n)
   ::
   ++  feels
-    |=  feels=(map ship:..zuse feel:d)
+    |=  feels=(map ship:..zuse feel:j)
     ^-  json
     %-  pairs
     %+  turn  ~(tap by feels)
-    |=  [her=@p =feel:d]
+    |=  [her=@p =feel:j]
     [(scot %p her) s+feel]
   ::
   ++  essay
@@ -282,7 +282,7 @@
     [(rap 3 (scot %p p.f) '/' q.f ~) (brief b)]
   ::
   ++  brief-update
-    |=  u=update:briefs:d
+    |=  u=(pair flag:d brief:d)
     %-  pairs
     :~  flag/(flag p.u)
         brief/(brief q.u)

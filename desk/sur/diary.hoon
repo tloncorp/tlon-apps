@@ -15,7 +15,7 @@
 ::    commands _may_ become updates,
 ::    updates _may_ become responses.
 ::
-/-  g=groups, c=cite, e=epic
+/-  g=groups, c=cite, e=epic, j=joint
 /-  zer=diary-0, uno=diary-1
 /+  mp=mop-extensions
 |%
@@ -46,10 +46,10 @@
   ::
   +$  global
     $:  =notes
-        order=(rev order=arranged-notes)
-        view=(rev =view)
-        sort=(rev =sort)
-        perm=(rev =perm)
+        order=(rev:j order=arranged-notes)
+        view=(rev:j =view)
+        sort=(rev:j =sort)
+        perm=(rev:j =perm)
     ==
   ::  $window: sparse set of time ranges
   ::
@@ -72,11 +72,11 @@
   --
 ::  $note: a diary post
 ::
-+$  note      [seal (rev essay)]
++$  note      [seal (rev:j essay)]
 +$  id-note   time
 +$  notes     ((mop id-note (unit note)) lte)
 ++  on-notes  ((on id-note (unit note)) lte)
-++  mo-notes  ((mp time (unit note)) lte)
+++  mo-notes  ((mp id-note (unit note)) lte)
 ::  $quip: a post comment
 ::
 +$  quip      [cork memo]
@@ -89,13 +89,13 @@
 +$  seal  $+  diary-seal
   $:  id=id-note
       =quips
-      =feels
+      =feels:j
   ==
 ::  $cork: host-side data for a quip
 ::
 +$  cork
   $:  id=id-quip
-      =feels
+      =feels:j
   ==
 ::  $essay: the post data itself
 ::
@@ -185,9 +185,6 @@
 ::
 ::  $flag: identifier for a diary channel
 +$  flag  (pair ship term)
-::  $feel: either an emoji identifier like :diff or a URL for custom
-+$  feel  @ta
-+$  feels  (map ship (rev (unit feel)))
 ::  $view: the persisted display format for a diary
 +$  view  $~(%list ?(%grid %list))
 ::  $sort: the persisted sort type for a diary
@@ -205,27 +202,18 @@
 ::
 ::  $net: subscriber-only state
 ::
-+$  net  [p=ship load=_| =saga:e]
++$  net  [load=_| =saga:e]
 ::
 ::  $briefs: a map of diary unread information
 ::
 ::    brief: the last time a diary was read, how many posts since,
 ::    and the id of the last read note
 ::
-++  briefs
-  =<  briefs
-  |%
-  +$  briefs
-    (map flag brief)
-  +$  brief
-    [last=time count=@ud read-id=(unit time)]
-  +$  update
-    (pair flag brief)
-  --
++$  briefs  (map flag brief)
++$  brief   [last=time count=@ud read-id=(unit time)]
 ::  $remark: a marker representing the last note I've read
 ::
-+$  remark
-  [last-read=time watching=_| ~]
++$  remark  [last-read=time watching=_| ~]
 ::
 ::  $perm: represents the permissions for a diary channel and gives a
 ::  pointer back to the group it belongs to.
@@ -234,177 +222,6 @@
   $:  writers=(set sect:g)
       group=flag:g
   ==
-::
-++  rev
-  |$  [data]
-  [rev=@ud data]
-::
-++  apply-rev
-  |*  [old=(rev) new=(rev)]
-  ^+  [changed=& old]
-  ?:  (lth rev.old rev.new)
-    &+new
-  |+old
-::
-++  next-rev
-  |*  [old=(rev) new=*]
-  ^+  [changed=& old]
-  ?:  =(+.old new)
-    |+old
-  &+old(rev +(rev.old), + new)
-::
-+|  %actions
-::
-::  some actions happen to be the same as commands, but this can freely
-::  change
-::
-::NOTE  we might want to add a action-id=uuid to this eventually, threading
-::      that through all the way, so that an $r-shelf may indicate what
-::      originally caused it
-+$  a-shelf
-  $%  [%create =create-diary]
-      [%diary =flag =a-diary]
-  ==
-+$  a-diary
-  $%  [%join group=flag:g]
-      [%leave ~]
-      [%read ~]
-      [%read-at =time]
-      [%watch ~]
-      [%unwatch ~]
-      c-diary
-  ==
-::
-+$  a-note  c-note
-+$  a-quip  c-quip
-+$  a-remark
-  $~  [%read ~]
-  $>(?(%read %read-at %watch %unwatch) a-diary)
-::
-+|  %commands
-::
-+$  c-shelf
-  $%  [%create =create-diary]
-      [%diary =flag =c-diary]
-  ==
-+$  c-diary
-  $%  [%note =c-note]
-      [%view =view]
-      [%sort =sort]
-      [%order order=arranged-notes]
-      [%add-writers sects=(set sect:g)]
-      [%del-writers sects=(set sect:g)]
-  ==
-::
-+$  c-note
-  $%  [%add =essay]
-      [%edit id=id-note =essay]
-      [%del id=id-note]
-      [%quip id=id-note =c-quip]
-      c-feel
-  ==
-::
-+$  c-quip
-  $%  [%add =memo]
-      [%del id=id-quip]
-      c-feel
-  ==
-::
-+$  c-feel
-  $%  [%add-feel id=@da p=ship q=feel]
-      [%del-feel id=@da p=ship]
-  ==
-::
-+|  %updates
-::
-+$  update   [=time =u-diary]
-+$  u-shelf  [=flag =u-diary]
-+$  u-diary
-  $%  [%create =perm]
-      [%order (rev order=arranged-notes)]
-      [%view (rev =view)]
-      [%sort (rev =sort)]
-      [%perm (rev =perm)]
-      [%note id=id-note =u-note]
-  ==
-::
-+$  u-checkpoint  global:diary
-::
-+$  u-note
-  $%  [%set note=(unit note)]
-      [%feels =feels]
-      [%essay (rev =essay)]
-      [%quip id=id-quip =u-quip]
-  ==
-::
-+$  u-quip
-  $%  [%set quip=(unit quip)]
-      [%feels =feels]
-  ==
-::
-++  update-to-response  !!
-::
-+|  %responses
-::
-+$  r-shelf  [=flag =r-diary]
-+$  r-diary
-  $%  [%notes =rr-notes]
-      [%note id=id-note =r-note]
-      [%order order=arranged-notes]
-      [%view =view]
-      [%sort =sort]
-      [%perm =perm]
-    ::
-      [%create =perm]
-      [%join group=flag:g]
-      [%leave ~]
-      [%read ~]
-      [%read-at =time]
-      [%watch ~]
-      [%unwatch ~]
-  ==
-::
-+$  r-note
-  $%  [%set note=(unit rr-note)]
-      [%quip id=id-quip =r-quip]
-      [%feels feels=(map ship feel)]
-      [%essay =essay]
-  ==
-::
-+$  r-quip
-  $%  [%set quip=(unit rr-quip)]
-      [%feels feels=(map ship feel)]
-  ==
-::  versions of backend types with their revision numbers stripped,
-::  because the frontend shouldn't care to learn those.
-::
-+$  rr-shelf  (map flag rr-diary)
-++  rr-diary
-  |^  ,[global local]
-  +$  global
-    $:  notes=rr-notes
-        order=arranged-notes
-        =view
-        =sort
-        =perm
-    ==
-  ::
-  +$  local
-    $:  =net
-        =remark
-    ==
-  --
-+$  rr-notes  ((mop id-note (unit rr-note)) lte)
-+$  rr-note   [rr-seal essay]
-+$  rr-seal   [id=id-note =rr-quips =rr-feels]
-+$  rr-quip   [rr-cork memo]
-+$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [id=id-quip =rr-feels]
-+$  rr-feels  (map ship feel)
-++  rr-on-notes  ((on id-note (unit rr-note)) lte)
-++  rr-on-quips  ((on id-quip rr-quip) lte)
-::
-+|  %helper-types
 ::
 ::  $log: a time ordered history of modifications to a diary
 ::
@@ -439,4 +256,137 @@
   +$  outlines  ((mop time outline) lte)
   ++  on        ((^on time outline) lte)
   --
++|  %actions
+::
+::  some actions happen to be the same as commands, but this can freely
+::  change
+::
+::NOTE  we might want to add a action-id=uuid to this eventually, threading
+::      that through all the way, so that an $r-shelf may indicate what
+::      originally caused it
++$  a-shelf
+  $%  [%create =create-diary]
+      [%diary =flag =a-diary]
+  ==
++$  a-diary
+  $%  [%join group=flag:g]
+      [%leave ~]
+      a-remark:j
+      c-diary
+  ==
+::
++$  a-note  c-note
++$  a-quip  c-quip
+::
++|  %commands
+::
++$  c-shelf
+  $%  [%create =create-diary]
+      [%diary =flag =c-diary]
+  ==
++$  c-diary
+  $%  [%note =c-note]
+      [%view =view]
+      [%sort =sort]
+      [%order order=arranged-notes]
+      [%add-writers sects=(set sect:g)]
+      [%del-writers sects=(set sect:g)]
+  ==
+::
++$  c-note
+  $%  [%add =essay]
+      [%edit id=id-note =essay]
+      [%del id=id-note]
+      [%quip id=id-note =c-quip]
+      c-feel:j
+  ==
+::
++$  c-quip
+  $%  [%add =memo]
+      [%del id=id-quip]
+      c-feel:j
+  ==
+::
++|  %updates
+::
++$  update   [=time =u-diary]
++$  u-shelf  [=flag =u-diary]
++$  u-diary
+  $%  [%create =perm]
+      [%order (rev:j order=arranged-notes)]
+      [%view (rev:j =view)]
+      [%sort (rev:j =sort)]
+      [%perm (rev:j =perm)]
+      [%note id=id-note =u-note]
+  ==
+::
++$  u-note
+  $%  [%set note=(unit note)]
+      [%feels =feels:j]
+      [%essay (rev:j =essay)]
+      [%quip id=id-quip =u-quip]
+  ==
+::
++$  u-quip
+  $%  [%set quip=(unit quip)]
+      [%feels =feels:j]
+  ==
+::
++$  u-checkpoint  global:diary
+::
++|  %responses
+::
++$  r-shelf  [=flag =r-diary]
++$  r-diary
+  $%  [%notes =rr-notes]
+      [%note id=id-note =r-note]
+      [%order order=arranged-notes]
+      [%view =view]
+      [%sort =sort]
+      [%perm =perm]
+    ::
+      [%create =perm]
+      [%join group=flag:g]
+      [%leave ~]
+      a-remark:j
+  ==
+::
++$  r-note
+  $%  [%set note=(unit rr-note)]
+      [%quip id=id-quip =r-quip]
+      [%feels feels=rr-feels:j]
+      [%essay =essay]
+  ==
+::
++$  r-quip
+  $%  [%set quip=(unit rr-quip)]
+      [%feels feels=rr-feels:j]
+  ==
+::  versions of backend types with their revision numbers stripped,
+::  because the frontend shouldn't care to learn those.
+::
++$  rr-shelf  (map flag rr-diary)
+++  rr-diary
+  |^  ,[global local]
+  +$  global
+    $:  notes=rr-notes
+        order=arranged-notes
+        =view
+        =sort
+        =perm
+    ==
+  ::
+  +$  local
+    $:  =net
+        =remark
+    ==
+  --
++$  rr-notes  ((mop id-note (unit rr-note)) lte)
++$  rr-note   [rr-seal essay]
++$  rr-seal   [id=id-note =rr-quips =rr-feels:j]
++$  rr-quip   [rr-cork memo]
++$  rr-quips  ((mop id-quip rr-quip) lte)
++$  rr-cork   [id=id-quip =rr-feels:j]
+++  rr-on-notes  ((on id-note (unit rr-note)) lte)
+++  rr-on-quips  ((on id-quip rr-quip) lte)
 --

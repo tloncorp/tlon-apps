@@ -101,8 +101,8 @@
   [[id (feels-1-to-2 feels.old)] +.old]
 ::
 ++  feels-1-to-2
-  |=  old=(map ship feel:one)
-  ^-  feels:two
+  |=  old=(map ship feel:j:d)
+  ^-  feels:j:d
   %-  ~(run by old)
   |=  =feel:one
   [%0 `feel]
@@ -111,8 +111,8 @@
   |=  [=flag:two old-net=net:one]
   ^-  net:two
   ?-  -.old-net
-    %sub  +.old-net
-    %pub  [p.flag & %chi ~]  ::  we are the publisher, so we always match
+    %sub  +>.old-net
+    %pub  [& %chi ~]
   ==
 ::
 ++  log-1-to-2
