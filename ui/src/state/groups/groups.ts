@@ -31,7 +31,12 @@ import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { getCompatibilityText, getFlagParts, preSig } from '@/logic/utils';
+import {
+  getCompatibilityText,
+  getFlagParts,
+  preSig,
+  sagaCompatible,
+} from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 export const GROUP_ADMIN = 'admin';
@@ -1168,7 +1173,7 @@ export function useGroupCompatibility(flag: string) {
   const saga = group?.saga || null;
   return {
     saga,
-    compatible: saga === null || 'synced' in saga,
+    compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
   };
 }
