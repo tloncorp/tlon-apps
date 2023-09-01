@@ -17,7 +17,7 @@
 ::
 ::  $nest: ID for a channel, {app}/{ship}/{name}
 ::
-+$  nest  (pair dude:gall flag)
++$  nest  (pair term flag)
 ::
 ::  $sect: ID for cabal, similar to a role
 ::

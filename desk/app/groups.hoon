@@ -249,7 +249,7 @@
     ::
         %diary
       =/  perms  .^(perm:d %gx path)
-      =/  =c-shelf:d  [%diary +.nest %del-writers writers.perms]
+      =/  =c-shelf:d  [%diary nest %del-writers writers.perms]
       =/  =wire  /diary
       =/  =dock  [our.bowl %channels-server]
       =/  =cage  [act:mar:d !>(c-shelf)]
@@ -894,12 +894,7 @@
         =/  =wire  (snoc go-area %join-channels)
         [%pass wire %agent dock %poke cage]
       =/  =dock  [our.bowl %channels]
-      =/  =vase
-        ?+  p.nes  !!
-          %diary  !>([%diary flag q.nes])
-          %heap   !>([%heap flag q.nes])
-        ==
-      =/  =cage  [(cat 3 p.nes '-action') vase]
+      =/  =cage  ['channel-action' !>([%diary nes q.nes])]
       =/  =wire  (snoc go-area %join-channels)
       [%pass wire %agent dock %poke cage]
     --
