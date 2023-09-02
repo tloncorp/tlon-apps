@@ -99,6 +99,8 @@ import LureAutojoiner from '@/groups/LureAutojoiner';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import EyrieMenu from './eyrie/EyrieMenu';
+import GroupVolumeDialog from './groups/GroupVolumeDialog';
+import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -524,6 +526,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route
             path="/groups/:ship/:name/info"
             element={<GroupInfo title={`• ${groupsTitle}`} />}
+          />
+          <Route
+            path="/groups/:ship/:name/volume"
+            element={<GroupVolumeDialog title={`• ${groupsTitle}`} />}
+          />
+          <Route
+            path="/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
+            element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
           />
           <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
             <Route
