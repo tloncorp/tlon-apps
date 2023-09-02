@@ -49,7 +49,7 @@ export default function RadioGroup({
         >
           <div className="flex flex-col items-start justify-start space-y-1">
             <label htmlFor={option.value}>
-              <span>{option.label}</span>
+              <span className="line-clamp-1">{option.label}</span>
             </label>
             {option.secondaryLabel && (
               <span className="whitespace-break-spaces text-base font-normal text-gray-600 line-clamp-1">
