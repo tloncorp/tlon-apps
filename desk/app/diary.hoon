@@ -96,7 +96,7 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  recheck-all-perms
+    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
     =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       (emil (drop load:epos))
@@ -142,13 +142,6 @@
     |=  [=flag:d old-diary=diary:zero]
     ^-  [flag:d diary:d]
     [flag [~ old-diary]]
-  ::
-  ++  recheck-all-perms
-    %+  roll
-      ~(tap by shelf)
-    |=  [[=flag:d *] core=_cor]
-    =/  di  (di-abed:di-core:core flag)
-    di-abet:(di-recheck:di ~)
   ::
   ++  restore-missing-subs
     %+  roll
@@ -227,22 +220,28 @@
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
     =/  diary-flags-from-groups
+      %-  zing
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
-      %+  turn
-        %+  skim  ~(tap by channels.group)
-        |=  [diary-nest=nest:g *]
-        ?:(=(%diary p.diary-nest) %.y %.n)
-      |=  [diary-nest=nest:g *]
-      q.diary-nest
+      |=  [* group=group:g]
+      %+  murn
+        ~(tap by channels.group)
+      |=  [=nest:g *]
+      ?.(=(%diary p.nest) ~ (some q.nest))
     =/  diaries-without-groups
       %+  skim  ~(tap by shelf)
       |=  diary=[=flag:g *]
-      ?:(=((find [diary]~ (zing diary-flags-from-groups)) ~) %.y %.n)
+      =((find [diary]~ diary-flags-from-groups) ~)
     %+  roll
       diaries-without-groups
     |=  [[=flag:g *] core=_cor]
     di-abet:di-leave:(di-abed:di-core flag)
+  ::
+      %recheck-all-perms
+    %+  roll
+      ~(tap by shelf)
+    |=  [[=flag:d *] core=_cor]
+    =/  di  (di-abed:di-core:core flag)
+    di-abet:(di-recheck:di ~)
   ::
       %diary-create
     =+  !<(req=create:d vase)

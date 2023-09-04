@@ -119,7 +119,7 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  recheck-all-perms
+    =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
     =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
@@ -140,12 +140,6 @@
     |=  [[=flag:c *] core=_cor]
     ca-abet:ca-safe-sub:(ca-abed:ca-core:core flag)
   ::
-  ++  recheck-all-perms
-    %+  roll
-      ~(tap by chats)
-    |=  [[=flag:c *] core=_cor]
-    =/  ca  (ca-abed:ca-core:core flag)
-    ca-abet:(ca-recheck:ca ~)
   ++  keep
     |=  bad=^vase
     ^-  card
@@ -286,22 +280,28 @@
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
     =/  chat-flags-from-groups
+      %-  zing
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
-      %+  turn
-        %+  skim  ~(tap by channels.group)
-        |=  [chat-nest=nest:g *]
-        ?:(=(%chat p.chat-nest) %.y %.n)
-      |=  [chat-nest=nest:g *]
-      q.chat-nest
+      |=  [* =group:g]
+      %+  murn
+        ~(tap by channels.group)
+      |=  [=nest:g *]
+      ?.(=(%chat p.nest) ~ (some q.nest))
     =/  chats-without-groups
       %+  skim  ~(tap in ~(key by chats))
       |=  chat=flag:g
-      ?:(=((find [chat]~ (zing chat-flags-from-groups)) ~) %.y %.n)
+      =((find [chat]~ chat-flags-from-groups) ~)
     %+  roll
       chats-without-groups
     |=  [=flag:g core=_cor]
     ca-abet:ca-leave:(ca-abed:ca-core flag)
+  ::
+      %recheck-all-perms
+    %+  roll
+      ~(tap by chats)
+    |=  [[=flag:c *] core=_cor]
+    =/  ca  (ca-abed:ca-core flag)
+    ca-abet:(ca-recheck:ca ~)
   ::
       %chat-draft
     =+  !<(=draft:c vase)

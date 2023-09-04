@@ -122,22 +122,28 @@
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
     =/  heap-flags-from-groups
+      %-  zing
       %+  turn  ~(tap by groups)
-      |=  [group-flag=flag:g group=group:g]
-      %+  turn
-        %+  skim  ~(tap by channels.group)
-        |=  [heap-nest=nest:g *]
-        ?:(=(%heap p.heap-nest) %.y %.n)
-      |=  [heap-nest=nest:g *]
-      q.heap-nest
+      |=  [* group=group:g]
+      %+  murn
+        ~(tap by channels.group)
+      |=  [=nest:g *]
+      ?.(=(%heap p.nest) ~ (some q.nest))
     =/  heaps-without-groups
       %+  skim  ~(tap by stash)
       |=  heap=[=flag:g *]
-      ?:(=((find [heap]~ (zing heap-flags-from-groups)) ~) %.y %.n)
+      =((find [heap]~ heap-flags-from-groups) ~)
     %+  roll
       heaps-without-groups
     |=  [[=flag:g *] core=_cor]
     he-abet:he-leave:(he-abed:he-core flag)
+  ::
+     %recheck-all-perms
+    %+  roll
+      ~(tap by stash)
+    |=  [[=flag:h *] core=_cor]
+    =/  he  (he-abed:he-core:core flag)
+    he-abet:(he-recheck:he ~)
   ::
       %heap-create
     =+  !<(req=create:h vase)
@@ -192,7 +198,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
-  =.  cor  recheck-all-perms
+  =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
   =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
   ?:  =(okay:h cool)  cor
   ::  speak the good news
@@ -206,13 +212,6 @@
   $(heaps t.heaps)
   ::
   +$  versioned-state  $%(current-state)
-  ::
-  ++  recheck-all-perms
-    %+  roll
-      ~(tap by stash)
-    |=  [[=flag:h *] core=_cor]
-    =/  he  (he-abed:he-core:core flag)
-    he-abet:(he-recheck:he ~)
   ::
   ++  restore-missing-subs
     %+  roll
