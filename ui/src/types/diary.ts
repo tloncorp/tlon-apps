@@ -12,6 +12,7 @@ import {
   Ship as ShipInline,
   Strikethrough,
   Tag,
+  Task,
 } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
@@ -31,7 +32,8 @@ export type DiaryInline =
   | Blockquote
   | BlockReference
   | Tag
-  | Link;
+  | Link
+  | Task;
 
 export interface NoteSeal {
   time: string;
@@ -95,7 +97,7 @@ export interface DiaryImage {
 
 export interface DiaryList {
   list: {
-    type: 'ordered' | 'unordered';
+    type: 'ordered' | 'unordered' | 'tasklist';
     items: DiaryListing[];
     contents: Inline[];
   };

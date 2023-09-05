@@ -87,6 +87,7 @@
       %break  ""
       %tag    (trip p.c)
       %link   (trip q.c)
+      %task  (trip (flatten q.c))
       %block   (trip q.c)
       ?(%code %inline-code)  ""
       %ship    (scow %p p.c)
