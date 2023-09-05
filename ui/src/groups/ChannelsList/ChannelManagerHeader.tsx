@@ -29,7 +29,7 @@ export default function ChannelManagerHeader({
   const { data } = useConnectivityCheck(host);
   const { saga, text, compatible } = useGroupCompatibility(flag);
   const hasIssue =
-    (saga !== null && !('synced' in saga)) ||
+    !compatible ||
     (data?.status &&
       'complete' in data.status &&
       data.status.complete !== 'yes');
