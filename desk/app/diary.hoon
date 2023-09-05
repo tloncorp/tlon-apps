@@ -96,10 +96,12 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
-    =.  cor  
+    =.  cor
       %+  roll
         ~(tap in (~(gas in *(set ship)) (turn diaries head)))
       |=  [=ship cr=_cor]
@@ -209,10 +211,37 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %diary-leave
+      ?(%channel-leave %diary-leave)
     =+  !<(=leave:d vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)
+  ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  diary-flags-from-groups
+      %-  zing
+      %+  turn  ~(tap by groups)
+      |=  [* group=group:g]
+      %+  murn
+        ~(tap by channels.group)
+      |=  [=nest:g *]
+      ?.(=(%diary p.nest) ~ (some q.nest))
+    =/  diaries-without-groups
+      %+  skim  ~(tap by shelf)
+      |=  diary=[=flag:g *]
+      =((find [diary]~ diary-flags-from-groups) ~)
+    %+  roll
+      diaries-without-groups
+    |=  [[=flag:g *] core=_cor]
+    di-abet:di-leave:(di-abed:di-core flag)
+  ::
+      %recheck-all-perms
+    %+  roll
+      ~(tap by shelf)
+    |=  [[=flag:d *] core=_cor]
+    =/  di  (di-abed:di-core:core flag)
+    di-abet:(di-recheck:di ~)
   ::
       %diary-create
     =+  !<(req=create:d vase)
@@ -786,6 +815,8 @@
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  di-core  (di-can-read our.bowl)  di-safe-sub
+    ::  if we can't read, leave the diary
+    =?  di-core  (di-can-read our.bowl)  di-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
@@ -976,7 +1007,7 @@
       ::
           %del  ?~(entry | =(src.bowl author.note.u.entry))
       ::
-          %edit  
+          %edit
         ?&  =(src.bowl author.p.delta)
             ?~(entry | =(src.bowl author.note.u.entry))
         ==

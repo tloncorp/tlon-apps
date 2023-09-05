@@ -8,8 +8,6 @@ test('accept group invite', async ({ page }) => {
   await page.getByRole('button', { name: 'Join Group' }).first().click();
   await page.getByText('Join This Group').waitFor();
   await page.getByRole('button', { name: 'Join Group' }).first().click();
-  await page.getByRole('button', { name: 'Go' }).first().waitFor();
-  await page.getByRole('button', { name: 'Go' }).first().click();
   await page.getByText('bus chat').first().waitFor();
   await page.getByText('bus chat').first().click();
   await page.getByText("hi, it's me, ~bus").waitFor();

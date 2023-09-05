@@ -490,7 +490,7 @@ export function useLeaveDiaryMutation() {
   const mutationFn = async (variables: { flag: string }) => {
     await api.poke({
       app: 'diary',
-      mark: 'diary-leave',
+      mark: 'channel-leave',
       json: variables.flag,
     });
   };

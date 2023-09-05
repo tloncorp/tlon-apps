@@ -119,6 +119,8 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
     %-  (note:wood %ver leaf/"New Epic" ~)
@@ -269,10 +271,37 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %chat-leave
+      ?(%channel-leave %chat-leave)
     =+  !<(=leave:c vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     ca-abet:ca-leave:(ca-abed:ca-core leave)
+  ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  chat-flags-from-groups
+      %-  zing
+      %+  turn  ~(tap by groups)
+      |=  [* =group:g]
+      %+  murn
+        ~(tap by channels.group)
+      |=  [=nest:g *]
+      ?.(=(%chat p.nest) ~ (some q.nest))
+    =/  chats-without-groups
+      %+  skim  ~(tap in ~(key by chats))
+      |=  chat=flag:g
+      =((find [chat]~ chat-flags-from-groups) ~)
+    %+  roll
+      chats-without-groups
+    |=  [=flag:g core=_cor]
+    ca-abet:ca-leave:(ca-abed:ca-core flag)
+  ::
+      %recheck-all-perms
+    %+  roll
+      ~(tap by chats)
+    |=  [[=flag:c *] core=_cor]
+    =/  ca  (ca-abed:ca-core flag)
+    ca-abet:(ca-recheck:ca ~)
   ::
       %chat-draft
     =+  !<(=draft:c vase)
@@ -1369,6 +1398,8 @@
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
     =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
+    ::  if we can't read, leave the chat
+    =?  ca-core  !(ca-can-read our.bowl)  ca-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]

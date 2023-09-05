@@ -363,7 +363,7 @@ export function useLeaveHeapMutation() {
   const mutationFn = async (variables: { flag: HeapFlag }) => {
     await api.poke({
       app: 'heap',
-      mark: 'heap-leave',
+      mark: 'channel-leave',
       json: variables.flag,
     });
   };

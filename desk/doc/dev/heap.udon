@@ -1,6 +1,6 @@
 ;>
-The %heap agent is entirely concerned with creating a channel with 
-collections of links and text snippets, and the ability to comment on 
+The %heap agent is entirely concerned with creating a channel with
+collections of links and text snippets, and the ability to comment on
 those items.
 
 ## types
@@ -48,7 +48,7 @@ Each poke is organized by mark
 - `%heap-create` creates a heap channel first in this agent and then passes
   to the %groups agent to create there
 - `%flag` or `%channel-join` starts the joining process for a heap channel
-- `%heap-leave` leaves the channel if not hosting
+- `%channel-leave` leaves the channel if not hosting
 - `%heap-remark-action` marks our last read curio
 
 
@@ -71,7 +71,7 @@ Each scry is organized by path
 Each subscription is organized by path
 
 - `/ui` sends general updates about heap channels to the UI
-- `/briefs` sends updates about read curios 
+- `/briefs` sends updates about read curios
 - `/heap/\{ship}/\{name}`
   - `/ui` updates to the UI, specific to a channel and generally actions
   - `/updates` if time, pass the logs from this heap starting from
