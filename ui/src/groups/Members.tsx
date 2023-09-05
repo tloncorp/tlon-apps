@@ -34,6 +34,7 @@ import {
   useVessel,
   useSects,
   useGroupSectMutation,
+  useGroupCompatibility,
 } from '@/state/groups';
 import XIcon from '@/components/icons/XIcon';
 import { Vessel } from '@/types/groups';
@@ -113,8 +114,7 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const sects = useSects(flag);
-  const saga = group?.saga || null;
-  const comaptibileSaga = saga === null || 'synced' in saga;
+  const { compatible } = useGroupCompatibility(flag);
   const isAdmin = useAmAdmin(flag);
   const [isOpen, setIsOpen] = useState(false);
   const [rolesIsOpen, setRolesIsOpen] = useState(false);
@@ -184,7 +184,7 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
     keepOpenOnClick: true,
   }));
 
-  if (member !== window.our && isAdmin && comaptibileSaga) {
+  if (member !== window.our && isAdmin && compatible) {
     actions.push(
       {
         key: 'set-role',

@@ -8,7 +8,7 @@
   ++  zero  zer
   --
 ::
-++  okay  `epic:e`1
+++  okay  `epic:e`2
 ++  mar
   |%
   ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
@@ -171,7 +171,7 @@
   ==
 ::  $listing: recursive type for infinitely nested <ul> or <ol>
 +$  listing
-  $%  [%list p=?(%ordered %unordered) q=(list listing) r=(list inline)]
+  $%  [%list p=?(%ordered %unordered %tasklist) q=(list listing) r=(list inline)]
       [%item p=(list inline)]
   ==
 ::  $block: post content that sits outside of the normal text
@@ -216,6 +216,7 @@
       [%code p=cord]
       [%tag p=cord]
       [%link p=cord q=cord]
+      [%task p=?(%.y %.n) q=(list inline)]
       [%break ~]
   ==
 ::  $log: a time ordered history of modifications to a diary

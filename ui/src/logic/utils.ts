@@ -1103,3 +1103,8 @@ export function getCompatibilityText(saga: Saga | null) {
 
   return "You're synced with host";
 }
+
+export function sagaCompatible(saga: Saga | null) {
+  // either host or synced with host
+  return saga === null || 'synced' in saga;
+}
