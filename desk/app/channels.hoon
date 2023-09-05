@@ -712,6 +712,9 @@
     ?:  ?=(%set -.u-note)
       ?~  note
         =/  rr-note=(unit rr-note:d)  (bind note.u-note di-rr-note)
+        =?  di-core  ?=(^ note.u-note)
+          ::TODO  what about the "mention was added during edit" case?
+          (on-note:di-hark id-note u.note.u-note)
         =.  notes.diary  (put:on-notes:d notes.diary id-note note.u-note)
         (di-response %note id-note %set rr-note)
       ::
@@ -762,7 +765,7 @@
       ?~  quip
         =/  rr-quip=(unit rr-quip:d)  (bind quip.u-quip di-rr-quip)
         =?  di-core  ?=(^ quip.u-quip)
-          (di-hark id-note note u.quip.u-quip)
+          (on-quip:di-hark id-note note u.quip.u-quip)
         =.  di-core  (di-put-quip id-note id-quip quip.u-quip)
         (di-response %note id-note %quip id-quip %set rr-quip)
       ::
@@ -896,46 +899,94 @@
     ?~  feel  ~
     (some ship u.feel)
   ::
-  ::  emit hark notifications when necessary
+  ::  +di-hark: notification dispatch
+  ::
+  ::    entry-points are +on-note and +on-quip, who may implement distinct
+  ::    notification behavior
   ::
   ++  di-hark
-    |=  [=id-note:d =note:d =quip:d]
-    ^+  di-core
-    ::  checks for comments on our threads. should also check for
-    ::  mentions?
+    |%
+    ++  on-note
+      |=  [=id-note:d =note:d]
+      ^+  di-core
+      ?:  =(author.note our.bowl)
+        di-core
+      ::  we want to be notified if we were mentioned in the note
+      ::
+      ?.  (was-mentioned content.note our.bowl)
+        di-core
+      =/  cs=(list content:ha)
+        ~[[%ship author.note] ' mentioned you: ' (flatten content.note)]
+      (emit (pass-hark (di-spin /note/(rsh 4 (scot %ui id-note)) cs ~)))
     ::
-    |^  =/  in-replies
-          %+  lien  (tap:on-quips:d quips.note)
+    ++  on-quip
+      |=  [=id-note:d =note:d =quip:d]
+      ^+  di-core
+      ?:  =(author.quip our.bowl)
+        di-core
+      ::  preparation of common cases
+      ::
+      =*  diary-notification
+        :~  [%ship author.quip]  ' commented on '
+            [%emph title.han-data.note]   ': '
+            [%ship author.quip]  ': '
+            (flatten content.quip)
+        ==
+      =*  heap-notification
+        =/  content  (flatten content.quip)
+        =/  title=@t
+          ?^  title.han-data.note  (need title.han-data.note)
+          ?:  (lte (met 3 content) 80)  content
+          (cat 3 (end [3 77] content) '...')
+        :~  [%ship author.quip]  ' commented on '
+            [%emph title]   ': '
+            [%ship author.quip]  ': '
+            content
+        ==
+      ::  construct a notification message based on the reason to notify,
+      ::  if we even need to notify at all
+      ::
+      =;  cs=(unit (list content:ha))
+        ?~  cs  di-core
+        =/  =path
+          /note/(rsh 4 (scot %ui id-note))/(rsh 4 (scot %ui id.quip))
+        (emit (pass-hark (di-spin path u.cs ~)))
+      ::  notify because we wrote the note the quip responds to
+      ::
+      ?:  =(author.note our.bowl)
+        ?-    -.han-data.note
+            %diary  `diary-notification
+            %heap   `heap-notification
+            %chat
+          :-  ~
+          :~  [%ship author.quip]
+              ' replied to you: '
+              (flatten content.quip)
+          ==
+        ==
+      ::  notify because we were mentioned in the quip
+      ::
+      ?:  (was-mentioned content.quip our.bowl)
+        `~[[%ship author.quip] ' mentioned you: ' (flatten content.quip)]
+      ::  notify because we ourselves responded to this note previously
+      ::
+      ?:  %+  lien  (tap:on-quips:d quips.note)
           |=  [=time quip=(unit quip:d)]
           ?~  quip  |
           =(author.u.quip our.bowl)
-        ?:  |(=(author.quip our.bowl) &(!in-replies !=(author.note our.bowl)))
-          di-core
-        =/  cs=(list content:ha)
-          ?-    -.han-data.note
-              %diary
-            :~  [%ship author.quip]  ' commented on '
-                [%emph title.han-data.note]   ': '
-                [%ship author.quip]  ': '
-                (flatten content.quip)
-            ==
-          ::
-              %heap
-            =/  content  (flatten content.quip)
-            =/  title=@t
-              ?^  title.han-data.note  (need title.han-data.note)
-              ?:  (lte (met 3 content) 80)  content
-              (cat 3 (end [3 77] content) '...')
-            :~  [%ship author.quip]  ' commented on '
-                [%emph title]   ': '
-                [%ship author.quip]  ': '
-                content
-            ==
-          ::
-              %chat
-            !!  ::TODO  chat
+        ?-    -.han-data.note
+            %diary  `diary-notification
+            %heap   `heap-notification
+            %chat
+          :-  ~
+          :~  [%ship author.quip]
+              ' replied to a thread: '
+              (flatten content.quip)
           ==
-        (emit (pass-hark (di-spin /note/(rsh 4 (scot %ui id-note)) cs ~)))
+        ==
+      ::  don't notify
+      ::
+      ~
     ::
     ++  flatten
       |=  content=(list verse:d)
@@ -963,6 +1014,15 @@
           (flatten [%inline p.c]~)
         ==
       ==
+    ::
+    ++  was-mentioned
+      |=  [=story:d who=ship]
+      ^-  ?
+      %+  lien  story
+      |=  =verse:d
+      ?:  ?=(%block -.verse)  |
+      %+  lien  p.verse
+      (cury test [%ship who])
     --
   ::
   ::  convert content into a full yarn suitable for hark

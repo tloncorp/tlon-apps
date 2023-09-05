@@ -12,13 +12,14 @@
       ?-  han.nest
         %diary  [0 ~ [~ ~nul *@da] %diary 'Unknown post' '']
         %heap   [0 ~ [~ ~nul *@da] %heap ~ 'Unknown link']
-        %chat   !!  ::TODO  chat
+        %chat   [0 ~ [[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
       ==
     ?~  u.note
       ?-  han.nest
-        %diary  [0 ~ [~ ~nul *@da] %diary 'This post was deleted' '']
-        %heap   [0 ~ [~ ~nul *@da] %heap ~ 'This link was deleted']
-        %chat   !!  ::TODO  chat
+          %diary  [0 ~ [~ ~nul *@da] %diary 'This post was deleted' '']
+          %heap   [0 ~ [~ ~nul *@da] %heap ~ 'This link was deleted']
+          %chat
+        [0 ~ [[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
       ==
     (trace u.u.note)
   [%channel-said !>(`said:d`[nest outline])]

@@ -91,13 +91,15 @@
   +$  versioned-state  $%(current-state)
   --
 ::
-++  init  ::TODO  rename +migrate ?
+++  init
   ^+  cor
   =.  cor
     (emit %pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~))
+  ::TODO  implement support in heap & chat
   =.  cor
-    (emit %pass /migrate %agent [our.bowl %heap] %poke %heap !>(~))
-  ::TODO  chat
+    (emit %pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~))
+  =.  cor
+    (emit %pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~))
   inflate-io
 ::
 ++  inflate-io
