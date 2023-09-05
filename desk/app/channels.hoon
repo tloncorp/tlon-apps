@@ -10,7 +10,7 @@
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug, sparse
-/+  libnotes=notes
+/+  libnotes=notes, volume
 ::  performance, keep warm
 ::  /+  diary-json  :: XX
 ^-  agent:gall
@@ -913,11 +913,15 @@
         di-core
       ::  we want to be notified if we were mentioned in the note
       ::
-      ?.  (was-mentioned content.note our.bowl)
-        di-core
-      =/  cs=(list content:ha)
-        ~[[%ship author.note] ' mentioned you: ' (flatten content.note)]
-      (emit (pass-hark (di-spin /note/(rsh 4 (scot %ui id-note)) cs ~)))
+      ?:  (was-mentioned content.note our.bowl)
+        ?.  (want-hark %mention)
+          di-core
+        =/  cs=(list content:ha)
+          ~[[%ship author.note] ' mentioned you: ' (flatten content.note)]
+        (emit (pass-hark (di-spin /note/(rsh 4 (scot %ui id-note)) cs ~)))
+      ::
+      ::TODO  if we (want-hark %any), notify
+      di-core
     ::
     ++  on-quip
       |=  [=id-note:d =note:d =quip:d]
@@ -954,6 +958,7 @@
       ::  notify because we wrote the note the quip responds to
       ::
       ?:  =(author.note our.bowl)
+        ?.  (want-hark %ours)  ~
         ?-    -.han-data.note
             %diary  `diary-notification
             %heap   `heap-notification
@@ -967,6 +972,7 @@
       ::  notify because we were mentioned in the quip
       ::
       ?:  (was-mentioned content.quip our.bowl)
+        ?.  (want-hark %mention)  ~
         `~[[%ship author.quip] ' mentioned you: ' (flatten content.quip)]
       ::  notify because we ourselves responded to this note previously
       ::
@@ -974,19 +980,35 @@
           |=  [=time quip=(unit quip:d)]
           ?~  quip  |
           =(author.u.quip our.bowl)
+        ?.  (want-hark %ours)  ~
         ?-    -.han-data.note
             %diary  `diary-notification
             %heap   `heap-notification
             %chat
           :-  ~
           :~  [%ship author.quip]
-              ' replied to a thread: '
+              ' replied to your message “'
+              (flatten content.note)
+              '”: '
+              [%ship author.quip]
+              ': '
               (flatten content.quip)
           ==
         ==
-      ::  don't notify
+      ::  only notify if we want to be notified about everything
       ::
-      ~
+      ?.  (want-hark %any)
+        ~
+      ?-    -.han-data.note
+          %diary  ~
+          %heap   ~
+          %chat
+        :-  ~
+        :~  [%ship author.quip]
+            ' sent a message: '
+            (flatten content.quip)
+        ==
+      ==
     ::
     ++  flatten
       |=  content=(list verse:d)
@@ -1023,6 +1045,16 @@
       ?:  ?=(%block -.verse)  |
       %+  lien  p.verse
       (cury test [%ship who])
+    ::
+    ++  want-hark
+      |=  kind=?(%mention %ours %any)
+      %+  (fit-level:volume [our now]:bowl)
+        [%channel nest]
+      ?-  kind
+        %mention  %soft  ::  mentioned us
+        %ours     %soft  ::  replied to us or our context
+        %any      %loud  ::  any message
+      ==
     --
   ::
   ::  convert content into a full yarn suitable for hark
