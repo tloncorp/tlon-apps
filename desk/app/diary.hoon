@@ -247,7 +247,7 @@
     =+  !<(req=create:d vase)
     (create req)
   ::
-      ?(%diary-action-1 %diary-action-0 %diary-action)
+      ?(%diary-action-2 %diary-action-1 %diary-action-0 %diary-action)
     =+  !<(=action:d vase)
     =/  diary-core  (di-abed:di-core p.action)
     ?:  =(p.p.action our.bowl)
@@ -850,8 +850,8 @@
       =*  cage  cage.sign
       ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
-        ?(%diary-logs %diary-logs-0 %diary-logs-1)      (di-apply-logs !<(log:d q.cage))
-        ?(%diary-update %diary-update-0 %diary-update-1)  (di-update !<(update:d q.cage))
+        ?(%diary-logs %diary-logs-0 %diary-logs-1 %diary-logs-2)      (di-apply-logs !<(log:d q.cage))
+        ?(%diary-update %diary-update-0 %diary-update-1 %diary-update-2)  (di-update !<(update:d q.cage))
       ==
     ==
   ::
