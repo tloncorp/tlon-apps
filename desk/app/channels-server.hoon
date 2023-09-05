@@ -1,3 +1,7 @@
+::  channels-server: diary, heap & chat channel storage for groups
+::
+::    this is the server-side from which /app/channels gets its data.
+::
 ::  TODO: import state from diary
 ::
 /-  d=diary, g=groups
@@ -87,12 +91,13 @@
   +$  versioned-state  $%(current-state)
   --
 ::
-++  init
+++  init  ::TODO  rename +migrate ?
   ^+  cor
   =.  cor
     (emit %pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~))
   =.  cor
     (emit %pass /migrate %agent [our.bowl %heap] %poke %heap !>(~))
+  ::TODO  chat
   inflate-io
 ::
 ++  inflate-io
@@ -322,7 +327,7 @@
       %*  .  *diary:d
         perm  [0 writers.new group.new]
       ==
-    =.  di-core  
+    =.  di-core
       =/  =cage  [%channel-update !>([now.bowl %create perm.perm.diary])]
       =/  =path  /[han.nest]/[name.nest]/create
       =.  di-core  (give %fact ~[path] cage)
@@ -521,7 +526,7 @@
   ++  di-give-update
     |=  =update:d
     ^+  di-core
-    =/  paths  di-subscription-paths      
+    =/  paths  di-subscription-paths
     ?:  =(~ paths)
       di-core
     (give %fact paths %channel-update !>(update))

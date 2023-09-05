@@ -1,3 +1,7 @@
+::  channels: diary, heap & chat channels for groups
+::
+::    this is the client side that pulls data from the channels-server.
+::
 ::  TODO: refactor initial subscription to actually fetch by notes
 ::  TODO: listen to groups to join channel
 ::  TODO: migrate data from diary, heap
@@ -913,10 +917,11 @@
             :~  [%ship author.quip]  ' commented on '
                 [%emph title.han-data.note]   ': '
                 [%ship author.quip]  ': '
-                (flatten q.content.quip)
+                (flatten content.quip)
             ==
+          ::
               %heap
-            =/  content  (flatten q.content.quip)
+            =/  content  (flatten content.quip)
             =/  title=@t
               ?^  title.han-data.note  (need title.han-data.note)
               ?:  (lte (met 3 content) 80)  content
@@ -926,27 +931,37 @@
                 [%ship author.quip]  ': '
                 content
             ==
+          ::
+              %chat
+            !!  ::TODO  chat
           ==
         (emit (pass-hark (di-spin /note/(rsh 4 (scot %ui id-note)) cs ~)))
     ::
     ++  flatten
-      |=  content=(list inline:d)
+      |=  content=(list verse:d)
       ^-  cord
-      %-  crip
-      %-  zing
-      %+  turn
-        content
-      |=  c=inline:d
-      ^-  tape
-      ?@  c  (trip c)
-      ?-  -.c
-          %break  ""
-          %tag    (trip p.c)
-          %link   (trip q.c)
-          %block   (trip q.c)
-          ?(%code %inline-code)  ""
-          %ship    (scow %p p.c)
-          ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
+      %+  rap   3
+      %+  turn  content
+      |=  v=verse:d
+      ^-  cord
+      ?-  -.v
+          %block  ''
+          %inline
+        %+  rap  3
+        %+  turn  p.v
+        |=  c=inline:d
+        ^-  cord
+        ?@  c  c
+        ?-  -.c
+            %break                 ''
+            %tag                   p.c
+            %link                  q.c
+            %block                 q.c
+            ?(%code %inline-code)  ''
+            %ship                  (scot %p p.c)
+            ?(%italics %bold %strike %blockquote)
+          (flatten [%inline p.c]~)
+        ==
       ==
     --
   ::

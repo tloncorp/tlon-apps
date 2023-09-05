@@ -97,28 +97,17 @@
   $:  id=id-quip
       =feels
   ==
-::  $essay: the post data itself
+::  $essay: top-level post, with metadata
 ::
-::    title: the name of the post
-::    image: a visual displayed as a header
-::    content: the body of the post
-::    author: the ship that wrote the post
-::    sent: the client-side time the post was made
-::
-+$  essay
-  $:  content=(list verse)
-      author=ship
-      sent=time
-      =han-data
-  ==
++$  essay  [memo =han-data]
+::  $han-data: metadata for a channel type's "post"
 ::
 +$  han-data
   $%  [%diary title=@t image=@t]
       [%heap title=(unit @t)]
+      [%chat kind=$@(~ [%notice ~])]
   ==
-::
-+$  story  (pair (list block) (list inline))
-::  $memo: the comment data itself
+::  $memo: post data proper
 ::
 ::    content: the body of the comment
 ::    author: the ship that wrote the comment
@@ -129,6 +118,9 @@
       author=ship
       sent=time
   ==
+::  $story: post body content
+::
++$  story  (list verse)
 ::  $verse: a chunk of post content
 ::
 ::    blocks stand on their own. inlines come in groups and get wrapped
@@ -188,7 +180,7 @@
       [%break ~]
   ==
 ::
-+$  han  ?(%diary %heap)
++$  han  ?(%diary %heap %chat)
 ::  $nest: identifier for a diary channel
 +$  nest  [=han =ship name=term]
 ::  $view: the persisted display format for a diary
