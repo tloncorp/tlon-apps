@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import * as Toast from '@radix-ui/react-toast';
 import { Helmet } from 'react-helmet';
@@ -6,12 +6,7 @@ import bigInt from 'big-integer';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
-import {
-  useRouteGroup,
-  useChannel,
-  useGroup,
-  useVessel,
-} from '@/state/groups/groups';
+import { useRouteGroup } from '@/state/groups/groups';
 import {
   useHeapPerms,
   useMarkHeapReadMutation,
@@ -22,12 +17,9 @@ import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { canReadChannel, canWriteChannel } from '@/logic/utils';
 import { GRID, HeapCurio } from '@/types/heap';
-import useRecentChannel from '@/logic/useRecentChannel';
 import { useIsMobile } from '@/logic/useMedia';
-import { useLastReconnect } from '@/state/local';
-import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
+import { useFullChannel } from '@/logic/channel';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
@@ -36,17 +28,21 @@ import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
 function HeapChannel({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
-  const flag = useRouteGroup();
-  const vessel = useVessel(flag, window.our);
-  const channel = useChannel(flag, nest);
-  const group = useGroup(flag);
-  const { setRecentChannel } = useRecentChannel(flag);
+  const groupFlag = useRouteGroup();
+  const { mutateAsync: join } = useJoinHeapMutation();
+  const perms = useHeapPerms(chFlag);
+  const {
+    group,
+    groupChannel: channel,
+    canWrite,
+    compat: { compatible },
+  } = useFullChannel({ groupFlag, nest, writers: perms.writers, join });
+
   const displayMode = useHeapDisplayMode(chFlag);
   const [addCurioOpen, setAddCurioOpen] = useState(false);
   // for now sortMode is not actually doing anything.
@@ -55,16 +51,6 @@ function HeapChannel({ title }: ViewProps) {
   const { curios, fetchNextPage, hasNextPage, isLoading } =
     useInfiniteCurioBlocks(chFlag);
   const { mutate: markRead, isLoading: isMarking } = useMarkHeapReadMutation();
-  const { mutateAsync: joinHeap } = useJoinHeapMutation();
-  const perms = useHeapPerms(chFlag);
-  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const canRead = channel
-    ? canReadChannel(channel, vessel, group?.bloc)
-    : false;
-  const joined = useChannelIsJoined(nest);
-  const lastReconnect = useLastReconnect();
-  const { compatible } = useChannelCompatibility(`heap/${chFlag}`);
-
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const { isDragging, isOver, droppedFiles, setDroppedFiles } =
     useDragAndDrop(dropZoneId);
@@ -76,12 +62,6 @@ function HeapChannel({ title }: ViewProps) {
     dragEnabled && !isLoading && !addCurioOpen && isDragging && isOver;
   const [dragErrorMessage, setDragErrorMessage] = useState('');
 
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
-    await joinHeap({ group: flag, chan: chFlag });
-    setJoining(false);
-  }, [flag, chFlag, joinHeap]);
-
   const navigateToDetail = useCallback(
     (time: bigInt.BigInteger) => {
       navigate(`curio/${time}`);
@@ -89,33 +69,6 @@ function HeapChannel({ title }: ViewProps) {
     [navigate]
   );
 
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel, channel]);
-
-  useEffect(() => {
-    if (joined && !joining && channel && canRead) {
-      setRecentChannel(nest);
-    }
-  }, [
-    chFlag,
-    nest,
-    setRecentChannel,
-    joined,
-    joining,
-    channel,
-    canRead,
-    lastReconnect,
-  ]);
-
-  useEffect(() => {
-    if (channel && !canRead) {
-      navigate(`/groups/${flag}`);
-      setRecentChannel('');
-    }
-  }, [flag, group, channel, vessel, navigate, setRecentChannel, canRead]);
   useDismissChannelNotifications({
     nest,
     markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
@@ -238,7 +191,7 @@ function HeapChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={
         <HeapHeader
-          flag={flag}
+          flag={groupFlag}
           nest={nest}
           display={displayMode}
           sort={sortMode}

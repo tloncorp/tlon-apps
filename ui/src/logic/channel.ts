@@ -1,20 +1,24 @@
 import _, { get, groupBy } from 'lodash';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import useAllBriefs from '@/logic/useAllBriefs';
 import { useBriefs, useChat, useChats, useMultiDms } from '@/state/chat';
 import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDiary } from '@/state/diary';
 import { useHeap } from '@/state/heap/heap';
 import { Chat } from '@/types/chat';
 import { Diary } from '@/types/diary';
 import { Heap } from '@/types/heap';
 import { Zone, Channels, GroupChannel } from '@/types/groups';
+import { useLastReconnect } from '@/state/local';
 import {
   canReadChannel,
+  canWriteChannel,
   getCompatibilityText,
+  getFlagParts,
   isChannelJoined,
+  isTalk,
   nestToFlag,
   sagaCompatible,
 } from './utils';
@@ -26,6 +30,7 @@ import useSidebarSort, {
   DEFAULT,
   RECENT,
 } from './useSidebarSort';
+import useRecentChannel from './useRecentChannel';
 
 export function useChannelFlag() {
   const { chShip, chName } = useParams();
@@ -259,5 +264,106 @@ export function useChannelCompatibility(nest: string) {
     saga,
     compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
+  };
+}
+
+interface FullChannelParams {
+  groupFlag: string;
+  nest: string;
+  writers: string[];
+  join: (params: { group: string; chan: string }) => Promise<void>;
+  initialize?: () => void;
+}
+
+const emptyVessel = {
+  sects: [],
+  joined: 0,
+};
+
+export function useFullChannel({
+  groupFlag,
+  nest,
+  writers,
+  join,
+  initialize,
+}: FullChannelParams) {
+  const navigate = useNavigate();
+  const group = useGroup(groupFlag);
+  const [, chan] = nestToFlag(nest);
+  const { ship } = getFlagParts(chan);
+  const vessel = useMemo(
+    () => group?.fleet?.[window.our] || emptyVessel,
+    [group]
+  );
+  const groupChannel = group?.channels?.[nest];
+  const channel = useChannel(nest);
+  const compat = useChannelCompatibility(nest);
+  const canWrite =
+    ship === window.our ||
+    (canWriteChannel({ writers }, vessel, group?.bloc) && compat.compatible);
+  const canRead = groupChannel
+    ? canReadChannel(groupChannel, vessel, group?.bloc)
+    : false;
+  const [joining, setJoining] = useState(false);
+  const joined = useChannelIsJoined(nest);
+  const { setRecentChannel } = useRecentChannel(groupFlag);
+  const lastReconnect = useLastReconnect();
+
+  const joinChannel = useCallback(async () => {
+    setJoining(true);
+    try {
+      await join({ group: groupFlag, chan });
+    } catch (e) {
+      console.log("Couldn't join chat (maybe already joined)", e);
+    }
+    setJoining(false);
+  }, [groupFlag, chan, join]);
+
+  useEffect(() => {
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel, channel]);
+
+  useEffect(() => {
+    if (joined && !joining && channel && canRead) {
+      if (initialize) {
+        initialize();
+      }
+      setRecentChannel(nest);
+    }
+  }, [
+    nest,
+    setRecentChannel,
+    joined,
+    joining,
+    channel,
+    canRead,
+    lastReconnect,
+    initialize,
+  ]);
+
+  useEffect(() => {
+    if (channel && !canRead) {
+      if (isTalk) {
+        navigate('/');
+      } else {
+        navigate(`/groups/${groupFlag}`);
+      }
+      setRecentChannel('');
+    }
+  }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);
+
+  return {
+    groupFlag,
+    nest,
+    flag: chan,
+    group,
+    channel,
+    groupChannel,
+    canRead,
+    canWrite,
+    compat,
+    joined,
   };
 }

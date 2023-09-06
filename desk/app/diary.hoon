@@ -231,6 +231,9 @@
       %+  skim  ~(tap by shelf)
       |=  diary=[=flag:g *]
       =((find [diary]~ diary-flags-from-groups) ~)
+    ~&  diary-flags-from-groups
+    ~&  diaries-without-groups
+    ?~  diaries-without-groups  cor
     %+  roll
       diaries-without-groups
     |=  [[=flag:g *] core=_cor]

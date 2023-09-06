@@ -7,12 +7,7 @@ import { unixToDa } from '@urbit/api';
 import * as Toast from '@radix-ui/react-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
-import {
-  useChannel,
-  useGroup,
-  useRouteGroup,
-  useVessel,
-} from '@/state/groups/groups';
+import { useRouteGroup } from '@/state/groups/groups';
 import {
   useNotes,
   useDiaryDisplayMode,
@@ -20,7 +15,6 @@ import {
   useDiaryPerms,
   useOlderNotes,
   useJoinDiaryMutation,
-  useDiaryIsJoined,
   useMarkReadDiaryMutation,
   usePendingNotes,
   useDiaryState,
@@ -35,9 +29,7 @@ import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
-import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, canWriteChannel } from '@/logic/utils';
-import { useLastReconnect } from '@/state/local';
+import { useFullChannel } from '@/logic/channel';
 import { DiaryOutline } from '@/types/diary';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
@@ -45,28 +37,33 @@ import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 import DiaryHeader from './DiaryHeader';
 
 function DiaryChannel({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
   const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const { data } = useConnectivityCheck(chShip ?? '');
   const nest = `diary/${chFlag}`;
-  const flag = useRouteGroup();
-  const vessel = useVessel(flag, window.our);
+  const groupFlag = useRouteGroup();
   const { letters, isLoading } = useNotes(chFlag);
   const pendingNotes = usePendingNotes();
   const queryClient = useQueryClient();
   const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
-  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
+  const { mutateAsync: join } = useJoinDiaryMutation();
   const { mutate: markRead, isLoading: isMarking } = useMarkReadDiaryMutation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { setRecentChannel } = useRecentChannel(flag);
-  const group = useGroup(flag);
-  const channel = useChannel(flag, nest);
-  const joined = useDiaryIsJoined(chFlag);
-  const lastReconnect = useLastReconnect();
   const notesOnHost = useNotesOnHost(chFlag, pendingNotes.length > 0);
+
+  const perms = useDiaryPerms(chFlag);
+  const {
+    group,
+    groupChannel: channel,
+    canWrite,
+  } = useFullChannel({
+    groupFlag,
+    nest,
+    writers: perms.writers,
+    join,
+  });
 
   const checkForNotes = useCallback(async () => {
     // if we have pending notes and the ship is connected
@@ -124,19 +121,6 @@ function DiaryChannel({ title }: ViewProps) {
     }
   }, [pendingNotes, notesOnHost, data]);
 
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
-    await joinDiary({ group: flag, chan: chFlag });
-    setJoining(false);
-  }, [flag, chFlag, joinDiary]);
-
-  useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate(`/groups/${flag}`);
-      setRecentChannel('');
-    }
-  }, [flag, group, channel, vessel, navigate, setRecentChannel]);
-
   useEffect(() => {
     checkForNotes();
     clearPendingNotes();
@@ -156,33 +140,6 @@ function DiaryChannel({ title }: ViewProps) {
   const sortMode = useDiarySortMode(chFlag);
   const arrangedNotes = useArrangedNotes(chFlag);
   const lastArrangedNote = arrangedNotes[arrangedNotes.length - 1];
-
-  const perms = useDiaryPerms(chFlag);
-  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const canRead = channel
-    ? canReadChannel(channel, vessel, group?.bloc)
-    : false;
-
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel, channel]);
-
-  useEffect(() => {
-    if (joined && !joining && channel && canRead) {
-      setRecentChannel(nest);
-    }
-  }, [
-    chFlag,
-    nest,
-    setRecentChannel,
-    joined,
-    joining,
-    channel,
-    canRead,
-    lastReconnect,
-  ]);
 
   useEffect(() => {
     let timeout: any;
@@ -271,7 +228,7 @@ function DiaryChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={
         <DiaryHeader
-          flag={flag}
+          flag={groupFlag}
           nest={nest}
           canWrite={canWrite}
           display={userDisplayMode ?? displayMode}
