@@ -814,10 +814,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  di-core  (di-can-read our.bowl)  di-safe-sub
-    ::  if we can't read, leave the diary
-    =?  di-core  !(di-can-read our.bowl)  di-leave
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (di-can-read our.bowl)
+    =.  di-core
+      ?:  wecanread
+        di-safe-sub
+      di-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]

@@ -1397,10 +1397,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
-    ::  if we can't read, leave the chat
-    =?  ca-core  !(ca-can-read our.bowl)  ca-leave
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (ca-can-read our.bowl)
+    =.  ca-core
+      ?:  wecanread
+        ca-safe-sub
+      ca-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
