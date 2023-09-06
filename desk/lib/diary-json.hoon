@@ -1,6 +1,7 @@
-/-  j=joint, d=diary
+/-  j=joint, d=diary, g=groups
 /-  meta
 /+  cite=cite-json, gj=groups-json
+=*  z  ..zuse
 |%
 ++  enjs
   =,  enjs:format
@@ -8,9 +9,9 @@
   +|  %responses
   ::
   ++  r-shelf
-    |=  [=flag:d =r-diary:d]
+    |=  [=nest:d =r-diary:d]
     %-  pairs
-    :~  flag+(^flag flag)
+    :~  nest+(^nest nest)
         response+(^r-diary r-diary)
     ==
   ::
@@ -58,8 +59,8 @@
     |=  =rr-shelf:d
     %-  pairs
     %+  turn  ~(tap by rr-shelf)
-    |=  [f=flag:d di=rr-diary:d]
-    [(rap 3 (scot %p p.f) '/' q.f ~) (rr-diary di)]
+    |=  [n=nest:d di=rr-diary:d]
+    [(nest-cord n) (rr-diary di)]
   ::
   ++  rr-diary
     |=  =rr-diary:d
@@ -132,9 +133,19 @@
     s+`@t`(rsh 4 (scot %ui da))
   ::
   ++  flag
-    |=  f=flag:d
+    |=  f=flag:g
     ^-  json
     s/(rap 3 (scot %p p.f) '/' q.f ~)
+  ::
+  ++  nest
+    |=  n=nest:d
+    ^-  json
+    s/(nest-cord n)
+  ::
+  ++  nest-cord
+    |=  n=nest:d
+    ^-  cord
+    (rap 3 han.n '/' (scot %p ship.n) '/' name.n ~)
   ::
   ++  ship
     |=  her=@p
@@ -143,7 +154,7 @@
   ++  order
     |=  a=arranged-notes:d
     :-  %a
-    =/  times=(list time:..zuse)  ?~(a ~ u.a)
+    =/  times=(list time:z)  ?~(a ~ u.a)
     (turn times id)
   ::
   ++  perm
@@ -158,7 +169,7 @@
     (saga:enjs:gj saga.n)
   ::
   ++  feels
-    |=  feels=(map ship:..zuse feel:j)
+    |=  feels=(map ship:z feel:j)
     ^-  json
     %-  pairs
     %+  turn  ~(tap by feels)
@@ -168,11 +179,19 @@
   ++  essay
     |=  =essay:d
     %-  pairs
-    :~  title/s/title.essay
-        image/s/image.essay
-        content/a/(turn content.essay verse)
+    :~  content+(story content.essay)
         author+(ship author.essay)
         sent+(time sent.essay)
+        han-data+(han-data han-data.essay)
+    ==
+  ::
+  ++  han-data
+    |=  =han-data:d
+    %+  frond  -.han-data
+    ?-    -.han-data
+      %heap   ?~(title.han-data ~ s+u.title.han-data)
+      %chat   ?~(kind.han-data ~ (pairs notice+~ ~))
+      %diary  (pairs title+s+title.han-data image+s+image.han-data ~)
     ==
   ::
   ++  verse
@@ -258,10 +277,7 @@
   ++  story
     |=  s=story:d
     ^-  json
-    %-  pairs
-    :~  block/a/(turn p.s block)
-        inline/a/(turn q.s inline)
-    ==
+    a+(turn s verse)
   ::
   ++  memo
     |=  m=memo:d
@@ -278,18 +294,18 @@
     |=  bs=briefs:d
     %-  pairs
     %+  turn  ~(tap by bs)
-    |=  [f=flag:d b=brief:briefs:d]
-    [(rap 3 (scot %p p.f) '/' q.f ~) (brief b)]
+    |=  [n=nest:d b=brief:d]
+    [(nest-cord n) (brief b)]
   ::
   ++  brief-update
-    |=  u=(pair flag:d brief:d)
+    |=  u=(pair nest:d brief:d)
     %-  pairs
-    :~  flag/(flag p.u)
+    :~  nest/(nest p.u)
         brief/(brief q.u)
     ==
   ::
   ++  brief
-    |=  b=brief:briefs:d
+    |=  b=brief:d
     %-  pairs
     :~  last/(id last.b)
         count/(numb count.b)
@@ -302,17 +318,16 @@
     |=  s=said:d
     ^-  json
     %-  pairs
-    :~  flag/(flag p.s)
+    :~  nest/(nest p.s)
         outline/(outline q.s)
     ==
   ++  outline
     |=  o=outline:d
     %-  pairs
-    :~  title/s/title.o
-        image/s/image.o
-        content/a/(turn content.o verse)
+    :~  content+(story content.o)
         author+(ship author.o)
         sent+(time sent.o)
+        han-data+(han-data han-data.o)
         'quipCount'^(numb quips.o)
         quippers/a/(turn ~(tap in quippers.o) ship)
         type/s/%outline
@@ -336,7 +351,7 @@
     ^-  $-(json a-shelf:d)
     %-  of
     :~  create+create-diary
-        diary+(ot flag+flag action+a-diary ~)
+        diary+(ot nest+nest action+a-diary ~)
     ==
   ++  a-diary
     ^-  $-(json a-diary:d)
@@ -378,13 +393,20 @@
   ::
   +|  %primitives
   ++  id    (se %ud)
-  ++  ship  (su ;~(pfix sig fed:ag))
-  ++  flag  `$-(json flag:d)`(su flag-rule)
-  ++  flag-rule  ;~((glue fas) ;~(pfix sig fed:ag) sym)
+  ++  ship  `$-(json ship:z)`(su ship-rule)
+  ++  han   `$-(json han:d)`(su han-rule)
+  ++  flag  `$-(json flag:g)`(su flag-rule)
+  ++  nest  `$-(json nest:d)`(su nest-rule)
+  ++  ship-rule  ;~(pfix sig fed:ag)
+  ++  han-rule   (sear (soft han:d) sym)
+  ++  flag-rule  ;~((glue fas) ship-rule sym)
+  ++  nest-rule  ;~((glue fas) han-rule ship-rule sym)
+  ::
   ++  create-diary
     ^-  $-(json create-diary:d)
     %-  ot
-    :~  name+(se %tas)
+    :~  han+han
+        name+(se %tas)
         group+flag
         title+so
         description+so
@@ -395,21 +417,32 @@
   ++  add-sects  (as (se %tas))
   ++  del-sects  (as so)
   ::
-  ++  story
-    %-  ot
-    :~  block/(ar block)
-        inline/(ar inline)
-    ==
-  ::
+  ++  story  (ar verse)
   ++  essay
     ^-  $-(json essay:d)
+    %+  cu
+      |=  [=story:d =ship:z =time:z =han-data:d]
+      `essay:d`[[story ship time] han-data]
     %-  ot
-    :~  title/so
-        image/so
-        content/(ar verse)
+    :~  content/story
         author/ship
         sent/di
+        han-data/han-data
     ==
+  ::
+  ++  han-data
+    ^-  $-(json han-data:d)
+    %-  of
+    :~  diary+(ot title+so image+so ~)
+        heap+(mu so)
+        chat+kind
+    ==
+  ::
+  ++  kind
+    ^-  $-(json $@(~ [%notice ~]))
+    |=  jon=json
+    ?~  jon  ~
+    ((of notice+ul ~) jon)
   ::
   ++  verse
     ^-  $-(json verse:d)
@@ -496,7 +529,7 @@
   ++  memo
     %-  ot
     :~  content/story
-        author/(se %p)
+        author/ship
         sent/di
     ==
   --

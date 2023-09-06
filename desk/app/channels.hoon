@@ -8,7 +8,7 @@
 /+  default-agent, verb, dbug, sparse
 /+  libnotes=notes, volume
 ::  performance, keep warm
-::  /+  diary-json  :: XX
+/+  diary-json
 ^-  agent:gall
 =>
   |%
