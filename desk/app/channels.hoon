@@ -2,11 +2,11 @@
 ::
 ::    this is the client side that pulls data from the channels-server.
 ::
-/-  d=diary, g=groups, ha=hark
+/-  d=channels, g=groups, ha=hark
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug, sparse
-/+  libnotes=notes, volume
+/+  utils=channels-utils, volume
 ::  performance, keep warm
 /+  diary-json
 ^-  agent:gall
@@ -398,7 +398,7 @@
   ++  emil  |=(caz=(list card) di-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall di-core(cor (^give gift)))
   ++  safe-watch  |=([=wire =dock =path] di-core(cor (^safe-watch +<)))
-  ++  di-perms  ~(. perms:libnotes our.bowl now.bowl nest group.perm.perm.diary)
+  ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.diary)
   ++  di-abet
     %_    cor
         shelf
@@ -500,7 +500,7 @@
       %^  give  %fact  ~
       ?.  (can-read:di-perms src.bowl)
         channel-denied+!>(~)
-      (said:libnotes nest plan notes.diary)
+      (said:utils nest plan notes.diary)
     (give %kick ~ ~)
   ::
   ::  when we get a new %diary agent update, we need to check if we
@@ -1144,7 +1144,7 @@
       %+  murn  ls
       |=  [=time note=(unit note:d)]
       ?~  note  ~
-      (some [time (trace:libnotes u.note)])
+      (some [time (trace:utils u.note)])
     ::
         [%older start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
@@ -1157,7 +1157,7 @@
       %+  murn  ls
       |=  [=time note=(unit note:d)]
       ?~  note  ~
-      (some [time (trace:libnotes u.note)])
+      (some [time (trace:utils u.note)])
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)

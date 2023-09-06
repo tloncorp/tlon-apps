@@ -1,113 +1,155 @@
-::  diary: notebook structures
-::
-::    four shapes that cross client-subscriber-publisher boundaries:
-::    - actions    client-to-subscriber change requests (user actions)
-::    - commands   subscriber-to-publisher change requests
-::    - updates    publisher-to-subscriber change notifications
-::    - responses  subscriber-to-client change notifications
-::
-::        --action-->     --command-->
-::    client       subscriber       publisher
-::      <--response--     <--update--
-::
-::    local actions _may_ become responses,
-::    remote actions become commands,
-::    commands _may_ become updates,
-::    updates _may_ become responses.
-::
-/-  g=groups, c=cite, e=epic
-/-  zer=diary-0, uno=diary-1
-/+  mp=mop-extensions
+/-  g=groups, c=cite, graph-store, e=epic
+/-  zer=diary-0
+/-  metadata-store
+/+  lib-graph=graph-store
 |%
-+|  %ancients
-::
 ++  old
   |%
   ++  zero  zer
-  ++  one  uno
   --
 ::
 ++  okay  `epic:e`1
 ++  mar
   |%
-  ++  act  `mark`%diary-action
-  ++  cmd  `mark`%diary-command
-  ++  upd  `mark`%diary-update
-  ++  log  `mark`%diary-logs
-  ++  not  `mark`%diary-notes
+  ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %diary-update '-' (scot %ud okay) ~)
+  ++  log  `mark`(rap 3 %diary-logs '-' (scot %ud okay) ~)
+  --
+::  $flag: identifier for a diary channel
++$  flag  (pair ship term)
+::  $feel: either an emoji identifier like :diff or a URL for custom
++$  feel  @ta
+::  $view: the persisted display format for a diary
++$  view  ?(%grid %list)
+::  $sort: the persisted sort type for a diary
++$  sort  ?(%alpha %time %arranged)
+::  $arranged-notes: an array of noteIds
++$  arranged-notes  (unit (list time))
+::  $shelf: my ship's diaries
++$  shelf  (map flag diary)
+::  $said: used for references
++$  said  (pair flag outline)
+::  $plan: index into diary state
+::    p: Note being referred to
+::    q: Quip being referred to, if any
+::
++$  plan
+  (pair time (unit time))
+::
+::  $diary: written longform communication
+::
+::    arranged-notes: a list of noteIds, used for manual sorting
+::    net: an indicator of whether I'm a host or subscriber
+::    log: the history of all modifications
+::    perm: holds the diary's permissions
+::    view: what format to display
+::    sort: how to order posts
+::    notes: the actual contents of the diary
+::    remark: what is the last thing we've read
+::    banter: comments organized by post
+::
++$  diary
+  $:  =arranged-notes
+      =net
+      =log
+      =perm
+      =view
+      =sort
+      =notes
+      =remark
+  ==
+::
+::  $notes: a set of time ordered diary posts
+::
+++  notes
+  =<  rock
+  |%
+  +$  rock
+    ((mop time note) lte)
+  ++  on
+    ((^on time note) lte)
+  +$  diff
+    (pair time delta)
+  +$  delta
+    $%  [%add p=essay]
+        [%edit p=essay]
+        [%del ~]
+        [%quips p=diff:quips]
+        [%add-feel p=ship q=feel]
+        [%del-feel p=ship]
+    ==
   --
 ::
-+|  %primitives
+::  $quips: a set of time ordered note comments
 ::
-+$  shelf  (map nest diary)
-++  diary
-  |^  ,[global local]
-  ::  $global: should be identical between ships
-  ::
-  +$  global
-    $:  =notes
-        order=(rev order=arranged-notes)
-        view=(rev =view)
-        sort=(rev =sort)
-        perm=(rev =perm)
-    ==
-  ::  $window: sparse set of time ranges
-  ::
-  ::TODO  populate this
-  +$  window  (list [from=time to=time])
-  ::  .window: time range for requested notes that we haven't received
-  ::  .diffs: diffs for notes in the window, to apply on receipt
-  ::
-  +$  future
-    [=window diffs=(jug id-note u-note)]
-  ::  $local: local-only information
-  ::
-  +$  local
-    $:  =net
-        =log
-        =remark
-        =window
-        =future
+++  quips
+  =<  rock
+  |%
+  +$  rock
+    ((mop time quip) lte)
+  ++  on
+    ((^on time quip) lte)
+  +$  diff
+    (pair time delta)
+  +$  delta
+    $%  [%add p=memo]
+        [%del ~]
+        [%add-feel p=ship q=feel]
+        [%del-feel p=ship]
     ==
   --
+::
+::  $outline: abridged $note
+::    .quips: number of comments
+::
++$  outline
+  [quips=@ud quippers=(set ship) essay]
+::
+++  outlines
+  =<  outlines
+  |%
+  +$  outlines  ((mop time outline) lte)
+  ++  on        ((^on time outline) lte)
+  --
+::
 ::  $note: a diary post
 ::
-+$  note      [seal (rev essay)]
-+$  id-note   time
-+$  notes     ((mop id-note (unit note)) lte)
-++  on-notes  ((on id-note (unit note)) lte)
-++  mo-notes  ((mp id-note (unit note)) lte)
++$  note  [seal essay]
 ::  $quip: a post comment
 ::
-+$  quip      [cork memo]
-+$  id-quip   time
-+$  quips     ((mop id-quip (unit quip)) lte)
-++  on-quips  ((on id-quip (unit quip)) lte)
-++  mo-quips  ((mp time (unit quip)) lte)
++$  quip  [cork memo]
+::
 ::  $seal: host-side data for a note
 ::
-+$  seal  $+  diary-seal
-  $:  id=id-note
++$  seal
+  $:  =time
       =quips
-      =feels
+      feels=(map ship feel)
   ==
+::
 ::  $cork: host-side data for a quip
 ::
 +$  cork
-  $:  id=id-quip
-      =feels
+  $:  =time
+      feels=(map ship feel)
   ==
-::  $essay: top-level post, with metadata
+::  $essay: the post data itself
 ::
-+$  essay  [memo =han-data]
-::  $han-data: metadata for a channel type's "post"
+::    title: the name of the post
+::    image: a visual displayed as a header
+::    content: the body of the post
+::    author: the ship that wrote the post
+::    sent: the client-side time the post was made
 ::
-+$  han-data
-  $%  [%diary title=@t image=@t]
-      [%heap title=(unit @t)]
-      [%chat kind=$@(~ [%notice ~])]
++$  essay
+  $:  title=@t
+      image=@t
+      content=(list verse)
+      author=ship
+      sent=time
   ==
-::  $memo: post data proper
++$  story  (pair (list block) (list inline))
+::  $memo: the comment data itself
 ::
 ::    content: the body of the comment
 ::    author: the ship that wrote the comment
@@ -118,9 +160,6 @@
       author=ship
       sent=time
   ==
-::  $story: post body content
-::
-+$  story  (list verse)
 ::  $verse: a chunk of post content
 ::
 ::    blocks stand on their own. inlines come in groups and get wrapped
@@ -143,7 +182,7 @@
 ::    %listing: a traditional HTML list, ul and ol
 ::    %code: a block of code
 ::
-+$  block  $+  diary-block
++$  block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
@@ -165,56 +204,90 @@
 ::    %link: link to a URL with a face
 ::    %break: line break
 ::
-+$  inline  $+  diary-inline
++$  inline
   $@  @t
   $%  [%italics p=(list inline)]
       [%bold p=(list inline)]
       [%strike p=(list inline)]
       [%blockquote p=(list inline)]
       [%inline-code p=cord]
-      [%code p=cord]
       [%ship p=ship]
       [%block p=@ud q=cord]
+      [%code p=cord]
       [%tag p=cord]
       [%link p=cord q=cord]
       [%break ~]
   ==
+::  $log: a time ordered history of modifications to a diary
 ::
-+$  han  ?(%diary %heap %chat)
-::  $nest: identifier for a diary channel
-+$  nest  [=han =ship name=term]
-::  $view: the persisted display format for a diary
-+$  view  $~(%list ?(%grid %list))
-::  $sort: the persisted sort type for a diary
-+$  sort  $~(%time ?(%alpha %time %arranged))
-::  $arranged-notes: an array of noteIds
-+$  arranged-notes  (unit (list time))
-::  $feel: either an emoji identifier like :diff or a URL for custom
-+$  feel  @ta
-+$  feels  (map ship (rev (unit feel)))
-::  $said: used for references
-+$  said  (pair nest outline)
-::  $plan: index into diary state
-::    p: Note being referred to
-::    q: Quip being referred to, if any
++$  log
+  ((mop time diff) lte)
+++  log-on
+  ((on time diff) lte)
 ::
-+$  plan
-  (pair time (unit time))
+::  $action: the complete set of data required to modify a diary
 ::
-::  $net: subscriber-only state
++$  action
+  (pair flag:g update)
 ::
-+$  net  [p=ship load=_| =saga:e]
+::  $update: a representation in time of a modification to a diary
+::
++$  update
+  (pair time diff)
+::
+::  $diff: the full suite of modifications that can be made to a diary
+::
++$  diff
+  $%  [%notes p=diff:notes]
+    ::
+      [%add-sects p=(set sect:g)]
+      [%del-sects p=(set sect:g)]
+    ::
+      [%create p=perm q=notes]
+      [%view p=view]
+      [%sort p=sort]
+      [%arranged-notes p=arranged-notes]
+    ::
+  ==
+::
+::  $net: an indicator of whether I'm a host or subscriber
+::
+::    %pub: am publisher/host with fresh log
+::    %sub: subscribed to the ship at saga
+::
++$  net
+  $%  [%sub p=ship load=_| =saga:e]
+      [%pub ~] :: TODO: permissions?
+  ==
 ::
 ::  $briefs: a map of diary unread information
 ::
 ::    brief: the last time a diary was read, how many posts since,
 ::    and the id of the last read note
 ::
-+$  briefs  (map nest brief)
-+$  brief   [last=time count=@ud read-id=(unit time)]
+++  briefs
+  =<  briefs
+  |%
+  +$  briefs
+    (map flag brief)
+  +$  brief
+    [last=time count=@ud read-id=(unit time)]
+  +$  update
+    (pair flag brief)
+  --
 ::  $remark: a marker representing the last note I've read
 ::
-+$  remark  [last-read=time watching=_| ~]
++$  remark
+  [last-read=time watching=_| ~]
+::
++$  remark-action
+  (pair flag remark-diff)
+::
++$  remark-diff
+  $%  [%read ~]
+      [%read-at p=time]
+      [?(%watch %unwatch) ~]
+  ==
 ::
 ::  $perm: represents the permissions for a diary channel and gives a
 ::  pointer back to the group it belongs to.
@@ -223,204 +296,39 @@
   $:  writers=(set sect:g)
       group=flag:g
   ==
+::  $join: a group + channel flag to join a channel, group required for perms
 ::
-::  $log: a time ordered history of modifications to a diary
++$  join
+  $:  group=flag:g
+      chan=flag:g
+  ==
+::  $leave: a flag to pass for a channel leave
 ::
-+$  log     ((mop time u-diary) lte)
-++  log-on  ((on time u-diary) lte)
++$  leave  flag:g
 ::
-::  $create-diary: represents a request to create a channel
+::  $create: represents a request to create a channel
 ::
-::    $create-diary is consumed by the diary agent first and then
+::    The name will be used as part of the flag which represents the
+::    channel. $create is consumed by the diary agent first and then
 ::    passed to the groups agent to register the channel with the group.
 ::
 ::    Write permission is stored with the specific agent in the channel,
 ::    read permission is stored with the group's data.
 ::
-+$  create-diary
-  $:  =han
++$  create
+  $:  group=flag:g
       name=term
-      group=flag:g
       title=cord
       description=cord
       readers=(set sect:g)
       writers=(set sect:g)
   ==
-::  $outline: abridged $note
-::    .quips: number of comments
++$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
 ::
-+$  outline
-  [quips=@ud quippers=(set ship) essay]
++$  imports  (map flag import)
 ::
-++  outlines
-  =<  outlines
-  |%
-  +$  outlines  ((mop time outline) lte)
-  ++  on        ((^on time outline) lte)
-  --
-++  rev
-  |$  [data]
-  [rev=@ud data]
-::
-++  apply-rev
-  |*  [old=(rev) new=(rev)]
-  ^+  [changed=& old]
-  ?:  (lth rev.old rev.new)
-    &+new
-  |+old
-::
-++  next-rev
-  |*  [old=(rev) new=*]
-  ^+  [changed=& old]
-  ?:  =(+.old new)
-    |+old
-  &+old(rev +(rev.old), + new)
-::
-+|  %actions
-::
-::  some actions happen to be the same as commands, but this can freely
-::  change
-::
-::NOTE  we might want to add a action-id=uuid to this eventually, threading
-::      that through all the way, so that an $r-shelf may indicate what
-::      originally caused it
-+$  a-shelf
-  $%  [%create =create-diary]
-      [%diary =nest =a-diary]
-  ==
-+$  a-diary
-  $%  [%join group=flag:g]
-      [%leave ~]
-      a-remark
-      c-diary
-  ==
-::
-+$  a-remark
-  $~  [%read ~]
-  $%  [%read ~]
-      [%read-at =time]
-      [%watch ~]
-      [%unwatch ~]
-  ==
-::
-+$  a-note  c-note
-+$  a-quip  c-quip
-::
-+|  %commands
-::
-+$  c-shelf
-  $%  [%create =create-diary]
-      [%diary =nest =c-diary]
-  ==
-+$  c-diary
-  $%  [%note =c-note]
-      [%view =view]
-      [%sort =sort]
-      [%order order=arranged-notes]
-      [%add-writers sects=(set sect:g)]
-      [%del-writers sects=(set sect:g)]
-  ==
-::
-+$  c-note
-  $%  [%add =essay]
-      [%edit id=id-note =essay]
-      [%del id=id-note]
-      [%quip id=id-note =c-quip]
-      c-feel
-  ==
-::
-+$  c-quip
-  $%  [%add =memo]
-      [%del id=id-quip]
-      c-feel
-  ==
-::
-+$  c-feel
-  $%  [%add-feel id=@da p=ship q=feel]
-      [%del-feel id=@da p=ship]
-  ==
-::
-+|  %updates
-::
-+$  update   [=time =u-diary]
-+$  u-shelf  [=nest =u-diary]
-+$  u-diary
-  $%  [%create =perm]
-      [%order (rev order=arranged-notes)]
-      [%view (rev =view)]
-      [%sort (rev =sort)]
-      [%perm (rev =perm)]
-      [%note id=id-note =u-note]
-  ==
-::
-+$  u-note
-  $%  [%set note=(unit note)]
-      [%feels =feels]
-      [%essay (rev =essay)]
-      [%quip id=id-quip =u-quip]
-  ==
-::
-+$  u-quip
-  $%  [%set quip=(unit quip)]
-      [%feels =feels]
-  ==
-::
-+$  u-checkpoint  global:diary
-::
-+|  %responses
-::
-+$  r-shelf  [=nest =r-diary]
-+$  r-diary
-  $%  [%notes =rr-notes]
-      [%note id=id-note =r-note]
-      [%order order=arranged-notes]
-      [%view =view]
-      [%sort =sort]
-      [%perm =perm]
-    ::
-      [%create =perm]
-      [%join group=flag:g]
-      [%leave ~]
-      a-remark
-  ==
-::
-+$  r-note
-  $%  [%set note=(unit rr-note)]
-      [%quip id=id-quip =r-quip]
-      [%feels feels=rr-feels]
-      [%essay =essay]
-  ==
-::
-+$  r-quip
-  $%  [%set quip=(unit rr-quip)]
-      [%feels feels=rr-feels]
-  ==
-::  versions of backend types with their revision numbers stripped,
-::  because the frontend shouldn't care to learn those.
-::
-+$  rr-shelf  (map nest rr-diary)
-++  rr-diary
-  |^  ,[global local]
-  +$  global
-    $:  notes=rr-notes
-        order=arranged-notes
-        =view
-        =sort
-        =perm
-    ==
-  ::
-  +$  local
-    $:  =net
-        =remark
-    ==
-  --
-+$  rr-notes  ((mop id-note (unit rr-note)) lte)
-+$  rr-note   [rr-seal essay]
-+$  rr-seal   [id=id-note =rr-quips =rr-feels]
-+$  rr-feels  (map ship feel)
-+$  rr-quip   [rr-cork memo]
-+$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [id=id-quip =rr-feels]
-++  rr-on-notes  ((on id-note (unit rr-note)) lte)
-++  rr-on-quips  ((on id-quip rr-quip) lte)
+++  gra  graph-store
+++  orm-gra  orm:lib-graph
+++  orm-log-gra  orm-log:lib-graph
+++  met  metadata-store
 --

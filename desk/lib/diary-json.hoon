@@ -1,4 +1,4 @@
-/-  j=joint, d=diary, g=groups
+/-  j=joint, d=channels, g=groups
 /-  meta
 /+  cite=cite-json, gj=groups-json
 =*  z  ..zuse

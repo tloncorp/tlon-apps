@@ -4,9 +4,9 @@
 ::
 ::  TODO: import state from diary
 ::
-/-  d=diary, g=groups
+/-  d=channels, g=groups
 /-  e=epic
-/+  libnotes=notes
+/+  utils=channels-utils
 /+  default-agent, verb, dbug
 ^-  agent:gall
 =>
@@ -260,7 +260,7 @@
   ++  emit  |=(=card di-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) di-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall di-core(cor (^give gift)))
-  ++  di-perms  ~(. perms:libnotes our.bowl now.bowl nest group.perm.perm.diary)
+  ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.diary)
   ++  di-abet
     %_  cor
         shelf
@@ -571,7 +571,7 @@
       %^  give  %fact  ~
       ?.  (can-read:di-perms src.bowl)
         channel-denied+!>(~)
-      (said:libnotes nest plan notes.diary)
+      (said:utils nest plan notes.diary)
     (give %kick ~ ~)
   --
 --

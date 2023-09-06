@@ -1,80 +1,173 @@
-/-  d=diary, g=groups
-::  convert a note to a preview for a "said" response
+/-  d=diary
+/-  ha=hark
+/+  qip=quips, mp=mop-extensions
+|_  not=notes:d
+++  mope  ((mp time note:d) lte)
+++  brief
+  |=  [our=ship last-read=time]
+  ^-  brief:briefs:d
+  =/  =time
+    ?~  tim=(ram:on:notes:d not)  *time
+    key.u.tim
+  =/  unreads
+    (lot:on:notes:d not `last-read ~)
+  =/  read-id=(unit ^time)
+    (bind (pry:on:notes:d unreads) |=([key=@da val=note:d] time.val))
+  =/  count
+    (lent (skim ~(tap by unreads) |=([tim=^time =note:d] !=(author.note our))))
+  [time count read-id]
 ::
-|%
-++  said
-  |=  [=nest:d =plan:d =notes:d]
-  ^-  cage
-  =/  note=(unit (unit note:d))  (get:on-notes:d notes p.plan)
-  =/  =outline:d
-    ?~  note
-      ::TODO  give "outline" that formally declares deletion
-      ?-  han.nest
-        %diary  [0 ~ [~ ~nul *@da] %diary 'Unknown post' '']
-        %heap   [0 ~ [~ ~nul *@da] %heap ~ 'Unknown link']
-        %chat   [0 ~ [[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
-      ==
-    ?~  u.note
-      ?-  han.nest
-          %diary  [0 ~ [~ ~nul *@da] %diary 'This post was deleted' '']
-          %heap   [0 ~ [~ ~nul *@da] %heap ~ 'This link was deleted']
-          %chat
-        [0 ~ [[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
-      ==
-    (trace u.u.note)
-  [%channel-said !>(`said:d`[nest outline])]
+++  get
+  |=  =time
+  ^-  (unit [=^time =note:d])
+  ?~  not=(get:on:notes:d not time)
+    ~
+  `[time u.not]
+::
+++  jab
+  |=  [=time fun=$-(note:d note:d)]
+  ^+  not
+  ?~  v=(get time)  not
+  =.  not  (put:on:notes:d not time.u.v (fun note.u.v))
+  not
+::
+++  got
+  |=  =time
+  ^-  [=^time =note:d]
+  (need (get time))
+::
+++  reduce
+  |=  [new=time existing=time del=delta:notes:d]
+  ^+  not
+  ?-  -.del
+      %add
+    =/  =seal:d  [new ~ ~]
+    |-
+    =/  note  (get new)
+    ?~  note  (put:on:notes:d not new [seal p.del])
+    ?:  =(+.+.u.note p.del)  not
+    $(new `@da`(add new ^~((div ~s1 (bex 16)))))
+  ::
+      %edit
+    =/  note  (get existing)
+    ?~  note  not
+    (put:on:notes:d not existing [-.+.u.note p.del])
+  ::
+      %del
+    =^  no=(unit note:d)  not
+      (del:on:notes:d not existing)
+    not
+  ::
+      %quips
+    %+  jab  existing
+    |=  =note:d
+    note(quips (~(reduce qip quips.note) p.p.del q.p.del))
+  ::
+      %add-feel
+    %+  jab  existing
+    |=  =note:d
+    note(feels (~(put by feels.note) [p q]:del))
+  ::
+      %del-feel
+    %+  jab  existing
+    |=  =note:d
+    note(feels (~(del by feels.note) p.del))
+  ==
+++  flatten
+  |=  content=(list inline:d)
+  ^-  cord
+  %-  crip
+  %-  zing
+  %+  turn
+    content
+  |=  c=inline:d
+  ^-  tape
+  ?@  c  (trip c)
+  ?-  -.c
+      %break  ""
+      %tag    (trip p.c)
+      %link   (trip q.c)
+      %block   (trip q.c)
+      ?(%code %inline-code)  ""
+      %ship    (scow %p p.c)
+      ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
+  ==
+::
+++  hark
+  |=  [our=ship =time =delta:notes:d]
+  ^-  (list (list content:ha))
+  ?.  ?=(%quips -.delta)
+    ~
+  =/  [@ =note:d]  (got time)
+  ~!  q.p.delta
+  ?.  ?=(%add -.q.p.delta)
+    ~
+  =/  =memo:d  p.q.p.delta
+  =/  in-replies
+    %+  lien  (tap:on:quips:d quips.note)
+    |=  [=^time =quip:d]
+    =(author.quip our)
+  ?:  |(=(author.memo our) &(!in-replies !=(author.note our)))  ~
+  =-  ~[-]
+  :~  [%ship author.memo]
+      ' commented on '
+      [%emph title.note]
+      ': '
+      [%ship author.memo]
+      ': '
+      (flatten q.content.memo)
+  ==
+::  +trace: turn note into outline
+::
+::    XX: should trim actual note contents, probably
 ::
 ++  trace
   |=  =note:d
   ^-  outline:d
   =;  quippers=(set ship)
-    [~(wyt by quips.note) quippers +>.note]
+    [~(wyt by quips.note) quippers +.note]
   =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
   %-  ~(gas in *(set ship))
-  %+  murn  (tap:on-quips:d quips.note)
-  |=  [@ quip=(unit quip:d)]
-  ?~  quip  ~
-  (some author.u.quip)
+  %+  turn  (tap:on:quips:d quips.note)
+  |=  [@ =quip:d]
+  author.quip
 ::
-++  perms
-  |_  [our=@p now=@da =nest:d group=flag:g]
-  ++  am-host  =(our ship.nest)
-  ++  groups-scry
-    ^-  path
-    :-  (scot %p our)
-    /groups/(scot %da now)/groups/(scot %p p.group)/[q.group]
+++  peek
+  |=  =(pole knot)
+  ^-  (unit (unit cage))
+  =*  on   on:notes:d
+  ?+    pole  [~ ~]
   ::
-  ++  is-admin
-    |=  her=ship
-    ?:  =(ship.nest her)  &
-    .^  admin=?
-    ;:  weld
-        /gx
-        groups-scry
-        /channel/[han.nest]/(scot %p ship.nest)/[name.nest]
-        /fleet/(scot %p her)/is-bloc/loob
-    ==  ==
+      [%newest count=@ mode=?(%outline %note) ~]
+    =/  count  (slav %ud count.pole)
+    =/  ls    (top:mope not count)
+    ?:  =(mode.pole %note)
+      ``diary-notes+!>((gas:on *notes:d ls))
+    =-  ``diary-outlines+!>(-)
+    %+  gas:on:outlines:d  *outlines:d
+    (turn ls |=([=time =note:d] [time (trace note)]))
   ::
-  ++  can-write
-    |=  [her=ship writers=(set sect:g)]
-    ?:  =(ship.nest her)  &
-    =/  =path
-      %+  welp  groups-scry
-      :+  %channel  han.nest
-      /(scot %p ship.nest)/[name.nest]/can-write/(scot %p her)/noun
-    =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
-    ?~  write  |
-    =/  perms  (need write)
-    ?:  |(bloc.perms =(~ writers))  &
-    !=(~ (~(int in writers) sects.perms))
+      [%older start=@ count=@ mode=?(%outline %note) ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %ud start.pole)
+    =/  ls    (bat:mope not `start count)
+    ?:  =(mode.pole %note)
+      ``diary-notes+!>((gas:on *notes:d ls))
+    =-  ``diary-outlines+!>(-)
+    %+  gas:on:outlines:d  *outlines:d
+    (turn ls |=([=time =note:d] [time (trace note)]))
   ::
-  ++  can-read
-    |=  her=ship
-    ?:  =(our her)  &
-    =/  =path
-      %+  welp  groups-scry
-      :+  %channel  han.nest
-      /(scot %p ship.nest)/[name.nest]/can-read/(scot %p her)/loob
-    .^(? %gx path)
-  --
+      [%newer start=@ count=@ ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %ud start.pole)
+    ``diary-notes+!>((gas:on *notes:d (tab:on not `start count)))
+  ::
+      [%note time=@ ~]
+    =/  time  (slav %ud time.pole)
+    ``diary-note+!>(+:(got `@da`time))
+  ::
+      [%note %id time=@ %quips rest=*]
+    =/  time  (slav %ud time.pole)
+    (~(peek qip quips:note:(got `@da`time)) rest.pole)
+  ==
 --

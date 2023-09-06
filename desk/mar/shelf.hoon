@@ -1,4 +1,4 @@
-/-  d=diary
+/-  d=channels
 /+  j=diary-json
 |_  =rr-shelf:d
 ++  grad  %noun
