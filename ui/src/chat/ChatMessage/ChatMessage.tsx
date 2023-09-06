@@ -307,17 +307,19 @@ const ChatMessage = React.memo<
                   />
                 ) : null}
                 {Object.keys(seal.feels).length > 0 && (
-                  <ChatReactions
-                    id="reactions-target"
-                    seal={seal}
-                    whom={whom}
-                  />
+                  <>
+                    <ChatReactions
+                      id="reactions-target"
+                      seal={seal}
+                      whom={whom}
+                    />
+                    <ReactionDetails
+                      open={reactionDetailsOpen}
+                      onOpenChange={setReactionDetailsOpen}
+                      feels={seal.feels}
+                    />
+                  </>
                 )}
-                <ReactionDetails
-                  open={reactionDetailsOpen}
-                  onOpenChange={setReactionDetailsOpen}
-                  feels={seal.feels}
-                />
                 {numReplies > 0 && !hideReplies ? (
                   <NavLink
                     to={`message/${seal.id}`}
