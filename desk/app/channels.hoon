@@ -2,13 +2,13 @@
 ::
 ::    this is the client side that pulls data from the channels-server.
 ::
-/-  d=channels, g=groups, ha=hark
+/-  d=channel, g=groups, ha=hark
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug, sparse
-/+  utils=channels-utils, volume
+/+  utils=channel-utils, volume
 ::  performance, keep warm
-/+  diary-json
+/+  channel-json
 ^-  agent:gall
 =>
   |%

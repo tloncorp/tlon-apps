@@ -4,9 +4,9 @@
 ::
 ::  TODO: import state from diary
 ::
-/-  d=channels, g=groups
+/-  d=channel, g=groups
 /-  e=epic
-/+  utils=channels-utils
+/+  utils=channel-utils
 /+  default-agent, verb, dbug
 ^-  agent:gall
 =>

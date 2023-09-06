@@ -30,11 +30,11 @@
 ++  okay  `epic:e`1
 ++  mar
   |%
-  ++  act  `mark`%diary-action
-  ++  cmd  `mark`%diary-command
-  ++  upd  `mark`%diary-update
-  ++  log  `mark`%diary-logs
-  ++  not  `mark`%diary-notes
+  ++  act  `mark`%channel-action
+  ++  cmd  `mark`%channel-command
+  ++  upd  `mark`%channel-update
+  ++  log  `mark`%channel-logs
+  ++  not  `mark`%channel-notes
   --
 ::
 +|  %primitives

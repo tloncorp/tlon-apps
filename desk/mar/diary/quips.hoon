@@ -1,14 +1,14 @@
 /-  d=diary
 /+  j=diary-json
-|_  =rr-quips:d
+|_  =quips:d
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  rr-quips
-  ++  json  (rr-quips:enjs:j rr-quips)
+  ++  noun  quips
+  ++  json  (quips:enjs:j quips)
   --
 ++  grab
   |%
-  ++  noun  rr-quips:d
+  ++  noun  quips:d
   --
 --

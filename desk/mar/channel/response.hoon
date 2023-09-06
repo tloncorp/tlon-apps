@@ -1,5 +1,5 @@
-/-  d=diary
-/+  j=diary-json
+/-  d=channel
+/+  j=channel-json
 |_  =r-shelf:d
 ++  grad  %noun
 ++  grow

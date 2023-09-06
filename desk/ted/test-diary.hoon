@@ -8,7 +8,7 @@
 ::  - test join, leave, read, read-at
 ::  - test permissions
 ::
-/-  spider, d=channels, g=groups, e=epic
+/-  spider, d=channel, g=groups, e=epic
 /+  s=strandio
 =,  strand=strand:spider
 ^-  thread:spider

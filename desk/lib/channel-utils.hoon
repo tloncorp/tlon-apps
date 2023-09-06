@@ -1,4 +1,4 @@
-/-  d=channels, g=groups
+/-  d=channel, g=groups
 ::  convert a note to a preview for a "said" response
 ::
 |%
