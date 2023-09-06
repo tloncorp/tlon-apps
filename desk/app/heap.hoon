@@ -1,4 +1,4 @@
-/-  h=heap, g=groups, ha=hark, e=epic
+/-  h=heap, d=diary, g=groups, ha=hark, e=epic
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
@@ -132,6 +132,9 @@
       %heap-remark-action
     =+  !<(act=remark-action:h vase)
     he-abet:(he-remark-diff:(he-abed:he-core p.act) q.act)
+  ::
+      %heap-migrate-server  ?>(from-self server:migrate)
+      %heap-migrate         ?>(from-self client:migrate)
   ==
   ++  join
     |=  =join:h
@@ -267,6 +270,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
+      [%migrate ~]  cor
       [%epic ~]  (take-epic sign)
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
@@ -547,6 +551,141 @@
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
 ++  from-self  =(our src):bowl
+::
+++  migrate
+  |%
+  ++  server
+    =/  server-shelf=shelf:d
+      %+  convert-shelf  &
+      %-  ~(gas by *stash:h)
+      %+  skim  ~(tap by stash)
+      |=  [=flag:h =heap:h]
+      =(our.bowl p.flag)
+    =/  =cage  [%channel-migration !>(server-shelf)]
+    (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
+  ::
+  ++  client
+    =/  =shelf:d  (convert-shelf | stash)
+    =/  =cage  [%channel-migration !>(shelf)]
+    (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+  ::
+  ++  convert-shelf
+    |=  [log=? =stash:h]
+    ^-  shelf:d
+    %-  ~(gas by *shelf:d)
+    %+  turn  ~(tap by stash)
+    |=  [=flag:h =heap:h]
+    ^-  [nest:d diary:d]
+    :-  [%heap flag]
+    =/  =notes:d  (convert-notes curios.heap)
+    %*    .  *diary:d
+        notes   notes
+        log     ?.(log ~ (convert-log curios.heap notes perm.heap log.heap))
+        view    [0 view.heap]
+        perm    [0 perm.heap]
+        remark  remark.heap
+        net
+      ?-  -.net.heap
+        %pub  [*ship & chi+~]
+        %sub  +.net.heap
+      ==
+    ==
+  ::
+  ++  convert-notes
+    |=  old=curios:h
+    ^-  notes:d
+    =/  curios  (tap:on:curios:h old)
+    =/  index=(map @da quips:d)
+      %+  roll  curios
+      |=  [[=time =curio:h] index=(map @da quips:d)]
+      ?~  replying.curio  index
+      =/  old-quips=quips:d  (~(gut by index) time *quips:d)
+      %+  ~(put by index)  u.replying.curio
+      (put:on-quips:d old-quips time `(convert-quip time curio))
+    %+  gas:on-notes:d  *notes:d
+    %+  murn  curios
+    |=  [=time =curio:h]
+    ^-  (unit [id-note:d (unit note:d)])
+    ?^  replying.curio  ~
+    =/  =quips:d  (~(gut by index) time *quips:d)
+    (some time `(convert-note time curio quips))
+  ::
+  ++  convert-note
+    |=  [id=@da old=curio:h =quips:d]
+    ^-  note:d
+    [[id quips (convert-feels feels.old)] %0 (convert-essay +.old)]
+  ::
+  ++  convert-feels
+    |=  old=(map ship feel:d)
+    ^-  feels:d
+    %-  ~(run by old)
+    |=  =feel:d
+    [%0 `feel]
+  ::
+  ++  convert-quip
+    |=  [id=@da old=curio:h]
+    ^-  quip:d
+    [[id (convert-feels feels.old)] (convert-memo +.old)]
+  ::
+  ++  convert-memo
+    |=  old=heart:h
+    ^-  memo:d
+    [(convert-story content.old) author.old sent.old]
+  ::
+  ++  convert-essay
+    |=  old=heart:h
+    ^-  essay:d
+    [(convert-memo old) %heap title.old]
+  ::
+  ++  convert-story
+    |=  old=content:h
+    ^-  story:d
+    %+  welp
+      (turn p.old |=(=block:h [%block block]))
+    [%inline q.old]~
+  ::
+  ++  convert-log
+    |=  [=curios:h =notes:d =perm:d =log:h]
+    ^-  log:d
+    %+  gas:log-on:d  *log:d
+    %+  murn  (tap:log-on:h log)
+    |=  [=time =diff:h]
+    ^-  (unit [id-note:d u-diary:d])
+    =;  new=(unit u-diary:d)
+      ?~(new ~ `[time u.new])
+    ?-    -.diff
+        ?(%add-sects %del-sects)  `[%perm 0 perm]
+        %create                   `[%create p.diff]
+        %view                     `[%view 0 p.diff]
+        %curios
+      =*  id  p.p.diff
+      =/  old-curio  (get:on:curios:h curios id)
+      ?~  old-curio  `[%note id %set ~]
+      ?~  replying.u.old-curio
+        =/  old-note  (get:on-notes:d notes id)
+        ?~  old-note  ~
+        :^  ~  %note  id
+        ?-  -.q.p.diff
+          %del                    [%set ~]
+          ?(%add %edit)           [%set u.old-note]
+          ?(%add-feel %del-feel)  [%feels ?~(u.old-note ~ feels.u.u.old-note)]
+        ==
+      =/  old-note  (get:on-notes:d notes u.replying.u.old-curio)
+      ?~  old-note  ~
+      ?~  u.old-note  ~
+      =/  old-quip  (get:on-quips:d quips.u.u.old-note id)
+      ?~  old-quip  ~
+      :^  ~  %note  u.replying.u.old-curio
+      :+  %quip  id
+      ^-  u-quip:d
+      ?-  -.q.p.diff
+        %del                    [%set ~]
+        ?(%add %edit)           [%set u.old-quip]
+        ?(%add-feel %del-feel)  [%feels ?~(u.old-quip ~ feels.u.u.old-quip)]
+      ==
+    ==
+  --
+::
 ++  he-core
   |_  [=flag:h =heap:h gone=_|]
   +*  he-curios  ~(. cur curios.heap)

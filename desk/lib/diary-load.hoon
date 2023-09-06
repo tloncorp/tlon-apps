@@ -119,7 +119,7 @@
   |=  old-diary=diary:one  ::NOTE  because we need the perm also
   ^-  log:two
   %+  gas:log-on:two  *log:two
-  %+  murn  ~(tap by log.old-diary)
+  %+  murn  (tap:log-on:d log.old-diary)
   |=  [=time =diff:one]
   =;  new=(unit u-diary:two)
     (bind new (lead time))

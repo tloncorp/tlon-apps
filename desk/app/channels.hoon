@@ -2,10 +2,6 @@
 ::
 ::    this is the client side that pulls data from the channels-server.
 ::
-::  TODO: refactor initial subscription to actually fetch by notes
-::  TODO: listen to groups to join channel
-::  TODO: migrate data from diary, heap
-::
 /-  d=diary, g=groups, ha=hark
 /-  meta
 /-  e=epic
@@ -35,7 +31,7 @@
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state
-      abet:inflate-io:cor
+      abet:init:cor
     [cards this]
   ::
   ++  on-save  !>([state okay:d])
@@ -104,6 +100,16 @@
   ::
   +$  versioned-state  $%(current-state)
   --
+::
+++  init
+  ^+  cor
+  =.  cor
+    %-  emil
+    :~  :: [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
+        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
+        :: [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
+    ==
+  inflate-io
 ::
 ++  inflate-io
   ::  leave all subscriptions we don't recognize
@@ -190,6 +196,12 @@
     ?:  ?=(%join -.a-diary.a-shelf)
       di-abet:(di-join:di-core [nest group.a-diary]:a-shelf)
     di-abet:(di-a-diary:(di-abed:di-core nest.a-shelf) a-diary.a-shelf)
+  ::
+      %channel-migration
+    ?>  =(our src):bowl
+    =+  !<(new-shelf=shelf:d vase)
+    =.  shelf  (~(uni by new-shelf) shelf)  ::  existing overrides migration
+    cor
   ==
 ::
 ++  watch
@@ -282,6 +294,14 @@
         %fact
       ?.  =(act:mar:g p.cage.sign)  cor
       (take-groups !<(=action:g q.cage.sign))
+    ==
+  ::
+      [%migrate ~]
+    ?+  -.sign  !!
+        %poke-ack
+      ?~  p.sign  cor
+      %-  (slog 'channels: migration poke failure' >wire< u.p.sign)
+      cor
     ==
   ==
 ::

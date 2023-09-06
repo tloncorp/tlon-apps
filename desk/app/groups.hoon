@@ -252,15 +252,15 @@
       =/  =c-shelf:d  [%diary nest %del-writers writers.perms]
       =/  =wire  /diary
       =/  =dock  [our.bowl %channels-server]
-      =/  =cage  [act:mar:d !>(c-shelf)]
+      =/  =cage  [%channel-command !>(c-shelf)]
       [%pass wire %agent dock %poke cage]
     ::
         %heap
       =/  perms  .^(perm:h %gx path)
-      =/  =c-stash:h  [%heap +.nest %del-writers writers.perms]
+      =/  =c-shelf:d  [%diary nest %del-writers writers.perms]
       =/  =wire  /heap
       =/  =dock  [our.bowl %channels-server]
-      =/  =cage  [act:mar:h !>(c-stash)]
+      =/  =cage  [%channel-command !>(c-shelf)]
       [%pass wire %agent dock %poke cage]
     ==
   core

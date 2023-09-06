@@ -1,52 +1,66 @@
+/-  graph-store
 /-  cite
-/-  j=joint, g=groups, e=epic
-/+  mp=mop-extensions
+/-  g=groups, e=epic
+/-  metadata-store
+/+  lib-graph=graph-store
 |%
-+|  %ancients
-::
 ++  okay  `epic:e`0
 ++  mar
   |%
-  ++  act  `mark`%heap-action
-  ++  upd  `mark`%heap-update
-  ++  log  `mark`%heap-logs
+  ++  act  `mark`(rap 3 %heap-action '-' (scot %ud okay) ~)
+  ++  upd  `mark`(rap 3 %heap-update '-' (scot %ud okay) ~)
+  ++  log  `mark`(rap 3 %heap-logs '-' (scot %ud okay) ~)
   --
-::
-+|  %primitives
-::
+::  $flag: identifier for a heap channel
++$  flag  (pair ship term)
+::  $feel: either an emoji identifier like :wave or a URL for custom
++$  feel  @ta
+::  $view: the persisted display format for a heap
++$  view  ?(%grid %list)
 ::  $stash: heaps I've joined
 +$  stash  (map flag heap)
+::  $said: used for curio references
++$  said  (pair flag curio)
 ::
 ::  $heap: a collection of curiosities
 ::
-::    curios: the actual contents of the heap
-::    view: what format to display
-::    perm: holds the heap's permissions
 ::    net: an indicator of whether I'm a host or subscriber
 ::    log: the history of all modifications
+::    perm: holds the heap's permissions
+::    view: what format to display
+::    curios: the actual contents of the heap
 ::    remark: what is the last thing we've seen/read
 ::
-++  heap
-  |^  ,[global local]
-  +$  global
-    $:  =curios
-        view=(rev:j =view)
-        perm=(rev:j =perm)
-    ==
-  ::
-  +$  local
-    $:  =net
-        =log
-        =remark
++$  heap
+  $:  =net
+      =log
+      =perm
+      =view
+      =curios
+      =remark
+  ==
+::  $curios: a set of time ordered heap items
+::
+++  curios
+  =<  curios
+  |%
+  +$  curios
+    ((mop time curio) lte)
+  ++  on
+    ((^on time curio) lte)
+  +$  diff
+    (pair time delta)
+  +$  delta
+    $%  [%add p=heart]
+        [%edit p=heart]
+        [%del ~]
+        [%add-feel p=ship q=feel]
+        [%del-feel p=ship]
     ==
   --
 ::  $curio: an item in the collection or a comment about an item
 ::
-+$  curio      [seal (rev:j heart)]
-+$  id-curio   time
-+$  curios     ((mop id-curio (unit curio)) lte)
-++  on-curios  ((on id-curio (unit curio)) lte)
-++  mo-curios  ((mp id-curio (unit curio)) lte)
++$  curio  [seal heart]
 ::
 ::  $seal: the id of a curio and its meta-responses
 ::
@@ -55,11 +69,10 @@
 ::    replied: set of replies to a curio
 ::
 +$  seal
-  $:  id=id-curio
-      =feels:j
-      replied=(set id-curio)
+  $:  =time
+      feels=(map ship feel)
+      replied=(set time)
   ==
-::
 ::  $heart: the curio data itself
 ::
 ::    title: name of the curio
@@ -73,9 +86,8 @@
       =content
       author=ship
       sent=time
-      replying=(unit id-curio)
+      replying=(unit time)
   ==
-::
 ::  $content: curio content
 ::
 +$  content
@@ -112,30 +124,72 @@
       [%link p=cord q=cord]
       [%break ~]
   ==
+::  $log: a time ordered history of modifications to a heap
 ::
-::  $flag: identifier for a heap channel
-+$  flag  (pair ship term)
-::  $view: the persisted display format for a heap
-+$  view  ?(%grid %list)
-::  $said: used for curio references
-+$  said  (pair flag curio)
++$  log
+  ((mop time diff) lte)
+++  log-on
+  ((on time diff) lte)
 ::
-::  $net: subscriber-only state
+::  $action: the complete set of data required to modify a heap
 ::
-+$  net  [load=_| =saga:e]
++$  action
+  (pair flag:g update)
+::
+::  $update: a representation in time of a modification to a heap
+::
++$  update
+  (pair time diff)
+::
+::  $diff: the full suite of modifications that can be made to a heap
+::
++$  diff
+  $%  [%curios p=diff:curios]
+    ::
+      [%add-sects p=(set sect:g)]
+      [%del-sects p=(set sect:g)]
+    ::
+      [%create p=perm q=curios]
+      [%view p=view]
+  ==
+::  $net: an indicator of whether I'm a host or subscriber
+::
+::    %pub: am publisher/host with fresh log
+::    %sub: subscribed to the ship
+::
++$  net
+  $%  [%sub p=ship load=_| =saga:e]
+      [%pub ~]
+  ==
 ::
 ::  $briefs: a map of heap unread information
 ::
 ::    brief: the last time a heap was read, how many items since,
 ::    and the id of the last seen curio
 ::
-+$  briefs  (map flag brief)
-+$  brief   [last=time count=@ud read-id=(unit time)]
-::
+++  briefs
+  =<  briefs
+  |% 
+  +$  briefs
+    (map flag brief)
+  +$  brief
+    [last=time count=@ud read-id=(unit time)]
+  +$  update
+    (pair flag brief)
+  --
 ::  $remark: a marker representing the last note I've read
 ::
-+$  remark  [last-read=time watching=_| ~]
++$  remark
+  [last-read=time watching=_| ~]
 ::
++$  remark-action
+  (pair flag remark-diff)
+::
++$  remark-diff
+  $%  [%read ~]
+      [%read-at p=time]
+      [?(%watch %unwatch) ~]
+  ==
 ::  $perm: represents the permissions for a heap channel and gives a
 ::  pointer back to the group it belongs to.
 ::
@@ -143,11 +197,15 @@
   $:  writers=(set sect:g)
       group=flag:g
   ==
+::  $join: a group + channel flag to join a channel, group required for perms
 ::
-::  $log: a time ordered history of modifications to a heap
++$  join
+  $:  group=flag:g
+      chan=flag:g
+  ==
+::  $leave: a flag to pass for a channel leave
 ::
-+$  log     ((mop time u-heap) lte)
-++  log-on  ((on time u-heap) lte)
++$  leave  flag:g
 ::
 ::  $create: represents a request to create a channel
 ::    
@@ -158,7 +216,7 @@
 ::    Write permission is stored with the specific agent in the channel,
 ::    read permission is stored with the group's data.
 ::
-+$  create-heap
++$  create
   $:  group=flag:g  :: TODO: unmanaged-style group chats
       name=term
       title=cord
@@ -167,101 +225,13 @@
       writers=(set sect:g)
   ==
 ::
-+|  %actions
+++  met     metadata-store
 ::
-+$  a-stash
-  $%  [%create =create-heap]
-      [%heap =flag =a-heap]
-  ==
++$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
 ::
-+$  a-heap
-  $%  [%join group=flag:g]
-      [%leave ~]
-      a-remark:j
-      c-heap
-  ==
++$  imports  (map flag import)
 ::
-+$  a-curio  c-curio
-::
-+|  %commands
-::
-+$  c-stash
-  $%  [%create =create-heap]
-      [%heap =flag =c-heap]
-  ==
-::
-+$  c-heap
-  $%  [%curio =c-curio]
-      [%view =view]
-      [%add-writers sects=(set sect:g)]
-      [%del-writers sects=(set sect:g)]
-  ==
-::
-+$  c-curio
-  $%  [%add =heart]
-      [%edit id=id-curio =heart]
-      [%del id=id-curio]
-      c-feel:j
-  ==
-::
-+|  %updates
-::
-+$  update   [=time =u-heap]
-+$  u-stash  [=flag =u-heap]
-+$  u-heap
-  $%  [%create =perm]
-      [%view (rev:j =view)]
-      [%perm (rev:j =perm)]
-      [%curio id=id-curio =u-curio]
-  ==
-::
-+$  u-curio
-  $%  [%set curio=(unit curio)]
-      [%feels =feels:j]
-      [%heart (rev:j =heart)]
-  ==
-::
-+$  u-checkpoint  global:heap
-::
-+|  %responses
-::
-+$  r-stash  [=flag =r-heap]
-+$  r-heap
-  $%  [%curios =rr-curios]
-      [%curio id=id-curio =r-curio]
-      [%view =view]
-      [%perm =perm]
-    ::
-      [%create =perm]
-      [%join group=flag:g]
-      [%leave ~]
-      a-remark:j
-  ==
-::
-+$  r-curio
-  $%  [%set curio=(unit rr-curio)]
-      [%feels =rr-feels:j]
-      [%heart =heart]
-  ==
-::  versions of backend types with their revision numbers stripped,
-::  because the frontend shouldn't care to learn those.
-::
-+$  rr-stash  (map flag rr-heap)
-++  rr-heap
-  |^  ,[global local]
-  +$  global
-    $:  curios=rr-curios
-        =view
-        =perm
-    ==
-  ::
-  +$  local
-    $:  =net
-        =remark
-    ==
-  --
-+$  rr-curios  ((mop id-curio (unit rr-curio)) lte)
-+$  rr-curio   [rr-seal heart]
-+$  rr-seal    [id=id-curio =rr-feels:j replied=(set id-curio)]
-++  rr-on-curios  ((on id-curio (unit rr-curio)) lte)
+++  gra  graph-store
+++  orm-gra  orm:lib-graph
+++  orm-log-gra  orm-log:lib-graph
 --

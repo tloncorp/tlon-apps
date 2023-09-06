@@ -94,12 +94,13 @@
 ++  init
   ^+  cor
   =.  cor
-    (emit %pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~))
-  ::TODO  implement support in heap & chat
-  =.  cor
-    (emit %pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~))
-  =.  cor
-    (emit %pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~))
+    %-  emil
+    %-  turn  :_  |=(=note:agent:gall [%pass /migrate note])
+    ^-  (list note:agent:gall)
+    :~  :: [%agent [our.bowl %diary] %poke %diary-migrate-server !>(~)]
+        [%agent [our.bowl %heap] %poke %heap-migrate-server !>(~)]
+        :: [%agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
+    ==
   inflate-io
 ::
 ++  inflate-io
@@ -122,22 +123,10 @@
       di-abet:(di-c-diary:diary-core c-diary.c-shelf)
     ==
   ::
-      %diary-migration
+      %channel-migration
+    ?>  =(our src):bowl
     =+  !<(new-shelf=shelf:d vase)
-    =+  ?~  shelf  ~
-        %-  (slog 'channel-server: migration replacing non-empty shelf' ~)
-        ~
-    =.  shelf  new-shelf
-    %+  roll  ~(tap by shelf)
-    |=  [[=nest:d =diary:d] cr=_cor]
-    di-abet:di-migrate:(di-abed:di-core:cr nest)
-  ::
-      %heap-migration
-    =+  !<(new-shelf=shelf:d vase)
-    =+  ?~  shelf  ~
-        %-  (slog 'channel-server: migration replacing non-empty shelf' ~)
-        ~
-    =.  shelf  new-shelf
+    =.  shelf  (~(uni by new-shelf) shelf)  ::  existing overrides migration
     %+  roll  ~(tap by shelf)
     |=  [[=nest:d =diary:d] cr=_cor]
     di-abet:di-migrate:(di-abed:di-core:cr nest)
@@ -219,7 +208,7 @@
     ?+  -.sign  !!
         %poke-ack
       ?~  p.sign  cor
-      %-  (slog 'diary-server: migration poke failure' >wire< u.p.sign)
+      %-  (slog 'channels-server: migration poke failure' >wire< u.p.sign)
       cor
     ==
   ==
