@@ -220,21 +220,22 @@
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
     =/  diary-flags-from-groups
-      %-  zing
       %+  turn  ~(tap by groups)
-      |=  [* group=group:g]
-      %+  murn
-        ~(tap by channels.group)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%diary p.nest) %.y %.n)
       |=  [=nest:g *]
-      ?.(=(%diary p.nest) ~ (some q.nest))
+      q.nest
     =/  diaries-without-groups
       %+  skim  ~(tap by shelf)
-      |=  diary=[=flag:g *]
-      =((find [diary]~ diary-flags-from-groups) ~)
+      |=  [=flag:g *]
+      ?:(=((find [flag]~ (zing diary-flags-from-groups)) ~) %.y %.n)
     %+  roll
       diaries-without-groups
     |=  [[=flag:g *] core=_cor]
-    di-abet:di-leave:(di-abed:di-core flag)
+    di-abet:di-leave:(di-abed:di-core:core flag)
   ::
       %recheck-all-perms
     %+  roll
@@ -816,7 +817,7 @@
     ::  if our read permissions restored, re-subscribe
     =?  di-core  (di-can-read our.bowl)  di-safe-sub
     ::  if we can't read, leave the diary
-    =?  di-core  (di-can-read our.bowl)  di-leave
+    =?  di-core  !(di-can-read our.bowl)  di-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]

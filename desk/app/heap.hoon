@@ -122,21 +122,22 @@
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
     =/  heap-flags-from-groups
-      %-  zing
       %+  turn  ~(tap by groups)
-      |=  [* group=group:g]
-      %+  murn
-        ~(tap by channels.group)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%heap p.nest) %.y %.n)
       |=  [=nest:g *]
-      ?.(=(%heap p.nest) ~ (some q.nest))
+      q.nest
     =/  heaps-without-groups
       %+  skim  ~(tap by stash)
-      |=  heap=[=flag:g *]
-      =((find [heap]~ heap-flags-from-groups) ~)
+      |=  [=flag:g *]
+      ?:(=((find [flag]~ (zing heap-flags-from-groups)) ~) %.y %.n)
     %+  roll
       heaps-without-groups
     |=  [[=flag:g *] core=_cor]
-    he-abet:he-leave:(he-abed:he-core flag)
+    he-abet:he-leave:(he-abed:he-core:core flag)
   ::
      %recheck-all-perms
     %+  roll
@@ -198,7 +199,7 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
-  =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+  :: =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
   =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
   ?:  =(okay:h cool)  cor
   ::  speak the good news
@@ -740,9 +741,17 @@
       =/  =cage  [act:mar:h !>([flag now.bowl %del-sects sects])]
       (emit %pass he-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if our read permissions restored, re-subscribe
-    =?  he-core  (he-can-read our.bowl)  he-safe-sub
-    ::  if we can't read, leave the heap
-    =?  he-core  (he-can-read our.bowl)  he-leave
+    =/  wecanread  (he-can-read our.bowl)
+    ~&  "{<flag>} {<wecanread>}"
+    =.  he-core
+      ?:  wecanread
+        ~&  "restoring {<flag>}"
+        he-safe-sub
+      ~&  "leaving {<flag>}"
+      he-leave
+    :: =?  he-core  (he-can-read our.bowl)  he-safe-sub
+    :: ::  if we can't read, leave the heap
+    :: =?  he-core  !(he-can-read our.bowl)  he-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in he-subscriptions)
     |=  [[=ship =path] he=_he-core]
