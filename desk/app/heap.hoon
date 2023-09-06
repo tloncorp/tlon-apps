@@ -662,26 +662,26 @@
       =/  old-curio  (get:on:curios:h curios id)
       ?~  old-curio  `[%note id %set ~]
       ?~  replying.u.old-curio
-        =/  old-note  (get:on-notes:d notes id)
-        ?~  old-note  ~
+        =/  new-note  (get:on-notes:d notes id)
+        ?~  new-note  ~
         :^  ~  %note  id
         ?-  -.q.p.diff
           %del                    [%set ~]
-          ?(%add %edit)           [%set u.old-note]
-          ?(%add-feel %del-feel)  [%feels ?~(u.old-note ~ feels.u.u.old-note)]
+          ?(%add %edit)           [%set u.new-note]
+          ?(%add-feel %del-feel)  [%feels ?~(u.new-note ~ feels.u.u.new-note)]
         ==
-      =/  old-note  (get:on-notes:d notes u.replying.u.old-curio)
-      ?~  old-note  ~
-      ?~  u.old-note  ~
-      =/  old-quip  (get:on-quips:d quips.u.u.old-note id)
-      ?~  old-quip  ~
+      =/  new-note  (get:on-notes:d notes u.replying.u.old-curio)
+      ?~  new-note  ~
+      ?~  u.new-note  ~
+      =/  new-quip  (get:on-quips:d quips.u.u.new-note id)
+      ?~  new-quip  ~
       :^  ~  %note  u.replying.u.old-curio
       :+  %quip  id
       ^-  u-quip:d
       ?-  -.q.p.diff
         %del                    [%set ~]
-        ?(%add %edit)           [%set u.old-quip]
-        ?(%add-feel %del-feel)  [%feels ?~(u.old-quip ~ feels.u.u.old-quip)]
+        ?(%add %edit)           [%set u.new-quip]
+        ?(%add-feel %del-feel)  [%feels ?~(u.new-quip ~ feels.u.u.new-quip)]
       ==
     ==
   --

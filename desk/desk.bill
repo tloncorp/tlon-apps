@@ -2,8 +2,7 @@
     %chat
     %contacts
     %heap
-    ::%diary
-    ::%diary-server
+    %diary
     %hark
     %notify
     %grouper
