@@ -1,4 +1,4 @@
-/-  d=diary, g=groups, ha=hark
+/-  d=diary, g=groups, ha=hark, a=channels
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
@@ -228,6 +228,9 @@
       %diary-remark-action
     =+  !<(act=remark-action:d vase)
     di-abet:(di-remark-diff:(di-abed:di-core p.act) q.act)
+  ::
+      %heap-migrate-server  ?>(from-self server:migrate)
+      %heap-migrate         ?>(from-self client:migrate)
   ==
   ++  join
     |=  =join:d
@@ -578,6 +581,60 @@
   =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
 ++  from-self  =(our src):bowl
+::
+++  migrate
+  |%
+  ++  server
+    =/  server-shelf=shelf:d
+      %+  convert-shelf  &
+      %-  ~(gas by *stash:h)
+      %+  skim  ~(tap by stash)
+      |=  [=flag:h =heap:h]
+      =(our.bowl p.flag)
+    =/  =cage  [%channel-migration !>(server-shelf)]
+    (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
+  ::
+  ++  client
+    =/  =shelf:d  (convert-shelf | stash)
+    =/  =cage  [%channel-migration !>(shelf)]
+    (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+  ::
+  ++  convert-shelf
+    |=  [log=? =shelf:d]
+    ^-  shelf:a
+    %-  ~(gas by *shelf:a)
+    %+  turn  ~(tap by stash)
+    |=  [=flag:d =diary:d]
+    ^-  [nest:a diary:a]
+    :-  [%diary flag]
+    =/  =notes:a  (convert-notes notes.diary)
+    %*    .  *diary:d
+        notes   notes
+        order   [0 arranged-notes]
+        view    [0 view.diary]
+        sort    [0 sort.diary]
+        perm    [0 perm.diary]
+        log     ?.(log ~ (convert-log notes.diary notes perm.diary log.diary))
+        remark  remark.diary
+        net
+      ?-  -.net.diary
+        %pub  [*ship & chi+~]
+        %sub  +.net.diary
+      ==
+    ==
+  ::
+  ++  convert-notes
+    |=  old=diary:d
+    ^-  notes:a
+    %+  gas:on-notes:a  *notes:a
+    %+  turn  (tap:on:diary:d old)
+    |=  [=time =note:d]
+    ^-  (unit [id-note:a (unit note:a)])
+    [time `(convert-note time note)]
+  ::
+  ++  convert-log  !!
+  --
+::
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
   +*  di-notes  ~(. not notes.diary)
