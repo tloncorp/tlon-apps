@@ -280,27 +280,28 @@
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
     =/  chat-flags-from-groups
-      %-  zing
       %+  turn  ~(tap by groups)
-      |=  [* =group:g]
-      %+  murn
-        ~(tap by channels.group)
+    |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%chat p.nest) %.y %.n)
       |=  [=nest:g *]
-      ?.(=(%chat p.nest) ~ (some q.nest))
+      q.nest
     =/  chats-without-groups
       %+  skim  ~(tap in ~(key by chats))
-      |=  chat=flag:g
-      =((find [chat]~ chat-flags-from-groups) ~)
+      |=  =flag:g
+      ?:(=((find [flag]~ (zing chat-flags-from-groups)) ~) %.y %.n)
     %+  roll
       chats-without-groups
     |=  [=flag:g core=_cor]
-    ca-abet:ca-leave:(ca-abed:ca-core flag)
+    ca-abet:ca-leave:(ca-abed:ca-core:core flag)
   ::
       %recheck-all-perms
     %+  roll
       ~(tap by chats)
     |=  [[=flag:c *] core=_cor]
-    =/  ca  (ca-abed:ca-core flag)
+    =/  ca  (ca-abed:ca-core:core flag)
     ca-abet:(ca-recheck:ca ~)
   ::
       %chat-draft
@@ -1396,10 +1397,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
-    ::  if we can't read, leave the chat
-    =?  ca-core  !(ca-can-read our.bowl)  ca-leave
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (ca-can-read our.bowl)
+    =.  ca-core
+      ?:  wecanread
+        ca-safe-sub
+      ca-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
