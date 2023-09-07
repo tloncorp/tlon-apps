@@ -1,6 +1,6 @@
 ::  negotiate: hands-off version negotiation
 ::
-::      v0.0.0: premature babe
+::      v1.0.0: greenhorn ambassador
 ::
 ::    automates negotiating poke & watch interface versions, letting the
 ::    underlying agent focus on talking to the outside world instead of
@@ -8,18 +8,23 @@
 ::
 ::      usage
 ::
-::    to use this library, call its +agent arm with your own version and a map
-::    of, per target agent, the version we expect them to be, then call the
-::    resulting gate with the agent's door.
+::    to use this library, you must supply it with two things:
+::    - a map of, per protocol your agent exposes, a version noun
+::    - a configuration for negotiation with other agents, containing:
+::      - a map of, per agent name, a set of protocols to negotiate
+::      - a map of, per protocol, the version we expect others to be at
+::    call this library's +agent arm with those two arguments, and then call
+::    the resulting gate with your agent's door.
 ::
 ::    this library will "capture" watches, leaves and pokes emitted by the
 ::    underlying agent.
 ::    watches will be registered as intent to subscribe. leaves rescind that
 ::    intent. when first attempting to open a subscription to another agent (a
-::    specific $gill:gall), the library will start version negotiation. only
-::    once it has heard a matching version from the remote agent will the
-::    library establish subscriptions for which intent has been signalled. if
-::    it hears a changed, non-matching version from a remote agent, it will
+::    specific $gill:gall), the library will start version negotiation with
+::    that agent for each protocol configured for it. only once it has heard a
+::    matching version from the remote agent for *all* protocols will the
+::    library establish the subscriptions for which intent has been signalled.
+::    if it hears a changed, non-matching version from a remote agent, it will
 ::    automatically close the subscriptions to that agent (and re-open them
 ::    whenever versions match again).
 ::    sending pokes will crash the agent if no version match has been
@@ -27,7 +32,13 @@
 ::    must take care to call +can-poke or +read-status to check, and +initiate
 ::    to explicitly initiate version negotiation if necessary.
 ::    once the library start negotiating versions with another agent, it never
-::    stops listening to their version.
+::    stops listening to their versions.
+::
+::    subsequent changes to the arguments given to this library will result in
+::    similar subscription management behavior: we temporarily close
+::    subscriptions for agents we have version mismatches with, and open ones
+::    where we now do have matching versions. in upgrade scenarios, changing
+::    the library arguments should generally suffice.
 ::
 ::    if an agent was previously using epic, it can trivially upgrade into
 ::    this library by making the following changes:
@@ -39,8 +50,12 @@
 /+  dbug, verb
 ::
 |%
-+$  version  *
-+$  config   (map dude:gall version)  ::TODO  support multiple supported versions?
++$  protocol  @ta
++$  version   *
++$  config
+  $:  dudes=(jug dude:gall protocol)
+      profs=(map protocol version)
+  ==
 ::
 ++  initiate
   |=  =gill:gall
@@ -61,15 +76,15 @@
 ::TODO  want to +notify-me to subscribe to self about heed changes
 ::
 ++  agent
-  |=  [=our=version =our=config]
+  |=  [our-versions=(map protocol version) =our=config]
   ^-  $-(agent:gall agent:gall)
   |^  agent
   ::
   +$  state-0
     $:  %0
-        ours=version
+        ours=(map protocol version)
         know=config
-        heed=(map gill:gall (unit version))
+        heed=(map [gill:gall protocol] (unit version))
         want=(map gill:gall (map wire path))
     ==
   ::
@@ -81,8 +96,11 @@
     ++  match
       |=  =gill:gall
       ^-  ?
-      ?~  need=(~(get by know) q.gill)  &  ::  unversioned
-      =(`need (~(get by heed) gill))  :: negotiated & matches
+      ?~  need=(~(get by dudes.know) q.gill)  &  ::  unversioned
+      %-  ~(all in u.need)
+      |=  p=protocol
+      ?~  n=(~(get by profs.know) p)  |  ::  unnegotiated
+      =(`n (~(get by heed) [gill p]))  :: negotiated & matches
     ::  +inflate: update state & manage subscriptions to be self-consistent
     ::
     ::    get previously-unregistered subs from the bowl, put them in .want,
@@ -105,10 +123,10 @@
         (some %pass wire %agent gill %watch path)
       ::  manage subs for new or non-matching gills
       ::
-      =^  [init=(set gill:gall) kill=(set [=wire =gill:gall])]  want
+      =^  [init=(set [gill:gall protocol]) kill=(set [=wire =gill:gall])]  want
         %+  roll  ~(tap by boat)
         |=  $:  [[=wire =gill:gall] [? =path]]
-                [init=(set gill:gall) kill=(set [=wire =gill:gall])]
+                [init=(set [gill:gall protocol]) kill=(set [=wire =gill:gall])]
                 =_want
             ==
         ^+  [[init kill] want]
@@ -119,21 +137,27 @@
             (~(put by wan) wire path)
         ::  if we don't need a specific version, leave the sub as-is
         ::
-        =/  need=(unit version)  (~(get by know) q.gill)
+        =/  need=(list protocol)
+          ~(tap in (~(gut by dudes.know) q.gill ~))
+        |-
         ?~  need  [init kill]
         ::  if we haven't negotiated yet, we should start doing so
         ::
-        =/  hail=(unit (unit version))  (~(get by heed) gill)
-        ?~  hail  [(~(put in init) gill) (~(put in kill) [wire gill])]
-        :-  init
-        ::  only keep the subscription if the versions match
+        =/  hail=(unit (unit version))
+          (~(get by heed) [gill i.need])
+        ?~  hail
+          =.  init  (~(put in init) [gill i.need])
+          =.  kill  (~(put in kill) [wire gill])
+          $(need t.need)
+        ::  kill the subscription if the versions don't match
         ::
-        ?:  =(u.hail need)  kill
-        (~(put in kill) [wire gill])
+        =?  kill  !=(u.hail need)
+          (~(put in kill) [wire gill])
+        $(need t.need)
       ::
       =^  inis  state
         =|  caz=(list card)
-        =/  inz=(list gill:gall)  ~(tap in init)
+        =/  inz=(list [gill:gall protocol])  ~(tap in init)
         |-
         ?~  inz  [caz state]
         =^  car  state  (negotiate i.inz)
@@ -160,8 +184,7 @@
         ?>  =([/~/negotiate/initiate]~ paths.p.card)
         ?>  =(%negotiate-initiate-version p.cage.p.card)
         =+  !<(=gill:gall q.cage.p.card)
-        ?:  (~(has by heed) gill)  [~ state]
-        (negotiate gill)
+        (negotiate-missing gill)
       ::  only capture agent cards
       ::
       ?.  ?=([%pass * %agent *] card)
@@ -169,7 +192,7 @@
       ::  if we don't require a version for the target agent, let the card go
       ::
       =*  dude=dude:gall  name.q.card
-      ?.  (~(has by know) dude)
+      ?.  (~(has by dudes.know) dude)
         pass
       ::  always track the subscriptions we want to have
       ::
@@ -192,21 +215,19 @@
         pass
       ::  if we know our versions match, we are free to emit the card
       ::
-      =/  hail=(unit (unit version))  (~(get by heed) gill)
-      ?:  =(hail ``(~(got by know) dude))
+      ?:  (match gill)
         pass
       ::  pokes may not happen if we don't know we match
       ::
       ?:  ?=(?(%poke %poke-as) -.task.q.card)
-        ~|  ?~  hail
-              [%negotiate %poke-to-unnegotiated-gill gill]
-            [%negotiate %poke-to-mismatching-gill gill them=u.hail ours=`(~(got by know) dude)]
+        ::TODO  if heed was (map gill (map protocol (u v))) we could reasonably
+        ::      look up where the mismatch was...
+        ~|  [%negotiate %poke-to-mismatching-gill gill]
         !!
       ::  watches will get reestablished once our versions match, but if we
       ::  haven't started negotiation yet, we should do that now
       ::
-      ?^  hail  [~ state]
-      (negotiate gill)
+      (negotiate-missing gill)
     ::
     ++  play-cards
       |=  cards=(list card)
@@ -217,33 +238,57 @@
       =^  caz  state  (play-card i.cards)
       $(out (weld out caz), cards t.cards)
     ::
-    ++  negotiate
+    ++  negotiate-missing
       |=  =gill:gall
       ^-  (quip card _state)
-      ?<  (~(has by heed) gill)
-      :-  [(watch-gill gill)]~
-      state(heed (~(put by heed) gill ~))
+      =/  need=(list protocol)
+        ~(tap in (~(gut by dudes.know) q.gill ~))
+      =|  out=(list card)
+      |-
+      ?~  need  [out state]
+      ?:  (~(has by heed) [gill i.need])  $(need t.need)
+      =^  caz  state  (negotiate gill i.need)
+      $(out (weld out caz), need t.need)
+    ::
+    ++  negotiate
+      |=  for=[gill:gall protocol]
+      ^-  (quip card _state)
+      ?<  (~(has by heed) for)
+      :-  [(watch-version for)]~
+      state(heed (~(put by heed) for ~))
     ::
     ++  ours-changed
-      |=  [ole=version neu=version]
+      |=  [ole=(map protocol version) neu=(map protocol version)]
       ^-  (list card)
-      [%give %fact [/~/negotiate/version]~ %noun !>(neu)]~
+      ::  kill incoming subs for protocols we no longer support
+      ::
+      %+  weld
+        %+  turn  ~(tap by (~(dif by ole) neu))
+        |=  [=protocol =version]
+        [%give %kick [/~/negotiate/version/[protocol]]~ ~]
+      ::  give updates for protocols whose supported version changed
+      ::
+      %+  murn  ~(tap by neu)
+      |=  [=protocol =version]
+      ^-  (unit card)
+      ?:  =(`version (~(get by ole) protocol))  ~
+      `[%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
     ::
     ++  heed-changed
-      |=  [=gill:gall new=version]
+      |=  [for=[gill:gall protocol] new=version]
       ^-  (quip card _state)
       =/  hav=(unit version)
         ~|  %unrequested-heed
-        (~(got by heed) gill)
+        (~(got by heed) for)
       ?:  =(`new hav)  [~ state]
-      =.  heed  (~(put by heed) gill `new)
+      =.  heed  (~(put by heed) for `new)
       inflate
     ::
-    ++  watch-gill
-      |=  =gill:gall
+    ++  watch-version
+      |=  [=gill:gall =protocol]
       ^-  card
-      :+  %pass  /~/negotiate/heed/(scot %p p.gill)/[q.gill]
-      [%agent gill %watch /~/negotiate/version]
+      :+  %pass  /~/negotiate/heed/(scot %p p.gill)/[q.gill]/[protocol]
+      [%agent gill %watch /~/negotiate/version/[protocol]]
     ::
     ++  retry-timer
       |=  [t=@dr p=path]
@@ -296,16 +341,15 @@
     ^-  agent:gall
     |_  =bowl:gall
     +*  this    .
-        pals  ~(. lp bowl)
         def   ~(. (default-agent this %|) bowl)
         up    ~(. helper bowl state)
         og    ~(. inner inner-bowl:up)
     ++  on-init
       ^-  (quip card _this)
-      =.  ours  our-version
-      =.  know  our-config
-      =^  cards   inner  on-init:og
-      =^  cards   state  (play-cards:up cards)
+      =.  ours   our-versions
+      =.  know   our-config
+      =^  cards  inner  on-init:og
+      =^  cards  state  (play-cards:up cards)
       [cards this]
     ::
     ++  on-save  !>([[%negotiate state] on-save:og])
@@ -313,20 +357,20 @@
       |=  ole=vase
       ^-  (quip card _this)
       ?.  ?=([[%negotiate *] *] q.ole)
-        =.  ours    our-version
-        =.  know    our-config
-        =^  caz     state  inflate:up
-        =^  cards   inner  (on-load:og ole)
-        =^  cards   state  (play-cards:up cards)
+        =.  ours   our-versions
+        =.  know   our-config
+        =^  caz    state  inflate:up
+        =^  cards  inner  (on-load:og ole)
+        =^  cards  state  (play-cards:up cards)
         [(weld caz cards) this]
       ::
       |^  =+  !<([[%negotiate old=state-any] ile=vase] ole)
           ?>  ?=(%0 -.old)
           =.  state  old
           =/  caz1
-            ?:  =(ours our-version)  ~
-            (ours-changed:up ours our-version)
-          =.  ours   our-version
+            ?:  =(ours our-versions)  ~
+            (ours-changed:up ours our-versions)
+          =.  ours   our-versions
           =.  know   our-config
           =^  caz2   state  inflate:up
           =^  cards  inner  (on-load:og ile)
@@ -343,9 +387,9 @@
         =^  cards  inner  (on-watch:og path)
         =^  cards  state  (play-cards:up cards)
       [cards this]
-      ::  /~/negotiate/version
-      ?>  =(/version t.t.path)
-      [[%give %fact ~ %noun !>(ours)]~ this]
+      ::  /~/negotiate/version/[protocol]
+      ?>  ?=([%version @ ~] t.t.path)
+      [[%give %fact ~ %noun !>((~(got by ours) i.t.t.t.path))]~ this]
     ::
     ++  on-agent
       |=  [=wire =sign:agent:gall]
@@ -355,11 +399,12 @@
         =^  cards  state  (play-cards:up cards)
         [cards this]
       ::
-      ?+  t.t.wire  ~|([%negotiate %unexpected-wire wire] !!)
-          [%heed @ @ ~]
-        ~|  t.t.wire
-        =/  =gill:gall
-          [(slav %p i.t.t.t.wire) i.t.t.t.t.wire]
+      ~|  wire=t.t.wire
+      ?+  t.t.wire  ~|([%negotiate %unexpected-wire] !!)
+          [%heed @ @ @ ~]
+        =/  for=[gill:gall protocol]
+          =*  w  t.t.t.wire
+          [[(slav %p i.w) i.t.w] i.t.t.w]
         ?-  -.sign
             %fact
           =*  mark  p.cage.sign
@@ -368,7 +413,7 @@
             ~&  [negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]
             [~ this]
           =+  !<(=version vase)
-          =^  cards  state  (heed-changed:up gill version)
+          =^  cards  state  (heed-changed:up for version)
           [cards this]
         ::
             %watch-ack
@@ -415,20 +460,22 @@
       ?+  t.t.t.path  [~ ~]
         [%version ~]  ``noun+!>(ours)
       ::
-          [%version @ @ ~]
-        =/  =gill:gall
-          [(slav %p i.t.t.t.t.path) i.t.t.t.t.t.path]
+          [%version @ @ @ ~]
+        =/  for=[gill:gall protocol]
+          =*  p  t.t.t.t.path
+          [[(slav %p i.p) i.t.p] i.t.t.p]
         :^  ~  ~  %noun
         !>  ^-  (unit version)
-        (~(gut by heed) gill ~)
+        (~(gut by heed) for ~)
       ::
-          [%status @ @ ~]
-        =/  =gill:gall
-          [(slav %p i.t.t.t.t.path) i.t.t.t.t.t.path]
+          [%status @ @ @ ~]
+        =/  for=[gill:gall protocol]
+          =*  p  t.t.t.t.path
+          [[(slav %p i.p) i.t.p] i.t.t.p]
         :^  ~  ~  %noun
         !>  ^-  ?(%match %clash %await %unmet)
         =/  hav=(unit (unit version))
-          (~(get by heed) gill)
+          (~(get by heed) for)
         ?~  hav    %unmet
         ?~  u.hav  %await
         ?:  =(u.u.hav ours)  %match
@@ -451,14 +498,16 @@
         =^  cards  inner  (on-arvo:og wire sign)
         =^  cards  state  (play-cards:up cards)
         [cards this]
-      ?+  t.t.wire  ~|(wire !!)
+      ~|  wire=t.t.wire
+      ?+  t.t.wire  !!
           [%retry *]
         ?>  ?=(%wake +<.sign)
-        ?+  t.t.t.wire  ~|(wire !!)
-            [%watch %heed @ @ ~]
-          =/  =gill:gall
-            [(slav %p i.t.t.t.t.t.wire) i.t.t.t.t.t.t.wire]
-          [[(watch-gill:up gill)]~ this]
+        ?+  t.t.t.wire  !!
+            [%watch %heed @ @ @ ~]
+          =/  for=[gill:gall protocol]
+            =*  w  t.t.t.t.t.wire
+            [[(slav %p i.w) i.t.w] i.t.t.w]
+          [[(watch-version:up for)]~ this]
         ==
       ==
     ::
