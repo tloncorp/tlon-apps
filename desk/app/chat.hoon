@@ -1226,13 +1226,13 @@
     (ca-remark-diff read/~)
   ::
   ++  ca-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
     ^-  new-yarn:ha
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
-      (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] rest)
+      (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
   ::
   ++  ca-watch
@@ -1653,19 +1653,24 @@
           ?(%del %add-feel %del-feel)  ca-core
           %add
         =/  memo=memo:c  p.delta
+        =/  want-soft-notify  (want-hark flag %to-us)
+        =/  want-loud-notify  (want-hark flag %msg)
         =?  remark.chat  =(author.memo our.bowl)
           remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief flag/flag ca-brief)
         ?-  -.content.memo
             %notice  ca-core
             %story
+          =/  new-message-yarn  (ca-message-hark memo p.content.memo p.p.d)
+          =?  cor  want-loud-notify
+            (emit (pass-hark new-message-yarn))
           ?.  ?&  !=(author.memo our.bowl)
                   |(!=(~ replying.memo) (mentioned q.p.content.memo our.bowl))
               ==
             ca-core
           ?:  (mentioned q.p.content.memo our.bowl)
             =/  new-yarn  (ca-mention-hark memo p.content.memo p.p.d)
-            =?  cor  (want-hark flag %to-us)
+            =?  cor  &(want-soft-notify !want-loud-notify)
               (emit (pass-hark new-yarn))
             ca-core
           =/  replying  (need replying.memo)
@@ -1683,19 +1688,20 @@
           ?-  -.content.opwrit
               %notice  ca-core
               %story
-            =?  cor  (want-hark flag %to-us)
+            =?  cor  &(want-soft-notify !want-loud-notify)
               %-  emit  %-  pass-hark
-              %^  ca-spin
-                /message/(scot %p p.replying)/(scot %ud q.replying)
-                :~  [%ship author.memo]
-                    ' replied to your message “'
-                    (flatten q.p.content.opwrit)
-                    '”: '
-                    [%ship author.memo]
-                    ': '
-                    (flatten q.p.content.memo)
-                ==
-              ~
+              %-  ca-spin
+                :^  /message/(scot %p p.replying)/(scot %ud q.replying)
+                  :~  [%ship author.memo]
+                      ' replied to your message “'
+                      (flatten q.p.content.opwrit)
+                      '”: '
+                      [%ship author.memo]
+                      ': '
+                      (flatten q.p.content.memo)
+                  ==
+                  ~
+                  ~
             ca-core
           ==
         ==
@@ -1704,16 +1710,30 @@
   ::
   ++  ca-mention-hark
     |=  [=memo:c =story:c op=id:c]
-    %^  ca-spin
+    =/  path
       ?~  replying.memo
         /op/(scot %p p.op)/(scot %ud q.op)
       =/  id  u.replying.memo
       /message/(scot %p p.id)/(scot %ud q.id)/op/(scot %p p.op)/(scot %ud q.op)
-      :~  [%ship author.memo]
-          ' mentioned you :'
-          (flatten q.story)
-      ==
-    ~
+    %-  ca-spin
+      :^  path
+        :~  [%ship author.memo]
+            ' mentioned you :'
+            (flatten q.story)
+        ==
+        ~
+        ~
+  ::
+  ++  ca-message-hark
+    |=  [=memo:c =story:c op=id:c]
+    %-  ca-spin
+      :^  ~
+        :~  [%ship author.memo]
+            ': '
+            (flatten q.story)
+        ==
+        ~
+        /message/(scot %p p.op)/(scot %ud q.op)
   --
 ::
 ++  pending-dms

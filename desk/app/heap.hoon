@@ -2,6 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
+/+  volume
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
 ::  performance, keep warm
@@ -437,6 +438,16 @@
   :-  flag
   he-brief:(he-abed:he-core flag)
 ::
+++  want-hark
+  |=  [flag=?(~ flag:g) kind=?(%msg %to-us)]
+  %+  (fit-level:volume [our now]:bowl)
+    ?~  flag  ~
+    [%channel %heap flag]
+  ?-  kind
+    %to-us  %soft
+    %msg    %loud
+  ==
+::
 ++  import-graphs
   |=  =imports:h
   ^+  cor
@@ -593,13 +604,13 @@
     he-core(flag f, heap (~(got by stash) f))
   ++  he-area  `path`/heap/(scot %p p.flag)/[q.flag]
   ++  he-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
     ^-  new-yarn:ha
     =*  group  group.perm.heap
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
-      (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] rest)
+      (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
   ::
   ++  he-said
@@ -988,11 +999,26 @@
           ==
       =.  curios.heap  (reduce:he-curios time p.d)
       =.  cor  (give-brief flag he-brief)
+      =/  want-soft-notify  (want-hark flag %to-us)
+      =/  want-loud-notify  (want-hark flag %msg)
       ?-  -.q.p.d
           ?(%edit %del %add-feel %del-feel)  he-core
           %add
         =/  =heart:h  p.q.p.d
-        ?~  replying.heart  he-core
+        ?~  replying.heart
+          =/  content  (trip (flatten q.content.heart))
+          =/  loud-yarn
+            %-  he-spin
+              :^  ~
+                :~  [%ship author.heart]
+                    ' posted a block to a gallery '
+                    (flatten q.content.heart)
+                ==
+                ~
+                /curio/(rsh 4 (scot %ui time))
+          =?  cor  want-loud-notify
+            (emit (pass-hark loud-yarn))
+          he-core
         =/  op  (~(get cur curios.heap) u.replying.heart)
         ?~  op  he-core
         =/  curio  curio.u.op
@@ -1009,20 +1035,21 @@
           ?:  (lte (lent content) 80)  (crip content)
           (crip (weld (swag [0 77] content) "..."))
         =/  new-yarn
-          %^  he-spin
-            /curio/(rsh 4 (scot %ui u.replying.heart))
-            :~  [%ship author.heart]
-                ' commented on '
-                [%emph title]
-                ': '
-                [%ship author.heart]
-                ': '
-                (flatten q.content.heart)
-            ==
-          ~
+          %-  he-spin
+            :^  /curio/(rsh 4 (scot %ui u.replying.heart))
+              :~  [%ship author.heart]
+                  ' commented on '
+                  [%emph title]
+                  ': '
+                  [%ship author.heart]
+                  ': '
+                  (flatten q.content.heart)
+              ==
+              ~
+              ~
         =/  am-op-author  =(author.curio.u.op our.bowl)
         =/  am-author  =(author.heart our.bowl)
-        =?  cor  |(&(!am-author in-replies) &(am-op-author !am-author))
+        =?  cor  &(want-soft-notify |(&(!am-author in-replies) &(am-op-author !am-author)))
           (emit (pass-hark new-yarn))
         he-core
       ==
