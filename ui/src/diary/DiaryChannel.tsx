@@ -205,7 +205,6 @@ function DiaryChannel({ title }: ViewProps) {
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
     if (sortMode === 'arranged') {
-      console.log(a.toString(), b.toString());
       // if only one note is arranged, put it first
       if (
         arrangedNotes.includes(a.toString()) &&

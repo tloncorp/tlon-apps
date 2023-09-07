@@ -160,13 +160,11 @@ export interface NoteEssay {
 }
 
 export interface DiaryNote {
-  type: 'note';
   seal: NoteSeal;
   essay: NoteEssay;
 }
 
 export interface DiaryOutline extends NoteEssay {
-  type: 'outline';
   quipCount: number;
   quippers: Ship[];
 }
@@ -254,11 +252,6 @@ interface NoteActionQuip {
   };
 }
 
-export interface NoteDiff {
-  id: string;
-  command: NoteAction;
-}
-
 export type NoteAction =
   | NoteActionAdd
   | NoteActionEdit
@@ -266,6 +259,16 @@ export type NoteAction =
   | NoteActionAddFeel
   | NoteActionDelFeel
   | NoteActionQuip;
+
+export type NoteResponse =
+  | { set: DiaryNote }
+  | { quip: { id: string; response: QuipResponse } }
+  | { essay: NoteEssay }
+  | { feels: Record<string, string> };
+
+export type QuipResponse =
+  | { set: DiaryQuip }
+  | { feels: Record<string, string> };
 
 export interface DiaryDiffView {
   view: DiaryDisplayMode;
@@ -392,7 +395,12 @@ export type DiaryCommand =
 
 export type DiaryResponse =
   | { notes: DiaryNoteMap }
-  | { note: NoteDiff }
+  | {
+      note: {
+        id: string;
+        response: NoteResponse;
+      };
+    }
   | { order: string[] }
   | { view: DiaryDisplayMode }
   | { sort: DiarySortMode }
