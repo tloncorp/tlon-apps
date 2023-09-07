@@ -1,5 +1,5 @@
 /-  u=ui
-/+  gj=groups-json, cj=chat-json, dj=diary-json, hj=heap-json
+/+  gj=groups-json, cj=chat-json, dj=channel-json
 ::  group flag + channel flag
 |_  =init:u
 ++  grad  %noun
@@ -11,7 +11,7 @@
     |^
     ^-  ^json
     %-  pairs
-    :~  groups/(groups:enjs:gj groups.init)
+    :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
         chat/(chat chat.init)
         heap/(heap heap.init)
@@ -21,16 +21,16 @@
       |=  =chat:u
       ^-  ^json
       %-  pairs
-      :~  briefs/(briefs:enjs:cj briefs.chat)
-          chats/(chats:enjs:cj chats.chat)
+      :~  briefs/(briefs:enjs:dj briefs.chat)
+          shelf/(rr-shelf:enjs:dj shelf.chat)
           pins/a/(turn pins.chat (cork whom:enjs:cj (lead %s)))
       ==
     ++  heap
       |=  =heap:u
       ^-  ^json
       %-  pairs
-      :~  briefs/(briefs:enjs:hj -.heap)
-          stash/(stash:enjs:hj +.heap)
+      :~  briefs/(briefs:enjs:dj -.heap)
+          shelf/(rr-shelf:enjs:dj +.heap)
       ==
     ++  diary
       |=  =diary:u

@@ -1,6 +1,6 @@
 /-  d=diary
 /+  j=diary-json
-|_  update=[=flag:d =brief:d]
+|_  update=[=flag:d =brief:briefs:d]
 ++  grad  %noun
 ++  grow
   |%
@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  ,[flag:d brief:d]
+  ++  noun  ,[flag:d brief:briefs:d]
   --
 --

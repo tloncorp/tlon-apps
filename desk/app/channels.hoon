@@ -364,7 +364,7 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %shelf ~]  ``shelf+!>((di-rr-shelf:di-core shelf))
+      [%x %shelf ~]  ``channel-shelf+!>((di-rr-shelf:di-core shelf))
       [%x %init ~]   ``noun+!>([briefs (di-rr-shelf:di-core shelf)])
       [%x %briefs ~]  ``channel-briefs+!>(briefs)
       [%x =han:d ship=@ name=@ rest=*]
@@ -1204,7 +1204,7 @@
       =/  quip  (get:on-quips:d quips `@da`time)
       ?~  quip  ~
       ?~  u.quip  `~
-      ``quip+!>(u.u.quip)
+      ``channel-quip+!>(u.u.quip)
     ==
   ::
   ::  when we receive an update from the group we're in, check if we

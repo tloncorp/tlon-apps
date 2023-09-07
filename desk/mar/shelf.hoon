@@ -1,14 +1,14 @@
-/-  d=channel
+/-  d=diary
 /+  j=diary-json
-|_  =rr-shelf:d
+|_  =shelf:d
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  rr-shelf
-  ++  json  (rr-shelf:enjs:j rr-shelf)
+  ++  noun  shelf
+  ++  json  (shelf:enjs:j shelf)
   --
 ++  grab
   |%
-  ++  noun  rr-shelf:d
+  ++  noun  shelf:d
   --
 --
