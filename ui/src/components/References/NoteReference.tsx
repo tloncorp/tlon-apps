@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import cn from 'classnames';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useRemoteOutline } from '@/state/diary';
+import { useRemoteOutline } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 import {
   isImageUrl,

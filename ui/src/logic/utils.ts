@@ -33,17 +33,16 @@ import {
 } from '@/types/groups';
 import { CurioContent, HeapBrief } from '@/types/heap';
 import {
-  DiaryBrief,
-  DiaryInline,
-  DiaryQuip,
-  DiaryQuipMap,
-  NoteContent,
+  Brief,
+  Quip,
+  QuipMap,
+  Story,
   Verse,
   VerseInline,
   VerseBlock,
-  DiaryListing,
-} from '@/types/diary';
-import { Bold, Italics, Strikethrough } from '@/types/content';
+  Listing,
+} from '@/types/channel';
+import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
 import { isNativeApp, postActionToNativeApp } from './native';
 import type {
   ConnectionCompleteStatus,
@@ -74,9 +73,9 @@ export function nestToFlag(nest: string): [App, string] {
   return [app as App, rest.join('/')];
 }
 
-export function sampleQuippers(quips: DiaryQuipMap) {
+export function sampleQuippers(quips: QuipMap) {
   return _.flow(
-    f.map(([, q]: [BigInteger, DiaryQuip]) => q.memo.author),
+    f.map(([, q]: [BigInteger, Quip]) => q.memo.author),
     f.compact,
     f.uniq,
     f.take(3)
@@ -465,7 +464,7 @@ export async function jsonFetch<T>(
 
 export function isChannelJoined(
   flag: string,
-  briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
+  briefs: { [x: string]: ChatBrief | HeapBrief | Brief }
 ) {
   const isChannelHost = window.our === flag?.split('/')[0];
   return isChannelHost || (flag && flag in briefs);
@@ -836,15 +835,12 @@ export function actionDrill(
   return keys.filter((k) => k !== '');
 }
 
-export function truncateProse(
-  content: NoteContent,
-  maxCharacters: number
-): NoteContent {
+export function truncateProse(content: Story, maxCharacters: number): Story {
   const truncate = (
-    [head, ...tail]: DiaryInline[],
+    [head, ...tail]: Inline[],
     remainingChars: number,
-    acc: DiaryInline[]
-  ): { truncatedItems: DiaryInline[]; remainingChars: number } => {
+    acc: Inline[]
+  ): { truncatedItems: Inline[]; remainingChars: number } => {
     if (!head || remainingChars <= 0) {
       return { truncatedItems: acc, remainingChars };
     }
@@ -908,7 +904,7 @@ export function truncateProse(
   let remainingChars = maxCharacters;
   let remainingImages = 1;
 
-  const truncatedContent: NoteContent = content
+  const truncatedContent: Story = content
     .map((verse: Verse): Verse => {
       if ('inline' in verse) {
         const lengthBefore = remainingChars;
@@ -975,10 +971,10 @@ export function truncateProse(
           } = verse.block.listing.list.items.reduce(
             (
               accumulator: {
-                truncatedListItems: DiaryListing[];
+                truncatedListItems: Listing[];
                 remainingChars: number;
               },
-              listing: DiaryListing
+              listing: Listing
             ) => {
               if ('item' in listing) {
                 const lengthBeforeList = accumulator.remainingChars;

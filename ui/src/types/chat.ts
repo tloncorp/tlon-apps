@@ -312,6 +312,7 @@ export interface ClubAction {
 }
 
 export interface ChatCreate {
+  han?: string;
   group: string;
   name: string;
   title: string;

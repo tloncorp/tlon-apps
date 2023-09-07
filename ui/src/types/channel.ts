@@ -1,41 +1,15 @@
 import { BigIntOrderedMap } from '@urbit/api';
-import {
-  BlockCode,
-  Blockquote,
-  BlockReference,
-  Bold,
-  Break,
-  Inline,
-  InlineCode,
-  Italics,
-  Link,
-  Ship as ShipInline,
-  Strikethrough,
-  Tag,
-} from './content';
+import { Inline } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
 
 export type Patda = string;
 export type Ship = string;
-
-export type DiaryInline =
-  | string
-  | Bold
-  | Italics
-  | Strikethrough
-  | ShipInline
-  | Break
-  | InlineCode
-  | BlockCode
-  | Blockquote
-  | BlockReference
-  | Tag
-  | Link;
+export type Nest = string;
 
 export interface NoteSeal {
   id: string;
-  quips: DiaryQuipMap;
+  quips: QuipMap;
   feels: {
     [ship: Ship]: string;
   };
@@ -49,18 +23,18 @@ export interface QuipCork {
 }
 
 export interface VerseInline {
-  inline: DiaryInline[];
+  inline: Inline[];
 }
 
 export interface ChanCite {
   chan: {
-    nest: string;
+    nest: Nest;
     where: string;
   };
 }
 
 export interface GroupCite {
-  group: string;
+  group: Flag;
 }
 
 export interface DeskCite {
@@ -72,19 +46,15 @@ export interface DeskCite {
 
 export interface BaitCite {
   bait: {
-    group: string;
-    graph: string;
+    group: Flag;
+    graph: Flag;
     where: string;
   };
 }
 
 export type Cite = ChanCite | GroupCite | DeskCite | BaitCite;
 
-export interface DiaryCite {
-  cite: Cite;
-}
-
-export interface DiaryImage {
+export interface Image {
   image: {
     src: string;
     height: number;
@@ -93,112 +63,118 @@ export interface DiaryImage {
   };
 }
 
-export interface DiaryList {
+export interface List {
   list: {
     type: 'ordered' | 'unordered';
-    items: DiaryListing[];
+    items: Listing[];
     contents: Inline[];
   };
 }
 
-export type DiaryListItem = {
+export type ListItem = {
   item: Inline[];
 };
 
-export type DiaryListing = DiaryList | DiaryListItem;
+export type Listing = List | ListItem;
 
-export interface DiaryListingBlock {
-  listing: DiaryListing;
+export interface ListingBlock {
+  listing: Listing;
 }
 
-export type DiaryHeaderLevel = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+export type HeaderLevel = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
-export interface DiaryHeader {
+export interface Header {
   header: {
-    tag: DiaryHeaderLevel;
+    tag: HeaderLevel;
     content: Inline[];
   };
 }
 
-export interface DiaryRule {
+export interface Rule {
   rule: null;
 }
 
-export interface DiaryCode {
+export interface Code {
   code: {
     code: string;
     lang: string;
   };
 }
 
-export function isDiaryImage(item: unknown): item is DiaryImage {
+export function isImage(item: unknown): item is Image {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
-export type DiaryBlock =
-  | DiaryImage
-  | DiaryCite
-  | DiaryListingBlock
-  | DiaryHeader
-  | DiaryRule
-  | DiaryCode;
+export type Block = Image | Cite | ListingBlock | Header | Rule | Code;
 
 export interface VerseBlock {
-  block: DiaryBlock;
+  block: Block;
 }
 
 export type Verse = VerseInline | VerseBlock;
 
-export type NoteContent = Verse[];
+export type Story = Verse[];
+
+export type HanHeap = {
+  heap: string;
+};
+
+export type HanDiary = {
+  diary: {
+    title: string;
+    image?: string;
+  };
+};
+
+export type HanChat = {
+  chat: null | { notice: null };
+};
+
+export type HanData = HanDiary | HanChat | HanHeap;
+export type Han = "heap" | "diary" | "chat";
 
 export interface NoteEssay {
-  title: string;
-  image: string;
-  content: NoteContent;
+  content: Story;
   author: Ship;
   sent: number;
+  'han-data': HanData;
 }
 
-export interface DiaryNote {
+export type Note = null | {
   type: 'note';
   seal: NoteSeal;
   essay: NoteEssay;
-}
+};
 
-export interface DiaryOutline extends NoteEssay {
+export interface Outline extends NoteEssay {
   type: 'outline';
   quipCount: number;
   quippers: Ship[];
 }
 
-export interface DiaryOutlines {
-  [time: string]: DiaryOutline;
+export interface Outlines {
+  [time: string]: Outline;
 }
 
-export type DiaryOutlinesMap = BigIntOrderedMap<DiaryOutline>;
+export type OutlinesMap = BigIntOrderedMap<Outline>;
 
-export type DiaryNoteMap = BigIntOrderedMap<DiaryNote>;
+export type NoteMap = BigIntOrderedMap<Note>;
 
-export interface DiaryQuip {
+export interface Quip {
   cork: QuipCork;
-  memo: DiaryMemo;
+  memo: Memo;
 }
 
-export interface DiaryStory {
-  block: DiaryBlock[];
-  inline: Inline[];
-}
-
-export interface DiaryMemo {
-  content: DiaryStory;
-  author: string;
+export interface Memo {
+  content: Story;
+  author: Ship;
   sent: number;
 }
 
-export type DiaryQuipMap = BigIntOrderedMap<DiaryQuip>;
+export type QuipMap = BigIntOrderedMap<Quip>;
 
-export interface DiaryQuips {
-  [id: string]: DiaryQuip;
+export interface Quips {
+  [id: string]: Quip;
 }
 
 interface NoteActionAdd {
@@ -231,20 +207,20 @@ interface NoteActionDelFeel {
   };
 }
 
-interface DiaryDiffAddWriters {
+interface DiffAddWriters {
   'add-writers': string[];
 }
 
-interface DiaryDiffDelWriters {
+interface DiffDelWriters {
   'del-writers': string[];
 }
 
-interface DiaryDiffArrangedNotes {
+interface DiffArrangedNotes {
   order: string[];
 }
 
-interface DiaryDiffSort {
-  sort: DiarySortMode;
+interface DiffSort {
+  sort: SortMode;
 }
 
 interface NoteActionQuip {
@@ -253,6 +229,10 @@ interface NoteActionQuip {
     action: QuipAction;
   };
 }
+
+// export interface NoteCommand {
+// set: null | Note;
+// quip: Quip;
 
 export interface NoteDiff {
   id: string;
@@ -267,55 +247,40 @@ export type NoteAction =
   | NoteActionDelFeel
   | NoteActionQuip;
 
-export interface DiaryDiffView {
-  view: DiaryDisplayMode;
+export interface DiffView {
+  view: DisplayMode;
 }
 
-export interface DiaryCreateDiff {
+export interface CreateDiff {
   create: {
-    perm: DiaryPerm;
-    notes: DiaryNoteMap;
+    perm: Perm;
+    notes: NoteMap;
   };
 }
 
 export interface QuipActionAdd {
-  add: DiaryMemo;
+  add: Memo;
 }
 
 export interface QuipActionDel {
   del: string;
 }
 
-export interface QuipActionAddFeel {
-  'add-feel': {
-    id: string;
-    ship: string;
-    feel: string;
-  };
-}
-
-export interface QuipActionDelFeel {
-  'del-feel': {
-    id: string;
-    ship: string;
-  };
-}
-
 export type QuipAction =
   | QuipActionAdd
   | QuipActionDel
-  | QuipActionAddFeel
-  | QuipActionDelFeel;
+  | NoteActionAddFeel
+  | NoteActionDelFeel;
 
-export type DiaryDisplayMode = 'list' | 'grid';
+export type DisplayMode = 'list' | 'grid';
 
-export type DiarySortMode = 'alpha' | 'time' | 'arranged';
+export type SortMode = 'alpha' | 'time' | 'arranged';
 
 export interface Diary {
-  perms: DiaryPerm;
-  view: DiaryDisplayMode;
+  perms: Perm;
+  view: DisplayMode;
   order: string[];
-  sort: DiarySortMode;
+  sort: SortMode;
   saga: Saga | null;
 }
 
@@ -323,28 +288,24 @@ export interface Shelf {
   [key: string]: Diary;
 }
 
-export interface DiaryBrief {
+export interface Brief {
   last: number;
   count: number;
   'read-id': string | null;
 }
 
-export interface DiaryBriefs {
-  [flag: DiaryFlag]: DiaryBrief;
+export interface Briefs {
+  [nest: Nest]: Brief;
 }
 
-export interface DiaryBriefUpdate {
-  flag: DiaryFlag;
-  brief: DiaryBrief;
+export interface BriefUpdate {
+  nest: Nest;
+  brief: Brief;
 }
 
-/**
- * `@p`/{name}
- */
-export type DiaryFlag = string;
-
-export interface DiaryCreate {
-  group: string;
+export interface Create {
+  han: Han;
+  group: Flag;
   name: string;
   title: string;
   description: string;
@@ -352,52 +313,65 @@ export interface DiaryCreate {
   writers: string[];
 }
 
-export interface DiaryPerm {
+export interface Perm {
   writers: string[];
   group: Flag;
 }
 
-export interface DiarySaid {
-  flag: string;
-  outline: DiaryOutline;
+export interface Said {
+  nest: Nest;
+  outline: Outline;
 }
 
-export interface DiaryInit {
-  briefs: DiaryBriefs;
+export interface Init {
+  briefs: Briefs;
   shelf: Shelf;
 }
 
-export type DiaryDiff = DiaryCreateDiff | DiaryCommand;
+export type Diff = CreateDiff | Command;
 
-export type DiaryAction =
-  | { join: string } // group flag
+export type Action =
+  | { join: Flag } // group flag
   | { leave: null }
   | { read: null }
   | { 'read-at': string }
   | { watch: null }
   | { unwatch: null }
-  | DiaryCommand;
+  | Command;
 
-export type DiaryShelfAction =
-  | { diary: { flag: DiaryFlag; action: DiaryAction } }
-  | { create: DiaryCreate };
+export type ShelfAction =
+  | { diary: { nest: Nest; action: Action } }
+  | { create: Create };
 
-export type DiaryCommand =
+export type Command =
   | { note: NoteAction }
-  | DiaryDiffView
-  | DiaryDiffAddWriters
-  | DiaryDiffDelWriters
-  | DiaryDiffArrangedNotes
-  | DiaryDiffSort;
+  | DiffView
+  | DiffAddWriters
+  | DiffDelWriters
+  | DiffArrangedNotes
+  | DiffSort;
 
-export type DiaryResponse =
-  | { notes: DiaryNoteMap }
-  | { note: NoteDiff }
+export type NoteResponse =
+  | { set: Note }
+  | { quip: { id: string; response: QuipResponse } }
+  | { essay: NoteEssay }
+  | { feels: Record<string, string> };
+
+export type QuipResponse = { set: Quip } | { feels: Record<string, string> };
+
+export type Response =
+  | { notes: NoteMap }
+  | {
+      note: {
+        id: string;
+        response: NoteResponse;
+      };
+    }
   | { order: string[] }
-  | { view: DiaryDisplayMode }
-  | { sort: DiarySortMode }
-  | { perm: DiaryPerm }
-  | { create: DiaryPerm }
+  | { view: DisplayMode }
+  | { sort: SortMode }
+  | { perm: Perm }
+  | { create: Perm }
   | { join: string }
   | { leave: null }
   | { read: null }
@@ -405,7 +379,7 @@ export type DiaryResponse =
   | { watch: null }
   | { unwatch: null };
 
-export interface DiaryShelfResponse {
-  flag: DiaryFlag;
-  response: DiaryResponse;
+export interface ShelfResponse {
+  nest: Nest;
+  response: Response;
 }

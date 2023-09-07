@@ -330,7 +330,6 @@
         han-data+(han-data han-data.o)
         'quipCount'^(numb quips.o)
         quippers/a/(turn ~(tap in quippers.o) ship)
-        type/s/%outline
     ==
   ::
   ++  outlines

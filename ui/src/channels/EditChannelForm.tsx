@@ -23,12 +23,12 @@ import {
   useDelHeapSectsMutation,
 } from '@/state/heap/heap';
 import {
-  useAddSectsDiaryMutation,
-  useDeleteSectsDiaryMutation,
-  useDiary,
-  useSortDiaryMutation,
-  useViewDiaryMutation,
-} from '@/state/diary';
+  useAddSectsMutation,
+  useDeleteSectsMutation,
+  useChannel as useChannelState,
+  useSortMutation,
+  useViewMutation,
+} from '@/state/channel/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChannel } from '@/logic/channel';
 import { DiarySortMode } from '@/types/diary';
@@ -58,16 +58,16 @@ export default function EditChannelForm({
   const group = useGroup(groupFlag);
   const sects = Object.keys(group?.cabals || {});
   const [app, channelFlag] = nestToFlag(nest);
-  const diary = useDiary(channelFlag);
+  const diary = useChannelState(channelFlag);
   const chan = useChannel(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
     useEditChannelMutation();
-  const { mutateAsync: addDiarySects } = useAddSectsDiaryMutation();
-  const { mutateAsync: delDiarySects } = useDeleteSectsDiaryMutation();
+  const { mutateAsync: addDiarySects } = useAddSectsMutation();
+  const { mutateAsync: delDiarySects } = useDeleteSectsMutation();
   const { mutateAsync: addHeapSects } = useAddHeapSectsMutation();
   const { mutateAsync: delHeapSects } = useDelHeapSectsMutation();
-  const { mutate: changeDiarySort } = useSortDiaryMutation();
-  const { mutate: changeDiaryView } = useViewDiaryMutation();
+  const { mutate: changeDiarySort } = useSortMutation();
+  const { mutate: changeDiaryView } = useViewMutation();
   const defaultValues: ChannelFormSchema = {
     zone: channel.zone || 'default',
     added: channel.added || Date.now(),
@@ -89,16 +89,21 @@ export default function EditChannelForm({
     defaultValues,
   });
 
+  const makeDiaryNest = (flag: string) => `diary/${flag}`;
+
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
       const { privacy, readers, sort, view, ...nextChannel } = values;
 
       if (sort) {
-        changeDiarySort({ flag: channelFlag, sort: sort as DiarySortMode });
+        changeDiarySort({
+          nest: makeDiaryNest(channelFlag),
+          sort: sort as DiarySortMode,
+        });
       }
 
       if (view) {
-        changeDiaryView({ flag: channelFlag, view });
+        changeDiaryView({ nest: makeDiaryNest(channelFlag), view });
       }
 
       if (presetSection) {
@@ -120,7 +125,7 @@ export default function EditChannelForm({
       const addSects =
         app === 'diary'
           ? (flag: string, writers: string[]) =>
-              addDiarySects({ flag, writers })
+              addDiarySects({ nest: makeDiaryNest(flag), writers })
           : app === 'heap'
           ? (flag: string, writers: string[]) =>
               addHeapSects({ flag, sects: writers })
@@ -128,7 +133,7 @@ export default function EditChannelForm({
       const delSects =
         app === 'diary'
           ? (flag: string, writers: string[]) =>
-              delDiarySects({ flag, writers })
+              delDiarySects({ nest: makeDiaryNest(flag), writers })
           : app === 'heap'
           ? (flag: string, writers: string[]) =>
               delHeapSects({ flag, sects: writers })

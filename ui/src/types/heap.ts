@@ -211,6 +211,7 @@ export interface HeapBriefUpdate {
 export type HeapFlag = string;
 
 export interface HeapCreate {
+  han?: string;
   group: string;
   name: string;
   title: string;

@@ -6,32 +6,35 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
+import { Flag } from '@/types/hark';
 import {
+  Han,
+  Shelf,
   NoteAction,
   Ship,
-  DiaryQuips,
+  Quips,
   Diary,
-  DiaryFlag,
-  DiaryPerm,
-  DiaryMemo,
-  DiaryQuip,
-  DiaryAction,
-  DiaryDisplayMode,
-  DiarySortMode,
-  DiarySaid,
-  DiaryCreate,
-  DiaryBriefs,
-  DiaryOutline,
+  Perm,
+  Memo,
+  Quip,
+  Action,
+  DisplayMode,
+  SortMode,
+  Said,
+  Create,
+  Briefs,
+  Outline,
   NoteEssay,
-  DiaryStory,
-  DiaryOutlines,
-  DiaryShelfResponse,
-  DiaryShelfAction,
-  DiaryNote,
-  DiaryQuipMap,
-} from '@/types/diary';
+  Story,
+  Outlines,
+  ShelfResponse,
+  ShelfAction,
+  Note,
+  QuipMap,
+  Nest,
+} from '@/types/channel';
 import api from '@/api';
-import { restoreMap } from '@/logic/utils';
+import { nestToFlag, restoreMap } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
@@ -41,103 +44,100 @@ import create from 'zustand';
 
 interface NoteSealInCache {
   id: string;
-  quips: DiaryQuips;
+  quips: Quips;
   feels: {
     [ship: Ship]: string;
   };
 }
 
-interface DiaryNoteInCache {
+interface NoteInCache {
   seal: NoteSealInCache;
   essay: NoteEssay;
 }
 
 async function updateNoteInCache(
-  variables: { flag: DiaryFlag; noteId: string },
-  updater: (note: DiaryNoteInCache | undefined) => DiaryNoteInCache | undefined,
+  variables: { nest: Nest; noteId: string },
+  updater: (note: NoteInCache | undefined) => NoteInCache | undefined,
   queryClient: QueryClient
 ) {
+  const [han, flag] = nestToFlag(variables.nest);
   await queryClient.cancelQueries({
-    queryKey: ['diary', 'notes', variables.flag, variables.noteId],
+    queryKey: [han, 'notes', flag, variables.noteId],
     exact: true,
   });
 
-  queryClient.setQueryData(
-    ['diary', 'notes', variables.flag, variables.noteId],
-    updater
-  );
+  queryClient.setQueryData([han, 'notes', flag, variables.noteId], updater);
 }
 
 async function updateNotesInCache(
-  variables: { flag: DiaryFlag },
-  updater: (notes: DiaryOutlines | undefined) => DiaryOutlines | undefined,
+  variables: { nest: Nest },
+  updater: (notes: Outlines | undefined) => Outlines | undefined,
   queryClient: QueryClient
 ) {
-  await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
+  const [han, flag] = nestToFlag(variables.nest);
+  await queryClient.cancelQueries([han, 'notes', flag]);
 
-  queryClient.setQueryData(['diary', 'notes', variables.flag], updater);
+  queryClient.setQueryData([han, 'notes', variables.nest], updater);
 }
 
-function diaryAction(
-  flag: DiaryFlag,
-  action: DiaryAction
-): Poke<DiaryShelfAction> {
+function diaryAction(nest: Nest, action: Action): Poke<ShelfAction> {
   return {
-    app: 'diary',
-    mark: 'diary-action',
+    app: 'channel',
+    mark: 'channel-action',
     json: {
       diary: {
-        flag,
+        nest,
         action,
       },
     },
   };
 }
 
-function diaryNoteAction(flag: DiaryFlag, action: NoteAction) {
-  return diaryAction(flag, {
+function diaryNoteAction(nest: Nest, action: NoteAction) {
+  return diaryAction(nest, {
     note: action,
   });
 }
 
-export interface DiaryState {
+export interface State {
   pendingNotes: string[];
   [key: string]: unknown;
 }
 
-export const useDiaryState = create<DiaryState>(() => ({
+export const useState = create<State>(() => ({
   pendingNotes: [],
 }));
 
 export function usePendingNotes() {
-  return useDiaryState((s) => s.pendingNotes);
+  return useState((s) => s.pendingNotes);
 }
 
 export function useIsNotePending(noteId: string) {
-  return useDiaryState((s) => s.pendingNotes.includes(noteId));
+  return useState((s) => s.pendingNotes.includes(noteId));
 }
 
-export function useNotes(flag: DiaryFlag) {
+export function useNotes(nest: Nest) {
+  const [han, flag] = nestToFlag(nest);
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['diary', 'notes', flag],
-    app: 'diary',
-    path: `/diary/${flag}/ui`,
-    scry: `/diary/${flag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    queryKey: [han, 'notes', flag],
+    app: 'channels',
+    path: `/channels/${nest}/ui`,
+    scry: `/channels/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
   });
 
-  let noteMap = restoreMap<DiaryOutline>(data);
+  let noteMap = restoreMap<Outline>(data);
 
   if (data === undefined || Object.entries(data as object).length === 0) {
     return {
-      letters: noteMap as BigIntOrderedMap<DiaryOutline>,
+      letters: noteMap as BigIntOrderedMap<Outline>,
       ...rest,
     };
   }
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    note: v as DiaryOutline,
+    note: v as Outline,
   }));
 
   diff.forEach(({ tim, note }) => {
@@ -145,19 +145,20 @@ export function useNotes(flag: DiaryFlag) {
   });
 
   return {
-    letters: noteMap as BigIntOrderedMap<DiaryOutline>,
+    letters: noteMap as BigIntOrderedMap<Outline>,
     ...rest,
   };
 }
 
 export function useNotesOnHost(
-  flag: DiaryFlag,
+  nest: Nest,
   enabled: boolean
-): DiaryOutlines | undefined {
+): Outlines | undefined {
+  const [han, flag] = nestToFlag(nest);
   const { data } = useReactQueryScry({
-    queryKey: ['diary', 'notes', 'live', flag],
-    app: 'diary',
-    path: `/diary/${flag}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    queryKey: [han, 'notes', 'live', flag],
+    app: 'channels',
+    path: `/channels/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
     options: {
       cacheTime: 0,
@@ -174,24 +175,26 @@ export function useNotesOnHost(
     return undefined;
   }
 
-  return data as DiaryOutlines;
+  return data as Outlines;
 }
 
-export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
+export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   const queryClient = useQueryClient();
-  const notes = useNotes(flag);
+  const notes = useNotes(nest);
 
-  let noteMap = restoreMap<DiaryOutline>(notes);
+  let noteMap = restoreMap<Outline>(notes);
 
   const index = noteMap.peekSmallest()?.[0];
   const oldNotesSize = noteMap.size ?? 0;
 
   const fetchStart = index ? decToUd(index.toString()) : decToUd('0');
 
+  const [han, flag] = nestToFlag(nest);
+
   const { data, ...rest } = useReactQueryScry({
-    queryKey: ['diary', 'notes', flag, 'older', fetchStart],
-    app: 'diary',
-    path: `/diary/${flag}/notes/older/${fetchStart}/${count}/outline`,
+    queryKey: [han, 'notes', flag, 'older', fetchStart],
+    app: 'channels',
+    path: `/channels/${nest}/notes/older/${fetchStart}/${count}/outline`,
     priority: 2,
     options: {
       enabled:
@@ -214,22 +217,22 @@ export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    note: v as DiaryOutline,
+    note: v as Outline,
   }));
 
   diff.forEach(({ tim, note }) => {
     noteMap = noteMap.set(tim, note);
   });
 
-  queryClient.setQueryData(['diary', 'notes', flag], noteMap.root);
+  queryClient.setQueryData([han, 'notes', flag], noteMap.root);
 
   return rest.isLoading;
 }
 
-export function useDiaries(): { [flag: string]: Diary } {
+export function useShelf(): Shelf {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['diary', 'shelf'],
-    app: 'diary',
+    queryKey: ['shelf'],
+    app: 'channels',
     path: '/ui',
     scry: '/shelf',
   });
@@ -238,21 +241,21 @@ export function useDiaries(): { [flag: string]: Diary } {
     return {};
   }
 
-  return data as { [flag: string]: Diary };
+  return data as Shelf;
 }
 
-export function useDiary(flag: DiaryFlag): Diary | undefined {
-  const shelf = useDiaries();
+export function useChannel(nest: Nest): Diary | undefined {
+  const shelf = useShelf();
 
-  return shelf[flag];
+  return shelf[nest];
 }
 
 const defaultPerms = {
   writers: [],
 };
 
-export function useArrangedNotes(flag: DiaryFlag) {
-  const diary = useDiary(flag);
+export function useArrangedNotes(nest: Nest): string[] {
+  const diary = useChannel(nest);
 
   if (diary === undefined || diary.order === undefined) {
     return [];
@@ -261,44 +264,51 @@ export function useArrangedNotes(flag: DiaryFlag) {
   return diary.order;
 }
 
-export function useDiaryPerms(flag: DiaryFlag) {
-  const diary = useDiary(flag);
+export function usePerms(nest: Nest): Perm {
+  const diary = useChannel(nest);
+
+  const [_, flag] = nestToFlag(nest);
 
   if (diary === undefined) {
-    return defaultPerms;
+    return {
+      group: flag,
+      ...defaultPerms,
+    };
   }
 
-  return diary.perms as DiaryPerm;
+  return diary.perms as Perm;
 }
 
-export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
+export function useNote(nest: Nest, noteId: string, disabled = false) {
+  const [han, flag] = nestToFlag(nest);
+
   const queryKey = useMemo(
-    () => ['diary', 'notes', flag, noteId],
-    [flag, noteId]
+    () => [han, 'notes', flag, noteId],
+    [han, flag, noteId]
   );
 
   const path = useMemo(
-    () => `/diary/${flag}/notes/note/${decToUd(noteId)}`,
-    [flag, noteId]
+    () => `/channels/${nest}/notes/note/${decToUd(noteId)}`,
+    [nest, noteId]
   );
   const enabled = useMemo(
-    () => noteId !== '0' && flag !== '' && !disabled,
-    [noteId, flag, disabled]
+    () => noteId !== '0' && nest !== '' && !disabled,
+    [noteId, nest, disabled]
   );
   const { data, ...rest } = useReactQueryScry({
     queryKey,
-    app: 'diary',
+    app: 'channels',
     path,
     options: {
       enabled,
     },
   });
 
-  const note = data as DiaryNoteInCache;
+  const note = data as NoteInCache;
 
   const quips = note?.seal?.quips;
 
-  let quipMap: BigIntOrderedMap<DiaryQuip> = restoreMap<DiaryQuip>(quips);
+  let quipMap: BigIntOrderedMap<Quip> = restoreMap<Quip>(quips);
 
   if (quips === undefined) {
     return {
@@ -315,14 +325,15 @@ export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
 
   const diff = Object.entries(quips).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    quip: v as DiaryQuip,
+    quip: v as Quip,
   }));
 
   diff.forEach(({ tim, quip }) => {
     quipMap = quipMap.set(tim, quip);
   });
 
-  const noteWithQuips: DiaryNote = {
+  const noteWithQuips: Note = {
+    type: 'note',
     ...note,
     seal: {
       ...note?.seal,
@@ -337,12 +348,12 @@ export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
 }
 
 export function useQuip(
-  flag: DiaryFlag,
+  nest: Nest,
   noteId: string,
   quipId: string,
   isScrolling = false
 ) {
-  const { note } = useNote(flag, noteId, isScrolling);
+  const { note } = useNote(nest, noteId, isScrolling);
   return useMemo(() => {
     if (note === undefined) {
       return undefined;
@@ -356,10 +367,10 @@ export function useQuip(
 }
 
 const emptyBriefs = {};
-export function useDiaryBriefs(): DiaryBriefs {
+export function useBriefs(): Briefs {
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['diary', 'briefs'],
-    app: 'diary',
+    queryKey: ['briefs'],
+    app: 'channels',
     path: '/briefs',
     scry: '/briefs',
   });
@@ -368,48 +379,45 @@ export function useDiaryBriefs(): DiaryBriefs {
     return emptyBriefs;
   }
 
-  return data as DiaryBriefs;
+  return data as Briefs;
 }
 
-export function useDiaryIsJoined(flag: DiaryFlag) {
-  const briefs = useDiaryBriefs();
+export function useIsJoined(nest: Nest) {
+  const briefs = useBriefs();
 
-  return Object.keys(briefs).includes(flag);
+  return Object.keys(briefs).includes(nest);
 }
 
-export function useDiaryBrief(flag: string) {
-  const briefs = useDiaryBriefs();
+export function useBrief(nest: Nest) {
+  const briefs = useBriefs();
 
-  return briefs[flag];
+  return briefs[nest];
 }
 
 // TODO: this is a WIP part of implementing sorting by most recent comment
-// export function useDiaryQuips(flag: string): [bigInt.BigInteger, DiaryQuipMap][] {
-//   const def = useMemo(() => new BigIntOrderedMap<DiaryQuipMap>(), []);
-//   const notes = useNotesForDiary(flag);
+// export function useQuips(flag: string): [bigInt.BigInteger, QuipMap][] {
+//   const def = useMemo(() => new BigIntOrderedMap<QuipMap>(), []);
+//   const notes = useNotesFor(flag);
 //   const getQuip = useQuips;
 //   const quipNotes = Array.from(notes).map(([time, note]) => [time, getQuip(flag, time.toString())]);
 // }
 
-export function useDiaryDisplayMode(flag: string): DiaryDisplayMode {
-  const diary = useDiary(flag);
+export function useDisplayMode(nest: string): DisplayMode {
+  const diary = useChannel(nest);
   return diary?.view ?? 'list';
 }
 
-export function useDiarySortMode(flag: string): DiarySortMode {
-  const diary = useDiary(flag);
+export function useSortMode(nest: string): SortMode {
+  const diary = useChannel(nest);
   return diary?.sort ?? 'time';
 }
 
-export function useRemoteOutline(
-  flag: string,
-  time: string,
-  blockLoad: boolean
-) {
-  const path = `/said/${flag}/note/${decToUd(time)}`;
+export function useRemoteOutline(nest: Nest, time: string, blockLoad: boolean) {
+  const [han, flag] = nestToFlag(nest);
+  const path = `/said/${nest}/note/${decToUd(time)}`;
   const { data, ...rest } = useReactQuerySubscribeOnce({
-    queryKey: ['diary', 'said', flag, time],
-    app: 'diary',
+    queryKey: [han, 'said', nest, time],
+    app: 'channels',
     path,
     options: {
       enabled: !blockLoad,
@@ -417,17 +425,17 @@ export function useRemoteOutline(
   });
 
   if (rest.isLoading || rest.isError || !data) {
-    return {} as DiaryOutline;
+    return {} as Outline;
   }
 
-  const { outline } = data as DiarySaid;
+  const { outline } = data as Said;
 
-  return outline as DiaryOutline;
+  return outline as Outline;
 }
 
-export function useMarkReadDiaryMutation() {
-  const mutationFn = async (variables: { flag: string }) => {
-    await api.poke(diaryAction(variables.flag, { read: null }));
+export function useMarkReadMutation() {
+  const mutationFn = async (variables: { nest: Nest }) => {
+    await api.poke(diaryAction(variables.nest, { read: null }));
   };
 
   return useMutation({
@@ -435,136 +443,113 @@ export function useMarkReadDiaryMutation() {
   });
 }
 
-export function useJoinDiaryMutation() {
-  const mutationFn = async ({
-    group,
-    chan,
-  }: {
-    group: string;
-    chan: string;
-  }) => {
-    await api.trackedPoke<DiaryShelfAction, DiaryShelfResponse>(
+export function useJoinMutation() {
+  const mutationFn = async ({ group, chan }: { group: Flag; chan: Nest }) => {
+    await api.trackedPoke<ShelfAction, ShelfResponse>(
       diaryAction(chan, {
         join: group,
       }),
-      { app: 'diary', path: '/ui' },
-      (event) => event.flag === chan && 'create' in event.response
+      { app: 'channels', path: '/ui' },
+      (event) => event.nest === chan && 'create' in event.response
     );
   };
 
   return useMutation(mutationFn);
 }
 
-export function useLeaveDiaryMutation() {
+export function useLeaveMutation() {
   const queryClient = useQueryClient();
-  const mutationFn = async (variables: { flag: string }) => {
-    await api.poke(diaryAction(variables.flag, { leave: null }));
+  const mutationFn = async (variables: { nest: Nest }) => {
+    await api.poke(diaryAction(variables.nest, { leave: null }));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['diary', 'shelf']);
-      await queryClient.cancelQueries(['diary', 'briefs']);
-      await queryClient.cancelQueries(['diary', 'perms', variables.flag]);
-      await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
-      queryClient.removeQueries(['diary', 'perms', variables.flag]);
-      queryClient.removeQueries(['diary', 'notes', variables.flag]);
+      const [han, flag] = nestToFlag(variables.nest);
+      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['briefs']);
+      await queryClient.cancelQueries([han, 'perms', flag]);
+      await queryClient.cancelQueries([han, 'notes', flag]);
+      queryClient.removeQueries([han, 'perms', flag]);
+      queryClient.removeQueries([han, 'notes', flag]);
     },
     onSettled: async (_data, _error) => {
-      await queryClient.invalidateQueries(['diary', 'shelf']);
-      await queryClient.invalidateQueries(['diary', 'briefs']);
+      await queryClient.invalidateQueries(['shelf']);
+      await queryClient.invalidateQueries(['briefs']);
     },
   });
 }
 
-export function useViewDiaryMutation() {
+export function useViewMutation() {
   const queryClient = useQueryClient();
-  const mutationFn = async (variables: {
-    flag: string;
-    view: DiaryDisplayMode;
-  }) => {
-    await api.poke(diaryAction(variables.flag, { view: variables.view }));
+  const mutationFn = async (variables: { nest: Nest; view: DisplayMode }) => {
+    await api.poke(diaryAction(variables.nest, { view: variables.view }));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['diary', 'shelf']);
+      await queryClient.cancelQueries(['shelf']);
 
-      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
-        'diary',
-        'shelf',
-      ]);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [flag: string]: Diary }>(
-          ['diary', 'shelf'],
-          {
-            ...prev,
-            [variables.flag]: {
-              ...prev[variables.flag],
-              view: variables.view,
-            },
-          }
-        );
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+          ...prev,
+          [variables.nest]: {
+            ...prev[variables.nest],
+            view: variables.view,
+          },
+        });
       }
     },
   });
 }
 
-export function useSortDiaryMutation() {
+export function useSortMutation() {
   const queryClient = useQueryClient();
-  const mutationFn = async (variables: {
-    flag: string;
-    sort: DiarySortMode;
-  }) => {
-    await api.poke(diaryAction(variables.flag, { sort: variables.sort }));
+  const mutationFn = async (variables: { nest: Nest; sort: SortMode }) => {
+    await api.poke(diaryAction(variables.nest, { sort: variables.sort }));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['diary', 'shelf']);
+      await queryClient.cancelQueries(['shelf']);
 
-      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
-        'diary',
-        'shelf',
-      ]);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [flag: string]: Diary }>(
-          ['diary', 'shelf'],
-          {
-            ...prev,
-            [variables.flag]: {
-              ...prev[variables.flag],
-              sort: variables.sort,
-            },
-          }
-        );
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+          ...prev,
+          [variables.nest]: {
+            ...prev[variables.nest],
+            sort: variables.sort,
+          },
+        });
       }
     },
   });
 }
 
-export function useArrangedNotesDiaryMutation() {
+export function useArrangedNotesMutation() {
   const queryClient = useQueryClient();
-  const { mutate: changeSortMutation } = useSortDiaryMutation();
+  const { mutate: changeSortMutation } = useSortMutation();
 
   const mutationFn = async (variables: {
-    flag: string;
+    nest: Nest;
     arrangedNotes: string[];
   }) => {
     // change sort mode automatically if arrangedNotes is empty/not-empty
     if (variables.arrangedNotes.length === 0) {
-      changeSortMutation({ flag: variables.flag, sort: 'time' });
+      changeSortMutation({ nest: variables.nest, sort: 'time' });
     } else {
-      changeSortMutation({ flag: variables.flag, sort: 'arranged' });
+      changeSortMutation({ nest: variables.nest, sort: 'arranged' });
     }
 
     await api.poke(
-      diaryAction(variables.flag, {
+      diaryAction(variables.nest, {
         order: variables.arrangedNotes.map((t) => decToUd(t)),
       })
     );
@@ -573,24 +558,18 @@ export function useArrangedNotesDiaryMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['diary', 'shelf']);
+      await queryClient.cancelQueries(['shelf']);
 
-      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
-        'diary',
-        'shelf',
-      ]);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [flag: string]: Diary }>(
-          ['diary', 'shelf'],
-          {
-            ...prev,
-            [variables.flag]: {
-              ...prev[variables.flag],
-              order: variables.arrangedNotes.map((t) => decToUd(t)),
-            },
-          }
-        );
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+          ...prev,
+          [variables.nest]: {
+            ...prev[variables.nest],
+            order: variables.arrangedNotes.map((t) => decToUd(t)),
+          },
+        });
       }
     },
   });
@@ -602,22 +581,23 @@ export function useAddNoteMutation() {
   let timePosted: string;
   const mutationFn = async (variables: {
     initialTime: string;
-    flag: DiaryFlag;
+    nest: Nest;
     essay: NoteEssay;
   }) =>
     new Promise<string>((resolve) => {
       timePosted = variables.initialTime;
       api
-        .trackedPoke<DiaryShelfAction, DiaryShelfResponse>(
-          diaryNoteAction(variables.flag, {
+        .trackedPoke<ShelfAction, ShelfResponse>(
+          diaryNoteAction(variables.nest, {
             add: variables.essay,
           }),
-          { app: 'diary', path: `/diary/${variables.flag}/ui` },
+          { app: 'channels', path: `/channels/${variables.nest}/ui` },
           ({ response }) => {
             if ('note' in response) {
               const { id, response: noteResponse } = response.note;
               if (
                 'set' in noteResponse &&
+                noteResponse.set !== null &&
                 noteResponse.set.essay.author === variables.essay.author &&
                 noteResponse.set.essay.sent === variables.essay.sent
               ) {
@@ -638,69 +618,61 @@ export function useAddNoteMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['diary', 'notes', variables.flag]);
-      await queryClient.cancelQueries(['diary', 'briefs']);
+      const [han, flag] = nestToFlag(variables.nest);
 
-      useDiaryState.setState((state) => ({
+      await queryClient.cancelQueries([han, 'notes', flag]);
+      await queryClient.cancelQueries(['briefs']);
+
+      useState.setState((state) => ({
         pendingNotes: [variables.initialTime, ...state.pendingNotes],
       }));
 
-      const notes = queryClient.getQueryData<DiaryOutline>([
-        'diary',
-        'notes',
-        variables.flag,
-      ]);
+      const notes = queryClient.getQueryData<Outline>([han, 'notes', flag]);
 
       if (notes !== undefined) {
         // for the unlikely case that the user navigates away from the editor
         // before the mutation is complete, or if the host ship is offline,
         // we update the cache optimistically.
-        queryClient.setQueryData<DiaryOutline>(
-          ['diary', 'notes', variables.flag],
-          {
-            ...notes,
-            // this time is temporary, and will be replaced by the actual time
-            [variables.initialTime]: {
-              content: variables.essay.content,
-              author: variables.essay.author,
-              quipCount: 0,
-              quippers: [],
-              title: variables.essay.title,
-              image: variables.essay.image,
-              sent: variables.essay.sent,
-              type: 'outline',
-            },
-          }
-        );
+        queryClient.setQueryData<Outline>([han, 'notes', flag], {
+          ...notes,
+          // this time is temporary, and will be replaced by the actual time
+          [variables.initialTime]: {
+            content: variables.essay.content,
+            author: variables.essay.author,
+            quipCount: 0,
+            quippers: [],
+            'han-data': variables.essay['han-data'],
+            sent: variables.essay.sent,
+            type: 'outline',
+          },
+        });
 
-        queryClient.setQueryData(
-          ['diary', 'notes', variables.flag, variables.initialTime],
-          {
-            type: 'note',
-            seal: {
-              time: variables.initialTime,
-              quips: [],
-              feels: {},
-            },
-            essay: {
-              ...variables.essay,
-            },
-          }
-        );
+        queryClient.setQueryData([han, 'notes', flag, variables.initialTime], {
+          type: 'note',
+          seal: {
+            time: variables.initialTime,
+            quips: [],
+            feels: {},
+          },
+          essay: {
+            ...variables.essay,
+          },
+        });
       }
     },
     onSuccess: async (_data, variables) => {
-      useDiaryState.setState((state) => ({
+      useState.setState((state) => ({
         pendingNotes: state.pendingNotes.filter(
           (time) => time !== variables.initialTime
         ),
       }));
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['diary', 'notes', variables.flag], {
+      const [han, flag] = nestToFlag(variables.nest);
+      await queryClient.invalidateQueries([han, 'notes', flag], {
         exact: true,
       });
-      await queryClient.invalidateQueries(['diary', 'briefs']);
+      await queryClient.invalidateQueries(['briefs']);
     },
   });
 }
@@ -708,12 +680,12 @@ export function useAddNoteMutation() {
 export function useEditNoteMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: {
-    flag: DiaryFlag;
+    nest: Nest;
     time: string;
     essay: NoteEssay;
   }) => {
     await api.poke(
-      diaryNoteAction(variables.flag, {
+      diaryNoteAction(variables.nest, {
         edit: {
           id: decToUd(variables.time),
           essay: variables.essay,
@@ -725,7 +697,7 @@ export function useEditNoteMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNoteInCache | undefined) => {
+      const updater = (prev: NoteInCache | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -736,7 +708,7 @@ export function useEditNoteMutation() {
         };
       };
 
-      const notesUpdater = (prev: DiaryOutlines | undefined) => {
+      const notesUpdater = (prev: Outlines | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -752,7 +724,7 @@ export function useEditNoteMutation() {
 
       await updateNoteInCache(
         {
-          flag: variables.flag,
+          nest: variables.nest,
           noteId: variables.time,
         },
         updater,
@@ -766,14 +738,16 @@ export function useEditNoteMutation() {
 
 export function useDeleteNoteMutation() {
   const queryClient = useQueryClient();
-  const mutationFn = async (variables: { flag: DiaryFlag; time: string }) => {
-    await api.poke(diaryNoteAction(variables.flag, { del: variables.time }));
+  const mutationFn = async (variables: { nest: Nest; time: string }) => {
+    await api.poke(diaryNoteAction(variables.nest, { del: variables.time }));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryOutlines | undefined) => {
+      const [han, flag] = nestToFlag(variables.nest);
+
+      const updater = (prev: Outlines | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -785,38 +759,35 @@ export function useDeleteNoteMutation() {
 
       await updateNotesInCache(variables, updater, queryClient);
 
-      await queryClient.cancelQueries([
-        'diary',
-        'notes',
-        variables.flag,
-        variables.time,
-      ]);
+      await queryClient.cancelQueries([han, 'notes', flag, variables.time]);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['diary', 'notes', variables.flag], {
+      const [han, flag] = nestToFlag(variables.nest);
+      await queryClient.invalidateQueries([han, 'notes', flag], {
         exact: true,
       });
     },
   });
 }
 
-export function useCreateDiaryMutation() {
+export function useCreateMutation() {
   const queryClient = useQueryClient();
 
-  const mutationFn = async (variables: DiaryCreate) => {
-    await api.trackedPoke<DiaryShelfAction, DiaryShelfResponse>(
+  const mutationFn = async (variables: Create) => {
+    await api.trackedPoke<ShelfAction, ShelfResponse>(
       {
-        app: 'diary',
-        mark: 'diary-action',
+        app: 'channels',
+        mark: 'channel-action',
         json: {
           create: variables,
         },
       },
-      { app: 'diary', path: '/ui' },
+      { app: 'channels', path: '/ui' },
       (event) => {
-        const { response, flag } = event;
+        const { response, nest } = event;
         return (
-          'create' in response && flag === `${window.our}/${variables.name}`
+          'create' in response &&
+          nest === `${variables.han}/${window.our}/${variables.name}`
         );
       }
     );
@@ -825,121 +796,97 @@ export function useCreateDiaryMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['diary', 'shelf']);
+      await queryClient.cancelQueries(['shelf']);
 
-      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
-        'diary',
-        'shelf',
-      ]);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [flag: string]: Diary }>(
-          ['diary', 'shelf'],
-          {
-            ...prev,
-            [`${window.our}/${variables.name}`]: {
-              perms: { writers: [], group: variables.group },
-              view: 'list',
-              order: [],
-              sort: 'time',
-              saga: { synced: null },
-            },
-          }
-        );
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+          ...prev,
+          [`${variables.han}/${window.our}/${variables.name}`]: {
+            perms: { writers: [], group: variables.group },
+            view: 'list',
+            order: [],
+            sort: 'time',
+            saga: { synced: null },
+          },
+        });
       }
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['diary', 'shelf']);
+      await queryClient.invalidateQueries(['shelf']);
       await queryClient.invalidateQueries([
-        'diary',
+        variables.han,
         'notes',
-        variables.name,
+        `${window.our}/${variables.name}`,
         { exact: true },
       ]);
     },
   });
 }
 
-export function useAddSectsDiaryMutation() {
+export function useAddSectsMutation() {
   const queryClient = useQueryClient();
-  const mutationFn = async (variables: {
-    flag: DiaryFlag;
-    writers: string[];
-  }) => {
+  const mutationFn = async (variables: { nest: Nest; writers: string[] }) => {
     await api.poke(
-      diaryAction(variables.flag, { 'add-writers': variables.writers })
+      diaryAction(variables.nest, { 'add-writers': variables.writers })
     );
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['diary', 'shelf']);
+      await queryClient.cancelQueries(['shelf']);
 
-      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
-        'diary',
-        'shelf',
-      ]);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [flag: string]: Diary }>(
-          ['diary', 'shelf'],
-          {
-            ...prev,
-            [variables.flag]: {
-              ...prev[variables.flag],
-              perms: {
-                ...prev[variables.flag].perms,
-                writers: [
-                  ...prev[variables.flag].perms.writers,
-                  ...variables.writers,
-                ],
-              },
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+          ...prev,
+          [variables.nest]: {
+            ...prev[variables.nest],
+            perms: {
+              ...prev[variables.nest].perms,
+              writers: [
+                ...prev[variables.nest].perms.writers,
+                ...variables.writers,
+              ],
             },
-          }
-        );
+          },
+        });
       }
     },
   });
 }
 
-export function useDeleteSectsDiaryMutation() {
+export function useDeleteSectsMutation() {
   const queryClient = useQueryClient();
-  const mutationFn = async (variables: {
-    flag: DiaryFlag;
-    writers: string[];
-  }) => {
+  const mutationFn = async (variables: { nest: Nest; writers: string[] }) => {
     await api.poke(
-      diaryAction(variables.flag, { 'del-writers': variables.writers })
+      diaryAction(variables.nest, { 'del-writers': variables.writers })
     );
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['diary', 'shelf']);
+      await queryClient.cancelQueries(['shelf']);
 
-      const prev = queryClient.getQueryData<{ [flag: string]: Diary }>([
-        'diary',
-        'shelf',
-      ]);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [flag: string]: Diary }>(
-          ['diary', 'shelf'],
-          {
-            ...prev,
-            [variables.flag]: {
-              ...prev[variables.flag],
-              perms: {
-                ...prev[variables.flag].perms,
-                writers: prev[variables.flag].perms.writers.filter(
-                  (writer) => !variables.writers.includes(writer)
-                ),
-              },
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+          ...prev,
+          [variables.nest]: {
+            ...prev[variables.nest],
+            perms: {
+              ...prev[variables.nest].perms,
+              writers: prev[variables.nest].perms.writers.filter(
+                (writer) => !variables.writers.includes(writer)
+              ),
             },
-          }
-        );
+          },
+        });
       }
     },
   });
@@ -948,17 +895,17 @@ export function useDeleteSectsDiaryMutation() {
 export function useAddQuipMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: {
-    flag: DiaryFlag;
+    nest: Nest;
     noteId: string;
-    content: DiaryStory;
+    content: Story;
   }) => {
     const replying = decToUd(variables.noteId);
-    const memo: DiaryMemo = {
+    const memo: Memo = {
       content: variables.content,
       author: window.our,
       sent: Date.now(),
     };
-    const action: DiaryAction = {
+    const action: Action = {
       note: {
         quip: {
           id: replying,
@@ -969,20 +916,20 @@ export function useAddQuipMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, action));
+    await api.poke(diaryAction(variables.nest, action));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, DiaryOutline> | undefined) => {
+      const notesUpdater = (prev: Record<string, Outline> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
         const replying = decToUd(variables.noteId);
         if (replying in prev) {
-          const replyingNote = prev[replying] as DiaryOutline;
+          const replyingNote = prev[replying] as Outline;
           const updatedNote = {
             ...replyingNote,
             quipCount: replyingNote.quipCount + 1,
@@ -997,13 +944,13 @@ export function useAddQuipMutation() {
         return prev;
       };
 
-      const updater = (prevNote: DiaryNoteInCache | undefined) => {
+      const updater = (prevNote: NoteInCache | undefined) => {
         if (prevNote === undefined) {
           return prevNote;
         }
         const prevQuips = prevNote.seal.quips;
         const dateTime = Date.now();
-        const newQuips: Record<string, DiaryQuip> = {
+        const newQuips: Record<string, Quip> = {
           ...prevQuips,
           [decToUd(unixToDa(dateTime).toString())]: {
             cork: {
@@ -1018,7 +965,7 @@ export function useAddQuipMutation() {
           },
         };
 
-        const updatedNote: DiaryNoteInCache = {
+        const updatedNote: NoteInCache = {
           ...prevNote,
           seal: {
             ...prevNote.seal,
@@ -1038,11 +985,11 @@ export function useAddQuipMutation() {
 export function useDeleteQuipMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: {
-    flag: DiaryFlag;
+    nest: Nest;
     noteId: string;
     quipId: string;
   }) => {
-    const action: DiaryAction = {
+    const action: Action = {
       note: {
         quip: {
           id: decToUd(variables.noteId),
@@ -1053,19 +1000,19 @@ export function useDeleteQuipMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, action));
+    await api.poke(diaryAction(variables.nest, action));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, DiaryOutline> | undefined) => {
+      const notesUpdater = (prev: Record<string, Outline> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
         const replying = decToUd(variables.noteId);
         if (replying in prev) {
-          const replyingNote = prev[replying] as DiaryOutline;
+          const replyingNote = prev[replying] as Outline;
           const updatedNote = {
             ...replyingNote,
             quipCount: replyingNote.quipCount - 1,
@@ -1082,7 +1029,7 @@ export function useDeleteQuipMutation() {
         return prev;
       };
 
-      const updater = (prevNote: DiaryNoteInCache | undefined) => {
+      const updater = (prevNote: NoteInCache | undefined) => {
         if (prevNote === undefined) {
           return prevNote;
         }
@@ -1091,7 +1038,7 @@ export function useDeleteQuipMutation() {
         const newQuips = { ...prevQuips };
         delete newQuips[variables.quipId];
 
-        const updatedNote: DiaryNoteInCache = {
+        const updatedNote: NoteInCache = {
           ...prevNote,
           seal: {
             ...prevNote.seal,
@@ -1111,11 +1058,11 @@ export function useDeleteQuipMutation() {
 export function useAddNoteFeelMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: {
-    flag: DiaryFlag;
+    nest: Nest;
     noteId: string;
     feel: string;
   }) => {
-    const action: DiaryAction = {
+    const action: Action = {
       note: {
         'add-feel': {
           id: decToUd(variables.noteId),
@@ -1125,13 +1072,13 @@ export function useAddNoteFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, action));
+    await api.poke(diaryAction(variables.nest, action));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prevNote: DiaryNoteInCache | undefined) => {
+      const updater = (prevNote: NoteInCache | undefined) => {
         if (prevNote === undefined) {
           return prevNote;
         }
@@ -1141,7 +1088,7 @@ export function useAddNoteFeelMutation() {
           [unixToDa(Date.now()).toString()]: variables.feel,
         };
 
-        const updatedNote: DiaryNoteInCache = {
+        const updatedNote: NoteInCache = {
           ...prevNote,
           seal: {
             ...prevNote.seal,
@@ -1155,11 +1102,12 @@ export function useAddNoteFeelMutation() {
       await updateNoteInCache(variables, updater, queryClient);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['diary', 'notes', variables.flag]);
+      const [han, flag] = nestToFlag(variables.nest);
+      await queryClient.invalidateQueries([han, 'notes', flag]);
       await queryClient.invalidateQueries([
-        'diary',
+        han,
         'notes',
-        variables.flag,
+        flag,
         variables.noteId,
       ]);
     },
@@ -1168,8 +1116,8 @@ export function useAddNoteFeelMutation() {
 
 export function useDeleteNoteFeelMutation() {
   const queryClient = useQueryClient();
-  const mutationFn = async (variables: { flag: DiaryFlag; noteId: string }) => {
-    const action: DiaryAction = {
+  const mutationFn = async (variables: { nest: Nest; noteId: string }) => {
+    const action: Action = {
       note: {
         'del-feel': {
           id: decToUd(variables.noteId),
@@ -1178,13 +1126,13 @@ export function useDeleteNoteFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, action));
+    await api.poke(diaryAction(variables.nest, action));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNoteInCache | undefined) => {
+      const updater = (prev: NoteInCache | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1209,11 +1157,12 @@ export function useDeleteNoteFeelMutation() {
       await updateNoteInCache(variables, updater, queryClient);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['diary', 'notes', variables.flag]);
+      const [han, flag] = nestToFlag(variables.nest);
+      await queryClient.invalidateQueries([han, 'notes', flag]);
       await queryClient.invalidateQueries([
-        'diary',
+        han,
         'notes',
-        variables.flag,
+        flag,
         variables.noteId,
       ]);
     },
@@ -1223,12 +1172,12 @@ export function useDeleteNoteFeelMutation() {
 export function useAddQuipFeelMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: {
-    flag: DiaryFlag;
+    nest: Nest;
     noteId: string;
     quipId: string;
     feel: string;
   }) => {
-    const action: DiaryAction = {
+    const action: Action = {
       note: {
         quip: {
           id: decToUd(variables.noteId),
@@ -1243,13 +1192,13 @@ export function useAddQuipFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, action));
+    await api.poke(diaryAction(variables.nest, action));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNoteInCache | undefined) => {
+      const updater = (prev: NoteInCache | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1289,11 +1238,11 @@ export function useAddQuipFeelMutation() {
 export function useDeleteQuipFeelMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: {
-    flag: DiaryFlag;
+    nest: Nest;
     noteId: string;
     quipId: string;
   }) => {
-    const action: DiaryAction = {
+    const action: Action = {
       note: {
         quip: {
           id: decToUd(variables.noteId),
@@ -1307,13 +1256,13 @@ export function useDeleteQuipFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, action));
+    await api.poke(diaryAction(variables.nest, action));
   };
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: DiaryNoteInCache | undefined) => {
+      const updater = (prev: NoteInCache | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1349,10 +1298,11 @@ export function useDeleteQuipFeelMutation() {
       await updateNoteInCache(variables, updater, queryClient);
     },
     onSettled: async (_data, _error, variables) => {
+      const [han, flag] = nestToFlag(variables.nest);
       await queryClient.invalidateQueries([
-        'diary',
+        han,
         'notes',
-        variables.flag,
+        flag,
         variables.noteId,
       ]);
     },

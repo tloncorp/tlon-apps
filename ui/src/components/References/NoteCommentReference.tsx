@@ -1,15 +1,16 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useQuip, useRemoteOutline } from '@/state/diary';
+import { useQuip, useRemoteOutline } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { ChatBlock, ChatStory } from '@/types/chat';
+import { ChatStory } from '@/types/chat';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
+import { Inline } from '@/types/content';
 import { useChannelFlag } from '@/logic/channel';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
@@ -60,10 +61,18 @@ function NoteCommentReference({
   }
 
   const normalizedContent: ChatStory = {
-    ...quip.memo.content,
-    block: quip.memo.content.block.filter(
-      (b) => 'image' in b || 'cite' in b
-    ) as ChatBlock[],
+    inline: [
+      ...quip.memo.content
+        .filter((b) => 'inline' in b)
+        // @ts-expect-error  we know these are inlines
+        .flatMap((b) => b.inline),
+    ] as Inline[],
+    block: [
+      ...quip.memo.content
+        .filter((b) => 'block' in b && 'image' in b.block && 'cite' in b.block)
+        // @ts-expect-error  we know these are blocks
+        .flatMap((b) => b.block),
+    ],
   };
 
   if (contextApp === 'heap-row') {
@@ -81,7 +90,9 @@ function NoteCommentReference({
         byline={
           <span className="">
             Comment by <ShipName name={quip.memo.author} showAlias /> on{' '}
-            {outline.title}
+            {'diary' in outline['han-data']
+              ? outline['han-data'].diary.title
+              : null}
           </span>
         }
       >
@@ -98,7 +109,9 @@ function NoteCommentReference({
         image={<ChatContent story={normalizedContent} isScrolling={false} />}
         title={
           <h2 className="mb-2 text-lg font-semibold">
-            Comment on {outline.title}
+            Comment on {'diary' in outline['han-data']
+              ? outline['han-data'].diary.title
+              : null}
           </h2>
         }
       >

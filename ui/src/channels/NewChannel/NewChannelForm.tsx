@@ -12,7 +12,7 @@ import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import { useCreateHeapMutation, useStash } from '@/state/heap/heap';
-import { useCreateDiaryMutation, useDiaries } from '@/state/diary';
+import { useCreateMutation, useShelf } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -24,11 +24,11 @@ export default function NewChannelForm() {
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
   const { compatible, text } = useGroupCompatibility(groupFlag);
-  const shelf = useDiaries();
+  const shelf = useShelf();
   const stash = useStash();
   const { mutate: mutateAddChannel, status: addChannelStatus } =
     useAddChannelMutation();
-  const { mutateAsync: createDiary } = useCreateDiaryMutation();
+  const { mutateAsync: createDiary } = useCreateMutation();
   const { mutateAsync: createHeap } = useCreateHeapMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
@@ -105,6 +105,7 @@ export default function NewChannelForm() {
 
       try {
         await creator({
+          han: type,
           group: groupFlag,
           name: channelName,
           title: values.meta.title,
