@@ -105,7 +105,7 @@
   ^+  cor
   =.  cor
     %-  emil
-    :~  :: [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
+    :~  [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
         [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
         :: [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
     ==

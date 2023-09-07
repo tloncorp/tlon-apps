@@ -1,10 +1,10 @@
-/-  d=diary, g=groups, ha=hark, a=channels
+/-  d=diary, g=groups, ha=hark, channels
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
-/+  migrate=diary-graph
+/+  migrate-old=diary-graph
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
 ::  performance, keep warm
@@ -229,8 +229,8 @@
     =+  !<(act=remark-action:d vase)
     di-abet:(di-remark-diff:(di-abed:di-core p.act) q.act)
   ::
-      %heap-migrate-server  ?>(from-self server:migrate)
-      %heap-migrate         ?>(from-self client:migrate)
+      %diary-migrate-server  ?>(from-self server:migrate)
+      %diary-migrate         ?>(from-self client:migrate)
   ==
   ++  join
     |=  =join:d
@@ -354,7 +354,7 @@
     =/  =seal:d  [time (node-to-quips node) ~]
     ?.  ?=([[%text *] *] contents.u.pos)
       ~  :: XX: should be invariant, don't want to risk it
-    =/  con=(list verse:d)  (migrate flag `@ud`time t.contents.u.pos)
+    =/  con=(list verse:d)  (migrate-old flag `@ud`time t.contents.u.pos)
     =/  =essay:d
       =,(u.pos [text.i.contents '' con author time-sent])
     `[seal essay]
@@ -462,6 +462,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
+      [%migrate ~]  cor
   ::
       [%epic ~]  (take-epic sign)
   ::
@@ -584,33 +585,35 @@
 ::
 ++  migrate
   |%
+  ++  d  channels
+  ++  a  ^d
   ++  server
     =/  server-shelf=shelf:d
       %+  convert-shelf  &
-      %-  ~(gas by *stash:h)
-      %+  skim  ~(tap by stash)
-      |=  [=flag:h =heap:h]
+      %-  ~(gas by *shelf:a)
+      %+  skim  ~(tap by shelf)
+      |=  [=flag:a =diary:a]
       =(our.bowl p.flag)
     =/  =cage  [%channel-migration !>(server-shelf)]
     (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
   ::
   ++  client
-    =/  =shelf:d  (convert-shelf | stash)
+    =/  =shelf:d  (convert-shelf | shelf)
     =/  =cage  [%channel-migration !>(shelf)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
   ::
   ++  convert-shelf
-    |=  [log=? =shelf:d]
-    ^-  shelf:a
-    %-  ~(gas by *shelf:a)
-    %+  turn  ~(tap by stash)
-    |=  [=flag:d =diary:d]
-    ^-  [nest:a diary:a]
+    |=  [log=? =shelf:a]
+    ^-  shelf:d
+    %-  ~(gas by *shelf:d)
+    %+  turn  ~(tap by shelf)
+    |=  [=flag:a =diary:a]
+    ^-  [nest:d diary:d]
     :-  [%diary flag]
-    =/  =notes:a  (convert-notes notes.diary)
+    =/  =notes:d  (convert-notes notes.diary)
     %*    .  *diary:d
         notes   notes
-        order   [0 arranged-notes]
+        order   [0 arranged-notes.diary]
         view    [0 view.diary]
         sort    [0 sort.diary]
         perm    [0 perm.diary]
@@ -624,15 +627,99 @@
     ==
   ::
   ++  convert-notes
-    |=  old=diary:d
-    ^-  notes:a
-    %+  gas:on-notes:a  *notes:a
-    %+  turn  (tap:on:diary:d old)
-    |=  [=time =note:d]
-    ^-  (unit [id-note:a (unit note:a)])
+    |=  old=notes:a
+    ^-  notes:d
+    %+  gas:on-notes:d  *notes:d
+    %+  turn  (tap:on:notes:a old)
+    |=  [=time =note:a]
+    ^-  [id-note:d (unit note:d)]
     [time `(convert-note time note)]
   ::
-  ++  convert-log  !!
+  ++  convert-note
+    |=  [id=@da old=note:a]
+    ^-  note:d
+    :-  [id (convert-quips quips.old) (convert-feels feels.old)]
+    [%0 (convert-essay +.old)]
+  ::
+  ++  convert-quips
+    |=  old=quips:a
+    ^-  quips:d
+    %+  gas:on-quips:d  *quips:d
+    %+  turn  (tap:on:quips:a old)
+    |=  [=time =quip:a]
+    ^-  [id-quip:d (unit quip:d)]
+    [time `(convert-quip time quip)]
+  ::
+  ++  convert-quip
+    |=  [id=@da old=quip:a]
+    ^-  quip:d
+    [[id (convert-feels feels.old)] (convert-memo +.old)]
+  ::
+  ++  convert-essay
+    |=  old=essay:a
+    ^-  essay:d
+    [[content.old author.old sent.old] %diary title.old image.old]
+  ::
+  ++  convert-memo
+    |=  old=memo:a
+    ^-  memo:d
+    [(convert-story content.old) author.old sent.old]
+  ::
+  ++  convert-story
+    |=  old=story:a
+    ^-  story:d
+    %+  welp
+      (turn p.old |=(=block:a [%block block]))
+    [%inline q.old]~
+  ::
+  ++  convert-feels
+    |=  old=(map ship feel:d)
+    ^-  feels:d
+    %-  ~(run by old)
+    |=  =feel:d
+    [%0 `feel]
+  ::
+  ++  convert-log
+    |=  [old=notes:a =notes:d =perm:d =log:a]
+    ^-  log:d
+    %+  gas:log-on:d  *log:d
+    %+  murn  (tap:log-on:a log)
+    |=  [=time =diff:a]
+    ^-  (unit [id-note:d u-diary:d])
+    =;  new=(unit u-diary:d)
+      ?~(new ~ `[time u.new])
+    ?-    -.diff
+        ?(%add-sects %del-sects)  `[%perm 0 perm]
+        %create                   `[%create p.diff]
+        %view                     `[%view 0 p.diff]
+        %sort                     `[%sort 0 p.diff]
+        %arranged-notes           `[%order 0 p.diff]
+        %notes
+      =*  id  p.p.diff
+      =/  old-note  (get:on:notes:a old id)
+      ?~  old-note  `[%note id %set ~]
+      =/  new-note  (get:on-notes:d notes id)
+      ?~  new-note  ~
+      ?-  -.q.p.diff
+          %del                    `[%note id %set ~]
+          ?(%add %edit)           `[%note id %set u.new-note]
+          ?(%add-feel %del-feel)
+        `[%note id %feels ?~(u.new-note ~ feels.u.u.new-note)]
+      ::
+          %quips
+        ?~  u.new-note  ~
+        =*  id-quip  p.p.q.p.diff
+        =/  new-quip  (get:on-quips:d quips.u.u.new-note id-quip)
+        ?~  new-quip  ~
+        :^  ~  %note  id
+        :+  %quip  id-quip
+        ?-  -.q.p.q.p.diff
+          %del                    [%set ~]
+          %add                    [%set u.new-quip]
+          ?(%add-feel %del-feel)  [%feels ?~(u.new-quip ~ feels.u.u.new-quip)]
+        ==
+      ==
+    ==
   --
 ::
 ++  di-core
