@@ -2,7 +2,7 @@ export type Level = 'soft' | 'loud' | 'hush';
 
 // eslint-disable-next-line no-shadow
 export enum LevelNames {
-  soft = 'All mentions and replies',
+  soft = 'Only mentions and replies',
   loud = 'All messages',
   hush = 'Muted',
 }
