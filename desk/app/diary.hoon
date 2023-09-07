@@ -4,6 +4,7 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
+/+  volume
 /+  migrate=diary-graph
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
@@ -607,6 +608,7 @@
   =/  =dock  [our.bowl %hark]
   =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
+::
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -623,13 +625,13 @@
     di-core(flag f, diary (~(got by shelf) f))
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
     ^-  new-yarn:ha
     =*  group  group.perm.diary
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
-      (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
+      (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
   ++  di-import
     |=  [writers=(set ship) =association:met:d]
@@ -1050,12 +1052,20 @@
       =.  notes.diary  (reduce:di-notes time p.dif)
       =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
-        (hark:di-notes our.bowl p.dif)
+        (hark:di-notes [flag bowl p.dif])
+      =/  rope
+        ?:  =(%quips -.q.p.dif)
+          /note/(rsh 4 (scot %ui p.p.dif))
+        ~
+      =/  link
+        ?:  =(%add -.q.p.dif)
+          /note/(rsh 4 (scot %ui time))
+        ~
       =.  cor
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
+        (pass-hark (di-spin rope cs ~ link))
       di-core
     ::
         %add-sects

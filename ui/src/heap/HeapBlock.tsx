@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { formatDistanceToNow } from 'date-fns';
 import { HeapCurio, isLink } from '@/types/heap';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
@@ -33,6 +33,7 @@ interface CurioDisplayProps {
   time: string;
   asRef?: boolean;
   refToken?: string;
+  asMobileNotification?: boolean;
 }
 
 interface TopBarProps extends CurioDisplayProps {
@@ -40,6 +41,7 @@ interface TopBarProps extends CurioDisplayProps {
   hasIcon?: boolean;
   canEdit: boolean;
   longPress: boolean;
+  linkFromNotification?: string;
 }
 
 function TopBar({
@@ -47,6 +49,8 @@ function TopBar({
   isTwitter = false,
   refToken = undefined,
   asRef = false,
+  asMobileNotification = false,
+  linkFromNotification,
   longPress = false,
   time,
   canEdit,
@@ -62,9 +66,13 @@ function TopBar({
     onEdit,
     onCopy,
     navigateToCurio,
-  } = useCurioActions({ nest, time, refToken });
+  } = useCurioActions({
+    nest,
+    time,
+    refToken: refToken ?? linkFromNotification,
+  });
 
-  if (asRef) {
+  if (asRef || asMobileNotification) {
     return null;
   }
 
@@ -178,14 +186,15 @@ function TopBar({
 interface BottomBarProps {
   curio: HeapCurio;
   asRef?: boolean;
+  asMobileNotification?: boolean;
 }
 
-function BottomBar({ curio, asRef }: BottomBarProps) {
+function BottomBar({ curio, asRef, asMobileNotification }: BottomBarProps) {
   const { sent } = curio.heart;
   const replyCount = curio.seal.replied.length;
   const prettySent = formatDistanceToNow(sent);
 
-  if (asRef) {
+  if (asRef || asMobileNotification) {
     return <div />;
   }
 
@@ -214,18 +223,24 @@ function HeapBlockWrapper({
   setLongPress,
   children,
   curio,
+  linkFromNotification,
 }: React.PropsWithChildren<{
   time: string;
   setLongPress: (b: boolean) => void;
   curio: HeapCurio;
+  linkFromNotification?: string;
 }>) {
   const navigate = useNavigate();
   const { action, handlers } = useLongPress();
   const navigateToDetail = useCallback(
     (blockTime: string) => {
+      if (linkFromNotification) {
+        navigate(linkFromNotification);
+        return;
+      }
       navigate(`curio/${blockTime}`, { state: { initialCurio: curio } });
     },
-    [navigate, curio]
+    [navigate, curio, linkFromNotification]
   );
 
   useEffect(() => {
@@ -248,14 +263,17 @@ function HeapBlockWrapper({
 interface HeapBlockProps extends CurioDisplayProps {
   curio: HeapCurio;
   isComment?: boolean;
+  linkFromNotification?: string;
 }
 
 export default function HeapBlock({
   curio,
   time,
   asRef = false,
+  asMobileNotification = false,
   isComment = false,
   refToken = undefined,
+  linkFromNotification,
 }: HeapBlockProps) {
   const [longPress, setLongPress] = useState(false);
   const { content } = curio.heart;
@@ -278,7 +296,10 @@ export default function HeapBlock({
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
+  const canEdit =
+    asRef || asMobileNotification
+      ? false
+      : isAdmin || window.our === curio.heart.author;
   const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
 
   useEffect(() => {
@@ -297,13 +318,25 @@ export default function HeapBlock({
   }
 
   const cnm = (refClass?: string) =>
-    asRef ? refClass || '' : 'heap-block group';
-  const topBar = { time, asRef, refToken, longPress };
-  const botBar = { curio, asRef, longPress };
+    asRef || asMobileNotification ? refClass || '' : 'heap-block group';
+  const topBar = {
+    time,
+    asRef,
+    asMobileNotification,
+    linkFromNotification,
+    refToken,
+    longPress,
+  };
+  const botBar = { curio, asRef, asMobileNotification, longPress };
 
   if (isComment) {
     return (
-      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+      <HeapBlockWrapper
+        linkFromNotification={linkFromNotification}
+        time={time}
+        curio={curio}
+        setLongPress={setLongPress}
+      >
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col">
@@ -319,7 +352,12 @@ export default function HeapBlock({
 
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (
-      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+      <HeapBlockWrapper
+        linkFromNotification={linkFromNotification}
+        time={time}
+        curio={curio}
+        setLongPress={setLongPress}
+      >
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
@@ -336,7 +374,12 @@ export default function HeapBlock({
 
   if (isText) {
     return (
-      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+      <HeapBlockWrapper
+        linkFromNotification={linkFromNotification}
+        time={time}
+        curio={curio}
+        setLongPress={setLongPress}
+      >
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <HeapContent
@@ -355,13 +398,19 @@ export default function HeapBlock({
 
   if (isImage && !calm?.disableRemoteContent) {
     return (
-      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+      <HeapBlockWrapper
+        linkFromNotification={linkFromNotification}
+        time={time}
+        curio={curio}
+        setLongPress={setLongPress}
+      >
         <div
           className={cnm(
             'h-full w-full bg-gray-50 bg-contain bg-center bg-no-repeat'
           )}
           style={{
             backgroundImage: `url(${url})`,
+            borderRadius: asMobileNotification ? '6px' : undefined,
           }}
         >
           <TopBar canEdit={canEdit} {...topBar} />
@@ -373,7 +422,12 @@ export default function HeapBlock({
 
   if (isAudio && !calm?.disableRemoteContent) {
     return (
-      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+      <HeapBlockWrapper
+        linkFromNotification={linkFromNotification}
+        time={time}
+        curio={curio}
+        setLongPress={setLongPress}
+      >
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
@@ -392,7 +446,12 @@ export default function HeapBlock({
 
     if (thumbnail) {
       return (
-        <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+        <HeapBlockWrapper
+          linkFromNotification={linkFromNotification}
+          time={time}
+          curio={curio}
+          setLongPress={setLongPress}
+        >
           <div
             className={cnm('h-full w-full bg-cover bg-center bg-no-repeat')}
             style={{
@@ -410,7 +469,12 @@ export default function HeapBlock({
       const twitterHandle = embed.author_url.split('/').pop();
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
       return (
-        <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+        <HeapBlockWrapper
+          linkFromNotification={linkFromNotification}
+          time={time}
+          curio={curio}
+          setLongPress={setLongPress}
+        >
           <div className={cnm()}>
             <TopBar isTwitter canEdit={canEdit} {...topBar} />
             <div className="flex grow flex-col items-center justify-center space-y-2">
@@ -428,7 +492,12 @@ export default function HeapBlock({
       );
     }
     return (
-      <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+      <HeapBlockWrapper
+        linkFromNotification={linkFromNotification}
+        time={time}
+        curio={curio}
+        setLongPress={setLongPress}
+      >
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col items-center justify-center">
@@ -441,7 +510,12 @@ export default function HeapBlock({
   }
 
   return (
-    <HeapBlockWrapper time={time} curio={curio} setLongPress={setLongPress}>
+    <HeapBlockWrapper
+      linkFromNotification={linkFromNotification}
+      time={time}
+      curio={curio}
+      setLongPress={setLongPress}
+    >
       <div className={cnm()}>
         <TopBar hasIcon canEdit={canEdit} {...topBar} />
         <div className="flex grow flex-col items-center justify-center">

@@ -12,7 +12,14 @@ import { useContact } from '@/state/contact';
 import { useAvatar } from '@/state/avatar';
 import { SigilProps } from '@/types/sigil';
 
-export type AvatarSizes = 'xxs' | 'xs' | 'small' | 'default' | 'big' | 'huge';
+export type AvatarSizes =
+  | 'xxs'
+  | 'xs'
+  | 'small'
+  | 'default-sm'
+  | 'default'
+  | 'big'
+  | 'huge';
 
 interface AvatarProps {
   ship: string;
@@ -36,6 +43,7 @@ const sizeMap: Record<AvatarSizes, AvatarMeta> = {
   xxs: { classes: 'h-4 w-4', size: 10 },
   xs: { classes: 'w-6 h-6 rounded', size: 12 },
   small: { classes: 'w-8 h-8 rounded', size: 16 },
+  'default-sm': { classes: 'w-9 h-9 rounded-lg', size: 18 },
   default: { classes: 'w-12 h-12 rounded-lg', size: 24 },
   big: { classes: 'w-[72px] h-[72px] rounded-lg', size: 40 },
   huge: { classes: 'w-20 h-20 rounded-xl', size: 48 },
