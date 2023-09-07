@@ -5,7 +5,7 @@
 ++  grow
   |%
   ++  noun  rr-quip
-  ++  json  (rr-quipquip:enjs:j rr-quip)
+  ++  json  (rr-quip:enjs:j rr-quip)
   --
 ++  grab
   |%

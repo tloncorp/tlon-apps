@@ -1,5 +1,5 @@
-/-  d=diary
-/+  j=diary-json
+/-  d=channel
+/+  j=channel-json
 |_  update=[=nest:d =brief:d]
 ++  grad  %noun
 ++  grow
