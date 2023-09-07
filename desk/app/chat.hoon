@@ -239,6 +239,23 @@
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
+      %noun
+    =+  !<([head=term tail=*] vase)
+    ?+  head  ~|(bad-poke/vase !!)
+        %transfer-channel
+      ?>  from-self
+      =+  !<([* =flag:c new-group=flag:g new=flag:c before=@da] vase)
+      =/  core  (ca-abed:ca-core flag)
+      ca-abet:(ca-transfer-channel:core new-group new before)
+    ::
+        %import-channel
+      ?>  from-self
+      =+  !<([* =flag:c cr=create:c =log:c] vase)
+      =.  cor  (create cr)
+      ca-abet:(ca-apply-logs:(ca-abed:ca-core:cor flag) log)
+      (emit %pass /import-channel/)
+    ==
+  ::
       %import-flags
     =+  !<(flags=(set flag:c) vase)
     =.  imp  %-  ~(gas by *(map flag:c ?))
@@ -1305,7 +1322,6 @@
       ?~  p.sign
         ca-core
       %-  (slog u.p.sign)
-      :: =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
       ca-core
     ::
     ==
@@ -1523,6 +1539,7 @@
     ^+  ca-core
     =/  updates=(list update:c)
       (tap:log-on:c logs)
+    ~&  logs
     %+  roll  updates
     |=  [=update:c ca=_ca-core]
     (ca-update:ca update)
@@ -1668,6 +1685,36 @@
           (flatten q.story)
       ==
     ~
+  ++  ca-transfer-channel
+    |=  [new-group=flag:g new=flag:c before=@da]
+    =/  old=log:c  log.chat
+    =/  filtered-log
+        =-  +:-
+        %^  (dip:log-on:c @)  log.chat  ~
+        |=  [st=@ =time =diff:c]
+        :_  [%.n st]
+        ::  if not a writ event, skip
+        ?.  ?=(%writs -.diff)  ~
+        ::  if a writ event, keep any after before date
+        ?.  (gth time before)  ~
+        `diff
+    =+  .^(=group:g %gx (weld ca-groups-scry /noun))
+    =/  =channel:g  (~(got by channels.group) [%chat flag])
+    ::  false create, more like snapshot of current state
+    =/  =create:c
+      :*  new-group
+          q.new
+          title.meta.channel
+          description.meta.channel
+          readers.channel
+          writers.perm.chat
+      ==
+    =/  =wire  (welp ca-area /import)
+    =/  =dock  [our.bowl dap.bowl]
+    =/  =cage  [%noun !>([%import-channel flag create old])]
+    =.  cor  (emit %pass wire %agent dock %poke cage)
+    =.  log.chat  filtered-log
+    ca-core
   --
 ::
 ++  pending-dms
