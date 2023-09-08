@@ -1705,6 +1705,7 @@
         %^  (dip:log-on:c @)  log.chat  ~
         |=  [st=@ =time =diff:c]
         :_  [%.n st]
+        ?:  ?=(%create -.diff)  `[%create p.diff ~ ~]
         ::  keep non-writ events
         ?.  ?=(%writs -.diff)  `diff
         ::  only keep writs after time
