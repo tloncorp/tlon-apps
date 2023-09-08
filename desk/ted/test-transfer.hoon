@@ -1,13 +1,3 @@
-::  TODO: move outside /desk directory, don't ship this
-::
-::DONE  assert things about state
-::DONE  test all actions that don't require cross-ship comms
-::TODO  test cross-ship comms (will do manual)
-::
-::  - test that partial checkpoint is partial
-::  - test join, leave, read, read-at
-::  - test permissions
-::
 /-  spider, c=chat, g=groups, e=epic
 /+  s=strandio
 /+  mp=mop-extensions
@@ -95,7 +85,6 @@
       inv=(set ship)
       voc=(map [flag:c id:c] (unit said:c))
       fish=(map [flag:c @] id:c)
-      ::  true represents imported, false pending import
       imp=(map flag:c ?)
   ==
 ::
