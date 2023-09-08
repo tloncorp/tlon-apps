@@ -12,12 +12,18 @@ import { useChatState } from '@/state/chat';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { useGang, useGroup } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
+import { useCurio } from '@/state/heap/heap';
+import HeapBlock from '@/heap/HeapBlock';
+import { useIsMobile } from '@/logic/useMedia';
 import {
   isComment,
   isGroupMeta,
   isMention,
   isReply,
   isInvite,
+  isMessage,
+  isNote,
+  isBlock,
 } from './useNotifications';
 
 interface NotificationProps {
@@ -32,6 +38,8 @@ interface NotificationContentProps {
   conIsMention: boolean;
   conIsReply: boolean;
   conIsComment: boolean;
+  conIsNote: boolean;
+  conIsBlock: boolean;
 }
 
 function NotificationContent({
@@ -40,6 +48,8 @@ function NotificationContent({
   conIsMention,
   conIsReply,
   conIsComment,
+  conIsNote,
+  conIsBlock,
 }: NotificationContentProps) {
   function renderContent(c: YarnContent, i: number) {
     if (typeof c === 'string') {
@@ -72,7 +82,47 @@ function NotificationContent({
       );
     }
 
+    if (conIsNote) {
+      return <span key={c.emph + time}>{c.emph}</span>;
+    }
+
     return <span key={c.emph + time}>&ldquo;{c.emph}&rdquo;</span>;
+  }
+
+  if (conIsNote) {
+    return (
+      <div className="flex flex-col space-y-2">
+        <p className="leading-5 text-gray-800 line-clamp-1">
+          {_.map(_.slice(content, 0, 2), (c: YarnContent, i) =>
+            renderContent(c, i)
+          )}
+        </p>
+        <div className="note-inline-block flex p-4">
+          <p className="leading-5 text-gray-800 line-clamp-1">
+            {_.map(_.slice(content, 2, 3), (c: YarnContent, i) =>
+              renderContent(c, i)
+            )}
+          </p>
+          <p className="leading-5 text-gray-400 line-clamp-1">
+            {_.map(_.slice(content, 3), (c: YarnContent, i) =>
+              renderContent(c, i)
+            )}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (conIsBlock) {
+    return (
+      <div className="flex flex-col space-y-2">
+        <p className="leading-5 text-gray-800 line-clamp-1">
+          {_.map(_.slice(content, 0, 2), (c: YarnContent, i) =>
+            renderContent(c, i)
+          )}
+        </p>
+      </div>
+    );
   }
 
   if (conIsMention) {
@@ -136,12 +186,16 @@ export default function Notification({
   avatar,
   topLine,
 }: NotificationProps) {
+  const isMobile = useIsMobile();
   const { rope } = bin.top;
   const moreCount = bin.count - 1;
   const { mutate: sawRopeMutation } = useSawRopeMutation();
   const mentionBool = isMention(bin.top);
   const commentBool = isComment(bin.top);
   const inviteBool = isInvite(bin.top);
+  const isMessageBool = isMessage(bin.top);
+  const isNoteBool = isNote(bin.top);
+  const isBlockBool = isBlock(bin.top);
   const groupMetaBool = isGroupMeta(bin.top);
   const replyBool = isReply(bin.top);
   const path = mentionBool ? mentionPath(bin) : bin.top.wer;
@@ -152,6 +206,52 @@ export default function Notification({
   const group = useGroup(rope.group || '');
   const gang = useGang(rope.group || '');
   const { open, reject } = useGroupJoin(rope.group || '', gang);
+  const curioId = isBlockBool ? bin.top.wer.split('/')[9] : '';
+  const heapFlag = isBlockBool
+    ? `${bin.top.wer.split('/')[6]}/${bin.top.wer.split('/')[7]}`
+    : '';
+  const { curio, isLoading } = useCurio(heapFlag, curioId);
+
+  if (isBlockBool && curio && !isLoading) {
+    return (
+      <div className="flex flex-col">
+        <div className="relative flex space-x-3 rounded-xl bg-white p-2 text-gray-400">
+          <div className="flex w-full min-w-0 flex-1 space-x-3">
+            <div className="relative flex-none self-start">{avatar}</div>
+            <div className="flex flex-col space-y-2">
+              <div className="min-w-0 grow-0 break-words p-1">{topLine}</div>
+              <div className="my-2 leading-5">
+                <NotificationContent
+                  time={bin.time}
+                  content={bin.top.con}
+                  conIsMention={mentionBool}
+                  conIsComment={commentBool}
+                  conIsReply={replyBool}
+                  conIsNote={isNoteBool}
+                  conIsBlock
+                />
+              </div>
+              <div className="max-w-[36px] sm:max-w-[190px]">
+                <div className="aspect-h-1 aspect-w-1 cursor-pointer">
+                  <HeapBlock
+                    curio={curio}
+                    time={curioId}
+                    asMobileNotification={isMobile}
+                    linkFromNotification={bin.top.wer}
+                  />
+                </div>
+              </div>
+              {moreCount > 0 ? (
+                <p className="mt-2 text-sm font-semibold">
+                  Latest of {moreCount} new blocks
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex space-x-3 rounded-xl bg-white p-2 text-gray-400">
@@ -168,6 +268,8 @@ export default function Notification({
                   conIsMention={mentionBool}
                   conIsComment={commentBool}
                   conIsReply={replyBool}
+                  conIsNote={isNoteBool}
+                  conIsBlock={isBlockBool}
                 />
               )}
             </div>
@@ -215,6 +317,8 @@ export default function Notification({
                   conIsMention={mentionBool}
                   conIsComment={commentBool}
                   conIsReply={replyBool}
+                  conIsNote={isNoteBool}
+                  conIsBlock={isBlockBool}
                 />
               )}
             </div>
@@ -223,7 +327,7 @@ export default function Notification({
                 Latest of {moreCount} new messages
               </p>
             ) : null}
-            {mentionBool || commentBool || replyBool ? (
+            {mentionBool || commentBool || replyBool || isMessageBool ? (
               <p
                 className={cn(
                   'small-button bg-blue-soft text-blue',

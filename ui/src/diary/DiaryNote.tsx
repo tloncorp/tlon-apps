@@ -34,10 +34,7 @@ import {
   DiaryQuip,
 } from '@/types/diary';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import {
-  useChannelIsJoined,
-  useChannel as useChannelSpecific,
-} from '@/logic/channel';
+import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
@@ -120,8 +117,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const brief = useDiaryBrief(chFlag);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = useDiaryPerms(chFlag);
-  const chan = useChannelSpecific(nest);
-  const saga = chan?.saga;
+  const { compatible } = useChannelCompatibility(nest);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const joinChannel = useCallback(async () => {
     await joinDiary({ group: groupFlag, chan: chFlag });
@@ -263,8 +259,7 @@ export default function DiaryNote({ title }: ViewProps) {
                 </h2>
               </Divider>
             </div>
-            {(canWrite && ship === window.our) ||
-            (canWrite && saga && 'synced' in saga) ? (
+            {(canWrite && ship === window.our) || (canWrite && compatible) ? (
               <DiaryCommentField
                 flag={chFlag}
                 groupFlag={groupFlag}

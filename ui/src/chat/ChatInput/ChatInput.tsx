@@ -281,10 +281,28 @@ export default function ChatInput({
       const dataIsJustBreak =
         data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
 
+      const memo: ChatMemo = {
+        replying: reply,
+        author: `~${window.ship || 'zod'}`,
+        sent: 0, // wait until ID is created so we can share time
+        content: {
+          story: {
+            inline: !dataIsJustBreak
+              ? Array.isArray(data)
+                ? data
+                : [data]
+              : [],
+            block: [...blocks, ...(replyCite ? [replyCite] : [])],
+          },
+        },
+      };
+
       const text = editor.getText();
       const textIsImageUrl = isImageUrl(text);
+      const dataIsJustLink =
+        data.length > 0 && typeof data[0] === 'object' && 'link' in data[0];
 
-      if (textIsImageUrl) {
+      if (textIsImageUrl && dataIsJustLink) {
         const url = text;
         const name = 'chat-image';
 
@@ -295,8 +313,7 @@ export default function ChatInput({
           const { width, height } = img;
 
           sendMessage(whom, {
-            replying: reply,
-            author: `~${window.ship || 'zod'}`,
+            ...memo,
             sent: Date.now(),
             content: {
               story: {
@@ -315,23 +332,11 @@ export default function ChatInput({
             },
           });
         };
-      } else {
-        const memo: ChatMemo = {
-          replying: reply,
-          author: `~${window.ship || 'zod'}`,
-          sent: 0, // wait until ID is created so we can share time
-          content: {
-            story: {
-              inline: !dataIsJustBreak
-                ? Array.isArray(data)
-                  ? data
-                  : [data]
-                : [],
-              block: [...blocks, ...(replyCite ? [replyCite] : [])],
-            },
-          },
-        };
 
+        img.onerror = () => {
+          sendMessage(whom, memo);
+        };
+      } else {
         sendMessage(whom, memo);
       }
       captureGroupsAnalyticsEvent({

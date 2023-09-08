@@ -250,6 +250,11 @@
       :~  href+s+p.i
           content+s+q.i
       ==
+        %task
+      %-  pairs
+      :~  checked+b+p.i
+          content+a+(turn q.i inline)
+      ==
     ==
   ::
   ++  add-feel
@@ -498,7 +503,7 @@
       item/(ar inline)
       :-  %list
       %-  ot
-      :~  type/(su (perk %ordered %unordered ~))
+      :~  type/(su (perk %ordered %unordered %tasklist ~))
           items/(ar listing)
           contents/(ar inline)
       ==

@@ -16,6 +16,7 @@ import {
   getCompatibilityText,
   isChannelJoined,
   nestToFlag,
+  sagaCompatible,
 } from './utils';
 import useSidebarSort, {
   useRecentSort,
@@ -256,7 +257,7 @@ export function useChannelCompatibility(nest: string) {
 
   return {
     saga,
-    compatible: saga === null || 'synced' in saga,
+    compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
   };
 }

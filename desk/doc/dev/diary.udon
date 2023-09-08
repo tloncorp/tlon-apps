@@ -1,5 +1,5 @@
 ;>
-The diary agent is entirely concerned with creating a channel for longform 
+The diary agent is entirely concerned with creating a channel for longform
 communication. It supports commenting and different display modes.
 
 ## types
@@ -47,10 +47,10 @@ Each poke is organized by mark
   - `%del-sects` deletes roles from the writer permissions
   - `%view` modifies the display of the diary
   - `%create` TODO remove?
-- `%diary-create` creates a diary channel first in this agent and then 
+- `%diary-create` creates a diary channel first in this agent and then
   passes to the %groups agent to create there
 - `%flag` or `%channel-join` starts the joining process for a diary channel
-- `%diary-leave` leaves the channel if not hosting
+- `%channel-leave` leaves the channel if not hosting
 - `%diary-remark-action` marks our last read note
 
 ### scries
@@ -66,7 +66,7 @@ Each scry is organized by path
     - `/older/\{start}/\{count}` grabs `count` number of notes before, starting from `start`
     - `/newer/\{start}/\{count}` grabs `count` number of notes ahead, starting from `start`
     - `/note/id/\{time}` grabs the note at the given time
-  - `/quips` 
+  - `/quips`
     - `/all` grabs all the comments in the map
     - `/newest/\{count}` grabs the last `count` comments
     - `/older/\{start}/\{count}` grabs `count` number of comments before, starting from `start`
@@ -78,10 +78,10 @@ Each scry is organized by path
 Each subscription is organized by path
 
 - `/ui` sends general updates about diary channels to the UI
-- `/briefs` sends updates about read notes 
+- `/briefs` sends updates about read notes
 - `/heap/\{ship}/\{name}`
   - `/ui` updates to the UI, specific to a channel and generally actions
   - `/updates` if time, pass the logs from this diary starting from
     time, otherwise pass the whole log
-  - `/ui/curios` updates to the UI for notes and quips in this specific 
+  - `/ui/curios` updates to the UI for notes and quips in this specific
     channel

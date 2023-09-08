@@ -445,6 +445,8 @@ export function useRemoteOutline(
 }
 
 export function useMarkReadDiaryMutation() {
+  const queryClient = useQueryClient();
+
   const mutationFn = async (variables: { flag: string }) => {
     await api.poke({
       app: 'diary',
@@ -458,6 +460,9 @@ export function useMarkReadDiaryMutation() {
 
   return useMutation({
     mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['diary', 'briefs']);
+    },
   });
 }
 
@@ -485,7 +490,7 @@ export function useLeaveDiaryMutation() {
   const mutationFn = async (variables: { flag: string }) => {
     await api.poke({
       app: 'diary',
-      mark: 'diary-leave',
+      mark: 'channel-leave',
       json: variables.flag,
     });
   };
