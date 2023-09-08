@@ -77,12 +77,12 @@ async function updateNotesInCache(
   const [han, flag] = nestToFlag(variables.nest);
   await queryClient.cancelQueries([han, 'notes', flag]);
 
-  queryClient.setQueryData([han, 'notes', variables.nest], updater);
+  queryClient.setQueryData([han, 'notes', flag], updater);
 }
 
 function diaryAction(nest: Nest, action: Action): Poke<ShelfAction> {
   return {
-    app: 'channel',
+    app: 'channels',
     mark: 'channel-action',
     json: {
       diary: {
@@ -121,8 +121,8 @@ export function useNotes(nest: Nest) {
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: [han, 'notes', flag],
     app: 'channels',
-    path: `/channels/${nest}/ui`,
-    scry: `/channels/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/${nest}/ui`,
+    scry: `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
   });
 
@@ -158,7 +158,7 @@ export function useNotesOnHost(
   const { data } = useReactQueryScry({
     queryKey: [han, 'notes', 'live', flag],
     app: 'channels',
-    path: `/channels/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
     options: {
       cacheTime: 0,
@@ -194,7 +194,7 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   const { data, ...rest } = useReactQueryScry({
     queryKey: [han, 'notes', flag, 'older', fetchStart],
     app: 'channels',
-    path: `/channels/${nest}/notes/older/${fetchStart}/${count}/outline`,
+    path: `/${nest}/notes/older/${fetchStart}/${count}/outline`,
     priority: 2,
     options: {
       enabled:
@@ -288,7 +288,7 @@ export function useNote(nest: Nest, noteId: string, disabled = false) {
   );
 
   const path = useMemo(
-    () => `/channels/${nest}/notes/note/${decToUd(noteId)}`,
+    () => `/${nest}/notes/note/${decToUd(noteId)}`,
     [nest, noteId]
   );
   const enabled = useMemo(
@@ -586,33 +586,37 @@ export function useAddNoteMutation() {
   }) =>
     new Promise<string>((resolve) => {
       timePosted = variables.initialTime;
-      api
-        .trackedPoke<ShelfAction, ShelfResponse>(
-          diaryNoteAction(variables.nest, {
-            add: variables.essay,
-          }),
-          { app: 'channels', path: `/channels/${variables.nest}/ui` },
-          ({ response }) => {
-            if ('note' in response) {
-              const { id, response: noteResponse } = response.note;
-              if (
-                'set' in noteResponse &&
-                noteResponse.set !== null &&
-                noteResponse.set.essay.author === variables.essay.author &&
-                noteResponse.set.essay.sent === variables.essay.sent
-              ) {
-                timePosted = id;
+      try {
+        api
+          .trackedPoke<ShelfAction, ShelfResponse>(
+            diaryNoteAction(variables.nest, {
+              add: variables.essay,
+            }),
+            { app: 'channels', path: `/${variables.nest}/ui` },
+            ({ response }) => {
+              if ('note' in response) {
+                const { id, 'r-note': noteResponse } = response.note;
+                if (
+                  'set' in noteResponse &&
+                  noteResponse.set !== null &&
+                  noteResponse.set.essay.author === variables.essay.author &&
+                  noteResponse.set.essay.sent === variables.essay.sent
+                ) {
+                  timePosted = id;
+                  return true;
+                }
                 return true;
               }
+
               return false;
             }
-
-            return false;
-          }
-        )
-        .then(() => {
-          resolve(timePosted);
-        });
+          )
+          .then(() => {
+            resolve(timePosted);
+          });
+      } catch (e) {
+        console.error(e);
+      }
     });
 
   return useMutation({
@@ -650,7 +654,7 @@ export function useAddNoteMutation() {
         queryClient.setQueryData([han, 'notes', flag, variables.initialTime], {
           type: 'note',
           seal: {
-            time: variables.initialTime,
+            time: decToUd(variables.initialTime),
             quips: [],
             feels: {},
           },
@@ -666,13 +670,14 @@ export function useAddNoteMutation() {
           (time) => time !== variables.initialTime
         ),
       }));
+      const [han, flag] = nestToFlag(variables.nest);
+      queryClient.removeQueries([han, 'notes', flag, variables.initialTime]);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'notes', flag], {
-        exact: true,
-      });
-      await queryClient.invalidateQueries(['briefs']);
+      await queryClient.refetchQueries([han, 'notes', flag]);
+      // await queryClient.invalidateQueries([han, 'notes', flag]);
+      await queryClient.refetchQueries(['briefs']);
     },
   });
 }
@@ -763,9 +768,7 @@ export function useDeleteNoteMutation() {
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'notes', flag], {
-        exact: true,
-      });
+      await queryClient.refetchQueries([han, 'notes', flag]);
     },
   });
 }
@@ -979,6 +982,11 @@ export function useAddQuipMutation() {
       await updateNotesInCache(variables, notesUpdater, queryClient);
       await updateNoteInCache(variables, updater, queryClient);
     },
+    onSettled: async (_data, _error, variables) => {
+      const [han, flag] = nestToFlag(variables.nest);
+      await queryClient.refetchQueries([han, 'notes', flag]);
+      await queryClient.refetchQueries([han, 'notes', flag, variables.noteId]);
+    },
   });
 }
 
@@ -1051,6 +1059,11 @@ export function useDeleteQuipMutation() {
 
       await updateNoteInCache(variables, updater, queryClient);
       await updateNotesInCache(variables, notesUpdater, queryClient);
+    },
+    onSettled: async (_data, _error, variables) => {
+      const [han, flag] = nestToFlag(variables.nest);
+      await queryClient.refetchQueries([han, 'notes', flag]);
+      await queryClient.refetchQueries([han, 'notes', flag, variables.noteId]);
     },
   });
 }

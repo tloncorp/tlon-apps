@@ -364,7 +364,7 @@ export type Response =
   | {
       note: {
         id: string;
-        response: NoteResponse;
+        'r-note': NoteResponse;
       };
     }
   | { order: string[] }

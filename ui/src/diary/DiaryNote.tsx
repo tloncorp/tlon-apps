@@ -114,20 +114,20 @@ export default function DiaryNote({ title }: ViewProps) {
   const group = useGroup(groupFlag);
   const channel = useChannel(groupFlag, nest);
   const { ship } = getFlagParts(chFlag);
-  const { note, status } = useNote(chFlag, noteId);
+  const { note, status } = useNote(nest, noteId);
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
-  const brief = useBrief(chFlag);
+  const brief = useBrief(nest);
   const sort = useDiaryCommentSortMode(chFlag);
-  const perms = usePerms(chFlag);
+  const perms = usePerms(nest);
   const chan = useChannelSpecific(nest);
   const saga = chan?.saga;
   const { mutateAsync: joinDiary } = useJoinMutation();
   const joinChannel = useCallback(async () => {
-    await joinDiary({ group: groupFlag, chan: chFlag });
-  }, [chFlag, groupFlag, joinDiary]);
-  const notesOnHost = useNotesOnHost(chFlag, isPending);
+    await joinDiary({ group: groupFlag, chan: nest });
+  }, [nest, groupFlag, joinDiary]);
+  const notesOnHost = useNotesOnHost(nest, isPending);
   const checkIfPreviouslyCached = useCallback(() => {
     // If we have a note, and the host ship is online, and we have a noteId, and
     // the noteId matches the note's seal time, then we have a cached note.

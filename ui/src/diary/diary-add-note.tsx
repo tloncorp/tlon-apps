@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useState,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { daToUnix, unixToDa } from '@urbit/api';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
@@ -59,7 +53,7 @@ export default function DiaryAddNote() {
     note,
     isLoading: loadingNote,
     fetchStatus,
-  } = useNote(chFlag, id || '0', !id);
+  } = useNote(nest, id || '0', !id);
   const { title, image } = getHanDataFromEssay(note.essay);
   const { mutateAsync: editNote, status: editStatus } = useEditNoteMutation();
   const {
@@ -79,7 +73,7 @@ export default function DiaryAddNote() {
     },
   });
 
-  const { reset, register, getValues, watch } = form;
+  const { reset, register, getValues, watch, setValue } = form;
   const { ref, ...titleRegisterRest } = register('title');
   const watchedTitle = watch('title');
 
@@ -110,10 +104,12 @@ export default function DiaryAddNote() {
 
   useEffect(() => {
     if (editor && !loadingNote && note?.essay && editor.isEmpty && !loaded) {
+      setValue('title', title || '');
+      setValue('image', image || '');
       editor.commands.setContent(diaryMixedToJSON(note?.essay?.content || []));
       setLoaded(true);
     }
-  }, [editor, loadingNote, note, loaded]);
+  }, [editor, loadingNote, note, loaded, image, setValue, title]);
 
   const publish = useCallback(async () => {
     if (!editor?.getText() || watchedTitle === '') {

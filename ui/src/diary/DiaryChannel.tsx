@@ -53,10 +53,10 @@ function DiaryChannel({ title }: ViewProps) {
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
-  const { letters, isLoading } = useNotes(chFlag);
+  const { letters, isLoading } = useNotes(nest);
   const pendingNotes = usePendingNotes();
   const queryClient = useQueryClient();
-  const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
+  const loadingOlderNotes = useOlderNotes(nest, 30, shouldLoadOlderNotes);
   const { mutateAsync: joinDiary } = useJoinMutation();
   const { mutateAsync: markRead } = useMarkReadMutation();
   const location = useLocation();
@@ -64,9 +64,9 @@ function DiaryChannel({ title }: ViewProps) {
   const { setRecentChannel } = useRecentChannel(flag);
   const group = useGroup(flag);
   const channel = useChannel(flag, nest);
-  const joined = useIsJoined(chFlag);
+  const joined = useIsJoined(nest);
   const lastReconnect = useLastReconnect();
-  const notesOnHost = useNotesOnHost(chFlag, pendingNotes.length > 0);
+  const notesOnHost = useNotesOnHost(nest, pendingNotes.length > 0);
 
   const checkForNotes = useCallback(async () => {
     // if we have pending notes and the ship is connected
@@ -124,9 +124,9 @@ function DiaryChannel({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await joinDiary({ group: flag, chan: chFlag });
+    await joinDiary({ group: flag, chan: nest });
     setJoining(false);
-  }, [flag, chFlag, joinDiary]);
+  }, [flag, nest, joinDiary]);
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
@@ -150,12 +150,12 @@ function DiaryChannel({ title }: ViewProps) {
   // user can override admin-set display and sort mode for this channel type
   const userDisplayMode = useUserDiaryDisplayMode(chFlag);
   const userSortMode = useUserDiarySortMode(chFlag);
-  const displayMode = useDisplayMode(chFlag);
-  const sortMode = useSortMode(chFlag);
-  const arrangedNotes = useArrangedNotes(chFlag);
+  const displayMode = useDisplayMode(nest);
+  const sortMode = useSortMode(nest);
+  const arrangedNotes = useArrangedNotes(nest);
   const lastArrangedNote = arrangedNotes[arrangedNotes.length - 1];
 
-  const perms = usePerms(chFlag);
+  const perms = usePerms(nest);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)

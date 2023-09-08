@@ -40,11 +40,11 @@ function NoteCommentReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const quip = useQuip(chFlag, noteId, quipId, isScrolling);
+  const quip = useQuip(nest, noteId, quipId, isScrolling);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const outline = useRemoteOutline(chFlag, noteId, isScrolling);
+  const outline = useRemoteOutline(nest, noteId, isScrolling);
 
   const handleOpenReferenceClick = () => {
     if (!group) {

@@ -779,7 +779,7 @@
   ++  di-u-quip
     |=  [=id-note:d =note:d =id-quip:d =u-quip:d]
     ^+  di-core
-    =/  quip  (get:on-quips:d quips.note id-note)
+    =/  quip  (get:on-quips:d quips.note id-quip)
     ?:  ?=([~ ~] quip)  di-core
     ?:  ?=(%set -.u-quip)
       ?~  quip

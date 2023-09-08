@@ -5,12 +5,28 @@ export default function getHanDataFromEssay(essay: NoteEssay): {
   image: string;
   notice?: null;
 } {
+  if (essay === undefined) {
+    return { title: '', image: '' };
+  }
+
   const { 'han-data': hanData } = essay;
 
-  let title: string;
-  title = 'diary' in hanData ? hanData.diary.title : '';
-  title = 'heap' in hanData ? hanData.heap : '';
-  const image = 'diary' in hanData ? hanData.diary.image : '';
+  if (hanData === undefined) {
+    return { title: '', image: '' };
+  }
+
+  let title = '';
+  let image = '';
+
+  if ('diary' in hanData) {
+    title = hanData.diary.title;
+    image = hanData.diary.image ?? '';
+  }
+
+  if ('heap' in hanData) {
+    title = hanData.heap;
+  }
+
   const notice =
     'chat' in hanData && hanData.chat !== null ? hanData.chat.notice : null;
 

@@ -50,16 +50,10 @@ export default function DiaryNoteHeadline({
   return (
     <>
       {showImage && !isInGrid ? (
-        <img
-          src={image}
-          alt=""
-          className="mb-4 h-auto w-full rounded-xl"
-        />
+        <img src={image} alt="" className="mb-4 h-auto w-full rounded-xl" />
       ) : null}
       <header className="space-y-4">
-        <h1 className="break-words text-3xl font-medium leading-10">
-          {title}
-        </h1>
+        <h1 className="break-words text-3xl font-medium leading-10">{title}</h1>
         <p className={cn((isInList || !showImage) && 'text-gray-400')}>
           {format(essay.sent, 'LLLL do, yyyy')}
         </p>

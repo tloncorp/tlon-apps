@@ -41,7 +41,7 @@ function NoteReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const outline = useRemoteOutline(chFlag, id, isScrolling);
+  const outline = useRemoteOutline(nest, id, isScrolling);
   const { title, image } = getHanDataFromEssay(outline);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
