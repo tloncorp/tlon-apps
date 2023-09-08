@@ -1,4 +1,4 @@
-import React, {
+import {
   useCallback,
   useState,
   useEffect,
@@ -21,9 +21,9 @@ import {
   useAddNoteMutation,
   useEditNoteMutation,
   useNote,
-} from '@/state/diary';
+} from '@/state/channel/channel';
 import { useChannel, useGroup, useRouteGroup } from '@/state/groups';
-import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
+import { Block as DiaryBlock, Story } from '@/types/channel';
 import { Inline, JSONContent } from '@/types/content';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
@@ -37,6 +37,7 @@ import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
 import MobileHeader from '@/components/MobileHeader';
+import getHanDataFromEssay from '@/logic/getHanData';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
@@ -59,6 +60,7 @@ export default function DiaryAddNote() {
     isLoading: loadingNote,
     fetchStatus,
   } = useNote(chFlag, id || '0', !id);
+  const { title, image } = getHanDataFromEssay(note.essay);
   const { mutateAsync: editNote, status: editStatus } = useEditNoteMutation();
   const {
     data: returnTime,
@@ -70,10 +72,10 @@ export default function DiaryAddNote() {
   const editWithMarkdown = useMarkdownInDiaries();
   const { compatible, text } = useChannelCompatibility(`diary/${chFlag}`);
 
-  const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
+  const form = useForm<{ title: string; image: string }>({
     defaultValues: {
-      title: note?.essay?.title || '',
-      image: note?.essay?.image || '',
+      title: title || '',
+      image: image || '',
     },
   });
 
@@ -125,7 +127,7 @@ export default function DiaryAddNote() {
       ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
         (k) => typeof c !== 'string' && k in c
       );
-    const noteContent: NoteContent = [];
+    const noteContent: Story = [];
     let index = 0;
     data.forEach((c, i) => {
       if (i < index) {
@@ -148,7 +150,7 @@ export default function DiaryAddNote() {
     try {
       if (id) {
         await editNote({
-          flag: chFlag,
+          nest: `diary/${chFlag}`,
           time: id,
           essay: {
             ...note.essay,
@@ -160,12 +162,16 @@ export default function DiaryAddNote() {
         await asyncCallWithTimeout(
           addNote({
             initialTime,
-            flag: chFlag,
+            nest: `diary/${chFlag}`,
             essay: {
-              ...values,
               content: noteContent,
               author: window.our,
               sent: daToUnix(bigInt(initialTime)),
+              'han-data': {
+                diary: {
+                  ...values,
+                },
+              },
             },
           }),
           3000
@@ -315,7 +321,7 @@ export default function DiaryAddNote() {
             <title>
               {channel && group
                 ? id && note
-                  ? `Editing ${note.essay.title} in ${channel.meta.title} • ${group.meta.title} • Groups`
+                  ? `Editing ${title} in ${channel.meta.title} • ${group.meta.title} • Groups`
                   : `Creating Note in ${channel.meta.title} • ${group.meta.title} • Groups`
                 : 'Groups'}
             </title>

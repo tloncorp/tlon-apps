@@ -7,7 +7,7 @@ import ShipName from '@/components/ShipName';
 import {
   useAddNoteFeelMutation,
   useDeleteNoteFeelMutation,
-} from '@/state/diary';
+} from '@/state/channel/channel';
 
 interface NotReactionProps {
   whom: string;
@@ -34,9 +34,9 @@ export default function NoteReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await delFeel({ flag: whom, noteId: time });
+      await delFeel({ nest: `diary/${whom}`, noteId: time });
     } else {
-      await addFeel({ flag: whom, feel, noteId: time });
+      await addFeel({ nest: `diary/${whom}`, feel, noteId: time });
     }
   }, [isMine, whom, feel, time, addFeel, delFeel]);
 

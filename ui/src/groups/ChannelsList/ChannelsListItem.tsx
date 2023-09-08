@@ -21,10 +21,10 @@ import {
   WritePermissions,
 } from '@/logic/utils';
 import {
-  useDiaries,
-  useJoinDiaryMutation,
-  useLeaveDiaryMutation,
-} from '@/state/diary';
+  useShelf,
+  useJoinMutation,
+  useLeaveMutation,
+} from '@/state/channel/channel';
 import ChannelIcon from '@/channels/ChannelIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
@@ -46,7 +46,7 @@ interface ChannelsListItemProps {
 function useGetChannel(app: string, flag: string): WritePermissions {
   const { chats } = useChatState.getState();
   const stash = useStash();
-  const shelf = useDiaries();
+  const shelf = useShelf();
 
   switch (app) {
     case 'chat':
@@ -78,8 +78,8 @@ export default function ChannelsListItem({
   const joined = useChannelIsJoined(nest);
   const { compatible: chanCompatible, text: chanText } =
     useChannelCompatibility(nest);
-  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
-  const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
+  const { mutateAsync: joinDiary } = useJoinMutation();
+  const { mutateAsync: leaveDiary } = useLeaveMutation();
   const { mutateAsync: joinHeap } = useJoinHeapMutation();
   const { mutateAsync: leaveHeap } = useLeaveHeapMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);
@@ -119,7 +119,7 @@ export default function ChannelsListItem({
   const join = useCallback(
     async (chFlag: string) => {
       if (app === 'diary') {
-        await joinDiary({ group: groupFlag, chan: chFlag });
+        await joinDiary({ group: groupFlag, chan: `diary/${chFlag}` });
         return;
       }
 
@@ -135,7 +135,7 @@ export default function ChannelsListItem({
   const leave = useCallback(
     async (chFlag: string) => {
       if (app === 'diary') {
-        await leaveDiary({ flag: chFlag });
+        await leaveDiary({ nest: `diary/${chFlag}` });
         return;
       }
 

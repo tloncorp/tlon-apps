@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import cn from 'classnames';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
-import { useLeaveDiaryMutation } from '@/state/diary';
+import { useLeaveMutation } from '@/state/channel/channel';
 import { useChannel as useChannelSpecific } from '@/logic/channel';
 import {
   setChannelSetting,
@@ -35,7 +35,7 @@ const DiaryHeader = React.memo(
     const isMobile = useIsMobile();
     const saga = chan?.saga || null;
     const settings = useDiarySettings();
-    const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
+    const { mutateAsync: leaveDiary } = useLeaveMutation();
     const { mutate } = usePutEntryMutation({
       bucket: 'diary',
       key: 'settings',
@@ -109,7 +109,7 @@ const DiaryHeader = React.memo(
         flag={flag}
         nest={nest}
         prettyAppName="Notebook"
-        leave={(ch) => leaveDiary({ flag: ch })}
+        leave={() => leaveDiary({ nest })}
       >
         <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">
           <ActionMenu open={isOpen} onOpenChange={setIsOpen} actions={actions}>

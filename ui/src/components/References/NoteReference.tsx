@@ -16,6 +16,7 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 // eslint-disable-next-line import/no-cycle
 import DiaryContent from '@/diary/DiaryContent/DiaryContent';
+import getHanDataFromEssay from '@/logic/getHanData';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
@@ -41,6 +42,7 @@ function NoteReference({
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
   const outline = useRemoteOutline(chFlag, id, isScrolling);
+  const { title, image } = getHanDataFromEssay(outline);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,16 +82,16 @@ function NoteReference({
       <ReferenceInHeap
         contextApp={contextApp}
         image={
-          isImageUrl(outline.image) ? (
+          isImageUrl(image) ? (
             <img
-              src={outline.image}
+              src={image}
               className="h-[72px] w-[72px] rounded object-cover"
             />
           ) : (
             <NotebookIcon className="h-6 w-6 text-gray-400" />
           )
         }
-        title={outline.title}
+        title={title}
         byline={
           <span>
             Note by <ShipName name={outline.author} showAlias /> in{' '}
@@ -111,16 +113,16 @@ function NoteReference({
         <ReferenceInHeap
           contextApp={contextApp}
           image={
-            isImageUrl(outline.image) ? (
+            isImageUrl(image) ? (
               <img
-                src={outline.image}
+                src={image}
                 className="h-[72px] w-[72px] rounded object-cover"
               />
             ) : (
               <NotebookIcon className="h-6 w-6 text-gray-400" />
             )
           }
-          title={outline.title}
+          title={title}
         >
           {children}
           <ReferenceBar
@@ -142,7 +144,7 @@ function NoteReference({
     return (
       <ReferenceInHeap
         type="text"
-        title={<h2 className="mb-2 text-lg font-semibold">{outline.title}</h2>}
+        title={<h2 className="mb-2 text-lg font-semibold">{title}</h2>}
         contextApp={contextApp}
         image={contentPreview}
       />
@@ -155,15 +157,15 @@ function NoteReference({
         onClick={handleOpenReferenceClick}
         className="flex cursor-pointer flex-col space-y-2 p-4 group-hover:bg-gray-50"
       >
-        {outline.image ? (
+        {image ? (
           <div
             className="relative h-36 w-full rounded-lg bg-gray-100 bg-cover bg-center px-4"
             style={{
-              backgroundImage: `url(${outline.image})`,
+              backgroundImage: `url(${image})`,
             }}
           />
         ) : null}
-        <span className="text-2xl font-semibold">{outline.title}</span>
+        <span className="text-2xl font-semibold">{title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
         {outline.quipCount > 0 ? (
           <div className="flex space-x-2">

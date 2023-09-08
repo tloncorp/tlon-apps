@@ -5,7 +5,7 @@ import useAllBriefs from '@/logic/useAllBriefs';
 import { useBriefs, useChat, useChats, useMultiDms } from '@/state/chat';
 import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
 import { useCallback, useMemo } from 'react';
-import { useDiary } from '@/state/diary';
+import { useChannel as useChannelFromState } from '@/state/channel/channel';
 import { useHeap } from '@/state/heap/heap';
 import { Chat } from '@/types/chat';
 import { Diary } from '@/types/diary';
@@ -117,7 +117,7 @@ export function useChannel(nest: string): Chat | Heap | Diary | undefined {
   const [app, flag] = nestToFlag(nest);
   const chat = useChat(flag);
   const heap = useHeap(flag);
-  const diary = useDiary(flag);
+  const diary = useChannelFromState(`diary/${flag}`);
 
   switch (app) {
     case 'chat':

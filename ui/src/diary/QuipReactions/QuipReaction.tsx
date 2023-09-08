@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
@@ -7,7 +7,7 @@ import ShipName from '@/components/ShipName';
 import {
   useAddQuipFeelMutation,
   useDeleteQuipFeelMutation,
-} from '@/state/diary';
+} from '@/state/channel/channel';
 
 interface QuipReactionProps {
   whom: string;
@@ -36,9 +36,9 @@ export default function QuipReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await delQuipFeel({ flag: whom, noteId, quipId: time });
+      await delQuipFeel({ nest: `diary/${whom}`, noteId, quipId: time });
     } else {
-      await addQuipFeel({ flag: whom, noteId, quipId: time, feel });
+      await addQuipFeel({ nest: `diary/${whom}`, noteId, quipId: time, feel });
     }
   }, [isMine, whom, feel, noteId, time, addQuipFeel, delQuipFeel]);
 

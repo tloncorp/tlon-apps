@@ -2,7 +2,7 @@ import React, { PropsWithChildren, useState } from 'react';
 import classNames from 'classnames';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import { useArrangedNotes } from '@/state/diary';
+import { useArrangedNotes } from '@/state/channel/channel';
 import { useChannel } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';

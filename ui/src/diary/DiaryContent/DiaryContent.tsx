@@ -12,12 +12,7 @@ import {
 } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
-import {
-  Block,
-  Listing,
-  isImage,
-  Story,
-} from '@/types/channel';
+import { Block, Listing, isImage, Story, Cite, isCite } from '@/types/channel';
 import _ from 'lodash';
 import { refractor } from 'refractor/lib/common.js';
 import { toH } from 'hast-to-hyperscript';
@@ -210,10 +205,10 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     );
   }
 
-  if ('cite' in story) {
+  if (isCite(story)) {
     return (
       <div className="my-4 text-base">
-        <ContentReference cite={story.cite} />
+        <ContentReference cite={story as Cite} />
       </div>
     );
   }
@@ -237,10 +232,9 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     return <hr />;
   }
 
-  const tree = refractor.highlight(story.code.code, story.code.lang);
-  const element = toH(React.createElement, tree);
-
   if ('code' in story) {
+    const tree = refractor.highlight(story.code.code, story.code.lang);
+    const element = toH(React.createElement, tree);
     return (
       <pre className={cn({ invert: dark, 'bg-white': dark })}>
         <code className={`language-${story.code.lang}`}>{element}</code>

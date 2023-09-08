@@ -1,12 +1,11 @@
-import React from 'react';
 import cn from 'classnames';
-import { DiaryOutline } from '@/types/diary';
+import { Outline } from '@/types/channel';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
-import { useIsNotePending } from '@/state/diary';
+import { useIsNotePending } from '@/state/channel/channel';
 
 interface DiaryListItemProps {
-  outline: DiaryOutline;
+  outline: Outline;
   time: bigInt.BigInteger;
 }
 

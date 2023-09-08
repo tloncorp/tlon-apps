@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useParams } from 'react-router';
 import { useCopy, canWriteChannel } from '@/logic/utils';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
@@ -12,8 +12,11 @@ import XIcon from '@/components/icons/XIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
-import { DiaryQuip } from '@/types/diary';
-import { useAddQuipFeelMutation, useDeleteQuipMutation } from '@/state/diary';
+import { Quip } from '@/types/channel';
+import {
+  useAddQuipFeelMutation,
+  useDeleteQuipMutation,
+} from '@/state/channel/channel';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
 import { useSearchParams } from 'react-router-dom';
@@ -28,7 +31,7 @@ export default function DiaryCommentOptions({
 }: {
   whom: string;
   noteId: string;
-  quip: DiaryQuip;
+  quip: Quip;
   time: string;
   hideReply?: boolean;
 }) {
@@ -59,7 +62,7 @@ export default function DiaryCommentOptions({
   const onDelete = async () => {
     setDeletePending();
     try {
-      await delQuip({ flag: whom, noteId, quipId: time });
+      await delQuip({ nest: `diary/${whom}`, noteId, quipId: time });
     } catch (e) {
       setDeleteFailed();
       console.error('Failed to delete comment', e);
@@ -81,7 +84,7 @@ export default function DiaryCommentOptions({
     async (emoji: { shortcodes: string }) => {
       try {
         await addQuipFeel({
-          flag: whom,
+          nest: `diary/${whom}`,
           noteId,
           quipId: time,
           feel: emoji.shortcodes,

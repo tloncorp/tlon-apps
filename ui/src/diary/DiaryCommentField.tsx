@@ -1,22 +1,22 @@
 import cn from 'classnames';
 import { Editor } from '@tiptap/react';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { DiaryInline } from '@/types/diary';
+import { Inline } from '@/types/content';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { useAddQuipMutation, useQuip } from '@/state/diary';
+import { useAddQuipMutation, useQuip } from '@/state/channel/channel';
 import useRequestState from '@/logic/useRequestState';
 import { normalizeInline, JSONToInlines, makeMention } from '@/logic/tiptap';
 import X16Icon from '@/components/icons/X16Icon';
 import { pathToCite } from '@/logic/utils';
-import { Cite } from '@/types/chat';
 import NoteCommentReference from '@/components/References/NoteCommentReference';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
+import { Story, Cite } from '@/types/channel';
 
 interface DiaryCommentFieldProps {
   flag: string;
@@ -60,22 +60,31 @@ export default function DiaryCommentField({
       setPending();
 
       const inline = normalizeInline(
-        JSONToInlines(editor?.getJSON()) as DiaryInline[]
+        JSONToInlines(editor?.getJSON()) as Inline[]
       );
 
       editor?.commands.setContent('');
+
+      let content: Story = [{ inline }];
+
+      if (replyCite) {
+        content = [
+          {
+            block: replyCite.cite,
+          },
+          ...content,
+        ];
+      }
+
       await addQuip({
-        flag,
+        nest: `diary/${chFlag}`,
         noteId: replyTo,
-        content: {
-          block: replyCite ? [replyCite] : [],
-          inline,
-        },
+        content,
       });
       captureGroupsAnalyticsEvent({
         name: 'comment_item',
         groupFlag,
-        chFlag: flag,
+        chFlag,
         channelType: 'diary',
         privacy,
       });
@@ -87,7 +96,7 @@ export default function DiaryCommentField({
       sendDisabled,
       setPending,
       replyTo,
-      flag,
+      chFlag,
       groupFlag,
       privacy,
       setReady,

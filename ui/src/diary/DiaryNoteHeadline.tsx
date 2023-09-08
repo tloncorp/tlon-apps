@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import { NoteEssay } from '@/types/diary';
+import { NoteEssay } from '@/types/channel';
 import { format } from 'date-fns';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import IconButton from '@/components/IconButton';
@@ -12,6 +12,7 @@ import { useCalm } from '@/state/settings';
 import { useNavigate } from 'react-router-dom';
 import Author from '@/chat/ChatMessage/Author';
 import { useChannelFlag } from '@/logic/channel';
+import getHanDataFromEssay from '@/logic/getHanData';
 import useDiaryActions from './useDiaryActions';
 
 interface DiaryListItemProps {
@@ -31,6 +32,7 @@ export default function DiaryNoteHeadline({
   isInList,
   isInGrid,
 }: DiaryListItemProps) {
+  const { title, image } = getHanDataFromEssay(essay);
   const chFlag = useChannelFlag();
   const flag = useRouteGroup();
   const navigate = useNavigate();
@@ -43,20 +45,20 @@ export default function DiaryNoteHeadline({
   const calm = useCalm();
 
   const isAdmin = useAmAdmin(flag);
-  const showImage = essay.image && !calm.disableRemoteContent;
+  const showImage = image && !calm.disableRemoteContent;
 
   return (
     <>
       {showImage && !isInGrid ? (
         <img
-          src={essay.image}
+          src={image}
           alt=""
           className="mb-4 h-auto w-full rounded-xl"
         />
       ) : null}
       <header className="space-y-4">
         <h1 className="break-words text-3xl font-medium leading-10">
-          {essay.title}
+          {title}
         </h1>
         <p className={cn((isInList || !showImage) && 'text-gray-400')}>
           {format(essay.sent, 'LLLL do, yyyy')}

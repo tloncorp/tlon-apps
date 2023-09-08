@@ -7,8 +7,9 @@ import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
-import { DiaryQuip } from '@/types/diary';
-import { ChatBlock, ChatStory } from '@/types/chat';
+import { isCite, Quip } from '@/types/channel';
+import { ChatStory } from '@/types/chat';
+import { Inline } from '@/types/content';
 import { useChannelFlag } from '@/logic/channel';
 import DiaryCommentOptions from './DiaryCommentOptions';
 import QuipReactions from './QuipReactions/QuipReactions';
@@ -16,7 +17,7 @@ import QuipReactions from './QuipReactions/QuipReactions';
 export interface DiaryCommentProps {
   noteId: string;
   time: BigInteger;
-  quip: DiaryQuip;
+  quip: Quip;
   newAuthor: boolean;
   newDay: boolean;
   unreadCount?: number;
@@ -34,10 +35,20 @@ const DiaryComment = React.memo<
       const flag = useChannelFlag();
       const unix = new Date(daToUnix(time));
       const normalizedContent: ChatStory = {
-        ...memo.content,
-        block: memo.content.block.filter(
-          (b) => 'image' in b || 'cite' in b
-        ) as ChatBlock[],
+        inline: [
+          ...quip.memo.content
+            .filter((b) => 'inline' in b)
+            // @ts-expect-error  we know these are inlines
+            .flatMap((b) => b.inline),
+        ] as Inline[],
+        block: [
+          ...quip.memo.content
+            .filter(
+              (b) => 'block' in b && 'image' in b.block && isCite(b.block)
+            )
+            // @ts-expect-error  we know these are blocks
+            .flatMap((b) => b.block),
+        ],
       };
 
       return (

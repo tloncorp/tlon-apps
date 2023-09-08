@@ -12,6 +12,7 @@ import { ChatStory } from '@/types/chat';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { Inline } from '@/types/content';
 import { useChannelFlag } from '@/logic/channel';
+import { isCite } from '@/types/channel';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
@@ -69,7 +70,7 @@ function NoteCommentReference({
     ] as Inline[],
     block: [
       ...quip.memo.content
-        .filter((b) => 'block' in b && 'image' in b.block && 'cite' in b.block)
+        .filter((b) => 'block' in b && 'image' in b.block && isCite(b.block))
         // @ts-expect-error  we know these are blocks
         .flatMap((b) => b.block),
     ],
@@ -109,7 +110,8 @@ function NoteCommentReference({
         image={<ChatContent story={normalizedContent} isScrolling={false} />}
         title={
           <h2 className="mb-2 text-lg font-semibold">
-            Comment on {'diary' in outline['han-data']
+            Comment on{' '}
+            {'diary' in outline['han-data']
               ? outline['han-data'].diary.title
               : null}
           </h2>

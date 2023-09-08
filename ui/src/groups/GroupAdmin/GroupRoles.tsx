@@ -20,7 +20,7 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { useChatState } from '@/state/chat';
-import { useDiaries } from '@/state/diary';
+import { useShelf } from '@/state/channel/channel';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GlobeIcon from '@/components/icons/GlobeIcon';
@@ -55,7 +55,7 @@ export default function GroupRoles({ title }: { title: string }) {
     useGroupDelRoleMutation();
   const roles = group?.cabals;
   const fleet = group?.fleet;
-  const shelf = useDiaries();
+  const shelf = useShelf();
   const stash = useStash();
   const { state } = useLocation();
 

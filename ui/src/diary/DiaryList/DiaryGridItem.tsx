@@ -1,17 +1,19 @@
 import { useNavigate } from 'react-router';
-import { DiaryOutline, NoteEssay } from '@/types/diary';
+import { Outline, NoteEssay } from '@/types/channel';
 import { useCalm } from '@/state/settings';
+import getHanDataFromEssay from '@/logic/getHanData';
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
-  outline: DiaryOutline;
+  outline: Outline;
   time: bigInt.BigInteger;
 }
 
 export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
   const essay: NoteEssay = outline;
+  const { image } = getHanDataFromEssay(essay);
   const navigate = useNavigate();
-  const hasImage = outline.image?.length !== 0;
+  const hasImage = image?.length !== 0;
   const calm = useCalm();
   const commenters = outline.quippers;
   const { quipCount } = outline;
@@ -26,7 +28,7 @@ export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
       style={
         hasImage && !calm?.disableRemoteContent
           ? {
-              backgroundImage: `linear-gradient(0deg, rgba(0, 0, 0, 0.33), rgba(0, 0, 0, 0.33)), url(${essay.image})`,
+              backgroundImage: `linear-gradient(0deg, rgba(0, 0, 0, 0.33), rgba(0, 0, 0, 0.33)), url(${image})`,
               color: '#ffffff',
             }
           : undefined

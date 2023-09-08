@@ -13,7 +13,7 @@ import {
 } from '@/state/groups/groups';
 import { useChatState } from '@/state/chat';
 import { useHeapBriefs } from '@/state/heap/heap';
-import { useDiaryBriefs } from '@/state/diary';
+import { useBriefs } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, getFlagParts } from '@/logic/utils';
@@ -30,7 +30,7 @@ function Groups() {
   const { privacy } = useGroupPrivacy(flag);
   const { ship } = getFlagParts(flag);
   const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
-  const diaryBriefs = useDiaryBriefs();
+  const diaryBriefs = useBriefs();
   const heapBriefs = useHeapBriefs();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);

@@ -17,7 +17,7 @@ import f from 'lodash/fp';
 import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { ChatWhom, ChatBrief, Cite } from '@/types/chat';
+import { ChatWhom, ChatBrief } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -41,6 +41,7 @@ import {
   VerseInline,
   VerseBlock,
   Listing,
+  Cite,
 } from '@/types/channel';
 import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
 import { isNativeApp, postActionToNativeApp } from './native';

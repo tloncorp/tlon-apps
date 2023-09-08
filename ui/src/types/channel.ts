@@ -131,7 +131,7 @@ export type HanChat = {
 };
 
 export type HanData = HanDiary | HanChat | HanHeap;
-export type Han = "heap" | "diary" | "chat";
+export type Han = 'heap' | 'diary' | 'chat';
 
 export interface NoteEssay {
   content: Story;
@@ -382,4 +382,23 @@ export type Response =
 export interface ShelfResponse {
   nest: Nest;
   response: Response;
+}
+
+export function isCite(s: Block): boolean {
+  if ('chan' in s) {
+    return true;
+  }
+  if ('group' in s) {
+    return true;
+  }
+
+  if ('desk' in s) {
+    return true;
+  }
+
+  if ('bait' in s) {
+    return true;
+  }
+
+  return false;
 }

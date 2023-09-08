@@ -20,12 +20,7 @@ import {
 } from '@tiptap/core';
 import { deSig } from '@urbit/api';
 import { Cite } from '@/types/chat';
-import {
-  DiaryBlock,
-  DiaryHeaderLevel,
-  DiaryListing,
-  NoteContent,
-} from '@/types/diary';
+import { Block, Story, Listing, HeaderLevel, isCite } from '@/types/channel';
 import { citeToPath, pathToCite, preSig } from './utils';
 
 export interface EditorOnUpdateProps {
@@ -146,9 +141,9 @@ export function inlineToString(inline: Inline): any {
 
 // Limits the amount of consecutive breaks to 2 or less
 function limitBreaks(
-  inlines: (Inline | DiaryBlock)[],
+  inlines: (Inline | Block)[],
   maxBreaks = 2
-): (Inline | DiaryBlock)[] {
+): (Inline | Block)[] {
   return inlines.reduce(
     (memo, inline) => {
       // not a break
@@ -164,7 +159,7 @@ function limitBreaks(
 
       return { count: memo.count + 1, result: memo.result };
     },
-    { count: 0, result: [] as (Inline | DiaryBlock)[] }
+    { count: 0, result: [] as (Inline | Block)[] }
   ).result;
 }
 
@@ -174,7 +169,7 @@ const isList = (c: JSONContent) =>
 export function JSONToListing(
   json: JSONContent,
   limitNewlines = true
-): DiaryListing {
+): Listing {
   switch (json.type) {
     case 'orderedList': {
       return {
@@ -210,7 +205,7 @@ export function JSONToListing(
             contents,
             items: list.content
               ? list.content.map((c) => JSONToListing(c, limitNewlines))
-              : ([] as DiaryListing[]),
+              : ([] as Listing[]),
             type: list.type === 'bulletList' ? 'unordered' : 'ordered',
           },
         };
@@ -229,7 +224,7 @@ export function JSONToInlines(
   json: JSONContent,
   limitNewlines = true,
   codeWithLang = false
-): (Inline | DiaryBlock)[] {
+): (Inline | Block)[] {
   switch (json.type) {
     case 'text': {
       // unstyled / marks base case
@@ -275,7 +270,7 @@ export function JSONToInlines(
             codeWithLang
           ),
         },
-      ] as unknown as (Inline | DiaryBlock)[];
+      ] as unknown as (Inline | Block)[];
     }
     case 'paragraph': {
       // newline
@@ -300,7 +295,7 @@ export function JSONToInlines(
           ]);
         }
         return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang));
-      }, [] as (Inline | DiaryBlock)[]);
+      }, [] as (Inline | Block)[]);
       return limitNewlines ? limitBreaks(inlines) : inlines;
     }
     case 'doc': {
@@ -310,7 +305,7 @@ export function JSONToInlines(
 
       const inlines = json.content.reduce(
         (memo, c) => memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
-        [] as (Inline | DiaryBlock)[]
+        [] as (Inline | Block)[]
       );
       return limitNewlines ? limitBreaks(inlines) : inlines;
     }
@@ -319,7 +314,7 @@ export function JSONToInlines(
         json.content?.reduce(
           (memo, c) =>
             memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
-          [] as (Inline | DiaryBlock)[]
+          [] as (Inline | Block)[]
         ) ?? [];
       return [
         {
@@ -360,11 +355,11 @@ export function JSONToInlines(
       return [
         {
           header: {
-            tag: `h${json.attrs?.level || 2}` as DiaryHeaderLevel,
+            tag: `h${json.attrs?.level || 2}` as HeaderLevel,
             content: (json.content || []).reduce(
               (memo, c) =>
                 memo.concat(JSONToInlines(c, limitNewlines, codeWithLang)),
-              [] as (Inline | DiaryBlock)[]
+              [] as (Inline | Block)[]
             ) as Inline[],
           },
         },
@@ -408,7 +403,7 @@ export function JSONToInlines(
         return [''];
       }
 
-      return [{ cite }];
+      return [cite];
     }
     case 'diary-link': {
       if (!json.attrs) {
@@ -562,7 +557,7 @@ export const inlineToContent = (
   return makeParagraph();
 };
 
-export function makeListing(listing: DiaryListing): JSONContent {
+export function makeListing(listing: Listing): JSONContent {
   if ('list' in listing) {
     const { list } = listing;
 
@@ -588,12 +583,12 @@ export function makeListing(listing: DiaryListing): JSONContent {
   };
 }
 
-export const blockToContent = (content: DiaryBlock): JSONContent => {
-  if ('cite' in content) {
+export const blockToContent = (content: Block): JSONContent => {
+  if (isCite(content)) {
     return {
       type: 'diary-cite',
       attrs: {
-        path: citeToPath(content.cite),
+        path: citeToPath(content as Cite),
       },
     };
   }
@@ -681,7 +676,7 @@ export function inlinesToJSON(message: Inline[]): JSONContent {
   };
 }
 
-export function diaryMixedToJSON(note: NoteContent): JSONContent {
+export function diaryMixedToJSON(note: Story): JSONContent {
   const parsedContent = note.map((c) => {
     if ('inline' in c) {
       return wrapParagraphs(c.inline.map((i) => inlineToContent(i)));

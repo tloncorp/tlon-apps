@@ -15,18 +15,18 @@ import {
 } from '@/state/groups/groups';
 import {
   useNotes,
-  useDiaryDisplayMode,
-  useDiarySortMode,
-  useDiaryPerms,
+  useDisplayMode,
+  useSortMode,
+  usePerms,
   useOlderNotes,
-  useJoinDiaryMutation,
-  useDiaryIsJoined,
-  useMarkReadDiaryMutation,
+  useJoinMutation,
+  useIsJoined,
+  useMarkReadMutation,
   usePendingNotes,
-  useDiaryState,
+  useState as useChannelState,
   useNotesOnHost,
   useArrangedNotes,
-} from '@/state/diary';
+} from '@/state/channel/channel';
 import {
   useUserDiarySortMode,
   useUserDiaryDisplayMode,
@@ -38,7 +38,7 @@ import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
 import { useLastReconnect } from '@/state/local';
-import { DiaryOutline } from '@/types/diary';
+import { Outline } from '@/types/channel';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
@@ -57,14 +57,14 @@ function DiaryChannel({ title }: ViewProps) {
   const pendingNotes = usePendingNotes();
   const queryClient = useQueryClient();
   const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
-  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
-  const { mutateAsync: markRead } = useMarkReadDiaryMutation();
+  const { mutateAsync: joinDiary } = useJoinMutation();
+  const { mutateAsync: markRead } = useMarkReadMutation();
   const location = useLocation();
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
   const group = useGroup(flag);
   const channel = useChannel(flag, nest);
-  const joined = useDiaryIsJoined(chFlag);
+  const joined = useIsJoined(chFlag);
   const lastReconnect = useLastReconnect();
   const notesOnHost = useNotesOnHost(chFlag, pendingNotes.length > 0);
 
@@ -89,7 +89,7 @@ function DiaryChannel({ title }: ViewProps) {
           queryKey: ['diary', 'notes', chFlag],
           exact: true,
         });
-        useDiaryState.setState({
+        useChannelState.setState({
           pendingNotes: [],
         });
       }
@@ -114,7 +114,7 @@ function DiaryChannel({ title }: ViewProps) {
             ([_t, l]) => unixToDa(l.sent).toString() === id
           )
         ) {
-          useDiaryState.setState((s) => ({
+          useChannelState.setState((s) => ({
             pendingNotes: s.pendingNotes.filter((n) => n !== id),
           }));
         }
@@ -150,12 +150,12 @@ function DiaryChannel({ title }: ViewProps) {
   // user can override admin-set display and sort mode for this channel type
   const userDisplayMode = useUserDiaryDisplayMode(chFlag);
   const userSortMode = useUserDiarySortMode(chFlag);
-  const displayMode = useDiaryDisplayMode(chFlag);
-  const sortMode = useDiarySortMode(chFlag);
+  const displayMode = useDisplayMode(chFlag);
+  const sortMode = useSortMode(chFlag);
   const arrangedNotes = useArrangedNotes(chFlag);
   const lastArrangedNote = arrangedNotes[arrangedNotes.length - 1];
 
-  const perms = useDiaryPerms(chFlag);
+  const perms = usePerms(chFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
@@ -200,7 +200,10 @@ function DiaryChannel({ title }: ViewProps) {
 
   useDismissChannelNotifications({
     nest,
-    markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
+    markRead: useCallback(
+      () => markRead({ nest: `diary/${chFlag}` }),
+      [markRead, chFlag]
+    ),
   });
 
   const sortedNotes = Array.from(letters).sort(([a], [b]) => {
@@ -237,7 +240,7 @@ function DiaryChannel({ title }: ViewProps) {
 
   const itemContent = (
     i: number,
-    [time, outline]: [bigInt.BigInteger, DiaryOutline]
+    [time, outline]: [bigInt.BigInteger, Outline]
   ) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
       <DiaryListItem outline={outline} time={time} />

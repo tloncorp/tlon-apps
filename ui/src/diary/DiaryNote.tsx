@@ -13,13 +13,13 @@ import {
   sampleQuippers,
 } from '@/logic/utils';
 import {
-  useDiaryBrief,
+  useBrief,
   useNote,
-  useDiaryPerms,
-  useJoinDiaryMutation,
+  usePerms,
+  useJoinMutation,
   useIsNotePending,
   useNotesOnHost,
-} from '@/state/diary';
+} from '@/state/channel/channel';
 import {
   useRouteGroup,
   useVessel,
@@ -28,11 +28,11 @@ import {
   useChannel,
 } from '@/state/groups/groups';
 import {
-  DiaryBrief,
-  DiaryOutline,
-  DiaryOutlines,
-  DiaryQuip,
-} from '@/types/diary';
+  Brief,
+  Outline,
+  Outlines,
+  Quip,
+} from '@/types/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import {
   useChannelIsJoined,
@@ -41,6 +41,7 @@ import {
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
+import getHanDataFromEssay from '@/logic/getHanData';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -49,8 +50,8 @@ import DiaryNoteHeadline from './DiaryNoteHeadline';
 
 function groupQuips(
   noteId: string,
-  quips: [bigInt.BigInteger, DiaryQuip][],
-  brief: DiaryBrief
+  quips: [bigInt.BigInteger, Quip][],
+  brief: Brief
 ) {
   const grouped: Record<string, DiaryCommentProps[]> = {};
   let currentTime: string;
@@ -117,12 +118,12 @@ export default function DiaryNote({ title }: ViewProps) {
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
-  const brief = useDiaryBrief(chFlag);
+  const brief = useBrief(chFlag);
   const sort = useDiaryCommentSortMode(chFlag);
-  const perms = useDiaryPerms(chFlag);
+  const perms = usePerms(chFlag);
   const chan = useChannelSpecific(nest);
   const saga = chan?.saga;
-  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
+  const { mutateAsync: joinDiary } = useJoinMutation();
   const joinChannel = useCallback(async () => {
     await joinDiary({ group: groupFlag, chan: chFlag });
   }, [chFlag, groupFlag, joinDiary]);
@@ -144,8 +145,8 @@ export default function DiaryNote({ title }: ViewProps) {
     ) {
       if (notesOnHost && typeof notesOnHost === 'object') {
         const foundNote = Object.keys(notesOnHost).filter((n: string) => {
-          if ('sent' in (notesOnHost as DiaryOutlines)[n]) {
-            const outline: DiaryOutline = (notesOnHost as DiaryOutlines)[n];
+          if ('sent' in (notesOnHost as Outlines)[n]) {
+            const outline: Outline = (notesOnHost as Outlines)[n];
             return outline.sent === daToUnix(bigInt(noteId));
           }
           return false;
@@ -204,6 +205,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const { quips } = note.seal;
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const {title: noteTitle, image} = getHanDataFromEssay(note.essay);
   const groupedQuips = setNewDays(
     groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
       if (sort === 'asc') {
@@ -219,7 +221,7 @@ export default function DiaryNote({ title }: ViewProps) {
       className="h-full flex-1 bg-white"
       header={
         <DiaryNoteHeader
-          title={note.essay.title}
+          title={noteTitle}
           time={noteId}
           canEdit={(isAdmin || window.our === note.essay.author) && !isPending}
           nest={nest}
@@ -229,7 +231,7 @@ export default function DiaryNote({ title }: ViewProps) {
       <Helmet>
         <title>
           {note && channel && group
-            ? `${note.essay.title} in ${channel.meta.title} • ${
+            ? `${noteTitle} in ${channel.meta.title} • ${
                 group.meta.title || ''
               } ${title}`
             : title}

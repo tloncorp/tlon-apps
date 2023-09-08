@@ -1,9 +1,9 @@
+import _ from 'lodash';
+import { useCallback, useState } from 'react';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
-import { useAddNoteFeelMutation } from '@/state/diary';
-import { NoteSeal } from '@/types/diary';
-import _ from 'lodash';
-import React, { useCallback, useState } from 'react';
+import { useAddNoteFeelMutation } from '@/state/channel/channel';
+import { NoteSeal } from '@/types/channel';
 import NoteReaction from './NoteReaction';
 
 interface NotReactionsProps {
@@ -19,7 +19,11 @@ export default function NoteReactions({ whom, seal, time }: NotReactionsProps) {
 
   const onEmoji = useCallback(
     async (emoji: any) => {
-      await addFeel({ flag: whom, noteId: time, feel: emoji.shortcodes });
+      await addFeel({
+        nest: `diary/${whom}`,
+        noteId: time,
+        feel: emoji.shortcodes,
+      });
     },
     [whom, time, addFeel]
   );
