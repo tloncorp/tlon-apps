@@ -59,6 +59,7 @@ import DiaryNote from '@/diary/DiaryNote';
 import DMNotification from '@/notifications/DMNotification';
 import GroupNotification from '@/notifications/GroupNotification';
 import EditCurioModal from '@/heap/EditCurioModal';
+import Members from '@/groups/Members';
 import GroupMembers from '@/groups/GroupAdmin/GroupMembers';
 import GroupRoles from '@/groups/GroupAdmin/GroupRoles';
 import GroupInfoEditor from '@/groups/GroupAdmin/GroupInfoEditor';
@@ -98,6 +99,8 @@ import LureAutojoiner from '@/groups/LureAutojoiner';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import EyrieMenu from './eyrie/EyrieMenu';
+import GroupVolumeDialog from './groups/GroupVolumeDialog';
+import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -424,6 +427,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="channels"
                 element={<GroupChannelManager title={` • ${groupsTitle}`} />}
               />
+              <Route path="members" element={<Members />} />
             </Route>
             <Route
               path="channels/chat/:chShip/:chName"
@@ -523,6 +527,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             path="/groups/:ship/:name/info"
             element={<GroupInfo title={`• ${groupsTitle}`} />}
           />
+          <Route
+            path="/groups/:ship/:name/volume"
+            element={<GroupVolumeDialog title={`• ${groupsTitle}`} />}
+          />
+          <Route
+            path="/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
+            element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
+          />
           <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
             <Route
               index
@@ -569,6 +581,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
               <Route
                 path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/dm/:ship/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
             </>

@@ -13,6 +13,8 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import Setting from './Setting';
 import SettingDropdown from './SettingDropdown';
+import RadioGroup from '../RadioGroup';
+import VolumeSetting from '../VolumeSetting';
 
 export default function Settings() {
   const isMobile = useIsMobile();
@@ -90,6 +92,20 @@ export default function Settings() {
             {isTalk ? 'Talk' : 'Groups'} sidebar
           </p>
         </Setting>
+      </div>
+      <div className="space-y-4">
+        <div className="mb-6 flex flex-col">
+          <h2 className="mb-2 text-lg font-bold">Notifications</h2>
+          <span className="text-gray-600">
+            Control how notifications are delivered. These settings can be
+            overriden for individual channels and groups.
+          </span>
+        </div>
+        <section>
+          <div className="flex space-x-2">
+            <VolumeSetting />
+          </div>
+        </section>
       </div>
       <div className="space-y-4">
         <div className="mb-6 flex flex-col">

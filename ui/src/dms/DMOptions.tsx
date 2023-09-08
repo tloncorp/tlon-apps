@@ -1,41 +1,66 @@
 import cn from 'classnames';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import React, { PropsWithChildren, useCallback, useState } from 'react';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
+import { useIsMobile } from '@/logic/useMedia';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsChannelUnread } from '@/logic/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import DmInviteDialog from './DmInviteDialog';
 
 type DMOptionsProps = PropsWithChildren<{
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   whom: string;
   pending: boolean;
   isHovered?: boolean;
   className?: string;
   isMulti?: boolean;
   alwaysShowEllipsis?: boolean;
+  triggerDisabled?: boolean;
 }>;
 
 export default function DmOptions({
+  open = false,
+  onOpenChange,
   whom,
   pending,
   isHovered = true,
   isMulti = false,
   alwaysShowEllipsis = false,
+  triggerDisabled,
   className,
   children,
 }: DMOptionsProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const pinned = usePinned();
   const isUnread = useIsChannelUnread(`chat/${whom}`);
   const hasActivity = isUnread || pending;
-  const [isOpen, setIsOpen] = useState(false);
+
+  const [isOpen, setIsOpen] = useState(open);
+  const handleOpenChange = (innerOpen: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(innerOpen);
+    } else {
+      setIsOpen(innerOpen);
+    }
+  };
+
+  useEffect(() => {
+    setIsOpen(open);
+  }, [open]);
+
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const onArchive = () => {
     navigate('/');
@@ -167,30 +192,34 @@ export default function DmOptions({
     <>
       <ActionMenu
         open={isOpen}
-        onOpenChange={(open) => setIsOpen(open)}
+        onOpenChange={handleOpenChange}
         actions={actions}
+        disabled={triggerDisabled}
+        asChild={!triggerDisabled}
         className={className}
       >
         {!alwaysShowEllipsis && children ? (
           children
         ) : (
           <div className={cn('relative h-6 w-6 text-gray-600', className)}>
-            {!alwaysShowEllipsis && !isOpen && hasActivity ? (
+            {!alwaysShowEllipsis && (isMobile || !isOpen) && hasActivity ? (
               <BulletIcon
                 className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 group-hover:opacity-0"
                 aria-label="Has Activity"
               />
             ) : null}
-            <button
-              className={cn(
-                'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
-                hasActivity && 'text-blue',
-                isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
-              )}
-              aria-label="Open Message Options"
-            >
-              <EllipsisIcon className="h-6 w-6 text-inherit" />
-            </button>
+            {!isMobile && (
+              <button
+                className={cn(
+                  'default-focus absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg p-0.5 transition-opacity focus-within:opacity-100 hover:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100',
+                  hasActivity && 'text-blue',
+                  isOpen || alwaysShowEllipsis ? 'opacity:100' : 'opacity-0'
+                )}
+                aria-label="Open Message Options"
+              >
+                <EllipsisIcon className="h-6 w-6 text-inherit" />
+              </button>
+            )}
           </div>
         )}
       </ActionMenu>

@@ -1,13 +1,13 @@
 import cn from 'classnames';
-import React from 'react';
 import ChannelIcon from '@/channels/ChannelIcon';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import { useChannel as useChannelSpecific } from '@/logic/channel';
+import { useChannelCompatibility } from '@/logic/channel';
 import { getNestShip } from '@/logic/utils';
 import MobileHeader from '@/components/MobileHeader';
+import { useConnectivityCheck } from '@/state/vitals';
 
 export interface DiaryNoteHeaderProps {
   title: string;
@@ -24,8 +24,13 @@ export default function DiaryNoteHeader({
 }: DiaryNoteHeaderProps) {
   const isMobile = useIsMobile();
   const ship = getNestShip(nest);
-  const chan = useChannelSpecific(nest);
-  const saga = chan?.saga || null;
+  const { compatible } = useChannelCompatibility(nest);
+  const { data } = useConnectivityCheck(ship);
+  const showEditButton =
+    ((canEdit && ship === window.our) || (canEdit && compatible)) &&
+    data?.status &&
+    'complete' in data.status &&
+    data.status.complete === 'yes';
 
   if (isMobile) {
     return (
@@ -77,8 +82,7 @@ export default function DiaryNoteHeader({
 
       <div className="flex shrink-0 flex-row items-center space-x-3">
         {isMobile && <ReconnectingSpinner />}
-        {(canEdit && ship === window.our) ||
-        (canEdit && saga && 'synced' in saga) ? (
+        {showEditButton ? (
           <Link to={`../edit/${time}`} className="small-button">
             Edit
           </Link>

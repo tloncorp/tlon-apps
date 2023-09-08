@@ -58,6 +58,7 @@ export default function ReferenceBar({
           className="peer"
           ship={author}
           date={unix}
+          hideRoles
           hideTime
           isReply={reply}
           isRef

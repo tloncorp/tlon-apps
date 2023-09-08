@@ -1,13 +1,14 @@
+import React, { useEffect, useState } from 'react';
+import * as Popover from '@radix-ui/react-popover';
 import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
+import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGang,
   useGroupCancelMutation,
   useGroupRescindMutation,
 } from '@/state/groups';
-import * as Popover from '@radix-ui/react-popover';
-import React from 'react';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import SidebarItem from './SidebarItem';
 
@@ -16,6 +17,19 @@ export default function GangItem(props: { flag: string }) {
   const { flag } = props;
   const { preview, claim } = useGang(flag);
   const isMobile = useIsMobile();
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const { action, handlers } = useLongPress();
+
+  useEffect(() => {
+    if (!isMobile) {
+      return;
+    }
+
+    if (action === 'longpress') {
+      setOptionsOpen(true);
+    }
+  }, [action, isMobile]);
+
   const { mutate: rescindMutation, status: rescindStatus } =
     useGroupRescindMutation();
   const { mutate: cancelMutation, status: cancelStatus } =
@@ -45,9 +59,17 @@ export default function GangItem(props: { flag: string }) {
             className="opacity-60"
           />
         }
-        actions={<GroupActions flag={flag} />}
+        actions={
+          <GroupActions
+            open={optionsOpen}
+            onOpenChange={setOptionsOpen}
+            flag={flag}
+            triggerDisabled={isMobile}
+          />
+        }
         className="px-4"
         to={`/groups/${flag}`}
+        {...handlers}
       >
         <span className="inline-block w-full truncate opacity-60">
           {preview ? preview.meta.title : flag}

@@ -169,7 +169,7 @@ function limitBreaks(
 }
 
 const isList = (c: JSONContent) =>
-  c.type === 'orderedList' || c.type === 'bulletList';
+  c.type === 'orderedList' || c.type === 'bulletList' || c.type === 'taskList';
 
 export function JSONToListing(
   json: JSONContent,
@@ -190,6 +190,16 @@ export function JSONToListing(
       return {
         list: {
           type: 'unordered',
+          items:
+            json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
+          contents: [],
+        },
+      };
+    }
+    case 'taskList': {
+      return {
+        list: {
+          type: 'tasklist',
           items:
             json.content?.map((c) => JSONToListing(c, limitNewlines)) || [],
           contents: [],
@@ -218,6 +228,37 @@ export function JSONToListing(
 
       return {
         item: contents,
+      };
+    }
+    case 'taskItem': {
+      const list = json.content?.find(isList);
+      const para = json.content?.find((c) => !isList(c));
+      const contents = para
+        ? // eslint-disable-next-line @typescript-eslint/no-use-before-define
+          (JSONToInlines(para, limitNewlines) as Inline[])
+        : [];
+
+      if (list) {
+        return {
+          list: {
+            contents,
+            items: list.content
+              ? list.content.map((c) => JSONToListing(c, limitNewlines))
+              : ([] as DiaryListing[]),
+            type: 'tasklist',
+          },
+        };
+      }
+
+      return {
+        item: [
+          {
+            task: {
+              checked: json.attrs?.checked || false,
+              content: contents,
+            },
+          },
+        ],
       };
     }
     default:
@@ -350,6 +391,13 @@ export function JSONToInlines(
       ];
     }
     case 'bulletList': {
+      return [
+        {
+          listing: JSONToListing(json, limitNewlines),
+        },
+      ];
+    }
+    case 'taskList': {
       return [
         {
           listing: JSONToListing(json, limitNewlines),
