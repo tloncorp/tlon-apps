@@ -1688,16 +1688,20 @@
   ++  ca-transfer-channel
     |=  [new-group=flag:g new=flag:c tim=time]
     =/  old=log:c  log.chat
+    ::  we only need writs for the new channel because we'll compress
+    ::  all the permissions into one create event
     =/  writ-log
-      =-  +:-
+      =<  +
       %^  (dip:log-on:c @)  log.chat  ~
       |=  [st=@ =time =diff:c]
       :_  [%.n st]
       ::  only keep writs
       ?.  ?=(%writs -.diff)  ~
       `diff
+    ::  for the channel getting truncated we need to keep all permission
+    ::  events, and only the writs after the time
     =/  filtered-log
-        =-  +:-
+        =<  +
         %^  (dip:log-on:c @)  log.chat  ~
         |=  [st=@ =time =diff:c]
         :_  [%.n st]
@@ -1708,7 +1712,10 @@
         `diff
     =+  .^(=group:g %gx (weld ca-groups-scry /noun))
     =/  =channel:g  (~(got by channels.group) [%chat flag])
-    ::  false create, more like snapshot of current state
+    ::  don't allow moving to the same group or same channel
+    ~|  'Must be a different group and channel'
+    ?>  &(!=(group.perm.chat new-group) !=(flag new))
+    ::  compressing permissions into create event for new channel
     =/  =create:c
       :*  new-group
           q.new
