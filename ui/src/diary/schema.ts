@@ -1,4 +1,4 @@
-import { Mark, Node, Schema, SchemaSpec } from '@tiptap/pm/model';
+import { Mark, Node, Schema } from '@tiptap/pm/model';
 
 const schema = new Schema({
   nodes: {
@@ -84,7 +84,7 @@ const schema = new Schema({
       },
       parseDOM: [
         {
-          tag: 'div',
+          tag: 'div[data-type="diary-cite"]',
           getAttrs: (node: HTMLElement | string) => {
             if (typeof node === 'string') {
               return {};
@@ -177,7 +177,7 @@ const schema = new Schema({
     },
     listItem: {
       content: 'paragraph block*',
-      defining: true,
+      // defining: true,
       parseDOM: [{ tag: 'li' }],
       toDOM() {
         return ['li', 0];
@@ -217,6 +217,7 @@ const schema = new Schema({
           {
             class: 'mention',
             'data-id': node.attrs.id,
+            'data-type': 'mention',
           },
           // `@${node.attrs.label}`,
         ];
@@ -233,6 +234,46 @@ const schema = new Schema({
       parseDOM: [{ tag: 'ol' }],
       toDOM() {
         return ['ol', 0];
+      },
+    },
+    taskList: {
+      content: 'taskItem+',
+      group: 'block',
+      priority: 51,
+      parseDOM: [{ tag: 'ul[data-type="taskList"]' }],
+      toDOM() {
+        return ['ul', { 'data-type': 'taskList' }, 0];
+      },
+    },
+    taskItem: {
+      attrs: {
+        checked: {
+          default: false,
+        },
+      },
+      content: 'paragraph block*',
+      priority: 51,
+      parseDOM: [
+        {
+          tag: 'li[data-type="taskItem"]',
+          getAttrs: (node: HTMLElement | string) => {
+            if (typeof node === 'string') {
+              return {};
+            }
+            const checked = node.getAttribute('data-checked') === 'true';
+
+            return {
+              checked,
+            };
+          },
+        },
+      ],
+      toDOM(node: Node) {
+        return [
+          'li',
+          { 'data-type': 'taskItem', 'data-checked': node.attrs.checked },
+          0,
+        ];
       },
     },
   },

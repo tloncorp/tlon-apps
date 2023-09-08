@@ -4,6 +4,7 @@
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
+/+  v=volume
 /+  of
 /+  epos-lib=saga
 ::  performance, keep warm
@@ -15,8 +16,15 @@
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %0
+    $:  %1
         groups=net-groups:g
+      ::
+        $=  volume
+        $:  base=level:v
+            area=(map flag:g level:v)  ::  override per group
+            chan=(map nest:g level:v)  ::  override per channel
+        ==
+      ::
         xeno=gangs:g
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
@@ -179,6 +187,27 @@
       %invite-decline
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
+  ::
+      %volume-set
+    ?>  =(our src):bowl
+    =+  !<([=scope:v =value:v] vase)
+    ?-  scope
+        ~
+      ?<  ?=(~ value)
+      cor(base.volume value)
+    ::
+        [%group *]
+      =-  cor(area.volume -)
+      ?~  value
+        (~(del by area.volume) +.scope)
+      (~(put by area.volume) +.scope value)
+    ::
+        [%channel *]
+      =-  cor(chan.volume -)
+      ?~  value
+        (~(del by chan.volume) +.scope)
+      (~(put by chan.volume) +.scope value)
+    ==
   ==
 ++  channel-scry
   |=  =nest:g
@@ -273,6 +302,8 @@
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
+  =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+  ?>  ?=(%1 -.old)
   =.  state  old
   =.  cor  restore-missing-subs
   =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
@@ -286,7 +317,19 @@
     go-abet:go-upgrade:(go-abed:group-core i.groups)
   $(groups t.groups)
   ::
-  +$  versioned-state  $%(current-state)
+  +$  versioned-state  $%(current-state state-0)
+  +$  state-0
+    $:  %0
+        groups=net-groups:g
+        xeno=gangs:g
+        shoal=(map flag:g dude:gall)
+    ==
+  ::
+  ++  state-0-to-1
+    |=  state-0
+    ^-  current-state
+    [%1 groups [*level:v ~ ~] xeno shoal]
+  ::
   ++  restore-missing-subs
     %+  roll
       ~(tap by groups)
@@ -361,6 +404,34 @@
       [%x %exists ship=@ name=@ rest=*]
       =/  src  (slav %p ship.pole)
       ``noun+!>((~(has by groups) [src name.pole]))
+  ::
+      [%x %volume ~]
+    ``volume-value+!>(base.volume)
+  ::
+      [%x %volume ship=@ name=@ ~]
+    =/  ship  (slav %p ship.pole)
+    :^  ~  ~  %volume-value
+    !>  ^-  value:v
+    %-  ~(gut by area.volume)
+    [[(slav %p ship.pole) name.pole] ~]
+  ::
+      [%x %volume dude=@ ship=@ name=@ ~]
+    =/  =ship    (slav %p ship.pole)
+    =/  =nest:g  [dude.pole ship name.pole]
+    :^  ~  ~  %volume-value
+    !>  ^-  value:v
+    ?^  vol=(~(get by chan.volume) nest)
+      u.vol
+    ::NOTE  searching through all groups like this is... inefficient,
+    ::      but the alternative is depending on the dude knowing what
+    ::      group the nest belongs to and scrying that out of it...
+    =/  groups=(list [=flag:g net:g group:g])
+      ~(tap by groups)
+    |-
+    ?~  groups  ~
+    ?.  (~(has by channels.i.groups) nest)
+      $(groups t.groups)
+    (~(gut by area.volume) flag.i.groups ~)
   ==
 ::
 ++  drop-fleet
@@ -809,6 +880,18 @@
         [flag now.bowl %fleet (silt our.bowl ~) %del ~]
       [%pass wire %agent dock %poke cage]
     ::
+    ++  leave-channels
+      |=  nests=(list nest:g)
+      ^-  (list card)
+      %+  turn
+          nests
+      |=  nes=nest:g
+      ^-  card
+      =/  =dock  [our.bowl p.nes]
+      =/  =cage  channel-leave+!>(q.nes)
+      =/  =wire  (snoc go-area %leave-channels)
+      [%pass wire %agent dock %poke cage]
+    ::
     ++  join-channels
       |=  nests=(list nest:g)
       ^-  (list card)
@@ -823,6 +906,13 @@
     --
   ::
   ++  go-leave
+    =/  joined-channels
+      %-  ~(gas in *(set nest:g))
+      %+  murn  ~(tap in channels.group)
+      |=  [ch=nest:g =channel:g]
+      [~ ch]
+    =.  cor
+      (emil (leave-channels:go-pass ~(tap in joined-channels)))
     =.  cor  (emit remove-self:go-pass)
     =.  cor  (emit %give %fact ~[/groups /groups/ui] group-leave+!>(flag))
     go-core(gone &)
@@ -949,17 +1039,17 @@
       =/  nes=nest:g  [app.pole (slav %p ship.pole) name.pole]
       =/  =channel:g  (~(got by channels.group) nes)
       ?+    rest.pole  ~
-          [%can-read src=@ ~]
-        =/  src  (slav %p src.rest.pole)
-        `loob+!>((go-can-read src channel))
+          [%can-read member=@ ~]
+        =/  member  (slav %p member.rest.pole)
+        `loob+!>((go-can-read member channel))
         ::
-          [%can-write src=@ ~]
-        =/  src  (slav %p src.rest.pole)
+          [%can-write member=@ ~]
+        =/  member  (slav %p member.rest.pole)
         =-  `noun+!>(-)
-        ?:  |((go-is-banned src) !(~(has by fleet.group) src))  ~
+        ?:  |((go-is-banned member) !(~(has by fleet.group) member))  ~
         %-  some
-        :-  bloc=(~(has in go-bloc-who) src.bowl)
-        sects=sects:(~(got by fleet.group) src)
+        :-  bloc=(~(has in go-bloc-who) member)
+        sects=sects:(~(got by fleet.group) member)
       ==
     ==
   ::
@@ -987,6 +1077,13 @@
       ?~  p.sign
         go-core
       %-  (slog leaf/"Failed to autojoin channel" u.p.sign)
+      go-core
+    ::
+        [%leave-channels ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign
+        go-core
+      %-  (slog leaf/"Failed to leave channel" u.p.sign)
       go-core
     ::
         [%proxy ~]

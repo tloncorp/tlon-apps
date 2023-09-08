@@ -12,5 +12,5 @@ setup('authenticate', async ({ page }) => {
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.waitForURL('http://localhost:3000/apps/grid/');
   await page.context().storageState({ path: authFile });
-  await page.getByRole('link', { name: 'Menu Groups' }).click();
+  await page.getByRole('link', { name: 'Groups' }).waitFor();
 });

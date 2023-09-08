@@ -96,10 +96,12 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
-    =.  cor  
+    =.  cor
       %+  roll
         ~(tap in (~(gas in *(set ship)) (turn diaries head)))
       |=  [=ship cr=_cor]
@@ -209,16 +211,44 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %diary-leave
+      ?(%channel-leave %diary-leave)
     =+  !<(=leave:d vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)
+  ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  diary-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%diary p.nest) %.y %.n)
+      |=  [=nest:g *]
+      q.nest
+    =/  diaries-without-groups
+      %+  skim  ~(tap by shelf)
+      |=  [=flag:g *]
+      ?:(=((find [flag]~ (zing diary-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      diaries-without-groups
+    |=  [[=flag:g *] core=_cor]
+    di-abet:di-leave:(di-abed:di-core:core flag)
+  ::
+      %recheck-all-perms
+    %+  roll
+      ~(tap by shelf)
+    |=  [[=flag:d *] core=_cor]
+    =/  di  (di-abed:di-core:core flag)
+    di-abet:(di-recheck:di ~)
   ::
       %diary-create
     =+  !<(req=create:d vase)
     (create req)
   ::
-      ?(%diary-action-1 %diary-action-0 %diary-action)
+      ?(%diary-action-2 %diary-action-1 %diary-action-0 %diary-action)
     =+  !<(=action:d vase)
     =/  diary-core  (di-abed:di-core p.action)
     ?:  =(p.p.action our.bowl)
@@ -784,8 +814,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  di-core  (di-can-read our.bowl)  di-safe-sub
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (di-can-read our.bowl)
+    =.  di-core
+      ?:  wecanread
+        di-safe-sub
+      di-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
@@ -819,8 +853,8 @@
       =*  cage  cage.sign
       ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
-        ?(%diary-logs %diary-logs-0 %diary-logs-1)      (di-apply-logs !<(log:d q.cage))
-        ?(%diary-update %diary-update-0 %diary-update-1)  (di-update !<(update:d q.cage))
+        ?(%diary-logs %diary-logs-0 %diary-logs-1 %diary-logs-2)      (di-apply-logs !<(log:d q.cage))
+        ?(%diary-update %diary-update-0 %diary-update-1 %diary-update-2)  (di-update !<(update:d q.cage))
       ==
     ==
   ::
@@ -976,7 +1010,7 @@
       ::
           %del  ?~(entry | =(src.bowl author.note.u.entry))
       ::
-          %edit  
+          %edit
         ?&  =(src.bowl author.p.delta)
             ?~(entry | =(src.bowl author.note.u.entry))
         ==

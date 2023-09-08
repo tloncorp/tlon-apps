@@ -253,8 +253,8 @@ export default function ChannelList({ className }: ChannelListProps) {
                   <PeopleIcon className="m-1 h-6 w-6 text-gray-400" />
                 </div>
               }
-              to={`/groups/${flag}/info`}
-              state={{ backgroundLocation: location }}
+              to={isMobile ? `./members` : `/groups/${flag}/info`}
+              state={{ backgroundLocation: isMobile ? null : location }}
             >
               Members
             </SidebarItem>

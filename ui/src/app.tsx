@@ -59,6 +59,7 @@ import DiaryNote from '@/diary/DiaryNote';
 import DMNotification from '@/notifications/DMNotification';
 import GroupNotification from '@/notifications/GroupNotification';
 import EditCurioModal from '@/heap/EditCurioModal';
+import Members from '@/groups/Members';
 import GroupMembers from '@/groups/GroupAdmin/GroupMembers';
 import GroupRoles from '@/groups/GroupAdmin/GroupRoles';
 import GroupInfoEditor from '@/groups/GroupAdmin/GroupInfoEditor';
@@ -424,6 +425,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 path="channels"
                 element={<GroupChannelManager title={` • ${groupsTitle}`} />}
               />
+              <Route path="members" element={<Members />} />
             </Route>
             <Route
               path="channels/chat/:chShip/:chName"
@@ -569,6 +571,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
               <Route
                 path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/dm/:ship/picker/:writShip/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
             </>

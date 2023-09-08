@@ -3,7 +3,7 @@ import cn from 'classnames';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
 import { useLeaveDiaryMutation } from '@/state/diary';
-import { useChannel as useChannelSpecific } from '@/logic/channel';
+import { useChannelCompatibility } from '@/logic/channel';
 import {
   setChannelSetting,
   DiarySetting,
@@ -30,10 +30,9 @@ const DiaryHeader = React.memo(
   ({ flag, nest, canWrite, sort, display }: DiaryHeaderProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const [, chFlag] = nestToFlag(nest);
-    const chan = useChannelSpecific(nest);
     const { ship } = getFlagParts(flag);
     const isMobile = useIsMobile();
-    const saga = chan?.saga || null;
+    const { compatible } = useChannelCompatibility(nest);
     const settings = useDiarySettings();
     const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
     const { mutate } = usePutEntryMutation({
@@ -121,8 +120,7 @@ const DiaryHeader = React.memo(
               )}
             </button>
           </ActionMenu>
-          {(canWrite && ship === window.our) ||
-          (canWrite && saga && 'synced' in saga) ? (
+          {(canWrite && ship === window.our) || (canWrite && compatible) ? (
             <Link
               to="edit"
               className={cn(

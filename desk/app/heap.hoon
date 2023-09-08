@@ -113,10 +113,38 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %heap-leave
+      ?(%channel-leave %heap-leave)
     =+  !<(=leave:h vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     he-abet:he-leave:(he-abed:he-core leave)
+  ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  heap-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%heap p.nest) %.y %.n)
+      |=  [=nest:g *]
+      q.nest
+    =/  heaps-without-groups
+      %+  skim  ~(tap by stash)
+      |=  [=flag:g *]
+      ?:(=((find [flag]~ (zing heap-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      heaps-without-groups
+    |=  [[=flag:g *] core=_cor]
+    he-abet:he-leave:(he-abed:he-core:core flag)
+  ::
+     %recheck-all-perms
+    %+  roll
+      ~(tap by stash)
+    |=  [[=flag:h *] core=_cor]
+    =/  he  (he-abed:he-core:core flag)
+    he-abet:(he-recheck:he ~)
   ::
       %heap-create
     =+  !<(req=create:h vase)
@@ -171,6 +199,8 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   =.  state  old
   =.  cor  restore-missing-subs
+  =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+  =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
   ?:  =(okay:h cool)  cor
   ::  speak the good news
   =.  cor  (emil (drop load:epos))
@@ -183,6 +213,7 @@
   $(heaps t.heaps)
   ::
   +$  versioned-state  $%(current-state)
+  ::
   ++  restore-missing-subs
     %+  roll
       ~(tap by stash)
@@ -709,8 +740,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:h !>([flag now.bowl %del-sects sects])]
       (emit %pass he-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  he-core  (he-can-read our.bowl)  he-safe-sub
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (he-can-read our.bowl)
+    =.  he-core
+      ?:  wecanread
+        he-safe-sub
+      he-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in he-subscriptions)
     |=  [[=ship =path] he=_he-core]
@@ -927,7 +962,7 @@
       ::
           %del  ?~(entry | =(src.bowl author.curio.u.entry))
       ::
-          %edit  
+          %edit
         ?&  =(src.bowl author.p.delta)
             ?~(entry | =(src.bowl author.curio.u.entry))
         ==

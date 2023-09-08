@@ -24,13 +24,19 @@ import {
   GroupCreate,
   GroupJoin,
   PrivacyType,
+  Vessel,
 } from '@/types/groups';
 import api from '@/api';
 import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { getCompatibilityText, getFlagParts, preSig } from '@/logic/utils';
+import {
+  getCompatibilityText,
+  getFlagParts,
+  preSig,
+  sagaCompatible,
+} from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 
 export const GROUP_ADMIN = 'admin';
@@ -103,7 +109,7 @@ export function useGroups() {
   return data as Groups;
 }
 
-export function useGroup(flag: string, updating = false) {
+export function useGroup(flag: string, updating = false): Group | undefined {
   const connection = useGroupConnection(flag);
   const queryClient = useQueryClient();
   const initialData = useGroups();
@@ -199,7 +205,7 @@ export function useGroupList(): string[] {
   return Object.keys(data || {});
 }
 
-export function useVessel(flag: string, ship: string) {
+export function useVessel(flag: string, ship: string): Vessel {
   const data = useGroup(flag);
 
   return (
@@ -267,13 +273,19 @@ export function useGang(flag: string) {
   return data?.[flag] || defGang;
 }
 
-export const useGangPreview = (flag: string, disabled = false) => {
+export const useGangPreview = (
+  flag: string,
+  disabled = false
+): GroupPreview | null => {
+  const gangs = useGangs();
+
   const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
     queryKey: ['gang-preview', flag],
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
       enabled: !disabled,
+      initialData: gangs[flag]?.preview || undefined,
     },
   });
 
@@ -1161,7 +1173,7 @@ export function useGroupCompatibility(flag: string) {
   const saga = group?.saga || null;
   return {
     saga,
-    compatible: saga === null || 'synced' in saga,
+    compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
   };
 }
