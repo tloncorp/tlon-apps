@@ -252,8 +252,9 @@
       ?>  from-self
       =+  !<([* =flag:c cr=create:c =log:c] vase)
       =.  cor  (create cr)
-      ca-abet:(ca-apply-logs:(ca-abed:ca-core:cor flag) log)
-      (emit %pass /import-channel/)
+      ~&  "importing {<(wyt:log-on:c log)>} logs to {<flag>}"
+      =/  core  (ca-abed:ca-core flag)
+      ca-abet:(ca-apply-logs:core log)
     ==
   ::
       %import-flags
@@ -1539,7 +1540,6 @@
     ^+  ca-core
     =/  updates=(list update:c)
       (tap:log-on:c logs)
-    ~&  logs
     %+  roll  updates
     |=  [=update:c ca=_ca-core]
     (ca-update:ca update)
@@ -1686,17 +1686,25 @@
       ==
     ~
   ++  ca-transfer-channel
-    |=  [new-group=flag:g new=flag:c before=@da]
+    |=  [new-group=flag:g new=flag:c tim=time]
     =/  old=log:c  log.chat
+    =/  writ-log
+      =-  +:-
+      %^  (dip:log-on:c @)  log.chat  ~
+      |=  [st=@ =time =diff:c]
+      :_  [%.n st]
+      ::  only keep writs
+      ?.  ?=(%writs -.diff)  ~
+      `diff
     =/  filtered-log
         =-  +:-
         %^  (dip:log-on:c @)  log.chat  ~
         |=  [st=@ =time =diff:c]
         :_  [%.n st]
-        ::  if not a writ event, skip
-        ?.  ?=(%writs -.diff)  ~
-        ::  if a writ event, keep any after before date
-        ?.  (gth time before)  ~
+        ::  keep non-writ events
+        ?.  ?=(%writs -.diff)  `diff
+        ::  only keep writs after time
+        ?.  (gth time tim)  ~
         `diff
     =+  .^(=group:g %gx (weld ca-groups-scry /noun))
     =/  =channel:g  (~(got by channels.group) [%chat flag])
@@ -1711,8 +1719,9 @@
       ==
     =/  =wire  (welp ca-area /import)
     =/  =dock  [our.bowl dap.bowl]
-    =/  =cage  [%noun !>([%import-channel flag create old])]
+    =/  =cage  [%noun !>([%import-channel new create writ-log])]
     =.  cor  (emit %pass wire %agent dock %poke cage)
+    ~&  ['new size:' ~(wyt by filtered-log) 'old-size:' ~(wyt by old)]
     =.  log.chat  filtered-log
     ca-core
   --
