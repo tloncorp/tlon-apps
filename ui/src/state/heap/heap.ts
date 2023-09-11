@@ -536,6 +536,38 @@ function formatCurioComments(curios: HeapCurios): HeapCurioMap {
   return curioMap;
 }
 
+export function useCurio(flag: HeapFlag, time: string) {
+  const ud = useMemo(() => decToUd(time), [time]);
+  const { data, ...query } = useReactQuerySubscription({
+    queryKey: ['heap', flag, 'curios', time],
+    app: 'heap',
+    path: `/heap/${flag}/ui`,
+    scry: `/heap/${flag}/curios/curio/id/${ud}`,
+    options: {
+      keepPreviousData: true,
+      refetchOnMount: true,
+      retryOnMount: true,
+      enabled: !!time,
+    },
+  });
+
+  return useMemo(() => {
+    if (!data) {
+      return {
+        ...query,
+        time: bigInt(time),
+        curio: null,
+      };
+    }
+
+    return {
+      ...query,
+      time: bigInt(time),
+      curio: data as HeapCurio,
+    };
+  }, [time, data, query]);
+}
+
 export function useCurioWithComments(flag: HeapFlag, time: string) {
   const defComments = useMemo(() => new BigIntOrderedMap<HeapCurio>(), []);
   const ud = useMemo(() => decToUd(time), [time]);
