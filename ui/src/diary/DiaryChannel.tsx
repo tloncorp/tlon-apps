@@ -13,12 +13,10 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import {
-  useNotes,
+import useInifniteOutlines, {
   useDisplayMode,
   useSortMode,
   usePerms,
-  useOlderNotes,
   useJoinMutation,
   useIsJoined,
   useMarkReadMutation,
@@ -46,17 +44,16 @@ import DiaryHeader from './DiaryHeader';
 
 function DiaryChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
-  const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const { data } = useConnectivityCheck(chShip ?? '');
   const nest = `diary/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
-  const { letters, isLoading } = useNotes(nest);
+  const { outlines, isLoading, fetchNextPage, hasNextPage } =
+    useInifniteOutlines(nest);
   const pendingNotes = usePendingNotes();
   const queryClient = useQueryClient();
-  const loadingOlderNotes = useOlderNotes(nest, 30, shouldLoadOlderNotes);
   const { mutateAsync: joinDiary } = useJoinMutation();
   const { mutateAsync: markRead } = useMarkReadMutation();
   const location = useLocation();
@@ -67,6 +64,14 @@ function DiaryChannel({ title }: ViewProps) {
   const joined = useIsJoined(nest);
   const lastReconnect = useLastReconnect();
   const notesOnHost = useNotesOnHost(nest, pendingNotes.length > 0);
+  const loadOlderNotes = useCallback(
+    (atBottom: boolean) => {
+      if (atBottom && hasNextPage) {
+        fetchNextPage();
+      }
+    },
+    [hasNextPage, fetchNextPage]
+  );
 
   const checkForNotes = useCallback(async () => {
     // if we have pending notes and the ship is connected
@@ -82,7 +87,7 @@ function DiaryChannel({ title }: ViewProps) {
         pendingNotes.length > 0 &&
         notesOnHost &&
         !Object.entries(notesOnHost).every(([_time, n]) =>
-          Array.from(letters).find(([_t, l]) => l.sent === n.sent)
+          Array.from(outlines).find(([_t, l]) => l.sent === n.sent)
         )
       ) {
         queryClient.refetchQueries({
@@ -94,7 +99,7 @@ function DiaryChannel({ title }: ViewProps) {
         });
       }
     }
-  }, [chFlag, queryClient, data, letters, notesOnHost, pendingNotes]);
+  }, [chFlag, queryClient, data, outlines, notesOnHost, pendingNotes]);
 
   const clearPendingNotes = useCallback(() => {
     // if we have pending notes and the ship is connected
@@ -206,7 +211,7 @@ function DiaryChannel({ title }: ViewProps) {
     ),
   });
 
-  const sortedNotes = Array.from(letters).sort(([a], [b]) => {
+  const sortedNotes = Array.from(outlines).sort(([a], [b]) => {
     if (sortMode === 'arranged') {
       // if only one note is arranged, put it first
       if (
@@ -252,21 +257,6 @@ function DiaryChannel({ title }: ViewProps) {
         </div>
       )}
     </div>
-  );
-
-  const loadOlderNotes = useCallback(
-    (load: boolean) => {
-      if (!loadingOlderNotes) {
-        if (load) {
-          console.log('load older notes');
-          setShouldLoadOlderNotes(true);
-        } else {
-          console.log('dont load older notes');
-          setShouldLoadOlderNotes(false);
-        }
-      }
-    },
-    [loadingOlderNotes]
   );
 
   return (
@@ -316,12 +306,7 @@ function DiaryChannel({ title }: ViewProps) {
           userDisplayMode === 'grid' ? (
           <DiaryGridView
             outlines={sortedNotes}
-            loadOlderNotes={() => {
-              if (!loadingOlderNotes) {
-                setShouldLoadOlderNotes(true);
-              }
-              setShouldLoadOlderNotes(false);
-            }}
+            loadOlderNotes={loadOlderNotes}
           />
         ) : (
           <div className="h-full">
@@ -331,9 +316,7 @@ function DiaryChannel({ title }: ViewProps) {
                 data={sortedNotes}
                 itemContent={itemContent}
                 overscan={200}
-                atBottomStateChange={(atBottom) => {
-                  loadOlderNotes(atBottom);
-                }}
+                atBottomStateChange={loadOlderNotes}
                 components={{
                   Header: () => <div />,
                   Footer: () => <div className="h-4 w-full" />,

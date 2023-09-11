@@ -1,14 +1,15 @@
 import bigInt from 'big-integer';
+import _ from 'lodash';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   QueryClient,
+  useInfiniteQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
 import { Flag } from '@/types/hark';
 import {
-  Han,
   Shelf,
   NoteAction,
   Ship,
@@ -30,8 +31,9 @@ import {
   ShelfResponse,
   ShelfAction,
   Note,
-  QuipMap,
   Nest,
+  OutlineTuple,
+  OutlinesMap,
 } from '@/types/channel';
 import api from '@/api';
 import { nestToFlag, restoreMap } from '@/logic/utils';
@@ -126,11 +128,11 @@ export function useNotes(nest: Nest) {
     priority: 2,
   });
 
-  let noteMap = restoreMap<Outline>(data);
+  let outlineMap = restoreMap<Outline>(data);
 
   if (data === undefined || Object.entries(data as object).length === 0) {
     return {
-      letters: noteMap as BigIntOrderedMap<Outline>,
+      outlines: outlineMap as BigIntOrderedMap<Outline>,
       ...rest,
     };
   }
@@ -141,11 +143,11 @@ export function useNotes(nest: Nest) {
   }));
 
   diff.forEach(({ tim, note }) => {
-    noteMap = noteMap.set(tim, note);
+    outlineMap = outlineMap.set(tim, note);
   });
 
   return {
-    letters: noteMap as BigIntOrderedMap<Outline>,
+    outlines: outlineMap as BigIntOrderedMap<Outline>,
     ...rest,
   };
 }
@@ -180,9 +182,9 @@ export function useNotesOnHost(
 
 export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   const queryClient = useQueryClient();
-  const { letters } = useNotes(nest);
+  const { outlines } = useNotes(nest);
 
-  let noteMap = restoreMap<Outline>(letters);
+  let noteMap = restoreMap<Outline>(outlines);
 
   const index = noteMap.peekSmallest()?.[0];
   const oldNotesSize = noteMap.size ?? 0;
@@ -229,6 +231,84 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   return rest.isLoading;
 }
 
+function generateOutlineMap(curios: OutlineTuple[]): OutlinesMap {
+  let curioMap = restoreMap<Outline>({});
+  curios
+    .map(([k, curio]) => ({ tim: bigInt(udToDec(k)), curio }))
+    .forEach(({ tim, curio }) => {
+      curioMap = curioMap.set(tim, curio);
+    });
+
+  return curioMap;
+}
+
+function formatOutlineResponse(outlines: Outlines): OutlineTuple[] {
+  return Object.entries(outlines).sort((a, b) => {
+    const aTime = bigInt(udToDec(a[0]));
+    const bTime = bigInt(udToDec(b[0]));
+    return bTime.compare(aTime);
+  });
+}
+
+export default function useInifniteOutlines(nest: Nest) {
+  const queryClient = useQueryClient();
+  const def = useMemo(() => new BigIntOrderedMap<Outline>(), []);
+  const [han, flag] = nestToFlag(nest);
+  const queryKey = useMemo(() => [han, 'notes', flag, 'infinite'], [han, flag]);
+
+  const invalidate = useRef(
+    _.debounce(
+      () => {
+        queryClient.invalidateQueries(queryKey);
+      },
+      300,
+      {
+        leading: true,
+        trailing: true,
+      }
+    )
+  );
+
+  useEffect(() => {
+    api.subscribe({
+      app: 'channels',
+      path: `/${nest}/ui`,
+      event: invalidate.current,
+    });
+  }, [nest, invalidate]);
+
+  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
+    queryKey,
+    queryFn: async ({ pageParam }) => {
+      const path = pageParam
+        ? `/${nest}/notes/older/${pageParam}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
+        : `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+      const response = await api.scry<Outlines>({
+        app: 'channels',
+        path,
+      });
+      return formatOutlineResponse(response);
+    },
+    getNextPageParam: (lastPage) =>
+      lastPage.length ? _.last(lastPage)![0] : undefined,
+    keepPreviousData: true,
+    refetchOnMount: true,
+    retryOnMount: true,
+  });
+
+  const outlines = useMemo(
+    () => generateOutlineMap(data?.pages.flat() || []),
+    [data]
+  );
+
+  return {
+    outlines: data ? outlines : def,
+    fetchNextPage,
+    hasNextPage,
+    isLoading,
+  };
+}
+
 export function useShelf(): Shelf {
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['shelf'],
@@ -267,7 +347,7 @@ export function useArrangedNotes(nest: Nest): string[] {
 export function usePerms(nest: Nest): Perm {
   const diary = useChannel(nest);
 
-  const [_, flag] = nestToFlag(nest);
+  const [_han, flag] = nestToFlag(nest);
 
   if (diary === undefined) {
     return {
@@ -756,7 +836,7 @@ export function useDeleteNoteMutation() {
           return prev;
         }
 
-        const { [decToUd(variables.time)]: _, ...rest } = prev;
+        const { [decToUd(variables.time)]: _n, ...rest } = prev;
 
         return rest;
       };

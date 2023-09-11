@@ -12,7 +12,7 @@ import { useIsMobile } from '@/logic/useMedia';
 
 interface DiaryGridProps {
   outlines: [bigInt.BigInteger, Outline][];
-  loadOlderNotes: () => void;
+  loadOlderNotes: (atBottom: boolean) => void;
 }
 
 const masonryItem = ({
@@ -30,7 +30,7 @@ export default function DiaryGridView({
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const maybeLoadMore = useInfiniteLoader(
     () => {
-      loadOlderNotes();
+      loadOlderNotes(true);
     },
     { isItemLoaded: (index, items) => !!items[index], threshold: 3 }
   );

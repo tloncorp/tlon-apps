@@ -156,6 +156,8 @@ export interface Outlines {
   [time: string]: Outline;
 }
 
+export type OutlineTuple = [string, Outline];
+
 export type OutlinesMap = BigIntOrderedMap<Outline>;
 
 export type NoteMap = BigIntOrderedMap<Note>;
