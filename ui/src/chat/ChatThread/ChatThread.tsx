@@ -9,7 +9,11 @@ import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
 import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
-import { useGroupChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
+import {
+  useGroupChannel,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups/groups';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';

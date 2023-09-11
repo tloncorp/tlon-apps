@@ -10,7 +10,12 @@ import {
   useJoinHeapMutation,
 } from '@/state/heap/heap';
 import Layout from '@/components/Layout/Layout';
-import { useGroupChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import {
+  useGroupChannel,
+  useGroup,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups';
 import { canReadChannel } from '@/logic/utils';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';

@@ -27,12 +27,7 @@ import {
   useGroup,
   useGroupChannel,
 } from '@/state/groups/groups';
-import {
-  Brief,
-  Outline,
-  Outlines,
-  Quip,
-} from '@/types/channel';
+import { Brief, Outline, Outlines, Quip } from '@/types/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import {
   useChannelIsJoined,
@@ -205,7 +200,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const { quips } = note.seal;
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const {title: noteTitle, image} = getHanDataFromEssay(note.essay);
+  const { title: noteTitle, image } = getHanDataFromEssay(note.essay);
   const groupedQuips = setNewDays(
     groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
       if (sort === 'asc') {
