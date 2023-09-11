@@ -667,7 +667,17 @@ export function useDelCurioMutation() {
     time: string;
   }) => {
     const ud = decToUd(time);
-    await api.poke(heapCurioDiff(flag, ud, { del: null }));
+    await api.trackedPoke<HeapAction, HeapUpdate>(
+      heapCurioDiff(flag, ud, { del: null }),
+      { app: 'heap', path: `/heap/${flag}/ui` },
+      (event) => {
+        if ('curios' in event.diff) {
+          const curioDiff = event.diff.curios;
+          return curioDiff.time === time && 'del' in curioDiff.delta;
+        }
+        return false;
+      }
+    );
   };
 
   return useMutation({
@@ -682,7 +692,12 @@ export function useDelCurioMutation() {
       ]);
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.refetchQueries(['heap', variables.flag, 'curios']);
+      queryClient.refetchQueries([
+        'heap',
+        variables.flag,
+        'curios',
+        'infinite',
+      ]);
     },
   });
 }
