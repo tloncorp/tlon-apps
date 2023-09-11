@@ -843,6 +843,8 @@
   ::
   ++  he-am-host  =(our.bowl p.flag)
   ++  he-from-host  |(=(p.flag src.bowl) =(p.group.perm.heap src.bowl))
+  ++  he-is-admin
+    .^(? %gx (welp he-groups-scry /fleet/(scot %p src.bowl)/is-bloc/loob))
   ++  he-can-write
     ?:  he-from-host  &
     =/  =path
@@ -971,11 +973,22 @@
         %add-feel  =(src.bowl p.delta)
         %del-feel  =(src.bowl p.delta)
       ::
-          %del  ?~(entry | =(src.bowl author.curio.u.entry))
+          %del
+        ::  if no curio, then fail
+        ?~  entry  |
+        ::  only author or admin can delete
+        ?|  =(src.bowl author.curio.u.entry)
+            he-is-admin
+        ==
       ::
           %edit
-        ?&  =(src.bowl author.p.delta)
-            ?~(entry | =(src.bowl author.curio.u.entry))
+        ::  if no curio, then fail
+        ?~  entry  |
+        ::  author should always be the same
+        ?.  =(author.p.delta author.curio.u.entry)  |
+        ::  only author or admin can edit
+        ?|  =(src.bowl author.p.delta)
+            he-is-admin
         ==
     ==
   ::
