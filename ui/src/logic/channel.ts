@@ -113,7 +113,7 @@ export function useIsChannelUnread(nest: string) {
 export const useIsChannelHost = (flag: string) =>
   window.our === flag?.split('/')[0];
 
-export function useChannel(nest: string): Chat | Heap | Diary | undefined {
+export function useChannelOld(nest: string): Chat | Heap | Diary | undefined {
   const [app, flag] = nestToFlag(nest);
   const chat = useChat(flag);
   const heap = useHeap(flag);
@@ -251,7 +251,7 @@ export function useCheckChannelJoined() {
 }
 
 export function useChannelCompatibility(nest: string) {
-  const channel = useChannel(nest);
+  const channel = useChannelOld(nest);
   const saga = channel?.saga || null;
 
   return {

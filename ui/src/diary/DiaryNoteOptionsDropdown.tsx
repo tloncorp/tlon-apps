@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useArrangedNotes } from '@/state/channel/channel';
-import { useChannel } from '@/logic/channel';
+import { useChannelOld } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import useDiaryActions from './useDiaryActions';
@@ -26,7 +26,7 @@ export default function DiaryNoteOptionsDropdown({
   const arrangedNotes = useArrangedNotes(flag);
   const { ship } = getFlagParts(flag);
   const nest = `diary/${flag}`;
-  const chan = useChannel(nest);
+  const chan = useChannelOld(nest);
   const saga = chan?.saga || null;
   const {
     isOpen,

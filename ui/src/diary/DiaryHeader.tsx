@@ -3,7 +3,7 @@ import cn from 'classnames';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
 import { useLeaveMutation } from '@/state/channel/channel';
-import { useChannel as useChannelSpecific } from '@/logic/channel';
+import { useChannelOld as useChannelSpecific } from '@/logic/channel';
 import {
   setChannelSetting,
   DiarySetting,

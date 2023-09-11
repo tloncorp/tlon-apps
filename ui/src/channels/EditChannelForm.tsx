@@ -30,7 +30,7 @@ import {
   useViewMutation,
 } from '@/state/channel/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChannel } from '@/logic/channel';
+import { useChannelOld } from '@/logic/channel';
 import { DiarySortMode } from '@/types/diary';
 import ChannelSortSelector from './ChannelSortSelector';
 import ChannelViewSelector from './ChannelViewSelector';
@@ -59,7 +59,7 @@ export default function EditChannelForm({
   const sects = Object.keys(group?.cabals || {});
   const [app, channelFlag] = nestToFlag(nest);
   const diary = useChannelState(channelFlag);
-  const chan = useChannel(nest);
+  const chan = useChannelOld(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
     useEditChannelMutation();
   const { mutateAsync: addDiarySects } = useAddSectsMutation();

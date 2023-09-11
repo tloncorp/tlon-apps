@@ -3,7 +3,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, isTalk, nestToFlag } from '@/logic/utils';
 import { useGroupChannel } from '@/state/groups';
-import { useChannel as useChannelSpecific } from '@/logic/channel';
+import { useChannelOld } from '@/logic/channel';
 import { Link } from 'react-router-dom';
 import { useConnectivityCheck } from '@/state/vitals';
 import ChannelIcon from './ChannelIcon';
@@ -24,7 +24,7 @@ export default function ChannelTitleButton({
   const { ship } = getFlagParts(chFlag);
   const BackButton = isMobile ? Link : 'div';
   const { data } = useConnectivityCheck(ship || '');
-  const chan = useChannelSpecific(nest);
+  const chan = useChannelOld(nest);
   const saga = chan?.saga || null;
 
   function backTo() {

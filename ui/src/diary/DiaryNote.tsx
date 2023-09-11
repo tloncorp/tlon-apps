@@ -36,7 +36,7 @@ import {
 import { useDiaryCommentSortMode } from '@/state/settings';
 import {
   useChannelIsJoined,
-  useChannel as useChannelSpecific,
+  useChannelOld as useChannelSpecific,
 } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';

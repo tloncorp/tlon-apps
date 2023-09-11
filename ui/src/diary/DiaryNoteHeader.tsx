@@ -4,7 +4,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import { useChannel as useChannelSpecific } from '@/logic/channel';
+import { useChannelOld as useChannelSpecific } from '@/logic/channel';
 import { getNestShip } from '@/logic/utils';
 import MobileHeader from '@/components/MobileHeader';
 import { useConnectivityCheck } from '@/state/vitals';
