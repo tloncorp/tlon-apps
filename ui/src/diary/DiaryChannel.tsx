@@ -51,8 +51,8 @@ function DiaryChannel({ title }: ViewProps) {
   const chFlag = `${chShip}/${chName}`;
   const { data } = useConnectivityCheck(chShip ?? '');
   const nest = `diary/${chFlag}`;
-  const flag = useRouteGroup();
-  const vessel = useVessel(flag, window.our);
+  const groupFlag = useRouteGroup();
+  const vessel = useVessel(groupFlag, window.our);
   const { letters, isLoading } = useNotes(chFlag);
   const pendingNotes = usePendingNotes();
   const queryClient = useQueryClient();
@@ -61,9 +61,9 @@ function DiaryChannel({ title }: ViewProps) {
   const { mutate: markRead, isLoading: isMarking } = useMarkReadDiaryMutation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { setRecentChannel } = useRecentChannel(flag);
-  const group = useGroup(flag);
-  const channel = useChannel(flag, nest);
+  const { setRecentChannel } = useRecentChannel(groupFlag);
+  const group = useGroup(groupFlag);
+  const channel = useChannel(groupFlag, nest);
   const joined = useDiaryIsJoined(chFlag);
   const lastReconnect = useLastReconnect();
   const notesOnHost = useNotesOnHost(chFlag, pendingNotes.length > 0);
@@ -126,16 +126,16 @@ function DiaryChannel({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await joinDiary({ group: flag, chan: chFlag });
+    await joinDiary({ group: groupFlag, chan: chFlag });
     setJoining(false);
-  }, [flag, chFlag, joinDiary]);
+  }, [groupFlag, chFlag, joinDiary]);
 
   useEffect(() => {
     if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate(`/groups/${flag}`);
+      navigate(`/groups/${groupFlag}`);
       setRecentChannel('');
     }
-  }, [flag, group, channel, vessel, navigate, setRecentChannel]);
+  }, [groupFlag, group, channel, vessel, navigate, setRecentChannel]);
 
   useEffect(() => {
     checkForNotes();
@@ -271,7 +271,7 @@ function DiaryChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={
         <DiaryHeader
-          flag={flag}
+          groupFlag={groupFlag}
           nest={nest}
           canWrite={canWrite}
           display={userDisplayMode ?? displayMode}
