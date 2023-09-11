@@ -180,9 +180,9 @@ export function useNotesOnHost(
 
 export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   const queryClient = useQueryClient();
-  const notes = useNotes(nest);
+  const { letters } = useNotes(nest);
 
-  let noteMap = restoreMap<Outline>(notes);
+  let noteMap = restoreMap<Outline>(letters);
 
   const index = noteMap.peekSmallest()?.[0];
   const oldNotesSize = noteMap.size ?? 0;
@@ -675,8 +675,7 @@ export function useAddNoteMutation() {
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.refetchQueries([han, 'notes', flag]);
-      // await queryClient.invalidateQueries([han, 'notes', flag]);
+      await queryClient.refetchQueries([han, 'notes', flag], { exact: true });
       await queryClient.refetchQueries(['briefs']);
     },
   });

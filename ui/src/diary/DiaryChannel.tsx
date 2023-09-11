@@ -256,10 +256,15 @@ function DiaryChannel({ title }: ViewProps) {
 
   const loadOlderNotes = useCallback(
     (load: boolean) => {
-      if (!loadingOlderNotes && load) {
-        setShouldLoadOlderNotes(true);
+      if (!loadingOlderNotes) {
+        if (load) {
+          console.log('load older notes');
+          setShouldLoadOlderNotes(true);
+        } else {
+          console.log('dont load older notes');
+          setShouldLoadOlderNotes(false);
+        }
       }
-      setShouldLoadOlderNotes(false);
     },
     [loadingOlderNotes]
   );
