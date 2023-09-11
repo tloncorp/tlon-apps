@@ -22,6 +22,7 @@ import useRequestState from '@/logic/useRequestState';
 import { useIsMobile } from '@/logic/useMedia';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import AddReactIcon from '@/components/icons/AddReactIcon';
 
 export default function ChatMessageOptions(props: {
   open: boolean;
@@ -30,8 +31,17 @@ export default function ChatMessageOptions(props: {
   writ: ChatWrit;
   hideThreadReply?: boolean;
   hideReply?: boolean;
+  openReactionDetails: () => void;
 }) {
-  const { open, onOpenChange, whom, writ, hideThreadReply, hideReply } = props;
+  const {
+    open,
+    onOpenChange,
+    whom,
+    writ,
+    hideThreadReply,
+    hideReply,
+    openReactionDetails,
+  } = props;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const { didCopy, doCopy } = useCopy(
@@ -123,6 +133,7 @@ export default function ChatMessageOptions(props: {
     !writ.memo.replying && writ.memo.replying?.length !== 0 && !hideThreadReply;
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === writ.memo.author;
+  const reactionsCount = Object.keys(writ.seal.feels).length;
 
   const actions: Action[] = [];
 
@@ -131,7 +142,7 @@ export default function ChatMessageOptions(props: {
       key: 'react',
       content: (
         <div className="flex items-center" aria-label="React">
-          <FaceIcon className="mr-2 h-6 w-6" />
+          <AddReactIcon className="mr-2 h-6 w-6" />
           React
         </div>
       ),
@@ -140,6 +151,20 @@ export default function ChatMessageOptions(props: {
           state: { backgroundLocation: location },
         });
       },
+    });
+  }
+
+  if (reactionsCount > 0) {
+    actions.push({
+      key: 'show-all-reactions',
+      content: (
+        <div className="flex items-center">
+          <FaceIcon className="mr-2 h-6 w-6" />
+          View Reactions
+        </div>
+      ),
+      onClick: () => openReactionDetails(),
+      keepOpenOnClick: false,
     });
   }
 
@@ -260,6 +285,17 @@ export default function ChatMessageOptions(props: {
                 label="Copy"
                 showTooltip
                 action={onCopy}
+              />
+            )}
+            {reactionsCount > 0 && (
+              <IconButton
+                icon={
+                  <span className="align-baseline font-semibold text-gray-400">
+                    {reactionsCount}
+                  </span>
+                }
+                label="View Reactions"
+                action={openReactionDetails}
               />
             )}
             {showDeleteAction && (

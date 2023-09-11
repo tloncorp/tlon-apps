@@ -14,9 +14,10 @@ import { ChatSeal } from '../../types/chat';
 interface ChatReactionsProps {
   whom: string;
   seal: ChatSeal;
+  id?: string;
 }
 
-export default function ChatReactions({ whom, seal }: ChatReactionsProps) {
+export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const feels = _.invertBy(seal.feels);
   const isMobile = useIsMobile();
@@ -43,7 +44,7 @@ export default function ChatReactions({ whom, seal }: ChatReactionsProps) {
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
   return (
-    <div className="my-2 flex items-center space-x-2">
+    <div id={id} className="my-2 flex items-center space-x-2">
       {Object.entries(feels).map(([feel, ships]) => (
         <ChatReaction
           key={feel}

@@ -5,13 +5,28 @@ import { logTime } from './utils';
 type Point = { x: number; y: number };
 type Action = 'click' | 'longpress' | '';
 
-export default function useLongPress() {
+interface LongPressOptions {
+  withId?: boolean;
+}
+
+export default function useLongPress(options?: LongPressOptions) {
   const [action, setAction] = useState<Action>('');
+  const [actionId, setActionId] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const timerRef = React.useRef<ReturnType<typeof setTimeout>>();
   const isLongPress = React.useRef(false);
   const downPoint = React.useRef<Point>({ x: 0, y: 0 });
   const currentPoint = React.useRef<Point>({ x: 0, y: 0 });
+
+  const getActionId = (element: HTMLElement): string | null => {
+    if (element.id) {
+      return element.id;
+    }
+    if (element.parentElement) {
+      return getActionId(element.parentElement);
+    }
+    return null;
+  };
 
   const release = (point: Point) => {
     if (
@@ -24,14 +39,20 @@ export default function useLongPress() {
     } else {
       logTime('release without longpress', point, downPoint.current);
       setAction('');
+      setActionId(null);
     }
 
     isLongPress.current = false;
   };
 
-  const start = () => {
+  const start = (element: HTMLElement) => {
     logTime('start', downPoint.current);
     setAction('');
+    setActionId(null);
+
+    if (options?.withId) {
+      setActionId(getActionId(element));
+    }
 
     timerRef.current = setTimeout(() => {
       isLongPress.current = true;
@@ -55,7 +76,7 @@ export default function useLongPress() {
   const onMouseDown = (e: React.MouseEvent) => {
     downPoint.current = { x: e.pageX, y: e.pageY };
     currentPoint.current = { x: e.pageX, y: e.pageY };
-    start();
+    start(e.target as HTMLElement);
   };
 
   const onMouseMove = (e: React.MouseEvent) => {
@@ -75,7 +96,7 @@ export default function useLongPress() {
       x: e.changedTouches[0].pageX,
       y: e.changedTouches[0].pageY,
     };
-    start();
+    start(e.target as HTMLElement);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
@@ -106,6 +127,7 @@ export default function useLongPress() {
 
   return {
     action,
+    actionId: options?.withId ? actionId : undefined,
     handlers: {
       onClick,
       onMouseDown,
