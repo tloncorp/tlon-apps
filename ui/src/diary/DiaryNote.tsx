@@ -25,7 +25,7 @@ import {
   useVessel,
   useAmAdmin,
   useGroup,
-  useChannel,
+  useGroupChannel,
 } from '@/state/groups/groups';
 import {
   Brief,
@@ -112,7 +112,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
-  const channel = useChannel(groupFlag, nest);
+  const channel = useGroupChannel(groupFlag, nest);
   const { ship } = getFlagParts(chFlag);
   const { note, status } = useNote(nest, noteId);
   const vessel = useVessel(groupFlag, window.our);

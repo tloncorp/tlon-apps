@@ -8,7 +8,7 @@ import * as Toast from '@radix-ui/react-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
 import {
-  useChannel,
+  useGroupChannel,
   useGroup,
   useRouteGroup,
   useVessel,
@@ -63,7 +63,7 @@ function DiaryChannel({ title }: ViewProps) {
   const navigate = useNavigate();
   const { setRecentChannel } = useRecentChannel(flag);
   const group = useGroup(flag);
-  const channel = useChannel(flag, nest);
+  const channel = useGroupChannel(flag, nest);
   const joined = useIsJoined(nest);
   const lastReconnect = useLastReconnect();
   const notesOnHost = useNotesOnHost(nest, pendingNotes.length > 0);

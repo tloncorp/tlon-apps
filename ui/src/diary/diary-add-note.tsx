@@ -16,7 +16,7 @@ import {
   useEditNoteMutation,
   useNote,
 } from '@/state/channel/channel';
-import { useChannel, useGroup, useRouteGroup } from '@/state/groups';
+import { useGroupChannel, useGroup, useRouteGroup } from '@/state/groups';
 import { Block as DiaryBlock, Story } from '@/types/channel';
 import { Inline, JSONContent } from '@/types/content';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -46,7 +46,7 @@ export default function DiaryAddNote() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const { privacy } = useGroupPrivacy(flag);
-  const channel = useChannel(flag, nest);
+  const channel = useGroupChannel(flag, nest);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const {

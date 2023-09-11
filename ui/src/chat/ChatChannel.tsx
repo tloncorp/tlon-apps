@@ -11,7 +11,7 @@ import {
   useRouteGroup,
   useVessel,
   useGroup,
-  useChannel,
+  useGroupChannel,
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useRecentChannel from '@/logic/useRecentChannel';
@@ -46,7 +46,7 @@ function ChatChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
   const perms = useChatPerms(chFlag);
   const vessel = useVessel(groupFlag, window.our);
-  const channel = useChannel(groupFlag, nest);
+  const channel = useGroupChannel(groupFlag, nest);
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const canRead = channel

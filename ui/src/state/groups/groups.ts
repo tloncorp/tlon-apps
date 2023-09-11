@@ -296,7 +296,7 @@ export function useGangList() {
   return Object.keys(data || {});
 }
 
-export function useChannel(
+export function useGroupChannel(
   flag: string,
   channel: string
 ): GroupChannel | undefined {

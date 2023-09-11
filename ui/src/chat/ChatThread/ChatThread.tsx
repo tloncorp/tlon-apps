@@ -9,7 +9,7 @@ import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
 import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
-import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
+import { useGroupChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
@@ -43,7 +43,7 @@ export default function ChatThread() {
   const { sendMessage } = useChatState.getState();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
-  const channel = useChannel(groupFlag, `chat/${flag}`)!;
+  const channel = useGroupChannel(groupFlag, `chat/${flag}`)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
   const dropZoneId = `chat-thread-input-dropzone-${id}`;

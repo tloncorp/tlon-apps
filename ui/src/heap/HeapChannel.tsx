@@ -8,7 +8,7 @@ import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import {
   useRouteGroup,
-  useChannel,
+  useGroupChannel,
   useGroup,
   useVessel,
 } from '@/state/groups/groups';
@@ -44,7 +44,7 @@ function HeapChannel({ title }: ViewProps) {
   const nest = `heap/${chFlag}`;
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
-  const channel = useChannel(flag, nest);
+  const channel = useGroupChannel(flag, nest);
   const group = useGroup(flag);
   const { setRecentChannel } = useRecentChannel(flag);
   const displayMode = useHeapDisplayMode(chFlag);

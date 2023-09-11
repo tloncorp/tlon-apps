@@ -10,7 +10,7 @@ import {
   useJoinHeapMutation,
 } from '@/state/heap/heap';
 import Layout from '@/components/Layout/Layout';
-import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import { useGroupChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import { canReadChannel } from '@/logic/utils';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
@@ -34,7 +34,7 @@ export default function HeapDetail({ title }: ViewProps) {
   }>();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
-  const channel = useChannel(groupFlag, nest);
+  const channel = useGroupChannel(groupFlag, nest);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const canRead = channel
