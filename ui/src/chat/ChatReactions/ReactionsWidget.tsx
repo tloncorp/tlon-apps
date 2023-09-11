@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { useMemo, useState } from 'react';
-import * as cn from 'classnames';
+import cn from 'classnames';
 import * as Tabs from '@radix-ui/react-tabs';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
