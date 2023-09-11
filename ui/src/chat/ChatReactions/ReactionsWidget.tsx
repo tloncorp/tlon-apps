@@ -110,11 +110,11 @@ export default function ReactionsWidget({
         >
           {tabId === 'all' &&
             allFeels.map(([ship, shortcode]) => (
-              <FeelRow ship={ship} shortcode={shortcode} />
+              <FeelRow key={ship} ship={ship} shortcode={shortcode} />
             ))}
           {tabId !== 'all' &&
             feelsByShortcode[tabId].map((ship) => (
-              <FeelRow ship={ship} shortcode={tabId} />
+              <FeelRow key={ship} ship={ship} shortcode={tabId} />
             ))}
         </Tabs.Content>
       ))}
