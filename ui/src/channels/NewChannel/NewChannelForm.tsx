@@ -11,7 +11,6 @@ import {
 import { strToSym } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
-import { useCreateHeapMutation, useStash } from '@/state/heap/heap';
 import { useCreateMutation, useShelf } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
@@ -25,11 +24,9 @@ export default function NewChannelForm() {
   const groupFlag = useRouteGroup();
   const { compatible, text } = useGroupCompatibility(groupFlag);
   const shelf = useShelf();
-  const stash = useStash();
   const { mutate: mutateAddChannel, status: addChannelStatus } =
     useAddChannelMutation();
-  const { mutateAsync: createDiary } = useCreateMutation();
-  const { mutateAsync: createHeap } = useCreateHeapMutation();
+  const { mutateAsync: createChannel } = useCreateMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
     zone: 'default',
@@ -79,7 +76,7 @@ export default function NewChannelForm() {
         }
 
         if (type === 'heap') {
-          return stash[tempNewChannelFlag];
+          return shelf[tempNewChannelFlag];
         }
 
         return false;
@@ -100,8 +97,8 @@ export default function NewChannelForm() {
         type === 'chat'
           ? useChatState.getState().create
           : type === 'heap'
-          ? createHeap
-          : createDiary;
+          ? createChannel
+          : createChannel;
 
       try {
         await creator({
@@ -140,9 +137,7 @@ export default function NewChannelForm() {
       isMobile,
       mutateAddChannel,
       shelf,
-      createDiary,
-      createHeap,
-      stash,
+      createChannel,
     ]
   );
 

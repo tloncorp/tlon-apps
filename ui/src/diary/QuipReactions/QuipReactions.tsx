@@ -1,7 +1,7 @@
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useAddQuipFeelMutation } from '@/state/channel/channel';
-import { QuipCork } from '@/types/channel';
+import { Han, QuipCork } from '@/types/channel';
 import _ from 'lodash';
 import { useCallback, useState } from 'react';
 import { useIsMobile } from '@/logic/useMedia';
@@ -12,6 +12,7 @@ interface QuipReactionsProps {
   cork: QuipCork;
   time: string;
   noteId: string;
+  han: Han;
 }
 
 export default function QuipReactions({
@@ -19,6 +20,7 @@ export default function QuipReactions({
   cork,
   time,
   noteId,
+  han,
 }: QuipReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -28,13 +30,13 @@ export default function QuipReactions({
   const onEmoji = useCallback(
     async (emoji: any) => {
       addQuipFeel({
-        nest: `diary/${whom}`,
+        nest: `${han}/${whom}`,
         noteId,
         quipId: time,
         feel: emoji.shortcodes,
       });
     },
-    [whom, time, noteId, addQuipFeel]
+    [han, whom, time, noteId, addQuipFeel]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

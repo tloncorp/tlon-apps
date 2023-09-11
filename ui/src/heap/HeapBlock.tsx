@@ -2,7 +2,8 @@ import cn from 'classnames';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { formatDistanceToNow } from 'date-fns';
-import { HeapCurio, isLink } from '@/types/heap';
+import { isLink } from '@/types/heap';
+import { Link } from '@/types/content';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
@@ -20,13 +21,13 @@ import useNest from '@/logic/useNest';
 import useHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
-import { inlineToString } from '@/logic/tiptap';
 import ConfirmationModal from '@/components/ConfirmationModal';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import useLongPress from '@/logic/useLongPress';
 import Avatar from '@/components/Avatar';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { isCite, Outline, VerseInline } from '@/types/channel';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -176,13 +177,13 @@ function TopBar({
 }
 
 interface BottomBarProps {
-  curio: HeapCurio;
+  outline: Outline;
   asRef?: boolean;
 }
 
-function BottomBar({ curio, asRef }: BottomBarProps) {
-  const { sent } = curio.heart;
-  const replyCount = curio.seal.replied.length;
+function BottomBar({ outline, asRef }: BottomBarProps) {
+  const { sent } = outline;
+  const replyCount = outline.quippers.length;
   const prettySent = formatDistanceToNow(sent);
 
   if (asRef) {
@@ -195,7 +196,7 @@ function BottomBar({ curio, asRef }: BottomBarProps) {
         'absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:bg-white/50 group-hover:backdrop-blur'
       )}
     >
-      <Avatar ship={curio?.heart.author} size="xs" />
+      <Avatar ship={outline.author} size="xs" />
       <div className="hidden w-full justify-between align-middle group-hover:flex">
         <span className="truncate font-semibold">{prettySent} ago</span>
         {replyCount > 0 ? (
@@ -244,22 +245,26 @@ function HeapBlockWrapper({
 }
 
 interface HeapBlockProps extends CurioDisplayProps {
-  curio: HeapCurio;
+  outline: Outline;
   isComment?: boolean;
 }
 
 export default function HeapBlock({
-  curio,
+  outline,
   time,
   asRef = false,
   isComment = false,
   refToken = undefined,
 }: HeapBlockProps) {
   const [longPress, setLongPress] = useState(false);
-  const { content } = curio.heart;
+  const { content } = outline;
   const url =
-    content.inline.length > 0 && isLink(content.inline[0])
-      ? content.inline[0].link.href
+    content.length > 0 &&
+    isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline)
+      ? (
+          (content.filter((c) => 'inline' in c)[0] as VerseInline)
+            .inline[0] as Link
+        ).link.href
       : '';
   const {
     embed,
@@ -269,14 +274,14 @@ export default function HeapBlock({
   } = useEmbed(url);
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
-  const textFallbackTitle = content.inline
-    .map((inline) => inlineToString(inline))
-    .join(' ')
-    .toString();
+  // const textFallbackTitle = content.inline
+  // .map((inline) => inlineToString(inline))
+  // .join(' ')
+  // .toString();
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
+  const canEdit = asRef ? false : isAdmin || window.our === outline.author;
   const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
 
   useEffect(() => {
@@ -297,7 +302,11 @@ export default function HeapBlock({
   const cnm = (refClass?: string) =>
     asRef ? refClass || '' : 'heap-block group';
   const topBar = { time, asRef, refToken, longPress };
-  const botBar = { curio, asRef, longPress };
+  const botBar = { outline, asRef, longPress };
+
+  // const normalizedContent: ChatStory = {
+
+  // }
 
   if (isComment) {
     return (
@@ -305,9 +314,7 @@ export default function HeapBlock({
         <div className={cnm()}>
           <TopBar hasIcon canEdit={canEdit} {...topBar} />
           <div className="flex grow flex-col">
-            <ChatContent
-              story={{ block: content.block, inline: content.inline }}
-            />
+            <ChatContent story={content} />
           </div>
           <BottomBar {...botBar} />
         </div>
@@ -315,7 +322,7 @@ export default function HeapBlock({
     );
   }
 
-  if (content.block.length > 0 && 'cite' in content.block[0]) {
+  if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {
     return (
       <HeapBlockWrapper time={time} setLongPress={setLongPress}>
         <div className={cnm()}>

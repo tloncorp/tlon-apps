@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { unixToDa } from '@urbit/api';
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useAddCurioMutation } from '@/state/heap/heap';
 import { JSONContent } from '@tiptap/react';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { createCurioHeart } from '@/logic/heap';
@@ -9,6 +9,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useIsMobile } from '@/logic/useMedia';
 import { useFileStore, useUploader } from '@/state/storage';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { useAddNoteMutation } from '@/state/channel/channel';
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';
 import CurioPreview, { canPreview } from './CurioPreview';
 
@@ -44,7 +45,8 @@ export default function AddCurioModal({
   const [previewUrl, setPreviewUrl] = useState('');
   const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
-  const { mutate } = useAddCurioMutation();
+  const { mutate } = useAddNoteMutation();
+  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const { privacy } = useGroupPrivacy(flag);
 
   const isEmpty = !content && !draggedFile && !pastedFile;
@@ -91,7 +93,11 @@ export default function AddCurioModal({
       const heart = createCurioHeart(input);
 
       mutate(
-        { flag: chFlag, heart },
+        {
+          nest: `heap/${chFlag}`,
+          essay: heart,
+          initialTime,
+        },
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({
@@ -110,7 +116,7 @@ export default function AddCurioModal({
         }
       );
     },
-    [flag, chFlag, mutate, privacy, onOpenChange, uploader]
+    [flag, chFlag, mutate, privacy, onOpenChange, uploader, initialTime]
   );
 
   // eslint-disable-next-line consistent-return

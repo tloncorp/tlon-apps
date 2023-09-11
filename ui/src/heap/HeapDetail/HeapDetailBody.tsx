@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import useHeapContentType from '@/logic/useHeapContentType';
 import { useEmbed } from '@/state/embed';
 import { validOembedCheck } from '@/logic/utils';
-import { HeapCurio, isLink } from '@/types/heap';
+import { isLink } from '@/types/heap';
 import HeapContent from '@/heap/HeapContent';
 import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 import HeapDetailEmbed from '@/heap/HeapDetail/HeapDetailEmbed';
@@ -10,17 +10,32 @@ import { useIsMobile } from '@/logic/useMedia';
 import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
 import ContentReference from '@/components/References/ContentReference';
 import { useCalm } from '@/state/settings';
+import {
+  Cite,
+  isCite,
+  Note,
+  Story,
+  VerseBlock,
+  VerseInline,
+} from '@/types/channel';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { Link } from '@/types/content';
 import HeapYoutubePlayer from '../HeapYoutubePlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';
 import HeapVideoPlayer from '../HeapVideoPlayer';
 
-export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
-  const calm = useCalm();
-  const { content } = curio.heart;
+export default function HeapDetailBody({ note }: { note: Note }) {
+  const { content } = note ? note.essay : { content: [] as Story };
   const url =
-    content.inline.length > 0 && isLink(content.inline[0])
-      ? content.inline[0].link.href
+    content.length > 0 &&
+    isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline)
+      ? (
+          (content.filter((c) => 'inline' in c)[0] as VerseInline)
+            .inline[0] as Link
+        ).link.href
       : '';
+
+  const calm = useCalm();
   const isMobile = useIsMobile();
   const { embed, isError, error } = useEmbed(url, isMobile);
   const { isText, isImage, isAudio, isVideo } = useHeapContentType(url);
@@ -31,13 +46,29 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
     }
   }, [isError, error]);
 
-  if (content.block.length > 0 && 'cite' in content.block[0]) {
+  if (!note) {
+    return (
+      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
+        <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
+          <LoadingSpinner />
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    content.filter((b) => 'block' in b).length > 0 &&
+    isCite((content.filter((b) => 'block' in b)[0] as VerseBlock).block)
+  ) {
     return (
       <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
         <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
           <ContentReference
             contextApp="heap-detail"
-            cite={content.block[0].cite}
+            cite={
+              (content.filter((b) => 'inline' in b)[0] as VerseBlock)
+                .block as Cite
+            }
           />
         </div>
       </div>

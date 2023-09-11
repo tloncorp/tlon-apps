@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import * as Toast from '@radix-ui/react-toast';
 import { Helmet } from 'react-helmet';
@@ -13,17 +13,17 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import {
-  useHeapPerms,
-  useMarkHeapReadMutation,
-  useJoinHeapMutation,
-  useInfiniteCurioBlocks,
-} from '@/state/heap/heap';
+  usePerms,
+  useMarkReadMutation,
+  useJoinMutation,
+  useInfiniteOutlines,
+} from '@/state/channel/channel';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
-import { GRID, HeapCurio } from '@/types/heap';
+import { GRID } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useLastReconnect } from '@/state/local';
@@ -32,6 +32,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
+import { Outline } from '@/types/channel';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
@@ -52,18 +53,18 @@ function HeapChannel({ title }: ViewProps) {
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  const { curios, fetchNextPage, hasNextPage, isLoading } =
-    useInfiniteCurioBlocks(chFlag);
-  const { mutateAsync: markRead } = useMarkHeapReadMutation();
-  const { mutateAsync: joinHeap } = useJoinHeapMutation();
-  const perms = useHeapPerms(chFlag);
+  const { outlines, fetchNextPage, hasNextPage, isLoading } =
+    useInfiniteOutlines(nest);
+  const { mutateAsync: markRead } = useMarkReadMutation();
+  const { mutateAsync: joinHeap } = useJoinMutation();
+  const perms = usePerms(nest);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const canRead = channel
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
   const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
-  const { compatible } = useChannelCompatibility(`heap/${chFlag}`);
+  const { compatible } = useChannelCompatibility(nest);
 
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const { isDragging, isOver, droppedFiles, setDroppedFiles } =
@@ -78,9 +79,9 @@ function HeapChannel({ title }: ViewProps) {
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
-    await joinHeap({ group: flag, chan: chFlag });
+    await joinHeap({ group: flag, chan: nest });
     setJoining(false);
-  }, [flag, chFlag, joinHeap]);
+  }, [flag, nest, joinHeap]);
 
   const navigateToDetail = useCallback(
     (time: bigInt.BigInteger) => {
@@ -118,21 +119,21 @@ function HeapChannel({ title }: ViewProps) {
   }, [flag, group, channel, vessel, navigate, setRecentChannel, canRead]);
   useDismissChannelNotifications({
     nest,
-    markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
+    markRead: useCallback(() => markRead({ nest }), [markRead, nest]),
   });
 
   const renderCurio = useCallback(
-    (i: number, curio: HeapCurio, time: bigInt.BigInteger) => (
+    (i: number, outline: Outline, time: bigInt.BigInteger) => (
       <div key={time.toString()} tabIndex={0} className="cursor-pointer">
         {displayMode === GRID ? (
           <div className="aspect-h-1 aspect-w-1">
-            <HeapBlock curio={curio} time={time.toString()} />
+            <HeapBlock outline={outline} time={time.toString()} />
           </div>
         ) : (
           <div onClick={() => navigateToDetail(time)}>
             <HeapRow
               key={time.toString()}
-              curio={curio}
+              outline={outline}
               time={time.toString()}
             />
           </div>
@@ -142,25 +143,25 @@ function HeapChannel({ title }: ViewProps) {
     [displayMode, navigateToDetail]
   );
 
-  const getCurioTitle = (curio: HeapCurio) =>
-    curio.heart.title ||
-    curio.heart.content.toString().split(' ').slice(0, 3).join(' ');
+  const getOutlineTitle = (outline: Outline) =>
+    'heap' in outline['han-data']
+      ? outline['han-data'].heap ||
+        outline.content.toString().split(' ').slice(0, 3).join(' ')
+      : '';
 
-  const empty = useMemo(() => Array.from(curios).length === 0, [curios]);
-  const sortedCurios = Array.from(curios)
-    .sort(([a], [b]) => {
-      if (sortMode === 'time') {
-        return b.compare(a);
-      }
-      if (sortMode === 'alpha') {
-        const curioA = curios.get(a);
-        const curioB = curios.get(b);
-
-        return getCurioTitle(curioA).localeCompare(getCurioTitle(curioB));
-      }
+  const empty = useMemo(() => Array.from(outlines).length === 0, [outlines]);
+  const sortedOutlines = Array.from(outlines).sort(([a], [b]) => {
+    if (sortMode === 'time') {
       return b.compare(a);
-    })
-    .filter(([, c]) => !c.heart.replying); // defensive, they should all be blocks
+    }
+    if (sortMode === 'alpha') {
+      const outlineA = outlines.get(a);
+      const outlineB = outlines.get(b);
+
+      return getOutlineTitle(outlineA).localeCompare(getOutlineTitle(outlineB));
+    }
+    return b.compare(a);
+  });
 
   const loadOlderCurios = useCallback(
     (atBottom: boolean) => {
@@ -173,7 +174,7 @@ function HeapChannel({ title }: ViewProps) {
 
   const computeItemKey = (
     _i: number,
-    [time, _curio]: [bigInt.BigInteger, HeapCurio]
+    [time, _curio]: [bigInt.BigInteger, Outline]
   ) => time.toString();
 
   const thresholds = {
@@ -264,7 +265,7 @@ function HeapChannel({ title }: ViewProps) {
           </div>
         ) : (
           <VirtuosoGrid
-            data={sortedCurios}
+            data={sortedOutlines}
             itemContent={(i, [time, curio]) => renderCurio(i, curio, time)}
             computeItemKey={computeItemKey}
             style={{ height: '100%', width: '100%', paddingTop: '1rem' }}

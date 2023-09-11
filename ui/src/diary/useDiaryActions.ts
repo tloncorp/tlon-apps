@@ -15,7 +15,7 @@ interface useDiaryActionsParams {
 
 export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const [isOpen, setIsOpen] = useState(false);
-  const arrangedNotes = useArrangedNotes(flag);
+  const arrangedNotes = useArrangedNotes(`diary/${flag}`);
   const navigate = useNavigate();
   const { mutate: deleteNote } = useDeleteNoteMutation();
   const { mutate: arrangedNotesMutation } = useArrangedNotesMutation();

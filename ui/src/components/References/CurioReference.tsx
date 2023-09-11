@@ -146,7 +146,7 @@ function CurioReference({
         )}
       >
         <HeapBlock
-          curio={curioComment || curio}
+          outline={curioComment || curio}
           time={idCurioComment || idCurio}
           isComment={!!idCurioComment}
           refToken={refToken}

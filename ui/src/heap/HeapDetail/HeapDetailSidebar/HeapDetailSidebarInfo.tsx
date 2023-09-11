@@ -1,21 +1,23 @@
-import _ from 'lodash';
-import React from 'react';
 import { URL_REGEX, makePrettyDay } from '@/logic/utils';
 import { inlineToString } from '@/logic/tiptap';
-import { HeapCurio } from '@/types/heap';
 import Author from '@/chat/ChatMessage/Author';
+import { NoteEssay, VerseInline } from '@/types/channel';
+import getHanDataFromEssay from '@/logic/getHanData';
 
 interface HeapDetailSidebarProps {
-  curio: HeapCurio;
+  essay: NoteEssay;
 }
 
 export default function HeapDetailSidebarInfo({
-  curio,
+  essay,
 }: HeapDetailSidebarProps) {
-  const { content, author, sent, title } = curio.heart;
+  const { content, author, sent } = essay;
+  const { title } = getHanDataFromEssay(essay);
   const unixDate = new Date(sent);
-  const stringContent = (content.inline?.[0] || '').toString();
-  const textPreview = content.inline
+  const inlineContent =
+    (content.filter((c) => 'inline' in c)[0] as VerseInline).inline || '';
+  const stringContent = inlineContent.toString();
+  const textPreview = inlineContent
     .map((inline) => inlineToString(inline))
     .join(' ')
     .toString();

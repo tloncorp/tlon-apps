@@ -5,10 +5,10 @@ import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { useParams } from 'react-router';
 import {
-  useCurioWithComments,
-  useOrderedCurios,
-  useJoinHeapMutation,
-} from '@/state/heap/heap';
+  useJoinMutation,
+  useNote,
+  useOrderedNotes,
+} from '@/state/channel/channel';
 import Layout from '@/components/Layout/Layout';
 import {
   useGroupChannel,
@@ -24,6 +24,7 @@ import { useChannelIsJoined } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
+import getHanDataFromEssay from '@/logic/getHanData';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -47,13 +48,14 @@ export default function HeapDetail({ title }: ViewProps) {
     : false;
   const isMobile = useIsMobile();
   const joined = useChannelIsJoined(nest);
-  const { mutateAsync: joinHeap } = useJoinHeapMutation();
-  const { time, curio, comments, isLoading } = useCurioWithComments(
-    chFlag,
-    idCurio || ''
-  );
-  const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
-    chFlag,
+  const { mutateAsync: joinHeap } = useJoinMutation();
+  const { note, isLoading } = useNote(nest, idCurio || '');
+  const {
+    seal: { id: time, quips: comments },
+  } = note || {};
+  const { title: curioTitle } = getHanDataFromEssay(note.essay);
+  const { hasNext, hasPrev, nextNote, prevNote } = useOrderedNotes(
+    nest,
     time || ''
   );
 
@@ -85,7 +87,7 @@ export default function HeapDetail({ title }: ViewProps) {
   });
 
   // TODO handle curio not found
-  if (isLoading || !curio) {
+  if (isLoading || !note) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <LoadingSpinner />
@@ -106,10 +108,10 @@ export default function HeapDetail({ title }: ViewProps) {
     >
       <Helmet>
         <title>
-          {curio && channel && group
-            ? `${curio.heart.title || 'Gallery Item'} in ${
-                channel.meta.title
-              } • ${group.meta.title || ''} ${title}`
+          {note && channel && group
+            ? `${curioTitle || 'Gallery Item'} in ${channel.meta.title} • ${
+                group.meta.title || ''
+              } ${title}`
             : title}
         </title>
       </Helmet>
@@ -118,7 +120,7 @@ export default function HeapDetail({ title }: ViewProps) {
           {hasNext ? (
             <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
               <Link
-                to={curioHref(nextCurio?.[0])}
+                to={curioHref(nextNote?.[0])}
                 className={cn(
                   ' z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent',
                   !isMobile &&
@@ -131,11 +133,11 @@ export default function HeapDetail({ title }: ViewProps) {
               </Link>
             </div>
           ) : null}
-          {curio ? <HeapDetailBody curio={curio} /> : null}
+          {note ? <HeapDetailBody note={note} /> : null}
           {hasPrev ? (
             <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
               <Link
-                to={curioHref(prevCurio?.[0])}
+                to={curioHref(prevNote?.[0])}
                 className={cn(
                   ' z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent',
                   !isMobile &&
@@ -150,9 +152,9 @@ export default function HeapDetail({ title }: ViewProps) {
           ) : null}
         </div>
         <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
-          {curio && time ? (
+          {note && time ? (
             <>
-              <HeapDetailSidebarInfo curio={curio} />
+              <HeapDetailSidebarInfo essay={note.essay} />
               <HeapDetailComments time={time} comments={comments} />
             </>
           ) : null}

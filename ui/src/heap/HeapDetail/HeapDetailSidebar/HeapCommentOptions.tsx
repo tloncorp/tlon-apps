@@ -11,21 +11,26 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
-import { HeapCurio } from '@/types/heap';
-import {
-  useAddCurioFeelMutation,
-  useDelCurioMutation,
-} from '@/state/heap/heap';
+// import {
+// useAddCurioFeelMutation,
+// useDelCurioMutation,
+// } from '@/state/heap/heap';
 import { useIsMobile } from '@/logic/useMedia';
+import { Quip } from '@/types/channel';
+import {
+  useAddQuipFeelMutation,
+  useDeleteQuipMutation,
+} from '@/state/channel/channel';
 
 export default function HeapCommentOptions(props: {
   whom: string;
-  curio: HeapCurio;
+  quip: Quip;
   parentTime: string;
   time: string;
   hideReply?: boolean;
 }) {
-  const { whom, curio, time, hideReply, parentTime } = props;
+  const { whom, quip, time, hideReply, parentTime } = props;
+  const nest = `heap/${whom}`;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const { didCopy, doCopy } = useCopy(
@@ -45,13 +50,13 @@ export default function HeapCommentOptions(props: {
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const isMobile = useIsMobile();
-  const { mutateAsync: addFeel } = useAddCurioFeelMutation();
-  const { mutateAsync: delCurio } = useDelCurioMutation();
+  const { mutateAsync: addFeel } = useAddQuipFeelMutation();
+  const { mutateAsync: delCurio } = useDeleteQuipMutation();
 
   const onDelete = async () => {
     setDeletePending();
     try {
-      await delCurio({ flag: whom, time });
+      await delCurio({ nest, quipId: time, noteId: parentTime });
     } catch (e) {
       console.log('Failed to delete message', e);
     }
@@ -69,14 +74,14 @@ export default function HeapCommentOptions(props: {
   const onEmoji = useCallback(
     async (emoji: { shortcodes: string }) => {
       await addFeel({
-        flag: whom,
-        time,
+        nest,
+        quipId: time,
+        noteId: parentTime,
         feel: emoji.shortcodes,
-        replying: curio.heart.replying || undefined,
       });
       setPickerOpen(false);
     },
-    [time, whom, addFeel, curio.heart.replying]
+    [time, addFeel, nest, parentTime]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
@@ -138,7 +143,7 @@ export default function HeapCommentOptions(props: {
         showTooltip
         action={() => console.log('send to..')}
       /> */}
-      {isAdmin || window.our === curio.heart.author ? (
+      {isAdmin || window.our === quip.memo.author? (
         <IconButton
           icon={<XIcon className="h-6 w-6 text-red" />}
           label="Delete"

@@ -7,12 +7,9 @@ import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { ChatStory } from '@/types/chat';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-import { Inline } from '@/types/content';
 import { useChannelFlag } from '@/logic/channel';
-import { isCite } from '@/types/channel';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
@@ -61,21 +58,6 @@ function NoteCommentReference({
     return <HeapLoadingBlock reference />;
   }
 
-  const normalizedContent: ChatStory = {
-    inline: [
-      ...quip.memo.content
-        .filter((b) => 'inline' in b)
-        // @ts-expect-error  we know these are inlines
-        .flatMap((b) => b.inline),
-    ] as Inline[],
-    block: [
-      ...quip.memo.content
-        .filter((b) => 'block' in b && 'image' in b.block && isCite(b.block))
-        // @ts-expect-error  we know these are blocks
-        .flatMap((b) => b.block),
-    ],
-  };
-
   if (contextApp === 'heap-row') {
     return (
       <ReferenceInHeap
@@ -84,7 +66,7 @@ function NoteCommentReference({
         title={
           <ChatContent
             className="text-lg font-semibold line-clamp-1"
-            story={normalizedContent}
+            story={quip.memo.content}
             isScrolling={false}
           />
         }
@@ -107,7 +89,7 @@ function NoteCommentReference({
       <ReferenceInHeap
         type="text"
         contextApp={contextApp}
-        image={<ChatContent story={normalizedContent} isScrolling={false} />}
+        image={<ChatContent story={quip.memo.content} isScrolling={false} />}
         title={
           <h2 className="mb-2 text-lg font-semibold">
             Comment on{' '}
@@ -130,7 +112,7 @@ function NoteCommentReference({
       >
         <ChatContent
           className="p-4"
-          story={normalizedContent}
+          story={quip.memo.content}
           isScrolling={false}
         />
       </div>

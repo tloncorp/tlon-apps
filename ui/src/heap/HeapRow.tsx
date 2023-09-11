@@ -1,6 +1,5 @@
-import _ from 'lodash';
 import { useEffect, useState } from 'react';
-import { HeapCurio, isLink } from '@/types/heap';
+import { isLink } from '@/types/heap';
 import cn from 'classnames';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
@@ -25,6 +24,9 @@ import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
+import { isCite, Outline, VerseBlock, VerseInline } from '@/types/channel';
+import { Link } from '@/types/content';
+import { Cite } from '@/types/chat';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -171,33 +173,39 @@ function Actions({
 }
 
 interface HeapRowProps extends CurioDisplayProps {
-  curio: HeapCurio;
+  outline: Outline;
   isComment?: boolean;
 }
 
 export default function HeapRow({
-  curio,
+  outline,
   time,
   asRef = false,
   isComment = false,
   refToken = undefined,
 }: HeapRowProps) {
-  const { content } = curio.heart;
+  const { content } = outline;
   const url =
-    content.inline.length > 0 && isLink(content.inline[0])
-      ? content.inline[0].link.href
+    content.length > 0 &&
+    isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline)
+      ? (
+          (content.filter((c) => 'inline' in c)[0] as VerseInline)
+            .inline[0] as Link
+        ).link.href
       : '';
   const { embed, isLoading, isError, error } = useEmbed(url);
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
-  const textFallbackTitle = content.inline
+  const textFallbackTitle = (
+    content.filter((c) => 'inline' in c)[0] as VerseInline
+  ).inline
     .map((inline) => inlineToString(inline))
     .join(' ')
     .toString();
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit = asRef ? false : isAdmin || window.our === curio.heart.author;
+  const canEdit = asRef ? false : isAdmin || window.our === outline.author;
   const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
 
   useEffect(() => {
@@ -228,23 +236,26 @@ export default function HeapRow({
     asRef
       ? refClass || ''
       : 'w-full bg-white rounded-lg p-2 flex space-x-2 items-center group';
-  const { sent } = curio.heart;
-  const replyCount = curio.seal.replied.length;
+  const { sent } = outline;
+  const replyCount = outline.quippers.length;
   const prettySent = formatDistanceToNow(sent);
 
-  if (content.block.length > 0 && 'cite' in content.block[0]) {
+  if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {
     return (
       <div className={cnm()}>
-        <ContentReference contextApp="heap-row" cite={content.block[0].cite}>
+        <ContentReference
+          contextApp="heap-row"
+          cite={(content[0] as VerseBlock).block as Cite}
+        >
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
             <Avatar
               size="xxs"
               className="inline-block"
-              ship={curio.heart.author}
+              ship={outline.author}
             />
             <ShipName
               showAlias={!calm.disableNicknames}
-              name={curio.heart.author}
+              name={outline.author}
             />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
@@ -255,7 +266,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={outline.sent.toString()}
           />
         </div>
       </div>
@@ -280,11 +291,11 @@ export default function HeapRow({
             <Avatar
               size="xxs"
               className="inline-block"
-              ship={curio.heart.author}
+              ship={outline.author}
             />
             <ShipName
               showAlias={!calm.disableNicknames}
-              name={curio.heart.author}
+              name={outline.author}
             />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
@@ -295,7 +306,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={outline.sent.toString()}
           />
         </div>
       </div>
@@ -332,11 +343,11 @@ export default function HeapRow({
             <Avatar
               size="xxs"
               className="inline-block"
-              ship={curio.heart.author}
+              ship={outline.author}
             />
             <ShipName
               showAlias={!calm.disableNicknames}
-              name={curio.heart.author}
+              name={outline.author}
             />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
@@ -347,7 +358,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={outline.sent.toString()}
           />
         </div>
       </div>
@@ -375,11 +386,11 @@ export default function HeapRow({
             <Avatar
               size="xxs"
               className="inline-block"
-              ship={curio.heart.author}
+              ship={outline.author}
             />
             <ShipName
               showAlias={!calm.disableNicknames}
-              name={curio.heart.author}
+              name={outline.author}
             />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
@@ -390,7 +401,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={outline.sent.toString()}
           />
         </div>
       </div>
@@ -430,11 +441,11 @@ export default function HeapRow({
               <Avatar
                 size="xxs"
                 className="inline-block"
-                ship={curio.heart.author}
+                ship={outline.author}
               />
               <ShipName
                 showAlias={!calm.disableNicknames}
-                name={curio.heart.author}
+                name={outline.author}
               />
               <span className="hidden text-gray-400 sm:inline">
                 {prettySent} ago
@@ -445,7 +456,7 @@ export default function HeapRow({
             <Actions
               longPress={false}
               canEdit={canEdit}
-              time={curio.heart.sent.toString()}
+              time={outline.sent.toString()}
             />
           </div>
         </div>
@@ -481,11 +492,11 @@ export default function HeapRow({
             <Avatar
               size="xxs"
               className="inline-block"
-              ship={curio.heart.author}
+              ship={outline.author}
             />
             <ShipName
               showAlias={!calm.disableNicknames}
-              name={curio.heart.author}
+              name={outline.author}
             />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
@@ -496,7 +507,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={outline.sent.toString()}
           />
         </div>
       </div>
@@ -523,11 +534,11 @@ export default function HeapRow({
           <Avatar
             size="xxs"
             className="inline-block"
-            ship={curio.heart.author}
+            ship={outline.author}
           />
           <ShipName
             showAlias={!calm.disableNicknames}
-            name={curio.heart.author}
+            name={outline.author}
           />
           <span className="hidden text-gray-400 sm:inline">
             {prettySent} ago
@@ -538,7 +549,7 @@ export default function HeapRow({
         <Actions
           longPress={false}
           canEdit={canEdit}
-          time={curio.heart.sent.toString()}
+          time={outline.sent.toString()}
         />
       </div>
     </div>

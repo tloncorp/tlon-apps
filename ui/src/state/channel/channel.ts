@@ -53,6 +53,7 @@ interface NoteSealInCache {
 }
 
 interface NoteInCache {
+  type: 'note'
   seal: NoteSealInCache;
   essay: NoteEssay;
 }
@@ -62,6 +63,10 @@ async function updateNoteInCache(
   updater: (note: NoteInCache | undefined) => NoteInCache | undefined,
   queryClient: QueryClient
 ) {
+  if (variables.nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
   const [han, flag] = nestToFlag(variables.nest);
   await queryClient.cancelQueries({
     queryKey: [han, 'notes', flag, variables.noteId],
@@ -76,6 +81,9 @@ async function updateNotesInCache(
   updater: (notes: Outlines | undefined) => Outlines | undefined,
   queryClient: QueryClient
 ) {
+  if (variables.nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const [han, flag] = nestToFlag(variables.nest);
   await queryClient.cancelQueries([han, 'notes', flag]);
 
@@ -83,6 +91,9 @@ async function updateNotesInCache(
 }
 
 function diaryAction(nest: Nest, action: Action): Poke<ShelfAction> {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   return {
     app: 'channels',
     mark: 'channel-action',
@@ -96,6 +107,10 @@ function diaryAction(nest: Nest, action: Action): Poke<ShelfAction> {
 }
 
 function diaryNoteAction(nest: Nest, action: NoteAction) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
   return diaryAction(nest, {
     note: action,
   });
@@ -119,6 +134,10 @@ export function useIsNotePending(noteId: string) {
 }
 
 export function useNotes(nest: Nest) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
   const [han, flag] = nestToFlag(nest);
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: [han, 'notes', flag],
@@ -156,6 +175,10 @@ export function useNotesOnHost(
   nest: Nest,
   enabled: boolean
 ): Outlines | undefined {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
   const [han, flag] = nestToFlag(nest);
   const { data } = useReactQueryScry({
     queryKey: [han, 'notes', 'live', flag],
@@ -181,6 +204,9 @@ export function useNotesOnHost(
 }
 
 export function useOlderNotes(nest: Nest, count: number, enabled = false) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const queryClient = useQueryClient();
   const { outlines } = useNotes(nest);
 
@@ -250,7 +276,10 @@ function formatOutlineResponse(outlines: Outlines): OutlineTuple[] {
   });
 }
 
-export default function useInifniteOutlines(nest: Nest) {
+export function useInfiniteOutlines(nest: Nest) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const queryClient = useQueryClient();
   const def = useMemo(() => new BigIntOrderedMap<Outline>(), []);
   const [han, flag] = nestToFlag(nest);
@@ -309,6 +338,72 @@ export default function useInifniteOutlines(nest: Nest) {
   };
 }
 
+export async function prefetchNoteWithComments({
+  queryClient,
+  nest,
+  time,
+}: {
+  queryClient: QueryClient;
+  nest: Nest;
+  time: string;
+}) {
+  const ud = decToUd(time);
+  const [han] = nestToFlag(nest);
+  const data = (await api.scry({
+    app: 'channels',
+    path: `/${nest}/notes/note/id/${ud}/full`,
+  })) as Outline;
+  if (data) {
+    queryClient.setQueryData([han, nest, 'notes', time, 'withComments'], data);
+  }
+}
+
+export function useOrderedNotes(
+  nest: Nest,
+  currentId: bigInt.BigInteger | string
+) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
+  const queryClient = useQueryClient();
+  const { outlines } = useInfiniteOutlines(nest);
+
+  const sortedOutlines = Array.from(outlines);
+
+  sortedOutlines.sort(([a], [b]) => b.compare(a));
+
+  const noteId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
+  const hasNext = outlines.size > 0 && noteId.lt(outlines.peekLargest()[0]);
+  const hasPrev = outlines.size > 0 && noteId.gt(outlines.peekSmallest()[0]);
+  const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(noteId));
+
+  const nextNote = hasNext ? sortedOutlines[currentIdx - 1] : null;
+  if (nextNote) {
+    prefetchNoteWithComments({
+      queryClient,
+      nest,
+      time: udToDec(nextNote[0].toString()),
+    });
+  }
+  const prevNote = hasPrev ? sortedOutlines[currentIdx + 1] : null;
+  if (prevNote) {
+    prefetchNoteWithComments({
+      queryClient,
+      nest,
+      time: udToDec(prevNote[0].toString()),
+    });
+  }
+
+  return {
+    hasNext,
+    hasPrev,
+    nextNote,
+    prevNote,
+    sortedOutlines,
+  };
+}
+
 export function useShelf(): Shelf {
   const { data, ...rest } = useReactQuerySubscription({
     queryKey: ['shelf'],
@@ -325,6 +420,9 @@ export function useShelf(): Shelf {
 }
 
 export function useChannel(nest: Nest): Diary | undefined {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const shelf = useShelf();
 
   return shelf[nest];
@@ -335,6 +433,9 @@ const defaultPerms = {
 };
 
 export function useArrangedNotes(nest: Nest): string[] {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const diary = useChannel(nest);
 
   if (diary === undefined || diary.order === undefined) {
@@ -360,6 +461,10 @@ export function usePerms(nest: Nest): Perm {
 }
 
 export function useNote(nest: Nest, noteId: string, disabled = false) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
   const [han, flag] = nestToFlag(nest);
 
   const queryKey = useMemo(
@@ -413,7 +518,6 @@ export function useNote(nest: Nest, noteId: string, disabled = false) {
   });
 
   const noteWithQuips: Note = {
-    type: 'note',
     ...note,
     seal: {
       ...note?.seal,
@@ -433,6 +537,10 @@ export function useQuip(
   quipId: string,
   isScrolling = false
 ) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
   const { note } = useNote(nest, noteId, isScrolling);
   return useMemo(() => {
     if (note === undefined) {
@@ -463,12 +571,19 @@ export function useBriefs(): Briefs {
 }
 
 export function useIsJoined(nest: Nest) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const briefs = useBriefs();
 
   return Object.keys(briefs).includes(nest);
 }
 
 export function useBrief(nest: Nest) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
   const briefs = useBriefs();
 
   return briefs[nest];
@@ -483,16 +598,25 @@ export function useBrief(nest: Nest) {
 // }
 
 export function useDisplayMode(nest: string): DisplayMode {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const diary = useChannel(nest);
   return diary?.view ?? 'list';
 }
 
 export function useSortMode(nest: string): SortMode {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const diary = useChannel(nest);
   return diary?.sort ?? 'time';
 }
 
 export function useRemoteOutline(nest: Nest, time: string, blockLoad: boolean) {
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
   const [han, flag] = nestToFlag(nest);
   const path = `/said/${nest}/note/${decToUd(time)}`;
   const { data, ...rest } = useReactQuerySubscribeOnce({
@@ -515,6 +639,10 @@ export function useRemoteOutline(nest: Nest, time: string, blockLoad: boolean) {
 
 export function useMarkReadMutation() {
   const mutationFn = async (variables: { nest: Nest }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     await api.poke(diaryAction(variables.nest, { read: null }));
   };
 
@@ -525,6 +653,10 @@ export function useMarkReadMutation() {
 
 export function useJoinMutation() {
   const mutationFn = async ({ group, chan }: { group: Flag; chan: Nest }) => {
+    if (chan.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     await api.trackedPoke<ShelfAction, ShelfResponse>(
       diaryAction(chan, {
         join: group,
@@ -540,6 +672,9 @@ export function useJoinMutation() {
 export function useLeaveMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
     await api.poke(diaryAction(variables.nest, { leave: null }));
   };
 
@@ -564,6 +699,9 @@ export function useLeaveMutation() {
 export function useViewMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest; view: DisplayMode }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
     await api.poke(diaryAction(variables.nest, { view: variables.view }));
   };
 
@@ -596,6 +734,10 @@ export function useSortMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
+      if (variables.nest.split('/').length !== 3) {
+        throw new Error('Invalid nest');
+      }
+
       await queryClient.cancelQueries(['shelf']);
 
       const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
@@ -621,6 +763,10 @@ export function useArrangedNotesMutation() {
     nest: Nest;
     arrangedNotes: string[];
   }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     // change sort mode automatically if arrangedNotes is empty/not-empty
     if (variables.arrangedNotes.length === 0) {
       changeSortMutation({ nest: variables.nest, sort: 'time' });
@@ -663,8 +809,12 @@ export function useAddNoteMutation() {
     initialTime: string;
     nest: Nest;
     essay: NoteEssay;
-  }) =>
-    new Promise<string>((resolve) => {
+  }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
+    return new Promise<string>((resolve) => {
       timePosted = variables.initialTime;
       try {
         api
@@ -698,6 +848,7 @@ export function useAddNoteMutation() {
         console.error(e);
       }
     });
+  };
 
   return useMutation({
     mutationFn,
@@ -768,6 +919,10 @@ export function useEditNoteMutation() {
     time: string;
     essay: NoteEssay;
   }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     await api.poke(
       diaryNoteAction(variables.nest, {
         edit: {
@@ -823,6 +978,10 @@ export function useEditNoteMutation() {
 export function useDeleteNoteMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest; time: string }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     await api.poke(diaryNoteAction(variables.nest, { del: variables.time }));
   };
 
@@ -918,6 +1077,10 @@ export function useAddSectsMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
+      if (variables.nest.split('/').length !== 3) {
+        throw new Error('Invalid nest');
+      }
+
       await queryClient.cancelQueries(['shelf']);
 
       const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
@@ -944,6 +1107,10 @@ export function useAddSectsMutation() {
 export function useDeleteSectsMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest; writers: string[] }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     await api.poke(
       diaryAction(variables.nest, { 'del-writers': variables.writers })
     );
@@ -981,6 +1148,10 @@ export function useAddQuipMutation() {
     noteId: string;
     content: Story;
   }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     const replying = decToUd(variables.noteId);
     const memo: Memo = {
       content: variables.content,
@@ -1076,6 +1247,10 @@ export function useDeleteQuipMutation() {
     noteId: string;
     quipId: string;
   }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     const action: Action = {
       note: {
         quip: {
@@ -1154,6 +1329,10 @@ export function useAddNoteFeelMutation() {
     noteId: string;
     feel: string;
   }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     const action: Action = {
       note: {
         'add-feel': {
@@ -1209,6 +1388,10 @@ export function useAddNoteFeelMutation() {
 export function useDeleteNoteFeelMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest; noteId: string }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     const action: Action = {
       note: {
         'del-feel': {
@@ -1269,6 +1452,10 @@ export function useAddQuipFeelMutation() {
     quipId: string;
     feel: string;
   }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     const action: Action = {
       note: {
         quip: {
@@ -1334,6 +1521,10 @@ export function useDeleteQuipFeelMutation() {
     noteId: string;
     quipId: string;
   }) => {
+    if (variables.nest.split('/').length !== 3) {
+      throw new Error('Invalid nest');
+    }
+
     const action: Action = {
       note: {
         quip: {

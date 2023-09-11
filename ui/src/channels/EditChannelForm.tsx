@@ -25,7 +25,7 @@ import {
 import {
   useAddSectsMutation,
   useDeleteSectsMutation,
-  useChannel as useChannelState,
+  useChannel,
   useSortMutation,
   useViewMutation,
 } from '@/state/channel/channel';
@@ -58,7 +58,7 @@ export default function EditChannelForm({
   const group = useGroup(groupFlag);
   const sects = Object.keys(group?.cabals || {});
   const [app, channelFlag] = nestToFlag(nest);
-  const diary = useChannelState(channelFlag);
+  const diary = useChannel(nest);
   const chan = useChannelOld(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
     useEditChannelMutation();

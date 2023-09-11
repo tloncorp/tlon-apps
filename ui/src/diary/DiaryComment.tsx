@@ -7,9 +7,7 @@ import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
-import { isCite, Quip } from '@/types/channel';
-import { ChatStory } from '@/types/chat';
-import { Inline } from '@/types/content';
+import { Quip } from '@/types/channel';
 import { useChannelFlag } from '@/logic/channel';
 import DiaryCommentOptions from './DiaryCommentOptions';
 import QuipReactions from './QuipReactions/QuipReactions';
@@ -34,22 +32,6 @@ const DiaryComment = React.memo<
       const { cork, memo } = quip;
       const flag = useChannelFlag();
       const unix = new Date(daToUnix(time));
-      const normalizedContent: ChatStory = {
-        inline: [
-          ...quip.memo.content
-            .filter((b) => 'inline' in b)
-            // @ts-expect-error  we know these are inlines
-            .flatMap((b) => b.inline),
-        ] as Inline[],
-        block: [
-          ...quip.memo.content
-            .filter(
-              (b) => 'block' in b && 'image' in b.block && isCite(b.block)
-            )
-            // @ts-expect-error  we know these are blocks
-            .flatMap((b) => b.block),
-        ],
-      };
 
       return (
         <div ref={ref} className="flex flex-col">
@@ -71,13 +53,14 @@ const DiaryComment = React.memo<
               {format(unix, 'HH:mm')}
             </div>
             <div className="flex w-full flex-col space-y-2 rounded py-1 pl-3 pr-2 group-one-hover:bg-gray-50">
-              <ChatContent story={normalizedContent} />
+              <ChatContent story={quip.memo.content} />
               {Object.keys(cork.feels).length > 0 && (
                 <QuipReactions
                   time={time.toString()}
                   whom={flag || ''}
                   cork={cork}
                   noteId={noteId}
+                  han="diary"
                 />
               )}
             </div>

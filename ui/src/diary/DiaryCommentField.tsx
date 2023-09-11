@@ -39,11 +39,12 @@ export default function DiaryCommentField({
   const quipReplyId = searchParams.get('quip_reply');
   const { chShip, chName } = useParams<{ chShip: string; chName: string }>();
   const chFlag = `${chShip}/${chName}`;
-  const quipReply = useQuip(chFlag, replyTo, quipReplyId || '');
+  const nest = `diary/${chFlag}`;
+  const quipReply = useQuip(nest, replyTo, quipReplyId || '');
   const { isPending, setPending, setReady } = useRequestState();
   const { mutateAsync: addQuip } = useAddQuipMutation();
   const { privacy } = useGroupPrivacy(groupFlag);
-  const { compatible, text } = useChannelCompatibility(`diary/${chFlag}`);
+  const { compatible, text } = useChannelCompatibility(nest);
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm

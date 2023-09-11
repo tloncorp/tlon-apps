@@ -13,7 +13,8 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import useInifniteOutlines, {
+import {
+  useInfiniteOutlines,
   useDisplayMode,
   useSortMode,
   usePerms,
@@ -51,7 +52,7 @@ function DiaryChannel({ title }: ViewProps) {
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
   const { outlines, isLoading, fetchNextPage, hasNextPage } =
-    useInifniteOutlines(nest);
+    useInfiniteOutlines(nest);
   const pendingNotes = usePendingNotes();
   const queryClient = useQueryClient();
   const { mutateAsync: joinDiary } = useJoinMutation();

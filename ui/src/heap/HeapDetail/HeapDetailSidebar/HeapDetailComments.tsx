@@ -1,15 +1,14 @@
-import { BigInteger } from 'big-integer';
 import useNest from '@/logic/useNest';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useHeapPerms } from '@/state/heap/heap';
 import { canWriteChannel, nestToFlag } from '@/logic/utils';
-import { HeapCurioMap } from '@/types/heap';
+import { QuipMap } from '@/types/channel';
 import HeapDetailCommentField from './HeapDetailCommentField';
 import HeapComment from './HeapComment';
 
 interface HeapDetailCommentsProps {
-  time: BigInteger;
-  comments: HeapCurioMap;
+  time: string;
+  comments: QuipMap;
 }
 
 export default function HeapDetailComments({
@@ -20,7 +19,6 @@ export default function HeapDetailComments({
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const [, chFlag] = nestToFlag(nest);
-  const stringTime = time.toString();
   const perms = useHeapPerms(chFlag);
   const vessel = useVessel(flag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
@@ -32,8 +30,8 @@ export default function HeapDetailComments({
         {sortedComments.map(([id, curio]) => (
           <HeapComment
             key={id.toString()}
-            curio={curio}
-            parentTime={stringTime}
+            quip={curio}
+            parentTime={time}
             time={id.toString()}
           />
         ))}
