@@ -657,6 +657,31 @@ export function useAddCurioMutation() {
   });
 }
 
+function removeCurioFromInfiniteQuery(
+  queryClient: QueryClient,
+  flag: HeapFlag,
+  time: string
+) {
+  const deletedId = decToUd(time);
+  const currentData = queryClient.getQueryData([
+    'heap',
+    flag,
+    'curios',
+    'infinite',
+  ]) as any;
+  const newPages =
+    currentData?.pages.map((page: any) =>
+      page.filter(([id]: any) => id !== deletedId)
+    ) ?? [];
+  queryClient.setQueryData(
+    ['heap', flag, 'curios', 'infinite'],
+    (data: any) => ({
+      pages: newPages,
+      pageParams: data.pageParams,
+    })
+  );
+}
+
 export function useDelCurioMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async ({
@@ -667,13 +692,13 @@ export function useDelCurioMutation() {
     time: string;
   }) => {
     const ud = decToUd(time);
-    await api.trackedPoke<HeapAction, HeapUpdate>(
+    return api.trackedPoke<HeapAction, HeapUpdate>(
       heapCurioDiff(flag, ud, { del: null }),
       { app: 'heap', path: `/heap/${flag}/ui` },
       (event) => {
         if ('curios' in event.diff) {
           const curioDiff = event.diff.curios;
-          return curioDiff.time === time && 'del' in curioDiff.delta;
+          return curioDiff.time === ud && 'del' in curioDiff.delta;
         }
         return false;
       }
@@ -690,9 +715,11 @@ export function useDelCurioMutation() {
         variables.time,
         'withComments',
       ]);
+      // make certain deleted curio is removed from cache
+      removeCurioFromInfiniteQuery(queryClient, variables.flag, variables.time);
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.refetchQueries([
+      queryClient.invalidateQueries([
         'heap',
         variables.flag,
         'curios',

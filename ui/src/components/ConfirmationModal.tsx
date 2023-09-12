@@ -9,7 +9,9 @@ export interface ConfirmationModalProps {
   message: string;
   confirmText?: string;
   onConfirm: () => void;
+  closeOnClickOutside?: boolean;
   loading?: boolean;
+  succeeded?: boolean;
 }
 
 export default function ConfirmationModal({
@@ -19,12 +21,16 @@ export default function ConfirmationModal({
   message,
   confirmText = 'Confirm',
   onConfirm,
+  closeOnClickOutside = false,
   loading = false,
+  succeeded = false,
 }: ConfirmationModalProps) {
+  const onOpenChange = closeOnClickOutside ? () => setOpen(false) : undefined;
+
   return (
     <Dialog
       open={open}
-      onOpenChange={() => setOpen(false)}
+      onOpenChange={onOpenChange}
       close="none"
       containerClass="z-50"
     >
@@ -39,11 +45,11 @@ export default function ConfirmationModal({
             Cancel
           </button>
           <button
-            disabled={loading}
+            disabled={loading || succeeded}
             className="button center-items flex w-24 bg-red"
             onClick={onConfirm}
           >
-            {loading ? <LoadingSpinner /> : confirmText}
+            {loading ? <LoadingSpinner /> : succeeded ? 'Success' : confirmText}
           </button>
         </div>
       </div>
