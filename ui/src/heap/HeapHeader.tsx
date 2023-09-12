@@ -22,7 +22,7 @@ import Tooltip from '@/components/Tooltip';
 import AddCurioModal from './AddCurioModal';
 
 interface HeapHeaderProps {
-  flag: string;
+  groupFlag: string;
   nest: string;
   display: HeapDisplayMode;
   sort: HeapSortMode;
@@ -36,7 +36,7 @@ interface HeapHeaderProps {
 
 const HeapHeader = React.memo(
   ({
-    flag,
+    groupFlag,
     nest,
     display,
     sort,
@@ -117,7 +117,7 @@ const HeapHeader = React.memo(
 
     return (
       <ChannelHeader
-        flag={flag}
+        groupFlag={groupFlag}
         nest={nest}
         prettyAppName="Gallery"
         leave={(leaveFlag: string) =>
@@ -192,7 +192,7 @@ const HeapHeader = React.memo(
         <AddCurioModal
           open={addCurioOpen}
           setOpen={setAddCurioOpen}
-          flag={flag}
+          flag={groupFlag}
           chFlag={chFlag}
           draggedFile={draggedFile}
           clearDragState={clearDragState}
