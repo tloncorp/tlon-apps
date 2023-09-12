@@ -22,7 +22,7 @@ import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
 import { isSingleEmoji } from '@/logic/utils';
-import { Block, isCite, Story, VerseBlock, VerseInline } from '@/types/channel';
+import { chatStoryFromStory, Story } from '@/types/channel';
 
 interface ChatContentProps {
   story: ChatStory | Story;
@@ -186,209 +186,102 @@ function ChatContent({
   className = '',
   writId = 'not-writ',
 }: ChatContentProps) {
-  if ('inline' in story && 'block' in story) {
-    const inlineLength = story.inline.length;
-    const blockLength = story.block.length;
-    const firstBlockCode = story.inline.findIndex(isBlockCode);
-    const lastBlockCode = findLastIndex(story.inline, isBlockCode);
-    const blockContent = story.block.sort((a, b) => {
-      // Sort images to the end
-      if (isChatImage(a) && !isChatImage(b)) {
-        return 1;
-      }
-      if (!isChatImage(a) && isChatImage(b)) {
-        return -1;
-      }
-      return 0;
-    });
+  const isChatStory = 'inline' in story && 'block' in story;
+  const chatStory = isChatStory
+    ? (story as ChatStory)
+    : chatStoryFromStory(story);
 
-    return (
-      <div className={cn('leading-6', className)}>
-        {blockLength > 0 ? (
-          <>
-            {blockContent
-              .filter((a) => !!a)
-              .map((storyItem, index) => (
+  const inlineLength = chatStory.inline.length;
+  const blockLength = chatStory.block.length;
+  const firstBlockCode = chatStory.inline.findIndex(isBlockCode);
+  const lastBlockCode = findLastIndex(chatStory.inline, isBlockCode);
+  const blockContent = chatStory.block.sort((a, b) => {
+    // Sort images to the end
+    if (isChatImage(a) && !isChatImage(b)) {
+      return 1;
+    }
+    if (!isChatImage(a) && isChatImage(b)) {
+      return -1;
+    }
+    return 0;
+  });
+
+  return (
+    <div className={cn('leading-6', className)}>
+      {blockLength > 0 ? (
+        <>
+          {blockContent
+            .filter((a) => !!a)
+            .map((storyItem, index) => (
+              <div
+                key={`${storyItem.toString()}-${index}`}
+                className="flex flex-col"
+              >
+                <BlockContent
+                  story={storyItem}
+                  isScrolling={isScrolling}
+                  writId={writId}
+                  blockIndex={index}
+                />
+              </div>
+            ))}
+        </>
+      ) : null}
+      {inlineLength > 0 ? (
+        <>
+          {chatStory.inline.map((storyItem, index) => {
+            // we need to add top and bottom padding to first/last lines of code blocks.
+
+            if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
+              return (
                 <div
                   key={`${storyItem.toString()}-${index}`}
-                  className="flex flex-col"
+                  className="rounded bg-gray-100 py-2"
+                  style={{ maxWidth: 'calc(100% - 2rem)' }}
                 >
-                  <BlockContent
-                    story={storyItem}
-                    isScrolling={isScrolling}
-                    writId={writId}
-                    blockIndex={index}
-                  />
+                  <InlineContent story={storyItem} />
                 </div>
-              ))}
-          </>
-        ) : null}
-        {inlineLength > 0 ? (
-          <>
-            {story.inline.map((storyItem, index) => {
-              // we need to add top and bottom padding to first/last lines of code blocks.
-
-              if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
-                return (
-                  <div
-                    key={`${storyItem.toString()}-${index}`}
-                    className="rounded bg-gray-100 py-2"
-                    style={{ maxWidth: 'calc(100% - 2rem)' }}
-                  >
-                    <InlineContent story={storyItem} />
-                  </div>
-                );
-              }
-
-              if (index === firstBlockCode) {
-                return (
-                  <div
-                    className="rounded bg-gray-100 pt-2"
-                    style={{ maxWidth: 'calc(100% - 2rem)' }}
-                  >
-                    <InlineContent
-                      key={`${storyItem.toString()}-${index}`}
-                      story={storyItem}
-                    />
-                  </div>
-                );
-              }
-              if (index === lastBlockCode) {
-                return (
-                  <div
-                    className="rounded bg-gray-100 pb-2"
-                    style={{ maxWidth: 'calc(100% - 2rem)' }}
-                  >
-                    <InlineContent
-                      key={`${storyItem.toString()}-${index}`}
-                      story={storyItem}
-                    />
-                  </div>
-                );
-              }
-              return (
-                <InlineContent
-                  key={`${storyItem.toString()}-${index}`}
-                  story={storyItem}
-                  writId={writId}
-                />
               );
-            })}
-          </>
-        ) : null}
-      </div>
-    );
-  }
+            }
 
-  if (Array.isArray(story)) {
-    const inlines: Inline[] = story
-      .filter((s) => 'inline' in s)
-      .map((s) => (s as VerseInline).inline)
-      .flat();
-    const blocks: ChatBlock[] = story
-      .filter((s) => 'block' in s)
-      .map((s) => (s as VerseBlock).block)
-      .flat()
-      .map((s) => {
-        if (isCite(s)) {
-          return { cite: s } as ChatBlock;
-        }
-        return s as ChatBlock;
-      });
-    const inlineLength = inlines.length;
-    const blockLength = blocks.length;
-    const firstBlockCode = inlines.findIndex(isBlockCode);
-    const lastBlockCode = findLastIndex(inlines, isBlockCode);
-    const blockContent = blocks.sort((a, b) => {
-      // Sort images to the end
-      if (isChatImage(a) && !isChatImage(b)) {
-        return 1;
-      }
-      if (!isChatImage(a) && isChatImage(b)) {
-        return -1;
-      }
-      return 0;
-    });
-
-    return (
-      <div className={cn('leading-6', className)}>
-        {blockLength > 0 ? (
-          <>
-            {blockContent
-              .filter((a) => !!a)
-              .map((storyItem, index) => (
+            if (index === firstBlockCode) {
+              return (
                 <div
-                  key={`${storyItem.toString()}-${index}`}
-                  className="flex flex-col"
+                  className="rounded bg-gray-100 pt-2"
+                  style={{ maxWidth: 'calc(100% - 2rem)' }}
                 >
-                  <BlockContent
+                  <InlineContent
+                    key={`${storyItem.toString()}-${index}`}
                     story={storyItem}
-                    isScrolling={isScrolling}
-                    writId={writId}
-                    blockIndex={index}
                   />
                 </div>
-              ))}
-          </>
-        ) : null}
-        {inlineLength > 0 ? (
-          <>
-            {inlines.map((storyItem, index) => {
-              // we need to add top and bottom padding to first/last lines of code blocks.
-
-              if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {
-                return (
-                  <div
-                    key={`${storyItem.toString()}-${index}`}
-                    className="rounded bg-gray-100 py-2"
-                    style={{ maxWidth: 'calc(100% - 2rem)' }}
-                  >
-                    <InlineContent story={storyItem} />
-                  </div>
-                );
-              }
-
-              if (index === firstBlockCode) {
-                return (
-                  <div
-                    className="rounded bg-gray-100 pt-2"
-                    style={{ maxWidth: 'calc(100% - 2rem)' }}
-                  >
-                    <InlineContent
-                      key={`${storyItem.toString()}-${index}`}
-                      story={storyItem}
-                    />
-                  </div>
-                );
-              }
-              if (index === lastBlockCode) {
-                return (
-                  <div
-                    className="rounded bg-gray-100 pb-2"
-                    style={{ maxWidth: 'calc(100% - 2rem)' }}
-                  >
-                    <InlineContent
-                      key={`${storyItem.toString()}-${index}`}
-                      story={storyItem}
-                    />
-                  </div>
-                );
-              }
-              return (
-                <InlineContent
-                  key={`${storyItem.toString()}-${index}`}
-                  story={storyItem}
-                  writId={writId}
-                />
               );
-            })}
-          </>
-        ) : null}
-      </div>
-    );
-  }
-
-  return null;
+            }
+            if (index === lastBlockCode) {
+              return (
+                <div
+                  className="rounded bg-gray-100 pb-2"
+                  style={{ maxWidth: 'calc(100% - 2rem)' }}
+                >
+                  <InlineContent
+                    key={`${storyItem.toString()}-${index}`}
+                    story={storyItem}
+                  />
+                </div>
+              );
+            }
+            return (
+              <InlineContent
+                key={`${storyItem.toString()}-${index}`}
+                story={storyItem}
+                writId={writId}
+              />
+            );
+          })}
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 export default React.memo(ChatContent);

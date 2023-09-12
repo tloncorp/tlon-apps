@@ -5,11 +5,6 @@ import { GroupChannel } from '@/types/groups';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
 import { useChatState } from '@/state/chat';
 import {
-  useStash,
-  useLeaveHeapMutation,
-  useJoinHeapMutation,
-} from '@/state/heap/heap';
-import {
   useAmAdmin,
   useDeleteChannelMutation,
   useRouteGroup,
@@ -45,14 +40,14 @@ interface ChannelsListItemProps {
 
 function useGetChannel(app: string, flag: string): WritePermissions {
   const { chats } = useChatState.getState();
-  const stash = useStash();
+  // const stash = useStash();
   const shelf = useShelf();
 
   switch (app) {
     case 'chat':
       return chats[flag];
     case 'heap':
-      return stash[flag];
+      return shelf[flag];
     case 'diary':
       return shelf[flag];
     default:
@@ -78,10 +73,10 @@ export default function ChannelsListItem({
   const joined = useChannelIsJoined(nest);
   const { compatible: chanCompatible, text: chanText } =
     useChannelCompatibility(nest);
-  const { mutateAsync: joinDiary } = useJoinMutation();
-  const { mutateAsync: leaveDiary } = useLeaveMutation();
-  const { mutateAsync: joinHeap } = useJoinHeapMutation();
-  const { mutateAsync: leaveHeap } = useLeaveHeapMutation();
+  const { mutateAsync: joinChannel } = useJoinMutation();
+  const { mutateAsync: leaveChannel } = useLeaveMutation();
+  // const { mutateAsync: joinHeap } = useJoinHeapMutation();
+  // const { mutateAsync: leaveHeap } = useLeaveHeapMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
@@ -119,37 +114,37 @@ export default function ChannelsListItem({
   const join = useCallback(
     async (chFlag: string) => {
       if (app === 'diary') {
-        await joinDiary({ group: groupFlag, chan: `diary/${chFlag}` });
+        await joinChannel({ group: groupFlag, chan: `diary/${chFlag}` });
         return;
       }
 
       if (app === 'heap') {
-        await joinHeap({ group: groupFlag, chan: chFlag });
+        await joinChannel({ group: groupFlag, chan: `heap/${chFlag}` });
         return;
       }
 
       await useChatState.getState().joinChat(groupFlag, chFlag);
     },
-    [groupFlag, app, joinDiary, joinHeap]
+    [groupFlag, app, joinChannel]
   );
   const leave = useCallback(
     async (chFlag: string) => {
       if (app === 'diary') {
-        await leaveDiary({ nest: `diary/${chFlag}` });
+        await leaveChannel({ nest: `diary/${chFlag}` });
         return;
       }
 
       if (app === 'heap') {
-        await leaveHeap({ flag: chFlag });
+        await leaveChannel({ nest: `heap/${chFlag}` });
         return;
       }
 
       await useChatState.getState().leaveChat(chFlag);
     },
-    [app, leaveDiary, leaveHeap]
+    [app, leaveChannel]
   );
 
-  const joinChannel = useCallback(async () => {
+  const channelJoinHandler = useCallback(async () => {
     try {
       if (timer) {
         clearTimeout(timer);
@@ -172,7 +167,7 @@ export default function ChannelsListItem({
     }
   }, [channelFlag, join, setFailed, setPending, setReady, timer]);
 
-  const leaveChannel = useCallback(async () => {
+  const channelLeaveHandler = useCallback(async () => {
     try {
       leave(channelFlag);
     } catch (error) {
@@ -242,7 +237,7 @@ export default function ChannelsListItem({
               <Tooltip content={text} open={compatible ? false : undefined}>
                 <button
                   disabled={isPending || !compatible}
-                  onClick={joinChannel}
+                  onClick={channelJoinHandler}
                   className={cn(
                     'small-secondary-button text-sm mix-blend-multiply dark:mix-blend-screen',
                     {
@@ -265,7 +260,7 @@ export default function ChannelsListItem({
             ) : (
               <button
                 className="small-secondary-button mix-blend-multiply disabled:bg-gray-50 dark:mix-blend-screen"
-                onClick={leaveChannel}
+                onClick={channelLeaveHandler}
                 disabled={isChannelHost}
                 title={
                   isChannelHost ? 'You cannot leave a channel you host' : ''

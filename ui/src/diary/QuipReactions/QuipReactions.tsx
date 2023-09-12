@@ -45,6 +45,7 @@ export default function QuipReactions({
     <div className="my-2 flex items-center space-x-2">
       {Object.entries(feels).map(([feel, ships]) => (
         <QuipReaction
+          han={han}
           key={feel}
           time={time}
           noteId={noteId}

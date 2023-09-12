@@ -1,4 +1,4 @@
-import { HeapCurios, HeapPerm, Stash } from '@/types/heap';
+import { Outlines, Perm, Shelf } from '@/types/channel';
 import {
   Handler,
   ScryHandler,
@@ -8,114 +8,106 @@ import { subMinutes } from 'date-fns';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 
-const mockPerms: HeapPerm = {
+const mockPerms: Perm = {
   writers: ['~zod', '~finned-palmer'],
   group: '~zod/test',
 };
 
-const mockStash: Stash = {
+const mockStash: Shelf = {
   'heap/~zod/testHeap': {
     perms: mockPerms,
     view: 'grid',
+    order: [],
+    sort: 'time',
     saga: null,
   },
 };
 
-const mockCurios: HeapCurios = {
+const mockCurios: Outlines = {
   '170141184505776467152677676749638598656': {
-    seal: {
-      time: '170141184505776467152677676749638598656',
-      feels: {},
-      replied: [],
+    type: 'outline',
+    quipCount: 0,
+    quippers: [],
+    'han-data': {
+      heap: 'House rendering',
     },
-    heart: {
-      title: 'House rendering',
-      content: {
-        block: [],
+    content: [
+      {
         inline: [
           'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
         ],
       },
-      author: '~finned-palmer',
-      sent: unixTime,
-      replying: null,
-    },
+    ],
+    author: '~finned-palmer',
+    sent: unixTime,
   },
   '170141184505776467152677676749638598657': {
-    seal: {
-      time: '170141184505776467152677676749638598657',
-      feels: {},
-      replied: [],
+    type: 'outline',
+    quipCount: 0,
+    quippers: [],
+    'han-data': {
+      heap: 'Description of a Martini',
     },
-    heart: {
-      title: 'Description of a Martini',
-      content: {
-        block: [],
+    content: [
+      {
         inline: [
           'The martini is a cocktail made with gin and vermouth, and garnished with an olive or a lemon twist.',
         ],
       },
-      author: '~finned-palmer',
-      sent: unixTime,
-      replying: null,
-    },
+    ],
+    author: '~finned-palmer',
+    sent: unixTime,
   },
   '170141184505776467152677676749638598658': {
-    seal: {
-      time: '170141184505776467152677676749638598658',
-      feels: {},
-      replied: [],
+    type: 'outline',
+    quipCount: 0,
+    quippers: [],
+    'han-data': {
+      heap: 'House rendering',
     },
-    heart: {
-      title: 'House rendering',
-      content: {
-        block: [],
+    content: [
+      {
         inline: [
           'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
         ],
       },
-      author: '~finned-palmer',
-      sent: unixTime,
-      replying: null,
-    },
+    ],
+    author: '~finned-palmer',
+    sent: unixTime,
   },
   '170141184505776467152677676749638598659': {
-    seal: {
-      time: '170141184505776467152677676749638598659',
-      feels: {},
-      replied: [],
+    type: 'outline',
+    quipCount: 0,
+    quippers: [],
+    'han-data': {
+      heap: '',
     },
-    heart: {
-      title: '',
-      content: {
-        block: [],
+    content: [
+      {
         inline: [
           'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/15-09-26-RalfR-WLC-0084.jpg/1920px-15-09-26-RalfR-WLC-0084.jpg',
         ],
       },
-      author: '~finned-palmer',
-      sent: unixTime,
-      replying: null,
-    },
+    ],
+    author: '~finned-palmer',
+    sent: unixTime,
   },
   '170141184505776467152677676749638598660': {
-    seal: {
-      time: '170141184505776467152677676749638598659',
-      feels: {},
-      replied: [],
+    type: 'outline',
+    quipCount: 0,
+    quippers: [],
+    'han-data': {
+      heap: 'One Thing About Me',
     },
-    heart: {
-      title: 'One Thing About Me',
-      content: {
-        block: [],
+    content: [
+      {
         inline: [
           'https://twitter.com/noagencynewyork/status/1540353656326946817?s=20&t=OSmaPCFVGbJmjvs1VtJtkg',
         ],
       },
-      author: '~finned-palmer',
-      sent: unixTime,
-      replying: null,
-    },
+    ],
+    author: '~finned-palmer',
+    sent: unixTime,
   },
 };
 

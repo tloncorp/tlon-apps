@@ -4,6 +4,7 @@ import bigInt, { BigInteger } from 'big-integer';
 import isURL from 'validator/es/lib/isURL';
 import {
   BigIntOrderedMap,
+  daToUnix,
   Docket,
   DocketHref,
   Treaty,
@@ -11,13 +12,13 @@ import {
 } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
-import { format, differenceInDays, endOfToday } from 'date-fns';
+import { format, differenceInDays, endOfToday, isSameDay } from 'date-fns';
 import _ from 'lodash';
 import f from 'lodash/fp';
 import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { ChatWhom, ChatBrief } from '@/types/chat';
+import { ChatWhom, ChatBrief, ChatStory } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -31,7 +32,6 @@ import {
   Saga,
   Gang,
 } from '@/types/groups';
-import { CurioContent, HeapBrief } from '@/types/heap';
 import {
   Brief,
   Quip,
@@ -44,6 +44,8 @@ import {
   Cite,
 } from '@/types/channel';
 import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
+// eslint-disable-next-line import/no-cycle
+import { DiaryCommentProps } from '@/diary/DiaryComment';
 import { isNativeApp, postActionToNativeApp } from './native';
 import type {
   ConnectionCompleteStatus,
@@ -464,10 +466,21 @@ export async function jsonFetch<T>(
 }
 
 export function isChannelJoined(
-  flag: string,
-  briefs: { [x: string]: ChatBrief | HeapBrief | Brief }
+  nest: string,
+  briefs: { [x: string]: ChatBrief | Brief }
 ) {
-  const isChannelHost = window.our === flag?.split('/')[0];
+  if (nest.split('/').length !== 3) {
+    throw new Error('Invalid nest');
+  }
+
+  const [han, flag] = nestToFlag(nest);
+
+  const isChannelHost = window.our === nest?.split('/')[1];
+
+  if (han !== 'chat') {
+    return isChannelHost || (nest && nest in briefs);
+  }
+
   return isChannelHost || (flag && flag in briefs);
 }
 
@@ -516,13 +529,13 @@ export function canWriteChannel(
  * @param content CurioContent
  * @returns boolean
  */
-export function isLinkCurio({ inline }: CurioContent) {
+export function isLinkCurio({ inline }: ChatStory) {
   return (
     inline.length === 1 && typeof inline[0] === 'object' && 'link' in inline[0]
   );
 }
 
-export function linkFromCurioContent(content: CurioContent) {
+export function linkFromCurioContent(content: ChatStory) {
   if (isLinkCurio(content)) {
     return content.inline[0] as string;
   }
@@ -1099,4 +1112,60 @@ export function getCompatibilityText(saga: Saga | null) {
   }
 
   return "You're synced with host";
+}
+
+export function setNewDaysForQuips(quips: [string, DiaryCommentProps[]][]) {
+  return quips.map(([time, comments], index) => {
+    const prev = index !== 0 ? quips[index - 1] : undefined;
+    const prevQuipTime = prev ? bigInt(prev[0]) : undefined;
+    const unix = new Date(daToUnix(bigInt(time)));
+
+    const lastQuipDay = prevQuipTime
+      ? new Date(daToUnix(prevQuipTime))
+      : undefined;
+
+    const newDay = lastQuipDay ? !isSameDay(unix, lastQuipDay) : false;
+
+    const quip = comments.shift();
+    const newComments = [{ ...quip, newDay }, ...comments];
+    return [time, newComments] as [string, DiaryCommentProps[]];
+  });
+}
+
+export function groupQuips(
+  noteId: string,
+  quips: [bigInt.BigInteger, Quip][],
+  brief: Brief
+) {
+  const grouped: Record<string, DiaryCommentProps[]> = {};
+  let currentTime: string;
+
+  quips.forEach(([t, q], i) => {
+    const prev = i > 0 ? quips[i - 1] : undefined;
+    const { author } = q.memo;
+    const time = t.toString();
+    const newAuthor = author !== prev?.[1].memo.author;
+    const unreadBrief =
+      brief && brief['read-id'] === q.cork.id ? brief : undefined;
+
+    if (newAuthor) {
+      currentTime = time;
+    }
+
+    if (!(currentTime in grouped)) {
+      grouped[currentTime] = [];
+    }
+
+    grouped[currentTime].push({
+      han: 'diary',
+      time: t,
+      quip: q,
+      newAuthor,
+      noteId,
+      newDay: false,
+      unreadCount: unreadBrief && brief.count,
+    });
+  });
+
+  return Object.entries(grouped);
 }

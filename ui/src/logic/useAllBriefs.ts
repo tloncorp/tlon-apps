@@ -1,13 +1,19 @@
 import { useBriefs } from '@/state/chat';
-import { useHeapBriefs } from '@/state/heap/heap';
 import { useBriefs as useChannelBriefs } from '@/state/channel/channel';
 import _ from 'lodash';
 import { useMemo } from 'react';
 
 export default function useAllBriefs() {
+  const briefs = useChannelBriefs();
   const chBriefs = useBriefs();
-  const heBriefs = useHeapBriefs();
-  const diBriefs = useChannelBriefs();
+  const heBriefs = useMemo(
+    () => _.pickBy(briefs, (v, k) => k.startsWith('heap')),
+    [briefs]
+  );
+  const diBriefs = useMemo(
+    () => _.pickBy(briefs, (v, k) => k.startsWith('diary')),
+    [briefs]
+  );
 
   return useMemo(
     () => ({

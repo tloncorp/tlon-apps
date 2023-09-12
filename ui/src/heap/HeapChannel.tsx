@@ -23,7 +23,6 @@ import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
-import { GRID } from '@/types/heap';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useLastReconnect } from '@/state/local';
@@ -125,7 +124,7 @@ function HeapChannel({ title }: ViewProps) {
   const renderCurio = useCallback(
     (i: number, outline: Outline, time: bigInt.BigInteger) => (
       <div key={time.toString()} tabIndex={0} className="cursor-pointer">
-        {displayMode === GRID ? (
+        {displayMode === 'grid' ? (
           <div className="aspect-h-1 aspect-w-1">
             <HeapBlock outline={outline} time={time.toString()} />
           </div>

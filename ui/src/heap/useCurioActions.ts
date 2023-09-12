@@ -1,9 +1,10 @@
 import { Status } from '@/logic/status';
 import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
 import { useGroupFlag } from '@/state/groups';
-import { useDelCurioMutation } from '@/state/heap/heap';
+import { useDeleteNoteMutation } from '@/state/channel/channel';
 import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router';
+import { decToUd } from '@urbit/api';
 
 interface useCurioActionsProps {
   nest: string;
@@ -22,7 +23,7 @@ export default function useCurioActions({
   const [, chFlag] = nestToFlag(nest);
   const chanPath = citeToPath({
     chan: {
-      nest: `heap/${chFlag}`,
+      nest,
       where: `/curio/${time}`,
     },
   });
@@ -31,13 +32,13 @@ export default function useCurioActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<Status>('idle');
 
-  const delMutation = useDelCurioMutation();
+  const delMutation = useDeleteNoteMutation();
 
   const onDelete = useCallback(async () => {
     setMenuOpen(false);
     setDeleteStatus('loading');
     delMutation.mutate(
-      { flag: chFlag, time },
+      { nest, time: decToUd(time) },
       {
         onSuccess: () => {
           setDeleteStatus('success');
@@ -48,7 +49,7 @@ export default function useCurioActions({
         },
       }
     );
-  }, [chFlag, time, delMutation, flag, navigate]);
+  }, [chFlag, time, delMutation, flag, navigate, nest]);
 
   const onEdit = useCallback(() => {
     setMenuOpen(false);

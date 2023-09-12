@@ -22,6 +22,7 @@ module.exports = {
   rules: {
     semi: [2, 'always'],
     'react/destructuring-assignment': 'off',
+    'import/no-cycle': 'off',
     'react/require-default-props': 'off',
     'react/no-unstable-nested-components': ['error', { allowAsProps: true }],
     'react/jsx-filename-extension': [

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { isLink } from '@/types/heap';
 import cn from 'classnames';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
@@ -25,7 +24,7 @@ import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
 import { isCite, Outline, VerseBlock, VerseInline } from '@/types/channel';
-import { Link } from '@/types/content';
+import { Link, isLink } from '@/types/content';
 import { Cite } from '@/types/chat';
 import useCurioActions from './useCurioActions';
 
@@ -248,11 +247,7 @@ export default function HeapRow({
           cite={(content[0] as VerseBlock).block as Cite}
         >
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar
-              size="xxs"
-              className="inline-block"
-              ship={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={outline.author} />
             <ShipName
               showAlias={!calm.disableNicknames}
               name={outline.author}
@@ -288,11 +283,7 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar
-              size="xxs"
-              className="inline-block"
-              ship={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={outline.author} />
             <ShipName
               showAlias={!calm.disableNicknames}
               name={outline.author}
@@ -340,11 +331,7 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar
-              size="xxs"
-              className="inline-block"
-              ship={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={outline.author} />
             <ShipName
               showAlias={!calm.disableNicknames}
               name={outline.author}
@@ -383,11 +370,7 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar
-              size="xxs"
-              className="inline-block"
-              ship={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={outline.author} />
             <ShipName
               showAlias={!calm.disableNicknames}
               name={outline.author}
@@ -489,11 +472,7 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar
-              size="xxs"
-              className="inline-block"
-              ship={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={outline.author} />
             <ShipName
               showAlias={!calm.disableNicknames}
               name={outline.author}
@@ -531,15 +510,8 @@ export default function HeapRow({
           <span>{replyCount} comments</span>
         </div>
         <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-          <Avatar
-            size="xxs"
-            className="inline-block"
-            ship={outline.author}
-          />
-          <ShipName
-            showAlias={!calm.disableNicknames}
-            name={outline.author}
-          />
+          <Avatar size="xxs" className="inline-block" ship={outline.author} />
+          <ShipName showAlias={!calm.disableNicknames} name={outline.author} />
           <span className="hidden text-gray-400 sm:inline">
             {prettySent} ago
           </span>

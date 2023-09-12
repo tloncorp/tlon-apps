@@ -53,7 +53,7 @@ interface NoteSealInCache {
 }
 
 interface NoteInCache {
-  type: 'note'
+  type: 'note';
   seal: NoteSealInCache;
   essay: NoteEssay;
 }
@@ -351,7 +351,7 @@ export async function prefetchNoteWithComments({
   const [han] = nestToFlag(nest);
   const data = (await api.scry({
     app: 'channels',
-    path: `/${nest}/notes/note/id/${ud}/full`,
+    path: `/${nest}/notes/note/${ud}`,
   })) as Outline;
   if (data) {
     queryClient.setQueryData([han, nest, 'notes', time, 'withComments'], data);

@@ -1,19 +1,20 @@
 import cn from 'classnames';
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAmAdmin } from '@/state/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
-import { useCurioWithComments } from '@/state/heap/heap';
+import { useNote } from '@/state/channel/channel';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
-import { isLink } from '@/types/heap';
 import useHeapContentType from '@/logic/useHeapContentType';
 import useNest from '@/logic/useNest';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
+import { chatStoryFromStory } from '@/types/channel';
+import getHanDataFromEssay from '@/logic/getHanData';
+import { isLink } from '@/types/content';
 import useCurioActions from '../useCurioActions';
 
 export interface ChannelHeaderProps {
@@ -27,25 +28,27 @@ export default function HeapDetailHeader({
   chFlag,
   idCurio,
 }: ChannelHeaderProps) {
-  // const curioObject = useCurio(chFlag, idCurio);
-  const { curio } = useCurioWithComments(chFlag, idCurio);
+  const { note } = useNote(`heap/${chFlag}`, idCurio);
   const isMobile = useIsMobile();
   const nest = useNest();
-  const content = curio ? curio.heart.content : { block: [], inline: [] };
+
+  const content = note
+    ? chatStoryFromStory(note.essay.content)
+    : { block: [], inline: [] };
   const curioContent =
-    (isLink(curio?.heart.content.inline[0])
-      ? curio?.heart.content.inline[0].link.href
-      : (curio?.heart.content.inline[0] || '').toString()) || '';
+    (isLink(content.inline[0])
+      ? content.inline[0].link.href
+      : (content.inline[0] || '').toString()) || '';
   const { description } = useHeapContentType(curioContent);
   const isAdmin = useAmAdmin(flag);
-  const canEdit = isAdmin || window.our === curio?.heart.author;
+  const canEdit = isAdmin || window.our === note?.essay.author;
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
-    new Date(curio?.heart.sent || Date.now())
+    new Date(note?.essay.sent || Date.now())
   );
   const isImageLink = isImageUrl(curioContent);
   const isCite = content.block.length > 0 && 'cite' in content.block[0];
-  const curioTitle = curio?.heart.title;
+  const { title: curioTitle } = getHanDataFromEssay(note?.essay);
   const { onEdit, onCopy, didCopy } = useCurioActions({ nest, time: idCurio });
 
   function truncate({ str, n }: { str: string; n: number }) {

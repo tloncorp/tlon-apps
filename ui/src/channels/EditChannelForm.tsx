@@ -19,10 +19,6 @@ import {
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import {
-  useAddHeapSectsMutation,
-  useDelHeapSectsMutation,
-} from '@/state/heap/heap';
-import {
   useAddSectsMutation,
   useDeleteSectsMutation,
   useChannel,
@@ -31,7 +27,7 @@ import {
 } from '@/state/channel/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChannelOld } from '@/logic/channel';
-import { DiarySortMode } from '@/types/diary';
+import { SortMode } from '@/types/channel';
 import ChannelSortSelector from './ChannelSortSelector';
 import ChannelViewSelector from './ChannelViewSelector';
 
@@ -62,10 +58,8 @@ export default function EditChannelForm({
   const chan = useChannelOld(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
     useEditChannelMutation();
-  const { mutateAsync: addDiarySects } = useAddSectsMutation();
-  const { mutateAsync: delDiarySects } = useDeleteSectsMutation();
-  const { mutateAsync: addHeapSects } = useAddHeapSectsMutation();
-  const { mutateAsync: delHeapSects } = useDelHeapSectsMutation();
+  const { mutateAsync: addSectsMutation } = useAddSectsMutation();
+  const { mutateAsync: delSectsMutation } = useDeleteSectsMutation();
   const { mutate: changeDiarySort } = useSortMutation();
   const { mutate: changeDiaryView } = useViewMutation();
   const defaultValues: ChannelFormSchema = {
@@ -90,6 +84,7 @@ export default function EditChannelForm({
   });
 
   const makeDiaryNest = (flag: string) => `diary/${flag}`;
+  const makeHeapNest = (flag: string) => `heap/${flag}`;
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
@@ -98,7 +93,7 @@ export default function EditChannelForm({
       if (sort) {
         changeDiarySort({
           nest: makeDiaryNest(channelFlag),
-          sort: sort as DiarySortMode,
+          sort: sort as SortMode,
         });
       }
 
@@ -125,18 +120,18 @@ export default function EditChannelForm({
       const addSects =
         app === 'diary'
           ? (flag: string, writers: string[]) =>
-              addDiarySects({ nest: makeDiaryNest(flag), writers })
+              addSectsMutation({ nest: makeDiaryNest(flag), writers })
           : app === 'heap'
           ? (flag: string, writers: string[]) =>
-              addHeapSects({ flag, sects: writers })
+              addSectsMutation({ nest: makeHeapNest(flag), writers })
           : useChatState.getState().addSects;
       const delSects =
         app === 'diary'
           ? (flag: string, writers: string[]) =>
-              delDiarySects({ nest: makeDiaryNest(flag), writers })
+              delSectsMutation({ nest: makeDiaryNest(flag), writers })
           : app === 'heap'
           ? (flag: string, writers: string[]) =>
-              delHeapSects({ flag, sects: writers })
+              delSectsMutation({ nest: makeHeapNest(flag), writers })
           : useChatState.getState().delSects;
 
       if (privacy !== 'public') {
@@ -174,10 +169,8 @@ export default function EditChannelForm({
       presetSection,
       mutateEditChannel,
       chan?.perms.writers,
-      addDiarySects,
-      delDiarySects,
-      addHeapSects,
-      delHeapSects,
+      addSectsMutation,
+      delSectsMutation,
       changeDiarySort,
       changeDiaryView,
     ]

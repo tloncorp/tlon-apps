@@ -12,6 +12,8 @@ export default function HeapDetailSidebarInfo({
   essay,
 }: HeapDetailSidebarProps) {
   const { content, author, sent } = essay;
+  if (!content || content.length === 0) return null;
+
   const { title } = getHanDataFromEssay(essay);
   const unixDate = new Date(sent);
   const inlineContent =

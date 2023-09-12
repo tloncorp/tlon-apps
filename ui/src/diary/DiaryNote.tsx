@@ -1,6 +1,5 @@
 import bigInt from 'big-integer';
-import { isSameDay } from 'date-fns';
-import React, { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, useParams } from 'react-router';
 import { daToUnix, udToDec } from '@urbit/api';
@@ -9,8 +8,10 @@ import Layout from '@/components/Layout/Layout';
 import {
   canWriteChannel,
   getFlagParts,
+  groupQuips,
   pluralize,
   sampleQuippers,
+  setNewDaysForQuips,
 } from '@/logic/utils';
 import {
   useBrief,
@@ -27,7 +28,7 @@ import {
   useGroup,
   useGroupChannel,
 } from '@/state/groups/groups';
-import { Brief, Outline, Outlines, Quip } from '@/types/channel';
+import { Outline, Outlines } from '@/types/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import {
   useChannelIsJoined,
@@ -37,66 +38,11 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
 import getHanDataFromEssay from '@/logic/getHanData';
-import DiaryComment, { DiaryCommentProps } from './DiaryComment';
+import DiaryComment from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
 import DiaryNoteHeadline from './DiaryNoteHeadline';
-
-function groupQuips(
-  noteId: string,
-  quips: [bigInt.BigInteger, Quip][],
-  brief: Brief
-) {
-  const grouped: Record<string, DiaryCommentProps[]> = {};
-  let currentTime: string;
-
-  quips.forEach(([t, q], i) => {
-    const prev = i > 0 ? quips[i - 1] : undefined;
-    const { author } = q.memo;
-    const time = t.toString();
-    const newAuthor = author !== prev?.[1].memo.author;
-    const unreadBrief =
-      brief && brief['read-id'] === q.cork.id ? brief : undefined;
-
-    if (newAuthor) {
-      currentTime = time;
-    }
-
-    if (!(currentTime in grouped)) {
-      grouped[currentTime] = [];
-    }
-
-    grouped[currentTime].push({
-      time: t,
-      quip: q,
-      newAuthor,
-      noteId,
-      newDay: false,
-      unreadCount: unreadBrief && brief.count,
-    });
-  });
-
-  return Object.entries(grouped);
-}
-
-function setNewDays(quips: [string, DiaryCommentProps[]][]) {
-  return quips.map(([time, comments], index) => {
-    const prev = index !== 0 ? quips[index - 1] : undefined;
-    const prevQuipTime = prev ? bigInt(prev[0]) : undefined;
-    const unix = new Date(daToUnix(bigInt(time)));
-
-    const lastQuipDay = prevQuipTime
-      ? new Date(daToUnix(prevQuipTime))
-      : undefined;
-
-    const newDay = lastQuipDay ? !isSameDay(unix, lastQuipDay) : false;
-
-    const quip = comments.shift();
-    const newComments = [{ ...quip, newDay }, ...comments];
-    return [time, newComments] as [string, DiaryCommentProps[]];
-  });
-}
 
 export default function DiaryNote({ title }: ViewProps) {
   const { chShip, chName, noteId = '' } = useParams();
@@ -201,7 +147,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { title: noteTitle, image } = getHanDataFromEssay(note.essay);
-  const groupedQuips = setNewDays(
+  const groupedQuips = setNewDaysForQuips(
     groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
       if (sort === 'asc') {
         return a.localeCompare(b);
@@ -263,6 +209,7 @@ export default function DiaryNote({ title }: ViewProps) {
             {(canWrite && ship === window.our) ||
             (canWrite && saga && 'synced' in saga) ? (
               <DiaryCommentField
+                han="diary"
                 flag={chFlag}
                 groupFlag={groupFlag}
                 replyTo={noteId}
@@ -272,7 +219,7 @@ export default function DiaryNote({ title }: ViewProps) {
               {groupedQuips.map(([_t, g]) =>
                 g.map((props) => (
                   <li key={props.time.toString()}>
-                    <DiaryComment {...props} />
+                    <DiaryComment {...props} han="diary" />
                   </li>
                 ))
               )}

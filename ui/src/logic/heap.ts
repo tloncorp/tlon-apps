@@ -1,12 +1,13 @@
 /* eslint-disable */
-import { CurioContent } from '@/types/heap';
 import { isRef, pathToCite } from './utils';
 import isURL from 'validator/lib/isURL';
+import { isImageUrl } from './utils';
 import { JSONContent } from '@tiptap/core';
 import { JSONToInlines } from '@/logic/tiptap';
 import { reduce } from 'lodash';
-import { NoteEssay } from '@/types/channel';
+import { NoteEssay, storyFromChatStory } from '@/types/channel';
 import { Inline, InlineKey } from '@/types/content';
+import { ChatStory } from '@/types/chat';
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
 function isMergeable(x: InlineKey): x is (typeof MERGEABLE_KEYS)[number] {
@@ -43,33 +44,40 @@ export function jsonToHeartInline(json: JSONContent) {
   return normalizeHeapInline(JSONToInlines(json) as Inline[]);
 }
 
-export function createCurioHeart(input: JSONContent | string): NoteEssay {
-  let content: CurioContent = { inline: [], block: [] };
+export async function createCurioHeart(input: JSONContent | string) {
+  let content: ChatStory = { inline: [], block: [] };
   if (typeof input === 'string' && isRef(input)) {
     const cite = pathToCite(input)!;
     content.block.push({ cite });
   } else if (typeof input === 'string' && isURL(input)) {
-    content.inline = [{ link: { href: input, content: input } }];
+    if (isImageUrl(input)) {
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.src = input;
+
+        img.onload = () => {
+          const { width, height } = img;
+
+          content.block.push({
+            image: { src: input, width, height, alt: 'heap image' },
+          });
+          resolve();
+        };
+      });
+    } else {
+      content.inline.push({ link: { href: input, content: input } });
+    }
   } else if (typeof input !== 'string') {
     content.inline = jsonToHeartInline(input);
   }
+
+  const story = storyFromChatStory(content);
 
   return {
     'han-data': {
       heap: '',
     },
-    content: [
-      ...content.block.map((b) =>
-        'cite' in b
-          ? {
-              block: b.cite,
-            }
-          : {
-              block: b,
-            }
-      ),
-      ...content.inline.map((i) => ({ inline: [i] })),
-    ],
+    content: story,
     author: window.our,
     sent: Date.now(),
   };

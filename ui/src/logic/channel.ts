@@ -6,10 +6,8 @@ import { useBriefs, useChat, useChats, useMultiDms } from '@/state/chat';
 import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
 import { useCallback, useMemo } from 'react';
 import { useChannel as useChannelFromState } from '@/state/channel/channel';
-import { useHeap } from '@/state/heap/heap';
 import { Chat } from '@/types/chat';
-import { Diary } from '@/types/diary';
-import { Heap } from '@/types/heap';
+import { Diary } from '@/types/channel';
 import { Zone, Channels, GroupChannel } from '@/types/groups';
 import {
   canReadChannel,
@@ -113,10 +111,10 @@ export function useIsChannelUnread(nest: string) {
 export const useIsChannelHost = (flag: string) =>
   window.our === flag?.split('/')[0];
 
-export function useChannelOld(nest: string): Chat | Heap | Diary | undefined {
+export function useChannelOld(nest: string): Chat | Diary | undefined {
   const [app, flag] = nestToFlag(nest);
   const chat = useChat(flag);
-  const heap = useHeap(flag);
+  const heap = useChannelFromState(`heap/${flag}`);
   const diary = useChannelFromState(`diary/${flag}`);
 
   switch (app) {
@@ -229,7 +227,7 @@ function channelIsJoined(
   const [app, flag] = nestToFlag(nest);
 
   return briefs[app] && Object.keys(briefs[app]).length > 0
-    ? isChannelJoined(app === 'diary' ? nest : flag, briefs[app])
+    ? isChannelJoined(app === 'chat' ? flag : nest, briefs[app])
     : true;
 }
 

@@ -18,8 +18,6 @@ const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
   chat: { briefs: {}, chats: {}, pins: [] },
-  heap: { briefs: {}, stash: {} },
-  diary: { briefs: {}, shelf: {} },
 };
 
 async function chatScry<T>(path: string, def: T) {
@@ -35,7 +33,7 @@ async function chatScry<T>(path: string, def: T) {
 
 async function startGroups(talkStarted: boolean) {
   // make sure if this errors we don't kill the entire app
-  const { chat, heap, diary, groups, gangs } = await asyncWithDefault(
+  const { chat, groups, gangs } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
@@ -50,10 +48,6 @@ async function startGroups(talkStarted: boolean) {
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  queryClient.setQueryData(['diary', 'shelf'], diary.shelf);
-  queryClient.setQueryData(['diary', 'briefs'], diary.briefs);
-  queryClient.setQueryData(['heap', 'stash'], heap.stash);
-  queryClient.setQueriesData(['heap', 'briefs'], heap.briefs);
 }
 
 async function startTalk(groupsStarted: boolean) {

@@ -35,7 +35,6 @@ function BaitReference({
     return (
       <CurioReference
         idCurio={id}
-        chFlag={graph}
         nest={`heap/${graph}`}
         contextApp={contextApp}
         isScrolling={isScrolling}

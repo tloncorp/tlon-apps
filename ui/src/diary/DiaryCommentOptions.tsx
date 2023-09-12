@@ -12,7 +12,7 @@ import XIcon from '@/components/icons/XIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
-import { Quip } from '@/types/channel';
+import { Han, Quip } from '@/types/channel';
 import {
   useAddQuipFeelMutation,
   useDeleteQuipMutation,
@@ -23,12 +23,14 @@ import { useSearchParams } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
 
 export default function DiaryCommentOptions({
+  han,
   whom,
   noteId,
   quip,
   time,
   hideReply,
 }: {
+  han: Han;
   whom: string;
   noteId: string;
   quip: Quip;
@@ -39,7 +41,7 @@ export default function DiaryCommentOptions({
   const isAdmin = useAmAdmin(groupFlag);
   const [searchParams, setSearchParms] = useSearchParams();
   const { didCopy, doCopy } = useCopy(
-    `/1/chan/diary/${whom}/note/${noteId}/msg/${time}`
+    `/1/chan/${han}/${whom}/note/${noteId}/msg/${time}`
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -62,7 +64,7 @@ export default function DiaryCommentOptions({
   const onDelete = async () => {
     setDeletePending();
     try {
-      await delQuip({ nest: `diary/${whom}`, noteId, quipId: time });
+      await delQuip({ nest: `${han}/${whom}`, noteId, quipId: time });
     } catch (e) {
       setDeleteFailed();
       console.error('Failed to delete comment', e);
@@ -84,7 +86,7 @@ export default function DiaryCommentOptions({
     async (emoji: { shortcodes: string }) => {
       try {
         await addQuipFeel({
-          nest: `diary/${whom}`,
+          nest: `${han}/${whom}`,
           noteId,
           quipId: time,
           feel: emoji.shortcodes,
@@ -94,7 +96,7 @@ export default function DiaryCommentOptions({
       }
       setPickerOpen(false);
     },
-    [noteId, time, whom, addQuipFeel]
+    [noteId, time, whom, addQuipFeel, han]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

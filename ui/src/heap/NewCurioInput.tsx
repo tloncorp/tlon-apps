@@ -1,5 +1,4 @@
 import { useCallback, useMemo } from 'react';
-import cn from 'classnames';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';

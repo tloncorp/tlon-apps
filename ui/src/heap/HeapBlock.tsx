@@ -2,8 +2,6 @@ import cn from 'classnames';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { formatDistanceToNow } from 'date-fns';
-import { isLink } from '@/types/heap';
-import { Link } from '@/types/content';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
@@ -17,17 +15,21 @@ import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
-import useNest from '@/logic/useNest';
 import useHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ConfirmationModal from '@/components/ConfirmationModal';
 // eslint-disable-next-line import/no-cycle
-import ChatContent from '@/chat/ChatContent/ChatContent';
 import useLongPress from '@/logic/useLongPress';
 import Avatar from '@/components/Avatar';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { isCite, Outline, VerseInline } from '@/types/channel';
+import { useChannelFlag } from '@/logic/channel';
+import {
+  imageUrlFromContent,
+  isCite,
+  linkUrlFromContent,
+  Outline,
+} from '@/types/channel';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -53,7 +55,8 @@ function TopBar({
   canEdit,
 }: TopBarProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const nest = useNest();
+  const chFlag = useChannelFlag();
+  const nest = `heap/${chFlag}`;
   const {
     didCopy,
     menuOpen,
@@ -246,26 +249,17 @@ function HeapBlockWrapper({
 
 interface HeapBlockProps extends CurioDisplayProps {
   outline: Outline;
-  isComment?: boolean;
 }
 
 export default function HeapBlock({
   outline,
   time,
   asRef = false,
-  isComment = false,
   refToken = undefined,
 }: HeapBlockProps) {
   const [longPress, setLongPress] = useState(false);
   const { content } = outline;
-  const url =
-    content.length > 0 &&
-    isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline)
-      ? (
-          (content.filter((c) => 'inline' in c)[0] as VerseInline)
-            .inline[0] as Link
-        ).link.href
-      : '';
+  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const {
     embed,
     isLoading: embedLoading,
@@ -274,15 +268,10 @@ export default function HeapBlock({
   } = useEmbed(url);
   const calm = useCalm();
   const { isImage, isAudio, isText } = useHeapContentType(url);
-  // const textFallbackTitle = content.inline
-  // .map((inline) => inlineToString(inline))
-  // .join(' ')
-  // .toString();
-
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit = asRef ? false : isAdmin || window.our === outline.author;
-  const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
+  const maybeEmbed = !isImage && !isAudio && !isText;
 
   useEffect(() => {
     if (embedErrored) {
@@ -303,24 +292,6 @@ export default function HeapBlock({
     asRef ? refClass || '' : 'heap-block group';
   const topBar = { time, asRef, refToken, longPress };
   const botBar = { outline, asRef, longPress };
-
-  // const normalizedContent: ChatStory = {
-
-  // }
-
-  if (isComment) {
-    return (
-      <HeapBlockWrapper time={time} setLongPress={setLongPress}>
-        <div className={cnm()}>
-          <TopBar hasIcon canEdit={canEdit} {...topBar} />
-          <div className="flex grow flex-col">
-            <ChatContent story={content} />
-          </div>
-          <BottomBar {...botBar} />
-        </div>
-      </HeapBlockWrapper>
-    );
-  }
 
   if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {
     return (

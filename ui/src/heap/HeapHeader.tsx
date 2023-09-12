@@ -9,9 +9,8 @@ import {
   useHeapSettings,
   usePutEntryMutation,
 } from '@/state/settings';
-import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
 import { nestToFlag } from '@/logic/utils';
-import { useLeaveHeapMutation } from '@/state/heap/heap';
+import { useLeaveMutation } from '@/state/channel/channel';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useIsMobile } from '@/logic/useMedia';
@@ -19,13 +18,14 @@ import DisplayDropdown from '@/channels/DisplayDropdown';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
+import { DisplayMode, SortMode } from '@/types/channel';
 import AddCurioModal from './AddCurioModal';
 
 interface HeapHeaderProps {
   flag: string;
   nest: string;
-  display: HeapDisplayMode;
-  sort: HeapSortMode;
+  display: DisplayMode;
+  sort: SortMode;
   canWrite: boolean;
   draggedFile: File | null;
   clearDragState: () => void;
@@ -56,9 +56,9 @@ const HeapHeader = React.memo(
       bucket: 'heaps',
       key: 'heapSettings',
     });
-    const leaveHeapMutation = useLeaveHeapMutation();
+    const leaveHeapMutation = useLeaveMutation();
 
-    const setDisplayMode = (setting: HeapDisplayMode) => {
+    const setDisplayMode = (setting: DisplayMode) => {
       const newSettings = setChannelSetting<HeapSetting>(
         settings,
         { displayMode: setting },
@@ -70,7 +70,7 @@ const HeapHeader = React.memo(
       });
     };
 
-    const setSortMode = (setting: HeapSortMode) => {
+    const setSortMode = (setting: SortMode) => {
       const newSettings = setChannelSetting<HeapSetting>(
         settings,
         { sortMode: setting },
@@ -121,7 +121,7 @@ const HeapHeader = React.memo(
         nest={nest}
         prettyAppName="Gallery"
         leave={(leaveFlag: string) =>
-          leaveHeapMutation.mutateAsync({ flag: leaveFlag })
+          leaveHeapMutation.mutateAsync({ nest: `heap/${leaveFlag}` })
         }
       >
         {isMobile ? (

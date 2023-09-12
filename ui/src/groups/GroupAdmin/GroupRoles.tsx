@@ -29,7 +29,6 @@ import KeyIcon from '@/components/icons/KeyIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import IconButton from '@/components/IconButton';
 import Tooltip from '@/components/Tooltip';
-import { useStash } from '@/state/heap/heap';
 import RoleCreate from './GroupRoleCreate';
 
 function eqRoleName(a: string, b: string) {
@@ -56,7 +55,6 @@ export default function GroupRoles({ title }: { title: string }) {
   const roles = group?.cabals;
   const fleet = group?.fleet;
   const shelf = useShelf();
-  const stash = useStash();
   const { state } = useLocation();
 
   // TODO: is this needed?
@@ -73,13 +71,10 @@ export default function GroupRoles({ title }: { title: string }) {
             const [app, channelFlag] = nestToFlag(c[0]);
 
             const chState =
-              app === 'chat'
-                ? useChatState.getState().chats
-                : app === 'heap'
-                ? stash
-                : shelf;
+              app === 'chat' ? useChatState.getState().chats : shelf;
 
-            const channel = chState[channelFlag];
+            const channel =
+              app === 'chat' ? chState[channelFlag] : chState[c[0]];
 
             return channel?.perms.writers || [];
           })

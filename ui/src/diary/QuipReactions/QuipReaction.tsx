@@ -10,6 +10,7 @@ import {
 } from '@/state/channel/channel';
 
 interface QuipReactionProps {
+  han: string;
   whom: string;
   feel: string;
   ships: string[];
@@ -18,6 +19,7 @@ interface QuipReactionProps {
 }
 
 export default function QuipReaction({
+  han,
   whom,
   feel,
   ships,
@@ -36,11 +38,11 @@ export default function QuipReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await delQuipFeel({ nest: `diary/${whom}`, noteId, quipId: time });
+      await delQuipFeel({ nest: `${han}/${whom}`, noteId, quipId: time });
     } else {
-      await addQuipFeel({ nest: `diary/${whom}`, noteId, quipId: time, feel });
+      await addQuipFeel({ nest: `${han}/${whom}`, noteId, quipId: time, feel });
     }
-  }, [isMine, whom, feel, noteId, time, addQuipFeel, delQuipFeel]);
+  }, [isMine, whom, feel, noteId, time, addQuipFeel, delQuipFeel, han]);
 
   return (
     <div>

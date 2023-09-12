@@ -1,13 +1,15 @@
 import cn from 'classnames';
 import { Editor, JSONContent } from '@tiptap/react';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { reduce } from 'lodash';
-import { HeapInline, CurioHeart, HeapInlineKey } from '@/types/heap';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { useAddCurioMutation } from '@/state/heap/heap';
+import {
+  useAddNoteMutation,
+  useAddQuipMutation,
+} from '@/state/channel/channel';
 import useRequestState from '@/logic/useRequestState';
 import { JSONToInlines } from '@/logic/tiptap';
 import {
@@ -21,6 +23,9 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import Tooltip from '@/components/Tooltip';
 import { useChannelCompatibility } from '@/logic/channel';
+import { NoteEssay, storyFromChatStory } from '@/types/channel';
+import { unixToDa } from '@urbit/api';
+import { Inline, InlineKey } from '@/types/content';
 
 interface HeapTextInputProps {
   flag: string;
@@ -36,13 +41,13 @@ interface HeapTextInputProps {
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
-function isMergeable(x: HeapInlineKey): x is (typeof MERGEABLE_KEYS)[number] {
+function isMergeable(x: InlineKey): x is (typeof MERGEABLE_KEYS)[number] {
   return MERGEABLE_KEYS.includes(x as any);
 }
-function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
+function normalizeHeapInline(inline: Inline[]): Inline[] {
   return reduce(
     inline,
-    (acc: HeapInline[], val) => {
+    (acc: Inline[], val) => {
       if (acc.length === 0) {
         return [...acc, val];
       }
@@ -50,8 +55,8 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
       if (typeof last === 'string' && typeof val === 'string') {
         return [...acc.slice(0, -1), last + val];
       }
-      const lastKey = Object.keys(acc[acc.length - 1])[0] as HeapInlineKey;
-      const currKey = Object.keys(val)[0] as keyof HeapInlineKey;
+      const lastKey = Object.keys(acc[acc.length - 1])[0] as InlineKey;
+      const currKey = Object.keys(val)[0] as keyof InlineKey;
       if (isMergeable(lastKey) && currKey === lastKey) {
         // @ts-expect-error keying weirdness
         const end: HeapInline = {
@@ -86,11 +91,13 @@ export default function HeapTextInput({
   comment = false,
 }: HeapTextInputProps) {
   const isMobile = useIsMobile();
+  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const { isPending, setPending, setReady } = useRequestState();
   const chatInfo = useChatInfo(flag);
   const { privacy } = useGroupPrivacy(groupFlag);
   const { compatible, text } = useChannelCompatibility(`heap/${flag}`);
-  const { mutate } = useAddCurioMutation();
+  const { mutate } = useAddNoteMutation();
+  const { mutate: addQuip } = useAddQuipMutation();
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -110,27 +117,49 @@ export default function HeapTextInput({
       const content = {
         inline:
           blocks.length === 0
-            ? normalizeHeapInline(
-                JSONToInlines(editor?.getJSON()) as HeapInline[]
-              )
+            ? normalizeHeapInline(JSONToInlines(editor?.getJSON()) as Inline[])
             : [],
         block: blocks,
       };
 
-      const heart: CurioHeart = {
-        title: '', // TODO: Title input
-        replying: replyTo,
+      const heart: NoteEssay = {
+        'han-data': {
+          heap: '', // TODO: Title input
+        },
         author: window.our,
         sent: Date.now(),
-        content,
+        content: storyFromChatStory(content),
       };
 
       setDraft(undefined);
       editor?.commands.setContent('');
       useChatStore.getState().setBlocks(flag, []);
 
+      if (replyTo) {
+        addQuip(
+          {
+            nest: `heap/${flag}`,
+            content: heart.content,
+            noteId: replyTo,
+          },
+          {
+            onSuccess: () => {
+              captureGroupsAnalyticsEvent({
+                name: comment ? 'comment_item' : 'post_item',
+                groupFlag,
+                chFlag: flag,
+                channelType: 'heap',
+                privacy,
+              });
+              setReady();
+            },
+          }
+        );
+        return;
+      }
+
       mutate(
-        { flag, heart },
+        { nest: `heap/${flag}`, essay: heart, initialTime },
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({
@@ -149,8 +178,8 @@ export default function HeapTextInput({
     },
     [
       sendDisabled,
+      initialTime,
       setPending,
-      replyTo,
       flag,
       groupFlag,
       privacy,
@@ -158,6 +187,8 @@ export default function HeapTextInput({
       setDraft,
       setReady,
       mutate,
+      addQuip,
+      replyTo,
     ]
   );
 

@@ -10,7 +10,7 @@ import {
   useDiarySettings,
   usePutEntryMutation,
 } from '@/state/settings';
-import { DiaryDisplayMode } from '@/types/diary';
+import { DisplayMode } from '@/types/channel';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
@@ -23,7 +23,7 @@ interface DiaryHeaderProps {
   nest: string;
   canWrite: boolean;
   sort: DiarySetting['sortMode'];
-  display: DiaryDisplayMode;
+  display: DisplayMode;
 }
 
 const DiaryHeader = React.memo(
@@ -41,7 +41,7 @@ const DiaryHeader = React.memo(
       key: 'settings',
     });
 
-    const setDisplayMode = async (view: DiaryDisplayMode) => {
+    const setDisplayMode = async (view: DisplayMode) => {
       const newSettings = setChannelSetting<DiarySetting>(
         settings,
         { displayMode: view },

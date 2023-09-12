@@ -90,7 +90,7 @@ export default function AddCurioModal({
 
   const addCurio = useCallback(
     async (input: JSONContent | string) => {
-      const heart = createCurioHeart(input);
+      const heart = await createCurioHeart(input);
 
       mutate(
         {

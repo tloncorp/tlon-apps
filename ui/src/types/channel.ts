@@ -1,7 +1,8 @@
 import { BigIntOrderedMap } from '@urbit/api';
-import { Inline } from './content';
+import { Inline, isLink, Link } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
+import { ChatBlock, ChatStory } from './chat';
 
 export type Patda = string;
 export type Ship = string;
@@ -403,4 +404,84 @@ export function isCite(s: Block): boolean {
   }
 
   return false;
+}
+
+export function blockContentIsImage(content: Story) {
+  return (
+    content.length > 0 &&
+    content.filter((c) => 'block' in c).length > 0 &&
+    isImage((content.filter((c) => 'block' in c)[0] as VerseBlock).block)
+  );
+}
+
+export function imageUrlFromContent(content: Story) {
+  if (blockContentIsImage(content)) {
+    return (
+      (content.filter((c) => 'block' in c)[0] as VerseBlock).block as Image
+    ).image.src;
+  }
+  return undefined;
+}
+
+export function inlineContentIsLink(content: Story) {
+  return (
+    content.length > 0 &&
+    isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline[0])
+  );
+}
+
+export function linkUrlFromContent(content: Story) {
+  if (inlineContentIsLink(content)) {
+    return (
+      (content.filter((c) => 'inline' in c)[0] as VerseInline).inline[0] as Link
+    ).link.href;
+  }
+  return undefined;
+}
+
+export function chatStoryFromStory(story: Story): ChatStory {
+  const newCon: ChatStory = {
+    inline: [],
+    block: [],
+  };
+
+  const inlines: Inline[] = story
+    .filter((s) => 'inline' in s)
+    .map((s) => (s as VerseInline).inline)
+    .flat();
+  const blocks: ChatBlock[] = story
+    .filter((s) => 'block' in s)
+    .map((s) => (s as VerseBlock).block)
+    .flat()
+    .map((s) => {
+      if (isCite(s)) {
+        return { cite: s } as ChatBlock;
+      }
+      return s as ChatBlock;
+    });
+
+  newCon.inline = inlines;
+  newCon.block = blocks;
+
+  return newCon;
+}
+
+export function storyFromChatStory(chatStory: ChatStory): Story {
+  const newStory: Story = [];
+
+  const inlines: Inline[] = chatStory.inline;
+  const blocks: Block[] = chatStory.block.map((b) => {
+    if ('cite' in b) {
+      return b.cite;
+    }
+    return b;
+  });
+
+  newStory.push({ inline: inlines });
+
+  blocks.forEach((b) => {
+    newStory.push({ block: b });
+  });
+
+  return newStory;
 }

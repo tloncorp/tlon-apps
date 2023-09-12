@@ -1,24 +1,29 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { EditCurioFormSchema } from '@/types/heap';
 import { useForm } from 'react-hook-form';
 import {
-  useCurioWithComments,
-  useDelCurioMutation,
-  useEditCurioMutation,
-} from '@/state/heap/heap';
+  useDeleteNoteMutation,
+  useEditNoteMutation,
+  useNote,
+} from '@/state/channel/channel';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { JSONContent } from '@tiptap/core';
 import { inlinesToJSON, JSONToInlines } from '@/logic/tiptap';
-import { ChatBlock } from '@/types/chat';
 import { Inline } from '@/types/content';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useChannelFlag } from '@/logic/channel';
 import { useRouteGroup } from '@/state/groups';
 import { useParams, useNavigate } from 'react-router';
+import { chatStoryFromStory, storyFromChatStory } from '@/types/channel';
+import getHanDataFromEssay from '@/logic/getHanData';
 import HeapTextInput from './HeapTextInput';
+
+type EditCurioFormSchema = {
+  title: string;
+  content: string;
+};
 
 export default function EditCurioForm() {
   const dismiss = useDismissNavigate();
@@ -27,19 +32,28 @@ export default function EditCurioForm() {
   const [draftText, setDraftText] = useState<JSONContent>();
   const groupFlag = useRouteGroup();
   const chFlag = useChannelFlag() || '';
+  const nest = `heap/${chFlag}`;
   const navigate = useNavigate();
   const { idCurio } = useParams<{ idCurio: string }>();
-  const { time, curio } = useCurioWithComments(chFlag, idCurio || '');
-  const editMutation = useEditCurioMutation();
-  const delMutation = useDelCurioMutation();
-  const isLinkMode = curio ? isLinkCurio(curio.heart.content) : false;
+  const { note, isLoading } = useNote(nest, idCurio || '');
+  const contentAsChatStory = useMemo(
+    () =>
+      isLoading
+        ? { inline: [], block: [] }
+        : chatStoryFromStory(note.essay.content),
+    [note, isLoading]
+  );
+  const editMutation = useEditNoteMutation();
+  const delMutation = useDeleteNoteMutation();
+  const isLinkMode = !isLoading ? isLinkCurio(contentAsChatStory) : false;
   const { isPending, setPending, setReady } = useRequestState();
-  const firstInline = curio && curio.heart.content.inline[0];
+  const firstInline = !isLoading && contentAsChatStory.inline[0];
+  const { title } = getHanDataFromEssay(note.essay);
 
   const defaultValues: EditCurioFormSchema = {
-    title: curio ? curio.heart.title : '',
+    title: !isLoading ? title : '',
     content:
-      curio &&
+      !isLoading &&
       isLinkMode &&
       firstInline &&
       typeof firstInline === 'object' &&
@@ -58,17 +72,14 @@ export default function EditCurioForm() {
     : Object.keys(draftText || {}).length > 0;
 
   const onDelete = useCallback(async () => {
-    if (!chFlag) {
-      return;
-    }
-    if (!time) {
+    if (!chFlag || !idCurio) {
       return;
     }
 
     delMutation.mutate(
       {
-        flag: chFlag,
-        time: time.toString(),
+        nest,
+        time: idCurio,
       },
       {
         onSuccess: () => {
@@ -76,31 +87,31 @@ export default function EditCurioForm() {
         },
       }
     );
-  }, [chFlag, time, delMutation, groupFlag, navigate]);
+  }, [chFlag, idCurio, nest, delMutation, groupFlag, navigate]);
 
   const onSubmit = useCallback(
-    async ({ content, title }: EditCurioFormSchema) => {
-      if (!chFlag) {
-        return;
-      }
-      if (!curio) {
-        return;
-      }
+    async ({ content, title: curioTitle }: EditCurioFormSchema) => {
       const editedContent = isLinkMode
         ? [{ link: { href: content, content } }]
         : (JSONToInlines(draftText || {}) as Inline[]);
 
       const con = {
-        block: [] as ChatBlock[],
+        block: contentAsChatStory.block,
         inline: editedContent,
       };
 
       setPending();
       editMutation.mutate(
         {
-          flag: chFlag,
-          time: time?.toString() || '',
-          heart: { ...curio.heart, title, content: con },
+          nest,
+          time: idCurio?.toString() || '',
+          essay: {
+            ...note.essay,
+            'han-data': {
+              heap: curioTitle || '',
+            },
+            content: storyFromChatStory(con),
+          },
         },
         {
           onSuccess: () => {
@@ -115,15 +126,16 @@ export default function EditCurioForm() {
       );
     },
     [
-      chFlag,
-      curio,
+      nest,
+      idCurio,
+      note,
       isLinkMode,
       draftText,
       setPending,
-      time,
       setReady,
       dismiss,
       editMutation,
+      contentAsChatStory,
     ]
   );
 
@@ -154,11 +166,16 @@ export default function EditCurioForm() {
 
   // on load, set the text draft to the persisted state
   useEffect(() => {
-    if (curio && !isLinkMode) {
-      const parsed = inlinesToJSON(curio.heart.content.inline);
+    if (
+      !isLoading &&
+      !isLinkMode &&
+      contentAsChatStory.inline.length > 0 &&
+      !draftText
+    ) {
+      const parsed = inlinesToJSON(contentAsChatStory.inline);
       setDraftText(parsed);
     }
-  }, [curio, isLinkMode]);
+  }, [isLoading, isLinkMode, contentAsChatStory.inline, draftText]);
 
   return (
     <>
@@ -214,7 +231,7 @@ export default function EditCurioForm() {
             <button
               type="submit"
               className="button"
-              disabled={isPending || !isValidInput || !curio}
+              disabled={isPending || !isValidInput || !note}
             >
               {isPending ? 'Saving...' : 'Save'}
             </button>

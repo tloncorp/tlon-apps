@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import { Editor } from '@tiptap/react';
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Inline } from '@/types/content';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
@@ -16,10 +16,11 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
-import { Story, Cite } from '@/types/channel';
+import { Story, Cite, Han } from '@/types/channel';
 
 interface DiaryCommentFieldProps {
   flag: string;
+  han: Han;
   groupFlag: string;
   replyTo: string;
   className?: string;
@@ -28,6 +29,7 @@ interface DiaryCommentFieldProps {
 
 export default function DiaryCommentField({
   flag,
+  han,
   groupFlag,
   replyTo,
   className,
@@ -37,9 +39,7 @@ export default function DiaryCommentField({
   const [searchParams, setSearchParms] = useSearchParams();
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const quipReplyId = searchParams.get('quip_reply');
-  const { chShip, chName } = useParams<{ chShip: string; chName: string }>();
-  const chFlag = `${chShip}/${chName}`;
-  const nest = `diary/${chFlag}`;
+  const nest = `${han}/${flag}`;
   const quipReply = useQuip(nest, replyTo, quipReplyId || '');
   const { isPending, setPending, setReady } = useRequestState();
   const { mutateAsync: addQuip } = useAddQuipMutation();
@@ -78,14 +78,14 @@ export default function DiaryCommentField({
       }
 
       await addQuip({
-        nest: `diary/${chFlag}`,
+        nest,
         noteId: replyTo,
         content,
       });
       captureGroupsAnalyticsEvent({
         name: 'comment_item',
         groupFlag,
-        chFlag,
+        chFlag: flag,
         channelType: 'diary',
         privacy,
       });
@@ -97,7 +97,8 @@ export default function DiaryCommentField({
       sendDisabled,
       setPending,
       replyTo,
-      chFlag,
+      flag,
+      nest,
       groupFlag,
       privacy,
       setReady,
@@ -187,8 +188,8 @@ export default function DiaryCommentField({
               </button>
             </div>
             <NoteCommentReference
-              chFlag={chFlag}
-              nest={`diary/${chFlag}`}
+              chFlag={flag}
+              nest={nest}
               noteId={replyTo}
               quipId={quipReplyId || ''}
             />

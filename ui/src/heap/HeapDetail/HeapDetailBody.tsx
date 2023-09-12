@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import useHeapContentType from '@/logic/useHeapContentType';
 import { useEmbed } from '@/state/embed';
 import { validOembedCheck } from '@/logic/utils';
-import { isLink } from '@/types/heap';
 import HeapContent from '@/heap/HeapContent';
 import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 import HeapDetailEmbed from '@/heap/HeapDetail/HeapDetailEmbed';
@@ -16,29 +15,21 @@ import {
   Note,
   Story,
   VerseBlock,
-  VerseInline,
+  linkUrlFromContent,
+  imageUrlFromContent,
 } from '@/types/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { Link } from '@/types/content';
 import HeapYoutubePlayer from '../HeapYoutubePlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';
 import HeapVideoPlayer from '../HeapVideoPlayer';
 
 export default function HeapDetailBody({ note }: { note: Note }) {
   const { content } = note ? note.essay : { content: [] as Story };
-  const url =
-    content.length > 0 &&
-    isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline)
-      ? (
-          (content.filter((c) => 'inline' in c)[0] as VerseInline)
-            .inline[0] as Link
-        ).link.href
-      : '';
-
+  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const calm = useCalm();
   const isMobile = useIsMobile();
   const { embed, isError, error } = useEmbed(url, isMobile);
-  const { isText, isImage, isAudio, isVideo } = useHeapContentType(url);
+  const { isImage, isText, isAudio, isVideo } = useHeapContentType(url);
 
   useEffect(() => {
     if (isError) {

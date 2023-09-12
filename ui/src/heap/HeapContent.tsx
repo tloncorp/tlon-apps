@@ -1,5 +1,6 @@
-import { Inline, isBlockCode } from '@/types/content';
 import {
+  Inline,
+  isBlockCode,
   isBlockquote,
   isBold,
   isBreak,
@@ -7,7 +8,7 @@ import {
   isItalics,
   isLink,
   isStrikethrough,
-} from '@/types/heap';
+} from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
 import { isCite, Story, VerseBlock, VerseInline } from '@/types/channel';
