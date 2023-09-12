@@ -70,7 +70,18 @@ export function logTime(...args: any[]) {
 
 type App = 'chat' | 'heap' | 'diary';
 
+export function checkNest(nest: string) {
+  if (nest.split('/').length !== 3) {
+    if (import.meta.env.DEV) {
+      throw new Error('Invalid nest');
+    } else {
+      console.error('Invalid nest:', nest);
+    }
+  }
+}
+
 export function nestToFlag(nest: string): [App, string] {
+  checkNest(nest);
   const [app, ...rest] = nest.split('/');
 
   return [app as App, rest.join('/')];
@@ -469,10 +480,6 @@ export function isChannelJoined(
   nest: string,
   briefs: { [x: string]: ChatBrief | Brief }
 ) {
-  if (nest.split('/').length !== 3) {
-    throw new Error('Invalid nest');
-  }
-
   const [han, flag] = nestToFlag(nest);
 
   const isChannelHost = window.our === nest?.split('/')[1];
