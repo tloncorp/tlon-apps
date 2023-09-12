@@ -556,9 +556,10 @@
     ?^  notes.diary  di-start-updates
     =.  load.net.diary  |
     %^  safe-watch  (weld di-area /checkpoint)  [ship.nest server]
-    :: ?.  =(our.bowl ship.nest)  :: XX restore
-      /[han.nest]/[name.nest]/checkpoint/before/20
-    :: /[han.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
+    ?.  =(our.bowl ship.nest)
+      =/  count  ?:(=(%diary han.nest) '20' '100')
+      /[han.nest]/[name.nest]/checkpoint/before/[count]
+    /[han.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
   ::
   ++  di-start-updates
     ::  not most optimal time, should maintain last heard time instead
@@ -574,6 +575,7 @@
       ~  di-core  :: noop wire, should only send pokes
       [%create ~]       (di-take-create sign)
       [%updates ~]      (di-take-update sign)
+      [%backlog ~]      (di-take-backlog sign)
       [%checkpoint ~]   (di-take-checkpoint sign)
     ==
   ::
@@ -644,22 +646,49 @@
       ==
     ==
   ::
+  ++  di-take-backlog
+    |=  =sign:agent:gall
+    ^+  di-core
+    ?+    -.sign  di-core
+        :: only if kicked prematurely
+        %kick  di-sync-backlog
+        %watch-ack
+      ?~  p.sign  di-core
+      %-  (slog leaf+"{<dap.bowl>}: Failed backlog" u.p.sign)
+      di-core
+    ::
+        %fact
+      =*  cage  cage.sign
+      ?+    p.cage  ~|(diary-strange-fact+p.cage !!)
+          %channel-checkpoint
+        (di-ingest-backlog !<(u-checkpoint:d q.cage))
+      ==
+    ==
+  ::
   ++  di-ingest-checkpoint
     |=  chk=u-checkpoint:d
     ^+  di-core
     =.  load.net.diary  &
+    =.  di-core  (di-apply-checkpoint chk &)
+    =.  di-core  di-start-updates
+    =.  di-core  di-sync-backlog
+    =/  wire  (weld di-area /checkpoint)
+    (emit %pass wire %agent [ship.nest dap.bowl] %leave ~)
+  ::
+  ++  di-apply-checkpoint
+    |=  [chk=u-checkpoint:d send=?]
     =^  changed  sort.diary  (apply-rev:d sort.diary sort.chk)
-    =?  di-core  changed  (di-response %sort sort.sort.diary)
+    =?  di-core  &(changed send)  (di-response %sort sort.sort.diary)
     =^  changed  view.diary  (apply-rev:d view.diary view.chk)
-    =?  di-core  changed  (di-response %view view.view.diary)
+    =?  di-core  &(changed send)  (di-response %view view.view.diary)
     =^  changed  perm.diary  (apply-rev:d perm.diary perm.chk)
-    =?  di-core  changed  (di-response %perm perm.perm.diary)
+    =?  di-core  &(changed send)  (di-response %perm perm.perm.diary)
     =^  changed  order.diary  (apply-rev:d order.diary order.chk)
-    =?  di-core  changed  (di-response %order order.order.diary)
+    =?  di-core  &(changed send)  (di-response %order order.order.diary)
     =/  old  notes.diary
     =.  notes.diary
       ((uno:mo-notes:d notes.diary notes.chk) di-apply-unit-note)
-    =?  di-core  !=(old notes.diary)
+    =?  di-core  &(send !=(old notes.diary))
       %+  di-response  %notes
       %+  gas:rr-on-notes:d  *rr-notes:d
       %+  murn  (turn (tap:on-notes:d notes.chk) head)
@@ -670,8 +699,20 @@
       ?:  =(old `note)  ~
       ?~  note  (some [id ~])
       (some [id `(di-rr-note u.note)])
-    =.  di-core  di-start-updates
-    =/  wire  (weld di-area /checkpoint)
+    di-core
+  ::
+  ++  di-sync-backlog
+    =/  checkpoint-start  (pry:on-notes:d notes.diary)
+    ?~  checkpoint-start  di-core
+    %^  safe-watch  (weld di-area /backlog)  [ship.nest server]
+    %+  welp
+    /[han.nest]/[name.nest]/checkpoint/time-range
+    /(scot %da *@da)/(scot %da key.u.checkpoint-start)
+  ::
+  ++  di-ingest-backlog
+    |=  chk=u-checkpoint:d
+    =.  di-core  (di-apply-checkpoint chk |)
+    =/  wire  (weld di-area /backlog)
     (emit %pass wire %agent [ship.nest dap.bowl] %leave ~)
   ::
   ++  di-apply-logs

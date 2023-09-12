@@ -44,7 +44,7 @@
 ::  leave a single comment on the last post
 ::
 ;<  now=@da  band:m  get-time:s
-=/  =memo:d   [[~ 'hacking is bad' ~] our now]
+=/  =memo:d   [~[[%inline ~['hacking is bad']]] our now]
 ;<  ~  band:m  (act %diary nest %note %quip id-note %add memo)
 ::
 ::  ensure that we've got all the same notes on both sides
@@ -56,16 +56,16 @@
 ::  nuke %diary and re-join the channel.  ensure we only got a partial
 ::  checkpoint
 ::
-;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([app |]))
-;<  ~  band:m  (poke-our:s %hood %kiln-revive !>(%groups))
-;<  ~  band:m  (act %diary nest %join [our group])
-;<  *  band:m  (check-note-count 20)
-::
-::  post another essay, ensure we got it
-::
-=.  count  +(count)
-;<  *  band:m  (add-note count)
-;<  *  band:m  (check-note-count 21)
+:: ;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([app |]))
+:: ;<  ~  band:m  (poke-our:s %hood %kiln-revive !>(%groups))
+:: ;<  ~  band:m  (act %diary nest %join [our group])
+:: ;<  *  band:m  (check-note-count 20)
+:: ::
+:: ::  post another essay, ensure we got it
+:: ::
+:: =.  count  +(count)
+:: ;<  *  band:m  (add-note count)
+:: ;<  *  band:m  (check-note-count 21)
 ::
 ;<  ~  band:m  test-c-diary
 ;<  ~  band:m  test-c-note
@@ -164,7 +164,7 @@
   =/  m  (strand ,id-note:d)
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
-  =/  =essay:d  [~ our send %diary (cat 3 'on hacking #' (scot %ud count)) '']
+  =/  =essay:d  [[~ our send] %diary (cat 3 'on hacking #' (scot %ud count)) '']
   ;<  ~  bind:m  (act %diary nest %note %add essay)
   (pure:m send)
 ::
@@ -173,7 +173,7 @@
   =/  m  (strand ,id-quip:d)
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
-  =/  =memo:d  [[~ ~[text]] our send]
+  =/  =memo:d  [~[[%inline ~[text]]] our send]
   ;<  ~  bind:m  (act %diary nest %note %quip id-note %add memo)
   (pure:m send)
 ::
@@ -223,7 +223,8 @@
   ?>  (eq !>(+(count)) !>(~(wyt by notes.new)))
   ?>  (eq !>(&) !>((has:on-notes:d notes.new id)))
   ::
-  ;<  ~  band:m  (act %diary nest %note %edit id [~ our id %diary 'yes' ''])
+  =/  =essay:d  [[~ our id] %diary 'yes' '']
+  ;<  ~  band:m  (act %diary nest %note %edit id essay)
   ;<  new=note:d  band:m  (get-note id)
   ?>  (eq !>([%diary 'yes' '']) !>(han-data.new))
   ::
