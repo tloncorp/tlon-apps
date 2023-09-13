@@ -1679,7 +1679,8 @@
             %notice  ca-core
             %story
           =/  new-message-yarn  (ca-message-hark memo p.content.memo p.p.d)
-          =?  cor  want-loud-notify
+          =/  from-me  =(author.memo our.bowl)
+          =?  cor  &(want-loud-notify !from-me)
             (emit (pass-hark new-message-yarn))
           ?.  ?&  !=(author.memo our.bowl)
                   |(!=(~ replying.memo) (mentioned q.p.content.memo our.bowl))

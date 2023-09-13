@@ -1018,6 +1018,7 @@
           ?(%edit %del %add-feel %del-feel)  he-core
           %add
         =/  =heart:h  p.q.p.d
+        =/  from-me  =(our.bowl author.heart)
         ?~  replying.heart
           =/  content  (trip (flatten q.content.heart))
           =/  loud-yarn
@@ -1029,7 +1030,7 @@
                 ==
                 ~
                 /curio/(rsh 4 (scot %ui time))
-          =?  cor  want-loud-notify
+          =?  cor  &(want-loud-notify !from-me)
             (emit (pass-hark loud-yarn))
           he-core
         =/  op  (~(get cur curios.heap) u.replying.heart)
