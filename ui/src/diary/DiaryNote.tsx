@@ -6,7 +6,6 @@ import { daToUnix, udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import {
-  canWriteChannel,
   getFlagParts,
   groupQuips,
   pluralize,
@@ -30,7 +29,11 @@ import {
 } from '@/state/groups/groups';
 import { Outline, Outlines } from '@/types/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
+import {
+  canWriteChannel,
+  useChannelCompatibility,
+  useChannelIsJoined,
+} from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
