@@ -228,7 +228,7 @@ function DiaryChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={
         <DiaryHeader
-          flag={groupFlag}
+          groupFlag={groupFlag}
           nest={nest}
           canWrite={canWrite}
           display={userDisplayMode ?? displayMode}

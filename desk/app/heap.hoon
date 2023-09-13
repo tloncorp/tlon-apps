@@ -2,6 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
+/+  volume
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
 ::  performance, keep warm
@@ -122,21 +123,22 @@
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
     =/  heap-flags-from-groups
-      %-  zing
       %+  turn  ~(tap by groups)
-      |=  [* group=group:g]
-      %+  murn
-        ~(tap by channels.group)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%heap p.nest) %.y %.n)
       |=  [=nest:g *]
-      ?.(=(%heap p.nest) ~ (some q.nest))
+      q.nest
     =/  heaps-without-groups
       %+  skim  ~(tap by stash)
-      |=  heap=[=flag:g *]
-      =((find [heap]~ heap-flags-from-groups) ~)
+      |=  [=flag:g *]
+      ?:(=((find [flag]~ (zing heap-flags-from-groups)) ~) %.y %.n)
     %+  roll
       heaps-without-groups
     |=  [[=flag:g *] core=_cor]
-    he-abet:he-leave:(he-abed:he-core flag)
+    he-abet:he-leave:(he-abed:he-core:core flag)
   ::
      %recheck-all-perms
     %+  roll
@@ -436,6 +438,16 @@
   :-  flag
   he-brief:(he-abed:he-core flag)
 ::
+++  want-hark
+  |=  [flag=?(~ flag:g) kind=?(%msg %to-us)]
+  %+  (fit-level:volume [our now]:bowl)
+    ?~  flag  ~
+    [%channel %heap flag]
+  ?-  kind
+    %to-us  %soft
+    %msg    %loud
+  ==
+::
 ++  import-graphs
   |=  =imports:h
   ^+  cor
@@ -592,13 +604,13 @@
     he-core(flag f, heap (~(got by stash) f))
   ++  he-area  `path`/heap/(scot %p p.flag)/[q.flag]
   ++  he-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
     ^-  new-yarn:ha
     =*  group  group.perm.heap
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
-      (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] rest)
+      (welp /groups/(scot %p p.group)/[q.group]/channels/heap/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
   ::
   ++  he-said
@@ -739,10 +751,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:h !>([flag now.bowl %del-sects sects])]
       (emit %pass he-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  he-core  (he-can-read our.bowl)  he-safe-sub
-    ::  if we can't read, leave the heap
-    =?  he-core  (he-can-read our.bowl)  he-leave
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (he-can-read our.bowl)
+    =.  he-core
+      ?:  wecanread
+        he-safe-sub
+      he-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in he-subscriptions)
     |=  [[=ship =path] he=_he-core]
@@ -829,6 +843,8 @@
   ::
   ++  he-am-host  =(our.bowl p.flag)
   ++  he-from-host  |(=(p.flag src.bowl) =(p.group.perm.heap src.bowl))
+  ++  he-is-admin
+    .^(? %gx (welp he-groups-scry /fleet/(scot %p src.bowl)/is-bloc/loob))
   ++  he-can-write
     ?:  he-from-host  &
     =/  =path
@@ -957,11 +973,22 @@
         %add-feel  =(src.bowl p.delta)
         %del-feel  =(src.bowl p.delta)
       ::
-          %del  ?~(entry | =(src.bowl author.curio.u.entry))
+          %del
+        ::  if no curio, then fail
+        ?~  entry  |
+        ::  only author or admin can delete
+        ?|  =(src.bowl author.curio.u.entry)
+            he-is-admin
+        ==
       ::
           %edit
-        ?&  =(src.bowl author.p.delta)
-            ?~(entry | =(src.bowl author.curio.u.entry))
+        ::  if no curio, then fail
+        ?~  entry  |
+        ::  author should always be the same
+        ?.  =(author.p.delta author.curio.u.entry)  |
+        ::  only author or admin can edit
+        ?|  =(src.bowl author.p.delta)
+            he-is-admin
         ==
     ==
   ::
@@ -985,11 +1012,26 @@
           ==
       =.  curios.heap  (reduce:he-curios time p.d)
       =.  cor  (give-brief flag he-brief)
+      =/  want-soft-notify  (want-hark flag %to-us)
+      =/  want-loud-notify  (want-hark flag %msg)
       ?-  -.q.p.d
           ?(%edit %del %add-feel %del-feel)  he-core
           %add
         =/  =heart:h  p.q.p.d
-        ?~  replying.heart  he-core
+        ?~  replying.heart
+          =/  content  (trip (flatten q.content.heart))
+          =/  loud-yarn
+            %-  he-spin
+              :^  ~
+                :~  [%ship author.heart]
+                    ' posted a block to a gallery '
+                    (flatten q.content.heart)
+                ==
+                ~
+                /curio/(rsh 4 (scot %ui time))
+          =?  cor  want-loud-notify
+            (emit (pass-hark loud-yarn))
+          he-core
         =/  op  (~(get cur curios.heap) u.replying.heart)
         ?~  op  he-core
         =/  curio  curio.u.op
@@ -1006,20 +1048,21 @@
           ?:  (lte (lent content) 80)  (crip content)
           (crip (weld (swag [0 77] content) "..."))
         =/  new-yarn
-          %^  he-spin
-            /curio/(rsh 4 (scot %ui u.replying.heart))
-            :~  [%ship author.heart]
-                ' commented on '
-                [%emph title]
-                ': '
-                [%ship author.heart]
-                ': '
-                (flatten q.content.heart)
-            ==
-          ~
+          %-  he-spin
+            :^  /curio/(rsh 4 (scot %ui u.replying.heart))
+              :~  [%ship author.heart]
+                  ' commented on '
+                  [%emph title]
+                  ': '
+                  [%ship author.heart]
+                  ': '
+                  (flatten q.content.heart)
+              ==
+              ~
+              ~
         =/  am-op-author  =(author.curio.u.op our.bowl)
         =/  am-author  =(author.heart our.bowl)
-        =?  cor  |(&(!am-author in-replies) &(am-op-author !am-author))
+        =?  cor  &(want-soft-notify |(&(!am-author in-replies) &(am-op-author !am-author)))
           (emit (pass-hark new-yarn))
         he-core
       ==

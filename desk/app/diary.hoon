@@ -4,6 +4,7 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
+/+  volume
 /+  migrate=diary-graph
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
@@ -220,24 +221,22 @@
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
     =/  diary-flags-from-groups
-      %-  zing
       %+  turn  ~(tap by groups)
-      |=  [* group=group:g]
-      %+  murn
-        ~(tap by channels.group)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%diary p.nest) %.y %.n)
       |=  [=nest:g *]
-      ?.(=(%diary p.nest) ~ (some q.nest))
+      q.nest
     =/  diaries-without-groups
       %+  skim  ~(tap by shelf)
-      |=  diary=[=flag:g *]
-      =((find [diary]~ diary-flags-from-groups) ~)
-    ~&  diary-flags-from-groups
-    ~&  diaries-without-groups
-    ?~  diaries-without-groups  cor
+      |=  [=flag:g *]
+      ?:(=((find [flag]~ (zing diary-flags-from-groups)) ~) %.y %.n)
     %+  roll
       diaries-without-groups
     |=  [[=flag:g *] core=_cor]
-    di-abet:di-leave:(di-abed:di-core flag)
+    di-abet:di-leave:(di-abed:di-core:core flag)
   ::
       %recheck-all-perms
     %+  roll
@@ -609,6 +608,7 @@
   =/  =dock  [our.bowl %hark]
   =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
+::
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -625,13 +625,13 @@
     di-core(flag f, diary (~(got by shelf) f))
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
     ^-  new-yarn:ha
     =*  group  group.perm.diary
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
-      (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
+      (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
   ++  di-import
     |=  [writers=(set ship) =association:met:d]
@@ -816,10 +816,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  di-core  (di-can-read our.bowl)  di-safe-sub
-    ::  if we can't read, leave the diary
-    =?  di-core  (di-can-read our.bowl)  di-leave
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (di-can-read our.bowl)
+    =.  di-core
+      ?:  wecanread
+        di-safe-sub
+      di-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
@@ -1050,12 +1052,20 @@
       =.  notes.diary  (reduce:di-notes time p.dif)
       =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
-        (hark:di-notes our.bowl p.dif)
+        (hark:di-notes [flag bowl p.dif])
+      =/  rope
+        ?:  =(%quips -.q.p.dif)
+          /note/(rsh 4 (scot %ui p.p.dif))
+        ~
+      =/  link
+        ?:  =(%add -.q.p.dif)
+          /note/(rsh 4 (scot %ui time))
+        ~
       =.  cor
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
+        (pass-hark (di-spin rope cs ~ link))
       di-core
     ::
         %add-sects

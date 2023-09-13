@@ -191,7 +191,7 @@ function HeapChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={
         <HeapHeader
-          flag={groupFlag}
+          groupFlag={groupFlag}
           nest={nest}
           display={displayMode}
           sort={sortMode}

@@ -61,12 +61,6 @@ export default function useGroupJoin(
   const { mutate: sawRopeMutation } = useSawRopeMutation();
 
   const open = useCallback(() => {
-    if (flag === '~nibset-napwyn/tlon') {
-      return navigateByApp(
-        '/groups/~nibset-napwyn/tlon/channels/chat/~nibset-napwyn/support'
-      );
-    }
-
     if (group) {
       return navigateByApp(`/groups/${flag}`);
     }

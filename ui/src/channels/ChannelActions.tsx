@@ -1,5 +1,5 @@
 import React, { useState, useCallback, PropsWithChildren } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import cn from 'classnames';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
@@ -12,6 +12,7 @@ import { GroupChannel, Saga } from '@/types/groups';
 import { useIsChannelHost } from '@/logic/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { ConnectionStatus } from '@/state/vitals';
+import VolumeSetting from '@/components/VolumeSetting';
 import HostConnection from './HostConnection';
 
 export type ChannelActionsProps = PropsWithChildren<{
@@ -38,6 +39,7 @@ const ChannelActions = React.memo(
     children,
   }: ChannelActionsProps) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const isMobile = useIsMobile();
     const [_app, flag] = nestToFlag(nest);
     const groupFlag = useRouteGroup();
@@ -46,6 +48,7 @@ const ChannelActions = React.memo(
     const [editIsOpen, setEditIsOpen] = useState(false);
     const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
     const [deleteStatus, setDeleteStatus] = useState<Status>('initial');
+    const [showNotifications, setShowNotifications] = useState(false);
     const isChannelHost = useIsChannelHost(flag);
     const { mutate: deleteChannelMutate } = useDeleteChannelMutation();
     const hasChildren = !!children;
@@ -94,6 +97,23 @@ const ChannelActions = React.memo(
     ]);
 
     const actions: Action[] = [];
+    const notificationActions: Action[] = [];
+
+    notificationActions.push({
+      key: 'volume',
+      content: (
+        <div className="-mx-2 flex flex-col space-y-6">
+          <div className="flex flex-col space-y-1">
+            <span className="text-lg text-gray-800">Notification Settings</span>
+            <span className="font-normal font-[17px] text-gray-400">
+              {channel?.meta.title || `~${nest}`}
+            </span>
+          </div>
+          <VolumeSetting scope={{ channel: nest }} />
+        </div>
+      ),
+      keepOpenOnClick: true,
+    });
 
     if (isMobile) {
       actions.push({
@@ -110,6 +130,20 @@ const ChannelActions = React.memo(
         ),
       });
     }
+
+    actions.push({
+      key: 'notifications',
+      onClick: () => {
+        if (isMobile) {
+          setShowNotifications(true);
+        } else {
+          navigate(`/groups/${groupFlag}/channels/${nest}/volume`, {
+            state: { backgroundLocation: location },
+          });
+        }
+      },
+      content: 'Notifications',
+    });
 
     if (isAdmin) {
       actions.push(
@@ -159,6 +193,11 @@ const ChannelActions = React.memo(
             )}
           </button>
         </ActionMenu>
+        <ActionMenu
+          open={showNotifications}
+          onOpenChange={setShowNotifications}
+          actions={notificationActions}
+        />
         {channel && (
           <>
             <EditChannelModal

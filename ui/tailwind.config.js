@@ -2,6 +2,7 @@
 /* eslint-disable global-require */
 const colors = require('tailwindcss/colors');
 const defaultTheme = require('tailwindcss/defaultTheme');
+const plugin = require('tailwindcss/plugin');
 
 const lightColors = {
   white: '#FFFFFF',
@@ -302,5 +303,21 @@ module.exports = {
     require('@tailwindcss/line-clamp'),
     require('@tailwindcss/typography'),
     require('@tailwindcss/container-queries'),
+    plugin(({ addUtilities }) => {
+      addUtilities({
+        '.hide-scrollbar': {
+          /* IE and Edge */
+          '-ms-overflow-style': 'none',
+
+          /* Firefox */
+          'scrollbar-width': 'none',
+
+          /* Safari and Chrome */
+          '&::-webkit-scrollbar': {
+            display: 'none',
+          },
+        },
+      });
+    }),
   ],
 };

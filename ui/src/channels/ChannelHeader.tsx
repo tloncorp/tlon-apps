@@ -12,24 +12,24 @@ import HostConnection from './HostConnection';
 import ChannelIcon from './ChannelIcon';
 
 export type ChannelHeaderProps = PropsWithChildren<{
-  flag: string;
+  groupFlag: string;
   nest: string;
   prettyAppName: string;
   leave: (flag: string) => Promise<void>;
 }>;
 
 export default function ChannelHeader({
-  flag,
+  groupFlag,
   nest,
   prettyAppName,
   leave,
   children,
 }: ChannelHeaderProps) {
   const isMobile = useIsMobile();
-  const channel = useChannel(flag, nest);
-  const isAdmin = useAmAdmin(flag);
-  const group = useGroup(flag);
-  const host = getFlagParts(flag).ship;
+  const channel = useChannel(groupFlag, nest);
+  const isAdmin = useAmAdmin(groupFlag);
+  const group = useGroup(groupFlag);
+  const host = getFlagParts(groupFlag).ship;
   const { data } = useConnectivityCheck(host);
   const saga = group?.saga || null;
   const actionProps: ChannelActionsProps = {
@@ -71,7 +71,7 @@ export default function ChannelHeader({
             {children}
           </div>
         }
-        pathBack={isTalk ? '/' : `/groups/${flag}`}
+        pathBack={isTalk ? '/' : `/groups/${groupFlag}`}
       />
     );
   }
@@ -82,7 +82,7 @@ export default function ChannelHeader({
         'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
       )}
     >
-      <ChannelTitleButton flag={flag} nest={nest} />
+      <ChannelTitleButton flag={groupFlag} nest={nest} />
       <div className="flex shrink-0 flex-row items-center space-x-3">
         {isMobile && <ReconnectingSpinner />}
         {children}

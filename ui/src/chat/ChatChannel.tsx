@@ -98,7 +98,7 @@ function ChatChannel({ title }: ViewProps) {
               path="*"
               element={
                 <ChannelHeader
-                  flag={groupFlag}
+                  groupFlag={groupFlag}
                   nest={nest}
                   prettyAppName="Chat"
                   leave={useChatState.getState().leaveChat}

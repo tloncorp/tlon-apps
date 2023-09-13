@@ -35,6 +35,7 @@ import {
   useChatInfo,
   useChatStore,
 } from '../useChatStore';
+import ReactionDetails from '../ChatReactions/ReactionDetails';
 
 export interface ChatMessageProps {
   whom: string;
@@ -213,7 +214,8 @@ const ChatMessage = React.memo<
       );
 
       const [optionsOpen, setOptionsOpen] = useState(false);
-      const { action, handlers } = useLongPress();
+      const [reactionDetailsOpen, setReactionDetailsOpen] = useState(false);
+      const { action, actionId, handlers } = useLongPress({ withId: true });
 
       useEffect(() => {
         if (!isMobile) {
@@ -221,9 +223,13 @@ const ChatMessage = React.memo<
         }
 
         if (action === 'longpress') {
-          setOptionsOpen(true);
+          if (actionId === 'reactions-target') {
+            setReactionDetailsOpen(true);
+          } else {
+            setOptionsOpen(true);
+          }
         }
-      }, [action, isMobile]);
+      }, [action, actionId, isMobile]);
 
       useEffect(() => {
         if (isMobile) {
@@ -257,6 +263,7 @@ const ChatMessage = React.memo<
           onMouseEnter={onOver}
           onMouseLeave={onOut.current}
           data-testid="chat-message"
+          id="chat-message-target"
           {...handlers}
         >
           {unread && briefMatches(unread.brief, writ.seal.id) ? (
@@ -278,6 +285,7 @@ const ChatMessage = React.memo<
               whom={whom}
               writ={writ}
               hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
+              openReactionDetails={() => setReactionDetailsOpen(true)}
             />
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
@@ -299,7 +307,18 @@ const ChatMessage = React.memo<
                   />
                 ) : null}
                 {Object.keys(seal.feels).length > 0 && (
-                  <ChatReactions seal={seal} whom={whom} />
+                  <>
+                    <ChatReactions
+                      id="reactions-target"
+                      seal={seal}
+                      whom={whom}
+                    />
+                    <ReactionDetails
+                      open={reactionDetailsOpen}
+                      onOpenChange={setReactionDetailsOpen}
+                      feels={seal.feels}
+                    />
+                  </>
                 )}
                 {numReplies > 0 && !hideReplies ? (
                   <NavLink
