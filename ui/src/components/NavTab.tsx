@@ -64,7 +64,11 @@ type DoubleClickableNavTab = PropsWithChildren<
   }
 >;
 
-export function DoubleClickableNavTab(props: DoubleClickableNavTab) {
+export function DoubleClickableNavTab({
+  onSingleClick,
+  onDoubleClick,
+  ...props
+}: DoubleClickableNavTab) {
   const [clickTimeout, setClickTimeout] = useState<number | null>(null);
 
   const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -73,14 +77,14 @@ export function DoubleClickableNavTab(props: DoubleClickableNavTab) {
     if (clickTimeout !== null) {
       window.clearTimeout(clickTimeout);
       setClickTimeout(null);
-      props.onDoubleClick();
+      onDoubleClick();
     } else {
       const timeout = window.setTimeout(() => {
         setClickTimeout(null);
       }, DOUBLE_CLICK_WINDOW);
       setClickTimeout(timeout);
     }
-    props.onSingleClick();
+    onSingleClick();
   };
 
   return (
