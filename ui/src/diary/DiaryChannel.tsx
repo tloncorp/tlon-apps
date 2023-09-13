@@ -14,7 +14,7 @@ import {
   useSortMode,
   useMarkReadMutation,
   usePendingNotes,
-  useState as useChannelState,
+  usePendingState,
   useNotesOnHost,
   useArrangedNotes,
 } from '@/state/channel/channel';
@@ -86,7 +86,7 @@ function DiaryChannel({ title }: ViewProps) {
           queryKey: ['diary', 'notes', chFlag],
           exact: true,
         });
-        useChannelState.setState({
+        usePendingState.setState({
           pendingNotes: [],
         });
       }
@@ -111,7 +111,7 @@ function DiaryChannel({ title }: ViewProps) {
             ([_t, l]) => unixToDa(l.sent).toString() === id
           )
         ) {
-          useChannelState.setState((s) => ({
+          usePendingState.setState((s) => ({
             pendingNotes: s.pendingNotes.filter((n) => n !== id),
           }));
         }

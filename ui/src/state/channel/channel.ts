@@ -83,7 +83,7 @@ async function updateNotesInCache(
   queryClient.setQueryData([han, 'notes', flag], updater);
 }
 
-function diaryAction(nest: Nest, action: Action): Poke<ShelfAction> {
+export function channelAction(nest: Nest, action: Action): Poke<ShelfAction> {
   checkNest(nest);
   return {
     app: 'channels',
@@ -97,10 +97,10 @@ function diaryAction(nest: Nest, action: Action): Poke<ShelfAction> {
   };
 }
 
-function diaryNoteAction(nest: Nest, action: NoteAction) {
+export function channelNoteAction(nest: Nest, action: NoteAction) {
   checkNest(nest);
 
-  return diaryAction(nest, {
+  return channelAction(nest, {
     note: action,
   });
 }
@@ -110,16 +110,16 @@ export interface State {
   [key: string]: unknown;
 }
 
-export const useState = create<State>(() => ({
+export const usePendingState = create<State>(() => ({
   pendingNotes: [],
 }));
 
 export function usePendingNotes() {
-  return useState((s) => s.pendingNotes);
+  return usePendingState((s) => s.pendingNotes);
 }
 
 export function useIsNotePending(noteId: string) {
-  return useState((s) => s.pendingNotes.includes(noteId));
+  return usePendingState((s) => s.pendingNotes.includes(noteId));
 }
 
 export function useNotes(nest: Nest) {
@@ -615,7 +615,7 @@ export function useMarkReadMutation() {
   const mutationFn = async (variables: { nest: Nest }) => {
     checkNest(variables.nest);
 
-    await api.poke(diaryAction(variables.nest, { read: null }));
+    await api.poke(channelAction(variables.nest, { read: null }));
   };
 
   return useMutation({
@@ -633,7 +633,7 @@ export function useJoinMutation() {
     }
 
     await api.trackedPoke<ShelfAction, ShelfResponse>(
-      diaryAction(chan, {
+      channelAction(chan, {
         join: group,
       }),
       { app: 'channels', path: '/ui' },
@@ -648,7 +648,7 @@ export function useLeaveMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest }) => {
     checkNest(variables.nest);
-    await api.poke(diaryAction(variables.nest, { leave: null }));
+    await api.poke(channelAction(variables.nest, { leave: null }));
   };
 
   return useMutation({
@@ -673,7 +673,7 @@ export function useViewMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest; view: DisplayMode }) => {
     checkNest(variables.nest);
-    await api.poke(diaryAction(variables.nest, { view: variables.view }));
+    await api.poke(channelAction(variables.nest, { view: variables.view }));
   };
 
   return useMutation({
@@ -699,7 +699,7 @@ export function useViewMutation() {
 export function useSortMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest; sort: SortMode }) => {
-    await api.poke(diaryAction(variables.nest, { sort: variables.sort }));
+    await api.poke(channelAction(variables.nest, { sort: variables.sort }));
   };
 
   return useMutation({
@@ -742,7 +742,7 @@ export function useArrangedNotesMutation() {
     }
 
     await api.poke(
-      diaryAction(variables.nest, {
+      channelAction(variables.nest, {
         order: variables.arrangedNotes.map((t) => decToUd(t)),
       })
     );
@@ -784,7 +784,7 @@ export function useAddNoteMutation() {
       try {
         api
           .trackedPoke<ShelfAction, ShelfResponse>(
-            diaryNoteAction(variables.nest, {
+            channelNoteAction(variables.nest, {
               add: variables.essay,
             }),
             { app: 'channels', path: `/${variables.nest}/ui` },
@@ -823,7 +823,7 @@ export function useAddNoteMutation() {
       await queryClient.cancelQueries([han, 'notes', flag]);
       await queryClient.cancelQueries(['briefs']);
 
-      useState.setState((state) => ({
+      usePendingState.setState((state) => ({
         pendingNotes: [variables.initialTime, ...state.pendingNotes],
       }));
 
@@ -861,7 +861,7 @@ export function useAddNoteMutation() {
       }
     },
     onSuccess: async (_data, variables) => {
-      useState.setState((state) => ({
+      usePendingState.setState((state) => ({
         pendingNotes: state.pendingNotes.filter(
           (time) => time !== variables.initialTime
         ),
@@ -887,7 +887,7 @@ export function useEditNoteMutation() {
     checkNest(variables.nest);
 
     await api.poke(
-      diaryNoteAction(variables.nest, {
+      channelNoteAction(variables.nest, {
         edit: {
           id: decToUd(variables.time),
           essay: variables.essay,
@@ -944,7 +944,7 @@ export function useDeleteNoteMutation() {
     checkNest(variables.nest);
 
     await api.trackedPoke<ShelfAction, ShelfResponse>(
-      diaryNoteAction(variables.nest, { del: variables.time }),
+      channelNoteAction(variables.nest, { del: variables.time }),
       {
         app: 'channels',
         path: `/${variables.nest}/ui`,
@@ -1052,7 +1052,7 @@ export function useAddSectsMutation() {
   const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest; writers: string[] }) => {
     await api.poke(
-      diaryAction(variables.nest, { 'add-writers': variables.writers })
+      channelAction(variables.nest, { 'add-writers': variables.writers })
     );
   };
 
@@ -1090,7 +1090,7 @@ export function useDeleteSectsMutation() {
     checkNest(variables.nest);
 
     await api.poke(
-      diaryAction(variables.nest, { 'del-writers': variables.writers })
+      channelAction(variables.nest, { 'del-writers': variables.writers })
     );
   };
 
@@ -1145,7 +1145,7 @@ export function useAddQuipMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.nest, action));
+    await api.poke(channelAction(variables.nest, action));
   };
 
   return useMutation({
@@ -1236,7 +1236,7 @@ export function useDeleteQuipMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.nest, action));
+    await api.poke(channelAction(variables.nest, action));
   };
 
   return useMutation({
@@ -1315,7 +1315,7 @@ export function useAddNoteFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.nest, action));
+    await api.poke(channelAction(variables.nest, action));
   };
 
   return useMutation({
@@ -1371,7 +1371,7 @@ export function useDeleteNoteFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.nest, action));
+    await api.poke(channelAction(variables.nest, action));
   };
 
   return useMutation({
@@ -1439,7 +1439,7 @@ export function useAddQuipFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.nest, action));
+    await api.poke(channelAction(variables.nest, action));
   };
 
   return useMutation({
@@ -1505,7 +1505,7 @@ export function useDeleteQuipFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.nest, action));
+    await api.poke(channelAction(variables.nest, action));
   };
 
   return useMutation({
