@@ -14,7 +14,7 @@ import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import useNest from '@/logic/useNest';
-import useHeapContentType from '@/logic/useHeapContentType';
+import getHeapContentType from '@/logic/useHeapContentType';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { inlineToString } from '@/logic/tiptap';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -23,9 +23,11 @@ import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
-import { isCite, Outline, VerseBlock, VerseInline } from '@/types/channel';
+import { isCite, Note, VerseBlock, VerseInline } from '@/types/channel';
 import { Link, isLink } from '@/types/content';
 import { Cite } from '@/types/chat';
+import { daToUnix } from '@urbit/api';
+import bigInt from 'big-integer';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -172,18 +174,18 @@ function Actions({
 }
 
 interface HeapRowProps extends CurioDisplayProps {
-  outline: Outline;
+  note: Note;
   isComment?: boolean;
 }
 
 export default function HeapRow({
-  outline,
+  note,
   time,
   asRef = false,
   isComment = false,
   refToken = undefined,
 }: HeapRowProps) {
-  const { content } = outline;
+  const { content } = note?.essay || { content: [] };
   const url =
     content.length > 0 &&
     isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline)
@@ -194,7 +196,7 @@ export default function HeapRow({
       : '';
   const { embed, isLoading, isError, error } = useEmbed(url);
   const calm = useCalm();
-  const { isImage, isAudio, isText } = useHeapContentType(url);
+  const { isImage, isAudio, isText } = getHeapContentType(url);
   const textFallbackTitle = (
     content.filter((c) => 'inline' in c)[0] as VerseInline
   ).inline
@@ -204,7 +206,7 @@ export default function HeapRow({
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
-  const canEdit = asRef ? false : isAdmin || window.our === outline.author;
+  const canEdit = asRef ? false : isAdmin || window.our === note?.essay.author;
   const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
 
   useEffect(() => {
@@ -231,13 +233,25 @@ export default function HeapRow({
     );
   }
 
+  if (!note) {
+    return (
+      <div
+        className={
+          'group flex h-[88px] w-full items-center justify-center space-x-2 rounded-lg bg-gray-50 p-2'
+        }
+      >
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   const cnm = (refClass?: string) =>
     asRef
       ? refClass || ''
       : 'w-full bg-white rounded-lg p-2 flex space-x-2 items-center group';
-  const { sent } = outline;
-  const replyCount = outline.quippers.length;
-  const prettySent = formatDistanceToNow(sent);
+  const { id } = note.seal;
+  const replyCount = note.seal.quippers.length;
+  const prettySent = formatDistanceToNow(daToUnix(bigInt(id)));
 
   if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {
     return (
@@ -247,10 +261,14 @@ export default function HeapRow({
           cite={(content[0] as VerseBlock).block as Cite}
         >
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={outline.author} />
+            <Avatar
+              size="xxs"
+              className="inline-block"
+              ship={note.essay.author}
+            />
             <ShipName
               showAlias={!calm.disableNicknames}
-              name={outline.author}
+              name={note.essay.author}
             />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
@@ -261,7 +279,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={outline.sent.toString()}
+            time={note.seal.id}
           />
         </div>
       </div>
@@ -283,11 +301,8 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={outline.author} />
-            <ShipName
-              showAlias={!calm.disableNicknames}
-              name={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
+            <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
             </span>
@@ -297,7 +312,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={outline.sent.toString()}
+            time={note.seal.id}
           />
         </div>
       </div>
@@ -331,11 +346,8 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={outline.author} />
-            <ShipName
-              showAlias={!calm.disableNicknames}
-              name={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
+            <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
             </span>
@@ -345,7 +357,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={outline.sent.toString()}
+            time={note.seal.id}
           />
         </div>
       </div>
@@ -370,11 +382,8 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={outline.author} />
-            <ShipName
-              showAlias={!calm.disableNicknames}
-              name={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
+            <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
             </span>
@@ -384,7 +393,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={outline.sent.toString()}
+            time={note.seal.id}
           />
         </div>
       </div>
@@ -421,15 +430,8 @@ export default function HeapRow({
               <span>{replyCount} comments</span>
             </div>
             <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-              <Avatar
-                size="xxs"
-                className="inline-block"
-                ship={outline.author}
-              />
-              <ShipName
-                showAlias={!calm.disableNicknames}
-                name={outline.author}
-              />
+              <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
+              <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
               <span className="hidden text-gray-400 sm:inline">
                 {prettySent} ago
               </span>
@@ -439,7 +441,7 @@ export default function HeapRow({
             <Actions
               longPress={false}
               canEdit={canEdit}
-              time={outline.sent.toString()}
+              time={note.seal.id}
             />
           </div>
         </div>
@@ -472,11 +474,8 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={outline.author} />
-            <ShipName
-              showAlias={!calm.disableNicknames}
-              name={outline.author}
-            />
+            <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
+            <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
             </span>
@@ -486,7 +485,7 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={outline.sent.toString()}
+            time={note.seal.id}
           />
         </div>
       </div>
@@ -510,8 +509,8 @@ export default function HeapRow({
           <span>{replyCount} comments</span>
         </div>
         <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-          <Avatar size="xxs" className="inline-block" ship={outline.author} />
-          <ShipName showAlias={!calm.disableNicknames} name={outline.author} />
+          <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
+          <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
           <span className="hidden text-gray-400 sm:inline">
             {prettySent} ago
           </span>
@@ -521,7 +520,7 @@ export default function HeapRow({
         <Actions
           longPress={false}
           canEdit={canEdit}
-          time={outline.sent.toString()}
+          time={note.seal.id}
         />
       </div>
     </div>

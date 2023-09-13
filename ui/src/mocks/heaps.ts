@@ -1,4 +1,4 @@
-import { Outlines, Perm, Shelf } from '@/types/channel';
+import { Notes, Perm, Shelf } from '@/types/channel';
 import {
   Handler,
   ScryHandler,
@@ -23,7 +23,7 @@ const mockStash: Shelf = {
   },
 };
 
-const mockCurios: Outlines = {
+const mockCurios: Notes = {
   '170141184505776467152677676749638598656': {
     quipCount: 0,
     quippers: [],

@@ -13,6 +13,7 @@ import {
   Chats,
   ChatInit,
   TalkChatInit,
+  ChatChannelPact,
 } from '../../types/chat';
 import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
@@ -48,6 +49,9 @@ export interface ChatState {
   fetchMultiDms: () => Promise<void>;
   pacts: {
     [whom: ChatWhom]: Pact;
+  };
+  chatChannelPacts: {
+    [whom: ChatWhom]: ChatChannelPact;
   };
   writWindows: {
     [whom: ChatWhom]: WritWindows;

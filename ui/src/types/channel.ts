@@ -1,3 +1,5 @@
+import { BigInteger } from 'big-integer';
+import BTree from 'sorted-btree';
 import { BigIntOrderedMap } from '@urbit/api';
 import { Inline, isLink, Link } from './content';
 import { Flag } from './hark';
@@ -10,10 +12,12 @@ export type Nest = string;
 
 export interface NoteSeal {
   id: string;
-  quips: QuipMap;
+  quips: QuipMap | null;
   feels: {
     [ship: Ship]: string;
   };
+  quipCount: number;
+  quippers: Ship[];
 }
 
 export interface QuipCork {
@@ -142,23 +146,15 @@ export interface NoteEssay {
 }
 
 export type Note = null | {
-  type: 'note';
   seal: NoteSeal;
   essay: NoteEssay;
 };
 
-export interface Outline extends NoteEssay {
-  quipCount: number;
-  quippers: Ship[];
+export interface Notes {
+  [time: string]: Note;
 }
 
-export interface Outlines {
-  [time: string]: Outline;
-}
-
-export type OutlineTuple = [string, Outline];
-
-export type OutlinesMap = BigIntOrderedMap<Outline>;
+export type NoteTuple = [string, Note];
 
 export type NoteMap = BigIntOrderedMap<Note>;
 
@@ -236,10 +232,10 @@ interface NoteActionQuip {
 // set: null | Note;
 // quip: Quip;
 
-export interface NoteDiff {
-  id: string;
-  command: NoteAction;
-}
+// export interface NoteDiff {
+// id: string;
+// command: NoteAction;
+// }
 
 export type NoteAction =
   | NoteActionAdd
@@ -322,7 +318,7 @@ export interface Perm {
 
 export interface Said {
   nest: Nest;
-  outline: Outline;
+  note: Note;
 }
 
 export interface Init {
@@ -483,4 +479,32 @@ export function storyFromChatStory(chatStory: ChatStory): Story {
   });
 
   return newStory;
+}
+
+export function getIdFromNoteAction(noteAction: NoteAction): string {
+  if ('add' in noteAction) {
+    return noteAction.add.sent.toString();
+  }
+  if ('edit' in noteAction) {
+    return noteAction.edit.id;
+  }
+  if ('del' in noteAction) {
+    return noteAction.del;
+  }
+  if ('add-feel' in noteAction) {
+    return noteAction['add-feel'].id;
+  }
+  if ('del-feel' in noteAction) {
+    return noteAction['del-feel'].id;
+  }
+  if ('quip' in noteAction) {
+    return noteAction.quip.id;
+  }
+  return '';
+}
+
+export function newQuipMap(
+  entries?: [BigInteger, Quip][]
+): BTree<BigInteger, Quip> {
+  return new BTree<BigInteger, Quip>(entries);
 }

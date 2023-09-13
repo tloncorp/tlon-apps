@@ -15,7 +15,7 @@ import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
-import useHeapContentType from '@/logic/useHeapContentType';
+import getHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -28,8 +28,10 @@ import {
   imageUrlFromContent,
   isCite,
   linkUrlFromContent,
-  Outline,
+  Note,
 } from '@/types/channel';
+import { daToUnix } from '@urbit/api';
+import bigInt from 'big-integer';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -190,19 +192,23 @@ function TopBar({
 }
 
 interface BottomBarProps {
-  outline: Outline;
+  note: Note;
   asRef?: boolean;
   asMobileNotification?: boolean;
 }
 
-function BottomBar({ outline, asRef, asMobileNotification }: BottomBarProps) {
-  const { sent } = outline;
-  const replyCount = outline.quippers.length;
-  const prettySent = formatDistanceToNow(sent);
-
+function BottomBar({ note, asRef, asMobileNotification }: BottomBarProps) {
   if (asRef || asMobileNotification) {
     return <div />;
   }
+
+  if (!note) {
+    return null;
+  }
+
+  const { id } = note.seal;
+  const replyCount = note.seal.quippers.length;
+  const prettySent = formatDistanceToNow(daToUnix(bigInt(id)));
 
   return (
     <div
@@ -210,7 +216,7 @@ function BottomBar({ outline, asRef, asMobileNotification }: BottomBarProps) {
         'absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:bg-white/50 group-hover:backdrop-blur'
       )}
     >
-      <Avatar ship={outline.author} size="xs" />
+      <Avatar ship={note.essay.author} size="xs" />
       <div className="hidden w-full justify-between align-middle group-hover:flex">
         <span className="truncate font-semibold">{prettySent} ago</span>
         {replyCount > 0 ? (
@@ -228,12 +234,12 @@ function HeapBlockWrapper({
   time,
   setLongPress,
   children,
-  outline,
+  note,
   linkFromNotification,
 }: React.PropsWithChildren<{
   time: string;
   setLongPress: (b: boolean) => void;
-  outline: Outline;
+  note: Note;
   linkFromNotification?: string;
 }>) {
   const navigate = useNavigate();
@@ -244,9 +250,9 @@ function HeapBlockWrapper({
         navigate(linkFromNotification);
         return;
       }
-      navigate(`curio/${blockTime}`, { state: { initialCurio: outline } });
+      navigate(`curio/${blockTime}`, { state: { initialCurio: note } });
     },
-    [navigate, outline, linkFromNotification]
+    [navigate, note, linkFromNotification]
   );
 
   useEffect(() => {
@@ -267,12 +273,12 @@ function HeapBlockWrapper({
 }
 
 interface HeapBlockProps extends CurioDisplayProps {
-  outline: Outline;
+  note: Note;
   linkFromNotification?: string;
 }
 
 export default function HeapBlock({
-  outline,
+  note,
   time,
   asRef = false,
   asMobileNotification = false,
@@ -280,7 +286,7 @@ export default function HeapBlock({
   linkFromNotification,
 }: HeapBlockProps) {
   const [longPress, setLongPress] = useState(false);
-  const { content } = outline;
+  const { content } = note ? note.essay : { content: [] };
   const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const {
     embed,
@@ -289,13 +295,13 @@ export default function HeapBlock({
     error: embedError,
   } = useEmbed(url);
   const calm = useCalm();
-  const { isImage, isAudio, isText } = useHeapContentType(url);
+  const { isImage, isAudio, isText } = getHeapContentType(url);
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit =
     asRef || asMobileNotification
       ? false
-      : isAdmin || window.our === outline.author;
+      : isAdmin || window.our === (note ? note.essay.author : '');
   const maybeEmbed = !isImage && !isAudio && !isText;
 
   useEffect(() => {
@@ -323,14 +329,14 @@ export default function HeapBlock({
     refToken,
     longPress,
   };
-  const botBar = { outline, asRef, asMobileNotification, longPress };
+  const botBar = { note, asRef, asMobileNotification, longPress };
 
   if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {
     return (
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        outline={outline}
+        note={note}
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
@@ -352,7 +358,7 @@ export default function HeapBlock({
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        outline={outline}
+        note={note}
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
@@ -376,7 +382,7 @@ export default function HeapBlock({
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        outline={outline}
+        note={note}
         setLongPress={setLongPress}
       >
         <div
@@ -400,7 +406,7 @@ export default function HeapBlock({
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        outline={outline}
+        note={note}
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
@@ -424,7 +430,7 @@ export default function HeapBlock({
         <HeapBlockWrapper
           linkFromNotification={linkFromNotification}
           time={time}
-          outline={outline}
+          note={note}
           setLongPress={setLongPress}
         >
           <div
@@ -447,7 +453,7 @@ export default function HeapBlock({
         <HeapBlockWrapper
           linkFromNotification={linkFromNotification}
           time={time}
-          outline={outline}
+          note={note}
           setLongPress={setLongPress}
         >
           <div className={cnm()}>
@@ -470,7 +476,7 @@ export default function HeapBlock({
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        outline={outline}
+        note={note}
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
@@ -488,7 +494,7 @@ export default function HeapBlock({
     <HeapBlockWrapper
       linkFromNotification={linkFromNotification}
       time={time}
-      outline={outline}
+      note={note}
       setLongPress={setLongPress}
     >
       <div className={cnm()}>

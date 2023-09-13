@@ -1,6 +1,6 @@
 import { NoteEssay } from '@/types/channel';
 
-export default function getHanDataFromEssay(essay: NoteEssay): {
+export default function getHanDataFromEssay(essay: NoteEssay | undefined): {
   title: string;
   image: string;
   notice?: null;

@@ -213,6 +213,13 @@ export function whomIsFlag(whom: ChatWhom): boolean {
   );
 }
 
+export function whomIsNest(whom: ChatWhom): boolean {
+  return (
+    /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
+    ob.isValidPatp(whom.split('/')[0])
+  );
+}
+
 export function whomIsMultiDm(whom: ChatWhom): boolean {
   return whom.startsWith(`0v`);
 }

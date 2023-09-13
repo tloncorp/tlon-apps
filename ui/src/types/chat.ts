@@ -1,5 +1,6 @@
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
+import { Note, Outline } from './channel';
 import {
   BlockCode,
   Blockquote,
@@ -210,8 +211,24 @@ export function newWritMap(
   );
 }
 
+export function newNoteMap(
+  entries?: [BigInteger, Outline][],
+  reverse = false
+): BTree<BigInteger, Outline> {
+  return new BTree<BigInteger, Outline>(entries, (a, b) =>
+    reverse ? b.compare(a) : a.compare(b)
+  );
+}
+
 export interface Pact {
   writs: BTree<BigInteger, ChatWrit>;
+  index: {
+    [id: string]: BigInteger;
+  };
+}
+
+export interface ChatChannelPact {
+  writs: BTree<BigInteger, Outline>;
   index: {
     [id: string]: BigInteger;
   };
@@ -237,7 +254,7 @@ export interface ChatBriefUpdate {
   brief: ChatBrief;
 }
 /**
- * Either a `@p` or a `$flag` rendered as string
+ * Either a `@p`, `$flag` or `@nest` rendered as string
  */
 export type ChatWhom = string;
 

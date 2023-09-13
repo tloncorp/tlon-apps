@@ -194,7 +194,7 @@
 +$  feel  @ta
 +$  feels  (map ship (rev (unit feel)))
 ::  $said: used for references
-+$  said  (pair nest outline)
++$  said  (pair nest rr-note)
 ::  $plan: index into diary state
 ::    p: Note being referred to
 ::    q: Quip being referred to, if any
@@ -417,7 +417,7 @@
   --
 +$  rr-notes  ((mop id-note (unit rr-note)) lte)
 +$  rr-note   [rr-seal essay]
-+$  rr-seal   [id=id-note =rr-quips =rr-feels]
++$  rr-seal   [id=id-note =rr-quips =rr-feels quip-count=@ud quippers=(set ship)]
 +$  rr-feels  (map ship feel)
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)

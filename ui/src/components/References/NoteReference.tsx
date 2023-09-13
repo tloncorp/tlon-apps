@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useRemoteOutline } from '@/state/channel/channel';
+import { useRemoteNote } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 import {
   isImageUrl,
@@ -41,12 +41,29 @@ function NoteReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const outline = useRemoteOutline(nest, id, isScrolling);
-  const { title, image } = getHanDataFromEssay(outline);
+  const note = useRemoteNote(nest, id, isScrolling);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
 
+  const contentPreview = useMemo(() => {
+    if (!note || !note.essay.content) {
+      return '';
+    }
+
+    const truncatedContent = truncateProse(
+      note.essay.content,
+      NOTE_REF_DISPLAY_LIMIT
+    );
+
+    return <DiaryContent content={truncatedContent} isPreview />;
+  }, [note]);
+
+  if (!note || !note.essay.content) {
+    return <HeapLoadingBlock reference />;
+  }
+
+  const { title, image } = getHanDataFromEssay(note.essay);
   const handleOpenReferenceClick = () => {
     if (!group) {
       navigate(`/gangs/${groupFlag}?type=note&nest=${nest}&id=${id}`, {
@@ -58,24 +75,7 @@ function NoteReference({
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
   };
 
-  const contentPreview = useMemo(() => {
-    if (!outline || !outline.content) {
-      return '';
-    }
-
-    const truncatedContent = truncateProse(
-      outline.content,
-      NOTE_REF_DISPLAY_LIMIT
-    );
-
-    return <DiaryContent content={truncatedContent} isPreview />;
-  }, [outline]);
-
-  if (!outline || !outline.content) {
-    return <HeapLoadingBlock reference />;
-  }
-
-  const prettyDate = makePrettyDate(new Date(outline.sent));
+  const prettyDate = makePrettyDate(new Date(note.seal.id));
 
   if (contextApp === 'heap-row') {
     return (
@@ -94,7 +94,7 @@ function NoteReference({
         title={title}
         byline={
           <span>
-            Note by <ShipName name={outline.author} showAlias /> in{' '}
+            Note by <ShipName name={note.essay.author} showAlias /> in{' '}
             {preview?.meta?.title}
           </span>
         }
@@ -128,7 +128,7 @@ function NoteReference({
           <ReferenceBar
             nest={nest}
             time={bigInt(id)}
-            author={outline.author}
+            author={note.essay.author}
             groupFlag={preview?.group.flag}
             groupImage={group?.meta.image}
             groupTitle={preview?.group.meta.title}
@@ -167,10 +167,10 @@ function NoteReference({
         ) : null}
         <span className="text-2xl font-semibold">{title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
-        {outline.quipCount > 0 ? (
+        {note.seal.quipCount > 0 ? (
           <div className="flex space-x-2">
             <div className="relative flex items-center">
-              {outline.quippers.map((author, index) => (
+              {note.seal.quippers.map((author, index) => (
                 <Avatar
                   ship={author}
                   size="xs"
@@ -183,7 +183,7 @@ function NoteReference({
               ))}
             </div>
             <span className="font-semibold text-gray-600">
-              {outline.quipCount} {pluralize('comment', outline.quipCount)}
+              {note.seal.quipCount} {pluralize('comment', note.seal.quipCount)}
             </span>
           </div>
         ) : null}
@@ -202,7 +202,7 @@ function NoteReference({
       <ReferenceBar
         nest={nest}
         time={bigInt(id)}
-        author={outline.author}
+        author={note.essay.author}
         groupFlag={preview?.group.flag}
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}

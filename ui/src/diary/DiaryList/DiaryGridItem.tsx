@@ -1,22 +1,26 @@
 import { useNavigate } from 'react-router';
-import { Outline, NoteEssay } from '@/types/channel';
+import { Note } from '@/types/channel';
 import { useCalm } from '@/state/settings';
 import getHanDataFromEssay from '@/logic/getHanData';
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
-  outline: Outline;
+  note: Note;
   time: bigInt.BigInteger;
 }
 
-export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
-  const essay: NoteEssay = outline;
-  const { image } = getHanDataFromEssay(essay);
+export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const navigate = useNavigate();
-  const hasImage = image?.length !== 0;
   const calm = useCalm();
-  const commenters = outline.quippers;
-  const { quipCount } = outline;
+  if (!note) {
+    return null;
+  }
+
+  const { essay } = note;
+  const { image } = getHanDataFromEssay(essay);
+  const hasImage = image?.length !== 0;
+  const commenters = note.seal.quippers;
+  const { quipCount } = note.seal;
 
   return (
     <div

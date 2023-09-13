@@ -11,7 +11,7 @@ import {
   usePerms,
   useMarkReadMutation,
   useJoinMutation,
-  useInfiniteOutlines,
+  useInfiniteNotes,
 } from '@/state/channel/channel';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
@@ -23,7 +23,8 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
-import { Outline } from '@/types/channel';
+import getHanDataFromEssay from '@/logic/getHanData';
+import { Note } from '@/types/channel';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
@@ -46,8 +47,8 @@ function HeapChannel({ title }: ViewProps) {
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  const { outlines, fetchNextPage, hasNextPage, isLoading } =
-    useInfiniteOutlines(nest);
+  const { notes, fetchNextPage, hasNextPage, isLoading } =
+    useInfiniteNotes(nest);
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
 
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
@@ -75,17 +76,17 @@ function HeapChannel({ title }: ViewProps) {
   });
 
   const renderCurio = useCallback(
-    (i: number, outline: Outline, time: bigInt.BigInteger) => (
+    (i: number, outline: Note, time: bigInt.BigInteger) => (
       <div key={time.toString()} tabIndex={0} className="cursor-pointer">
         {displayMode === 'grid' ? (
           <div className="aspect-h-1 aspect-w-1">
-            <HeapBlock outline={outline} time={time.toString()} />
+            <HeapBlock note={outline} time={time.toString()} />
           </div>
         ) : (
           <div onClick={() => navigateToDetail(time)}>
             <HeapRow
               key={time.toString()}
-              outline={outline}
+              note={outline}
               time={time.toString()}
             />
           </div>
@@ -95,22 +96,18 @@ function HeapChannel({ title }: ViewProps) {
     [displayMode, navigateToDetail]
   );
 
-  const getOutlineTitle = (outline: Outline) =>
-    'heap' in outline['han-data']
-      ? outline['han-data'].heap ||
-        outline.content.toString().split(' ').slice(0, 3).join(' ')
-      : '';
-
-  const empty = useMemo(() => Array.from(outlines).length === 0, [outlines]);
-  const sortedOutlines = Array.from(outlines).sort(([a], [b]) => {
+  const empty = useMemo(() => Array.from(notes).length === 0, [notes]);
+  const sortedNotes = Array.from(notes).sort(([a], [b]) => {
     if (sortMode === 'time') {
       return b.compare(a);
     }
     if (sortMode === 'alpha') {
-      const outlineA = outlines.get(a);
-      const outlineB = outlines.get(b);
+      const noteA = notes.get(a);
+      const noteB = notes.get(b);
+      const { title: noteATitle } = getHanDataFromEssay(noteA?.essay);
+      const { title: noteBTitle } = getHanDataFromEssay(noteB?.essay);
 
-      return getOutlineTitle(outlineA).localeCompare(getOutlineTitle(outlineB));
+      return noteATitle.localeCompare(noteBTitle);
     }
     return b.compare(a);
   });
@@ -126,7 +123,7 @@ function HeapChannel({ title }: ViewProps) {
 
   const computeItemKey = (
     _i: number,
-    [time, _curio]: [bigInt.BigInteger, Outline]
+    [time, _curio]: [bigInt.BigInteger, Note]
   ) => time.toString();
 
   const thresholds = {
@@ -217,7 +214,7 @@ function HeapChannel({ title }: ViewProps) {
           </div>
         ) : (
           <VirtuosoGrid
-            data={sortedOutlines}
+            data={sortedNotes}
             itemContent={(i, [time, curio]) => renderCurio(i, curio, time)}
             computeItemKey={computeItemKey}
             style={{ height: '100%', width: '100%', paddingTop: '1rem' }}

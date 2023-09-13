@@ -929,10 +929,35 @@
   ++  di-rr-note
     |=  =note:d
     ^-  rr-note:d
+    =/  quippers  (get-quippers:utils note)
     :_  +>.note
-    :+  id.note
-      (di-rr-quips quips.note)
-    (di-rr-feels feels.note)
+    :*  id.note
+        (di-rr-quips quips.note)
+        (di-rr-feels feels.note)
+        ~(wyt in quippers)
+        quippers
+    ==
+  ::
+  ++  di-rr-note-without-quips
+    |=  =note:d
+    ^-  rr-note:d
+    =/  quippers  (get-quippers:utils note)
+    :_  +>.note
+    :*  id.note
+        *rr-quips:d
+        (di-rr-feels feels.note)
+        ~(wyt in quippers)
+        quippers
+    ==
+  ::
+  ++  di-rr-notes-without-quips
+    |=  =notes:d
+    ^-  rr-notes:d
+    %+  gas:rr-on-notes:d  *rr-notes:d
+    %+  turn  (tap:on-notes:d notes)
+    |=  [=id-note:d note=(unit note:d)]
+    ^-  [id-note:d (unit rr-note:d)]
+    [id-note ?~(note ~ `(di-rr-notes u.note))]
   ::
   ++  di-rr-quips
     |=  =quips:d
@@ -1181,12 +1206,8 @@
       =/  ls    (top:mo-notes:d notes.diary count)
       ?:  =(mode.pole %note)
         ``channel-notes+!>((gas:on *notes:d ls))
-      =-  ``channel-outlines+!>(-)
-      %+  gas:on:outlines:d  *outlines:d
-      %+  murn  ls
-      |=  [=time note=(unit note:d)]
-      ?~  note  ~
-      (some [time (trace:utils u.note)])
+      =-  ``channel-notes+!>(-)
+      %-  di-rr-notes-without-quips  notes.diary
     ::
         [%older start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
@@ -1195,11 +1216,7 @@
       ?:  =(mode.pole %note)
         ``channel-notes+!>((gas:on *notes:d ls))
       =-  ``channel-outlines+!>(-)
-      %+  gas:on:outlines:d  *outlines:d
-      %+  murn  ls
-      |=  [=time note=(unit note:d)]
-      ?~  note  ~
-      (some [time (trace:utils u.note)])
+      %-  di-rr-notes-without-quips  notes.diary
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)

@@ -6,23 +6,23 @@
   |=  [=nest:d =plan:d =notes:d]
   ^-  cage
   =/  note=(unit (unit note:d))  (get:on-notes:d notes p.plan)
-  =/  =outline:d
+  =/  =rr-note:d
     ?~  note
       ::TODO  give "outline" that formally declares deletion
       ?-  han.nest
-        %diary  [0 ~ [~ ~nul *@da] %diary 'Unknown post' '']
-        %heap   [0 ~ [~ ~nul *@da] %heap ~ 'Unknown link']
-        %chat   [0 ~ [[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
+        %diary  [[*@da ~ ~ 0 ~] [~ ~nul *@da] %diary 'Unknown post' '']
+        %heap   [[*@da ~ ~ 0 ~] [~ ~nul *@da] %heap ~ 'Unknown link']
+        %chat   [[*@da ~ ~ 0 ~] [[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
       ==
     ?~  u.note
       ?-  han.nest
-          %diary  [0 ~ [~ ~nul *@da] %diary 'This post was deleted' '']
-          %heap   [0 ~ [~ ~nul *@da] %heap ~ 'This link was deleted']
+          %diary  [[*@da ~ ~ 0 ~] [~ ~nul *@da] %diary 'This post was deleted' '']
+          %heap   [[*@da ~ ~ 0 ~] [~ ~nul *@da] %heap ~ 'This link was deleted']
           %chat
-        [0 ~ [[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
+        [[*@da ~ ~ 0 ~] [[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
       ==
-    (trace u.u.note)
-  [%channel-said !>(`said:d`[nest outline])]
+    u.u.note
+  [%channel-said !>(`said:d`[nest rr-note])]
 ::
 ++  trace
   |=  =note:d
@@ -36,6 +36,15 @@
   ?~  quip  ~
   (some author.u.quip)
 ::
+++  get-quippers
+  |=  =note:d
+  ^-  (set ship)
+  =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
+  %-  ~(gas in *(set ship))
+  %+  murn  (tap:on-quips:d quips.note)
+  |=  [@ quip=(unit quip:d)]
+  ?~  quip  ~
+  (some author.u.quip)
 ++  perms
   |_  [our=@p now=@da =nest:d group=flag:g]
   ++  am-host  =(our ship.nest)

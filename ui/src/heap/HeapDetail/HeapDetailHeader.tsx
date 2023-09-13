@@ -8,7 +8,7 @@ import ChannelIcon from '@/channels/ChannelIcon';
 import { useNote } from '@/state/channel/channel';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
-import useHeapContentType from '@/logic/useHeapContentType';
+import getHeapContentType from '@/logic/useHeapContentType';
 import useNest from '@/logic/useNest';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
@@ -37,7 +37,7 @@ export default function HeapDetailHeader({
     (isLink(content.inline[0])
       ? content.inline[0].link.href
       : (content.inline[0] || '').toString()) || '';
-  const { description } = useHeapContentType(curioContent);
+  const { description } = getHeapContentType(curioContent);
   const isAdmin = useAmAdmin(groupFlag);
   const canEdit = isAdmin || window.our === essay.author;
   // TODO: a better title fallback

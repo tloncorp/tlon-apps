@@ -30,6 +30,12 @@ import {
   Pins,
   WritDelta,
 } from '@/types/chat';
+import {
+  Action,
+  NoteAction,
+  ShelfAction,
+  storyFromChatStory,
+} from '@/types/channel';
 import api from '@/api';
 import {
   whomIsDm,
@@ -37,6 +43,7 @@ import {
   whomIsFlag,
   nestToFlag,
   sliceMap,
+  whomIsNest,
 } from '@/logic/utils';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
@@ -47,6 +54,7 @@ import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
+import { channelAction, channelNoteAction } from '../channel/channel';
 
 setAutoFreeze(false);
 
@@ -60,28 +68,32 @@ function subscribeOnce<T>(app: string, path: string) {
   });
 }
 
-function chatAction(whom: string, diff: ChatDiff): Poke<ChatAction> {
-  return {
-    app: 'chat',
-    mark: 'chat-action-0',
-    json: {
-      flag: whom,
-      update: {
-        time: '',
-        diff,
-      },
-    },
-  };
-}
+// function chatAction(whom: string, diff: ChatDiff): Poke<ChatAction> {
+// return {
+// app: 'chat',
+// mark: 'chat-action-0',
+// json: {
+// flag: whom,
+// update: {
+// time: '',
+// diff,
+// },
+// },
+// };
+// }
 
-function chatWritDiff(whom: string, id: string, delta: WritDelta) {
-  return chatAction(whom, {
-    writs: {
-      id,
-      delta,
-    },
-  });
-}
+const chatAction = channelAction;
+
+// function chatWritDiff(whom: string, id: string, delta: WritDelta) {
+// return chatAction(whom, {
+// writs: {
+// id,
+// delta,
+// },
+// });
+// }
+
+const chatWritDiff = channelNoteAction;
 
 function makeId() {
   const time = Date.now();
@@ -125,27 +137,72 @@ async function optimisticAction(
   delta: WritDelta,
   set: SetState<BasedChatState>
 ) {
-  const action = whomIsDm(whom)
-    ? dmAction(whom, delta, id)
-    : whomIsMultiDm(whom)
-    ? multiDmAction(whom, { writ: { id, delta } })
-    : chatWritDiff(whom, id, delta);
+  let action: Poke<ShelfAction | DmAction | ClubAction>;
+
+  if (whomIsNest(whom)) {
+    let newDelta: NoteAction;
+
+    if ('add' in delta) {
+      newDelta = {
+        add: {
+          'han-data':
+            'notice' in delta.add.content
+              ? { chat: { notice: null } }
+              : { chat: null },
+          content:
+            'story' in delta.add.content
+              ? storyFromChatStory(delta.add.content.story)
+              : [],
+          author: delta.add.author,
+          sent: delta.add.sent,
+        },
+      };
+    } else if ('del' in delta) {
+      newDelta = {
+        del: id,
+      };
+    } else if ('add-feel' in delta) {
+      newDelta = {
+        'add-feel': {
+          id,
+          ...delta['add-feel'],
+        },
+      };
+    } else if ('del-feel' in delta) {
+      newDelta = {
+        'del-feel': {
+          id,
+          ship: delta['del-feel'],
+        },
+      };
+    } else {
+      throw new Error('invalid delta');
+    }
+
+    action = chatWritDiff(whom, newDelta);
+  } else {
+    action = whomIsDm(whom)
+      ? dmAction(whom, delta as WritDelta, id)
+      : multiDmAction(whom, { writ: { id, delta: delta as WritDelta } });
+  }
+
   set((draft) => {
     const potentialEvent =
       action.mark === 'club-action-0' &&
       'id' in action.json &&
       'writ' in action.json.diff.delta
         ? action.json.diff.delta.writ
-        : (action.json as ChatAction | DmAction);
+        : (action.json as ShelfAction | DmAction);
     const reduced = writsReducer(whom)(potentialEvent, draft);
 
     return {
       pacts: { ...reduced.pacts },
+      chatChannelPacts: { ...reduced.chatChannelPacts },
       writWindows: { ...reduced.writWindows },
     };
   });
 
-  await api.poke<ClubAction | DmAction | ChatAction>(action);
+  await api.poke<ClubAction | DmAction | ShelfAction>(action);
 }
 
 export const useChatState = createState<ChatState>(
@@ -161,6 +218,7 @@ export const useChatState = createState<ChatState>(
     multiDms: {},
     dmArchive: [],
     pacts: {},
+    chatChannelPacts: {},
     drafts: {},
     pendingDms: [],
     pins: [],
@@ -171,6 +229,19 @@ export const useChatState = createState<ChatState>(
     briefs: {},
     loadedGraphRefs: {},
     getTime: (whom, id) => {
+      if (whomIsNest(whom)) {
+        const { chatChannelPacts } = get();
+        const pact = chatChannelPacts[whom];
+
+        if (!pact || !pact.index[id]) {
+          // not accurate, won't be in pact, using until chat ref fetching
+          // returns time alongside writ
+          return bigInt(udToDec(id.split('/')[1]));
+        }
+
+        return pact.index[id];
+      }
+
       const { pacts } = get();
       const pact = pacts[whom];
 
@@ -213,14 +284,18 @@ export const useChatState = createState<ChatState>(
       });
     },
     markRead: async (whom) => {
-      await api.poke({
-        app: 'chat',
-        mark: 'chat-remark-action',
-        json: {
-          whom,
-          diff: { read: null },
-        },
-      });
+      if (whomIsNest(whom)) {
+        await api.poke(channelAction(whom, { read: null }));
+      } else {
+        await api.poke({
+          app: 'chat',
+          mark: 'chat-remark-action',
+          json: {
+            whom,
+            diff: { read: null },
+          },
+        });
+      }
     },
     start: async ({ briefs, chats, pins }) => {
       get().batchSet((draft) => {
@@ -338,6 +413,22 @@ export const useChatState = createState<ChatState>(
       );
     },
     fetchMessages: async (whom: string, count: string, dir, time) => {
+      if (whomIsNest(whom)) {
+        const { getOlder, getNewer } = makeWritsStore(
+          whom,
+          get,
+          set,
+          `/channel/${whom}/writs`,
+          `/channel/${whom}/ui/writs`
+        );
+
+        if (dir === 'older') {
+          return getOlder(count, time);
+        }
+
+        return getNewer(count, time);
+      }
+
       const isDM = whomIsDm(whom);
       const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
 
@@ -535,8 +626,11 @@ export const useChatState = createState<ChatState>(
           { app: 'chat', path: whom }
         );
       } else {
-        await api.trackedPoke<ChatAction>(chatWritDiff(whom, id, diff), {
-          app: 'chat',
+        const channelDiff = {
+          del: id,
+        };
+        await api.trackedPoke<ShelfAction>(chatWritDiff(whom, channelDiff), {
+          app: 'channels',
           path: whom,
         });
       }
@@ -620,7 +714,7 @@ export const useChatState = createState<ChatState>(
       await get().fetchMultiDm(id, true);
     },
     addSects: async (whom, sects) => {
-      await api.poke(chatAction(whom, { 'add-sects': sects }));
+      await api.poke(chatAction(whom, { 'add-writers': sects }));
       const perms = await api.scry<ChatPerm>({
         app: 'chat',
         path: `/chat/${whom}/perm`,
@@ -630,7 +724,7 @@ export const useChatState = createState<ChatState>(
       });
     },
     delSects: async (whom, sects) => {
-      await api.poke(chatAction(whom, { 'del-sects': sects }));
+      await api.poke(chatAction(whom, { 'del-writers': sects }));
       const perms = await api.scry<ChatPerm>({
         app: 'chat',
         path: `/chat/${whom}/perm`,

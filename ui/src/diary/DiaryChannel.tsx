@@ -3,13 +3,12 @@ import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
-import { unixToDa } from '@urbit/api';
 import * as Toast from '@radix-ui/react-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
 import {
-  useInfiniteOutlines,
+  useInfiniteNotes,
   useDisplayMode,
   useSortMode,
   useMarkReadMutation,
@@ -23,10 +22,10 @@ import {
   useUserDiaryDisplayMode,
 } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
+import {Note} from '@/types/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
-import { Outline } from '@/types/channel';
 import { useFullChannel } from '@/logic/channel';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
@@ -41,8 +40,8 @@ function DiaryChannel({ title }: ViewProps) {
   const nest = `diary/${chFlag}`;
   const { data } = useConnectivityCheck(chShip ?? '');
   const groupFlag = useRouteGroup();
-  const { outlines, isLoading, fetchNextPage, hasNextPage } =
-    useInfiniteOutlines(nest);
+  const { notes, isLoading, fetchNextPage, hasNextPage } =
+    useInfiniteNotes(nest);
   const queryClient = useQueryClient();
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
@@ -78,8 +77,10 @@ function DiaryChannel({ title }: ViewProps) {
       if (
         pendingNotes.length > 0 &&
         notesOnHost &&
-        !Object.entries(notesOnHost).every(([_time, n]) =>
-          Array.from(outlines).find(([_t, l]) => l.sent === n.sent)
+        !Object.entries(notesOnHost).every(
+          ([_time, n]) =>
+            n &&
+            Array.from(notes).find(([_t, l]) => l && l.seal.id === n.seal.id)
         )
       ) {
         queryClient.refetchQueries({
@@ -91,7 +92,7 @@ function DiaryChannel({ title }: ViewProps) {
         });
       }
     }
-  }, [chFlag, queryClient, data, outlines, notesOnHost, pendingNotes]);
+  }, [chFlag, queryClient, data, notes, notesOnHost, pendingNotes]);
 
   const clearPendingNotes = useCallback(() => {
     // if we have pending notes and the ship is connected
@@ -108,7 +109,7 @@ function DiaryChannel({ title }: ViewProps) {
         if (
           notesOnHost &&
           Object.entries(notesOnHost).find(
-            ([_t, l]) => unixToDa(l.sent).toString() === id
+            ([_t, l]) => l && l.seal.id === id
           )
         ) {
           usePendingState.setState((s) => ({
@@ -164,7 +165,7 @@ function DiaryChannel({ title }: ViewProps) {
     isMarking,
   });
 
-  const sortedNotes = Array.from(outlines).sort(([a], [b]) => {
+  const sortedNotes = Array.from(notes).sort(([a], [b]) => {
     if (sortMode === 'arranged') {
       // if only one note is arranged, put it first
       if (
@@ -198,10 +199,10 @@ function DiaryChannel({ title }: ViewProps) {
 
   const itemContent = (
     i: number,
-    [time, outline]: [bigInt.BigInteger, Outline]
+    [time, outline]: [bigInt.BigInteger, Note]
   ) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
-      <DiaryListItem outline={outline} time={time} />
+      <DiaryListItem note={outline} time={time} />
       {lastArrangedNote === time.toString() && (
         <div className="mt-6 flex justify-center">
           <div className="flex items-center space-x-2 text-gray-500">

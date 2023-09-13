@@ -1,19 +1,24 @@
 import cn from 'classnames';
-import { Outline } from '@/types/channel';
+import { Note } from '@/types/channel';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
 import { useIsNotePending } from '@/state/channel/channel';
 
 interface DiaryListItemProps {
-  outline: Outline;
+  note: Note;
   time: bigInt.BigInteger;
 }
 
-export default function DiaryListItem({ outline, time }: DiaryListItemProps) {
+export default function DiaryListItem({ note, time }: DiaryListItemProps) {
   const isPending = useIsNotePending(time.toString());
   const navigate = useNavigate();
-  const essay = outline;
-  const { quippers, quipCount } = outline;
+
+  if (!note) {
+    return null;
+  }
+
+  const { essay } = note;
+  const { quippers, quipCount } = note.seal;
 
   return (
     <div

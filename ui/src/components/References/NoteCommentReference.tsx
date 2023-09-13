@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useQuip, useRemoteOutline } from '@/state/channel/channel';
+import { useQuip, useRemoteNote } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
@@ -10,6 +10,7 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import { useChannelFlag } from '@/logic/channel';
+import getHanDataFromEssay from '@/logic/getHanData';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
@@ -41,7 +42,7 @@ function NoteCommentReference({
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const outline = useRemoteOutline(nest, noteId, isScrolling);
+  const note = useRemoteNote(nest, noteId, isScrolling);
 
   const handleOpenReferenceClick = () => {
     if (!group) {
@@ -54,9 +55,11 @@ function NoteCommentReference({
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/note/${noteId}`);
   };
 
-  if (!quip) {
+  if (!quip || !note) {
     return <HeapLoadingBlock reference />;
   }
+
+  const { title } = getHanDataFromEssay(note?.essay);
 
   if (contextApp === 'heap-row') {
     return (
@@ -72,10 +75,7 @@ function NoteCommentReference({
         }
         byline={
           <span className="">
-            Comment by <ShipName name={quip.memo.author} showAlias /> on{' '}
-            {'diary' in outline['han-data']
-              ? outline['han-data'].diary.title
-              : null}
+            Comment by <ShipName name={quip.memo.author} showAlias /> on {title}
           </span>
         }
       >
@@ -91,12 +91,7 @@ function NoteCommentReference({
         contextApp={contextApp}
         image={<ChatContent story={quip.memo.content} isScrolling={false} />}
         title={
-          <h2 className="mb-2 text-lg font-semibold">
-            Comment on{' '}
-            {'diary' in outline['han-data']
-              ? outline['han-data'].diary.title
-              : null}
-          </h2>
+          <h2 className="mb-2 text-lg font-semibold">Comment on {title}</h2>
         }
       >
         {children}

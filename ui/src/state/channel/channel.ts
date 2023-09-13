@@ -24,16 +24,15 @@ import {
   Said,
   Create,
   Briefs,
-  Outline,
   NoteEssay,
   Story,
-  Outlines,
+  Notes,
   ShelfResponse,
   ShelfAction,
   Note,
   Nest,
-  OutlineTuple,
-  OutlinesMap,
+  NoteTuple,
+  NoteMap,
 } from '@/types/channel';
 import api from '@/api';
 import { checkNest, nestToFlag, restoreMap } from '@/logic/utils';
@@ -50,6 +49,8 @@ interface NoteSealInCache {
   feels: {
     [ship: Ship]: string;
   };
+  quipCount: number;
+  quippers: Ship[];
 }
 
 interface NoteInCache {
@@ -74,7 +75,7 @@ async function updateNoteInCache(
 
 async function updateNotesInCache(
   variables: { nest: Nest },
-  updater: (notes: Outlines | undefined) => Outlines | undefined,
+  updater: (notes: Notes | undefined) => Notes | undefined,
   queryClient: QueryClient
 ) {
   const [han, flag] = nestToFlag(variables.nest);
@@ -132,26 +133,26 @@ export function useNotes(nest: Nest) {
     priority: 2,
   });
 
-  let outlineMap = restoreMap<Outline>(data);
+  let notesMap = restoreMap<Note>(data);
 
   if (data === undefined || Object.entries(data as object).length === 0) {
     return {
-      outlines: outlineMap as BigIntOrderedMap<Outline>,
+      notes: notesMap as BigIntOrderedMap<Note>,
       ...rest,
     };
   }
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    note: v as Outline,
+    note: v as Note,
   }));
 
   diff.forEach(({ tim, note }) => {
-    outlineMap = outlineMap.set(tim, note);
+    notesMap = notesMap.set(tim, note);
   });
 
   return {
-    outlines: outlineMap as BigIntOrderedMap<Outline>,
+    notes: notesMap as BigIntOrderedMap<Note>,
     ...rest,
   };
 }
@@ -159,7 +160,7 @@ export function useNotes(nest: Nest) {
 export function useNotesOnHost(
   nest: Nest,
   enabled: boolean
-): Outlines | undefined {
+): Notes | undefined {
   const [han, flag] = nestToFlag(nest);
   const { data } = useReactQueryScry({
     queryKey: [han, 'notes', 'live', flag],
@@ -181,15 +182,15 @@ export function useNotesOnHost(
     return undefined;
   }
 
-  return data as Outlines;
+  return data as Notes;
 }
 
 export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   checkNest(nest);
   const queryClient = useQueryClient();
-  const { outlines } = useNotes(nest);
+  const { notes } = useNotes(nest);
 
-  let noteMap = restoreMap<Outline>(outlines);
+  let noteMap = restoreMap<Note>(notes);
 
   const index = noteMap.peekSmallest()?.[0];
   const oldNotesSize = noteMap.size ?? 0;
@@ -224,7 +225,7 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    note: v as Outline,
+    note: v as Note,
   }));
 
   diff.forEach(({ tim, note }) => {
@@ -236,8 +237,8 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   return rest.isLoading;
 }
 
-function generateOutlineMap(curios: OutlineTuple[]): OutlinesMap {
-  let curioMap = restoreMap<Outline>({});
+function generateNoteMap(curios: NoteTuple[]): NoteMap {
+  let curioMap = restoreMap<Note>({});
   curios
     .map(([k, curio]) => ({ tim: bigInt(udToDec(k)), curio }))
     .forEach(({ tim, curio }) => {
@@ -247,17 +248,17 @@ function generateOutlineMap(curios: OutlineTuple[]): OutlinesMap {
   return curioMap;
 }
 
-function formatOutlineResponse(outlines: Outlines): OutlineTuple[] {
-  return Object.entries(outlines).sort((a, b) => {
+function formatNoteResponse(notes: Notes): NoteTuple[] {
+  return Object.entries(notes).sort((a, b) => {
     const aTime = bigInt(udToDec(a[0]));
     const bTime = bigInt(udToDec(b[0]));
     return bTime.compare(aTime);
   });
 }
 
-export function useInfiniteOutlines(nest: Nest) {
+export function useInfiniteNotes(nest: Nest) {
   const queryClient = useQueryClient();
-  const def = useMemo(() => new BigIntOrderedMap<Outline>(), []);
+  const def = useMemo(() => new BigIntOrderedMap<Note>(), []);
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'notes', flag, 'infinite'], [han, flag]);
 
@@ -288,11 +289,11 @@ export function useInfiniteOutlines(nest: Nest) {
       const path = pageParam
         ? `/${nest}/notes/older/${pageParam}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
         : `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
-      const response = await api.scry<Outlines>({
+      const response = await api.scry<Notes>({
         app: 'channels',
         path,
       });
-      return formatOutlineResponse(response);
+      return formatNoteResponse(response);
     },
     getNextPageParam: (lastPage) =>
       lastPage.length ? _.last(lastPage)![0] : undefined,
@@ -301,13 +302,13 @@ export function useInfiniteOutlines(nest: Nest) {
     retryOnMount: true,
   });
 
-  const outlines = useMemo(
-    () => generateOutlineMap(data?.pages.flat() || []),
+  const notes = useMemo(
+    () => generateNoteMap(data?.pages.flat() || []),
     [data]
   );
 
   return {
-    outlines: data ? outlines : def,
+    notes: data ? notes : def,
     fetchNextPage,
     hasNextPage,
     isLoading,
@@ -347,7 +348,7 @@ export async function prefetchNoteWithComments({
   const data = (await api.scry({
     app: 'channels',
     path: `/${nest}/notes/note/${ud}`,
-  })) as Outline;
+  })) as Note;
   if (data) {
     queryClient.setQueryData([han, nest, 'notes', time, 'withComments'], data);
   }
@@ -360,15 +361,15 @@ export function useOrderedNotes(
   checkNest(nest);
 
   const queryClient = useQueryClient();
-  const { outlines } = useInfiniteOutlines(nest);
+  const { notes } = useInfiniteNotes(nest);
 
-  const sortedOutlines = Array.from(outlines);
+  const sortedOutlines = Array.from(notes);
 
   sortedOutlines.sort(([a], [b]) => b.compare(a));
 
   const noteId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
-  const hasNext = outlines.size > 0 && noteId.lt(outlines.peekLargest()[0]);
-  const hasPrev = outlines.size > 0 && noteId.gt(outlines.peekSmallest()[0]);
+  const hasNext = notes.size > 0 && noteId.lt(notes.peekLargest()[0]);
+  const hasPrev = notes.size > 0 && noteId.gt(notes.peekSmallest()[0]);
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(noteId));
 
   const nextNote = hasNext ? sortedOutlines[currentIdx - 1] : null;
@@ -529,7 +530,7 @@ export function useQuip(
     if (note === undefined) {
       return undefined;
     }
-    if (note.seal.quips.size === undefined) {
+    if (note.seal.quips === null || note.seal.quips.size === undefined) {
       return undefined;
     }
     const quip = note.seal.quips.get(bigInt(quipId));
@@ -588,7 +589,7 @@ export function useSortMode(nest: string): SortMode {
   return diary?.sort ?? 'time';
 }
 
-export function useRemoteOutline(nest: Nest, time: string, blockLoad: boolean) {
+export function useRemoteNote(nest: Nest, time: string, blockLoad: boolean) {
   checkNest(nest);
   const [han, flag] = nestToFlag(nest);
   const path = `/said/${nest}/note/${decToUd(time)}`;
@@ -602,12 +603,12 @@ export function useRemoteOutline(nest: Nest, time: string, blockLoad: boolean) {
   });
 
   if (rest.isLoading || rest.isError || !data) {
-    return {} as Outline;
+    return {} as Note;
   }
 
-  const { outline } = data as Said;
+  const { note } = data as Said;
 
-  return outline as Outline;
+  return note as Note;
 }
 
 export function useMarkReadMutation() {
@@ -827,23 +828,26 @@ export function useAddNoteMutation() {
         pendingNotes: [variables.initialTime, ...state.pendingNotes],
       }));
 
-      const notes = queryClient.getQueryData<Outline>([han, 'notes', flag]);
+      const notes = queryClient.getQueryData<Notes>([han, 'notes', flag]);
 
       if (notes !== undefined) {
         // for the unlikely case that the user navigates away from the editor
         // before the mutation is complete, or if the host ship is offline,
         // we update the cache optimistically.
-        queryClient.setQueryData<Outline>([han, 'notes', flag], {
+        queryClient.setQueryData<Notes>([han, 'notes', flag], {
           ...notes,
           // this time is temporary, and will be replaced by the actual time
           [variables.initialTime]: {
-            content: variables.essay.content,
-            author: variables.essay.author,
-            quipCount: 0,
-            quippers: [],
-            'han-data': variables.essay['han-data'],
-            sent: variables.essay.sent,
-            type: 'outline',
+            seal: {
+              id: variables.initialTime,
+              quips: null,
+              feels: {},
+              quipCount: 0,
+              quippers: [],
+            },
+            essay: {
+              ...variables.essay,
+            },
           },
         });
 
@@ -910,15 +914,21 @@ export function useEditNoteMutation() {
         };
       };
 
-      const notesUpdater = (prev: Outlines | undefined) => {
+      const notesUpdater = (prev: Notes | undefined) => {
         if (prev === undefined) {
+          return prev;
+        }
+
+        const prevNote = prev[decToUd(variables.time)];
+
+        if (prevNote === null) {
           return prev;
         }
 
         return {
           ...prev,
           [variables.time]: {
-            ...prev[decToUd(variables.time)],
+            seal: prevNote.seal,
             essay: variables.essay,
           },
         };
@@ -968,7 +978,7 @@ export function useDeleteNoteMutation() {
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
 
-      const updater = (prev: Outlines | undefined) => {
+      const updater = (prev: Notes | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1151,18 +1161,25 @@ export function useAddQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, Outline> | undefined) => {
+      const notesUpdater = (prev: Record<string, Note> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
         const replying = decToUd(variables.noteId);
         if (replying in prev) {
-          const replyingNote = prev[replying] as Outline;
+          const replyingNote = prev[replying] as Note;
+          if (replyingNote === null) {
+            return prev;
+          }
+
           const updatedNote = {
             ...replyingNote,
-            quipCount: replyingNote.quipCount + 1,
-            quippers: [...replyingNote.quippers, window.our],
+            seal: {
+              ...replyingNote.seal,
+              quipCount: replyingNote.seal.quipCount + 1,
+              quippers: [...replyingNote.seal.quippers, window.our],
+            },
           };
 
           return {
@@ -1242,19 +1259,27 @@ export function useDeleteQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, Outline> | undefined) => {
+      const notesUpdater = (prev: Record<string, Note> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
         const replying = decToUd(variables.noteId);
         if (replying in prev) {
-          const replyingNote = prev[replying] as Outline;
+          const replyingNote = prev[replying] as Note;
+
+          if (replyingNote === null) {
+            return prev;
+          }
+
           const updatedNote = {
             ...replyingNote,
-            quipCount: replyingNote.quipCount - 1,
-            quippers: replyingNote.quippers.filter(
-              (quipper) => quipper !== window.our
-            ),
+            seal: {
+              ...replyingNote.seal,
+              quipCount: replyingNote.seal.quipCount - 1,
+              quippers: replyingNote.seal.quippers.filter(
+                (quipper) => quipper !== window.our
+              ),
+            },
           };
 
           return {

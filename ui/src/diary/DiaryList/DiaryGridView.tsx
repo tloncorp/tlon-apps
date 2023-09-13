@@ -7,18 +7,18 @@ import {
   useResizeObserver,
 } from 'masonic';
 import DiaryGridItem from '@/diary/DiaryList/DiaryGridItem';
-import { Outline } from '@/types/channel';
+import { Note } from '@/types/channel';
 import { useIsMobile } from '@/logic/useMedia';
 
 interface DiaryGridProps {
-  outlines: [bigInt.BigInteger, Outline][];
+  outlines: [bigInt.BigInteger, Note][];
   loadOlderNotes: (atBottom: boolean) => void;
 }
 
 const masonryItem = ({
   data,
-}: RenderComponentProps<[bigInt.BigInteger, Outline]>) => (
-  <DiaryGridItem time={data[0]} outline={data[1]} />
+}: RenderComponentProps<[bigInt.BigInteger, Note]>) => (
+  <DiaryGridItem time={data[0]} note={data[1]} />
 );
 
 export default function DiaryGridView({

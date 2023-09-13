@@ -3,6 +3,7 @@ import cn from 'classnames';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
+import { BigIntOrderedMap } from '@urbit/api';
 import {
   useJoinMutation,
   useNote,
@@ -18,7 +19,7 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import getHanDataFromEssay from '@/logic/getHanData';
-import { Outline } from '@/types/channel';
+import { Note, Quip } from '@/types/channel';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -45,7 +46,7 @@ export default function HeapDetail({ title }: ViewProps) {
     nest,
     idCurio || ''
   );
-  const outline = location.state?.initialCurio as Outline | undefined;
+  const outline = location.state?.initialCurio as Note | undefined;
   const essay = note?.essay || outline;
 
   const curioHref = (id?: bigInt.BigInteger) => {
@@ -135,7 +136,7 @@ export default function HeapDetail({ title }: ViewProps) {
           {idCurio && (
             <HeapDetailComments
               time={idCurio}
-              comments={note?.seal.quips}
+              comments={note?.seal.quips || new BigIntOrderedMap<Quip>()}
               loading={isLoading}
             />
           )}

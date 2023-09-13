@@ -15,7 +15,6 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import HeapBlock from '@/heap/HeapBlock';
 import { useIsMobile } from '@/logic/useMedia';
 import { useNote } from '@/state/channel/channel';
-import { Outline } from '@/types/channel';
 import {
   isComment,
   isGroupMeta,
@@ -211,17 +210,9 @@ export default function Notification({
   const heapFlag = isBlockBool
     ? `${bin.top.wer.split('/')[6]}/${bin.top.wer.split('/')[7]}`
     : '/';
-  const { note: curio, isLoading } = useNote(`heap/${heapFlag}`, curioId);
-  const quippers: string[] = !curio
-    ? []
-    : [...curio.seal.quips].map(([, quip]) => quip.memo.author);
-  const outline: Outline | undefined = curio && {
-    ...curio.essay,
-    quipCount: curio.seal.quips.size,
-    quippers,
-  };
+  const { note, isLoading } = useNote(`heap/${heapFlag}`, curioId);
 
-  if (isBlockBool && curio && !isLoading) {
+  if (isBlockBool && note && !isLoading) {
     return (
       <div className="flex flex-col">
         <div className="relative flex space-x-3 rounded-xl bg-white p-2 text-gray-400">
@@ -243,7 +234,7 @@ export default function Notification({
               <div className="max-w-[36px] sm:max-w-[190px]">
                 <div className="aspect-h-1 aspect-w-1 cursor-pointer">
                   <HeapBlock
-                    outline={outline}
+                    note={note}
                     time={curioId}
                     asMobileNotification={isMobile}
                     linkFromNotification={bin.top.wer}

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import useHeapContentType from '@/logic/useHeapContentType';
+import getHeapContentType from '@/logic/useHeapContentType';
 import { useEmbed } from '@/state/embed';
 import { validOembedCheck } from '@/logic/utils';
 import HeapContent from '@/heap/HeapContent';
@@ -28,7 +28,7 @@ export default function HeapDetailBody({ essay }: { essay?: NoteEssay }) {
   const { content } = essay || { content: [] };
   const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { embed, isError, error } = useEmbed(url, isMobile);
-  const { isImage, isText, isAudio, isVideo } = useHeapContentType(url);
+  const { isImage, isText, isAudio, isVideo } = getHeapContentType(url);
 
   useEffect(() => {
     if (isError) {

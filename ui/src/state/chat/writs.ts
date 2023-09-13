@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import produce from 'immer';
-import { decToUd, udToDec, unixToDa } from '@urbit/api';
+import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '@/api';
@@ -12,7 +12,20 @@ import {
   ChatAction,
   DmAction,
   newWritMap,
+  ChatMemo,
+  ChatChannelPact,
+  newNoteMap,
 } from '@/types/chat';
+import {
+  getIdFromNoteAction,
+  Note,
+  NoteEssay,
+  Outline,
+  Notes,
+  Quip,
+  ShelfAction,
+} from '@/types/channel';
+import { whomIsNest } from '@/logic/utils';
 import { BasedChatState, WritWindow, WritWindows } from './type';
 
 interface WritsStore {
@@ -123,11 +136,12 @@ function extendCurrentWindow(
 
 export function writsReducer(whom: string) {
   return (
-    json: ChatAction | DmAction | WritDiff,
+    json: ShelfAction | ChatAction | DmAction | WritDiff,
     draft: BasedChatState
   ): BasedChatState => {
     let id: string | undefined;
     let delta;
+    let isNote = false;
     if ('update' in json) {
       if ('writs' in json.update.diff) {
         id = json.update.diff.writs.id;
@@ -136,9 +150,15 @@ export function writsReducer(whom: string) {
     } else if ('diff' in json) {
       id = json.diff.id;
       delta = json.diff.delta;
-    } else {
+    } else if ('diary' in json && 'note' in json.diary.action) {
+      isNote = true;
+      id = getIdFromNoteAction(json.diary.action.note);
+      delta = json.diary.action.note;
+    } else if ('delta' in json) {
       id = json.id;
       delta = json.delta;
+    } else {
+      return draft;
     }
     if (!delta || !id) {
       return draft;
@@ -149,12 +169,30 @@ export function writsReducer(whom: string) {
       writs: newWritMap(),
     };
 
+    const chatChannelPact = draft.chatChannelPacts[whom] || {
+      index: {},
+      writs: newNoteMap(),
+    };
+
     if ('add' in delta && !pact.index[id]) {
       const time = bigInt(unixToDa(Date.now()));
-      pact.index[id] = time;
-      const seal = { id, feels: {}, replied: [] };
-      const writ = { seal, memo: delta.add };
-      pact.writs = pact.writs.with(time, writ);
+      if (isNote) {
+        chatChannelPact.index[id] = time;
+        const note: Outline = {
+          ...(delta.add as NoteEssay),
+          quipCount: 0,
+          quippers: [],
+        };
+
+        chatChannelPact.writs = chatChannelPact.writs.with(time, note);
+        chatChannelPact.index[id] = time;
+      } else {
+        pact.index[id] = time;
+        const seal = { id, feels: {}, replied: [] };
+        const writ = { seal, memo: delta.add as ChatMemo };
+        pact.writs = pact.writs.with(time, writ);
+      }
+
       draft.writWindows[whom] = extendCurrentWindow(
         {
           oldest: time,
@@ -164,7 +202,7 @@ export function writsReducer(whom: string) {
         },
         draft.writWindows[whom]
       );
-      if (delta.add.replying) {
+      if ('replying' in delta.add && delta.add.replying) {
         const replyTime = pact.index[delta.add.replying];
         if (replyTime) {
           const ancestor = pact.writs.get(replyTime);
@@ -174,47 +212,90 @@ export function writsReducer(whom: string) {
           }
         }
       }
-    } else if ('del' in delta && pact.index[id]) {
-      const time = pact.index[id];
-      const old = pact.writs.get(time);
-      pact.writs = pact.writs.without(time);
-      delete pact.index[id];
-      if (old && old.memo.replying) {
-        const replyTime = pact.index[old.memo.replying];
-        if (replyTime) {
-          const ancestor = pact.writs.get(replyTime);
-          if (ancestor) {
-            ancestor.seal.replied = ancestor.seal.replied.filter(
-              (r) => r !== id
-            );
-            pact.writs = pact.writs.with(replyTime, ancestor);
+    } else if ('del' in delta) {
+      if (pact.index[id]) {
+        const time = pact.index[id];
+        const old = pact.writs.get(time);
+        pact.writs = pact.writs.without(time);
+        delete pact.index[id];
+        if (old && old.memo.replying) {
+          const replyTime = pact.index[old.memo.replying];
+          if (replyTime) {
+            const ancestor = pact.writs.get(replyTime);
+            if (ancestor) {
+              ancestor.seal.replied = ancestor.seal.replied.filter(
+                (r) => r !== id
+              );
+              pact.writs = pact.writs.with(replyTime, ancestor);
+            }
           }
         }
       }
-    } else if ('add-feel' in delta && pact.index[id]) {
-      const time = pact.index[id];
-      const msg = pact.writs.get(time);
-      const { ship, feel } = delta['add-feel'];
 
-      if (msg) {
-        msg.seal.feels[ship] = feel;
-        pact.writs = pact.writs.with(time, msg);
+      if (chatChannelPact.index[id]) {
+        const time = chatChannelPact.index[id];
+        chatChannelPact.writs = chatChannelPact.writs.without(time);
+        delete chatChannelPact.index[id];
       }
-    } else if ('del-feel' in delta && pact.index[id]) {
-      const time = pact.index[id];
-      const msg = pact.writs.get(time);
-      const ship = delta['del-feel'];
+    } else if ('add-feel' in delta) {
+      if (pact.index[id]) {
+        const time = pact.index[id];
+        const msg = pact.writs.get(time);
+        const { ship, feel } = delta['add-feel'];
 
-      if (msg) {
-        delete msg.seal.feels[ship];
+        if (msg) {
+          msg.seal.feels[ship] = feel;
+          pact.writs = pact.writs.with(time, msg);
+        }
+      }
 
-        pact.writs = pact.writs.with(time, {
-          ...msg,
-          seal: msg.seal,
-        });
+      if (chatChannelPact.index[id]) {
+        const time = chatChannelPact.index[id];
+        const msg = chatChannelPact.writs.get(time);
+        const { ship, feel } = delta['add-feel'];
+
+        if (msg) {
+          msg.seal.feels[ship] = feel;
+          chatChannelPact.writs = chatChannelPact.writs.with(time, msg);
+        }
+      }
+    } else if ('del-feel' in delta) {
+      if (pact.index[id]) {
+        const time = pact.index[id];
+        const msg = pact.writs.get(time);
+        const ship = delta['del-feel'] as string;
+
+        if (msg) {
+          delete msg.seal.feels[ship];
+
+          pact.writs = pact.writs.with(time, {
+            ...msg,
+            seal: msg.seal,
+          });
+        }
+      }
+
+      if (chatChannelPact.index[id]) {
+        const time = chatChannelPact.index[id];
+        const msg = chatChannelPact.writs.get(time);
+        const { ship } = delta['del-feel'] as {
+          id: string;
+          ship: string;
+          feel: string;
+        };
+
+        if (msg) {
+          delete msg.seal.feels[ship];
+
+          chatChannelPact.writs = chatChannelPact.writs.with(time, {
+            ...msg,
+            seal: msg.seal,
+          });
+        }
       }
     }
     draft.pacts[whom] = { ...pact };
+    draft.chatChannelPacts[whom] = { ...chatChannelPact };
 
     return draft;
   };
@@ -222,23 +303,58 @@ export function writsReducer(whom: string) {
 
 export function updatePact(
   whom: string,
-  writs: ChatWrits,
+  writs: ChatWrits | Notes,
   draft: BasedChatState
 ) {
-  const pact: Pact = draft.pacts[whom] || {
-    writs: newWritMap(),
-    index: {},
-  };
+  if (whomIsNest(whom)) {
+    const chatChannelPact: ChatChannelPact = draft.chatChannelPacts[whom] || {
+      writs: newNoteMap(),
+      index: {},
+    };
 
-  const pairs = Object.entries(writs)
-    .map<[BigInteger, ChatWrit]>(([key, writ]) => [bigInt(udToDec(key)), writ])
-    .filter(([, writ]) => !pact.index[writ.seal.id]);
+    const pairs = Object.entries(writs).map<[BigInteger, Note]>(
+      ([key, writ]) => [
+        bigInt(udToDec(key)),
+        {
+          type: 'note',
+          seal: {
+            id: writ.seal.id,
+            quips: writ.seal.quips,
+            feels: writ.seal.feels,
+          },
+          essay: {
+            ...writ.essay,
+          },
+        },
+      ]
+    );
 
-  pact.writs.setPairs(pairs);
-  pairs.forEach(([tim, writ]) => {
-    pact.index[writ.seal.id] = tim;
-  });
-  draft.pacts[whom] = { ...pact };
+    chatChannelPact.writs.setPairs(pairs);
+    pairs.forEach(([tim, writ]) => {
+      if (writ !== null) {
+        chatChannelPact.index[writ.seal.id] = tim;
+      }
+    });
+    draft.chatChannelPacts[whom] = { ...chatChannelPact };
+  } else {
+    const pact: Pact = draft.pacts[whom] || {
+      writs: newWritMap(),
+      index: {},
+    };
+
+    const pairs = Object.entries(writs)
+      .map<[BigInteger, ChatWrit]>(([key, writ]) => [
+        bigInt(udToDec(key)),
+        writ,
+      ])
+      .filter(([, writ]) => !pact.index[writ.seal.id]);
+
+    pact.writs.setPairs(pairs);
+    pairs.forEach(([tim, writ]) => {
+      pact.index[writ.seal.id] = tim;
+    });
+    draft.pacts[whom] = { ...pact };
+  }
 }
 
 export default function makeWritsStore(

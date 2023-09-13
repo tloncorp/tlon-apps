@@ -10,7 +10,7 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import { useLocation, useNavigate } from 'react-router';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import { inlineToString } from '@/logic/tiptap';
-import { useRemoteOutline } from '@/state/channel/channel';
+import { useRemoteNote } from '@/state/channel/channel';
 import {
   imageUrlFromContent,
   linkUrlFromContent,
@@ -18,7 +18,7 @@ import {
 } from '@/types/channel';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import ShipName from '@/components/ShipName';
-import useHeapContentType from '@/logic/useHeapContentType';
+import getHeapContentType from '@/logic/useHeapContentType';
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';
 
@@ -35,7 +35,7 @@ function CurioReference({
   contextApp?: string;
   children?: React.ReactNode;
 }) {
-  const outline = useRemoteOutline(nest, idCurio, isScrolling);
+  const note = useRemoteNote(nest, idCurio, isScrolling);
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,7 +46,13 @@ function CurioReference({
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
-  const { content } = outline;
+  if (!note) {
+    return <HeapLoadingBlock reference />;
+  }
+
+  const {
+    essay: { content },
+  } = note;
   const textFallbackTitle = (
     content.filter((c) => 'inline' in c)[0] as VerseInline
   ).inline
@@ -54,7 +60,7 @@ function CurioReference({
     .join(' ')
     .toString();
   const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
-  const { isImage } = useHeapContentType(url);
+  const { isImage } = getHeapContentType(url);
 
   const handleOpenReferenceClick = () => {
     if (!group) {
@@ -65,10 +71,6 @@ function CurioReference({
     }
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);
   };
-
-  if (!outline) {
-    return <HeapLoadingBlock reference />;
-  }
 
   if (contextApp === 'heap-row') {
     return (
@@ -84,7 +86,7 @@ function CurioReference({
         title={textFallbackTitle}
         byline={
           <span>
-            Post by <ShipName name={outline.author} showAlias /> in{' '}
+            Post by <ShipName name={note.essay.author} showAlias /> in{' '}
             {preview?.meta?.title}
           </span>
         }
@@ -117,7 +119,7 @@ function CurioReference({
         image={
           <HeapContent
             className="absolute top-0 left-0 h-full w-full py-4 px-5 leading-6 line-clamp-3"
-            content={outline.content}
+            content={content}
           />
         }
       />
@@ -130,12 +132,12 @@ function CurioReference({
         onClick={handleOpenReferenceClick}
         className="flex h-full cursor-pointer flex-col justify-between p-2"
       >
-        <HeapBlock outline={outline} time={idCurio} refToken={refToken} asRef />
+        <HeapBlock note={note} time={idCurio} refToken={refToken} asRef />
       </div>
       <ReferenceBar
         nest={nest}
         time={bigInt(idCurio)}
-        author={outline.author}
+        author={note.essay.author}
         groupFlag={preview?.group.flag}
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
