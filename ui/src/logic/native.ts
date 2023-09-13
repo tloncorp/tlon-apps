@@ -16,3 +16,9 @@ export const isIOSWebView = () => {
     !/safari/.test(userAgent)
   );
 };
+
+export const useSafeAreaInsets = () =>
+  // The native app injects safe area insets provided by `react-native-safe-area-context`
+  // If they're not present, we assume we're running in the browser, in which case we don't have
+  // to worry about 'em.
+  window.safeAreaInsets ?? { top: 0, bottom: 0, left: 0, right: 0 };

@@ -14,6 +14,12 @@ declare global {
     markRead: Rope;
     recents: any;
     colorscheme: any;
+    safeAreaInsets?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    };
   }
 }
 

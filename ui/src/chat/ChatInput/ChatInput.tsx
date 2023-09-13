@@ -51,6 +51,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { useSafeAreaInsets } from '@/logic/native';
 
 interface ChatInputProps {
   whom: string;
@@ -125,6 +126,7 @@ export default function ChatInput({
   );
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const groupFlag = useGroupFlag();
+  const isGroupChatInput = !!groupFlag;
   const { privacy } = useGroupPrivacy(groupFlag);
   const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
@@ -138,6 +140,7 @@ export default function ChatInput({
   const files = useMemo(() => uploader?.files, [uploader]);
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
+  const safeAreaInsets = useSafeAreaInsets();
 
   const handleDrop = useCallback(
     (fileList: FileList) => {
@@ -534,7 +537,10 @@ export default function ChatInput({
   }
 
   return (
-    <div className={cn('flex w-full items-end space-x-2', className)}>
+    <div
+      className={cn('flex w-full items-end space-x-2', className)}
+      style={{ paddingBottom: isGroupChatInput ? safeAreaInsets.bottom : 0 }}
+    >
       <div
         // sometimes a race condition causes the dropzone to be removed before the drop event fires
         id={dropZoneId}
