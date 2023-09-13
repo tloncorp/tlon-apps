@@ -1,9 +1,9 @@
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useBrief, usePerms } from '@/state/channel/channel';
-import { canWriteChannel, groupQuips, setNewDaysForQuips } from '@/logic/utils';
+import { groupQuips, setNewDaysForQuips } from '@/logic/utils';
 import { QuipMap } from '@/types/channel';
 import DiaryComment from '@/diary/DiaryComment';
-import { useChannelFlag } from '@/logic/channel';
+import { canWriteChannel, useChannelFlag } from '@/logic/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';

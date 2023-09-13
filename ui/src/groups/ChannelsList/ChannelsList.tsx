@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { canReadChannel } from '@/logic/utils';
+import { canReadChannel } from '@/logic/channel';
 import ChannelsListDropContext from './ChannelsListDropContext';
 import { SectionMap } from './types';
 import useChannelSearch from './useChannelSearch';

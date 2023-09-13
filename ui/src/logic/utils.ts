@@ -18,7 +18,7 @@ import f from 'lodash/fp';
 import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { ChatWhom, ChatBrief, ChatStory } from '@/types/chat';
+import { ChatWhom, ChatStory } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -28,7 +28,6 @@ import {
   Rank,
   Group,
   GroupPreview,
-  Vessel,
   Saga,
   Gang,
 } from '@/types/groups';
@@ -42,6 +41,7 @@ import {
   VerseBlock,
   Listing,
   Cite,
+  Briefs,
 } from '@/types/channel';
 import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
@@ -118,10 +118,6 @@ export function renderRank(rank: Rank, plural = false) {
 export function strToSym(str: string): string {
   const ascii = anyAscii(str);
   return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
-}
-
-export function channelHref(flag: string, ch: string) {
-  return `/groups/${flag}/channels/${ch}`;
 }
 
 export function makePrettyTime(date: Date) {
@@ -476,56 +472,9 @@ export async function jsonFetch<T>(
   return data as T;
 }
 
-export function isChannelJoined(
-  nest: string,
-  briefs: { [x: string]: ChatBrief | Brief }
-) {
-  const [han, flag] = nestToFlag(nest);
-
-  const isChannelHost = window.our === nest?.split('/')[1];
-
-  if (han !== 'chat') {
-    return isChannelHost || (nest && nest in briefs);
-  }
-
-  return isChannelHost || (flag && flag in briefs);
-}
-
 export function isGroupHost(flag: string) {
   const { ship } = getFlagParts(flag);
   return ship === window.our;
-}
-
-export function getChannelHosts(group: Group): string[] {
-  return Object.keys(group.channels).map((c) => {
-    const [, chFlag] = nestToFlag(c);
-    const { ship } = getFlagParts(chFlag);
-    return ship;
-  });
-}
-
-export function canReadChannel(
-  channel: GroupChannel,
-  vessel: Vessel,
-  bloc: string[] = []
-) {
-  if (channel.readers.length === 0) {
-    return true;
-  }
-
-  return _.intersection([...channel.readers, ...bloc], vessel.sects).length > 0;
-}
-
-export function canWriteChannel(
-  perms: WritePermissions['perms'],
-  vessel: Vessel,
-  bloc: string[] = []
-) {
-  if (perms.writers.length === 0) {
-    return true;
-  }
-
-  return _.intersection([...perms.writers, ...bloc], vessel.sects).length > 0;
 }
 
 /**
@@ -643,29 +592,6 @@ export function getNestShip(nest: string) {
   const [, flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
   return ship;
-}
-
-export function isChannelImported(
-  nest: string,
-  pending: Record<string, boolean>
-) {
-  const isImport = nest in pending;
-  return (
-    !isImport || (isImport && pending[nest]) || window.our === getNestShip(nest)
-  );
-}
-
-export function prettyChannelTypeName(app: string) {
-  switch (app) {
-    case 'chat':
-      return 'Chat';
-    case 'heap':
-      return 'Collection';
-    case 'diary':
-      return 'Notebook';
-    default:
-      return 'Unknown';
-  }
 }
 
 export async function asyncWithDefault<T>(

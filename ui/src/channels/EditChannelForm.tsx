@@ -10,12 +10,7 @@ import {
   useGroup,
   useRouteGroup,
 } from '@/state/groups';
-import {
-  channelHref,
-  getPrivacyFromChannel,
-  nestToFlag,
-  prettyChannelTypeName,
-} from '@/logic/utils';
+import { getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
 import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import {
@@ -26,7 +21,11 @@ import {
   useViewMutation,
 } from '@/state/channel/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChannelOld } from '@/logic/channel';
+import {
+  channelHref,
+  prettyChannelTypeName,
+  useChannelOld,
+} from '@/logic/channel';
 import { SortMode } from '@/types/channel';
 import ChannelSortSelector from './ChannelSortSelector';
 import ChannelViewSelector from './ChannelViewSelector';

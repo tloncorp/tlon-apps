@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import { useLocation } from 'react-router';
 import React, { ReactNode, useState } from 'react';
-import { channelHref, canReadChannel } from '@/logic/utils';
+import { channelHref, canReadChannel } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGroup,

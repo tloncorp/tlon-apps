@@ -7,19 +7,11 @@ import { unixToDa } from '@urbit/api';
 import * as Toast from '@radix-ui/react-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
-import {
-  useGroupChannel,
-  useGroup,
-  useRouteGroup,
-  useVessel,
-} from '@/state/groups/groups';
+import { useRouteGroup } from '@/state/groups/groups';
 import {
   useInfiniteOutlines,
   useDisplayMode,
   useSortMode,
-  usePerms,
-  useJoinMutation,
-  useIsJoined,
   useMarkReadMutation,
   usePendingNotes,
   useState as useChannelState,
@@ -34,9 +26,6 @@ import { useConnectivityCheck } from '@/state/vitals';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
-import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, canWriteChannel } from '@/logic/utils';
-import { useLastReconnect } from '@/state/local';
 import { Outline } from '@/types/channel';
 import { useFullChannel } from '@/logic/channel';
 import DiaryListItem from './DiaryList/DiaryListItem';
@@ -55,7 +44,6 @@ function DiaryChannel({ title }: ViewProps) {
   const { outlines, isLoading, fetchNextPage, hasNextPage } =
     useInfiniteOutlines(nest);
   const queryClient = useQueryClient();
-  const { mutateAsync: joinDiary } = useJoinMutation();
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
@@ -68,7 +56,6 @@ function DiaryChannel({ title }: ViewProps) {
   const pendingNotes = usePendingNotes();
   const notesOnHost = useNotesOnHost(nest, pendingNotes.length > 0);
 
-  const perms = usePerms(nest);
   const {
     group,
     groupChannel: channel,
@@ -76,8 +63,6 @@ function DiaryChannel({ title }: ViewProps) {
   } = useFullChannel({
     groupFlag,
     nest,
-    writers: perms.writers,
-    join: joinDiary,
   });
 
   const checkForNotes = useCallback(async () => {

@@ -1,13 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useParams } from 'react-router';
-import { useCopy, canWriteChannel } from '@/logic/utils';
+import { useCopy } from '@/logic/utils';
+import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import { useChatPerms } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import BubbleIcon from '@/components/icons/BubbleIcon';
-import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import FaceIcon from '@/components/icons/FaceIcon';
-import ShareIcon from '@/components/icons/ShareIcon';
 import XIcon from '@/components/icons/XIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';

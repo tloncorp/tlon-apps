@@ -1,6 +1,5 @@
 import bigInt from 'big-integer';
 import cn from 'classnames';
-import { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
@@ -10,17 +9,11 @@ import {
   useOrderedNotes,
 } from '@/state/channel/channel';
 import Layout from '@/components/Layout/Layout';
-import {
-  useGroupChannel,
-  useGroup,
-  useRouteGroup,
-  useVessel,
-} from '@/state/groups';
-import { canReadChannel } from '@/logic/utils';
+import { useRouteGroup } from '@/state/groups';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChannelIsJoined } from '@/logic/channel';
+import { useFullChannel } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
@@ -32,7 +25,6 @@ import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 
 export default function HeapDetail({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
   const location = useLocation();
   const groupFlag = useRouteGroup();
   const { chShip, chName, idCurio } = useParams<{
@@ -42,15 +34,11 @@ export default function HeapDetail({ title }: ViewProps) {
   }>();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
-  const channel = useGroupChannel(groupFlag, nest);
-  const vessel = useVessel(groupFlag, window.our);
-  const group = useGroup(groupFlag);
-  const canRead = channel
-    ? canReadChannel(channel, vessel, group?.bloc)
-    : false;
+  const { group, groupChannel: channel } = useFullChannel({
+    groupFlag,
+    nest,
+  });
   const isMobile = useIsMobile();
-  const joined = useChannelIsJoined(nest);
-  const { mutateAsync: joinHeap } = useJoinMutation();
   const { note, isLoading } = useNote(nest, idCurio || '');
   const { title: curioTitle } = getHanDataFromEssay(note.essay);
   const { hasNext, hasPrev, nextNote, prevNote } = useOrderedNotes(
@@ -67,18 +55,6 @@ export default function HeapDetail({ title }: ViewProps) {
 
     return `/groups/${groupFlag}/channels/heap/${chFlag}/curio/${id}`;
   };
-
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
-    await joinHeap({ group: groupFlag, chan: chFlag });
-    setJoining(false);
-  }, [chFlag, groupFlag, joinHeap]);
-
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel]);
 
   useGroupsAnalyticsEvent({
     name: 'view_item',

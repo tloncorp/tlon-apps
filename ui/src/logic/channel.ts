@@ -1,22 +1,23 @@
 import _, { get, groupBy } from 'lodash';
 import { useNavigate, useParams } from 'react-router';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
-import useAllBriefs from '@/logic/useAllBriefs';
 import { useBriefs, useChat, useChats, useMultiDms } from '@/state/chat';
 import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
-import { useChannel as useChannelFromState } from '@/state/channel/channel';
+import {
+  useChannel as useChannelFromState,
+  useJoinMutation,
+  usePerms,
+} from '@/state/channel/channel';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Chat } from '@/types/chat';
-import { Diary } from '@/types/channel';
-import { Zone, Channels, GroupChannel } from '@/types/groups';
+import { Briefs, Diary, Perm } from '@/types/channel';
+import { Zone, Channels, GroupChannel, Vessel, Group } from '@/types/groups';
 import { useLastReconnect } from '@/state/local';
 import {
-  canReadChannel,
-  canWriteChannel,
   getCompatibilityText,
   getFlagParts,
-  isChannelJoined,
   isTalk,
+  getNestShip,
   nestToFlag,
   sagaCompatible,
 } from './utils';
@@ -30,6 +31,59 @@ import useSidebarSort, {
 } from './useSidebarSort';
 import useRecentChannel from './useRecentChannel';
 
+export function isChannelJoined(nest: string, briefs: Briefs) {
+  const [flag] = nestToFlag(nest);
+  const { ship } = getFlagParts(flag);
+
+  const isChannelHost = window.our === ship;
+  return isChannelHost || (nest && nest in briefs);
+}
+
+export function canReadChannel(
+  channel: GroupChannel,
+  vessel: Vessel,
+  bloc: string[] = []
+) {
+  if (channel.readers.length === 0) {
+    return true;
+  }
+
+  return _.intersection([...channel.readers, ...bloc], vessel.sects).length > 0;
+}
+
+export function canWriteChannel(
+  perms: Perm,
+  vessel: Vessel,
+  bloc: string[] = []
+) {
+  if (perms.writers.length === 0) {
+    return true;
+  }
+
+  return _.intersection([...perms.writers, ...bloc], vessel.sects).length > 0;
+}
+
+export function getChannelHosts(group: Group): string[] {
+  return Object.keys(group.channels).map(getNestShip);
+}
+
+export function prettyChannelTypeName(app: string) {
+  switch (app) {
+    case 'chat':
+      return 'Chat';
+    case 'heap':
+      return 'Collection';
+    case 'diary':
+      return 'Notebook';
+    default:
+      return 'Unknown';
+  }
+}
+
+export function channelHref(flag: string, ch: string) {
+  return `/groups/${flag}/channels/${ch}`;
+}
+
 export function useChannelFlag() {
   const { chShip, chName } = useParams();
   return useMemo(
@@ -42,7 +96,7 @@ const selChats = (s: ChatStore) => s.chats;
 
 function channelUnread(
   nest: string,
-  briefs: ReturnType<typeof useAllBriefs>,
+  briefs: Briefs,
   chats: ChatStore['chats']
 ) {
   const [app, chFlag] = nestToFlag(nest);
@@ -52,7 +106,7 @@ function channelUnread(
     return Boolean(unread && !unread.seen);
   }
 
-  return (briefs[app]?.[chFlag]?.count ?? 0) > 0;
+  return (briefs[nest]?.count ?? 0) > 0;
 }
 
 interface ChannelUnreadCount {
@@ -98,7 +152,7 @@ export function useChannelUnreadCounts(args: ChannelUnreadCount) {
 }
 
 export function useCheckChannelUnread() {
-  const briefs = useAllBriefs();
+  const briefs = useBriefs();
   const chats = useChatStore(selChats);
 
   return useCallback(
@@ -108,7 +162,7 @@ export function useCheckChannelUnread() {
 }
 
 export function useIsChannelUnread(nest: string) {
-  const briefs = useAllBriefs();
+  const briefs = useBriefs();
   const chats = useChatStore(selChats);
 
   return channelUnread(nest, briefs, chats);
@@ -226,29 +280,18 @@ export function useChannelSections(groupFlag: string) {
   };
 }
 
-function channelIsJoined(
-  nest: string,
-  briefs: ReturnType<typeof useAllBriefs>
-) {
-  const [app, flag] = nestToFlag(nest);
-
-  return briefs[app] && Object.keys(briefs[app]).length > 0
-    ? isChannelJoined(app === 'chat' ? flag : nest, briefs[app])
-    : true;
-}
-
 export function useChannelIsJoined(nest: string) {
-  const briefs = useAllBriefs();
+  const briefs = useBriefs();
 
-  return channelIsJoined(nest, briefs);
+  return isChannelJoined(nest, briefs);
 }
 
 export function useCheckChannelJoined() {
-  const briefs = useAllBriefs();
+  const briefs = useBriefs();
 
   return useCallback(
     (nest: string) => {
-      return channelIsJoined(nest, briefs);
+      return isChannelJoined(nest, briefs);
     },
     [briefs]
   );
@@ -268,8 +311,6 @@ export function useChannelCompatibility(nest: string) {
 interface FullChannelParams {
   groupFlag: string;
   nest: string;
-  writers: string[];
-  join: (params: { group: string; chan: string }) => Promise<void>;
   initialize?: () => void;
 }
 
@@ -281,8 +322,6 @@ const emptyVessel = {
 export function useFullChannel({
   groupFlag,
   nest,
-  writers,
-  join,
   initialize,
 }: FullChannelParams) {
   const navigate = useNavigate();
@@ -293,12 +332,14 @@ export function useFullChannel({
     () => group?.fleet?.[window.our] || emptyVessel,
     [group]
   );
+  const { writers } = usePerms(nest);
   const groupChannel = group?.channels?.[nest];
   const channel = useChannelFromState(nest);
   const compat = useChannelCompatibility(nest);
   const canWrite =
     ship === window.our ||
-    (canWriteChannel({ writers }, vessel, group?.bloc) && compat.compatible);
+    (canWriteChannel({ writers, group: groupFlag }, vessel, group?.bloc) &&
+      compat.compatible);
   const canRead = groupChannel
     ? canReadChannel(groupChannel, vessel, group?.bloc)
     : false;
@@ -306,6 +347,7 @@ export function useFullChannel({
   const joined = useChannelIsJoined(nest);
   const { setRecentChannel } = useRecentChannel(groupFlag);
   const lastReconnect = useLastReconnect();
+  const { mutateAsync: join } = useJoinMutation();
 
   const joinChannel = useCallback(async () => {
     setJoining(true);

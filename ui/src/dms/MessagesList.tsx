@@ -4,8 +4,9 @@ import useMessageSort from '@/logic/useMessageSort';
 import { useGroups } from '@/state/groups';
 import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
-import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { ChatBrief } from '@/types/chat';
+import { canReadChannel } from '@/logic/channel';
 import {
   usePendingDms,
   useBriefs,

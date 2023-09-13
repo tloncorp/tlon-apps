@@ -34,14 +34,12 @@ function HeapChannel({ title }: ViewProps) {
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
   const groupFlag = useRouteGroup();
-  const { mutateAsync: join } = useJoinMutation();
-  const perms = usePerms(nest);
   const {
     group,
     groupChannel: channel,
     canWrite,
     compat: { compatible },
-  } = useFullChannel({ groupFlag, nest, writers: perms.writers, join });
+  } = useFullChannel({ groupFlag, nest });
 
   const displayMode = useHeapDisplayMode(chFlag);
   const [addCurioOpen, setAddCurioOpen] = useState(false);

@@ -6,7 +6,7 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
-import { useChatPerms, useChatState } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import { Link } from 'react-router-dom';
@@ -31,7 +31,6 @@ function ChatChannel({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
-  const perms = useChatPerms(chFlag);
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
   const inThread = idShip && idTime;
@@ -39,14 +38,6 @@ function ChatChannel({ title }: ViewProps) {
   const { sendMessage } = useChatState.getState();
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-
-  const join = useCallback(async () => {
-    try {
-      await useChatState.getState().joinChat(groupFlag, chFlag);
-    } catch (e) {
-      console.log("Couldn't join chat (maybe already joined)", e);
-    }
-  }, [groupFlag, chFlag]);
 
   const initialize = useCallback(async () => {
     await useChatState.getState().initialize(chFlag);
@@ -60,8 +51,6 @@ function ChatChannel({ title }: ViewProps) {
   } = useFullChannel({
     groupFlag,
     nest,
-    writers: perms.writers,
-    join,
     initialize,
   });
 

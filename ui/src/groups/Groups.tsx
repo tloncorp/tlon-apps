@@ -11,14 +11,14 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import { useChatState } from '@/state/chat';
 import { useBriefs } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, getFlagParts } from '@/logic/utils';
+import { getFlagParts } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { canReadChannel } from '@/logic/channel';
 
 function Groups() {
   const navigate = useNavigate();
@@ -85,11 +85,7 @@ function Groups() {
         return;
       }
 
-      // done this way to prevent too many renders from useAllBriefs
-      const allBriefs = {
-        ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
-        ..._.mapKeys(briefs, (k, v) => k),
-      };
+      const allBriefs = _.mapKeys(briefs, (k, v) => k);
       const channel = Object.entries(group.channels).find(
         ([nest]) => nest in allBriefs
       );
