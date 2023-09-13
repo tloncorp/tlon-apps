@@ -1,6 +1,8 @@
 import cn from 'classnames';
-import React, { AnchorHTMLAttributes, PropsWithChildren } from 'react';
+import { useState, AnchorHTMLAttributes, PropsWithChildren } from 'react';
 import { NavLink, NavLinkProps } from 'react-router-dom';
+
+const DOUBLE_CLICK_WINDOW = 300;
 
 type NavTabProps = PropsWithChildren<
   (
@@ -47,5 +49,43 @@ export default function NavTab({
         </a>
       )}
     </li>
+  );
+}
+
+type DoubleClickableNavTab = PropsWithChildren<
+  (
+    | Omit<NavLinkProps, 'className' | 'style'>
+    | AnchorHTMLAttributes<HTMLAnchorElement>
+  ) & {
+    className?: string;
+    linkClass?: string;
+    onSingleClick: () => void;
+    onDoubleClick: () => void;
+  }
+>;
+
+export function DoubleClickableNavTab(props: DoubleClickableNavTab) {
+  const [clickTimeout, setClickTimeout] = useState<number | null>(null);
+
+  const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+
+    if (clickTimeout !== null) {
+      window.clearTimeout(clickTimeout);
+      setClickTimeout(null);
+      props.onDoubleClick();
+    } else {
+      const timeout = window.setTimeout(() => {
+        setClickTimeout(null);
+      }, DOUBLE_CLICK_WINDOW);
+      setClickTimeout(timeout);
+    }
+    props.onSingleClick();
+  };
+
+  return (
+    <NavTab onClick={onClick} {...props}>
+      {props.children}
+    </NavTab>
   );
 }
