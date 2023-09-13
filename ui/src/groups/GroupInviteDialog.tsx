@@ -7,6 +7,7 @@ import { useDismissNavigate } from '@/logic/routing';
 import {
   useGroup,
   useGroupAddMembersMutation,
+  useGroupCompatibility,
   useGroupInviteMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
@@ -40,9 +41,9 @@ export function GroupInviteBlock() {
     status: addMembersStatus,
     reset: resetAddMembers,
   } = useGroupAddMembersMutation();
-  const saga = group?.saga || null;
+  const { compatible } = useGroupCompatibility(flag);
   const hasIssue =
-    (saga !== null && !('synced' in saga)) ||
+    !compatible ||
     (data?.status &&
       'complete' in data.status &&
       data.status.complete !== 'yes');
@@ -168,7 +169,7 @@ export default function GroupInviteDialog() {
       open={true}
       onOpenChange={(isOpen) => !isOpen && dismiss()}
       containerClass="w-full max-w-xl"
-      className="mb-64 bg-transparent p-0"
+      className="bg-transparent p-0"
       close="none"
     >
       {renderContent()}

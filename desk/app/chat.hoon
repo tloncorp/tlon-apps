@@ -119,6 +119,8 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
     %-  (note:wood %ver leaf/"New Epic" ~)
@@ -239,6 +241,24 @@
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
+      %noun
+    =+  !<([head=term tail=*] vase)
+    ?+  head  ~|(bad-poke/vase !!)
+        %transfer-channel
+      ?>  from-self
+      =+  !<([* =flag:c new-group=flag:g new=flag:c before=@da] vase)
+      =/  core  (ca-abed:ca-core flag)
+      ca-abet:(ca-transfer-channel:core new-group new before)
+    ::
+        %import-channel
+      ?>  from-self
+      =+  !<([* =flag:c cr=create:c =log:c] vase)
+      =.  cor  (create cr)
+      ~&  "importing {<(wyt:log-on:c log)>} logs to {<flag>}"
+      =/  core  (ca-abed:ca-core flag)
+      ca-abet:(ca-apply-logs:core log)
+    ==
+  ::
       %import-flags
     =+  !<(flags=(set flag:c) vase)
     =.  imp  %-  ~(gas by *(map flag:c ?))
@@ -269,10 +289,38 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %chat-leave
+      ?(%channel-leave %chat-leave)
     =+  !<(=leave:c vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     ca-abet:ca-leave:(ca-abed:ca-core leave)
+  ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  chat-flags-from-groups
+      %+  turn  ~(tap by groups)
+    |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%chat p.nest) %.y %.n)
+      |=  [=nest:g *]
+      q.nest
+    =/  chats-without-groups
+      %+  skim  ~(tap in ~(key by chats))
+      |=  =flag:g
+      ?:(=((find [flag]~ (zing chat-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      chats-without-groups
+    |=  [=flag:g core=_cor]
+    ca-abet:ca-leave:(ca-abed:ca-core:core flag)
+  ::
+      %recheck-all-perms
+    %+  roll
+      ~(tap by chats)
+    |=  [[=flag:c *] core=_cor]
+    =/  ca  (ca-abed:ca-core:core flag)
+    ca-abet:(ca-recheck:ca ~)
   ::
       %chat-draft
     =+  !<(=draft:c vase)
@@ -1196,13 +1244,13 @@
     (ca-remark-diff read/~)
   ::
   ++  ca-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
     ^-  new-yarn:ha
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
-      (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] rest)
+      (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
   ::
   ++  ca-watch
@@ -1316,7 +1364,6 @@
       ?~  p.sign
         ca-core
       %-  (slog u.p.sign)
-      :: =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
       ca-core
     ::
     ==
@@ -1367,8 +1414,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:c !>([flag now.bowl %del-sects sects])]
       (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  ca-core  (ca-can-read our.bowl)  ca-safe-sub
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (ca-can-read our.bowl)
+    =.  ca-core
+      ?:  wecanread
+        ca-safe-sub
+      ca-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
@@ -1619,19 +1670,24 @@
           ?(%del %add-feel %del-feel)  ca-core
           %add
         =/  memo=memo:c  p.delta
+        =/  want-soft-notify  (want-hark flag %to-us)
+        =/  want-loud-notify  (want-hark flag %msg)
         =?  remark.chat  =(author.memo our.bowl)
           remark.chat(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief flag/flag ca-brief)
         ?-  -.content.memo
             %notice  ca-core
             %story
+          =/  new-message-yarn  (ca-message-hark memo p.content.memo p.p.d)
+          =?  cor  want-loud-notify
+            (emit (pass-hark new-message-yarn))
           ?.  ?&  !=(author.memo our.bowl)
                   |(!=(~ replying.memo) (mentioned q.p.content.memo our.bowl))
               ==
             ca-core
           ?:  (mentioned q.p.content.memo our.bowl)
             =/  new-yarn  (ca-mention-hark memo p.content.memo p.p.d)
-            =?  cor  (want-hark flag %to-us)
+            =?  cor  &(want-soft-notify !want-loud-notify)
               (emit (pass-hark new-yarn))
             ca-core
           =/  replying  (need replying.memo)
@@ -1649,19 +1705,20 @@
           ?-  -.content.opwrit
               %notice  ca-core
               %story
-            =?  cor  (want-hark flag %to-us)
+            =?  cor  &(want-soft-notify !want-loud-notify)
               %-  emit  %-  pass-hark
-              %^  ca-spin
-                /message/(scot %p p.replying)/(scot %ud q.replying)
-                :~  [%ship author.memo]
-                    ' replied to your message “'
-                    (flatten q.p.content.opwrit)
-                    '”: '
-                    [%ship author.memo]
-                    ': '
-                    (flatten q.p.content.memo)
-                ==
-              ~
+              %-  ca-spin
+                :^  /message/(scot %p p.replying)/(scot %ud q.replying)
+                  :~  [%ship author.memo]
+                      ' replied to your message “'
+                      (flatten q.p.content.opwrit)
+                      '”: '
+                      [%ship author.memo]
+                      ': '
+                      (flatten q.p.content.memo)
+                  ==
+                  ~
+                  ~
             ca-core
           ==
         ==
@@ -1670,16 +1727,78 @@
   ::
   ++  ca-mention-hark
     |=  [=memo:c =story:c op=id:c]
-    %^  ca-spin
+    =/  path
       ?~  replying.memo
         /op/(scot %p p.op)/(scot %ud q.op)
       =/  id  u.replying.memo
       /message/(scot %p p.id)/(scot %ud q.id)/op/(scot %p p.op)/(scot %ud q.op)
-      :~  [%ship author.memo]
-          ' mentioned you :'
-          (flatten q.story)
+    %-  ca-spin
+      :^  path
+        :~  [%ship author.memo]
+            ' mentioned you :'
+            (flatten q.story)
+        ==
+        ~
+        ~
+  ::
+  ++  ca-message-hark
+    |=  [=memo:c =story:c op=id:c]
+    %-  ca-spin
+      :^  ~
+        :~  [%ship author.memo]
+            ': '
+            (flatten q.story)
+        ==
+        ~
+        /message/(scot %p p.op)/(scot %ud q.op)
+  ::
+  ++  ca-transfer-channel
+    |=  [new-group=flag:g new=flag:c tim=time]
+    =/  old=log:c  log.chat
+    ::  we only need writs for the new channel because we'll compress
+    ::  all the permissions into one create event
+    =/  writ-log
+      =<  +
+      %^  (dip:log-on:c @)  log.chat  ~
+      |=  [st=@ =time =diff:c]
+      :_  [%.n st]
+      ::  only keep writs
+      ?.  ?=(%writs -.diff)  ~
+      `diff
+    ::  for the channel getting truncated we need to keep all permission
+    ::  events, and only the writs after the time
+    =/  filtered-log
+        =<  +
+        %^  (dip:log-on:c @)  log.chat  ~
+        |=  [st=@ =time =diff:c]
+        :_  [%.n st]
+        ?:  ?=(%create -.diff)  `[%create p.diff ~ ~]
+        ::  keep non-writ events
+        ?.  ?=(%writs -.diff)  `diff
+        ::  only keep writs after time
+        ?.  (gth time tim)  ~
+        `diff
+    =+  .^(=group:g %gx (weld ca-groups-scry /noun))
+    =/  =channel:g  (~(got by channels.group) [%chat flag])
+    ::  don't allow moving to the same group or same channel
+    ~|  'Must be a different group and channel'
+    ?>  &(!=(group.perm.chat new-group) !=(flag new))
+    ::  compressing permissions into create event for new channel
+    =/  =create:c
+      :*  new-group
+          q.new
+          title.meta.channel
+          description.meta.channel
+          readers.channel
+          writers.perm.chat
       ==
-    ~
+    =/  =wire  (welp ca-area /import)
+    =/  =dock  [our.bowl dap.bowl]
+    =/  =cage  [%noun !>([%import-channel new create writ-log])]
+    =.  cor  (emit %pass wire %agent dock %poke cage)
+    ~&  ['new size:' ~(wyt by filtered-log) 'old-size:' ~(wyt by old)]
+    =.  log.chat  filtered-log
+    ca-core
   --
 ::
 ++  pending-dms

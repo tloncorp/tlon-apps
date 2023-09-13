@@ -1093,6 +1093,7 @@
             %block                 q.c
             ?(%code %inline-code)  ''
             %ship                  (scot %p p.c)
+            %task                  (flatten [%inline q.c]~)
             ?(%italics %bold %strike %blockquote)
           (flatten [%inline p.c]~)
         ==

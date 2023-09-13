@@ -64,6 +64,13 @@ export interface Link {
   };
 }
 
+export interface Task {
+  task: {
+    checked: boolean;
+    content: Inline[];
+  };
+}
+
 export type Inline =
   | string
   | Bold
@@ -76,7 +83,8 @@ export type Inline =
   | Blockquote
   | BlockReference
   | Tag
-  | Link;
+  | Link
+  | Task;
 
 export type InlineKey =
   | 'italics'

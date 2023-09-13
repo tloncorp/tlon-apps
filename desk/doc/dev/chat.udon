@@ -55,7 +55,7 @@ Each poke is organized by mark
 - `%chat-create` creates a chat channel first in this agent and then passes
   to the %groups agent to create there
 - `%chat-draft` stores a draft chat message
-- `%chat-leave` leaves a channel if we aren't the host
+- `%channel-leave` leaves a channel if we aren't the host
 - `%chat-pins` pins a chat channel, dm or multi-dm
 - `%chat-remark-action` marks our last read message
 - `%club-action` the main mark for acting on a `club`
@@ -69,10 +69,10 @@ Each poke is organized by mark
   sending messages since dms hold no other metadata
 - `%dm-diff` is used specifically for dms to send updates to the other
   party, generally initiated by a `%dm-action` poke on the sender side
-- `%dm-archive` currently unused, but marks a DM for archival removing 
+- `%dm-archive` currently unused, but marks a DM for archival removing
   from the UI but preserving history
 - `%dm-rsvp` accepts or rejects a dm
-- `%graph-import` imports a graph from old Groups and turns it into the 
+- `%graph-import` imports a graph from old Groups and turns it into the
   appropriate channel/dm/multi-dm
 
 ### scries
@@ -81,14 +81,14 @@ Each scry is organized by path
 
 - `x/\{dm|chat|club}/\{whom}/writs`
   - `/newest/\{count}` grabs the last `count` messages
-  - `/older/\{start}/\{count}` grabs `count` number of messages before, 
+  - `/older/\{start}/\{count}` grabs `count` number of messages before,
     starting from `start`
-  - `/newer/\{start}/\{count}` grabs `count` number of messages ahead, 
+  - `/newer/\{start}/\{count}` grabs `count` number of messages ahead,
     starting from `start`
   - `/writ/id/\{ship}/\{time}` grabs the message at `id`
 - `x/chat` grabs the set of flags that index our chat channels
 - `x/chats` grabs the full map of chats on our ship
-- `x/chat/\{ship}/\{name}/perm` returns the chat permissions 
+- `x/chat/\{ship}/\{name}/perm` returns the chat permissions
 - `x/dm` grabs the set of ships we've accepted dms from
 - `x/dm/invited` grabs the set of ships who've yet to accept our dms
 - `x/dm/archive` grabs the set of ship's dms that we've archived (currently unused)

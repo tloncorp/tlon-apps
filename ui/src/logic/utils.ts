@@ -1176,3 +1176,8 @@ export function groupQuips(
 
   return Object.entries(grouped);
 }
+
+export function sagaCompatible(saga: Saga | null) {
+  // either host or synced with host
+  return saga === null || 'synced' in saga;
+}

@@ -1,6 +1,23 @@
 import { ParseRule } from '@tiptap/pm/model';
 
 const parserRules: ParseRule[] = [
+  {
+    tag: 'ul[data-type="taskList"]',
+    node: 'taskList',
+  },
+  {
+    tag: 'li[data-type="taskItem"]',
+    node: 'taskItem',
+    getAttrs: (node: string | HTMLElement) => {
+      if (typeof node === 'string') {
+        return {};
+      }
+
+      return {
+        checked: node.getAttribute('data-checked') === 'true',
+      };
+    },
+  },
   { tag: 'p', node: 'paragraph' },
   { tag: 'blockquote', node: 'blockquote' },
   { tag: 'ul', node: 'bulletList' },
@@ -118,7 +135,7 @@ const parserRules: ParseRule[] = [
     },
   },
   {
-    tag: 'span',
+    tag: 'span[data-type="mention"]',
     node: 'mention',
     getAttrs: (node: HTMLElement | string) => {
       if (typeof node === 'string') {

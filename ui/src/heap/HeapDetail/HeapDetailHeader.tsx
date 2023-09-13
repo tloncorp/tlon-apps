@@ -12,43 +12,41 @@ import useHeapContentType from '@/logic/useHeapContentType';
 import useNest from '@/logic/useNest';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
-import { chatStoryFromStory } from '@/types/channel';
+import { NoteEssay, chatStoryFromStory } from '@/types/channel';
 import getHanDataFromEssay from '@/logic/getHanData';
 import { isLink } from '@/types/content';
 import useCurioActions from '../useCurioActions';
 
-export interface ChannelHeaderProps {
-  flag: string;
-  chFlag: string;
+export interface HeapDetailHeaderProps {
+  nest: string;
   idCurio: string;
+  essay: NoteEssay;
+  groupFlag: string;
 }
 
 export default function HeapDetailHeader({
-  flag,
-  chFlag,
+  nest,
   idCurio,
-}: ChannelHeaderProps) {
-  const { note } = useNote(`heap/${chFlag}`, idCurio);
+  essay,
+  groupFlag,
+}: HeapDetailHeaderProps) {
   const isMobile = useIsMobile();
-  const nest = useNest();
 
-  const content = note
-    ? chatStoryFromStory(note.essay.content)
-    : { block: [], inline: [] };
+  const content = chatStoryFromStory(essay.content);
   const curioContent =
     (isLink(content.inline[0])
       ? content.inline[0].link.href
       : (content.inline[0] || '').toString()) || '';
   const { description } = useHeapContentType(curioContent);
-  const isAdmin = useAmAdmin(flag);
-  const canEdit = isAdmin || window.our === note?.essay.author;
+  const isAdmin = useAmAdmin(groupFlag);
+  const canEdit = isAdmin || window.our === essay.author;
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
-    new Date(note?.essay.sent || Date.now())
+    new Date(essay.sent || Date.now())
   );
   const isImageLink = isImageUrl(curioContent);
   const isCite = content.block.length > 0 && 'cite' in content.block[0];
-  const { title: curioTitle } = getHanDataFromEssay(note?.essay);
+  const { title: curioTitle } = getHanDataFromEssay(essay);
   const { onEdit, onCopy, didCopy } = useCurioActions({ nest, time: idCurio });
 
   function truncate({ str, n }: { str: string; n: number }) {
@@ -58,7 +56,7 @@ export default function HeapDetailHeader({
   if (isMobile) {
     return (
       <MobileHeader
-        title={<ChannelIcon nest="heap" className="h-6 w-6 text-gray-600" />}
+        title={<ChannelIcon nest={nest} className="h-6 w-6 text-gray-600" />}
         secondaryTitle={
           <h1
             className={cn(
@@ -115,7 +113,7 @@ export default function HeapDetailHeader({
           <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
         </div>
 
-        <ChannelIcon nest="heap" className="h-6 w-6 shrink-0 text-gray-600" />
+        <ChannelIcon nest={nest} className="h-6 w-6 shrink-0 text-gray-600" />
         <div className="flex w-full flex-col justify-center">
           <span
             className={cn(

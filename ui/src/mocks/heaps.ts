@@ -25,7 +25,6 @@ const mockStash: Shelf = {
 
 const mockCurios: Outlines = {
   '170141184505776467152677676749638598656': {
-    type: 'outline',
     quipCount: 0,
     quippers: [],
     'han-data': {
@@ -42,7 +41,6 @@ const mockCurios: Outlines = {
     sent: unixTime,
   },
   '170141184505776467152677676749638598657': {
-    type: 'outline',
     quipCount: 0,
     quippers: [],
     'han-data': {
@@ -59,7 +57,6 @@ const mockCurios: Outlines = {
     sent: unixTime,
   },
   '170141184505776467152677676749638598658': {
-    type: 'outline',
     quipCount: 0,
     quippers: [],
     'han-data': {
@@ -76,7 +73,6 @@ const mockCurios: Outlines = {
     sent: unixTime,
   },
   '170141184505776467152677676749638598659': {
-    type: 'outline',
     quipCount: 0,
     quippers: [],
     'han-data': {
@@ -93,7 +89,6 @@ const mockCurios: Outlines = {
     sent: unixTime,
   },
   '170141184505776467152677676749638598660': {
-    type: 'outline',
     quipCount: 0,
     quippers: [],
     'han-data': {

@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useArrangedNotes } from '@/state/channel/channel';
-import { useChannelOld } from '@/logic/channel';
+import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import useDiaryActions from './useDiaryActions';
@@ -26,8 +26,7 @@ export default function DiaryNoteOptionsDropdown({
   const nest = `diary/${flag}`;
   const arrangedNotes = useArrangedNotes(nest);
   const { ship } = getFlagParts(flag);
-  const chan = useChannelOld(nest);
-  const saga = chan?.saga || null;
+  const { compatible } = useChannelCompatibility(nest);
   const {
     isOpen,
     didCopy,
@@ -52,10 +51,7 @@ export default function DiaryNoteOptionsDropdown({
     },
   ];
 
-  if (
-    (canEdit && ship === window.our) ||
-    (canEdit && saga && 'synced' in saga)
-  ) {
+  if ((canEdit && ship === window.our) || (canEdit && compatible)) {
     if (arrangedNotes.includes(time)) {
       actions.push(
         {

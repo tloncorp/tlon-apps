@@ -314,6 +314,25 @@ export function useInfiniteOutlines(nest: Nest) {
   };
 }
 
+function removeNoteFromInfiniteQuery(
+  queryClient: QueryClient,
+  nest: string,
+  time: string
+) {
+  const [han, flag] = nestToFlag(nest);
+  const queryKey = [han, 'notes', flag, 'infinite'];
+  const deletedId = decToUd(time);
+  const currentData = queryClient.getQueryData(queryKey) as any;
+  const newPages =
+    currentData?.pages.map((page: any) =>
+      page.filter(([id]: any) => id !== deletedId)
+    ) ?? [];
+  queryClient.setQueryData(queryKey, (data: any) => ({
+    pages: newPages,
+    pageParams: data.pageParams,
+  }));
+}
+
 export async function prefetchNoteWithComments({
   queryClient,
   nest,
@@ -592,6 +611,7 @@ export function useRemoteOutline(nest: Nest, time: string, blockLoad: boolean) {
 }
 
 export function useMarkReadMutation() {
+  const queryClient = useQueryClient();
   const mutationFn = async (variables: { nest: Nest }) => {
     checkNest(variables.nest);
 
@@ -600,6 +620,9 @@ export function useMarkReadMutation() {
 
   return useMutation({
     mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['briefs']);
+    },
   });
 }
 
@@ -920,7 +943,24 @@ export function useDeleteNoteMutation() {
   const mutationFn = async (variables: { nest: Nest; time: string }) => {
     checkNest(variables.nest);
 
-    await api.poke(diaryNoteAction(variables.nest, { del: variables.time }));
+    await api.trackedPoke<ShelfAction, ShelfResponse>(
+      diaryNoteAction(variables.nest, { del: variables.time }),
+      {
+        app: 'channels',
+        path: `/${variables.nest}/ui`,
+      },
+      (event) => {
+        if ('note' in event.response) {
+          const { id, 'r-note': noteResponse } = event.response.note;
+          return (
+            id === variables.time &&
+            'set' in noteResponse &&
+            noteResponse.set === null
+          );
+        }
+        return false;
+      }
+    );
   };
 
   return useMutation({
@@ -942,9 +982,13 @@ export function useDeleteNoteMutation() {
 
       await queryClient.cancelQueries([han, 'notes', flag, variables.time]);
     },
+    onSuccess: async (_data, variables) => {
+      removeNoteFromInfiniteQuery(queryClient, variables.nest, variables.time);
+    },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.refetchQueries([han, 'notes', flag]);
+      await queryClient.invalidateQueries([han, 'notes', flag]);
+      await queryClient.invalidateQueries([han, 'notes', flag, 'infinite']);
     },
   });
 }

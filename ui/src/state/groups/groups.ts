@@ -31,8 +31,14 @@ import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { getCompatibilityText, getFlagParts, preSig } from '@/logic/utils';
+import {
+  getCompatibilityText,
+  getFlagParts,
+  preSig,
+  sagaCompatible,
+} from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import { Scope, VolumeValue } from '@/types/volume';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -398,6 +404,33 @@ export function useShoal(bait: BaitCite['bait']) {
   }
 
   return data;
+}
+
+export function useVolume(scope?: Scope): {
+  volume: VolumeValue;
+  isLoading: boolean;
+  isError: boolean;
+} {
+  const nestOrFlag = scope
+    ? 'group' in scope
+      ? scope.group
+      : scope.channel
+    : undefined;
+
+  const { data, ...rest } = useReactQueryScry({
+    queryKey: ['volume', nestOrFlag ?? 'base'],
+    app: 'groups',
+    path: `/volume${nestOrFlag ? `/${nestOrFlag}` : ''}`,
+    options: {
+      refetchOnMount: false,
+    },
+  });
+
+  return {
+    volume: data as VolumeValue,
+    isLoading: rest.isLoading,
+    isError: rest.isError,
+  };
 }
 
 export function useGroupMutation<TResponse>(
@@ -913,6 +946,67 @@ export function useGroupRejectMutation() {
   });
 }
 
+export function useBaseVolumeSetMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = (variables: { volume: VolumeValue }) =>
+    api.poke({
+      app: 'groups',
+      mark: 'volume-set',
+      json: {
+        value: variables.volume,
+        scope: null,
+      },
+    });
+
+  return useMutation(mutationFn, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(['volume', 'base']);
+    },
+  });
+}
+
+export function useGroupVolumeSetMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = (variables: { flag: string; volume: VolumeValue }) =>
+    api.poke({
+      app: 'groups',
+      mark: 'volume-set',
+      json: {
+        scope: {
+          group: variables.flag,
+        },
+        value: variables.volume,
+      },
+    });
+
+  return useMutation(mutationFn, {
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(['volume', variables.flag]);
+    },
+  });
+}
+
+export function useGroupChannelVolumeSetMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = (variables: { nest: string; volume: VolumeValue }) =>
+    api.poke({
+      app: 'groups',
+      mark: 'volume-set',
+      json: {
+        scope: {
+          channel: variables.nest,
+        },
+        value: variables.volume,
+      },
+    });
+
+  return useMutation(mutationFn, {
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(['volume', variables.nest]);
+    },
+  });
+}
+
 export function useGroupSwapCordonMutation() {
   const mutationFn = (variables: { flag: string; cordon: Cordon }) =>
     api.poke(
@@ -1168,7 +1262,7 @@ export function useGroupCompatibility(flag: string) {
   const saga = group?.saga || null;
   return {
     saga,
-    compatible: saga === null || 'synced' in saga,
+    compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
   };
 }

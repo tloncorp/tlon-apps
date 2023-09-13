@@ -467,7 +467,7 @@ export const useChatState = createState<ChatState>(
     leaveChat: async (flag) => {
       await api.poke({
         app: 'chat',
-        mark: 'chat-leave',
+        mark: 'channel-leave',
         json: flag,
       });
     },

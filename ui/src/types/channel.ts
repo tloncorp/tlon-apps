@@ -66,7 +66,7 @@ export interface Image {
 
 export interface List {
   list: {
-    type: 'ordered' | 'unordered';
+    type: 'ordered' | 'unordered' | 'tasklist';
     items: Listing[];
     contents: Inline[];
   };
@@ -148,7 +148,6 @@ export type Note = null | {
 };
 
 export interface Outline extends NoteEssay {
-  type: 'outline';
   quipCount: number;
   quippers: Ship[];
 }
@@ -355,7 +354,7 @@ export type Command =
   | DiffSort;
 
 export type NoteResponse =
-  | { set: Note }
+  | { set: Note | null }
   | { quip: { id: string; response: QuipResponse } }
   | { essay: NoteEssay }
   | { feels: Record<string, string> };

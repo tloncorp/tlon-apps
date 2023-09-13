@@ -242,6 +242,8 @@ export default function EditCurioForm() {
         open={deleteOpen}
         onConfirm={onDelete}
         setOpen={setDeleteOpen}
+        closeOnClickOutside={true}
+        loading={delMutation.isLoading}
         title="Delete Gallery Item"
         confirmText="Delete"
         message="Are you sure you want to delete this gallery item?"

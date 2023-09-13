@@ -12,22 +12,21 @@ import { useCalm } from '@/state/settings';
 import {
   Cite,
   isCite,
-  Note,
-  Story,
   VerseBlock,
   linkUrlFromContent,
   imageUrlFromContent,
+  NoteEssay,
 } from '@/types/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import HeapYoutubePlayer from '../HeapYoutubePlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';
 import HeapVideoPlayer from '../HeapVideoPlayer';
 
-export default function HeapDetailBody({ note }: { note: Note }) {
-  const { content } = note ? note.essay : { content: [] as Story };
-  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
+export default function HeapDetailBody({ essay }: { essay?: NoteEssay }) {
   const calm = useCalm();
   const isMobile = useIsMobile();
+  const { content } = essay || { content: [] };
+  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { embed, isError, error } = useEmbed(url, isMobile);
   const { isImage, isText, isAudio, isVideo } = useHeapContentType(url);
 
@@ -37,7 +36,7 @@ export default function HeapDetailBody({ note }: { note: Note }) {
     }
   }, [isError, error]);
 
-  if (!note) {
+  if (!essay) {
     return (
       <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
         <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">

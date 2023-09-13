@@ -1,34 +1,25 @@
 import cn from 'classnames';
-import React, { useEffect, useState, useCallback } from 'react';
-import { Route, Routes, useMatch, useNavigate, useParams } from 'react-router';
+import React, { useCallback } from 'react';
+import { Route, Routes, useMatch, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
 import { useChatPerms, useChatState } from '@/state/chat';
-import {
-  useRouteGroup,
-  useVessel,
-  useGroup,
-  useGroupChannel,
-} from '@/state/groups/groups';
+import { useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, canWriteChannel, isTalk } from '@/logic/utils';
-import { useLastReconnect } from '@/state/local';
 import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
+import { useFullChannel } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
-  const navigate = useNavigate();
   const { chShip, chName, idTime, idShip } = useParams<{
     name: string;
     chShip: string;
@@ -37,76 +28,42 @@ function ChatChannel({ title }: ViewProps) {
     idShip: string;
     idTime: string;
   }>();
-  const chFlag = `${chShip}/${chName}`;
-  const dropZoneId = `chat-input-dropzone-${chFlag}`;
-  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const nest = `chat/${chFlag}`;
   const groupFlag = useRouteGroup();
-  const { setRecentChannel } = useRecentChannel(groupFlag);
-  const [joining, setJoining] = useState(false);
+  const chFlag = `${chShip}/${chName}`;
+  const nest = `chat/${chFlag}`;
   const perms = useChatPerms(chFlag);
-  const vessel = useVessel(groupFlag, window.our);
-  const channel = useGroupChannel(groupFlag, nest);
-  const group = useGroup(groupFlag);
-  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const canRead = channel
-    ? canReadChannel(channel, vessel, group?.bloc)
-    : false;
+  const isMobile = useIsMobile();
+  const isSmall = useMedia('(max-width: 1023px)');
   const inThread = idShip && idTime;
   const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
   const { sendMessage } = useChatState.getState();
-  const joined = useChannelIsJoined(nest);
-  const lastReconnect = useLastReconnect();
-  const isSmall = useMedia('(max-width: 1023px)');
-  const { compatible, text } = useChannelCompatibility(nest);
-  const isMobile = useIsMobile();
+  const dropZoneId = `chat-input-dropzone-${chFlag}`;
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
 
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
+  const join = useCallback(async () => {
     try {
       await useChatState.getState().joinChat(groupFlag, chFlag);
     } catch (e) {
       console.log("Couldn't join chat (maybe already joined)", e);
     }
-    setJoining(false);
   }, [groupFlag, chFlag]);
 
-  const initializeChannel = useCallback(async () => {
+  const initialize = useCallback(async () => {
     await useChatState.getState().initialize(chFlag);
   }, [chFlag]);
 
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel]);
-
-  useEffect(() => {
-    if (joined && canRead && !joining) {
-      initializeChannel();
-      setRecentChannel(nest);
-    }
-  }, [
+  const {
+    group,
+    groupChannel: channel,
+    canWrite,
+    compat: { compatible, text },
+  } = useFullChannel({
+    groupFlag,
     nest,
-    setRecentChannel,
-    initializeChannel,
-    joined,
-    canRead,
-    channel,
-    joining,
-    lastReconnect,
-  ]);
-
-  useEffect(() => {
-    if (channel && !canRead) {
-      if (isTalk) {
-        navigate('/');
-      } else {
-        navigate(`/groups/${groupFlag}`);
-      }
-      setRecentChannel('');
-    }
-  }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);
+    writers: perms.writers,
+    join,
+    initialize,
+  });
 
   return (
     <>
@@ -141,7 +98,7 @@ function ChatChannel({ title }: ViewProps) {
               path="*"
               element={
                 <ChannelHeader
-                  flag={groupFlag}
+                  groupFlag={groupFlag}
                   nest={nest}
                   prettyAppName="Chat"
                   leave={useChatState.getState().leaveChat}

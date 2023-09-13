@@ -38,33 +38,25 @@ import useRecentChannel from '@/logic/useRecentChannel';
 import { canReadChannel, canWriteChannel } from '@/logic/utils';
 import { useLastReconnect } from '@/state/local';
 import { Outline } from '@/types/channel';
+import { useFullChannel } from '@/logic/channel';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 import DiaryHeader from './DiaryHeader';
 
 function DiaryChannel({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
-  const { chShip, chName } = useParams();
-  const chFlag = `${chShip}/${chName}`;
-  const { data } = useConnectivityCheck(chShip ?? '');
-  const nest = `diary/${chFlag}`;
-  const flag = useRouteGroup();
-  const vessel = useVessel(flag, window.our);
-  const { outlines, isLoading, fetchNextPage, hasNextPage } =
-    useInfiniteOutlines(nest);
-  const pendingNotes = usePendingNotes();
-  const queryClient = useQueryClient();
-  const { mutateAsync: joinDiary } = useJoinMutation();
-  const { mutateAsync: markRead } = useMarkReadMutation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { setRecentChannel } = useRecentChannel(flag);
-  const group = useGroup(flag);
-  const channel = useGroupChannel(flag, nest);
-  const joined = useIsJoined(nest);
-  const lastReconnect = useLastReconnect();
-  const notesOnHost = useNotesOnHost(nest, pendingNotes.length > 0);
+  const { chShip, chName } = useParams();
+  const chFlag = `${chShip}/${chName}`;
+  const nest = `diary/${chFlag}`;
+  const { data } = useConnectivityCheck(chShip ?? '');
+  const groupFlag = useRouteGroup();
+  const { outlines, isLoading, fetchNextPage, hasNextPage } =
+    useInfiniteOutlines(nest);
+  const queryClient = useQueryClient();
+  const { mutateAsync: joinDiary } = useJoinMutation();
+  const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
       if (atBottom && hasNextPage) {
@@ -73,6 +65,20 @@ function DiaryChannel({ title }: ViewProps) {
     },
     [hasNextPage, fetchNextPage]
   );
+  const pendingNotes = usePendingNotes();
+  const notesOnHost = useNotesOnHost(nest, pendingNotes.length > 0);
+
+  const perms = usePerms(nest);
+  const {
+    group,
+    groupChannel: channel,
+    canWrite,
+  } = useFullChannel({
+    groupFlag,
+    nest,
+    writers: perms.writers,
+    join: joinDiary,
+  });
 
   const checkForNotes = useCallback(async () => {
     // if we have pending notes and the ship is connected
@@ -128,19 +134,6 @@ function DiaryChannel({ title }: ViewProps) {
     }
   }, [pendingNotes, notesOnHost, data]);
 
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
-    await joinDiary({ group: flag, chan: nest });
-    setJoining(false);
-  }, [flag, nest, joinDiary]);
-
-  useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate(`/groups/${flag}`);
-      setRecentChannel('');
-    }
-  }, [flag, group, channel, vessel, navigate, setRecentChannel]);
-
   useEffect(() => {
     checkForNotes();
     clearPendingNotes();
@@ -160,33 +153,6 @@ function DiaryChannel({ title }: ViewProps) {
   const sortMode = useSortMode(nest);
   const arrangedNotes = useArrangedNotes(nest);
   const lastArrangedNote = arrangedNotes[arrangedNotes.length - 1];
-
-  const perms = usePerms(nest);
-  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const canRead = channel
-    ? canReadChannel(channel, vessel, group?.bloc)
-    : false;
-
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel, channel]);
-
-  useEffect(() => {
-    if (joined && !joining && channel && canRead) {
-      setRecentChannel(nest);
-    }
-  }, [
-    chFlag,
-    nest,
-    setRecentChannel,
-    joined,
-    joining,
-    channel,
-    canRead,
-    lastReconnect,
-  ]);
 
   useEffect(() => {
     let timeout: any;
@@ -210,6 +176,7 @@ function DiaryChannel({ title }: ViewProps) {
       () => markRead({ nest: `diary/${chFlag}` }),
       [markRead, chFlag]
     ),
+    isMarking,
   });
 
   const sortedNotes = Array.from(outlines).sort(([a], [b]) => {
@@ -267,7 +234,7 @@ function DiaryChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={
         <DiaryHeader
-          flag={flag}
+          groupFlag={groupFlag}
           nest={nest}
           canWrite={canWrite}
           display={userDisplayMode ?? displayMode}

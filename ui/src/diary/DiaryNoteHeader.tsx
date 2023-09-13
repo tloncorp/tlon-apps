@@ -4,7 +4,7 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import { useChannelOld as useChannelSpecific } from '@/logic/channel';
+import { useChannelCompatibility } from '@/logic/channel';
 import { getNestShip } from '@/logic/utils';
 import MobileHeader from '@/components/MobileHeader';
 import { useConnectivityCheck } from '@/state/vitals';
@@ -24,12 +24,10 @@ export default function DiaryNoteHeader({
 }: DiaryNoteHeaderProps) {
   const isMobile = useIsMobile();
   const ship = getNestShip(nest);
-  const chan = useChannelSpecific(nest);
-  const saga = chan?.saga || null;
+  const { compatible } = useChannelCompatibility(nest);
   const { data } = useConnectivityCheck(ship);
   const showEditButton =
-    ((canEdit && ship === window.our) ||
-      (canEdit && saga && 'synced' in saga)) &&
+    ((canEdit && ship === window.our) || (canEdit && compatible)) &&
     data?.status &&
     'complete' in data.status &&
     data.status.complete === 'yes';
@@ -70,7 +68,7 @@ export default function DiaryNoteHeader({
           <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
         </div>
 
-        <ChannelIcon nest="diary" className="h-6 w-6 shrink-0 text-gray-600" />
+        <ChannelIcon nest={nest} className="h-6 w-6 shrink-0 text-gray-600" />
         <div className="flex w-full flex-col justify-center">
           <span
             className={cn(

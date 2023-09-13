@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
-import { useSkeins } from '@/state/hark';
 import _ from 'lodash';
+import { useSkeins } from '@/state/hark';
 import { Flag, Skein, Yarn } from '@/types/hark';
 import { makePrettyDay } from '@/logic/utils';
 
@@ -21,6 +20,17 @@ function groupSkeinsByDate(skeins: Skein[]): DayGrouping[] {
     }))
     .sort((a, b) => b.latest - a.latest);
 }
+
+export const getUrlInContent = (yarn: Yarn) =>
+  yarn.con.find((c) => typeof c === 'string' && c.startsWith('http'));
+
+export const isMessage = (yarn: Yarn) => yarn.con.some((con) => con === ': ');
+
+export const isNote = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' published a note: ');
+
+export const isBlock = (yarn: Yarn) =>
+  yarn.con.some((con) => con === ' posted a block to a gallery ');
 
 export const isMention = (yarn: Yarn) =>
   yarn.con.some((con) => con === ' mentioned you :');

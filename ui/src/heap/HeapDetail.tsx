@@ -2,7 +2,7 @@ import bigInt from 'big-integer';
 import cn from 'classnames';
 import { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
 import {
   useJoinMutation,
@@ -25,6 +25,7 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import getHanDataFromEssay from '@/logic/getHanData';
+import { Outline } from '@/types/channel';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -32,6 +33,7 @@ import HeapDetailBody from './HeapDetail/HeapDetailBody';
 
 export default function HeapDetail({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
+  const location = useLocation();
   const groupFlag = useRouteGroup();
   const { chShip, chName, idCurio } = useParams<{
     chShip: string;
@@ -50,14 +52,13 @@ export default function HeapDetail({ title }: ViewProps) {
   const joined = useChannelIsJoined(nest);
   const { mutateAsync: joinHeap } = useJoinMutation();
   const { note, isLoading } = useNote(nest, idCurio || '');
-  const {
-    seal: { id: time, quips: comments },
-  } = note || {};
   const { title: curioTitle } = getHanDataFromEssay(note.essay);
   const { hasNext, hasPrev, nextNote, prevNote } = useOrderedNotes(
     nest,
-    time || ''
+    idCurio || ''
   );
+  const outline = location.state?.initialCurio as Outline | undefined;
+  const essay = note?.essay || outline;
 
   const curioHref = (id?: bigInt.BigInteger) => {
     if (!id) {
@@ -86,8 +87,8 @@ export default function HeapDetail({ title }: ViewProps) {
     channelType: 'heap',
   });
 
-  // TODO handle curio not found
-  if (isLoading || !note) {
+  // we have no data at all just show spinner
+  if (!essay) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <LoadingSpinner />
@@ -95,14 +96,16 @@ export default function HeapDetail({ title }: ViewProps) {
     );
   }
 
+  // with at least an essay we can show content and wait for everything else
   return (
     <Layout
       className="flex-1 bg-white"
       header={
         <HeapDetailHeader
-          flag={groupFlag}
-          chFlag={chFlag}
-          idCurio={time?.toString() || ''}
+          nest={nest}
+          idCurio={idCurio || ''}
+          essay={essay}
+          groupFlag={groupFlag}
         />
       }
     >
@@ -133,7 +136,7 @@ export default function HeapDetail({ title }: ViewProps) {
               </Link>
             </div>
           ) : null}
-          {note ? <HeapDetailBody note={note} /> : null}
+          <HeapDetailBody essay={essay} />
           {hasPrev ? (
             <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
               <Link
@@ -152,12 +155,14 @@ export default function HeapDetail({ title }: ViewProps) {
           ) : null}
         </div>
         <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
-          {note && time ? (
-            <>
-              <HeapDetailSidebarInfo essay={note.essay} />
-              <HeapDetailComments time={time} comments={comments} />
-            </>
-          ) : null}
+          <HeapDetailSidebarInfo essay={essay} />
+          {idCurio && (
+            <HeapDetailComments
+              time={idCurio}
+              comments={note?.seal.quips}
+              loading={isLoading}
+            />
+          )}
         </div>
       </div>
     </Layout>
