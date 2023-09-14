@@ -17,6 +17,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { disableDefault } from '@/logic/utils';
 import { useChatSearch } from '@/state/chat';
 import bigInt from 'big-integer';
+import { useSafeAreaInsets } from '@/logic/native';
 import ChatSearchResults from './ChatSearchResults';
 
 interface RouteParams {
@@ -42,6 +43,7 @@ export default function ChatSearch({
   const { query } = useParams<RouteParams>();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(min-width: 768px) and (max-width: 1099px)');
+  const safeAreaInsets = useSafeAreaInsets();
   const scrollerRef = React.useRef<VirtuosoHandle>(null);
   const [rawInput, setRawInput] = React.useState(query || '');
   const [selected, setSelected] = React.useState<{
@@ -128,80 +130,85 @@ export default function ChatSearch({
 
   return (
     <div
-      className={cn(
-        'flex w-full flex-1 items-center justify-between space-x-2 border-b-2 border-gray-50 bg-white p-2',
-        isSmall || isMobile ? 'p-3' : 'p-2'
-      )}
+      className="border-b-2 border-gray-50 bg-white"
+      style={{ paddingTop: safeAreaInsets.top }}
     >
-      <div className="max-w-[240px] flex-none">
-        {!isMobile && !isSmall ? children : null}
-      </div>
-      <div className="relative flex-1">
-        <label
-          className="relative flex w-full items-center"
-          onKeyDown={onKeyDown}
-        >
-          <span className="sr-only">Search</span>
-          <span className="absolute left-0 pl-2">
-            <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
-          </span>
-          <input
-            id="search"
-            type="text"
-            role="combobox"
-            aria-controls="search-results"
-            aria-owns="search-results"
-            aria-activedescendant={`search-result-${selected.time.toString()}`}
-            aria-expanded={true}
-            autoFocus
-            className="input h-8 w-full bg-gray-50 pl-8 text-lg mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
-            value={rawInput}
-            onChange={onChange}
-            placeholder={placeholder}
-          />
-          {isSmall ? (
-            <Link
-              className="absolute right-1 flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
-              to={`${root}/search`}
-            >
-              <X16Icon className="h-4 w-4 text-gray-400" />
-            </Link>
-          ) : null}
-        </label>
-        <Dialog.Root open modal={false} onOpenChange={onDialogClose}>
-          <Dialog.Content
-            onInteractOutside={preventClose}
-            onOpenAutoFocus={disableDefault}
-            className="absolute left-0 top-[40px] z-50 w-full outline-none"
+      <div
+        className={cn(
+          'flex w-full flex-1 items-center justify-between space-x-2',
+          isSmall || isMobile ? 'p-3' : 'p-2'
+        )}
+      >
+        <div className="max-w-[240px] flex-none">
+          {!isMobile && !isSmall ? children : null}
+        </div>
+        <div className="relative flex-1">
+          <label
+            className="relative flex w-full items-center"
+            onKeyDown={onKeyDown}
           >
-            <section
-              tabIndex={0}
-              role="listbox"
-              aria-setsize={scan?.size || 0}
-              id="search-results"
-              className={cn(
-                'default-focus dialog border-2 border-transparent shadow-lg dark:border-gray-50',
-                query ? 'h-[60vh] min-h-[480px]' : 'h-[200px]'
-              )}
+            <span className="sr-only">Search</span>
+            <span className="absolute left-0 pl-2">
+              <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
+            </span>
+            <input
+              id="search"
+              type="text"
+              role="combobox"
+              aria-controls="search-results"
+              aria-owns="search-results"
+              aria-activedescendant={`search-result-${selected.time.toString()}`}
+              aria-expanded={true}
+              autoFocus
+              className="input h-8 w-full bg-gray-50 pl-8 text-lg mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
+              value={rawInput}
+              onChange={onChange}
+              placeholder={placeholder}
+            />
+            {isSmall ? (
+              <Link
+                className="absolute right-1 flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
+                to={`${root}/search`}
+              >
+                <X16Icon className="h-4 w-4 text-gray-400" />
+              </Link>
+            ) : null}
+          </label>
+          <Dialog.Root open modal={false} onOpenChange={onDialogClose}>
+            <Dialog.Content
+              onInteractOutside={preventClose}
+              onOpenAutoFocus={disableDefault}
+              className="absolute left-0 top-[40px] z-50 w-full outline-none"
             >
-              <ChatSearchResults
-                ref={scrollerRef}
-                whom={whom}
-                root={root}
-                scan={scan}
-                isLoading={isLoading}
-                query={query}
-                selected={selected.index}
-              />
-            </section>
-          </Dialog.Content>
-        </Dialog.Root>
+              <section
+                tabIndex={0}
+                role="listbox"
+                aria-setsize={scan?.size || 0}
+                id="search-results"
+                className={cn(
+                  'default-focus dialog border-2 border-transparent shadow-lg dark:border-gray-50',
+                  query ? 'h-[60vh] min-h-[480px]' : 'h-[200px]'
+                )}
+              >
+                <ChatSearchResults
+                  ref={scrollerRef}
+                  whom={whom}
+                  root={root}
+                  scan={scan}
+                  isLoading={isLoading}
+                  query={query}
+                  selected={selected.index}
+                />
+              </section>
+            </Dialog.Content>
+          </Dialog.Root>
+        </div>
+        {!isSmall && (
+          <Link to={backTo} className="default-focus secondary-button">
+            Cancel
+          </Link>
+        )}
       </div>
-      {!isSmall && (
-        <Link to={backTo} className="default-focus secondary-button">
-          Cancel
-        </Link>
-      )}
     </div>
   );
 }
