@@ -1,10 +1,11 @@
-/-  g=groups, d=channel, uno=chat-1, zer=chat-0
+/-  g=groups, d=channel, dos=chat-2, uno=chat-1, zer=chat-0
 /-  meta
 |%
 ++  old
   |%
   ++  zero  zer
-  ++  one  uno
+  ++  one   uno
+  ++  two   dos
   --
 ::
 ::  $id: an identifier for chat messages
@@ -28,21 +29,26 @@
 +$  seal
   $:  =id
       time=id-note:d
+      =feels
       =quips
-      =feels:d
+      :: quip-count=@ud
+      :: quippers=(set ship)
+      :: last-quip=time
   ==
 ::
 ::  $cork: chat reply metadata
 +$  cork
   $:  =id
       time=id-note:d
-      =feels:d
+      =feels
   ==
 ::
 ::  $essay: a chat message with metadata
 +$  essay  [memo:d %chat =kind]
 ::  $kind: whether or not the chat is a system message
 +$  kind  $@(~ [%notice ~])
+::  $feels: a set of reactions to a chat message
++$  feels  (map ship feel)
 ::
 ::  $pact: a double indexed map of chat messages, id -> time -> message
 ::

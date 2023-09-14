@@ -78,7 +78,7 @@
     %+  jab  id
     |=  =writ:c
     ^-  writ:c
-    writ(quips (reduce-quip quips.writ now id.del delta.del))
+    writ(quips (reduce-quip quips.writ now [id delta]:del))
   ::
       %add-feel
     %+  jab  id
@@ -94,6 +94,7 @@
 ++  reduce-quip
   |=  [=quips:c now=time =id:c delta=delta:quips:c]
   ^-  quips:c
+  |^
   ?-  -.delta
       %add
     |-
@@ -113,24 +114,36 @@
     quips
   ::
       %add-feel
-    %+  jab  id
-    |=  =writ:c
-    writ(feels (~(put by feels.writ) [ship feel]:del))
+    %+  jab-quip  id
+    |=  =quip:c
+    quip(feels (~(put by feels.quip) [ship feel]:delta))
   ::
       %del-feel
-    %+  jab  id
-    |=  =writ:c
-    writ(feels (~(del by feels.writ) ship.del))
+    %+  jab-quip  id
+    |=  =quip:c
+    quip(feels (~(del by feels.quip) ship.delta))
   ==
+  ++  get-quip
+    |=  =id:c
+    ^-  (unit [=time =quip:c])
+    ?~  tim=(~(get by dex.pac) id)        ~
+    ?~  qup=(get:on:quips:c quips u.tim)  ~
+    `[u.tim u.qup]
+  ++  jab-quip
+    |=  [=id:c fun=$-(quip:c quip:c)]
+    ^+  quips
+    ?~  v=(get-quip id)  quips
+    (put:on:quips:c quips time.u.v (fun quip.u.v))
+  --
 ::
 ++  give-writs
   |=  [mode=?(%light %heavy) writs=(list [time writ:c])]
   ^-  writs:c
-  %+  gas:on  *writs:c
-  ?:  =(%heavy mode.pole)  writs
+  %+  gas:on:writs:c  *writs:c
+  ?:  =(%heavy mode)  writs
   %+  turn  writs
   |=  [=time =writ:c]
-  writ(quips ~)
+  [time writ(quips *quips:c)]
 ++  peek
   |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))

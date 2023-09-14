@@ -108,6 +108,15 @@
     (rr-note u.u.note)
   [%channel-said !>(`said:d`[nest rr-note])]
 ::
+++  was-mentioned
+  |=  [=story:d who=ship]
+  ^-  ?
+  %+  lien  story
+  |=  =verse:d
+  ?:  ?=(%block -.verse)  |
+  %+  lien  p.verse
+  (cury test [%ship who])
+::
 ++  flatten
   |=  content=(list verse:d)
   ^-  cord
