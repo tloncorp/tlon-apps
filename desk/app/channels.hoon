@@ -919,7 +919,7 @@
         ?.  (want-hark %mention)
           di-core
         =/  cs=(list content:ha)
-          ~[[%ship author.note] ' mentioned you: ' (flatten content.note)]
+          ~[[%ship author.note] ' mentioned you: ' (flatten:utils content.note)]
         (emit (pass-hark (di-spin /note/(rsh 4 (scot %ui id-note)) cs ~)))
       ::
       ::TODO  if we (want-hark %any), notify
@@ -936,10 +936,10 @@
         :~  [%ship author.quip]  ' commented on '
             [%emph title.han-data.note]   ': '
             [%ship author.quip]  ': '
-            (flatten content.quip)
+            (flatten:utils content.quip)
         ==
       =*  heap-notification
-        =/  content  (flatten content.quip)
+        =/  content  (flatten:utils content.quip)
         =/  title=@t
           ?^  title.han-data.note  (need title.han-data.note)
           ?:  (lte (met 3 content) 80)  content
@@ -968,14 +968,14 @@
           :-  ~
           :~  [%ship author.quip]
               ' replied to you: '
-              (flatten content.quip)
+              (flatten:utils content.quip)
           ==
         ==
       ::  notify because we were mentioned in the quip
       ::
       ?:  (was-mentioned content.quip our.bowl)
         ?.  (want-hark %mention)  ~
-        `~[[%ship author.quip] ' mentioned you: ' (flatten content.quip)]
+        `~[[%ship author.quip] ' mentioned you: ' (flatten:utils content.quip)]
       ::  notify because we ourselves responded to this note previously
       ::
       ?:  %+  lien  (tap:on-quips:d quips.note)
@@ -990,11 +990,11 @@
           :-  ~
           :~  [%ship author.quip]
               ' replied to your message “'
-              (flatten content.note)
+              (flatten:utils content.note)
               '”: '
               [%ship author.quip]
               ': '
-              (flatten content.quip)
+              (flatten:utils content.quip)
           ==
         ==
       ::  only notify if we want to be notified about everything
@@ -1008,35 +1008,7 @@
         :-  ~
         :~  [%ship author.quip]
             ' sent a message: '
-            (flatten content.quip)
-        ==
-      ==
-    ::
-    ++  flatten
-      |=  content=(list verse:d)
-      ^-  cord
-      %+  rap   3
-      %+  turn  content
-      |=  v=verse:d
-      ^-  cord
-      ?-  -.v
-          %block  ''
-          %inline
-        %+  rap  3
-        %+  turn  p.v
-        |=  c=inline:d
-        ^-  cord
-        ?@  c  c
-        ?-  -.c
-            %break                 ''
-            %tag                   p.c
-            %link                  q.c
-            %block                 q.c
-            ?(%code %inline-code)  ''
-            %ship                  (scot %p p.c)
-            %task                  (flatten [%inline q.c]~)
-            ?(%italics %bold %strike %blockquote)
-          (flatten [%inline p.c]~)
+            (flatten:utils content.quip)
         ==
       ==
     ::

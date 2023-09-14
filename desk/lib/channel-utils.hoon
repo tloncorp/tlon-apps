@@ -108,6 +108,34 @@
     (rr-note u.u.note)
   [%channel-said !>(`said:d`[nest rr-note])]
 ::
+++  flatten
+  |=  content=(list verse:d)
+  ^-  cord
+  %+  rap   3
+  %+  turn  content
+  |=  v=verse:d
+  ^-  cord
+  ?-  -.v
+      %block  ''
+      %inline
+    %+  rap  3
+    %+  turn  p.v
+    |=  c=inline:d
+    ^-  cord
+    ?@  c  c
+    ?-  -.c
+        %break                 ''
+        %tag                   p.c
+        %link                  q.c
+        %block                 q.c
+        ?(%code %inline-code)  ''
+        %ship                  (scot %p p.c)
+        %task                  (flatten [%inline q.c]~)
+        ?(%italics %bold %strike %blockquote)
+      (flatten [%inline p.c]~)
+    ==
+  ==
+::
 ++  trace
   |=  =note:d
   ^-  outline:d

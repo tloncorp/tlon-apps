@@ -64,10 +64,7 @@
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
       (put:on:writs:c wit.pac now seal p.del)
-    =.  dex.pac  (~(put by dex.pac) id now)
-    ?~  replying.p.del  pac
-    =*  replying  u.replying.p.del
-    (jab replying |=(writ:c +<(replied (~(put in replied) ^id))))
+    pac(dex (~(put by dex.pac) id now))
   ::
       %del
     =/  tim=(unit time)  (~(get by dex.pac) id)
@@ -75,10 +72,13 @@
     =/  =time  (need tim)
     =^  wit=(unit writ:c)  wit.pac
       (del:on:writs:c wit.pac time)
-    =.  dex.pac  (~(del by dex.pac) id)
-    ?~  wit  pac
-    ?~  replying.u.wit  pac
-    (jab u.replying.u.wit |=(writ:c +<(replied (~(del in replied) ^id))))
+    pac(dex (~(del by dex.pac) id))
+  ::
+      %quip
+    %+  jab  id
+    |=  =writ:c
+    ^-  writ:c
+    writ(quips (reduce-quip quips.writ now +.delta))
   ::
       %add-feel
     %+  jab  id
@@ -91,37 +91,79 @@
     writ(feels (~(del by feels.writ) p.del))
   ==
 ::
+++  reduce-quip
+  |=  [=quips:c now=time =id:c delta=delta:quips:c]
+  ^-  quips:c
+  ?-  -.delta
+      %add
+    |-
+    ?:  (has:on:quips:c quips now)
+      $(now `@da`(add now ^~((div ~s1 (bex 16)))))
+    =/  cork  [id now ~]
+    ?:  (~(has by dex.pac) id)  quips
+    (put:on:quips:c quips now cork memo.delta)
+  ::
+      %del
+    =/  tim=(unit time)  (~(get by dex.pac) id)
+    ?~  tim  quips
+    =/  =time  (need tim)
+    =^  quip=(unit quip:c)  quips 
+      (del:on:quips:c quips time)
+    =.  dex.pac  (~(del by dex.pac) id)
+    quips
+  ::
+      %add-feel
+    %+  jab  id
+    |=  =writ:c
+    writ(feels (~(put by feels.writ) [p q]:del))
+  ::
+      %del-feel
+    %+  jab  id
+    |=  =writ:c
+    writ(feels (~(del by feels.writ) p.del))
+  ==
+::
+++  give-writs
+  |=  [mode=?(%light %heavy) writs=(list [time writ:c])]
+  ^-  writs:c
+  %+  gas:on  *writs:c
+  ?:  =(%heavy mode.pole)  writs
+  %+  turn  writs
+  |=  [=time =writ:c]
+  writ(quips ~)
 ++  peek
   |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
   =*  on   on:writs:c
   ?+    pole  [~ ~]
   ::
-      [%newest count=@ ~]
+      [%newest count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
-    ``chat-writs+!>((gas:on *writs:c (top:mope wit.pac count)))
+    =/  writs  (top:mope wit.pac count)
+    ``chat-writs+!>((give-writs mode.pole writs))
   ::
-      [%older start=@ count=@ ~]
-    =/  count  (slav %ud count.pole)
-    =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((gas:on *writs:c (bat:mope wit.pac `start count)))
-  ::
-      [%newer start=@ count=@ ~]
+      [%older start=@ count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
-    ``chat-writs+!>((gas:on *writs:c (tab:on wit.pac `start count)))
+    =/  writs  (bat:mope wit.pac `start count)
+    ``chat-writs+!>((give-writs mode.pole writs))
   ::
-      [%around time=@ count=@ ~]
+      [%newer start=@ count=@ mode=?(%light %heavy) ~]
+    =/  count  (slav %ud count.pole)
+    =/  start  (slav %ud start.pole)
+    =/  writs  (tab:on wit.pac `start count)
+    ``chat-writs+!>((give-writs mode.pole writs))
+  ::
+      [%around time=@ count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
     =/  time  (slav %ud time.pole)
     =/  older  (bat:mope wit.pac `time count)
     =/  newer  (tab:on:writs:c wit.pac `time count)
     =/  writ   (get:on:writs:c wit.pac time)
-    =-  ``chat-writs+!>(-)
-    %+  gas:on  *writs:c
-    ?~  writ
-      (welp older newer)
-    (welp (snoc older [time u.writ]) newer)
+    =/  writs  
+        ?~  writ  (welp older newer)
+        (welp (snoc older [time u.writ]) newer)
+    ``chat-writs+!>((give-writs mode.pole writs))
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)
@@ -167,7 +209,7 @@
     ?:  (matc writ)
       ?:  =(0 skip.query)
         :-  =(1 more.query)
-        query(more (dec more.query), scan [[time writ] scan.query])
+        query(more (dec more.query), scan [writ scan.query])
       [| query(skip (dec skip.query))]
     [| query]
   ++  mntn
