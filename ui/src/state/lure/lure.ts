@@ -10,7 +10,7 @@ import {
 import { GroupMeta } from '@/types/groups';
 import { useQuery } from '@tanstack/react-query';
 import produce from 'immer';
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -210,14 +210,14 @@ export function useLure(flag: string, disableLoading = false) {
 }
 
 export function useLureLinkChecked(flag: string, enabled: boolean) {
-  const [wasGood, setWasGood] = useState(false);
+  const prevData = useRef<boolean | undefined>(false);
   const { data, ...query } = useQuery(
     ['lure-check', flag],
     () =>
       asyncWithDefault(
         () =>
           api.subscribeOnce<boolean>('grouper', `/check-link/${flag}`, 4500),
-        undefined
+        prevData.current ?? false
       ),
     {
       enabled,
@@ -225,15 +225,11 @@ export function useLureLinkChecked(flag: string, enabled: boolean) {
     }
   );
 
-  useEffect(() => {
-    if (data) {
-      setWasGood(data);
-    }
-  }, [data]);
+  prevData.current = data;
 
   return {
     ...query,
-    good: data === undefined ? wasGood : data,
+    good: data,
     checked: query.isFetched && !query.isLoading,
   };
 }
