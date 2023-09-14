@@ -1133,6 +1133,7 @@
           =?  cor  (want-hark ~ %to-us)
             (emit (pass-hark new-yarn))
           cu-core
+        ==
       ==
     ::
         %team
@@ -1195,25 +1196,25 @@
       [%writs rest=*]  (peek:cu-pact care rest.pole)
       [%crew ~]   ``club-crew+!>(crew.club)
     ::
-        [%search %text skip=@ count=@ nedl=@ ~]
-      %-  some
-      %-  some
-      :-  %chat-scan
-      !>
-      %^    text:search:cu-pact
-          (slav %ud skip.pole)
-        (slav %ud count.pole)
-      nedl.pole
-    ::
-        [%search %mention skip=@ count=@ nedl=@ ~]
-      %-  some
-      %-  some
-      :-  %chat-scan
-      !>
-      %^    mention:search:cu-pact
-          (slav %ud skip.pole)
-        (slav %ud count.pole)
-      (slav %p nedl.pole)
+    ::     [%search %text skip=@ count=@ nedl=@ ~]
+    ::   %-  some
+    ::   %-  some
+    ::   :-  %chat-scan
+    ::   !>
+    ::   %^    text:search:cu-pact
+    ::       (slav %ud skip.pole)
+    ::     (slav %ud count.pole)
+    ::   nedl.pole
+    :: ::
+    ::     [%search %mention skip=@ count=@ nedl=@ ~]
+    ::   %-  some
+    ::   %-  some
+    ::   :-  %chat-scan
+    ::   !>
+    ::   %^    mention:search:cu-pact
+    ::       (slav %ud skip.pole)
+    ::     (slav %ud count.pole)
+    ::   (slav %p nedl.pole)
     ==
   ::
   ++  cu-watch
@@ -1424,25 +1425,25 @@
         [%writs rest=*]
       (peek:di-pact care rest.pole)
     ::
-        [%search %text skip=@ count=@ nedl=@ ~]
-      %-  some
-      %-  some
-      :-  %chat-scan
-      !>
-      %^    text:search:di-pact
-          (slav %ud skip.pole)
-        (slav %ud count.pole)
-      nedl.pole
-    ::
-        [%search %mention skip=@ count=@ nedl=@ ~]
-      %-  some
-      %-  some
-      :-  %chat-scan
-      !>
-      %^    mention:search:di-pact
-          (slav %ud skip.pole)
-        (slav %ud count.pole)
-      (slav %p nedl.pole)
+    ::     [%search %text skip=@ count=@ nedl=@ ~]
+    ::   %-  some
+    ::   %-  some
+    ::   :-  %chat-scan
+    ::   !>
+    ::   %^    text:search:di-pact
+    ::       (slav %ud skip.pole)
+    ::     (slav %ud count.pole)
+    ::   nedl.pole
+    :: ::
+    ::     [%search %mention skip=@ count=@ nedl=@ ~]
+    ::   %-  some
+    ::   %-  some
+    ::   :-  %chat-scan
+    ::   !>
+    ::   %^    mention:search:di-pact
+    ::       (slav %ud skip.pole)
+    ::     (slav %ud count.pole)
+    ::   (slav %p nedl.pole)
     ==
   ::
   ++  di-brief  (brief:di-pact our.bowl last-read.remark.dm)

@@ -226,6 +226,7 @@
 ++  reset-channel-perms
   |=  [=flag:g cr=_cor]
   |=  [[=nest:g =channel:g] core=_cr]
+  ?.  ?=(?(%diary %heap %chat) p.nest)  core
   =.  cards.core
     :_
     :_  cards.core
@@ -236,33 +237,13 @@
       =/  cage  [act:mar:g !>(action)]
       [%pass wire %agent dock %poke cage]
     ^-  card
-    ::TODO  this is bad but will be obliterated anyway
     =/  =path  (welp (channel-scry nest) /perm/noun)
-    ?+  -.nest  *card  ::TODO  weep
-        %chat
-      =/  perms  .^(perm:c %gx path)
-      =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
-      =/  =wire  /chat
-      =/  =dock  [our.bowl %chat]
-      =/  =cage  [act:mar:c !>(action)]
-      [%pass wire %agent dock %poke cage]
-    ::
-        %diary
-      =/  perms  .^(perm:d %gx path)
-      =/  =c-shelf:d  [%diary nest %del-writers writers.perms]
-      =/  =wire  /diary
-      =/  =dock  [our.bowl %channels-server]
-      =/  =cage  [%channel-command !>(c-shelf)]
-      [%pass wire %agent dock %poke cage]
-    ::
-        %heap
-      =/  perms  .^(perm:h %gx path)
-      =/  =c-shelf:d  [%diary nest %del-writers writers.perms]
-      =/  =wire  /heap
-      =/  =dock  [our.bowl %channels-server]
-      =/  =cage  [%channel-command !>(c-shelf)]
-      [%pass wire %agent dock %poke cage]
-    ==
+    =/  perms  .^(perm:d %gx path)
+    =/  =c-shelf:d  [%diary nest %del-writers writers.perms]
+    =/  =wire  /diary
+    =/  =dock  [our.bowl %channels-server]
+    =/  =cage  [%channel-command !>(c-shelf)]
+    [%pass wire %agent dock %poke cage]
   core
 ::
 ++  verify-cabals  (roll ~(tap by groups) verify-group-cabals)
@@ -291,12 +272,8 @@
   ?.  (gth ~(wyt in diff) 0)  cr
   ?.  =(p.nest ?(%chat %heap %diary))  cr
   =/  update  [q.nest [now.bowl [%del-sects diff]]]
-  =-  cr(cards [[%pass /groups/role %agent [p.q.nest p.nest] %poke -] cards.cr])
-  ?+  p.nest  *cage
-    %chat   [act:mar:c !>(update)]
-    %heap   [act:mar:h !>(update)]
-    %diary  [act:mar:d !>(update)]
-  ==
+  =/  cage  [%channels-action !>(update)]
+  cr(cards [[%pass /groups/role %agent [p.q.nest p.nest] %poke cage] cards.cr])
 ::
 ::  +load: load next state
 ++  load

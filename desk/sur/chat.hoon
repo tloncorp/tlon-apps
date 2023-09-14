@@ -65,7 +65,7 @@
   +$  delta
     $%  [%add =memo:d =kind]
         [%del ~]
-        [%quip =id =delta]
+        [%quip =id =delta:quips]
         [%add-feel =ship =feel]
         [%del-feel =ship]
     ==
@@ -197,6 +197,9 @@
   +$  update
     (pair whom brief)
   --
+::
++$  remark
+  [last-read=time watching=_| ~]
 ::
 +$  remark-action
   (pair whom remark-diff)

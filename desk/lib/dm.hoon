@@ -56,14 +56,14 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id ~ ~]
+    =/  =seal:c  [id now ~ ~]
     ?:  (~(has by dex.pac) id)
       pac
     |-
     ?:  (has:on:writs:c wit.pac now)  
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
-      (put:on:writs:c wit.pac now seal p.del)
+      (put:on:writs:c wit.pac now seal [memo.del %chat kind.del])
     pac(dex (~(put by dex.pac) id now))
   ::
       %del
@@ -78,17 +78,17 @@
     %+  jab  id
     |=  =writ:c
     ^-  writ:c
-    writ(quips (reduce-quip quips.writ now +.delta))
+    writ(quips (reduce-quip quips.writ now id.del delta.del))
   ::
       %add-feel
     %+  jab  id
     |=  =writ:c
-    writ(feels (~(put by feels.writ) [p q]:del))
+    writ(feels (~(put by feels.writ) [ship feel]:del))
   ::
       %del-feel
     %+  jab  id
     |=  =writ:c
-    writ(feels (~(del by feels.writ) p.del))
+    writ(feels (~(del by feels.writ) ship.del))
   ==
 ::
 ++  reduce-quip
@@ -115,12 +115,12 @@
       %add-feel
     %+  jab  id
     |=  =writ:c
-    writ(feels (~(put by feels.writ) [p q]:del))
+    writ(feels (~(put by feels.writ) [ship feel]:del))
   ::
       %del-feel
     %+  jab  id
     |=  =writ:c
-    writ(feels (~(del by feels.writ) p.del))
+    writ(feels (~(del by feels.writ) ship.del))
   ==
 ::
 ++  give-writs
@@ -173,108 +173,107 @@
     ``loob+!>(?~((get ship `@da`time) | &))
   ==
 ::
-++  search
-  =<
-    |%
-    ++  mention
-      |=  [sip=@ud len=@ud nedl=^ship]
-      ^-  scan:c
-      (scour sip len (mntn nedl))
-    ++  text
-      |=  [sip=@ud len=@ud nedl=@t]
-      ^-  scan:c
-      (scour sip len (txt nedl))
-    --
-  |%
-  +$  query
-    $:  skip=@ud
-        more=@ud
-        =scan:c
-    ==
-  ++  scour
-    |=  [sip=@ud len=@ud matc=$-(writ:c ?)]
-    ?>  (gth len 0)
-    ^-  scan:c
-    %-  flop
-    =<  scan.-
-    %^    (dop:mope query)
-        wit.pac     :: (gas:on:writs:c wit.pac ls)
-      [sip len ~]   :: (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
-    |=  $:  =query
-            =time
-            =writ:c
-        ==
-    ^-  [(unit writ:c) stop=? _query]
-    :-  ~
-    ?:  (matc writ)
-      ?:  =(0 skip.query)
-        :-  =(1 more.query)
-        query(more (dec more.query), scan [writ scan.query])
-      [| query(skip (dec skip.query))]
-    [| query]
-  ++  mntn
-    |=  nedl=ship
-    ^-  $-(writ:c ?)
-    |=  =writ:c
-    ^-  ?
-    ?.  ?=(%story -.content.writ)
-      |
-    =/  ls=(list inline:c)   q.p.content.writ
-    |-
-    ?~  ls    |
-    ?@  i.ls  $(ls t.ls)
-    ?+  -.i.ls  $(ls t.ls)
-      %ship                                  =(nedl p.i.ls)
-      ?(%bold %italics %strike %blockquote)  |($(ls p.i.ls) $(ls t.ls))
-    ==
-  ::
-  ++  txt
-    |=  nedl=@t
-    ^-  $-(writ:c ?)
-    |=  =writ:c
-    ^-  ?
-    ?.  ?=(%story -.content.writ)
-      |
-    |^
-      =/  ls=(list inline:c)  q.p.content.writ
-      |-
-      ?~  ls  |
-      ?@  i.ls
-        |((find nedl i.ls |) $(ls t.ls))
-      ?.  ?=(?(%bold %italics %strike %blockquote) -.i.ls)
-        $(ls t.ls)
-      |($(ls p.i.ls) $(ls t.ls))
-    ++  find
-      |=  [nedl=@t hay=@t case=?]
-      ^-  ?
-      =/  nlen  (met 3 nedl)
-      =/  hlen  (met 3 hay)
-      ?:  (lth hlen nlen)
-        |
-      =?  nedl  !case
-        (cass nedl)
-      =/  pos  0
-      =/  lim  (sub hlen nlen)
-      |-
-      ?:  (gth pos lim)
-        |
-      ?:  .=  nedl
-          ?:  case
-            (cut 3 [pos nlen] hay)
-          (cass (cut 3 [pos nlen] hay))
-        &
-      $(pos +(pos))
-    ++  cass
-      |=  text=@t
-      ^-  @t
-      %^    run
-          3
-        text
-      |=  dat=@
-      ^-  @
-      ?.  &((gth dat 64) (lth dat 91))
-        dat
-      (add dat 32)
-    --
-  --
+:: ++  search
+::   =<
+::     |%
+::     ++  mention
+::       |=  [sip=@ud len=@ud nedl=^ship]
+::       ^-  scan:c
+::       (scour sip len (mntn nedl))
+::     ++  text
+::       |=  [sip=@ud len=@ud nedl=@t]
+::       ^-  scan:c
+::       (scour sip len (txt nedl))
+::     --
+::   |%
+::   +$  query
+::     $:  skip=@ud
+::         more=@ud
+::         =scan:c
+::     ==
+::   ++  scour
+::     |=  [sip=@ud len=@ud matc=$-(writ:c ?)]
+::     ?>  (gth len 0)
+::     ^-  scan:c
+::     %-  flop
+::     =<  scan.-
+::     %^    (dop:mope query)
+::         wit.pac     :: (gas:on:writs:c wit.pac ls)
+::       [sip len ~]   :: (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
+::     |=  $:  =query
+::             =time
+::             =writ:c
+::         ==
+::     ^-  [(unit writ:c) stop=? _query]
+::     :-  ~
+::     ?:  (matc writ)
+::       ?:  =(0 skip.query)
+::         :-  =(1 more.query)
+::         query(more (dec more.query), scan [writ scan.query])
+::       [| query(skip (dec skip.query))]
+::     [| query]
+::   ++  mntn
+::     |=  nedl=ship
+::     ^-  $-(writ:c ?)
+::     |=  =writ:c
+::     ^-  ?
+::     ?.  ?=(%story -.content.writ)
+::       |
+::     =/  ls=(list inline:c)   q.p.content.writ
+::     |-
+::     ?~  ls    |
+::     ?@  i.ls  $(ls t.ls)
+::     ?+  -.i.ls  $(ls t.ls)
+::       %ship                                  =(nedl p.i.ls)
+::       ?(%bold %italics %strike %blockquote)  |($(ls p.i.ls) $(ls t.ls))
+::     ==
+::   ::
+::   ++  txt
+::     |=  nedl=@t
+::     ^-  $-(writ:c ?)
+::     |=  =writ:c
+::     ^-  ?
+::     ?:  ?=(%notice -.kind.writ)  |
+::     |^
+::       =/  ls=(list inline:c)  q.p.content.writ
+::       |-
+::       ?~  ls  |
+::       ?@  i.ls
+::         |((find nedl i.ls |) $(ls t.ls))
+::       ?.  ?=(?(%bold %italics %strike %blockquote) -.i.ls)
+::         $(ls t.ls)
+::       |($(ls p.i.ls) $(ls t.ls))
+::     ++  find
+::       |=  [nedl=@t hay=@t case=?]
+::       ^-  ?
+::       =/  nlen  (met 3 nedl)
+::       =/  hlen  (met 3 hay)
+::       ?:  (lth hlen nlen)
+::         |
+::       =?  nedl  !case
+::         (cass nedl)
+::       =/  pos  0
+::       =/  lim  (sub hlen nlen)
+::       |-
+::       ?:  (gth pos lim)
+::         |
+::       ?:  .=  nedl
+::           ?:  case
+::             (cut 3 [pos nlen] hay)
+::           (cass (cut 3 [pos nlen] hay))
+::         &
+::       $(pos +(pos))
+::     ++  cass
+::       |=  text=@t
+::       ^-  @t
+::       %^    run
+::           3
+::         text
+::       |=  dat=@
+::       ^-  @
+::       ?.  &((gth dat 64) (lth dat 91))
+::         dat
+::       (add dat 32)
+::     --
+::   --
 --
