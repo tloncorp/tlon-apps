@@ -104,7 +104,7 @@ export default function Dm() {
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState(
-    useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
+    useCallback((s) => ship && Object.keys(s.dmBriefs).includes(ship), [ship])
   );
 
   const {

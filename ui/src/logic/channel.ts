@@ -283,8 +283,6 @@ export function useChannelSections(groupFlag: string) {
 
 export function useChannelIsJoined(nest: string) {
   const briefs = useBriefs();
-  debugger;
-
   return isChannelJoined(nest, briefs);
 }
 

@@ -14,9 +14,14 @@ import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChatState, useWritWindow } from '@/state/chat/chat';
+import {
+  useChatState,
+  useIsDmOrMultiDm,
+  useWritWindow,
+} from '@/state/chat/chat';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
+import { useMarkReadMutation } from '@/state/channel/channel';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
 import { useChatStore } from '../useChatStore';
@@ -113,6 +118,8 @@ export default function ChatScroller({
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
+  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+  const { mutate: markChatRead } = useMarkReadMutation();
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
@@ -284,7 +291,15 @@ export default function ChatScroller({
       bottom(true);
 
       if (!firstPass.current) {
-        delayedRead(whom, () => useChatState.getState().markRead(whom));
+        delayedRead(whom, () => {
+          if (isDMOrMultiDM) {
+            useChatState.getState().markDmRead(whom);
+          } else {
+            markChatRead({
+              nest: `chat/${whom}`,
+            });
+          }
+        });
       }
     } else {
       bottom(false);

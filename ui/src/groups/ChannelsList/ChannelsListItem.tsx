@@ -3,7 +3,6 @@ import cn from 'classnames';
 import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { GroupChannel } from '@/types/groups';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
-import { useChatState } from '@/state/chat';
 import {
   useAmAdmin,
   useDeleteChannelMutation,
@@ -39,20 +38,9 @@ interface ChannelsListItemProps {
 }
 
 function useGetChannel(app: string, flag: string): WritePermissions {
-  const { chats } = useChatState.getState();
-  // const stash = useStash();
   const shelf = useShelf();
 
-  switch (app) {
-    case 'chat':
-      return chats[flag];
-    case 'heap':
-      return shelf[flag];
-    case 'diary':
-      return shelf[flag];
-    default:
-      return { perms: { writers: [] } };
-  }
+  return shelf[flag];
 }
 
 export default function ChannelsListItem({
@@ -109,39 +97,6 @@ export default function ChannelsListItem({
     deleteChannelMutation,
   ]);
 
-  const join = useCallback(
-    async (chFlag: string) => {
-      if (app === 'diary') {
-        await joinChannel({ group: groupFlag, chan: `diary/${chFlag}` });
-        return;
-      }
-
-      if (app === 'heap') {
-        await joinChannel({ group: groupFlag, chan: `heap/${chFlag}` });
-        return;
-      }
-
-      await useChatState.getState().joinChat(groupFlag, chFlag);
-    },
-    [groupFlag, app, joinChannel]
-  );
-  const leave = useCallback(
-    async (chFlag: string) => {
-      if (app === 'diary') {
-        await leaveChannel({ nest: `diary/${chFlag}` });
-        return;
-      }
-
-      if (app === 'heap') {
-        await leaveChannel({ nest: `heap/${chFlag}` });
-        return;
-      }
-
-      await useChatState.getState().leaveChat(chFlag);
-    },
-    [app, leaveChannel]
-  );
-
   const channelJoinHandler = useCallback(async () => {
     try {
       if (timer) {
@@ -149,7 +104,7 @@ export default function ChannelsListItem({
         setTimer(null);
       }
       setPending();
-      await join(channelFlag);
+      await joinChannel({ group: groupFlag, chan: nest });
       setReady();
     } catch (error) {
       if (error) {
@@ -163,17 +118,17 @@ export default function ChannelsListItem({
         }, 10 * 1000)
       );
     }
-  }, [channelFlag, join, setFailed, setPending, setReady, timer]);
+  }, [nest, groupFlag, joinChannel, setFailed, setPending, setReady, timer]);
 
   const channelLeaveHandler = useCallback(async () => {
     try {
-      leave(channelFlag);
+      await leaveChannel({ nest });
     } catch (error) {
       if (error) {
         console.error(`[ChannelsListItem:LeaveError] ${error}`);
       }
     }
-  }, [channelFlag, leave]);
+  }, [leaveChannel, nest]);
 
   return (
     <>

@@ -63,15 +63,14 @@ export interface ChatState {
     [path: string]: ChatWrit | 'loading' | 'error';
   };
   pendingDms: string[];
-  briefs: ChatBriefs;
+  dmBriefs: ChatBriefs;
   getTime: (whom: string, id: string) => bigInt.BigInteger;
   togglePin: (whom: string, pin: boolean) => Promise<void>;
   fetchPins: () => Promise<void>;
-  markRead: (whom: string) => Promise<void>;
+  markDmRead: (whom: string) => Promise<void>;
   start: (init: ChatInit) => Promise<void>;
   startTalk: (init: TalkChatInit, startBase?: boolean) => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
-  getDraft: (whom: string) => void;
   fetchMessages: (
     ship: string,
     count: string,
@@ -83,17 +82,12 @@ export interface ChatState {
     count: string,
     time: BigInteger
   ) => Promise<void>;
-  draft: (whom: string, story: ChatStory) => Promise<void>;
-  joinChat: (groupFlag: string, flag: string) => Promise<void>;
-  leaveChat: (flag: string) => Promise<void>;
   archiveDm: (ship: string) => Promise<void>;
   unarchiveDm: (ship: string) => Promise<void>;
   sendMessage: (whom: string, memo: ChatMemo) => void;
-  delMessage: (flag: string, time: string) => void;
-  addFeel: (whom: string, id: string, feel: string) => Promise<void>;
-  delFeel: (whom: string, id: string) => Promise<void>;
-  addSects: (flag: string, writers: string[]) => Promise<void>;
-  delSects: (flag: string, writers: string[]) => Promise<void>;
+  delDm: (flag: string, time: string) => void;
+  addFeelToDm: (whom: string, id: string, feel: string) => Promise<void>;
+  delFeelToDm: (whom: string, id: string) => Promise<void>;
   create: (req: ChatCreate) => Promise<void>;
   createMultiDm: (
     id: string,

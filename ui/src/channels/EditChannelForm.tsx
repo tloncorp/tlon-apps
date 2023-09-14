@@ -11,7 +11,6 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { getPrivacyFromChannel, nestToFlag } from '@/logic/utils';
-import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import {
   useAddSectsMutation,
@@ -84,6 +83,7 @@ export default function EditChannelForm({
 
   const makeDiaryNest = (flag: string) => `diary/${flag}`;
   const makeHeapNest = (flag: string) => `heap/${flag}`;
+  const makeChatNest = (flag: string) => `chat/${flag}`;
 
   const onSubmit = useCallback(
     async (values: ChannelFormSchema) => {
@@ -123,7 +123,8 @@ export default function EditChannelForm({
           : app === 'heap'
           ? (flag: string, writers: string[]) =>
               addSectsMutation({ nest: makeHeapNest(flag), writers })
-          : useChatState.getState().addSects;
+          : (flag: string, writers: string[]) =>
+              addSectsMutation({ nest: makeChatNest(flag), writers });
       const delSects =
         app === 'diary'
           ? (flag: string, writers: string[]) =>
@@ -131,7 +132,8 @@ export default function EditChannelForm({
           : app === 'heap'
           ? (flag: string, writers: string[]) =>
               delSectsMutation({ nest: makeHeapNest(flag), writers })
-          : useChatState.getState().delSects;
+          : (flag: string, writers: string[]) =>
+              delSectsMutation({ nest: makeChatNest(flag), writers });
 
       if (privacy !== 'public') {
         await addSects(

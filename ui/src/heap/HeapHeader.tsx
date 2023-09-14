@@ -56,7 +56,7 @@ const HeapHeader = React.memo(
       bucket: 'heaps',
       key: 'heapSettings',
     });
-    const leaveHeapMutation = useLeaveMutation();
+    const { mutateAsync: leave } = useLeaveMutation();
 
     const setDisplayMode = (setting: DisplayMode) => {
       const newSettings = setChannelSetting<HeapSetting>(
@@ -120,9 +120,7 @@ const HeapHeader = React.memo(
         groupFlag={groupFlag}
         nest={nest}
         prettyAppName="Gallery"
-        leave={(leaveFlag: string) =>
-          leaveHeapMutation.mutateAsync({ nest: `heap/${leaveFlag}` })
-        }
+        leave={leave}
       >
         {isMobile ? (
           <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">

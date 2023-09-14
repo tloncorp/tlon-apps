@@ -46,6 +46,7 @@ import {
 import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import { DiaryCommentProps } from '@/diary/DiaryComment';
+import { useParams } from 'react-router';
 import { isNativeApp, postActionToNativeApp } from './native';
 import type {
   ConnectionCompleteStatus,
@@ -1113,4 +1114,21 @@ export function groupQuips(
 export function sagaCompatible(saga: Saga | null) {
   // either host or synced with host
   return saga === null || 'synced' in saga;
+}
+
+export function useIsInThread() {
+  const { idShip, idTime } = useParams<{
+    idShip: string;
+    idTime: string;
+  }>();
+
+  return !!idShip && !!idTime;
+}
+
+export function useThreadParentId() {
+  const { idTime } = useParams<{
+    idTime: string;
+  }>();
+
+  return idTime;
 }

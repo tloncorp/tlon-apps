@@ -4,10 +4,15 @@ import { useLocation, useNavigate } from 'react-router';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState } from '@/state/chat';
+import { useChatState, useIsDmOrMultiDm } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import {
+  useAddNoteFeelMutation,
+  useAddQuipFeelMutation,
+} from '@/state/channel/channel';
+import { useIsInThread, useThreadParentId } from '@/logic/utils';
 import ChatReaction from './ChatReaction';
 import { ChatSeal } from '../../types/chat';
 
@@ -18,6 +23,8 @@ interface ChatReactionsProps {
 }
 
 export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
+  const inThread = useIsInThread();
+  const threadParentId = useThreadParentId();
   const [pickerOpen, setPickerOpen] = useState(false);
   const feels = _.invertBy(seal.feels);
   const isMobile = useIsMobile();
@@ -25,10 +32,29 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
   const location = useLocation();
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
+  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+  const { mutate: addChatFeel } = useAddNoteFeelMutation();
+  const { mutate: addQuipFeel } = useAddQuipFeelMutation();
+  const nest = `chat/${whom}`;
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
-      useChatState.getState().addFeel(whom, seal.id, emoji.shortcodes);
+      if (isDMOrMultiDM) {
+        useChatState.getState().addFeelToDm(whom, seal.id, emoji.shortcodes);
+      } else if (inThread) {
+        addQuipFeel({
+          nest,
+          noteId: threadParentId!,
+          quipId: seal.id,
+          feel: emoji.shortcodes,
+        });
+      } else {
+        addChatFeel({
+          nest,
+          noteId: seal.id,
+          feel: emoji.shortcodes,
+        });
+      }
       captureGroupsAnalyticsEvent({
         name: 'react_item',
         groupFlag,
@@ -38,7 +64,18 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
       });
       setPickerOpen(false);
     },
-    [whom, groupFlag, privacy, seal]
+    [
+      whom,
+      groupFlag,
+      privacy,
+      seal,
+      isDMOrMultiDM,
+      addChatFeel,
+      nest,
+      inThread,
+      addQuipFeel,
+      threadParentId,
+    ]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

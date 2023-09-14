@@ -15,7 +15,7 @@ export type ChannelHeaderProps = PropsWithChildren<{
   groupFlag: string;
   nest: string;
   prettyAppName: string;
-  leave: (flag: string) => Promise<void>;
+  leave: ({ nest }: { nest: string }) => Promise<void>;
 }>;
 
 export default function ChannelHeader({

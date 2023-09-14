@@ -2,13 +2,20 @@ import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ChatSeal } from '@/types/chat';
-import { useChatState } from '@/state/chat';
+import { useChatState, useIsDmOrMultiDm } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import {
+  useAddNoteFeelMutation,
+  useAddQuipFeelMutation,
+  useDeleteNoteFeelMutation,
+  useDeleteQuipFeelMutation,
+} from '@/state/channel/channel';
+import { useIsInThread, useThreadParentId } from '@/logic/utils';
 
 interface ChatReactionProps {
   whom: string;
@@ -23,8 +30,16 @@ export default function ChatReaction({
   feel,
   ships,
 }: ChatReactionProps) {
+  const inThread = useIsInThread();
+  const threadParentId = useThreadParentId();
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
+  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+  const { mutate: addChatFeel } = useAddNoteFeelMutation();
+  const { mutate: delChatFeel } = useDeleteNoteFeelMutation();
+  const { mutate: addQuipFeel } = useAddQuipFeelMutation();
+  const { mutate: delQuipFeel } = useDeleteQuipFeelMutation();
+  const nest = `chat/${whom}`;
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
@@ -36,9 +51,37 @@ export default function ChatReaction({
 
   const editFeel = useCallback(() => {
     if (isMine) {
-      useChatState.getState().delFeel(whom, seal.id);
+      if (isDMOrMultiDM) {
+        useChatState.getState().delFeelToDm(whom, seal.id);
+      } else if (inThread) {
+        delQuipFeel({
+          nest,
+          noteId: threadParentId!,
+          quipId: seal.id,
+        });
+      } else {
+        delChatFeel({
+          nest,
+          noteId: seal.id,
+        });
+      }
     } else {
-      useChatState.getState().addFeel(whom, seal.id, feel);
+      if (isDMOrMultiDM) {
+        useChatState.getState().addFeelToDm(whom, seal.id, feel);
+      } else if (inThread) {
+        addQuipFeel({
+          nest,
+          noteId: threadParentId!,
+          quipId: seal.id,
+          feel,
+        });
+      } else {
+        addChatFeel({
+          nest,
+          noteId: seal.id,
+          feel,
+        });
+      }
       captureGroupsAnalyticsEvent({
         name: 'react_item',
         groupFlag,
@@ -47,7 +90,22 @@ export default function ChatReaction({
         privacy,
       });
     }
-  }, [isMine, whom, groupFlag, privacy, seal, feel]);
+  }, [
+    isMine,
+    whom,
+    groupFlag,
+    privacy,
+    seal,
+    feel,
+    inThread,
+    threadParentId,
+    delChatFeel,
+    delQuipFeel,
+    nest,
+    isDMOrMultiDM,
+    addChatFeel,
+    addQuipFeel,
+  ]);
 
   return (
     <div>

@@ -226,7 +226,7 @@ export const useChatState = createState<ChatState>(
     postedMessages: [],
     writWindows: {},
     loadedRefs: {},
-    briefs: {},
+    dmBriefs: {},
     loadedGraphRefs: {},
     getTime: (whom, id) => {
       if (whomIsNest(whom)) {
@@ -283,7 +283,7 @@ export const useChatState = createState<ChatState>(
         draft.pins = pins;
       });
     },
-    markRead: async (whom) => {
+    markDmRead: async (whom) => {
       if (whomIsNest(whom)) {
         await api.poke(channelAction(whom, { read: null }));
       } else {
@@ -300,7 +300,7 @@ export const useChatState = createState<ChatState>(
     start: async ({ briefs, chats, pins }) => {
       get().batchSet((draft) => {
         draft.chats = chats;
-        draft.briefs = briefs;
+        draft.dmBriefs = briefs;
         draft.pins = pins;
       });
 
@@ -313,14 +313,14 @@ export const useChatState = createState<ChatState>(
           event: (event: unknown, mark: string) => {
             if (mark === 'chat-leave') {
               get().batchSet((draft) => {
-                delete draft.briefs[event as string];
+                delete draft.dmBriefs[event as string];
               });
               return;
             }
 
             const { whom, brief } = event as ChatBriefUpdate;
             get().batchSet((draft) => {
-              draft.briefs[whom] = brief;
+              draft.dmBriefs[whom] = brief;
             });
 
             const {
@@ -337,7 +337,7 @@ export const useChatState = createState<ChatState>(
               atBottom &&
               document.visibilityState === 'visible'
             ) {
-              get().markRead(whom);
+              get().markDmRead(whom);
             } else if (isUnread) {
               unread(whom, brief);
             } else if (!isUnread && chatInfo[whom]?.unread?.readTimeout === 0) {
@@ -525,41 +525,8 @@ export const useChatState = createState<ChatState>(
       });
       get().batchSet((draft) => {
         delete draft.pacts[ship];
-        delete draft.briefs[ship];
+        delete draft.dmBriefs[ship];
         draft.dms = draft.dms.filter((s) => s !== ship);
-      });
-    },
-    joinChat: async (group, flag) => {
-      return api.trackedPoke<ChatJoin, ChatAction>(
-        {
-          app: 'chat',
-          mark: 'channel-join',
-          json: {
-            group,
-            chan: flag,
-          },
-        },
-        {
-          app: 'chat',
-          path: '/ui',
-        },
-        (event) => {
-          const {
-            update: { diff },
-            flag: f,
-          } = event;
-          if (f === flag && 'create' in diff) {
-            return true;
-          }
-          return false;
-        }
-      );
-    },
-    leaveChat: async (flag) => {
-      await api.poke({
-        app: 'chat',
-        mark: 'channel-leave',
-        json: flag,
       });
     },
     dmRsvp: async (ship, ok) => {
@@ -567,7 +534,7 @@ export const useChatState = createState<ChatState>(
         draft.pendingDms = draft.pendingDms.filter((d) => d !== ship);
         if (!ok) {
           delete draft.pacts[ship];
-          delete draft.briefs[ship];
+          delete draft.dmBriefs[ship];
           draft.dms = draft.dms.filter((s) => s !== ship);
         }
       });
@@ -612,7 +579,7 @@ export const useChatState = createState<ChatState>(
         }
       });
     },
-    delMessage: async (whom, id) => {
+    delDm: async (whom, id) => {
       const diff = { del: null };
       if (whomIsDm(whom)) {
         await api.trackedPoke<DmAction, ChatAction>(
@@ -620,28 +587,20 @@ export const useChatState = createState<ChatState>(
           { app: 'chat', path: whom },
           (event) => event.flag === id && 'del' in event.update.diff
         );
-      } else if (whomIsMultiDm(whom)) {
+      } else {
         await api.trackedPoke<ClubAction>(
           multiDmAction(whom, { writ: { id, delta: diff } }),
           { app: 'chat', path: whom }
         );
-      } else {
-        const channelDiff = {
-          del: id,
-        };
-        await api.trackedPoke<ShelfAction>(chatWritDiff(whom, channelDiff), {
-          app: 'channels',
-          path: whom,
-        });
       }
     },
-    addFeel: async (whom, id, feel) => {
+    addFeelToDm: async (whom, id, feel) => {
       const delta: WritDelta = {
         'add-feel': { feel, ship: window.our },
       };
       await optimisticAction(whom, id, delta, set);
     },
-    delFeel: async (whom, id) => {
+    delFeelToDm: async (whom, id) => {
       const delta: WritDelta = { 'del-feel': window.our };
       await optimisticAction(whom, id, delta, set);
     },
@@ -713,26 +672,6 @@ export const useChatState = createState<ChatState>(
       await api.poke(multiDmAction(id, { team: { ship: window.our, ok } }));
       await get().fetchMultiDm(id, true);
     },
-    addSects: async (whom, sects) => {
-      await api.poke(chatAction(whom, { 'add-writers': sects }));
-      const perms = await api.scry<ChatPerm>({
-        app: 'chat',
-        path: `/chat/${whom}/perm`,
-      });
-      get().batchSet((draft) => {
-        draft.chats[whom].perms = perms;
-      });
-    },
-    delSects: async (whom, sects) => {
-      await api.poke(chatAction(whom, { 'del-writers': sects }));
-      const perms = await api.scry<ChatPerm>({
-        app: 'chat',
-        path: `/chat/${whom}/perm`,
-      });
-      get().batchSet((draft) => {
-        draft.chats[whom].perms = perms;
-      });
-    },
     initialize: async (whom: string) => {
       useSchedulerStore.getState().wait(async () => {
         const perms = await api.scry<ChatPerm>({
@@ -754,25 +693,6 @@ export const useChatState = createState<ChatState>(
         `/chat/${whom}/ui/writs`
       ).initialize();
     },
-    getDraft: async (whom) => {
-      const chatDraft = await api.scry<ChatDraft>({
-        app: 'chat',
-        path: `/draft/${whom}`,
-      });
-      set((draft) => {
-        draft.drafts[whom] = chatDraft.story;
-      });
-    },
-    draft: async (whom, story) => {
-      api.poke({
-        app: 'chat',
-        mark: 'chat-draft',
-        json: {
-          whom,
-          story,
-        },
-      });
-    },
     initializeDm: async (ship: string) => {
       await makeWritsStore(
         ship,
@@ -789,7 +709,7 @@ export const useChatState = createState<ChatState>(
         'chats',
         'dms',
         'pendingDms',
-        'briefs',
+        'dmBriefs',
         'multiDms',
         'pins',
       ]);
@@ -868,7 +788,7 @@ export function useChatPerms(whom: string) {
 
 export function useChatIsJoined(whom: string) {
   return useChatState(
-    useCallback((s) => Object.keys(s.briefs).includes(whom), [whom])
+    useCallback((s) => Object.keys(s.dmBriefs).includes(whom), [whom])
   );
 }
 
@@ -877,9 +797,9 @@ export function useChatInitialized(whom: string) {
 }
 
 const selDmList = (s: ChatState) =>
-  Object.keys(s.briefs)
+  Object.keys(s.dmBriefs)
     .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
-    .sort((a, b) => (s.briefs[b]?.last || 0) - (s.briefs[a]?.last || 0));
+    .sort((a, b) => (s.dmBriefs[b]?.last || 0) - (s.dmBriefs[a]?.last || 0));
 
 export function useDmList() {
   return useChatState(selDmList);
@@ -1011,7 +931,7 @@ export function useMultiDmIsPending(id: string): boolean {
     useCallback(
       (s) => {
         const chat = s.multiDms[id];
-        const brief = s.briefs[id];
+        const brief = s.dmBriefs[id];
         const isPending = chat && chat.hive.includes(window.our);
         const inTeam = chat && chat.team.includes(window.our);
 
@@ -1036,11 +956,11 @@ export function isGroupBrief(brief: string) {
 }
 
 export function useBriefs() {
-  return useChatState(useCallback((s: ChatState) => s.briefs, []));
+  return useChatState(useCallback((s: ChatState) => s.dmBriefs, []));
 }
 
 export function useBrief(whom: string) {
-  return useChatState(useCallback((s: ChatState) => s.briefs[whom], [whom]));
+  return useChatState(useCallback((s: ChatState) => s.dmBriefs[whom], [whom]));
 }
 
 export function usePinned() {
@@ -1214,6 +1134,10 @@ export function useChatSearch(whom: string, query: string) {
     scan,
     ...rest,
   };
+}
+
+export function useIsDmOrMultiDm(whom: string) {
+  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
 }
 
 (window as any).chat = useChatState.getState;

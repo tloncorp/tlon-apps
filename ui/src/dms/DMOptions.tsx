@@ -9,12 +9,13 @@ import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { useChatState, usePinned } from '@/state/chat';
+import { useChatState, useIsDmOrMultiDm, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsChannelUnread } from '@/logic/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { useLeaveMutation, useMarkReadMutation } from '@/state/channel/channel';
 import DmInviteDialog from './DmInviteDialog';
 
 type DMOptionsProps = PropsWithChildren<{
@@ -47,6 +48,10 @@ export default function DmOptions({
   const pinned = usePinned();
   const isUnread = useIsChannelUnread(`chat/${whom}`);
   const hasActivity = isUnread || pending;
+  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+  const { mutateAsync: leave } = useLeaveMutation();
+  const { mutateAsync: markChatRead } = useMarkReadMutation();
+  const nest = `chat/${whom}`;
 
   const [isOpen, setIsOpen] = useState(open);
   const handleOpenChange = (innerOpen: boolean) => {
@@ -68,8 +73,14 @@ export default function DmOptions({
   };
 
   const markRead = useCallback(async () => {
-    await useChatState.getState().markRead(whom);
-  }, [whom]);
+    if (isDMOrMultiDM) {
+      await useChatState.getState().markDmRead(whom);
+    } else {
+      await markChatRead({
+        nest,
+      });
+    }
+  }, [whom, nest, isDMOrMultiDM, markChatRead]);
 
   const [dialog, setDialog] = useState(false);
 
@@ -80,7 +91,9 @@ export default function DmOptions({
     } else if (whomIsDm(whom)) {
       await useChatState.getState().dmRsvp(whom, false);
     } else {
-      await useChatState.getState().leaveChat(whom);
+      await leave({
+        nest,
+      });
     }
   };
   const closeDialog = () => {

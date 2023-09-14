@@ -5,11 +5,16 @@ import { useParams } from 'react-router';
 import useEmoji from '@/state/emoji';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState } from '@/state/chat';
+import { useChatState, useIsDmOrMultiDm } from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import {
+  useAddNoteFeelMutation,
+  useAddQuipFeelMutation,
+} from '@/state/channel/channel';
+import { useIsInThread, useThreadParentId } from '@/logic/utils';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 interface EmojiPickerProps extends Record<string, any> {
@@ -36,10 +41,16 @@ export default function EmojiPicker({
   }>();
   const currentTheme = useCurrentTheme();
   const whom = chShip ? `${chShip}/${chName}` : ship;
+  const nest = `chat/${whom}`;
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
   const writId = `${writShip}/${writTime}`;
   const isMobile = useIsMobile();
+  const isDMOrMultiDM = useIsDmOrMultiDm(whom!);
+  const inThread = useIsInThread();
+  const threadParentId = useThreadParentId();
+  const { mutate: addFeelToChat } = useAddNoteFeelMutation();
+  const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
   const width = window.innerWidth;
   const dismss = useDismissNavigate();
   const mobilePerLineCount = Math.floor((width - 10) / 36);
@@ -56,7 +67,19 @@ export default function EmojiPicker({
 
   const onEmojiSelect = useCallback(
     (emoji: { shortcodes: string }) => {
-      useChatState.getState().addFeel(whom!, writId, emoji.shortcodes);
+      if (isDMOrMultiDM) {
+        useChatState.getState().addFeelToDm(whom!, writId, emoji.shortcodes);
+      } else if (inThread) {
+        addFeelToQuip({
+          nest,
+          noteId: threadParentId!,
+          quipId: writId,
+          feel: emoji.shortcodes,
+        });
+      } else {
+        addFeelToChat({ nest, noteId: writId, feel: emoji.shortcodes });
+      }
+
       captureGroupsAnalyticsEvent({
         name: 'react_item',
         groupFlag,
@@ -66,7 +89,19 @@ export default function EmojiPicker({
       });
       dismss();
     },
-    [whom, groupFlag, privacy, writId, dismss]
+    [
+      whom,
+      groupFlag,
+      privacy,
+      writId,
+      dismss,
+      nest,
+      isDMOrMultiDM,
+      addFeelToChat,
+      addFeelToQuip,
+      inThread,
+      threadParentId,
+    ]
   );
 
   return (

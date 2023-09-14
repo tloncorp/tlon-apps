@@ -16,6 +16,7 @@ import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+import { useLeaveMutation } from '@/state/channel/channel';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -35,6 +36,7 @@ function ChatChannel({ title }: ViewProps) {
   const isSmall = useMedia('(max-width: 1023px)');
   const inThread = idShip && idTime;
   const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
+  const { mutateAsync: leaveChat } = useLeaveMutation();
   const { sendMessage } = useChatState.getState();
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
@@ -90,7 +92,7 @@ function ChatChannel({ title }: ViewProps) {
                   groupFlag={groupFlag}
                   nest={nest}
                   prettyAppName="Chat"
-                  leave={useChatState.getState().leaveChat}
+                  leave={leaveChat}
                 >
                   <Link
                     to="search/"

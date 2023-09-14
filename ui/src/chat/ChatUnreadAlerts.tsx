@@ -9,8 +9,10 @@ import {
   useChatKeys,
   useChatState,
   useGetFirstUnreadID,
+  useIsDmOrMultiDm,
   useWrit,
 } from '@/state/chat';
+import { useMarkReadMutation } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
@@ -24,6 +26,8 @@ export default function ChatUnreadAlerts({
 }: ChatUnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
   const maybeWrit = useWrit(whom, chatInfo?.unread?.brief['read-id'] || '');
+  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+  const { mutate: markChatRead } = useMarkReadMutation();
   let replyToId: BigInteger = bigInt(0);
   if (maybeWrit) {
     const [_, writ] = maybeWrit;
@@ -34,9 +38,13 @@ export default function ChatUnreadAlerts({
         : bigInt(0);
   }
   const markRead = useCallback(() => {
-    useChatState.getState().markRead(whom);
+    if (isDMOrMultiDM) {
+      useChatState.getState().markDmRead(whom);
+    } else {
+      markChatRead({ nest: `chat/${whom}` });
+    }
     useChatStore.getState().read(whom);
-  }, [whom]);
+  }, [whom, isDMOrMultiDM, markChatRead]);
 
   // TODO: how to handle replies?
   const firstUnreadID = useGetFirstUnreadID(whom);

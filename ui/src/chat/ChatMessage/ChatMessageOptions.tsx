@@ -1,11 +1,10 @@
-import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
-import { useCopy } from '@/logic/utils';
+import { useCopy, useIsInThread, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useChatPerms, useChatState } from '@/state/chat';
+import { useIsDmOrMultiDm, useChatPerms, useChatState } from '@/state/chat';
 import { ChatWrit } from '@/types/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
@@ -24,6 +23,11 @@ import { useIsMobile } from '@/logic/useMedia';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
+import {
+  useAddNoteFeelMutation,
+  useAddQuipFeelMutation,
+  useDeleteNoteMutation,
+} from '@/state/channel/channel';
 
 export default function ChatMessageOptions(props: {
   open: boolean;
@@ -75,6 +79,13 @@ export default function ChatMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
+  const inThread = useIsInThread();
+  const threadParentId = useThreadParentId();
+  const { mutate: deleteChatMessage } = useDeleteNoteMutation();
+  const { mutate: addFeelToChat } = useAddNoteFeelMutation();
+  const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
+  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+  const nest = `chat/${whom}`;
 
   const onDelete = async () => {
     if (isMobile) {
@@ -84,7 +95,14 @@ export default function ChatMessageOptions(props: {
     setDeletePending();
 
     try {
-      await useChatState.getState().delMessage(whom, writ.seal.id);
+      if (isDMorMultiDM) {
+        useChatState.getState().delDm(whom, writ.seal.id);
+      } else {
+        deleteChatMessage({
+          nest,
+          time: writ.seal.id,
+        });
+      }
     } catch (e) {
       console.log('Failed to delete message', e);
     }
@@ -107,7 +125,24 @@ export default function ChatMessageOptions(props: {
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
-      useChatState.getState().addFeel(whom, writ.seal.id, emoji.shortcodes);
+      if (isDMorMultiDM) {
+        useChatState
+          .getState()
+          .addFeelToDm(whom, writ.seal.id, emoji.shortcodes);
+      } else if (inThread) {
+        addFeelToQuip({
+          nest,
+          noteId: threadParentId!,
+          quipId: writ.seal.id,
+          feel: emoji.shortcodes,
+        });
+      } else {
+        addFeelToChat({
+          nest,
+          noteId: writ.seal.id,
+          feel: emoji.shortcodes,
+        });
+      }
       captureGroupsAnalyticsEvent({
         name: 'react_item',
         groupFlag,
@@ -117,7 +152,19 @@ export default function ChatMessageOptions(props: {
       });
       setPickerOpen(false);
     },
-    [whom, groupFlag, privacy, writ, setPickerOpen]
+    [
+      whom,
+      groupFlag,
+      privacy,
+      writ,
+      setPickerOpen,
+      addFeelToChat,
+      nest,
+      isDMorMultiDM,
+      addFeelToQuip,
+      inThread,
+      threadParentId,
+    ]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

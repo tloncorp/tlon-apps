@@ -176,9 +176,14 @@ export function writsReducer(whom: string) {
       if (isNote) {
         chatChannelPact.index[id] = time;
         const note: Note = {
-          ...(delta.add as NoteEssay),
-          quipCount: 0,
-          quippers: [],
+          essay: delta.add as NoteEssay,
+          seal: {
+            id,
+            quipCount: 0,
+            quippers: [],
+            quips: null,
+            feels: {},
+          },
         };
 
         chatChannelPact.writs = chatChannelPact.writs.with(time, note);
@@ -313,11 +318,12 @@ export function updatePact(
       ([key, writ]) => [
         bigInt(udToDec(key)),
         {
-          type: 'note',
           seal: {
             id: writ.seal.id,
             quips: writ.seal.quips,
             feels: writ.seal.feels,
+            quipCount: writ.seal.quipCount,
+            quippers: writ.seal.quippers,
           },
           essay: {
             ...writ.essay,

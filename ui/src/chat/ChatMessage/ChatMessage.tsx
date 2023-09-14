@@ -22,6 +22,7 @@ import {
   useIsMessageDelivered,
   useIsMessagePosted,
   useWrit,
+  useIsDmOrMultiDm,
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
@@ -29,6 +30,7 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
+import { useMarkReadMutation } from '@/state/channel/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -102,6 +104,8 @@ const ChatMessage = React.memo<
       const unreadId = unread?.brief['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
       const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
+      const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+      const { mutate: markChatRead } = useMarkReadMutation();
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -123,7 +127,7 @@ const ChatMessage = React.memo<
               read,
               delayedRead,
             } = useChatStore.getState();
-            const { markRead } = useChatState.getState();
+            const { markDmRead } = useChatState.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -133,7 +137,13 @@ const ChatMessage = React.memo<
             */
             if (inView && briefMatches(brief, writ.seal.id) && !seen) {
               markSeen(whom);
-              delayedRead(whom, () => markRead(whom));
+              delayedRead(whom, () => {
+                if (isDMOrMultiDM) {
+                  markDmRead(whom);
+                } else {
+                  markChatRead({ nest: `chat/${whom}` });
+                }
+              });
               return;
             }
 
@@ -141,10 +151,10 @@ const ChatMessage = React.memo<
               we can assume the user is done and clear the unread. */
             if (!inView && unread && seen) {
               read(whom);
-              markRead(whom);
+              markDmRead(whom);
             }
           },
-          [unread, whom, writ.seal.id]
+          [unread, whom, writ.seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
       const isMessageDelivered = useIsMessageDelivered(seal.id);
