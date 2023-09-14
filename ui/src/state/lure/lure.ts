@@ -210,13 +210,14 @@ export function useLure(flag: string, disableLoading = false) {
 }
 
 export function useLureLinkChecked(flag: string, enabled: boolean) {
+  const [wasGood, setWasGood] = useState(false);
   const { data, ...query } = useQuery(
     ['lure-check', flag],
     () =>
       asyncWithDefault(
         () =>
           api.subscribeOnce<boolean>('grouper', `/check-link/${flag}`, 4500),
-        false
+        undefined
       ),
     {
       enabled,
@@ -224,9 +225,15 @@ export function useLureLinkChecked(flag: string, enabled: boolean) {
     }
   );
 
+  useEffect(() => {
+    if (data) {
+      setWasGood(data);
+    }
+  }, [data]);
+
   return {
     ...query,
-    good: data,
+    good: data === undefined ? wasGood : data,
     checked: query.isFetched && !query.isLoading,
   };
 }
