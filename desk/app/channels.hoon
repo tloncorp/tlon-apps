@@ -364,8 +364,8 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %shelf ~]  ``channel-shelf+!>((di-rr-shelf:di-core shelf))
-      [%x %init ~]   ``noun+!>([briefs (di-rr-shelf:di-core shelf)])
+      [%x %shelf ~]  ``channel-shelf+!>((rr-shelf:utils shelf))
+      [%x %init ~]   ``noun+!>([briefs (rr-shelf:utils shelf)])
       [%x %briefs ~]  ``channel-briefs+!>(briefs)
       [%x =han:d ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -698,7 +698,7 @@
       =/  old   (get:on-notes:d old id)
       ?:  =(old `note)  ~
       ?~  note  (some [id ~])
-      (some [id `(di-rr-note u.note)])
+      (some [id `(rr-note:utils u.note)])
     di-core
   ::
   ++  di-sync-backlog
@@ -772,7 +772,7 @@
     ?:  ?=([~ ~] note)  di-core
     ?:  ?=(%set -.u-note)
       ?~  note
-        =/  rr-note=(unit rr-note:d)  (bind note.u-note di-rr-note)
+        =/  rr-note=(unit rr-note:d)  (bind note.u-note rr-note:utils)
         =?  di-core  ?=(^ note.u-note)
           ::TODO  what about the "mention was added during edit" case?
           (on-note:di-hark id-note u.note.u-note)
@@ -788,7 +788,7 @@
       =/  merged  (di-apply-note id-note old new)
       ?:  =(merged old)  di-core
       =.  notes.diary  (put:on-notes:d notes.diary id-note `merged)
-      (di-response %note id-note %set `(di-rr-note merged))
+      (di-response %note id-note %set `(rr-note:utils merged))
     ::
     ?~  note
       =.  diffs.future.diary
@@ -808,7 +808,7 @@
       ?:  =(merged feels.u.u.note)  di-core
       =.  notes.diary
         (put:on-notes:d notes.diary id-note `u.u.note(feels merged))
-      (di-response %note id-note %feels (di-rr-feels merged))
+      (di-response %note id-note %feels (rr-feels:utils merged))
     ::
         %essay
       =^  changed  +.u.u.note  (apply-rev:d +.u.u.note +.u-note)
@@ -824,7 +824,7 @@
     ?:  ?=([~ ~] quip)  di-core
     ?:  ?=(%set -.u-quip)
       ?~  quip
-        =/  rr-quip=(unit rr-quip:d)  (bind quip.u-quip di-rr-quip)
+        =/  rr-quip=(unit rr-quip:d)  (bind quip.u-quip rr-quip:utils)
         =?  di-core  ?=(^ quip.u-quip)
           (on-quip:di-hark id-note note u.quip.u-quip)
         =.  di-core  (di-put-quip id-note id-quip quip.u-quip)
@@ -839,14 +839,14 @@
       =/  merged  (need (di-apply-quip id-quip `old `new))
       ?:  =(merged old)  di-core
       =.  di-core  (di-put-quip id-note id-quip `merged)
-      (di-response %note id-note %quip id-quip %set `(di-rr-quip merged))
+      (di-response %note id-note %quip id-quip %set `(rr-quip:utils merged))
     ::
     ?~  quip  di-core
     ::
     =/  merged  (di-apply-feels feels.u.u.quip feels.u-quip)
     ?:  =(merged feels.u.u.quip)  di-core
     =.  di-core  (di-put-quip id-note id-quip `u.u.quip(feels merged))
-    (di-response %note id-note %quip id-quip %feels (di-rr-feels merged))
+    (di-response %note id-note %quip id-quip %feels (rr-feels:utils merged))
   ::
   ::  put a quip into a note by id
   ::
@@ -900,90 +900,6 @@
       feels  (di-apply-feels feels.u.old feels.u.new)
       +      +.u.new
     ==
-  ::
-  ::  +di-rr-* functions convert notes, quips, and feels into their "rr"
-  ::  forms, suitable for responses to our subscribers
-  ::
-  ++  di-rr-shelf
-    |=  =shelf:d
-    ^-  rr-shelf:d
-    %-  ~(run by shelf)
-    |=  =diary:d
-    ^-  rr-diary:d
-    %*  .  *rr-diary:d
-      notes  *rr-notes:d
-      perm   +.perm.diary
-      view   +.view.diary
-      sort   +.sort.diary
-      order  +.order.diary
-    ==
-  ++  di-rr-notes
-    |=  =notes:d
-    ^-  rr-notes:d
-    %+  gas:rr-on-notes:d  *rr-notes:d
-    %+  turn  (tap:on-notes:d notes)
-    |=  [=id-note:d note=(unit note:d)]
-    ^-  [id-note:d (unit rr-note:d)]
-    [id-note ?~(note ~ `(di-rr-note u.note))]
-  ::
-  ++  di-rr-note
-    |=  =note:d
-    ^-  rr-note:d
-    =/  quippers  (get-quippers:utils note)
-    :_  +>.note
-    :*  id.note
-        (di-rr-quips quips.note)
-        (di-rr-feels feels.note)
-        ~(wyt in quippers)
-        quippers
-    ==
-  ::
-  ++  di-rr-note-without-quips
-    |=  =note:d
-    ^-  rr-note:d
-    =/  quippers  (get-quippers:utils note)
-    :_  +>.note
-    :*  id.note
-        *rr-quips:d
-        (di-rr-feels feels.note)
-        ~(wyt in quippers)
-        quippers
-    ==
-  ::
-  ++  di-rr-notes-without-quips
-    |=  =notes:d
-    ^-  rr-notes:d
-    %+  gas:rr-on-notes:d  *rr-notes:d
-    %+  turn  (tap:on-notes:d notes)
-    |=  [=id-note:d note=(unit note:d)]
-    ^-  [id-note:d (unit rr-note:d)]
-    [id-note ?~(note ~ `(di-rr-notes u.note))]
-  ::
-  ++  di-rr-quips
-    |=  =quips:d
-    ^-  rr-quips:d
-    %+  gas:rr-on-quips:d  *rr-quips:d
-    %+  murn  (tap:on-quips:d quips)
-    |=  [=time quip=(unit quip:d)]
-    ^-  (unit [id-quip:d rr-quip:d])
-    ?~  quip  ~
-    %-  some
-    [time (di-rr-quip u.quip)]
-  ::
-  ++  di-rr-quip
-    |=  =quip:d
-    ^-  rr-quip:d
-    :_  +.quip
-    [id.quip (di-rr-feels feels.quip)]
-  ::
-  ++  di-rr-feels
-    |=  =feels:d
-    ^-  (map ship feel:d)
-    %-  ~(gas by *(map ship feel:d))
-    %+  murn  ~(tap by feels)
-    |=  [=ship (rev:d feel=(unit feel:d))]
-    ?~  feel  ~
-    (some ship u.feel)
   ::
   ::  +di-hark: notification dispatch
   ::
@@ -1207,7 +1123,8 @@
       ?:  =(mode.pole %note)
         ``channel-notes+!>((gas:on *notes:d ls))
       =-  ``channel-notes+!>(-)
-      %-  di-rr-notes-without-quips  notes.diary
+      %-  rr-notes-without-quips:utils
+      (gas:on *notes:d ls)
     ::
         [%older start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
@@ -1215,8 +1132,9 @@
       =/  ls    (bat:mo-notes:d notes.diary `start count)
       ?:  =(mode.pole %note)
         ``channel-notes+!>((gas:on *notes:d ls))
-      =-  ``channel-outlines+!>(-)
-      %-  di-rr-notes-without-quips  notes.diary
+      =-  ``channel-notes+!>(-)
+      %-  rr-notes-without-quips:utils
+      (gas:on *notes:d ls)
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
@@ -1228,7 +1146,7 @@
       =/  note  (get:on notes.diary time)
       ?~  note  ~
       ?~  u.note  `~
-      ``channel-note+!>((di-rr-note u.u.note))
+      ``channel-note+!>((rr-note:utils u.u.note))
     ::
         [%note %id time=@ %quips rest=*]
       =/  time  (slav %ud time.pole)

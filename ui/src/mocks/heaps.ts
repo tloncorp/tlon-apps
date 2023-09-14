@@ -4,6 +4,7 @@ import {
   ScryHandler,
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
+import { BigIntOrderedMap } from '@urbit/api';
 import { subMinutes } from 'date-fns';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
@@ -25,84 +26,119 @@ const mockStash: Shelf = {
 
 const mockCurios: Notes = {
   '170141184505776467152677676749638598656': {
-    quipCount: 0,
-    quippers: [],
-    'han-data': {
-      heap: 'House rendering',
+    seal: {
+      id: '170141184505776467152677676749638598656',
+      quips: new BigIntOrderedMap(),
+      quipCount: 0,
+      quippers: [],
+      feels: {},
     },
-    content: [
-      {
-        inline: [
-          'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
-        ],
+    essay: {
+      'han-data': {
+        heap: 'House rendering',
       },
-    ],
-    author: '~finned-palmer',
-    sent: unixTime,
+      content: [
+        {
+          inline: [
+            'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
+          ],
+        },
+      ],
+      author: '~finned-palmer',
+      sent: unixTime,
+    },
   },
   '170141184505776467152677676749638598657': {
-    quipCount: 0,
-    quippers: [],
-    'han-data': {
-      heap: 'Description of a Martini',
+    seal: {
+      id: '170141184505776467152677676749638598657',
+      quips: new BigIntOrderedMap(),
+      quipCount: 0,
+      quippers: [],
+      feels: {},
     },
-    content: [
-      {
-        inline: [
-          'The martini is a cocktail made with gin and vermouth, and garnished with an olive or a lemon twist.',
-        ],
+    essay: {
+      'han-data': {
+        heap: 'Description of a Martini',
       },
-    ],
-    author: '~finned-palmer',
-    sent: unixTime,
+      content: [
+        {
+          inline: [
+            'The martini is a cocktail made with gin and vermouth, and garnished with an olive or a lemon twist.',
+          ],
+        },
+      ],
+      author: '~finned-palmer',
+      sent: unixTime,
+    },
   },
   '170141184505776467152677676749638598658': {
-    quipCount: 0,
-    quippers: [],
-    'han-data': {
-      heap: 'House rendering',
+    seal: {
+      id: '170141184505776467152677676749638598658',
+      quips: new BigIntOrderedMap(),
+      quipCount: 0,
+      quippers: [],
+      feels: {},
     },
-    content: [
-      {
-        inline: [
-          'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
-        ],
+    essay: {
+      'han-data': {
+        heap: 'House rendering',
       },
-    ],
-    author: '~finned-palmer',
-    sent: unixTime,
+      content: [
+        {
+          inline: [
+            'https://finned-palmer.s3.filebase.com/finned-palmer/2022.3.31..15.13.50-rendering1.png',
+          ],
+        },
+      ],
+      author: '~finned-palmer',
+      sent: unixTime,
+    },
   },
   '170141184505776467152677676749638598659': {
-    quipCount: 0,
-    quippers: [],
-    'han-data': {
-      heap: '',
+    seal: {
+      id: '170141184505776467152677676749638598659',
+      quips: new BigIntOrderedMap(),
+      quipCount: 0,
+      quippers: [],
+      feels: {},
     },
-    content: [
-      {
-        inline: [
-          'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/15-09-26-RalfR-WLC-0084.jpg/1920px-15-09-26-RalfR-WLC-0084.jpg',
-        ],
+    essay: {
+      'han-data': {
+        heap: '',
       },
-    ],
-    author: '~finned-palmer',
-    sent: unixTime,
+      content: [
+        {
+          inline: [
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/15-09-26-RalfR-WLC-0084.jpg/1920px-15-09-26-RalfR-WLC-0084.jpg',
+          ],
+        },
+      ],
+      author: '~finned-palmer',
+      sent: unixTime,
+    },
   },
   '170141184505776467152677676749638598660': {
-    quipCount: 0,
-    quippers: [],
-    'han-data': {
-      heap: 'One Thing About Me',
+    seal: {
+      id: '170141184505776467152677676749638598660',
+      quips: new BigIntOrderedMap(),
+      quipCount: 0,
+      quippers: [],
+      feels: {},
     },
-    content: [
-      {
-        inline: [
-          'https://twitter.com/noagencynewyork/status/1540353656326946817?s=20&t=OSmaPCFVGbJmjvs1VtJtkg',
-        ],
+    essay: {
+      'han-data': {
+        heap: 'One Thing About Me',
       },
-    ],
-    author: '~finned-palmer',
-    sent: unixTime,
+      content: [
+        {
+          inline: [
+            'https://twitter.com/noagencynewyork/status/1540353656326946817?s=20&t=OSmaPCFVGbJmjvs1VtJtkg',
+          ],
+        },
+      ],
+      author: '~finned-palmer',
+      sent: unixTime,
+    },
   },
 };
 

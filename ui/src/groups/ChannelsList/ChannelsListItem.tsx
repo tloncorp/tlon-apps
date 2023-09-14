@@ -75,8 +75,6 @@ export default function ChannelsListItem({
     useChannelCompatibility(nest);
   const { mutateAsync: joinChannel } = useJoinMutation();
   const { mutateAsync: leaveChannel } = useLeaveMutation();
-  // const { mutateAsync: joinHeap } = useJoinHeapMutation();
-  // const { mutateAsync: leaveHeap } = useLeaveHeapMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const { isFailed, isPending, isReady, setFailed, setPending, setReady } =

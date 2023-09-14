@@ -398,8 +398,9 @@ export function useOrderedNotes(
   };
 }
 
+const emptyShelf: Shelf = {};
 export function useShelf(): Shelf {
-  const { data, ...rest } = useReactQuerySubscription({
+  const { data, ...rest } = useReactQuerySubscription<Shelf>({
     queryKey: ['shelf'],
     app: 'channels',
     path: '/ui',
@@ -407,10 +408,10 @@ export function useShelf(): Shelf {
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return {};
+    return emptyShelf;
   }
 
-  return data as Shelf;
+  return data;
 }
 
 export function useChannel(nest: Nest): Diary | undefined {
@@ -538,9 +539,9 @@ export function useQuip(
   }, [note, quipId]);
 }
 
-const emptyBriefs = {};
+const emptyBriefs: Briefs = {};
 export function useBriefs(): Briefs {
-  const { data, ...rest } = useReactQuerySubscription({
+  const { data, ...rest } = useReactQuerySubscription<Briefs>({
     queryKey: ['briefs'],
     app: 'channels',
     path: '/briefs',
@@ -551,7 +552,7 @@ export function useBriefs(): Briefs {
     return emptyBriefs;
   }
 
-  return data as Briefs;
+  return data;
 }
 
 export function useIsJoined(nest: Nest) {

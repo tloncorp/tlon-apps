@@ -17,7 +17,9 @@ import { useStorage } from './storage';
 const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
-  chat: { briefs: {}, chats: {}, pins: [] },
+  shelf: {},
+  briefs: {},
+  pins: [],
 };
 
 async function chatScry<T>(path: string, def: T) {
@@ -31,23 +33,26 @@ async function chatScry<T>(path: string, def: T) {
   );
 }
 
-async function startGroups(talkStarted: boolean) {
+async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { chat, groups, gangs } = await asyncWithDefault(
+  const { shelf, briefs, pins, groups, gangs } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
-        path: '/init/v0',
+        path: '/init',
       }),
     emptyGroupsInit
   );
 
-  if (!talkStarted) {
-    useChatState.getState().start(chat);
-  }
+  // if (!talkStarted) {
+  //   useChatState.getState().start(chat);
+  // }
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
+  queryClient.setQueryData(['shelf'], shelf);
+  queryClient.setQueryData(['briefs'], briefs);
+  queryClient.setQueryData(['pins'], pins);
 }
 
 async function startTalk(groupsStarted: boolean) {
@@ -56,7 +61,7 @@ async function startTalk(groupsStarted: boolean) {
     () =>
       api.scry<TalkInit>({
         app: 'talk-ui',
-        path: '/init/v0',
+        path: '/init',
       }),
     async () => {
       const [
@@ -120,9 +125,9 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
 
   if (isTalk) {
     startTalk(false);
-    wait(() => startGroups(true), 5);
+    wait(() => startGroups(), 5);
   } else {
-    startGroups(false);
+    startGroups();
     wait(async () => startTalk(true), 5);
   }
 

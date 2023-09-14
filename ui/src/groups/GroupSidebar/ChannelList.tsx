@@ -103,13 +103,6 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   );
 }
 
-interface UnmigratedChannelProps {
-  icon: ReactNode | ((active: boolean) => React.ReactNode);
-  title: string;
-  host: string;
-  isMobile: boolean;
-}
-
 export default function ChannelList({ className }: ChannelListProps) {
   const flag = useGroupFlag();
   const group = useGroup(flag);

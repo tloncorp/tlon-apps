@@ -2,6 +2,90 @@
 ::  convert a note to a preview for a "said" response
 ::
 |%
+::  +rr-* functions convert notes, quips, and feels into their "rr"
+::  forms, suitable for responses to our subscribers
+::
+++  rr-shelf
+  |=  =shelf:d
+  ^-  rr-shelf:d
+  %-  ~(run by shelf)
+  |=  =diary:d
+  ^-  rr-diary:d
+  %*  .  *rr-diary:d
+    notes  *rr-notes:d
+    perm   +.perm.diary
+    view   +.view.diary
+    sort   +.sort.diary
+    order  +.order.diary
+  ==
+++  rr-notes
+  |=  =notes:d
+  ^-  rr-notes:d
+  %+  gas:rr-on-notes:d  *rr-notes:d
+  %+  turn  (tap:on-notes:d notes)
+  |=  [=id-note:d note=(unit note:d)]
+  ^-  [id-note:d (unit rr-note:d)]
+  [id-note ?~(note ~ `(rr-note u.note))]
+::
+++  rr-note
+  |=  =note:d
+  ^-  rr-note:d
+  =/  quippers  (get-quippers note)
+  :_  +>.note
+  :*  id.note
+      (rr-quips quips.note)
+      (rr-feels feels.note)
+      ~(wyt in quippers)
+      quippers
+  ==
+::
+++  rr-notes-without-quips
+  |=  =notes:d
+  ^-  rr-notes:d
+  %+  gas:rr-on-notes:d  *rr-notes:d
+  %+  turn  (tap:on-notes:d notes)
+  |=  [=id-note:d note=(unit note:d)]
+  ^-  [id-note:d (unit rr-note:d)]
+  [id-note ?~(note ~ `(rr-note-without-quips u.note))]
+::
+++  rr-note-without-quips
+  |=  =note:d
+  ^-  rr-note:d
+  =/  quippers  (get-quippers note)
+  :_  +>.note
+  :*  id.note
+      *rr-quips:d
+      (rr-feels feels.note)
+      ~(wyt in quippers)
+      quippers
+  ==
+::
+++  rr-quips
+  |=  =quips:d
+  ^-  rr-quips:d
+  %+  gas:rr-on-quips:d  *rr-quips:d
+  %+  murn  (tap:on-quips:d quips)
+  |=  [=time quip=(unit quip:d)]
+  ^-  (unit [id-quip:d rr-quip:d])
+  ?~  quip  ~
+  %-  some
+  [time (rr-quip u.quip)]
+::
+++  rr-quip
+  |=  =quip:d
+  ^-  rr-quip:d
+  :_  +.quip
+  [id.quip (rr-feels feels.quip)]
+::
+++  rr-feels
+  |=  =feels:d
+  ^-  (map ship feel:d)
+  %-  ~(gas by *(map ship feel:d))
+  %+  murn  ~(tap by feels)
+  |=  [=ship (rev:d feel=(unit feel:d))]
+  ?~  feel  ~
+  (some ship u.feel)
+::
 ++  said
   |=  [=nest:d =plan:d =notes:d]
   ^-  cage
@@ -21,7 +105,7 @@
           %chat
         [[*@da ~ ~ 0 ~] [[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
       ==
-    u.u.note
+    (rr-note u.u.note)
   [%channel-said !>(`said:d`[nest rr-note])]
 ::
 ++  trace

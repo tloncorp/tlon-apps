@@ -1,9 +1,10 @@
 import _, { get, groupBy } from 'lodash';
 import { useNavigate, useParams } from 'react-router';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
-import { useBriefs, useChat, useChats, useMultiDms } from '@/state/chat';
+import { useChat, useChats, useMultiDms } from '@/state/chat';
 import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
 import {
+  useBriefs,
   useChannel as useChannelFromState,
   useJoinMutation,
   usePerms,
@@ -282,6 +283,7 @@ export function useChannelSections(groupFlag: string) {
 
 export function useChannelIsJoined(nest: string) {
   const briefs = useBriefs();
+  debugger;
 
   return isChannelJoined(nest, briefs);
 }

@@ -6,7 +6,7 @@
     %hark
     %notify
     %grouper
-    ::%groups-ui
+    %groups-ui
     %channels
     %channels-server
 ==

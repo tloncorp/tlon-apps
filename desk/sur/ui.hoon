@@ -3,25 +3,9 @@
 +$  init
   $:  groups=groups-ui:g
       =gangs:g
-      =chat
-      =heap
-      =diary    
-  ==
-::
-+$  chat
-  $:  =briefs:d
       shelf=rr-shelf:d
+      =briefs:d
       pins=(list whom:c)
-  ==
-::
-+$  heap
-  $:  =briefs:d
-      shelf=rr-shelf:d
-  ==
-::
-+$  diary
-  $:  =briefs:d
-      shelf=rr-shelf:d
   ==
 ::
 +$  vita-enabled  ?

@@ -1,6 +1,5 @@
 import _ from 'lodash';
-import produce from 'immer';
-import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
+import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '@/api';
@@ -20,9 +19,7 @@ import {
   getIdFromNoteAction,
   Note,
   NoteEssay,
-  Outline,
   Notes,
-  Quip,
   ShelfAction,
 } from '@/types/channel';
 import { whomIsNest } from '@/logic/utils';
@@ -178,7 +175,7 @@ export function writsReducer(whom: string) {
       const time = bigInt(unixToDa(Date.now()));
       if (isNote) {
         chatChannelPact.index[id] = time;
-        const note: Outline = {
+        const note: Note = {
           ...(delta.add as NoteEssay),
           quipCount: 0,
           quippers: [],

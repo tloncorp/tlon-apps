@@ -107,8 +107,8 @@
     :~  id+(id id.rr-seal)
         feels+(feels rr-feels.rr-seal)
         quips+(rr-quips rr-quips.rr-seal)
-        'quipCount'^(numb quips.o)
-        quippers/a/(turn ~(tap in quippers.o) ship)
+        'quipCount'^(numb quip-count.rr-seal)
+        quippers/a/(turn ~(tap in quippers.rr-seal) ship)
     ==
   ::
   ++  rr-cork
@@ -328,25 +328,7 @@
     :~  nest/(nest p.s)
         note/(rr-note q.s)
     ==
-  :: ++  outline
-    :: |=  o=outline:d
-    :: %-  pairs
-    :: :~  content+(story content.o)
-        :: author+(ship author.o)
-        :: sent+(time sent.o)
-        :: han-data+(han-data han-data.o)
-        :: 'quipCount'^(numb quips.o)
-        :: quippers/a/(turn ~(tap in quippers.o) ship)
-    :: ==
-  ::
-  :: ++  outlines
-    :: |=  os=outlines:d
-    :: %-  pairs
-    :: %+  turn  (tap:on:outlines:d os)
-    :: |=  [t=@da o=outline:d]
-    :: ^-  [cord json]
-    :: [(scot %ud t) (outline o)]
-  :: --
+  --
 ::
 ++  dejs
   =,  dejs:format
