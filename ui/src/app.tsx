@@ -30,7 +30,6 @@ import {
   useTheme,
 } from '@/state/settings';
 import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
-import useEphemeralState from '@/state/ephemeral';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -652,7 +651,6 @@ function App() {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
   const { disableWayfinding } = useCalm();
-  const { setMessagesLocation, setGroupsLocation } = useEphemeralState();
 
   useEffect(() => {
     handleError(() => {
@@ -670,14 +668,14 @@ function App() {
   useEffect(() => {
     if (!isMobile) return;
     if (location.pathname === '/' || location.pathname.startsWith('/groups')) {
-      setGroupsLocation(location.pathname);
+      useLocalState.setState({ groupsLocation: location.pathname });
     } else if (
       location.pathname.startsWith('/messages') ||
       location.pathname.startsWith('/dm')
     ) {
-      setMessagesLocation(location.pathname);
+      useLocalState.setState({ messagesLocation: location.pathname });
     }
-  }, [location, isMobile, setGroupsLocation, setMessagesLocation]);
+  }, [location, isMobile]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 

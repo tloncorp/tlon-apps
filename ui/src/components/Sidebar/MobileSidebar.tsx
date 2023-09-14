@@ -2,7 +2,7 @@ import cn from 'classnames';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { isNativeApp, isIOSWebView } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
-import useEphemeralState from '@/state/ephemeral';
+import { useLocalState } from '@/state/local';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
 import GridIcon from '../icons/GridIcon';
@@ -13,7 +13,7 @@ import Avatar from '../Avatar';
 
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
-  const { groupsLocation } = useEphemeralState();
+  const { groupsLocation } = useLocalState.getState();
 
   const onSingleClick = () => {
     if (isNativeApp()) {
@@ -42,7 +42,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
-  const { messagesLocation } = useEphemeralState();
+  const { messagesLocation } = useLocalState.getState();
 
   const onSingleClick = () => {
     if (isNativeApp()) {
