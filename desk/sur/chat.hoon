@@ -31,9 +31,9 @@
       time=id-note:d
       =feels
       =quips
-      :: quip-count=@ud
-      :: quippers=(set ship)
-      :: last-quip=time
+      quip-count=@ud
+      last-quippers=(set ship)
+      last-quip=(unit time)
   ==
 ::
 ::  $cork: chat reply metadata

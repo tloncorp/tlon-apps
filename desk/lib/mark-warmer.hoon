@@ -21,9 +21,7 @@
 /$  curio       %curio                %json
 /$  curios      %heap-curios          %json
 /$  flags       %flags                %json
-/$  chats       %chats                %json
 /$  briefs      %chat-briefs          %json
 /$  pins        %chat-pins            %json
 /$  writs       %chat-writs           %json
-/$  perm        %chat-perm            %json
 ~

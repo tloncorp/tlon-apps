@@ -56,7 +56,7 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id now ~ ~]
+    =/  =seal:c  [id now ~ ~ 0 ~ ~]
     ?:  (~(has by dex.pac) id)
       pac
     |-
@@ -78,7 +78,24 @@
     %+  jab  id
     |=  =writ:c
     ^-  writ:c
-    writ(quips (reduce-quip quips.writ now [id delta]:del))
+    =/  quips  (reduce-quip quips.writ now [id delta]:del)
+    %=  writ
+      quips       quips
+      quip-count  (wyt:on:quips:c quips)
+      last-quip   (biff (ram:on:quips:c quips) |=([=time *] `time))
+    ::
+        last-quippers
+      ^-  (set ship)
+      =|  quippers=(set ship)
+      =/  entries=(list [time quip:c])  (bap:on:quips:c quips)
+      |-
+      =/  [* =quip:c]  -.entries
+      ?:  |(=(~ entries) =(3 ~(wyt in quippers)))
+        quippers
+      ?:  (~(has in quippers) author.quip)
+        $(entries +.entries)
+      (~(put in quippers) author.quip)
+    ==
   ::
       %add-feel
     %+  jab  id

@@ -4,9 +4,7 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
-/+  migrate-old=diary-graph
 /+  volume
-/+  chat-migrate=chat-graph
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  diary-json
@@ -192,16 +190,6 @@
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
-      %graph-imports  (import !<(imports:d vase))
-      %import-flags
-    =+  !<(flags=(set flag:d) vase)
-    =.  imp  %-  ~(gas by *(map flag:d ?))
-      ^-  (list [flag:d ?])
-      %+  turn
-        ~(tap in flags)
-      |=(=flag:d [flag |])
-    cor
-  ::
       %flag
     =+  !<(f=flag:d vase)
     ?<  =(our.bowl p.f)
@@ -304,124 +292,12 @@
     --
   --
 ::
-++  import
-  |=  =imports:d
-  ^+  cor
-  =/  imports  ~(tap by imports)
-  |-  =*  loop  $
-  ?~  imports  cor
-  =/  [=flag:d writers=(set ship) =association:met:d =update-log:gra:d =graph:gra:d]
-    i.imports
-  |^
-  =/  =perm:d
-    :_  group.association
-    ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
-  =/  =remark:d
-    [now.bowl | ~]
-  =/  =notes:d  graph-to-notes
-  =/  =diary:d
-    :*  arranged-notes=~
-        net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
-        log=(import-log notes perm)
-        perm
-        %grid  :: TODO: check defaults with design
-        %time
-        notes
-        remark
-    ==
-  =.  shelf  (~(put by shelf) flag diary)
-  =.  imp    (~(put by imp) flag &)
-  =.  cor
-    (give %fact ~[/imp] migrate-map+!>(imp))
-  =.  cor    di-abet:(di-import:(di-abed:di-core flag) writers association)
-  loop(imports t.imports)
-  ::
-  ++  import-log
-    |=  [=notes:d =perm:d]
-    ^-  log:d
-    =/  =time  (fall (bind (ram:orm-log-gra:d update-log) head) *time)
-    %+  gas:log-on:d  *log:d
-    :~  [time %create perm notes]
-    ==
-  ::
-  ++  graph-to-notes
-    %+  gas:on:notes:d  *notes:d
-    %+  murn  (tap:orm-gra:d graph)
-    |=  [=time =node:gra:d]
-    ^-  (unit [_time note:d])
-    ?~  not=(node-to-note time node)
-      ~
-    `[time u.not]
-  ++  orm  orm-gra:d
-  ++  node-to-children
-    |=  =node:gra:d
-    ^-  (unit graph:gra:d)
-    ?.  ?=(%graph -.children.node)
-      ~
-    `p.children.node
-  ::
-  ++  node-to-post
-    |=  =node:gra:d
-    ^-  (unit post:gra:d)
-    ?.  ?=(%& -.post.node)
-      ~
-    `p.post.node
-  ::
-  ++  get-latest-post
-    |=  =node:gra:d
-    ^-  (unit post:gra:d)
-    ;<  =graph:gra:d           _biff   (node-to-children node)
-    ;<  nod=node:gra:d         _biff   (get:orm graph 1)
-    ;<  revs=graph:gra:d       _biff   (node-to-children nod)
-    ;<  [@ recent=node:gra:d]  _biff   (pry:orm revs)
-    (node-to-post recent)
-  ::  TODO: review crashing semantics
-  ::        check graph ordering (backwards iirc)
-  ++  node-to-note
-    |=  [=time =node:gra:d]
-    ^-  (unit note:d)
-    ?~  pos=(get-latest-post node)
-      ~
-    =/  =seal:d  [time (node-to-quips node) ~]
-    ?.  ?=([[%text *] *] contents.u.pos)
-      ~  :: XX: should be invariant, don't want to risk it
-    =/  con=(list verse:d)  (migrate-old flag `@ud`time t.contents.u.pos)
-    =/  =essay:d
-      =,(u.pos [text.i.contents '' con author time-sent])
-    `[seal essay]
-  ::
-  ++  node-to-quips
-    |=  =node:gra:d
-    ^-  quips:d
-    =/  coms=(unit graph:gra:d)
-      ;<  =graph:gra:d      _biff  (node-to-children node)
-      ;<  coms=node:gra:d   _biff  (get:orm graph 2)
-      (node-to-children coms)
-    %+  gas:on:quips:d  *quips:d
-    %+  murn  ?~(coms ~ (tap:orm u.coms))
-    |=  [=time =node:gra:d]
-    ?~  qup=(node-to-quip time node)
-      ~
-    `[time u.qup]
-  ::
-  ++  node-to-quip
-    |=  [=time =node:gra:d]
-    ^-  (unit quip:d)
-    ;<  =graph:gra:d           _biff  (node-to-children node)
-    ;<  [@ latest=node:gra:d]  _biff  (pry:orm graph)
-    ;<  =post:gra:d            _biff  (node-to-post latest)
-    =/  =cork:d  [time ~]
-    =/  =memo:d  =,(post [(con:nert:chat-migrate contents) author time-sent])
-    `[cork memo]
-  --
-::
 ++  watch
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path/pole !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
-      [%imp ~]      ?>(from-self cor)
     ::
       [%epic ~]    (give %fact ~ epic+!>(okay:d))
     ::
@@ -578,7 +454,6 @@
   ^-  (unit (unit cage))
   ?+  pole  [~ ~]
   ::
-    [%x %imp ~]    ``migrate-map+!>(imp)
     [%x %shelf ~]  ``shelf+!>(shelf)
     [%x %init ~]   ``noun+!>([briefs shelf])
     [%x %briefs ~]  ``diary-briefs+!>(briefs)
@@ -777,13 +652,6 @@
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
-  ++  di-import
-    |=  [writers=(set ship) =association:met:d]
-    ^+  di-core
-    =?  di-core  ?=(%sub -.net.diary)
-      di-sub
-    di-core
-  ::
   ++  di-said
     |=  =plan:d
     |^  ^+  di-core
@@ -864,18 +732,6 @@
     ==
   ++  di-pass
     |%
-    ++  writer-sect
-      |=  [ships=(set ship) =association:met:d]
-      =/  =sect:g
-        (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~)
-      =/  title=@t
-        (rap 3 'Writers: ' title.metadatum.association ~)
-      =/  desc=@t
-        (rap 3 'The writers role for the ' title.metadatum.association ' notebook' ~)
-      %+  poke-group  %import-writers
-      :+  group.association   now.bowl
-      [%cabal sect %add title desc '' '']
-    ::
     ++  poke-group
       |=  [=term =action:g]
       ^+  di-core
@@ -892,12 +748,6 @@
       ^-  action:g
       :+  group  now.bowl
       [%channel [dap.bowl flag] %add channel]
-    ::
-    ++  import-channel
-      |=  =association:met:d
-      =/  meta=data:meta:g
-        [title description '' '']:metadatum.association
-      (create-channel %import group.association meta now.bowl zone=%default %| ~)
     ::
     ++  add-channel
       |=  req=create:d
@@ -928,13 +778,6 @@
       %.  di-core  :: TODO rollback creation if poke fails?
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
-    ::
-        [%import ~]
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  di-core
-      %-  (slog u.p.sign)
-      ::  =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
-      di-core
     ==
   ::
   ++  di-brief  (brief:di-notes our.bowl last-read.remark.diary)
