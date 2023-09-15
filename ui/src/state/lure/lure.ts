@@ -1,4 +1,5 @@
 import api from '@/api';
+import { createDeepLink } from '@/logic/branch';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import {
   asyncWithDefault,
@@ -22,6 +23,7 @@ interface LureMetadata {
 interface Lure {
   fetched: boolean;
   url: string;
+  deepLinkUrl?: string;
   enabled?: boolean;
   enableAcked?: boolean;
   metadata?: LureMetadata;
@@ -115,44 +117,55 @@ export const useLureState = create<LureState>(
       },
       fetchLure: async (flag) => {
         const { name } = getFlagParts(flag);
-        const enabled = await asyncWithDefault(
-          () =>
-            api.subscribeOnce<boolean>(
-              'grouper',
-              `/group-enabled/${flag}`,
-              12500
-            ),
-          undefined
+        const prevLure = get().lures[flag];
+        const [enabled, url, metadata, outstandingPoke] = await Promise.all([
+          // enabled
+          asyncWithDefault(
+            () =>
+              api.subscribeOnce<boolean>(
+                'grouper',
+                `/group-enabled/${flag}`,
+                12500
+              ),
+            prevLure?.enabled
+          ),
+          // url
+          asyncWithDefault(
+            () =>
+              api.subscribeOnce<string>('reel', `/token-link/${flag}`, 12500),
+            prevLure?.url
+          ),
+          // metadata
+          asyncWithDefault(
+            () =>
+              api.scry<LureMetadata>({
+                app: 'reel',
+                path: `/metadata/${name}`,
+              }),
+            prevLure?.metadata
+          ),
+          // outstandingPoke
+          asyncWithDefault(
+            () =>
+              api.scry<boolean>({
+                app: 'reel',
+                path: `/outstanding-poke/${flag}`,
+              }),
+            !prevLure.enableAcked
+          ),
+        ]);
+        const deepLinkUrl = await createDeepLink(
+          url,
+          flag.replace('~', '').replace('/', '-')
         );
-        const url = await asyncWithDefault(
-          () => api.subscribeOnce<string>('reel', `/token-link/${flag}`, 12500),
-          ''
-        );
-        const metadata = await asyncWithDefault(
-          () =>
-            api.scry<LureMetadata>({
-              app: 'reel',
-              path: `/metadata/${name}`,
-            }),
-          undefined
-        );
-
-        const enableAcked = !(await asyncWithDefault(
-          () =>
-            api.scry<boolean>({
-              app: 'reel',
-              path: `/outstanding-poke/${flag}`,
-            }),
-          true
-        ));
-
         set(
           produce((draft: LureState) => {
             draft.lures[flag] = {
               fetched: true,
               enabled,
-              enableAcked,
+              enableAcked: !outstandingPoke,
               url,
+              deepLinkUrl,
               metadata,
             };
           })
