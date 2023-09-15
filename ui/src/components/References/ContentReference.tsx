@@ -1,7 +1,7 @@
 import React from 'react';
+import { udToDec } from '@urbit/api';
 import { nestToFlag } from '@/logic/utils';
 import { Cite } from '@/types/chat';
-import { udToDec } from '@urbit/api';
 // eslint-disable-next-line import/no-cycle
 import CurioReference from './CurioReference';
 // eslint-disable-next-line import/no-cycle

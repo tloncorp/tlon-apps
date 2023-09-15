@@ -1,15 +1,13 @@
 /* eslint-disable react/no-unused-prop-types */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import cn from 'classnames';
-import _ from 'lodash';
 import debounce from 'lodash/debounce';
-import f from 'lodash/fp';
-import { BigInteger } from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { ChatBrief, ChatWrit } from '@/types/chat';
+import { ChatBrief } from '@/types/chat';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -17,11 +15,9 @@ import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
 import {
-  usePact,
   useChatState,
   useIsMessageDelivered,
   useIsMessagePosted,
-  useWrit,
   useIsDmOrMultiDm,
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
@@ -31,6 +27,7 @@ import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
+import { emptyNote, Note } from '@/types/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -42,7 +39,7 @@ import ReactionDetails from '../ChatReactions/ReactionDetails';
 export interface ChatMessageProps {
   whom: string;
   time: BigInteger;
-  writ: ChatWrit;
+  writ: Note;
   newAuthor?: boolean;
   newDay?: boolean;
   hideReplies?: boolean;
@@ -88,7 +85,7 @@ const ChatMessage = React.memo<
       }: ChatMessageProps,
       ref
     ) => {
-      const { seal, memo } = writ;
+      const { seal, essay } = writ;
       const container = useRef<HTMLDivElement>(null);
       const { idShip, idTime } = useParams<{
         idShip: string;
@@ -102,8 +99,8 @@ const ChatMessage = React.memo<
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
-      const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
-      const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
+      const { hovering, setHovering } = useChatHovering(whom, seal.id);
+      const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const { mutate: markChatRead } = useMarkReadMutation();
       const { ref: viewRef } = useInView({
@@ -135,7 +132,7 @@ const ChatMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && briefMatches(brief, writ.seal.id) && !seen) {
+            if (inView && briefMatches(brief, seal.id) && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -154,45 +151,20 @@ const ChatMessage = React.memo<
               markDmRead(whom);
             }
           },
-          [unread, whom, writ.seal.id, isDMOrMultiDM, markChatRead]
+          [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
       const isMessageDelivered = useIsMessageDelivered(seal.id);
       const isMessagePosted = useIsMessagePosted(seal.id);
-      const isReplyOp = chatInfo?.replying === writ.seal.id;
+      const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
 
-      const pact = usePact(whom);
-
-      const numReplies = seal.replied.length;
-      const repliesContainsUnreadId = unreadId
-        ? seal.replied.includes(unreadId)
-        : false;
-      const replyAuthors = _.flow(
-        f.map((k: string) => {
-          const t = pact?.index[k];
-          const mess = t ? pact.writs.get(t) : undefined;
-          if (!mess) {
-            return undefined;
-          }
-          return mess.memo.author;
-        }),
-        f.compact,
-        f.uniq,
-        f.take(3)
-      )(seal.replied);
-      const repliesSortedByTime = seal.replied.sort((a, b) => {
-        const aTime = useChatState.getState().getTime(whom, a);
-        const bTime = useChatState.getState().getTime(whom, b);
-
-        return aTime.compare(bTime);
-      });
-      const lastReply = _.last(repliesSortedByTime);
-      const lastReplyWrit = useWrit(whom, lastReply ?? '')!;
-      const lastReplyTime = lastReplyWrit
-        ? new Date(daToUnix(lastReplyWrit[0]))
-        : new Date();
+      const numReplies = seal.quipCount;
+      const replyAuthors = seal.quippers;
+      const lastReplyTime = seal.lastQuip
+        ? new Date(daToUnix(bigInt(seal.lastQuip)))
+        : null;
 
       const hover = useRef(false);
       const setHover = useRef(
@@ -263,6 +235,10 @@ const ChatMessage = React.memo<
         isThreadOp,
       ]);
 
+      if (!writ) {
+        return null;
+      }
+
       return (
         <div
           ref={mergeRefs(ref, container)}
@@ -276,7 +252,7 @@ const ChatMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && briefMatches(unread.brief, writ.seal.id) ? (
+          {unread && briefMatches(unread.brief, seal.id) ? (
             <DateDivider
               date={unix}
               unreadCount={unread.brief.count}
@@ -285,7 +261,7 @@ const ChatMessage = React.memo<
           ) : null}
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? (
-            <Author ship={memo.author} date={unix} hideRoles={isThread} />
+            <Author ship={essay.author} date={unix} hideRoles={isThread} />
           ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             <ChatMessageOptions
@@ -309,9 +285,9 @@ const ChatMessage = React.memo<
                   isLinked && 'bg-blue-softer'
                 )}
               >
-                {'story' in memo.content ? (
+                {essay.content ? (
                   <ChatContent
-                    story={memo.content.story}
+                    story={essay.content}
                     isScrolling={isScrolling}
                     writId={seal.id}
                   />
@@ -362,25 +338,29 @@ const ChatMessage = React.memo<
 
                       <span
                         className={cn(
-                          repliesContainsUnreadId ? 'text-blue' : 'mr-2'
+                          // repliesContainsUnreadId ? 'text-blue' : 'mr-2'
+                          'mr-2'
                         )}
                       >
                         {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
                       </span>
-                      {repliesContainsUnreadId ? (
+                      {/*
+                      TODO: update when we have quip briefs
+                      repliesContainsUnreadId ? (
                         <UnreadIndicator
                           className="h-6 w-6 text-blue transition-opacity"
                           aria-label="Unread replies in this thread"
                         />
-                      ) : null}
+                      ) : null */}
                       <span className="text-gray-400">
                         <span className="hidden sm:inline-block">
                           Last reply&nbsp;
                         </span>
                         <span className="inline-block first-letter:capitalize sm:first-letter:normal-case">
-                          {isToday(lastReplyTime)
-                            ? `${formatDistanceToNow(lastReplyTime)} ago`
-                            : formatRelative(lastReplyTime, new Date())}
+                          {lastReplyTime &&
+                            (isToday(lastReplyTime)
+                              ? `${formatDistanceToNow(lastReplyTime)} ago`
+                              : formatRelative(lastReplyTime, new Date()))}
                         </span>
                       </span>
                     </div>

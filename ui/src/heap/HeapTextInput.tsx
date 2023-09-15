@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect, useMemo } from 'react';
+import { unixToDa } from '@urbit/api';
 import { reduce } from 'lodash';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
@@ -23,8 +24,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import Tooltip from '@/components/Tooltip';
 import { useChannelCompatibility } from '@/logic/channel';
-import { NoteEssay, storyFromChatStory } from '@/types/channel';
-import { unixToDa } from '@urbit/api';
+import { constructStory, NoteEssay, storyFromChatStory } from '@/types/channel';
 import { Inline, InlineKey } from '@/types/content';
 
 interface HeapTextInputProps {
@@ -114,13 +114,8 @@ export default function HeapTextInput({
 
       setPending();
 
-      const content = {
-        inline:
-          blocks.length === 0
-            ? normalizeHeapInline(JSONToInlines(editor?.getJSON()) as Inline[])
-            : [],
-        block: blocks,
-      };
+      const data = JSONToInlines(editor?.getJSON());
+      const content = constructStory(data);
 
       const heart: NoteEssay = {
         'han-data': {
@@ -128,7 +123,7 @@ export default function HeapTextInput({
         },
         author: window.our,
         sent: Date.now(),
-        content: storyFromChatStory(content),
+        content,
       };
 
       setDraft(undefined);

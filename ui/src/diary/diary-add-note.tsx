@@ -5,7 +5,6 @@ import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
-import _ from 'lodash';
 import bigInt from 'big-integer';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
@@ -17,8 +16,8 @@ import {
   useNote,
 } from '@/state/channel/channel';
 import { useGroupChannel, useGroup, useRouteGroup } from '@/state/groups';
-import { Block as DiaryBlock, Story } from '@/types/channel';
-import { Inline, JSONContent } from '@/types/content';
+import { constructStory } from '@/types/channel';
+import { JSONContent } from '@/types/content';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { useIsMobile } from '@/logic/useMedia';
@@ -119,29 +118,7 @@ export default function DiaryAddNote() {
     const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
 
-    const isBlock = (c: Inline | DiaryBlock) =>
-      ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
-        (k) => typeof c !== 'string' && k in c
-      );
-    const noteContent: Story = [];
-    let index = 0;
-    data.forEach((c, i) => {
-      if (i < index) {
-        return;
-      }
-
-      if (isBlock(c)) {
-        noteContent.push({ block: c as DiaryBlock });
-        index += 1;
-      } else {
-        const inline = _.takeWhile(
-          _.drop(data, index),
-          (d) => !isBlock(d)
-        ) as Inline[];
-        noteContent.push({ inline });
-        index += inline.length;
-      }
-    });
+    const noteContent = constructStory(data);
 
     try {
       if (id) {

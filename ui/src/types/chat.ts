@@ -1,6 +1,6 @@
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
-import { Note } from './channel';
+import { Note, NoteEssay } from './channel';
 import {
   BlockCode,
   Blockquote,
@@ -81,39 +81,13 @@ export interface ChatStory {
   inline: Inline[];
 }
 
-export interface ChatSeal {
-  id: string;
-  feels: {
-    [ship: Ship]: string;
-  };
-  replied: string[];
-}
-
-export interface ChatMemo {
-  replying: Patda | null;
-  author: Ship;
-  sent: number;
-  content: ChatMessage;
-}
-
 export interface ChatNotice {
   pfix: string;
   sfix: string;
 }
 
-export type ChatMessage = { story: ChatStory } | { notice: ChatNotice };
-
-export interface ChatWrit {
-  seal: ChatSeal;
-  memo: ChatMemo;
-}
-
-export interface ChatWrits {
-  [time: string]: ChatWrit;
-}
-
 interface WritDeltaAdd {
-  add: ChatMemo;
+  add: NoteEssay;
 }
 
 interface WritDeltaDel {
@@ -131,13 +105,13 @@ interface WritDeltaDelFeel {
   'del-feel': string;
 }
 
-interface ChatDiffAddSects {
-  'add-sects': string[];
-}
+// interface ChatDiffAddSects {
+// 'add-sects': string[];
+// }
 
-interface ChatDiffDelSects {
-  'del-sects': string[];
-}
+// interface ChatDiffDelSects {
+// 'del-sects': string[];
+// }
 
 export type WritDelta =
   | WritDeltaAdd
@@ -150,34 +124,30 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
-export interface ChatDiffCreate {
-  create: Chat;
-}
+// export interface ChatDiffCreate {
+// create: Chat;
+// }
 
-export type ChatDiff =
-  | { writs: WritDiff }
-  | ChatDiffCreate
-  | ChatDiffAddSects
-  | ChatDiffDelSects;
+// export type ChatDiff = { writs: WritDiff };
 
-export interface ChatUpdate {
-  time: Patda;
-  diff: ChatDiff;
-}
+// export interface ChatUpdate {
+  // time: Patda;
+  // diff: ChatDiff;
+// }
 
-export interface ChatAction {
-  flag: string;
-  update: ChatUpdate;
-}
+// export interface ChatAction {
+  // flag: string;
+  // update: ChatUpdate;
+// }
 
-export interface Chat {
-  perms: ChatPerm;
-  saga: Saga | null;
-}
+// export interface Chat {
+// perms: ChatPerm;
+// saga: Saga | null;
+// }
 
-export interface Chats {
-  [key: string]: Chat;
-}
+// export interface Chats {
+// [key: string]: Chat;
+// }
 
 /**
  * A Club is the backend terminology for Multi DMs
@@ -203,15 +173,6 @@ export interface DmRsvp {
 }
 
 export function newWritMap(
-  entries?: [BigInteger, ChatWrit][],
-  reverse = false
-): BTree<BigInteger, ChatWrit> {
-  return new BTree<BigInteger, ChatWrit>(entries, (a, b) =>
-    reverse ? b.compare(a) : a.compare(b)
-  );
-}
-
-export function newNoteMap(
   entries?: [BigInteger, Note][],
   reverse = false
 ): BTree<BigInteger, Note> {
@@ -221,13 +182,6 @@ export function newNoteMap(
 }
 
 export interface Pact {
-  writs: BTree<BigInteger, ChatWrit>;
-  index: {
-    [id: string]: BigInteger;
-  };
-}
-
-export interface ChatChannelPact {
   writs: BTree<BigInteger, Note>;
   index: {
     [id: string]: BigInteger;
@@ -328,30 +282,8 @@ export interface ClubAction {
   diff: ClubDiff;
 }
 
-export interface ChatCreate {
-  han?: string;
-  group: string;
-  name: string;
-  title: string;
-  description: string;
-  readers: string[];
-  writers: string[];
-}
-
-export interface ChatPerm {
-  writers: string[];
-  readers: string[];
-  group: string;
-}
-
-export interface ChatJoin {
-  group: string;
-  chan: string;
-}
-
 export interface ChatInit {
   briefs: ChatBriefs;
-  chats: Chats;
   pins: string[];
 }
 
@@ -364,7 +296,7 @@ export interface TalkChatInit extends ChatInit {
 
 export interface ChatScanItem {
   time: string;
-  writ: ChatWrit;
+  writ: Note;
 }
 
 export type ChatScan = ChatScanItem[];

@@ -27,7 +27,7 @@ describe('ChatInput', () => {
     const { asFragment } = render(
       <ChatInput
         whom="~zod/test"
-        sendMessage={() => {
+        sendDm={() => {
           // placeholder;
         }}
         dropZoneId="dropzone"

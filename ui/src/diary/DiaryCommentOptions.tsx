@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useParams } from 'react-router';
+import { useSearchParams } from 'react-router-dom';
 import { useCopy } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useChatPerms } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import FaceIcon from '@/components/icons/FaceIcon';
@@ -15,10 +15,10 @@ import { Han, Quip } from '@/types/channel';
 import {
   useAddQuipFeelMutation,
   useDeleteQuipMutation,
+  usePerms,
 } from '@/state/channel/channel';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import useRequestState from '@/logic/useRequestState';
-import { useSearchParams } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
 
 export default function DiaryCommentOptions({
@@ -46,7 +46,8 @@ export default function DiaryCommentOptions({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
-  const perms = useChatPerms(chFlag);
+  const nest = `diary/${chFlag}`;
+  const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);

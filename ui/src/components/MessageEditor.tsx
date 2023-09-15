@@ -11,20 +11,20 @@ import Italic from '@tiptap/extension-italic';
 import Strike from '@tiptap/extension-strike';
 import Link from '@tiptap/extension-link';
 import Text from '@tiptap/extension-text';
+import Mention from '@tiptap/extension-mention';
 import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
+import { EditorView } from '@tiptap/pm/view';
+import { Slice } from '@tiptap/pm/model';
 import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { refPasteRule, Shortcuts } from '@/logic/tiptap';
 import { useChatBlocks, useChatStore } from '@/chat/useChatStore';
 import { useCalm } from '@/state/settings';
-import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useFileStore } from '@/state/storage';
-import { Cite } from '@/types/chat';
-import { EditorView } from '@tiptap/pm/view';
-import { Slice } from '@tiptap/pm/model';
+import { Cite } from '@/types/channel';
 import MentionPopup from './Mention/MentionPopup';
 
 export interface HandlerParams {
@@ -69,7 +69,7 @@ export function useMessageEditor({
       if (!whom) {
         return;
       }
-      setBlocks(whom, [...chatBlocks, { cite: r }]);
+      setBlocks(whom, [...chatBlocks, r]);
     },
     [chatBlocks, setBlocks, whom]
   );

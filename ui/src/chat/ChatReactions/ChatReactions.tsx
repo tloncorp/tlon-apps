@@ -13,12 +13,12 @@ import {
   useAddQuipFeelMutation,
 } from '@/state/channel/channel';
 import { useIsInThread, useThreadParentId } from '@/logic/utils';
+import { NoteSeal, QuipCork } from '@/types/channel';
 import ChatReaction from './ChatReaction';
-import { ChatSeal } from '../../types/chat';
 
 interface ChatReactionsProps {
   whom: string;
-  seal: ChatSeal;
+  seal: NoteSeal | QuipCork;
   id?: string;
 }
 

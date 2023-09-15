@@ -1,19 +1,16 @@
 import React, { PropsWithChildren, useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import useMessageSort from '@/logic/useMessageSort';
-import { useGroups } from '@/state/groups';
 import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { ChatBrief } from '@/types/chat';
-import { canReadChannel } from '@/logic/channel';
 import {
   usePendingDms,
   useBriefs,
   isGroupBrief,
   usePendingMultiDms,
   usePinned,
-  useChats,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
@@ -45,8 +42,6 @@ export default function MessagesList({
   const pinned = usePinned();
   const { sortMessages } = useMessageSort();
   const briefs = useBriefs();
-  const chats = useChats();
-  const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
   const isMobile = useIsMobile();
   const thresholds = {
@@ -60,20 +55,6 @@ export default function MessagesList({
   const organizedBriefs = useMemo(
     () =>
       sortMessages(briefs).filter(([b]) => {
-        const chat = chats[b];
-        const groupFlag = chat?.perms.group;
-        const group = groups[groupFlag || ''];
-        const vessel = group?.fleet[window.our];
-        const channel = group?.channels[`chat/${b}`];
-
-        if (
-          channel &&
-          vessel &&
-          !canReadChannel(channel, vessel, group?.bloc)
-        ) {
-          return false;
-        }
-
         if (pinned.includes(b)) {
           return false;
         }
@@ -90,13 +71,9 @@ export default function MessagesList({
           return false;
         }
 
-        if (isGroupBrief(b) && !group) {
-          return false;
-        }
-
         return true; // is all
       }),
-    [allPending, briefs, chats, filter, groups, pinned, sortMessages]
+    [allPending, briefs, filter, pinned, sortMessages]
   );
 
   const head = useMemo(

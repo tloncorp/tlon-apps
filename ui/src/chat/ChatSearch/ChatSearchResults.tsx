@@ -3,16 +3,16 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import BTree from 'sorted-btree';
-import { ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatState } from '@/state/chat';
+import { Note } from '@/types/channel';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
 
 interface ChatSearchResultsProps {
   whom: string;
   root: string;
-  scan: BTree<BigInteger, ChatWrit> | null;
+  scan: BTree<BigInteger, Note> | null;
   isLoading: boolean;
   query?: string;
   selected?: number;
@@ -22,7 +22,7 @@ interface ChatSearchResultEntry {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: ChatWrit;
+  writ: Note;
   selected: boolean;
   msgLoad: (time: BigInteger, type: 'click' | 'hover') => void;
 }

@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import { useChatState, useMultiDm, useMultiDmIsPending } from '@/state/chat';
-import ChatWindow from '@/chat/ChatWindow';
 import { useIsMobile } from '@/logic/useMedia';
 import { pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
@@ -24,6 +23,7 @@ import MultiDmHero from './MultiDmHero';
 import DmOptions from './DMOptions';
 import MessageSelector from './MessageSelector';
 import PendingIndicator from './MultiDMPendingIndicator';
+import DmWindow from '@/chat/DmWindow';
 
 function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
   const count = club.team.length;
@@ -184,7 +184,7 @@ export default function MultiDm() {
               <ChatInput
                 key={clubId}
                 whom={clubId}
-                sendMessage={
+                sendDm={
                   isSelecting ? sendDmFromMessageSelector : sendMessage
                 }
                 showReply
@@ -196,7 +196,7 @@ export default function MultiDm() {
         }
       >
         {isAccepted ? (
-          <ChatWindow
+          <DmWindow
             whom={clubId}
             prefixedElement={
               <div className="pt-4 pb-12">

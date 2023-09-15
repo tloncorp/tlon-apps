@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
 import { BigIntOrderedMap } from '@urbit/api';
@@ -13,11 +14,10 @@ export type Nest = string;
 export interface NoteSeal {
   id: string;
   quips: QuipMap | null;
-  feels: {
-    [ship: Ship]: string;
-  };
+  feels: { [ship: Ship]: string };
   quipCount: number;
   quippers: Ship[];
+  lastQuip: string | null;
 }
 
 export interface QuipCork {
@@ -145,18 +145,18 @@ export interface NoteEssay {
   'han-data': HanData;
 }
 
-export type Note = null | {
+export type Note = {
   seal: NoteSeal;
   essay: NoteEssay;
 };
 
 export interface Notes {
-  [time: string]: Note;
+  [time: string]: Note | null;
 }
 
-export type NoteTuple = [string, Note];
+export type NoteTuple = [BigInteger, Note | null];
 
-export type NoteMap = BigIntOrderedMap<Note>;
+export type NoteMap = BTree<BigInteger, Note>;
 
 export interface Quip {
   cork: QuipCork;
@@ -169,7 +169,7 @@ export interface Memo {
   sent: number;
 }
 
-export type QuipMap = BigIntOrderedMap<Quip>;
+export type QuipMap = BTree<BigInteger, Quip>;
 
 export interface Quips {
   [id: string]: Quip;
@@ -503,8 +503,77 @@ export function getIdFromNoteAction(noteAction: NoteAction): string {
   return '';
 }
 
+export const emptyNote: Note = {
+  seal: {
+    id: '',
+    quipCount: 0,
+    quippers: [],
+    feels: {},
+    lastQuip: '',
+    quips: null,
+  },
+  essay: {
+    author: '',
+    content: [],
+    sent: 0,
+    'han-data': { chat: null },
+  },
+};
+
+export const emptyQuip: Quip = {
+  cork: {
+    id: '',
+    feels: {},
+  },
+  memo: {
+    author: '',
+    content: [],
+    sent: 0,
+  },
+};
+
+export function constructStory(data: (Inline | Block)[]): Story {
+  const isBlock = (c: Inline | Block) =>
+    ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
+      (k) => typeof c !== 'string' && k in c
+    );
+  const noteContent: Story = [];
+  let index = 0;
+  data.forEach((c, i) => {
+    if (i < index) {
+      return;
+    }
+
+    if (isBlock(c)) {
+      noteContent.push({ block: c as Block });
+      index += 1;
+    } else {
+      const inline = _.takeWhile(
+        _.drop(data, index),
+        (d) => !isBlock(d)
+      ) as Inline[];
+      noteContent.push({ inline });
+      index += inline.length;
+    }
+  });
+
+  return noteContent;
+}
+
 export function newQuipMap(
-  entries?: [BigInteger, Quip][]
+  entries?: [BigInteger, Quip][],
+  reverse = false
 ): BTree<BigInteger, Quip> {
-  return new BTree<BigInteger, Quip>(entries);
+  return new BTree<BigInteger, Quip>(entries, (a, b) =>
+    reverse ? b.compare(a) : a.compare(b)
+  );
+}
+
+export function newNoteMap(
+  entries?: [BigInteger, Note][],
+  reverse = false
+): BTree<BigInteger, Note> {
+  return new BTree<BigInteger, Note>(entries, (a, b) =>
+    reverse ? b.compare(a) : a.compare(b)
+  );
 }

@@ -22,7 +22,7 @@ import {
   useUserDiaryDisplayMode,
 } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
-import {Note} from '@/types/channel';
+import { Note } from '@/types/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
@@ -79,8 +79,7 @@ function DiaryChannel({ title }: ViewProps) {
         notesOnHost &&
         !Object.entries(notesOnHost).every(
           ([_time, n]) =>
-            n &&
-            Array.from(notes).find(([_t, l]) => l && l.seal.id === n.seal.id)
+            n && notes.toArray().find(([_t, l]) => l && l.seal.id === n.seal.id)
         )
       ) {
         queryClient.refetchQueries({
@@ -108,9 +107,7 @@ function DiaryChannel({ title }: ViewProps) {
       pendingNotes.forEach((id) => {
         if (
           notesOnHost &&
-          Object.entries(notesOnHost).find(
-            ([_t, l]) => l && l.seal.id === id
-          )
+          Object.entries(notesOnHost).find(([_t, l]) => l && l.seal.id === id)
         ) {
           usePendingState.setState((s) => ({
             pendingNotes: s.pendingNotes.filter((n) => n !== id),
@@ -165,7 +162,7 @@ function DiaryChannel({ title }: ViewProps) {
     isMarking,
   });
 
-  const sortedNotes = Array.from(notes).sort(([a], [b]) => {
+  const sortedNotes = notes.toArray().sort(([a], [b]) => {
     if (sortMode === 'arranged') {
       // if only one note is arranged, put it first
       if (

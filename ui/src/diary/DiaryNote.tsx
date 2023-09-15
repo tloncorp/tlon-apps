@@ -9,7 +9,6 @@ import {
   getFlagParts,
   groupQuips,
   pluralize,
-  sampleQuippers,
   setNewDaysForQuips,
 } from '@/logic/utils';
 import {
@@ -85,7 +84,7 @@ export default function DiaryNote({ title }: ViewProps) {
     ) {
       if (notesOnHost && typeof notesOnHost === 'object') {
         const foundNote = Object.keys(notesOnHost).filter((n: string) => {
-          const noteOnHost: Note = (notesOnHost as Notes)[n];
+          const noteOnHost: Note | null = (notesOnHost as Notes)[n];
           if (noteOnHost) {
             return noteOnHost.seal.id === noteId;
           }
@@ -143,7 +142,7 @@ export default function DiaryNote({ title }: ViewProps) {
   }
 
   const { quips } = note.seal;
-  const quipArray = quips ? Array.from(quips).reverse() : []; // natural reading order
+  const quipArray = quips ? quips.toArray().reverse() : []; // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { title: noteTitle, image } = getHanDataFromEssay(note.essay);
   const groupedQuips = setNewDaysForQuips(
@@ -181,9 +180,7 @@ export default function DiaryNote({ title }: ViewProps) {
         <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
           <DiaryNoteHeadline
             quipCount={note.seal.quips ? note.seal.quips.size : 0}
-            quippers={sampleQuippers(
-              note.seal.quips ? note.seal.quips : new BigIntOrderedMap<Quip>()
-            )}
+            quippers={note.seal.quippers}
             essay={note.essay}
             time={bigInt(noteId)}
           />

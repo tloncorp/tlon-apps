@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { format, isToday } from 'date-fns';
 import { daToUnix, udToDec } from '@urbit/api';
-import bigInt, { BigInteger } from 'big-integer';
+import bigInt from 'big-integer';
 import { VirtuosoHandle } from 'react-virtuoso';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
@@ -10,7 +10,6 @@ import {
   useChatState,
   useGetFirstUnreadID,
   useIsDmOrMultiDm,
-  useWrit,
 } from '@/state/chat';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
@@ -25,18 +24,8 @@ export default function ChatUnreadAlerts({
   whom,
 }: ChatUnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
-  const maybeWrit = useWrit(whom, chatInfo?.unread?.brief['read-id'] || '');
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: markChatRead } = useMarkReadMutation();
-  let replyToId: BigInteger = bigInt(0);
-  if (maybeWrit) {
-    const [_, writ] = maybeWrit;
-    const replyTo = writ.memo.replying || '';
-    replyToId =
-      replyTo !== ''
-        ? bigInt(replyTo.split('/')[1].replaceAll('.', ''))
-        : bigInt(0);
-  }
   const markRead = useCallback(() => {
     if (isDMOrMultiDM) {
       useChatState.getState().markDmRead(whom);
@@ -54,19 +43,6 @@ export default function ChatUnreadAlerts({
       return;
     }
 
-    if (replyToId !== bigInt(0)) {
-      const idx = keys.findIndex((k) => k.greaterOrEquals(replyToId));
-      if (idx === -1) {
-        return;
-      }
-
-      scrollerRef.current.scrollToIndex({
-        index: idx,
-        align: 'start',
-        behavior: 'auto',
-      });
-    }
-
     if (!firstUnreadID) {
       return;
     }
@@ -81,7 +57,7 @@ export default function ChatUnreadAlerts({
       align: 'start',
       behavior: 'auto',
     });
-  }, [firstUnreadID, keys, scrollerRef, replyToId]);
+  }, [firstUnreadID, keys, scrollerRef]);
 
   if (!chatInfo.unread || chatInfo.unread.seen) {
     return null;

@@ -68,13 +68,7 @@ export default function GroupRoles({ title }: { title: string }) {
           .flat(),
         ...Object.entries(group.channels)
           .map((c) => {
-            const [app, channelFlag] = nestToFlag(c[0]);
-
-            const chState =
-              app === 'chat' ? useChatState.getState().chats : shelf;
-
-            const channel =
-              app === 'chat' ? chState[channelFlag] : chState[c[0]];
+            const channel = shelf[c[0]];
 
             return channel?.perms.writers || [];
           })

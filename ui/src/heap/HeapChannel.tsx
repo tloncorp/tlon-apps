@@ -96,8 +96,8 @@ function HeapChannel({ title }: ViewProps) {
     [displayMode, navigateToDetail]
   );
 
-  const empty = useMemo(() => Array.from(notes).length === 0, [notes]);
-  const sortedNotes = Array.from(notes).sort(([a], [b]) => {
+  const empty = useMemo(() => notes.toArray().length === 0, [notes]);
+  const sortedNotes = notes.toArray().sort(([a], [b]) => {
     if (sortMode === 'time') {
       return b.compare(a);
     }

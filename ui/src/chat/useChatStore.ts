@@ -1,11 +1,12 @@
-import { ChatBlock, ChatBrief, ChatBriefs } from '@/types/chat';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
+import { Block } from '@/types/channel';
+import { ChatBrief, ChatBriefs } from '@/types/chat';
 
 export interface ChatInfo {
   replying: string | null;
-  blocks: ChatBlock[];
+  blocks: Block[];
   unread?: {
     readTimeout: number;
     seen: boolean;
@@ -23,7 +24,7 @@ export interface ChatStore {
   atBottom: boolean;
   current: string;
   reply: (flag: string, msgId: string | null) => void;
-  setBlocks: (whom: string, blocks: ChatBlock[]) => void;
+  setBlocks: (whom: string, blocks: Block[]) => void;
   setDialogs: (
     whom: string,
     writId: string,
@@ -238,11 +239,11 @@ export function useChatInfo(flag: string): ChatInfo {
   return useChatStore(useCallback((s) => s.chats[flag] || defaultInfo, [flag]));
 }
 
-export function fetchChatBlocks(whom: string): ChatBlock[] {
+export function fetchChatBlocks(whom: string): Block[] {
   return useChatStore.getState().chats[whom]?.blocks || [];
 }
 
-export function useChatBlocks(whom?: string): ChatBlock[] {
+export function useChatBlocks(whom?: string): Block[] {
   return useChatStore(
     useCallback((s) => (whom ? s.chats[whom]?.blocks || [] : []), [whom])
   );

@@ -1,22 +1,21 @@
 import cn from 'classnames';
-import { VirtuosoHandle } from 'react-virtuoso';
-import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
-import X16Icon from '@/components/icons/X16Icon';
-import useDebounce from '@/logic/useDebounce';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { isTalk } from '@/logic/utils';
 import React, {
   ChangeEvent,
   KeyboardEvent,
   PropsWithChildren,
   useCallback,
 } from 'react';
+import { VirtuosoHandle } from 'react-virtuoso';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
-import { disableDefault } from '@/logic/utils';
-import { useChatSearch } from '@/state/chat';
 import bigInt from 'big-integer';
+import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
+import X16Icon from '@/components/icons/X16Icon';
+import useDebounce from '@/logic/useDebounce';
+import useMedia, { useIsMobile } from '@/logic/useMedia';
+import { disableDefault, isTalk } from '@/logic/utils';
+import { useChatSearch } from '@/state/chat';
 import ChatSearchResults from './ChatSearchResults';
 
 interface RouteParams {
@@ -75,11 +74,8 @@ export default function ChatSearch({
 
       if (event.key === 'Enter' && selected.index >= 0) {
         const { time } = selected;
-        const writ = scan.get(time);
         const scrollTo = `?msg=${time.toString()}`;
-        const to = writ?.memo.replying
-          ? `${root}/message/${writ.memo.replying}${scrollTo}`
-          : `${root}${scrollTo}`;
+        const to = `${root}${scrollTo}`;
         navigate(to);
       }
 
