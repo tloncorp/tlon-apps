@@ -11,7 +11,7 @@ import HeapDetailCommentField from './HeapDetailCommentField';
 
 interface HeapDetailCommentsProps {
   time: string;
-  comments?: QuipMap;
+  comments: QuipMap;
   loading: boolean;
 }
 
@@ -32,7 +32,7 @@ export default function HeapDetailComments({
   const groupedQuips = !comments
     ? []
     : setNewDaysForQuips(
-        groupQuips(time, Array.from(comments).reverse(), brief).sort(
+        groupQuips(time, comments.toArray(), brief).sort(
           ([a], [b]) => {
             if (sort === 'asc') {
               return a.localeCompare(b);

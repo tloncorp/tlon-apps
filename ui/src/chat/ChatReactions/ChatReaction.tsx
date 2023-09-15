@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { ChatSeal } from '@/types/chat';
 import { useChatState, useIsDmOrMultiDm } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
@@ -16,10 +15,11 @@ import {
   useDeleteQuipFeelMutation,
 } from '@/state/channel/channel';
 import { useIsInThread, useThreadParentId } from '@/logic/utils';
+import { NoteSeal, QuipCork } from '@/types/channel';
 
 interface ChatReactionProps {
   whom: string;
-  seal: ChatSeal;
+  seal: NoteSeal | QuipCork;
   feel: string;
   ships: string[];
 }

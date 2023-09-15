@@ -6,8 +6,8 @@ import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
 import { useChatState, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
-import { ChatMemo } from '@/types/chat';
 import { createStorageKey, newUv } from './utils';
+import { NoteEssay } from '@/types/channel';
 
 export default function useMessageSelector() {
   const navigate = useNavigate();
@@ -86,12 +86,12 @@ export default function useMessageSelector() {
   );
 
   const sendDm = useCallback(
-    async (whom: string, memo: ChatMemo) => {
+    async (whom: string, essay: NoteEssay) => {
       if (isMultiDm && shipValues && whom !== existingMultiDm) {
         await createClub(whom, shipValues);
       }
 
-      await useChatState.getState().sendMessage(whom, memo);
+      useChatState.getState().sendMessage(whom, essay);
       setShips([]);
       navigate(`/dm/${isMultiDm ? whom : whom}`);
     },

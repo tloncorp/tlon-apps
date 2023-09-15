@@ -19,7 +19,7 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import getHanDataFromEssay from '@/logic/getHanData';
-import { Note, Quip } from '@/types/channel';
+import { newQuipMap, Note, Quip } from '@/types/channel';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -46,8 +46,8 @@ export default function HeapDetail({ title }: ViewProps) {
     nest,
     idCurio || ''
   );
-  const outline = location.state?.initialCurio as Note | undefined;
-  const essay = note?.essay || outline;
+  const initialNote = location.state?.initialCurio as Note | undefined;
+  const essay = note?.essay || initialNote?.essay;
 
   const curioHref = (id?: bigInt.BigInteger) => {
     if (!id) {
@@ -65,7 +65,7 @@ export default function HeapDetail({ title }: ViewProps) {
   });
 
   // we have no data at all just show spinner
-  if (!essay) {
+  if (!essay && isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <LoadingSpinner />
@@ -136,7 +136,7 @@ export default function HeapDetail({ title }: ViewProps) {
           {idCurio && (
             <HeapDetailComments
               time={idCurio}
-              comments={note?.seal.quips || new BigIntOrderedMap<Quip>()}
+              comments={note.seal.quips ?? newQuipMap()}
               loading={isLoading}
             />
           )}

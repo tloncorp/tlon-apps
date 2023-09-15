@@ -10,46 +10,35 @@ import bigInt from 'big-integer';
 import { useMatch, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
-import {
-  useChatInitialized,
-  useChatState,
-  useMessagesForChat,
-  useWritWindow,
-} from '@/state/chat';
+// import {
+// useChatInitialized,
+// useChatState,
+// useMessagesForChat,
+// useWritWindow,
+// } from '@/state/chat';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useRouteGroup } from '@/state/groups';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
+import { useInfiniteNotes } from '@/state/channel/channel';
 
 interface ChatWindowProps {
   whom: string;
   prefixedElement?: ReactNode;
 }
 
-function getScrollTo(
-  whom: string,
-  thread: ReturnType<typeof useMatch>,
-  msg: string | null
-) {
-  if (thread) {
-    const { idShip, idTime } = thread.params;
-    return useChatState.getState().getTime(whom, `${idShip}/${idTime}`);
-  }
-
+function getScrollTo(msg: string | null) {
   return msg ? bigInt(msg) : undefined;
 }
 
 export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
-  const flag = useRouteGroup();
-  const thread = useMatch(
-    `/groups/${flag}/channels/chat/${whom}/message/:idShip/:idTime`
-  );
   const [searchParams, setSearchParams] = useSearchParams();
-  const scrollTo = getScrollTo(whom, thread, searchParams.get('msg'));
-  const initialized = useChatInitialized(whom);
-  const messages = useMessagesForChat(whom, scrollTo);
-  const window = useWritWindow(whom);
+  const scrollTo = getScrollTo(searchParams.get('msg'));
+  // const initialized = useChatInitialized(whom);
+  // const messages = useMessagesForChat(whom, scrollTo);
+  const { notes: messages, isLoading } = useInfiniteNotes(`chat/${whom}`);
+  // const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
 
@@ -79,7 +68,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     [readTimeout, whom]
   );
 
-  if (!initialized) {
+  if (isLoading) {
     return (
       <div className="h-full overflow-hidden">
         <ChatScrollerPlaceholder count={30} />

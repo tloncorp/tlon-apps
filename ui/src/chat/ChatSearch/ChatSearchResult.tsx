@@ -3,7 +3,7 @@ import { BigInteger } from 'big-integer';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { daToUnix } from '@urbit/api';
-import { ChatWrit } from '@/types/chat';
+import { Note } from '@/types/channel';
 import Author from '../ChatMessage/Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
@@ -12,7 +12,7 @@ export interface ChatSearchResultProps {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: ChatWrit;
+  writ: Note;
   index: number;
   selected: boolean;
   msgLoad: (time: BigInteger, type: 'click' | 'hover') => void;
@@ -29,12 +29,10 @@ function ChatSearchResult({
   msgLoad,
   isScrolling,
 }: ChatSearchResultProps) {
-  const { seal, memo } = writ;
+  const { seal, essay } = writ;
   const unix = new Date(daToUnix(time));
   const scrollTo = `?msg=${time.toString()}`;
-  const to = memo.replying
-    ? `${root}/message/${memo.replying}${scrollTo}`
-    : `${root}${scrollTo}`;
+  const to = `${root}${scrollTo}`;
 
   return (
     <Link
@@ -50,11 +48,11 @@ function ChatSearchResult({
       aria-posinset={index + 1}
       aria-selected={selected}
     >
-      <Author ship={memo.author} date={unix} />
+      <Author ship={essay.author} date={unix} />
       <div className="group-one wrap-anywhere relative z-0 flex w-full flex-col space-y-2 py-1 pl-9">
-        {'story' in memo.content ? (
+        {'story' in essay.content ? (
           <ChatContent
-            story={memo.content.story}
+            story={essay.content}
             isScrolling={isScrolling}
             writId={seal.id}
           />

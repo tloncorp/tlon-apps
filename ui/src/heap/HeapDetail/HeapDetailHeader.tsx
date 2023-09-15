@@ -31,14 +31,18 @@ export default function HeapDetailHeader({
   groupFlag,
 }: HeapDetailHeaderProps) {
   const isMobile = useIsMobile();
+  const { onEdit, onCopy, didCopy } = useCurioActions({ nest, time: idCurio });
+  const isAdmin = useAmAdmin(groupFlag);
 
+  if (!essay) {
+    return null;
+  }
   const content = chatStoryFromStory(essay.content);
   const curioContent =
     (isLink(content.inline[0])
       ? content.inline[0].link.href
       : (content.inline[0] || '').toString()) || '';
   const { description } = getHeapContentType(curioContent);
-  const isAdmin = useAmAdmin(groupFlag);
   const canEdit = isAdmin || window.our === essay.author;
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
@@ -47,7 +51,6 @@ export default function HeapDetailHeader({
   const isImageLink = isImageUrl(curioContent);
   const isCite = content.block.length > 0 && 'cite' in content.block[0];
   const { title: curioTitle } = getHanDataFromEssay(essay);
-  const { onEdit, onCopy, didCopy } = useCurioActions({ nest, time: idCurio });
 
   function truncate({ str, n }: { str: string; n: number }) {
     return str.length > n ? `${str.slice(0, n - 1)}…` : str;

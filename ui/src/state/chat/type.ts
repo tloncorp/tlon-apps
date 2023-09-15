@@ -1,22 +1,18 @@
 import bigInt, { BigInteger } from 'big-integer';
 import {
   ChatWhom,
-  ChatMemo,
   Pact,
   ChatBriefs,
   ChatStory,
   Club,
   Hive,
-  ChatCreate,
-  ChatWrit,
   Clubs,
-  Chats,
   ChatInit,
   TalkChatInit,
-  ChatChannelPact,
 } from '../../types/chat';
 import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
+import { Note, NoteEssay } from '@/types/channel';
 
 export interface WritWindow {
   oldest: bigInt.BigInteger;
@@ -34,7 +30,6 @@ export interface WritWindows {
 export interface ChatState {
   // set: (fn: (sta: BasedChatState) => void) => void;
   batchSet: (fn: (sta: BasedChatState) => void) => void;
-  chats: Chats;
   multiDms: Clubs;
   dms: string[];
   drafts: {
@@ -50,17 +45,14 @@ export interface ChatState {
   pacts: {
     [whom: ChatWhom]: Pact;
   };
-  chatChannelPacts: {
-    [whom: ChatWhom]: ChatChannelPact;
-  };
   writWindows: {
     [whom: ChatWhom]: WritWindows;
   };
   loadedRefs: {
-    [path: string]: ChatWrit;
+    [path: string]: Note;
   };
   loadedGraphRefs: {
-    [path: string]: ChatWrit | 'loading' | 'error';
+    [path: string]: Note | 'loading' | 'error';
   };
   pendingDms: string[];
   dmBriefs: ChatBriefs;
@@ -84,11 +76,10 @@ export interface ChatState {
   ) => Promise<void>;
   archiveDm: (ship: string) => Promise<void>;
   unarchiveDm: (ship: string) => Promise<void>;
-  sendMessage: (whom: string, memo: ChatMemo) => void;
+  sendMessage: (whom: string, essay: NoteEssay) => void;
   delDm: (flag: string, time: string) => void;
   addFeelToDm: (whom: string, id: string, feel: string) => Promise<void>;
   delFeelToDm: (whom: string, id: string) => Promise<void>;
-  create: (req: ChatCreate) => Promise<void>;
   createMultiDm: (
     id: string,
     hive: string[] // array of ships

@@ -10,8 +10,8 @@ import React, {
   useState,
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import * as Popover from '@radix-ui/react-popover';
 import { usePact } from '@/state/chat';
-import { ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, {
   HandlerParams,
   useMessageEditor,
@@ -24,15 +24,8 @@ import {
   useChatInfo,
   useChatStore,
 } from '@/chat/useChatStore';
-import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  normalizeInline,
-  JSONToInlines,
-  makeMention,
-  inlinesToJSON,
-} from '@/logic/tiptap';
-import { Inline } from '@/types/content';
+import { JSONToInlines, makeMention, inlinesToJSON } from '@/logic/tiptap';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 import { useFileStore, useUploader } from '@/state/storage';
@@ -45,12 +38,12 @@ import {
   createStorageKey,
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import * as Popover from '@radix-ui/react-popover';
 import { useGroupFlag } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { Nest, NoteEssay, Cite, constructStory, Story } from '@/types/channel';
 
 interface ChatInputProps {
   whom: string;
@@ -59,7 +52,25 @@ interface ChatInputProps {
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
-  sendMessage: (whom: string, memo: ChatMemo) => void;
+  sendDm?: (whom: string, essay: NoteEssay) => void;
+  sendChatMessage?: ({
+    initialTime,
+    nest,
+    essay,
+  }: {
+    initialTime: string;
+    nest: Nest;
+    essay: NoteEssay;
+  }) => void;
+  sendQuip?: ({
+    nest,
+    noteId,
+    content,
+  }: {
+    nest: Nest;
+    noteId: string;
+    content: Story;
+  }) => void;
   inThread?: boolean;
   dropZoneId: string;
 }
@@ -101,7 +112,9 @@ export default function ChatInput({
   className = '',
   showReply = false,
   sendDisabled = false,
-  sendMessage,
+  sendDm,
+  sendChatMessage,
+  sendQuip,
   inThread = false,
   dropZoneId,
 }: ChatInputProps) {
@@ -123,15 +136,14 @@ export default function ChatInput({
     () => searchParams.get('chat_reply'),
     [searchParams]
   );
-  const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
+  const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
   const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
-  // const replyingWrit = reply && pact.writs.get(pact.index[reply]);
   const replyingWrit = chatReplyId && pact.writs.get(pact.index[chatReplyId]);
-  const ship = replyingWrit && replyingWrit.memo.author;
+  const ship = replyingWrit && replyingWrit.essay.author;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
@@ -273,28 +285,28 @@ export default function ChatInput({
         return;
       }
 
-      const data = normalizeInline(
-        JSONToInlines(editor?.getJSON()) as Inline[]
-      );
+      const data = JSONToInlines(editor?.getJSON());
+      if (blocks.length > 0) {
+        data.push(...blocks);
+      }
+
+      if (replyCite) {
+        data.unshift(replyCite);
+      }
+
+      const noteContent = constructStory(data);
       // Checking for this prevents an extra <br>
       // from being added to the end of the message
-      const dataIsJustBreak =
-        data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
+      // const dataIsJustBreak =
+      // data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
 
-      const memo: ChatMemo = {
-        replying: reply,
+      const essay: NoteEssay = {
+        'han-data': {
+          chat: null,
+        },
         author: `~${window.ship || 'zod'}`,
         sent: 0, // wait until ID is created so we can share time
-        content: {
-          story: {
-            inline: !dataIsJustBreak
-              ? Array.isArray(data)
-                ? data
-                : [data]
-              : [],
-            block: [...blocks, ...(replyCite ? [replyCite] : [])],
-          },
-        },
+        content: noteContent,
       };
 
       const text = editor.getText();
@@ -309,17 +321,19 @@ export default function ChatInput({
         const img = new Image();
         img.src = url;
 
-        img.onload = () => {
-          const { width, height } = img;
+        if (sendDm) {
+          img.onload = () => {
+            const { width, height } = img;
 
-          sendMessage(whom, {
-            ...memo,
-            sent: Date.now(),
-            content: {
-              story: {
-                inline: [],
-                block: [
-                  {
+            sendDm(whom, {
+              ...essay,
+              'han-data': {
+                chat: null,
+              },
+              sent: Date.now(),
+              content: [
+                {
+                  block: {
                     image: {
                       src: url,
                       alt: name,
@@ -327,17 +341,17 @@ export default function ChatInput({
                       height,
                     },
                   },
-                ],
-              },
-            },
-          });
-        };
+                },
+              ],
+            });
+          };
 
-        img.onerror = () => {
-          sendMessage(whom, memo);
-        };
-      } else {
-        sendMessage(whom, memo);
+          img.onerror = () => {
+            sendDm(whom, essay);
+          };
+        }
+      } else if (sendDm) {
+        sendDm(whom, essay);
       }
       captureGroupsAnalyticsEvent({
         name: reply ? 'comment_item' : 'post_item',
@@ -361,7 +375,7 @@ export default function ChatInput({
       id,
       setDraft,
       clearAttachments,
-      sendMessage,
+      sendDm,
       sendDisabled,
       replyCite,
       reply,
@@ -427,7 +441,7 @@ export default function ChatInput({
       const path = `/1/chan/chat/${id}/msg/${chatReplyId}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
-        setReplyCite({ cite });
+        setReplyCite(cite);
       }
     }
   }, [
@@ -459,7 +473,7 @@ export default function ChatInput({
           if (!id) {
             return;
           }
-          setBlocks(id, [{ cite }]);
+          setBlocks(id, [cite]);
           messageEditor.commands.deleteRange({
             from: editorText.indexOf(path),
             to: editorText.indexOf(path) + path.length + 1,

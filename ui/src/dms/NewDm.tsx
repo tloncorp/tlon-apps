@@ -24,7 +24,7 @@ export default function NewDM() {
             whom={whom}
             showReply
             sendDisabled={!validShips}
-            sendMessage={sendDm}
+            sendDm={sendDm}
             dropZoneId={dropZoneId}
           />
         </div>

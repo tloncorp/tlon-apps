@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
+import { useChatState, useWrit } from '@/state/chat';
 import {
   useGroupChannel,
   useRouteGroup,
@@ -17,7 +17,6 @@ import {
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
-import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { whomIsFlag } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
 import { useIsMobile } from '@/logic/useMedia';
@@ -26,7 +25,13 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
+import {
+  useAddQuipMutation,
+  usePerms,
+  useQuips,
+} from '@/state/channel/channel';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
+import QuipScroller from '../QuipScroller/QuipScroller';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime, idShip } = useParams<{
@@ -42,9 +47,10 @@ export default function ChatThread() {
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
-  const whom = flag || ship || '';
+  const nest = `chat/${flag}`;
+  // const whom = flag || ship || '';
   const groupFlag = useRouteGroup();
-  const { sendMessage } = useChatState.getState();
+  const { mutate: sendMessage } = useAddQuipMutation();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const channel = useGroupChannel(groupFlag, `chat/${flag}`)!;
@@ -52,33 +58,26 @@ export default function ChatThread() {
   const id = `${idShip!}/${idTime!}`;
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const maybeWrit = useWrit(whom, id);
-  const replies = useReplies(whom, id);
+  // const maybeWrit = useWrit(whom, id);
+  const replies = useQuips(nest, id);
   const navigate = useNavigate();
-  const [time, writ] = maybeWrit ?? [null, null];
+  // const [time, writ] = maybeWrit ?? [null, null];
   const threadRef = useRef<HTMLDivElement | null>(null);
-  const perms = useChatPerms(flag);
+  const perms = usePerms(flag);
   const vessel = useVessel(groupFlag, window.our);
-  const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
-  const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
-  const threadTitle = whomIsFlag(whom)
-    ? channel?.meta?.title || ''
-    : isClub
-    ? club?.meta.title || ship
-    : ship;
+  // const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
+  // const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
+  const threadTitle = channel?.meta?.title;
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
 
-  const returnURL = useCallback(() => {
-    if (!time || !writ) return '#';
-
-    if (location.pathname.includes('groups')) {
-      return `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${time.toString()}`;
-    }
-    return `/dm/${ship}?msg=${time.toString()}`;
-  }, [chName, chShip, location, name, ship, time, writ]);
+  const returnURL = useCallback(
+    () =>
+      `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
+    [chName, chShip, name, ship, idTime]
+  );
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -91,28 +90,27 @@ export default function ChatThread() {
 
   useEventListener('keydown', onEscape, threadRef);
 
-  const initializeChannel = useCallback(async () => {
-    setLoading(true);
-    if (!idTime) return;
-    await useChatState
-      .getState()
-      .fetchMessagesAround(
-        `${chShip}/${chName}`,
-        '50',
-        bigInt(udToDec(idTime))
-      );
-    setLoading(false);
-  }, [chName, chShip, idTime]);
+  // const initializeChannel = useCallback(async () => {
+    // setLoading(true);
+    // if (!idTime) return;
+    // await useChatState
+      // .getState()
+      // .fetchMessagesAround(
+        // `${chShip}/${chName}`,
+        // '50',
+        // bigInt(udToDec(idTime))
+      // );
+    // setLoading(false);
+  // }, [chName, chShip, idTime]);
 
-  useEffect(() => {
-    if (!time || !writ) {
-      initializeChannel();
-    }
-  }, [initializeChannel, time, writ]);
+  // useEffect(() => {
+    // if (!time || !writ) {
+      // initializeChannel();
+    // }
+  // }, [initializeChannel, time, writ]);
 
-  if (!time || !writ) return null;
+  // if (!time || !writ) return null;
 
-  const thread = replies.with(time, writ);
   const BackButton = isMobile ? Link : 'div';
 
   return (
@@ -178,10 +176,10 @@ export default function ChatThread() {
         {loading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
-          <ChatScroller
+          <QuipScroller
             key={idTime}
-            messages={thread}
-            whom={whom}
+            messages={replies}
+            whom={flag}
             scrollerRef={scrollerRef}
             replying
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
@@ -197,9 +195,9 @@ export default function ChatThread() {
       >
         {compatible && canWrite ? (
           <ChatInput
-            whom={whom}
+            whom={flag}
             replying={id}
-            sendMessage={sendMessage}
+            sendQuip={sendMessage}
             inThread
             autoFocus
             dropZoneId={dropZoneId}

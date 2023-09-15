@@ -9,7 +9,6 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
-import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import { useCreateMutation, useShelf } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
@@ -68,15 +67,15 @@ export default function NewChannelForm() {
       const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
       const existingChannel = () => {
         if (type === 'chat') {
-          return useChatState.getState().chats[tempNewChannelFlag];
+          return shelf[`chat/${tempNewChannelFlag}`];
         }
 
         if (type === 'diary') {
-          return shelf[tempNewChannelFlag];
+          return shelf[`diary/${tempNewChannelFlag}`];
         }
 
         if (type === 'heap') {
-          return shelf[tempNewChannelFlag];
+          return shelf[`heap/ ${tempNewChannelFlag}`];
         }
 
         return false;
@@ -93,15 +92,8 @@ export default function NewChannelForm() {
         nextChannel.zone = section;
       }
 
-      const creator =
-        type === 'chat'
-          ? useChatState.getState().create
-          : type === 'heap'
-          ? createChannel
-          : createChannel;
-
       try {
-        await creator({
+        await createChannel({
           han: type,
           group: groupFlag,
           name: channelName,

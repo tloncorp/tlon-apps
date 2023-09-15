@@ -26,6 +26,7 @@ import { IChatScroller } from './IChatScroller';
 import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
 import { useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
+import { emptyNote } from '@/types/channel';
 
 interface ChatScrollerItemProps extends ChatMessageProps {
   index: bigInt.BigInteger;
@@ -35,8 +36,20 @@ interface ChatScrollerItemProps extends ChatMessageProps {
 const ChatScrollerItem = React.forwardRef<
   HTMLDivElement,
   ChatScrollerItemProps
->(({ index, writ, prefixedElement, ...props }, ref) => {
-  const isNotice = writ ? 'notice' in writ.memo.content : false;
+>(({ index, writ = emptyNote, prefixedElement, ...props }, ref) => {
+  if (!writ) {
+    return null;
+  }
+
+  if (
+    !('chat' in writ.essay['han-data']) ||
+    writ.essay['han-data'].chat === null
+  ) {
+    return null;
+  }
+
+  const isNotice = !!('notice' in writ.essay['han-data'].chat);
+
   if (isNotice) {
     return (
       <>
@@ -135,7 +148,7 @@ export default function ChatScroller({
         if (replying) {
           return true;
         }
-        return messages.get(k)?.memo.replying === null;
+        return messages.get(k)?.seal.quipCount === 0;
       });
 
       const ks: bigInt.BigInteger[] = Array.from(messagesWithoutReplies.keys());
@@ -143,12 +156,30 @@ export default function ChatScroller({
       const es: ChatScrollerItemProps[] = messagesWithoutReplies
         .toArray()
         .map<ChatScrollerItemProps>(([index, writ]) => {
+          if (!writ) {
+            return {
+              index,
+              writ: emptyNote,
+              hideReplies: replying,
+              time: index,
+              newAuthor: false,
+              newDay: false,
+              isLast: false,
+              isLinked: false,
+              isScrolling,
+              prefixedElement: index.eq(min) ? prefixedElement : undefined,
+              whom,
+            };
+          }
+
           const keyIdx = ks.findIndex((idx) => idx.eq(index));
           const lastWritKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
           const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
           const newAuthor = lastWrit
-            ? writ.memo.author !== lastWrit.memo.author ||
-              'notice' in lastWrit.memo.content
+            ? writ.essay.author !== lastWrit.essay.author ||
+              ('chat' in writ.essay['han-data'] &&
+                !!writ.essay['han-data'].chat &&
+                !!('notice' in writ.essay['han-data'].chat))
             : true;
           const writDay = new Date(daToUnix(index));
           const lastWritDay = lastWritKey

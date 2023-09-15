@@ -1,7 +1,9 @@
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
-import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
+import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { useEffect, useMemo, useRef } from 'react';
+import { Poke } from '@urbit/http-api';
+import create from 'zustand';
 import {
   QueryClient,
   useInfiniteQuery,
@@ -33,6 +35,9 @@ import {
   Nest,
   NoteTuple,
   NoteMap,
+  newNoteMap,
+  newQuipMap,
+  QuipMap,
 } from '@/types/channel';
 import api from '@/api';
 import { checkNest, nestToFlag, restoreMap } from '@/logic/utils';
@@ -40,8 +45,6 @@ import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { Poke } from '@urbit/http-api';
-import create from 'zustand';
 
 interface NoteSealInCache {
   id: string;
@@ -125,7 +128,7 @@ export function useIsNotePending(noteId: string) {
 
 export function useNotes(nest: Nest) {
   const [han, flag] = nestToFlag(nest);
-  const { data, ...rest } = useReactQuerySubscription({
+  const { data, ...rest } = useReactQuerySubscription<Notes>({
     queryKey: [han, 'notes', flag],
     app: 'channels',
     path: `/${nest}/ui`,
@@ -133,26 +136,22 @@ export function useNotes(nest: Nest) {
     priority: 2,
   });
 
-  let notesMap = restoreMap<Note>(data);
-
-  if (data === undefined || Object.entries(data as object).length === 0) {
+  if (data === undefined || Object.entries(data).length === 0) {
     return {
-      notes: notesMap as BigIntOrderedMap<Note>,
+      notes: newNoteMap(),
       ...rest,
     };
   }
 
-  const diff = Object.entries(data as object).map(([k, v]) => ({
-    tim: bigInt(udToDec(k)),
-    note: v as Note,
-  }));
+  const diff: [BigInteger, Note][] = Object.entries(data).map(([k, v]) => [
+    bigInt(udToDec(k)),
+    v as Note,
+  ]);
 
-  diff.forEach(({ tim, note }) => {
-    notesMap = notesMap.set(tim, note);
-  });
+  const notesMap = newNoteMap(diff);
 
   return {
-    notes: notesMap as BigIntOrderedMap<Note>,
+    notes: notesMap as NoteMap,
     ...rest,
   };
 }
@@ -237,28 +236,18 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   return rest.isLoading;
 }
 
-function generateNoteMap(curios: NoteTuple[]): NoteMap {
-  let curioMap = restoreMap<Note>({});
-  curios
-    .map(([k, curio]) => ({ tim: bigInt(udToDec(k)), curio }))
-    .forEach(({ tim, curio }) => {
-      curioMap = curioMap.set(tim, curio);
-    });
-
-  return curioMap;
-}
-
 function formatNoteResponse(notes: Notes): NoteTuple[] {
-  return Object.entries(notes).sort((a, b) => {
-    const aTime = bigInt(udToDec(a[0]));
-    const bTime = bigInt(udToDec(b[0]));
-    return bTime.compare(aTime);
-  });
+  return Object.entries(notes)
+    .sort((a, b) => {
+      const aTime = bigInt(udToDec(a[0]));
+      const bTime = bigInt(udToDec(b[0]));
+      return bTime.compare(aTime);
+    })
+    .map(([k, v]) => [bigInt(udToDec(k)), v] as NoteTuple);
 }
 
 export function useInfiniteNotes(nest: Nest) {
   const queryClient = useQueryClient();
-  const def = useMemo(() => new BigIntOrderedMap<Note>(), []);
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'notes', flag, 'infinite'], [han, flag]);
 
@@ -283,7 +272,9 @@ export function useInfiniteNotes(nest: Nest) {
     });
   }, [nest, invalidate]);
 
-  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery<
+    NoteTuple[]
+  >({
     queryKey,
     queryFn: async ({ pageParam }) => {
       const path = pageParam
@@ -302,13 +293,24 @@ export function useInfiniteNotes(nest: Nest) {
     retryOnMount: true,
   });
 
-  const notes = useMemo(
-    () => generateNoteMap(data?.pages.flat() || []),
-    [data]
-  );
+  if (data === undefined || data.pages.length === 0) {
+    return {
+      notes: newNoteMap(),
+      fetchNextPage,
+      hasNextPage,
+      isLoading,
+    };
+  }
+
+  const diff: [BigInteger, Note][] = data.pages
+    .flat()
+    .map(([k, v]) => [k, v as Note]);
+
+
+  const notesMap = newNoteMap(diff);
 
   return {
-    notes: data ? notes : def,
+    notes: notesMap as NoteMap,
     fetchNextPage,
     hasNextPage,
     isLoading,
@@ -363,13 +365,15 @@ export function useOrderedNotes(
   const queryClient = useQueryClient();
   const { notes } = useInfiniteNotes(nest);
 
-  const sortedOutlines = Array.from(notes);
+  const sortedOutlines = notes.toArray();
 
   sortedOutlines.sort(([a], [b]) => b.compare(a));
 
   const noteId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
-  const hasNext = notes.size > 0 && noteId.lt(notes.peekLargest()[0]);
-  const hasPrev = notes.size > 0 && noteId.gt(notes.peekSmallest()[0]);
+  const newest = notes.maxKey();
+  const oldest = notes.minKey();
+  const hasNext = notes.size > 0 && newest && noteId.lt(newest);
+  const hasPrev = notes.size > 0 && oldest && noteId.gt(oldest);
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(noteId));
 
   const nextNote = hasNext ? sortedOutlines[currentIdx - 1] : null;
@@ -463,6 +467,7 @@ export function useNote(nest: Nest, noteId: string, disabled = false) {
     () => `/${nest}/notes/note/${decToUd(noteId)}`,
     [nest, noteId]
   );
+
   const enabled = useMemo(
     () => noteId !== '0' && nest !== '' && !disabled,
     [noteId, nest, disabled]
@@ -480,35 +485,34 @@ export function useNote(nest: Nest, noteId: string, disabled = false) {
 
   const quips = note?.seal?.quips;
 
-  let quipMap: BigIntOrderedMap<Quip> = restoreMap<Quip>(quips);
-
-  if (quips === undefined) {
+  if (quips === undefined || Object.entries(quips).length === 0) {
     return {
       note: {
         ...note,
         seal: {
           ...note?.seal,
-          quips: quipMap,
+          quips: newQuipMap(),
+          lastQuip: null,
         },
       },
       ...rest,
     };
   }
 
-  const diff = Object.entries(quips).map(([k, v]) => ({
-    tim: bigInt(udToDec(k)),
-    quip: v as Quip,
-  }));
+  const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
+    bigInt(udToDec(k)),
+    v as Quip,
+  ]);
 
-  diff.forEach(({ tim, quip }) => {
-    quipMap = quipMap.set(tim, quip);
-  });
+  const quipMap = newQuipMap(diff);
+  const lastQuip = quipMap.maxKey();
 
   const noteWithQuips: Note = {
     ...note,
     seal: {
       ...note?.seal,
       quips: quipMap,
+      lastQuip: lastQuip?.toString() ?? null,
     },
   };
 
@@ -570,13 +574,27 @@ export function useBrief(nest: Nest) {
   return briefs[nest];
 }
 
-// TODO: this is a WIP part of implementing sorting by most recent comment
-// export function useQuips(flag: string): [bigInt.BigInteger, QuipMap][] {
-//   const def = useMemo(() => new BigIntOrderedMap<QuipMap>(), []);
-//   const notes = useNotesFor(flag);
-//   const getQuip = useQuips;
-//   const quipNotes = Array.from(notes).map(([time, note]) => [time, getQuip(flag, time.toString())]);
-// }
+export function useQuips(nest: Nest, noteId: string) {
+  checkNest(nest);
+
+  const { note } = useNote(
+    nest,
+    noteId,
+    useIsNotePending(noteId) || noteId === '0'
+  );
+
+  if (note === undefined) {
+    return newQuipMap();
+  }
+
+  const { quips } = note.seal;
+
+  if (quips === null || quips.size === undefined) {
+    return newQuipMap();
+  }
+
+  return quips as QuipMap;
+}
 
 export function useDisplayMode(nest: string): DisplayMode {
   checkNest(nest);
@@ -845,6 +863,7 @@ export function useAddNoteMutation() {
               feels: {},
               quipCount: 0,
               quippers: [],
+              lastQuip: null,
             },
             essay: {
               ...variables.essay,
@@ -1162,7 +1181,7 @@ export function useAddQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, Note> | undefined) => {
+      const notesUpdater = (prev: Record<string, Note | null> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1260,7 +1279,7 @@ export function useDeleteQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, Note> | undefined) => {
+      const notesUpdater = (prev: Record<string, Note | null> | undefined) => {
         if (prev === undefined) {
           return prev;
         }

@@ -126,7 +126,7 @@ function ChatChannel({ title }: ViewProps) {
               <ChatInput
                 key={chFlag}
                 whom={chFlag}
-                sendMessage={sendMessage}
+                sendDm={sendMessage}
                 showReply
                 autoFocus={!inThread && !inSearch}
                 dropZoneId={dropZoneId}

@@ -4,8 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useCopy, useIsInThread, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useIsDmOrMultiDm, useChatPerms, useChatState } from '@/state/chat';
-import { ChatWrit } from '@/types/chat';
+import { useIsDmOrMultiDm, useChatState } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -27,13 +26,15 @@ import {
   useAddNoteFeelMutation,
   useAddQuipFeelMutation,
   useDeleteNoteMutation,
+  usePerms,
 } from '@/state/channel/channel';
+import { emptyNote, Note } from '@/types/channel';
 
 export default function ChatMessageOptions(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   whom: string;
-  writ: ChatWrit;
+  writ: Note;
   hideThreadReply?: boolean;
   hideReply?: boolean;
   openReactionDetails: () => void;
@@ -42,24 +43,23 @@ export default function ChatMessageOptions(props: {
     open,
     onOpenChange,
     whom,
-    writ,
+    writ = emptyNote,
     hideThreadReply,
     hideReply,
     openReactionDetails,
   } = props;
+  const { seal, essay } = writ;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
-  const { didCopy, doCopy } = useCopy(
-    `/1/chan/chat/${whom}/msg/${writ.seal.id}`
-  );
+  const { didCopy, doCopy } = useCopy(`/1/chan/chat/${whom}/msg/${seal.id}`);
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,
-    writ.seal.id,
+    seal.id,
     'picker'
   );
   const { open: deleteOpen, setOpen: setDeleteOpen } = useChatDialog(
     whom,
-    writ.seal.id,
+    seal.id,
     'delete'
   );
   const {
@@ -72,7 +72,8 @@ export default function ChatMessageOptions(props: {
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
   const chFlag = `${chShip}/${chName}`;
-  const perms = useChatPerms(chFlag);
+  const nest = `chat/${chFlag}`;
+  const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
@@ -85,7 +86,6 @@ export default function ChatMessageOptions(props: {
   const { mutate: addFeelToChat } = useAddNoteFeelMutation();
   const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
-  const nest = `chat/${whom}`;
 
   const onDelete = async () => {
     if (isMobile) {
@@ -96,11 +96,11 @@ export default function ChatMessageOptions(props: {
 
     try {
       if (isDMorMultiDM) {
-        useChatState.getState().delDm(whom, writ.seal.id);
+        useChatState.getState().delDm(whom, seal.id);
       } else {
         deleteChatMessage({
           nest,
-          time: writ.seal.id,
+          time: seal.id,
         });
       }
     } catch (e) {
@@ -120,26 +120,24 @@ export default function ChatMessageOptions(props: {
   }, [doCopy, isMobile, onOpenChange]);
 
   const reply = useCallback(() => {
-    setSearchParams({ chat_reply: writ.seal.id }, { replace: true });
-  }, [writ, setSearchParams]);
+    setSearchParams({ chat_reply: seal.id }, { replace: true });
+  }, [seal, setSearchParams]);
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        useChatState
-          .getState()
-          .addFeelToDm(whom, writ.seal.id, emoji.shortcodes);
+        useChatState.getState().addFeelToDm(whom, seal.id, emoji.shortcodes);
       } else if (inThread) {
         addFeelToQuip({
           nest,
           noteId: threadParentId!,
-          quipId: writ.seal.id,
+          quipId: seal.id,
           feel: emoji.shortcodes,
         });
       } else {
         addFeelToChat({
           nest,
-          noteId: writ.seal.id,
+          noteId: seal.id,
           feel: emoji.shortcodes,
         });
       }
@@ -156,7 +154,7 @@ export default function ChatMessageOptions(props: {
       whom,
       groupFlag,
       privacy,
-      writ,
+      seal,
       setPickerOpen,
       addFeelToChat,
       nest,
@@ -177,11 +175,10 @@ export default function ChatMessageOptions(props: {
 
   const showReactAction = canWrite;
   const showReplyAction = !hideReply;
-  const showThreadAction =
-    !writ.memo.replying && writ.memo.replying?.length !== 0 && !hideThreadReply;
+  const showThreadAction = !threadParentId && !hideThreadReply;
   const showCopyAction = !!groupFlag;
-  const showDeleteAction = isAdmin || window.our === writ.memo.author;
-  const reactionsCount = Object.keys(writ.seal.feels).length;
+  const showDeleteAction = isAdmin || window.our === essay.author;
+  const reactionsCount = Object.keys(seal.feels).length;
 
   const actions: Action[] = [];
 
@@ -195,7 +192,7 @@ export default function ChatMessageOptions(props: {
         </div>
       ),
       onClick: () => {
-        navigate(`picker/${writ.seal.id}`, {
+        navigate(`picker/${seal.id}`, {
           state: { backgroundLocation: location },
         });
       },
@@ -238,7 +235,7 @@ export default function ChatMessageOptions(props: {
           Start Thread
         </div>
       ),
-      onClick: () => navigate(`message/${writ.seal.id}`),
+      onClick: () => navigate(`message/${seal.id}`),
     });
   }
 
@@ -318,7 +315,7 @@ export default function ChatMessageOptions(props: {
                 icon={<HashIcon className="h-6 w-6 text-gray-400" />}
                 label="Start Thread"
                 showTooltip
-                action={() => navigate(`message/${writ.seal.id}`)}
+                action={() => navigate(`message/${seal.id}`)}
               />
             )}
             {showCopyAction && (

@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import { useChatState, useDmIsPending } from '@/state/chat';
-import ChatWindow from '@/chat/ChatWindow';
 import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';
@@ -26,6 +25,7 @@ import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import MessageSelector from './MessageSelector';
+import DmWindow from '@/chat/DmWindow';
 
 function TitleButton({
   ship,
@@ -232,9 +232,7 @@ export default function Dm() {
               <ChatInput
                 key={ship}
                 whom={ship}
-                sendMessage={
-                  isSelecting ? sendDmFromMessageSelector : sendMessage
-                }
+                sendDm={isSelecting ? sendDmFromMessageSelector : sendMessage}
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}
@@ -244,7 +242,7 @@ export default function Dm() {
         }
       >
         {isAccepted ? (
-          <ChatWindow
+          <DmWindow
             whom={ship}
             prefixedElement={
               <div className="pt-4 pb-12">

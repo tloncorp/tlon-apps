@@ -17,6 +17,7 @@ import _ from 'lodash';
 import f from 'lodash/fp';
 import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
+import { useParams } from 'react-router';
 import { useCopyToClipboard } from 'usehooks-ts';
 import { ChatWhom, ChatStory } from '@/types/chat';
 import {
@@ -46,7 +47,6 @@ import {
 import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import { DiaryCommentProps } from '@/diary/DiaryComment';
-import { useParams } from 'react-router';
 import { isNativeApp, postActionToNativeApp } from './native';
 import type {
   ConnectionCompleteStatus,
@@ -86,15 +86,6 @@ export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
 
   return [app as App, rest.join('/')];
-}
-
-export function sampleQuippers(quips: QuipMap) {
-  return _.flow(
-    f.map(([, q]: [BigInteger, Quip]) => q.memo.author),
-    f.compact,
-    f.uniq,
-    f.take(3)
-  )(quips.size ? [...quips] : []);
 }
 
 export function renderRank(rank: Rank, plural = false) {

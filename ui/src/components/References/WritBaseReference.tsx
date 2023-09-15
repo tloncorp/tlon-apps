@@ -1,25 +1,25 @@
 import React, { useMemo } from 'react';
 import cn from 'classnames';
+import { unixToDa } from '@urbit/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useChannelPreview, useGang } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { ChatWrit } from '@/types/chat';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useChatState } from '@/state/chat';
-import { unixToDa } from '@urbit/api';
 import { useChannelFlag } from '@/logic/channel';
 import { isImageUrl } from '@/logic/utils';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
 import BubbleIcon from '../icons/BubbleIcon';
+import { Note } from '@/types/channel';
 
 interface WritBaseReferenceProps {
   nest: string;
   chFlag: string;
-  writ?: ChatWrit;
+  writ?: Note;
   isScrolling: boolean;
   contextApp?: string;
   children?: React.ReactNode;
@@ -53,7 +53,7 @@ function WritBaseReference({
     return <HeapLoadingBlock reference />;
   }
 
-  if (!('story' in writ.memo.content)) {
+  if (!writ.essay.content) {
     return null;
   }
 
@@ -86,19 +86,19 @@ function WritBaseReference({
           )
         }
         title={
-          writ.memo.content.story.block.length > 0 ? (
+          writ.essay.content.filter((c) => 'block' in c).length > 0 ? (
             <span>Nested content references</span>
           ) : (
             <ChatContent
               className="line-clamp-1"
-              story={writ.memo.content.story}
+              story={writ.essay.content}
               isScrolling={false}
             />
           )
         }
         byline={
           <span>
-            Chat message by <ShipName name={writ.memo.author} showAlias /> in{' '}
+            Chat message by <ShipName name={writ.essay.author} showAlias /> in{' '}
             {preview?.meta?.title}
           </span>
         }
@@ -117,14 +117,14 @@ function WritBaseReference({
         <ReferenceInHeap type="text" contextApp={contextApp}>
           <ChatContent
             className="p-2 line-clamp-1"
-            story={writ.memo.content.story}
+            story={writ.essay.content}
             isScrolling={false}
           />
           {children}
           <ReferenceBar
             nest={nest}
             time={time}
-            author={writ.memo.author}
+            author={writ.essay.author}
             groupFlag={preview?.group.flag}
             groupImage={group?.meta.image}
             groupTitle={preview?.group.meta.title}
@@ -148,14 +148,14 @@ function WritBaseReference({
       >
         <ChatContent
           className="p-2"
-          story={writ.memo.content.story}
+          story={writ.essay.content}
           isScrolling={false}
         />
       </div>
       <ReferenceBar
         nest={nest}
         time={time}
-        author={writ.memo.author}
+        author={writ.essay.author}
         groupFlag={preview?.group.flag}
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}

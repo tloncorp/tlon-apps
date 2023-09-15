@@ -1,4 +1,3 @@
-import { Notes, Perm, Shelf } from '@/types/channel';
 import {
   Handler,
   ScryHandler,
@@ -6,6 +5,7 @@ import {
 } from '@tloncorp/mock-http-api';
 import { BigIntOrderedMap } from '@urbit/api';
 import { subMinutes } from 'date-fns';
+import { newQuipMap, Notes, Perm, Shelf } from '@/types/channel';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 
@@ -28,7 +28,8 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598656': {
     seal: {
       id: '170141184505776467152677676749638598656',
-      quips: new BigIntOrderedMap(),
+      quips: newQuipMap(),
+      lastQuip: null,
       quipCount: 0,
       quippers: [],
       feels: {},
@@ -51,7 +52,8 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598657': {
     seal: {
       id: '170141184505776467152677676749638598657',
-      quips: new BigIntOrderedMap(),
+      quips: newQuipMap(),
+      lastQuip: null,
       quipCount: 0,
       quippers: [],
       feels: {},
@@ -74,7 +76,8 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598658': {
     seal: {
       id: '170141184505776467152677676749638598658',
-      quips: new BigIntOrderedMap(),
+      quips: newQuipMap(),
+      lastQuip: null,
       quipCount: 0,
       quippers: [],
       feels: {},
@@ -97,7 +100,8 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598659': {
     seal: {
       id: '170141184505776467152677676749638598659',
-      quips: new BigIntOrderedMap(),
+      quips: newQuipMap(),
+      lastQuip: null,
       quipCount: 0,
       quippers: [],
       feels: {},
@@ -120,7 +124,8 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598660': {
     seal: {
       id: '170141184505776467152677676749638598660',
-      quips: new BigIntOrderedMap(),
+      quips: newQuipMap(),
+      lastQuip: null,
       quipCount: 0,
       quippers: [],
       feels: {},
