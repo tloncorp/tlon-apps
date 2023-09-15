@@ -30,12 +30,13 @@
 ++  rr-note
   |=  =note:d
   ^-  rr-note:d
-  =/  quippers  (get-quippers note)
+  =/  quippers  (get-last-quippers note)
   :_  +>.note
   :*  id.note
-      (rr-quips quips.note)
       (rr-feels feels.note)
-      ~(wyt in quippers)
+      (rr-quips quips.note)
+      (wyt:on-quips:d quips.note)
+      (biff (ram:on-quips:d quips.note) |=([=time *] `time))
       quippers
   ==
 ::
@@ -51,12 +52,13 @@
 ++  rr-note-without-quips
   |=  =note:d
   ^-  rr-note:d
-  =/  quippers  (get-quippers note)
+  =/  quippers  (get-last-quippers note)
   :_  +>.note
   :*  id.note
-      *rr-quips:d
       (rr-feels feels.note)
-      ~(wyt in quippers)
+      *rr-quips:d
+      (wyt:on-quips:d quips.note)
+      (biff (ram:on-quips:d quips.note) |=([=time *] `time))
       quippers
   ==
 ::
@@ -93,17 +95,19 @@
   =/  =rr-note:d
     ?~  note
       ::TODO  give "outline" that formally declares deletion
+      :-  *rr-seal:d
       ?-  han.nest
-        %diary  [[*@da ~ ~ 0 ~] [~ ~nul *@da] %diary 'Unknown post' '']
-        %heap   [[*@da ~ ~ 0 ~] [~ ~nul *@da] %heap ~ 'Unknown link']
-        %chat   [[*@da ~ ~ 0 ~] [[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
+        %diary  [*memo:d %diary 'Unknown post' '']
+        %heap   [*memo:d %heap ~ 'Unknown link']
+        %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
       ==
     ?~  u.note
+      :-  *rr-seal:d
       ?-  han.nest
-          %diary  [[*@da ~ ~ 0 ~] [~ ~nul *@da] %diary 'This post was deleted' '']
-          %heap   [[*@da ~ ~ 0 ~] [~ ~nul *@da] %heap ~ 'This link was deleted']
+          %diary  [*memo:d %diary 'This post was deleted' '']
+          %heap   [*memo:d %heap ~ 'This link was deleted']
           %chat
-        [[*@da ~ ~ 0 ~] [[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
+        [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
       ==
     (rr-note u.u.note)
   [%channel-said !>(`said:d`[nest rr-note])]
@@ -157,15 +161,19 @@
   ?~  quip  ~
   (some author.u.quip)
 ::
-++  get-quippers
+++  get-last-quippers
   |=  =note:d
   ^-  (set ship)
-  =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
-  %-  ~(gas in *(set ship))
-  %+  murn  (tap:on-quips:d quips.note)
-  |=  [@ quip=(unit quip:d)]
-  ?~  quip  ~
-  (some author.u.quip)
+  =|  quippers=(set ship)
+  =/  entries=(list [time (unit quip:d)])  (bap:on-quips:d quips.note)
+  |-
+  =/  [* quip=(unit quip:d)]  -.entries
+  ?:  |(=(~ entries) =(3 ~(wyt in quippers)))
+    quippers
+  ?~  quip  $(entries +.entries)
+  ?:  (~(has in quippers) author.u.quip)
+    $(entries +.entries)
+  (~(put in quippers) author.u.quip)
 ++  perms
   |_  [our=@p now=@da =nest:d group=flag:g]
   ++  am-host  =(our ship.nest)

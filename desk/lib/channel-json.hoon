@@ -108,7 +108,8 @@
         feels+(feels rr-feels.rr-seal)
         quips+(rr-quips rr-quips.rr-seal)
         'quipCount'^(numb quip-count.rr-seal)
-        quippers/a/(turn ~(tap in quippers.rr-seal) ship)
+        'lastQuip'^?~(last-quip.rr-seal ~ (time u.last-quip.rr-seal))
+        'lastQuippers'^a/(turn ~(tap in last-quippers.rr-seal) ship)
     ==
   ::
   ++  rr-cork

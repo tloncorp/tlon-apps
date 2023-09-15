@@ -417,7 +417,14 @@
   --
 +$  rr-notes  ((mop id-note (unit rr-note)) lte)
 +$  rr-note   [rr-seal essay]
-+$  rr-seal   [id=id-note =rr-quips =rr-feels quip-count=@ud quippers=(set ship)]
++$  rr-seal   
+  $:  id=id-note
+      =rr-feels
+      =rr-quips
+      quip-count=@ud
+      last-quip=(unit time)
+      last-quippers=(set ship)
+  ==
 +$  rr-feels  (map ship feel)
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)

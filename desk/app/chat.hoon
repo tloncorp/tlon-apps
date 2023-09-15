@@ -45,7 +45,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay:c])
+  ++  on-save  !>(state)
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -85,8 +85,7 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
-+*  epos  ~(. epos-lib [bowl %chat-update okay:c])
-    wood   ~(. wood-lib [bowl wood-state])
++*  wood   ~(. wood-lib [bowl wood-state])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -328,12 +327,9 @@
   ::
     [%x %briefs ~]  ``chat-briefs+!>(briefs)
   ::
-    [%x %init ~]  ``noun+!>([briefs chats-light pins])
-  ::
-      [%x %init %talk ~]
+      [%x %init ~]
     =-  ``noun+!>(-)
     :*  briefs
-        chats-light
         (~(run by clubs) |=(=club:c crew.club))
         ~(key by accepted-dms)
         ~(key by pending-dms)
@@ -775,15 +771,12 @@
   ::
   ++  di-abed-soft
     |=  s=@p
-    =/  new=?  !(~(has by dms) s)
     =/  d
       %+  ~(gut by dms)  s
       =|  =remark:c
       =.  watching.remark  &
       [*pact:c remark ?:(=(src our):bowl %inviting %invited) |]
-    ?.  &(new !=(src our):bowl)
-      di-core(ship s, dm d)
-    di-invited:di-core(ship s, dm d)
+    di-core(ship s, dm d)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin
@@ -800,25 +793,6 @@
     =.  cor  (emit (proxy:di-pass diff))
     di-core
   ::
-  ++  di-invited
-    ^+  di-core
-    =.  cor
-      (emit (hark:di-pass invited:di-hark))
-    di-core
-  ::
-  ++  di-notify
-    |=  [=id:c =delta:writs:c]
-    ^+  di-core
-    ?.  watching.remark.dm  di-core
-    ?:  =(our.bowl p.id)  di-core
-    ?:  =(%invited net.dm)  di-core
-    ?+  -.delta  di-core
-        %add
-      ?.  ?=(%story -.content.p.delta)  di-core
-      =.  cor
-        (emit (hark:di-pass (story:di-hark id p.content.p.delta)))
-      di-core
-    ==
   ++  di-archive
     =.  net.dm  %archive
     (di-post-notice ' archived the channel')
@@ -834,8 +808,6 @@
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
-    =.  di-core
-      (di-notify diff)
     ?-  -.q.diff
         ?(%del %add-feel %del-feel)  di-core
     ::
@@ -986,9 +958,6 @@
     di-core
   ++  di-pass
     |%
-    ++  hark
-      |=  =cage
-      (pass /hark [our.bowl %hark-store] %poke cage)
     ++  pass
       |=  [=wire =dock =task:agent:gall]
       ^-  card
