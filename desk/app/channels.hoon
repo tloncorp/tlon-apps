@@ -189,6 +189,7 @@
   |=  [=mark =vase]
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
+    :: TODO: add transfer/import channels
       %channel-action
     =+  !<(=a-shelf:d vase)
     ?:  ?=(%create -.a-shelf)
@@ -915,7 +916,7 @@
         di-core
       ::  we want to be notified if we were mentioned in the note
       ::
-      ?:  (was-mentioned content.note our.bowl)
+      ?:  (was-mentioned:utils content.note our.bowl)
         ?.  (want-hark %mention)
           di-core
         =/  cs=(list content:ha)
@@ -973,7 +974,7 @@
         ==
       ::  notify because we were mentioned in the quip
       ::
-      ?:  (was-mentioned content.quip our.bowl)
+      ?:  (was-mentioned:utils content.quip our.bowl)
         ?.  (want-hark %mention)  ~
         `~[[%ship author.quip] ' mentioned you: ' (flatten:utils content.quip)]
       ::  notify because we ourselves responded to this note previously
@@ -1011,15 +1012,6 @@
             (flatten:utils content.quip)
         ==
       ==
-    ::
-    ++  was-mentioned
-      |=  [=story:d who=ship]
-      ^-  ?
-      %+  lien  story
-      |=  =verse:d
-      ?:  ?=(%block -.verse)  |
-      %+  lien  p.verse
-      (cury test [%ship who])
     ::
     ++  want-hark
       |=  kind=?(%mention %ours %any)
