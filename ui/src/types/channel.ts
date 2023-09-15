@@ -13,10 +13,10 @@ export type Nest = string;
 
 export interface NoteSeal {
   id: string;
-  quips: QuipMap | null;
   feels: { [ship: Ship]: string };
+  quips: QuipMap | null;
   quipCount: number;
-  quippers: Ship[];
+  lastQuippers: Ship[];
   lastQuip: string | null;
 }
 

@@ -1,6 +1,6 @@
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
-import { Note, NoteEssay } from './channel';
+import { Brief, Note, NoteEssay, NoteSeal } from './channel';
 import {
   BlockCode,
   Blockquote,
@@ -18,6 +18,15 @@ import { GroupMeta, Saga } from './groups';
 
 export type Patda = string;
 export type Ship = string;
+
+export interface Writ {
+  seal: WritSeal;
+  essay: NoteEssay;
+}
+
+export interface WritSeal extends NoteSeal {
+  time: Patda;
+}
 
 export interface ChanCite {
   chan: {
@@ -131,13 +140,13 @@ export interface WritDiff {
 // export type ChatDiff = { writs: WritDiff };
 
 // export interface ChatUpdate {
-  // time: Patda;
-  // diff: ChatDiff;
+// time: Patda;
+// diff: ChatDiff;
 // }
 
 // export interface ChatAction {
-  // flag: string;
-  // update: ChatUpdate;
+// flag: string;
+// update: ChatUpdate;
 // }
 
 // export interface Chat {
@@ -208,7 +217,7 @@ export interface ChatBriefUpdate {
   brief: ChatBrief;
 }
 /**
- * Either a `@p`, `$flag` or `@nest` rendered as string
+ * Either a `@p` or `@uv` rendered as string
  */
 export type ChatWhom = string;
 
@@ -300,3 +309,7 @@ export interface ChatScanItem {
 }
 
 export type ChatScan = ChatScanItem[];
+
+export interface DmBriefs {
+  [key: ChatWhom]: Brief;
+}

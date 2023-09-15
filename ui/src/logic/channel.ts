@@ -2,15 +2,13 @@ import _, { get, groupBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
-import { useChat, useChats, useMultiDms } from '@/state/chat';
-import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
+import { useGroup, useRouteGroup } from '@/state/groups';
 import {
   useBriefs,
-  useChannel as useChannelFromState,
+  useChannel,
   useJoinMutation,
   usePerms,
 } from '@/state/channel/channel';
-import { Chat } from '@/types/chat';
 import { Briefs, Diary, Perm } from '@/types/channel';
 import { Zone, Channels, GroupChannel, Vessel, Group } from '@/types/groups';
 import { useLastReconnect } from '@/state/local';
@@ -110,48 +108,6 @@ function channelUnread(
   return (briefs[nest]?.count ?? 0) > 0;
 }
 
-interface ChannelUnreadCount {
-  scope: 'Group Channels' | 'Direct Messages' | 'All Messages';
-}
-
-export function useChannelUnreadCounts(args: ChannelUnreadCount) {
-  const briefs = useBriefs();
-  const chats = useChats();
-  const multiDms = useMultiDms();
-  const groups = useGroups();
-  const chatKeys = Object.keys(chats);
-
-  const filteredBriefs = _.fromPairs(
-    Object.entries(briefs).filter(([k, v]) => {
-      const chat = chats[k];
-      if (chat) {
-        const group = groups[chat.perms.group];
-        const channel = group?.channels[`chat/${k}`];
-        const vessel = group?.fleet[window.our];
-        return channel && vessel && canReadChannel(channel, vessel, group.bloc);
-      }
-
-      const club = multiDms[k];
-      if (club) {
-        return club.team.concat(club.hive).includes(window.our);
-      }
-
-      return true;
-    })
-  );
-
-  switch (args.scope) {
-    case 'All Messages':
-      return _.sumBy(Object.values(filteredBriefs), 'count');
-    case 'Group Channels':
-      return _.sumBy(Object.values(_.pick(filteredBriefs, chatKeys)), 'count');
-    case 'Direct Messages':
-      return _.sumBy(Object.values(_.omit(briefs, chatKeys)), 'count');
-    default:
-      return _.sumBy(Object.values(filteredBriefs), 'count');
-  }
-}
-
 export function useCheckChannelUnread() {
   const briefs = useBriefs();
   const chats = useChatStore(selChats);
@@ -171,24 +127,6 @@ export function useIsChannelUnread(nest: string) {
 
 export const useIsChannelHost = (flag: string) =>
   window.our === flag?.split('/')[0];
-
-export function useChannelOld(nest: string): Chat | Diary | undefined {
-  const [app, flag] = nestToFlag(nest);
-  const chat = useChat(flag);
-  const heap = useChannelFromState(`heap/${flag}`);
-  const diary = useChannelFromState(`diary/${flag}`);
-
-  switch (app) {
-    case 'chat':
-      return chat;
-    case 'heap':
-      return heap;
-    case 'diary':
-      return diary;
-    default:
-      return undefined;
-  }
-}
 
 const UNZONED = 'default';
 
@@ -298,7 +236,7 @@ export function useCheckChannelJoined() {
 }
 
 export function useChannelCompatibility(nest: string) {
-  const channel = useChannelOld(nest);
+  const channel = useChannel(nest);
   const saga = channel?.saga || null;
 
   return {
@@ -334,7 +272,7 @@ export function useFullChannel({
   );
   const { writers } = usePerms(nest);
   const groupChannel = group?.channels?.[nest];
-  const channel = useChannelFromState(nest);
+  const channel = useChannel(nest);
   const compat = useChannelCompatibility(nest);
   const canWrite =
     ship === window.our ||

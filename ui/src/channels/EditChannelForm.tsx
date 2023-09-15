@@ -20,11 +20,7 @@ import {
   useViewMutation,
 } from '@/state/channel/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import {
-  channelHref,
-  prettyChannelTypeName,
-  useChannelOld,
-} from '@/logic/channel';
+import { channelHref, prettyChannelTypeName } from '@/logic/channel';
 import { SortMode } from '@/types/channel';
 import ChannelSortSelector from './ChannelSortSelector';
 import ChannelViewSelector from './ChannelViewSelector';
@@ -52,8 +48,7 @@ export default function EditChannelForm({
   const group = useGroup(groupFlag);
   const sects = Object.keys(group?.cabals || {});
   const [app, channelFlag] = nestToFlag(nest);
-  const diary = useChannel(nest);
-  const chan = useChannelOld(nest);
+  const chan = useChannel(nest);
   const { mutate: mutateEditChannel, status: editStatus } =
     useEditChannelMutation();
   const { mutateAsync: addSectsMutation } = useAddSectsMutation();
@@ -73,8 +68,8 @@ export default function EditChannelForm({
       color: '',
     },
     privacy: getPrivacyFromChannel(channel, chan),
-    sort: diary?.sort,
-    view: diary?.view,
+    sort: chan?.sort,
+    view: chan?.view,
   };
 
   const form = useForm<ChannelFormSchema>({

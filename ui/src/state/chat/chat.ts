@@ -15,6 +15,7 @@ import {
   ClubDelta,
   Clubs,
   DmAction,
+  DmBriefs,
   newWritMap,
   Pact,
   Pins,
@@ -38,6 +39,7 @@ import {
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
+import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { getWritWindow, writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
@@ -250,7 +252,6 @@ export const useChatState = createState<ChatState>(
         },
         3
       );
-
     },
     startTalk: async (init, startBase = true) => {
       if (startBase) {
@@ -578,12 +579,7 @@ export function useHasMessages(whom: string) {
  * @param whom (optional) if provided, overrides the default behavior of using the current channel flag
  * @returns bigInt.BigInteger[] of the ids of the messages for the flag / whom
  */
-export function useChatKeys({
-  whom,
-}: {
-  replying: boolean;
-  whom: string;
-}) {
+export function useChatKeys({ whom }: { replying: boolean; whom: string }) {
   const messages = useMessagesForChat(whom ?? '');
   return useMemo(() => Array.from(messages.keys()), [messages]);
 }
@@ -654,17 +650,26 @@ export function useWrit(whom: string, id: string) {
   );
 }
 
-export function useChatDraft(whom: string) {
-  return useChatState(
-    useCallback(
-      (s) =>
-        s.drafts[whom] || {
-          inline: [],
-          block: [],
-        },
-      [whom]
-    )
-  );
+const emptyBriefs: DmBriefs = {};
+export function useDmBriefs() {
+  const { data, ...query } = useReactQuerySubscription<DmBriefs>({
+    queryKey: ['dm', 'briefs'],
+    app: 'chat',
+    path: '/briefs',
+    scry: '/briefs',
+  });
+
+  if (!data) {
+    return {
+      ...query,
+      data: emptyBriefs,
+    };
+  }
+
+  return {
+    ...query,
+    data,
+  };
 }
 
 const selPendingDms = (s: ChatState) => s.pendingDms;
@@ -850,9 +855,7 @@ export function useWritByFlagAndGraphIndex(
   return res || 'loading';
 }
 
-export function useLatestMessage(
-  chFlag: string
-): [BigInteger, Note | null] {
+export function useLatestMessage(chFlag: string): [BigInteger, Note | null] {
   const messages = useMessagesForChat(chFlag);
   const max = messages.maxKey();
   return messages.size > 0 && max
