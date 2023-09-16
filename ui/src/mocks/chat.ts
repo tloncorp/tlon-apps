@@ -5,7 +5,7 @@ import { subDays, subMinutes } from 'date-fns';
 import faker from '@faker-js/faker';
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
-import { ChatBriefs, ChatStory, ChatNotice } from '../types/chat';
+import { ChatBriefs, ChatNotice } from '../types/chat';
 import { Note, Notes, Story, storyFromChatStory } from '@/types/channel';
 
 const getUnix = (count: number, setTime?: Date) =>
@@ -31,7 +31,7 @@ export const makeFakeChatWrit = (
       feels: feels ?? {},
       quips: null,
       quipCount: 0,
-      quippers: [],
+      lastQuippers: [],
       lastQuip: null,
     },
     essay: {
@@ -62,7 +62,7 @@ export const makeFakeChatNotice = (
       feels: {},
       quips: null,
       quipCount: 0,
-      quippers: [],
+      lastQuippers: [],
       lastQuip: null,
     },
     essay: {

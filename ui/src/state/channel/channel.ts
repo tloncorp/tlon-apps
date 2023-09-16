@@ -53,7 +53,8 @@ interface NoteSealInCache {
     [ship: Ship]: string;
   };
   quipCount: number;
-  quippers: Ship[];
+  lastQuippers: Ship[];
+  lastQuip: string | null;
 }
 
 interface NoteInCache {
@@ -505,14 +506,12 @@ export function useNote(nest: Nest, noteId: string, disabled = false) {
   ]);
 
   const quipMap = newQuipMap(diff);
-  const lastQuip = quipMap.maxKey();
 
   const noteWithQuips: Note = {
     ...note,
     seal: {
       ...note?.seal,
       quips: quipMap,
-      lastQuip: lastQuip?.toString() ?? null,
     },
   };
 
@@ -862,7 +861,7 @@ export function useAddNoteMutation() {
               quips: null,
               feels: {},
               quipCount: 0,
-              quippers: [],
+              lastQuippers: [],
               lastQuip: null,
             },
             essay: {
@@ -1198,7 +1197,7 @@ export function useAddQuipMutation() {
             seal: {
               ...replyingNote.seal,
               quipCount: replyingNote.seal.quipCount + 1,
-              quippers: [...replyingNote.seal.quippers, window.our],
+              quippers: [...replyingNote.seal.lastQuippers, window.our],
             },
           };
 
@@ -1296,7 +1295,7 @@ export function useDeleteQuipMutation() {
             seal: {
               ...replyingNote.seal,
               quipCount: replyingNote.seal.quipCount - 1,
-              quippers: replyingNote.seal.quippers.filter(
+              quippers: replyingNote.seal.lastQuippers.filter(
                 (quipper) => quipper !== window.our
               ),
             },

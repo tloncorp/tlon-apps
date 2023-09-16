@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import bigInt from 'big-integer';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useRemoteNote } from '@/state/channel/channel';
@@ -9,7 +10,6 @@ import {
   pluralize,
   truncateProse,
 } from '@/logic/utils';
-import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
 import useGroupJoin from '@/groups/useGroupJoin';
@@ -170,7 +170,7 @@ function NoteReference({
         {note.seal.quipCount > 0 ? (
           <div className="flex space-x-2">
             <div className="relative flex items-center">
-              {note.seal.quippers.map((author, index) => (
+              {note.seal.lastQuippers.map((author, index) => (
                 <Avatar
                   ship={author}
                   size="xs"

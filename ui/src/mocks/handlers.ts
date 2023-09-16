@@ -28,7 +28,6 @@ import {
 } from '@/mocks/chat';
 import {
   ChatBriefs,
-  ChatDiff,
   ChatStory,
   ChatWhom,
   Club,
@@ -215,25 +214,6 @@ const chat: Handler[] = [
     },
     dataResponder: (req) => createResponse(req, 'diff'),
   },
-  {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-action-0',
-    returnSubscription: chatSub,
-    dataResponder: (
-      req: Message &
-        Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
-    ) => {
-      if ('writs' in req.json.update.diff) {
-        return createResponse(req, 'diff', req.json.update.diff.writs);
-      }
-
-      return {
-        id: req.id,
-        ok: true,
-      };
-    },
-  } as PokeHandler,
   briefsSub,
   {
     action: 'scry' as const,

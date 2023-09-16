@@ -1,10 +1,9 @@
 import _ from 'lodash';
-import produce from 'immer';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '@/api';
-import { Pact, WritDiff, DmAction, DmAction, newWritMap } from '@/types/chat';
+import { Pact, WritDiff, DmAction, newWritMap } from '@/types/chat';
 import { BasedChatState, WritWindow, WritWindows } from './type';
 import { newNoteMap, Note, Notes, NoteSeal } from '@/types/channel';
 
@@ -100,12 +99,11 @@ function extendCurrentWindow(
       : [...windows.windows, newWindow];
 
   const combined = combineWindows(
-    newWindows.sort((a, b) => {
-      return (
+    newWindows.sort(
+      (a, b) =>
         a.newest.subtract(b.newest).toJSNumber() ||
         a.oldest.subtract(b.oldest).toJSNumber()
-      );
-    })
+    )
   );
 
   return {
@@ -115,18 +113,10 @@ function extendCurrentWindow(
 }
 
 export function writsReducer(whom: string) {
-  return (
-    json: DmAction | DmAction | WritDiff,
-    draft: BasedChatState
-  ): BasedChatState => {
+  return (json: DmAction | WritDiff, draft: BasedChatState): BasedChatState => {
     let id: string | undefined;
     let delta;
-    if ('update' in json) {
-      if ('writs' in json.update.diff) {
-        id = json.update.diff.writs.id;
-        delta = json.update.diff.writs.delta;
-      }
-    } else if ('diff' in json) {
+    if ('diff' in json) {
       id = json.diff.id;
       delta = json.diff.delta;
     } else {
@@ -150,7 +140,7 @@ export function writsReducer(whom: string) {
         feels: {},
         quips: null,
         quipCount: 0,
-        quippers: [],
+        lastQuippers: [],
         lastQuip: null,
       };
       const writ = { seal, essay: delta.add };

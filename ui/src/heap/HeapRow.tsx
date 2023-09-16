@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
+import { daToUnix } from '@urbit/api';
+import bigInt from 'big-integer';
 import cn from 'classnames';
+import { formatDistanceToNow } from 'date-fns';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
@@ -7,7 +10,6 @@ import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
-import { formatDistanceToNow } from 'date-fns';
 import IconButton from '@/components/IconButton';
 import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
@@ -26,8 +28,6 @@ import ContentReference from '@/components/References/ContentReference';
 import { isCite, Note, VerseBlock, VerseInline } from '@/types/channel';
 import { Link, isLink } from '@/types/content';
 import { Cite } from '@/types/chat';
-import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -250,7 +250,7 @@ export default function HeapRow({
       ? refClass || ''
       : 'w-full bg-white rounded-lg p-2 flex space-x-2 items-center group';
   const { id } = note.seal;
-  const replyCount = note.seal.quippers.length;
+  const replyCount = note.seal.quipCount;
   const prettySent = formatDistanceToNow(daToUnix(bigInt(id)));
 
   if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {

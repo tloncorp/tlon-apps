@@ -27,7 +27,7 @@ import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { emptyNote, Note } from '@/types/channel';
+import { Note } from '@/types/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -161,7 +161,7 @@ const ChatMessage = React.memo<
       const unix = new Date(daToUnix(time));
 
       const numReplies = seal.quipCount;
-      const replyAuthors = seal.quippers;
+      const replyAuthors = seal.lastQuippers;
       const lastReplyTime = seal.lastQuip
         ? new Date(daToUnix(bigInt(seal.lastQuip)))
         : null;

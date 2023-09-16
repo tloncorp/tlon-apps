@@ -31,7 +31,7 @@ const mockCurios: Notes = {
       quips: newQuipMap(),
       lastQuip: null,
       quipCount: 0,
-      quippers: [],
+      lastQuippers: [],
       feels: {},
     },
     essay: {
@@ -55,7 +55,7 @@ const mockCurios: Notes = {
       quips: newQuipMap(),
       lastQuip: null,
       quipCount: 0,
-      quippers: [],
+      lastQuippers: [],
       feels: {},
     },
     essay: {
@@ -79,7 +79,7 @@ const mockCurios: Notes = {
       quips: newQuipMap(),
       lastQuip: null,
       quipCount: 0,
-      quippers: [],
+      lastQuippers: [],
       feels: {},
     },
     essay: {
@@ -103,7 +103,7 @@ const mockCurios: Notes = {
       quips: newQuipMap(),
       lastQuip: null,
       quipCount: 0,
-      quippers: [],
+      lastQuippers: [],
       feels: {},
     },
     essay: {
@@ -127,7 +127,7 @@ const mockCurios: Notes = {
       quips: newQuipMap(),
       lastQuip: null,
       quipCount: 0,
-      quippers: [],
+      lastQuippers: [],
       feels: {},
     },
     essay: {

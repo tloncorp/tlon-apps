@@ -1,7 +1,6 @@
 import _ from 'lodash';
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
-import { BigIntOrderedMap } from '@urbit/api';
 import { Inline, isLink, Link } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
@@ -507,7 +506,7 @@ export const emptyNote: Note = {
   seal: {
     id: '',
     quipCount: 0,
-    quippers: [],
+    lastQuippers: [],
     feels: {},
     lastQuip: '',
     quips: null,

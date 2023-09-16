@@ -1,7 +1,7 @@
 import cn from 'classnames';
+import { useNavigate } from 'react-router';
 import { Note } from '@/types/channel';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
-import { useNavigate } from 'react-router';
 import { useIsNotePending } from '@/state/channel/channel';
 
 interface DiaryListItemProps {
@@ -13,12 +13,8 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
   const isPending = useIsNotePending(time.toString());
   const navigate = useNavigate();
 
-  if (!note) {
-    return null;
-  }
-
   const { essay } = note;
-  const { quippers, quipCount } = note.seal;
+  const { lastQuippers, quipCount } = note.seal;
 
   return (
     <div
@@ -30,7 +26,7 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
       onClick={() => navigate(`note/${time.toString()}`)}
     >
       <DiaryNoteHeadline
-        quippers={quippers}
+        lastQuippers={lastQuippers}
         quipCount={quipCount}
         essay={essay}
         time={time}

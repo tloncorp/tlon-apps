@@ -1,6 +1,8 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { daToUnix } from '@urbit/api';
+import bigInt from 'big-integer';
 import { formatDistanceToNow } from 'date-fns';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
@@ -30,8 +32,6 @@ import {
   linkUrlFromContent,
   Note,
 } from '@/types/channel';
-import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -207,7 +207,7 @@ function BottomBar({ note, asRef, asMobileNotification }: BottomBarProps) {
   }
 
   const { id } = note.seal;
-  const replyCount = note.seal.quippers.length;
+  const replyCount = note.seal.quipCount;
   const prettySent = formatDistanceToNow(daToUnix(bigInt(id)));
 
   return (

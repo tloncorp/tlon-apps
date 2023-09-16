@@ -1,6 +1,7 @@
 import cn from 'classnames';
-import { NoteEssay } from '@/types/channel';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { NoteEssay } from '@/types/channel';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import IconButton from '@/components/IconButton';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -9,7 +10,6 @@ import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import DiaryNoteOptionsDropdown from '@/diary/DiaryNoteOptionsDropdown';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
-import { useNavigate } from 'react-router-dom';
 import Author from '@/chat/ChatMessage/Author';
 import { useChannelFlag } from '@/logic/channel';
 import getHanDataFromEssay from '@/logic/getHanData';
@@ -18,7 +18,7 @@ import useDiaryActions from './useDiaryActions';
 interface DiaryListItemProps {
   essay: NoteEssay;
   quipCount: number;
-  quippers: string[];
+  lastQuippers: string[];
   time: bigInt.BigInteger;
   isInList?: boolean;
   isInGrid?: boolean;
@@ -27,7 +27,7 @@ interface DiaryListItemProps {
 export default function DiaryNoteHeadline({
   essay,
   quipCount,
-  quippers,
+  lastQuippers,
   time,
   isInList,
   isInGrid,
@@ -41,7 +41,7 @@ export default function DiaryNoteHeadline({
     time: time.toString(),
   });
 
-  const commenters = quippers;
+  const commenters = lastQuippers;
   const calm = useCalm();
 
   const isAdmin = useAmAdmin(flag);

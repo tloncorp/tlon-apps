@@ -12,15 +12,11 @@ interface DiaryGridItemProps {
 export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const navigate = useNavigate();
   const calm = useCalm();
-  if (!note) {
-    return null;
-  }
 
   const { essay } = note;
   const { image } = getHanDataFromEssay(essay);
   const hasImage = image?.length !== 0;
-  const commenters = note.seal.quippers;
-  const { quipCount } = note.seal;
+  const { quipCount, lastQuippers } = note.seal;
 
   return (
     <div
@@ -40,7 +36,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
       onClick={() => navigate(`note/${time.toString()}`)}
     >
       <DiaryNoteHeadline
-        quippers={commenters}
+        lastQuippers={lastQuippers}
         quipCount={quipCount}
         essay={essay}
         time={time}
