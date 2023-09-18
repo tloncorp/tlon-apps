@@ -9,7 +9,7 @@ import React, {
   useState,
 } from 'react';
 import { isSameDay } from 'date-fns';
-import { debounce } from 'lodash';
+import { debounce, get } from 'lodash';
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
@@ -22,11 +22,11 @@ import {
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
+import { emptyNote } from '@/types/channel';
 import { IChatScroller } from './IChatScroller';
 import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
 import { useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
-import { emptyNote } from '@/types/channel';
 
 interface ChatScrollerItemProps extends ChatMessageProps {
   index: bigInt.BigInteger;
@@ -124,6 +124,8 @@ export default function ChatScroller({
   prefixedElement,
   scrollTo = undefined,
   scrollerRef,
+  atBottomStateChange,
+  atTopStateChange,
 }: IChatScroller) {
   const isMobile = useIsMobile();
   const writWindow = useWritWindow(whom, scrollTo);
@@ -135,7 +137,7 @@ export default function ChatScroller({
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
-    atTopThreshold: getTopThreshold(isMobile, messages.size),
+    atTopThreshold: getTopThreshold(isMobile, messages.length),
     overscan: isMobile
       ? { main: 200, reverse: 200 }
       : { main: 400, reverse: 400 },
@@ -143,13 +145,12 @@ export default function ChatScroller({
 
   const [keys, entries]: [bigInt.BigInteger[], ChatScrollerItemProps[]] =
     useMemo(() => {
-      const nonNullMessages = messages.filter((k, v) => v !== null);
+      const nonNullMessages = messages.filter(([_k, v]) => v !== null);
 
-      const ks: bigInt.BigInteger[] = Array.from(nonNullMessages.keys());
-      const min = nonNullMessages.minKey() || bigInt();
-      const es: ChatScrollerItemProps[] = nonNullMessages
-        .toArray()
-        .map<ChatScrollerItemProps>(([index, writ]) => {
+      const ks: bigInt.BigInteger[] = nonNullMessages.map(([k]) => k);
+      const min = nonNullMessages[0][0] || bigInt();
+      const es: ChatScrollerItemProps[] =
+        nonNullMessages.map<ChatScrollerItemProps>(([index, writ]) => {
           if (!writ) {
             return {
               index,
@@ -168,7 +169,9 @@ export default function ChatScroller({
 
           const keyIdx = ks.findIndex((idx) => idx.eq(index));
           const lastWritKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
-          const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
+          const lastWrit = lastWritKey
+            ? messages.find(([k]) => k.eq(lastWritKey))?.[1]
+            : undefined;
           const newAuthor = lastWrit
             ? writ.essay.author !== lastWrit.essay.author ||
               ('chat' in writ.essay['han-data'] &&
@@ -217,10 +220,10 @@ export default function ChatScroller({
 
   const fetchMessages = useCallback(
     async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
-      const newest = messages.maxKey();
+      const newest = messages[messages.length - 1]?.[0];
       const seenNewest =
         newer && newest && writWindow && writWindow.loadedNewest;
-      const oldest = messages.minKey();
+      const oldest = messages[0]?.[0];
       const seenOldest =
         !newer && oldest && writWindow && writWindow.loadedOldest;
 
@@ -308,28 +311,28 @@ export default function ChatScroller({
   );
 
   // perf: define these outside of render
-  const atTopStateChange = (top: boolean) => top && fetchMessages(false);
-  const atBottomStateChange = (bot: boolean) => {
-    const { bottom, delayedRead } = useChatStore.getState();
-    if (bot) {
-      fetchMessages(true);
-      bottom(true);
+  // const atTopStateChange = (top: boolean) => top && fetchMessages(false);
+  // const atBottomStateChange = (bot: boolean) => {
+  // const { bottom, delayedRead } = useChatStore.getState();
+  // if (bot) {
+  // fetchMessages(true);
+  // bottom(true);
 
-      if (!firstPass.current) {
-        delayedRead(whom, () => {
-          if (isDMOrMultiDM) {
-            useChatState.getState().markDmRead(whom);
-          } else {
-            markChatRead({
-              nest: `chat/${whom}`,
-            });
-          }
-        });
-      }
-    } else {
-      bottom(false);
-    }
-  };
+  // if (!firstPass.current) {
+  // delayedRead(whom, () => {
+  // if (isDMOrMultiDM) {
+  // useChatState.getState().markDmRead(whom);
+  // } else {
+  // markChatRead({
+  // nest: `chat/${whom}`,
+  // });
+  // }
+  // });
+  // }
+  // } else {
+  // bottom(false);
+  // }
+  // };
   const totalListHeightChanged = useRef(
     debounce(() => {
       if (firstPass.current && !scrollTo) {

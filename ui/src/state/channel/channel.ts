@@ -33,12 +33,17 @@ import {
   ShelfAction,
   Note,
   Nest,
-  NoteTuple,
   NoteMap,
   newNoteMap,
   newQuipMap,
   QuipMap,
 } from '@/types/channel';
+import {
+  extendCurrentWindow,
+  getWindow,
+  Window,
+  WindowSet,
+} from '@/logic/windows';
 import api from '@/api';
 import { checkNest, nestToFlag, restoreMap } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
@@ -110,23 +115,71 @@ export function channelNoteAction(nest: Nest, action: NoteAction) {
   });
 }
 
+export interface NoteWindows {
+  [nest: string]: WindowSet;
+}
+
 export interface State {
   pendingNotes: string[];
   postedMessages: string[];
+  noteWindows: NoteWindows;
+  addNoteWindow: (nest: Nest, window: Window) => void;
+  extendCurrentWindow: (
+    nest: Nest,
+    currentWindows: WindowSet,
+    newWindow: Window,
+    time?: string
+  ) => void;
   [key: string]: unknown;
 }
 
-export const usePendingState = create<State>(() => ({
+export const useNotesStore = create<State>((set, get) => ({
   pendingNotes: [],
   postedMessages: [],
+  noteWindows: {},
+  addNoteWindow: (nest: Nest, window: Window) => {
+    set((state) => ({
+      noteWindows: {
+        ...state.noteWindows,
+        [nest]: {
+          latest: window,
+          windows: state.noteWindows[nest]
+            ? [...state.noteWindows[nest].windows, window]
+            : [window],
+        },
+      },
+    }));
+  },
+  extendCurrentWindow: (
+    nest: Nest,
+    currentWindows: WindowSet,
+    newWindow: Window,
+    time?: string
+  ) => {
+    set((state) => ({
+      noteWindows: {
+        ...state.noteWindows,
+        [nest]: extendCurrentWindow(newWindow, currentWindows, time),
+      },
+    }));
+  },
 }));
 
+export function useCurrentWindow(
+  nest: Nest,
+  time?: string
+): Window | undefined {
+  const windowSet = useNotesStore((s) => s.noteWindows[nest]);
+
+  return getWindow(windowSet, time);
+}
+
 export function usePendingNotes() {
-  return usePendingState((s) => s.pendingNotes);
+  return useNotesStore((s) => s.pendingNotes);
 }
 
 export function useIsNotePending(noteId: string) {
-  return usePendingState((s) => s.pendingNotes.includes(noteId));
+  return useNotesStore((s) => s.pendingNotes.includes(noteId));
 }
 
 export function useNotes(nest: Nest) {
@@ -239,16 +292,6 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   return rest.isLoading;
 }
 
-function formatNoteResponse(notes: Notes): NoteTuple[] {
-  return Object.entries(notes)
-    .sort((a, b) => {
-      const aTime = bigInt(udToDec(a[0]));
-      const bTime = bigInt(udToDec(b[0]));
-      return bTime.compare(aTime);
-    })
-    .map(([k, v]) => [bigInt(udToDec(k)), v] as NoteTuple);
-}
-
 export function useInfiniteNotes(nest: Nest) {
   const queryClient = useQueryClient();
   const [han, flag] = nestToFlag(nest);
@@ -275,22 +318,129 @@ export function useInfiniteNotes(nest: Nest) {
     });
   }, [nest, invalidate]);
 
-  const { data, fetchNextPage, hasNextPage, isLoading } = useInfiniteQuery<
-    NoteTuple[]
-  >({
+  const { data, fetchNextPage, hasNextPage, isLoading } =
+    useInfiniteQuery<NoteMap>({
+      queryKey,
+      queryFn: async ({ pageParam }) => {
+        const path = pageParam
+          ? `/${nest}/notes/older/${pageParam}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
+          : `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        const response = await api.scry<Notes>({
+          app: 'channels',
+          path,
+        });
+
+        const diff: [BigInteger, Note][] = Object.entries(response).map(
+          ([k, v]) => [bigInt(udToDec(k)), v as Note]
+        );
+
+        return newNoteMap(diff);
+      },
+      getNextPageParam: (lastPage) =>
+        lastPage.length ? lastPage.minKey() : undefined,
+      keepPreviousData: true,
+      refetchOnMount: true,
+      retryOnMount: true,
+    });
+
+  if (data === undefined || data.pages.length === 0) {
+    return {
+      notes: [],
+      fetchNextPage,
+      hasNextPage,
+      isLoading,
+    };
+  }
+
+  const notes: [BigInteger, Note][] = data.pages
+    .map((page) => page.toArray())
+    .flat();
+
+  return {
+    notes,
+    fetchNextPage,
+    hasNextPage,
+    isLoading,
+  };
+}
+
+export function useInfiniteChats(nest: Nest, initialTime?: string) {
+  const queryClient = useQueryClient();
+  const [han, flag] = nestToFlag(nest);
+  const queryKey = useMemo(
+    () => [han, 'notes', flag, 'infinite-chat'],
+    [han, flag]
+  );
+  const currentWindow = useCurrentWindow(nest, initialTime);
+
+  const invalidate = useRef(
+    _.debounce(
+      () => {
+        queryClient.invalidateQueries(queryKey);
+      },
+      300,
+      {
+        leading: true,
+        trailing: true,
+      }
+    )
+  );
+
+  useEffect(() => {
+    api.subscribe({
+      app: 'channels',
+      path: `/${nest}/ui`,
+      event: invalidate.current,
+    });
+  }, [nest, invalidate]);
+
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    fetchPreviousPage,
+    hasPreviousPage,
+    isLoading,
+  } = useInfiniteQuery<NoteMap>({
     queryKey,
-    queryFn: async ({ pageParam }) => {
-      const path = pageParam
-        ? `/${nest}/notes/older/${pageParam}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
-        : `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+    queryFn: async ({ pageParam }: { pageParam?: BigInteger }) => {
+      console.log({ pageParam, currentWindow });
+
+      let path = '';
+
+      if (pageParam) {
+        if (currentWindow?.oldest.eq(pageParam)) {
+          path = `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        } else {
+          const direction = currentWindow?.oldest.lt(pageParam)
+            ? 'older'
+            : 'newer';
+
+          const ud = decToUd(pageParam.toString());
+
+          path = `/${nest}/notes/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        }
+      } else {
+        path = `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+      }
+
+      // const path = pageParam
+      // ? `/${nest}/notes/older/${pageParam}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
+      // : `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       const response = await api.scry<Notes>({
         app: 'channels',
         path,
       });
-      return formatNoteResponse(response);
+      const diff: [BigInteger, Note][] = Object.entries(response).map(
+        ([k, v]) => [bigInt(udToDec(k)), v as Note]
+      );
+
+      return newNoteMap(diff);
     },
     getNextPageParam: (lastPage) =>
-      lastPage.length ? _.last(lastPage)![0] : undefined,
+      lastPage.length ? lastPage.minKey() : undefined,
+    getPreviousPageParam: (previousPage) =>
+      previousPage.length ? previousPage.maxKey() : undefined,
     keepPreviousData: true,
     refetchOnMount: true,
     retryOnMount: true,
@@ -298,23 +448,41 @@ export function useInfiniteNotes(nest: Nest) {
 
   if (data === undefined || data.pages.length === 0) {
     return {
-      notes: newNoteMap(),
+      notes: [],
       fetchNextPage,
       hasNextPage,
       isLoading,
+      hasPreviousPage,
+      fetchPreviousPage,
     };
   }
 
-  const diff: [BigInteger, Note][] = data.pages
-    .flat()
-    .map(([k, v]) => [k, v as Note]);
+  const notes: [BigInteger, Note][] = data.pages
+    .map((page) => page.toArray())
+    .flat();
 
-  const notesMap = newNoteMap(diff);
+  if (currentWindow === undefined) {
+    const keys = notes.map(([k]) => k);
+    const oldest = bigInt(udToDec(keys[0].toString() || '0'));
+    const newest = bigInt(udToDec(keys[keys.length - 1].toString() || '0'));
+
+    const newWindow: Window = {
+      oldest,
+      newest,
+      loadedNewest: true,
+      loadedOldest: false,
+      latest: true,
+    };
+
+    useNotesStore.getState().addNoteWindow(nest, newWindow);
+  }
 
   return {
-    notes: notesMap as NoteMap,
+    notes,
     fetchNextPage,
     hasNextPage,
+    fetchPreviousPage,
+    hasPreviousPage,
     isLoading,
   };
 }
@@ -367,15 +535,15 @@ export function useOrderedNotes(
   const queryClient = useQueryClient();
   const { notes } = useInfiniteNotes(nest);
 
-  const sortedOutlines = notes.toArray();
+  const sortedOutlines = notes;
 
   sortedOutlines.sort(([a], [b]) => b.compare(a));
 
   const noteId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
-  const newest = notes.maxKey();
-  const oldest = notes.minKey();
-  const hasNext = notes.size > 0 && newest && noteId.lt(newest);
-  const hasPrev = notes.size > 0 && oldest && noteId.gt(oldest);
+  const newest = notes[notes.length - 1]?.[0];
+  const oldest = notes[0]?.[0];
+  const hasNext = notes.length > 0 && newest && noteId.lt(newest);
+  const hasPrev = notes.length > 0 && oldest && noteId.gt(oldest);
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(noteId));
 
   const nextNote = hasNext ? sortedOutlines[currentIdx - 1] : null;
@@ -843,7 +1011,7 @@ export function useAddNoteMutation() {
       await queryClient.cancelQueries([han, 'notes', flag]);
       await queryClient.cancelQueries(['briefs']);
 
-      usePendingState.setState((state) => ({
+      useNotesStore.setState((state) => ({
         pendingNotes: [variables.initialTime, ...state.pendingNotes],
       }));
 
@@ -885,7 +1053,7 @@ export function useAddNoteMutation() {
       }
     },
     onSuccess: async (_data, variables) => {
-      usePendingState.setState((state) => ({
+      useNotesStore.setState((state) => ({
         pendingNotes: state.pendingNotes.filter(
           (time) => time !== variables.initialTime
         ),

@@ -41,10 +41,6 @@ function ChatChannel({ title }: ViewProps) {
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
 
-  const initialize = useCallback(async () => {
-    await useChatState.getState().initialize(chFlag);
-  }, [chFlag]);
-
   const {
     group,
     groupChannel: channel,
@@ -53,7 +49,6 @@ function ChatChannel({ title }: ViewProps) {
   } = useFullChannel({
     groupFlag,
     nest,
-    initialize,
   });
 
   return (

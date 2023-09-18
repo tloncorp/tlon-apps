@@ -6,9 +6,11 @@ import { Note } from '@/types/channel';
 
 export interface IChatScroller {
   whom: string;
-  messages: BTree<BigInteger, Note>;
+  messages: [BigInteger, Note][];
   replying?: boolean;
   prefixedElement?: ReactNode;
   scrollTo?: BigInteger;
   scrollerRef: React.RefObject<VirtuosoHandle>;
+  atBottomStateChange: (atBottom: boolean) => void;
+  atTopStateChange: (atTop: boolean) => void;
 }

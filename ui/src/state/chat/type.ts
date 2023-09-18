@@ -1,4 +1,5 @@
 import bigInt, { BigInteger } from 'big-integer';
+import { Note, NoteEssay } from '@/types/channel';
 import {
   ChatWhom,
   Pact,
@@ -12,7 +13,6 @@ import {
 } from '../../types/chat';
 import { BaseState } from '../base';
 import { GroupMeta } from '../../types/groups';
-import { Note, NoteEssay } from '@/types/channel';
 
 export interface WritWindow {
   oldest: bigInt.BigInteger;

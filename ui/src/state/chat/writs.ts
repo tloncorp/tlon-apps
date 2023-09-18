@@ -1,11 +1,11 @@
 import _ from 'lodash';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
+import { newNoteMap, Note, Notes, NoteSeal } from '@/types/channel';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '@/api';
 import { Pact, WritDiff, DmAction, newWritMap } from '@/types/chat';
 import { BasedChatState, WritWindow, WritWindows } from './type';
-import { newNoteMap, Note, Notes, NoteSeal } from '@/types/channel';
 
 interface WritsStore {
   initialize: () => Promise<void>;

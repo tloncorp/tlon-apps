@@ -96,14 +96,14 @@ function HeapChannel({ title }: ViewProps) {
     [displayMode, navigateToDetail]
   );
 
-  const empty = useMemo(() => notes.toArray().length === 0, [notes]);
-  const sortedNotes = notes.toArray().sort(([a], [b]) => {
+  const empty = useMemo(() => notes.length === 0, [notes]);
+  const sortedNotes = notes.sort(([a], [b]) => {
     if (sortMode === 'time') {
       return b.compare(a);
     }
     if (sortMode === 'alpha') {
-      const noteA = notes.get(a);
-      const noteB = notes.get(b);
+      const noteA = notes.find(([time]) => time.eq(a))![1];
+      const noteB = notes.find(([time]) => time.eq(b))![1];
       const { title: noteATitle } = getHanDataFromEssay(noteA?.essay);
       const { title: noteBTitle } = getHanDataFromEssay(noteB?.essay);
 

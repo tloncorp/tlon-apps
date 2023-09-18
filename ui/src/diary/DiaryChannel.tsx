@@ -13,7 +13,7 @@ import {
   useSortMode,
   useMarkReadMutation,
   usePendingNotes,
-  usePendingState,
+  useNotesStore,
   useNotesOnHost,
   useArrangedNotes,
 } from '@/state/channel/channel';
@@ -79,14 +79,14 @@ function DiaryChannel({ title }: ViewProps) {
         notesOnHost &&
         !Object.entries(notesOnHost).every(
           ([_time, n]) =>
-            n && notes.toArray().find(([_t, l]) => l && l.seal.id === n.seal.id)
+            n && notes.find(([_t, l]) => l && l.seal.id === n.seal.id)
         )
       ) {
         queryClient.refetchQueries({
           queryKey: ['diary', 'notes', chFlag],
           exact: true,
         });
-        usePendingState.setState({
+        useNotesStore.setState({
           pendingNotes: [],
         });
       }
@@ -109,7 +109,7 @@ function DiaryChannel({ title }: ViewProps) {
           notesOnHost &&
           Object.entries(notesOnHost).find(([_t, l]) => l && l.seal.id === id)
         ) {
-          usePendingState.setState((s) => ({
+          useNotesStore.setState((s) => ({
             pendingNotes: s.pendingNotes.filter((n) => n !== id),
           }));
         }
@@ -162,7 +162,7 @@ function DiaryChannel({ title }: ViewProps) {
     isMarking,
   });
 
-  const sortedNotes = notes.toArray().sort(([a], [b]) => {
+  const sortedNotes = notes.sort(([a], [b]) => {
     if (sortMode === 'arranged') {
       // if only one note is arranged, put it first
       if (

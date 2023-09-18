@@ -19,9 +19,9 @@ import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useRouteGroup } from '@/state/groups';
+import { useInfiniteChats } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
-import { useInfiniteNotes } from '@/state/channel/channel';
 
 interface ChatWindowProps {
   whom: string;
@@ -37,7 +37,14 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   const scrollTo = getScrollTo(searchParams.get('msg'));
   // const initialized = useChatInitialized(whom);
   // const messages = useMessagesForChat(whom, scrollTo);
-  const { notes: messages, isLoading } = useInfiniteNotes(`chat/${whom}`);
+  const {
+    notes: messages,
+    hasNextPage,
+    hasPreviousPage,
+    fetchPreviousPage,
+    fetchNextPage,
+    isLoading,
+  } = useInfiniteChats(`chat/${whom}`);
   // const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
@@ -68,6 +75,24 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   // [readTimeout, whom]
   // );
 
+  const loadOlderMessages = useCallback(
+    (atBottom: boolean) => {
+      if (atBottom && hasNextPage) {
+        fetchNextPage();
+      }
+    },
+    [fetchNextPage, hasNextPage]
+  );
+
+  const loadNewerMessages = useCallback(
+    (atTop: boolean) => {
+      if (atTop && hasPreviousPage) {
+        fetchPreviousPage();
+      }
+    },
+    [fetchPreviousPage, hasPreviousPage]
+  );
+
   if (isLoading) {
     return (
       <div className="h-full overflow-hidden">
@@ -95,6 +120,8 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
           prefixedElement={prefixedElement}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}
+          atBottomStateChange={loadOlderMessages}
+          atTopStateChange={loadNewerMessages}
         />
       </div>
       {/* scrollTo && !window?.latest ? (
