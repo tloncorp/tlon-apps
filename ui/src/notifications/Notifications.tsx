@@ -156,7 +156,7 @@ export default function Notifications({
           }
         />
       )}
-      <section className="relative flex w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50 sm:p-6">
+      <section className="relative flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50 sm:p-6">
         <Helmet>
           <title>{group ? `${group?.meta?.title} ${title}` : title}</title>
         </Helmet>
