@@ -41,14 +41,13 @@ const ChatScrollerItem = React.forwardRef<
     return null;
   }
 
-  if (
-    !('chat' in writ.essay['han-data']) ||
-    writ.essay['han-data'].chat === null
-  ) {
+  if (!('chat' in writ.essay['han-data'])) {
     return null;
   }
 
-  const isNotice = !!('notice' in writ.essay['han-data'].chat);
+  const isNotice =
+    writ.essay['han-data'].chat !== null &&
+    !!('notice' in writ.essay['han-data'].chat);
 
   if (isNotice) {
     return (
@@ -144,16 +143,11 @@ export default function ChatScroller({
 
   const [keys, entries]: [bigInt.BigInteger[], ChatScrollerItemProps[]] =
     useMemo(() => {
-      const messagesWithoutReplies = messages.filter((k) => {
-        if (replying) {
-          return true;
-        }
-        return messages.get(k)?.seal.quipCount === 0;
-      });
+      const nonNullMessages = messages.filter((k, v) => v !== null);
 
-      const ks: bigInt.BigInteger[] = Array.from(messagesWithoutReplies.keys());
-      const min = messagesWithoutReplies.minKey() || bigInt();
-      const es: ChatScrollerItemProps[] = messagesWithoutReplies
+      const ks: bigInt.BigInteger[] = Array.from(nonNullMessages.keys());
+      const min = nonNullMessages.minKey() || bigInt();
+      const es: ChatScrollerItemProps[] = nonNullMessages
         .toArray()
         .map<ChatScrollerItemProps>(([index, writ]) => {
           if (!writ) {

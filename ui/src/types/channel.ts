@@ -508,7 +508,7 @@ export const emptyNote: Note = {
     quipCount: 0,
     lastQuippers: [],
     feels: {},
-    lastQuip: '',
+    lastQuip: null,
     quips: null,
   },
   essay: {

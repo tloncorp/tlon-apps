@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
-import { useCopy, useIsInThread, useThreadParentId } from '@/logic/utils';
+import { decToUd } from '@urbit/api';
+import { useCopy, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import { useIsDmOrMultiDm, useChatState } from '@/state/chat';
@@ -24,7 +25,6 @@ import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
   useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
   useDeleteNoteMutation,
   usePerms,
 } from '@/state/channel/channel';
@@ -80,11 +80,9 @@ export default function ChatMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
-  const inThread = useIsInThread();
   const threadParentId = useThreadParentId();
   const { mutate: deleteChatMessage } = useDeleteNoteMutation();
   const { mutate: addFeelToChat } = useAddNoteFeelMutation();
-  const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
 
   const onDelete = async () => {
@@ -100,7 +98,7 @@ export default function ChatMessageOptions(props: {
       } else {
         deleteChatMessage({
           nest,
-          time: seal.id,
+          time: decToUd(seal.id),
         });
       }
     } catch (e) {
@@ -127,13 +125,6 @@ export default function ChatMessageOptions(props: {
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
         useChatState.getState().addFeelToDm(whom, seal.id, emoji.shortcodes);
-      } else if (inThread) {
-        addFeelToQuip({
-          nest,
-          noteId: threadParentId!,
-          quipId: seal.id,
-          feel: emoji.shortcodes,
-        });
       } else {
         addFeelToChat({
           nest,
@@ -159,9 +150,6 @@ export default function ChatMessageOptions(props: {
       addFeelToChat,
       nest,
       isDMorMultiDM,
-      addFeelToQuip,
-      inThread,
-      threadParentId,
     ]
   );
 
@@ -175,7 +163,6 @@ export default function ChatMessageOptions(props: {
 
   const showReactAction = canWrite;
   const showReplyAction = !hideReply;
-  const showThreadAction = !threadParentId && !hideThreadReply;
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === essay.author;
   const reactionsCount = Object.keys(seal.feels).length;
@@ -226,18 +213,16 @@ export default function ChatMessageOptions(props: {
     });
   }
 
-  if (showThreadAction) {
-    actions.push({
-      key: 'thread',
-      content: (
-        <div className="flex items-center">
-          <HashIcon className="mr-2 h-6 w-6" />
-          Start Thread
-        </div>
-      ),
-      onClick: () => navigate(`message/${seal.id}`),
-    });
-  }
+  actions.push({
+    key: 'thread',
+    content: (
+      <div className="flex items-center">
+        <HashIcon className="mr-2 h-6 w-6" />
+        Start Thread
+      </div>
+    ),
+    onClick: () => navigate(`message/${seal.id}`),
+  });
 
   if (showCopyAction) {
     actions.push({
@@ -310,12 +295,12 @@ export default function ChatMessageOptions(props: {
                 action={reply}
               />
             )}
-            {showThreadAction && (
+            {!hideThreadReply && (
               <IconButton
                 icon={<HashIcon className="h-6 w-6 text-gray-400" />}
                 label="Start Thread"
                 showTooltip
-                action={() => navigate(`message/${seal.id}`)}
+                action={() => navigate(`message/${essay.author}/${seal.id}`)}
               />
             )}
             {showCopyAction && (

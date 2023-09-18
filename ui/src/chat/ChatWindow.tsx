@@ -47,26 +47,26 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
   }, [setSearchParams]);
 
-  useEffect(() => {
-    if (scrollTo && !messages.has(scrollTo)) {
-      useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
-    }
+  // useEffect(() => {
+  // if (scrollTo && !messages.has(scrollTo)) {
+  // useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
+  // }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), messages]);
+  // // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [scrollTo?.toString(), messages]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
   }, [whom]);
 
-  useEffect(
-    () => () => {
-      if (readTimeout !== undefined && readTimeout !== 0) {
-        useChatStore.getState().read(whom);
-      }
-    },
-    [readTimeout, whom]
-  );
+  // useEffect(
+  // () => () => {
+  // if (readTimeout !== undefined && readTimeout !== 0) {
+  // useChatStore.getState().read(whom);
+  // }
+  // },
+  // [readTimeout, whom]
+  // );
 
   if (isLoading) {
     return (
@@ -97,7 +97,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
           scrollerRef={scrollerRef}
         />
       </div>
-      {scrollTo && !window?.latest ? (
+      {/* scrollTo && !window?.latest ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"
@@ -106,7 +106,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
             Go to Latest <ArrowS16Icon className="ml-2 h-4 w-4" />
           </button>
         </div>
-      ) : null}
+      ) : null */}
     </div>
   );
 }

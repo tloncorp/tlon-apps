@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
-import { useCopy, useIsInThread, useThreadParentId } from '@/logic/utils';
+import { decToUd } from '@urbit/api';
+import { useCopy, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import { useIsDmOrMultiDm, useChatState } from '@/state/chat';
@@ -25,6 +26,7 @@ import {
   useAddNoteFeelMutation,
   useAddQuipFeelMutation,
   useDeleteNoteMutation,
+  useDeleteQuipMutation,
   usePerms,
 } from '@/state/channel/channel';
 import { emptyQuip, Quip } from '@/types/channel';
@@ -34,11 +36,9 @@ export default function QuipMessageOptions(props: {
   onOpenChange: (open: boolean) => void;
   whom: string;
   quip: Quip;
-  hideReply?: boolean;
   openReactionDetails: () => void;
 }) {
-  const { open, onOpenChange, whom, quip, hideReply, openReactionDetails } =
-    props;
+  const { open, onOpenChange, whom, quip, openReactionDetails } = props;
   const { cork, memo } = quip ?? emptyQuip;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
@@ -59,6 +59,8 @@ export default function QuipMessageOptions(props: {
     setReady,
   } = useRequestState();
   const { chShip, chName } = useParams();
+  const threadParentId = useThreadParentId();
+  const isParent = threadParentId === cork.id;
   const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
@@ -71,8 +73,7 @@ export default function QuipMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
-  const inThread = useIsInThread();
-  const threadParentId = useThreadParentId();
+  const { mutate: deleteQuip } = useDeleteQuipMutation();
   const { mutate: deleteChatMessage } = useDeleteNoteMutation();
   const { mutate: addFeelToChat } = useAddNoteFeelMutation();
   const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
@@ -88,10 +89,17 @@ export default function QuipMessageOptions(props: {
     try {
       if (isDMorMultiDM) {
         useChatState.getState().delDm(whom, cork.id);
-      } else {
+      } else if (isParent) {
         deleteChatMessage({
           nest,
-          time: cork.id,
+          time: decToUd(threadParentId),
+        });
+        navigate(`/groups/${groupFlag}/channels/chat/${chShip}/${chName}`);
+      } else {
+        deleteQuip({
+          nest,
+          noteId: threadParentId!,
+          quipId: cork.id,
         });
       }
     } catch (e) {
@@ -118,17 +126,17 @@ export default function QuipMessageOptions(props: {
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
         useChatState.getState().addFeelToDm(whom, cork.id, emoji.shortcodes);
-      } else if (inThread) {
+      } else if (isParent) {
+        addFeelToChat({
+          nest,
+          noteId: cork.id,
+          feel: emoji.shortcodes,
+        });
+      } else {
         addFeelToQuip({
           nest,
           noteId: threadParentId!,
           quipId: cork.id,
-          feel: emoji.shortcodes,
-        });
-      } else {
-        addFeelToChat({
-          nest,
-          noteId: cork.id,
           feel: emoji.shortcodes,
         });
       }
@@ -151,8 +159,8 @@ export default function QuipMessageOptions(props: {
       nest,
       isDMorMultiDM,
       addFeelToQuip,
-      inThread,
       threadParentId,
+      isParent,
     ]
   );
 
@@ -165,7 +173,8 @@ export default function QuipMessageOptions(props: {
   }, [isMobile, loadEmoji]);
 
   const showReactAction = canWrite;
-  const showReplyAction = !hideReply;
+  // TODO handle quip replies
+  const showReplyAction = false;
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === memo.author;
   const reactionsCount = Object.keys(cork.feels).length;

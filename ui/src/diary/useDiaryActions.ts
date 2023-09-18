@@ -1,12 +1,12 @@
+import { decToUd } from '@urbit/api';
+import { useState, useCallback, MouseEvent } from 'react';
+import { useNavigate } from 'react-router';
 import { citeToPath, useCopy } from '@/logic/utils';
 import {
   useArrangedNotes,
   useArrangedNotesMutation,
   useDeleteNoteMutation,
 } from '@/state/channel/channel';
-import { decToUd } from '@urbit/api';
-import { useState, useCallback, MouseEvent } from 'react';
-import { useNavigate } from 'react-router';
 
 interface useDiaryActionsParams {
   flag: string;

@@ -26,7 +26,7 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
-import { useMarkReadMutation } from '@/state/channel/channel';
+import { useIsNotePending, useMarkReadMutation } from '@/state/channel/channel';
 import { Note } from '@/types/channel';
 import {
   useChatDialog,
@@ -156,6 +156,7 @@ const ChatMessage = React.memo<
       });
       const isMessageDelivered = useIsMessageDelivered(seal.id);
       const isMessagePosted = useIsMessagePosted(seal.id);
+      const isNotePending = useIsNotePending(seal.id);
       const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
@@ -163,7 +164,7 @@ const ChatMessage = React.memo<
       const numReplies = seal.quipCount;
       const replyAuthors = seal.lastQuippers;
       const lastReplyTime = seal.lastQuip
-        ? new Date(daToUnix(bigInt(seal.lastQuip)))
+        ? new Date(seal.lastQuip)
         : null;
 
       const hover = useRef(false);
@@ -281,7 +282,10 @@ const ChatMessage = React.memo<
                 className={cn(
                   'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  !isMessageDelivered && !isMessagePosted && 'text-gray-400',
+                  !isMessageDelivered &&
+                    !isMessagePosted &&
+                    !isNotePending &&
+                    'text-gray-400',
                   isLinked && 'bg-blue-softer'
                 )}
               >
@@ -308,7 +312,7 @@ const ChatMessage = React.memo<
                 )}
                 {numReplies > 0 && !hideReplies ? (
                   <NavLink
-                    to={`message/${seal.id}`}
+                    to={`message/${essay.author}/${seal.id}`}
                     className={({ isActive }) =>
                       cn(
                         'default-focus group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
@@ -368,7 +372,7 @@ const ChatMessage = React.memo<
                 ) : null}
               </div>
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {!isMessageDelivered && (
+                {(!isMessageDelivered || isNotePending) && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
                     primary={isMessagePosted ? 'text-black' : 'text-gray-200'}

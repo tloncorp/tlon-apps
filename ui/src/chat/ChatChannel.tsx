@@ -1,5 +1,6 @@
 import cn from 'classnames';
 import React, { useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Route, Routes, useMatch, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -9,14 +10,13 @@ import { ViewProps } from '@/types/groups';
 import { useChatState } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import { useLeaveMutation } from '@/state/channel/channel';
+import { useAddNoteMutation, useLeaveMutation } from '@/state/channel/channel';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -37,7 +37,7 @@ function ChatChannel({ title }: ViewProps) {
   const inThread = idShip && idTime;
   const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
   const { mutateAsync: leaveChat } = useLeaveMutation();
-  const { sendMessage } = useChatState.getState();
+  const { mutate: sendMessage } = useAddNoteMutation();
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
 
@@ -126,7 +126,7 @@ function ChatChannel({ title }: ViewProps) {
               <ChatInput
                 key={chFlag}
                 whom={chFlag}
-                sendDm={sendMessage}
+                sendChatMessage={sendMessage}
                 showReply
                 autoFocus={!inThread && !inSearch}
                 dropZoneId={dropZoneId}

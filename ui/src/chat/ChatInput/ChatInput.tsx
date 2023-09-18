@@ -2,6 +2,7 @@ import { Editor } from '@tiptap/react';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
 import { useLocalStorage } from 'usehooks-ts';
+import { unixToDa } from '@urbit/api';
 import React, {
   useCallback,
   useEffect,
@@ -118,6 +119,7 @@ export default function ChatInput({
   inThread = false,
   dropZoneId,
 }: ChatInputProps) {
+  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
   const [didDrop, setDidDrop] = useState(false);
@@ -349,9 +351,86 @@ export default function ChatInput({
           img.onerror = () => {
             sendDm(whom, essay);
           };
+        } else if (sendChatMessage) {
+          img.onload = () => {
+            const { width, height } = img;
+
+            sendChatMessage({
+              initialTime,
+              nest: `chat/${whom}`,
+              essay: {
+                ...essay,
+                'han-data': {
+                  chat: null,
+                },
+                sent: Date.now(),
+                content: [
+                  {
+                    block: {
+                      image: {
+                        src: url,
+                        alt: name,
+                        width,
+                        height,
+                      },
+                    },
+                  },
+                ],
+              },
+            });
+          };
+
+          img.onerror = () => {
+            sendChatMessage({
+              initialTime,
+              nest: `chat/${whom}`,
+              essay,
+            });
+          };
+        } else if (sendQuip && replying) {
+          img.onload = () => {
+            const { width, height } = img;
+
+            sendQuip({
+              nest: `chat/${whom}`,
+              noteId: replying,
+              content: [
+                {
+                  block: {
+                    image: {
+                      src: url,
+                      alt: name,
+                      width,
+                      height,
+                    },
+                  },
+                },
+              ],
+            });
+          };
+
+          img.onerror = () => {
+            sendQuip({
+              nest: `chat/${whom}`,
+              noteId: replying,
+              content: essay.content,
+            });
+          };
         }
       } else if (sendDm) {
         sendDm(whom, essay);
+      } else if (sendChatMessage) {
+        sendChatMessage({
+          initialTime,
+          nest: `chat/${whom}`,
+          essay,
+        });
+      } else if (sendQuip && replying) {
+        sendQuip({
+          nest: `chat/${whom}`,
+          noteId: replying,
+          content: essay.content,
+        });
       }
       captureGroupsAnalyticsEvent({
         name: reply ? 'comment_item' : 'post_item',
@@ -370,12 +449,16 @@ export default function ChatInput({
     },
     [
       whom,
+      initialTime,
       groupFlag,
       privacy,
       id,
+      replying,
       setDraft,
       clearAttachments,
       sendDm,
+      sendChatMessage,
+      sendQuip,
       sendDisabled,
       replyCite,
       reply,

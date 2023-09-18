@@ -91,7 +91,6 @@ function scrollToIndex(
 export default function QuipScroller({
   whom,
   messages,
-  replying = false,
   prefixedElement,
   scrollTo = undefined,
   scrollerRef,
@@ -122,7 +121,7 @@ export default function QuipScroller({
           if (!quip) {
             return {
               quip: emptyQuip,
-              hideReplies: replying,
+              han: 'chat',
               time: bigInt('0'),
               newAuthor: false,
               newDay: false,
@@ -153,7 +152,7 @@ export default function QuipScroller({
             index,
             whom,
             quip,
-            hideReplies: replying,
+            han: 'chat',
             time: index,
             newAuthor,
             newDay,
@@ -165,7 +164,7 @@ export default function QuipScroller({
         });
 
       return [ks, es];
-    }, [whom, scrollTo, messages, replying, prefixedElement, isScrolling]);
+    }, [whom, scrollTo, messages, prefixedElement, isScrolling]);
 
   const hasScrollTo = useMemo(() => {
     if (!scrollTo) {

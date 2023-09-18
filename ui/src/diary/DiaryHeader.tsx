@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import cn from 'classnames';
+import { Link } from 'react-router-dom';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
 import { useLeaveMutation } from '@/state/channel/channel';
@@ -12,7 +13,6 @@ import {
 } from '@/state/settings';
 import { DisplayMode } from '@/types/channel';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
-import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';

@@ -8,23 +8,17 @@ import { useChatState, useIsDmOrMultiDm } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
-import {
-  useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
-} from '@/state/channel/channel';
-import { useIsInThread, useThreadParentId } from '@/logic/utils';
-import { NoteSeal, QuipCork } from '@/types/channel';
+import { useAddNoteFeelMutation } from '@/state/channel/channel';
+import { NoteSeal } from '@/types/channel';
 import ChatReaction from './ChatReaction';
 
 interface ChatReactionsProps {
   whom: string;
-  seal: NoteSeal | QuipCork;
+  seal: NoteSeal;
   id?: string;
 }
 
 export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
-  const inThread = useIsInThread();
-  const threadParentId = useThreadParentId();
   const [pickerOpen, setPickerOpen] = useState(false);
   const feels = _.invertBy(seal.feels);
   const isMobile = useIsMobile();
@@ -34,20 +28,12 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
   const { privacy } = useGroupPrivacy(groupFlag);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: addChatFeel } = useAddNoteFeelMutation();
-  const { mutate: addQuipFeel } = useAddQuipFeelMutation();
   const nest = `chat/${whom}`;
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMOrMultiDM) {
         useChatState.getState().addFeelToDm(whom, seal.id, emoji.shortcodes);
-      } else if (inThread) {
-        addQuipFeel({
-          nest,
-          noteId: threadParentId!,
-          quipId: seal.id,
-          feel: emoji.shortcodes,
-        });
       } else {
         addChatFeel({
           nest,
@@ -64,18 +50,7 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
       });
       setPickerOpen(false);
     },
-    [
-      whom,
-      groupFlag,
-      privacy,
-      seal,
-      isDMOrMultiDM,
-      addChatFeel,
-      nest,
-      inThread,
-      addQuipFeel,
-      threadParentId,
-    ]
+    [whom, groupFlag, privacy, seal, isDMOrMultiDM, addChatFeel, nest]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

@@ -112,11 +112,13 @@ export function channelNoteAction(nest: Nest, action: NoteAction) {
 
 export interface State {
   pendingNotes: string[];
+  postedMessages: string[];
   [key: string]: unknown;
 }
 
 export const usePendingState = create<State>(() => ({
   pendingNotes: [],
+  postedMessages: [],
 }));
 
 export function usePendingNotes() {
@@ -306,7 +308,6 @@ export function useInfiniteNotes(nest: Nest) {
   const diff: [BigInteger, Note][] = data.pages
     .flat()
     .map(([k, v]) => [k, v as Note]);
-
 
   const notesMap = newNoteMap(diff);
 

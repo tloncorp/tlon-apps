@@ -2,7 +2,7 @@ import bigInt from 'big-integer';
 import { useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, useParams } from 'react-router';
-import { BigIntOrderedMap, daToUnix, udToDec } from '@urbit/api';
+import { udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import {

@@ -24,7 +24,7 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { emptyQuip, Quip } from '@/types/channel';
+import { emptyQuip, Han, Quip } from '@/types/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -33,6 +33,7 @@ import {
 } from '../useChatStore';
 import ReactionDetails from '../ChatReactions/ReactionDetails';
 import QuipMessageOptions from './QuipMessageOptions';
+import QuipReactions from '@/diary/QuipReactions/QuipReactions';
 
 export interface QuipMessageProps {
   whom: string;
@@ -40,11 +41,11 @@ export interface QuipMessageProps {
   quip: Quip;
   newAuthor?: boolean;
   newDay?: boolean;
-  hideReplies?: boolean;
   hideOptions?: boolean;
   isLast?: boolean;
   isLinked?: boolean;
   isScrolling?: boolean;
+  han: Han;
 }
 
 function briefMatches(brief: ChatBrief, id: string): boolean {
@@ -75,11 +76,11 @@ const QuipMessage = React.memo<
         quip,
         newAuthor = false,
         newDay = false,
-        hideReplies = false,
         hideOptions = false,
         isLast = false,
         isLinked = false,
         isScrolling = false,
+        han,
       }: QuipMessageProps,
       ref
     ) => {
@@ -89,11 +90,9 @@ const QuipMessage = React.memo<
         idShip: string;
         idTime: string;
       }>();
-      const isThread = !!idShip && !!idTime;
-      const threadOpId = isThread ? `${idShip}/${idTime}` : '';
-      const isThreadOp = threadOpId === cork.id && hideReplies;
+      const isThreadOp = idTime === cork.id;
       const isMobile = useIsMobile();
-      const isThreadOnMobile = isThread && isMobile;
+      const isThreadOnMobile = isMobile;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
@@ -253,7 +252,7 @@ const QuipMessage = React.memo<
           ) : null}
           {newDay ? <DateDivider date={unix} /> : null}
           {newAuthor ? (
-            <Author ship={memo.author} date={unix} hideRoles={isThread} />
+            <Author ship={memo.author} date={unix} hideRoles />
           ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             <QuipMessageOptions
@@ -261,7 +260,6 @@ const QuipMessage = React.memo<
               onOpenChange={setOptionsOpen}
               whom={whom}
               quip={quip}
-              hideReply={hideReplies}
               openReactionDetails={() => setReactionDetailsOpen(true)}
             />
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
@@ -283,12 +281,15 @@ const QuipMessage = React.memo<
                     writId={cork.id}
                   />
                 ) : null}
-                {Object.keys(cork.feels).length > 0 && (
+                {cork.feels && Object.keys(cork.feels).length > 0 && (
                   <>
-                    <ChatReactions
+                    <QuipReactions
                       id="reactions-target"
-                      seal={cork}
+                      han={han}
+                      cork={cork}
                       whom={whom}
+                      time={time.toString()}
+                      noteId={idTime!}
                     />
                     <ReactionDetails
                       open={reactionDetailsOpen}

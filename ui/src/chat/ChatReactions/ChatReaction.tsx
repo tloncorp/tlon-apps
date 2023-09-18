@@ -10,11 +10,8 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import {
   useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
   useDeleteNoteFeelMutation,
-  useDeleteQuipFeelMutation,
 } from '@/state/channel/channel';
-import { useIsInThread, useThreadParentId } from '@/logic/utils';
 import { NoteSeal, QuipCork } from '@/types/channel';
 
 interface ChatReactionProps {
@@ -30,15 +27,11 @@ export default function ChatReaction({
   feel,
   ships,
 }: ChatReactionProps) {
-  const inThread = useIsInThread();
-  const threadParentId = useThreadParentId();
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: addChatFeel } = useAddNoteFeelMutation();
   const { mutate: delChatFeel } = useDeleteNoteFeelMutation();
-  const { mutate: addQuipFeel } = useAddQuipFeelMutation();
-  const { mutate: delQuipFeel } = useDeleteQuipFeelMutation();
   const nest = `chat/${whom}`;
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
@@ -53,12 +46,6 @@ export default function ChatReaction({
     if (isMine) {
       if (isDMOrMultiDM) {
         useChatState.getState().delFeelToDm(whom, seal.id);
-      } else if (inThread) {
-        delQuipFeel({
-          nest,
-          noteId: threadParentId!,
-          quipId: seal.id,
-        });
       } else {
         delChatFeel({
           nest,
@@ -68,13 +55,6 @@ export default function ChatReaction({
     } else {
       if (isDMOrMultiDM) {
         useChatState.getState().addFeelToDm(whom, seal.id, feel);
-      } else if (inThread) {
-        addQuipFeel({
-          nest,
-          noteId: threadParentId!,
-          quipId: seal.id,
-          feel,
-        });
       } else {
         addChatFeel({
           nest,
@@ -97,14 +77,10 @@ export default function ChatReaction({
     privacy,
     seal,
     feel,
-    inThread,
-    threadParentId,
     delChatFeel,
-    delQuipFeel,
     nest,
     isDMOrMultiDM,
     addChatFeel,
-    addQuipFeel,
   ]);
 
   return (

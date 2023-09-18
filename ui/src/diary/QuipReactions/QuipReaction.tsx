@@ -5,7 +5,9 @@ import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
 import {
+  useAddNoteFeelMutation,
   useAddQuipFeelMutation,
+  useDeleteNoteFeelMutation,
   useDeleteQuipFeelMutation,
 } from '@/state/channel/channel';
 
@@ -29,8 +31,12 @@ export default function QuipReaction({
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
+  const isParent = noteId === time;
+  const nest = `${han}/${whom}`;
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
+  const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
   const { mutateAsync: delQuipFeel } = useDeleteQuipFeelMutation();
+  const { mutateAsync: delChatFeel } = useDeleteNoteFeelMutation();
 
   useEffect(() => {
     load();
@@ -38,11 +44,28 @@ export default function QuipReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await delQuipFeel({ nest: `${han}/${whom}`, noteId, quipId: time });
+      if (isParent) {
+        await delChatFeel({ nest, noteId });
+      } else {
+        await delQuipFeel({ nest, noteId, quipId: time });
+      }
+    } else if (isParent) {
+      await addChatFeel({ nest, noteId, feel });
     } else {
-      await addQuipFeel({ nest: `${han}/${whom}`, noteId, quipId: time, feel });
+      await addQuipFeel({ nest, noteId, quipId: time, feel });
     }
-  }, [isMine, whom, feel, noteId, time, addQuipFeel, delQuipFeel, han]);
+  }, [
+    isMine,
+    feel,
+    noteId,
+    time,
+    addQuipFeel,
+    delQuipFeel,
+    delChatFeel,
+    nest,
+    isParent,
+    addChatFeel,
+  ]);
 
   return (
     <div>

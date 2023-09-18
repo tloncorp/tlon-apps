@@ -1,9 +1,12 @@
-import EmojiPicker from '@/components/EmojiPicker';
-import AddReactIcon from '@/components/icons/AddReactIcon';
-import { useAddQuipFeelMutation } from '@/state/channel/channel';
-import { Han, QuipCork } from '@/types/channel';
 import _ from 'lodash';
 import { useCallback, useState } from 'react';
+import EmojiPicker from '@/components/EmojiPicker';
+import AddReactIcon from '@/components/icons/AddReactIcon';
+import {
+  useAddNoteFeelMutation,
+  useAddQuipFeelMutation,
+} from '@/state/channel/channel';
+import { Han, QuipCork } from '@/types/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import QuipReaction from './QuipReaction';
 
@@ -13,6 +16,7 @@ interface QuipReactionsProps {
   time: string;
   noteId: string;
   han: Han;
+  id?: string;
 }
 
 export default function QuipReactions({
@@ -21,28 +25,44 @@ export default function QuipReactions({
   time,
   noteId,
   han,
+  id,
 }: QuipReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isMobile = useIsMobile();
-  const feels = _.invertBy(cork.feels);
+  const feels = cork.feels ? _.invertBy(cork.feels) : {};
+  const isParent = noteId === time;
+  const nest = `${han}/${whom}`;
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
+  const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
 
   const onEmoji = useCallback(
     async (emoji: any) => {
-      addQuipFeel({
-        nest: `${han}/${whom}`,
-        noteId,
-        quipId: time,
-        feel: emoji.shortcodes,
-      });
+      if (isParent) {
+        await addChatFeel({
+          nest,
+          noteId,
+          feel: emoji.shortcodes,
+        });
+      } else {
+        addQuipFeel({
+          nest,
+          noteId,
+          quipId: time,
+          feel: emoji.shortcodes,
+        });
+      }
     },
-    [han, whom, time, noteId, addQuipFeel]
+    [time, noteId, addQuipFeel, addChatFeel, isParent, nest]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
+  if (!cork.feels) {
+    return null;
+  }
+
   return (
-    <div className="my-2 flex items-center space-x-2">
+    <div id={id} className="my-2 flex items-center space-x-2">
       {Object.entries(feels).map(([feel, ships]) => (
         <QuipReaction
           han={han}

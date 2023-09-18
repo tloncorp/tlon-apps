@@ -1,14 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import _ from 'lodash';
-import ob from 'urbit-ob';
-import { udToDec } from '@urbit/api';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import { useChatState, useWrit } from '@/state/chat';
 import {
   useGroupChannel,
   useRouteGroup,
@@ -17,7 +14,6 @@ import {
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
-import { whomIsFlag } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
@@ -25,13 +21,10 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
-import {
-  useAddQuipMutation,
-  usePerms,
-  useQuips,
-} from '@/state/channel/channel';
+import { useAddQuipMutation, useNote, usePerms } from '@/state/channel/channel';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import QuipScroller from '../QuipScroller/QuipScroller';
+import { newQuipMap } from '@/types/channel';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime, idShip } = useParams<{
@@ -42,7 +35,7 @@ export default function ChatThread() {
     idShip: string;
     idTime: string;
   }>();
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
@@ -53,17 +46,23 @@ export default function ChatThread() {
   const { mutate: sendMessage } = useAddQuipMutation();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
-  const channel = useGroupChannel(groupFlag, `chat/${flag}`)!;
+  const channel = useGroupChannel(groupFlag, nest)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  // const maybeWrit = useWrit(whom, id);
-  const replies = useQuips(nest, id);
+  const { note, isLoading } = useNote(nest, idTime!);
+  const replies = note.seal.quips ?? newQuipMap();
+  replies.set(bigInt(idTime!), {
+    memo: note.essay,
+    cork: {
+      id: note.seal.id,
+      feels: note.seal.feels,
+    },
+  });
   const navigate = useNavigate();
-  // const [time, writ] = maybeWrit ?? [null, null];
   const threadRef = useRef<HTMLDivElement | null>(null);
-  const perms = usePerms(flag);
+  const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
   // const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   // const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
@@ -91,22 +90,22 @@ export default function ChatThread() {
   useEventListener('keydown', onEscape, threadRef);
 
   // const initializeChannel = useCallback(async () => {
-    // setLoading(true);
-    // if (!idTime) return;
-    // await useChatState
-      // .getState()
-      // .fetchMessagesAround(
-        // `${chShip}/${chName}`,
-        // '50',
-        // bigInt(udToDec(idTime))
-      // );
-    // setLoading(false);
+  // setLoading(true);
+  // if (!idTime) return;
+  // await useChatState
+  // .getState()
+  // .fetchMessagesAround(
+  // `${chShip}/${chName}`,
+  // '50',
+  // bigInt(udToDec(idTime))
+  // );
+  // setLoading(false);
   // }, [chName, chShip, idTime]);
 
   // useEffect(() => {
-    // if (!time || !writ) {
-      // initializeChannel();
-    // }
+  // if (!time || !writ) {
+  // initializeChannel();
+  // }
   // }, [initializeChannel, time, writ]);
 
   // if (!time || !writ) return null;
@@ -173,15 +172,15 @@ export default function ChatThread() {
         </header>
       )}
       <div className="flex flex-1 flex-col overflow-hidden p-0 pr-2">
-        {loading ? (
+        {isLoading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
           <QuipScroller
+            parentNote={note}
             key={idTime}
             messages={replies}
             whom={flag}
             scrollerRef={scrollerRef}
-            replying
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
           />
         )}
@@ -196,7 +195,7 @@ export default function ChatThread() {
         {compatible && canWrite ? (
           <ChatInput
             whom={flag}
-            replying={id}
+            replying={idTime}
             sendQuip={sendMessage}
             inThread
             autoFocus

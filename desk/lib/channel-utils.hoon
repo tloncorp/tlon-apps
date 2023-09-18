@@ -167,9 +167,9 @@
   =|  quippers=(set ship)
   =/  entries=(list [time (unit quip:d)])  (bap:on-quips:d quips.note)
   |-
-  =/  [* quip=(unit quip:d)]  -.entries
   ?:  |(=(~ entries) =(3 ~(wyt in quippers)))
     quippers
+  =/  [* quip=(unit quip:d)]  -.entries
   ?~  quip  $(entries +.entries)
   ?:  (~(has in quippers) author.u.quip)
     $(entries +.entries)
