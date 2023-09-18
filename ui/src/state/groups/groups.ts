@@ -92,8 +92,9 @@ export function useGroupConnection(flag: string) {
   return useGroupConnectionState((state) => state.groups[flag] ?? true);
 }
 
-export function useGroups() {
-  const { data, ...rest } = useReactQuerySubscription({
+const emptyGroups: Groups = {};
+export function useGroupsWithQuery() {
+  const { data, ...rest } = useReactQuerySubscription<Groups>({
     queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
@@ -103,11 +104,32 @@ export function useGroups() {
     },
   });
 
-  if (rest.isLoading || rest.isError) {
-    return {} as Groups;
+  if (rest.isLoading || rest.isError || !data) {
+    return { data: emptyGroups, ...rest };
   }
 
-  return data as Groups;
+  return {
+    data,
+    ...rest,
+  };
+}
+
+export function useGroups() {
+  const { data, ...rest } = useReactQuerySubscription<Groups>({
+    queryKey: [GROUPS_KEY],
+    app: 'groups',
+    path: `/groups/ui`,
+    scry: `/groups/light/v0`,
+    options: {
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
+    },
+  });
+
+  if (!data || rest.isLoading || rest.isError) {
+    return emptyGroups;
+  }
+
+  return data;
 }
 
 export function useGroup(flag: string, updating = false): Group | undefined {
