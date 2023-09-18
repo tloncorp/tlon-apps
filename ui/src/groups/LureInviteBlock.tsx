@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { useLure, useLureLinkChecked } from '@/state/lure/lure';
+import { useLureLinkStatus } from '@/state/lure/lure';
 import { isGroupHost, useCopy } from '@/logic/utils';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { Group } from '@/types/groups';
@@ -28,24 +28,13 @@ export default function LureInviteBlock({
   group,
   className,
 }: LureInviteBlock) {
-  const { supported, fetched, enabled, enableAcked, url, deepLinkUrl, toggle } =
-    useLure(flag);
-  const { good, checked } = useLureLinkChecked(flag, !!enabled);
+  const { status, shareUrl, toggle } = useLureLinkStatus(flag);
   const [qrCode, setQrCode] = useState<string | undefined>();
   const isDarkMode = useIsDark();
-  const isAvailable = !!(
-    enabled &&
-    enableAcked &&
-    fetched &&
-    url &&
-    good &&
-    checked
-  );
-  const shareUrl = deepLinkUrl ?? url;
   const { didCopy, doCopy } = useCopy(shareUrl);
 
   useEffect(() => {
-    if (isAvailable) {
+    if (status === 'ready') {
       QRCode.toDataURL(
         shareUrl,
         {
@@ -60,15 +49,15 @@ export default function LureInviteBlock({
         }
       );
     }
-  }, [isDarkMode, isAvailable, shareUrl]);
+  }, [isDarkMode, status, shareUrl]);
 
-  if (!supported) {
+  if (status === 'unsupported') {
     return null;
   }
 
   return (
     <div className={cn('space-y-3', className)}>
-      {isAvailable ? (
+      {status === 'ready' ? (
         <div className="space-y-3">
           <div className="w-[60%] max-w-[256px]">
             {qrCode ? (
@@ -106,6 +95,10 @@ export default function LureInviteBlock({
             )}
           </button>
         </div>
+      ) : status !== 'disabled' ? (
+        <div className="flex min-h-[128px] w-full items-center justify-center">
+          <LoadingSpinner className="h-4 w-4" />
+        </div>
       ) : null}
       {isGroupHost(flag) ? (
         <button
@@ -116,7 +109,7 @@ export default function LureInviteBlock({
           <span
             className={cn(
               'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
-              enabled ? 'bg-blue-500' : 'border border-gray-100'
+              status === 'disabled' ? 'border border-gray-100' : 'bg-blue-500'
             )}
           >
             <CheckIcon className="h-4 w-4 text-white" />

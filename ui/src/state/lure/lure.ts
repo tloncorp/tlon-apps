@@ -1,3 +1,9 @@
+import { useQuery } from '@tanstack/react-query';
+import produce from 'immer';
+import { useEffect, useCallback, useRef, useMemo } from 'react';
+import create from 'zustand';
+import { persist } from 'zustand/middleware';
+
 import api from '@/api';
 import { createDeepLink } from '@/logic/branch';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
@@ -9,11 +15,6 @@ import {
   storageVersion,
 } from '@/logic/utils';
 import { GroupMeta } from '@/types/groups';
-import { useQuery } from '@tanstack/react-query';
-import produce from 'immer';
-import { useEffect, useCallback, useRef } from 'react';
-import create from 'zustand';
-import { persist } from 'zustand/middleware';
 
 interface LureMetadata {
   tag: string;
@@ -151,7 +152,7 @@ export const useLureState = create<LureState>(
                 app: 'reel',
                 path: `/outstanding-poke/${flag}`,
               }),
-            !prevLure.enableAcked
+            false
           ),
         ]);
         const deepLinkUrl = await createDeepLink(
@@ -245,4 +246,32 @@ export function useLureLinkChecked(flag: string, enabled: boolean) {
     good: data,
     checked: query.isFetched && !query.isLoading,
   };
+}
+
+export function useLureLinkStatus(flag: string) {
+  const { supported, fetched, enabled, enableAcked, url, deepLinkUrl, toggle } =
+    useLure(flag);
+  const { good, checked } = useLureLinkChecked(flag, !!enabled);
+
+  const status = useMemo(() => {
+    if (!supported) {
+      return 'unsupported';
+    }
+
+    if (!enabled) {
+      return 'disabled';
+    }
+
+    if (!url || !fetched || !checked) {
+      return 'loading';
+    }
+
+    if (!good) {
+      return 'error';
+    }
+
+    return 'ready';
+  }, [supported, fetched, enabled, url, good, checked]);
+
+  return { status, shareUrl: deepLinkUrl ?? url, toggle };
 }
