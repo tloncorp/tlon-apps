@@ -537,10 +537,7 @@ export default function ChatInput({
   }
 
   return (
-    <div
-      className={cn('flex w-full items-end space-x-2', className)}
-      style={{ paddingBottom: isGroupChatInput ? safeAreaInsets.bottom : 0 }}
-    >
+    <div className={cn('flex w-full items-end space-x-2', className)}>
       <div
         // sometimes a race condition causes the dropzone to be removed before the drop event fires
         id={dropZoneId}
