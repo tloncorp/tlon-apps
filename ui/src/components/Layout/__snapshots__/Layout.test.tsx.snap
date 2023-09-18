@@ -2,10 +2,10 @@
 
 exports[`Layout > renders as expected 1`] = `
 <div
-  className="layout bg-red"
+  className="layout"
 >
   <main
-    className="main relative bg-cyan"
+    className="main relative"
   >
     <p>
       content
