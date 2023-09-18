@@ -101,6 +101,7 @@ import NewGroupView from './groups/NewGroup/NewGroupView';
 import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
+import { isNativeApp } from './logic/native';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -296,19 +297,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
-let redirectToFind = !window.location.pathname.startsWith('/apps/groups/find');
 function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
-  const navigate = useNavigate();
-  const groups = queryClient.getQueryCache().find(['groups'])?.state.data;
-  const isInGroups = groups !== undefined ? !_.isEmpty(groups) : true;
-
-  useEffect(() => {
-    if (!isInGroups && redirectToFind) {
-      navigate('/find', { replace: true });
-      redirectToFind = false;
-    }
-  }, [isInGroups, navigate]);
-
   if (isMobile) {
     return <MobileGroupsNavHome />;
   }
@@ -604,6 +593,10 @@ function authRedirect() {
 }
 
 function checkIfLoggedIn() {
+  if (isNativeApp()) {
+    return;
+  }
+
   if (IS_MOCK) {
     return;
   }
@@ -664,6 +657,18 @@ function App() {
       bootstrap();
     })();
   }, [handleError]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (location.pathname === '/' || location.pathname.startsWith('/groups')) {
+      useLocalState.setState({ groupsLocation: location.pathname });
+    } else if (
+      location.pathname.startsWith('/messages') ||
+      location.pathname.startsWith('/dm')
+    ) {
+      useLocalState.setState({ messagesLocation: location.pathname });
+    }
+  }, [location, isMobile]);
 
   const state = location.state as { backgroundLocation?: Location } | null;
 

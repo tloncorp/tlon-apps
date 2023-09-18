@@ -23,7 +23,7 @@ export default function RadioGroup({
 }) {
   return (
     <RadioGroupPrimitive.Root
-      className="flex w-full flex-col items-start justify-start font-system-sans text-[17px]"
+      className="flex w-full flex-col rounded-xl border border-gray-200 font-system-sans text-[17px]"
       value={value}
       defaultValue={defaultOption}
       onValueChange={(val: string) => {
@@ -39,31 +39,31 @@ export default function RadioGroup({
           value={option.value}
           aria-label={option.ariaLabel ?? option.label}
           className={cn(
-            'flex h-14 w-full cursor-pointer items-center justify-between gap-4 border border-gray-100 py-2 px-6',
+            'flex h-14 cursor-pointer items-center justify-between border-b border-gray-200 py-2 px-6 text-left',
             index === 0 ? 'rounded-t-xl' : '',
-            index === options.length - 1 ? 'rounded-b-xl' : '',
+            index === options.length - 1 ? 'rounded-b-xl border-b-0' : '',
             index !== 0 && index !== options.length - 1 ? 'border-t-0' : '',
             index === options.length - 1 ? 'border-t-0' : '',
             value === option.value ? 'bg-gray-50' : 'bg-white'
           )}
         >
-          <div className="flex flex-col items-start justify-start space-y-1">
-            <label htmlFor={option.value}>
-              <span className="line-clamp-1">{option.label}</span>
+          <div>
+            <label className="block line-clamp-1" htmlFor={option.value}>
+              {option.label}
             </label>
             {option.secondaryLabel && (
-              <span className="whitespace-break-spaces text-base font-normal text-gray-600 line-clamp-1">
+              <p className="mt-[4px] text-sm font-normal text-gray-600 line-clamp-1">
                 {option.secondaryLabel}
-              </span>
+              </p>
             )}
           </div>
           <RadioGroupPrimitive.Indicator
             className={cn(
-              'h-6 w-6 rounded-full',
+              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
               value === option.value ? 'bg-blue-500' : 'bg-white'
             )}
           >
-            <CheckIcon className="h-6 w-6 text-white" />
+            <CheckIcon className="h-4 w-4 text-white" />
           </RadioGroupPrimitive.Indicator>
         </RadioGroupPrimitive.Item>
       ))}

@@ -6,7 +6,7 @@ import { JSONContent } from '@tiptap/react';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { createCurioHeart } from '@/logic/heap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
-import { useIsMobile } from '@/logic/useMedia';
+import { tipTapToString } from '@/logic/tiptap';
 import { useFileStore, useUploader } from '@/state/storage';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';
@@ -38,7 +38,6 @@ export default function AddCurioModal({
   const uploadKey = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const [mode, setMode] = useState<'preview' | 'input'>('input');
   const [errorMessage, setErrorMessage] = useState('');
-  const isMobile = useIsMobile();
   const [content, setContent] = useState<JSONContent>();
   const [pastedFile, setPastedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -47,7 +46,8 @@ export default function AddCurioModal({
   const { mutate } = useAddCurioMutation();
   const { privacy } = useGroupPrivacy(flag);
 
-  const isEmpty = !content && !draggedFile && !pastedFile;
+  const isEmpty =
+    !(content && tipTapToString(content)) && !draggedFile && !pastedFile;
   const errorForDisplay = errorMessage || dragErrorMessage;
 
   const reset = useCallback(() => {
@@ -218,11 +218,7 @@ export default function AddCurioModal({
             <NewCurioInput
               onChange={onChange}
               onPastedFiles={onPastedFiles}
-              placeholder={
-                isMobile
-                  ? 'Paste a link or type to post text'
-                  : 'Drag media to upload, or start typing to post text'
-              }
+              uploadKey={uploadKey}
             />
           </div>
         ) : (

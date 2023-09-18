@@ -1,3 +1,5 @@
+import { useSafeAreaContext } from './SafeAreaContext';
+
 type Action = 'copy';
 
 export const isNativeApp = () => !!window.ReactNativeWebView;
@@ -16,3 +18,5 @@ export const isIOSWebView = () => {
     !/safari/.test(userAgent)
   );
 };
+
+export const useSafeAreaInsets = () => useSafeAreaContext().safeAreaInsets;

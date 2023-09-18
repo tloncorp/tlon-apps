@@ -22,6 +22,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
+import { useSafeAreaInsets } from '@/logic/native';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -66,6 +67,10 @@ export default function ChatThread() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
+  const safeAreaInsets = useSafeAreaInsets();
+  // We only inset the bottom for groups, since DMs display the navbar
+  // underneath this view
+  const bottomInset = channel ? safeAreaInsets.bottom : 0;
 
   const returnURL = useCallback(() => {
     if (!time || !writ) return '#';
@@ -192,14 +197,19 @@ export default function ChatThread() {
         )}
       >
         {compatible && canWrite ? (
-          <ChatInput
-            whom={whom}
-            replying={id}
-            sendMessage={sendMessage}
-            inThread
-            autoFocus
-            dropZoneId={dropZoneId}
-          />
+          <div
+            className="safe-area-input"
+            style={{ paddingBottom: bottomInset }}
+          >
+            <ChatInput
+              whom={whom}
+              replying={id}
+              sendMessage={sendMessage}
+              inThread
+              autoFocus
+              dropZoneId={dropZoneId}
+            />
+          </div>
         ) : !canWrite ? null : (
           <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
             {text}

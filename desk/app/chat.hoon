@@ -241,6 +241,24 @@
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
+      %noun
+    =+  !<([head=term tail=*] vase)
+    ?+  head  ~|(bad-poke/vase !!)
+        %transfer-channel
+      ?>  from-self
+      =+  !<([* =flag:c new-group=flag:g new=flag:c before=@da] vase)
+      =/  core  (ca-abed:ca-core flag)
+      ca-abet:(ca-transfer-channel:core new-group new before)
+    ::
+        %import-channel
+      ?>  from-self
+      =+  !<([* =flag:c cr=create:c =log:c] vase)
+      =.  cor  (create cr)
+      ~&  "importing {<(wyt:log-on:c log)>} logs to {<flag>}"
+      =/  core  (ca-abed:ca-core flag)
+      ca-abet:(ca-apply-logs:core log)
+    ==
+  ::
       %import-flags
     =+  !<(flags=(set flag:c) vase)
     =.  imp  %-  ~(gas by *(map flag:c ?))
@@ -1346,7 +1364,6 @@
       ?~  p.sign
         ca-core
       %-  (slog u.p.sign)
-      :: =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
       ca-core
     ::
     ==
@@ -1662,7 +1679,8 @@
             %notice  ca-core
             %story
           =/  new-message-yarn  (ca-message-hark memo p.content.memo p.p.d)
-          =?  cor  want-loud-notify
+          =/  from-me  =(author.memo our.bowl)
+          =?  cor  &(want-loud-notify !from-me)
             (emit (pass-hark new-message-yarn))
           ?.  ?&  !=(author.memo our.bowl)
                   |(!=(~ replying.memo) (mentioned q.p.content.memo our.bowl))
@@ -1734,6 +1752,54 @@
         ==
         ~
         /message/(scot %p p.op)/(scot %ud q.op)
+  ::
+  ++  ca-transfer-channel
+    |=  [new-group=flag:g new=flag:c tim=time]
+    =/  old=log:c  log.chat
+    ::  we only need writs for the new channel because we'll compress
+    ::  all the permissions into one create event
+    =/  writ-log
+      =<  +
+      %^  (dip:log-on:c @)  log.chat  ~
+      |=  [st=@ =time =diff:c]
+      :_  [%.n st]
+      ::  only keep writs
+      ?.  ?=(%writs -.diff)  ~
+      `diff
+    ::  for the channel getting truncated we need to keep all permission
+    ::  events, and only the writs after the time
+    =/  filtered-log
+        =<  +
+        %^  (dip:log-on:c @)  log.chat  ~
+        |=  [st=@ =time =diff:c]
+        :_  [%.n st]
+        ?:  ?=(%create -.diff)  `[%create p.diff ~ ~]
+        ::  keep non-writ events
+        ?.  ?=(%writs -.diff)  `diff
+        ::  only keep writs after time
+        ?.  (gth time tim)  ~
+        `diff
+    =+  .^(=group:g %gx (weld ca-groups-scry /noun))
+    =/  =channel:g  (~(got by channels.group) [%chat flag])
+    ::  don't allow moving to the same group or same channel
+    ~|  'Must be a different group and channel'
+    ?>  &(!=(group.perm.chat new-group) !=(flag new))
+    ::  compressing permissions into create event for new channel
+    =/  =create:c
+      :*  new-group
+          q.new
+          title.meta.channel
+          description.meta.channel
+          readers.channel
+          writers.perm.chat
+      ==
+    =/  =wire  (welp ca-area /import)
+    =/  =dock  [our.bowl dap.bowl]
+    =/  =cage  [%noun !>([%import-channel new create writ-log])]
+    =.  cor  (emit %pass wire %agent dock %poke cage)
+    ~&  ['new size:' ~(wyt by filtered-log) 'old-size:' ~(wyt by old)]
+    =.  log.chat  filtered-log
+    ca-core
   --
 ::
 ++  pending-dms

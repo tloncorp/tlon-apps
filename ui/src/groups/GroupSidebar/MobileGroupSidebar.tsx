@@ -5,6 +5,7 @@ import NavTab from '@/components/NavTab';
 import HashIcon from '@/components/icons/HashIcon';
 import BellIcon from '@/components/icons/BellIcon';
 import { useIsDark } from '@/logic/useMedia';
+import { useSafeAreaInsets } from '@/logic/native';
 import GroupAvatar from '../GroupAvatar';
 
 export default function MobileGroupSidebar() {
@@ -15,9 +16,13 @@ export default function MobileGroupSidebar() {
   const matchInfo = useMatch('/groups/:ship/:name/info');
   const location = useLocation();
   const isDarkMode = useIsDark();
+  const safeAreaInsets = useSafeAreaInsets();
 
   return (
-    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white">
+    <section
+      className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white"
+      style={{ paddingBottom: safeAreaInsets.bottom }}
+    >
       <Outlet />
       <footer className="flex-none border-t-2 border-gray-50">
         <nav>

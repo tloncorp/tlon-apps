@@ -28,6 +28,7 @@ import indexedDBPersistor from './indexedDBPersistor';
 import UpdateNotice from './components/UpdateNotice';
 import { analyticsClient } from './logic/analytics';
 import { createRoot } from 'react-dom/client';
+import SafeAreaProvider from './logic/SafeAreaContext';
 
 const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -50,10 +51,12 @@ root.render(
         buster: `${window.our}-landscape-4.0.1`,
       }}
     >
-      <UpdateNotice />
-      <PostHogProvider client={analyticsClient}>
-        <App />
-      </PostHogProvider>
+      <SafeAreaProvider>
+        <UpdateNotice />
+        <PostHogProvider client={analyticsClient}>
+          <App />
+        </PostHogProvider>
+      </SafeAreaProvider>
     </PersistQueryClientProvider>
   </React.StrictMode>
 );

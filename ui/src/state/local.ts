@@ -14,6 +14,8 @@ interface LocalState {
   browserId: string;
   currentTheme: 'light' | 'dark';
   subscription: SubscriptionStatus;
+  groupsLocation: string;
+  messagesLocation: string;
   showDevTools: boolean;
   errorCount: number;
   airLockErrorCount: number;
@@ -29,6 +31,8 @@ export const useLocalState = create<LocalState>(
       currentTheme: 'light',
       browserId: '',
       subscription: 'connected',
+      groupsLocation: '/',
+      messagesLocation: '/messages',
       showDevTools: import.meta.env.DEV,
       errorCount: 0,
       airLockErrorCount: 0,

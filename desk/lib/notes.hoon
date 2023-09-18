@@ -113,6 +113,8 @@
       ~
     ?:  (want-hark [flag %msg bowl])
       =/  =essay:d  p.+.delta
+      =/  from-me  =(author.essay our.bowl)
+      ?:  from-me  ~
       =/  content
         %+  turn
           content.essay
