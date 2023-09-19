@@ -15,9 +15,7 @@ interface DiaryGridProps {
   loadOlderNotes: (atBottom: boolean) => void;
 }
 
-const masonryItem = ({
-  data,
-}: RenderComponentProps<NoteTuple>) => (
+const masonryItem = ({ data }: RenderComponentProps<NoteTuple>) => (
   <DiaryGridItem time={data[0]} note={data[1]!} />
 );
 

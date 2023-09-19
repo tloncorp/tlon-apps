@@ -109,7 +109,9 @@ function DiaryChannel({ title }: ViewProps) {
           notesOnHost &&
           Object.entries(notesOnHost).find(
             ([_t, l]) =>
-              l && l.essay.author === cacheId.author && l.essay.sent === cacheId.sent
+              l &&
+              l.essay.author === cacheId.author &&
+              l.essay.sent === cacheId.sent
           )
         ) {
           useNotesStore.setState((s) => ({
