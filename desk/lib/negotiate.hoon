@@ -8,12 +8,10 @@
 ::
 ::      usage
 ::
-::    to use this library, you must supply it with two things:
+::    to use this library, you must supply it with three things:
 ::    - a map of, per protocol your agent exposes, a version noun
-::    - a configuration for negotiation with other agents, containing:
-::      - a map of, per agent name, a set of protocols to negotiate
-::      - a map of, per protocol, the version we expect others to be at
-::    call this library's +agent arm with those two arguments, and then call
+::    - a map of, per agent name, a map of, per protocol, the version we expect
+::    call this library's +agent arm with those three arguments, and then call
 ::    the resulting gate with your agent's door.
 ::
 ::    this library will "capture" watches, leaves and pokes emitted by the
@@ -52,10 +50,7 @@
 |%
 +$  protocol  @ta
 +$  version   *
-+$  config
-  $:  dudes=(jug dude:gall protocol)
-      profs=(map protocol version)
-  ==
++$  config    (map dude:gall (map protocol version))
 ::
 ++  initiate
   |=  =gill:gall
@@ -96,11 +91,10 @@
     ++  match
       |=  =gill:gall
       ^-  ?
-      ?~  need=(~(get by dudes.know) q.gill)  &  ::  unversioned
-      %-  ~(all in u.need)
-      |=  p=protocol
-      ?~  n=(~(get by profs.know) p)  |  ::  unnegotiated
-      =(`n (~(get by heed) [gill p]))  :: negotiated & matches
+      ?~  need=(~(get by know) q.gill)  &  ::  unversioned
+      %-  ~(rep by u.need)  ::NOTE  +all:by is w/o key
+      |=  [[p=protocol v=version] o=_&]
+      &(o =(``v (~(get by heed) [gill p])))  :: negotiated & matches
     ::  +inflate: update state & manage subscriptions to be self-consistent
     ::
     ::    get previously-unregistered subs from the bowl, put them in .want,
@@ -137,21 +131,21 @@
             (~(put by wan) wire path)
         ::  if we don't need a specific version, leave the sub as-is
         ::
-        =/  need=(list protocol)
-          ~(tap in (~(gut by dudes.know) q.gill ~))
+        =/  need=(list [p=protocol v=version])
+          ~(tap by (~(gut by know) q.gill ~))
         |-
         ?~  need  [init kill]
         ::  if we haven't negotiated yet, we should start doing so
         ::
         =/  hail=(unit (unit version))
-          (~(get by heed) [gill i.need])
+          (~(get by heed) [gill p.i.need])
         ?~  hail
-          =.  init  (~(put in init) [gill i.need])
+          =.  init  (~(put in init) [gill p.i.need])
           =.  kill  (~(put in kill) [wire gill])
           $(need t.need)
         ::  kill the subscription if the versions don't match
         ::
-        =?  kill  !=(u.hail need)
+        =?  kill  !=(u.hail `v.i.need)
           (~(put in kill) [wire gill])
         $(need t.need)
       ::
@@ -189,10 +183,10 @@
       ::
       ?.  ?=([%pass * %agent *] card)
         pass
-      ::  if we don't require a version for the target agent, let the card go
+      ::  if we don't require versions for the target agent, let the card go
       ::
       =*  dude=dude:gall  name.q.card
-      ?.  (~(has by dudes.know) dude)
+      ?.  (~(has by know) dude)
         pass
       ::  always track the subscriptions we want to have
       ::
@@ -242,7 +236,7 @@
       |=  =gill:gall
       ^-  (quip card _state)
       =/  need=(list protocol)
-        ~(tap in (~(gut by dudes.know) q.gill ~))
+        ~(tap in ~(key by (~(gut by know) q.gill ~)))
       =|  out=(list card)
       |-
       ?~  need  [out state]
