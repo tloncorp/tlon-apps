@@ -29,7 +29,7 @@ This is an internal agent that handles channel publishing. A third-party or the 
 .^(rr-shelf:c %gx /=channels=/shelf/channel-shelf)
 ```
 
-Get all the channels we know about. Returns an [rr-shelf](#user-content-rr-shelf)
+Get all the channels we know about. Returns an [rr-shelf](#rr-shelf)
 
 ## Types
 
@@ -38,21 +38,21 @@ Get all the channels we know about. Returns an [rr-shelf](#user-content-rr-shelf
 +$  rr-shelf  (map nest rr-diary)
 ```
 
-A [shelf](#user-content-shelf) with no revision numbers
+A [shelf](#shelf) with no revision numbers
 
 ### rr-diary
 
-A [diary](#user-content-diary) with no revision numbers.
+A [diary](#diary) with no revision numbers.
 
 ### shelf
 ```hoon
 +$  shelf  (map nest diary)
 ```
 
-A map of [nest](#user-content-nest) to [diary](#user-content-diary)
+A map of [nest](#nest) to [diary](#diary)
 
 ### diary
-The messages/notes/links in a channel. Contains a [global:diary](#user-content-globaldiary), a [local:diary](#user-content-localdiary), and some internal syncing information.
+The messages/notes/links in a channel. Contains a [global:diary](#globaldiary), a [local:diary](#localdiary), and some internal syncing information.
 
 ### global:diary
 ```hoon
@@ -65,7 +65,7 @@ The messages/notes/links in a channel. Contains a [global:diary](#user-content-g
     ==
 ```
 
-The parts of a diary that are synced. Contains [notes](#user-content-notes), [order](#user-content-order), [view](#user-content-view), [sort](#user-content-sort), and [perm](#user-content-perm)
+The parts of a diary that are synced. Contains [notes](#notes), [order](#order), [view](#view), [sort](#sort), and [perm](#perm)
 
 ### local:diary
 ```hoon
@@ -79,14 +79,14 @@ The parts of a diary that are synced. Contains [notes](#user-content-notes), [or
   --
 ```
 
-The parts of a diary that are not synced. Contains [net](#user-content-net), [log](#user-content-log), [remark](#user-content-remark), [window](#user-content-window) and [future](#user-content-future)
+The parts of a diary that are not synced. Contains [net](#net), [log](#log), [remark](#remark), [window](#window) and [future](#future)
 
 ### nest
 ```hoon
 +$  nest  [=han =ship name=term]
 ```
 
-A [han](#user-content-han), ship and term (name). Uniquely identifies a channel.
+A [han](#han), ship and term (name). Uniquely identifies a channel.
 
 ### han
 ```hoon
