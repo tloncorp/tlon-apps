@@ -8,12 +8,12 @@
 ::
 ::      usage
 ::
-::    to use this library, you must supply it with two things:
+::    to use this library, you must supply it with three things:
+::    - a flag specifying whether the inner agent should be notified of version
+::      negotiation events (matching & unmatching of external agents)
 ::    - a map of, per protocol your agent exposes, a version noun
-::    - a configuration for negotiation with other agents, containing:
-::      - a map of, per agent name, a set of protocols to negotiate
-::      - a map of, per protocol, the version we expect others to be at
-::    call this library's +agent arm with those two arguments, and then call
+::    - a map of, per agent name, a map of, per protocol, the version we expect
+::    call this library's +agent arm with those three arguments, and then call
 ::    the resulting gate with your agent's door.
 ::
 ::    this library will "capture" watches, leaves and pokes emitted by the
@@ -40,6 +40,14 @@
 ::    where we now do have matching versions. in upgrade scenarios, changing
 ::    the library arguments should generally suffice.
 ::
+::    if the flag at the start of the sample is set to true then, whenever we
+::    start to match or stop matching with a specific gill, we send a poke to
+::    the inner agent, marked %negotiate-notification, containing both a flag
+::    indicating whether we now match, and the gill for which the notification
+::    applies.
+::    (the initial state, of not having negotiated at all, counts as "not
+::    matching".)
+::
 ::    if an agent was previously using epic, it can trivially upgrade into
 ::    this library by making the following changes:
 ::    - change its own epic version number
@@ -52,10 +60,7 @@
 |%
 +$  protocol  @ta
 +$  version   *
-+$  config
-  $:  dudes=(jug dude:gall protocol)
-      profs=(map protocol version)
-  ==
++$  config    (map dude:gall (map protocol version))
 ::
 ++  initiate
   |=  =gill:gall
@@ -73,10 +78,8 @@
   |=  [=bowl:gall =gill:gall]
   ?=(%match (read-status bowl gill))
 ::
-::TODO  want to +notify-me to subscribe to self about heed changes
-::
 ++  agent
-  |=  [our-versions=(map protocol version) =our=config]
+  |=  [notify=? our-versions=(map protocol version) =our=config]
   ^-  $-(agent:gall agent:gall)
   |^  agent
   ::
@@ -96,11 +99,10 @@
     ++  match
       |=  =gill:gall
       ^-  ?
-      ?~  need=(~(get by dudes.know) q.gill)  &  ::  unversioned
-      %-  ~(all in u.need)
-      |=  p=protocol
-      ?~  n=(~(get by profs.know) p)  |  ::  unnegotiated
-      =(`n (~(get by heed) [gill p]))  :: negotiated & matches
+      ?~  need=(~(get by know) q.gill)  &  ::  unversioned
+      %-  ~(rep by u.need)  ::NOTE  +all:by is w/o key
+      |=  [[p=protocol v=version] o=_&]
+      &(o =(``v (~(get by heed) [gill p])))  :: negotiated & matches
     ::  +inflate: update state & manage subscriptions to be self-consistent
     ::
     ::    get previously-unregistered subs from the bowl, put them in .want,
@@ -108,6 +110,7 @@
     ::    negotiation where needed.
     ::
     ++  inflate
+      |=  knew=(unit config)
       ^-  (quip card _state)
       =*  boat=boat:gall  wex.bowl
       ::  establish subs from .want where versions match
@@ -137,23 +140,34 @@
             (~(put by wan) wire path)
         ::  if we don't need a specific version, leave the sub as-is
         ::
-        =/  need=(list protocol)
-          ~(tap in (~(gut by dudes.know) q.gill ~))
+        =/  need=(list [p=protocol v=version])
+          ~(tap by (~(gut by know) q.gill ~))
         |-
         ?~  need  [init kill]
         ::  if we haven't negotiated yet, we should start doing so
         ::
         =/  hail=(unit (unit version))
-          (~(get by heed) [gill i.need])
+          (~(get by heed) [gill p.i.need])
         ?~  hail
-          =.  init  (~(put in init) [gill i.need])
+          =.  init  (~(put in init) [gill p.i.need])
           =.  kill  (~(put in kill) [wire gill])
           $(need t.need)
         ::  kill the subscription if the versions don't match
         ::
-        =?  kill  !=(u.hail need)
+        =?  kill  !=(u.hail `v.i.need)
           (~(put in kill) [wire gill])
         $(need t.need)
+      ::
+      =/  notes=(list card)
+        ?.  notify  ~
+        ?~  knew    ~
+        %+  murn  ~(tap in `(set gill:gall)`(~(run in ~(key by heed)) head))
+        |=  =gill:gall
+        ^-  (unit card)
+        =/  did=?  (match(know u.knew) gill)
+        =/  now=?  (match gill)
+        ?:  =(did now)  ~
+        `(notify-inner now gill)
       ::
       =^  inis  state
         =|  caz=(list card)
@@ -163,6 +177,7 @@
         =^  car  state  (negotiate i.inz)
         $(caz (weld car caz), inz t.inz)
       :_  state
+      %+  weld  notes
       %+  weld  open
       %+  weld  inis
       %+  turn  ~(tap in kill)
@@ -189,10 +204,10 @@
       ::
       ?.  ?=([%pass * %agent *] card)
         pass
-      ::  if we don't require a version for the target agent, let the card go
+      ::  if we don't require versions for the target agent, let the card go
       ::
       =*  dude=dude:gall  name.q.card
-      ?.  (~(has by dudes.know) dude)
+      ?.  (~(has by know) dude)
         pass
       ::  always track the subscriptions we want to have
       ::
@@ -242,7 +257,7 @@
       |=  =gill:gall
       ^-  (quip card _state)
       =/  need=(list protocol)
-        ~(tap in (~(gut by dudes.know) q.gill ~))
+        ~(tap in ~(key by (~(gut by know) q.gill ~)))
       =|  out=(list card)
       |-
       ?~  need  [out state]
@@ -275,14 +290,29 @@
       `[%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
     ::
     ++  heed-changed
-      |=  [for=[gill:gall protocol] new=version]
+      |=  [for=[=gill:gall protocol] new=version]
       ^-  (quip card _state)
       =/  hav=(unit version)
         ~|  %unrequested-heed
         (~(got by heed) for)
       ?:  =(`new hav)  [~ state]
-      =.  heed  (~(put by heed) for `new)
-      inflate
+      =/  did=?  &(notify (match gill.for))
+      =.  heed   (~(put by heed) for `new)
+      ::  we may need to notify the inner agent
+      ::
+      =/  nos=(list card)
+        ?.  notify  ~
+        =/  now=?  (match gill.for)
+        ?:  =(did now)  ~
+        [(notify-inner now gill.for)]~
+      =^  caz  state  (inflate ~)
+      [(weld caz nos) state]
+    ::
+    ++  notify-inner
+      |=  event=[match=? =gill:gall]
+      ^-  card
+      :+  %pass  /~/negotiate/notify
+      [%agent [our dap]:bowl %poke %negotiate-notification !>(event)]
     ::
     ++  watch-version
       |=  [=gill:gall =protocol]
@@ -359,7 +389,7 @@
       ?.  ?=([[%negotiate *] *] q.ole)
         =.  ours   our-versions
         =.  know   our-config
-        =^  caz    state  inflate:up
+        =^  caz    state  (inflate:up ~)
         =^  cards  inner  (on-load:og ole)
         =^  cards  state  (play-cards:up cards)
         [(weld caz cards) this]
@@ -371,8 +401,9 @@
             ?:  =(ours our-versions)  ~
             (ours-changed:up ours our-versions)
           =.  ours   our-versions
+          =/  knew   know
           =.  know   our-config
-          =^  caz2   state  inflate:up
+          =^  caz2   state  (inflate:up `knew)
           =^  cards  inner  (on-load:og ile)
           =^  cards  state  (play-cards:up cards)
           [:(weld caz1 caz2 cards) this]
@@ -401,6 +432,8 @@
       ::
       ~|  wire=t.t.wire
       ?+  t.t.wire  ~|([%negotiate %unexpected-wire] !!)
+        [%notify ~]  [~ this]
+      ::
           [%heed @ @ @ ~]
         =/  for=[gill:gall protocol]
           =*  w  t.t.t.wire
