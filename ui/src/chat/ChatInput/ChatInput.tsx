@@ -45,6 +45,7 @@ import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { Nest, NoteEssay, Cite, constructStory, Story } from '@/types/channel';
+import { CacheId } from '@/state/channel/channel';
 
 interface ChatInputProps {
   whom: string;
@@ -55,11 +56,11 @@ interface ChatInputProps {
   sendDisabled?: boolean;
   sendDm?: (whom: string, essay: NoteEssay) => void;
   sendChatMessage?: ({
-    initialTime,
+    cacheId,
     nest,
     essay,
   }: {
-    initialTime: string;
+    cacheId: CacheId;
     nest: Nest;
     essay: NoteEssay;
   }) => void;
@@ -315,6 +316,11 @@ export default function ChatInput({
       const textIsImageUrl = isImageUrl(text);
       const dataIsJustLink =
         data.length > 0 && typeof data[0] === 'object' && 'link' in data[0];
+      const now = Date.now();
+      const cacheId = {
+        sent: now,
+        author: window.our,
+      };
 
       if (textIsImageUrl && dataIsJustLink) {
         const url = text;
@@ -356,7 +362,7 @@ export default function ChatInput({
             const { width, height } = img;
 
             sendChatMessage({
-              initialTime,
+              cacheId,
               nest: `chat/${whom}`,
               essay: {
                 ...essay,
@@ -382,7 +388,7 @@ export default function ChatInput({
 
           img.onerror = () => {
             sendChatMessage({
-              initialTime,
+              cacheId,
               nest: `chat/${whom}`,
               essay,
             });
@@ -421,7 +427,7 @@ export default function ChatInput({
         sendDm(whom, essay);
       } else if (sendChatMessage) {
         sendChatMessage({
-          initialTime,
+          cacheId,
           nest: `chat/${whom}`,
           essay,
         });
@@ -449,7 +455,6 @@ export default function ChatInput({
     },
     [
       whom,
-      initialTime,
       groupFlag,
       privacy,
       id,

@@ -22,7 +22,7 @@ import {
   useUserDiaryDisplayMode,
 } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
-import { Note } from '@/types/channel';
+import { Note, NoteTuple } from '@/types/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
@@ -104,13 +104,16 @@ function DiaryChannel({ title }: ViewProps) {
       'complete' in data.status &&
       data.status.complete === 'yes'
     ) {
-      pendingNotes.forEach((id) => {
+      pendingNotes.forEach((cacheId) => {
         if (
           notesOnHost &&
-          Object.entries(notesOnHost).find(([_t, l]) => l && l.seal.id === id)
+          Object.entries(notesOnHost).find(
+            ([_t, l]) =>
+              l && l.essay.author === cacheId.author && l.essay.sent === cacheId.sent
+          )
         ) {
           useNotesStore.setState((s) => ({
-            pendingNotes: s.pendingNotes.filter((n) => n !== id),
+            pendingNotes: s.pendingNotes.filter((n) => n !== cacheId),
           }));
         }
       });
@@ -162,44 +165,43 @@ function DiaryChannel({ title }: ViewProps) {
     isMarking,
   });
 
-  const sortedNotes = notes.sort(([a], [b]) => {
-    if (sortMode === 'arranged') {
-      // if only one note is arranged, put it first
-      if (
-        arrangedNotes.includes(a.toString()) &&
-        !arrangedNotes.includes(b.toString())
-      ) {
-        return -1;
+  const sortedNotes = notes
+    .filter(([k, v]) => v !== null)
+    .sort(([a], [b]) => {
+      if (sortMode === 'arranged') {
+        // if only one note is arranged, put it first
+        if (
+          arrangedNotes.includes(a.toString()) &&
+          !arrangedNotes.includes(b.toString())
+        ) {
+          return -1;
+        }
+
+        // if both notes are arranged, sort by their position in the arranged list
+        if (
+          arrangedNotes.includes(a.toString()) &&
+          arrangedNotes.includes(b.toString())
+        ) {
+          return arrangedNotes.indexOf(a.toString()) >
+            arrangedNotes.indexOf(b.toString())
+            ? 1
+            : -1;
+        }
       }
 
-      // if both notes are arranged, sort by their position in the arranged list
-      if (
-        arrangedNotes.includes(a.toString()) &&
-        arrangedNotes.includes(b.toString())
-      ) {
-        return arrangedNotes.indexOf(a.toString()) >
-          arrangedNotes.indexOf(b.toString())
-          ? 1
-          : -1;
+      if (userSortMode === 'time-dsc') {
+        return b.compare(a);
       }
-    }
+      if (userSortMode === 'time-asc') {
+        return a.compare(b);
+      }
 
-    if (userSortMode === 'time-dsc') {
       return b.compare(a);
-    }
-    if (userSortMode === 'time-asc') {
-      return a.compare(b);
-    }
+    });
 
-    return b.compare(a);
-  });
-
-  const itemContent = (
-    i: number,
-    [time, outline]: [bigInt.BigInteger, Note]
-  ) => (
+  const itemContent = (i: number, [time, outline]: NoteTuple) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
-      <DiaryListItem note={outline} time={time} />
+      <DiaryListItem note={outline!} time={time} />
       {lastArrangedNote === time.toString() && (
         <div className="mt-6 flex justify-center">
           <div className="flex items-center space-x-2 text-gray-500">

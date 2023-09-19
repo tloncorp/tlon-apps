@@ -46,7 +46,6 @@ export default function AddCurioModal({
   const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
   const { mutate } = useAddNoteMutation();
-  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const { privacy } = useGroupPrivacy(flag);
 
   const isEmpty = !content && !draggedFile && !pastedFile;
@@ -91,12 +90,17 @@ export default function AddCurioModal({
   const addCurio = useCallback(
     async (input: JSONContent | string) => {
       const heart = await createCurioHeart(input);
+      const now = Date.now();
+      const cacheId = {
+        sent: now,
+        author: window.our,
+      };
 
       mutate(
         {
           nest: `heap/${chFlag}`,
           essay: heart,
-          initialTime,
+          cacheId,
         },
         {
           onSuccess: () => {
@@ -116,7 +120,7 @@ export default function AddCurioModal({
         }
       );
     },
-    [flag, chFlag, mutate, privacy, onOpenChange, uploader, initialTime]
+    [flag, chFlag, mutate, privacy, onOpenChange, uploader]
   );
 
   // eslint-disable-next-line consistent-return

@@ -156,7 +156,10 @@ const ChatMessage = React.memo<
       });
       const isMessageDelivered = useIsMessageDelivered(seal.id);
       const isMessagePosted = useIsMessagePosted(seal.id);
-      const isNotePending = useIsNotePending(seal.id);
+      const isNotePending = useIsNotePending({
+        author: window.our,
+        sent: essay.sent,
+      });
       const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));

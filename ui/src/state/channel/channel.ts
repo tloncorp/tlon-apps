@@ -6,6 +6,7 @@ import { Poke } from '@urbit/http-api';
 import create from 'zustand';
 import {
   QueryClient,
+  QueryKey,
   useInfiniteQuery,
   useMutation,
   useQueryClient,
@@ -37,6 +38,7 @@ import {
   newNoteMap,
   newQuipMap,
   QuipMap,
+  NoteTuple,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -119,43 +121,29 @@ export interface NoteWindows {
   [nest: string]: WindowSet;
 }
 
+export interface CacheId {
+  author: string;
+  sent: number;
+}
+
 export interface State {
-  pendingNotes: string[];
+  pendingNotes: CacheId[];
   postedMessages: string[];
   noteWindows: NoteWindows;
-  addNoteWindow: (nest: Nest, window: Window) => void;
   extendCurrentWindow: (
     nest: Nest,
-    currentWindows: WindowSet,
+    currentWindows: WindowSet | undefined,
     newWindow: Window,
     time?: string
   ) => void;
   [key: string]: unknown;
 }
 
-export const useNotesStore = create<State>((set, get) => ({
+export const useNotesStore = create<State>((set) => ({
   pendingNotes: [],
   postedMessages: [],
   noteWindows: {},
-  addNoteWindow: (nest: Nest, window: Window) => {
-    set((state) => ({
-      noteWindows: {
-        ...state.noteWindows,
-        [nest]: {
-          latest: window,
-          windows: state.noteWindows[nest]
-            ? [...state.noteWindows[nest].windows, window]
-            : [window],
-        },
-      },
-    }));
-  },
-  extendCurrentWindow: (
-    nest: Nest,
-    currentWindows: WindowSet,
-    newWindow: Window,
-    time?: string
-  ) => {
+  extendCurrentWindow: (nest, currentWindows, newWindow, time) => {
     set((state) => ({
       noteWindows: {
         ...state.noteWindows,
@@ -174,12 +162,20 @@ export function useCurrentWindow(
   return getWindow(windowSet, time);
 }
 
+export function useCurrentWindowSet(nest: Nest): WindowSet | undefined {
+  return useNotesStore((s) => s.noteWindows[nest]);
+}
+
 export function usePendingNotes() {
   return useNotesStore((s) => s.pendingNotes);
 }
 
-export function useIsNotePending(noteId: string) {
-  return useNotesStore((s) => s.pendingNotes.includes(noteId));
+export function useIsNotePending(cacheId: CacheId) {
+  return useNotesStore((s) =>
+    s.pendingNotes.some(
+      (n) => n.author === cacheId.author && n.sent === cacheId.sent
+    )
+  );
 }
 
 export function useNotes(nest: Nest) {
@@ -352,9 +348,9 @@ export function useInfiniteNotes(nest: Nest) {
     };
   }
 
-  const notes: [BigInteger, Note][] = data.pages
-    .map((page) => page.toArray())
-    .flat();
+  const notes: NoteTuple[] = data.pages.map((page) => page.toArray()).flat();
+
+  console.log({ notes, data });
 
   return {
     notes,
@@ -362,6 +358,218 @@ export function useInfiniteNotes(nest: Nest) {
     hasNextPage,
     isLoading,
   };
+}
+
+const infiniteNoteUpdater = (
+  data: ShelfResponse,
+  extendWindow: (
+    nest: Nest,
+    currentWindows: WindowSet | undefined,
+    newWindow: Window,
+    time?: string
+  ) => void,
+  currentWindowSet: WindowSet | undefined,
+  queryKey: QueryKey,
+  queryClient: QueryClient,
+  initialTime?: string
+) => {
+  const { nest, response } = data;
+  const [hn] = nestToFlag(nest);
+  if (hn !== 'chat') {
+    return;
+  }
+
+  if (!('note' in response)) {
+    return;
+  }
+
+  const noteResponse = response.note['r-note'];
+  const { id } = response.note;
+  const time = bigInt(id);
+
+  if ('set' in noteResponse) {
+    const note = noteResponse.set;
+
+    if (note === null) {
+      queryClient.setQueryData(
+        queryKey,
+        (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+          if (d === undefined) {
+            return undefined;
+          }
+
+          const newPages = d.pages.map((page) => {
+            const inPage = page.has(time);
+
+            if (inPage) {
+              page.set(bigInt(id), null);
+            }
+
+            return page;
+          });
+
+          return {
+            pages: newPages,
+            pageParams: d.pageParams,
+          };
+        }
+      );
+    } else {
+      queryClient.setQueryData(
+        queryKey,
+        (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+          if (d === undefined) {
+            return undefined;
+          }
+
+          const lastPage = _.last(d.pages);
+
+          if (lastPage === undefined) {
+            return undefined;
+          }
+
+          const newLastPage = lastPage.with(time, note);
+
+          const newWindow = {
+            oldest: time,
+            newest: time,
+            loadedNewest: false,
+            loadedOldest: false,
+          };
+
+          extendWindow(nest, currentWindowSet, newWindow, initialTime);
+
+          return {
+            pages: [...d.pages.slice(0, -1), newLastPage],
+            pageParams: d.pageParams,
+          };
+        }
+      );
+    }
+  } else if ('feels' in noteResponse) {
+    queryClient.setQueryData(
+      queryKey,
+      (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+        if (d === undefined) {
+          return undefined;
+        }
+
+        const { feels } = noteResponse;
+
+        const newPages = d.pages.map((page) => {
+          const inPage = page.has(time);
+
+          if (inPage) {
+            const note = page.get(time);
+            if (!note) {
+              return page;
+            }
+            page.set(time, {
+              ...note,
+              seal: {
+                ...note.seal,
+                feels,
+              },
+            });
+
+            return page;
+          }
+
+          return page;
+        });
+
+        return {
+          pages: newPages,
+          pageParams: d.pageParams,
+        };
+      }
+    );
+  } else if ('essay' in noteResponse) {
+    queryClient.setQueryData(
+      queryKey,
+      (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+        if (d === undefined) {
+          return undefined;
+        }
+
+        const { essay } = noteResponse;
+
+        const newPages = d.pages.map((page) => {
+          const inPage = page.has(time);
+
+          if (inPage) {
+            const note = page.get(time);
+            if (!note) {
+              return page;
+            }
+            page.set(time, {
+              ...note,
+              essay,
+            });
+
+            return page;
+          }
+
+          return page;
+        });
+
+        return {
+          pages: newPages,
+          pageParams: d.pageParams,
+        };
+      }
+    );
+  } else if ('quip' in noteResponse) {
+    queryClient.setQueryData(
+      queryKey,
+      (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+        if (d === undefined) {
+          return undefined;
+        }
+
+        const {
+          quip: {
+            meta: { quipCount, lastQuip, lastQuippers },
+          },
+        } = noteResponse;
+
+        const newPages = d.pages.map((page) => {
+          const inPage = page.has(time);
+
+          if (inPage) {
+            const note = page.get(time);
+            if (!note) {
+              return page;
+            }
+            page.set(time, {
+              ...note,
+              seal: {
+                ...note.seal,
+                quipCount,
+                lastQuip,
+                lastQuippers,
+              },
+            });
+
+            return page;
+          }
+
+          return page;
+        });
+
+        return {
+          pages: newPages,
+          pageParams: d.pageParams,
+        };
+      }
+    );
+  }
+};
+
+interface PageParam {
+  time: BigInteger;
+  skip: boolean;
+  direction: string;
 }
 
 export function useInfiniteChats(nest: Nest, initialTime?: string) {
@@ -372,6 +580,7 @@ export function useInfiniteChats(nest: Nest, initialTime?: string) {
     [han, flag]
   );
   const currentWindow = useCurrentWindow(nest, initialTime);
+  const currentWindowSet = useCurrentWindowSet(nest);
 
   const invalidate = useRef(
     _.debounce(
@@ -390,9 +599,18 @@ export function useInfiniteChats(nest: Nest, initialTime?: string) {
     api.subscribe({
       app: 'channels',
       path: `/${nest}/ui`,
-      event: invalidate.current,
+      event: (data: ShelfResponse) => {
+        infiniteNoteUpdater(
+          data,
+          useNotesStore.getState().extendCurrentWindow,
+          currentWindowSet,
+          queryKey,
+          queryClient,
+          initialTime
+        );
+      },
     });
-  }, [nest, invalidate]);
+  }, [nest, invalidate, queryClient, queryKey, currentWindowSet, initialTime]);
 
   const {
     data,
@@ -403,20 +621,17 @@ export function useInfiniteChats(nest: Nest, initialTime?: string) {
     isLoading,
   } = useInfiniteQuery<NoteMap>({
     queryKey,
-    queryFn: async ({ pageParam }: { pageParam?: BigInteger }) => {
-      console.log({ pageParam, currentWindow });
-
+    queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
 
       if (pageParam) {
-        if (currentWindow?.oldest.eq(pageParam)) {
-          path = `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        const { skip, time, direction } = pageParam;
+        if (skip && direction === 'newer') {
+          throw new Error('Reached newest notes');
+        } else if (skip && direction === 'older') {
+          throw new Error('Reached oldest notes');
         } else {
-          const direction = currentWindow?.oldest.lt(pageParam)
-            ? 'older'
-            : 'newer';
-
-          const ud = decToUd(pageParam.toString());
+          const ud = decToUd(time.toString());
 
           path = `/${nest}/notes/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
         }
@@ -424,9 +639,6 @@ export function useInfiniteChats(nest: Nest, initialTime?: string) {
         path = `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       }
 
-      // const path = pageParam
-      // ? `/${nest}/notes/older/${pageParam}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
-      // : `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       const response = await api.scry<Notes>({
         app: 'channels',
         path,
@@ -435,12 +647,73 @@ export function useInfiniteChats(nest: Nest, initialTime?: string) {
         ([k, v]) => [bigInt(udToDec(k)), v as Note]
       );
 
-      return newNoteMap(diff);
+      const noteMap = newNoteMap(diff);
+
+      if (currentWindow && currentWindowSet && pageParam) {
+        const keys = noteMap.keysArray();
+        const updates = keys.length > 0;
+        const oldest = updates ? keys[0] : currentWindow.oldest;
+        const newest = updates ? keys[keys.length - 1] : currentWindow.newest;
+        const { direction } = pageParam;
+
+        const newWindow: Window = {
+          oldest,
+          newest,
+          loadedNewest:
+            direction === 'newer' ? !updates : currentWindow.loadedNewest,
+          loadedOldest:
+            direction === 'older' ? !updates : currentWindow.loadedOldest,
+        };
+
+        useNotesStore
+          .getState()
+          .extendCurrentWindow(nest, currentWindowSet, newWindow, initialTime);
+      } else {
+        const oldest = noteMap.minKey();
+        const newest = noteMap.maxKey();
+
+        if (oldest === undefined || newest === undefined) {
+          throw new Error('No notes found');
+        }
+
+        const newWindow: Window = {
+          oldest,
+          newest,
+          loadedNewest: true,
+          loadedOldest: false,
+          latest: true,
+        };
+
+        useNotesStore
+          .getState()
+          .extendCurrentWindow(nest, undefined, newWindow);
+      }
+
+      return noteMap;
     },
-    getNextPageParam: (lastPage) =>
-      lastPage.length ? lastPage.minKey() : undefined,
-    getPreviousPageParam: (previousPage) =>
-      previousPage.length ? previousPage.maxKey() : undefined,
+    getNextPageParam: (lastPage) => {
+      const time = lastPage.maxKey();
+      const newest = currentWindow && currentWindow.newest;
+      const skip = newest && currentWindow.loadedNewest;
+
+      return {
+        skip,
+        time,
+        direction: 'newer',
+      };
+    },
+    getPreviousPageParam: (previousPage) => {
+      const time = previousPage.minKey();
+
+      const oldest = currentWindow && currentWindow.oldest;
+      const skip = oldest && currentWindow.loadedOldest;
+
+      return {
+        skip,
+        time,
+        direction: 'older',
+      };
+    },
     keepPreviousData: true,
     refetchOnMount: true,
     retryOnMount: true,
@@ -457,25 +730,7 @@ export function useInfiniteChats(nest: Nest, initialTime?: string) {
     };
   }
 
-  const notes: [BigInteger, Note][] = data.pages
-    .map((page) => page.toArray())
-    .flat();
-
-  if (currentWindow === undefined) {
-    const keys = notes.map(([k]) => k);
-    const oldest = bigInt(udToDec(keys[0].toString() || '0'));
-    const newest = bigInt(udToDec(keys[keys.length - 1].toString() || '0'));
-
-    const newWindow: Window = {
-      oldest,
-      newest,
-      loadedNewest: true,
-      loadedOldest: false,
-      latest: true,
-    };
-
-    useNotesStore.getState().addNoteWindow(nest, newWindow);
-  }
+  const notes: NoteTuple[] = data.pages.map((page) => page.toArray()).flat();
 
   return {
     notes,
@@ -742,28 +997,6 @@ export function useBrief(nest: Nest) {
   return briefs[nest];
 }
 
-export function useQuips(nest: Nest, noteId: string) {
-  checkNest(nest);
-
-  const { note } = useNote(
-    nest,
-    noteId,
-    useIsNotePending(noteId) || noteId === '0'
-  );
-
-  if (note === undefined) {
-    return newQuipMap();
-  }
-
-  const { quips } = note.seal;
-
-  if (quips === null || quips.size === undefined) {
-    return newQuipMap();
-  }
-
-  return quips as QuipMap;
-}
-
 export function useDisplayMode(nest: string): DisplayMode {
   checkNest(nest);
   const diary = useChannel(nest);
@@ -961,14 +1194,13 @@ export function useAddNoteMutation() {
 
   let timePosted: string;
   const mutationFn = async (variables: {
-    initialTime: string;
+    cacheId: CacheId;
     nest: Nest;
     essay: NoteEssay;
   }) => {
     checkNest(variables.nest);
 
     return new Promise<string>((resolve) => {
-      timePosted = variables.initialTime;
       try {
         api
           .trackedPoke<ShelfAction, ShelfResponse>(
@@ -1012,22 +1244,24 @@ export function useAddNoteMutation() {
       await queryClient.cancelQueries(['briefs']);
 
       useNotesStore.setState((state) => ({
-        pendingNotes: [variables.initialTime, ...state.pendingNotes],
+        pendingNotes: [variables.cacheId, ...state.pendingNotes],
       }));
 
       const notes = queryClient.getQueryData<Notes>([han, 'notes', flag]);
 
       if (notes !== undefined) {
+        const sent = decToUd(unixToDa(variables.essay.sent).toString());
+
         // for the unlikely case that the user navigates away from the editor
         // before the mutation is complete, or if the host ship is offline,
         // we update the cache optimistically.
         queryClient.setQueryData<Notes>([han, 'notes', flag], {
           ...notes,
           // this time is temporary, and will be replaced by the actual time
-          [variables.initialTime]: {
+          [variables.essay.sent]: {
             seal: {
-              id: variables.initialTime,
-              quips: null,
+              id: sent,
+              quips: newQuipMap(),
               feels: {},
               quipCount: 0,
               lastQuippers: [],
@@ -1038,28 +1272,67 @@ export function useAddNoteMutation() {
             },
           },
         });
+        const currentWindowSet =
+          useNotesStore.getState().noteWindows[variables.nest];
+        const currentWindow = getWindow()
 
-        queryClient.setQueryData([han, 'notes', flag, variables.initialTime], {
-          type: 'note',
-          seal: {
-            time: decToUd(variables.initialTime),
-            quips: [],
-            feels: {},
+        const fakeResponse: ShelfResponse = {
+          nest: variables.nest,
+          response: {
+            note: {
+              id: sent,
+              'r-note': {
+                set: {
+                  seal: {
+                    id: sent,
+                    quips: newQuipMap(),
+                    feels: {},
+                    quipCount: 0,
+                    lastQuippers: [],
+                    lastQuip: null,
+                  },
+                  essay: {
+                    ...variables.essay,
+                  },
+                },
+              },
+            },
           },
-          essay: {
-            ...variables.essay,
-          },
-        });
+        };
+
+        infiniteNoteUpdater(fakeResponse, [
+          'chat',
+          'notes',
+          flag,
+          'infinite-chat',
+        ]);
+
+        queryClient.setQueryData<Note>(
+          [han, 'notes', flag, variables.cacheId],
+          {
+            seal: {
+              id: sent,
+              quips: newQuipMap(),
+              feels: {},
+              quipCount: 0,
+              lastQuippers: [],
+              lastQuip: null,
+            },
+            essay: {
+              ...variables.essay,
+            },
+          }
+        );
       }
     },
     onSuccess: async (_data, variables) => {
       useNotesStore.setState((state) => ({
         pendingNotes: state.pendingNotes.filter(
-          (time) => time !== variables.initialTime
+          (cacheId) => cacheId !== variables.cacheId
         ),
       }));
       const [han, flag] = nestToFlag(variables.nest);
-      queryClient.removeQueries([han, 'notes', flag, variables.initialTime]);
+      queryClient.removeQueries([han, 'notes', flag, variables.cacheId]);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);

@@ -1,12 +1,11 @@
 import { BigInteger } from 'big-integer';
 import { ReactNode } from 'react';
 import { VirtuosoHandle } from 'react-virtuoso';
-import BTree from 'sorted-btree';
-import { Note } from '@/types/channel';
+import { NoteTuple } from '@/types/channel';
 
 export interface IChatScroller {
   whom: string;
-  messages: [BigInteger, Note][];
+  messages: NoteTuple[];
   replying?: boolean;
   prefixedElement?: ReactNode;
   scrollTo?: BigInteger;

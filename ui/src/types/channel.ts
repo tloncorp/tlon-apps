@@ -10,13 +10,16 @@ export type Patda = string;
 export type Ship = string;
 export type Nest = string;
 
-export interface NoteSeal {
-  id: string;
-  feels: { [ship: Ship]: string };
-  quips: QuipMap | null;
+export interface QuipMeta {
   quipCount: number;
   lastQuippers: Ship[];
   lastQuip: string | null;
+}
+
+export interface NoteSeal extends QuipMeta {
+  id: string;
+  feels: { [ship: Ship]: string };
+  quips: QuipMap | null;
 }
 
 export interface QuipCork {
@@ -155,7 +158,7 @@ export interface Notes {
 
 export type NoteTuple = [BigInteger, Note | null];
 
-export type NoteMap = BTree<BigInteger, Note>;
+export type NoteMap = BTree<BigInteger, Note | null>;
 
 export interface Quip {
   cork: QuipCork;
@@ -350,7 +353,7 @@ export type Command =
 
 export type NoteResponse =
   | { set: Note | null }
-  | { quip: { id: string; response: QuipResponse } }
+  | { quip: { id: string; response: QuipResponse; meta: QuipMeta } }
   | { essay: NoteEssay }
   | { feels: Record<string, string> };
 
@@ -568,11 +571,8 @@ export function newQuipMap(
   );
 }
 
-export function newNoteMap(
-  entries?: [BigInteger, Note][],
-  reverse = false
-): BTree<BigInteger, Note> {
-  return new BTree<BigInteger, Note>(entries, (a, b) =>
+export function newNoteMap(entries?: NoteTuple[], reverse = false): NoteMap {
+  return new BTree<BigInteger, Note | null>(entries, (a, b) =>
     reverse ? b.compare(a) : a.compare(b)
   );
 }

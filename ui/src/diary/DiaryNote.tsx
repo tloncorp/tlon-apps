@@ -45,7 +45,6 @@ import DiaryNoteHeadline from './DiaryNoteHeadline';
 
 export default function DiaryNote({ title }: ViewProps) {
   const { chShip, chName, noteId = '' } = useParams();
-  const isPending = useIsNotePending(noteId);
   const { data } = useConnectivityCheck(chShip ?? '');
   const navigate = useNavigate();
   const chFlag = `${chShip}/${chName}`;
@@ -55,6 +54,10 @@ export default function DiaryNote({ title }: ViewProps) {
   const channel = useGroupChannel(groupFlag, nest);
   const { ship } = getFlagParts(chFlag);
   const { note, status } = useNote(nest, noteId);
+  const isPending = useIsNotePending({
+    author: window.our,
+    sent: note.essay.sent,
+  });
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);

@@ -91,7 +91,6 @@ export default function HeapTextInput({
   comment = false,
 }: HeapTextInputProps) {
   const isMobile = useIsMobile();
-  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const { isPending, setPending, setReady } = useRequestState();
   const chatInfo = useChatInfo(flag);
   const { privacy } = useGroupPrivacy(groupFlag);
@@ -107,6 +106,11 @@ export default function HeapTextInput({
       if (sendDisabled) {
         return;
       }
+      const now = Date.now();
+      const cacheId = {
+        sent: now,
+        author: window.our,
+      };
       const blocks = fetchChatBlocks(flag);
       if (!editor.getText() && !blocks.length) {
         return;
@@ -122,7 +126,7 @@ export default function HeapTextInput({
           heap: '', // TODO: Title input
         },
         author: window.our,
-        sent: Date.now(),
+        sent: now,
         content,
       };
 
@@ -154,7 +158,7 @@ export default function HeapTextInput({
       }
 
       mutate(
-        { nest: `heap/${flag}`, essay: heart, initialTime },
+        { nest: `heap/${flag}`, essay: heart, cacheId },
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({
@@ -173,7 +177,6 @@ export default function HeapTextInput({
     },
     [
       sendDisabled,
-      initialTime,
       setPending,
       flag,
       groupFlag,
