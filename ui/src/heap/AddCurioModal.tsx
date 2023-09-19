@@ -9,6 +9,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { tipTapToString } from '@/logic/tiptap';
 import { useFileStore, useUploader } from '@/state/storage';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { useIsMobile } from '@/logic/useMedia';
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';
 import CurioPreview, { canPreview } from './CurioPreview';
 
@@ -31,6 +32,7 @@ export default function AddCurioModal({
   clearDragState,
   dragErrorMessage,
 }: AddCurioModalProps) {
+  const isMobile = useIsMobile();
   const [status, setStatus] = useState<'initial' | 'loading' | 'error'>(
     'initial'
   );
@@ -43,6 +45,7 @@ export default function AddCurioModal({
   const [previewUrl, setPreviewUrl] = useState('');
   const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
+  const loading = !!(mostRecentFile && mostRecentFile.status === 'loading');
   const { mutate } = useAddCurioMutation();
   const { privacy } = useGroupPrivacy(flag);
 
@@ -214,13 +217,15 @@ export default function AddCurioModal({
 
       <section className="align-center align-center mt-6 mb-6 flex w-full flex-col justify-center">
         {mode === 'input' ? (
-          <div className="flex w-full">
-            <NewCurioInput
-              onChange={onChange}
-              onPastedFiles={onPastedFiles}
-              uploadKey={uploadKey}
-            />
-          </div>
+          <NewCurioInput
+            onChange={onChange}
+            onPastedFiles={onPastedFiles}
+            placeholder={
+              isMobile
+                ? 'Paste a link or type to post text'
+                : 'Drag media to upload, or start typing to post text'
+            }
+          />
         ) : (
           <CurioPreview url={previewUrl} />
         )}
@@ -233,6 +238,24 @@ export default function AddCurioModal({
       </section>
 
       <footer className="mt-4 flex items-center justify-between space-x-2">
+        {uploader && (
+          <button
+            className="button"
+            disabled={loading || !isEmpty}
+            onClick={() => {
+              uploader.prompt();
+            }}
+          >
+            {loading ? (
+              <>
+                <LoadingSpinner className="mr-2 h-4 w-4" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              'Upload'
+            )}
+          </button>
+        )}
         <div className="ml-auto flex items-center space-x-2">
           <button
             className="secondary-button"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
@@ -16,10 +16,10 @@ import { Shortcuts } from '@/logic/tiptap';
 import { useCalm } from '@/state/settings';
 import { EditorView } from '@tiptap/pm/view';
 import { Slice } from '@tiptap/pm/model';
-import HeapInputPlaceholder from './HeapInputPlaceholder';
+import Placeholder from '@tiptap/extension-placeholder';
 
 interface NewCurioInput {
-  uploadKey: string;
+  placeholder: string;
   onChange: (editorUpdate: EditorUpdate) => void;
   onPastedFiles: (files: FileList) => void;
 }
@@ -30,7 +30,7 @@ export interface EditorUpdate {
 }
 
 export default function NewCurioInput({
-  uploadKey,
+  placeholder,
   onPastedFiles,
   onChange,
 }: NewCurioInput) {
@@ -49,6 +49,7 @@ export default function NewCurioInput({
         onPastedFiles(event.clipboardData.files);
         return false;
       }
+
       return true;
     },
     [onPastedFiles]
@@ -86,9 +87,6 @@ export default function NewCurioInput({
     }),
     Document,
     HardBreak,
-    HeapInputPlaceholder.configure({
-      uploadKey,
-    }),
     History.configure({ newGroupDelay: 100 }),
     Italic,
     keyMapExt,
@@ -98,22 +96,10 @@ export default function NewCurioInput({
       exitable: true,
     }),
     Paragraph,
+    Placeholder.configure({ placeholder }),
     Strike,
     Text,
   ];
-
-  const restorePlaceholder = useCallback((editor: Editor) => {
-    if (editor.isEmpty && !editor.isFocused) {
-      editor.commands.setContent({
-        type: 'doc',
-        content: [
-          {
-            type: 'heap-input-placeholder',
-          },
-        ],
-      });
-    }
-  }, []);
 
   const editor = useEditor(
     {
@@ -126,12 +112,8 @@ export default function NewCurioInput({
         },
         handlePaste,
       },
-      onBlur: ({ editor: ed }) => {
-        restorePlaceholder(ed as Editor);
-      },
       onUpdate: ({ editor: ed }) => {
         if (onUpdate) {
-          restorePlaceholder(ed as Editor);
           onUpdate({ editor: ed } as { editor: Editor });
         }
       },
@@ -139,25 +121,8 @@ export default function NewCurioInput({
         ed.chain().focus().run();
       },
     },
-    [keyMapExt, uploadKey, restorePlaceholder]
+    [keyMapExt]
   );
-
-  useEffect(() => {
-    if (!editor) {
-      return;
-    }
-
-    if (editor.isEmpty) {
-      editor.commands.setContent({
-        type: 'doc',
-        content: [
-          {
-            type: 'heap-input-placeholder',
-          },
-        ],
-      });
-    }
-  }, [editor]);
 
   if (!editor) {
     return null;
