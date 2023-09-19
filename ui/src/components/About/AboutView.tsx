@@ -46,7 +46,7 @@ export default function AboutView({ title }: ViewProps) {
         exit="out"
         variants={pageAnimationVariants}
         transition={pageTransition}
-        className="h-screen overflow-y-scroll pt-8"
+        className="overflow-y-scroll px-6 pt-8"
       >
         <About />
       </motion.div>
