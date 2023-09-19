@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useCopy } from '@/logic/utils';
 import useContactState, { useContact } from '@/state/contact';
@@ -12,6 +12,7 @@ import useNavigateByApp from '@/logic/useNavigateByApp';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
+import { isNativeApp } from '@/logic/native';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
@@ -22,6 +23,7 @@ export default function ProfileModal() {
   const contact = useContact(ship ? ship : '');
   const cover = contact?.cover || '';
   const dismiss = useDismissNavigate();
+  const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();
   const pals = usePalsState();
   const { data, showConnection } = useConnectivityCheck(ship || '');
@@ -49,7 +51,11 @@ export default function ProfileModal() {
   };
 
   const handleMessageClick = () => {
-    navigateByApp(`/dm/${ship}`);
+    if (isNativeApp()) {
+      navigate(`/dm/${ship}`);
+    } else {
+      navigateByApp(`/dm/${ship}`);
+    }
   };
 
   const handleCopyClick = () => {
