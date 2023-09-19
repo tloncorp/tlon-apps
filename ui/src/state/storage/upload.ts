@@ -180,6 +180,9 @@ const emptyUploader = (key: string, bucket: string): Uploader => ({
       useFileStore.getState().uploadFiles(key, files, bucket);
       input.remove();
     });
+    // Add to DOM for mobile Safari support
+    input.classList.add('hidden');
+    document.body.appendChild(input);
     input.click();
   },
 });
