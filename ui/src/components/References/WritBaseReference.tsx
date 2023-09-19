@@ -10,11 +10,11 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import { useChatState } from '@/state/chat';
 import { useChannelFlag } from '@/logic/channel';
 import { isImageUrl } from '@/logic/utils';
+import { Note } from '@/types/channel';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
 import BubbleIcon from '../icons/BubbleIcon';
-import { Note } from '@/types/channel';
 
 interface WritBaseReferenceProps {
   nest: string;

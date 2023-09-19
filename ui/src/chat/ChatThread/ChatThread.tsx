@@ -22,9 +22,9 @@ import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
 import { useAddQuipMutation, useNote, usePerms } from '@/state/channel/channel';
+import { newQuipMap } from '@/types/channel';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import QuipScroller from '../QuipScroller/QuipScroller';
-import { newQuipMap } from '@/types/channel';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime, idShip } = useParams<{

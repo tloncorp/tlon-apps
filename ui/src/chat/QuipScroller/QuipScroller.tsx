@@ -22,10 +22,10 @@ import {
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
+import { emptyQuip } from '@/types/channel';
 import { IQuipScroller } from './IQuipScroller';
 import QuipMessage, { QuipMessageProps } from '../ChatMessage/QuipMessage';
 import { useChatStore } from '../useChatStore';
-import { emptyQuip } from '@/types/channel';
 
 interface QuipScrollerItemProps extends QuipMessageProps {
   prefixedElement?: ReactNode;

@@ -102,9 +102,11 @@ describe('ChatMessage', () => {
     const writ = makeFakeChatWrit(
       1,
       '~finned-palmer',
-      [{
-        inline: [{ bold: ['A bold test message'] }, 'with some more text'],
-      }],
+      [
+        {
+          inline: [{ bold: ['A bold test message'] }, 'with some more text'],
+        },
+      ],
       undefined
     );
     const da = unixToDa(date.valueOf());
@@ -133,9 +135,11 @@ describe('ChatMessage', () => {
     const writ = makeFakeChatWrit(
       1,
       '~finned-palmer',
-      [{
-        inline: [{ bold: ['A bold test message'] }, 'with some more text'],
-      }],
+      [
+        {
+          inline: [{ bold: ['A bold test message'] }, 'with some more text'],
+        },
+      ],
       undefined
     );
     const da = unixToDa(date.valueOf());
@@ -165,9 +169,11 @@ describe('ChatMessage', () => {
     const writ = makeFakeChatWrit(
       1,
       '~finned-palmer',
-      [{
-        inline: [{ bold: ['A bold test message'] }, 'with some more text'],
-      }],
+      [
+        {
+          inline: [{ bold: ['A bold test message'] }, 'with some more text'],
+        },
+      ],
       undefined,
       date
     );

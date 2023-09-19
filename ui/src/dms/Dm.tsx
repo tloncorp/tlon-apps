@@ -24,8 +24,8 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import MessageSelector from './MessageSelector';
 import DmWindow from '@/chat/DmWindow';
+import MessageSelector from './MessageSelector';
 
 function TitleButton({
   ship,

@@ -1,7 +1,7 @@
 import React from 'react';
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
-import DateDivider from './ChatMessage/DateDivider';
 import { Note } from '@/types/channel';
+import DateDivider from './ChatMessage/DateDivider';
 import ChatContent from './ChatContent/ChatContent';
 
 interface ChatNoticeProps {

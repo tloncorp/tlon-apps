@@ -17,13 +17,13 @@ import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import useAppName from '@/logic/useAppName';
 import MobileHeader from '@/components/MobileHeader';
+import DmWindow from '@/chat/DmWindow';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
 import DmOptions from './DMOptions';
 import MessageSelector from './MessageSelector';
 import PendingIndicator from './MultiDMPendingIndicator';
-import DmWindow from '@/chat/DmWindow';
 
 function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
   const count = club.team.length;
@@ -184,9 +184,7 @@ export default function MultiDm() {
               <ChatInput
                 key={clubId}
                 whom={clubId}
-                sendDm={
-                  isSelecting ? sendDmFromMessageSelector : sendMessage
-                }
+                sendDm={isSelecting ? sendDmFromMessageSelector : sendMessage}
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}

@@ -32,15 +32,13 @@ export default function HeapDetailComments({
   const groupedQuips = !comments
     ? []
     : setNewDaysForQuips(
-        groupQuips(time, comments.toArray(), brief).sort(
-          ([a], [b]) => {
-            if (sort === 'asc') {
-              return a.localeCompare(b);
-            }
-
-            return b.localeCompare(a);
+        groupQuips(time, comments.toArray(), brief).sort(([a], [b]) => {
+          if (sort === 'asc') {
+            return a.localeCompare(b);
           }
-        )
+
+          return b.localeCompare(a);
+        })
       );
 
   return (

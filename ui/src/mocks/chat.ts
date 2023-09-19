@@ -5,8 +5,8 @@ import { subDays, subMinutes } from 'date-fns';
 import faker from '@faker-js/faker';
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
-import { ChatBriefs, ChatNotice } from '../types/chat';
 import { Note, Notes, Story, storyFromChatStory } from '@/types/channel';
+import { ChatBriefs, ChatNotice } from '../types/chat';
 
 const getUnix = (count: number, setTime?: Date) =>
   count > 1

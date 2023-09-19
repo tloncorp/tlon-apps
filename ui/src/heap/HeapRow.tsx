@@ -276,11 +276,7 @@ export default function HeapRow({
           </div>
         </ContentReference>
         <div className="shrink-0">
-          <Actions
-            longPress={false}
-            canEdit={canEdit}
-            time={note.seal.id}
-          />
+          <Actions longPress={false} canEdit={canEdit} time={note.seal.id} />
         </div>
       </div>
     );
@@ -301,19 +297,22 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
-            <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
+            <Avatar
+              size="xxs"
+              className="inline-block"
+              ship={note.essay.author}
+            />
+            <ShipName
+              showAlias={!calm.disableNicknames}
+              name={note.essay.author}
+            />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
             </span>
           </div>
         </div>
         <div className="shrink-0">
-          <Actions
-            longPress={false}
-            canEdit={canEdit}
-            time={note.seal.id}
-          />
+          <Actions longPress={false} canEdit={canEdit} time={note.seal.id} />
         </div>
       </div>
     );
@@ -346,19 +345,22 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
-            <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
+            <Avatar
+              size="xxs"
+              className="inline-block"
+              ship={note.essay.author}
+            />
+            <ShipName
+              showAlias={!calm.disableNicknames}
+              name={note.essay.author}
+            />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
             </span>
           </div>
         </div>
         <div className="shrink-0">
-          <Actions
-            longPress={false}
-            canEdit={canEdit}
-            time={note.seal.id}
-          />
+          <Actions longPress={false} canEdit={canEdit} time={note.seal.id} />
         </div>
       </div>
     );
@@ -382,19 +384,22 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
-            <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
+            <Avatar
+              size="xxs"
+              className="inline-block"
+              ship={note.essay.author}
+            />
+            <ShipName
+              showAlias={!calm.disableNicknames}
+              name={note.essay.author}
+            />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
             </span>
           </div>
         </div>
         <div className="shrink-0">
-          <Actions
-            longPress={false}
-            canEdit={canEdit}
-            time={note.seal.id}
-          />
+          <Actions longPress={false} canEdit={canEdit} time={note.seal.id} />
         </div>
       </div>
     );
@@ -430,19 +435,22 @@ export default function HeapRow({
               <span>{replyCount} comments</span>
             </div>
             <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-              <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
-              <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
+              <Avatar
+                size="xxs"
+                className="inline-block"
+                ship={note.essay.author}
+              />
+              <ShipName
+                showAlias={!calm.disableNicknames}
+                name={note.essay.author}
+              />
               <span className="hidden text-gray-400 sm:inline">
                 {prettySent} ago
               </span>
             </div>
           </div>
           <div className="shrink-0">
-            <Actions
-              longPress={false}
-              canEdit={canEdit}
-              time={note.seal.id}
-            />
+            <Actions longPress={false} canEdit={canEdit} time={note.seal.id} />
           </div>
         </div>
       );
@@ -474,19 +482,22 @@ export default function HeapRow({
             <span>{replyCount} comments</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-            <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
-            <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
+            <Avatar
+              size="xxs"
+              className="inline-block"
+              ship={note.essay.author}
+            />
+            <ShipName
+              showAlias={!calm.disableNicknames}
+              name={note.essay.author}
+            />
             <span className="hidden text-gray-400 sm:inline">
               {prettySent} ago
             </span>
           </div>
         </div>
         <div className="shrink-0">
-          <Actions
-            longPress={false}
-            canEdit={canEdit}
-            time={note.seal.id}
-          />
+          <Actions longPress={false} canEdit={canEdit} time={note.seal.id} />
         </div>
       </div>
     );
@@ -509,19 +520,22 @@ export default function HeapRow({
           <span>{replyCount} comments</span>
         </div>
         <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
-          <Avatar size="xxs" className="inline-block" ship={note.essay.author} />
-          <ShipName showAlias={!calm.disableNicknames} name={note.essay.author} />
+          <Avatar
+            size="xxs"
+            className="inline-block"
+            ship={note.essay.author}
+          />
+          <ShipName
+            showAlias={!calm.disableNicknames}
+            name={note.essay.author}
+          />
           <span className="hidden text-gray-400 sm:inline">
             {prettySent} ago
           </span>
         </div>
       </div>
       <div className="shrink-0">
-        <Actions
-          longPress={false}
-          canEdit={canEdit}
-          time={note.seal.id}
-        />
+        <Actions longPress={false} canEdit={canEdit} time={note.seal.id} />
       </div>
     </div>
   );

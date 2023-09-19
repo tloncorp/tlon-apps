@@ -25,6 +25,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { emptyQuip, Han, Quip } from '@/types/channel';
+import QuipReactions from '@/diary/QuipReactions/QuipReactions';
 import {
   useChatDialog,
   useChatHovering,
@@ -33,7 +34,6 @@ import {
 } from '../useChatStore';
 import ReactionDetails from '../ChatReactions/ReactionDetails';
 import QuipMessageOptions from './QuipMessageOptions';
-import QuipReactions from '@/diary/QuipReactions/QuipReactions';
 
 export interface QuipMessageProps {
   whom: string;

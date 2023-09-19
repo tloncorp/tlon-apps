@@ -163,9 +163,7 @@ const ChatMessage = React.memo<
 
       const numReplies = seal.quipCount;
       const replyAuthors = seal.lastQuippers;
-      const lastReplyTime = seal.lastQuip
-        ? new Date(seal.lastQuip)
-        : null;
+      const lastReplyTime = seal.lastQuip ? new Date(seal.lastQuip) : null;
 
       const hover = useRef(false);
       const setHover = useRef(
