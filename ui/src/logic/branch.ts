@@ -18,7 +18,8 @@ export const getDeepLink = async (alias: string) => {
   return url;
 };
 
-export const createDeepLink = async (canonicalUrl: string, alias: string) => {
+export const createDeepLink = async (canonicalUrl: string, lure: string) => {
+  const alias = lure.replace('~', '').replace('/', '-');
   let url = await getDeepLink(alias);
   if (!url) {
     const response = await fetchBranchApi('/v1/url', {
@@ -29,6 +30,7 @@ export const createDeepLink = async (canonicalUrl: string, alias: string) => {
         data: {
           $desktop_url: canonicalUrl,
           $canonical_url: canonicalUrl,
+          lure,
         },
       }),
     });

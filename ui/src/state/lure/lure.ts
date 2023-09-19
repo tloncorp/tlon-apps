@@ -155,10 +155,7 @@ export const useLureState = create<LureState>(
             false
           ),
         ]);
-        const deepLinkUrl = await createDeepLink(
-          url,
-          flag.replace('~', '').replace('/', '-')
-        );
+        const deepLinkUrl = await createDeepLink(url, flag);
         set(
           produce((draft: LureState) => {
             draft.lures[flag] = {
