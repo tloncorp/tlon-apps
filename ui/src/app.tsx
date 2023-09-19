@@ -87,7 +87,7 @@ import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import queryClient from '@/queryClient';
 import EmojiPicker from '@/components/EmojiPicker';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
-import { captureAnalyticsEvent } from '@/logic/analytics';
+import { captureAnalyticsEvent, captureError } from '@/logic/analytics';
 import GroupChannel from '@/groups/GroupChannel';
 import PrivacyNotice from '@/groups/PrivacyNotice';
 import ActivityModal, { ActivityChecker } from '@/components/ActivityModal';
@@ -778,6 +778,7 @@ function RoutedApp() {
   return (
     <ErrorBoundary
       FallbackComponent={ErrorAlert}
+      onError={(e) => captureError('app error boundary', e)}
       onReset={() => window.location.reload()}
     >
       <Router basename={basename(app)}>
