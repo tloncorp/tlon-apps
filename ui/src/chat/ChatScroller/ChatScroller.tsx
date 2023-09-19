@@ -148,7 +148,7 @@ export default function ChatScroller({
       const nonNullMessages = messages.filter(([_k, v]) => v !== null);
 
       const ks: bigInt.BigInteger[] = nonNullMessages.map(([k]) => k);
-      const min = nonNullMessages[0][0] || bigInt();
+      const min = nonNullMessages?.[0]?.[0] || bigInt();
       const es: ChatScrollerItemProps[] =
         nonNullMessages.map<ChatScrollerItemProps>(([index, writ]) => {
           if (!writ) {

@@ -37,7 +37,7 @@ function ChatChannel({ title }: ViewProps) {
   const inThread = idShip && idTime;
   const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
   const { mutateAsync: leaveChat } = useLeaveMutation();
-  const { mutate: sendMessage } = useAddNoteMutation();
+  const { mutate: sendMessage } = useAddNoteMutation(nest);
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
 

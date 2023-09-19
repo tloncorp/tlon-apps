@@ -1076,6 +1076,14 @@
       [%perm ~]        ``channel-perm+!>(perm.perm.diary)
     ==
   ::
+  ++  give-notes
+    |=  [mode=?(%outline %note) ls=(list [time (unit note:d)])]
+    ^-  (unit (unit cage))
+    =/  =notes:d  (gas:on-notes:d *notes:d ls)
+    =-  ``channel-notes+!>(-)
+    ?:  =(%note mode)  (rr-notes:utils notes)
+    (rr-notes-without-quips:utils notes)
+  ::
   ++  di-peek-notes
     |=  =(pole knot)
     ^-  (unit (unit cage))
@@ -1083,27 +1091,31 @@
     ?+    pole  [~ ~]
         [%newest count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
-      =/  ls    (top:mo-notes:d notes.diary count)
-      ?:  =(mode.pole %note)
-        ``channel-notes+!>((gas:on *notes:d ls))
-      =-  ``channel-notes+!>(-)
-      %-  rr-notes-without-quips:utils
-      (gas:on *notes:d ls)
+      =/  ls     (top:mo-notes:d notes.diary count)
+      (give-notes mode.pole ls)
     ::
         [%older start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      =/  ls    (bat:mo-notes:d notes.diary `start count)
-      ?:  =(mode.pole %note)
-        ``channel-notes+!>((gas:on *notes:d ls))
-      =-  ``channel-notes+!>(-)
-      %-  rr-notes-without-quips:utils
-      (gas:on *notes:d ls)
+      =/  ls     (bat:mo-notes:d notes.diary `start count)
+      (give-notes mode.pole ls)
     ::
-        [%newer start=@ count=@ ~]
+        [%newer start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-notes+!>((gas:on *notes:d (tab:on notes.diary `start count)))
+      =/  ls     (tab:on notes.diary `start count)
+      (give-notes mode.pole ls)
+    ::
+        [%around time=@ count=@ mode=?(%outline %note) ~]
+      =/  count  (slav %ud count.pole)
+      =/  time  (slav %ud time.pole)
+      =/  older  (bat:mo-notes:d notes.diary `time count)
+      =/  newer  (tab:on notes.diary `time count)
+      =/  note   (get:on notes.diary time)
+      =/  notes  
+          ?~  note  (welp older newer)
+          (welp (snoc older [time u.note]) newer)
+      (give-notes mode.pole notes)
     ::
         [%note time=@ ~]
       =/  time  (slav %ud time.pole)

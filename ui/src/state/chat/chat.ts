@@ -141,8 +141,7 @@ export const useChatState = createState<ChatState>(
     drafts: {},
     pendingDms: [],
     pins: [],
-    sentMessages: [],
-    postedMessages: [],
+    trackedMessages: [],
     writWindows: {},
     loadedRefs: {},
     dmBriefs: {},
@@ -429,13 +428,19 @@ export const useChatState = createState<ChatState>(
           }
         }
 
-        draft.sentMessages.push(id);
+        draft.trackedMessages.push({ id, status: 'pending' });
       });
 
       await optimisticAction(whom, id, diff, set);
       set((draft) => {
         if (!isDM || !isNew) {
-          draft.postedMessages.push(id);
+          draft.trackedMessages.map((msg) => {
+            if (msg.id === id) {
+              return { status: 'sent', id };
+            }
+
+            return msg;
+          });
         }
       });
     },
@@ -584,12 +589,13 @@ export function useChatKeys({ whom }: { replying: boolean; whom: string }) {
   return useMemo(() => Array.from(messages.keys()), [messages]);
 }
 
-export function useIsMessageDelivered(id: string) {
-  return useChatState(useCallback((s) => !s.sentMessages.includes(id), [id]));
-}
-
-export function useIsMessagePosted(id: string) {
-  return useChatState(useCallback((s) => s.postedMessages.includes(id), [id]));
+export function useTrackedMessageStatus(id: string) {
+  return useChatState(
+    useCallback(
+      (s) => s.trackedMessages.find((m) => m.id === id)?.status || 'delivered',
+      [id]
+    )
+  );
 }
 
 export function useChatIsJoined(whom: string) {

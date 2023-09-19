@@ -27,6 +27,11 @@ export interface WritWindows {
   windows: WritWindow[];
 }
 
+export interface TrackedMessage {
+  id: string;
+  status: 'pending' | 'sent' | 'delivered';
+}
+
 export interface ChatState {
   // set: (fn: (sta: BasedChatState) => void) => void;
   batchSet: (fn: (sta: BasedChatState) => void) => void;
@@ -35,8 +40,7 @@ export interface ChatState {
   drafts: {
     [whom: string]: ChatStory;
   };
-  sentMessages: string[];
-  postedMessages: string[];
+  trackedMessages: TrackedMessage[];
   pins: ChatWhom[];
   dmArchive: string[];
   fetchDms: () => Promise<void>;

@@ -32,6 +32,7 @@ export default function AddCurioModal({
   clearDragState,
   dragErrorMessage,
 }: AddCurioModalProps) {
+  const nest = `heap/${chFlag}`;
   const [status, setStatus] = useState<'initial' | 'loading' | 'error'>(
     'initial'
   );
@@ -45,7 +46,7 @@ export default function AddCurioModal({
   const [previewUrl, setPreviewUrl] = useState('');
   const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
-  const { mutate } = useAddNoteMutation();
+  const { mutate } = useAddNoteMutation(nest);
   const { privacy } = useGroupPrivacy(flag);
 
   const isEmpty = !content && !draggedFile && !pastedFile;
@@ -98,7 +99,6 @@ export default function AddCurioModal({
 
       mutate(
         {
-          nest: `heap/${chFlag}`,
           essay: heart,
           cacheId,
         },

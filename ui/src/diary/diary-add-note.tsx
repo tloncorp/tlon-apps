@@ -58,7 +58,7 @@ export default function DiaryAddNote() {
     data: returnTime,
     mutateAsync: addNote,
     status: addStatus,
-  } = useAddNoteMutation();
+  } = useAddNoteMutation(nest);
   const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
     usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
   const editWithMarkdown = useMarkdownInDiaries();
@@ -139,7 +139,6 @@ export default function DiaryAddNote() {
         await asyncCallWithTimeout(
           addNote({
             cacheId,
-            nest: `diary/${chFlag}`,
             essay: {
               content: noteContent,
               author: window.our,

@@ -57,11 +57,9 @@ interface ChatInputProps {
   sendDm?: (whom: string, essay: NoteEssay) => void;
   sendChatMessage?: ({
     cacheId,
-    nest,
     essay,
   }: {
     cacheId: CacheId;
-    nest: Nest;
     essay: NoteEssay;
   }) => void;
   sendQuip?: ({
@@ -363,7 +361,6 @@ export default function ChatInput({
 
             sendChatMessage({
               cacheId,
-              nest: `chat/${whom}`,
               essay: {
                 ...essay,
                 'han-data': {
@@ -389,7 +386,6 @@ export default function ChatInput({
           img.onerror = () => {
             sendChatMessage({
               cacheId,
-              nest: `chat/${whom}`,
               essay,
             });
           };
@@ -428,7 +424,6 @@ export default function ChatInput({
       } else if (sendChatMessage) {
         sendChatMessage({
           cacheId,
-          nest: `chat/${whom}`,
           essay,
         });
       } else if (sendQuip && replying) {

@@ -15,8 +15,8 @@ import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
   useChatState,
-  useIsMessageDelivered,
-  useIsMessagePosted,
+  // useIsMessageDelivered,
+  // useIsMessagePosted,
   useIsDmOrMultiDm,
 } from '@/state/chat';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
@@ -151,8 +151,8 @@ const QuipMessage = React.memo<
           [unread, whom, cork.id, isDMOrMultiDM, markChatRead]
         ),
       });
-      const isMessageDelivered = useIsMessageDelivered(cork.id);
-      const isMessagePosted = useIsMessagePosted(cork.id);
+      // const isMessageDelivered = useIsMessageDelivered(cork.id);
+      // const isMessagePosted = useIsMessagePosted(cork.id);
       const isReplyOp = chatInfo?.replying === cork.id;
 
       const unix = new Date(daToUnix(time));
@@ -270,7 +270,7 @@ const QuipMessage = React.memo<
                 className={cn(
                   'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  !isMessageDelivered && !isMessagePosted && 'text-gray-400',
+                  // !isMessageDelivered && !isMessagePosted && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
                 )}
               >
@@ -300,13 +300,13 @@ const QuipMessage = React.memo<
                 )}
               </div>
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {!isMessageDelivered && (
+                {/* {!isMessageDelivered && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
                     primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
-                )}
+                )} */}
               </div>
             </div>
           </div>

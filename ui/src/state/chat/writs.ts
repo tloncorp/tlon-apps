@@ -329,7 +329,13 @@ export default function makeWritsStore(
             return {
               pacts: { ...draft.pacts },
               writWindows: { ...draft.writWindows },
-              sentMessages: draft.sentMessages.filter((id) => id !== data.id),
+              trackedMessages: draft.trackedMessages.map((msg) => {
+                if (msg.id === data.id) {
+                  return { status: 'delivered', id: data.id };
+                }
+
+                return msg;
+              }),
             };
           });
         },

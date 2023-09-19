@@ -90,12 +90,13 @@ export default function HeapTextInput({
   inputClass,
   comment = false,
 }: HeapTextInputProps) {
+  const nest = `heap/${flag}`;
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
   const chatInfo = useChatInfo(flag);
   const { privacy } = useGroupPrivacy(groupFlag);
-  const { compatible, text } = useChannelCompatibility(`heap/${flag}`);
-  const { mutate } = useAddNoteMutation();
+  const { compatible, text } = useChannelCompatibility(nest);
+  const { mutate } = useAddNoteMutation(nest);
   const { mutate: addQuip } = useAddQuipMutation();
 
   /**
@@ -158,7 +159,7 @@ export default function HeapTextInput({
       }
 
       mutate(
-        { nest: `heap/${flag}`, essay: heart, cacheId },
+        { essay: heart, cacheId },
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({

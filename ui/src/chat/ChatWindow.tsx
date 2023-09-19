@@ -44,7 +44,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     fetchPreviousPage,
     fetchNextPage,
     isLoading,
-  } = useInfiniteChats(`chat/${whom}`);
+  } = useInfiniteChats(`chat/${whom}`, scrollTo?.toString());
   // const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
@@ -55,11 +55,11 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   }, [setSearchParams]);
 
   // useEffect(() => {
-  // if (scrollTo && !messages.has(scrollTo)) {
-  // useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
-  // }
+  //   if (scrollTo && !messages.has(scrollTo)) {
+  //     useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
+  //   }
 
-  // // eslint-disable-next-line react-hooks/exhaustive-deps
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
   // }, [scrollTo?.toString(), messages]);
 
   useEffect(() => {

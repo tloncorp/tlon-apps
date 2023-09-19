@@ -16,9 +16,8 @@ import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
 import {
   useChatState,
-  useIsMessageDelivered,
-  useIsMessagePosted,
   useIsDmOrMultiDm,
+  useTrackedMessageStatus,
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
@@ -26,7 +25,11 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
-import { useIsNotePending, useMarkReadMutation } from '@/state/channel/channel';
+import {
+  useIsNotePending,
+  useMarkReadMutation,
+  useTrackedNoteStatus,
+} from '@/state/channel/channel';
 import { Note } from '@/types/channel';
 import {
   useChatDialog,
@@ -154,12 +157,15 @@ const ChatMessage = React.memo<
           [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
-      const isMessageDelivered = useIsMessageDelivered(seal.id);
-      const isMessagePosted = useIsMessagePosted(seal.id);
-      const isNotePending = useIsNotePending({
+      const msgStatus = useTrackedMessageStatus(seal.id);
+      const status = useTrackedNoteStatus({
         author: window.our,
         sent: essay.sent,
       });
+      const isDelivered = msgStatus === 'delivered' || status === 'delivered';
+      const isSent = msgStatus === 'sent' || status === 'sent';
+      const isPending = msgStatus === 'pending' || status === 'pending';
+
       const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
@@ -283,10 +289,7 @@ const ChatMessage = React.memo<
                 className={cn(
                   'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  !isMessageDelivered &&
-                    !isMessagePosted &&
-                    !isNotePending &&
-                    'text-gray-400',
+                  isPending && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
                 )}
               >
@@ -373,10 +376,10 @@ const ChatMessage = React.memo<
                 ) : null}
               </div>
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {(!isMessageDelivered || isNotePending) && (
+                {!isDelivered && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
-                    primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
+                    primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
                 )}
