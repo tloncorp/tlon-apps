@@ -35,7 +35,7 @@ export default function SettingsView({ title }: ViewProps) {
       header={
         isMobile ? <MobileHeader title="Settings" pathBack="/profile" /> : null
       }
-      className="h-full flex-1 px-4"
+      className="flex flex-col overflow-y-auto px-4"
     >
       <Helmet>
         <title>{title}</title>
@@ -47,7 +47,7 @@ export default function SettingsView({ title }: ViewProps) {
         exit="out"
         variants={pageAnimationVariants}
         transition={pageTransition}
-        className="h-full overflow-y-scroll px-8 pt-8"
+        className="px-8 pt-8"
       >
         <Settings />
       </motion.div>
