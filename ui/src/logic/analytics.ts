@@ -17,7 +17,8 @@ export type AnalyticsEventName =
   | 'react_item'
   | 'comment_item'
   | 'post_item'
-  | 'view_item';
+  | 'view_item'
+  | 'error';
 
 export type AnalyticsChannelType = 'chat' | 'diary' | 'heap';
 
@@ -125,3 +126,13 @@ export const captureGroupsAnalyticsEvent = ({
 
   captureAnalyticsEvent(name, properties);
 };
+
+export function captureError(source: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  captureAnalyticsEvent('error', {
+    source,
+    message,
+    stack,
+  });
+}

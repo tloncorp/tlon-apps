@@ -124,13 +124,12 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const contact = useContact(member);
   const location = useLocation();
-  const modalNavigate = useModalNavigate();
   const navigateByApp = useNavigateByApp();
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
 
   const onViewProfile = (ship: string) => {
-    modalNavigate(`/profile/${ship}`, {
+    navigate(`/profile/${ship}`, {
       state: { backgroundLocation: location },
     });
   };

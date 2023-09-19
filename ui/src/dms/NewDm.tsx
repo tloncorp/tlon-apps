@@ -4,6 +4,8 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import useMessageSelector from '@/logic/useMessageSelector';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
+import { isNativeApp } from '@/logic/native';
+import MobileHeader from '@/components/MobileHeader';
 import MessageSelector from './MessageSelector';
 
 export default function NewDM() {
@@ -14,6 +16,11 @@ export default function NewDM() {
   return (
     <Layout
       className="flex-1"
+      header={
+        isNativeApp() && (
+          <MobileHeader title="New Message" pathBack="/messages" />
+        )
+      }
       footer={
         <div
           className={cn(
