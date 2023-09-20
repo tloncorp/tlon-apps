@@ -501,18 +501,21 @@
         !>  ^-  (unit version)
         (~(gut by heed) for ~)
       ::
-          [%status @ @ @ ~]
-        =/  for=[gill:gall protocol]
+          [%status @ @ ~]
+        ::TODO  mb also expose over subscription interface? useful for fe
+        =/  for=gill:gall
           =*  p  t.t.t.t.path
-          [[(slav %p i.p) i.t.p] i.t.t.p]
+          [(slav %p i.p) i.t.p]
         :^  ~  ~  %noun
         !>  ^-  ?(%match %clash %await %unmet)
-        =/  hav=(unit (unit version))
-          (~(get by heed) for)
-        ?~  hav    %unmet
-        ?~  u.hav  %await
-        ?:  =(u.u.hav ours)  %match
-        %clash
+        =/  need  (~(gut by know) q.for ~)
+        ?:  =(~ need)  %match
+        =/  need  ~(tap in ~(key by need))
+        ?.  (levy need |=(p=protocol (~(has by heed) for p)))
+          %unmet
+        ?:  (lien need |=(p=protocol =(~ (~(got by heed) for p))))
+          %await
+        ?:((match:up for) %match %clash)
       ==
     ::
     ++  on-leave
