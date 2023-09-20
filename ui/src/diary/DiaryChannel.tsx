@@ -6,11 +6,11 @@ import * as Toast from '@radix-ui/react-toast';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
 import {
-  useInfiniteNotes,
   useDisplayMode,
   useSortMode,
   useMarkReadMutation,
   useArrangedNotes,
+  useInfiniteNotes,
 } from '@/state/channel/channel';
 import {
   useUserDiarySortMode,
@@ -35,16 +35,20 @@ function DiaryChannel({ title }: ViewProps) {
   const nest = `diary/${chFlag}`;
   const { data } = useConnectivityCheck(chShip ?? '');
   const groupFlag = useRouteGroup();
-  const { notes, isLoading, fetchNextPage, hasNextPage } =
-    useInfiniteNotes(nest);
+  const {
+    notes,
+    isLoading,
+    hasPreviousPage,
+    fetchPreviousPage,
+  } = useInfiniteNotes(nest);
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
-      if (atBottom && hasNextPage) {
-        fetchNextPage();
+      if (atBottom && hasPreviousPage) {
+        fetchPreviousPage();
       }
     },
-    [hasNextPage, fetchNextPage]
+    [hasPreviousPage, fetchPreviousPage]
   );
 
   const {
@@ -55,7 +59,6 @@ function DiaryChannel({ title }: ViewProps) {
     groupFlag,
     nest,
   });
-
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);

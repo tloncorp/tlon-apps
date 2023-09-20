@@ -66,7 +66,6 @@ interface NoteSealInCache {
 }
 
 interface NoteInCache {
-  type: 'note';
   seal: NoteSealInCache;
   essay: NoteEssay;
 }
@@ -180,8 +179,8 @@ export const useNotesStore = create<State>((set, get) => ({
   },
 }));
 
-export function usePendingNotes() {
-  return useNotesStore((s) => s.pendingNotes);
+export function useTrackedNotes() {
+  return useNotesStore((s) => s.trackedNotes);
 }
 
 export function useIsNotePending(cacheId: CacheId) {
@@ -314,87 +313,12 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
   return rest.isLoading;
 }
 
-export function useInfiniteNotes(nest: Nest) {
-  const [han, flag] = nestToFlag(nest);
-  const queryKey = useMemo(() => [han, 'notes', flag, 'infinite'], [han, flag]);
-
-  const invalidate = useRef(
-    _.debounce(
-      () => {
-        queryClient.invalidateQueries(queryKey);
-      },
-      300,
-      {
-        leading: true,
-        trailing: true,
-      }
-    )
-  );
-
-  useEffect(() => {
-    api.subscribe({
-      app: 'channels',
-      path: `/${nest}/ui`,
-      event: invalidate.current,
-    });
-  }, [nest, invalidate]);
-
-  const { data, fetchNextPage, hasNextPage, isLoading } =
-    useInfiniteQuery<NoteMap>({
-      queryKey,
-      queryFn: async ({ pageParam }) => {
-        const path = pageParam
-          ? `/${nest}/notes/older/${pageParam}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`
-          : `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
-        const response = await api.scry<Notes>({
-          app: 'channels',
-          path,
-        });
-
-        const diff: [BigInteger, Note][] = Object.entries(response).map(
-          ([k, v]) => [bigInt(udToDec(k)), v as Note]
-        );
-
-        return newNoteMap(diff);
-      },
-      getNextPageParam: (lastPage) =>
-        lastPage.length ? lastPage.minKey() : undefined,
-      keepPreviousData: true,
-      refetchOnMount: true,
-      retryOnMount: true,
-    });
-
-  if (data === undefined || data.pages.length === 0) {
-    return {
-      notes: [],
-      fetchNextPage,
-      hasNextPage,
-      isLoading,
-    };
-  }
-
-  const notes: NoteTuple[] = data.pages.map((page) => page.toArray()).flat();
-
-  console.log({ notes, data });
-
-  return {
-    notes,
-    fetchNextPage,
-    hasNextPage,
-    isLoading,
-  };
-}
-
 const infiniteNoteUpdater = (
   queryKey: QueryKey,
   data: ShelfResponse,
   initialTime?: string
 ) => {
   const { nest, response } = data;
-  const [hn] = nestToFlag(nest);
-  if (hn !== 'chat') {
-    return;
-  }
 
   if (!('note' in response)) {
     return;
@@ -452,6 +376,13 @@ const infiniteNoteUpdater = (
           }
 
           const newLastPage = lastPage.with(time, note);
+
+          const cachedNote = lastPage.get(bigInt(note.essay.sent));
+
+          if (cachedNote && id !== unixToDa(note.essay.sent).toString()) {
+            // remove cached note if it exists
+            newLastPage.delete(bigInt(note.essay.sent));
+          }
 
           const newWindow = {
             oldest: time,
@@ -597,15 +528,13 @@ interface PageParam {
   direction: string;
 }
 
-export function useInfiniteChats(nest: Nest, initialTime?: string) {
+export function useInfiniteNotes(nest: Nest, initialTime?: string) {
   const [han, flag] = nestToFlag(nest);
-  const queryKey = useMemo(
-    () => [han, 'notes', flag, 'infinite-chat'],
-    [han, flag]
+  const queryKey = useMemo(() => [han, 'notes', flag, 'infinite'], [han, flag]);
+  const getCurrentWindow = useCallback(
+    () => useNotesStore.getState().getCurrentWindow(nest, initialTime),
+    [initialTime, nest]
   );
-  const getCurrentWindow = useCallback(() => {
-    return useNotesStore.getState().getCurrentWindow(nest, initialTime);
-  }, [initialTime, nest]);
 
   const invalidate = useRef(
     _.debounce(
@@ -626,6 +555,7 @@ export function useInfiniteChats(nest: Nest, initialTime?: string) {
       path: `/${nest}/ui`,
       event: (data: ShelfResponse) => {
         infiniteNoteUpdater(queryKey, data, initialTime);
+        invalidate.current();
       },
     });
   }, [nest, invalidate, queryKey, initialTime]);
@@ -806,6 +736,16 @@ export function useOrderedNotes(
   checkNest(nest);
   const { notes } = useInfiniteNotes(nest);
 
+  if (notes.length === 0) {
+    return {
+      hasNext: false,
+      hasPrev: false,
+      nextNote: null,
+      prevNote: null,
+      sortedOutlines: [],
+    };
+  }
+
   const sortedOutlines = notes;
 
   sortedOutlines.sort(([a], [b]) => b.compare(a));
@@ -813,8 +753,8 @@ export function useOrderedNotes(
   const noteId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
   const newest = notes[notes.length - 1]?.[0];
   const oldest = notes[0]?.[0];
-  const hasNext = notes.length > 0 && newest && noteId.lt(newest);
-  const hasPrev = notes.length > 0 && oldest && noteId.gt(oldest);
+  const hasNext = notes.length > 0 && newest && noteId.gt(newest);
+  const hasPrev = notes.length > 0 && oldest && noteId.lt(oldest);
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(noteId));
 
   const nextNote = hasNext ? sortedOutlines[currentIdx - 1] : null;
@@ -1209,8 +1149,8 @@ export function useAddNoteMutation(nest: string) {
   const mutationFn = async (variables: {
     cacheId: CacheId;
     essay: NoteEssay;
-  }) => {
-    return new Promise<string>((resolve) => {
+  }) =>
+    new Promise<string>((resolve) => {
       try {
         api
           .trackedPoke<ShelfAction, ShelfResponse>(
@@ -1243,7 +1183,6 @@ export function useAddNoteMutation(nest: string) {
         console.error(e);
       }
     });
-  };
 
   return useMutation({
     mutationFn,
@@ -1253,7 +1192,7 @@ export function useAddNoteMutation(nest: string) {
 
       useNotesStore.getState().addTracked(variables.cacheId);
 
-      const sent = decToUd(unixToDa(variables.essay.sent).toString());
+      const sent = unixToDa(variables.essay.sent).toString();
       const note = {
         seal: {
           id: sent,
@@ -1269,14 +1208,14 @@ export function useAddNoteMutation(nest: string) {
       // for the unlikely case that the user navigates away from the editor
       // before the mutation is complete, or if the host ship is offline,
       // we update the cache optimistically.
-      queryClient.setQueryData<Notes>(queryKey(), (notes) => ({
-        ...(notes || {}),
-        // this time is temporary, and will be replaced by the actual time
-        [variables.essay.sent]: note,
-      }));
-      queryClient.setQueryData<Note>(queryKey(sent), note);
+      // queryClient.setQueryData<Notes>(queryKey(), (notes) => ({
+      // ...(notes || {}),
+      // // this time is temporary, and will be replaced by the actual time
+      // [variables.essay.sent]: note,
+      // }));
+      queryClient.setQueryData<Note>(queryKey(variables.cacheId), note);
 
-      infiniteNoteUpdater(queryKey('infinite-chat'), {
+      infiniteNoteUpdater(queryKey('infinite'), {
         nest,
         response: {
           note: {
@@ -1293,9 +1232,7 @@ export function useAddNoteMutation(nest: string) {
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
     onSettled: async (_data, _error) => {
-      await queryClient.invalidateQueries(queryKey(), {
-        exact: true,
-      });
+      await queryClient.invalidateQueries(queryKey('infinite'));
       await queryClient.invalidateQueries(['briefs']);
     },
   });

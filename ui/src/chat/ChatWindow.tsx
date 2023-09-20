@@ -19,7 +19,7 @@ import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useRouteGroup } from '@/state/groups';
-import { useInfiniteChats } from '@/state/channel/channel';
+import { useInfiniteNotes } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 
@@ -35,8 +35,6 @@ function getScrollTo(msg: string | null) {
 export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollTo = getScrollTo(searchParams.get('msg'));
-  // const initialized = useChatInitialized(whom);
-  // const messages = useMessagesForChat(whom, scrollTo);
   const {
     notes: messages,
     hasNextPage,
@@ -44,8 +42,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     fetchPreviousPage,
     fetchNextPage,
     isLoading,
-  } = useInfiniteChats(`chat/${whom}`, scrollTo?.toString());
-  // const window = useWritWindow(whom);
+  } = useInfiniteNotes(`chat/${whom}`, scrollTo?.toString());
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
 
@@ -53,14 +50,6 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     setSearchParams({});
     scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
   }, [setSearchParams]);
-
-  // useEffect(() => {
-  //   if (scrollTo && !messages.has(scrollTo)) {
-  //     useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
-  //   }
-
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [scrollTo?.toString(), messages]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -75,7 +64,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   // [readTimeout, whom]
   // );
 
-  const loadOlderMessages = useCallback(
+  const loadNewerMessages = useCallback(
     (atBottom: boolean) => {
       if (atBottom && hasNextPage) {
         fetchNextPage();
@@ -84,7 +73,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     [fetchNextPage, hasNextPage]
   );
 
-  const loadNewerMessages = useCallback(
+  const loadOlderMessages = useCallback(
     (atTop: boolean) => {
       if (atTop && hasPreviousPage) {
         fetchPreviousPage();
@@ -120,8 +109,8 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
           prefixedElement={prefixedElement}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}
-          atBottomStateChange={loadOlderMessages}
-          atTopStateChange={loadNewerMessages}
+          atBottomStateChange={loadNewerMessages}
+          atTopStateChange={loadOlderMessages}
         />
       </div>
       {/* scrollTo && !window?.latest ? (

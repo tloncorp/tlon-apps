@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { daToUnix } from '@urbit/api';
+import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { formatDistanceToNow } from 'date-fns';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
@@ -206,9 +206,9 @@ function BottomBar({ note, asRef, asMobileNotification }: BottomBarProps) {
     return null;
   }
 
-  const { id } = note.seal;
+  const { sent } = note.essay;
   const replyCount = note.seal.quipCount;
-  const prettySent = formatDistanceToNow(daToUnix(bigInt(id)));
+  const prettySent = formatDistanceToNow(sent);
 
   return (
     <div

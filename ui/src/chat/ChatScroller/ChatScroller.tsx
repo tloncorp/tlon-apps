@@ -14,11 +14,7 @@ import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import {
-  useChatState,
-  useIsDmOrMultiDm,
-  useWritWindow,
-} from '@/state/chat/chat';
+import { useChatState, useWritWindow } from '@/state/chat/chat';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
@@ -132,7 +128,6 @@ export default function ChatScroller({
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
-  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: markChatRead } = useMarkReadMutation();
 
   const thresholds = {
