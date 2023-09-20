@@ -149,7 +149,7 @@
 ::    %listing: a traditional HTML list, ul and ol
 ::    %code: a block of code
 ::
-+$  block  $+  diary-block
++$  block  $+  diary-bloke
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
