@@ -167,10 +167,10 @@ function NoteReference({
         ) : null}
         <span className="text-2xl font-semibold">{title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
-        {note.seal.quipCount > 0 ? (
+        {note.seal.meta.quipCount > 0 ? (
           <div className="flex space-x-2">
             <div className="relative flex items-center">
-              {note.seal.lastQuippers.map((author, index) => (
+              {note.seal.meta.lastQuippers.map((author, index) => (
                 <Avatar
                   ship={author}
                   size="xs"
@@ -183,7 +183,8 @@ function NoteReference({
               ))}
             </div>
             <span className="font-semibold text-gray-600">
-              {note.seal.quipCount} {pluralize('comment', note.seal.quipCount)}
+              {note.seal.meta.quipCount}{' '}
+              {pluralize('comment', note.seal.meta.quipCount)}
             </span>
           </div>
         ) : null}

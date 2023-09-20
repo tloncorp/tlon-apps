@@ -16,10 +16,11 @@ export interface QuipMeta {
   lastQuip: string | null;
 }
 
-export interface NoteSeal extends QuipMeta {
+export interface NoteSeal {
   id: string;
   feels: { [ship: Ship]: string };
   quips: QuipMap | null;
+  meta: QuipMeta;
 }
 
 export interface QuipCork {
@@ -508,11 +509,13 @@ export function getIdFromNoteAction(noteAction: NoteAction): string {
 export const emptyNote: Note = {
   seal: {
     id: '',
-    quipCount: 0,
-    lastQuippers: [],
     feels: {},
-    lastQuip: null,
     quips: null,
+    meta: {
+      quipCount: 0,
+      lastQuippers: [],
+      lastQuip: null,
+    },
   },
   essay: {
     author: '',

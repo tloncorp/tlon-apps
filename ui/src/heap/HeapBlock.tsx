@@ -207,7 +207,7 @@ function BottomBar({ note, asRef, asMobileNotification }: BottomBarProps) {
   }
 
   const { sent } = note.essay;
-  const replyCount = note.seal.quipCount;
+  const replyCount = note.seal.meta.quipCount;
   const prettySent = formatDistanceToNow(sent);
 
   return (

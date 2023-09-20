@@ -821,6 +821,7 @@
   ++  di-u-quip
     |=  [=id-note:d =note:d =id-quip:d =u-quip:d]
     ^+  di-core
+    |^
     =/  quip  (get:on-quips:d quips.note id-quip)
     ?:  ?=([~ ~] quip)  di-core
     ?:  ?=(%set -.u-quip)
@@ -828,38 +829,35 @@
         =/  rr-quip=(unit rr-quip:d)  (bind quip.u-quip rr-quip:utils)
         =?  di-core  ?=(^ quip.u-quip)
           (on-quip:di-hark id-note note u.quip.u-quip)
-        =.  di-core  (di-put-quip id-note id-quip quip.u-quip)
-        (di-response %note id-note %quip id-quip %set rr-quip)
+        (put-quip quip.u-quip %set rr-quip)
       ::
-      ?~  quip.u-quip
-        =.  di-core  (di-put-quip id-note id-quip ~)
-        (di-response %note id-note %quip id-quip %set ~)
+      ?~  quip.u-quip  (put-quip ~ %set ~)
       ::
       =*  old  u.u.quip
       =*  new  u.quip.u-quip
       =/  merged  (need (di-apply-quip id-quip `old `new))
       ?:  =(merged old)  di-core
-      =.  di-core  (di-put-quip id-note id-quip `merged)
-      (di-response %note id-note %quip id-quip %set `(rr-quip:utils merged))
+      (put-quip `merged %set `(rr-quip:utils merged))
     ::
     ?~  quip  di-core
     ::
     =/  merged  (di-apply-feels feels.u.u.quip feels.u-quip)
     ?:  =(merged feels.u.u.quip)  di-core
-    =.  di-core  (di-put-quip id-note id-quip `u.u.quip(feels merged))
-    (di-response %note id-note %quip id-quip %feels (rr-feels:utils merged))
-  ::
-  ::  put a quip into a note by id
-  ::
-  ++  di-put-quip
-    |=  [=id-note:d =id-quip:d quip=(unit quip:d)]
-    ^+  di-core
-    =/  note  (get:on-notes:d notes.diary id-note)
-    ?~  note  di-core
-    ?~  u.note  di-core
-    =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-quip quip)
-    =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
-    di-core
+    (put-quip `u.u.quip(feels merged) %feels (rr-feels:utils merged))
+    ::
+    ::  put a quip into a note by id
+    ::
+    ++  put-quip
+      |=  [quip=(unit quip:d) =r-quip:d]
+      ^+  di-core
+      =/  note  (get:on-notes:d notes.diary id-note)
+      ?~  note  di-core
+      ?~  u.note  di-core
+      =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-quip quip)
+      =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
+      =/  meta=quip-meta:d  (get-quip-meta:utils u.u.note)
+      (di-response %note id-note %quip id-quip meta r-quip)
+    --
   ::
   ::  +di-apply-* functions apply new copies of data to old copies,
   ::  keeping the most recent versions of each sub-piece of data

@@ -139,9 +139,11 @@ export function writsReducer(whom: string) {
         id,
         feels: {},
         quips: null,
-        quipCount: 0,
-        lastQuippers: [],
-        lastQuip: null,
+        meta: {
+          quipCount: 0,
+          lastQuippers: [],
+          lastQuip: null,
+        },
       };
       const writ = { seal, essay: delta.add };
       pact.writs = pact.writs.with(time, writ);

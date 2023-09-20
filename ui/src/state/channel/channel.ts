@@ -60,9 +60,11 @@ interface NoteSealInCache {
   feels: {
     [ship: Ship]: string;
   };
-  quipCount: number;
-  lastQuippers: Ship[];
-  lastQuip: string | null;
+  meta: {
+    quipCount: number;
+    lastQuippers: Ship[];
+    lastQuip: string | null;
+  };
 }
 
 interface NoteInCache {
@@ -483,6 +485,7 @@ const infiniteNoteUpdater = (
           return undefined;
         }
 
+        console.log(noteResponse);
         const {
           quip: {
             meta: { quipCount, lastQuip, lastQuippers },
@@ -501,9 +504,11 @@ const infiniteNoteUpdater = (
               ...note,
               seal: {
                 ...note.seal,
-                quipCount,
-                lastQuip,
-                lastQuippers,
+                meta: {
+                  quipCount,
+                  lastQuip,
+                  lastQuippers,
+                },
               },
             });
 
@@ -1198,9 +1203,11 @@ export function useAddNoteMutation(nest: string) {
           id: sent,
           quips: newQuipMap(),
           feels: {},
-          quipCount: 0,
-          lastQuippers: [],
-          lastQuip: null,
+          meta: {
+            quipCount: 0,
+            lastQuippers: [],
+            lastQuip: null,
+          },
         },
         essay: variables.essay,
       };
@@ -1526,8 +1533,8 @@ export function useAddQuipMutation() {
             ...replyingNote,
             seal: {
               ...replyingNote.seal,
-              quipCount: replyingNote.seal.quipCount + 1,
-              quippers: [...replyingNote.seal.lastQuippers, window.our],
+              quipCount: replyingNote.seal.meta.quipCount + 1,
+              quippers: [...replyingNote.seal.meta.lastQuippers, window.our],
             },
           };
 
@@ -1623,8 +1630,8 @@ export function useDeleteQuipMutation() {
             ...replyingNote,
             seal: {
               ...replyingNote.seal,
-              quipCount: replyingNote.seal.quipCount - 1,
-              quippers: replyingNote.seal.lastQuippers.filter(
+              quipCount: replyingNote.seal.meta.quipCount - 1,
+              quippers: replyingNote.seal.meta.lastQuippers.filter(
                 (quipper) => quipper !== window.our
               ),
             },

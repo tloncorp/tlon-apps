@@ -100,6 +100,12 @@
 ::  $essay: top-level post, with metadata
 ::
 +$  essay  [memo =han-data]
+::  $quip-meta: metadata for all quips
++$  quip-meta
+  $:  quip-count=@ud
+      last-quippers=(set ship)
+      last-quip=(unit time)
+  ==
 ::  $han-data: metadata for a channel type's "post"
 ::
 +$  han-data
@@ -387,7 +393,7 @@
 ::
 +$  r-note
   $%  [%set note=(unit rr-note)]
-      [%quip id=id-quip =r-quip]
+      [%quip id=id-quip =quip-meta =r-quip]
       [%feels feels=rr-feels]
       [%essay =essay]
   ==
@@ -421,9 +427,7 @@
   $:  id=id-note
       =rr-feels
       =rr-quips
-      quip-count=@ud
-      last-quip=(unit time)
-      last-quippers=(set ship)
+      =quip-meta
   ==
 +$  rr-feels  (map ship feel)
 +$  rr-quip   [rr-cork memo]

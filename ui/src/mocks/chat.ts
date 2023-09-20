@@ -30,9 +30,11 @@ export const makeFakeChatWrit = (
       id: `${author}/${da}`,
       feels: feels ?? {},
       quips: null,
-      quipCount: 0,
-      lastQuippers: [],
-      lastQuip: null,
+      meta: {
+        quipCount: 0,
+        lastQuippers: [],
+        lastQuip: null,
+      },
     },
     essay: {
       'han-data': {
@@ -61,9 +63,11 @@ export const makeFakeChatNotice = (
       id: `${author}/${da}`,
       feels: {},
       quips: null,
-      quipCount: 0,
-      lastQuippers: [],
-      lastQuip: null,
+      meta: {
+        quipCount: 0,
+        lastQuippers: [],
+        lastQuip: null,
+      },
     },
     essay: {
       'han-data': {
