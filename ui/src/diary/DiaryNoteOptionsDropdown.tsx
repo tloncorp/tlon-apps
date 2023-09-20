@@ -1,11 +1,11 @@
 import React, { PropsWithChildren, useState } from 'react';
 import classNames from 'classnames';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useArrangedNotes } from '@/state/diary';
-import { useChannel } from '@/logic/channel';
+import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
@@ -26,8 +26,7 @@ export default function DiaryNoteOptionsDropdown({
   const arrangedNotes = useArrangedNotes(flag);
   const { ship } = getFlagParts(flag);
   const nest = `diary/${flag}`;
-  const chan = useChannel(nest);
-  const saga = chan?.saga || null;
+  const { compatible } = useChannelCompatibility(nest);
   const {
     isOpen,
     didCopy,
@@ -43,65 +42,69 @@ export default function DiaryNoteOptionsDropdown({
     time,
   });
 
+  const actions: Action[] = [
+    {
+      key: 'copy',
+      content: didCopy ? 'Link Copied!' : 'Copy Note Link',
+      onClick: onCopy,
+      keepOpenOnClick: true,
+    },
+  ];
+
+  if ((canEdit && ship === window.our) || (canEdit && compatible)) {
+    if (arrangedNotes.includes(time)) {
+      actions.push(
+        {
+          key: 'move_up',
+          content: 'Move Up',
+          onClick: moveUpInArrangedNotes,
+        },
+        {
+          key: 'move_down',
+          content: 'Move Down',
+          onClick: moveDownInArrangedNotes,
+        },
+        {
+          key: 'remove_from_pinned_notes',
+          content: 'Remove from Pinned Notes',
+          onClick: removeFromArrangedNotes,
+        }
+      );
+    } else {
+      actions.push({
+        key: 'add_to_pinned_notes',
+        content: 'Add to Pinned Notes',
+        onClick: addToArrangedNotes,
+      });
+    }
+
+    actions.push(
+      {
+        key: 'edit',
+        content: <Link to={`edit/${time}`}>Edit Note</Link>,
+      },
+      {
+        key: 'delete',
+        type: 'destructive',
+        content: 'Delete Note',
+        onClick: () => setDeleteOpen(true),
+      }
+    );
+  }
+
   return (
     <>
-      <Dropdown.Root open={isOpen} onOpenChange={setIsOpen}>
-        <Dropdown.Trigger
-          className={classNames('h-8 w-8 p-0', triggerClassName)}
-          aria-label="Note menu"
-        >
-          {children}
-        </Dropdown.Trigger>
-        <Dropdown.Content sideOffset={8} className="dropdown min-w-[208px]">
-          <Dropdown.Item className="dropdown-item" onSelect={onCopy}>
-            {didCopy ? 'Link Copied!' : 'Copy Note Link'}
-          </Dropdown.Item>
-
-          {(canEdit && ship === window.our) ||
-          (canEdit && saga && 'synced' in saga) ? (
-            <>
-              {arrangedNotes?.includes(time) ? (
-                <>
-                  <Dropdown.Item
-                    className="dropdown-item"
-                    onSelect={() => moveUpInArrangedNotes()}
-                  >
-                    Move Up
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    className="dropdown-item"
-                    onSelect={() => moveDownInArrangedNotes()}
-                  >
-                    Move Down
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    className="dropdown-item"
-                    onSelect={() => removeFromArrangedNotes()}
-                  >
-                    Remove from Pinned Notes
-                  </Dropdown.Item>
-                </>
-              ) : (
-                <Dropdown.Item
-                  className="dropdown-item"
-                  onSelect={() => addToArrangedNotes()}
-                >
-                  Add to Pinned Notes
-                </Dropdown.Item>
-              )}
-              <Dropdown.Item className="dropdown-item" asChild>
-                <Link to={`edit/${time}`}>Edit Note</Link>
-              </Dropdown.Item>
-              <Dropdown.Item
-                className="dropdown-item text-red"
-                onSelect={() => setDeleteOpen(true)}
-              >
-                Delete Note
-              </Dropdown.Item>
-            </>
-          ) : null}
-        </Dropdown.Content>
-      </Dropdown.Root>
+      <ActionMenu
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        actions={actions}
+        asChild={false}
+        triggerClassName={classNames('h-8 w-8 p-0', triggerClassName)}
+        contentClassName="min-w-[208px]"
+        ariaLabel="Note menu"
+      >
+        {children}
+      </ActionMenu>
       <ConfirmationModal
         title="Delete Note"
         message="Are you sure you want to delete this note?"

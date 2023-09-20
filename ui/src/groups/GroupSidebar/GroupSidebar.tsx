@@ -75,6 +75,7 @@ function GroupHeader() {
       <GroupActions
         className="relative cursor-pointer bg-transparent"
         flag={flag}
+        saga={group?.saga || null}
       >
         <SidebarItem
           highlight="#666666"

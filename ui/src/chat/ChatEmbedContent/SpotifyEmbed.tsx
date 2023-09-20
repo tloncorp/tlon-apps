@@ -62,7 +62,7 @@ export default function SpotifyEmbed({
         source={`https://open.spotify.com/embed/${playlistOrTrack}/${id}`}
       >
         <iframe
-          className="h-[352px] w-full rounded-lg"
+          className="h-[352px] w-full max-w-[600px] rounded-lg"
           src={`https://open.spotify.com/embed/${playlistOrTrack}/${id}`}
           frameBorder="0"
           allowFullScreen

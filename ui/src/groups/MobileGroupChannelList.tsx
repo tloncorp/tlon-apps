@@ -9,6 +9,7 @@ import { getFlagParts } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import GroupActions from './GroupActions';
 
 export default function MobileGroupChannelList() {
   const flag = useGroupFlag();
@@ -23,23 +24,30 @@ export default function MobileGroupChannelList() {
     <>
       <MobileHeader
         title={
-          <div className="flex flex-col items-center space-y-2">
-            <GroupAvatar image={group?.meta.image} />
-            <div className="flex w-full items-center justify-center space-x-1">
-              <h1 className="text-[18px] text-gray-800 line-clamp-1">
-                {group?.meta.title}
-              </h1>
-              <HostConnection ship={host} status={data?.status} saga={saga} />
-            </div>
-          </div>
+          <GroupActions flag={flag} saga={saga} status={data?.status}>
+            <button className="flex w-full flex-col items-center">
+              <GroupAvatar image={group?.meta.image} className="mt-3" />
+              <div className="relative my-1 flex w-max items-center justify-center space-x-1">
+                <h1 className="max-w-xs truncate text-[17px] text-gray-800">
+                  {group?.meta.title}
+                </h1>
+                <HostConnection
+                  ship={host}
+                  status={data?.status}
+                  saga={saga}
+                  type="bullet"
+                />
+              </div>
+            </button>
+          </GroupActions>
         }
         action={
-          <div className="flex flex-row space-x-3">
+          <div className="flex h-12 items-center justify-end space-x-2">
             <ReconnectingSpinner />
             <ChannelSorter isMobile={true} />
             {isAdmin && (
               <Link
-                className="default-focus flex p-1 text-base"
+                className="default-focus flex text-base"
                 to={`/groups/${flag}/channels/new`}
                 state={{ backgroundLocation: location }}
               >

@@ -16,11 +16,13 @@ import X16Icon from '@/components/icons/X16Icon';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { whomIsFlag } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
+import MobileHeader from '@/components/MobileHeader';
+import useAppName from '@/logic/useAppName';
+import { useSafeAreaInsets } from '@/logic/native';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -34,6 +36,7 @@ export default function ChatThread() {
   }>();
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
+  const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const whom = flag || ship || '';
@@ -64,6 +67,10 @@ export default function ChatThread() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
+  const safeAreaInsets = useSafeAreaInsets();
+  // We only inset the bottom for groups, since DMs display the navbar
+  // underneath this view
+  const bottomInset = channel ? safeAreaInsets.bottom : 0;
 
   const returnURL = useCallback(() => {
     if (!time || !writ) return '#';
@@ -114,43 +121,50 @@ export default function ChatThread() {
       className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
     >
-      <header className={'header z-40'}>
-        <div
-          className={cn(
-            'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
-          )}
-        >
-          <BackButton
-            to={returnURL()}
-            aria-label="Close"
+      {isMobile ? (
+        <MobileHeader
+          title={
+            <div className="flex w-full items-center justify-center space-x-1">
+              <BranchIcon className="h-6 w-6 text-gray-600" />
+              <h1 className="text-[17px] text-gray-800">
+                Thread
+                {appName === 'Groups' && <span>: {threadTitle}</span>}
+              </h1>
+            </div>
+          }
+          pathBack={returnURL()}
+        />
+      ) : (
+        <header className={'header z-40'}>
+          <div
             className={cn(
-              'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
+              'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
             )}
           >
-            {isMobile ? (
+            <BackButton
+              to={returnURL()}
+              aria-label="Close"
+              className={cn(
+                'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
+              )}
+            >
               <div className="flex h-6 w-6 items-center justify-center">
-                <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
+                <BranchIcon className="h-6 w-6 text-gray-600" />
               </div>
-            ) : null}
-            <div className="flex h-6 w-6 items-center justify-center">
-              <BranchIcon className="h-6 w-6 text-gray-600" />
-            </div>
+              <div className="flex w-full flex-col justify-center">
+                <span
+                  className={cn(
+                    'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                  )}
+                >
+                  Thread
+                </span>
+                <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+                  {threadTitle}
+                </span>
+              </div>
+            </BackButton>
 
-            <div className="flex w-full flex-col justify-center">
-              <span
-                className={cn(
-                  'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
-                )}
-              >
-                Thread
-              </span>
-              <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
-                {threadTitle}
-              </span>
-            </div>
-          </BackButton>
-
-          {!isMobile && (
             <Link
               to={returnURL()}
               aria-label="Close"
@@ -158,10 +172,10 @@ export default function ChatThread() {
             >
               <X16Icon className="h-4 w-4 text-gray-600" />
             </Link>
-          )}
-        </div>
-      </header>
-      <div className="flex flex-1 flex-col p-0 pr-2">
+          </div>
+        </header>
+      )}
+      <div className="flex flex-1 flex-col overflow-hidden p-0 pr-2">
         {loading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
@@ -183,14 +197,19 @@ export default function ChatThread() {
         )}
       >
         {compatible && canWrite ? (
-          <ChatInput
-            whom={whom}
-            replying={id}
-            sendMessage={sendMessage}
-            inThread
-            autoFocus
-            dropZoneId={dropZoneId}
-          />
+          <div
+            className="safe-area-input"
+            style={{ paddingBottom: bottomInset }}
+          >
+            <ChatInput
+              whom={whom}
+              replying={id}
+              sendMessage={sendMessage}
+              inThread
+              autoFocus
+              dropZoneId={dropZoneId}
+            />
+          </div>
         ) : !canWrite ? null : (
           <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
             {text}

@@ -4,6 +4,7 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
+/+  volume
 /+  migrate=diary-graph
 /+  chat-migrate=chat-graph
 /+  epos-lib=saga
@@ -96,10 +97,12 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
+    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
-    =.  cor  
+    =.  cor
       %+  roll
         ~(tap in (~(gas in *(set ship)) (turn diaries head)))
       |=  [=ship cr=_cor]
@@ -209,16 +212,44 @@
     ?<  =(our.bowl p.chan.j)
     (join j)
   ::
-      %diary-leave
+      ?(%channel-leave %diary-leave)
     =+  !<(=leave:d vase)
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)
+  ::
+      %leave-old-channels
+    =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
+    =/  groups  .^(groups:g %gx groups-path)
+    =/  diary-flags-from-groups
+      %+  turn  ~(tap by groups)
+      |=  [group-flag=flag:g group=group:g]
+      %+  turn
+        %+  skim  ~(tap by channels.group)
+        |=  [=nest:g *]
+        ?:(=(%diary p.nest) %.y %.n)
+      |=  [=nest:g *]
+      q.nest
+    =/  diaries-without-groups
+      %+  skim  ~(tap by shelf)
+      |=  [=flag:g *]
+      ?:(=((find [flag]~ (zing diary-flags-from-groups)) ~) %.y %.n)
+    %+  roll
+      diaries-without-groups
+    |=  [[=flag:g *] core=_cor]
+    di-abet:di-leave:(di-abed:di-core:core flag)
+  ::
+      %recheck-all-perms
+    %+  roll
+      ~(tap by shelf)
+    |=  [[=flag:d *] core=_cor]
+    =/  di  (di-abed:di-core:core flag)
+    di-abet:(di-recheck:di ~)
   ::
       %diary-create
     =+  !<(req=create:d vase)
     (create req)
   ::
-      ?(%diary-action-1 %diary-action-0 %diary-action)
+      ?(%diary-action-2 %diary-action-1 %diary-action-0 %diary-action)
     =+  !<(=action:d vase)
     =/  diary-core  (di-abed:di-core p.action)
     ?:  =(p.p.action our.bowl)
@@ -577,6 +608,7 @@
   =/  =dock  [our.bowl %hark]
   =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
+::
 ++  from-self  =(our src):bowl
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
@@ -593,16 +625,14 @@
     di-core(flag f, diary (~(got by shelf) f))
   ++  di-area  `path`/diary/(scot %p p.flag)/[q.flag]
   ++  di-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
     ^-  new-yarn:ha
     =*  group  group.perm.diary
     =/  =nest:g  [dap.bowl flag]
     =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
     =/  link
-      (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] rest)
+      (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
-  ::  TODO: add metadata
-  ::        maybe delay the watch?
   ++  di-import
     |=  [writers=(set ship) =association:met:d]
     ^+  di-core
@@ -786,8 +816,12 @@
     =?  cor  &(!=(sects ~) =(p.flag our.bowl))
       =/  =cage  [act:mar:d !>([flag now.bowl %del-sects sects])]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
-    ::  if our read permissions restored, re-subscribe
-    =?  di-core  (di-can-read our.bowl)  di-safe-sub
+    ::  if our read permissions restored, re-subscribe. If not, leave.
+    =/  wecanread  (di-can-read our.bowl)
+    =.  di-core
+      ?:  wecanread
+        di-safe-sub
+      di-leave
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)
     |=  [[=ship =path] di=_di-core]
@@ -821,8 +855,8 @@
       =*  cage  cage.sign
       ?+  p.cage  (di-odd-update p.cage)
         %epic                             (di-take-epic !<(epic:e q.cage))
-        ?(%diary-logs %diary-logs-0 %diary-logs-1)      (di-apply-logs !<(log:d q.cage))
-        ?(%diary-update %diary-update-0 %diary-update-1)  (di-update !<(update:d q.cage))
+        ?(%diary-logs %diary-logs-0 %diary-logs-1 %diary-logs-2)      (di-apply-logs !<(log:d q.cage))
+        ?(%diary-update %diary-update-0 %diary-update-1 %diary-update-2)  (di-update !<(update:d q.cage))
       ==
     ==
   ::
@@ -853,7 +887,8 @@
     =*  group  group.perm.diary
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
-  ++  di-is-host  |(=(p.flag src.bowl) =(p.group.perm.diary src.bowl))
+  ++  di-am-host  =(our.bowl p.flag)
+  ++  di-from-host  |(=(p.flag src.bowl) =(p.group.perm.diary src.bowl))
   ++  di-can-write
     ?:  =(p.flag src.bowl)  &
     =/  =path
@@ -965,6 +1000,37 @@
       (give-brief flag di-brief)
     di-core
   ::
+  ++  di-check-ownership
+    |=  =diff:notes:d
+    =*  delta  q.diff
+    =/  entry=(unit [=time =note:d])  (get:di-notes p.diff)
+    ?-  -.delta
+        %add   =(src.bowl author.p.delta)
+        %add-feel  =(src.bowl p.delta)
+        %del-feel  =(src.bowl p.delta)
+        %quips  (di-check-quips-ownership p.diff p.delta)
+      ::
+          %del  ?~(entry | =(src.bowl author.note.u.entry))
+      ::
+          %edit
+        ?&  =(src.bowl author.p.delta)
+            ?~(entry | =(src.bowl author.note.u.entry))
+        ==
+    ==
+  ::
+  ++  di-check-quips-ownership
+    |=  [note-time=time =diff:quips:d]
+    =*  delta  q.diff
+    =/  parent=(unit [=time =note:d])  (get:di-notes note-time)
+    ?~  parent  |  :: note missing, nothing to do
+    =/  quips  ~(. qup quips.note.u.parent)
+    =/  entry=(unit [=time =quip:d])  (get:quips p.diff)
+    ?-  -.delta
+        %add   =(src.bowl author.p.delta)
+        %add-feel  =(src.bowl p.delta)
+        %del-feel  =(src.bowl p.delta)
+        %del  ?~(entry | =(src.bowl author.quip.u.entry))
+    ==
   ++  di-update
     |=  [=time dif=diff:d]
     ?>  di-can-write
@@ -978,31 +1044,44 @@
       (di-give-updates time dif)
     ?-    -.dif
         %notes
+      ::  accept the fact from host unconditionally, otherwise make
+      ::  sure that it's coming from the right person
+      ?>  ?|  di-from-host
+              &(di-am-host (di-check-ownership p.dif))
+          ==
       =.  notes.diary  (reduce:di-notes time p.dif)
       =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
-        (hark:di-notes our.bowl p.dif)
+        (hark:di-notes [flag bowl p.dif])
+      =/  rope
+        ?:  =(%quips -.q.p.dif)
+          /note/(rsh 4 (scot %ui p.p.dif))
+        ~
+      =/  link
+        ?:  =(%add -.q.p.dif)
+          /note/(rsh 4 (scot %ui time))
+        ~
       =.  cor
         %-  emil
         %+  turn  cons
         |=  cs=(list content:ha)
-        (pass-hark (di-spin /note/(rsh 4 (scot %ui p.p.dif)) cs ~))
+        (pass-hark (di-spin rope cs ~ link))
       di-core
     ::
         %add-sects
-      ?>  di-is-host
+      ?>  di-from-host
       =*  p  perm.diary
       =.  writers.p  (~(uni in writers.p) p.dif)
       di-core
     ::
         %del-sects
-      ?>  di-is-host
+      ?>  di-from-host
       =*  p  perm.diary
       =.  writers.p  (~(dif in writers.p) p.dif)
       di-core
     ::
         %create
-      ?>  di-is-host
+      ?>  di-from-host
       =:  notes.diary  q.dif
           perm.diary   p.dif
         ==

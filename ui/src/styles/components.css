@@ -97,7 +97,7 @@
 }
 
 .dropdown-item {
-  @apply cursor-pointer rounded p-2 text-left text-base font-semibold no-underline ring-gray-200 hover:bg-gray-50 focus:outline-none sm:text-xs;
+  @apply cursor-pointer rounded p-2 text-left text-[17px] font-medium no-underline ring-gray-200 hover:bg-gray-50 focus:outline-none sm:text-sm;
 }
 
 .dropdown-item > a {
@@ -166,8 +166,26 @@
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
+.heap-grid-mobile {
+  @apply grid gap-4;
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+}
+
 .heap-list {
   @apply flex flex-col gap-4 sm:grid-cols-[repeat(auto-fit,minmax(auto,250px))];
+}
+
+.new-curio-input p.is-editor-empty:first-child::before {
+  @apply !text-gray-300;
+  font-weight: 600 !important;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.new-curio-input::-webkit-scrollbar-corner {
+  background: rgba(0, 0, 0, 0);
 }
 
 .small-menu-button {

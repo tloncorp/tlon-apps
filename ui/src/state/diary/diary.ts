@@ -30,6 +30,7 @@ import {
   NoteEssay,
   DiaryStory,
   DiaryOutlines,
+  Shelf,
 } from '@/types/diary';
 import api from '@/api';
 import { restoreMap } from '@/logic/utils';
@@ -245,19 +246,20 @@ export function useOlderNotes(flag: DiaryFlag, count: number, enabled = false) {
   return rest.isLoading;
 }
 
-export function useDiaries(): { [flag: string]: Diary } {
-  const { data, ...rest } = useReactQuerySubscription({
+const emptyShelf: Shelf = {};
+export function useDiaries() {
+  const { data, ...rest } = useReactQuerySubscription<Shelf>({
     queryKey: ['diary', 'shelf'],
     app: 'diary',
     path: '/ui',
     scry: '/shelf',
   });
 
-  if (rest.isLoading || rest.isError || data === undefined) {
-    return {};
+  if (rest.isLoading || rest.isError || !data) {
+    return emptyShelf;
   }
 
-  return data as { [flag: string]: Diary };
+  return data;
 }
 
 export function useDiary(flag: DiaryFlag): Diary | undefined {
@@ -265,10 +267,6 @@ export function useDiary(flag: DiaryFlag): Diary | undefined {
 
   return shelf[flag];
 }
-
-const defaultPerms = {
-  writers: [],
-};
 
 export function useArrangedNotes(flag: DiaryFlag) {
   const diary = useDiary(flag);
@@ -280,14 +278,18 @@ export function useArrangedNotes(flag: DiaryFlag) {
   return diary['arranged-notes'].map((t) => udToDec(t));
 }
 
+const defaultPerms: DiaryPerm = {
+  writers: [],
+  group: '',
+};
 export function useDiaryPerms(flag: DiaryFlag) {
   const diary = useDiary(flag);
 
-  if (diary === undefined) {
+  if (!diary) {
     return defaultPerms;
   }
 
-  return diary.perms as DiaryPerm;
+  return diary.perms;
 }
 
 export function useNote(flag: DiaryFlag, noteId: string, disabled = false) {
@@ -445,6 +447,8 @@ export function useRemoteOutline(
 }
 
 export function useMarkReadDiaryMutation() {
+  const queryClient = useQueryClient();
+
   const mutationFn = async (variables: { flag: string }) => {
     await api.poke({
       app: 'diary',
@@ -458,6 +462,9 @@ export function useMarkReadDiaryMutation() {
 
   return useMutation({
     mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['diary', 'briefs']);
+    },
   });
 }
 
@@ -485,7 +492,7 @@ export function useLeaveDiaryMutation() {
   const mutationFn = async (variables: { flag: string }) => {
     await api.poke({
       app: 'diary',
-      mark: 'diary-leave',
+      mark: 'channel-leave',
       json: variables.flag,
     });
   };

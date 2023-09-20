@@ -9,7 +9,7 @@ import { useEffect, useRef } from 'react';
 import api from '@/api';
 import useSchedulerStore from '@/state/scheduler';
 
-export default function useReactQuerySubscription({
+export default function useReactQuerySubscription<T>({
   queryKey,
   app,
   path,
@@ -24,8 +24,8 @@ export default function useReactQuerySubscription({
   scry: string;
   scryApp?: string;
   priority?: number;
-  options?: UseQueryOptions;
-}): ReturnType<typeof useQuery> {
+  options?: UseQueryOptions<T>;
+}) {
   const queryClient = useQueryClient();
   const invalidate = useRef(
     _.debounce(
@@ -40,7 +40,7 @@ export default function useReactQuerySubscription({
   const fetchData = async () =>
     useSchedulerStore.getState().wait(async () => {
       console.log('scrying', scryApp, scry);
-      return api.scry({
+      return api.scry<T>({
         app: scryApp,
         path: scry,
       });
@@ -55,8 +55,7 @@ export default function useReactQuerySubscription({
   }, [app, path, queryClient, queryKey]);
 
   return useQuery(queryKey, fetchData, {
-    retryOnMount: false,
-    refetchOnMount: false,
+    staleTime: 60 * 1000,
     ...options,
   });
 }

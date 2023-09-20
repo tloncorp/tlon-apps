@@ -14,6 +14,9 @@ interface LocalState {
   browserId: string;
   currentTheme: 'light' | 'dark';
   subscription: SubscriptionStatus;
+  groupsLocation: string;
+  messagesLocation: string;
+  showDevTools: boolean;
   errorCount: number;
   airLockErrorCount: number;
   lastReconnect: number;
@@ -28,6 +31,9 @@ export const useLocalState = create<LocalState>(
       currentTheme: 'light',
       browserId: '',
       subscription: 'connected',
+      groupsLocation: '/',
+      messagesLocation: '/messages',
+      showDevTools: import.meta.env.DEV,
       errorCount: 0,
       airLockErrorCount: 0,
       lastReconnect: 0,
@@ -45,6 +51,11 @@ export const useLocalState = create<LocalState>(
   )
 );
 
+const selShowDevTools = (s: LocalState) => s.showDevTools;
+export function useShowDevTools() {
+  return useLocalState(selShowDevTools);
+}
+
 const selBrowserId = (s: LocalState) => s.browserId;
 export function useBrowserId() {
   return useLocalState(selBrowserId);
@@ -57,6 +68,12 @@ export function useCurrentTheme() {
 
 export const setLocalState = (f: (s: LocalState) => void) =>
   useLocalState.getState().set(f);
+
+export const toggleDevTools = () =>
+  setLocalState((s) => ({
+    ...s,
+    showDevTools: !s.showDevTools,
+  }));
 
 const selSubscriptionStatus = (s: LocalState) => ({
   subscription: s.subscription,

@@ -19,10 +19,12 @@ import { canReadChannel, canWriteChannel, isTalk } from '@/logic/utils';
 import { useLastReconnect } from '@/state/local';
 import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
-import useMedia from '@/logic/useMedia';
+import useMedia, { useIsMobile } from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
+import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+import { useSafeAreaInsets } from '@/logic/native';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -58,6 +60,11 @@ function ChatChannel({ title }: ViewProps) {
   const lastReconnect = useLastReconnect();
   const isSmall = useMedia('(max-width: 1023px)');
   const { compatible, text } = useChannelCompatibility(nest);
+  const isMobile = useIsMobile();
+  const safeAreaInsets = useSafeAreaInsets();
+  // We only inset the bottom for groups, since DMs display the navbar
+  // underneath this view
+  const bottomInset = group ? safeAreaInsets.bottom : 0;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -109,7 +116,7 @@ function ChatChannel({ title }: ViewProps) {
   return (
     <>
       <Layout
-        className="flex-1 bg-white pt-4 sm:pt-0"
+        className="flex-1 bg-white"
         header={
           <Routes>
             <Route
@@ -139,17 +146,25 @@ function ChatChannel({ title }: ViewProps) {
               path="*"
               element={
                 <ChannelHeader
-                  flag={groupFlag}
+                  groupFlag={groupFlag}
                   nest={nest}
                   prettyAppName="Chat"
                   leave={useChatState.getState().leaveChat}
                 >
                   <Link
                     to="search/"
-                    className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
+                    className={cn(
+                      isMobile
+                        ? ''
+                        : 'default-focus flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50'
+                    )}
                     aria-label="Search Chat"
                   >
-                    <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
+                    {isMobile ? (
+                      <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-800" />
+                    ) : (
+                      <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
+                    )}
                   </Link>
                 </ChannelHeader>
               }
@@ -165,14 +180,16 @@ function ChatChannel({ title }: ViewProps) {
             )}
           >
             {compatible && canWrite ? (
-              <ChatInput
-                key={chFlag}
-                whom={chFlag}
-                sendMessage={sendMessage}
-                showReply
-                autoFocus={!inThread && !inSearch}
-                dropZoneId={dropZoneId}
-              />
+              <div style={{ paddingBottom: bottomInset }}>
+                <ChatInput
+                  key={chFlag}
+                  whom={chFlag}
+                  sendMessage={sendMessage}
+                  showReply
+                  autoFocus={!inThread && !inSearch}
+                  dropZoneId={dropZoneId}
+                />
+              </div>
             ) : !canWrite ? null : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
                 {text}

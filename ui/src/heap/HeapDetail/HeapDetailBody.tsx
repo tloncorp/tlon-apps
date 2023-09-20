@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import useHeapContentType from '@/logic/useHeapContentType';
-import useEmbedState from '@/state/embed';
-import { isValidUrl, validOembedCheck } from '@/logic/utils';
+import { useEmbed } from '@/state/embed';
+import { validOembedCheck } from '@/logic/utils';
 import { HeapCurio, isLink } from '@/types/heap';
 import HeapContent from '@/heap/HeapContent';
 import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
@@ -15,7 +15,6 @@ import HeapVimeoPlayer from '../HeapVimeoPlayer';
 import HeapVideoPlayer from '../HeapVideoPlayer';
 
 export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
-  const [embed, setEmbed] = useState<any>();
   const calm = useCalm();
   const { content } = curio.heart;
   const url =
@@ -23,22 +22,18 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
       ? content.inline[0].link.href
       : '';
   const isMobile = useIsMobile();
+  const { embed, isError, error } = useEmbed(url, isMobile);
   const { isText, isImage, isAudio, isVideo } = useHeapContentType(url);
-  const maybeEmbed = !isImage && !isAudio && !isText;
 
   useEffect(() => {
-    const getOembed = async () => {
-      if (isValidUrl(url) && maybeEmbed && !calm.disableRemoteContent) {
-        const oembed = await useEmbedState.getState().getEmbed(url, isMobile);
-        setEmbed(oembed);
-      }
-    };
-    getOembed();
-  }, [url, isMobile, maybeEmbed, calm.disableRemoteContent]);
+    if (isError) {
+      console.log(`HeapDetailBody: embed failed to load`, error);
+    }
+  }, [isError, error]);
 
   if (content.block.length > 0 && 'cite' in content.block[0]) {
     return (
-      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[18px] leading-[26px]">
+      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
         <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
           <ContentReference
             contextApp="heap-detail"
@@ -51,7 +46,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
 
   if (isText) {
     return (
-      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[18px] leading-[26px]">
+      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
         <div className="max-h-[100%] max-w-prose overflow-y-auto">
           <HeapContent content={content} />
         </div>
@@ -77,7 +72,7 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
 
   const isOembed = validOembedCheck(embed, url);
 
-  if (isOembed && embed !== undefined && !calm.disableRemoteContent) {
+  if (isOembed && embed && !calm.disableRemoteContent) {
     const provider = embed.provider_url as string;
 
     let embedComponent = <HeapDetailEmbed oembed={embed} url={url} />;

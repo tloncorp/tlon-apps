@@ -9,7 +9,7 @@ exports[`ChannelList > renders as expected 1`] = `
       class="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3"
     >
       <h2
-        class="px-2 pb-0 text-sm font-bold text-gray-400"
+        class="px-2 pb-0 text-sm font-semibold text-gray-400"
       >
         Arranged Channels
       </h2>

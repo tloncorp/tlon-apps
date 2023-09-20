@@ -24,14 +24,21 @@ import {
   GroupCreate,
   GroupJoin,
   PrivacyType,
+  Vessel,
 } from '@/types/groups';
 import api from '@/api';
 import { BaitCite } from '@/types/chat';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import { getCompatibilityText, getFlagParts, preSig } from '@/logic/utils';
+import {
+  getCompatibilityText,
+  getFlagParts,
+  preSig,
+  sagaCompatible,
+} from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import { Scope, VolumeValue } from '@/types/volume';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -85,8 +92,9 @@ export function useGroupConnection(flag: string) {
   return useGroupConnectionState((state) => state.groups[flag] ?? true);
 }
 
-export function useGroups() {
-  const { data, ...rest } = useReactQuerySubscription({
+const emptyGroups: Groups = {};
+export function useGroupsWithQuery() {
+  const { data, ...rest } = useReactQuerySubscription<Groups>({
     queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
@@ -96,14 +104,35 @@ export function useGroups() {
     },
   });
 
-  if (rest.isLoading || rest.isError) {
-    return {} as Groups;
+  if (rest.isLoading || rest.isError || !data) {
+    return { data: emptyGroups, ...rest };
   }
 
-  return data as Groups;
+  return {
+    data,
+    ...rest,
+  };
 }
 
-export function useGroup(flag: string, updating = false) {
+export function useGroups() {
+  const { data, ...rest } = useReactQuerySubscription<Groups>({
+    queryKey: [GROUPS_KEY],
+    app: 'groups',
+    path: `/groups/ui`,
+    scry: `/groups/light/v0`,
+    options: {
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
+    },
+  });
+
+  if (!data || rest.isLoading || rest.isError) {
+    return emptyGroups;
+  }
+
+  return data;
+}
+
+export function useGroup(flag: string, updating = false): Group | undefined {
   const connection = useGroupConnection(flag);
   const queryClient = useQueryClient();
   const initialData = useGroups();
@@ -199,7 +228,7 @@ export function useGroupList(): string[] {
   return Object.keys(data || {});
 }
 
-export function useVessel(flag: string, ship: string) {
+export function useVessel(flag: string, ship: string): Vessel {
   const data = useGroup(flag);
 
   return (
@@ -267,13 +296,19 @@ export function useGang(flag: string) {
   return data?.[flag] || defGang;
 }
 
-export const useGangPreview = (flag: string, disabled = false) => {
+export const useGangPreview = (
+  flag: string,
+  disabled = false
+): GroupPreview | null => {
+  const gangs = useGangs();
+
   const { data, ...rest } = useReactQuerySubscribeOnce<GroupPreview>({
     queryKey: ['gang-preview', flag],
     app: 'groups',
     path: `/gangs/${flag}/preview`,
     options: {
       enabled: !disabled,
+      initialData: gangs[flag]?.preview || undefined,
     },
   });
 
@@ -391,6 +426,33 @@ export function useShoal(bait: BaitCite['bait']) {
   }
 
   return data;
+}
+
+export function useVolume(scope?: Scope): {
+  volume: VolumeValue;
+  isLoading: boolean;
+  isError: boolean;
+} {
+  const nestOrFlag = scope
+    ? 'group' in scope
+      ? scope.group
+      : scope.channel
+    : undefined;
+
+  const { data, ...rest } = useReactQueryScry({
+    queryKey: ['volume', nestOrFlag ?? 'base'],
+    app: 'groups',
+    path: `/volume${nestOrFlag ? `/${nestOrFlag}` : ''}`,
+    options: {
+      refetchOnMount: false,
+    },
+  });
+
+  return {
+    volume: data as VolumeValue,
+    isLoading: rest.isLoading,
+    isError: rest.isError,
+  };
 }
 
 export function useGroupMutation<TResponse>(
@@ -906,6 +968,67 @@ export function useGroupRejectMutation() {
   });
 }
 
+export function useBaseVolumeSetMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = (variables: { volume: VolumeValue }) =>
+    api.poke({
+      app: 'groups',
+      mark: 'volume-set',
+      json: {
+        value: variables.volume,
+        scope: null,
+      },
+    });
+
+  return useMutation(mutationFn, {
+    onSuccess: () => {
+      queryClient.invalidateQueries(['volume', 'base']);
+    },
+  });
+}
+
+export function useGroupVolumeSetMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = (variables: { flag: string; volume: VolumeValue }) =>
+    api.poke({
+      app: 'groups',
+      mark: 'volume-set',
+      json: {
+        scope: {
+          group: variables.flag,
+        },
+        value: variables.volume,
+      },
+    });
+
+  return useMutation(mutationFn, {
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(['volume', variables.flag]);
+    },
+  });
+}
+
+export function useGroupChannelVolumeSetMutation() {
+  const queryClient = useQueryClient();
+  const mutationFn = (variables: { nest: string; volume: VolumeValue }) =>
+    api.poke({
+      app: 'groups',
+      mark: 'volume-set',
+      json: {
+        scope: {
+          channel: variables.nest,
+        },
+        value: variables.volume,
+      },
+    });
+
+  return useMutation(mutationFn, {
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries(['volume', variables.nest]);
+    },
+  });
+}
+
 export function useGroupSwapCordonMutation() {
   const mutationFn = (variables: { flag: string; cordon: Cordon }) =>
     api.poke(
@@ -1161,7 +1284,7 @@ export function useGroupCompatibility(flag: string) {
   const saga = group?.saga || null;
   return {
     saga,
-    compatible: saga === null || 'synced' in saga,
+    compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
   };
 }

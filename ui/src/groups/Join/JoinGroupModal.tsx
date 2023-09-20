@@ -1,11 +1,17 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import Dialog from '@/components/Dialog';
 import { useGang, useGangPreview, useRouteGroup } from '@/state/groups';
 import GroupSummary from '@/groups/GroupSummary';
 import useGroupJoin from '@/groups/useGroupJoin';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { matchesBans, pluralRank, toTitleCase } from '@/logic/utils';
+import {
+  getFlagParts,
+  matchesBans,
+  pluralRank,
+  toTitleCase,
+} from '@/logic/utils';
+import { useConnectivityCheck } from '@/state/vitals';
 
 export default function JoinGroupModal() {
   const navigate = useNavigate();
@@ -14,6 +20,8 @@ export default function JoinGroupModal() {
   const id = new URLSearchParams(window.location.search).get('id');
   const type = new URLSearchParams(window.location.search).get('type');
   const gang = useGang(flag);
+  const { ship } = getFlagParts(flag);
+  const { data } = useConnectivityCheck(ship, { enabled: true });
   const { group, dismiss, reject, button, status } = useGroupJoin(
     flag,
     gang,
@@ -25,10 +33,10 @@ export default function JoinGroupModal() {
   const banned = cordon ? matchesBans(cordon, window.our) : null;
 
   useEffect(() => {
-    if (group) {
+    if (group && data && data.status && 'complete' in data.status) {
       navigate(`/groups/${flag}`);
     }
-  }, [group, flag, navigate]);
+  }, [group, flag, navigate, data]);
 
   return (
     <Dialog

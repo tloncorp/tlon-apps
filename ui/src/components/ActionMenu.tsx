@@ -68,17 +68,19 @@ const ActionMenu = React.memo(
       <div className={className}>
         {isMobile ? (
           <Drawer.Root open={open} onOpenChange={onOpenChange}>
-            <Drawer.Trigger
-              disabled={disabled}
-              asChild={asChild}
-              aria-label={ariaLabel}
-              className={cn('appearance-none', triggerClassName)}
-            >
-              {children}
-            </Drawer.Trigger>
+            {children && (
+              <Drawer.Trigger
+                disabled={disabled}
+                asChild={asChild}
+                aria-label={ariaLabel}
+                className={cn('appearance-none', triggerClassName)}
+              >
+                {children}
+              </Drawer.Trigger>
+            )}
             <Drawer.Portal>
-              <Drawer.Overlay className="fixed inset-0 z-[9999] bg-black/20" />
-              <Drawer.Content className="fixed inset-x-[32px] bottom-[32px] z-[9999] flex flex-col rounded-[32px] bg-white px-[32px] py-[16px] after:!bg-transparent">
+              <Drawer.Overlay className="fixed inset-0 z-[49] bg-black/20" />
+              <Drawer.Content className="fixed inset-x-[32px] bottom-[32px] z-[49] flex flex-col rounded-[32px] bg-white px-[32px] py-[16px] after:!bg-transparent">
                 {actions.map((action) => (
                   <div
                     key={action.key}
@@ -104,17 +106,20 @@ const ActionMenu = React.memo(
           </Drawer.Root>
         ) : (
           <DropdownMenu.Root open={open} onOpenChange={onOpenChange}>
-            <DropdownMenu.Trigger
-              disabled={disabled}
-              asChild={asChild}
-              aria-label={ariaLabel}
-              className={cn('appearance-none', triggerClassName)}
-            >
-              {children}
-            </DropdownMenu.Trigger>
+            {children && (
+              <DropdownMenu.Trigger
+                disabled={disabled}
+                asChild={asChild}
+                aria-label={ariaLabel}
+                className={cn('appearance-none', triggerClassName)}
+              >
+                {children}
+              </DropdownMenu.Trigger>
+            )}
             <DropdownMenu.Content
               align={align}
               className={cn('dropdown', contentClassName)}
+              collisionPadding={8}
             >
               {actions.map((action) => (
                 <DropdownMenu.Item

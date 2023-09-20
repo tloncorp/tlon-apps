@@ -26,8 +26,9 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import queryClient from './queryClient';
 import indexedDBPersistor from './indexedDBPersistor';
 import UpdateNotice from './components/UpdateNotice';
-import { analyticsClient } from './logic/analytics';
+import { analyticsClient, captureError } from './logic/analytics';
 import { createRoot } from 'react-dom/client';
+import SafeAreaProvider from './logic/SafeAreaContext';
 
 const IS_MOCK =
   import.meta.env.MODE === 'mock' || import.meta.env.MODE === 'staging';
@@ -38,6 +39,10 @@ if (IS_MOCK) {
 }
 
 window.our = `~${window.ship}`;
+
+window.addEventListener('error', (e) => {
+  captureError('window', e.error);
+});
 
 const container = document.getElementById('app') as HTMLElement;
 const root = createRoot(container);
@@ -50,10 +55,12 @@ root.render(
         buster: `${window.our}-landscape-4.0.1`,
       }}
     >
-      <UpdateNotice />
-      <PostHogProvider client={analyticsClient}>
-        <App />
-      </PostHogProvider>
+      <SafeAreaProvider>
+        <UpdateNotice />
+        <PostHogProvider client={analyticsClient}>
+          <App />
+        </PostHogProvider>
+      </SafeAreaProvider>
     </PersistQueryClientProvider>
   </React.StrictMode>
 );

@@ -1,8 +1,9 @@
 import cn from 'classnames';
-import { Outlet, useLocation } from 'react-router';
-import { isNativeApp } from '@/logic/native';
+import { Outlet, useLocation, useNavigate } from 'react-router';
+import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
-import NavTab from '../NavTab';
+import { useLocalState } from '@/state/local';
+import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
 import GridIcon from '../icons/GridIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
@@ -10,33 +11,90 @@ import MagnifyingGlassMobileNavIcon from '../icons/MagnifyingGlassMobileNavIcon'
 import MessagesIcon from '../icons/MessagesIcon';
 import Avatar from '../Avatar';
 
-export default function MobileSidebar() {
-  const location = useLocation();
-  const isInactive = (path: string) => location.pathname !== path;
-  const isDarkMode = useIsDark();
+function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
+  const navigate = useNavigate();
+  const { groupsLocation } = useLocalState.getState();
+
+  const onSingleClick = () => {
+    if (isNativeApp()) {
+      if (props.isInactive) {
+        navigate(groupsLocation);
+      }
+    } else {
+      navigate('/');
+    }
+  };
 
   return (
-    <section className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white pt-4">
+    <DoubleClickableNavTab
+      onSingleClick={onSingleClick}
+      onDoubleClick={() => navigate('/')}
+      linkClass="basis-1/5"
+    >
+      <HomeIconMobileNav
+        isInactive={props.isInactive}
+        isDarkMode={props.isDarkMode}
+        className="mb-0.5 h-6 w-6"
+      />
+    </DoubleClickableNavTab>
+  );
+}
+
+function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
+  const navigate = useNavigate();
+  const { messagesLocation } = useLocalState.getState();
+
+  const onSingleClick = () => {
+    if (isNativeApp()) {
+      if (props.isInactive) {
+        navigate(messagesLocation);
+      }
+    } else {
+      navigate('/messages');
+    }
+  };
+
+  return (
+    <DoubleClickableNavTab
+      onSingleClick={onSingleClick}
+      onDoubleClick={() => navigate('/messages')}
+    >
+      <MessagesIcon
+        isInactive={props.isInactive}
+        isDarkMode={props.isDarkMode}
+        className="mb-0.5 h-6 w-6"
+      />
+    </DoubleClickableNavTab>
+  );
+}
+
+export default function MobileSidebar() {
+  const location = useLocation();
+  const isInactive = (path: string) => !location.pathname.startsWith(path);
+  const isDarkMode = useIsDark();
+  const safeAreaInsets = useSafeAreaInsets();
+
+  return (
+    <section
+      className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white"
+      style={{ paddingBottom: safeAreaInsets.bottom }}
+    >
       <Outlet />
-      <footer className="flex-none border-t-2 border-gray-50">
+      <footer className={cn('flex-none border-t-2 border-gray-50')}>
         <nav>
           <ul className="flex">
-            <NavTab to="/" linkClass="basis-1/5">
-              <HomeIconMobileNav
-                isInactive={isInactive('/')}
-                isDarkMode={isDarkMode}
-                className="mb-0.5 h-6 w-6"
-              />
-            </NavTab>
+            <GroupsTab
+              isInactive={isInactive('/groups') && location.pathname !== '/'}
+              isDarkMode={isDarkMode}
+            />
+
             {isNativeApp() && (
-              <NavTab to="/messages" linkClass="basis-1/5">
-                <MessagesIcon
-                  isInactive={isInactive('/messages')}
-                  isDarkMode={isDarkMode}
-                  className="mb-0.5 h-6 w-6"
-                />
-              </NavTab>
+              <MessagesTab
+                isInactive={isInactive('/messages') && isInactive('/dm')}
+                isDarkMode={isDarkMode}
+              />
             )}
+
             <NavTab to="/notifications" linkClass="basis-1/5">
               <BellIcon
                 isInactive={isInactive('/notifications')}
@@ -52,7 +110,7 @@ export default function MobileSidebar() {
               />
             </NavTab>
             {!isNativeApp() && (
-              <NavTab to="/leap">
+              <NavTab to="/leap" linkClass="basis-1/5">
                 <GridIcon
                   className={cn('mb-0.5 h-8 w-8', {
                     'text-gray-200 dark:text-gray-700': isInactive('/leap'),

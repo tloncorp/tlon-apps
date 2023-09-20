@@ -13,9 +13,11 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Club } from '@/types/chat';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
+import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import useAppName from '@/logic/useAppName';
+import MobileHeader from '@/components/MobileHeader';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -38,11 +40,6 @@ function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
       )}
       aria-label="Open Messages Menu"
     >
-      {isMobile ? (
-        <div className="flex h-6 w-6 items-center justify-center">
-          <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
-        </div>
-      ) : null}
       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-center">
         <MultiDmAvatar {...club.meta} size="xs" />
       </div>
@@ -74,6 +71,8 @@ export default function MultiDm() {
   const inSearch = useMatch(`/dm/${clubId}/search/*`);
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
+  const appName = useAppName();
+  const groupName = club?.meta.title || club?.team.concat(club.hive).join(', ');
 
   const {
     isSelectingMessage,
@@ -119,26 +118,57 @@ export default function MultiDm() {
               <Route
                 path="*"
                 element={
-                  <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
-                    <TitleButton club={club} isMobile={isMobile} />
-                    <div className="flex shrink-0 flex-row items-center space-x-3">
-                      {isMobile && <ReconnectingSpinner />}
-                      <Link
-                        to="search/"
-                        className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
-                        aria-label="Search Chat"
-                      >
-                        <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
-                      </Link>
-                      <DmOptions
-                        whom={clubId}
-                        pending={!isAccepted}
-                        isMulti
-                        alwaysShowEllipsis
-                        className="text-gray-600"
-                      />
+                  isMobile ? (
+                    <MobileHeader
+                      title={
+                        <DmOptions
+                          className="w-full"
+                          whom={clubId}
+                          isMulti
+                          pending={!isAccepted}
+                        >
+                          <button className="flex w-full items-center justify-center">
+                            <div className="flex h-6 w-6 flex-none items-center justify-center rounded text-center">
+                              <MultiDmAvatar {...club.meta} size="xs" />
+                            </div>
+                            <h1 className="ml-2 flex overflow-hidden">
+                              <span className="truncate">{groupName}</span>
+                            </h1>
+                          </button>
+                        </DmOptions>
+                      }
+                      pathBack={
+                        appName === 'Groups' && isMobile ? '/messages' : '/'
+                      }
+                      action={
+                        <div className="flex h-12 flex-row items-center justify-end space-x-3">
+                          <ReconnectingSpinner />
+                          <Link to="search/" aria-label="Search Chat">
+                            <MagnifyingGlassMobileNavIcon className="h-6 w-6 text-gray-800" />
+                          </Link>
+                        </div>
+                      }
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4">
+                      <TitleButton club={club} isMobile={isMobile} />
+                      <div className="flex shrink-0 flex-row items-center space-x-3">
+                        <Link
+                          to="search/"
+                          className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
+                          aria-label="Search Chat"
+                        >
+                          <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
+                        </Link>
+                        <DmOptions
+                          whom={clubId}
+                          pending={!isAccepted}
+                          isMulti
+                          alwaysShowEllipsis
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )
                 }
               />
             </Routes>

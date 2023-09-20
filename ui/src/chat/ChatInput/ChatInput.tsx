@@ -51,6 +51,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { useSafeAreaInsets } from '@/logic/native';
 
 interface ChatInputProps {
   whom: string;
@@ -125,6 +126,7 @@ export default function ChatInput({
   );
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const groupFlag = useGroupFlag();
+  const isGroupChatInput = !!groupFlag;
   const { privacy } = useGroupPrivacy(groupFlag);
   const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
@@ -138,6 +140,7 @@ export default function ChatInput({
   const files = useMemo(() => uploader?.files, [uploader]);
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
+  const safeAreaInsets = useSafeAreaInsets();
 
   const handleDrop = useCallback(
     (fileList: FileList) => {
@@ -189,9 +192,7 @@ export default function ChatInput({
   }, [id, uploadKey, closeReply, replyCite]);
 
   useEffect(() => {
-    console.log('droppedFiles', droppedFiles);
     if (droppedFiles && droppedFiles[dropZoneId]) {
-      console.log('droppedFiles[dropZoneId]', droppedFiles[dropZoneId]);
       handleDrop(droppedFiles[dropZoneId]);
       setDidDrop(true);
     }
@@ -283,10 +284,28 @@ export default function ChatInput({
       const dataIsJustBreak =
         data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
 
+      const memo: ChatMemo = {
+        replying: reply,
+        author: `~${window.ship || 'zod'}`,
+        sent: 0, // wait until ID is created so we can share time
+        content: {
+          story: {
+            inline: !dataIsJustBreak
+              ? Array.isArray(data)
+                ? data
+                : [data]
+              : [],
+            block: [...blocks, ...(replyCite ? [replyCite] : [])],
+          },
+        },
+      };
+
       const text = editor.getText();
       const textIsImageUrl = isImageUrl(text);
+      const dataIsJustLink =
+        data.length > 0 && typeof data[0] === 'object' && 'link' in data[0];
 
-      if (textIsImageUrl) {
+      if (textIsImageUrl && dataIsJustLink) {
         const url = text;
         const name = 'chat-image';
 
@@ -297,8 +316,7 @@ export default function ChatInput({
           const { width, height } = img;
 
           sendMessage(whom, {
-            replying: reply,
-            author: `~${window.ship || 'zod'}`,
+            ...memo,
             sent: Date.now(),
             content: {
               story: {
@@ -317,23 +335,11 @@ export default function ChatInput({
             },
           });
         };
-      } else {
-        const memo: ChatMemo = {
-          replying: reply,
-          author: `~${window.ship || 'zod'}`,
-          sent: 0, // wait until ID is created so we can share time
-          content: {
-            story: {
-              inline: !dataIsJustBreak
-                ? Array.isArray(data)
-                  ? data
-                  : [data]
-                : [],
-              block: [...blocks, ...(replyCite ? [replyCite] : [])],
-            },
-          },
-        };
 
+        img.onerror = () => {
+          sendMessage(whom, memo);
+        };
+      } else {
         sendMessage(whom, memo);
       }
       captureGroupsAnalyticsEvent({
@@ -531,124 +537,114 @@ export default function ChatInput({
   }
 
   return (
-    <>
-      <div className={cn('flex w-full items-end space-x-2', className)}>
-        <div
-          // sometimes a race condition causes the dropzone to be removed before the drop event fires
-          id={dropZoneId}
-          className="flex-1"
-        >
-          {imageBlocks.length > 0 ? (
-            <div className="mb-2 flex flex-wrap items-center">
-              {imageBlocks.map((img, idx) => (
-                <div key={idx} className="relative p-1.5">
-                  <button
-                    onClick={() => onRemove(idx)}
-                    className="icon-button absolute top-4 right-4"
-                  >
-                    <X16Icon className="h-4 w-4" />
-                  </button>
-                  {IMAGE_REGEX.test(img.image.src) ? (
-                    <img
-                      title={img.image.alt}
-                      src={img.image.src}
-                      className="h-32 w-32 object-cover"
-                    />
-                  ) : (
-                    <div
-                      title={img.image.alt}
-                      className="h-32 w-32 animate-pulse bg-gray-200"
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {chatInfo.blocks.length > 0 ? (
-            <div className="mb-4 flex items-center justify-start font-semibold">
-              <span className="mr-2 text-gray-600">Attached: </span>
-              {chatInfo.blocks.length}{' '}
-              {chatInfo.blocks.every((b) => 'image' in b)
-                ? 'image'
-                : 'reference'}
-              {chatInfo.blocks.length === 1 ? '' : 's'}
-              <button
-                className="icon-button ml-auto"
-                onClick={clearAttachments}
-              >
-                <X16Icon className="h-4 w-4" />
-              </button>
-            </div>
-          ) : null}
-
-          {showReply && ship && chatReplyId ? (
-            <div className="mb-4 flex items-center justify-start font-semibold">
-              <span className="text-gray-600">Replying to</span>
-              <Avatar size="xs" ship={ship} className="ml-2" />
-              <ShipName name={ship} showAlias className="ml-2" />
-              <button className="icon-button ml-auto" onClick={closeReply}>
-                <X16Icon className="h-4 w-4" />
-              </button>
-            </div>
-          ) : null}
-          <div className="relative flex items-end justify-end">
-            {!isMobile && (
-              <Avatar size="xs" ship={window.our} className="mr-2 mb-1" />
-            )}
-            <MessageEditor
-              editor={messageEditor}
-              className={cn(
-                'w-full break-words',
-                uploader && !uploadError && mostRecentFile?.status !== 'loading'
-                  ? 'pr-8'
-                  : ''
-              )}
-            />
-            {uploader &&
-            !uploadError &&
-            mostRecentFile?.status !== 'loading' ? (
-              <button
-                title={'Upload an image'}
-                className="absolute bottom-2 mr-2 text-gray-600 hover:text-gray-800"
-                aria-label="Add attachment"
-                onClick={() => uploader.prompt()}
-              >
-                <AddIcon className="h-4 w-4" />
-              </button>
-            ) : null}
-            {mostRecentFile && mostRecentFile.status === 'loading' ? (
-              <LoadingSpinner className="absolute bottom-2 mr-2 h-4 w-4" />
-            ) : null}
-            {uploadError ? (
-              <div className="absolute bottom-2 mr-2">
-                <UploadErrorPopover
-                  errorMessage={uploadError}
-                  setUploadError={setUploadError}
-                />
+    <div className={cn('flex w-full items-end space-x-2', className)}>
+      <div
+        // sometimes a race condition causes the dropzone to be removed before the drop event fires
+        id={dropZoneId}
+        className="flex-1"
+      >
+        {imageBlocks.length > 0 ? (
+          <div className="mb-2 flex flex-wrap items-center">
+            {imageBlocks.map((img, idx) => (
+              <div key={idx} className="relative p-1.5">
+                <button
+                  onClick={() => onRemove(idx)}
+                  className="icon-button absolute top-4 right-4"
+                >
+                  <X16Icon className="h-4 w-4" />
+                </button>
+                {IMAGE_REGEX.test(img.image.src) ? (
+                  <img
+                    title={img.image.alt}
+                    src={img.image.src}
+                    className="h-32 w-32 object-cover"
+                  />
+                ) : (
+                  <div
+                    title={img.image.alt}
+                    className="h-32 w-32 animate-pulse bg-gray-200"
+                  />
+                )}
               </div>
-            ) : null}
+            ))}
           </div>
+        ) : null}
+
+        {chatInfo.blocks.length > 0 ? (
+          <div className="mb-4 flex items-center justify-start font-semibold">
+            <span className="mr-2 text-gray-600">Attached: </span>
+            {chatInfo.blocks.length}{' '}
+            {chatInfo.blocks.every((b) => 'image' in b) ? 'image' : 'reference'}
+            {chatInfo.blocks.length === 1 ? '' : 's'}
+            <button className="icon-button ml-auto" onClick={clearAttachments}>
+              <X16Icon className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
+
+        {showReply && ship && chatReplyId ? (
+          <div className="mb-4 flex items-center justify-start font-semibold">
+            <span className="text-gray-600">Replying to</span>
+            <Avatar size="xs" ship={ship} className="ml-2" />
+            <ShipName name={ship} showAlias className="ml-2" />
+            <button className="icon-button ml-auto" onClick={closeReply}>
+              <X16Icon className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
+        <div className="relative flex items-end justify-end">
+          {!isMobile && (
+            <Avatar size="xs" ship={window.our} className="mr-2 mb-1" />
+          )}
+          <MessageEditor
+            editor={messageEditor}
+            className={cn(
+              'w-full break-words',
+              uploader && !uploadError && mostRecentFile?.status !== 'loading'
+                ? 'pr-8'
+                : ''
+            )}
+          />
+          {uploader && !uploadError && mostRecentFile?.status !== 'loading' ? (
+            <button
+              title={'Upload an image'}
+              className="absolute bottom-2 mr-2 text-gray-600 hover:text-gray-800"
+              aria-label="Add attachment"
+              onClick={() => uploader.prompt()}
+            >
+              <AddIcon className="h-4 w-4" />
+            </button>
+          ) : null}
+          {mostRecentFile && mostRecentFile.status === 'loading' ? (
+            <LoadingSpinner className="absolute bottom-2 mr-2 h-4 w-4" />
+          ) : null}
+          {uploadError ? (
+            <div className="absolute bottom-2 mr-2">
+              <UploadErrorPopover
+                errorMessage={uploadError}
+                setUploadError={setUploadError}
+              />
+            </div>
+          ) : null}
         </div>
-        <button
-          className={cn('button px-2')}
-          disabled={
-            sendDisabled ||
-            mostRecentFile?.status === 'loading' ||
-            mostRecentFile?.status === 'error' ||
-            mostRecentFile?.url === '' ||
-            (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
-          }
-          onMouseDown={(e) => {
-            e.preventDefault();
-            onClick();
-          }}
-          aria-label="Send message"
-        >
-          <ArrowNWIcon16 className="h-4 w-4" />
-        </button>
       </div>
-      {isMobile ? <ChatInputMenu editor={messageEditor} /> : null}
-    </>
+      <button
+        className={cn('button px-2')}
+        disabled={
+          sendDisabled ||
+          mostRecentFile?.status === 'loading' ||
+          mostRecentFile?.status === 'error' ||
+          mostRecentFile?.url === '' ||
+          (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
+        }
+        onMouseDown={(e) => {
+          e.preventDefault();
+          onClick();
+        }}
+        aria-label="Send message"
+      >
+        <ArrowNWIcon16 className="h-4 w-4" />
+      </button>
+    </div>
   );
 }

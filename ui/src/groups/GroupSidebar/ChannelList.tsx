@@ -1,4 +1,5 @@
 import cn from 'classnames';
+import { useLocation } from 'react-router';
 import React, { ReactNode, useState } from 'react';
 import {
   channelHref,
@@ -28,8 +29,10 @@ import {
 } from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
-import HashIcon16 from '@/components/icons/HashIcon16';
+import HashIcon from '@/components/icons/HashIcon';
 import MigrationTooltip from '@/components/MigrationTooltip';
+import InviteIcon from '@/components/icons/InviteIcon';
+import PeopleIcon from '@/components/icons/PeopleIcon';
 import {
   usePendingImports,
   useStartedMigration,
@@ -89,7 +92,7 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   return (
     <div className="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3">
       {!isMobile && (
-        <h2 className="px-2 pb-0 text-sm font-bold text-gray-400">
+        <h2 className="px-2 pb-0 text-sm font-semibold text-gray-400">
           {sortLabel()}
         </h2>
       )}
@@ -153,11 +156,12 @@ export default function ChannelList({ className }: ChannelListProps) {
   const vessel = useVessel(flag, window.our);
   const isChannelJoined = useCheckChannelJoined();
   const isChannelUnread = useCheckChannelUnread();
+  const location = useLocation();
 
   if (!group || group.meta.title === '') {
     return (
       <div className={cn('h-full w-full flex-1 overflow-y-auto')}>
-        <h2 className="px-4 pb-0 text-sm font-bold text-gray-400">
+        <h2 className="px-4 pb-0 text-sm font-semibold text-gray-400">
           <div className="flex justify-between">
             {!connected ? (
               'Host is Offline.'
@@ -193,11 +197,10 @@ export default function ChannelList({ className }: ChannelListProps) {
               className={cn(
                 'flex h-12 w-12 items-center justify-center rounded-md',
                 !imported && 'opacity-60',
-                !active && 'bg-gray-50',
                 active && 'bg-white'
               )}
             >
-              <ChannelIcon nest={nest} className="h-6 w-6" />
+              <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
             </span>
           ) : (
             <ChannelIcon
@@ -243,16 +246,42 @@ export default function ChannelList({ className }: ChannelListProps) {
       {!isMobile && <ChannelSorter isMobile={false} />}
       <div className="mx-4 space-y-0.5 sm:mx-2">
         {isMobile && (
-          <SidebarItem
-            icon={
-              <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gray-50">
-                <HashIcon16 className="m-1 h-4 w-4" />
-              </div>
-            }
-            to={`/groups/${flag}/channels`}
-          >
-            All Channels
-          </SidebarItem>
+          <>
+            <SidebarItem
+              icon={
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
+                  <PeopleIcon className="m-1 h-6 w-6 text-gray-400" />
+                </div>
+              }
+              to={isMobile ? `./members` : `/groups/${flag}/info`}
+              state={{ backgroundLocation: isMobile ? null : location }}
+            >
+              Members
+            </SidebarItem>
+            <SidebarItem
+              icon={
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
+                  <HashIcon className="m-1 h-6 w-6 text-gray-400" />
+                </div>
+              }
+              to={`/groups/${flag}/channels`}
+            >
+              All Channels
+            </SidebarItem>
+            <SidebarItem
+              color="text-blue"
+              highlight="bg-blue-soft"
+              icon={
+                <div className="flex h-12 w-12 items-center justify-center rounded-full">
+                  <InviteIcon className="h-6 w-6" />
+                </div>
+              }
+              to={`/groups/${flag}/invite`}
+              state={{ backgroundLocation: location }}
+            >
+              Invite People
+            </SidebarItem>
+          </>
         )}
         {isDefaultSort
           ? filteredSections.map((s) => (

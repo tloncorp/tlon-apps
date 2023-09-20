@@ -1,4 +1,5 @@
 import { matchPath, Outlet, useLocation, useMatch } from 'react-router';
+import cn from 'classnames';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import GroupSidebar from '@/groups/GroupSidebar/GroupSidebar';
@@ -52,7 +53,7 @@ export function DesktopNav() {
 export default function GroupsNav() {
   const isMobile = useIsMobile();
   return (
-    <div className="fixed flex h-full w-full">
+    <div className={cn('fixed flex h-full w-full')}>
       {isMobile ? null : <DesktopNav />}
       <Outlet />
     </div>

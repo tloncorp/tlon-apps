@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { AUDIO_REGEX, isValidUrl, validOembedCheck } from '@/logic/utils';
+import React, { useEffect } from 'react';
+import { BigPlayButton, Player } from 'video-react';
+import { AUDIO_REGEX, validOembedCheck, VIDEO_REGEX } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
-import useEmbedState from '@/state/embed';
+import { useEmbed } from '@/state/embed';
 import YouTubeEmbed from './YouTubeEmbed';
 import TwitterEmbed from './TwitterEmbed';
 import SpotifyEmbed from './SpotifyEmbed';
@@ -14,7 +16,7 @@ const trustedProviders = [
   },
   {
     name: 'Twitter',
-    regex: /twitter\.com\/\w+\/status\//,
+    regex: /(?:twitter\.com|x\.com)\/\w+\/status\//,
   },
   {
     name: 'Spotify',
@@ -31,31 +33,20 @@ function ChatEmbedContent({
   content: string;
   writId: string;
 }) {
-  const [embed, setEmbed] = useState<any>();
+  const { embed, isError, error } = useEmbed(url);
   const calm = useCalm();
+  const isMobile = useIsMobile();
   const isAudio = AUDIO_REGEX.test(url);
+  const isVideo = VIDEO_REGEX.test(url);
   const isTrusted = trustedProviders.some((provider) =>
     provider.regex.test(url)
   );
 
   useEffect(() => {
-    const getOembed = async () => {
-      if (
-        isValidUrl(url) &&
-        isTrusted &&
-        !calm?.disableRemoteContent &&
-        !isAudio
-      ) {
-        const oembed = await useEmbedState.getState().getEmbed(url);
-        setEmbed(oembed);
-      }
-    };
-    getOembed();
-
-    return () => {
-      setEmbed(null);
-    };
-  }, [url, calm, isTrusted, isAudio]);
+    if (isError) {
+      console.log(`chat embed failed to load:`, error);
+    }
+  }, [isError, error]);
 
   if (url !== content) {
     return (
@@ -65,11 +56,26 @@ function ChatEmbedContent({
     );
   }
 
+  if (isVideo) {
+    return (
+      <div className="flex max-h-[340px] max-w-[600px] flex-col">
+        <Player
+          playsInline
+          src={url}
+          fluid={false}
+          width={isMobile ? 300 : 600}
+        >
+          <BigPlayButton position="center" />
+        </Player>
+      </div>
+    );
+  }
+
   if (isAudio) {
     return <AudioPlayer url={url} embed writId={writId} />;
   }
 
-  const isOembed = validOembedCheck(embed, url);
+  const isOembed = isTrusted && validOembedCheck(embed, url);
 
   if (isOembed && !calm?.disableRemoteContent) {
     const {

@@ -1,5 +1,6 @@
 /-  d=diary
 /-  ha=hark
+/+  volume
 /+  qip=quips, mp=mop-extensions
 |_  not=notes:d
 ++  mope  ((mp time note:d) lte)
@@ -87,16 +88,47 @@
       %break  ""
       %tag    (trip p.c)
       %link   (trip q.c)
+      %task  (trip (flatten q.c))
       %block   (trip q.c)
       ?(%code %inline-code)  ""
       %ship    (scow %p p.c)
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
 ::
+++  want-hark
+  |=  [flag=?(~ flag:d) kind=?(%msg %to-us) =bowl:gall]
+  %+  (fit-level:volume [our now]:bowl)
+    ?~  flag  ~
+    [%channel %diary flag]
+  ?-  kind
+    %to-us  %soft
+    %msg    %loud
+  ==
+::
 ++  hark
-  |=  [our=ship =time =delta:notes:d]
+  |=  [=flag:d =bowl:gall =time =delta:notes:d]
   ^-  (list (list content:ha))
   ?.  ?=(%quips -.delta)
+    ?.  ?=(%add -.delta)
+      ~
+    ?:  (want-hark [flag %msg bowl])
+      =/  =essay:d  p.+.delta
+      =/  from-me  =(author.essay our.bowl)
+      ?:  from-me  ~
+      =/  content
+        %+  turn
+          content.essay
+        |=  =verse:d
+        ?.  ?=(%block -.verse)
+          p.+.verse
+        ~
+      =-  ~[-]
+      :~  [%ship author.essay]
+          ' published a note: '
+          [%emph title.essay]
+          ' '
+          (flatten (zing content))
+      ==
     ~
   =/  [@ =note:d]  (got time)
   ~!  q.p.delta
@@ -106,8 +138,19 @@
   =/  in-replies
     %+  lien  (tap:on:quips:d quips.note)
     |=  [=^time =quip:d]
-    =(author.quip our)
-  ?:  |(=(author.memo our) &(!in-replies !=(author.note our)))  ~
+    =(author.quip our.bowl)
+  ?:  (want-hark [flag %msg bowl])
+    =-  ~[-]
+    :~  [%ship author.memo]
+        ' commented on '
+        [%emph title.note]
+        ': '
+        [%ship author.memo]
+        ': '
+        (flatten q.content.memo)
+    ==
+  ?:  |(=(author.memo our.bowl) &(!in-replies !=(author.note our.bowl)))  ~
+  ?.  (want-hark [flag %to-us bowl])  ~
   =-  ~[-]
   :~  [%ship author.memo]
       ' commented on '

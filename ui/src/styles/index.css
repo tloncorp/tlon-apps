@@ -15,3 +15,5 @@
 @import './utilities.css';
 
 @import 'prismjs/themes/prism-tomorrow.min.css';
+
+@import 'video-react/dist/video-react.css';

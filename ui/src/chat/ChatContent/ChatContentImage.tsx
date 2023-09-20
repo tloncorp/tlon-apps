@@ -53,7 +53,7 @@ export default function ChatContentImage({
             href={src}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 text-sm text-gray-900 underline"
+            className="default-focus mt-2 text-sm text-gray-900 underline"
           >
             {src}
           </a>
@@ -72,13 +72,14 @@ export default function ChatContentImage({
           {src}
         </a>
       ) : (
-        <button onClick={() => setShowLightBox(true)}>
+        <button
+          className="default-focus rounded"
+          onClick={() => setShowLightBox(true)}
+        >
           <img
             src={src}
             onError={() => setFailedToLoad(true)}
-            className="max-w-full cursor-pointer rounded"
-            height={height}
-            width={width}
+            className="max-h-[50vh] max-w-full cursor-pointer rounded"
             alt={altText ? altText : 'A chat image'}
           />
         </button>

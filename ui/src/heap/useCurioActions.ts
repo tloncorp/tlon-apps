@@ -63,6 +63,9 @@ export default function useCurioActions({
 
   const onCopy = useCallback(() => {
     doCopy();
+    setTimeout(() => {
+      setMenuOpen(false);
+    }, 1000);
   }, [doCopy]);
 
   return {

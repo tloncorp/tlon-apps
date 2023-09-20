@@ -1,10 +1,9 @@
+import React, { useState } from 'react';
 import cn from 'classnames';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
-import DisplayDropdown from '@/channels/DisplayDropdown';
 import { useLeaveDiaryMutation } from '@/state/diary';
-import { useChannel as useChannelSpecific } from '@/logic/channel';
+import { useChannelCompatibility } from '@/logic/channel';
 import {
   setChannelSetting,
   DiarySetting,
@@ -14,10 +13,13 @@ import {
 import { DiaryDisplayMode } from '@/types/diary';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { Link } from 'react-router-dom';
-import AddIcon16 from '@/components/icons/Add16Icon';
+import { useIsMobile } from '@/logic/useMedia';
+import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
+import ActionMenu, { Action } from '@/components/ActionMenu';
 
 interface DiaryHeaderProps {
-  flag: string;
+  groupFlag: string;
   nest: string;
   canWrite: boolean;
   sort: DiarySetting['sortMode'];
@@ -25,16 +27,17 @@ interface DiaryHeaderProps {
 }
 
 export default function DiaryHeader({
-  flag,
+  groupFlag,
   nest,
   canWrite,
   sort,
   display,
 }: DiaryHeaderProps) {
+  const [isOpen, setIsOpen] = useState(false);
   const [, chFlag] = nestToFlag(nest);
-  const chan = useChannelSpecific(nest);
-  const { ship } = getFlagParts(flag);
-  const saga = chan?.saga || null;
+  const { ship } = getFlagParts(chFlag);
+  const isMobile = useIsMobile();
+  const { compatible } = useChannelCompatibility(nest);
   const settings = useDiarySettings();
   const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
   const { mutate } = usePutEntryMutation({
@@ -66,60 +69,79 @@ export default function DiaryHeader({
     });
   };
 
+  const actions: Action[] = [
+    {
+      content: 'Display: List',
+      key: 'display-list',
+      onClick: () => (setDisplayMode ? setDisplayMode('list') : null),
+      type: display === 'list' ? 'prominent' : 'default',
+    },
+    {
+      content: 'Display: Grid',
+      key: 'display-grid',
+      onClick: () => (setDisplayMode ? setDisplayMode('grid') : null),
+      type: display === 'grid' ? 'prominent' : 'default',
+    },
+    {
+      content: 'Sort: Arranged',
+      key: 'sort-arranged',
+      onClick: () => (setSortMode ? setSortMode('arranged') : null),
+      type: sort === 'arranged' ? 'prominent' : 'default',
+    },
+    {
+      content: 'Sort: New Posts First',
+      key: 'sort-time-dsc',
+      onClick: () => (setSortMode ? setSortMode('time-dsc') : null),
+      type: sort === 'time-dsc' ? 'prominent' : 'default',
+    },
+    {
+      content: 'Sort: Old Posts First',
+      key: 'sort-time-asc',
+      onClick: () => (setSortMode ? setSortMode('time-asc') : null),
+      type: sort === 'time-asc' ? 'prominent' : 'default',
+    },
+    {
+      content: 'Sort: New Comments First',
+      key: 'sort-quip-dsc',
+      onClick: () => (setSortMode ? setSortMode('quip-dsc') : null),
+      type: sort === 'quip-dsc' ? 'prominent' : 'default',
+    },
+  ];
+
   return (
     <ChannelHeader
-      flag={flag}
+      groupFlag={groupFlag}
       nest={nest}
       prettyAppName="Notebook"
       leave={(ch) => leaveDiary({ flag: ch })}
     >
-      {(canWrite && ship === window.our) ||
-      (canWrite && saga && 'synced' in saga) ? (
-        <Link
-          to="edit"
-          className={'small-button shrink-0 bg-blue px-1 text-white sm:px-2'}
-        >
-          <AddIcon16 className="h-4 w-4 sm:hidden" />
-          <span className="hidden sm:inline">Add Note</span>
-        </Link>
-      ) : null}
-      <DisplayDropdown displayMode={display} setDisplayMode={setDisplayMode} />
-      <Dropdown.Root>
-        <Dropdown.Trigger asChild>
-          <button className="flex h-6 w-6 items-center justify-center rounded  text-gray-600 hover:bg-gray-50 ">
-            <SortIcon className="h-6 w-6" />
+      <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">
+        <ActionMenu open={isOpen} onOpenChange={setIsOpen} actions={actions}>
+          <button>
+            {isMobile ? (
+              <FilterIconMobileNav className="mt-0.5 h-8 w-8 text-gray-900" />
+            ) : (
+              <SortIcon className="h-6 w-6 text-gray-600" />
+            )}
           </button>
-        </Dropdown.Trigger>
-        <Dropdown.Content className="dropdown">
-          <Dropdown.Item
+        </ActionMenu>
+        {(canWrite && ship === window.our) || (canWrite && compatible) ? (
+          <Link
+            to="edit"
             className={cn(
-              'dropdown-item',
-              sort === 'arranged' && 'bg-gray-100 hover:bg-gray-100'
+              isMobile
+                ? ''
+                : 'small-button shrink-0 bg-blue px-1 text-white sm:px-2'
             )}
-            onClick={() => (setSortMode ? setSortMode('arranged') : null)}
           >
-            Arranged
-          </Dropdown.Item>
-          <Dropdown.Item
-            className={cn(
-              'dropdown-item',
-              sort === 'time-dsc' && 'bg-gray-100 hover:bg-gray-100'
+            {isMobile ? (
+              <AddIconMobileNav className="h-8 w-8 text-black" />
+            ) : (
+              <span className="hidden sm:inline">Add Note</span>
             )}
-            onClick={() => (setSortMode ? setSortMode('time-dsc') : null)}
-          >
-            New Posts First
-          </Dropdown.Item>
-          <Dropdown.Item
-            className={cn(
-              'dropdown-item',
-              sort === 'time-asc' && 'bg-gray-100 hover:bg-gray-100'
-            )}
-            onClick={() => (setSortMode ? setSortMode('time-asc') : null)}
-          >
-            Old Posts First
-          </Dropdown.Item>
-        </Dropdown.Content>
-      </Dropdown.Root>
+          </Link>
+        ) : null}
+      </div>
     </ChannelHeader>
   );
 }

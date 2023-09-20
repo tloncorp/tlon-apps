@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from 'react';
 import { uniq } from 'lodash';
+import { useIsMobile } from './useMedia';
 
 interface DragTargetContext {
   targetIdStack: string[];
@@ -92,7 +93,7 @@ export function DragAndDropProvider({
   }, []);
 
   const handleDrop = useCallback(
-    (e: DragEvent, dropZone: string) => {
+    (e: DragEvent, dropZone: string, recurseNode?: HTMLElement) => {
       preventDefault(e);
 
       e.stopPropagation();
@@ -100,9 +101,14 @@ export function DragAndDropProvider({
       setIsDragging(false);
       setIsOver(false);
 
-      const targetElement = e.target as HTMLElement;
+      const targetElement = recurseNode || (e.target as HTMLElement);
 
-      if (targetElement && targetElement.id !== dropZone) return;
+      // if (targetElement && targetElement.id !== dropZone) return;
+      if (targetElement && targetElement.id !== dropZone) {
+        if (targetElement.parentElement) {
+          handleDrop(e, dropZone, targetElement.parentElement);
+        }
+      }
 
       if (e.dataTransfer === null || !e.dataTransfer.files.length) return;
       setDroppedFiles({
@@ -145,6 +151,8 @@ export function DragAndDropProvider({
 }
 
 export function useDragAndDrop(targetId: string) {
+  const isMobile = useIsMobile();
+
   const { pushTargetID, popTargetID, targetIdStack } =
     React.useContext(DragTargetContext);
   const currentTargetId = targetIdStack[targetIdStack.length - 1];
@@ -160,6 +168,9 @@ export function useDragAndDrop(targetId: string) {
   );
 
   useEffect(() => {
+    if (isMobile) {
+      return () => ({});
+    }
     pushTargetID(targetId);
 
     window.addEventListener('drop', handleDropWithTarget);
@@ -168,7 +179,16 @@ export function useDragAndDrop(targetId: string) {
       popTargetID(targetId);
       window.removeEventListener('drop', handleDropWithTarget);
     };
-  }, [handleDropWithTarget, popTargetID, pushTargetID, targetId]);
+  }, [handleDropWithTarget, popTargetID, pushTargetID, targetId, isMobile]);
+
+  if (isMobile)
+    return {
+      isDragging: false,
+      isOver: false,
+      droppedFiles: undefined,
+      setDroppedFiles: () => ({}),
+      targetId: '',
+    };
 
   return {
     isDragging,

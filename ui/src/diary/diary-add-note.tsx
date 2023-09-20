@@ -36,6 +36,7 @@ import Setting from '@/components/Settings/Setting';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
+import MobileHeader from '@/components/MobileHeader';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
@@ -76,17 +77,9 @@ export default function DiaryAddNote() {
     },
   });
 
-  const { reset, register, getValues, setValue, watch } = form;
+  const { reset, register, getValues, watch } = form;
   const { ref, ...titleRegisterRest } = register('title');
   const watchedTitle = watch('title');
-
-  useEffect(() => {
-    const { title, image } = getValues();
-    if (!loadingNote && title === '' && image === '' && note?.essay) {
-      setValue('title', note.essay.title);
-      setValue('image', note.essay.image);
-    }
-  }, [note, setValue, loadingNote, getValues]);
 
   // expand title to 2 rows if needed, beyond that we can scroll
   useEffect(() => {
@@ -220,58 +213,96 @@ export default function DiaryAddNote() {
       className="align-center w-full flex-1 bg-white"
       mainClass="overflow-y-auto"
       header={
-        <header
-          className={cn(
-            'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
-          )}
-        >
-          <Link
-            to={!editor?.getText() && !id ? `../..` : `../../note/${id}`}
+        isMobile ? (
+          <MobileHeader
+            title={
+              <div className="w-full truncate">
+                {watchedTitle || 'New Note'}
+              </div>
+            }
+            pathBack=".."
+            action={
+              <div className="flex h-12 items-center justify-end space-x-2">
+                <ReconnectingSpinner />
+                <Tooltip content={text} open={compatible ? false : undefined}>
+                  <button
+                    disabled={
+                      !compatible ||
+                      !editor?.getText() ||
+                      editStatus === 'loading' ||
+                      addStatus === 'loading' ||
+                      watchedTitle === ''
+                    }
+                    className={cn(
+                      'text-[17px] disabled:text-gray-400 dark:disabled:text-gray-400'
+                    )}
+                    onClick={publish}
+                  >
+                    {editStatus === 'loading' || addStatus === 'loading' ? (
+                      <LoadingSpinner className="h-4 w-4" />
+                    ) : editStatus === 'error' || addStatus === 'error' ? (
+                      'Error'
+                    ) : (
+                      'Save'
+                    )}
+                  </button>
+                </Tooltip>
+              </div>
+            }
+          />
+        ) : (
+          <header
             className={cn(
-              'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2',
-              isMobile && ''
+              'flex items-center justify-between border-b-2 border-gray-50 bg-white py-2 pl-2 pr-4'
             )}
-            aria-label="Exit Editor"
           >
-            <div className="flex h-6 w-6 items-center justify-center">
-              <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
-            </div>
+            <Link
+              to={!editor?.getText() && !id ? `../..` : `../../note/${id}`}
+              className={cn(
+                'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2',
+                isMobile && ''
+              )}
+              aria-label="Exit Editor"
+            >
+              <div className="flex h-6 w-6 items-center justify-center">
+                <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
+              </div>
 
-            <div className="flex h-6 w-6 items-center justify-center">
-              <PencilIcon className="h-3 w-3 text-gray-600" />
-            </div>
-            <span className="ellipsis text-lg font-bold line-clamp-1 sm:text-sm sm:font-semibold">
-              Editing
-            </span>
-          </Link>
+              <div className="flex h-6 w-6 items-center justify-center">
+                <PencilIcon className="h-3 w-3 text-gray-600" />
+              </div>
+              <span className="ellipsis text-lg font-bold line-clamp-1 sm:text-sm sm:font-semibold">
+                Editing
+              </span>
+            </Link>
 
-          <div className="flex shrink-0 flex-row items-center space-x-3">
-            {isMobile && <ReconnectingSpinner />}
-            <Tooltip content={text} open={compatible ? false : undefined}>
-              <button
-                disabled={
-                  !compatible ||
-                  !editor?.getText() ||
-                  editStatus === 'loading' ||
-                  addStatus === 'loading' ||
-                  watchedTitle === ''
-                }
-                className={cn(
-                  'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
-                )}
-                onClick={publish}
-              >
-                {editStatus === 'loading' || addStatus === 'loading' ? (
-                  <LoadingSpinner className="h-4 w-4" />
-                ) : editStatus === 'error' || addStatus === 'error' ? (
-                  'Error'
-                ) : (
-                  'Save'
-                )}
-              </button>
-            </Tooltip>
-          </div>
-        </header>
+            <div className="flex shrink-0 flex-row items-center space-x-3">
+              <Tooltip content={text} open={compatible ? false : undefined}>
+                <button
+                  disabled={
+                    !compatible ||
+                    !editor?.getText() ||
+                    editStatus === 'loading' ||
+                    addStatus === 'loading' ||
+                    watchedTitle === ''
+                  }
+                  className={cn(
+                    'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
+                  )}
+                  onClick={publish}
+                >
+                  {editStatus === 'loading' || addStatus === 'loading' ? (
+                    <LoadingSpinner className="h-4 w-4" />
+                  ) : editStatus === 'error' || addStatus === 'error' ? (
+                    'Error'
+                  ) : (
+                    'Save'
+                  )}
+                </button>
+              </Tooltip>
+            </div>
+          </header>
+        )
       }
     >
       {loadingNote && fetchStatus !== 'idle' ? (
@@ -295,7 +326,7 @@ export default function DiaryAddNote() {
                 <CoverImageInput url="" noteId={id} />
                 <textarea
                   placeholder="New Title"
-                  className="input-transparent w-full resize-none text-3xl font-semibold"
+                  className="input-transparent w-full resize-none text-3xl font-medium leading-10"
                   rows={extraTitleRow ? 2 : 1}
                   ref={(e) => {
                     ref(e);

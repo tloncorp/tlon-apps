@@ -107,13 +107,13 @@ const MentionList = React.forwardRef<
   }));
 
   return (
-    <div className="dropdown min-w-96 p-1">
+    <div className="dropdown min-w-80 p-1">
       <ul className="w-full">
         {(props.items || []).map((i, index) => (
           <li key={i.id} className="w-full">
             <button
               className={cn(
-                'dropdown-item flex w-full items-center space-x-2 text-left',
+                'dropdown-item flex w-full items-center space-x-2 text-left text-sm',
                 index === selectedIndex && 'bg-gray-50'
               )}
               onClick={() => selectItem(index)}
@@ -241,7 +241,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
         component.updateProps(props);
 
         if (DISALLOWED_MENTION_CHARS.test(props.query)) {
-          popup[0].destroy();
+          popup?.[0]?.destroy();
           component?.destroy();
           return;
         }
@@ -250,19 +250,19 @@ const MentionPopup: Partial<SuggestionOptions> = {
           return;
         }
 
-        popup[0].setProps({
+        popup?.[0]?.setProps({
           getBoundingClientRect: props.clientRect,
         });
       },
       onKeyDown: (props) => {
         if (props.event.key === keyMap.mentionPopup.close) {
-          popup[0]?.hide();
+          popup?.[0]?.hide();
           return true;
         }
         return component?.ref?.onKeyDown(props.event) || false;
       },
       onExit: () => {
-        popup[0].destroy();
+        popup?.[0]?.destroy();
         component?.destroy();
       },
     };

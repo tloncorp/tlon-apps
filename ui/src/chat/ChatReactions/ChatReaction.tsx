@@ -59,8 +59,8 @@ export default function ChatReaction({
               className={cn(
                 'group relative flex items-center space-x-2 rounded border border-solid border-transparent px-2 py-1 text-sm font-semibold leading-4 text-gray-600',
                 {
-                  'bg-gray-50 group-one-hover:bg-gray-200': !isMine,
-                  'bg-blue-softer group-one-hover:border-blue-soft': isMine,
+                  'bg-gray-50 sm:group-one-hover:bg-gray-200': !isMine,
+                  'bg-blue-softer sm:group-one-hover:border-blue-soft': isMine,
                 }
               )}
               aria-label={
@@ -68,13 +68,13 @@ export default function ChatReaction({
               }
             >
               <em-emoji shortcodes={feel} />
-              <span className={cn(isMine && 'group-hover:opacity-0')}>
+              <span className={cn(isMine && 'sm:group-hover:opacity-0')}>
                 {count}
               </span>
               <X16Icon
                 className={cn(
                   'absolute right-1 hidden h-3 w-3',
-                  isMine && 'group-hover:inline'
+                  isMine && 'sm:group-hover:inline'
                 )}
               />
             </button>

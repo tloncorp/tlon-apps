@@ -23,6 +23,8 @@ import History from '@tiptap/extension-history';
 import Paragraph from '@tiptap/extension-paragraph';
 import HardBreak from '@tiptap/extension-hard-break';
 import FloatingMenu from '@tiptap/extension-floating-menu';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { useCalm } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
@@ -117,6 +119,13 @@ export function useDiaryInlineEditor({
         DiaryImageNode,
         DiaryLinkNode,
         DiaryCiteNode,
+        TaskList,
+        TaskItem.configure({
+          nested: true,
+          HTMLAttributes: {
+            class: 'flex justify-items-start space-x-2',
+          },
+        }),
       ],
       content: content || '',
       editorProps: {

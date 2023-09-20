@@ -1,4 +1,3 @@
-import React from 'react';
 import Avatar from '@/components/Avatar';
 import { useGang, useGroup, useGroupFlag } from '@/state/groups';
 import { isYarnShip, Rope, Skein } from '@/types/hark';
@@ -11,8 +10,6 @@ import AddIcon16 from '@/components/icons/Add16Icon';
 import Person16Icon from '@/components/icons/Person16Icon';
 import X16Icon from '@/components/icons/X16Icon';
 import { useIsMobile } from '@/logic/useMedia';
-import DocketImage from '@/components/Grid/DocketImage';
-import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import Notification from './Notification';
 
 interface GroupNotificationProps {
@@ -76,7 +73,7 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
       bin={bin}
       avatar={
         ship ? (
-          <Avatar size="default" icon={false} ship={ship.ship} />
+          <Avatar size="default-sm" ship={ship.ship} />
         ) : (
           <GroupAvatar size="w-12 h-12" {...(group || gang?.preview)?.meta} />
         )
@@ -84,7 +81,11 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
       topLine={
         <div className="flex flex-row items-center space-x-1 text-sm font-semibold text-gray-400">
           {!groupFlag ? (
-            <AppGroupsIcon className="mr-1 h-4 w-4 bg-[#EFF0F4] p-[5px] text-gray-200" />
+            <GroupAvatar
+              image={group?.meta.image || gang.preview?.meta.image}
+              title={group?.meta.title || gang.preview?.meta.title}
+              size="h-4 w-4"
+            />
           ) : (
             <GroupSubIcon rope={rope} />
           )}
