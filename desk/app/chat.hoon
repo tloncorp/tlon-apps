@@ -48,7 +48,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>(state)
+  ++  on-save  !>([state okay:d])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -628,24 +628,39 @@
     |=  [[=writs:t =index:t] =notes:d =perm:d =log:t]
     ^-  log:d
     %+  gas:log-on:d  *log:d
-    %+  murn  (tap:log-on:t log)
+    %-  zing
+    %+  turn  (tap:log-on:t log)
     |=  [=time =diff:t]
-    ^-  (unit [id-note:d u-diary:d])
-    =;  new=(unit u-diary:d)
-      ?~(new ~ `[time u.new])
+    ^-  (list [id-note:d u-diary:d])
+    =;  new=(list u-diary:d)
+      ?~  new  ~
+      ?~  t.new  [time i.new]~
+      =.  time  (sub time ~s1)
+      =>  .(new `(list u-diary:d)`new)
+      |-
+      ?~  new  ~
+      [[time i.new] $(time +(time), new t.new)]
     ?-    -.diff
-        ?(%add-sects %del-sects)  `[%perm 0 perm]
-        %create                   `[%create p.diff]
+        ?(%add-sects %del-sects)  [%perm 0 perm]~
+        %create
+      :-  [%create p.diff]
+      %+  murn  (tap:on:writs:t wit.q.diff)
+      |=  [=^time =writ:t]
+      =/  new-note  (get:on-notes:d notes time)
+      ?~  new-note  ~
+      (some %note time %set u.new-note)
+    ::
         %writs
       =*  id  p.p.diff
       =/  old-time  (~(get by index) id)
       ?~  old-time  ~
       =/  old-writ  (get:on:writs:t writs u.old-time)
-      ?~  old-writ  `[%note u.old-time %set ~]
+      ?~  old-writ  [%note u.old-time %set ~]~
       ?~  replying.u.old-writ
         =/  new-note  (get:on-notes:d notes u.old-time)
         ?~  new-note  ~
-        :^  ~  %note  u.old-time
+        :_  ~
+        :+  %note  u.old-time
         ?-  -.q.p.diff
           %del                    [%set ~]
           ?(%add %edit)           [%set u.new-note]
@@ -658,7 +673,8 @@
       ?~  u.new-note  ~
       =/  new-quip  (get:on-quips:d quips.u.u.new-note u.old-time)
       ?~  new-quip  ~
-      :^  ~  %note  u.new-note-id
+      :_  ~
+      :+  %note  u.new-note-id
       :+  %quip  u.old-time
       ^-  u-quip:d
       ?-  -.q.p.diff
