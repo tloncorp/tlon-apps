@@ -2,6 +2,9 @@
 ::
 ::    this is the client side that pulls data from the channels-server.
 ::
+::  XX  chat thread entries can no longer be edited.  maybe fix before
+::      release?
+::
 /-  d=channel, g=groups, ha=hark
 /-  meta
 /-  e=epic
@@ -107,7 +110,7 @@
     %-  emil
     :~  [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
         [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
-        :: [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
+        [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
     ==
   inflate-io
 ::
