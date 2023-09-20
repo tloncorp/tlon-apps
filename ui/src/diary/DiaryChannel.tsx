@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
-import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import * as Toast from '@radix-ui/react-toast';
-import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
 import {
@@ -12,9 +10,6 @@ import {
   useDisplayMode,
   useSortMode,
   useMarkReadMutation,
-  usePendingNotes,
-  useNotesStore,
-  useNotesOnHost,
   useArrangedNotes,
 } from '@/state/channel/channel';
 import {
@@ -22,7 +17,7 @@ import {
   useUserDiaryDisplayMode,
 } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
-import { Note, NoteTuple } from '@/types/channel';
+import { NoteTuple } from '@/types/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
@@ -42,7 +37,6 @@ function DiaryChannel({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const { notes, isLoading, fetchNextPage, hasNextPage } =
     useInfiniteNotes(nest);
-  const queryClient = useQueryClient();
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
@@ -52,8 +46,6 @@ function DiaryChannel({ title }: ViewProps) {
     },
     [hasNextPage, fetchNextPage]
   );
-  const pendingNotes = usePendingNotes();
-  const notesOnHost = useNotesOnHost(nest, pendingNotes.length > 0);
 
   const {
     group,
@@ -64,68 +56,6 @@ function DiaryChannel({ title }: ViewProps) {
     nest,
   });
 
-  const checkForNotes = useCallback(async () => {
-    // if we have pending notes and the ship is connected
-    // we can check if the notes have been posted
-    // if they have, we can refetch the data to get the new note.
-    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
-    if (
-      data?.status &&
-      'complete' in data.status &&
-      data.status.complete === 'yes'
-    ) {
-      if (
-        pendingNotes.length > 0 &&
-        notesOnHost &&
-        !Object.entries(notesOnHost).every(
-          ([_time, n]) =>
-            n && notes.find(([_t, l]) => l && l.seal.id === n.seal.id)
-        )
-      ) {
-        queryClient.refetchQueries({
-          queryKey: ['diary', 'notes', chFlag],
-          exact: true,
-        });
-        useNotesStore.setState({
-          pendingNotes: [],
-        });
-      }
-    }
-  }, [chFlag, queryClient, data, notes, notesOnHost, pendingNotes]);
-
-  const clearPendingNotes = useCallback(() => {
-    // if we have pending notes and the ship is connected
-    // we can check if the notes have been posted
-    // if they have, we can clear the pending notes
-    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
-    if (
-      pendingNotes.length > 0 &&
-      data?.status &&
-      'complete' in data.status &&
-      data.status.complete === 'yes'
-    ) {
-      pendingNotes.forEach((cacheId) => {
-        if (
-          notesOnHost &&
-          Object.entries(notesOnHost).find(
-            ([_t, l]) =>
-              l &&
-              l.essay.author === cacheId.author &&
-              l.essay.sent === cacheId.sent
-          )
-        ) {
-          useNotesStore.setState((s) => ({
-            pendingNotes: s.pendingNotes.filter((n) => n !== cacheId),
-          }));
-        }
-      });
-    }
-  }, [pendingNotes, notesOnHost, data]);
-
-  useEffect(() => {
-    checkForNotes();
-    clearPendingNotes();
-  }, [checkForNotes, clearPendingNotes]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
