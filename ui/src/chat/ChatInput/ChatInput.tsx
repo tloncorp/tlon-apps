@@ -301,12 +301,13 @@ export default function ChatInput({
       // const dataIsJustBreak =
       // data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
 
+      const now = Date.now();
       const essay: NoteEssay = {
         'han-data': {
           chat: null,
         },
         author: `~${window.ship || 'zod'}`,
-        sent: 0, // wait until ID is created so we can share time
+        sent: now,
         content: noteContent,
       };
 
@@ -314,7 +315,6 @@ export default function ChatInput({
       const textIsImageUrl = isImageUrl(text);
       const dataIsJustLink =
         data.length > 0 && typeof data[0] === 'object' && 'link' in data[0];
-      const now = Date.now();
       const cacheId = {
         sent: now,
         author: window.our,

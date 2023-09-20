@@ -10,12 +10,6 @@ import bigInt from 'big-integer';
 import { useMatch, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
-// import {
-// useChatInitialized,
-// useChatState,
-// useMessagesForChat,
-// useWritWindow,
-// } from '@/state/chat';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useRouteGroup } from '@/state/groups';

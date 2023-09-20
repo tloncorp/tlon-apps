@@ -39,6 +39,7 @@ import {
   newQuipMap,
   QuipMap,
   NoteTuple,
+  BriefUpdate,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -358,12 +359,6 @@ const infiniteNoteUpdater = (
         }
       );
     } else {
-      useNotesStore
-        .getState()
-        .updateStatus(
-          { author: note.essay.author, sent: note.essay.sent },
-          'delivered'
-        );
       queryClient.setQueryData(
         queryKey,
         (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
@@ -379,11 +374,19 @@ const infiniteNoteUpdater = (
 
           const newLastPage = lastPage.with(time, note);
 
-          const cachedNote = lastPage.get(bigInt(note.essay.sent));
+          const cachedNote = lastPage.get(unixToDa(note.essay.sent));
 
           if (cachedNote && id !== unixToDa(note.essay.sent).toString()) {
             // remove cached note if it exists
-            newLastPage.delete(bigInt(note.essay.sent));
+            newLastPage.delete(unixToDa(note.essay.sent));
+
+            // set delivered now that we have the real note
+            useNotesStore
+              .getState()
+              .updateStatus(
+                { author: note.essay.author, sent: note.essay.sent },
+                'delivered'
+              );
           }
 
           const newWindow = {
@@ -485,7 +488,6 @@ const infiniteNoteUpdater = (
           return undefined;
         }
 
-        console.log(noteResponse);
         const {
           quip: {
             meta: { quipCount, lastQuip, lastQuippers },
@@ -544,7 +546,7 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
   const invalidate = useRef(
     _.debounce(
       () => {
-        queryClient.invalidateQueries(queryKey);
+        queryClient.invalidateQueries({ queryKey, refetchType: 'none' });
       },
       300,
       {
@@ -793,6 +795,9 @@ export function useShelf(): Shelf {
     app: 'channels',
     path: '/ui',
     scry: '/shelf',
+    options: {
+      refetchOnMount: false,
+    },
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -927,11 +932,41 @@ export function useQuip(
 
 const emptyBriefs: Briefs = {};
 export function useBriefs(): Briefs {
-  const { data, ...rest } = useReactQuerySubscription<Briefs>({
+  const invalidate = useRef(
+    _.debounce(
+      () => {
+        queryClient.invalidateQueries({
+          queryKey: ['briefs'],
+          refetchType: 'none',
+        });
+      },
+      300,
+      { leading: true, trailing: true }
+    )
+  );
+
+  const eventHandler = (event: BriefUpdate) => {
+    invalidate.current();
+    const { brief } = event;
+
+    if (brief !== null) {
+      queryClient.setQueryData(['briefs'], (d: Briefs | undefined) => {
+        if (d === undefined) {
+          return undefined;
+        }
+        const newBriefs = { ...d };
+        newBriefs[event.nest] = brief;
+        return newBriefs;
+      });
+    }
+  };
+
+  const { data, ...rest } = useReactQuerySubscription<Briefs, BriefUpdate>({
     queryKey: ['briefs'],
     app: 'channels',
     path: '/briefs',
     scry: '/briefs',
+    onEvent: eventHandler,
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -1193,7 +1228,7 @@ export function useAddNoteMutation(nest: string) {
     mutationFn,
     onMutate: async (variables) => {
       await queryClient.cancelQueries(queryKey());
-      await queryClient.cancelQueries(['briefs']);
+      // await queryClient.cancelQueries(['briefs']);
 
       useNotesStore.getState().addTracked(variables.cacheId);
 
@@ -1239,8 +1274,10 @@ export function useAddNoteMutation(nest: string) {
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
     onSettled: async (_data, _error) => {
-      await queryClient.invalidateQueries(queryKey('infinite'));
-      await queryClient.invalidateQueries(['briefs']);
+      await queryClient.invalidateQueries({
+        queryKey: queryKey('infinite'),
+        refetchType: 'none',
+      });
     },
   });
 }
