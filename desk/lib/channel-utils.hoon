@@ -165,7 +165,7 @@
   ==
 ::
 ++  get-last-quippers
-  |=  =note:d
+  |=  =note:d  ::TODO  could just take =quips
   ^-  (set ship)
   =|  quippers=(set ship)
   =/  entries=(list [time (unit quip:d)])  (bap:on-quips:d quips.note)
