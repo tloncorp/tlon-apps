@@ -573,6 +573,9 @@
       ?~(new ~ `[time u.new])
     ?-    -.diff
         ?(%add-sects %del-sects)  `[%perm 0 perm]
+        ::  XX  here and in the other apps, we need to preserve the
+        ::  notes in the %create log.  they show up there from the
+        ::  december migration
         %create                   `[%create p.diff]
         %view                     `[%view 0 p.diff]
         %curios

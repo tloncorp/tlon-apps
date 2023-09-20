@@ -28,6 +28,7 @@
         pins=(list whom:c)
         bad=(set ship)
         inv=(set ship)
+        old-chats=(map flag:two:old:c chat:two:old:c)  :: for migration
     ==
   --
 =|  current-state
@@ -256,6 +257,8 @@
     cu-abet:(cu-diff:cu q.action)
   ::
       %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
+      %chat-migrate-server  ?>(from-self server:migrate)
+      %chat-migrate         ?>(from-self client:migrate)
   ==
   ++  pin
     |=  ps=(list whom:c)
@@ -434,7 +437,151 @@
       %add-feel  =(src.bowl ship.delta)
       %del-feel  =(src.bowl ship.delta)
   ==
+::
 ++  from-self  =(our src):bowl
+++  migrate
+  |%
+  ++  t  two:old:c
+  ++  server
+    =/  server-shelf=shelf:d
+      %+  convert-shelf  &
+      %-  ~(gas by *(map flag:t chat:t))
+      %+  skim  ~(tap by old-chats)
+      |=  [=flag:t =chat:t]
+      =(our.bowl p.flag)
+    =/  =cage  [%channel-migration !>(server-shelf)]
+    (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
+  ::
+  ++  client
+    =/  =shelf:d  (convert-shelf | old-chats)
+    =/  =cage  [%channel-migration !>(shelf)]
+    (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+  ::
+  ++  convert-shelf
+    |=  [log=? =_old-chats]
+    ^-  shelf:d
+    %-  ~(gas by *shelf:d)
+    %+  turn  ~(tap by old-chats)
+    |=  [=flag:t =chat:t]
+    ^-  [nest:d diary:d]
+    :-  [%chat flag]
+    =/  =notes:d  (convert-notes pact.chat)
+    %*    .  *diary:d
+        notes   notes
+        log     ?.(log ~ (convert-log pact.chat notes perm.chat log.chat))
+        perm    [0 perm.chat]
+        remark  remark.chat
+        net
+      ?-  -.net.chat
+        %pub  [*ship & chi+~]
+        %sub  +.net.chat
+      ==
+    ==
+  ::
+  ++  convert-notes
+    |=  old=pact:t
+    ^-  notes:d
+    =/  writs  (tap:on:writs:t wit.old)
+    =/  quip-index=(map @da quips:d)
+      %+  roll  writs
+      |=  [[=time =writ:t] quip-index=(map @da quips:d)]
+      ?~  replying.writ  quip-index
+      =/  old-quips=quips:d  (~(gut by quip-index) time *quips:d)
+      =/  quip-time  (~(get by dex.old) u.replying.writ)
+      ?~  quip-time  quip-index
+      %+  ~(put by quip-index)  u.quip-time
+      (put:on-quips:d old-quips time `(convert-quip time writ))
+    %+  gas:on-notes:d  *notes:d
+    %+  murn  writs
+    |=  [=time =writ:t]
+    ^-  (unit [id-note:d (unit note:d)])
+    ?^  replying.writ  ~
+    =/  =quips:d  (~(gut by quip-index) time *quips:d)
+    (some time `(convert-note time writ quips))
+  ::
+  ++  convert-note
+    |=  [id=@da old=writ:t =quips:d]
+    ^-  note:d
+    [[id quips (convert-feels feels.old)] %0 (convert-essay +.old)]
+  ::
+  ++  convert-feels
+    |=  old=(map ship feel:d)
+    ^-  feels:d
+    %-  ~(run by old)
+    |=  =feel:d
+    [%0 `feel]
+  ::
+  ++  convert-quip
+    |=  [id=@da old=writ:t]
+    ^-  quip:d
+    [[id (convert-feels feels.old)] (convert-memo +.old)]
+  ::
+  ++  convert-memo
+    |=  old=memo:t
+    ^-  memo:d
+    [(convert-story author.old content.old) author.old sent.old]
+  ::
+  ++  convert-essay
+    |=  old=memo:t
+    ^-  essay:d
+    [(convert-memo old) %chat ?-(-.content.old %story ~, %notice [%notice ~])]
+  ::
+  ++  convert-story
+    |=  [=ship old=content:t]
+    ^-  story:d
+    ?-    -.old
+        %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
+        %story
+      %+  welp
+        (turn p.p.old |=(=block:t [%block block]))
+      [%inline q.p.old]~
+    ==
+  ::
+  ++  convert-log
+    |=  [[=writs:t =index:t] =notes:d =perm:d =log:t]
+    ^-  log:d
+    %+  gas:log-on:d  *log:d
+    %+  murn  (tap:log-on:t log)
+    |=  [=time =diff:t]
+    ^-  (unit [id-note:d u-diary:d])
+    =;  new=(unit u-diary:d)
+      ?~(new ~ `[time u.new])
+    ?-    -.diff
+        ?(%add-sects %del-sects)  `[%perm 0 perm]
+        %create                   `[%create p.diff]
+        %writs
+      =*  id  p.p.diff
+      =/  old-time  (~(get by index) id)
+      ?~  old-time  ~
+      =/  old-writ  (get:on:writs:t writs u.old-time)
+      ?~  old-writ  `[%note u.old-time %set ~]
+      ?~  replying.u.old-writ
+        =/  new-note  (get:on-notes:d notes u.old-time)
+        ?~  new-note  ~
+        :^  ~  %note  u.old-time
+        ?-  -.q.p.diff
+          %del                    [%set ~]
+          ?(%add %edit)           [%set u.new-note]
+          ?(%add-feel %del-feel)  [%feels ?~(u.new-note ~ feels.u.u.new-note)]
+       ==
+      =/  new-note-id  (~(get by index) u.replying.u.old-writ)
+      ?~  new-note-id  ~
+      =/  new-note  (get:on-notes:d notes u.new-note-id)
+      ?~  new-note  ~
+      ?~  u.new-note  ~
+      =/  new-quip  (get:on-quips:d quips.u.u.new-note u.old-time)
+      ?~  new-quip  ~
+      :^  ~  %note  u.new-note-id
+      :+  %quip  u.old-time
+      ^-  u-quip:d
+      ?-  -.q.p.diff
+        %del                    [%set ~]
+        ?(%add %edit)           [%set u.new-quip]
+        ?(%add-feel %del-feel)  [%feels ?~(u.new-quip ~ feels.u.u.new-quip)]
+      ==
+    ==
+  --
+::
 ++  cu-abed  cu-abed:cu-core
 ::
 ++  cu-core
