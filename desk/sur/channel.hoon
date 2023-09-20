@@ -293,6 +293,7 @@
 ::      originally caused it
 +$  a-shelf
   $%  [%create =create-diary]
+      [%pin pins=(list nest)]
       [%diary =nest =a-diary]
   ==
 +$  a-diary

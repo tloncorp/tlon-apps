@@ -542,7 +542,17 @@
   ++  client
     =/  =shelf:d  (convert-shelf | old-chats)
     =/  =cage  [%channel-migration !>(shelf)]
+    =.  cor  (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+    =/  =^cage  [%channel-migration-pins !>((convert-pins old-pins))]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+  ::
+  ++  convert-pins
+    |=  pins=(list whom:t)
+    ^-  (list nest:d)
+    %+  murn  pins
+    |=  =whom:t
+    ?.  ?=(%flag -.whom)  ~
+    (some %chat p.whom)
   ::
   ++  convert-shelf
     |=  [log=? =_old-chats]

@@ -20,6 +20,7 @@
     $:  %0
         =shelf:d
         voc=(map [nest:d plan:d] (unit said:d))
+        pins=(list nest:d)
     ==
   --
 =|  current-state
@@ -197,6 +198,9 @@
     =+  !<(=a-shelf:d vase)
     ?:  ?=(%create -.a-shelf)
       di-abet:(di-create:di-core create-diary.a-shelf)
+    ?:  ?=(%pin -.a-shelf)
+      ?>  from-self
+      cor(pins pins.a-shelf)
     ?:  ?=(%join -.a-diary.a-shelf)
       di-abet:(di-join:di-core [nest group.a-diary]:a-shelf)
     di-abet:(di-a-diary:(di-abed:di-core nest.a-shelf) a-diary.a-shelf)
@@ -205,6 +209,12 @@
     ?>  =(our src):bowl
     =+  !<(new-shelf=shelf:d vase)
     =.  shelf  (~(uni by new-shelf) shelf)  ::  existing overrides migration
+    cor
+  ::
+      %channel-migration-pins
+    ?>  =(our src):bowl
+    =+  !<(new-pins=(list nest:d) vase)
+    =.  pins  (weld pins new-pins)
     cor
   ==
 ::
@@ -368,8 +378,9 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %shelf ~]  ``channel-shelf+!>((rr-shelf:utils shelf))
-      [%x %init ~]   ``noun+!>([briefs (rr-shelf:utils shelf)])
+      [%x %shelf ~]   ``channel-shelf+!>((rr-shelf:utils shelf))
+      [%x %init ~]    ``noun+!>([briefs (rr-shelf:utils shelf)])
+      [%x %pins ~]    ``channel-pins+!>(pins)
       [%x %briefs ~]  ``channel-briefs+!>(briefs)
       [%x =han:d ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
