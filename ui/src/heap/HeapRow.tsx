@@ -25,9 +25,8 @@ import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
-import { isCite, Note, VerseBlock, VerseInline } from '@/types/channel';
+import { Note, VerseBlock, VerseInline } from '@/types/channel';
 import { Link, isLink } from '@/types/content';
-import { Cite } from '@/types/chat';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -252,14 +251,12 @@ export default function HeapRow({
   const { id } = note.seal;
   const replyCount = note.seal.meta.quipCount;
   const prettySent = formatDistanceToNow(daToUnix(bigInt(id)));
+  const { block } = content.filter((c) => 'block' in c)[0] as VerseBlock;
 
-  if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {
+  if (block && 'cite' in block) {
     return (
       <div className={cnm()}>
-        <ContentReference
-          contextApp="heap-row"
-          cite={(content[0] as VerseBlock).block as Cite}
-        >
+        <ContentReference contextApp="heap-row" cite={block.cite}>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
             <Avatar
               size="xxs"

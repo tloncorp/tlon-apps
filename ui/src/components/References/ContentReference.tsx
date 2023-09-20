@@ -1,7 +1,7 @@
 import React from 'react';
 import { udToDec } from '@urbit/api';
 import { nestToFlag } from '@/logic/utils';
-import { Cite } from '@/types/chat';
+import { Cite } from '@/types/channel';
 // eslint-disable-next-line import/no-cycle
 import CurioReference from './CurioReference';
 // eslint-disable-next-line import/no-cycle
@@ -78,7 +78,7 @@ function ContentReference({
       );
     }
     if (app === 'chat') {
-      const idWrit = `${segments[2]}/${segments[3]}`;
+      const idWrit = segments[2];
       return (
         <WritChanReference
           isScrolling={isScrolling}

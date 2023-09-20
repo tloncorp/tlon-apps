@@ -1,5 +1,5 @@
 import React from 'react';
-import { useWritByFlagAndWritId } from '@/state/chat';
+import { useRemoteNote } from '@/state/channel/channel';
 // eslint-disable-next-line import/no-cycle
 import WritBaseReference from './WritBaseReference';
 
@@ -12,7 +12,7 @@ function WritChanReference(props: {
   children?: React.ReactNode;
 }) {
   const { chFlag, idWrit, isScrolling, contextApp, children } = props;
-  const writ = useWritByFlagAndWritId(chFlag, idWrit, isScrolling);
+  const writ = useRemoteNote(`chat/${chFlag}`, idWrit, isScrolling);
   return (
     <WritBaseReference writ={writ} contextApp={contextApp} {...props}>
       {children}

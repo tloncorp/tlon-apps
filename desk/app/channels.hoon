@@ -1113,7 +1113,7 @@
       =/  older  (bat:mo-notes:d notes.diary `time count)
       =/  newer  (tab:on notes.diary `time count)
       =/  note   (get:on notes.diary time)
-      =/  notes  
+      =/  notes
           ?~  note  (welp older newer)
           (welp (snoc older [time u.note]) newer)
       (give-notes mode.pole notes)

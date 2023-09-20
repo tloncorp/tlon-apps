@@ -736,6 +736,12 @@ export async function prefetchNoteWithComments({
   }
 }
 
+export function useReplyNote(nest: Nest, id: string | null) {
+  const { notes } = useInfiniteNotes(nest);
+
+  return id && notes.find(([k, v]) => k.eq(bigInt(id)));
+}
+
 export function useOrderedNotes(
   nest: Nest,
   currentId: bigInt.BigInteger | string
@@ -1003,12 +1009,12 @@ export function useSortMode(nest: string): SortMode {
   return diary?.sort ?? 'time';
 }
 
-export function useRemoteNote(nest: Nest, time: string, blockLoad: boolean) {
+export function useRemoteNote(nest: Nest, id: string, blockLoad: boolean) {
   checkNest(nest);
   const [han, flag] = nestToFlag(nest);
-  const path = `/said/${nest}/note/${decToUd(time)}`;
+  const path = `/said/${nest}/note/${decToUd(id)}`;
   const { data, ...rest } = useReactQuerySubscribeOnce({
-    queryKey: [han, 'said', nest, time],
+    queryKey: [han, 'said', nest, id],
     app: 'channels',
     path,
     options: {
@@ -1024,6 +1030,33 @@ export function useRemoteNote(nest: Nest, time: string, blockLoad: boolean) {
 
   return note as Note;
 }
+
+// export function useRemoteQuip(
+// nest: Nest,
+// noteId: string,
+// quipId: string,
+// blockLoad: boolean
+// ) {
+// checkNest(nest);
+// const [han, flag] = nestToFlag(nest);
+// const path = `/said/${nest}/note/${decToUd(noteId)}/${decToUd(quipId)}`;
+// const { data, ...rest } = useReactQuerySubscribeOnce({
+// queryKey: [han, 'said', nest, noteId, quipId],
+// app: 'channels',
+// path,
+// options: {
+// enabled: !blockLoad,
+// },
+// });
+
+// if (rest.isLoading || rest.isError || !data) {
+// return {} as Quip;
+// }
+
+// const { note } = data as Said;
+
+// return note as Quip;
+// }
 
 export function useMarkReadMutation() {
   const mutationFn = async (variables: { nest: Nest }) => {

@@ -239,10 +239,10 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     );
   }
 
-  if (isCite(story)) {
+  if ('cite' in story) {
     return (
       <div className="my-4 text-base">
-        <ContentReference cite={story as Cite} />
+        <ContentReference cite={story.cite} />
       </div>
     );
   }

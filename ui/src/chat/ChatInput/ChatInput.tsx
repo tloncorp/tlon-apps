@@ -45,7 +45,12 @@ import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { Nest, NoteEssay, Cite, constructStory, Story } from '@/types/channel';
-import { CacheId } from '@/state/channel/channel';
+import {
+  CacheId,
+  useInfiniteNotes,
+  useReplyNote,
+} from '@/state/channel/channel';
+import bigInt from 'big-integer';
 
 interface ChatInputProps {
   whom: string;
@@ -118,7 +123,6 @@ export default function ChatInput({
   inThread = false,
   dropZoneId,
 }: ChatInputProps) {
-  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
   const [didDrop, setDidDrop] = useState(false);
@@ -140,11 +144,11 @@ export default function ChatInput({
   const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
-  const pact = usePact(whom);
+  // const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
-  const replyingWrit = chatReplyId && pact.writs.get(pact.index[chatReplyId]);
-  const ship = replyingWrit && replyingWrit.essay.author;
+  const replyingWrit = useReplyNote(`chat/${whom}`, chatReplyId);
+  const ship = replyingWrit && replyingWrit[1] && replyingWrit[1].essay.author;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
@@ -287,15 +291,19 @@ export default function ChatInput({
       }
 
       const data = JSONToInlines(editor?.getJSON());
+      const noteContent = constructStory(data);
       if (blocks.length > 0) {
-        data.push(...blocks);
+        noteContent.push(
+          ...blocks.map((b) => ({
+            block: b,
+          }))
+        );
       }
 
       if (replyCite) {
-        data.unshift(replyCite);
+        noteContent.unshift({ block: { cite: replyCite } });
       }
 
-      const noteContent = constructStory(data);
       // Checking for this prevents an extra <br>
       // from being added to the end of the message
       // const dataIsJustBreak =
@@ -521,7 +529,7 @@ export default function ChatInput({
       const mention = ship ? makeMention(ship.slice(1)) : null;
       messageEditor?.commands.setContent(mention);
       messageEditor?.commands.insertContent(': ');
-      const path = `/1/chan/chat/${id}/msg/${chatReplyId}`;
+      const path = `/1/chan/chat/${whom}/msg/${chatReplyId}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
         setReplyCite(cite);
@@ -529,7 +537,7 @@ export default function ChatInput({
     }
   }, [
     chatReplyId,
-    id,
+    whom,
     setReplyCite,
     replyCite,
     groupFlag,
@@ -556,7 +564,7 @@ export default function ChatInput({
           if (!id) {
             return;
           }
-          setBlocks(id, [cite]);
+          setBlocks(id, [{ cite }]);
           messageEditor.commands.deleteRange({
             from: editorText.indexOf(path),
             to: editorText.indexOf(path) + path.length + 1,
