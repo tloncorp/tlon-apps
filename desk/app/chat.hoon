@@ -7,6 +7,7 @@
 /+  utils=channel-utils
 /+  volume
 /+  wood-lib=wood
+/+  epos-lib=saga
 ::  performance, keep warm
 /+  chat-json
 /*  desk-bill  %bill  /desk/bill
@@ -29,6 +30,7 @@
         bad=(set ship)
         inv=(set ship)
         old-chats=(map flag:two:old:c chat:two:old:c)  :: for migration
+        old-pins=(list whom:two:old:c)
     ==
   --
 =|  current-state
@@ -86,7 +88,8 @@
     [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
-+*  wood   ~(. wood-lib [bowl wood-state])
++*  wood  ~(. wood-lib [bowl wood-state])
+    epos  ~(. epos-lib [bowl %chat-update okay:d])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -98,32 +101,16 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  cor
-  :: =+  !<([old=versioned-state cool=epic:e] vase)
-  :: |-
-  :: ?-  -.old
-  ::   %0  $(old (state-0-to-1 old))
-  ::   %1  $(old (state-1-to-2 old))
-  ::   ::
-  ::     %2
-  ::   =.  state  old
-  ::   =.  cor  restore-missing-subs
-  ::   =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-  ::   =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
-  ::   ?:  =(okay:c cool)  cor
-  ::   :: =?  cor  bad  (emit (keep !>(old)))
-  ::   %-  (note:wood %ver leaf/"New Epic" ~)
-  ::   =.  cor  (emil (drop load:epos))
-  ::   =/  chats  ~(tap in ~(key by chats))
-  ::   |-
-  ::   ?~  chats
-  ::     cor
-  ::   =.  cor
-  ::     ca-abet:ca-upgrade:(ca-abed:ca-core i.chats)
-  ::   $(chats t.chats)
-  :: ==
+  =+  !<([old=versioned-state cool=@ud] vase)
+  |-
+  ?-  -.old
+    %0  $(old (state-0-to-1 old))
+    %1  $(old (state-1-to-2 old))
+    %2  $(old (state-2-to-3 old))
+    %3  (emil(state old) (drop load:epos))
+  ==
   ::
-  +$  versioned-state  $%(current-state state-1 state-0)
+  +$  versioned-state  $%(current-state state-2 state-1 state-0)
   +$  state-0
     $:  %0
         chats=(map flag:zero chat:zero)
@@ -166,10 +153,110 @@
         ::  true represents imported, false pending import
         imp=(map flag:two ?)
     ==
+  +$  state-3  current-state
   ++  zero     zero:old:c
   ++  one      one:old:c
   ++  two      two:old:c
   ++  three    c
+  ++  state-2-to-3
+    |=  state-2
+    ^-  state-3
+    :-  %3
+    :+  (dms-2-to-3 dms)
+      (clubs-2-to-3 clubs)
+    [(pins-2-to-3 pins) bad inv chats pins]
+  ::
+  ++  pins-2-to-3
+    |=  pins=(list whom:two)
+    ^-  (list whom:c)
+    %+  murn  pins
+    |=(w=whom:two ?:(?=(%flag -.w) ~ (some w)))
+  ::
+  ++  dms-2-to-3
+    |=  dms=(map ship dm:two)
+    ^-  (map ship dm:c)
+    %-  ~(run by dms)
+    |=  dm:two
+    ^-  dm:c
+    [(pact-2-to-3 pact) remark net pin]
+  ::
+  ++  clubs-2-to-3
+    |=  clubs=(map id:club:two club:two)
+    ^-  (map id:club:c club:c)
+    %-  ~(run by clubs)
+    |=  club:two
+    [heard remark (pact-2-to-3 pact) crew]
+  ::
+  ++  pact-2-to-3
+    |=  =pact:two
+    ^-  pact:c
+    :_  dex.pact
+    =/  writs  (tap:on:writs:two wit.pact)
+    =/  quip-index=(map @da quips:c)
+      %+  roll  writs
+      |=  [[=time =writ:two] quip-index=(map @da quips:c)]
+      ?~  replying.writ  quip-index
+      =/  old-quips=quips:c  (~(gut by quip-index) time *quips:c)
+      =/  quip-time  (~(get by dex.pact) u.replying.writ)
+      ?~  quip-time  quip-index
+      %+  ~(put by quip-index)  u.quip-time
+      (put:on:quips:c old-quips time (quip-2-to-3 time writ))
+    %+  gas:on:writs:c  *writs:c
+    %+  murn  writs
+    |=  [=time =writ:two]
+    ^-  (unit [^time writ:c])
+    ?^  replying.writ  ~
+    =/  =quips:c  (~(gut by quip-index) time *quips:c)
+    (some time (writ-2-to-3 time writ quips))
+  ::
+  ++  writ-2-to-3
+    |=  [=time old=writ:two =quips:c]
+    ^-  writ:c
+    =;  qm=quip-meta:d
+      :-  [id.old time feels.old quips qm]
+      (essay-2-to-3 +.old)
+    ::
+    =/  last-quippers=(set ship)
+      =|  quippers=(set ship)
+      =/  entries=(list [* quip:c])  (bap:on:quips:c quips)
+      |-
+      ?:  |(=(~ entries) =(3 ~(wyt in quippers)))
+        quippers
+      =/  [* =quip:c]  -.entries
+      ?:  (~(has in quippers) author.quip)
+        $(entries +.entries)
+      (~(put in quippers) author.quip)
+    :*  (wyt:on:quips:c quips)
+        last-quippers
+        (biff (ram:on:quips:c quips) |=([=^time *] `time))
+    ==
+  ::
+  ++  quip-2-to-3
+    |=  [=time old=writ:two]
+    ^-  quip:c
+    [[id.old time feels.old] (memo-2-to-3 +.old)]
+  ::
+  ++  memo-2-to-3
+    |=  memo:two
+    ^-  memo:d
+    [(story-2-to-3 author content) author sent]
+  ::
+  ++  essay-2-to-3
+    |=  memo:two
+    ^-  essay:c
+    [(memo-2-to-3 +<) %chat ?-(-.content %story ~, %notice [%notice ~])]
+  ::
+  ++  story-2-to-3
+    |=  [=ship old=content:two]
+    ^-  story:d
+    ?-    -.old
+        %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
+        %story
+      %+  welp
+        (turn p.p.old (lead %block))
+      [%inline q.p.old]~
+    ==
+  ::
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -658,9 +745,9 @@
     =.  cor  (give-brief club/id cu-brief)
     =/  =delta:writs:c
       %+  make-notice  our.bowl
-      %+  rap  3 
+      %+  rap  3
       :~  ' started a group chat with '
-          (scot %ud ~(wyt in hive.create)) 
+          (scot %ud ~(wyt in hive.create))
           ' other members'
       ==
     =.  cu-core
