@@ -35,12 +35,8 @@ function DiaryChannel({ title }: ViewProps) {
   const nest = `diary/${chFlag}`;
   const { data } = useConnectivityCheck(chShip ?? '');
   const groupFlag = useRouteGroup();
-  const {
-    notes,
-    isLoading,
-    hasPreviousPage,
-    fetchPreviousPage,
-  } = useInfiniteNotes(nest);
+  const { notes, isLoading, hasPreviousPage, fetchPreviousPage } =
+    useInfiniteNotes(nest);
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {

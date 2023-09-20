@@ -170,9 +170,11 @@ const ChatMessage = React.memo<
 
       const unix = new Date(daToUnix(time));
 
-      const numReplies = seal.quipCount;
-      const replyAuthors = seal.lastQuippers;
-      const lastReplyTime = seal.lastQuip ? new Date(seal.lastQuip) : null;
+      const numReplies = seal.meta.quipCount;
+      const replyAuthors = seal.meta.lastQuippers;
+      const lastReplyTime = seal.meta.lastQuip
+        ? new Date(seal.meta.lastQuip)
+        : null;
 
       const hover = useRef(false);
       const setHover = useRef(

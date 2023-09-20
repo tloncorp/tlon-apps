@@ -250,7 +250,7 @@ export default function HeapRow({
       ? refClass || ''
       : 'w-full bg-white rounded-lg p-2 flex space-x-2 items-center group';
   const { id } = note.seal;
-  const replyCount = note.seal.quipCount;
+  const replyCount = note.seal.meta.quipCount;
   const prettySent = formatDistanceToNow(daToUnix(bigInt(id)));
 
   if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {

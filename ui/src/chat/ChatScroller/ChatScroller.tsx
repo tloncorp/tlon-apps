@@ -11,15 +11,12 @@ import React, {
 import { isSameDay } from 'date-fns';
 import { debounce, get } from 'lodash';
 import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChatState, useWritWindow } from '@/state/chat/chat';
-import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { emptyNote } from '@/types/channel';
-import { IChatScroller } from './IChatScroller';
+import { NoteTuple, emptyNote } from '@/types/channel';
 import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
 import { useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
@@ -113,6 +110,17 @@ function scrollToIndex(
   }
 }
 
+export interface ChatScrollerProps {
+  whom: string;
+  messages: NoteTuple[];
+  replying?: boolean;
+  prefixedElement?: ReactNode;
+  scrollTo?: BigInteger;
+  scrollerRef: React.RefObject<VirtuosoHandle>;
+  atBottomStateChange: (atBottom: boolean) => void;
+  atTopStateChange: (atTop: boolean) => void;
+}
+
 export default function ChatScroller({
   whom,
   messages,
@@ -122,9 +130,8 @@ export default function ChatScroller({
   scrollerRef,
   atBottomStateChange,
   atTopStateChange,
-}: IChatScroller) {
+}: ChatScrollerProps) {
   const isMobile = useIsMobile();
-  const writWindow = useWritWindow(whom, scrollTo);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
@@ -211,41 +218,6 @@ export default function ChatScroller({
   const TopLoader = useMemo(
     () => <Loader show={fetching === 'top'} />,
     [fetching]
-  );
-
-  const fetchMessages = useCallback(
-    async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
-      const newest = messages[messages.length - 1]?.[0];
-      const seenNewest =
-        newer && newest && writWindow && writWindow.loadedNewest;
-      const oldest = messages[0]?.[0];
-      const seenOldest =
-        !newer && oldest && writWindow && writWindow.loadedOldest;
-
-      if (seenNewest || seenOldest) {
-        return;
-      }
-
-      try {
-        setFetching(newer ? 'bottom' : 'top');
-
-        if (newer) {
-          await useChatState
-            .getState()
-            .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
-        } else {
-          await useChatState
-            .getState()
-            .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
-        }
-
-        setFetching('initial');
-      } catch (e) {
-        console.log(e);
-        setFetching('initial');
-      }
-    },
-    [whom, messages, scrollTo, writWindow]
   );
 
   /**

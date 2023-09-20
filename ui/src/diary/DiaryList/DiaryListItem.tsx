@@ -17,7 +17,7 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
   const navigate = useNavigate();
 
   const { essay } = note;
-  const { lastQuippers, quipCount } = note.seal;
+  const { lastQuippers, quipCount } = note.seal.meta;
 
   return (
     <div

@@ -16,7 +16,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const { essay } = note;
   const { image } = getHanDataFromEssay(essay);
   const hasImage = image?.length !== 0;
-  const { quipCount, lastQuippers } = note.seal;
+  const { quipCount, lastQuippers } = note.seal.meta;
 
   return (
     <div

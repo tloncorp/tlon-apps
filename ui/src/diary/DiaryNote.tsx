@@ -183,7 +183,7 @@ export default function DiaryNote({ title }: ViewProps) {
         <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
           <DiaryNoteHeadline
             quipCount={note.seal.quips ? note.seal.quips.size : 0}
-            lastQuippers={note.seal.lastQuippers}
+            lastQuippers={note.seal.meta.lastQuippers}
             essay={note.essay}
             time={bigInt(noteId)}
           />
