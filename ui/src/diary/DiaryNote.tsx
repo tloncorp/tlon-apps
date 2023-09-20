@@ -56,7 +56,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const { note, status } = useNote(nest, noteId);
   const isPending = useIsNotePending({
     author: window.our,
-    sent: note.essay.sent,
+    sent: note?.essay?.sent,
   });
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
