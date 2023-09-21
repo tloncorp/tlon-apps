@@ -266,9 +266,7 @@
     |=  =writ:c
     ^-  ?
     ?:  =([%notice ~] kind.writ)  |
-    |^  ~&  `(list verse:d)`content.writ
-        =/  verses=(list verse:d)  content.writ
-        %+  lien  `(list verse:d)`verses
+    |^  %+  lien  content.writ
         |=  =verse:d
         ?.  ?=(%inline -.verse)  |
         %+  lien  p.verse

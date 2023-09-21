@@ -1083,9 +1083,22 @@
   ++  di-peek
     |=  =(pole knot)
     ^-  (unit (unit cage))
-    ?+  pole  [~ ~]
-      [%notes rest=*]  (di-peek-notes rest.pole)
-      [%perm ~]        ``channel-perm+!>(perm.perm.diary)
+    ?+    pole  [~ ~]
+        [%notes rest=*]  (di-peek-notes rest.pole)
+        [%perm ~]        ``channel-perm+!>(perm.perm.diary)
+        [%search %text skip=@ count=@ nedl=@ ~]
+      :^  ~  ~  %channel-scan  !>
+      %^    text:di-search
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      :^  ~  ~  %channel-scan  !>
+      %^    mention:di-search
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
     ==
   ::
   ++  give-notes
@@ -1171,6 +1184,171 @@
       ?~  u.quip  `~
       ``channel-quip+!>(u.u.quip)
     ==
+  ::
+  ++  di-search
+    |^  |%
+        ++  mention
+          |=  [sip=@ud len=@ud nedl=ship]
+          ^-  scan:d
+          (scour sip len %mention nedl)
+        ::
+        ++  text
+          |=  [sip=@ud len=@ud nedl=@t]
+          ^-  scan:d
+          (scour sip len %text nedl)
+        --
+    ::
+    ++  match-type
+      $%  [%mention nedl=ship]
+          [%text nedl=@t]
+      ==
+    ::
+    ++  scour
+      |=  [sip=@ud len=@ud =match-type]
+      =*  notes  notes.diary
+      ?>  (gth len 0)
+      =+  s=[sip=sip len=len *=scan:d]
+      =-  (flop scan)
+      |-  ^+  s
+      ?~  notes  s
+      ?:  =(0 len.s)  s
+      =.  s  $(notes r.notes)
+      ?:  =(0 len.s)  s
+      ::
+      =.  s
+        ?~  val.n.notes  s
+        ?.  (match match-type u.val.n.notes)  s
+        ?:  (gth sip.s 0)
+          s(sip (dec sip.s))
+        =/  res  [%note (rr-note:utils u.val.n.notes)]
+        s(len (dec len.s), scan [res scan.s])
+      ::
+      =.  s
+        ?~  val.n.notes  s
+        %:  scour-quips
+            sip.s  len.s
+            id.u.val.n.notes
+            quips.u.val.n.notes
+            match-type
+        ==
+      ::
+      $(notes l.notes)
+    ::
+    ++  scour-quips
+      |=  [sip=@ud len=@ud =id-note:d =quips:d =match-type]
+      =+  s=[sip=sip len=len *=scan:d]
+      |-  ^+  s
+      ?~  quips  s
+      ?:  =(0 len.s)  s
+      =.  s  $(quips r.quips)
+      ?:  =(0 len.s)  s
+      ::
+      =.  s
+        ?~  val.n.quips  s
+        ?.  (match-quip match-type u.val.n.quips)  s
+        ?:  (gth sip.s 0)
+          s(sip (dec sip.s))
+        =/  res  [%quip id-note (rr-quip:utils u.val.n.quips)]
+        s(len (dec len.s), scan [res scan.s])
+      ::
+      $(quips l.quips)
+    ::
+    ++  match
+      |=  [=match-type =note:d]
+      ^-  ?
+      ?-  -.match-type
+        %mention  (match-note-mention nedl.match-type note)
+        %text     (match-note-text nedl.match-type note)
+      ==
+    ::
+    ++  match-quip
+      |=  [=match-type =quip:d]
+      ?-  -.match-type
+        %mention  (match-story-mention nedl.match-type content.quip)
+        %text     (match-story-text nedl.match-type content.quip)
+      ==
+    ::
+    ++  match-note-mention
+      |=  [nedl=ship =note:d]
+      ^-  ?
+      ?:  ?=([%chat %notice ~] han-data.note)  |
+      (match-story-mention nedl content.note)
+    ::
+    ++  match-story-mention
+      |=  [nedl=ship =story:d]
+      %+  lien  story
+      |=  =verse:d
+      ?.  ?=(%inline -.verse)  |
+      %+  lien  p.verse
+      |=  =inline:d
+      ?+  -.inline  |
+        %ship                                  =(nedl p.inline)
+        ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
+      ==
+    ::
+    ++  match-note-text
+      |=  [nedl=@t =note:d]
+      ^-  ?
+      ?-    -.han-data.note
+          %diary
+        (match-story-text nedl ~[%inline title.han-data.note] content.note)
+      ::
+          %heap
+        %+  match-story-text  nedl
+        ?~  title.han-data.note
+          content.note
+        [~[%inline u.title.han-data.note] content.note]
+      ::
+          %chat
+        ?:  =([%notice ~] kind.han-data.note)  |
+        (match-story-text nedl content.note)
+      ==
+    ::
+    ++  match-story-text
+      |=  [nedl=@t =story:d]
+      %+  lien  story
+      |=  =verse:d
+      ?.  ?=(%inline -.verse)  |
+      %+  lien  p.verse
+      |=  =inline:d
+      ?@  inline
+        (find nedl inline |)
+      ?.  ?=(?(%bold %italics %strike %blockquote) -.inline)  |
+      ^$(p.verse p.inline)
+    ::
+    ++  find
+      |=  [nedl=@t hay=@t case=?]
+      ^-  ?
+      =/  nlen  (met 3 nedl)
+      =/  hlen  (met 3 hay)
+      ?:  (lth hlen nlen)
+        |
+      =?  nedl  !case
+        (cass nedl)
+      =/  pos  0
+      =/  lim  (sub hlen nlen)
+      |-
+      ?:  (gth pos lim)
+        |
+      ?:  .=  nedl
+          ?:  case
+            (cut 3 [pos nlen] hay)
+          (cass (cut 3 [pos nlen] hay))
+        &
+      $(pos +(pos))
+    ::
+    ++  cass
+      |=  text=@t
+      ^-  @t
+      %^    run
+          3
+        text
+      |=  dat=@
+      ^-  @
+      ?.  &((gth dat 64) (lth dat 91))
+        dat
+      (add dat 32)
+    --
   ::
   ::  when we receive an update from the group we're in, check if we
   ::  need to change anything

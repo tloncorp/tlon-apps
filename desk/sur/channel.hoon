@@ -149,7 +149,7 @@
 ::    %listing: a traditional HTML list, ul and ol
 ::    %code: a block of code
 ::
-+$  block  $+  diary-bloke
++$  block  $+  diary-block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
@@ -199,6 +199,12 @@
 ::  $feel: either an emoji identifier like :diff or a URL for custom
 +$  feel  @ta
 +$  feels  (map ship (rev (unit feel)))
+::  $scan: search results
++$  scan  (list scan-result)
++$  scan-result
+  $%  [%note =rr-note]
+      [%quip =id-note =rr-quip]
+  ==
 ::  $said: used for references
 +$  said  (pair nest rr-note)
 ::  $plan: index into diary state
