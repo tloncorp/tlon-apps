@@ -1,7 +1,6 @@
 import _ from 'lodash';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
-import { newNoteMap, Note, Notes, NoteSeal } from '@/types/channel';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '@/api';
 import {
@@ -13,13 +12,8 @@ import {
   Writ,
   Writs,
 } from '@/types/dms';
+import { extendCurrentWindow, getWindow } from '@/logic/windows';
 import { BasedChatState } from './type';
-import {
-  Window,
-  WindowSet,
-  extendCurrentWindow,
-  getWindow,
-} from '@/logic/windows';
 
 interface WritsStore {
   initialize: () => Promise<void>;
@@ -53,7 +47,7 @@ export function writsReducer(whom: string) {
       pact.index[id] = time;
       const seal: WritSeal = {
         id,
-        time: delta.add.time,
+        time: delta.add.time!,
         feels: {},
         quips: null,
         meta: {
@@ -129,7 +123,7 @@ export function writsReducer(whom: string) {
 
 export function updatePact(whom: string, writs: Writs, draft: BasedChatState) {
   const pact: Pact = draft.pacts[whom] || {
-    writs: newNoteMap(),
+    writs: newWritMap(),
     index: {},
   };
 
@@ -189,7 +183,7 @@ export default function makeWritsStore(
     const fetchStart = decToUd(index.toString());
     const writs = await api.scry<Writs>({
       app: 'chat',
-      path: `${scryPath}/${dir}/${fetchStart}/${count}`,
+      path: `${scryPath}/${dir}/${fetchStart}/${count}/light`,
     });
 
     set((draft) => {
@@ -220,7 +214,7 @@ export default function makeWritsStore(
   return {
     initialize: async () => {
       const writs = await scry<Writs>(
-        `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`
+    `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`
       );
 
       get().batchSet((draft) => {
@@ -272,7 +266,7 @@ export default function makeWritsStore(
     getAround: async (count, time) => {
       const writs = await api.scry<Writs>({
         app: 'chat',
-        path: `${scryPath}/around/${decToUd(time.toString())}/${count}`,
+        path: `${scryPath}/around/${decToUd(time.toString())}/${count}/light`,
       });
 
       get().batchSet((draft) => {

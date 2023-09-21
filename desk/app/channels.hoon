@@ -722,6 +722,7 @@
     %^  safe-watch  (weld di-area /backlog)  [ship.nest server]
     %+  welp
     /[han.nest]/[name.nest]/checkpoint/time-range
+    ~|  `*`key.u.checkpoint-start
     /(scot %da *@da)/(scot %da key.u.checkpoint-start)
   ::
   ++  di-ingest-backlog

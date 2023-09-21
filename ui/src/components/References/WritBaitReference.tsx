@@ -1,7 +1,8 @@
 import React from 'react';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
-import { useWritByFlagAndGraphIndex } from '@/state/chat';
+import { useRemoteNote } from '@/state/channel/channel';
+// import { useWritByFlagAndGraphIndex } from '@/state/chat';
 // eslint-disable-next-line import/no-cycle
 import WritBaseReference from './WritBaseReference';
 import UnavailableReference from './UnavailableReference';
@@ -15,18 +16,14 @@ export default function WritBaitReference(props: {
   children?: React.ReactNode;
 }) {
   const { chFlag, nest, index, isScrolling, contextApp, children } = props;
-  const writ = useWritByFlagAndGraphIndex(chFlag, index, isScrolling);
+  const note = useRemoteNote(chFlag, index, isScrolling);
   const [, udId] = index.split('/');
-  if (writ === 'loading') {
+  if (note === undefined) {
     const time = bigInt(udToDec(udId));
     return <UnavailableReference time={time} nest={nest} preview={null} />;
   }
   return (
-    <WritBaseReference
-      writ={writ === 'error' ? undefined : writ}
-      contextApp={contextApp}
-      {...props}
-    >
+    <WritBaseReference writ={note} contextApp={contextApp} {...props}>
       {children}
     </WritBaseReference>
   );

@@ -182,6 +182,15 @@ export const useNotesStore = create<State>((set, get) => ({
   },
 }));
 
+export function useCurrentWindow(nest: Nest, time?: string) {
+  const getCurrentWindow = useCallback(
+    () => useNotesStore.getState().getCurrentWindow(nest, time),
+    [time, nest]
+  );
+
+  return getCurrentWindow();
+}
+
 export function useTrackedNotes() {
   return useNotesStore((s) => s.trackedNotes);
 }
@@ -530,7 +539,6 @@ const infiniteNoteUpdater = (
 };
 
 interface PageParam {
-  skip: boolean;
   time: BigInteger;
   direction: string;
 }
@@ -574,21 +582,18 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
     fetchPreviousPage,
     hasPreviousPage,
     isLoading,
+    isFetching,
   } = useInfiniteQuery<NoteMap>({
     queryKey,
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
 
+      console.log({ pageParam, initialTime });
+
       if (pageParam) {
-        const { skip, time, direction } = pageParam;
-        if (skip) {
-          throw new Error(
-            `Reached ${direction === 'newer' ? 'newest' : 'oldest'} notes`
-          );
-        } else {
-          const ud = decToUd(time.toString());
-          path = `/${nest}/notes/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
-        }
+        const { time, direction } = pageParam;
+        const ud = decToUd(time.toString());
+        path = `/${nest}/notes/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       } else if (initialTime) {
         path = `/${nest}/notes/around/${decToUd(
           initialTime
@@ -608,31 +613,49 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
       const noteMap = newNoteMap(diff);
 
       const currentWindow = getCurrentWindow();
-      if (currentWindow && pageParam) {
+      if (currentWindow) {
         const keys = noteMap.keysArray();
         const updates = keys.length > 0;
         const oldest = updates ? keys[0] : currentWindow.oldest;
         const newest = updates ? keys[keys.length - 1] : currentWindow.newest;
-        const { direction } = pageParam;
 
-        const newWindow: Window = {
-          oldest,
-          newest,
-          loadedNewest:
-            direction === 'newer' ? !updates : currentWindow.loadedNewest,
-          loadedOldest:
-            direction === 'older' ? !updates : currentWindow.loadedOldest,
-        };
+        if (!pageParam) {
+          const newWindow: Window = {
+            oldest,
+            newest,
+            loadedNewest: false,
+            loadedOldest: false,
+          };
 
-        useNotesStore
-          .getState()
-          .extendCurrentWindow(nest, newWindow, initialTime);
+          useNotesStore
+            .getState()
+            .extendCurrentWindow(nest, newWindow, initialTime);
+        } else {
+          const newWindow: Window = {
+            oldest,
+            newest,
+            loadedNewest:
+              pageParam?.direction === 'newer'
+                ? !updates
+                : currentWindow.loadedNewest,
+            loadedOldest:
+              pageParam?.direction === 'older'
+                ? !updates
+                : currentWindow.loadedOldest,
+          };
+
+          useNotesStore
+            .getState()
+            .extendCurrentWindow(nest, newWindow, initialTime);
+        }
       } else {
         const oldest = noteMap.minKey();
         const newest = noteMap.maxKey();
+        const totalMessages = noteMap.size;
 
         if (oldest === undefined || newest === undefined) {
-          throw new Error('No notes found');
+          console.log('no notes in map');
+          return newNoteMap();
         }
 
         const atBottom = !initialTime;
@@ -640,7 +663,7 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
           oldest,
           newest,
           loadedNewest: atBottom,
-          loadedOldest: false,
+          loadedOldest: totalMessages !== INITIAL_MESSAGE_FETCH_PAGE_SIZE,
           latest: atBottom,
         };
 
@@ -649,28 +672,36 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
           .extendCurrentWindow(nest, newWindow, initialTime);
       }
 
+      const keys = noteMap.keysArray();
+
+      if (keys.length === 0) {
+        throw new Error('no keys in noteMap');
+      }
+
       return noteMap;
     },
     getNextPageParam: (): PageParam | undefined => {
       const currentWindow = getCurrentWindow();
-      if (!currentWindow) {
+      if (!currentWindow || currentWindow.loadedNewest) {
         return undefined;
       }
 
+      console.log({ currentWindow });
+
       return {
-        skip: currentWindow.loadedNewest,
         time: currentWindow.newest,
         direction: 'newer',
       };
     },
     getPreviousPageParam: (): PageParam | undefined => {
       const currentWindow = getCurrentWindow();
-      if (!currentWindow) {
+      if (!currentWindow || currentWindow.loadedOldest) {
         return undefined;
       }
 
+      console.log({ currentWindow });
+
       return {
-        skip: currentWindow.loadedOldest,
         time: currentWindow.oldest,
         direction: 'older',
       };
@@ -678,6 +709,7 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
     keepPreviousData: true,
     refetchOnMount: true,
     retryOnMount: true,
+    retry: false,
   });
 
   if (data === undefined || data.pages.length === 0) {
@@ -700,6 +732,7 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
     fetchPreviousPage,
     hasPreviousPage,
     isLoading,
+    isFetching,
   };
 }
 

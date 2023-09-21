@@ -8,7 +8,7 @@
   %_    pac
       wit  (gas:on:writs:c wit.pac ls)
   ::
-      dex  
+      dex
     %-  ~(gas by dex.pac)
     %+  turn  ls
     |=  [=time =writ:c]
@@ -24,7 +24,7 @@
     key.u.tim
   =/  unreads
     (lot:on:writs:c wit.pac `last-read ~)
-  =/  read-id=(unit id:c)  
+  =/  read-id=(unit id:c)
     (bind (pry:on:writs:c unreads) |=([key=@da val=writ:c] id.val))
   =/  count
     (lent (skim ~(tap by unreads) |=([tim=^time =writ:c] !=(author.writ our))))
@@ -60,7 +60,7 @@
     ?:  (~(has by dex.pac) id)
       pac
     |-
-    ?:  (has:on:writs:c wit.pac now)  
+    ?:  (has:on:writs:c wit.pac now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
       (put:on:writs:c wit.pac now seal [memo.del %chat kind.del])
@@ -81,10 +81,10 @@
     =/  quips  (reduce-quip quips.writ now [id delta]:del)
     %=  writ
       quips       quips
-      quip-count  (wyt:on:quips:c quips)
-      last-quip   (biff (ram:on:quips:c quips) |=([=time *] `time))
+      quip-count.meta  (wyt:on:quips:c quips)
+      last-quip.meta   (biff (ram:on:quips:c quips) |=([=time *] `time))
     ::
-        last-quippers
+        last-quippers.meta
       ^-  (set ship)
       =|  quippers=(set ship)
       =/  entries=(list [time quip:c])  (bap:on:quips:c quips)
@@ -125,7 +125,7 @@
     =/  tim=(unit time)  (~(get by dex.pac) id)
     ?~  tim  quips
     =/  =time  (need tim)
-    =^  quip=(unit quip:c)  quips 
+    =^  quip=(unit quip:c)  quips
       (del:on:quips:c quips time)
     =.  dex.pac  (~(del by dex.pac) id)
     quips
@@ -190,7 +190,7 @@
     =/  older  (bat:mope wit.pac `time count)
     =/  newer  (tab:on:writs:c wit.pac `time count)
     =/  writ   (get:on:writs:c wit.pac time)
-    =/  writs  
+    =/  writs
         ?~  writ  (welp older newer)
         (welp (snoc older [time u.writ]) newer)
     ``chat-writs+!>((give-writs mode.pole writs))

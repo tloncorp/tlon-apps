@@ -10,9 +10,9 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { BigInteger } from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
-import { usePact } from '@/state/chat';
 import MessageEditor, {
   HandlerParams,
   useMessageEditor,
@@ -44,13 +44,16 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import { Nest, NoteEssay, Cite, constructStory, Story } from '@/types/channel';
 import {
-  CacheId,
-  useInfiniteNotes,
-  useReplyNote,
-} from '@/state/channel/channel';
-import bigInt from 'big-integer';
+  Nest,
+  NoteEssay,
+  Cite,
+  constructStory,
+  Story,
+  NoteTuple,
+} from '@/types/channel';
+import { CacheId } from '@/state/channel/channel';
+import { WritTuple } from '@/types/dms';
 
 interface ChatInputProps {
   whom: string;
@@ -78,6 +81,7 @@ interface ChatInputProps {
   }) => void;
   inThread?: boolean;
   dropZoneId: string;
+  replyingWrit?: NoteTuple | WritTuple;
 }
 
 export function UploadErrorPopover({
@@ -122,6 +126,7 @@ export default function ChatInput({
   sendQuip,
   inThread = false,
   dropZoneId,
+  replyingWrit,
 }: ChatInputProps) {
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
@@ -137,17 +142,13 @@ export default function ChatInput({
   );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const chatReplyId = useMemo(
-    () => searchParams.get('chat_reply'),
-    [searchParams]
-  );
   const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
   // const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
-  const replyingWrit = useReplyNote(`chat/${whom}`, chatReplyId);
+  // const replyingWrit = useReplyNote(`chat/${whom}`, chatReplyId);
   const ship = replyingWrit && replyingWrit[1] && replyingWrit[1].essay.author;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
@@ -520,7 +521,7 @@ export default function ChatInput({
 
   useEffect(() => {
     if (
-      chatReplyId &&
+      replyingWrit &&
       messageEditor &&
       !messageEditor.isDestroyed &&
       !inThread
@@ -529,14 +530,14 @@ export default function ChatInput({
       const mention = ship ? makeMention(ship.slice(1)) : null;
       messageEditor?.commands.setContent(mention);
       messageEditor?.commands.insertContent(': ');
-      const path = `/1/chan/chat/${whom}/msg/${chatReplyId}`;
+      const path = `/1/chan/chat/${whom}/msg/${replyingWrit[0].toString()}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
         setReplyCite(cite);
       }
     }
   }, [
-    chatReplyId,
+    replyingWrit,
     whom,
     setReplyCite,
     replyCite,
@@ -684,7 +685,7 @@ export default function ChatInput({
           </div>
         ) : null}
 
-        {showReply && ship && chatReplyId ? (
+        {showReply && ship && replyingWrit ? (
           <div className="mb-4 flex items-center justify-start font-semibold">
             <span className="text-gray-600">Replying to</span>
             <Avatar size="xs" ship={ship} className="ml-2" />

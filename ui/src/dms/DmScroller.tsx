@@ -308,11 +308,21 @@ export default function DmScroller({
         if (newer) {
           await useChatState
             .getState()
-            .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
+            .fetchMessages(
+              whom,
+              pageSize.toString(),
+              'newer',
+              scrollTo?.toString()
+            );
         } else {
           await useChatState
             .getState()
-            .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
+            .fetchMessages(
+              whom,
+              pageSize.toString(),
+              'older',
+              scrollTo?.toString()
+            );
         }
 
         setFetching('initial');

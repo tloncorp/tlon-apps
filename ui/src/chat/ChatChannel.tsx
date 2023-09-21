@@ -1,6 +1,6 @@
 import cn from 'classnames';
-import React, { useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Route, Routes, useMatch, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -16,7 +16,11 @@ import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import { useAddNoteMutation, useLeaveMutation } from '@/state/channel/channel';
+import {
+  useAddNoteMutation,
+  useLeaveMutation,
+  useReplyNote,
+} from '@/state/channel/channel';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -29,6 +33,7 @@ function ChatChannel({ title }: ViewProps) {
     idShip: string;
     idTime: string;
   }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const groupFlag = useRouteGroup();
   const chFlag = `${chShip}/${chName}`;
   const nest = `chat/${chFlag}`;
@@ -40,6 +45,11 @@ function ChatChannel({ title }: ViewProps) {
   const { mutate: sendMessage } = useAddNoteMutation(nest);
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
+  const chatReplyId = useMemo(
+    () => searchParams.get('chat_reply'),
+    [searchParams]
+  );
+  const replyingWrit = useReplyNote(nest, chatReplyId);
 
   const {
     group,
@@ -125,6 +135,7 @@ function ChatChannel({ title }: ViewProps) {
                 showReply
                 autoFocus={!inThread && !inSearch}
                 dropZoneId={dropZoneId}
+                replyingWrit={replyingWrit || undefined}
               />
             ) : !canWrite ? null : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">

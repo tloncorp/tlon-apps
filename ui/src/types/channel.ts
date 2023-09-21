@@ -4,7 +4,6 @@ import BTree from 'sorted-btree';
 import { Inline, isLink, Link } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
-import { ChatBlock, ChatStory } from './dms';
 
 export type Patda = string;
 export type Ship = string;
@@ -128,6 +127,14 @@ export interface VerseBlock {
 export type Verse = VerseInline | VerseBlock;
 
 export type Story = Verse[];
+
+export type ChatBlock = Block;
+
+// TODO: remove all dependence on chat story.
+export type ChatStory = {
+  inline: Inline[];
+  block: ChatBlock[];
+};
 
 export type HanHeap = {
   heap: string;

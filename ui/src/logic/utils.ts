@@ -14,12 +14,11 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday, isSameDay } from 'date-fns';
 import _ from 'lodash';
-import f from 'lodash/fp';
 import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { useParams } from 'react-router';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { DMWhom, ChatStory } from '@/types/dms';
+import { DMWhom } from '@/types/dms';
 import {
   Cabals,
   GroupChannel,
@@ -35,14 +34,13 @@ import {
 import {
   Brief,
   Quip,
-  QuipMap,
   Story,
   Verse,
   VerseInline,
   VerseBlock,
   Listing,
   Cite,
-  Briefs,
+  ChatStory,
 } from '@/types/channel';
 import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
 // eslint-disable-next-line import/no-cycle

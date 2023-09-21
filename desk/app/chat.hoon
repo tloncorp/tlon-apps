@@ -731,11 +731,11 @@
     [uid cu-core(counter +(counter))]
   ::
   ++  cu-spin
-    |=  [con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
     ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %talk /club/(scot %uv id)]
-    =/  link  /dm/(scot %uv id)
+    =/  link  (welp /dm/(scot %uv id) rest)
     [& & rope con link but]
   ::
   ++  cu-pass
@@ -847,7 +847,8 @@
         ?:  =(our.bowl author.memo)  cu-core
         ?^  kind.q.diff.delta  cu-core
         =/  new-yarn
-          %+  cu-spin
+          %^  cu-spin
+            ~
             :~  [%ship author.memo]
                 ': '
                 (flatten:utils content.memo)
@@ -873,7 +874,8 @@
           ?~  entry  cu-core
           =*  op  writ.u.entry
           =/  new-yarn
-            %+  cu-spin
+            %^  cu-spin
+              /(rsh 4 (scot %ui time.u.entry))
               :~  [%ship author.memo]  ' replied to '
                   [%emph (flatten:utils content.op)]  ': '
                   [%ship author.memo]  ': '
@@ -1040,11 +1042,11 @@
   ::
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin
-    |=  [con=(list content:ha) but=(unit button:ha)]
+    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
     ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %talk /dm/(scot %p ship)]
-    =/  link  /dm/(scot %p ship)
+    =/  link  (welp /dm/(scot %p ship) rest)
     [& & rope con link but]
   ::
   ++  di-proxy
@@ -1080,7 +1082,8 @@
       ?:  from-self    di-core
       ?^  kind.q.diff  di-core
       =/  new-yarn
-        %+  di-spin
+        %^  di-spin
+          ~
           :~  [%ship author.memo]
               ?:  =(net.dm %invited)  ' has invited you to a direct message'
               ': '
@@ -1106,7 +1109,8 @@
         ?~  entry  di-core
         =*  op  writ.u.entry
         =/  new-yarn
-          %+  di-spin
+          %^  di-spin
+            /(rsh 4 (scot %ui time.u.entry))
             :~  [%ship author.memo]  ' replied to '
                 [%emph (flatten:utils content.op)]  ': '
                 [%ship author.memo]  ': '

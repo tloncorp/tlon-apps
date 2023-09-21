@@ -13,7 +13,7 @@ import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useRouteGroup } from '@/state/groups';
-import { useInfiniteNotes } from '@/state/channel/channel';
+import { useCurrentWindow, useInfiniteNotes } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 
@@ -36,9 +36,11 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     fetchPreviousPage,
     fetchNextPage,
     isLoading,
+    isFetching,
   } = useInfiniteNotes(`chat/${whom}`, scrollTo?.toString());
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const currentWindow = useCurrentWindow(`chat/${whom}`, scrollTo?.toString());
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
@@ -60,20 +62,21 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
 
   const loadNewerMessages = useCallback(
     (atBottom: boolean) => {
-      if (atBottom && hasNextPage) {
+      if (atBottom && hasNextPage && !isFetching) {
         fetchNextPage();
       }
     },
-    [fetchNextPage, hasNextPage]
+    [fetchNextPage, hasNextPage, isFetching]
   );
 
   const loadOlderMessages = useCallback(
     (atTop: boolean) => {
-      if (atTop && hasPreviousPage) {
+      if (atTop && hasPreviousPage && !isFetching) {
+        console.log('fetching previous page');
         fetchPreviousPage();
       }
     },
-    [fetchPreviousPage, hasPreviousPage]
+    [fetchPreviousPage, hasPreviousPage, isFetching]
   );
 
   if (isLoading) {
@@ -107,7 +110,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
           atTopStateChange={loadOlderMessages}
         />
       </div>
-      {/* scrollTo && !window?.latest ? (
+      {/* scrollTo && !currentWindow?.latest ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"

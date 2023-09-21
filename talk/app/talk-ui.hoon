@@ -74,7 +74,7 @@
 ::
 ++  init
   ^+  cor
-  =/  =cage  settings-event+!>([%put-entry %talk %talk %'showVitaMessage' [%b &]])  
+  =/  =cage  settings-event+!>([%put-entry %talk %talk %'showVitaMessage' [%b &]])
   =?  cor  first-load  (emit %pass /set-vita %agent [our.bowl %settings-store] %poke cage)
   =.  first-load  |
   cor
@@ -91,7 +91,7 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/noun))
+    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v0/noun))
     =/  =init:u
       :*  groups-ui
           gangs

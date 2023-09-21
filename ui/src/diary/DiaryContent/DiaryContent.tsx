@@ -10,7 +10,6 @@ import {
   Inline,
   isBlockCode,
 } from '@/types/content';
-// eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
 import { Block, Listing, isImage, Story, Cite, isCite } from '@/types/channel';
 import _ from 'lodash';

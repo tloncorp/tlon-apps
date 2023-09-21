@@ -106,6 +106,7 @@ function scrollToIndex(
 ) {
   if (scrollerRef.current && scrollTo) {
     const index = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
+    console.log({ index, keysLength: keys.length });
     scrollerRef.current.scrollToIndex({ index, align: 'center' });
   }
 }

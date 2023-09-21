@@ -34,6 +34,7 @@ import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
+import { getWindow } from '@/logic/windows';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
@@ -41,7 +42,6 @@ import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
 import { channelAction, channelNoteAction } from '../channel/channel';
-import { getWindow } from '@/logic/windows';
 
 setAutoFreeze(false);
 
@@ -817,41 +817,41 @@ export function useWritByFlagAndWritId(
   return cached;
 }
 
-export function useWritByFlagAndGraphIndex(
-  chFlag: string,
-  index: string,
-  isScrolling: boolean
-) {
-  const res = useChatState(
-    useCallback((s) => s.loadedGraphRefs[chFlag + index], [chFlag, index])
-  );
+// export function useWritByFlagAndGraphIndex(
+// chFlag: string,
+// index: string,
+// isScrolling: boolean
+// ) {
+// const res = useChatState(
+// useCallback((s) => s.loadedGraphRefs[chFlag + index], [chFlag, index])
+// );
 
-  useEffect(() => {
-    if (!res && !isScrolling) {
-      (async () => {
-        let w: Note | 'error' = 'error';
-        try {
-          useChatState.getState().batchSet((draft) => {
-            draft.loadedGraphRefs[chFlag + index] = 'loading';
-          });
-          const { writ } = await subscribeOnce(
-            'chat',
-            `/hook/${chFlag}${index}`
-          );
-          w = writ;
-        } catch (e) {
-          console.warn(e);
-        }
+// useEffect(() => {
+// if (!res && !isScrolling) {
+// (async () => {
+// let w: Note | 'error' = 'error';
+// try {
+// useChatState.getState().batchSet((draft) => {
+// draft.loadedGraphRefs[chFlag + index] = 'loading';
+// });
+// const { writ } = await subscribeOnce(
+// 'chat',
+// `/hook/${chFlag}${index}`
+// );
+// w = writ;
+// } catch (e) {
+// console.warn(e);
+// }
 
-        useChatState.getState().batchSet((draft) => {
-          draft.loadedGraphRefs[chFlag + index] = w;
-        });
-      })();
-    }
-  }, [isScrolling, chFlag, index, res]);
+// useChatState.getState().batchSet((draft) => {
+// draft.loadedGraphRefs[chFlag + index] = w;
+// });
+// })();
+// }
+// }, [isScrolling, chFlag, index, res]);
 
-  return res || 'loading';
-}
+// return res || 'loading';
+// }
 
 export function useLatestMessage(chFlag: string): [BigInteger, Note | null] {
   const messages = useMessagesForChat(chFlag);

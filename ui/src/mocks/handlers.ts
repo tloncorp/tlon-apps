@@ -28,7 +28,6 @@ import {
 } from '@/mocks/chat';
 import {
   DMBriefs,
-  ChatStory,
   DMWhom,
   Club,
   ClubAction,
@@ -265,28 +264,6 @@ const chat: Handler[] = [
         : `draft-${params.ship}`;
 
       return JSON.parse(localStorage.getItem(key) || '');
-    },
-  },
-  {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-draft',
-    returnSubscription: {
-      action: 'subscribe',
-      app: 'chat',
-      path: '/',
-    } as SubscriptionRequestInterface,
-    dataResponder: (
-      req: Message & Poke<{ whom: DMWhom; story: ChatStory }>
-    ) => {
-      localStorage.setItem(`draft-${req.json.whom}`, JSON.stringify(req.json));
-
-      return {
-        id: req.id!,
-        ok: true,
-        response: 'diff',
-        json: req.json,
-      };
     },
   },
   {

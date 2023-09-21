@@ -196,7 +196,7 @@ export interface TalkInit {
 
 export interface ChatScanItem {
   time: string;
-  writ: Note;
+  writ: Writ;
 }
 
 export type ChatScan = ChatScanItem[];

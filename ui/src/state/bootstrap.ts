@@ -64,48 +64,38 @@ async function startTalk() {
         path: '/init',
       }),
     async () => {
-      const [
-        groupsRes,
-        gangsRes,
-        briefs,
-        chats,
-        dms,
-        clubs,
-        invited,
-        pinsResp,
-      ] = await Promise.all([
-        asyncWithDefault(
-          () =>
-            api.scry<Groups>({
-              app: 'groups',
-              path: '/groups/light/v0',
-            }),
-          {}
-        ),
-        asyncWithDefault(
-          () =>
-            api.scry<Gangs>({
-              app: 'groups',
-              path: '/gangs',
-            }),
-          {}
-        ),
-        chatScry('/briefs', {}),
-        chatScry('/chats', {}),
-        chatScry('/dm', []),
-        chatScry('/clubs', {}),
-        chatScry('/dm/invited', []),
-        chatScry('/pins', { pins: [] }),
-      ]);
+      const [groupsRes, gangsRes, dms, clubs, invited, pinsResp, briefs] =
+        await Promise.all([
+          asyncWithDefault(
+            () =>
+              api.scry<Groups>({
+                app: 'groups',
+                path: '/groups/light/v0',
+              }),
+            {}
+          ),
+          asyncWithDefault(
+            () =>
+              api.scry<Gangs>({
+                app: 'groups',
+                path: '/gangs',
+              }),
+            {}
+          ),
+          chatScry('/dm', []),
+          chatScry('/clubs', {}),
+          chatScry('/dm/invited', []),
+          chatScry('/pins', { pins: [] }),
+          chatScry('/briefs', {}),
+        ]);
       return {
         groups: groupsRes,
         gangs: gangsRes,
-        briefs,
-        chats,
         dms,
         clubs,
         invited,
         pins: pinsResp.pins,
+        briefs,
       };
     }
   );

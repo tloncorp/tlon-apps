@@ -6,7 +6,7 @@ import faker from '@faker-js/faker';
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
 import { Note, Notes, Story, storyFromChatStory } from '@/types/channel';
-import { DMBriefs, ChatNotice } from '../types/dms';
+import { DMBriefs } from '../types/dms';
 
 const getUnix = (count: number, setTime?: Date) =>
   count > 1
@@ -52,7 +52,6 @@ export const unixToDaStr = (unix: number) => decToUd(unixToDa(unix).toString());
 export const makeFakeChatNotice = (
   count: number,
   author: string,
-  notice: ChatNotice,
   setTime?: Date
 ): Note => {
   const unix = getUnix(count, setTime);

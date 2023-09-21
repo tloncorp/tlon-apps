@@ -23,7 +23,7 @@
   ++  club-delta
     |=  d=delta:club:c
     %+  frond  -.d
-    ?-  -.d 
+    ?-  -.d
         %writ  (writs-diff diff.d)
     ::
         %meta  (meta meta.d)
@@ -119,7 +119,7 @@
   ++  ship
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)
-  ++  id 
+  ++  id
     |=  =id:c
     n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
   ::
@@ -139,7 +139,7 @@
       %del-feel  (ship ship.delta)
       %quip      (quip-delta [id delta]:delta)
     ::
-        %add       
+        %add
       %-  pairs
       :~  memo+(memo:enjs:dj memo.delta)
           kind+?~(kind.delta ~ s+'notice')
@@ -200,7 +200,7 @@
     |=  =writs:c
     ^-  json
     %-  pairs
-    %+  turn  (tap:on:writs:c writs) 
+    %+  turn  (tap:on:writs:c writs)
     |=  [key=@da w=writ:c]
     [(scot %ud key) (writ w)]
   ::
@@ -218,6 +218,7 @@
         time+(time time.seal)
         feels+(feels feels.seal)
         quips+(quips quips.seal)
+        meta+(quip-meta:enjs:dj meta.seal)
     ==
   ::
   ++  feels
@@ -339,7 +340,7 @@
   ::
   ++  club-delta
     %-  of
-    :~  
+    :~
       writ/writs-diff
       meta/meta
     ::
@@ -364,9 +365,9 @@
         diff/writs-diff
     ==
   ::
-  ++  id  
+  ++  id
     ^-  $-(json id:c)
-    %-  su 
+    %-  su
     %+  cook  |=([p=@p q=@] `id:c`[p `@da`q])
     ;~((glue fas) ;~(pfix sig fed:ag) dem:ag)
   ::

@@ -31,7 +31,7 @@
       time=id-note:d
       =feels
       =quips
-      quip-meta:d
+      meta=quip-meta:d
   ==
 ::
 ::  $cork: chat reply metadata
