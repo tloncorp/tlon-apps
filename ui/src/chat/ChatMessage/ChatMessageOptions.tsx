@@ -24,7 +24,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 
-export default function ChatMessageOptions(props: {
+function ChatMessageOptions(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   whom: string;
@@ -321,3 +321,5 @@ export default function ChatMessageOptions(props: {
     </>
   );
 }
+
+export default React.memo(ChatMessageOptions);
