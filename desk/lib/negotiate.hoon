@@ -122,7 +122,7 @@
         ?.  (match gill)  ~
         %+  murn  ~(tap by m)
         |=  [=wire =path]
-        ?.  (~(has by boat) [wire gill])  ~  ::  already established
+        ?:  (~(has by boat) [wire gill])  ~  ::  already established
         (some %pass wire %agent gill %watch path)
       ::  manage subs for new or non-matching gills
       ::
@@ -158,6 +158,14 @@
           (~(put in kill) [wire gill])
         $(need t.need)
       ::
+      =^  inis  state
+        =|  caz=(list card)
+        =/  inz=(list [gill:gall protocol])  ~(tap in init)
+        |-
+        ?~  inz  [caz state]
+        =^  car  state  (negotiate i.inz)
+        $(caz (weld car caz), inz t.inz)
+      ::
       =/  notes=(list card)
         ?.  notify  ~
         ?~  knew    ~
@@ -169,13 +177,6 @@
         ?:  =(did now)  ~
         `(notify-inner now gill)
       ::
-      =^  inis  state
-        =|  caz=(list card)
-        =/  inz=(list [gill:gall protocol])  ~(tap in init)
-        |-
-        ?~  inz  [caz state]
-        =^  car  state  (negotiate i.inz)
-        $(caz (weld car caz), inz t.inz)
       :_  state
       %+  weld  notes
       %+  weld  open
@@ -204,11 +205,6 @@
       ::
       ?.  ?=([%pass * %agent *] card)
         pass
-      ::  if we don't require versions for the target agent, let the card go
-      ::
-      =*  dude=dude:gall  name.q.card
-      ?.  (~(has by know) dude)
-        pass
       ::  always track the subscriptions we want to have
       ::
       =*  gill=gill:gall  [ship name]:q.card
@@ -224,6 +220,11 @@
         =.  wan  (~(del by wan) p.card)
         ?~  wan  (~(del by want) gill)
         (~(put by want) gill wan)
+      ::  if we don't require versions for the target agent, let the card go
+      ::
+      =*  dude=dude:gall  name.q.card
+      ?.  (~(has by know) dude)
+        pass
       ::  %leave is always free to happen
       ::
       ?:  ?=(%leave -.task.q.card)
@@ -466,7 +467,7 @@
           ::  so we cannot take more accurate/appropriate action here.
           ::  (notably, "do we still care" check also lives in %wake logic.)
           ::
-          [(retry-timer:up ~s15 /watch/(scot %p src.bowl))]~
+          [(retry-timer:up ~s15 [%watch t.t.wire])]~
         ::
             %poke-ack
           ~&  [negotiate+dap.bowl %unexpected-poke-ack wire]
