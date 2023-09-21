@@ -67,7 +67,9 @@
   +$  diff
     (pair id delta)
   +$  delta
-    $%  [%add =memo:d =kind]
+    ::  time is unit because we won't have it when we send, but we
+    ::  need it upon receipt
+    $%  [%add =memo:d =kind time=(unit time)]
         [%del ~]
         [%quip =id =delta:quips]
         [%add-feel =ship =feel]
@@ -85,7 +87,7 @@
   ++  on
     ((^on time quip) lte)
   +$  delta
-    $%  [%add =memo:d]
+    $%  [%add =memo:d time=(unit time)]
         [%del ~]
         [%add-feel =ship =feel]
         [%del-feel =ship]

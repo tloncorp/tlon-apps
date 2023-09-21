@@ -1,4 +1,4 @@
-import { ChatBrief, ChatBriefs } from '@/types/chat';
+import { DMBrief, DMBriefs } from '@/types/dms';
 import useSidebarSort, {
   RECENT,
   Sorter,
@@ -15,9 +15,9 @@ export default function useMessageSort() {
     sortOptions,
   });
 
-  function sortMessages(briefs: ChatBriefs) {
-    const accessors: Record<string, (k: string, v: ChatBrief) => string> = {
-      [RECENT]: (flag: string, _brief: ChatBrief) => `chat/${flag}`,
+  function sortMessages(briefs: DMBriefs) {
+    const accessors: Record<string, (k: string, v: DMBrief) => string> = {
+      [RECENT]: (flag: string, _brief: DMBrief) => `chat/${flag}`,
     };
 
     return sortRecordsBy(briefs, accessors[sortFn], true);

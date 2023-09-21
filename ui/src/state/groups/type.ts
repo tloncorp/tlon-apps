@@ -1,4 +1,4 @@
-import { BaitCite } from '@/types/chat';
+import { BaitCite } from '@/types/dms';
 import { GroupsInit } from '@/types/ui';
 import {
   Gangs,

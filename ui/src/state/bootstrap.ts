@@ -55,7 +55,7 @@ async function startGroups() {
   queryClient.setQueryData(['pins'], pins);
 }
 
-async function startTalk(groupsStarted: boolean) {
+async function startTalk() {
   // since talk is a separate desk we need to offer a fallback
   const { groups, gangs, ...chat } = await asyncWithFallback(
     () =>
@@ -112,7 +112,7 @@ async function startTalk(groupsStarted: boolean) {
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  useChatState.getState().startTalk(chat, !groupsStarted);
+  useChatState.getState().start(chat);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
@@ -124,11 +124,11 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
   }
 
   if (isTalk) {
-    startTalk(false);
+    startTalk();
     wait(() => startGroups(), 5);
   } else {
     startGroups();
-    wait(async () => startTalk(true), 5);
+    wait(async () => startTalk(), 5);
   }
 
   wait(() => {

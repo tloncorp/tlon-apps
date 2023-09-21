@@ -8,26 +8,20 @@ import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
 import {
-  ChatBriefUpdate,
+  DMBriefUpdate,
   ChatScan,
   Club,
   ClubAction,
   ClubDelta,
   Clubs,
   DmAction,
-  DmBriefs,
+  DMBriefs,
   newWritMap,
   Pact,
   Pins,
   WritDelta,
-} from '@/types/chat';
-import {
-  Note,
-  NoteAction,
-  NoteEssay,
-  ShelfAction,
-  storyFromChatStory,
-} from '@/types/channel';
+} from '@/types/dms';
+import { Note, NoteEssay, ShelfAction } from '@/types/channel';
 import api from '@/api';
 import {
   whomIsDm,
@@ -41,12 +35,13 @@ import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { pokeOptimisticallyN, createState } from '../base';
-import makeWritsStore, { getWritWindow, writsReducer } from './writs';
+import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
 import { channelAction, channelNoteAction } from '../channel/channel';
+import { getWindow } from '@/logic/windows';
 
 setAutoFreeze(false);
 
@@ -59,8 +54,6 @@ function subscribeOnce<T>(app: string, path: string) {
     });
   });
 }
-
-const chatWritDiff = channelNoteAction;
 
 function makeId() {
   const time = Date.now();
@@ -138,26 +131,13 @@ export const useChatState = createState<ChatState>(
     multiDms: {},
     dmArchive: [],
     pacts: {},
-    drafts: {},
+    briefs: {},
     pendingDms: [],
     pins: [],
     trackedMessages: [],
     writWindows: {},
     loadedRefs: {},
-    dmBriefs: {},
     loadedGraphRefs: {},
-    getTime: (whom, id) => {
-      const { pacts } = get();
-      const pact = pacts[whom];
-
-      if (!pact || !pact.index[id]) {
-        // not accurate, won't be in pact, using until chat ref fetching
-        // returns time alongside writ
-        return bigInt(udToDec(id.split('/')[1]));
-      }
-
-      return pact.index[id];
-    },
     togglePin: async (whom, pin) => {
       const { pins } = get();
       let newPins = [];
@@ -202,9 +182,13 @@ export const useChatState = createState<ChatState>(
         });
       }
     },
-    start: async ({ briefs, pins }) => {
+    start: async ({ dms, clubs, briefs, pins, invited }) => {
       get().batchSet((draft) => {
-        draft.dmBriefs = briefs;
+        draft.briefs = briefs;
+        draft.pins = pins;
+        draft.multiDms = clubs;
+        draft.dms = dms;
+        draft.pendingDms = invited;
         draft.pins = pins;
       });
 
@@ -217,14 +201,14 @@ export const useChatState = createState<ChatState>(
           event: (event: unknown, mark: string) => {
             if (mark === 'chat-leave') {
               get().batchSet((draft) => {
-                delete draft.dmBriefs[event as string];
+                delete draft.briefs[event as string];
               });
               return;
             }
 
-            const { whom, brief } = event as ChatBriefUpdate;
+            const { whom, brief } = event as DMBriefUpdate;
             get().batchSet((draft) => {
-              draft.dmBriefs[whom] = brief;
+              draft.briefs[whom] = brief;
             });
 
             const {
@@ -251,18 +235,6 @@ export const useChatState = createState<ChatState>(
         },
         3
       );
-    },
-    startTalk: async (init, startBase = true) => {
-      if (startBase) {
-        get().start(init);
-      }
-
-      get().batchSet((draft) => {
-        draft.multiDms = init.clubs;
-        draft.dms = init.dms;
-        draft.pendingDms = init.invited;
-        draft.pins = init.pins;
-      });
 
       api.subscribe(
         {
@@ -384,7 +356,7 @@ export const useChatState = createState<ChatState>(
       });
       get().batchSet((draft) => {
         delete draft.pacts[ship];
-        delete draft.dmBriefs[ship];
+        delete draft.briefs[ship];
         draft.dms = draft.dms.filter((s) => s !== ship);
       });
     },
@@ -393,7 +365,7 @@ export const useChatState = createState<ChatState>(
         draft.pendingDms = draft.pendingDms.filter((d) => d !== ship);
         if (!ok) {
           delete draft.pacts[ship];
-          delete draft.dmBriefs[ship];
+          delete draft.briefs[ship];
           draft.dms = draft.dms.filter((s) => s !== ship);
         }
       });
@@ -410,11 +382,18 @@ export const useChatState = createState<ChatState>(
       const isDM = whomIsDm(whom);
       // ensure time and ID match up
       const { id, time } = makeId();
-      const essay: NoteEssay = {
-        ...mem,
+      const memo: Omit<NoteEssay, 'han-data'> = {
+        content: mem.content,
+        author: mem.author,
         sent: time,
       };
-      const diff = { add: essay };
+      const diff = {
+        add: {
+          memo,
+          kind: null,
+          time: null,
+        },
+      };
 
       const { pacts } = get();
       const isNew = !(whom in pacts);
@@ -545,7 +524,7 @@ export const useChatState = createState<ChatState>(
       const saved = _.pick(state, [
         'dms',
         'pendingDms',
-        'dmBriefs',
+        'briefs',
         'multiDms',
         'pins',
       ]);
@@ -556,14 +535,14 @@ export const useChatState = createState<ChatState>(
   []
 );
 
-export function useWritWindow(whom: string, time?: BigInteger) {
+export function useWritWindow(whom: string, time?: string) {
   const window = useChatState(useCallback((s) => s.writWindows[whom], [whom]));
 
-  return getWritWindow(window, time);
+  return getWindow(window, time);
 }
 
 const emptyWrits = newWritMap();
-export function useMessagesForChat(whom: string, near?: BigInteger) {
+export function useMessagesForChat(whom: string, near?: string) {
   const window = useWritWindow(whom, near);
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
 
@@ -600,18 +579,25 @@ export function useTrackedMessageStatus(id: string) {
 
 export function useChatIsJoined(whom: string) {
   return useChatState(
-    useCallback((s) => Object.keys(s.dmBriefs).includes(whom), [whom])
+    useCallback((s) => Object.keys(s.briefs).includes(whom), [whom])
   );
 }
 
-export function useChatInitialized(whom: string) {
-  return useChatState(useCallback((s) => !!s.pacts[whom], [whom]));
+export function useChatLoading(whom: string) {
+  return useChatState(
+    useCallback(
+      (s) => {
+        return !s.pacts[whom] && !!s.briefs[whom];
+      },
+      [whom]
+    )
+  );
 }
 
 const selDmList = (s: ChatState) =>
-  Object.keys(s.dmBriefs)
+  Object.keys(s.briefs)
     .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
-    .sort((a, b) => (s.dmBriefs[b]?.last || 0) - (s.dmBriefs[a]?.last || 0));
+    .sort((a, b) => (s.briefs[b]?.last || 0) - (s.briefs[a]?.last || 0));
 
 export function useDmList() {
   return useChatState(selDmList);
@@ -656,9 +642,9 @@ export function useWrit(whom: string, id: string) {
   );
 }
 
-const emptyBriefs: DmBriefs = {};
+const emptyBriefs: DMBriefs = {};
 export function useDmBriefs() {
-  const { data, ...query } = useReactQuerySubscription<DmBriefs>({
+  const { data, ...query } = useReactQuerySubscription<DMBriefs>({
     queryKey: ['dm', 'briefs'],
     app: 'chat',
     path: '/briefs',
@@ -676,6 +662,12 @@ export function useDmBriefs() {
     ...query,
     data,
   };
+}
+
+export function useIsDmUnread(whom: string) {
+  const briefs = useDmBriefs();
+  const brief = briefs.data[whom];
+  return Boolean(brief?.count > 0 && brief['read-id']);
 }
 
 const selPendingDms = (s: ChatState) => s.pendingDms;
@@ -720,7 +712,7 @@ export function useMultiDmIsPending(id: string): boolean {
     useCallback(
       (s) => {
         const chat = s.multiDms[id];
-        const brief = s.dmBriefs[id];
+        const brief = s.briefs[id];
         const isPending = chat && chat.hive.includes(window.our);
         const inTeam = chat && chat.team.includes(window.our);
 
@@ -745,11 +737,11 @@ export function isGroupBrief(brief: string) {
 }
 
 export function useBriefs() {
-  return useChatState(useCallback((s: ChatState) => s.dmBriefs, []));
+  return useChatState(useCallback((s: ChatState) => s.briefs, []));
 }
 
 export function useBrief(whom: string) {
-  return useChatState(useCallback((s: ChatState) => s.dmBriefs[whom], [whom]));
+  return useChatState(useCallback((s: ChatState) => s.briefs[whom], [whom]));
 }
 
 export function usePinned() {

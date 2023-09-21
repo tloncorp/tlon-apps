@@ -96,18 +96,9 @@
     =/  =init:u
       :*  groups
           gangs
-          .^(talk:u (scry %gx %chat /init/talk/noun))
+          .^(talk:u (scry %gx %chat /init/noun))
       ==
     ``ui-init+!>(init)
-  ::
-      [%x %init %v0 ~]
-    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v0/noun))
-    =/  =init-0:u
-      :*  groups-ui
-          gangs
-          .^(talk:u (scry %gx %chat /init/talk/noun))
-      ==
-    ``ui-init-0+!>(init-0)
   ==
 ::
 ++  poke

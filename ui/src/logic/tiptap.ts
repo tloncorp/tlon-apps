@@ -19,7 +19,7 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { deSig } from '@urbit/api';
-import { Cite } from '@/types/chat';
+import { Cite } from '@/types/dms';
 import { Block, Story, Listing, HeaderLevel, isCite } from '@/types/channel';
 import { citeToPath, pathToCite, preSig } from './utils';
 

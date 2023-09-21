@@ -9,13 +9,17 @@ import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { useChatState, useIsDmOrMultiDm, usePinned } from '@/state/chat';
+import {
+  useChatState,
+  useIsDmOrMultiDm,
+  useIsDmUnread,
+  usePinned,
+} from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
-import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useIsChannelUnread } from '@/logic/channel';
+import { whomIsDm } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { useLeaveMutation, useMarkReadMutation } from '@/state/channel/channel';
+import { useMarkReadMutation } from '@/state/channel/channel';
 import DmInviteDialog from './DmInviteDialog';
 
 type DMOptionsProps = PropsWithChildren<{
@@ -46,12 +50,10 @@ export default function DmOptions({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const pinned = usePinned();
-  const isUnread = useIsChannelUnread(`chat/${whom}`);
+  const isUnread = useIsDmUnread(whom);
   const hasActivity = isUnread || pending;
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-  const { mutateAsync: leave } = useLeaveMutation();
   const { mutateAsync: markChatRead } = useMarkReadMutation();
-  const nest = `chat/${whom}`;
 
   const [isOpen, setIsOpen] = useState(open);
   const handleOpenChange = (innerOpen: boolean) => {
@@ -72,28 +74,19 @@ export default function DmOptions({
     useChatState.getState().archiveDm(whom);
   };
 
-  const markRead = useCallback(async () => {
-    if (isDMOrMultiDM) {
-      await useChatState.getState().markDmRead(whom);
-    } else {
-      await markChatRead({
-        nest,
-      });
-    }
-  }, [whom, nest, isDMOrMultiDM, markChatRead]);
+  const markRead = useCallback(
+    async () => useChatState.getState().markDmRead(whom),
+    [whom, isDMOrMultiDM, markChatRead]
+  );
 
   const [dialog, setDialog] = useState(false);
 
   const leaveMessage = async () => {
     navigate('/');
-    if (whomIsMultiDm(whom)) {
-      await useChatState.getState().multiDmRsvp(whom, false);
-    } else if (whomIsDm(whom)) {
+    if (whomIsDm(whom)) {
       await useChatState.getState().dmRsvp(whom, false);
     } else {
-      await leave({
-        nest,
-      });
+      await useChatState.getState().multiDmRsvp(whom, false);
     }
   };
   const closeDialog = () => {

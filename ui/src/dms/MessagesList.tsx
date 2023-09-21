@@ -4,7 +4,7 @@ import useMessageSort from '@/logic/useMessageSort';
 import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { ChatBrief } from '@/types/chat';
+import { DMBrief } from '@/types/dms';
 import {
   usePendingDms,
   useBriefs,
@@ -20,7 +20,7 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
+function itemContent(_i: number, [whom, _brief]: [string, DMBrief]) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -28,8 +28,7 @@ function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
   );
 }
 
-const computeItemKey = (_i: number, [whom, _brief]: [string, ChatBrief]) =>
-  whom;
+const computeItemKey = (_i: number, [whom, _brief]: [string, DMBrief]) => whom;
 
 export default function MessagesList({
   filter,

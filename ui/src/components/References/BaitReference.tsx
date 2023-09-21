@@ -1,6 +1,6 @@
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import { useGroup, useShoal } from '@/state/groups';
-import { BaitCite } from '@/types/chat';
+import { BaitCite } from '@/types/dms';
 import { udToDec } from '@urbit/api';
 import React from 'react';
 import ExclamationPoint from '../icons/ExclamationPoint';

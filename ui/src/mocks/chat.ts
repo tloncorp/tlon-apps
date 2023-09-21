@@ -6,7 +6,7 @@ import faker from '@faker-js/faker';
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
 import { Note, Notes, Story, storyFromChatStory } from '@/types/channel';
-import { ChatBriefs, ChatNotice } from '../types/chat';
+import { DMBriefs, ChatNotice } from '../types/dms';
 
 const getUnix = (count: number, setTime?: Date) =>
   count > 1
@@ -131,7 +131,7 @@ export const makeFakeChatWrits = (offset: number) => {
 
 export const chatKeys = ['~zod/test'];
 
-export const dmList: ChatBriefs = {
+export const dmList: DMBriefs = {
   '~fabled-faster': {
     last: 0,
     count: 0,

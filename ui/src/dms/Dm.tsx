@@ -24,7 +24,7 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import DmWindow from '@/chat/DmWindow';
+import DmWindow from '@/dms/DmWindow';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -98,13 +98,13 @@ export default function Dm() {
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
-  const { data, showConnection } = useConnectivityCheck(ship || '');
+  const { data } = useConnectivityCheck(ship || '');
   const isMobile = useIsMobile();
   const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
   const canStart = useChatState(
-    useCallback((s) => ship && Object.keys(s.dmBriefs).includes(ship), [ship])
+    useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
 
   const {

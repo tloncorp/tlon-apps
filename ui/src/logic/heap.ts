@@ -7,7 +7,7 @@ import { JSONToInlines } from '@/logic/tiptap';
 import { reduce } from 'lodash';
 import { NoteEssay, storyFromChatStory } from '@/types/channel';
 import { Inline, InlineKey } from '@/types/content';
-import { ChatStory } from '@/types/chat';
+import { ChatStory } from '@/types/dms';
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
 function isMergeable(x: InlineKey): x is (typeof MERGEABLE_KEYS)[number] {

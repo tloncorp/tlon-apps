@@ -4,7 +4,7 @@ import BTree from 'sorted-btree';
 import { Inline, isLink, Link } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
-import { ChatBlock, ChatStory } from './chat';
+import { ChatBlock, ChatStory } from './dms';
 
 export type Patda = string;
 export type Ship = string;

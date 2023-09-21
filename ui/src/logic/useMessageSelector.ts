@@ -26,9 +26,9 @@ export default function useMessageSelector() {
       return null;
     }
 
-    const { dmBriefs: chatBriefs } = useChatState.getState();
+    const { briefs: dmBriefs } = useChatState.getState();
     return (
-      Object.entries(chatBriefs).find(([flag, _brief]) => {
+      Object.entries(dmBriefs).find(([flag, _brief]) => {
         const theShip = ships[0].value;
         const sameDM = theShip === flag;
         return sameDM;
@@ -40,7 +40,7 @@ export default function useMessageSelector() {
     if (!shipValues.length) {
       return null;
     }
-    const { dmBriefs: briefs } = useChatState.getState();
+    const { briefs } = useChatState.getState();
     const clubId = Object.entries(multiDms).reduce<string>((key, [k, v]) => {
       const theShips = [...v.hive, ...v.team].filter((s) => s !== window.our);
       if (theShips.length < 2) {

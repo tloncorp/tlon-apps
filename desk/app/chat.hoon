@@ -419,9 +419,9 @@
   ::
       [%x %init ~]
     =-  ``noun+!>(-)
-    :*  briefs
-        (~(run by clubs) |=(=club:c crew.club))
+    :*  (~(run by clubs) |=(=club:c crew.club))
         ~(key by accepted-dms)
+        briefs
         ~(key by pending-dms)
         pins
     ==
@@ -499,7 +499,7 @@
     ^-  delta:writs:c
     =/  =story:d  ~[[%inline ~[[%ship our.bowl] text]]]
     =/  =memo:d  [story our.bowl now.bowl]
-    [%add memo notice/~]
+    [%add memo notice/~ `now.bowl]
 ::
 ++  check-writ-ownership
   |=  diff=diff:writs:c
@@ -805,10 +805,7 @@
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
     =.  cor  (emil (gossip:cu-pass diff))
-    =.  cu-core
-      ?+  -.delta  (cu-give-action [id diff])
-          %writ  (cu-give-writs-diff diff.delta)
-      ==
+    =?  cu-core  !?=(%writ -.delta)  (cu-give-action [id diff])
     ?-    -.delta
     ::
         %meta
@@ -831,7 +828,7 @@
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       ?-  -.q.diff.delta
-          ?(%del %add-feel %del-feel)  cu-core
+          ?(%del %add-feel %del-feel)  (cu-give-writs-diff diff.delta)
           %add
         =*  memo  memo.q.diff.delta
         =?  remark.club  =(author.memo our.bowl)
@@ -848,12 +845,14 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-hark new-yarn))
-        cu-core
+        =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
+        (cu-give-writs-diff diff.delta)
       ::
           %quip
+        =*  quip-id  id.q.diff.delta
         =*  delt  delta.q.diff.delta
         ?-  -.delt
-            ?(%del %add-feel %del-feel)  cu-core
+            ?(%del %add-feel %del-feel)  (cu-give-writs-diff diff.delta)
             %add
           =*  memo  memo.delt
           =?  remark.club  =(author.memo our.bowl)
@@ -873,7 +872,8 @@
             ~
           =?  cor  (want-hark %to-us)
             (emit (pass-hark new-yarn))
-          cu-core
+          =.  time.delt  (~(get by dex.pact.club) quip-id)
+          (cu-give-writs-diff diff.delta)
         ==
       ==
     ::

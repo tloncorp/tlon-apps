@@ -12,7 +12,7 @@ import {
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
 import { isCite, Story, VerseBlock, VerseInline } from '@/types/channel';
-import { Cite } from '@/types/chat';
+import { Cite } from '@/types/dms';
 
 interface HeapContentProps {
   content: Story;

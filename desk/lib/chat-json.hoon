@@ -143,6 +143,7 @@
       %-  pairs
       :~  memo+(memo:enjs:dj memo.delta)
           kind+?~(kind.delta ~ s+'notice')
+          time+?~(time.delta ~ (time u.time.delta))
       ==
     ==
   ::
@@ -384,10 +385,11 @@
         quip/quip-delta
     ::
       :-  %add
-      ^-  $-(json [=memo:d =kind:c])
+      ^-  $-(json [=memo:d =kind:c time=(unit time)])
       %-  ot
       :~  memo/memo:dejs:dj
           kind/kind:dejs:dj
+          time/(mu di)
       ==
     ==
   ::
@@ -400,7 +402,13 @@
         :~  del/ul
             add-feel/add-feel
             del-feel/ship
-            add/memo:dejs:dj
+        ::
+          :-  %add
+          ^-  $-(json [=memo:d time=(unit time)])
+          %-  ot
+          :~  memo/memo:dejs:dj
+              time/(mu di)
+          ==
         ==
     ==
   ++  add-sects  (as (se %tas))

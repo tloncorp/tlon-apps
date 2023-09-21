@@ -27,7 +27,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
 import { isCite, Note, VerseBlock, VerseInline } from '@/types/channel';
 import { Link, isLink } from '@/types/content';
-import { Cite } from '@/types/chat';
+import { Cite } from '@/types/dms';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {

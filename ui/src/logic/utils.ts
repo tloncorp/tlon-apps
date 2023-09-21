@@ -19,7 +19,7 @@ import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { useParams } from 'react-router';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { ChatWhom, ChatStory } from '@/types/chat';
+import { DMWhom, ChatStory } from '@/types/dms';
 import {
   Cabals,
   GroupChannel,
@@ -193,26 +193,26 @@ export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
   };
 }
 
-export function whomIsDm(whom: ChatWhom): boolean {
+export function whomIsDm(whom: DMWhom): boolean {
   return whom.startsWith('~') && !whom.match('/');
 }
 
 // ship + term, term being a @tas: lower-case letters, numbers, and hyphens
-export function whomIsFlag(whom: ChatWhom): boolean {
+export function whomIsFlag(whom: DMWhom): boolean {
   return (
     /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
     ob.isValidPatp(whom.split('/')[0])
   );
 }
 
-export function whomIsNest(whom: ChatWhom): boolean {
+export function whomIsNest(whom: DMWhom): boolean {
   return (
     /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
     ob.isValidPatp(whom.split('/')[0])
   );
 }
 
-export function whomIsMultiDm(whom: ChatWhom): boolean {
+export function whomIsMultiDm(whom: DMWhom): boolean {
   return whom.startsWith(`0v`);
 }
 

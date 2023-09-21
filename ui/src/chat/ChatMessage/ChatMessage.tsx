@@ -7,7 +7,7 @@ import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { ChatBrief } from '@/types/chat';
+import { DMBrief } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -52,7 +52,7 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function briefMatches(brief: ChatBrief, id: string): boolean {
+function briefMatches(brief: DMBrief, id: string): boolean {
   return brief['read-id'] === id;
 }
 

@@ -4,112 +4,28 @@ import bigInt, { BigInteger } from 'big-integer';
 import { newNoteMap, Note, Notes, NoteSeal } from '@/types/channel';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '@/api';
-import { Pact, WritDiff, DmAction, newWritMap } from '@/types/chat';
-import { BasedChatState, WritWindow, WritWindows } from './type';
+import {
+  Pact,
+  WritDiff,
+  DmAction,
+  newWritMap,
+  WritSeal,
+  Writ,
+  Writs,
+} from '@/types/dms';
+import { BasedChatState } from './type';
+import {
+  Window,
+  WindowSet,
+  extendCurrentWindow,
+  getWindow,
+} from '@/logic/windows';
 
 interface WritsStore {
   initialize: () => Promise<void>;
-  getNewer: (count: string, time?: BigInteger) => Promise<boolean>;
-  getOlder: (count: string, time?: BigInteger) => Promise<boolean>;
-  getAround: (count: string, time: BigInteger) => Promise<void>;
-}
-
-export const emptyWindow: WritWindow = {
-  oldest: unixToDa(Date.now()),
-  newest: bigInt(0),
-  loadedOldest: false,
-  loadedNewest: false,
-};
-export const emptyWindows: WritWindows = {
-  latest: emptyWindow,
-  windows: [emptyWindow],
-};
-
-function inWindow(window: WritWindow, time: BigInteger) {
-  return time.geq(window.oldest) && time.leq(window.newest);
-}
-
-export function getWritWindow(window?: WritWindows, time?: BigInteger) {
-  if (!window) {
-    return undefined;
-  }
-
-  if (!time) {
-    return window.latest;
-  }
-
-  for (let i = 0; i <= window.windows.length - 1; i += 1) {
-    if (inWindow(window.windows[i], time)) {
-      return window.windows[i];
-    }
-  }
-
-  return undefined;
-}
-
-export function combineWindows(windows: WritWindow[]) {
-  const result: WritWindow[] = [];
-  let last: WritWindow;
-
-  _.forEachRight(windows, (r) => {
-    if (!last || r.newest.lt(last.oldest)) {
-      result.unshift((last = r));
-    } else if (r.oldest.lt(last.oldest)) {
-      last.oldest = r.oldest;
-      last.latest = last.latest || r.latest;
-      last.loadedOldest = r.loadedOldest;
-    }
-  });
-
-  return result;
-}
-
-function extendCurrentWindow(
-  newWindow: WritWindow,
-  windows?: WritWindows,
-  time?: BigInteger
-) {
-  if (!windows) {
-    return {
-      latest: newWindow.latest || !time ? newWindow : undefined,
-      windows: [newWindow],
-    };
-  }
-
-  const current = getWritWindow(windows, time);
-  const areEqual = (a: WritWindow, b: WritWindow) =>
-    a.oldest.eq(b.oldest) && a.newest.eq(b.newest);
-  const newWindows =
-    current && windows.windows.some((w) => areEqual(w, current))
-      ? windows.windows.map((w) => {
-          if (areEqual(w, current)) {
-            return {
-              ...newWindow,
-              latest: newWindow.latest || w.latest,
-              newest: newWindow.newest.gt(w.newest)
-                ? newWindow.newest
-                : w.newest,
-              oldest: newWindow.oldest.lt(w.oldest)
-                ? newWindow.oldest
-                : w.oldest,
-            };
-          }
-          return w;
-        })
-      : [...windows.windows, newWindow];
-
-  const combined = combineWindows(
-    newWindows.sort(
-      (a, b) =>
-        a.newest.subtract(b.newest).toJSNumber() ||
-        a.oldest.subtract(b.oldest).toJSNumber()
-    )
-  );
-
-  return {
-    latest: combined.find((w) => w.latest),
-    windows: combined,
-  };
+  getNewer: (count: string, time?: string) => Promise<boolean>;
+  getOlder: (count: string, time?: string) => Promise<boolean>;
+  getAround: (count: string, time: string) => Promise<void>;
 }
 
 export function writsReducer(whom: string) {
@@ -135,8 +51,9 @@ export function writsReducer(whom: string) {
     if ('add' in delta && !pact.index[id]) {
       const time = bigInt(unixToDa(Date.now()));
       pact.index[id] = time;
-      const seal: NoteSeal = {
+      const seal: WritSeal = {
         id,
+        time: delta.add.time,
         feels: {},
         quips: null,
         meta: {
@@ -145,7 +62,15 @@ export function writsReducer(whom: string) {
           lastQuip: null,
         },
       };
-      const writ = { seal, essay: delta.add };
+      const writ: Writ = {
+        seal,
+        essay: {
+          ...delta.add.memo,
+          'han-data': {
+            chat: delta.add.kind,
+          },
+        },
+      };
       pact.writs = pact.writs.with(time, writ);
       draft.writWindows[whom] = extendCurrentWindow(
         {
@@ -202,16 +127,15 @@ export function writsReducer(whom: string) {
   };
 }
 
-export function updatePact(whom: string, writs: Notes, draft: BasedChatState) {
+export function updatePact(whom: string, writs: Writs, draft: BasedChatState) {
   const pact: Pact = draft.pacts[whom] || {
     writs: newNoteMap(),
     index: {},
   };
 
   const pairs = Object.entries(writs)
-    .filter(([, writ]) => writ !== null)
-    .map<[BigInteger, Note]>(([key, writ]) => [bigInt(udToDec(key)), writ!])
-    .filter(([, writ]) => !pact.index[writ.seal.id]);
+    .map<[BigInteger, Writ]>(([key, writ]) => [bigInt(udToDec(key)), writ])
+    .filter(([key, writ]) => !pact.index[writ.seal.id] && !pact.writs.has(key));
 
   pact.writs.setPairs(pairs);
   pairs.forEach(([tim, writ]) => {
@@ -236,7 +160,7 @@ export default function makeWritsStore(
   const getMessages = async (
     count: string,
     dir: 'older' | 'newer',
-    around?: BigInteger
+    around?: string
   ) => {
     const { pacts, writWindows } = get();
     const pact = pacts[whom];
@@ -251,7 +175,7 @@ export default function makeWritsStore(
       return false;
     }
 
-    const window = getWritWindow(writWindows[whom], around);
+    const window = getWindow(writWindows[whom], around);
     if (!window) {
       return false;
     }
@@ -263,7 +187,7 @@ export default function makeWritsStore(
     }
 
     const fetchStart = decToUd(index.toString());
-    const writs = await api.scry<Notes>({
+    const writs = await api.scry<Writs>({
       app: 'chat',
       path: `${scryPath}/${dir}/${fetchStart}/${count}`,
     });
@@ -295,13 +219,13 @@ export default function makeWritsStore(
 
   return {
     initialize: async () => {
-      const writs = await scry<Notes>(
+      const writs = await scry<Writs>(
         `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`
       );
 
       get().batchSet((draft) => {
         const keys = Object.keys(writs).sort();
-        const window = getWritWindow(draft.writWindows[whom]);
+        const window = getWindow(draft.writWindows[whom]);
         const oldest = bigInt(udToDec(keys[0] || '0'));
         const newest = bigInt(udToDec(keys[keys.length - 1] || '0'));
         if (window && window.oldest.eq(oldest) && window.newest.eq(newest)) {
@@ -346,7 +270,7 @@ export default function makeWritsStore(
     getNewer: async (count, time) => getMessages(count, 'newer', time),
     getOlder: async (count, time) => getMessages(count, 'older', time),
     getAround: async (count, time) => {
-      const writs = await api.scry<Notes>({
+      const writs = await api.scry<Writs>({
         app: 'chat',
         path: `${scryPath}/around/${decToUd(time.toString())}/${count}`,
       });
