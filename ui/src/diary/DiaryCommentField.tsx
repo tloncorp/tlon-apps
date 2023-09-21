@@ -71,7 +71,7 @@ export default function DiaryCommentField({
       if (replyCite) {
         content = [
           {
-            block: replyCite.cite,
+            block: replyCite,
           },
           ...content,
         ];

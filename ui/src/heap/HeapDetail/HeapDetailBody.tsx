@@ -29,6 +29,9 @@ export default function HeapDetailBody({ essay }: { essay?: NoteEssay }) {
   const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { embed, isError, error } = useEmbed(url, isMobile);
   const { isImage, isText, isAudio, isVideo } = getHeapContentType(url);
+  const { block } = content.filter(
+    (b) => 'block' in b && isCite(b.block)
+  )[0] as VerseBlock;
 
   useEffect(() => {
     if (isError) {
@@ -46,20 +49,11 @@ export default function HeapDetailBody({ essay }: { essay?: NoteEssay }) {
     );
   }
 
-  if (
-    content.filter((b) => 'block' in b).length > 0 &&
-    isCite((content.filter((b) => 'block' in b)[0] as VerseBlock).block)
-  ) {
+  if (block && 'cite' in block) {
     return (
       <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
         <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
-          <ContentReference
-            contextApp="heap-detail"
-            cite={
-              (content.filter((b) => 'inline' in b)[0] as VerseBlock)
-                .block as Cite
-            }
-          />
+          <ContentReference contextApp="heap-detail" cite={block.cite} />
         </div>
       </div>
     );

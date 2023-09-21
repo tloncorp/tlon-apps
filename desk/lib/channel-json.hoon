@@ -332,6 +332,12 @@
         read-id/?~(read-id.b ~ (id u.read-id.b))
     ==
   ::
+  ++  pins
+    |=  ps=(list nest:d)
+    %-  pairs
+    :~  pins/a/(turn ps nest)
+    ==
+  ::
   +|  %said
   ::
   ++  said
@@ -352,6 +358,7 @@
     ^-  $-(json a-shelf:d)
     %-  of
     :~  create+create-diary
+        pin+(ar nest)
         diary+(ot nest+nest action+a-diary ~)
     ==
   ++  a-diary
@@ -532,6 +539,11 @@
     :~  content/story
         author/ship
         sent/di
+    ==
+  ::
+  ++  pins
+    %-  ot
+    :~  pins/(ar nest)
     ==
   --
 --

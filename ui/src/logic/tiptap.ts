@@ -19,8 +19,14 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { deSig } from '@urbit/api';
-import { Cite } from '@/types/dms';
-import { Block, Story, Listing, HeaderLevel, isCite } from '@/types/channel';
+import {
+  Block,
+  Story,
+  Listing,
+  HeaderLevel,
+  isCite,
+  Cite,
+} from '@/types/channel';
 import { citeToPath, pathToCite, preSig } from './utils';
 
 export interface EditorOnUpdateProps {
@@ -451,7 +457,7 @@ export function JSONToInlines(
         return [''];
       }
 
-      return [cite];
+      return [{ cite }];
     }
     case 'diary-link': {
       if (!json.attrs) {
@@ -632,11 +638,11 @@ export function makeListing(listing: Listing): JSONContent {
 }
 
 export const blockToContent = (content: Block): JSONContent => {
-  if (isCite(content)) {
+  if ('cite' in content) {
     return {
       type: 'diary-cite',
       attrs: {
-        path: citeToPath(content as Cite),
+        path: citeToPath(content.cite),
       },
     };
   }

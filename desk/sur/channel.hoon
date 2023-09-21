@@ -199,6 +199,12 @@
 ::  $feel: either an emoji identifier like :diff or a URL for custom
 +$  feel  @ta
 +$  feels  (map ship (rev (unit feel)))
+::  $scan: search results
++$  scan  (list scan-result)
++$  scan-result
+  $%  [%note =rr-note]
+      [%quip =id-note =rr-quip]
+  ==
 ::  $said: used for references
 +$  said  (pair nest rr-note)
 ::  $plan: index into diary state
@@ -293,6 +299,7 @@
 ::      originally caused it
 +$  a-shelf
   $%  [%create =create-diary]
+      [%pin pins=(list nest)]
       [%diary =nest =a-diary]
   ==
 +$  a-diary

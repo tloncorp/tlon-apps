@@ -47,7 +47,7 @@ function NoteReference({
   const location = useLocation();
 
   const contentPreview = useMemo(() => {
-    if (!note || !note.essay.content) {
+    if (!note || !note.essay?.content) {
       return '';
     }
 
@@ -59,7 +59,7 @@ function NoteReference({
     return <DiaryContent content={truncatedContent} isPreview />;
   }, [note]);
 
-  if (!note || !note.essay.content) {
+  if (!note || !note.essay?.content) {
     return <HeapLoadingBlock reference />;
   }
 
@@ -75,7 +75,7 @@ function NoteReference({
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
   };
 
-  const prettyDate = makePrettyDate(new Date(note.seal.id));
+  const prettyDate = makePrettyDate(new Date(note.essay.sent));
 
   if (contextApp === 'heap-row') {
     return (

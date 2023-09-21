@@ -69,7 +69,7 @@ export function useMessageEditor({
       if (!whom) {
         return;
       }
-      setBlocks(whom, [...chatBlocks, r]);
+      setBlocks(whom, [...chatBlocks, { cite: r }]);
     },
     [chatBlocks, setBlocks, whom]
   );

@@ -113,7 +113,13 @@ export function isImage(item: unknown): item is Image {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
-export type Block = Image | Cite | ListingBlock | Header | Rule | Code;
+export type Block =
+  | Image
+  | { cite: Cite }
+  | ListingBlock
+  | Header
+  | Rule
+  | Code;
 
 export interface VerseBlock {
   block: Block;
@@ -386,21 +392,9 @@ export interface ShelfResponse {
 }
 
 export function isCite(s: Block): boolean {
-  if ('chan' in s) {
+  if ('cite' in s) {
     return true;
   }
-  if ('group' in s) {
-    return true;
-  }
-
-  if ('desk' in s) {
-    return true;
-  }
-
-  if ('bait' in s) {
-    return true;
-  }
-
   return false;
 }
 
@@ -449,14 +443,8 @@ export function chatStoryFromStory(story: Story): ChatStory {
     .flat();
   const blocks: ChatBlock[] = story
     .filter((s) => 'block' in s)
-    .map((s) => (s as VerseBlock).block)
-    .flat()
-    .map((s) => {
-      if (isCite(s)) {
-        return { cite: s } as ChatBlock;
-      }
-      return s as ChatBlock;
-    });
+    .map((s) => (s as VerseBlock).block as ChatBlock)
+    .flat();
 
   newCon.inline = inlines;
   newCon.block = blocks;
@@ -468,12 +456,7 @@ export function storyFromChatStory(chatStory: ChatStory): Story {
   const newStory: Story = [];
 
   const inlines: Inline[] = chatStory.inline;
-  const blocks: Block[] = chatStory.block.map((b) => {
-    if ('cite' in b) {
-      return b.cite;
-    }
-    return b;
-  });
+  const blocks: Block[] = chatStory.block;
 
   newStory.push({ inline: inlines });
 
@@ -539,9 +522,17 @@ export const emptyQuip: Quip = {
 
 export function constructStory(data: (Inline | Block)[]): Story {
   const isBlock = (c: Inline | Block) =>
-    ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
-      (k) => typeof c !== 'string' && k in c
-    );
+    [
+      'image',
+      'chan',
+      'desk',
+      'bait',
+      'group',
+      'listing',
+      'header',
+      'rule',
+      'code',
+    ].some((k) => typeof c !== 'string' && k in c);
   const noteContent: Story = [];
   let index = 0;
   data.forEach((c, i) => {
