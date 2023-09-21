@@ -16,16 +16,9 @@
 ::    updates _may_ become responses.
 ::
 /-  g=groups, c=cite, e=epic
-/-  zer=diary-0, uno=diary-1
 /+  mp=mop-extensions
 |%
 +|  %ancients
-::
-++  old
-  |%
-  ++  zero  zer
-  ++  one  uno
-  --
 ::
 ++  okay  `epic:e`1
 ++  mar

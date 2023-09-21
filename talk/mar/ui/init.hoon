@@ -8,7 +8,7 @@
   ++  json
     =,  enjs:format
     %-  pairs
-    :~  groups/(groups:enjs:gj groups.init)
+    :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
         clubs/(clubs:enjs:cj clubs.init)
         dms/a/(turn ~(tap in dms.init) ship:enjs:gj)

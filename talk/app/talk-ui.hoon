@@ -1,7 +1,6 @@
 /-  u=ui, g=groups, c=chat
 /+  default-agent, dbug, verb, vita-client
 /$  init  %ui-init  %json
-/$  init-0  %ui-init-0  %json
 ^-  agent:gall
 =>
   |%
@@ -92,9 +91,9 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
-    =+  .^([=groups:g =gangs:g] (scry %gx %groups /init/noun))
+    =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/noun))
     =/  =init:u
-      :*  groups
+      :*  groups-ui
           gangs
           .^(talk:u (scry %gx %chat /init/noun))
       ==
