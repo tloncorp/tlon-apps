@@ -2,10 +2,12 @@ import cn from 'classnames';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
+import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
+import { useChannelUnreadCounts } from '@/logic/channel';
 import { useLocalState } from '@/state/local';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
-import GridIcon from '../icons/GridIcon';
+import MenuIcon from '../icons/MenuIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import MagnifyingGlassMobileNavIcon from '../icons/MagnifyingGlassMobileNavIcon';
 import MessagesIcon from '../icons/MessagesIcon';
@@ -14,6 +16,7 @@ import Avatar from '../Avatar';
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { groupsLocation } = useLocalState.getState();
+  const groupsUnread = useIsAnyGroupUnread();
 
   const onSingleClick = () => {
     if (isNativeApp()) {
@@ -29,12 +32,17 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
     <DoubleClickableNavTab
       onSingleClick={onSingleClick}
       onDoubleClick={() => navigate('/')}
-      linkClass="basis-1/5"
     >
       <HomeIconMobileNav
         isInactive={props.isInactive}
         isDarkMode={props.isDarkMode}
-        className="mb-0.5 h-6 w-6"
+        className="h-6 w-6"
+      />
+      <div
+        className={cn(
+          'mt-[2px] h-1.5 w-1.5 rounded-full',
+          groupsUnread && 'bg-blue'
+        )}
       />
     </DoubleClickableNavTab>
   );
@@ -43,6 +51,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { messagesLocation } = useLocalState.getState();
+  const unreadCount = useChannelUnreadCounts({ scope: 'Direct Messages' });
 
   const onSingleClick = () => {
     if (isNativeApp()) {
@@ -62,7 +71,13 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       <MessagesIcon
         isInactive={props.isInactive}
         isDarkMode={props.isDarkMode}
-        className="mb-0.5 h-6 w-6"
+        className="h-6 w-6"
+      />
+      <div
+        className={cn(
+          'mt-[2px] h-1.5 w-1.5 rounded-full',
+          unreadCount > 0 && 'bg-blue'
+        )}
       />
     </DoubleClickableNavTab>
   );
@@ -87,39 +102,37 @@ export default function MobileSidebar() {
               isInactive={isInactive('/groups') && location.pathname !== '/'}
               isDarkMode={isDarkMode}
             />
-
             {isNativeApp() && (
               <MessagesTab
                 isInactive={isInactive('/messages') && isInactive('/dm')}
                 isDarkMode={isDarkMode}
               />
             )}
-
-            <NavTab to="/notifications" linkClass="basis-1/5">
+            <NavTab to="/notifications">
               <BellIcon
                 isInactive={isInactive('/notifications')}
-                className="mb-0.5 h-6 w-6"
+                className="h-6 w-6"
                 isDarkMode={isDarkMode}
               />
             </NavTab>
-            <NavTab to="/find" linkClass="basis-1/5">
+            <NavTab to="/find">
               <MagnifyingGlassMobileNavIcon
                 isInactive={isInactive('/find')}
                 isDarkMode={isDarkMode}
-                className="mb-0.5 h-6 w-6"
+                className="h-6 w-6"
               />
             </NavTab>
             {!isNativeApp() && (
-              <NavTab to="/leap" linkClass="basis-1/5">
-                <GridIcon
-                  className={cn('mb-0.5 h-8 w-8', {
+              <NavTab to="/leap">
+                <MenuIcon
+                  className={cn('h-6 w-6', {
                     'text-gray-200 dark:text-gray-700': isInactive('/leap'),
                   })}
                 />
               </NavTab>
             )}
-            <NavTab to="/profile" linkClass="basis-1/5">
-              <Avatar size="xs" className="mb-0.5" ship={window.our} />
+            <NavTab to="/profile">
+              <Avatar size="xs" className="" ship={window.our} />
             </NavTab>
           </ul>
         </nav>
