@@ -342,16 +342,18 @@ const infiniteNoteUpdater = (
     if (note === null) {
       queryClient.setQueryData(
         queryKey,
-        (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+        (
+          d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined
+        ) => {
           if (d === undefined) {
             return undefined;
           }
 
           const newPages = d.pages.map((page) => {
-            const inPage = page.has(time);
+            const inPage = page.notes.has(time);
 
             if (inPage) {
-              page.set(bigInt(id), null);
+              page.notes.set(bigInt(id), null);
             }
 
             return page;
@@ -366,7 +368,9 @@ const infiniteNoteUpdater = (
     } else {
       queryClient.setQueryData(
         queryKey,
-        (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+        (
+          d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined
+        ) => {
           if (d === undefined) {
             return undefined;
           }
@@ -377,13 +381,16 @@ const infiniteNoteUpdater = (
             return undefined;
           }
 
-          const newLastPage = lastPage.with(time, note);
+          const newLastPage = {
+            ...lastPage,
+            notes: lastPage.notes.with(time, note),
+          };
 
-          const cachedNote = lastPage.get(unixToDa(note.essay.sent));
+          const cachedNote = lastPage.notes.get(unixToDa(note.essay.sent));
 
           if (cachedNote && id !== unixToDa(note.essay.sent).toString()) {
             // remove cached note if it exists
-            newLastPage.delete(unixToDa(note.essay.sent));
+            newLastPage.notes.delete(unixToDa(note.essay.sent));
 
             // set delivered now that we have the real note
             useNotesStore
@@ -393,17 +400,6 @@ const infiniteNoteUpdater = (
                 'delivered'
               );
           }
-
-          const newWindow = {
-            oldest: time,
-            newest: time,
-            loadedNewest: false,
-            loadedOldest: false,
-          };
-
-          useNotesStore
-            .getState()
-            .extendCurrentWindow(nest, newWindow, initialTime);
 
           return {
             pages: [...d.pages.slice(0, -1), newLastPage],
@@ -415,7 +411,7 @@ const infiniteNoteUpdater = (
   } else if ('feels' in noteResponse) {
     queryClient.setQueryData(
       queryKey,
-      (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
@@ -423,14 +419,14 @@ const infiniteNoteUpdater = (
         const { feels } = noteResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.has(time);
+          const inPage = page.notes.has(time);
 
           if (inPage) {
-            const note = page.get(time);
+            const note = page.notes.get(time);
             if (!note) {
               return page;
             }
-            page.set(time, {
+            page.notes.set(time, {
               ...note,
               seal: {
                 ...note.seal,
@@ -453,7 +449,7 @@ const infiniteNoteUpdater = (
   } else if ('essay' in noteResponse) {
     queryClient.setQueryData(
       queryKey,
-      (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
@@ -461,14 +457,14 @@ const infiniteNoteUpdater = (
         const { essay } = noteResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.has(time);
+          const inPage = page.notes.has(time);
 
           if (inPage) {
-            const note = page.get(time);
+            const note = page.notes.get(time);
             if (!note) {
               return page;
             }
-            page.set(time, {
+            page.notes.set(time, {
               ...note,
               essay,
             });
@@ -488,7 +484,7 @@ const infiniteNoteUpdater = (
   } else if ('quip' in noteResponse) {
     queryClient.setQueryData(
       queryKey,
-      (d: { pages: NoteMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
@@ -500,14 +496,14 @@ const infiniteNoteUpdater = (
         } = noteResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.has(time);
+          const inPage = page.notes.has(time);
 
           if (inPage) {
-            const note = page.get(time);
+            const note = page.notes.get(time);
             if (!note) {
               return page;
             }
-            page.set(time, {
+            page.notes.set(time, {
               ...note,
               seal: {
                 ...note.seal,
@@ -542,157 +538,6 @@ interface PageParam {
 export function useInfiniteNotes(nest: Nest, initialTime?: string) {
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'notes', flag, 'infinite'], [han, flag]);
-  const getCurrentWindow = useCallback(
-    () => useNotesStore.getState().getCurrentWindow(nest, initialTime),
-    [initialTime, nest]
-  );
-
-  const invalidate = useRef(
-    _.debounce(
-      () => {
-        queryClient.invalidateQueries({ queryKey, refetchType: 'none' });
-      },
-      300,
-      {
-        leading: true,
-        trailing: true,
-      }
-    )
-  );
-
-  useEffect(() => {
-    api.subscribe({
-      app: 'channels',
-      path: `/${nest}/ui`,
-      event: (data: ShelfResponse) => {
-        infiniteNoteUpdater(queryKey, data, initialTime);
-        invalidate.current();
-      },
-    });
-  }, [nest, invalidate, queryKey, initialTime]);
-
-  const { data, ...rest } = useInfiniteQuery<NoteMap>({
-    queryKey,
-    queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
-      let path = '';
-
-      // log(JSON.stringify(pageParam));
-
-      if (pageParam) {
-        const { time, direction } = pageParam;
-        const ud = decToUd(time.toString());
-        path = `/${nest}/notes/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
-      } else if (initialTime) {
-        path = `/${nest}/notes/around/${decToUd(
-          initialTime
-        )}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
-      } else {
-        path = `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
-      }
-
-      const response = await api.scry<Notes>({
-        app: 'channels',
-        path,
-      });
-      const noteMap = newNoteMap(
-        Object.entries(response).map(([k, v]) => [bigInt(udToDec(k)), v])
-      );
-      const currentWindow = getCurrentWindow();
-      log(JSON.stringify(currentWindow));
-
-      if (noteMap.isEmpty && !currentWindow) {
-        log('no notes in map');
-        return newNoteMap();
-      }
-
-      if (noteMap.isEmpty) {
-        throw new Error('no notes in map');
-      }
-
-      const oldest = noteMap.minKey()!;
-      const newest = noteMap.maxKey()!;
-      const totalMessages = noteMap.size;
-      const count = INITIAL_MESSAGE_FETCH_PAGE_SIZE + (initialTime ? 1 : 0);
-      const underLimit = totalMessages < count;
-      const latest = !initialTime || underLimit;
-      const loadedNewest = !currentWindow
-        ? latest
-        : pageParam?.direction === 'newer'
-        ? underLimit
-        : currentWindow.loadedNewest;
-      const loadedOldest = !currentWindow
-        ? underLimit
-        : pageParam?.direction === 'older'
-        ? underLimit
-        : currentWindow.loadedOldest;
-
-      const newWindow: Window = {
-        oldest,
-        newest,
-        loadedNewest,
-        loadedOldest,
-        latest,
-      };
-
-      useNotesStore
-        .getState()
-        .extendCurrentWindow(nest, newWindow, initialTime);
-
-      return noteMap;
-    },
-    getNextPageParam: (): PageParam | undefined => {
-      const currentWindow = getCurrentWindow();
-      if (!currentWindow || currentWindow.loadedNewest) {
-        return undefined;
-      }
-
-      return {
-        time: currentWindow.newest,
-        direction: 'newer',
-      };
-    },
-    getPreviousPageParam: (): PageParam | undefined => {
-      const currentWindow = getCurrentWindow();
-      if (!currentWindow || currentWindow.loadedOldest) {
-        return undefined;
-      }
-
-      return {
-        time: currentWindow.oldest,
-        direction: 'older',
-      };
-    },
-    keepPreviousData: true,
-    refetchOnMount: true,
-    retryOnMount: true,
-    retry: false,
-  });
-
-  if (data === undefined || data.pages.length === 0) {
-    return {
-      notes: [] as NoteTuple[],
-      ...rest,
-    };
-  }
-
-  const notes: NoteTuple[] = data.pages.map((page) => page.toArray()).flat();
-
-  return {
-    notes,
-    ...rest,
-  };
-}
-
-export function useInfiniteNotesPagesOnly(nest: Nest, initialTime?: string) {
-  const [han, flag] = nestToFlag(nest);
-  const queryKey = useMemo(
-    () => [han, 'notes', flag, 'infinite', initialTime],
-    [han, flag, initialTime]
-  );
-  // const getCurrentWindow = useCallback(
-  //   () => useNotesStore.getState().getCurrentWindow(nest, initialTime),
-  //   [initialTime, nest]
-  // );
 
   const invalidate = useRef(
     _.debounce(
@@ -722,8 +567,6 @@ export function useInfiniteNotesPagesOnly(nest: Nest, initialTime?: string) {
     queryKey,
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
-
-      // log(JSON.stringify(pageParam));
 
       if (pageParam) {
         const { time, direction } = pageParam;
@@ -834,7 +677,7 @@ export async function prefetchNoteWithComments({
 }
 
 export function useReplyNote(nest: Nest, id: string | null) {
-  const { notes } = useInfiniteNotesPagesOnly(nest);
+  const { notes } = useInfiniteNotes(nest);
 
   return id && notes.find(([k, v]) => k.eq(bigInt(id)));
 }
@@ -844,7 +687,7 @@ export function useOrderedNotes(
   currentId: bigInt.BigInteger | string
 ) {
   checkNest(nest);
-  const { notes } = useInfiniteNotesPagesOnly(nest);
+  const { notes } = useInfiniteNotes(nest);
 
   if (notes.length === 0) {
     return {

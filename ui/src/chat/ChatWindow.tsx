@@ -1,25 +1,14 @@
-import React, {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
-import _ from 'lodash';
+import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
 import bigInt from 'big-integer';
-import { useMatch, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
-import { useRouteGroup } from '@/state/groups';
-import {
-  useCurrentWindow,
-  useInfiniteNotesPagesOnly,
-} from '@/state/channel/channel';
+import { log } from '@/logic/utils';
+import { useInfiniteNotes, useMarkReadMutation } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
-import { log } from '@/logic/utils';
 
 interface ChatWindowProps {
   whom: string;
@@ -33,6 +22,7 @@ function getScrollTo(msg: string | null) {
 export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollTo = getScrollTo(searchParams.get('msg'));
+  const nest = `chat/${whom}`;
   const {
     notes: messages,
     hasNextPage,
@@ -42,13 +32,10 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     isLoading,
     isFetchingNextPage,
     isFetchingPreviousPage,
-    data,
-  } = useInfiniteNotesPagesOnly(`chat/${whom}`, scrollTo?.toString());
+  } = useInfiniteNotes(nest, scrollTo?.toString());
+  const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
-  const currentWindow = useCurrentWindow(`chat/${whom}`, scrollTo?.toString());
-
-  log(JSON.stringify(data?.pages.map((p) => p.size)));
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
@@ -59,14 +46,14 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     useChatStore.getState().setCurrent(whom);
   }, [whom]);
 
-  // useEffect(
-  // () => () => {
-  // if (readTimeout !== undefined && readTimeout !== 0) {
-  // useChatStore.getState().read(whom);
-  // }
-  // },
-  // [readTimeout, whom]
-  // );
+  useEffect(
+    () => () => {
+      if (readTimeout !== undefined && readTimeout !== 0) {
+        markRead({ nest });
+      }
+    },
+    [readTimeout, markRead, nest]
+  );
 
   const loadNewerMessages = useCallback(
     (atBottom: boolean) => {
@@ -120,7 +107,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
           atTopStateChange={loadOlderMessages}
         />
       </div>
-      {/* scrollTo && !currentWindow?.latest ? (
+      {scrollTo ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"
@@ -129,7 +116,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
             Go to Latest <ArrowS16Icon className="ml-2 h-4 w-4" />
           </button>
         </div>
-      ) : null */}
+      ) : null}
     </div>
   );
 }

@@ -431,6 +431,7 @@ export default function ChatInput({
       } else if (sendDm) {
         sendDm(whom, essay);
       } else if (sendChatMessage) {
+        console.log('sending chat message', { essay });
         sendChatMessage({
           cacheId,
           essay,

@@ -18,7 +18,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { NoteTuple, emptyNote } from '@/types/channel';
 import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
-import { useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
 
 interface ChatScrollerItemProps extends ChatMessageProps {
@@ -278,29 +277,6 @@ export default function ChatScroller({
     [TopLoader]
   );
 
-  // perf: define these outside of render
-  // const atTopStateChange = (top: boolean) => top && fetchMessages(false);
-  // const atBottomStateChange = (bot: boolean) => {
-  // const { bottom, delayedRead } = useChatStore.getState();
-  // if (bot) {
-  // fetchMessages(true);
-  // bottom(true);
-
-  // if (!firstPass.current) {
-  // delayedRead(whom, () => {
-  // if (isDMOrMultiDM) {
-  // useChatState.getState().markDmRead(whom);
-  // } else {
-  // markChatRead({
-  // nest: `chat/${whom}`,
-  // });
-  // }
-  // });
-  // }
-  // } else {
-  // bottom(false);
-  // }
-  // };
   const totalListHeightChanged = useRef(
     debounce(() => {
       if (firstPass.current && !scrollTo) {

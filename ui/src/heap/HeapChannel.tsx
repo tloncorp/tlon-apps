@@ -8,9 +8,7 @@ import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
 import {
-  usePerms,
   useMarkReadMutation,
-  useJoinMutation,
   useInfiniteNotes,
 } from '@/state/channel/channel';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
