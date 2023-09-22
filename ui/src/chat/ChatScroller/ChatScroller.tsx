@@ -105,7 +105,6 @@ function scrollToIndex(
 ) {
   if (scrollerRef.current && scrollTo) {
     const index = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
-    console.log({ index, keysLength: keys.length });
     scrollerRef.current.scrollToIndex({ index, align: 'center' });
   }
 }
@@ -239,7 +238,7 @@ export default function ChatScroller({
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), hasScrollTo]);
+  }, [scrollTo?.toString(), hasScrollTo, keys]);
 
   const updateScroll = useRef(
     debounce(
