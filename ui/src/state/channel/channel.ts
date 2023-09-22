@@ -149,7 +149,7 @@ export const useNotesStore = create<State>((set, get) => ({
     }));
   },
   updateStatus: (id, s) => {
-    console.log('setting status', s);
+    log('setting status', s);
     set((state) => ({
       trackedNotes: state.trackedNotes.map(({ cacheId, status }) => {
         if (_.isEqual(cacheId, id)) {
@@ -598,7 +598,7 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
         Object.entries(response).map(([k, v]) => [bigInt(udToDec(k)), v])
       );
       const currentWindow = getCurrentWindow();
-      // log(JSON.stringify(currentWindow));
+      log(JSON.stringify(currentWindow));
 
       if (noteMap.isEmpty && !currentWindow) {
         log('no notes in map');

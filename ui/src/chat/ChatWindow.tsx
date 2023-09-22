@@ -70,7 +70,9 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
 
   const loadNewerMessages = useCallback(
     (atBottom: boolean) => {
+      log('loadNewerMessages', { atBottom, hasNextPage, isFetchingNextPage });
       if (atBottom && hasNextPage && !isFetchingNextPage) {
+        log('fetching next page');
         fetchNextPage();
       }
     },
@@ -80,7 +82,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   const loadOlderMessages = useCallback(
     (atTop: boolean) => {
       if (atTop && hasPreviousPage && !isFetchingPreviousPage) {
-        console.log('fetching previous page');
+        log('fetching previous page');
         fetchPreviousPage();
       }
     },
