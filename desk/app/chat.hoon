@@ -497,7 +497,7 @@
 ++  make-notice
     |=  [=ship text=cord]
     ^-  delta:writs:c
-    =/  =story:d  ~[[%inline ~[[%ship our.bowl] text]]]
+    =/  =story:d  ~[[%inline ~[[%ship ship] text]]]
     =/  =memo:d  [story our.bowl now.bowl]
     [%add memo notice/~ `now.bowl]
 ::
@@ -844,8 +844,8 @@
         =?  remark.club  =(author.memo our.bowl)
           remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief club/id cu-brief)
-        ?:  =(our.bowl author.memo)  cu-core
-        ?^  kind.q.diff.delta  cu-core
+        ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
+        ?^  kind.q.diff.delta  (cu-give-writs-diff diff.delta)
         =/  new-yarn
           %^  cu-spin
             ~
@@ -869,9 +869,9 @@
           =?  remark.club  =(author.memo our.bowl)
             remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
           =.  cor  (give-brief club/id cu-brief)
-          ?:  =(our.bowl author.memo)  cu-core
+          ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
           =/  entry=(unit [=time =writ:c])  (get:cu-pact p.diff.delta)
-          ?~  entry  cu-core
+          ?~  entry  (cu-give-writs-diff diff.delta)
           =*  op  writ.u.entry
           =/  new-yarn
             %^  cu-spin

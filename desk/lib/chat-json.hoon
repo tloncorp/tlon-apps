@@ -142,7 +142,7 @@
         %add
       %-  pairs
       :~  memo+(memo:enjs:dj memo.delta)
-          kind+?~(kind.delta ~ s+'notice')
+          kind+?~(kind.delta ~ (pairs notice/~ ~))
           time+?~(time.delta ~ (time u.time.delta))
       ==
     ==

@@ -57,9 +57,8 @@ const DmScrollerItem = React.forwardRef<HTMLDivElement, DmScrollerItemProps>(
       return null;
     }
 
-    const isNotice =
-      writ.essay['han-data'].chat !== null &&
-      !!('notice' in writ.essay['han-data'].chat);
+    const han = writ.essay['han-data'].chat;
+    const isNotice = han && 'notice' in han;
 
     if (isNotice) {
       return (
@@ -186,11 +185,10 @@ export default function DmScroller({
         const keyIdx = ks.findIndex((idx) => idx.eq(index));
         const lastWritKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
         const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
+        const han = writ.essay['han-data'];
         const newAuthor = lastWrit
           ? writ.essay.author !== lastWrit.essay.author ||
-            ('chat' in writ.essay['han-data'] &&
-              !!writ.essay['han-data'].chat &&
-              !!('notice' in writ.essay['han-data'].chat))
+            !!('chat' in han && han.chat && 'notice' in han.chat)
           : true;
         const writDay = new Date(daToUnix(index));
         const lastWritDay = lastWritKey

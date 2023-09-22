@@ -77,21 +77,8 @@ export function writsReducer(whom: string) {
       );
     } else if ('del' in delta && pact.index[id]) {
       const time = pact.index[id];
-      // const old = pact.writs.get(time);
       pact.writs = pact.writs.without(time);
       delete pact.index[id];
-      // if (old && old.memo.replying) {
-      // const replyTime = pact.index[old.memo.replying];
-      // if (replyTime) {
-      // const ancestor = pact.writs.get(replyTime);
-      // if (ancestor) {
-      // ancestor.seal.replied = ancestor.seal.replied.filter(
-      // (r) => r !== id
-      // );
-      // pact.writs = pact.writs.with(replyTime, ancestor);
-      // }
-      // }
-      // }
     } else if ('add-feel' in delta && pact.index[id]) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
@@ -214,7 +201,7 @@ export default function makeWritsStore(
   return {
     initialize: async () => {
       const writs = await scry<Writs>(
-    `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`
+        `/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`
       );
 
       get().batchSet((draft) => {

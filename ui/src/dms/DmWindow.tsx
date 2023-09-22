@@ -1,12 +1,5 @@
-import React, {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
+import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
 import _ from 'lodash';
-import bigInt from 'big-integer';
 import { useMatch, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
@@ -16,7 +9,6 @@ import {
   useMessagesForChat,
   useWritWindow,
 } from '@/state/chat';
-import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useRouteGroup } from '@/state/groups';
 import { useChatInfo, useChatStore } from '../chat/useChatStore';
