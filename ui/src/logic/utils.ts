@@ -54,7 +54,9 @@ export const isHosted =
 
 export function log(...args: any[]) {
   if (import.meta.env.DEV) {
-    console.log(...args);
+    const { stack } = new Error();
+    const line = stack?.split('\n')[2].trim();
+    console.log(`${line}:`, ...args);
   }
 }
 
