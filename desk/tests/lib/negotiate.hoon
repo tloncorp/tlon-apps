@@ -28,10 +28,14 @@
       %emit-bowl   [[%give %fact ~ %bowl !>(bowl)]~ this]
     ==
   ::
+  ++  on-agent
+    |~  [=wire sign:agent:gall]
+    ?<  ?=([%~.~ %negotiate *] wire)
+    [~ this]
+  ::
   ++  on-watch  |~(path !!)
   ++  on-leave  |~(path !!)
   ++  on-peek   |~(path !!)
-  ++  on-agent  |~([wire sign:agent:gall] !!)
   ++  on-arvo   |~([wire =sign-arvo] !!)
   ++  on-fail   |~([term tang] !!)
   --
@@ -56,6 +60,8 @@
   |$  [a]
   $-(state (output-raw a))
 ::
+::TODO  an even better version of these tests would also pass the bowl forward,
+::      and modify it based on cards emitted and calls made to +on-agent
 ++  state  _test-agent
 ::
 ++  output-raw
@@ -164,15 +170,21 @@
   |=  [=wire =gill:gall =task:agent:gall]
   (ex %pass wire %agent gill task)
 ::
-++  ex-watch
+++  ex-inner-watch
   |=  [=wire =gill:gall =path]
+  =.  wire  [%~.~ %negotiate %inner-watch (scot %p p.gill) q.gill wire]
   (ex-task wire gill %watch path)
+::
+++  ex-inner-leave
+  |=  [=wire =gill:gall]
+  =.  wire  [%~.~ %negotiate %inner-watch (scot %p p.gill) q.gill wire]
+  (ex-task wire gill %leave ~)
 ::
 ++  ex-negotiate
   |=  [=gill:gall prot=protocol:libn]
-  %+  ex-watch
+  %+  ex-task
     /~/negotiate/heed/(scot %p p.gill)/[q.gill]/[prot]
-  [gill /~/negotiate/version/[prot]]
+  [gill %watch /~/negotiate/version/[prot]]
 ::
 ++  ex-notify
   |=  [=gill:gall match=?]
@@ -305,7 +317,7 @@
   ;<  ~  bind:m
     %+  expect-cards  caz
     :~  (ex-negotiate [~zod %hard] %prot)
-        (ex-task /kill [~zod %hard] %leave ~)
+        (ex-inner-leave /kill ~zod %hard)
     ==
   ::  must track our already-desired subscriptions
   ::
@@ -354,13 +366,41 @@
   ::  must let the watch go through
   ::
   ;<  ~  bind:m
-    (expect-cards caz (ex-watch /wire [~zod %easy] /path) ~)
+    (expect-cards caz (ex-inner-watch /wire [~zod %easy] /path) ~)
   ::  must have tracked the watch
   ::
   ;<  state=libstate  bind:m  get-lib-state
   %+  ex-equal  !>(want.state)
   !>  ^-  (map gill:gall (map wire path))
   [[~zod %easy]^[/wire^/path ~ ~] ~ ~]
+::
+++  test-handle-inner-kick-and-nack
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (perform-init-clean | ~ ~)
+  ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %easy] %watch /path] ~)
+  =/  outer-wire=wire  /~/negotiate/inner-watch/~zod/easy/wire
+  ::  if kicked, we must "lose" the sub
+  ::
+  ;<  *  bind:m
+    %-  perform-call
+    |=  =agent:gall
+    (~(on-agent agent testbowl) outer-wire %kick ~)
+  ;<  state=libstate  bind:m
+    get-lib-state
+  ;<  ~  bind:m
+    (ex-equal !>(want.state) !>(~))
+  ::  if nacked, we must "lose" the sub
+  ::
+  ;<  *  bind:m
+    (perform-cards [%pass /wire %agent [~zod %easy] %watch /path] ~)
+  ;<  *  bind:m
+    %-  perform-call
+    |=  =agent:gall
+    (~(on-agent agent testbowl) outer-wire %watch-ack `~)
+  ;<  state=libstate  bind:m
+    get-lib-state
+  (ex-equal !>(want.state) !>(~))
 ::
 ++  test-start-negotiate
   %-  eval-mare
@@ -393,11 +433,19 @@
     (perform-cards poke ~)
   (expect-cards caz (ex poke) ~)
 ::
-++  test-watch-kick
+++  test-heed-watch-kick
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  *  bind:m  (perform-init-clean | ~ [%hard^[%prot^%vers ~ ~] ~ ~])
-  ;<  *  bind:m  (perform-cards (initiate:libn ~zod %hard) ~)
+  ;<  *  bind:m
+    (perform-init-clean & ~ [%hard^[%prot^%vers ~ ~] ~ ~])
+  ;<  *  bind:m
+    %-  perform-cards
+    :~  (initiate:libn ~zod %hard)
+        [%pass /wire %agent [~zod %hard] %watch /path]
+    ==
+  =.  wex.testbowl  (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
+  ;<  *  bind:m
+    (perform-hear-version [~zod %hard] %prot %vers)
   ::  on kick, we wait a brief moment
   ::
   ;<  caz=(list card)  bind:m
@@ -417,14 +465,18 @@
     (~(on-arvo agent testbowl) wire [%behn %wake ~])
   ;<  ~  bind:m
     (expect-cards caz (ex-negotiate [~zod %hard] %prot) ~)
-  ::  on watch-nack, we wait longer
+  ::  on watch-nack, we wait longer, and drop the known version
   ::
   ;<  caz=(list card)  bind:m
     %-  perform-call
     |=  =agent:gall
     (~(on-agent agent testbowl) /~/negotiate/heed/~zod/hard/prot %watch-ack `['err']~)
   ;<  ~  bind:m
-    (expect-cards caz (ex wait(time (add *@da ~m30))) ~)
+    %+  expect-cards  caz
+    :~  (ex wait(time (add *@da ~m30)))
+        (ex-inner-leave /wire ~zod %hard)
+        (ex-notify [~zod %hard] |)
+    ==
   ::  after the long timeout, try again
   ::
   ;<  caz=(list card)  bind:m
@@ -458,7 +510,7 @@
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %vers2)
   ;<  ~  bind:m
-    (expect-cards caz (ex-watch /wire [~zod %hard] /path) ~)
+    (expect-cards caz (ex-inner-watch /wire [~zod %hard] /path) ~)
   =.  wex.testbowl
     (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
   ::  when versions stop matching, should rescind subs
@@ -466,7 +518,7 @@
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %miss)
   ;<  ~  bind:m
-    (expect-cards caz (ex-task /wire [~zod %hard] %leave ~) ~)
+    (expect-cards caz (ex-inner-leave /wire ~zod %hard) ~)
   =.  wex.testbowl
     (~(del by wex.testbowl) [/wire ~zod %hard])
   ::  with notify flag set, these changes must additionally send a poke
@@ -477,7 +529,7 @@
     (perform-hear-version [~zod %hard] %prot2 %vers2)
   ;<  ~  bind:m
     %+  expect-cards  caz
-    :~  (ex-watch /wire [~zod %hard] /path)
+    :~  (ex-inner-watch /wire [~zod %hard] /path)
         (ex-notify [~zod %hard] &)
     ==
   =.  wex.testbowl
@@ -486,7 +538,7 @@
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %miss)
   %+  expect-cards  caz
-  :~  (ex-task /wire [~zod %hard] %leave ~)
+  :~  (ex-inner-leave /wire ~zod %hard)
       (ex-notify [~zod %hard] |)
   ==
 ::
@@ -516,7 +568,7 @@
     %+  expect-cards  caz
     :~  (ex-negotiate [~zod %hard] %prot1)
         (ex-negotiate [~zod %hard] %prot2)
-        (ex-task /wire [~zod %hard] %leave ~)
+        (ex-inner-leave /wire ~zod %hard)
     ==
   =.  wex.testbowl  (~(del by wex.testbowl) [/wire ~zod %hard])
   ::  when we relax requirements, subs must be re-established
@@ -524,7 +576,7 @@
   ;<  caz=(list card)  bind:m
     (perform-upgrade | ~ ~)
   ;<  ~  bind:m
-    (expect-cards caz (ex-watch /wire [~zod %hard] /path) ~)
+    (expect-cards caz (ex-inner-watch /wire [~zod %hard] /path) ~)
   =.  wex.testbowl  (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
   ::  with notify flag set, these changes must additionally send a poke
   ::
@@ -533,7 +585,7 @@
   ;<  ~  bind:m
     %+  expect-cards  caz
     :~  (ex-notify [~zod %hard] |)
-        (ex-task /wire [~zod %hard] %leave ~)
+        (ex-inner-leave /wire ~zod %hard)
     ==
   =.  wex.testbowl  (~(del by wex.testbowl) [/wire ~zod %hard])
   ::
@@ -541,7 +593,7 @@
     (perform-upgrade & ~ ~)
   %+  expect-cards  caz
   :~  (ex-notify [~zod %hard] &)
-      (ex-watch /wire [~zod %hard] /path)
+      (ex-inner-watch /wire [~zod %hard] /path)
   ==
 ::
 ++  test-version-watch-fact
@@ -591,7 +643,7 @@
   %+  expect-cards  caz
   :~  (ex-notify [~zod %hard] |)
       (ex-negotiate [~zod %hard] %prot)
-      (ex-task /wire [~zod %hard] %leave ~)
+      (ex-inner-leave /wire ~zod %hard)
   ==
 ::
 ++  test-status-scry
@@ -638,13 +690,18 @@
   =/  m  (mare ,~)
   ;<  *  bind:m  (perform-init-clean | ~ [[%hard [%prot^%vers ~ ~]] ~ ~])
   ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %hard] %watch /path] ~)
+  ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %easy] %watch /path] ~)
   ::  must pretend to the inner agent that the sub was established,
   ::  and that library-internal subs don't exist
   ::
   =.  wex.testbowl
-    %+  ~(put by wex.testbowl)
-      [/~/negotiate/heed/~zod/hard/prot ~zod %hard]
-    [| /~/negotiate/~zod/hard/prot]
+    %-  ~(gas by wex.testbowl)
+    :~  :-  [/~/negotiate/heed/~zod/hard/prot ~zod %hard]
+        [| /~/negotiate/~zod/hard/prot]
+      ::
+        :-  [/~/negotiate/inner-watch/~zod/easy/wire ~zod %easy]
+        [& /path]
+    ==
   ;<  caz=(list card)  bind:m
     %-  perform-call
     |=  =agent:gall
@@ -653,5 +710,8 @@
   ?>  ?=([[%give %fact ~ %bowl *] ~] caz)
   =+  !<(=bowl:gall q.cage.p.i.caz)
   %+  ex-equal  !>(wex.bowl)
-  !>(`boat:gall`[[/wire ~zod %hard]^[| /path] ~ ~])
+  !>  %-  ~(gas by *boat:gall)
+  :~  [/wire ~zod %hard]^[| /path]
+      [/wire ~zod %easy]^[& /path]
+  ==
 --
