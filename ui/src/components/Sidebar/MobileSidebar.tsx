@@ -4,6 +4,7 @@ import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
 import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
 import { useChannelUnreadCounts } from '@/logic/channel';
+import { useNotifications } from '@/notifications/useNotifications';
 import { useLocalState } from '@/state/local';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
@@ -83,6 +84,30 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   );
 }
 
+function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
+  const navigate = useNavigate();
+  const { count } = useNotifications('', 'all');
+
+  return (
+    <DoubleClickableNavTab
+      onSingleClick={() => navigate('/notifications')}
+      onDoubleClick={() => navigate('/notifications')}
+    >
+      <BellIcon
+        isInactive={props.isInactive}
+        className="h-6 w-6"
+        isDarkMode={props.isDarkMode}
+      />
+      <div
+        className={cn(
+          'mt-[2px] h-1.5 w-1.5 rounded-full',
+          count > 0 && 'bg-blue'
+        )}
+      />
+    </DoubleClickableNavTab>
+  );
+}
+
 export default function MobileSidebar() {
   const location = useLocation();
   const isInactive = (path: string) => !location.pathname.startsWith(path);
@@ -108,13 +133,10 @@ export default function MobileSidebar() {
                 isDarkMode={isDarkMode}
               />
             )}
-            <NavTab to="/notifications">
-              <BellIcon
-                isInactive={isInactive('/notifications')}
-                className="h-6 w-6"
-                isDarkMode={isDarkMode}
-              />
-            </NavTab>
+            <ActivityTab
+              isInactive={isInactive('/notifications')}
+              isDarkMode={isDarkMode}
+            />
             <NavTab to="/find">
               <MagnifyingGlassMobileNavIcon
                 isInactive={isInactive('/find')}
