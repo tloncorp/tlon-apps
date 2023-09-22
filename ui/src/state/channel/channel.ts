@@ -775,7 +775,6 @@ export function useInfiniteNotesPagesOnly(nest: Nest, initialTime?: string) {
         direction: 'older',
       };
     },
-    keepPreviousData: true,
     refetchOnMount: true,
     retryOnMount: true,
     retry: false,

@@ -48,7 +48,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const currentWindow = useCurrentWindow(`chat/${whom}`, scrollTo?.toString());
 
-  log(JSON.stringify(data?.pages.map((p) => p.size)));
+  log(whom, JSON.stringify(data?.pages.map((p) => p.notes.size)));
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
