@@ -88,7 +88,7 @@
         ours=(map protocol version)
         know=config
         heed=(map [gill:gall protocol] (unit version))
-        want=(map gill:gall (map wire path))
+        want=(map gill:gall (map wire path))  ::  unpacked wires
     ==
   ::
   +$  card  card:agent:gall
@@ -122,6 +122,7 @@
         ?.  (match gill)  ~
         %+  murn  ~(tap by m)
         |=  [=wire =path]
+        =.  wire  (pack-wire gill wire)
         ?:  (~(has by boat) [wire gill])  ~  ::  already established
         (some %pass wire %agent gill %watch path)
       ::  manage subs for new or non-matching gills
@@ -184,6 +185,7 @@
       %+  turn  ~(tap in kill)
       |=  [=wire =gill:gall]
       ^-  card
+      =.  wire  (pack-wire gill wire)
       [%pass wire %agent gill %leave ~]
     ::  +play-card: handle watches, leaves and pokes specially
     ::
@@ -220,6 +222,11 @@
         =.  wan  (~(del by wan) p.card)
         ?~  wan  (~(del by want) gill)
         (~(put by want) gill wan)
+      ::  stick the gill in the wire for watches and leaves,
+      ::  so we can retrieve it later if needed
+      ::
+      =?  p.card  ?=(?(%watch %leave) -.task.q.card)
+        (pack-wire gill p.card)
       ::  if we don't require versions for the target agent, let the card go
       ::
       =*  dude=dude:gall  name.q.card
@@ -309,6 +316,18 @@
       =^  caz  state  (inflate ~)
       [(weld caz nos) state]
     ::
+    ++  pack-wire
+      |=  [=gill:gall =wire]
+      ^+  wire
+      [%~.~ %negotiate %inner-watch (scot %p p.gill) q.gill wire]
+    ::
+    ++  trim-wire
+      |=  =wire
+      ^-  [gill=(unit gill:gall) =_wire]
+      ?.  ?=([%~.~ %negotiate %inner-watch @ @ *] wire)  [~ wire]
+      =,  t.t.t.wire
+      [`[(slav %p i) i.t] t.t]
+    ::
     ++  notify-inner
       |=  event=[match=? =gill:gall]
       ^-  card
@@ -344,22 +363,27 @@
           wex
         %-  ~(gas by *boat:gall)
         %+  weld
-          ::  hide subscriptions going out from this library
+          ::  make sure all the desired subscriptions are in the bowl,
+          ::  even if that means we have to simulate an un-acked state
           ::
-          %+  skip  ~(tap by wex.bowl)
-          |=  [[=wire *] *]
-          ?=([%~.~ %negotiate *] wire)
-        ::  make sure all the desired subscriptions are in the bowl,
-        ::  even if that means we have to simulate an un-acked state
+          ^-  (list [[wire ship term] ? path])
+          %-  zing
+          %+  turn  ~(tap by want)
+          |=  [=gill:gall m=(map wire path)]
+          %+  turn  ~(tap by m)
+          |=  [=wire =path]
+          :-  [wire gill]
+          (~(gut by wex.bowl) [wire gill] [| path])
+        ::  hide subscriptions going out from this library.
+        ::  because these go into the +gas:by call _after_ the faked entries
+        ::  generated above, these (the originals) take precedence in the
+        ::  resulting bowl.
         ::
-        ^-  (list [[wire ship term] ? path])
-        %-  zing
-        %+  turn  ~(tap by want)
-        |=  [=gill:gall m=(map wire path)]
-        %+  turn  ~(tap by m)
-        |=  [=wire =path]
-        :-  [wire gill]
-        (~(gut by wex.bowl) [wire gill] [| path])
+        %+  murn  ~(tap by wex.bowl)
+        |=  a=[[=wire gill:gall] ? path]
+        =^  g  wire.a  (trim-wire wire.a)
+        ?^  g  (some a)
+        ?:(?=([%~.~ %negotiate *] wire.a) ~ (some a))
       ==
     --
   ::
@@ -426,7 +450,15 @@
     ++  on-agent
       |=  [=wire =sign:agent:gall]
       ^-  (quip card _this)
+      =^  gill=(unit gill:gall)  wire
+        (trim-wire:up wire)
       ?.  ?=([%~.~ %negotiate *] wire)
+        =?  want  ?=(?([%kick ~] [%watch-ack ~ *]) sign)
+          =/  gill  (need gill)
+          =/  wan  (~(gut by want) gill ~)
+          =.  wan  (~(del by wan) wire)
+          ?~  wan  (~(del by want) gill)
+          (~(put by want) gill wan)
         =^  cards  inner  (on-agent:og wire sign)
         =^  cards  state  (play-cards:up cards)
         [cards this]
