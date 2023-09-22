@@ -13,9 +13,13 @@ import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useRouteGroup } from '@/state/groups';
-import { useCurrentWindow, useInfiniteNotes } from '@/state/channel/channel';
+import {
+  useCurrentWindow,
+  useInfiniteNotesPagesOnly,
+} from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
+import { log } from '@/logic/utils';
 
 interface ChatWindowProps {
   whom: string;
@@ -36,11 +40,15 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     fetchPreviousPage,
     fetchNextPage,
     isLoading,
-    isFetching,
-  } = useInfiniteNotes(`chat/${whom}`, scrollTo?.toString());
+    isFetchingNextPage,
+    isFetchingPreviousPage,
+    data,
+  } = useInfiniteNotesPagesOnly(`chat/${whom}`, scrollTo?.toString());
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const currentWindow = useCurrentWindow(`chat/${whom}`, scrollTo?.toString());
+
+  log(JSON.stringify(data?.pages.map((p) => p.size)));
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
@@ -62,21 +70,21 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
 
   const loadNewerMessages = useCallback(
     (atBottom: boolean) => {
-      if (atBottom && hasNextPage && !isFetching) {
+      if (atBottom && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
     },
-    [fetchNextPage, hasNextPage, isFetching]
+    [fetchNextPage, hasNextPage, isFetchingNextPage]
   );
 
   const loadOlderMessages = useCallback(
     (atTop: boolean) => {
-      if (atTop && hasPreviousPage && !isFetching) {
+      if (atTop && hasPreviousPage && !isFetchingPreviousPage) {
         console.log('fetching previous page');
         fetchPreviousPage();
       }
     },
-    [fetchPreviousPage, hasPreviousPage, isFetching]
+    [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]
   );
 
   if (isLoading) {
