@@ -7,10 +7,10 @@ import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { DMBrief } from '@/types/dms';
 import {
   usePendingDms,
-  useBriefs,
   isGroupBrief,
   usePendingMultiDms,
   usePinned,
+  useDmBriefs,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
@@ -40,7 +40,7 @@ export default function MessagesList({
   const pendingMultis = usePendingMultiDms();
   const pinned = usePinned();
   const { sortMessages } = useMessageSort();
-  const briefs = useBriefs();
+  const { data: briefs } = useDmBriefs();
   const allPending = pending.concat(pendingMultis);
   const isMobile = useIsMobile();
   const thresholds = {

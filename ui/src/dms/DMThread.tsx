@@ -1,16 +1,14 @@
-import React, { useCallback, useRef } from 'react';
-import _ from 'lodash';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import ob from 'urbit-ob';
+import { decToUd, udToDec } from '@urbit/api';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import {
-  useGroupChannel,
-  useRouteGroup,
-  useVessel,
-} from '@/state/groups/groups';
+import { useChatState, useWrit } from '@/state/chat';
+import { useRouteGroup } from '@/state/groups/groups';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
@@ -18,15 +16,15 @@ import useLeap from '@/components/Leap/useLeap';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
+import { useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
-import { useAddQuipMutation, useNote, usePerms } from '@/state/channel/channel';
+import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
+import QuipScroller from '@/chat/QuipScroller/QuipScroller';
 import { newQuipMap } from '@/types/channel';
-import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
-import QuipScroller from '../QuipScroller/QuipScroller';
 
-export default function ChatThread() {
+export default function DMThread() {
+  console.log('rendering DMThread');
   const { name, chShip, ship, chName, idTime, idShip } = useParams<{
     name: string;
     chShip: string;
@@ -35,44 +33,35 @@ export default function ChatThread() {
     idShip: string;
     idTime: string;
   }>();
+  const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
-  const nest = `chat/${flag}`;
+  const whom = flag || ship || '';
   const groupFlag = useRouteGroup();
-  const { mutate: sendMessage } = useAddQuipMutation();
+  const { sendMessage } = useChatState.getState();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
-  const channel = useGroupChannel(groupFlag, nest)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const { note, isLoading } = useNote(nest, idTime!);
-  const replies = note.seal.quips ?? newQuipMap();
-  replies.set(bigInt(idTime!), {
-    memo: note.essay,
-    cork: {
-      id: note.seal.id,
-      feels: note.seal.feels,
-    },
-  });
+  const time = udToDec(idTime!);
+  const { writ, isLoading } = useWrit(whom, time, idShip!);
   const navigate = useNavigate();
+  const replies = writ?.seal.quips || newQuipMap();
+  console.log({ replies });
   const threadRef = useRef<HTMLDivElement | null>(null);
-  const perms = usePerms(nest);
-  const vessel = useVessel(groupFlag, window.our);
-  const threadTitle = channel?.meta?.title;
-  const canWrite =
-    perms.writers.length === 0 ||
-    _.intersection(perms.writers, vessel.sects).length !== 0;
-  const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
+  const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
+  const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
+  const threadTitle = isClub ? club?.meta.title || ship : ship;
 
-  const returnURL = useCallback(
-    () =>
-      `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
-    [chName, chShip, name, ship, idTime]
-  );
+  const returnURL = useCallback(() => {
+    if (!writ) return '#';
+
+    return `/dm/${ship}?msg=${time}`;
+  }, [ship, writ, time]);
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -85,6 +74,24 @@ export default function ChatThread() {
 
   useEventListener('keydown', onEscape, threadRef);
 
+  const initializeChannel = useCallback(async () => {
+    setLoading(true);
+    if (!time) return;
+    await useChatState
+      .getState()
+      .fetchMessagesAround(`${chShip}/${chName}`, '50', time);
+    setLoading(false);
+  }, [chName, chShip, time]);
+
+  if (!writ || isLoading) return null;
+
+  replies.set(bigInt(time), {
+    memo: writ.essay,
+    cork: {
+      id: writ.seal.id,
+      feels: writ.seal.feels,
+    },
+  });
   const BackButton = isMobile ? Link : 'div';
 
   return (
@@ -147,14 +154,14 @@ export default function ChatThread() {
         </header>
       )}
       <div className="flex flex-1 flex-col overflow-hidden p-0 pr-2">
-        {isLoading ? (
+        {loading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
           <QuipScroller
-            parentNote={note}
+            parentNote={writ}
             key={idTime}
             messages={replies}
-            whom={flag}
+            whom={whom}
             scrollerRef={scrollerRef}
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
           />
@@ -162,25 +169,21 @@ export default function ChatThread() {
       </div>
       <div
         className={cn(
-          isDragging || isOver || !canWrite
+          isDragging || isOver
             ? ''
             : 'sticky bottom-0 border-t-2 border-gray-50 bg-white p-3 sm:p-4'
         )}
       >
-        {compatible && canWrite ? (
+        <div className="safe-area-input">
           <ChatInput
-            whom={flag}
-            replying={idTime}
-            sendQuip={sendMessage}
+            whom={whom}
+            replying={id}
+            sendDm={sendMessage}
             inThread
             autoFocus
             dropZoneId={dropZoneId}
           />
-        ) : !canWrite ? null : (
-          <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
-            {text}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

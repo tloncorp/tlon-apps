@@ -11,7 +11,6 @@ import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import {
   useChatState,
-  useIsDmOrMultiDm,
   useIsDmUnread,
   usePinned,
 } from '@/state/chat';
@@ -19,7 +18,6 @@ import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { whomIsDm } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { useMarkReadMutation } from '@/state/channel/channel';
 import DmInviteDialog from './DmInviteDialog';
 
 type DMOptionsProps = PropsWithChildren<{
@@ -52,8 +50,6 @@ export default function DmOptions({
   const pinned = usePinned();
   const isUnread = useIsDmUnread(whom);
   const hasActivity = isUnread || pending;
-  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-  const { mutateAsync: markChatRead } = useMarkReadMutation();
 
   const [isOpen, setIsOpen] = useState(open);
   const handleOpenChange = (innerOpen: boolean) => {
@@ -76,7 +72,7 @@ export default function DmOptions({
 
   const markRead = useCallback(
     async () => useChatState.getState().markDmRead(whom),
-    [whom, isDMOrMultiDM, markChatRead]
+    [whom]
   );
 
   const [dialog, setDialog] = useState(false);

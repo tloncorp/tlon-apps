@@ -34,10 +34,10 @@ interface DmWindowProps {
 // }
 
 export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
-  const flag = useRouteGroup();
-  const thread = useMatch(
-    `/groups/${flag}/channels/chat/${whom}/message/:idShip/:idTime`
-  );
+  // const flag = useRouteGroup();
+  // const thread = useMatch(
+  // `/groups/${flag}/channels/chat/${whom}/message/:idShip/:idTime`
+  // );
   const [searchParams, setSearchParams] = useSearchParams();
   // const scrollTo = getScrollTo(whom, thread, searchParams.get('msg'));
   const scrollTo: string | undefined = undefined;

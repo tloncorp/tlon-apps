@@ -183,6 +183,8 @@ export interface Notes {
 
 export type NoteTuple = [BigInteger, Note | null];
 
+export type QuipTuple = [BigInteger, Quip | null];
+
 export type NoteMap = BTree<BigInteger, Note | null>;
 
 export interface Quip {

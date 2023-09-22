@@ -36,7 +36,6 @@ export interface ChatState {
     [path: string]: Note | 'loading' | 'error';
   };
   pendingDms: string[];
-  briefs: DMBriefs;
   fetchDms: () => Promise<void>;
   fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
   fetchMultiDms: () => Promise<void>;

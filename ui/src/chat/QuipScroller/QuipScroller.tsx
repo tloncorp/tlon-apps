@@ -1,4 +1,5 @@
 import cn from 'classnames';
+import _ from 'lodash';
 import React, {
   HTMLAttributes,
   ReactNode,
@@ -96,7 +97,7 @@ export default function QuipScroller({
   scrollerRef,
 }: IQuipScroller) {
   const isMobile = useIsMobile();
-  const writWindow = useWritWindow(whom, scrollTo);
+  const writWindow = useWritWindow(whom, scrollTo?.toString());
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
@@ -105,7 +106,7 @@ export default function QuipScroller({
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
-    atTopThreshold: getTopThreshold(isMobile, messages.size),
+    atTopThreshold: getTopThreshold(isMobile, messages.length),
     overscan: isMobile
       ? { main: 200, reverse: 200 }
       : { main: 400, reverse: 400 },
@@ -113,16 +114,19 @@ export default function QuipScroller({
 
   const [keys, entries]: [bigInt.BigInteger[], QuipScrollerItemProps[]] =
     useMemo(() => {
-      const ks: bigInt.BigInteger[] = Array.from(messages.keys());
-      const min = messages.minKey() || bigInt();
-      const es: QuipScrollerItemProps[] = messages
+      const nonNullMessages = messages
         .toArray()
-        .map<QuipScrollerItemProps>(([index, quip]) => {
-          if (!quip) {
+        .filter(([_k, v]) => v !== null);
+
+      const ks: bigInt.BigInteger[] = nonNullMessages.map(([k]) => k);
+      const min = nonNullMessages?.[0]?.[0] || bigInt();
+      const es: QuipScrollerItemProps[] =
+        nonNullMessages.map<QuipScrollerItemProps>(([index, quip]) => {
+          if (!quip || !quip.memo || !quip.cork) {
             return {
               quip: emptyQuip,
               han: 'chat',
-              time: bigInt('0'),
+              time: index,
               newAuthor: false,
               newDay: false,
               isLast: false,
@@ -133,9 +137,15 @@ export default function QuipScroller({
             };
           }
 
-          const keyIdx = ks.findIndex((idx) => idx.eq(quip.cork.id));
+          console.log({
+            quip,
+            index,
+          });
+          const keyIdx = ks.findIndex((idx) => idx.eq(index));
           const lastQuipKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
-          const lastQuip = lastQuipKey ? messages.get(lastQuipKey) : undefined;
+          const lastQuip = lastQuipKey
+            ? nonNullMessages.find(([k]) => k.eq(lastQuipKey))?.[1]
+            : undefined;
           const newAuthor = lastQuip
             ? quip.memo.author !== lastQuip.memo.author
             : true;
@@ -198,11 +208,21 @@ export default function QuipScroller({
         if (newer) {
           await useChatState
             .getState()
-            .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
+            .fetchMessages(
+              whom,
+              pageSize.toString(),
+              'newer',
+              scrollTo?.toString()
+            );
         } else {
           await useChatState
             .getState()
-            .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
+            .fetchMessages(
+              whom,
+              pageSize.toString(),
+              'older',
+              scrollTo?.toString()
+            );
         }
 
         setFetching('initial');
