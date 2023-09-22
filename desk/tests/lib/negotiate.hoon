@@ -60,6 +60,8 @@
   |$  [a]
   $-(state (output-raw a))
 ::
+::TODO  an even better version of these tests would also pass the bowl forward,
+::      and modify it based on cards emitted and calls made to +on-agent
 ++  state  _test-agent
 ::
 ++  output-raw
@@ -434,8 +436,16 @@
 ++  test-heed-watch-kick
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  *  bind:m  (perform-init-clean | ~ [%hard^[%prot^%vers ~ ~] ~ ~])
-  ;<  *  bind:m  (perform-cards (initiate:libn ~zod %hard) ~)
+  ;<  *  bind:m
+    (perform-init-clean & ~ [%hard^[%prot^%vers ~ ~] ~ ~])
+  ;<  *  bind:m
+    %-  perform-cards
+    :~  (initiate:libn ~zod %hard)
+        [%pass /wire %agent [~zod %hard] %watch /path]
+    ==
+  =.  wex.testbowl  (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
+  ;<  *  bind:m
+    (perform-hear-version [~zod %hard] %prot %vers)
   ::  on kick, we wait a brief moment
   ::
   ;<  caz=(list card)  bind:m
@@ -455,14 +465,18 @@
     (~(on-arvo agent testbowl) wire [%behn %wake ~])
   ;<  ~  bind:m
     (expect-cards caz (ex-negotiate [~zod %hard] %prot) ~)
-  ::  on watch-nack, we wait longer
+  ::  on watch-nack, we wait longer, and drop the known version
   ::
   ;<  caz=(list card)  bind:m
     %-  perform-call
     |=  =agent:gall
     (~(on-agent agent testbowl) /~/negotiate/heed/~zod/hard/prot %watch-ack `['err']~)
   ;<  ~  bind:m
-    (expect-cards caz (ex wait(time (add *@da ~m30))) ~)
+    %+  expect-cards  caz
+    :~  (ex wait(time (add *@da ~m30)))
+        (ex-inner-leave /wire ~zod %hard)
+        (ex-notify [~zod %hard] |)
+    ==
   ::  after the long timeout, try again
   ::
   ;<  caz=(list card)  bind:m

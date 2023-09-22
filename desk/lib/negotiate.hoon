@@ -283,7 +283,7 @@
     ++  ours-changed
       |=  [ole=(map protocol version) neu=(map protocol version)]
       ^-  (list card)
-      ::  kill incoming subs for protocols we no longer support
+      ::  kick incoming subs for protocols we no longer support
       ::
       %+  weld
         %+  turn  ~(tap by (~(dif by ole) neu))
@@ -298,14 +298,14 @@
       `[%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
     ::
     ++  heed-changed
-      |=  [for=[=gill:gall protocol] new=version]
+      |=  [for=[=gill:gall protocol] new=(unit version)]
       ^-  (quip card _state)
       =/  hav=(unit version)
         ~|  %unrequested-heed
         (~(got by heed) for)
-      ?:  =(`new hav)  [~ state]
+      ?:  =(new hav)  [~ state]
       =/  did=?  &(notify (match gill.for))
-      =.  heed   (~(put by heed) for `new)
+      =.  heed   (~(put by heed) for new)
       ::  we may need to notify the inner agent
       ::
       =/  nos=(list card)
@@ -468,7 +468,7 @@
         [%notify ~]  [~ this]
       ::
           [%heed @ @ @ ~]
-        =/  for=[gill:gall protocol]
+        =/  for=[=gill:gall =protocol]
           =*  w  t.t.t.wire
           [[(slav %p i.w) i.t.w] i.t.t.w]
         ?-  -.sign
@@ -479,16 +479,24 @@
             ~&  [negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]
             [~ this]
           =+  !<(=version vase)
-          =^  cards  state  (heed-changed:up for version)
+          =^  cards  state  (heed-changed:up for `version)
           [cards this]
         ::
             %watch-ack
-          :_  this
-          ?~  p.sign  ~
+          ?~  p.sign  [~ this]
+          ::  if we no longer care about this particular version, drop it
+          ::
+          ?.  (~(has by (~(gut by know) q.gill.for ~)) protocol.for)
+            =.  heed  (~(del by heed) for)
+            [~ this]  ::NOTE  don't care, so shouldn't need to inflate
+          ::  if we still care, consider the version "unknown" for now,
+          ::  and try re-subscribing later
+          ::
+          =^  caz  state  (heed-changed:up for ~)
           ::  30 minutes might cost us some responsiveness but in return we
           ::  save both ourselves and others from a lot of needless retries.
           ::
-          [(retry-timer:up ~m30 [%watch t.t.wire])]~
+          [[(retry-timer:up ~m30 [%watch t.t.wire]) caz] this]
         ::
             %kick
           :_  this
@@ -497,7 +505,6 @@
           ::  perhaps this is overly careful, but we cannot tell the
           ::  difference between "clog" kicks and "unexpected crash" kicks,
           ::  so we cannot take more accurate/appropriate action here.
-          ::  (notably, "do we still care" check also lives in %wake logic.)
           ::
           [(retry-timer:up ~s15 [%watch t.t.wire])]~
         ::
