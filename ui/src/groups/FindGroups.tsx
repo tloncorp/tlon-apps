@@ -13,14 +13,12 @@ import ShipSelector, { ShipOption } from '@/components/ShipSelector';
 import { Gangs, ViewProps } from '@/types/groups';
 import { hasKeys, preSig, whomIsFlag } from '@/logic/utils';
 import { useModalNavigate } from '@/logic/routing';
-import GroupReference from '@/components/References/GroupReference';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
-import GroupJoinList from './GroupJoinList';
+import GroupJoinList, { GroupJoinItem } from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';
-import GroupAvatar from './GroupAvatar';
 
 export default function FindGroups({ title }: ViewProps) {
   const { ship, name } = useParams<{ ship: string; name: string }>();
@@ -191,13 +189,9 @@ export default function FindGroups({ title }: ViewProps) {
         </Helmet>
         <div className="w-full p-6">
           {hasKeys(pendingGangs) ? (
-            <section className={cn('card mb-6 space-y-4')}>
-              <h1
-                className={cn('font-bold', isMobile ? 'text-base' : 'text-lg')}
-              >
-                Pending Invites
-              </h1>
-              <GroupJoinList gangs={pendingGangs} />
+            <section className={cn('card mb-6')}>
+              <h1 className={cn('mb-4 text-lg font-bold')}>Pending Invites</h1>
+              <GroupJoinList highlightAll gangs={pendingGangs} />
             </section>
           ) : null}
           {!selectedShip && (
@@ -206,58 +200,33 @@ export default function FindGroups({ title }: ViewProps) {
               <p className="mb-2 mt-4 leading-6 text-gray-600">
                 Here are some groups we like.
               </p>
-              <p className="mt-2 mb-8 leading-6 text-gray-600">
-                You can find many more in the Urbit Foundation’s{' '}
-                <a
-                  href="https://urbit.org/ecosystem?type=groups"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  directory
-                </a>
-                .
-              </p>
-              <div className="grid grid-cols-1 gap-4">
-                <div className="flex items-center justify-between">
-                  <GroupAvatar
-                    image="https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png"
-                    size="h-12 w-12 shrink-0"
-                  />
-                  <div className="mx-2 grow space-y-2">
-                    <h2 className="text-base font-semibold">
-                      Urbit Foundation
-                    </h2>
-                    <p className="text-gray-400">
-                      Learn about the Urbit project
-                    </p>
-                  </div>
-                  <GroupReference flag="~halbex-palheb/uf-public" onlyButton />
-                </div>
-                <div className="flex items-center justify-between">
-                  <GroupAvatar
-                    image="https://www.door.link/logowhite.svg"
-                    size="h-12 w-12 shrink-0"
-                  />
-                  <div className="mx-2 grow space-y-2">
-                    <h2 className="text-base font-semibold">door.link</h2>
-                    <p className="text-gray-400">A cult of music lovers</p>
-                  </div>
-                  <GroupReference flag="~natnex-ronret/door-link" onlyButton />
-                </div>
-                <div className="flex items-center justify-between">
-                  <GroupAvatar
-                    image="https://nyc3.digitaloceanspaces.com/fabled-faster/fabled-faster/2023.4.06..02.45.53-tlon-local-pin.svg"
-                    size="h-12 w-12 shrink-0"
-                  />
-                  <div className="mx-2 grow space-y-2">
-                    <h2 className="text-base font-semibold">Tlon Local</h2>
-                    <p className="text-gray-400">
-                      Updates, announcements, and broadcasts from Tlon.
-                    </p>
-                  </div>
-                  <GroupReference flag="~nibset-napwyn/tlon" onlyButton />
-                </div>
-              </div>
+              <GroupJoinItem
+                flag="~halbex-palheb/uf-public"
+                preload={{
+                  title: 'UF',
+                  image:
+                    'https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png',
+                  description: 'The latest from the Urbit Foundation',
+                }}
+              />
+              <GroupJoinItem
+                flag="~natnex-ronret/door-link"
+                preload={{
+                  title: 'door.link',
+                  image: 'https://www.door.link/logowhite.svg',
+                  description: 'sound/silence cult',
+                }}
+              />
+              <GroupJoinItem
+                flag="~nibset-napwyn/tlon"
+                preload={{
+                  title: 'Tlon Local',
+                  image:
+                    'https://fabled-faster.nyc3.cdn.digitaloceanspaces.com/tlon-locals.svg',
+                  description:
+                    'Updates, announcements, and broadcasts from Tlon',
+                }}
+              />
             </section>
           )}
           <section className={cn('card mb-6 space-y-8')}>
@@ -292,8 +261,10 @@ export default function FindGroups({ title }: ViewProps) {
               </div>
             </div>
             {selectedShip || (ship && name) ? (
-              <section className="space-y-3">
-                <p className="font-semibold text-gray-400">{resultsTitle()}</p>
+              <section>
+                <p className="mb-3 font-semibold text-gray-400">
+                  {resultsTitle()}
+                </p>
                 {fetchStatus === 'fetching' ? (
                   <GroupJoinListPlaceholder />
                 ) : hasResults ? (
