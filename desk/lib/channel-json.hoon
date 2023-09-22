@@ -59,6 +59,14 @@
       %feels  (feels feels.r-quip)
     ==
   ::
+  ++  paged-notes
+    |=  pn=paged-notes:d
+    %-  pairs
+    :~  notes+(rr-notes notes.pn)
+        newer+?~(newer.pn ~ (id u.newer.pn))
+        older+?~(older.pn ~ (id u.older.pn))
+        total+(numb total.pn)
+    ==
   +|  %rr
   ::
   ++  rr-shelf

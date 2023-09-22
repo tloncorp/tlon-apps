@@ -1,14 +1,14 @@
 /-  d=channel
 /+  j=channel-json
-|_  =rr-notes:d
+|_  =paged-notes:d
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  rr-notes
-  ++  json  (rr-notes:enjs:j rr-notes)
+  ++  noun  paged-notes
+  ++  json  (paged-notes:enjs:j paged-notes)
   --
 ++  grab
   |%
-  ++  noun  rr-notes:d
+  ++  noun  paged-notes:d
   --
 --

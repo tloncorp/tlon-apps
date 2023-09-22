@@ -421,6 +421,12 @@
         =remark
     ==
   --
++$  paged-notes
+  $:  notes=rr-notes
+      newer=(unit time)
+      older=(unit time)
+      total=@ud
+  ==
 +$  rr-notes  ((mop id-note (unit rr-note)) lte)
 +$  rr-note   [rr-seal essay]
 +$  rr-seal   

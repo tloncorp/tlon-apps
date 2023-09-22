@@ -1107,8 +1107,20 @@
     ^-  (unit (unit cage))
     =/  =notes:d  (gas:on-notes:d *notes:d ls)
     =-  ``channel-notes+!>(-)
-    ?:  =(%note mode)  (rr-notes:utils notes)
-    (rr-notes-without-quips:utils notes)
+    =/  notes=rr-notes:d
+      ?:  =(%note mode)  (rr-notes:utils notes)
+      (rr-notes-without-quips:utils notes)
+    =/  newer=(unit time)
+      =/  more  (tab:on-notes:d notes.diary `-:(rear ls) 1)
+      ?~(more ~ `-:(head more))
+    =/  older=(unit time)
+      =/  more  (bat:mo-notes:d notes.diary `-:(head ls) 1)
+      ?~(more ~ `-:(head more))
+    :*  notes
+        newer
+        older
+        (wyt:on-notes:d notes.diary)
+    ==
   ::
   ++  di-peek-notes
     |=  =(pole knot)

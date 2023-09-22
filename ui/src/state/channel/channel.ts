@@ -34,6 +34,8 @@ import {
   QuipMap,
   NoteTuple,
   BriefUpdate,
+  PagedNotes,
+  PagedNotesMap,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -574,7 +576,7 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
 
-      log(JSON.stringify(pageParam));
+      // log(JSON.stringify(pageParam));
 
       if (pageParam) {
         const { time, direction } = pageParam;
@@ -596,9 +598,8 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
         Object.entries(response).map(([k, v]) => [bigInt(udToDec(k)), v])
       );
       const currentWindow = getCurrentWindow();
-      log(JSON.stringify(currentWindow));
+      // log(JSON.stringify(currentWindow));
 
-      debugger;
       if (noteMap.isEmpty && !currentWindow) {
         log('no notes in map');
         return newNoteMap();
@@ -717,12 +718,12 @@ export function useInfiniteNotesPagesOnly(nest: Nest, initialTime?: string) {
     });
   }, [nest, invalidate, queryKey, initialTime]);
 
-  const { data, ...rest } = useInfiniteQuery<NoteMap>({
+  const { data, ...rest } = useInfiniteQuery<PagedNotesMap>({
     queryKey,
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
 
-      log(JSON.stringify(pageParam));
+      // log(JSON.stringify(pageParam));
 
       if (pageParam) {
         const { time, direction } = pageParam;
@@ -736,42 +737,41 @@ export function useInfiniteNotesPagesOnly(nest: Nest, initialTime?: string) {
         path = `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       }
 
-      const response = await api.scry<Notes>({
+      const response = await api.scry<PagedNotes>({
         app: 'channels',
         path,
       });
-      debugger;
-      return newNoteMap(
-        Object.entries(response).map(([k, v]) => [bigInt(udToDec(k)), v])
+
+      const notes = newNoteMap(
+        Object.entries(response.notes).map(([k, v]) => [bigInt(udToDec(k)), v])
       );
+
+      return {
+        ...response,
+        notes,
+      };
     },
     getNextPageParam: (lastPage): PageParam | undefined => {
-      const time = lastPage.maxKey();
-      const totalMessages = lastPage.size;
-      const count = INITIAL_MESSAGE_FETCH_PAGE_SIZE + (initialTime ? 1 : 0);
-      const underLimit = totalMessages < count;
+      const { newer } = lastPage;
 
-      if (!time || underLimit) {
+      if (!newer) {
         return undefined;
       }
 
       return {
-        time,
+        time: bigInt(newer),
         direction: 'newer',
       };
     },
     getPreviousPageParam: (firstPage): PageParam | undefined => {
-      const time = firstPage.minKey();
-      const totalMessages = firstPage.size;
-      const count = INITIAL_MESSAGE_FETCH_PAGE_SIZE + (initialTime ? 1 : 0);
-      const underLimit = totalMessages < count;
+      const { older } = firstPage;
 
-      if (!time || underLimit) {
+      if (!older) {
         return undefined;
       }
 
       return {
-        time,
+        time: bigInt(older),
         direction: 'older',
       };
     },
@@ -789,7 +789,9 @@ export function useInfiniteNotesPagesOnly(nest: Nest, initialTime?: string) {
     };
   }
 
-  const notes: NoteTuple[] = data.pages.map((page) => page.toArray()).flat();
+  const notes: NoteTuple[] = data.pages
+    .map((page) => page.notes.toArray())
+    .flat();
 
   return {
     notes,

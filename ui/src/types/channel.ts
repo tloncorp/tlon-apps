@@ -166,6 +166,17 @@ export type Note = {
   essay: NoteEssay;
 };
 
+export interface PagedNotes {
+  notes: Notes;
+  newer: string | null;
+  older: string | null;
+  total: number;
+}
+
+export interface PagedNotesMap extends Omit<PagedNotes, 'notes'> {
+  notes: NoteMap;
+}
+
 export interface Notes {
   [time: string]: Note | null;
 }
