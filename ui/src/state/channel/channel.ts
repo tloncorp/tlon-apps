@@ -372,7 +372,17 @@ const infiniteNoteUpdater = (
           d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined
         ) => {
           if (d === undefined) {
-            return undefined;
+            return {
+              pages: [
+                {
+                  notes: newNoteMap([[time, note]]),
+                  newer: null,
+                  older: null,
+                  total: 1,
+                },
+              ],
+              pageParams: [],
+            };
           }
 
           const lastPage = _.last(d.pages);
