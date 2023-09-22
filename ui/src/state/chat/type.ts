@@ -7,9 +7,9 @@ import {
   Hive,
   Clubs,
   TalkInit,
-} from '../../types/dms';
-import { BaseState } from '../base';
-import { GroupMeta } from '../../types/groups';
+} from '@/types/dms';
+import { BaseState } from '@/state/base';
+import { GroupMeta } from '@/types/groups';
 import { WindowSet } from '@/logic/windows';
 
 export interface TrackedMessage {

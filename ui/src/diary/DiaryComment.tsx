@@ -1,40 +1,21 @@
 /* eslint-disable react/no-unused-prop-types */
 import React from 'react';
-import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format } from 'date-fns';
 import Author from '@/chat/ChatMessage/Author';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
-import { Han, Quip } from '@/types/channel';
 import { useChannelFlag } from '@/logic/channel';
+import { QuipProps } from '@/quips/quips';
 import DiaryCommentOptions from './DiaryCommentOptions';
 import QuipReactions from './QuipReactions/QuipReactions';
 
-export interface DiaryCommentProps {
-  han: Han;
-  noteId: string;
-  time: BigInteger;
-  quip: Quip;
-  newAuthor: boolean;
-  newDay: boolean;
-  unreadCount?: number;
-}
-
 const DiaryComment = React.memo<
-  DiaryCommentProps & React.RefAttributes<HTMLDivElement>
+  QuipProps & React.RefAttributes<HTMLDivElement>
 >(
-  React.forwardRef<HTMLDivElement, DiaryCommentProps>(
+  React.forwardRef<HTMLDivElement, QuipProps>(
     (
-      {
-        han,
-        noteId,
-        time,
-        quip,
-        unreadCount,
-        newAuthor,
-        newDay,
-      }: DiaryCommentProps,
+      { han, noteId, time, quip, unreadCount, newAuthor, newDay }: QuipProps,
       ref
     ) => {
       const { cork, memo } = quip;

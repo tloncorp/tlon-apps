@@ -5,12 +5,7 @@ import { useNavigate, useParams } from 'react-router';
 import { udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
-import {
-  getFlagParts,
-  groupQuips,
-  pluralize,
-  setNewDaysForQuips,
-} from '@/logic/utils';
+import { getFlagParts, pluralize } from '@/logic/utils';
 import {
   useBrief,
   useNote,
@@ -37,6 +32,7 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
 import getHanDataFromEssay from '@/logic/getHanData';
+import { groupQuips, setNewDaysForQuips } from '@/quips/quips';
 import DiaryComment from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
