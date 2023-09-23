@@ -9,10 +9,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import BTree from 'sorted-btree';
 import { isSameDay } from 'date-fns';
 import { debounce } from 'lodash';
 import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import {
@@ -23,8 +24,7 @@ import {
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { emptyQuip } from '@/types/channel';
-import { IQuipScroller } from './IQuipScroller';
+import { Note, Quip, emptyQuip } from '@/types/channel';
 import QuipMessage, { QuipMessageProps } from '../ChatMessage/QuipMessage';
 import { useChatStore } from '../useChatStore';
 
@@ -79,14 +79,23 @@ function getTopThreshold(isMobile: boolean, msgCount: number) {
 }
 
 function scrollToIndex(
-  keys: bigInt.BigInteger[],
+  keys: BigInteger[],
   scrollerRef: React.RefObject<VirtuosoHandle>,
-  scrollTo?: bigInt.BigInteger
+  scrollTo?: BigInteger
 ) {
   if (scrollerRef.current && scrollTo) {
     const index = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
     scrollerRef.current.scrollToIndex({ index, align: 'center' });
   }
+}
+
+export interface QuipScrollerProps {
+  whom: string;
+  messages: BTree<BigInteger, Quip>;
+  parentNote: Note;
+  prefixedElement?: ReactNode;
+  scrollTo?: BigInteger;
+  scrollerRef: React.RefObject<VirtuosoHandle>;
 }
 
 export default function QuipScroller({
@@ -95,7 +104,7 @@ export default function QuipScroller({
   prefixedElement,
   scrollTo = undefined,
   scrollerRef,
-}: IQuipScroller) {
+}: QuipScrollerProps) {
   const isMobile = useIsMobile();
   const writWindow = useWritWindow(whom, scrollTo?.toString());
   const [fetching, setFetching] = useState<FetchingState>('initial');
@@ -112,13 +121,13 @@ export default function QuipScroller({
       : { main: 400, reverse: 400 },
   };
 
-  const [keys, entries]: [bigInt.BigInteger[], QuipScrollerItemProps[]] =
+  const [keys, entries]: [BigInteger[], QuipScrollerItemProps[]] =
     useMemo(() => {
       const nonNullMessages = messages
         .toArray()
         .filter(([_k, v]) => v !== null);
 
-      const ks: bigInt.BigInteger[] = nonNullMessages.map(([k]) => k);
+      const ks: BigInteger[] = nonNullMessages.map(([k]) => k);
       const min = nonNullMessages?.[0]?.[0] || bigInt();
       const es: QuipScrollerItemProps[] =
         nonNullMessages.map<QuipScrollerItemProps>(([index, quip]) => {

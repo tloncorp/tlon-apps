@@ -2,8 +2,8 @@ import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { SetState } from 'zustand';
-import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
+import { formatUd, parseUd, unixToDa } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
@@ -27,6 +27,7 @@ import {
   Note,
   NoteEssay,
   Quip,
+  Quips,
   ShelfAction,
 } from '@/types/channel';
 import api from '@/api';
@@ -43,13 +44,12 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { getWindow } from '@/logic/windows';
 import queryClient from '@/queryClient';
-import { pokeOptimisticallyN, createState } from '../base';
+import { createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
-import useSchedulerStore from '../scheduler';
-import { channelAction, channelNoteAction, useBrief } from '../channel/channel';
+import { channelAction } from '../channel/channel';
 
 setAutoFreeze(false);
 
@@ -66,7 +66,7 @@ function subscribeOnce<T>(app: string, path: string) {
 function makeId() {
   const time = Date.now();
   return {
-    id: `${window.our}/${decToUd(unixToDa(time).toString())}`,
+    id: `${window.our}/${formatUd(unixToDa(time))}`,
     time,
   };
 }
@@ -633,16 +633,20 @@ export function useWrit(
 ) {
   const queryKey = useMemo(() => ['dms', whom, writId], [whom, writId]);
 
-  const path = useMemo(
-    () => `/writ/id/${ship}/${decToUd(writId)}`,
-    [ship, writId]
-  );
+  const path = useMemo(() => {
+    const suffix = `/writs/writ/id/${ship}/${formatUd(bigInt(writId))}`;
+    if (whomIsDm(whom)) {
+      return `/dm/${whom}${suffix}`;
+    }
+
+    return `/club/${whom}${suffix}`;
+  }, [ship, writId, whom]);
 
   const enabled = useMemo(
     () => writId !== '0' && ship !== '' && !disabled,
     [writId, ship, disabled]
   );
-  const { data, ...rest } = useReactQueryScry({
+  const { data, ...rest } = useReactQueryScry<Writ>({
     queryKey,
     app: 'chat',
     path,
@@ -651,47 +655,37 @@ export function useWrit(
     },
   });
 
-  const writ = data as Writ;
+  return useMemo(() => {
+    if (!data) {
+      return {
+        writ: undefined,
+        ...rest,
+      };
+    }
 
-  const quips = writ?.seal?.quips;
+    const writ = data;
+    const quips = (writ.seal.quips || {}) as Quips;
 
-  if (
-    quips === undefined ||
-    quips === null ||
-    Object.entries(quips).length === 0
-  ) {
-    return {
-      writ: {
-        ...writ,
-        seal: {
-          ...writ?.seal,
-          quips: newQuipMap(),
-          lastQuip: null,
-        },
+    const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
+      bigInt(parseUd(k)),
+      v as Quip,
+    ]);
+
+    const quipMap = newQuipMap(diff);
+
+    const writWithQuips: Writ = {
+      ...writ,
+      seal: {
+        ...writ.seal,
+        quips: quipMap,
       },
+    };
+
+    return {
+      writ: writWithQuips,
       ...rest,
     };
-  }
-
-  const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
-    bigInt(udToDec(k)),
-    v as Quip,
-  ]);
-
-  const quipMap = newQuipMap(diff);
-
-  const writWithQuips: Writ = {
-    ...writ,
-    seal: {
-      ...writ?.seal,
-      quips: quipMap,
-    },
-  };
-
-  return {
-    writ: writWithQuips,
-    ...rest,
-  };
+  }, [data, rest]);
 }
 
 export function useIsDmUnread(whom: string) {
@@ -738,7 +732,7 @@ export function usePendingMultiDms() {
 }
 
 export function useMultiDmIsPending(id: string): boolean {
-  const brief = useBrief(id);
+  const brief = useDmBrief(id);
   return useChatState(
     useCallback(
       (s) => {
@@ -894,7 +888,7 @@ export function useChatSearch(whom: string, query: string) {
 
   const scan = useMemo(() => {
     return newWritMap(
-      (data || []).map(({ time, writ }) => [bigInt(udToDec(time)), writ]),
+      (data || []).map(({ time, writ }) => [bigInt(parseUd(time)), writ]),
       true
     );
   }, [data]);

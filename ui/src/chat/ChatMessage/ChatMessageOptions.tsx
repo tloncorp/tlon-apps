@@ -300,7 +300,7 @@ export default function ChatMessageOptions(props: {
                 icon={<HashIcon className="h-6 w-6 text-gray-400" />}
                 label="Start Thread"
                 showTooltip
-                action={() => navigate(`message/${essay.author}/${seal.id}`)}
+                action={() => navigate(`message/${seal.id}`)}
               />
             )}
             {showCopyAction && (

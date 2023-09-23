@@ -199,7 +199,7 @@
     =/  ship  (slav %p ship.pole)
     =/  time  (slav %ud time.pole)
     ?.  ?=(%u care)
-      ``writ+!>((got ship `@da`time))
+      ``writ+!>(writ:(got ship `@da`time))
     ``loob+!>(?~((get ship `@da`time) | &))
   ==
 ::

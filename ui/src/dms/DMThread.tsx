@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import ob from 'urbit-ob';
 import { decToUd, udToDec } from '@urbit/api';
 import cn from 'classnames';
@@ -33,29 +39,39 @@ export default function DMThread() {
     idShip: string;
     idTime: string;
   }>();
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
   const appName = useAppName();
-  const scrollerRef = useRef<VirtuosoHandle>(null);
-  const flag = useChannelFlag()!;
-  const whom = flag || ship || '';
-  const groupFlag = useRouteGroup();
-  const { sendMessage } = useChatState.getState();
-  const location = useLocation();
+  const [loading, setLoading] = useState(false);
   const scrollTo = new URLSearchParams(location.search).get('msg');
-  const { isOpen: leapIsOpen } = useLeap();
+  const whom = ship || '';
   const id = `${idShip!}/${idTime!}`;
-  const dropZoneId = `chat-thread-input-dropzone-${id}`;
-  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const time = udToDec(idTime!);
   const { writ, isLoading } = useWrit(whom, time, idShip!);
-  const navigate = useNavigate();
-  const replies = writ?.seal.quips || newQuipMap();
-  console.log({ replies });
+  const { sendMessage } = useChatState.getState();
+  const { isOpen: leapIsOpen } = useLeap();
+  const dropZoneId = `chat-thread-input-dropzone-${id}`;
+  const { isDragging, isOver } = useDragAndDrop(dropZoneId);
+  const scrollerRef = useRef<VirtuosoHandle>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
+
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
   const threadTitle = isClub ? club?.meta.title || ship : ship;
+  const replies = useMemo(() => {
+    if (!writ || writ.seal.quips === null) {
+      return newQuipMap();
+    }
+
+    return writ.seal.quips.with(bigInt(time), {
+      memo: writ.essay,
+      cork: {
+        id: writ.seal.id,
+        feels: writ.seal.feels,
+      },
+    });
+  }, [writ, time]);
 
   const returnURL = useCallback(() => {
     if (!writ) return '#';
@@ -85,13 +101,6 @@ export default function DMThread() {
 
   if (!writ || isLoading) return null;
 
-  replies.set(bigInt(time), {
-    memo: writ.essay,
-    cork: {
-      id: writ.seal.id,
-      feels: writ.seal.feels,
-    },
-  });
   const BackButton = isMobile ? Link : 'div';
 
   return (
