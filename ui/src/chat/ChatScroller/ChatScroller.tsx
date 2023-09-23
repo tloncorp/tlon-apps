@@ -10,7 +10,7 @@ import React, {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState
+  useState,
 } from 'react';
 import {
   FlatIndexLocationWithAlign,
@@ -69,23 +69,11 @@ function Loader({ show }: { show: boolean }) {
   ) : null;
 }
 
-function getTopThreshold(isMobile: boolean, messageCount: number) {
-  if (messageCount >= 100) {
-    return isMobile ? 1200 : 2500;
-  }
-
-  return window.innerHeight * 0.6;
-}
-
-function getThresholds(isMobile: boolean, messageCount: number) {
-  return {
-    atBottomThreshold: isMobile ? 125 : 250,
-    atTopThreshold: getTopThreshold(isMobile, messageCount),
-    overscan: isMobile
-      ? { main: 200, reverse: 200 }
-      : { main: 400, reverse: 400 },
-  };
-}
+const thresholds = {
+  atBottomThreshold: 125,
+  atTopThreshold: 2000,
+  overscan: 6,
+};
 
 function getMessageItems({
   whom,
@@ -93,15 +81,14 @@ function getMessageItems({
   messages,
   replying,
   prefixedElement,
-  isScrolling,
 }: {
   whom: string;
   scrollTo?: bigInt.BigInteger;
   messages: ChatWritTree;
   replying: boolean;
   prefixedElement: React.ReactNode;
-  isScrolling: boolean;
 }): [bigInt.BigInteger[], ChatScrollerItemProps[]] {
+  console.time('getMessageItems');
   const messagesWithoutReplies = messages.filter((k) => {
     if (replying) {
       return true;
@@ -138,11 +125,10 @@ function getMessageItems({
         newDay,
         isLast: keyIdx === ks.length - 1,
         isLinked: scrollTo ? index.eq(scrollTo) : false,
-        isScrolling,
         prefixedElement: index.eq(min) ? prefixedElement : undefined,
       };
     });
-
+  console.timeEnd('getMessageItems');
   return [ks, es];
 }
 
@@ -289,7 +275,6 @@ export default function ChatScroller({
   scrollerRef,
 }: IChatScroller) {
   const isMobile = useIsMobile();
-  const thresholds = getThresholds(isMobile, messages.size);
   const [isAtBottom, setIsAtBottom] = useState(false);
   const [isAtTop, setIsAtTop] = useState(false);
   const { isScrolling, didScroll } = useIsScrolling();
@@ -310,9 +295,8 @@ export default function ChatScroller({
         messages,
         replying,
         prefixedElement,
-        isScrolling,
       }),
-    [whom, scrollTo, messages, replying, prefixedElement, isScrolling]
+    [whom, scrollTo, messages, replying, prefixedElement]
   );
 
   const { fetchMessages, fetchState } = useFetchMessages({
@@ -334,11 +318,11 @@ export default function ChatScroller({
   const scrollToFn: DivVirtualizerOptions['scrollToFn'] = useCallback(
     (offset, { adjustments, behavior }, instance) => {
       const target = offset + (adjustments ?? 0);
-      if (!isScrolling) {
+      if (!isScrolling || !isMobile) {
         instance.scrollElement?.scrollTo({ top: target, behavior });
       }
     },
-    [isScrolling]
+    [isScrolling, isMobile]
   );
 
   // Used by the virtualizer to keep track of scroll position. Note that the is
@@ -363,24 +347,21 @@ export default function ChatScroller({
 
   // Called by the virtualizer whenever any layout property changes.
   // We're using it to keep track of top and bottom thresholds.
-  const handleVirtualizerUpdate = useCallback(
-    (v: DivVirtualizer) => {
-      const { clientHeight, scrollTop, scrollHeight } =
-        scrollElementRef.current ?? {
-          clientHeight: 0,
-          scrollTop: 0,
-          scrollHeight: 0,
-        };
-      // Note that these checks are inverted because we're using `scaleY(-1)`
-      // to flip the list
-      const atTop =
-        scrollTop + clientHeight > scrollHeight - thresholds.atTopThreshold;
-      setIsAtTop(atTop);
-      const atBottom = v.scrollOffset < thresholds.atBottomThreshold;
-      setIsAtBottom(atBottom);
-    },
-    [thresholds.atBottomThreshold, thresholds.atTopThreshold]
-  );
+  const handleVirtualizerUpdate = useCallback((v: DivVirtualizer) => {
+    const { clientHeight, scrollTop, scrollHeight } =
+      scrollElementRef.current ?? {
+        clientHeight: 0,
+        scrollTop: 0,
+        scrollHeight: 0,
+      };
+    // Note that these checks are inverted because we're using `scaleY(-1)`
+    // to flip the list
+    const atTop =
+      scrollTop + clientHeight > scrollHeight - thresholds.atTopThreshold;
+    setIsAtTop(atTop);
+    const atBottom = scrollTop < thresholds.atBottomThreshold;
+    setIsAtBottom(atBottom);
+  }, []);
 
   // The virtualizer uses this to estimate items' sizes before they're rendered.
   // Determines where to place items initially, and how long the scroll content
@@ -398,6 +379,7 @@ export default function ChatScroller({
     observeElementOffset,
     estimateSize,
     scrollToFn,
+    overscan: thresholds.overscan,
     onChange: handleVirtualizerUpdate,
   });
   useFakeVirtuosoHandle(scrollerRef, virtualizer);
@@ -422,13 +404,16 @@ export default function ChatScroller({
 
   // Fetch older messages when we reach the top.
   useEffect(() => {
-    if (isAtTop) fetchMessages(false);
+    if (isAtTop && fetchState === 'initial') {
+      fetchMessages(false);
+    }
     // Should *only* trigger if `isAtTop` changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAtTop]);
+  }, [isAtTop, fetchState]);
 
   // Fetch newer messages when we reach the bottom.
   useEffect(() => {
+    if (fetchState === 'initial') return;
     const { bottom: setAtBottom, delayedRead } = useChatStore.getState();
     if (isAtBottom) {
       fetchMessages(true);
@@ -441,26 +426,26 @@ export default function ChatScroller({
     }
     // Should *only* trigger if `isAtBottom` changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAtBottom]);
+  }, [isAtBottom, fetchState]);
 
-  // Invert mousewheel scroll so that it works properly on the inverted list. 
+  // Invert mousewheel scroll so that it works properly on the inverted list.
   // We need to use `useEffect` here because we're prevent default, which we can't
   // do inside passive event listeners, which React uses in prop events by default.
   useEffect(() => {
     const el = scrollElementRef.current;
     if (!el) return undefined;
-    const invertedWheelScroll = (e: WheelEvent) => {
+    const invertScrollWheel = (e: WheelEvent) => {
       el.scrollTop -= e.deltaY;
       e.preventDefault();
     };
-    el.addEventListener('wheel', invertedWheelScroll, false);
-    return () => el.removeEventListener('wheel', invertedWheelScroll);
+    el.addEventListener('wheel', invertScrollWheel, false);
+    return () => el.removeEventListener('wheel', invertScrollWheel);
   }, []);
 
   return (
     <div
       ref={scrollElementRef}
-      className="h-full overflow-auto overflow-x-hidden"
+      className="h-full overflow-y-auto overflow-x-clip"
       style={{ transform: 'scaleY(-1)' }}
     >
       <div
@@ -488,7 +473,7 @@ export default function ChatScroller({
                 transform: `translateY(${virtualItem.start}px) scaleY(-1)`,
               }}
             >
-              <ChatScrollerItem {...item} />
+              <ChatScrollerItem {...item} isScrolling={isScrolling} />
             </div>
           );
         })}

@@ -32,3 +32,8 @@ a[aria-disabled='true'] {
 .height-transition {
   @apply transition-all duration-300 ease-in-out;
 }
+
+/* This prevents clamped text from being repainted during scroll */
+.line-clamp-1 {
+  overflow: clip;
+}
