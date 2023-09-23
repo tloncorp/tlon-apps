@@ -9,11 +9,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import {
-  useChatState,
-  useIsDmUnread,
-  usePinned,
-} from '@/state/chat';
+import { useChatState, useIsDmUnread, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { whomIsDm } from '@/logic/utils';

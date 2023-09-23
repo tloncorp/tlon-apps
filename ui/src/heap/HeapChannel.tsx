@@ -7,10 +7,7 @@ import { VirtuosoGrid } from 'react-virtuoso';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
-import {
-  useMarkReadMutation,
-  useInfiniteNotes,
-} from '@/state/channel/channel';
+import { useMarkReadMutation, useInfiniteNotes } from '@/state/channel/channel';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
