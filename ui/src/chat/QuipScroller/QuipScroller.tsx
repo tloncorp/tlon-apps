@@ -123,9 +123,12 @@ export default function QuipScroller({
 
   const [keys, entries]: [BigInteger[], QuipScrollerItemProps[]] =
     useMemo(() => {
+      console.log({ messages });
       const nonNullMessages = messages
         .toArray()
         .filter(([_k, v]) => v !== null);
+
+      debugger;
 
       const ks: BigInteger[] = nonNullMessages.map(([k]) => k);
       const min = nonNullMessages?.[0]?.[0] || bigInt();
@@ -146,17 +149,15 @@ export default function QuipScroller({
             };
           }
 
-          console.log({
-            quip,
-            index,
-          });
           const keyIdx = ks.findIndex((idx) => idx.eq(index));
           const lastQuipKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
+          console.log({ lastQuipKey, nonNullMessages });
           const lastQuip = lastQuipKey
-            ? nonNullMessages.find(([k]) => k.eq(lastQuipKey))?.[1]
+            ? nonNullMessages.find(([k]) => k.eq(lastQuipKey))
             : undefined;
+          console.log({ lastQuip });
           const newAuthor = lastQuip
-            ? quip.memo.author !== lastQuip.memo.author
+            ? quip.memo.author !== lastQuip[1].memo.author
             : true;
           const quipDay = new Date(daToUnix(index));
           const lastQuipDay = lastQuipKey

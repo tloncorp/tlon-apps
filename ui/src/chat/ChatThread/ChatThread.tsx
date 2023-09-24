@@ -27,12 +27,12 @@ import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import QuipScroller from '../QuipScroller/QuipScroller';
 
 export default function ChatThread() {
-  const { name, chShip, ship, chName, idTime, idShip } = useParams<{
+  console.log('render ChatThread');
+  const { name, chShip, ship, chName, idTime } = useParams<{
     name: string;
     chShip: string;
     ship: string;
     chName: string;
-    idShip: string;
     idTime: string;
   }>();
   const isMobile = useIsMobile();
@@ -46,8 +46,7 @@ export default function ChatThread() {
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const channel = useGroupChannel(groupFlag, nest)!;
   const { isOpen: leapIsOpen } = useLeap();
-  const id = `${idShip!}/${idTime!}`;
-  const dropZoneId = `chat-thread-input-dropzone-${id}`;
+  const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { note, isLoading } = useNote(nest, idTime!);
   const replies = note.seal.quips ?? newQuipMap();

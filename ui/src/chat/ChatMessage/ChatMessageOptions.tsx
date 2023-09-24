@@ -121,6 +121,11 @@ export default function ChatMessageOptions(props: {
     setSearchParams({ chat_reply: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
 
+  const startThread = () => {
+    navigate(`message/${seal.id}`);
+    console.log('start thread', seal.id);
+  };
+
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
@@ -300,7 +305,7 @@ export default function ChatMessageOptions(props: {
                 icon={<HashIcon className="h-6 w-6 text-gray-400" />}
                 label="Start Thread"
                 showTooltip
-                action={() => navigate(`message/${seal.id}`)}
+                action={startThread}
               />
             )}
             {showCopyAction && (

@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import ob from 'urbit-ob';
-import { decToUd, udToDec } from '@urbit/api';
+import { udToDec } from '@urbit/api';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -14,7 +14,6 @@ import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
 import { useChatState, useWrit } from '@/state/chat';
-import { useRouteGroup } from '@/state/groups/groups';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
@@ -22,7 +21,6 @@ import useLeap from '@/components/Leap/useLeap';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
@@ -30,9 +28,7 @@ import QuipScroller from '@/chat/QuipScroller/QuipScroller';
 import { newQuipMap } from '@/types/channel';
 
 export default function DMThread() {
-  console.log('rendering DMThread');
-  const { name, chShip, ship, chName, idTime, idShip } = useParams<{
-    name: string;
+  const { chShip, ship, chName, idTime, idShip } = useParams<{
     chShip: string;
     ship: string;
     chName: string;
@@ -48,7 +44,8 @@ export default function DMThread() {
   const whom = ship || '';
   const id = `${idShip!}/${idTime!}`;
   const time = udToDec(idTime!);
-  const { writ, isLoading } = useWrit(whom, time, idShip!);
+  console.log({ id });
+  const { writ, isLoading } = useWrit(whom, id);
   const { sendMessage } = useChatState.getState();
   const { isOpen: leapIsOpen } = useLeap();
   const dropZoneId = `chat-thread-input-dropzone-${id}`;

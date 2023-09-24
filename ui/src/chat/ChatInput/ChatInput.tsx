@@ -2,7 +2,6 @@ import { Editor } from '@tiptap/react';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
 import { useLocalStorage } from 'usehooks-ts';
-import { unixToDa } from '@urbit/api';
 import React, {
   useCallback,
   useEffect,
@@ -10,7 +9,6 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { BigInteger } from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
 import MessageEditor, {
@@ -26,14 +24,13 @@ import {
   useChatStore,
 } from '@/chat/useChatStore';
 import { useIsMobile } from '@/logic/useMedia';
-import { JSONToInlines, makeMention, inlinesToJSON } from '@/logic/tiptap';
+import { makeMention, inlinesToJSON } from '@/logic/tiptap';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 import { useFileStore, useUploader } from '@/state/storage';
 import {
   IMAGE_REGEX,
   REF_REGEX,
-  isImageUrl,
   pathToCite,
   URL_REGEX,
   createStorageKey,
@@ -44,16 +41,10 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import {
-  Nest,
-  NoteEssay,
-  Cite,
-  constructStory,
-  Story,
-  NoteTuple,
-} from '@/types/channel';
+import { Nest, NoteEssay, Cite, Story, NoteTuple } from '@/types/channel';
 import { CacheId } from '@/state/channel/channel';
 import { WritTuple } from '@/types/dms';
+import messageSender from '@/logic/messageSender';
 
 interface ChatInputProps {
   whom: string;
@@ -62,7 +53,7 @@ interface ChatInputProps {
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
-  sendDm?: (whom: string, essay: NoteEssay) => void;
+  sendDm?: (whom: string, essay: NoteEssay, replying?: string) => void;
   sendChatMessage?: ({
     cacheId,
     essay,
@@ -148,7 +139,6 @@ export default function ChatInput({
   // const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
-  // const replyingWrit = useReplyNote(`chat/${whom}`, chatReplyId);
   const ship = replyingWrit && replyingWrit[1] && replyingWrit[1].essay.author;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
@@ -291,158 +281,21 @@ export default function ChatInput({
         return;
       }
 
-      const data = JSONToInlines(editor?.getJSON());
-      const noteContent = constructStory(data);
-      if (blocks.length > 0) {
-        noteContent.push(
-          ...blocks.map((b) => ({
-            block: b,
-          }))
-        );
-      }
-
-      if (replyCite) {
-        noteContent.unshift({ block: { cite: replyCite } });
-      }
-
-      // Checking for this prevents an extra <br>
-      // from being added to the end of the message
-      // const dataIsJustBreak =
-      // data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
-
       const now = Date.now();
-      const essay: NoteEssay = {
-        'han-data': {
-          chat: null,
-        },
-        author: `~${window.ship || 'zod'}`,
-        sent: now,
-        content: noteContent,
-      };
 
-      const text = editor.getText();
-      const textIsImageUrl = isImageUrl(text);
-      const dataIsJustLink =
-        data.length > 0 && typeof data[0] === 'object' && 'link' in data[0];
-      const cacheId = {
-        sent: now,
-        author: window.our,
-      };
+      messageSender({
+        whom,
+        replying,
+        editorJson: editor.getJSON(),
+        text: editor.getText(),
+        blocks,
+        replyCite,
+        now,
+        sendDm,
+        sendChatMessage,
+        sendQuip,
+      });
 
-      if (textIsImageUrl && dataIsJustLink) {
-        const url = text;
-        const name = 'chat-image';
-
-        const img = new Image();
-        img.src = url;
-
-        if (sendDm) {
-          img.onload = () => {
-            const { width, height } = img;
-
-            sendDm(whom, {
-              ...essay,
-              'han-data': {
-                chat: null,
-              },
-              sent: Date.now(),
-              content: [
-                {
-                  block: {
-                    image: {
-                      src: url,
-                      alt: name,
-                      width,
-                      height,
-                    },
-                  },
-                },
-              ],
-            });
-          };
-
-          img.onerror = () => {
-            sendDm(whom, essay);
-          };
-        } else if (sendChatMessage) {
-          img.onload = () => {
-            const { width, height } = img;
-
-            sendChatMessage({
-              cacheId,
-              essay: {
-                ...essay,
-                'han-data': {
-                  chat: null,
-                },
-                sent: Date.now(),
-                content: [
-                  {
-                    block: {
-                      image: {
-                        src: url,
-                        alt: name,
-                        width,
-                        height,
-                      },
-                    },
-                  },
-                ],
-              },
-            });
-          };
-
-          img.onerror = () => {
-            sendChatMessage({
-              cacheId,
-              essay,
-            });
-          };
-        } else if (sendQuip && replying) {
-          img.onload = () => {
-            const { width, height } = img;
-
-            sendQuip({
-              nest: `chat/${whom}`,
-              noteId: replying,
-              content: [
-                {
-                  block: {
-                    image: {
-                      src: url,
-                      alt: name,
-                      width,
-                      height,
-                    },
-                  },
-                },
-              ],
-            });
-          };
-
-          img.onerror = () => {
-            sendQuip({
-              nest: `chat/${whom}`,
-              noteId: replying,
-              content: essay.content,
-            });
-          };
-        }
-      } else if (sendDm) {
-        sendDm(whom, essay);
-      } else if (sendChatMessage) {
-        console.log('sending chat message', { essay });
-        sendChatMessage({
-          cacheId,
-          essay,
-        });
-      } else if (sendQuip && replying) {
-        sendQuip({
-          nest: `chat/${whom}`,
-          noteId: replying,
-          content: essay.content,
-        });
-      }
       captureGroupsAnalyticsEvent({
         name: reply ? 'comment_item' : 'post_item',
         groupFlag,

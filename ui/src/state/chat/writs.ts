@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
@@ -11,7 +10,10 @@ import {
   WritSeal,
   Writ,
   Writs,
+  WritDelta,
 } from '@/types/dms';
+import { newQuipMap, Quip } from '@/types/channel';
+import queryClient from '@/queryClient';
 import { extendCurrentWindow, getWindow } from '@/logic/windows';
 import { BasedChatState } from './type';
 
@@ -25,7 +27,7 @@ interface WritsStore {
 export function writsReducer(whom: string) {
   return (json: DmAction | WritDiff, draft: BasedChatState): BasedChatState => {
     let id: string | undefined;
-    let delta;
+    let delta: WritDelta;
     if ('diff' in json) {
       id = json.diff.id;
       delta = json.diff.delta;
@@ -33,6 +35,8 @@ export function writsReducer(whom: string) {
       id = json.id;
       delta = json.delta;
     }
+
+    console.log({ delta, id });
     if (!delta || !id) {
       return draft;
     }
@@ -41,6 +45,10 @@ export function writsReducer(whom: string) {
       index: {},
       writs: newWritMap(),
     };
+
+    console.log({
+      pactHasId: pact.index[id],
+    });
 
     if ('add' in delta && !pact.index[id]) {
       const time = bigInt(unixToDa(Date.now()));
@@ -101,6 +109,58 @@ export function writsReducer(whom: string) {
           seal: msg.seal,
         });
       }
+    } else if ('quip' in delta && pact.index[id]) {
+      console.log('got quip', { id });
+      const time = pact.index[id];
+      const msg = pact.writs.get(time);
+      const { quip } = delta;
+
+      console.log({ quip, msg });
+
+      if (msg) {
+        const quipDelta = quip.delta;
+        console.log({ quipDelta });
+
+        if ('add' in quipDelta) {
+          const quipId = quipDelta.add.memo.sent.toString();
+          const newQuip: Quip = {
+            cork: {
+              id: quipId,
+              feels: {},
+            },
+            memo: quipDelta.add.memo,
+          };
+
+          msg.seal.meta.quipCount += 1;
+          msg.seal.meta.lastQuippers = [
+            ...msg.seal.meta.lastQuippers,
+            quipDelta.add.memo.author,
+          ];
+          msg.seal.meta.lastQuip = quipDelta.add.memo.sent;
+
+          if (msg.seal.quips === null) {
+            msg.seal.quips = newQuipMap([[bigInt(quipId), newQuip]]);
+          } else {
+            const prevQuips = msg.seal.quips;
+            msg.seal.quips = prevQuips.with(bigInt(quipId), newQuip);
+          }
+        }
+        console.log({ whom, time });
+
+        queryClient.setQueryData(['dms', whom, msg.seal.id], {
+          ...msg,
+          seal: {
+            ...msg.seal,
+            quips: msg.seal.quips?.toArray().map(([k, q]) => [k.toString(), q]),
+          },
+          essay: {
+            ...msg.essay,
+          },
+        });
+        queryClient.invalidateQueries(['dms', whom, msg.seal.id]);
+        pact.writs = pact.writs.with(time, msg);
+        console.log({ newMsg: msg, pactWrits: pact.writs });
+      }
     }
     draft.pacts[whom] = { ...pact };
 
@@ -122,6 +182,30 @@ export function updatePact(whom: string, writs: Writs, draft: BasedChatState) {
   pairs.forEach(([tim, writ]) => {
     pact.index[writ.seal.id] = tim;
   });
+
+  pact.writs.mapValues((writ) => {
+    const newWrit = { ...writ };
+    if (writ.seal.quips) {
+      if (Object.entries(writ.seal.quips).length === 0) {
+        newWrit.seal.quips = null;
+
+        return newWrit;
+      }
+
+      const quips = writ.seal.quips as unknown;
+
+      if (quips && typeof quips === 'object' && 'with' in quips) {
+        return newWrit;
+      }
+
+      newWrit.seal.quips = newQuipMap(quips as [BigInteger, Quip][]);
+
+      return newWrit;
+    }
+
+    return newWrit;
+  });
+
   draft.pacts[whom] = { ...pact };
 }
 
@@ -232,6 +316,7 @@ export default function makeWritsStore(
         path: subPath,
         event: (data: WritDiff) => {
           set((draft) => {
+            console.log('got writ diff', { data });
             writsReducer(whom)(data, draft);
             return {
               pacts: { ...draft.pacts },

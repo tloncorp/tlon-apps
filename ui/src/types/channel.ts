@@ -12,7 +12,7 @@ export type Nest = string;
 export interface QuipMeta {
   quipCount: number;
   lastQuippers: Ship[];
-  lastQuip: string | null;
+  lastQuip: number | null;
 }
 
 export interface NoteSeal {

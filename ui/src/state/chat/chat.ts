@@ -372,7 +372,7 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    sendMessage: async (whom, mem) => {
+    sendMessage: async (whom, mem, replying) => {
       const isDM = whomIsDm(whom);
       // ensure time and ID match up
       const { id, time } = makeId();
@@ -381,13 +381,29 @@ export const useChatState = createState<ChatState>(
         author: mem.author,
         sent: time,
       };
-      const diff = {
-        add: {
-          memo,
-          kind: null,
-          time: null,
-        },
-      };
+      let diff: WritDelta;
+
+      if (!replying) {
+        diff = {
+          add: {
+            memo,
+            kind: null,
+            time: null,
+          },
+        };
+      } else {
+        diff = {
+          quip: {
+            id: replying,
+            delta: {
+              add: {
+                memo,
+                time: null,
+              },
+            },
+          },
+        };
+      }
 
       const { pacts } = get();
       const isNew = !(whom in pacts);
@@ -404,7 +420,11 @@ export const useChatState = createState<ChatState>(
         draft.trackedMessages.push({ id, status: 'pending' });
       });
 
-      await optimisticAction(whom, id, diff, set);
+      if (replying) {
+        await optimisticAction(whom, replying, diff, set);
+      } else {
+        await optimisticAction(whom, id, diff, set);
+      }
       set((draft) => {
         if (!isDM || !isNew) {
           draft.trackedMessages.map((msg) => {
@@ -628,23 +648,24 @@ export function useCurrentPactSize(whom: string) {
 export function useWrit(
   whom: string,
   writId: string,
-  ship: string,
   disabled = false
 ) {
   const queryKey = useMemo(() => ['dms', whom, writId], [whom, writId]);
 
+  console.log({ queryKey, writId});
+
   const path = useMemo(() => {
-    const suffix = `/writs/writ/id/${ship}/${formatUd(bigInt(writId))}`;
+    const suffix = `/writs/writ/id/${writId}`;
     if (whomIsDm(whom)) {
       return `/dm/${whom}${suffix}`;
     }
 
     return `/club/${whom}${suffix}`;
-  }, [ship, writId, whom]);
+  }, [writId, whom]);
 
   const enabled = useMemo(
-    () => writId !== '0' && ship !== '' && !disabled,
-    [writId, ship, disabled]
+    () => writId !== '0' && !disabled,
+    [writId, disabled]
   );
   const { data, ...rest } = useReactQueryScry<Writ>({
     queryKey,
@@ -666,8 +687,10 @@ export function useWrit(
     const writ = data;
     const quips = (writ.seal.quips || {}) as Quips;
 
+    console.log({ quips });
+
     const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
-      bigInt(parseUd(k)),
+      bigInt(k),
       v as Quip,
     ]);
 

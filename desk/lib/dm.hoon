@@ -56,7 +56,7 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id now ~ ~ 0 ~ ~]
+    =/  =seal:c  [id now ~ ~ [0 ~ ~]]
     ?:  (~(has by dex.pac) id)
       pac
     |-
@@ -89,9 +89,9 @@
       =|  quippers=(set ship)
       =/  entries=(list [time quip:c])  (bap:on:quips:c quips)
       |-
-      =/  [* =quip:c]  -.entries
       ?:  |(=(~ entries) =(3 ~(wyt in quippers)))
         quippers
+      =/  [* =quip:c]  -.entries
       ?:  (~(has in quippers) author.quip)
         $(entries +.entries)
       (~(put in quippers) author.quip)
@@ -111,6 +111,7 @@
 ++  reduce-quip
   |=  [=quips:c now=time =id:c delta=delta:quips:c]
   ^-  quips:c
+  ~&  ['reduce-quip' quips now id delta]
   |^
   ?-  -.delta
       %add

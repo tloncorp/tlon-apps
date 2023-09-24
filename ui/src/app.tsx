@@ -220,7 +220,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
               {isSmall ? (
                 <Route
-                  path="message/:idShip/:idTime"
+                  path="message/:idTime"
                   element={<ChatThread />}
                 />
               ) : null}
@@ -444,14 +444,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               >
                 {isSmall ? null : (
                   <Route
-                    path="message/:idShip/:idTime"
+                    path="message/:idTime"
                     element={<ChatThread />}
                   />
                 )}
               </Route>
               {isSmall ? (
                 <Route
-                  path="message/:idShip/:idTime"
+                  path="message/:idTime"
                   element={<ChatThread />}
                 />
               ) : null}

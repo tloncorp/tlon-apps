@@ -1,6 +1,6 @@
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
-import { HanChat, Note, NoteEssay, NoteSeal } from './channel';
+import { HanChat, NoteEssay, NoteSeal } from './channel';
 import { GroupMeta } from './groups';
 
 export type Patda = string;
@@ -23,7 +23,7 @@ interface WritDeltaAdd {
   add: {
     memo: Omit<NoteEssay, 'han-data'>;
     kind: null;
-    time: Patda | null;
+    time: string | null;
   };
 }
 
@@ -42,11 +42,41 @@ interface WritDeltaDelFeel {
   'del-feel': string;
 }
 
+interface QuipDeltaAdd {
+  add: {
+    memo: Omit<NoteEssay, 'han-data'>;
+    time: string | null;
+  };
+}
+
+interface QuipDeltaDel {
+  del: null;
+}
+
+interface QuipDeltaAddFeel {
+  'add-feel': {
+    ship: string;
+    feel: string;
+  };
+}
+
+interface QuipDeltaDelFeel {
+  'del-feel': string;
+}
+
+interface QuipDelta {
+  quip: {
+    id: Patda;
+    delta: QuipDeltaAdd | QuipDeltaDel | QuipDeltaAddFeel | QuipDeltaDelFeel;
+  };
+}
+
 export type WritDelta =
   | WritDeltaAdd
   | WritDeltaDel
   | WritDeltaAddFeel
-  | WritDeltaDelFeel;
+  | WritDeltaDelFeel
+  | QuipDelta;
 
 export interface WritDiff {
   id: string;

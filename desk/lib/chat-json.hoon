@@ -158,7 +158,12 @@
           %del       ~
           %add-feel  (add-feel +.delta)
           %del-feel  (ship ship.delta)
-          %add       (memo:enjs:dj memo.delta)
+        ::
+            %add
+          %-  pairs
+          :~  memo+(memo:enjs:dj memo.delta)
+              time+?~(time.delta ~ (time u.time.delta))
+          ==
         ==
     ==
   ++  add-feel

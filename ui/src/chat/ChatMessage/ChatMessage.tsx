@@ -318,7 +318,7 @@ const ChatMessage = React.memo<
                 )}
                 {numReplies > 0 && !hideReplies ? (
                   <NavLink
-                    to={`message/${essay.author}/${seal.id}`}
+                    to={`message/${seal.id}`}
                     className={({ isActive }) =>
                       cn(
                         'default-focus group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',

@@ -57,7 +57,7 @@ export interface ChatState {
   ) => Promise<void>;
   archiveDm: (ship: string) => Promise<void>;
   unarchiveDm: (ship: string) => Promise<void>;
-  sendMessage: (whom: string, essay: NoteEssay) => void;
+  sendMessage: (whom: string, essay: NoteEssay, replyingId?: string) => void;
   delDm: (flag: string, time: string) => void;
   addFeelToDm: (whom: string, id: string, feel: string) => Promise<void>;
   delFeelToDm: (whom: string, id: string) => Promise<void>;

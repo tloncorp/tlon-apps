@@ -60,7 +60,7 @@ interface NoteSealInCache {
   meta: {
     quipCount: number;
     lastQuippers: Ship[];
-    lastQuip: string | null;
+    lastQuip: number | null;
   };
 }
 

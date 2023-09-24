@@ -57,6 +57,8 @@ const DmScrollerItem = React.forwardRef<HTMLDivElement, DmScrollerItemProps>(
       return null;
     }
 
+    console.log({ writ });
+
     const han = writ.essay['han-data'].chat;
     const isNotice = han && 'notice' in han;
 
