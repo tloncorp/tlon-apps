@@ -1061,7 +1061,6 @@
   ::
   ++  di-ingest-diff
     |=  =diff:dm:c
-    ~&  ['diff' diff]
     =/  =path  (snoc di-area %ui)
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  =wire  /contacts/(scot %p ship)
@@ -1097,7 +1096,6 @@
     ::
         %quip
       =*  delt  delta.q.diff
-      ~&  ['quip' delt]
       ?-  -.delt
           ?(%del %add-feel %del-feel)  di-core
           %add

@@ -31,11 +31,11 @@ import {
   NoteMap,
   newNoteMap,
   newQuipMap,
-  QuipMap,
   NoteTuple,
   BriefUpdate,
   PagedNotes,
   PagedNotesMap,
+  NoteInCache,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -50,24 +50,6 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
-
-interface NoteSealInCache {
-  id: string;
-  quips: Quips;
-  feels: {
-    [ship: Ship]: string;
-  };
-  meta: {
-    quipCount: number;
-    lastQuippers: Ship[];
-    lastQuip: number | null;
-  };
-}
-
-interface NoteInCache {
-  seal: NoteSealInCache;
-  essay: NoteEssay;
-}
 
 async function updateNoteInCache(
   variables: { nest: Nest; noteId: string },

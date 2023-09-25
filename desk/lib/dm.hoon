@@ -78,7 +78,7 @@
     %+  jab  id
     |=  =writ:c
     ^-  writ:c
-    =/  quips  (reduce-quip quips.writ now [id delta]:del)
+    =/  quips  (reduce-quip quips.writ now id.writ [id delta]:del)
     %=  writ
       quips       quips
       quip-count.meta  (wyt:on:quips:c quips)
@@ -109,9 +109,8 @@
   ==
 ::
 ++  reduce-quip
-  |=  [=quips:c now=time =id:c delta=delta:quips:c]
+  |=  [=quips:c now=time parent-id=id:c =id:c delta=delta:quips:c]
   ^-  quips:c
-  ~&  ['reduce-quip' quips now id delta]
   |^
   ?-  -.delta
       %add
@@ -119,8 +118,9 @@
     ?:  (has:on:quips:c quips now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =/  cork  [id now ~]
-    ?:  (~(has by dex.pac) id)  quips
-    (put:on:quips:c quips now cork memo.delta)
+    ?:  (~(has by dex.pac) parent-id)
+      (put:on:quips:c quips now cork memo.delta)
+    quips
   ::
       %del
     =/  tim=(unit time)  (~(get by dex.pac) id)

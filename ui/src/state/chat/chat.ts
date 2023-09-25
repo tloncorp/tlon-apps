@@ -4,6 +4,7 @@ import produce, { setAutoFreeze } from 'immer';
 import { SetState } from 'zustand';
 import { Poke } from '@urbit/http-api';
 import { formatUd, parseUd, unixToDa } from '@urbit/aura';
+import { udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
@@ -21,6 +22,9 @@ import {
   Pins,
   WritDelta,
   Writ,
+  Patda,
+  WritEssay,
+  WritInCache,
 } from '@/types/dms';
 import {
   newQuipMap,
@@ -394,7 +398,7 @@ export const useChatState = createState<ChatState>(
       } else {
         diff = {
           quip: {
-            id: replying,
+            id,
             delta: {
               add: {
                 memo,
@@ -403,6 +407,42 @@ export const useChatState = createState<ChatState>(
             },
           },
         };
+
+        queryClient.setQueryData(
+          ['dms', whom, replying],
+          (writ: WritInCache | undefined) => {
+            if (!writ) {
+              return writ;
+            }
+
+            const prevQuips = writ.seal.quips || {};
+            const quips: Quips = {};
+
+            Object.entries(prevQuips).forEach(([k, v]) => {
+              quips[k] = v;
+            });
+
+            const quipId = unixToDa(memo.sent).toString();
+
+            const newQuip: Quip = {
+              cork: {
+                id: quipId,
+                feels: {},
+              },
+              memo,
+            };
+
+            quips[quipId] = newQuip;
+
+            return {
+              ...writ,
+              seal: {
+                ...writ.seal,
+                quips: quips as Quips,
+              },
+            };
+          }
+        );
       }
 
       const { pacts } = get();
@@ -587,19 +627,12 @@ export function useTrackedMessageStatus(id: string) {
 
 const emptyBriefs: DMBriefs = {};
 export function useDmBriefs() {
-  const onEvent = (event: DMBriefUpdate) => {
-    console.log({ event });
-
-    queryClient.invalidateQueries(['dm', 'briefs']);
-  };
-
   const { data, ...query } = useReactQuerySubscription<DMBriefs, DMBriefUpdate>(
     {
       queryKey: ['dm', 'briefs'],
       app: 'chat',
       path: '/briefs',
       scry: '/briefs',
-      onEvent,
     }
   );
 
@@ -645,14 +678,8 @@ export function useCurrentPactSize(whom: string) {
   );
 }
 
-export function useWrit(
-  whom: string,
-  writId: string,
-  disabled = false
-) {
+export function useWrit(whom: string, writId: string, disabled = false) {
   const queryKey = useMemo(() => ['dms', whom, writId], [whom, writId]);
-
-  console.log({ queryKey, writId});
 
   const path = useMemo(() => {
     const suffix = `/writs/writ/id/${writId}`;
@@ -687,10 +714,8 @@ export function useWrit(
     const writ = data;
     const quips = (writ.seal.quips || {}) as Quips;
 
-    console.log({ quips });
-
     const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
-      bigInt(k),
+      bigInt(udToDec(k)),
       v as Quip,
     ]);
 

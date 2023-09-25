@@ -1,6 +1,6 @@
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
-import { HanChat, NoteEssay, NoteSeal } from './channel';
+import { HanChat, NoteEssay, NoteSeal, NoteSealInCache } from './channel';
 import { GroupMeta } from './groups';
 
 export type Patda = string;
@@ -230,3 +230,12 @@ export interface ChatScanItem {
 }
 
 export type ChatScan = ChatScanItem[];
+
+interface WritSealInCache extends NoteSealInCache {
+  time: Patda;
+}
+
+export interface WritInCache {
+  seal: WritSealInCache;
+  memo: WritEssay;
+}

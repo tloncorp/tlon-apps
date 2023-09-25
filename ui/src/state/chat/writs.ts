@@ -1,4 +1,5 @@
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
+import { uniq } from 'lodash';
 import bigInt, { BigInteger } from 'big-integer';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import api from '@/api';
@@ -11,6 +12,7 @@ import {
   Writ,
   Writs,
   WritDelta,
+  WritInCache,
 } from '@/types/dms';
 import { newQuipMap, Quip } from '@/types/channel';
 import queryClient from '@/queryClient';
@@ -36,7 +38,6 @@ export function writsReducer(whom: string) {
       delta = json.delta;
     }
 
-    console.log({ delta, id });
     if (!delta || !id) {
       return draft;
     }
@@ -45,10 +46,6 @@ export function writsReducer(whom: string) {
       index: {},
       writs: newWritMap(),
     };
-
-    console.log({
-      pactHasId: pact.index[id],
-    });
 
     if ('add' in delta && !pact.index[id]) {
       const time = bigInt(unixToDa(Date.now()));
@@ -110,56 +107,41 @@ export function writsReducer(whom: string) {
         });
       }
     } else if ('quip' in delta && pact.index[id]) {
-      console.log('got quip', { id });
       const time = pact.index[id];
       const msg = pact.writs.get(time);
       const { quip } = delta;
 
-      console.log({ quip, msg });
-
       if (msg) {
         const quipDelta = quip.delta;
-        console.log({ quipDelta });
 
         if ('add' in quipDelta) {
-          const quipId = quipDelta.add.memo.sent.toString();
-          const newQuip: Quip = {
-            cork: {
-              id: quipId,
-              feels: {},
-            },
-            memo: quipDelta.add.memo,
-          };
+          const currentNote = queryClient.getQueryData<WritInCache>([
+            'dms',
+            whom,
+            id,
+          ]);
+
+          if (currentNote) {
+            queryClient.invalidateQueries(['dms', whom, id]);
+            const currentQuips = currentNote.seal.quips;
+            const cachedQuip = Object.entries(currentQuips).find(
+              ([_, q]) => q.memo.sent === quipDelta.add.memo.sent
+            );
+
+            if (!cachedQuip && quipDelta.add.memo.author === window.our) {
+              return draft;
+            }
+          }
 
           msg.seal.meta.quipCount += 1;
-          msg.seal.meta.lastQuippers = [
+          msg.seal.meta.lastQuippers = uniq([
             ...msg.seal.meta.lastQuippers,
             quipDelta.add.memo.author,
-          ];
+          ]);
           msg.seal.meta.lastQuip = quipDelta.add.memo.sent;
 
-          if (msg.seal.quips === null) {
-            msg.seal.quips = newQuipMap([[bigInt(quipId), newQuip]]);
-          } else {
-            const prevQuips = msg.seal.quips;
-            msg.seal.quips = prevQuips.with(bigInt(quipId), newQuip);
-          }
+          pact.writs = pact.writs.with(time, msg);
         }
-        console.log({ whom, time });
-
-        queryClient.setQueryData(['dms', whom, msg.seal.id], {
-          ...msg,
-          seal: {
-            ...msg.seal,
-            quips: msg.seal.quips?.toArray().map(([k, q]) => [k.toString(), q]),
-          },
-          essay: {
-            ...msg.essay,
-          },
-        });
-        queryClient.invalidateQueries(['dms', whom, msg.seal.id]);
-        pact.writs = pact.writs.with(time, msg);
-        console.log({ newMsg: msg, pactWrits: pact.writs });
       }
     }
     draft.pacts[whom] = { ...pact };
@@ -316,7 +298,6 @@ export default function makeWritsStore(
         path: subPath,
         event: (data: WritDiff) => {
           set((draft) => {
-            console.log('got writ diff', { data });
             writsReducer(whom)(data, draft);
             return {
               pacts: { ...draft.pacts },

@@ -57,8 +57,6 @@ const DmScrollerItem = React.forwardRef<HTMLDivElement, DmScrollerItemProps>(
       return null;
     }
 
-    console.log({ writ });
-
     const han = writ.essay['han-data'].chat;
     const isNotice = han && 'notice' in han;
 
@@ -206,6 +204,7 @@ export default function DmScroller({
           whom,
           writ,
           hideReplies: replying,
+          quipCount: writ.seal.meta.quipCount,
           time: index,
           newAuthor,
           newDay,

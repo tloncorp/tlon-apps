@@ -44,7 +44,6 @@ export default function DMThread() {
   const whom = ship || '';
   const id = `${idShip!}/${idTime!}`;
   const time = udToDec(idTime!);
-  console.log({ id });
   const { writ, isLoading } = useWrit(whom, id);
   const { sendMessage } = useChatState.getState();
   const { isOpen: leapIsOpen } = useLeap();

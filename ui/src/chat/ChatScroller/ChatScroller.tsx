@@ -194,6 +194,7 @@ export default function ChatScroller({
             writ,
             hideReplies: replying,
             time: index,
+            quipCount: writ.seal.meta.quipCount,
             newAuthor,
             newDay,
             isLast: keyIdx === ks.length - 1,

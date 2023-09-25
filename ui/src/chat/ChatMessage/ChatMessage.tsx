@@ -1,5 +1,11 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import cn from 'classnames';
 import debounce from 'lodash/debounce';
 import bigInt, { BigInteger } from 'big-integer';
@@ -43,6 +49,9 @@ export interface ChatMessageProps {
   whom: string;
   time: BigInteger;
   writ: Note;
+  // it's necessary to pass in the quipCount because if it's nested
+  // it won't trigger a re-render
+  quipCount?: number;
   newAuthor?: boolean;
   newDay?: boolean;
   hideReplies?: boolean;
@@ -78,6 +87,7 @@ const ChatMessage = React.memo<
         whom,
         time,
         writ,
+        quipCount = 0,
         newAuthor = false,
         newDay = false,
         hideReplies = false,
@@ -95,6 +105,7 @@ const ChatMessage = React.memo<
         idTime: string;
       }>();
       const isThread = !!idShip && !!idTime;
+      // const [quipCount, setQuipCount] = useState(0);
       const threadOpId = isThread ? `${idShip}/${idTime}` : '';
       const isThreadOp = threadOpId === seal.id && hideReplies;
       const isMobile = useIsMobile();
@@ -170,7 +181,6 @@ const ChatMessage = React.memo<
 
       const unix = new Date(daToUnix(time));
 
-      const numReplies = seal.meta.quipCount;
       const replyAuthors = seal.meta.lastQuippers;
       const lastReplyTime = seal.meta.lastQuip
         ? new Date(seal.meta.lastQuip)
@@ -316,7 +326,7 @@ const ChatMessage = React.memo<
                     />
                   </>
                 )}
-                {numReplies > 0 && !hideReplies ? (
+                {quipCount > 0 && !hideReplies ? (
                   <NavLink
                     to={`message/${seal.id}`}
                     className={({ isActive }) =>
@@ -335,7 +345,7 @@ const ChatMessage = React.memo<
                       <div className="mr-2 flex flex-row-reverse">
                         {replyAuthors.map((ship, i) => (
                           <div
-                            key={ship}
+                            key={ship + i}
                             className={cn(
                               'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white sm:group-one-focus-within:outline-gray-50 sm:group-one-hover:outline-gray-50',
                               i !== 0 && '-mr-3'
@@ -352,7 +362,7 @@ const ChatMessage = React.memo<
                           'mr-2'
                         )}
                       >
-                        {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
+                        {quipCount} {quipCount > 1 ? 'replies' : 'reply'}{' '}
                       </span>
                       {/*
                       TODO: update when we have quip briefs

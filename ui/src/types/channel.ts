@@ -590,3 +590,21 @@ export function newNoteMap(entries?: NoteTuple[], reverse = false): NoteMap {
     reverse ? b.compare(a) : a.compare(b)
   );
 }
+
+export interface NoteSealInCache {
+  id: string;
+  quips: Quips;
+  feels: {
+    [ship: Ship]: string;
+  };
+  meta: {
+    quipCount: number;
+    lastQuippers: Ship[];
+    lastQuip: number | null;
+  };
+}
+
+export interface NoteInCache {
+  seal: NoteSealInCache;
+  essay: NoteEssay;
+}
