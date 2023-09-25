@@ -1,13 +1,9 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
 import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
-import { isSameDay } from 'date-fns';
 import React, {
-  ReactNode,
   useCallback,
   useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -17,45 +13,36 @@ import {
   FlatScrollIntoViewLocation,
   VirtuosoHandle,
 } from 'react-virtuoso';
-import BTree from 'sorted-btree';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import {
+  useHasScrolledRef,
+  useInvertedScrollInteraction,
+  useIsScrolling,
+} from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState, useWritWindow } from '@/state/chat/chat';
-import { ChatWrit } from '@/types/chat';
-import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
+import { ScrollerItemData, useMessageData } from '@/logic/useScrollerMessages';
+import { useChatState } from '@/state/chat/chat';
+import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatNotice from '../ChatNotice';
 import { useChatStore } from '../useChatStore';
 import { IChatScroller } from './IChatScroller';
 
-type ChatWritTree = BTree<bigInt.BigInteger, ChatWrit>;
-
-interface ChatScrollerItemProps extends ChatMessageProps {
-  index: bigInt.BigInteger;
-  prefixedElement?: ReactNode;
-}
-
 const ChatScrollerItem = React.memo(
-  ({ index, writ, prefixedElement, ...props }: ChatScrollerItemProps, ref) => {
+  ({ index, writ, prefixedElement, ...props }: ScrollerItemData) => {
     const isNotice = writ ? 'notice' in writ.memo.content : false;
-    if (isNotice) {
-      return (
-        <>
-          {prefixedElement || null}
+    return (
+      <>
+        {prefixedElement || null}
+        {isNotice ? (
           <ChatNotice
             key={writ.seal.id}
             writ={writ}
             newDay={new Date(daToUnix(index))}
           />
-        </>
-      );
-    }
-
-    return (
-      <>
-        {prefixedElement || null}
-        <ChatMessage key={writ.seal.id} writ={writ} {...props} />
+        ) : (
+          <ChatMessage key={writ.seal.id} writ={writ} {...props} />
+        )}
       </>
     );
   }
@@ -70,201 +57,43 @@ function Loader({ show }: { show: boolean }) {
 }
 
 const thresholds = {
-  atBottomThreshold: 125,
-  atTopThreshold: 2000,
+  atEndThreshold: 2000,
   overscan: 6,
-};
-
-function getMessageItems({
-  whom,
-  scrollTo,
-  messages,
-  replying,
-  prefixedElement,
-}: {
-  whom: string;
-  scrollTo?: bigInt.BigInteger;
-  messages: ChatWritTree;
-  replying: boolean;
-  prefixedElement: React.ReactNode;
-}): [bigInt.BigInteger[], ChatScrollerItemProps[]] {
-  console.time('getMessageItems');
-  const messagesWithoutReplies = messages.filter((k) => {
-    if (replying) {
-      return true;
-    }
-    return messages.get(k)?.memo.replying === null;
-  });
-
-  const ks: bigInt.BigInteger[] = Array.from(messagesWithoutReplies.keys());
-  const min = messagesWithoutReplies.minKey() || bigInt();
-  const es: ChatScrollerItemProps[] = messagesWithoutReplies
-    .toArray()
-    .map<ChatScrollerItemProps>(([index, writ]) => {
-      const keyIdx = ks.findIndex((idx) => idx.eq(index));
-      const lastWritKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
-      const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
-      const newAuthor = lastWrit
-        ? writ.memo.author !== lastWrit.memo.author ||
-          'notice' in lastWrit.memo.content
-        : true;
-      const writDay = new Date(daToUnix(index));
-      const lastWritDay = lastWritKey
-        ? new Date(daToUnix(lastWritKey))
-        : undefined;
-      const newDay =
-        lastWrit && lastWritDay ? !isSameDay(writDay, lastWritDay) : !lastWrit;
-
-      return {
-        index,
-        whom,
-        writ,
-        hideReplies: replying,
-        time: index,
-        newAuthor,
-        newDay,
-        isLast: keyIdx === ks.length - 1,
-        isLinked: scrollTo ? index.eq(scrollTo) : false,
-        prefixedElement: index.eq(min) ? prefixedElement : undefined,
-      };
-    });
-  console.timeEnd('getMessageItems');
-  return [ks, es];
-}
-
-type FetchingState = 'top' | 'bottom' | 'initial';
-
-function useFetchMessages({
-  whom,
-  messages,
-  scrollTo,
-}: {
-  whom: string;
-  messages: ChatWritTree;
-  scrollTo?: bigInt.BigInteger;
-}) {
-  const writWindow = useWritWindow(whom, scrollTo);
-  const [fetchState, setFetchState] = useState<FetchingState>('initial');
-
-  const fetchMessages = useCallback(
-    async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
-      const newest = messages.maxKey();
-      const seenNewest =
-        newer && newest && writWindow && writWindow.loadedNewest;
-      const oldest = messages.minKey();
-      const seenOldest =
-        !newer && oldest && writWindow && writWindow.loadedOldest;
-
-      if (seenNewest || seenOldest) {
-        return;
-      }
-
-      try {
-        setFetchState(newer ? 'bottom' : 'top');
-
-        if (newer) {
-          await useChatState
-            .getState()
-            .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
-        } else {
-          await useChatState
-            .getState()
-            .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
-        }
-
-        setFetchState('initial');
-      } catch (e) {
-        console.log(e);
-        setFetchState('initial');
-      }
-    },
-    [whom, messages, scrollTo, writWindow]
-  );
-  return useMemo(
-    () => ({ fetchMessages, fetchState }),
-    [fetchMessages, fetchState]
-  );
-}
-
-const useIsScrolling = (
-  options: {
-    checkInterval: number;
-    scrollStopDelay: number;
-  } = {
-    checkInterval: 200,
-    scrollStopDelay: 200,
-  }
-) => {
-  const { checkInterval, scrollStopDelay } = options;
-  const [isScrolling, setIsScrolling] = useState(false);
-  const lastScrollTime = useRef(0);
-
-  // This performs a bit better than setting and clearing a million
-  // setTimeouts, even debounced, but in the worst case takes 2 * checkInterval
-  useEffect(() => {
-    if (!isScrolling) return undefined;
-
-    const interval = setInterval(() => {
-      const delta = Date.now() - lastScrollTime.current;
-      setIsScrolling(delta < scrollStopDelay);
-    }, checkInterval);
-
-    return () => clearInterval(interval);
-  }, [isScrolling, checkInterval, scrollStopDelay]);
-
-  const didScroll = useCallback(() => {
-    lastScrollTime.current = Date.now();
-    setIsScrolling(true);
-  }, []);
-
-  return { isScrolling, didScroll };
 };
 
 function useFakeVirtuosoHandle(
   ref: React.RefObject<VirtuosoHandle>,
   virtualizer: DivVirtualizer
 ) {
-  const virtualizerRef = useRef<DivVirtualizer>(virtualizer);
-  useEffect(() => {
-    virtualizerRef.current = virtualizer;
-  }, [virtualizer]);
-
   useImperativeHandle(
     ref,
     () =>
       ({
-        /**
-         * Scrolls the component to the specified item index. See {@link IndexLocationWithAlign} for more options.
-         */
         scrollToIndex(location: number | FlatIndexLocationWithAlign): void {
           const hasOptions = !(typeof location === 'number');
           if (hasOptions) {
             const { index: rawIndex, align, behavior } = location;
             const index = rawIndex === 'LAST' ? 0 : rawIndex;
-            virtualizerRef.current?.scrollToIndex(index, { align, behavior });
+            virtualizer.scrollToIndex(index, { align, behavior });
           } else {
-            virtualizerRef.current?.scrollToIndex(location);
+            virtualizer.scrollToIndex(location);
           }
         },
-        /**
-         * Scrolls the item into view if necessary. See [the website example](http://virtuoso.dev/keyboard-navigation/) for an implementation.
-         */
         scrollIntoView({
           index,
           align,
           behavior,
           done,
         }: FlatScrollIntoViewLocation): void {
-          virtualizerRef.current.scrollToIndex(index, { align, behavior });
+          virtualizer.scrollToIndex(index, { align, behavior });
           if (done) setTimeout(done, 500);
         },
       } as VirtuosoHandle),
-    []
+    [virtualizer]
   );
 }
 
 type DivVirtualizer = Virtualizer<HTMLDivElement, HTMLDivElement>;
-type DivVirtualizerOptions = DivVirtualizer['options'];
 
 export default function ChatScroller({
   whom,
@@ -275,178 +104,184 @@ export default function ChatScroller({
   scrollerRef,
 }: IChatScroller) {
   const isMobile = useIsMobile();
-  const [isAtBottom, setIsAtBottom] = useState(false);
+  const [loadDirection, setLoadDirection] = useState('older');
+  const [isAtBottom, setIsAtBottom] = useState(loadDirection === 'older');
   const [isAtTop, setIsAtTop] = useState(false);
   const { isScrolling, didScroll } = useIsScrolling();
   const scrollElementRef = useRef<HTMLDivElement>(null);
+  const userHasScrolled = useHasScrolledRef(scrollElementRef);
+  const isInverted = loadDirection === 'older';
 
-  const isFirstPass = useRef(true);
-  // TODO: Not sure whether this behavior is correct, or whether it's necessary
-  // in the new scroller.
-  useLayoutEffect(() => {
-    isFirstPass.current = false;
-  }, []);
-
-  const [keys, entries] = useMemo(
-    () =>
-      getMessageItems({
-        whom,
-        scrollTo,
-        messages,
-        replying,
-        prefixedElement,
-      }),
-    [whom, scrollTo, messages, replying, prefixedElement]
-  );
-
-  const { fetchMessages, fetchState } = useFetchMessages({
+  const {
+    activeMessageKeys,
+    activeMessageEntries,
+    activeMessages,
+    fetchMessages,
+    fetchState,
+    hasLoadedNewest,
+  } = useMessageData({
     whom,
-    messages,
     scrollTo,
+    messages,
+    replying,
+    prefixedElement,
   });
 
+  const count = activeMessageEntries.length;
   // We want to render newest messages first, but we receive them oldest-first.
   // This is a simple way to reverse the order without having to reverse a big array.
-  // Mainly used when actually rendering virtualizer items.
-  const count = entries.length;
-  const reverseIndex = React.useCallback(
-    (index: number) => count - 1 - index,
-    [count]
+  const transformIndex = useCallback(
+    (index: number) => (isInverted ? count - 1 - index : index),
+    [count, isInverted]
   );
-
-  // Used by the virtualizer to apply scroll position changes to the DOM.
-  const scrollToFn: DivVirtualizerOptions['scrollToFn'] = useCallback(
-    (offset, { adjustments, behavior }, instance) => {
-      const target = offset + (adjustments ?? 0);
-      if (!isScrolling || !isMobile) {
-        instance.scrollElement?.scrollTo({ top: target, behavior });
-      }
-    },
-    [isScrolling, isMobile]
-  );
-
-  // Used by the virtualizer to keep track of scroll position. Note that the is
-  // the *only* place the virtualizer accesses scroll position, so we can change
-  // the virtualizer's idea of world state by modifying it.
-  const observeElementOffset = useCallback(
-    (instance: DivVirtualizer, cb: (offset: number) => void) => {
-      const el = instance.scrollElement;
-      if (!el) {
-        return undefined;
-      }
-      const onScroll = () => {
-        didScroll();
-        cb(el.scrollTop);
-      };
-      cb(el.scrollTop);
-      el.addEventListener('scroll', onScroll, { passive: true });
-      return () => el.removeEventListener('scroll', onScroll);
-    },
-    [didScroll]
-  );
-
-  // Called by the virtualizer whenever any layout property changes.
-  // We're using it to keep track of top and bottom thresholds.
-  const handleVirtualizerUpdate = useCallback((v: DivVirtualizer) => {
-    const { clientHeight, scrollTop, scrollHeight } =
-      scrollElementRef.current ?? {
-        clientHeight: 0,
-        scrollTop: 0,
-        scrollHeight: 0,
-      };
-    // Note that these checks are inverted because we're using `scaleY(-1)`
-    // to flip the list
-    const atTop =
-      scrollTop + clientHeight > scrollHeight - thresholds.atTopThreshold;
-    setIsAtTop(atTop);
-    const atBottom = scrollTop < thresholds.atBottomThreshold;
-    setIsAtBottom(atBottom);
-  }, []);
-
-  // The virtualizer uses this to estimate items' sizes before they're rendered.
-  // Determines where to place items initially, and how long the scroll content
-  // is going to be overall. The better the estimate is, the less reflow will be
-  // required after rendering.
-
-  // TODO: This is a comically bad estimate. Making this a little better will
-  // further reduce jank / reflow necessity.
-  const estimateSize = useCallback((index: number) => 55, []);
 
   const virtualizer = useVirtualizer({
-    count: entries.length,
-    paddingEnd: 10,
+    count: activeMessageEntries.length,
     getScrollElement: useCallback(() => scrollElementRef.current, []),
-    observeElementOffset,
-    estimateSize,
-    scrollToFn,
+    // Used by the virtualizer to keep track of scroll position. Note that the is
+    // the *only* place the virtualizer accesses scroll position, so we can change
+    // the virtualizer's idea of world state by modifying it.
+    observeElementOffset: useCallback(
+      (instance: DivVirtualizer, cb: (offset: number) => void) => {
+        const el = instance.scrollElement;
+        if (!el) {
+          return undefined;
+        }
+        const onScroll = () => {
+          didScroll();
+          cb(el.scrollTop);
+        };
+        cb(el.scrollTop);
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onScroll);
+      },
+      [didScroll]
+    ),
+    // The virtualizer uses this to estimate items' sizes before they're rendered.
+    // Determines where to place items initially, and how long the scroll content
+    // is going to be overall. The better the estimate is, the less reflow will be
+    // required after rendering.
+    // TODO: This is a comically bad estimate. Making this a little better will
+    // further reduce jank / reflow necessity.
+    estimateSize: useCallback((index: number) => 100, []),
+    getItemKey: useCallback(
+      (index: number) => activeMessageKeys[transformIndex(index)].toString(),
+      [activeMessageKeys, transformIndex]
+    ),
+    scrollToFn: useCallback(
+      (
+        offset: number,
+        {
+          adjustments,
+          behavior,
+        }: { adjustments?: number; behavior?: ScrollBehavior },
+        instance: DivVirtualizer
+      ) => {
+        // On iOS, changing scroll during momentum scrolling will cause stutters
+        if (isMobile && isScrolling) {
+          return;
+        }
+        // If we're at the bottom, we want to stay anchored at the bottom even if messages
+        // are resized. Without this, the scroller will scroll up if elements resize after
+        // the initial render.
+        if (!scrollTo && !userHasScrolled.current) {
+          return;
+        }
+        const top = offset + (adjustments ?? 0);
+        instance.scrollElement?.scrollTo({ top, behavior });
+      },
+      [isScrolling, isMobile, scrollTo, userHasScrolled]
+    ),
     overscan: thresholds.overscan,
-    onChange: handleVirtualizerUpdate,
+    // Called by the virtualizer whenever any layout property changes.
+    // We're using it to keep track of top and bottom thresholds.
+    onChange: useCallback(() => {
+      const { clientHeight, scrollTop, scrollHeight } =
+        scrollElementRef.current ?? {
+          clientHeight: 0,
+          scrollTop: 0,
+          scrollHeight: 0,
+        };
+      // Prevent list from being at the end of new messages and old messages
+      // at the same time -- can happen if there are few messages loaded.
+      const atEndThreshold = Math.min(
+        (scrollHeight - clientHeight) / 2,
+        thresholds.atEndThreshold
+      );
+      const isAtBeginning = scrollTop === 0;
+      const isAtEnd = scrollTop + clientHeight >= scrollHeight - atEndThreshold;
+      setIsAtTop((isInverted && isAtEnd) || (!isInverted && isAtBeginning));
+      setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
+    }, [isInverted]),
   });
   useFakeVirtuosoHandle(scrollerRef, virtualizer);
+  useInvertedScrollInteraction(scrollElementRef, isInverted);
 
-  const hasScrollTo = useMemo(() => {
-    if (!scrollTo) {
-      return true;
+  // TODO: This shouldn't run after we've scrolled to the given index
+  const scrollToIndex = useMemo(() => {
+    if (!scrollTo || !activeMessages.has(scrollTo)) {
+      return -1;
     }
-    return keys.some((k) => k.eq(scrollTo));
-  }, [scrollTo, keys]);
+    return activeMessageKeys.findIndex((k) => k.greaterOrEquals(scrollTo));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo, activeMessageKeys]);
 
   useEffect(() => {
-    if (hasScrollTo && scrollTo && scrollerRef.current) {
-      const index = keys.findIndex((k) => k.greaterOrEquals(scrollTo));
+    if (scrollToIndex !== -1) {
       scrollerRef.current?.scrollToIndex({
-        index: reverseIndex(index),
+        index: transformIndex(scrollToIndex),
         align: 'center',
       });
     }
+    // We only want this to fire when
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), hasScrollTo, scrollerRef]);
+  }, [scrollToIndex !== -1]);
 
-  // Fetch older messages when we reach the top.
+  // Load more items when list reaches the top or bottom.
   useEffect(() => {
-    if (isAtTop && fetchState === 'initial') {
+    if (fetchState !== 'initial' || !userHasScrolled.current) return;
+    const chatStore = useChatStore.getState();
+    if (isAtTop) {
+      setLoadDirection('older');
+      chatStore.bottom(false);
       fetchMessages(false);
-    }
-    // Should *only* trigger if `isAtTop` changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAtTop, fetchState]);
-
-  // Fetch newer messages when we reach the bottom.
-  useEffect(() => {
-    if (fetchState === 'initial') return;
-    const { bottom: setAtBottom, delayedRead } = useChatStore.getState();
-    if (isAtBottom) {
+    } else if (isAtBottom && !hasLoadedNewest) {
+      setLoadDirection('newer');
       fetchMessages(true);
-      setAtBottom(true);
-      if (!isFirstPass.current) {
-        delayedRead(whom, () => useChatState.getState().markRead(whom));
-      }
-    } else {
-      setAtBottom(false);
+      chatStore.bottom(true);
+      chatStore.delayedRead(whom, () => useChatState.getState().markRead(whom));
     }
-    // Should *only* trigger if `isAtBottom` changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAtBottom, fetchState]);
+  }, [
+    fetchState,
+    isAtTop,
+    isAtBottom,
+    fetchMessages,
+    whom,
+    hasLoadedNewest,
+    userHasScrolled,
+  ]);
 
-  // Invert mousewheel scroll so that it works properly on the inverted list.
-  // We need to use `useEffect` here because we're prevent default, which we can't
-  // do inside passive event listeners, which React uses in prop events by default.
-  useEffect(() => {
-    const el = scrollElementRef.current;
-    if (!el) return undefined;
-    const invertScrollWheel = (e: WheelEvent) => {
-      el.scrollTop -= e.deltaY;
-      e.preventDefault();
-    };
-    el.addEventListener('wheel', invertScrollWheel, false);
-    return () => el.removeEventListener('wheel', invertScrollWheel);
-  }, []);
+  // When the list inverts, we need to flip the scroll position in order to appear to stay in the same place.
+  // We do this here as opposed to in an effect so that virtualItems this render.
+  const lastIsInverted = useRef(isInverted);
+  if (userHasScrolled.current && isInverted !== lastIsInverted.current) {
+    virtualizer.scrollOffset =
+      virtualizer.getTotalSize() - virtualizer.scrollOffset;
+    virtualizer.scrollToOffset(virtualizer.scrollOffset, { align: 'start' });
+    lastIsInverted.current = isInverted;
+  }
+
+  const scaleY = isInverted ? -1 : 1;
 
   return (
     <div
       ref={scrollElementRef}
       className="h-full overflow-y-auto overflow-x-clip"
-      style={{ transform: 'scaleY(-1)' }}
+      style={{ transform: `scaleY(${scaleY})` }}
+      // We need this in order to get key events on the div, which we use remap
+      // arrow and spacebar navigation when scrolling.
+      // TODO: This now gets outlined when scrolling with keys. Should it?
+      tabIndex={-1}
     >
       <div
         className="relative w-full"
@@ -455,31 +290,27 @@ export default function ChatScroller({
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
       >
-        {/* This loader ends up at the bottom after inversion */}
-        <div className="absolute bottom-0 w-full">
-          <Loader show={fetchState === 'top'} />
+        <div className="absolute top-0 w-full">
+          <Loader show={fetchState === (isInverted ? 'bottom' : 'top')} />
         </div>
         {virtualizer.getVirtualItems().map((virtualItem) => {
-          const item = entries[reverseIndex(virtualItem.index)];
+          const item = activeMessageEntries[transformIndex(virtualItem.index)];
           return (
             <div
               key={virtualItem.key}
               className="t-0 l-0 absolute w-full px-4"
-              // TODO: This will re-measure on every render, may want to
-              // debounce or otherwise optimize.
               ref={virtualizer.measureElement}
               data-index={virtualItem.index}
               style={{
-                transform: `translateY(${virtualItem.start}px) scaleY(-1)`,
+                transform: `translateY(${virtualItem.start}px) scaleY(${scaleY})`,
               }}
             >
               <ChatScrollerItem {...item} isScrolling={isScrolling} />
             </div>
           );
         })}
-        {/* This loader ends up at the top after inversion */}
-        <div className="absolute top-0 w-full">
-          <Loader show={fetchState === 'bottom'} />
+        <div className="absolute bottom-0 w-full">
+          <Loader show={fetchState === (isInverted ? 'top' : 'bottom')} />
         </div>
       </div>
     </div>
