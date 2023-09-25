@@ -144,9 +144,9 @@
   ++  get-quip
     |=  =id:c
     ^-  (unit [=time =quip:c])
-    ?~  tim=(~(get by dex.pac) id)        ~
-    ?~  qup=(get:on:quips:c quips u.tim)  ~
-    `[u.tim u.qup]
+    =/  quip-list  (tap:on:quips:c quips)
+    =/  this-quip  (some (rear (skim quip-list |=([time q=quip:c] =(id id.q)))))
+    this-quip
   ++  jab-quip
     |=  [=id:c fun=$-(quip:c quip:c)]
     ^+  quips

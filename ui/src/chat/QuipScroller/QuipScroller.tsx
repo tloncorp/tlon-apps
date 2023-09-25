@@ -16,15 +16,12 @@ import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import {
-  useChatState,
-  useIsDmOrMultiDm,
-  useWritWindow,
-} from '@/state/chat/chat';
+import { useChatState, useWritWindow } from '@/state/chat/chat';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { Note, Quip, emptyQuip } from '@/types/channel';
+import { useIsDmOrMultiDm } from '@/logic/utils';
 import QuipMessage, { QuipMessageProps } from '../ChatMessage/QuipMessage';
 import { useChatStore } from '../useChatStore';
 

@@ -48,6 +48,7 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { getWindow } from '@/logic/windows';
 import queryClient from '@/queryClient';
+import { useMutation } from '@tanstack/react-query';
 import { createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
@@ -736,6 +737,180 @@ export function useWrit(whom: string, writId: string, disabled = false) {
   }, [data, rest]);
 }
 
+export function useAddDMQuipFeelMutation() {
+  const mutationFn = async (variables: {
+    whom: string;
+    writId: string;
+    quipId: string;
+    feel: string;
+  }) => {
+    const delta: WritDelta = {
+      quip: {
+        id: variables.quipId,
+        delta: {
+          'add-feel': { feel: variables.feel, ship: window.our },
+        },
+      },
+    };
+
+    const action: Poke<DmAction | ClubAction> = whomIsDm(variables.whom)
+      ? dmAction(variables.whom, delta as WritDelta, variables.writId)
+      : multiDmAction(variables.whom, {
+          writ: { id: variables.writId, delta: delta as WritDelta },
+        });
+
+    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+  };
+
+  return useMutation(mutationFn, {
+    onMutate: async (variables) => {
+      queryClient.setQueryData(
+        ['dms', variables.whom, variables.writId],
+        (writ: WritInCache | undefined) => {
+          if (!writ) {
+            return writ;
+          }
+
+          const prevQuips = writ.seal.quips || {};
+          const quips: Quips = {};
+
+          Object.entries(prevQuips).forEach(([k, v]) => {
+            quips[k] = v;
+          });
+
+          const quip = Object.values(quips).find(
+            (q) => q.cork.id === variables.quipId
+          );
+
+          if (!quip) {
+            return writ;
+          }
+
+          let time = '';
+
+          Object.entries(quips).forEach(([k, v]) => {
+            if (v.cork.id === variables.quipId) {
+              time = k;
+            }
+          });
+
+          const newQuip: Quip = {
+            ...quip,
+            cork: {
+              ...quip.cork,
+              feels: {
+                ...quip.cork.feels,
+                [window.our]: variables.feel,
+              },
+            },
+          };
+
+          quips[time] = newQuip;
+
+          return {
+            ...writ,
+            seal: {
+              ...writ.seal,
+              quips: quips as Quips,
+            },
+          };
+        }
+      );
+    },
+    onSuccess: async (data, variables) => {
+      queryClient.invalidateQueries(['dms', variables.whom, variables.writId]);
+    },
+  });
+}
+
+export function useDeleteDMQuipFeelMutation() {
+  const mutationFn = async (variables: {
+    whom: string;
+    writId: string;
+    quipId: string;
+  }) => {
+    const delta: WritDelta = {
+      quip: {
+        id: variables.quipId,
+        delta: {
+          'del-feel': window.our,
+        },
+      },
+    };
+
+    const action: Poke<DmAction | ClubAction> = whomIsDm(variables.whom)
+      ? dmAction(variables.whom, delta as WritDelta, variables.writId)
+      : multiDmAction(variables.whom, {
+          writ: { id: variables.writId, delta: delta as WritDelta },
+        });
+
+    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+  };
+
+  return useMutation(mutationFn, {
+    onMutate: async (variables) => {
+      queryClient.setQueryData(
+        ['dms', variables.whom, variables.writId],
+        (writ: WritInCache | undefined) => {
+          if (!writ) {
+            return writ;
+          }
+
+          const prevQuips = writ.seal.quips || {};
+          const quips: Quips = {};
+
+          Object.entries(prevQuips).forEach(([k, v]) => {
+            quips[k] = v;
+          });
+
+          const quip = Object.values(quips).find(
+            (q) => q.cork.id === variables.quipId
+          );
+
+          if (!quip) {
+            return writ;
+          }
+
+          let time = '';
+
+          Object.entries(quips).forEach(([k, v]) => {
+            if (v.cork.id === variables.quipId) {
+              time = k;
+            }
+          });
+
+          const currentFeels = quip.cork.feels;
+
+          delete currentFeels[window.our];
+
+          const newQuip: Quip = {
+            ...quip,
+            cork: {
+              ...quip.cork,
+              feels: {
+                ...currentFeels,
+              },
+            },
+          };
+
+          quips[time] = newQuip;
+
+          return {
+            ...writ,
+            seal: {
+              ...writ.seal,
+              quips: quips as Quips,
+            },
+          };
+        }
+      );
+    },
+    onSuccess: async (data, variables) => {
+      queryClient.invalidateQueries(['dms', variables.whom, variables.writId]);
+    },
+  });
+}
+
 export function useIsDmUnread(whom: string) {
   const { data: briefs } = useDmBriefs();
   const brief = briefs[whom];
@@ -945,10 +1120,6 @@ export function useChatSearch(whom: string, query: string) {
     scan,
     ...rest,
   };
-}
-
-export function useIsDmOrMultiDm(whom: string) {
-  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
 }
 
 (window as any).chat = useChatState.getState;

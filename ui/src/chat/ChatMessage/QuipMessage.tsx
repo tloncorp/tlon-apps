@@ -17,7 +17,6 @@ import {
   useChatState,
   // useIsMessageDelivered,
   // useIsMessagePosted,
-  useIsDmOrMultiDm,
 } from '@/state/chat';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
@@ -25,6 +24,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { emptyQuip, Han, Quip } from '@/types/channel';
+import { useIsDmOrMultiDm } from '@/logic/utils';
 import QuipReactions from '@/diary/QuipReactions/QuipReactions';
 import {
   useChatDialog,

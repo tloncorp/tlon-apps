@@ -2,10 +2,10 @@ import React, { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
-import { useCopy, useThreadParentId } from '@/logic/utils';
+import { useCopy, useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useIsDmOrMultiDm, useChatState } from '@/state/chat';
+import { useAddDMQuipFeelMutation, useChatState } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -59,7 +59,7 @@ export default function QuipMessageOptions(props: {
     setReady,
   } = useRequestState();
   const { chShip, chName } = useParams();
-  const threadParentId = useThreadParentId();
+  const threadParentId = useThreadParentId(whom);
   const isParent = threadParentId === cork.id;
   const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
@@ -77,6 +77,7 @@ export default function QuipMessageOptions(props: {
   const { mutate: deleteChatMessage } = useDeleteNoteMutation();
   const { mutate: addFeelToChat } = useAddNoteFeelMutation();
   const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
+  const { mutate: addDMQuipFeel } = useAddDMQuipFeelMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
 
   const onDelete = async () => {
@@ -125,7 +126,16 @@ export default function QuipMessageOptions(props: {
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        useChatState.getState().addFeelToDm(whom, cork.id, emoji.shortcodes);
+        console.log({
+          threadParentId,
+          corkId: cork.id,
+        });
+        addDMQuipFeel({
+          whom,
+          writId: threadParentId!,
+          quipId: cork.id,
+          feel: emoji.shortcodes,
+        });
       } else if (isParent) {
         addFeelToChat({
           nest,
@@ -159,6 +169,7 @@ export default function QuipMessageOptions(props: {
       nest,
       isDMorMultiDM,
       addFeelToQuip,
+      addDMQuipFeel,
       threadParentId,
       isParent,
     ]

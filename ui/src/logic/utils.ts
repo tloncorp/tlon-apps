@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import ob from 'urbit-ob';
 import bigInt, { BigInteger } from 'big-integer';
 import isURL from 'validator/es/lib/isURL';
@@ -1055,10 +1055,21 @@ export function useIsInThread() {
   return !!idShip && !!idTime;
 }
 
-export function useThreadParentId() {
-  const { idTime } = useParams<{
+export function useIsDmOrMultiDm(whom: string) {
+  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
+}
+
+export function useThreadParentId(whom: string) {
+  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+
+  const { idShip, idTime } = useParams<{
+    idShip: string;
     idTime: string;
   }>();
+
+  if (isDMorMultiDM) {
+    return `${idShip}/${idTime}`;
+  }
 
   return idTime;
 }

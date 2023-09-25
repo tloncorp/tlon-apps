@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { useChatState, useIsDmOrMultiDm } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
@@ -13,6 +13,7 @@ import {
   useDeleteNoteFeelMutation,
 } from '@/state/channel/channel';
 import { NoteSeal, QuipCork } from '@/types/channel';
+import { useIsDmOrMultiDm } from '@/logic/utils';
 
 interface ChatReactionProps {
   whom: string;

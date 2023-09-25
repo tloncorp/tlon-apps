@@ -4,11 +4,12 @@ import { useLocation, useNavigate } from 'react-router';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState, useIsDmOrMultiDm } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useAddNoteFeelMutation } from '@/state/channel/channel';
+import { useIsDmOrMultiDm } from '@/logic/utils';
 import { NoteSeal } from '@/types/channel';
 import ChatReaction from './ChatReaction';
 
