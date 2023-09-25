@@ -1,6 +1,6 @@
 # Channels
 ## Agents
-These agents keep track of chats, notebooks, and galleries. They don't handle group membership (that's %groups) or DMs (that's %chat)
+These agents keep track of chats, notebooks, and galleries. They don't handle group membership (that's `%groups`) or DMs (that's `%chat`)
 
 ```
 ::        --action-->     --command-->
@@ -64,7 +64,7 @@ Combination of `/shelf` and `/briefs`. Returns `[briefs rr-shelf]`
 :groups &group-create create
 ```
 
-This is done with %groups instead of channel, but it's necessary for testing. 
+This is done with `%groups` instead of `%channels`, but it's necessary for testing. 
 
 #### %channel-action
 
@@ -361,6 +361,155 @@ Read a reference. Facts are either of the `%channel-denied` mark (meaning you ca
 
 [nest](#nest) \| [said](#said)
 ## Types
+### essay
+```hoon
++$  essay  [memo =han-data]
+```
+
+Top-level post with metadata
+
+[memo](#memo) \| [han-data](#han-data)
+### memo
+```hoon
++$  memo
+  $:  content=story
+      author=ship
+      sent=time
+  ==
+```
+
+A post itself
+
+[story](#story)
+### story
+```hoon
++$  story  (list verse)
+```
+
+The body of a post
+
+[verse](#verse)
+### verse
+```hoon
++$  verse
+  $%  [%block p=block]
+      [%inline p=(list inline)]
+  ==
+```
+
+Chunk of post content. Blocks stand on their own, while inlines come and groups and are wrapped in a paragraph.
+
+[block](#block) \| [inline](#inline)
+### block
+```hoon
++$  block  $+  diary-block
+  $%  [%image src=cord height=@ud width=@ud alt=cord]
+      [%cite =cite:c]
+      [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
+      [%listing p=listing]
+      [%rule ~]
+      [%code code=cord lang=cord]
+  ==
+```
+
+Standalone chunk of post content
+
+`%image`: a visual, we record dimensions for better rendering
+`%cite`: an Urbit reference
+`%header`: a traditional HTML heading, h1-h6
+`%listing`: a traditional HTML list, ul and ol
+`%code`: a block of code
+
+[listing](#listing)
+### listing
+```hoon
++$  listing
+  $%  [%list p=?(%ordered %unordered %tasklist) q=(list listing) r=(list inline)]
+      [%item p=(list inline)]
+  ==
+```
+
+HTML-style list. Recursively nesting
+
+[inline](#inline)
+### inline
+```hoon
++$  inline  $+  diary-inline
+  $@  @t
+  $%  [%italics p=(list inline)]
+      [%bold p=(list inline)]
+      [%strike p=(list inline)]
+      [%blockquote p=(list inline)]
+      [%inline-code p=cord]
+      [%code p=cord]
+      [%ship p=ship]
+      [%block p=@ud q=cord]
+      [%tag p=cord]
+      [%link p=cord q=cord]
+      [%task p=?(%.y %.n) q=(list inline)]
+      [%break ~]
+  ==
+```
+
+Chunk of post content that can live inside of a paragraph
+
+`@t`: plain text
+`%italics`: italic text
+`%bold`: bold text
+`%strike`: strikethrough text
+`%inline-code`: code formatting for small snippets
+`%blockquote`: blockquote surrounded content
+`%block`: link/reference to blocks
+`%code`: code formatting for large snippets
+`%tag`: tag gets special signifier
+`%link`: link to a URL with a face
+`%break`: line break
+### han-data
+```hoon
++$  han-data
+  $%  [%diary title=@t image=@t]
+      [%heap title=(unit @t)]
+      [%chat kind=$@(~ [%notice ~])]
+  ==
+```
+
+Post metadata that varies by channel type
+### id-note
+```hoon
++$  id-note   time
+```
+
+Notes are uniquely identified and indexed by the time they're received by the channel host.
+### id-quip
+```hoon
++$  id-quip   time
+```
+
+Like notes, quips (comments) are uniquely identified and indexed by the time they're received by the channel host.
+### feel
+```hoon
++$  feel  @ta
+```
+
+Reaction, in the form of a text description of an emoji like ':grinning:'
+### view
+```hoon
++$  view  $~(%list ?(%grid %list))
+```
+
+The persisted display format for a diary
+### sort
+```hoon
++$  sort  $~(%time ?(%alpha %time %arranged))
+```
+
+The persisted sort format for a diary
+### arranged-notes
+```hoon
++$  arranged-notes  (unit (list time))
+```
+
+Manually arranged notes. If null, use ordinary sorting.
 ### briefs
 ```hoon
 +$  briefs  (map nest brief)
@@ -378,7 +527,41 @@ Unread info for a channel.
 `last`: last read time
 `count`: number of unread messages
 `read-id`: ID of last read message
+### r-shelf
+```hoon
++$  r-shelf  [=nest =r-diary]
+```
+Response (subscriber to client communication) for a shelf
 
+[nest](#nest) \| [r-diary](#r-diary)
+### r-diary
+```hoon
++$  r-diary
+  $%  [%notes =rr-notes]
+      [%note id=id-note =r-note]
+      [%order order=arranged-notes]
+      [%view =view]
+      [%sort =sort]
+      [%perm =perm]
+    ::
+      [%create =perm]
+      [%join group=flag:g]
+      [%leave ~]
+    ::
+      [%read ~]
+      [%read-at =time]
+      [%watch ~]
+      [%unwatch ~]
+  ==
+```
+
+Response (subscriber to client communication) for a diary.
+### rr-notes
+```hoon
++$  rr-notes  ((mop id-note (unit rr-note)) lte)
+```
+
+Notes without revision numbers
 ### create-diary
 ```hoon
 +$  create-diary
