@@ -126,7 +126,7 @@ export default function MobileSidebar() {
       <Outlet />
       <footer className={cn('flex-none border-t-2 border-gray-50')}>
         <nav>
-          <ul className="flex">
+          <ul className="flex h-12">
             <GroupsTab
               isInactive={isInactive('/groups') && location.pathname !== '/'}
               isDarkMode={isDarkMode}
