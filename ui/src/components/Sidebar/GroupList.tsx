@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useIsMobile } from '@/logic/useMedia';
 import { Group } from '@/types/groups';
 import GroupListPlaceholder from './GroupListPlaceholder';
@@ -20,6 +20,8 @@ interface GroupListProps {
   isScrolling: (scrolling: boolean) => void;
   atTopChange?: (atTop: boolean) => void;
 }
+
+let virtuosoState: StateSnapshot | undefined;
 
 export default function GroupList({
   groups,
@@ -45,7 +47,28 @@ export default function GroupList({
     [groups, pinnedGroups]
   );
 
-  const head = useMemo(() => <div>{children}</div>, [children]);
+  const headerHeightRef = useRef<number>(0);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const head = useMemo(
+    () => <div ref={headerRef}>{children}</div>,
+    [headerRef, children]
+  );
+
+  useEffect(() => {
+    if (!headerRef.current) {
+      return () => {
+        // do nothing
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      headerHeightRef.current =
+        headerRef.current?.offsetHeight ?? headerHeightRef.current;
+    });
+
+    resizeObserver.observe(headerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const components = useMemo(
     () => ({
@@ -54,6 +77,23 @@ export default function GroupList({
     [head]
   );
 
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+
+  useEffect(() => {
+    const currentVirtuosoRef = virtuosoRef.current;
+
+    return () => {
+      currentVirtuosoRef?.getState((state) => {
+        virtuosoState = {
+          ...state,
+          // Virtuoso contains a bug where `scrollTop` includes the Header's size,
+          // though it's treated relatively to the List component when applied.
+          scrollTop: state.scrollTop - (headerHeightRef.current ?? 0),
+        };
+      });
+    };
+  }, []);
+
   if (!groups) {
     return <GroupListPlaceholder count={5} />;
   }
@@ -61,10 +101,12 @@ export default function GroupList({
   return (
     <Virtuoso
       {...thresholds}
+      ref={virtuosoRef}
       data={groupsWithoutPinned}
       computeItemKey={(_i, [flag]) => flag}
       itemContent={itemContent}
       components={components}
+      restoreStateFrom={virtuosoState}
       className="h-full w-full list-none overflow-x-hidden"
       isScrolling={isScrolling}
       atTopStateChange={atTopChange}
