@@ -30,7 +30,10 @@ export default function NavTab({
         <NavLink
           {...props}
           to={props.to}
-          className={cn('flex flex-col items-center pt-3 pb-3', linkClass)}
+          className={cn(
+            'flex h-full w-full items-center justify-center',
+            linkClass
+          )}
         >
           {children}
         </NavLink>
@@ -38,7 +41,7 @@ export default function NavTab({
         <a
           {...props}
           className={cn(
-            'flex h-full flex-col items-center pt-3 pb-[2px]',
+            'flex h-full flex-col items-center justify-end pb-0.5',
             linkClass
           )}
         >

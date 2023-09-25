@@ -33,15 +33,18 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
     <DoubleClickableNavTab
       onSingleClick={onSingleClick}
       onDoubleClick={() => navigate('/')}
+      linkClass="h-12"
     >
-      <HomeIconMobileNav
-        isInactive={props.isInactive}
-        isDarkMode={props.isDarkMode}
-        className="h-6 w-6"
-      />
+      <div className="flex h-8 w-8 items-center justify-center ">
+        <HomeIconMobileNav
+          isInactive={props.isInactive}
+          isDarkMode={props.isDarkMode}
+          className="h-6 w-6"
+        />
+      </div>
       <div
         className={cn(
-          'mt-[2px] h-1.5 w-1.5 rounded-full',
+          'mt-0.5 h-1.5 w-1.5 rounded-full',
           groupsUnread && 'bg-blue'
         )}
       />
@@ -68,12 +71,15 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
     <DoubleClickableNavTab
       onSingleClick={onSingleClick}
       onDoubleClick={() => navigate('/messages')}
+      linkClass="h-12"
     >
-      <MessagesIcon
-        isInactive={props.isInactive}
-        isDarkMode={props.isDarkMode}
-        className="h-6 w-6"
-      />
+      <div className="flex h-8 w-8 items-center justify-center ">
+        <MessagesIcon
+          isInactive={props.isInactive}
+          isDarkMode={props.isDarkMode}
+          className="h-6 w-6"
+        />
+      </div>
       <div
         className={cn(
           'mt-[2px] h-1.5 w-1.5 rounded-full',
@@ -92,18 +98,16 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
     <DoubleClickableNavTab
       onSingleClick={() => navigate('/notifications')}
       onDoubleClick={() => navigate('/notifications')}
+      linkClass="h-12"
     >
-      <BellIcon
-        isInactive={props.isInactive}
-        className="h-6 w-6"
-        isDarkMode={props.isDarkMode}
-      />
-      <div
-        className={cn(
-          'mt-[2px] h-1.5 w-1.5 rounded-full',
-          count > 0 && 'bg-blue'
-        )}
-      />
+      <div className="flex h-8 w-8 items-center justify-center ">
+        <BellIcon
+          isInactive={props.isInactive}
+          className="h-6 w-6"
+          isDarkMode={props.isDarkMode}
+        />
+      </div>
+      <div className={cn('h-1.5 w-1.5 rounded-full', count > 0 && 'bg-blue')} />
     </DoubleClickableNavTab>
   );
 }
@@ -138,19 +142,23 @@ export default function MobileSidebar() {
               isDarkMode={isDarkMode}
             />
             <NavTab to="/find">
-              <MagnifyingGlassMobileNavIcon
-                isInactive={isInactive('/find')}
-                isDarkMode={isDarkMode}
-                className="h-6 w-6"
-              />
+              <div className="flex h-8 w-8 items-center justify-center">
+                <MagnifyingGlassMobileNavIcon
+                  isInactive={isInactive('/find')}
+                  isDarkMode={isDarkMode}
+                  className="h-6 w-6"
+                />
+              </div>
             </NavTab>
             {!isNativeApp() && (
               <NavTab to="/leap">
-                <MenuIcon
-                  className={cn('h-6 w-6', {
-                    'text-gray-200 dark:text-gray-700': isInactive('/leap'),
-                  })}
-                />
+                <div className="flex h-8 w-8 items-center justify-center">
+                  <MenuIcon
+                    className={cn('h-6 w-6', {
+                      'text-gray-200 dark:text-gray-700': isInactive('/leap'),
+                    })}
+                  />
+                </div>
               </NavTab>
             )}
             <NavTab to="/profile">
