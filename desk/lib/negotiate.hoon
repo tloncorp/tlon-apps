@@ -134,6 +134,10 @@
                 =_want
             ==
         ^+  [[init kill] want]
+        ::  for library-managed subs, ignore all but the wrapped-watch ones
+        ::
+        ?:  &(?=([%~.~ %negotiate @ *] wire) !=(%inner-watch i.t.t.wire))
+          [[init kill] want]
         ::  always track the subscriptions we (want to) have,
         ::  but don't track subs already managed by the library
         ::
@@ -447,6 +451,8 @@
       [cards this]
       ::  /~/negotiate/version/[protocol]
       ?>  ?=([%version @ ~] t.t.path)
+      ::  it is important that we nack if we don't expose this protocol
+      ::
       [[%give %fact ~ %noun !>((~(got by ours) i.t.t.t.path))]~ this]
     ::
     ++  on-agent
