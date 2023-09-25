@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
-import { useChatState, useMultiDms } from '@/state/chat';
+import { useChatState, useDmBriefs, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
 import { NoteEssay } from '@/types/channel';
 import { createStorageKey, newUv } from './utils';
@@ -20,27 +20,26 @@ export default function useMessageSelector() {
   const isMultiDm = ships.length > 1;
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
+  const { data: briefs } = useDmBriefs();
 
   const existingDm = useMemo(() => {
     if (ships.length !== 1) {
       return null;
     }
 
-    const { dmBriefs: chatBriefs } = useChatState.getState();
     return (
-      Object.entries(chatBriefs).find(([flag, _brief]) => {
+      Object.entries(briefs).find(([flag, _brief]) => {
         const theShip = ships[0].value;
         const sameDM = theShip === flag;
         return sameDM;
       })?.[0] ?? null
     );
-  }, [ships]);
+  }, [ships, briefs]);
 
   const existingMultiDm = useMemo(() => {
     if (!shipValues.length) {
       return null;
     }
-    const { dmBriefs: briefs } = useChatState.getState();
     const clubId = Object.entries(multiDms).reduce<string>((key, [k, v]) => {
       const theShips = [...v.hive, ...v.team].filter((s) => s !== window.our);
       if (theShips.length < 2) {
@@ -62,7 +61,7 @@ export default function useMessageSelector() {
     }, '');
 
     return clubId !== '' ? clubId : null;
-  }, [multiDms, shipValues]);
+  }, [multiDms, shipValues, briefs]);
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {

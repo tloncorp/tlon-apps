@@ -566,23 +566,41 @@
     |=  [=curios:h =notes:d =perm:d =log:h]
     ^-  log:d
     %+  gas:log-on:d  *log:d
-    %+  murn  (tap:log-on:h log)
+    %-  zing
+    %+  turn  (tap:log-on:h log)
     |=  [=time =diff:h]
-    ^-  (unit [id-note:d u-diary:d])
-    =;  new=(unit u-diary:d)
-      ?~(new ~ `[time u.new])
+    ^-  (list [id-note:d u-diary:d])
+    =;  new=(list u-diary:d)
+      ?~  new  ~
+      ?~  t.new  [time i.new]~
+      =.  time  (sub time ~s1)
+      =>  .(new `(list u-diary:d)`new)
+      |-
+      ?~  new  ~
+      [[time i.new] $(time +(time), new t.new)]
     ?-    -.diff
-        ?(%add-sects %del-sects)  `[%perm 0 perm]
-        %create                   `[%create p.diff]
-        %view                     `[%view 0 p.diff]
+        ?(%add-sects %del-sects)  [%perm 0 perm]~
+        ::  XX  here and in the other apps, we need to preserve the
+        ::  notes in the %create log.  they show up there from the
+        ::  december migration
+        %view                     [%view 0 p.diff]~
+        %create
+      :-  [%create p.diff]
+      %+  murn  (tap:on:curios:h q.diff)
+      |=  [=^time =curio:h]
+      =/  new-note  (get:on-notes:d notes time)
+      ?~  new-note  ~
+      (some %note time %set u.new-note)
+    ::
         %curios
       =*  id  p.p.diff
       =/  old-curio  (get:on:curios:h curios id)
-      ?~  old-curio  `[%note id %set ~]
+      ?~  old-curio  [%note id %set ~]~
       ?~  replying.u.old-curio
         =/  new-note  (get:on-notes:d notes id)
         ?~  new-note  ~
-        :^  ~  %note  id
+        :_  ~
+        :+  %note  id
         ?-  -.q.p.diff
           %del                    [%set ~]
           ?(%add %edit)           [%set u.new-note]
@@ -593,7 +611,8 @@
       ?~  u.new-note  ~
       =/  new-quip  (get:on-quips:d quips.u.u.new-note id)
       ?~  new-quip  ~
-      :^  ~  %note  u.replying.u.old-curio
+      :_  ~
+      :+  %note  u.replying.u.old-curio
       :+  %quip  id
       ^-  u-quip:d
       ?-  -.q.p.diff

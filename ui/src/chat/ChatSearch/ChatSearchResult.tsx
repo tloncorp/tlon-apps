@@ -4,6 +4,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { daToUnix } from '@urbit/api';
 import { Note } from '@/types/channel';
+import { Writ } from '@/types/dms';
 import Author from '../ChatMessage/Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
@@ -12,10 +13,9 @@ export interface ChatSearchResultProps {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: Note;
+  writ: Note | Writ;
   index: number;
   selected: boolean;
-  msgLoad: (time: BigInteger, type: 'click' | 'hover') => void;
   isScrolling?: boolean;
 }
 
@@ -26,7 +26,6 @@ function ChatSearchResult({
   writ,
   index,
   selected,
-  msgLoad,
   isScrolling,
 }: ChatSearchResultProps) {
   const { seal, essay } = writ;
@@ -42,8 +41,6 @@ function ChatSearchResult({
         'default-focus flex flex-col break-words rounded-md border border-gray-50 px-2 py-1 hover:bg-gray-50',
         selected ? 'bg-gray-50' : ''
       )}
-      onClick={() => msgLoad(time, 'click')}
-      onMouseOver={() => msgLoad(time, 'hover')}
       role="option"
       aria-posinset={index + 1}
       aria-selected={selected}

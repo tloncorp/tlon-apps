@@ -26,8 +26,6 @@ import {
   Block,
   VerseBlock,
   VerseInline,
-  isCite,
-  Cite,
   isImage,
 } from '@/types/channel';
 
@@ -180,8 +178,8 @@ export function BlockContent({
       />
     );
   }
-  if (isCite(story)) {
-    return <ContentReference cite={story as Cite} isScrolling={isScrolling} />;
+  if ('cite' in story) {
+    return <ContentReference cite={story.cite} isScrolling={isScrolling} />;
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);

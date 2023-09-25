@@ -6,7 +6,7 @@ import faker from '@faker-js/faker';
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
 import { Note, Notes, Story, storyFromChatStory } from '@/types/channel';
-import { ChatBriefs, ChatNotice } from '../types/chat';
+import { DMBriefs } from '../types/dms';
 
 const getUnix = (count: number, setTime?: Date) =>
   count > 1
@@ -30,9 +30,11 @@ export const makeFakeChatWrit = (
       id: `${author}/${da}`,
       feels: feels ?? {},
       quips: null,
-      quipCount: 0,
-      lastQuippers: [],
-      lastQuip: null,
+      meta: {
+        quipCount: 0,
+        lastQuippers: [],
+        lastQuip: null,
+      },
     },
     essay: {
       'han-data': {
@@ -50,7 +52,6 @@ export const unixToDaStr = (unix: number) => decToUd(unixToDa(unix).toString());
 export const makeFakeChatNotice = (
   count: number,
   author: string,
-  notice: ChatNotice,
   setTime?: Date
 ): Note => {
   const unix = getUnix(count, setTime);
@@ -61,9 +62,11 @@ export const makeFakeChatNotice = (
       id: `${author}/${da}`,
       feels: {},
       quips: null,
-      quipCount: 0,
-      lastQuippers: [],
-      lastQuip: null,
+      meta: {
+        quipCount: 0,
+        lastQuippers: [],
+        lastQuip: null,
+      },
     },
     essay: {
       'han-data': {
@@ -127,7 +130,7 @@ export const makeFakeChatWrits = (offset: number) => {
 
 export const chatKeys = ['~zod/test'];
 
-export const dmList: ChatBriefs = {
+export const dmList: DMBriefs = {
   '~fabled-faster': {
     last: 0,
     count: 0,

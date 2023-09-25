@@ -40,9 +40,15 @@
     %+  frond  -.r-note
     ?-  -.r-note
       %set    ?~(note.r-note ~ (rr-note u.note.r-note))
-      %quip   (pairs id+(id id.r-note) r-quip+(r-quip r-quip.r-note) ~)
       %feels  (feels feels.r-note)
       %essay  (essay essay.r-note)
+    ::
+        %quip
+      %-  pairs
+      :~  id+(id id.r-note)
+          r-quip+(r-quip r-quip.r-note)
+          meta+(quip-meta quip-meta.r-note)
+      ==
     ==
   ::
   ++  r-quip
@@ -53,6 +59,14 @@
       %feels  (feels feels.r-quip)
     ==
   ::
+  ++  paged-notes
+    |=  pn=paged-notes:d
+    %-  pairs
+    :~  notes+(rr-notes notes.pn)
+        newer+?~(newer.pn ~ (id u.newer.pn))
+        older+?~(older.pn ~ (id u.older.pn))
+        total+(numb total.pn)
+    ==
   +|  %rr
   ::
   ++  rr-shelf
@@ -107,9 +121,7 @@
     :~  id+(id id.rr-seal)
         feels+(feels rr-feels.rr-seal)
         quips+(rr-quips rr-quips.rr-seal)
-        'quipCount'^(numb quip-count.rr-seal)
-        'lastQuip'^?~(last-quip.rr-seal ~ (time u.last-quip.rr-seal))
-        'lastQuippers'^a/(turn ~(tap in last-quippers.rr-seal) ship)
+        meta+(quip-meta quip-meta.rr-seal)
     ==
   ::
   ++  rr-cork
@@ -195,6 +207,14 @@
       %heap   ?~(title.han-data ~ s+u.title.han-data)
       %chat   ?~(kind.han-data ~ (pairs notice+~ ~))
       %diary  (pairs title+s+title.han-data image+s+image.han-data ~)
+    ==
+  ::
+  ++  quip-meta
+    |=  q=quip-meta:d
+    %-  pairs
+    :~  'quipCount'^(numb quip-count.q)
+        'lastQuip'^?~(last-quip.q ~ (time u.last-quip.q))
+        'lastQuippers'^a/(turn ~(tap in last-quippers.q) ship)
     ==
   ::
   ++  verse
@@ -320,6 +340,12 @@
         read-id/?~(read-id.b ~ (id u.read-id.b))
     ==
   ::
+  ++  pins
+    |=  ps=(list nest:d)
+    %-  pairs
+    :~  pins/a/(turn ps nest)
+    ==
+  ::
   +|  %said
   ::
   ++  said
@@ -340,6 +366,7 @@
     ^-  $-(json a-shelf:d)
     %-  of
     :~  create+create-diary
+        pin+(ar nest)
         diary+(ot nest+nest action+a-diary ~)
     ==
   ++  a-diary
@@ -520,6 +547,11 @@
     :~  content/story
         author/ship
         sent/di
+    ==
+  ::
+  ++  pins
+    %-  ot
+    :~  pins/(ar nest)
     ==
   --
 --

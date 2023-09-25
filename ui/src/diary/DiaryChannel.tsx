@@ -1,28 +1,23 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
-import bigInt from 'big-integer';
 import { Virtuoso } from 'react-virtuoso';
 import * as Toast from '@radix-ui/react-toast';
-import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
 import {
-  useInfiniteNotes,
   useDisplayMode,
   useSortMode,
   useMarkReadMutation,
-  usePendingNotes,
-  useNotesStore,
-  useNotesOnHost,
   useArrangedNotes,
+  useInfiniteNotes,
 } from '@/state/channel/channel';
 import {
   useUserDiarySortMode,
   useUserDiaryDisplayMode,
 } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
-import { Note } from '@/types/channel';
+import { NoteTuple } from '@/types/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
@@ -40,20 +35,17 @@ function DiaryChannel({ title }: ViewProps) {
   const nest = `diary/${chFlag}`;
   const { data } = useConnectivityCheck(chShip ?? '');
   const groupFlag = useRouteGroup();
-  const { notes, isLoading, fetchNextPage, hasNextPage } =
+  const { notes, isLoading, hasPreviousPage, fetchPreviousPage } =
     useInfiniteNotes(nest);
-  const queryClient = useQueryClient();
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
-      if (atBottom && hasNextPage) {
-        fetchNextPage();
+      if (atBottom && hasPreviousPage) {
+        fetchPreviousPage();
       }
     },
-    [hasNextPage, fetchNextPage]
+    [hasPreviousPage, fetchPreviousPage]
   );
-  const pendingNotes = usePendingNotes();
-  const notesOnHost = useNotesOnHost(nest, pendingNotes.length > 0);
 
   const {
     group,
@@ -63,64 +55,6 @@ function DiaryChannel({ title }: ViewProps) {
     groupFlag,
     nest,
   });
-
-  const checkForNotes = useCallback(async () => {
-    // if we have pending notes and the ship is connected
-    // we can check if the notes have been posted
-    // if they have, we can refetch the data to get the new note.
-    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
-    if (
-      data?.status &&
-      'complete' in data.status &&
-      data.status.complete === 'yes'
-    ) {
-      if (
-        pendingNotes.length > 0 &&
-        notesOnHost &&
-        !Object.entries(notesOnHost).every(
-          ([_time, n]) =>
-            n && notes.find(([_t, l]) => l && l.seal.id === n.seal.id)
-        )
-      ) {
-        queryClient.refetchQueries({
-          queryKey: ['diary', 'notes', chFlag],
-          exact: true,
-        });
-        useNotesStore.setState({
-          pendingNotes: [],
-        });
-      }
-    }
-  }, [chFlag, queryClient, data, notes, notesOnHost, pendingNotes]);
-
-  const clearPendingNotes = useCallback(() => {
-    // if we have pending notes and the ship is connected
-    // we can check if the notes have been posted
-    // if they have, we can clear the pending notes
-    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
-    if (
-      pendingNotes.length > 0 &&
-      data?.status &&
-      'complete' in data.status &&
-      data.status.complete === 'yes'
-    ) {
-      pendingNotes.forEach((id) => {
-        if (
-          notesOnHost &&
-          Object.entries(notesOnHost).find(([_t, l]) => l && l.seal.id === id)
-        ) {
-          useNotesStore.setState((s) => ({
-            pendingNotes: s.pendingNotes.filter((n) => n !== id),
-          }));
-        }
-      });
-    }
-  }, [pendingNotes, notesOnHost, data]);
-
-  useEffect(() => {
-    checkForNotes();
-    clearPendingNotes();
-  }, [checkForNotes, clearPendingNotes]);
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
@@ -162,44 +96,43 @@ function DiaryChannel({ title }: ViewProps) {
     isMarking,
   });
 
-  const sortedNotes = notes.sort(([a], [b]) => {
-    if (sortMode === 'arranged') {
-      // if only one note is arranged, put it first
-      if (
-        arrangedNotes.includes(a.toString()) &&
-        !arrangedNotes.includes(b.toString())
-      ) {
-        return -1;
+  const sortedNotes = notes
+    .filter(([k, v]) => v !== null)
+    .sort(([a], [b]) => {
+      if (sortMode === 'arranged') {
+        // if only one note is arranged, put it first
+        if (
+          arrangedNotes.includes(a.toString()) &&
+          !arrangedNotes.includes(b.toString())
+        ) {
+          return -1;
+        }
+
+        // if both notes are arranged, sort by their position in the arranged list
+        if (
+          arrangedNotes.includes(a.toString()) &&
+          arrangedNotes.includes(b.toString())
+        ) {
+          return arrangedNotes.indexOf(a.toString()) >
+            arrangedNotes.indexOf(b.toString())
+            ? 1
+            : -1;
+        }
       }
 
-      // if both notes are arranged, sort by their position in the arranged list
-      if (
-        arrangedNotes.includes(a.toString()) &&
-        arrangedNotes.includes(b.toString())
-      ) {
-        return arrangedNotes.indexOf(a.toString()) >
-          arrangedNotes.indexOf(b.toString())
-          ? 1
-          : -1;
+      if (userSortMode === 'time-dsc') {
+        return b.compare(a);
       }
-    }
+      if (userSortMode === 'time-asc') {
+        return a.compare(b);
+      }
 
-    if (userSortMode === 'time-dsc') {
       return b.compare(a);
-    }
-    if (userSortMode === 'time-asc') {
-      return a.compare(b);
-    }
+    });
 
-    return b.compare(a);
-  });
-
-  const itemContent = (
-    i: number,
-    [time, outline]: [bigInt.BigInteger, Note]
-  ) => (
+  const itemContent = (i: number, [time, outline]: NoteTuple) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
-      <DiaryListItem note={outline} time={time} />
+      <DiaryListItem note={outline!} time={time} />
       {lastArrangedNote === time.toString() && (
         <div className="mt-6 flex justify-center">
           <div className="flex items-center space-x-2 text-gray-500">

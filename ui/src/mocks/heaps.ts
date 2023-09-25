@@ -29,9 +29,11 @@ const mockCurios: Notes = {
     seal: {
       id: '170141184505776467152677676749638598656',
       quips: newQuipMap(),
-      lastQuip: null,
-      quipCount: 0,
-      lastQuippers: [],
+      meta: {
+        lastQuip: null,
+        quipCount: 0,
+        lastQuippers: [],
+      },
       feels: {},
     },
     essay: {
@@ -53,9 +55,11 @@ const mockCurios: Notes = {
     seal: {
       id: '170141184505776467152677676749638598657',
       quips: newQuipMap(),
-      lastQuip: null,
-      quipCount: 0,
-      lastQuippers: [],
+      meta: {
+        lastQuip: null,
+        quipCount: 0,
+        lastQuippers: [],
+      },
       feels: {},
     },
     essay: {
@@ -77,9 +81,11 @@ const mockCurios: Notes = {
     seal: {
       id: '170141184505776467152677676749638598658',
       quips: newQuipMap(),
-      lastQuip: null,
-      quipCount: 0,
-      lastQuippers: [],
+      meta: {
+        lastQuip: null,
+        quipCount: 0,
+        lastQuippers: [],
+      },
       feels: {},
     },
     essay: {
@@ -101,9 +107,11 @@ const mockCurios: Notes = {
     seal: {
       id: '170141184505776467152677676749638598659',
       quips: newQuipMap(),
-      lastQuip: null,
-      quipCount: 0,
-      lastQuippers: [],
+      meta: {
+        lastQuip: null,
+        quipCount: 0,
+        lastQuippers: [],
+      },
       feels: {},
     },
     essay: {
@@ -125,9 +133,11 @@ const mockCurios: Notes = {
     seal: {
       id: '170141184505776467152677676749638598660',
       quips: newQuipMap(),
-      lastQuip: null,
-      quipCount: 0,
-      lastQuippers: [],
+      meta: {
+        lastQuip: null,
+        quipCount: 0,
+        lastQuippers: [],
+      },
       feels: {},
     },
     essay: {

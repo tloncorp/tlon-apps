@@ -5,7 +5,7 @@ import { useParams } from 'react-router';
 import useEmoji from '@/state/emoji';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState, useIsDmOrMultiDm } from '@/state/chat';
+import { useAddDMQuipFeelMutation } from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
@@ -14,7 +14,11 @@ import {
   useAddNoteFeelMutation,
   useAddQuipFeelMutation,
 } from '@/state/channel/channel';
-import { useIsInThread, useThreadParentId } from '@/logic/utils';
+import {
+  useIsDmOrMultiDm,
+  useIsInThread,
+  useThreadParentId,
+} from '@/logic/utils';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 interface EmojiPickerProps extends Record<string, any> {
@@ -48,9 +52,10 @@ export default function EmojiPicker({
   const isMobile = useIsMobile();
   const isDMOrMultiDM = useIsDmOrMultiDm(whom!);
   const inThread = useIsInThread();
-  const threadParentId = useThreadParentId();
+  const threadParentId = useThreadParentId(whom!);
   const { mutate: addFeelToChat } = useAddNoteFeelMutation();
   const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
+  const { mutate: addFeelToDm } = useAddDMQuipFeelMutation();
   const width = window.innerWidth;
   const dismss = useDismissNavigate();
   const mobilePerLineCount = Math.floor((width - 10) / 36);
@@ -68,7 +73,12 @@ export default function EmojiPicker({
   const onEmojiSelect = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMOrMultiDM) {
-        useChatState.getState().addFeelToDm(whom!, writId, emoji.shortcodes);
+        addFeelToDm({
+          whom: whom!,
+          writId: threadParentId!,
+          quipId: writId,
+          feel: emoji.shortcodes,
+        });
       } else if (inThread) {
         addFeelToQuip({
           nest,
@@ -99,6 +109,7 @@ export default function EmojiPicker({
       isDMOrMultiDM,
       addFeelToChat,
       addFeelToQuip,
+      addFeelToDm,
       inThread,
       threadParentId,
     ]

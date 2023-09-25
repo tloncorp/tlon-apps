@@ -2,31 +2,37 @@ import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { SetState } from 'zustand';
-import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
+import { formatUd, parseUd, unixToDa } from '@urbit/aura';
+import { udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
 import {
-  ChatBriefUpdate,
+  DMBriefUpdate,
   ChatScan,
   Club,
   ClubAction,
   ClubDelta,
   Clubs,
   DmAction,
-  DmBriefs,
+  DMBriefs,
   newWritMap,
   Pact,
   Pins,
   WritDelta,
-} from '@/types/chat';
+  Writ,
+  Patda,
+  WritEssay,
+  WritInCache,
+} from '@/types/dms';
 import {
+  newQuipMap,
   Note,
-  NoteAction,
   NoteEssay,
+  Quip,
+  Quips,
   ShelfAction,
-  storyFromChatStory,
 } from '@/types/channel';
 import api from '@/api';
 import {
@@ -40,13 +46,15 @@ import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { pokeOptimisticallyN, createState } from '../base';
-import makeWritsStore, { getWritWindow, writsReducer } from './writs';
+import { getWindow } from '@/logic/windows';
+import queryClient from '@/queryClient';
+import { useMutation } from '@tanstack/react-query';
+import { createState } from '../base';
+import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
-import useSchedulerStore from '../scheduler';
-import { channelAction, channelNoteAction } from '../channel/channel';
+import { channelAction } from '../channel/channel';
 
 setAutoFreeze(false);
 
@@ -60,12 +68,10 @@ function subscribeOnce<T>(app: string, path: string) {
   });
 }
 
-const chatWritDiff = channelNoteAction;
-
 function makeId() {
   const time = Date.now();
   return {
-    id: `${window.our}/${decToUd(unixToDa(time).toString())}`,
+    id: `${window.our}/${formatUd(unixToDa(time))}`,
     time,
   };
 }
@@ -138,27 +144,12 @@ export const useChatState = createState<ChatState>(
     multiDms: {},
     dmArchive: [],
     pacts: {},
-    drafts: {},
     pendingDms: [],
     pins: [],
-    sentMessages: [],
-    postedMessages: [],
+    trackedMessages: [],
     writWindows: {},
     loadedRefs: {},
-    dmBriefs: {},
     loadedGraphRefs: {},
-    getTime: (whom, id) => {
-      const { pacts } = get();
-      const pact = pacts[whom];
-
-      if (!pact || !pact.index[id]) {
-        // not accurate, won't be in pact, using until chat ref fetching
-        // returns time alongside writ
-        return bigInt(udToDec(id.split('/')[1]));
-      }
-
-      return pact.index[id];
-    },
     togglePin: async (whom, pin) => {
       const { pins } = get();
       let newPins = [];
@@ -203,67 +194,16 @@ export const useChatState = createState<ChatState>(
         });
       }
     },
-    start: async ({ briefs, pins }) => {
+    start: async ({ dms, clubs, briefs, pins, invited }) => {
       get().batchSet((draft) => {
-        draft.dmBriefs = briefs;
+        draft.pins = pins;
+        draft.multiDms = clubs;
+        draft.dms = dms;
+        draft.pendingDms = invited;
         draft.pins = pins;
       });
 
       useChatStore.getState().update(briefs);
-
-      api.subscribe(
-        {
-          app: 'chat',
-          path: '/briefs',
-          event: (event: unknown, mark: string) => {
-            if (mark === 'chat-leave') {
-              get().batchSet((draft) => {
-                delete draft.dmBriefs[event as string];
-              });
-              return;
-            }
-
-            const { whom, brief } = event as ChatBriefUpdate;
-            get().batchSet((draft) => {
-              draft.dmBriefs[whom] = brief;
-            });
-
-            const {
-              read,
-              unread,
-              atBottom,
-              chats: chatInfo,
-              current,
-            } = useChatStore.getState();
-            const isUnread = brief.count > 0 && brief['read-id'];
-            if (
-              isUnread &&
-              current === whom &&
-              atBottom &&
-              document.visibilityState === 'visible'
-            ) {
-              get().markDmRead(whom);
-            } else if (isUnread) {
-              unread(whom, brief);
-            } else if (!isUnread && chatInfo[whom]?.unread?.readTimeout === 0) {
-              read(whom);
-            }
-          },
-        },
-        3
-      );
-    },
-    startTalk: async (init, startBase = true) => {
-      if (startBase) {
-        get().start(init);
-      }
-
-      get().batchSet((draft) => {
-        draft.multiDms = init.clubs;
-        draft.dms = init.dms;
-        draft.pendingDms = init.invited;
-        draft.pins = init.pins;
-      });
 
       api.subscribe(
         {
@@ -383,9 +323,22 @@ export const useChatState = createState<ChatState>(
         mark: 'dm-archive',
         json: ship,
       });
+      queryClient.setQueryData(
+        ['dm', 'briefs'],
+        (briefs: DMBriefs | undefined) => {
+          if (!briefs) {
+            return briefs;
+          }
+
+          const newBriefs = { ...briefs };
+
+          delete newBriefs[ship];
+
+          return newBriefs;
+        }
+      );
       get().batchSet((draft) => {
         delete draft.pacts[ship];
-        delete draft.dmBriefs[ship];
         draft.dms = draft.dms.filter((s) => s !== ship);
       });
     },
@@ -394,7 +347,24 @@ export const useChatState = createState<ChatState>(
         draft.pendingDms = draft.pendingDms.filter((d) => d !== ship);
         if (!ok) {
           delete draft.pacts[ship];
-          delete draft.dmBriefs[ship];
+          queryClient.setQueryData(
+            ['dm', 'briefs'],
+            (briefs: DMBriefs | undefined) => {
+              if (!briefs) {
+                return briefs;
+              }
+
+              if (!ok) {
+                const newBriefs = { ...briefs };
+
+                delete newBriefs[ship];
+
+                return newBriefs;
+              }
+
+              return briefs;
+            }
+          );
           draft.dms = draft.dms.filter((s) => s !== ship);
         }
       });
@@ -407,15 +377,74 @@ export const useChatState = createState<ChatState>(
         },
       });
     },
-    sendMessage: async (whom, mem) => {
+    sendMessage: async (whom, mem, replying) => {
       const isDM = whomIsDm(whom);
       // ensure time and ID match up
       const { id, time } = makeId();
-      const essay: NoteEssay = {
-        ...mem,
+      const memo: Omit<NoteEssay, 'han-data'> = {
+        content: mem.content,
+        author: mem.author,
         sent: time,
       };
-      const diff = { add: essay };
+      let diff: WritDelta;
+
+      if (!replying) {
+        diff = {
+          add: {
+            memo,
+            kind: null,
+            time: null,
+          },
+        };
+      } else {
+        diff = {
+          quip: {
+            id,
+            delta: {
+              add: {
+                memo,
+                time: null,
+              },
+            },
+          },
+        };
+
+        queryClient.setQueryData(
+          ['dms', whom, replying],
+          (writ: WritInCache | undefined) => {
+            if (!writ) {
+              return writ;
+            }
+
+            const prevQuips = writ.seal.quips || {};
+            const quips: Quips = {};
+
+            Object.entries(prevQuips).forEach(([k, v]) => {
+              quips[k] = v;
+            });
+
+            const quipId = unixToDa(memo.sent).toString();
+
+            const newQuip: Quip = {
+              cork: {
+                id: quipId,
+                feels: {},
+              },
+              memo,
+            };
+
+            quips[quipId] = newQuip;
+
+            return {
+              ...writ,
+              seal: {
+                ...writ.seal,
+                quips: quips as Quips,
+              },
+            };
+          }
+        );
+      }
 
       const { pacts } = get();
       const isNew = !(whom in pacts);
@@ -429,13 +458,23 @@ export const useChatState = createState<ChatState>(
           }
         }
 
-        draft.sentMessages.push(id);
+        draft.trackedMessages.push({ id, status: 'pending' });
       });
 
-      await optimisticAction(whom, id, diff, set);
+      if (replying) {
+        await optimisticAction(whom, replying, diff, set);
+      } else {
+        await optimisticAction(whom, id, diff, set);
+      }
       set((draft) => {
         if (!isDM || !isNew) {
-          draft.postedMessages.push(id);
+          draft.trackedMessages.map((msg) => {
+            if (msg.id === id) {
+              return { status: 'sent', id };
+            }
+
+            return msg;
+          });
         }
       });
     },
@@ -537,13 +576,7 @@ export const useChatState = createState<ChatState>(
   }),
   {
     partialize: (state) => {
-      const saved = _.pick(state, [
-        'dms',
-        'pendingDms',
-        'dmBriefs',
-        'multiDms',
-        'pins',
-      ]);
+      const saved = _.pick(state, ['dms', 'pendingDms', 'multiDms', 'pins']);
 
       return saved;
     },
@@ -551,14 +584,14 @@ export const useChatState = createState<ChatState>(
   []
 );
 
-export function useWritWindow(whom: string, time?: BigInteger) {
+export function useWritWindow(whom: string, time?: string) {
   const window = useChatState(useCallback((s) => s.writWindows[whom], [whom]));
 
-  return getWritWindow(window, time);
+  return getWindow(window, time);
 }
 
 const emptyWrits = newWritMap();
-export function useMessagesForChat(whom: string, near?: BigInteger) {
+export function useMessagesForChat(whom: string, near?: string) {
   const window = useWritWindow(whom, near);
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
 
@@ -584,31 +617,50 @@ export function useChatKeys({ whom }: { replying: boolean; whom: string }) {
   return useMemo(() => Array.from(messages.keys()), [messages]);
 }
 
-export function useIsMessageDelivered(id: string) {
-  return useChatState(useCallback((s) => !s.sentMessages.includes(id), [id]));
-}
-
-export function useIsMessagePosted(id: string) {
-  return useChatState(useCallback((s) => s.postedMessages.includes(id), [id]));
-}
-
-export function useChatIsJoined(whom: string) {
+export function useTrackedMessageStatus(id: string) {
   return useChatState(
-    useCallback((s) => Object.keys(s.dmBriefs).includes(whom), [whom])
+    useCallback(
+      (s) => s.trackedMessages.find((m) => m.id === id)?.status || 'delivered',
+      [id]
+    )
   );
 }
 
-export function useChatInitialized(whom: string) {
-  return useChatState(useCallback((s) => !!s.pacts[whom], [whom]));
+const emptyBriefs: DMBriefs = {};
+export function useDmBriefs() {
+  const { data, ...query } = useReactQuerySubscription<DMBriefs, DMBriefUpdate>(
+    {
+      queryKey: ['dm', 'briefs'],
+      app: 'chat',
+      path: '/briefs',
+      scry: '/briefs',
+    }
+  );
+
+  if (!data) {
+    return {
+      ...query,
+      data: emptyBriefs,
+    };
+  }
+
+  return {
+    ...query,
+    data,
+  };
 }
 
-const selDmList = (s: ChatState) =>
-  Object.keys(s.dmBriefs)
-    .filter((d) => !d.includes('/') && !s.pendingDms.includes(d))
-    .sort((a, b) => (s.dmBriefs[b]?.last || 0) - (s.dmBriefs[a]?.last || 0));
+export function useDmBrief(whom: string) {
+  const briefs = useDmBriefs();
+  return briefs.data[whom];
+}
 
-export function useDmList() {
-  return useChatState(selDmList);
+export function useChatLoading(whom: string) {
+  const brief = useDmBrief(whom);
+
+  return useChatState(
+    useCallback((s) => !s.pacts[whom] && !!brief, [whom, brief])
+  );
 }
 
 const emptyPact = { index: {}, writs: newWritMap() };
@@ -627,49 +679,242 @@ export function useCurrentPactSize(whom: string) {
   );
 }
 
-export function useWrit(whom: string, id: string) {
-  return useChatState(
-    useCallback(
-      (s) => {
-        const pact = s.pacts[whom];
-        if (!pact) {
-          return undefined;
-        }
-        const time = pact.index[id];
-        if (!time) {
-          return undefined;
-        }
-        const writ = pact.writs.get(time);
-        if (!writ) {
-          return undefined;
-        }
-        return [time, writ] as const;
-      },
-      [whom, id]
-    )
-  );
-}
+export function useWrit(whom: string, writId: string, disabled = false) {
+  const queryKey = useMemo(() => ['dms', whom, writId], [whom, writId]);
 
-const emptyBriefs: DmBriefs = {};
-export function useDmBriefs() {
-  const { data, ...query } = useReactQuerySubscription<DmBriefs>({
-    queryKey: ['dm', 'briefs'],
+  const path = useMemo(() => {
+    const suffix = `/writs/writ/id/${writId}`;
+    if (whomIsDm(whom)) {
+      return `/dm/${whom}${suffix}`;
+    }
+
+    return `/club/${whom}${suffix}`;
+  }, [writId, whom]);
+
+  const enabled = useMemo(
+    () => writId !== '0' && !disabled,
+    [writId, disabled]
+  );
+  const { data, ...rest } = useReactQueryScry<Writ>({
+    queryKey,
     app: 'chat',
-    path: '/briefs',
-    scry: '/briefs',
+    path,
+    options: {
+      enabled,
+    },
   });
 
-  if (!data) {
-    return {
-      ...query,
-      data: emptyBriefs,
-    };
-  }
+  return useMemo(() => {
+    if (!data) {
+      return {
+        writ: undefined,
+        ...rest,
+      };
+    }
 
-  return {
-    ...query,
-    data,
+    const writ = data;
+    const quips = (writ.seal.quips || {}) as Quips;
+
+    const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
+      bigInt(udToDec(k)),
+      v as Quip,
+    ]);
+
+    const quipMap = newQuipMap(diff);
+
+    const writWithQuips: Writ = {
+      ...writ,
+      seal: {
+        ...writ.seal,
+        quips: quipMap,
+      },
+    };
+
+    return {
+      writ: writWithQuips,
+      ...rest,
+    };
+  }, [data, rest]);
+}
+
+export function useAddDMQuipFeelMutation() {
+  const mutationFn = async (variables: {
+    whom: string;
+    writId: string;
+    quipId: string;
+    feel: string;
+  }) => {
+    const delta: WritDelta = {
+      quip: {
+        id: variables.quipId,
+        delta: {
+          'add-feel': { feel: variables.feel, ship: window.our },
+        },
+      },
+    };
+
+    const action: Poke<DmAction | ClubAction> = whomIsDm(variables.whom)
+      ? dmAction(variables.whom, delta as WritDelta, variables.writId)
+      : multiDmAction(variables.whom, {
+          writ: { id: variables.writId, delta: delta as WritDelta },
+        });
+
+    await api.poke<ClubAction | DmAction | ShelfAction>(action);
   };
+
+  return useMutation(mutationFn, {
+    onMutate: async (variables) => {
+      queryClient.setQueryData(
+        ['dms', variables.whom, variables.writId],
+        (writ: WritInCache | undefined) => {
+          if (!writ) {
+            return writ;
+          }
+
+          const prevQuips = writ.seal.quips || {};
+          const quips: Quips = {};
+
+          Object.entries(prevQuips).forEach(([k, v]) => {
+            quips[k] = v;
+          });
+
+          const quip = Object.values(quips).find(
+            (q) => q.cork.id === variables.quipId
+          );
+
+          if (!quip) {
+            return writ;
+          }
+
+          let time = '';
+
+          Object.entries(quips).forEach(([k, v]) => {
+            if (v.cork.id === variables.quipId) {
+              time = k;
+            }
+          });
+
+          const newQuip: Quip = {
+            ...quip,
+            cork: {
+              ...quip.cork,
+              feels: {
+                ...quip.cork.feels,
+                [window.our]: variables.feel,
+              },
+            },
+          };
+
+          quips[time] = newQuip;
+
+          return {
+            ...writ,
+            seal: {
+              ...writ.seal,
+              quips: quips as Quips,
+            },
+          };
+        }
+      );
+    },
+    onSuccess: async (data, variables) => {
+      queryClient.invalidateQueries(['dms', variables.whom, variables.writId]);
+    },
+  });
+}
+
+export function useDeleteDMQuipFeelMutation() {
+  const mutationFn = async (variables: {
+    whom: string;
+    writId: string;
+    quipId: string;
+  }) => {
+    const delta: WritDelta = {
+      quip: {
+        id: variables.quipId,
+        delta: {
+          'del-feel': window.our,
+        },
+      },
+    };
+
+    const action: Poke<DmAction | ClubAction> = whomIsDm(variables.whom)
+      ? dmAction(variables.whom, delta as WritDelta, variables.writId)
+      : multiDmAction(variables.whom, {
+          writ: { id: variables.writId, delta: delta as WritDelta },
+        });
+
+    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+  };
+
+  return useMutation(mutationFn, {
+    onMutate: async (variables) => {
+      queryClient.setQueryData(
+        ['dms', variables.whom, variables.writId],
+        (writ: WritInCache | undefined) => {
+          if (!writ) {
+            return writ;
+          }
+
+          const prevQuips = writ.seal.quips || {};
+          const quips: Quips = {};
+
+          Object.entries(prevQuips).forEach(([k, v]) => {
+            quips[k] = v;
+          });
+
+          const quip = Object.values(quips).find(
+            (q) => q.cork.id === variables.quipId
+          );
+
+          if (!quip) {
+            return writ;
+          }
+
+          let time = '';
+
+          Object.entries(quips).forEach(([k, v]) => {
+            if (v.cork.id === variables.quipId) {
+              time = k;
+            }
+          });
+
+          const currentFeels = quip.cork.feels;
+
+          delete currentFeels[window.our];
+
+          const newQuip: Quip = {
+            ...quip,
+            cork: {
+              ...quip.cork,
+              feels: {
+                ...currentFeels,
+              },
+            },
+          };
+
+          quips[time] = newQuip;
+
+          return {
+            ...writ,
+            seal: {
+              ...writ.seal,
+              quips: quips as Quips,
+            },
+          };
+        }
+      );
+    },
+    onSuccess: async (data, variables) => {
+      queryClient.invalidateQueries(['dms', variables.whom, variables.writId]);
+    },
+  });
+}
+
+export function useIsDmUnread(whom: string) {
+  const { data: briefs } = useDmBriefs();
+  const brief = briefs[whom];
+  return Boolean(brief?.count > 0 && brief['read-id']);
 }
 
 const selPendingDms = (s: ChatState) => s.pendingDms;
@@ -710,11 +955,11 @@ export function usePendingMultiDms() {
 }
 
 export function useMultiDmIsPending(id: string): boolean {
+  const brief = useDmBrief(id);
   return useChatState(
     useCallback(
       (s) => {
         const chat = s.multiDms[id];
-        const brief = s.dmBriefs[id];
         const isPending = chat && chat.hive.includes(window.our);
         const inTeam = chat && chat.team.includes(window.our);
 
@@ -724,7 +969,7 @@ export function useMultiDmIsPending(id: string): boolean {
 
         return !brief && !inTeam;
       },
-      [id]
+      [id, brief]
     )
   );
 }
@@ -738,13 +983,9 @@ export function isGroupBrief(brief: string) {
   return brief.includes('/');
 }
 
-export function useBriefs() {
-  return useChatState(useCallback((s: ChatState) => s.dmBriefs, []));
-}
-
-export function useBrief(whom: string) {
-  return useChatState(useCallback((s: ChatState) => s.dmBriefs[whom], [whom]));
-}
+// export function useBrief(whom: string) {
+// return useChatState(useCallback((s: ChatState) => s.briefs[whom], [whom]));
+// }
 
 export function usePinned() {
   return useChatState(useCallback((s: ChatState) => s.pins, []));
@@ -819,42 +1060,6 @@ export function useWritByFlagAndWritId(
   return cached;
 }
 
-export function useWritByFlagAndGraphIndex(
-  chFlag: string,
-  index: string,
-  isScrolling: boolean
-) {
-  const res = useChatState(
-    useCallback((s) => s.loadedGraphRefs[chFlag + index], [chFlag, index])
-  );
-
-  useEffect(() => {
-    if (!res && !isScrolling) {
-      (async () => {
-        let w: Note | 'error' = 'error';
-        try {
-          useChatState.getState().batchSet((draft) => {
-            draft.loadedGraphRefs[chFlag + index] = 'loading';
-          });
-          const { writ } = await subscribeOnce(
-            'chat',
-            `/hook/${chFlag}${index}`
-          );
-          w = writ;
-        } catch (e) {
-          console.warn(e);
-        }
-
-        useChatState.getState().batchSet((draft) => {
-          draft.loadedGraphRefs[chFlag + index] = w;
-        });
-      })();
-    }
-  }, [isScrolling, chFlag, index, res]);
-
-  return res || 'loading';
-}
-
 export function useLatestMessage(chFlag: string): [BigInteger, Note | null] {
   const messages = useMessagesForChat(chFlag);
   const max = messages.maxKey();
@@ -879,7 +1084,7 @@ export function useGetLatestChat() {
 
 export function useGetFirstUnreadID(whom: string) {
   const keys = useChatKeys({ replying: false, whom });
-  const brief = useBrief(whom);
+  const brief = useDmBrief(whom);
   if (!brief) {
     return null;
   }
@@ -906,7 +1111,7 @@ export function useChatSearch(whom: string, query: string) {
 
   const scan = useMemo(() => {
     return newWritMap(
-      (data || []).map(({ time, writ }) => [bigInt(udToDec(time)), writ]),
+      (data || []).map(({ time, writ }) => [bigInt(parseUd(time)), writ]),
       true
     );
   }, [data]);
@@ -915,10 +1120,6 @@ export function useChatSearch(whom: string, query: string) {
     scan,
     ...rest,
   };
-}
-
-export function useIsDmOrMultiDm(whom: string) {
-  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
 }
 
 (window as any).chat = useChatState.getState;

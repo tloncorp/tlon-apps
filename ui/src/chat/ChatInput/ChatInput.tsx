@@ -2,7 +2,6 @@ import { Editor } from '@tiptap/react';
 import cn from 'classnames';
 import _, { debounce } from 'lodash';
 import { useLocalStorage } from 'usehooks-ts';
-import { unixToDa } from '@urbit/api';
 import React, {
   useCallback,
   useEffect,
@@ -12,7 +11,6 @@ import React, {
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
-import { usePact } from '@/state/chat';
 import MessageEditor, {
   HandlerParams,
   useMessageEditor,
@@ -26,14 +24,13 @@ import {
   useChatStore,
 } from '@/chat/useChatStore';
 import { useIsMobile } from '@/logic/useMedia';
-import { JSONToInlines, makeMention, inlinesToJSON } from '@/logic/tiptap';
+import { makeMention, inlinesToJSON } from '@/logic/tiptap';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 import { useFileStore, useUploader } from '@/state/storage';
 import {
   IMAGE_REGEX,
   REF_REGEX,
-  isImageUrl,
   pathToCite,
   URL_REGEX,
   createStorageKey,
@@ -44,7 +41,10 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import { Nest, NoteEssay, Cite, constructStory, Story } from '@/types/channel';
+import { Nest, NoteEssay, Cite, Story, NoteTuple } from '@/types/channel';
+import { CacheId } from '@/state/channel/channel';
+import { WritTuple } from '@/types/dms';
+import messageSender from '@/logic/messageSender';
 
 interface ChatInputProps {
   whom: string;
@@ -53,14 +53,12 @@ interface ChatInputProps {
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
-  sendDm?: (whom: string, essay: NoteEssay) => void;
+  sendDm?: (whom: string, essay: NoteEssay, replying?: string) => void;
   sendChatMessage?: ({
-    initialTime,
-    nest,
+    cacheId,
     essay,
   }: {
-    initialTime: string;
-    nest: Nest;
+    cacheId: CacheId;
     essay: NoteEssay;
   }) => void;
   sendQuip?: ({
@@ -74,6 +72,7 @@ interface ChatInputProps {
   }) => void;
   inThread?: boolean;
   dropZoneId: string;
+  replyingWrit?: NoteTuple | WritTuple;
 }
 
 export function UploadErrorPopover({
@@ -118,8 +117,8 @@ export default function ChatInput({
   sendQuip,
   inThread = false,
   dropZoneId,
+  replyingWrit,
 }: ChatInputProps) {
-  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
   const [didDrop, setDidDrop] = useState(false);
@@ -134,18 +133,13 @@ export default function ChatInput({
   );
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const chatReplyId = useMemo(
-    () => searchParams.get('chat_reply'),
-    [searchParams]
-  );
   const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
-  const pact = usePact(whom);
+  // const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
-  const replyingWrit = chatReplyId && pact.writs.get(pact.index[chatReplyId]);
-  const ship = replyingWrit && replyingWrit.essay.author;
+  const ship = replyingWrit && replyingWrit[1] && replyingWrit[1].essay.author;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
@@ -287,151 +281,21 @@ export default function ChatInput({
         return;
       }
 
-      const data = JSONToInlines(editor?.getJSON());
-      if (blocks.length > 0) {
-        data.push(...blocks);
-      }
+      const now = Date.now();
 
-      if (replyCite) {
-        data.unshift(replyCite);
-      }
+      messageSender({
+        whom,
+        replying,
+        editorJson: editor.getJSON(),
+        text: editor.getText(),
+        blocks,
+        replyCite,
+        now,
+        sendDm,
+        sendChatMessage,
+        sendQuip,
+      });
 
-      const noteContent = constructStory(data);
-      // Checking for this prevents an extra <br>
-      // from being added to the end of the message
-      // const dataIsJustBreak =
-      // data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
-
-      const essay: NoteEssay = {
-        'han-data': {
-          chat: null,
-        },
-        author: `~${window.ship || 'zod'}`,
-        sent: 0, // wait until ID is created so we can share time
-        content: noteContent,
-      };
-
-      const text = editor.getText();
-      const textIsImageUrl = isImageUrl(text);
-      const dataIsJustLink =
-        data.length > 0 && typeof data[0] === 'object' && 'link' in data[0];
-
-      if (textIsImageUrl && dataIsJustLink) {
-        const url = text;
-        const name = 'chat-image';
-
-        const img = new Image();
-        img.src = url;
-
-        if (sendDm) {
-          img.onload = () => {
-            const { width, height } = img;
-
-            sendDm(whom, {
-              ...essay,
-              'han-data': {
-                chat: null,
-              },
-              sent: Date.now(),
-              content: [
-                {
-                  block: {
-                    image: {
-                      src: url,
-                      alt: name,
-                      width,
-                      height,
-                    },
-                  },
-                },
-              ],
-            });
-          };
-
-          img.onerror = () => {
-            sendDm(whom, essay);
-          };
-        } else if (sendChatMessage) {
-          img.onload = () => {
-            const { width, height } = img;
-
-            sendChatMessage({
-              initialTime,
-              nest: `chat/${whom}`,
-              essay: {
-                ...essay,
-                'han-data': {
-                  chat: null,
-                },
-                sent: Date.now(),
-                content: [
-                  {
-                    block: {
-                      image: {
-                        src: url,
-                        alt: name,
-                        width,
-                        height,
-                      },
-                    },
-                  },
-                ],
-              },
-            });
-          };
-
-          img.onerror = () => {
-            sendChatMessage({
-              initialTime,
-              nest: `chat/${whom}`,
-              essay,
-            });
-          };
-        } else if (sendQuip && replying) {
-          img.onload = () => {
-            const { width, height } = img;
-
-            sendQuip({
-              nest: `chat/${whom}`,
-              noteId: replying,
-              content: [
-                {
-                  block: {
-                    image: {
-                      src: url,
-                      alt: name,
-                      width,
-                      height,
-                    },
-                  },
-                },
-              ],
-            });
-          };
-
-          img.onerror = () => {
-            sendQuip({
-              nest: `chat/${whom}`,
-              noteId: replying,
-              content: essay.content,
-            });
-          };
-        }
-      } else if (sendDm) {
-        sendDm(whom, essay);
-      } else if (sendChatMessage) {
-        sendChatMessage({
-          initialTime,
-          nest: `chat/${whom}`,
-          essay,
-        });
-      } else if (sendQuip && replying) {
-        sendQuip({
-          nest: `chat/${whom}`,
-          noteId: replying,
-          content: essay.content,
-        });
-      }
       captureGroupsAnalyticsEvent({
         name: reply ? 'comment_item' : 'post_item',
         groupFlag,
@@ -449,7 +313,6 @@ export default function ChatInput({
     },
     [
       whom,
-      initialTime,
       groupFlag,
       privacy,
       id,
@@ -512,7 +375,7 @@ export default function ChatInput({
 
   useEffect(() => {
     if (
-      chatReplyId &&
+      replyingWrit &&
       messageEditor &&
       !messageEditor.isDestroyed &&
       !inThread
@@ -521,15 +384,15 @@ export default function ChatInput({
       const mention = ship ? makeMention(ship.slice(1)) : null;
       messageEditor?.commands.setContent(mention);
       messageEditor?.commands.insertContent(': ');
-      const path = `/1/chan/chat/${id}/msg/${chatReplyId}`;
+      const path = `/1/chan/chat/${whom}/msg/${replyingWrit[0].toString()}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
         setReplyCite(cite);
       }
     }
   }, [
-    chatReplyId,
-    id,
+    replyingWrit,
+    whom,
     setReplyCite,
     replyCite,
     groupFlag,
@@ -556,7 +419,7 @@ export default function ChatInput({
           if (!id) {
             return;
           }
-          setBlocks(id, [cite]);
+          setBlocks(id, [{ cite }]);
           messageEditor.commands.deleteRange({
             from: editorText.indexOf(path),
             to: editorText.indexOf(path) + path.length + 1,
@@ -676,7 +539,7 @@ export default function ChatInput({
           </div>
         ) : null}
 
-        {showReply && ship && chatReplyId ? (
+        {showReply && ship && replyingWrit ? (
           <div className="mb-4 flex items-center justify-start font-semibold">
             <span className="text-gray-600">Replying to</span>
             <Avatar size="xs" ship={ship} className="ml-2" />

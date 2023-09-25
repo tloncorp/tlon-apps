@@ -10,11 +10,14 @@ interface DiaryListItemProps {
 }
 
 export default function DiaryListItem({ note, time }: DiaryListItemProps) {
-  const isPending = useIsNotePending(time.toString());
+  const isPending = useIsNotePending({
+    author: note.essay.author,
+    sent: note.essay.sent,
+  });
   const navigate = useNavigate();
 
   const { essay } = note;
-  const { lastQuippers, quipCount } = note.seal;
+  const { lastQuippers, quipCount } = note.seal.meta;
 
   return (
     <div

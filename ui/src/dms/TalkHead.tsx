@@ -10,7 +10,7 @@ import { canReadChannel } from '@/logic/channel';
 export default function TalkHead() {
   const messagesFilter = useMessagesFilter();
   const briefs = useBriefs();
-  const dmBriefs = useDmBriefs();
+  const { data: dmBriefs } = useDmBriefs();
   const shelf = useShelf();
   const multiDms = useMultiDms();
   const groups = useGroups();

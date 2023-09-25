@@ -1,12 +1,12 @@
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useBrief, usePerms } from '@/state/channel/channel';
-import { groupQuips, setNewDaysForQuips } from '@/logic/utils';
 import { QuipMap } from '@/types/channel';
 import DiaryComment from '@/diary/DiaryComment';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import { groupQuips, setNewDaysForQuips } from '@/quips/quips';
 import HeapDetailCommentField from './HeapDetailCommentField';
 
 interface HeapDetailCommentsProps {

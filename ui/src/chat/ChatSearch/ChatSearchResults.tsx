@@ -1,11 +1,10 @@
-import { debounce } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import BTree from 'sorted-btree';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState } from '@/state/chat';
 import { Note } from '@/types/channel';
+import { Writ } from '@/types/dms';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
 
@@ -22,9 +21,8 @@ interface ChatSearchResultEntry {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: Note;
+  writ: Note | Writ;
   selected: boolean;
-  msgLoad: (time: BigInteger, type: 'click' | 'hover') => void;
 }
 
 function itemContent(_i: number, entry: ChatSearchResultEntry) {
@@ -50,41 +48,21 @@ const ChatSearchResults = React.forwardRef<
       : { main: 400, reverse: 400 },
   };
 
-  const loadMsgs = useMemo(() => {
-    return debounce(
-      (time: BigInteger) => {
-        useChatState.getState().fetchMessagesAround(whom, '25', time);
-      },
-      200,
-      { trailing: true }
-    );
-  }, [whom]);
-
-  const msgLoad = useCallback(
-    (time: BigInteger, type: 'click' | 'hover') => {
-      loadMsgs(time);
-
-      if (type === 'click') {
-        loadMsgs.flush();
-      }
-    },
-    [loadMsgs]
+  const entries = useMemo(
+    () =>
+      scan
+        ? scan.toArray().map(
+            ([int, writ], i): ChatSearchResultEntry => ({
+              whom,
+              root,
+              time: int,
+              writ,
+              selected: i === selected,
+            })
+          )
+        : [],
+    [scan, whom, root, selected]
   );
-
-  const entries = useMemo(() => {
-    return scan
-      ? scan.toArray().map(
-          ([int, writ], i): ChatSearchResultEntry => ({
-            whom,
-            root,
-            time: int,
-            writ,
-            selected: i === selected,
-            msgLoad,
-          })
-        )
-      : [];
-  }, [scan, whom, root, selected, msgLoad]);
 
   useEffect(() => {
     let timeout = 0;

@@ -90,13 +90,13 @@ export default function HeapTextInput({
   inputClass,
   comment = false,
 }: HeapTextInputProps) {
+  const nest = `heap/${flag}`;
   const isMobile = useIsMobile();
-  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const { isPending, setPending, setReady } = useRequestState();
   const chatInfo = useChatInfo(flag);
   const { privacy } = useGroupPrivacy(groupFlag);
-  const { compatible, text } = useChannelCompatibility(`heap/${flag}`);
-  const { mutate } = useAddNoteMutation();
+  const { compatible, text } = useChannelCompatibility(nest);
+  const { mutate } = useAddNoteMutation(nest);
   const { mutate: addQuip } = useAddQuipMutation();
 
   /**
@@ -107,6 +107,11 @@ export default function HeapTextInput({
       if (sendDisabled) {
         return;
       }
+      const now = Date.now();
+      const cacheId = {
+        sent: now,
+        author: window.our,
+      };
       const blocks = fetchChatBlocks(flag);
       if (!editor.getText() && !blocks.length) {
         return;
@@ -122,7 +127,7 @@ export default function HeapTextInput({
           heap: '', // TODO: Title input
         },
         author: window.our,
-        sent: Date.now(),
+        sent: now,
         content,
       };
 
@@ -154,7 +159,7 @@ export default function HeapTextInput({
       }
 
       mutate(
-        { nest: `heap/${flag}`, essay: heart, initialTime },
+        { essay: heart, cacheId },
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({
@@ -173,7 +178,6 @@ export default function HeapTextInput({
     },
     [
       sendDisabled,
-      initialTime,
       setPending,
       flag,
       groupFlag,

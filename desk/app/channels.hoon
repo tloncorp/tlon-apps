@@ -2,6 +2,9 @@
 ::
 ::    this is the client side that pulls data from the channels-server.
 ::
+::  XX  chat thread entries can no longer be edited.  maybe fix before
+::      release?
+::
 /-  d=channel, g=groups, ha=hark
 /-  meta
 /-  e=epic
@@ -17,6 +20,7 @@
     $:  %0
         =shelf:d
         voc=(map [nest:d plan:d] (unit said:d))
+        pins=(list nest:d)
     ==
   --
 =|  current-state
@@ -107,7 +111,7 @@
     %-  emil
     :~  [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
         [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
-        :: [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
+        [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
     ==
   inflate-io
 ::
@@ -194,6 +198,9 @@
     =+  !<(=a-shelf:d vase)
     ?:  ?=(%create -.a-shelf)
       di-abet:(di-create:di-core create-diary.a-shelf)
+    ?:  ?=(%pin -.a-shelf)
+      ?>  from-self
+      cor(pins pins.a-shelf)
     ?:  ?=(%join -.a-diary.a-shelf)
       di-abet:(di-join:di-core [nest group.a-diary]:a-shelf)
     di-abet:(di-a-diary:(di-abed:di-core nest.a-shelf) a-diary.a-shelf)
@@ -202,6 +209,12 @@
     ?>  =(our src):bowl
     =+  !<(new-shelf=shelf:d vase)
     =.  shelf  (~(uni by new-shelf) shelf)  ::  existing overrides migration
+    cor
+  ::
+      %channel-migration-pins
+    ?>  =(our src):bowl
+    =+  !<(new-pins=(list nest:d) vase)
+    =.  pins  (weld pins new-pins)
     cor
   ==
 ::
@@ -365,8 +378,9 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %shelf ~]  ``channel-shelf+!>((rr-shelf:utils shelf))
-      [%x %init ~]   ``noun+!>([briefs (rr-shelf:utils shelf)])
+      [%x %shelf ~]   ``channel-shelf+!>((rr-shelf:utils shelf))
+      [%x %init ~]    ``noun+!>([briefs (rr-shelf:utils shelf)])
+      [%x %pins ~]    ``channel-pins+!>(pins)
       [%x %briefs ~]  ``channel-briefs+!>(briefs)
       [%x =han:d ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -708,6 +722,7 @@
     %^  safe-watch  (weld di-area /backlog)  [ship.nest server]
     %+  welp
     /[han.nest]/[name.nest]/checkpoint/time-range
+    ~|  `*`key.u.checkpoint-start
     /(scot %da *@da)/(scot %da key.u.checkpoint-start)
   ::
   ++  di-ingest-backlog
@@ -821,6 +836,7 @@
   ++  di-u-quip
     |=  [=id-note:d =note:d =id-quip:d =u-quip:d]
     ^+  di-core
+    |^
     =/  quip  (get:on-quips:d quips.note id-quip)
     ?:  ?=([~ ~] quip)  di-core
     ?:  ?=(%set -.u-quip)
@@ -828,38 +844,35 @@
         =/  rr-quip=(unit rr-quip:d)  (bind quip.u-quip rr-quip:utils)
         =?  di-core  ?=(^ quip.u-quip)
           (on-quip:di-hark id-note note u.quip.u-quip)
-        =.  di-core  (di-put-quip id-note id-quip quip.u-quip)
-        (di-response %note id-note %quip id-quip %set rr-quip)
+        (put-quip quip.u-quip %set rr-quip)
       ::
-      ?~  quip.u-quip
-        =.  di-core  (di-put-quip id-note id-quip ~)
-        (di-response %note id-note %quip id-quip %set ~)
+      ?~  quip.u-quip  (put-quip ~ %set ~)
       ::
       =*  old  u.u.quip
       =*  new  u.quip.u-quip
       =/  merged  (need (di-apply-quip id-quip `old `new))
       ?:  =(merged old)  di-core
-      =.  di-core  (di-put-quip id-note id-quip `merged)
-      (di-response %note id-note %quip id-quip %set `(rr-quip:utils merged))
+      (put-quip `merged %set `(rr-quip:utils merged))
     ::
     ?~  quip  di-core
     ::
     =/  merged  (di-apply-feels feels.u.u.quip feels.u-quip)
     ?:  =(merged feels.u.u.quip)  di-core
-    =.  di-core  (di-put-quip id-note id-quip `u.u.quip(feels merged))
-    (di-response %note id-note %quip id-quip %feels (rr-feels:utils merged))
-  ::
-  ::  put a quip into a note by id
-  ::
-  ++  di-put-quip
-    |=  [=id-note:d =id-quip:d quip=(unit quip:d)]
-    ^+  di-core
-    =/  note  (get:on-notes:d notes.diary id-note)
-    ?~  note  di-core
-    ?~  u.note  di-core
-    =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-quip quip)
-    =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
-    di-core
+    (put-quip `u.u.quip(feels merged) %feels (rr-feels:utils merged))
+    ::
+    ::  put a quip into a note by id
+    ::
+    ++  put-quip
+      |=  [quip=(unit quip:d) =r-quip:d]
+      ^+  di-core
+      =/  note  (get:on-notes:d notes.diary id-note)
+      ?~  note  di-core
+      ?~  u.note  di-core
+      =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-quip quip)
+      =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
+      =/  meta=quip-meta:d  (get-quip-meta:utils u.u.note)
+      (di-response %note id-note %quip id-quip meta r-quip)
+    --
   ::
   ::  +di-apply-* functions apply new copies of data to old copies,
   ::  keeping the most recent versions of each sub-piece of data
@@ -1071,9 +1084,42 @@
   ++  di-peek
     |=  =(pole knot)
     ^-  (unit (unit cage))
-    ?+  pole  [~ ~]
-      [%notes rest=*]  (di-peek-notes rest.pole)
-      [%perm ~]        ``channel-perm+!>(perm.perm.diary)
+    ?+    pole  [~ ~]
+        [%notes rest=*]  (di-peek-notes rest.pole)
+        [%perm ~]        ``channel-perm+!>(perm.perm.diary)
+        [%search %text skip=@ count=@ nedl=@ ~]
+      :^  ~  ~  %channel-scan  !>
+      %^    text:di-search
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      nedl.pole
+    ::
+        [%search %mention skip=@ count=@ nedl=@ ~]
+      :^  ~  ~  %channel-scan  !>
+      %^    mention:di-search
+          (slav %ud skip.pole)
+        (slav %ud count.pole)
+      (slav %p nedl.pole)
+    ==
+  ::
+  ++  give-notes
+    |=  [mode=?(%outline %note) ls=(list [time (unit note:d)])]
+    ^-  (unit (unit cage))
+    =/  =notes:d  (gas:on-notes:d *notes:d ls)
+    =-  ``channel-notes+!>(-)
+    =/  notes=rr-notes:d
+      ?:  =(%note mode)  (rr-notes:utils notes)
+      (rr-notes-without-quips:utils notes)
+    =/  newer=(unit time)
+      =/  more  (tab:on-notes:d notes.diary `-:(rear ls) 1)
+      ?~(more ~ `-:(head more))
+    =/  older=(unit time)
+      =/  more  (bat:mo-notes:d notes.diary `-:(head ls) 1)
+      ?~(more ~ `-:(head more))
+    :*  notes
+        newer
+        older
+        (wyt:on-notes:d notes.diary)
     ==
   ::
   ++  di-peek-notes
@@ -1083,27 +1129,31 @@
     ?+    pole  [~ ~]
         [%newest count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
-      =/  ls    (top:mo-notes:d notes.diary count)
-      ?:  =(mode.pole %note)
-        ``channel-notes+!>((gas:on *notes:d ls))
-      =-  ``channel-notes+!>(-)
-      %-  rr-notes-without-quips:utils
-      (gas:on *notes:d ls)
+      =/  ls     (top:mo-notes:d notes.diary count)
+      (give-notes mode.pole ls)
     ::
         [%older start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      =/  ls    (bat:mo-notes:d notes.diary `start count)
-      ?:  =(mode.pole %note)
-        ``channel-notes+!>((gas:on *notes:d ls))
-      =-  ``channel-notes+!>(-)
-      %-  rr-notes-without-quips:utils
-      (gas:on *notes:d ls)
+      =/  ls     (bat:mo-notes:d notes.diary `start count)
+      (give-notes mode.pole ls)
     ::
-        [%newer start=@ count=@ ~]
+        [%newer start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-notes+!>((gas:on *notes:d (tab:on notes.diary `start count)))
+      =/  ls     (tab:on notes.diary `start count)
+      (give-notes mode.pole ls)
+    ::
+        [%around time=@ count=@ mode=?(%outline %note) ~]
+      =/  count  (slav %ud count.pole)
+      =/  time  (slav %ud time.pole)
+      =/  older  (bat:mo-notes:d notes.diary `time count)
+      =/  newer  (tab:on notes.diary `time count)
+      =/  note   (get:on notes.diary time)
+      =/  notes
+          ?~  note  (welp older newer)
+          (welp (snoc older [time u.note]) newer)
+      (give-notes mode.pole notes)
     ::
         [%note time=@ ~]
       =/  time  (slav %ud time.pole)
@@ -1147,6 +1197,171 @@
       ?~  u.quip  `~
       ``channel-quip+!>(u.u.quip)
     ==
+  ::
+  ++  di-search
+    |^  |%
+        ++  mention
+          |=  [sip=@ud len=@ud nedl=ship]
+          ^-  scan:d
+          (scour sip len %mention nedl)
+        ::
+        ++  text
+          |=  [sip=@ud len=@ud nedl=@t]
+          ^-  scan:d
+          (scour sip len %text nedl)
+        --
+    ::
+    ++  match-type
+      $%  [%mention nedl=ship]
+          [%text nedl=@t]
+      ==
+    ::
+    ++  scour
+      |=  [sip=@ud len=@ud =match-type]
+      =*  notes  notes.diary
+      ?>  (gth len 0)
+      =+  s=[sip=sip len=len *=scan:d]
+      =-  (flop scan)
+      |-  ^+  s
+      ?~  notes  s
+      ?:  =(0 len.s)  s
+      =.  s  $(notes r.notes)
+      ?:  =(0 len.s)  s
+      ::
+      =.  s
+        ?~  val.n.notes  s
+        ?.  (match match-type u.val.n.notes)  s
+        ?:  (gth sip.s 0)
+          s(sip (dec sip.s))
+        =/  res  [%note (rr-note:utils u.val.n.notes)]
+        s(len (dec len.s), scan [res scan.s])
+      ::
+      =.  s
+        ?~  val.n.notes  s
+        %:  scour-quips
+            sip.s  len.s
+            id.u.val.n.notes
+            quips.u.val.n.notes
+            match-type
+        ==
+      ::
+      $(notes l.notes)
+    ::
+    ++  scour-quips
+      |=  [sip=@ud len=@ud =id-note:d =quips:d =match-type]
+      =+  s=[sip=sip len=len *=scan:d]
+      |-  ^+  s
+      ?~  quips  s
+      ?:  =(0 len.s)  s
+      =.  s  $(quips r.quips)
+      ?:  =(0 len.s)  s
+      ::
+      =.  s
+        ?~  val.n.quips  s
+        ?.  (match-quip match-type u.val.n.quips)  s
+        ?:  (gth sip.s 0)
+          s(sip (dec sip.s))
+        =/  res  [%quip id-note (rr-quip:utils u.val.n.quips)]
+        s(len (dec len.s), scan [res scan.s])
+      ::
+      $(quips l.quips)
+    ::
+    ++  match
+      |=  [=match-type =note:d]
+      ^-  ?
+      ?-  -.match-type
+        %mention  (match-note-mention nedl.match-type note)
+        %text     (match-note-text nedl.match-type note)
+      ==
+    ::
+    ++  match-quip
+      |=  [=match-type =quip:d]
+      ?-  -.match-type
+        %mention  (match-story-mention nedl.match-type content.quip)
+        %text     (match-story-text nedl.match-type content.quip)
+      ==
+    ::
+    ++  match-note-mention
+      |=  [nedl=ship =note:d]
+      ^-  ?
+      ?:  ?=([%chat %notice ~] han-data.note)  |
+      (match-story-mention nedl content.note)
+    ::
+    ++  match-story-mention
+      |=  [nedl=ship =story:d]
+      %+  lien  story
+      |=  =verse:d
+      ?.  ?=(%inline -.verse)  |
+      %+  lien  p.verse
+      |=  =inline:d
+      ?+  -.inline  |
+        %ship                                  =(nedl p.inline)
+        ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
+      ==
+    ::
+    ++  match-note-text
+      |=  [nedl=@t =note:d]
+      ^-  ?
+      ?-    -.han-data.note
+          %diary
+        (match-story-text nedl ~[%inline title.han-data.note] content.note)
+      ::
+          %heap
+        %+  match-story-text  nedl
+        ?~  title.han-data.note
+          content.note
+        [~[%inline u.title.han-data.note] content.note]
+      ::
+          %chat
+        ?:  =([%notice ~] kind.han-data.note)  |
+        (match-story-text nedl content.note)
+      ==
+    ::
+    ++  match-story-text
+      |=  [nedl=@t =story:d]
+      %+  lien  story
+      |=  =verse:d
+      ?.  ?=(%inline -.verse)  |
+      %+  lien  p.verse
+      |=  =inline:d
+      ?@  inline
+        (find nedl inline |)
+      ?.  ?=(?(%bold %italics %strike %blockquote) -.inline)  |
+      ^$(p.verse p.inline)
+    ::
+    ++  find
+      |=  [nedl=@t hay=@t case=?]
+      ^-  ?
+      =/  nlen  (met 3 nedl)
+      =/  hlen  (met 3 hay)
+      ?:  (lth hlen nlen)
+        |
+      =?  nedl  !case
+        (cass nedl)
+      =/  pos  0
+      =/  lim  (sub hlen nlen)
+      |-
+      ?:  (gth pos lim)
+        |
+      ?:  .=  nedl
+          ?:  case
+            (cut 3 [pos nlen] hay)
+          (cass (cut 3 [pos nlen] hay))
+        &
+      $(pos +(pos))
+    ::
+    ++  cass
+      |=  text=@t
+      ^-  @t
+      %^    run
+          3
+        text
+      |=  dat=@
+      ^-  @
+      ?.  &((gth dat 64) (lth dat 91))
+        dat
+      (add dat 32)
+    --
   ::
   ::  when we receive an update from the group we're in, check if we
   ::  need to change anything

@@ -1,5 +1,5 @@
 import { Briefs, Shelf } from './channel';
-import { ChatBriefs, Clubs } from './chat';
+import { DMBriefs, Clubs } from './dms';
 import { Groups, Gangs } from './groups';
 
 export interface GroupsInit {
@@ -13,7 +13,7 @@ export interface GroupsInit {
 export interface TalkInit {
   groups: Groups;
   gangs: Gangs;
-  briefs: ChatBriefs;
+  briefs: DMBriefs;
   clubs: Clubs;
   dms: string[];
   invited: string[];

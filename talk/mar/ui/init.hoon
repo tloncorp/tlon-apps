@@ -8,12 +8,11 @@
   ++  json
     =,  enjs:format
     %-  pairs
-    :~  groups/(groups:enjs:gj groups.init)
+    :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
-        briefs/(briefs:enjs:cj briefs.init)
-        chats/(chats:enjs:cj chats.init)
         clubs/(clubs:enjs:cj clubs.init)
         dms/a/(turn ~(tap in dms.init) ship:enjs:gj)
+        briefs/(briefs:enjs:cj briefs.init)
         invited/a/(turn ~(tap in invited.init) ship:enjs:gj)
         pins/a/(turn pins.init (cork whom:enjs:cj (lead %s)))
     ==

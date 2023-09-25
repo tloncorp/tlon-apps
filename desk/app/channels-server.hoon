@@ -99,7 +99,7 @@
     ^-  (list note:agent:gall)
     :~  [%agent [our.bowl %diary] %poke %diary-migrate-server !>(~)]
         [%agent [our.bowl %heap] %poke %heap-migrate-server !>(~)]
-        :: [%agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
+        [%agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
     ==
   inflate-io
 ::

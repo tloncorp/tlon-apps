@@ -799,7 +799,9 @@ describe('JSONToInlines', () => {
     const output = JSONToInlines(input);
     const expected: Block[] = [
       {
-        group: '~zod/test',
+        cite: {
+          group: '~zod/test',
+        },
       },
     ];
     expect(output).toEqual(expected);

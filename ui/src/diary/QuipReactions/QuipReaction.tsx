@@ -10,13 +10,18 @@ import {
   useDeleteNoteFeelMutation,
   useDeleteQuipFeelMutation,
 } from '@/state/channel/channel';
+import {
+  useAddDMQuipFeelMutation,
+  useDeleteDMQuipFeelMutation,
+} from '@/state/chat';
+import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 
 interface QuipReactionProps {
   han: string;
   whom: string;
   feel: string;
   ships: string[];
-  time: string;
+  quipId: string;
   noteId: string;
 }
 
@@ -25,18 +30,22 @@ export default function QuipReaction({
   whom,
   feel,
   ships,
-  time,
+  quipId,
   noteId,
 }: QuipReactionProps) {
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
-  const isParent = noteId === time;
+  const isParent = noteId === quipId;
   const nest = `${han}/${whom}`;
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
   const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
   const { mutateAsync: delQuipFeel } = useDeleteQuipFeelMutation();
   const { mutateAsync: delChatFeel } = useDeleteNoteFeelMutation();
+  const { mutateAsync: addDmQuipFeel } = useAddDMQuipFeelMutation();
+  const { mutateAsync: delDmQuipFeel } = useDeleteDMQuipFeelMutation();
+  const isDMorMultiDm = useIsDmOrMultiDm(whom);
+  const threardParentId = useThreadParentId(whom);
 
   useEffect(() => {
     load();
@@ -46,25 +55,43 @@ export default function QuipReaction({
     if (isMine) {
       if (isParent) {
         await delChatFeel({ nest, noteId });
+      } else if (isDMorMultiDm) {
+        await delDmQuipFeel({
+          whom,
+          writId: threardParentId!,
+          quipId,
+        });
       } else {
-        await delQuipFeel({ nest, noteId, quipId: time });
+        await delQuipFeel({ nest, noteId, quipId });
       }
     } else if (isParent) {
       await addChatFeel({ nest, noteId, feel });
+    } else if (isDMorMultiDm) {
+      await addDmQuipFeel({
+        whom,
+        writId: threardParentId!,
+        quipId,
+        feel,
+      });
     } else {
-      await addQuipFeel({ nest, noteId, quipId: time, feel });
+      await addQuipFeel({ nest, noteId, quipId, feel });
     }
   }, [
     isMine,
     feel,
     noteId,
-    time,
+    quipId,
     addQuipFeel,
     delQuipFeel,
     delChatFeel,
     nest,
     isParent,
     addChatFeel,
+    whom,
+    isDMorMultiDm,
+    addDmQuipFeel,
+    threardParentId,
+    delDmQuipFeel,
   ]);
 
   return (

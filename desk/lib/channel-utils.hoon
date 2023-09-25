@@ -30,14 +30,11 @@
 ++  rr-note
   |=  =note:d
   ^-  rr-note:d
-  =/  quippers  (get-last-quippers note)
   :_  +>.note
   :*  id.note
       (rr-feels feels.note)
       (rr-quips quips.note)
-      (wyt:on-quips:d quips.note)
-      (biff (ram:on-quips:d quips.note) |=([=time *] `time))
-      quippers
+      (get-quip-meta note)
   ==
 ::
 ++  rr-notes-without-quips
@@ -57,9 +54,7 @@
   :*  id.note
       (rr-feels feels.note)
       *rr-quips:d
-      (wyt:on-quips:d quips.note)
-      (biff (ram:on-quips:d quips.note) |=([=time *] `time))
-      quippers
+      (get-quip-meta note)
   ==
 ::
 ++  rr-quips
@@ -161,8 +156,16 @@
   ?~  quip  ~
   (some author.u.quip)
 ::
-++  get-last-quippers
+++  get-quip-meta
   |=  =note:d
+  ^-  quip-meta:d
+  :*  (wyt:on-quips:d quips.note)
+      (get-last-quippers note)
+      (biff (ram:on-quips:d quips.note) |=([=time *] `time))
+  ==
+::
+++  get-last-quippers
+  |=  =note:d  ::TODO  could just take =quips
   ^-  (set ship)
   =|  quippers=(set ship)
   =/  entries=(list [time (unit quip:d)])  (bap:on-quips:d quips.note)

@@ -576,8 +576,8 @@ Notes without revision numbers
 ```
 
 Action for creating diaries. 
-[han](#han) | [flag:groups](#flaggroups) | [sect:groups](#sectgroups)
 
+[han](#han) | [flag:groups](#flaggroups) | [sect:groups](#sectgroups)
 ### sect:groups
 ```hoon
 ::

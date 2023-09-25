@@ -36,7 +36,6 @@ import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
-  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const [loaded, setLoaded] = useState(false);
   const [extraTitleRow, setExtraTitleRow] = useState(false);
   const titleRef = useRef<HTMLTextAreaElement | null>(null);
@@ -59,7 +58,7 @@ export default function DiaryAddNote() {
     data: returnTime,
     mutateAsync: addNote,
     status: addStatus,
-  } = useAddNoteMutation();
+  } = useAddNoteMutation(nest);
   const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
     usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
   const editWithMarkdown = useMarkdownInDiaries();
@@ -119,6 +118,11 @@ export default function DiaryAddNote() {
     const values = getValues();
 
     const noteContent = constructStory(data);
+    const now = Date.now();
+    const cacheId = {
+      author: window.our,
+      sent: now,
+    };
 
     try {
       if (id) {
@@ -134,12 +138,11 @@ export default function DiaryAddNote() {
       } else {
         await asyncCallWithTimeout(
           addNote({
-            initialTime,
-            nest: `diary/${chFlag}`,
+            cacheId,
             essay: {
               content: noteContent,
               author: window.our,
-              sent: daToUnix(bigInt(initialTime)),
+              sent: now,
               'han-data': {
                 diary: {
                   ...values,
@@ -174,7 +177,6 @@ export default function DiaryAddNote() {
     reset,
     addNote,
     editNote,
-    initialTime,
     navigate,
     watchedTitle,
   ]);

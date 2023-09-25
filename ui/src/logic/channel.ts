@@ -290,12 +290,12 @@ export function useFullChannel({
   const joinChannel = useCallback(async () => {
     setJoining(true);
     try {
-      await join({ group: groupFlag, chan });
+      await join({ group: groupFlag, chan: nest });
     } catch (e) {
       console.log("Couldn't join chat (maybe already joined)", e);
     }
     setJoining(false);
-  }, [groupFlag, chan, join]);
+  }, [groupFlag, nest, join]);
 
   useEffect(() => {
     if (!joined) {

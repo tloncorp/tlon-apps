@@ -4,7 +4,7 @@ import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import { useChatState, useDmIsPending } from '@/state/chat';
+import { useChatState, useDmBrief, useDmIsPending } from '@/state/chat';
 import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';
@@ -24,7 +24,7 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import DmWindow from '@/chat/DmWindow';
+import DmWindow from '@/dms/DmWindow';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -98,13 +98,14 @@ export default function Dm() {
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
-  const { data, showConnection } = useConnectivityCheck(ship || '');
+  const { data } = useConnectivityCheck(ship || '');
   const isMobile = useIsMobile();
   const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
+  const brief = useDmBrief(ship);
   const canStart = useChatState(
-    useCallback((s) => ship && Object.keys(s.dmBriefs).includes(ship), [ship])
+    useCallback(() => ship && !!brief, [ship, brief])
   );
 
   const {

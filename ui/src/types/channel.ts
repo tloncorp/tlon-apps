@@ -4,19 +4,22 @@ import BTree from 'sorted-btree';
 import { Inline, isLink, Link } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
-import { ChatBlock, ChatStory } from './chat';
 
 export type Patda = string;
 export type Ship = string;
 export type Nest = string;
 
+export interface QuipMeta {
+  quipCount: number;
+  lastQuippers: Ship[];
+  lastQuip: number | null;
+}
+
 export interface NoteSeal {
   id: string;
   feels: { [ship: Ship]: string };
   quips: QuipMap | null;
-  quipCount: number;
-  lastQuippers: Ship[];
-  lastQuip: string | null;
+  meta: QuipMeta;
 }
 
 export interface QuipCork {
@@ -109,7 +112,13 @@ export function isImage(item: unknown): item is Image {
   return typeof item === 'object' && item !== null && 'image' in item;
 }
 
-export type Block = Image | Cite | ListingBlock | Header | Rule | Code;
+export type Block =
+  | Image
+  | { cite: Cite }
+  | ListingBlock
+  | Header
+  | Rule
+  | Code;
 
 export interface VerseBlock {
   block: Block;
@@ -118,6 +127,14 @@ export interface VerseBlock {
 export type Verse = VerseInline | VerseBlock;
 
 export type Story = Verse[];
+
+export type ChatBlock = Block;
+
+// TODO: remove all dependence on chat story.
+export type ChatStory = {
+  inline: Inline[];
+  block: ChatBlock[];
+};
 
 export type HanHeap = {
   heap: string;
@@ -149,13 +166,26 @@ export type Note = {
   essay: NoteEssay;
 };
 
+export interface PagedNotes {
+  notes: Notes;
+  newer: string | null;
+  older: string | null;
+  total: number;
+}
+
+export interface PagedNotesMap extends Omit<PagedNotes, 'notes'> {
+  notes: NoteMap;
+}
+
 export interface Notes {
   [time: string]: Note | null;
 }
 
 export type NoteTuple = [BigInteger, Note | null];
 
-export type NoteMap = BTree<BigInteger, Note>;
+export type QuipTuple = [BigInteger, Quip | null];
+
+export type NoteMap = BTree<BigInteger, Note | null>;
 
 export interface Quip {
   cork: QuipCork;
@@ -350,7 +380,7 @@ export type Command =
 
 export type NoteResponse =
   | { set: Note | null }
-  | { quip: { id: string; response: QuipResponse } }
+  | { quip: { id: string; response: QuipResponse; meta: QuipMeta } }
   | { essay: NoteEssay }
   | { feels: Record<string, string> };
 
@@ -382,21 +412,9 @@ export interface ShelfResponse {
 }
 
 export function isCite(s: Block): boolean {
-  if ('chan' in s) {
+  if ('cite' in s) {
     return true;
   }
-  if ('group' in s) {
-    return true;
-  }
-
-  if ('desk' in s) {
-    return true;
-  }
-
-  if ('bait' in s) {
-    return true;
-  }
-
   return false;
 }
 
@@ -445,14 +463,8 @@ export function chatStoryFromStory(story: Story): ChatStory {
     .flat();
   const blocks: ChatBlock[] = story
     .filter((s) => 'block' in s)
-    .map((s) => (s as VerseBlock).block)
-    .flat()
-    .map((s) => {
-      if (isCite(s)) {
-        return { cite: s } as ChatBlock;
-      }
-      return s as ChatBlock;
-    });
+    .map((s) => (s as VerseBlock).block as ChatBlock)
+    .flat();
 
   newCon.inline = inlines;
   newCon.block = blocks;
@@ -464,12 +476,7 @@ export function storyFromChatStory(chatStory: ChatStory): Story {
   const newStory: Story = [];
 
   const inlines: Inline[] = chatStory.inline;
-  const blocks: Block[] = chatStory.block.map((b) => {
-    if ('cite' in b) {
-      return b.cite;
-    }
-    return b;
-  });
+  const blocks: Block[] = chatStory.block;
 
   newStory.push({ inline: inlines });
 
@@ -505,11 +512,13 @@ export function getIdFromNoteAction(noteAction: NoteAction): string {
 export const emptyNote: Note = {
   seal: {
     id: '',
-    quipCount: 0,
-    lastQuippers: [],
     feels: {},
-    lastQuip: null,
     quips: null,
+    meta: {
+      quipCount: 0,
+      lastQuippers: [],
+      lastQuip: null,
+    },
   },
   essay: {
     author: '',
@@ -533,9 +542,17 @@ export const emptyQuip: Quip = {
 
 export function constructStory(data: (Inline | Block)[]): Story {
   const isBlock = (c: Inline | Block) =>
-    ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
-      (k) => typeof c !== 'string' && k in c
-    );
+    [
+      'image',
+      'chan',
+      'desk',
+      'bait',
+      'group',
+      'listing',
+      'header',
+      'rule',
+      'code',
+    ].some((k) => typeof c !== 'string' && k in c);
   const noteContent: Story = [];
   let index = 0;
   data.forEach((c, i) => {
@@ -568,11 +585,26 @@ export function newQuipMap(
   );
 }
 
-export function newNoteMap(
-  entries?: [BigInteger, Note][],
-  reverse = false
-): BTree<BigInteger, Note> {
-  return new BTree<BigInteger, Note>(entries, (a, b) =>
+export function newNoteMap(entries?: NoteTuple[], reverse = false): NoteMap {
+  return new BTree<BigInteger, Note | null>(entries, (a, b) =>
     reverse ? b.compare(a) : a.compare(b)
   );
+}
+
+export interface NoteSealInCache {
+  id: string;
+  quips: Quips;
+  feels: {
+    [ship: Ship]: string;
+  };
+  meta: {
+    quipCount: number;
+    lastQuippers: Ship[];
+    lastQuip: number | null;
+  };
+}
+
+export interface NoteInCache {
+  seal: NoteSealInCache;
+  essay: NoteEssay;
 }

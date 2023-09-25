@@ -55,7 +55,7 @@ async function startGroups() {
   queryClient.setQueryData(['pins'], pins);
 }
 
-async function startTalk(groupsStarted: boolean) {
+async function startTalk() {
   // since talk is a separate desk we need to offer a fallback
   const { groups, gangs, ...chat } = await asyncWithFallback(
     () =>
@@ -64,55 +64,45 @@ async function startTalk(groupsStarted: boolean) {
         path: '/init',
       }),
     async () => {
-      const [
-        groupsRes,
-        gangsRes,
-        briefs,
-        chats,
-        dms,
-        clubs,
-        invited,
-        pinsResp,
-      ] = await Promise.all([
-        asyncWithDefault(
-          () =>
-            api.scry<Groups>({
-              app: 'groups',
-              path: '/groups/light/v0',
-            }),
-          {}
-        ),
-        asyncWithDefault(
-          () =>
-            api.scry<Gangs>({
-              app: 'groups',
-              path: '/gangs',
-            }),
-          {}
-        ),
-        chatScry('/briefs', {}),
-        chatScry('/chats', {}),
-        chatScry('/dm', []),
-        chatScry('/clubs', {}),
-        chatScry('/dm/invited', []),
-        chatScry('/pins', { pins: [] }),
-      ]);
+      const [groupsRes, gangsRes, dms, clubs, invited, pinsResp, briefs] =
+        await Promise.all([
+          asyncWithDefault(
+            () =>
+              api.scry<Groups>({
+                app: 'groups',
+                path: '/groups/light/v0',
+              }),
+            {}
+          ),
+          asyncWithDefault(
+            () =>
+              api.scry<Gangs>({
+                app: 'groups',
+                path: '/gangs',
+              }),
+            {}
+          ),
+          chatScry('/dm', []),
+          chatScry('/clubs', {}),
+          chatScry('/dm/invited', []),
+          chatScry('/pins', { pins: [] }),
+          chatScry('/briefs', {}),
+        ]);
       return {
         groups: groupsRes,
         gangs: gangsRes,
-        briefs,
-        chats,
         dms,
         clubs,
         invited,
         pins: pinsResp.pins,
+        briefs,
       };
     }
   );
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  useChatState.getState().startTalk(chat, !groupsStarted);
+  useChatState.getState().start(chat);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
@@ -124,11 +114,11 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
   }
 
   if (isTalk) {
-    startTalk(false);
+    startTalk();
     wait(() => startGroups(), 5);
   } else {
     startGroups();
-    wait(async () => startTalk(true), 5);
+    wait(async () => startTalk(), 5);
   }
 
   wait(() => {

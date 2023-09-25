@@ -8,7 +8,6 @@ import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import { useSawRopeMutation } from '@/state/hark';
 import { Skein, YarnContent } from '@/types/hark';
-import { useChatState } from '@/state/chat';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { useGang, useGroup } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
@@ -169,16 +168,19 @@ function NotificationContent({
 function mentionPath(bin: Skein): string {
   const { wer } = bin.top;
   const parts = wer.split('/');
-  const index = parts.indexOf('op');
-  const ship = parts[index + 1];
-  const id = parts[index + 2];
+  const han = parts[4];
+  const index = parts.indexOf('note');
+  const id = parts[index + 1];
 
-  if (index < 0 || !ship || !id) {
+  if (index < 0 || !id) {
     return wer;
   }
 
-  const time = useChatState.getState().getTime(ship, `${ship}/${id}`);
-  return `${parts.slice(0, index).join('/')}?msg=${time}`;
+  if (han === 'diary' || han === 'heap') {
+    return wer;
+  }
+
+  return `${parts.slice(0, index).join('/')}?msg=${id}`;
 }
 
 export default function Notification({

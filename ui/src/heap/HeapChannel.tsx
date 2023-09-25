@@ -7,12 +7,7 @@ import { VirtuosoGrid } from 'react-virtuoso';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
-import {
-  usePerms,
-  useMarkReadMutation,
-  useJoinMutation,
-  useInfiniteNotes,
-} from '@/state/channel/channel';
+import { useMarkReadMutation, useInfiniteNotes } from '@/state/channel/channel';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
@@ -24,7 +19,7 @@ import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
 import getHanDataFromEssay from '@/logic/getHanData';
-import { Note } from '@/types/channel';
+import { Note, NoteTuple } from '@/types/channel';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
@@ -47,7 +42,7 @@ function HeapChannel({ title }: ViewProps) {
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  const { notes, fetchNextPage, hasNextPage, isLoading } =
+  const { notes, fetchPreviousPage, hasPreviousPage, isLoading } =
     useInfiniteNotes(nest);
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
 
@@ -97,34 +92,34 @@ function HeapChannel({ title }: ViewProps) {
   );
 
   const empty = useMemo(() => notes.length === 0, [notes]);
-  const sortedNotes = notes.sort(([a], [b]) => {
-    if (sortMode === 'time') {
-      return b.compare(a);
-    }
-    if (sortMode === 'alpha') {
-      const noteA = notes.find(([time]) => time.eq(a))![1];
-      const noteB = notes.find(([time]) => time.eq(b))![1];
-      const { title: noteATitle } = getHanDataFromEssay(noteA?.essay);
-      const { title: noteBTitle } = getHanDataFromEssay(noteB?.essay);
+  const sortedNotes = notes
+    .filter((k, v) => v !== null)
+    .sort(([a], [b]) => {
+      if (sortMode === 'time') {
+        return b.compare(a);
+      }
+      if (sortMode === 'alpha') {
+        const noteA = notes.find(([time]) => time.eq(a))![1];
+        const noteB = notes.find(([time]) => time.eq(b))![1];
+        const { title: noteATitle } = getHanDataFromEssay(noteA?.essay);
+        const { title: noteBTitle } = getHanDataFromEssay(noteB?.essay);
 
-      return noteATitle.localeCompare(noteBTitle);
-    }
-    return b.compare(a);
-  });
+        return noteATitle.localeCompare(noteBTitle);
+      }
+      return b.compare(a);
+    });
 
   const loadOlderCurios = useCallback(
     (atBottom: boolean) => {
-      if (atBottom && hasNextPage) {
-        fetchNextPage();
+      if (atBottom && hasPreviousPage) {
+        fetchPreviousPage();
       }
     },
-    [fetchNextPage, hasNextPage]
+    [fetchPreviousPage, hasPreviousPage]
   );
 
-  const computeItemKey = (
-    _i: number,
-    [time, _curio]: [bigInt.BigInteger, Note]
-  ) => time.toString();
+  const computeItemKey = (_i: number, [time, _curio]: NoteTuple) =>
+    time.toString();
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
@@ -215,7 +210,7 @@ function HeapChannel({ title }: ViewProps) {
         ) : (
           <VirtuosoGrid
             data={sortedNotes}
-            itemContent={(i, [time, curio]) => renderCurio(i, curio, time)}
+            itemContent={(i, [time, curio]) => renderCurio(i, curio!, time)}
             computeItemKey={computeItemKey}
             style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
             atBottomStateChange={loadOlderCurios}

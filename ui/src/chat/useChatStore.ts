@@ -2,7 +2,7 @@ import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
 import { Block } from '@/types/channel';
-import { ChatBrief, ChatBriefs } from '@/types/chat';
+import { DMBrief, DMBriefs } from '@/types/dms';
 
 export interface ChatInfo {
   replying: string | null;
@@ -10,7 +10,7 @@ export interface ChatInfo {
   unread?: {
     readTimeout: number;
     seen: boolean;
-    brief: ChatBrief; // lags behind actual brief, only gets update if unread
+    brief: DMBrief; // lags behind actual brief, only gets update if unread
   };
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
@@ -40,10 +40,10 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  unread: (whom: string, brief: ChatBrief) => void;
+  unread: (whom: string, brief: DMBrief) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (briefs: ChatBriefs) => void;
+  update: (briefs: DMBriefs) => void;
 }
 
 const emptyInfo: ChatInfo = {

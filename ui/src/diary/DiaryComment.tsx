@@ -1,46 +1,21 @@
 /* eslint-disable react/no-unused-prop-types */
 import React from 'react';
-import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format } from 'date-fns';
-// eslint-disable-next-line import/no-cycle
 import Author from '@/chat/ChatMessage/Author';
-// eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-// eslint-disable-next-line import/no-cycle
 import DateDivider from '@/chat/ChatMessage/DateDivider';
-import { Han, Quip } from '@/types/channel';
-// eslint-disable-next-line import/no-cycle
 import { useChannelFlag } from '@/logic/channel';
-// eslint-disable-next-line import/no-cycle
+import { QuipProps } from '@/quips/quips';
 import DiaryCommentOptions from './DiaryCommentOptions';
-// eslint-disable-next-line import/no-cycle
 import QuipReactions from './QuipReactions/QuipReactions';
 
-export interface DiaryCommentProps {
-  han: Han;
-  noteId: string;
-  time: BigInteger;
-  quip: Quip;
-  newAuthor: boolean;
-  newDay: boolean;
-  unreadCount?: number;
-}
-
 const DiaryComment = React.memo<
-  DiaryCommentProps & React.RefAttributes<HTMLDivElement>
+  QuipProps & React.RefAttributes<HTMLDivElement>
 >(
-  React.forwardRef<HTMLDivElement, DiaryCommentProps>(
+  React.forwardRef<HTMLDivElement, QuipProps>(
     (
-      {
-        han,
-        noteId,
-        time,
-        quip,
-        unreadCount,
-        newAuthor,
-        newDay,
-      }: DiaryCommentProps,
+      { han, noteId, time, quip, unreadCount, newAuthor, newDay }: QuipProps,
       ref
     ) => {
       const { cork, memo } = quip;

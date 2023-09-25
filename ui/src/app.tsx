@@ -101,6 +101,7 @@ import NewGroupView from './groups/NewGroup/NewGroupView';
 import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
+import DMThread from './dms/DMThread';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -195,7 +196,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 {isSmall ? null : (
                   <Route
                     path="message/:idShip/:idTime"
-                    element={<ChatThread />}
+                    element={<DMThread />}
                   />
                 )}
               </Route>
@@ -203,7 +204,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             {isSmall && (
               <Route
                 path=":ship/message/:idShip/:idTime"
-                element={<ChatThread />}
+                element={<DMThread />}
               />
             )}
           </Route>
@@ -218,10 +219,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
               />
               {isSmall ? (
-                <Route
-                  path="message/:idShip/:idTime"
-                  element={<ChatThread />}
-                />
+                <Route path="message/:idTime" element={<ChatThread />} />
               ) : null}
             </Route>
           </Route>
@@ -364,14 +362,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 {isSmall ? null : (
                   <Route
                     path="message/:idShip/:idTime"
-                    element={<ChatThread />}
+                    element={<DMThread />}
                   />
                 )}
               </Route>
               {isSmall && (
                 <Route
                   path=":ship/message/:idShip/:idTime"
-                  element={<ChatThread />}
+                  element={<DMThread />}
                 />
               )}
             </Route>
@@ -442,17 +440,11 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<ChatChannel title={` • ${groupsTitle}`} />}
               >
                 {isSmall ? null : (
-                  <Route
-                    path="message/:idShip/:idTime"
-                    element={<ChatThread />}
-                  />
+                  <Route path="message/:idTime" element={<ChatThread />} />
                 )}
               </Route>
               {isSmall ? (
-                <Route
-                  path="message/:idShip/:idTime"
-                  element={<ChatThread />}
-                />
+                <Route path="message/:idTime" element={<ChatThread />} />
               ) : null}
             </Route>
             <Route
@@ -464,7 +456,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<HeapChannel title={` • ${groupsTitle}`} />}
               />
               <Route
-                path="curio/:idCurio"
+                path="note/:idCurio"
                 element={<HeapDetail title={` • ${groupsTitle}`} />}
               />
             </Route>

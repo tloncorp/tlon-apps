@@ -7,15 +7,7 @@
   ++  noun  scan
   ++  json
     =,  enjs:format
-    :-  %a
-    %+  turn
-      scan
-    |=  [t=@da =writ:c]
-    ^-  ^json
-    %-  pairs
-    :~  time/s/(scot %ud t)
-        writ/(writ:enjs:j writ)
-    ==
+    a+(turn scan writ:enjs:j)
   --
 ++  grab
   |%

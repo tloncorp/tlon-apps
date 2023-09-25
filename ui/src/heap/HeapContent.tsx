@@ -11,8 +11,7 @@ import {
 } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
-import { isCite, Story, VerseBlock, VerseInline } from '@/types/channel';
-import { Cite } from '@/types/chat';
+import { Story, VerseBlock, VerseInline } from '@/types/channel';
 
 interface HeapContentProps {
   content: Story;
@@ -124,25 +123,19 @@ export default function HeapContent({
   const blocks = content
     .filter((c) => 'block' in c)
     .map((c) => (c as VerseBlock).block)
-    .flat()
-    .map((s) => {
-      if (isCite(s)) {
-        return { cite: s };
-      }
-      return s;
-    });
+    .flat();
 
   const inlineLength = inlines.length;
 
   return (
     <div className={className}>
       {blocks.map((b, idx) => {
-        if ('cite' in b && isCite(b.cite)) {
+        if ('cite' in b) {
           return (
             <ContentReference
               contextApp={isComment ? 'heap-comment' : 'heap-block'}
               key={idx}
-              cite={b.cite as Cite}
+              cite={b.cite}
             />
           );
         }

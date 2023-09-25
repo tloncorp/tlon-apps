@@ -47,7 +47,7 @@ function NoteReference({
   const location = useLocation();
 
   const contentPreview = useMemo(() => {
-    if (!note || !note.essay.content) {
+    if (!note || !note.essay?.content) {
       return '';
     }
 
@@ -59,7 +59,7 @@ function NoteReference({
     return <DiaryContent content={truncatedContent} isPreview />;
   }, [note]);
 
-  if (!note || !note.essay.content) {
+  if (!note || !note.essay?.content) {
     return <HeapLoadingBlock reference />;
   }
 
@@ -75,7 +75,7 @@ function NoteReference({
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
   };
 
-  const prettyDate = makePrettyDate(new Date(note.seal.id));
+  const prettyDate = makePrettyDate(new Date(note.essay.sent));
 
   if (contextApp === 'heap-row') {
     return (
@@ -167,10 +167,10 @@ function NoteReference({
         ) : null}
         <span className="text-2xl font-semibold">{title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
-        {note.seal.quipCount > 0 ? (
+        {note.seal.meta.quipCount > 0 ? (
           <div className="flex space-x-2">
             <div className="relative flex items-center">
-              {note.seal.lastQuippers.map((author, index) => (
+              {note.seal.meta.lastQuippers.map((author, index) => (
                 <Avatar
                   ship={author}
                   size="xs"
@@ -183,7 +183,8 @@ function NoteReference({
               ))}
             </div>
             <span className="font-semibold text-gray-600">
-              {note.seal.quipCount} {pluralize('comment', note.seal.quipCount)}
+              {note.seal.meta.quipCount}{' '}
+              {pluralize('comment', note.seal.meta.quipCount)}
             </span>
           </div>
         ) : null}

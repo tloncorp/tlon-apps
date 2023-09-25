@@ -27,7 +27,7 @@ import {
   Vessel,
 } from '@/types/groups';
 import api from '@/api';
-import { BaitCite } from '@/types/chat';
+import { BaitCite } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';

@@ -7,7 +7,7 @@ import { daToUnix } from '@urbit/api';
 import { format } from 'date-fns';
 import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { ChatBrief } from '@/types/chat';
+import { DMBrief } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -15,9 +15,8 @@ import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
   useChatState,
-  useIsMessageDelivered,
-  useIsMessagePosted,
-  useIsDmOrMultiDm,
+  // useIsMessageDelivered,
+  // useIsMessagePosted,
 } from '@/state/chat';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
@@ -25,6 +24,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { emptyQuip, Han, Quip } from '@/types/channel';
+import { useIsDmOrMultiDm } from '@/logic/utils';
 import QuipReactions from '@/diary/QuipReactions/QuipReactions';
 import {
   useChatDialog,
@@ -48,7 +48,7 @@ export interface QuipMessageProps {
   han: Han;
 }
 
-function briefMatches(brief: ChatBrief, id: string): boolean {
+function briefMatches(brief: DMBrief, id: string): boolean {
   return brief['read-id'] === id;
 }
 
@@ -151,8 +151,8 @@ const QuipMessage = React.memo<
           [unread, whom, cork.id, isDMOrMultiDM, markChatRead]
         ),
       });
-      const isMessageDelivered = useIsMessageDelivered(cork.id);
-      const isMessagePosted = useIsMessagePosted(cork.id);
+      // const isMessageDelivered = useIsMessageDelivered(cork.id);
+      // const isMessagePosted = useIsMessagePosted(cork.id);
       const isReplyOp = chatInfo?.replying === cork.id;
 
       const unix = new Date(daToUnix(time));
@@ -270,7 +270,7 @@ const QuipMessage = React.memo<
                 className={cn(
                   'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  !isMessageDelivered && !isMessagePosted && 'text-gray-400',
+                  // !isMessageDelivered && !isMessagePosted && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
                 )}
               >
@@ -300,13 +300,13 @@ const QuipMessage = React.memo<
                 )}
               </div>
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {!isMessageDelivered && (
+                {/* {!isMessageDelivered && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
                     primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
-                )}
+                )} */}
               </div>
             </div>
           </div>

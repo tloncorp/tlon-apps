@@ -2,10 +2,10 @@ import React, { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
-import { useCopy, useThreadParentId } from '@/logic/utils';
+import { useCopy, useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useIsDmOrMultiDm, useChatState } from '@/state/chat';
+import { useChatState } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -80,7 +80,7 @@ export default function ChatMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
-  const threadParentId = useThreadParentId();
+  const threadParentId = useThreadParentId(whom);
   const { mutate: deleteChatMessage } = useDeleteNoteMutation();
   const { mutate: addFeelToChat } = useAddNoteFeelMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
@@ -120,6 +120,11 @@ export default function ChatMessageOptions(props: {
   const reply = useCallback(() => {
     setSearchParams({ chat_reply: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
+
+  const startThread = () => {
+    navigate(`message/${seal.id}`);
+    console.log('start thread', seal.id);
+  };
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
@@ -300,7 +305,7 @@ export default function ChatMessageOptions(props: {
                 icon={<HashIcon className="h-6 w-6 text-gray-400" />}
                 label="Start Thread"
                 showTooltip
-                action={() => navigate(`message/${essay.author}/${seal.id}`)}
+                action={startThread}
               />
             )}
             {showCopyAction && (

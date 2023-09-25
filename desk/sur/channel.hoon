@@ -16,16 +16,9 @@
 ::    updates _may_ become responses.
 ::
 /-  g=groups, c=cite, e=epic
-/-  zer=diary-0, uno=diary-1
 /+  mp=mop-extensions
 |%
 +|  %ancients
-::
-++  old
-  |%
-  ++  zero  zer
-  ++  one  uno
-  --
 ::
 ++  okay  `epic:e`1
 ++  mar
@@ -100,6 +93,12 @@
 ::  $essay: top-level post, with metadata
 ::
 +$  essay  [memo =han-data]
+::  $quip-meta: metadata for all quips
++$  quip-meta
+  $:  quip-count=@ud
+      last-quippers=(set ship)
+      last-quip=(unit time)
+  ==
 ::  $han-data: metadata for a channel type's "post"
 ::
 +$  han-data
@@ -193,6 +192,12 @@
 ::  $feel: either an emoji identifier like :diff or a URL for custom
 +$  feel  @ta
 +$  feels  (map ship (rev (unit feel)))
+::  $scan: search results
++$  scan  (list scan-result)
++$  scan-result
+  $%  [%note =rr-note]
+      [%quip =id-note =rr-quip]
+  ==
 ::  $said: used for references
 +$  said  (pair nest rr-note)
 ::  $plan: index into diary state
@@ -287,6 +292,7 @@
 ::      originally caused it
 +$  a-shelf
   $%  [%create =create-diary]
+      [%pin pins=(list nest)]
       [%diary =nest =a-diary]
   ==
 +$  a-diary
@@ -387,7 +393,7 @@
 ::
 +$  r-note
   $%  [%set note=(unit rr-note)]
-      [%quip id=id-quip =r-quip]
+      [%quip id=id-quip =quip-meta =r-quip]
       [%feels feels=rr-feels]
       [%essay =essay]
   ==
@@ -415,15 +421,19 @@
         =remark
     ==
   --
++$  paged-notes
+  $:  notes=rr-notes
+      newer=(unit time)
+      older=(unit time)
+      total=@ud
+  ==
 +$  rr-notes  ((mop id-note (unit rr-note)) lte)
 +$  rr-note   [rr-seal essay]
 +$  rr-seal   
   $:  id=id-note
       =rr-feels
       =rr-quips
-      quip-count=@ud
-      last-quip=(unit time)
-      last-quippers=(set ship)
+      =quip-meta
   ==
 +$  rr-feels  (map ship feel)
 +$  rr-quip   [rr-cork memo]

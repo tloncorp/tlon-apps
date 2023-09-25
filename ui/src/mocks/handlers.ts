@@ -27,16 +27,15 @@ import {
   pinnedDMs,
 } from '@/mocks/chat';
 import {
-  ChatBriefs,
-  ChatStory,
-  ChatWhom,
+  DMBriefs,
+  DMWhom,
   Club,
   ClubAction,
   ClubCreate,
   DmRsvp,
   Pins,
   WritDiff,
-} from '@/types/chat';
+} from '@/types/dms';
 import { GroupAction } from '@/types/groups';
 import mockContacts from '@/mocks/contacts';
 
@@ -224,7 +223,7 @@ const chat: Handler[] = [
         Object.entries(dmList).filter(([k]) => !archive.includes(k))
       );
 
-      const briefs: ChatBriefs = {};
+      const briefs: DMBriefs = {};
       Object.values(mockGroups).forEach((group) =>
         Object.entries(group.channels).forEach(([k]) => {
           briefs[k] = {
@@ -268,28 +267,6 @@ const chat: Handler[] = [
     },
   },
   {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-draft',
-    returnSubscription: {
-      action: 'subscribe',
-      app: 'chat',
-      path: '/',
-    } as SubscriptionRequestInterface,
-    dataResponder: (
-      req: Message & Poke<{ whom: ChatWhom; story: ChatStory }>
-    ) => {
-      localStorage.setItem(`draft-${req.json.whom}`, JSON.stringify(req.json));
-
-      return {
-        id: req.id!,
-        ok: true,
-        response: 'diff',
-        json: req.json,
-      };
-    },
-  },
-  {
     action: 'scry',
     app: 'chat',
     path: '/chat',
@@ -301,7 +278,7 @@ const chat: Handler[] = [
     mark: 'chat-remark-action',
     returnSubscription: briefsSub,
     dataResponder: (
-      req: Message & Poke<{ whom: ChatWhom; diff: { read: null } }>
+      req: Message & Poke<{ whom: DMWhom; diff: { read: null } }>
     ) =>
       createResponse(req, 'diff', {
         whom: req.json.whom,

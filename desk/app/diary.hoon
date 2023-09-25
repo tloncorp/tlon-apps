@@ -590,35 +590,50 @@
     |=  [old=notes:a =notes:d =perm:d =log:a]
     ^-  log:d
     %+  gas:log-on:d  *log:d
-    %+  murn  (tap:log-on:a log)
+    %-  zing
+    %+  turn  (tap:log-on:a log)
     |=  [=time =diff:a]
-    ^-  (unit [id-note:d u-diary:d])
-    =;  new=(unit u-diary:d)
-      ?~(new ~ `[time u.new])
+    ^-  (list [id-note:d u-diary:d])
+    =;  new=(list u-diary:d)
+      ?~  new  ~
+      ?~  t.new  [time i.new]~
+      =.  time  (sub time ~s1)
+      =>  .(new `(list u-diary:d)`new)
+      |-
+      ?~  new  ~
+      [[time i.new] $(time +(time), new t.new)]
     ?-    -.diff
-        ?(%add-sects %del-sects)  `[%perm 0 perm]
-        %create                   `[%create p.diff]
-        %view                     `[%view 0 p.diff]
-        %sort                     `[%sort 0 p.diff]
-        %arranged-notes           `[%order 0 p.diff]
+        ?(%add-sects %del-sects)  [%perm 0 perm]~
+        %create
+      :-  [%create p.diff]
+      %+  murn  (tap:on:notes:a q.diff)
+      |=  [=^time =note:a]
+      =/  new-note  (get:on-notes:d notes time)
+      ?~  new-note  ~
+      (some %note time %set u.new-note)
+    ::
+        %view                     [%view 0 p.diff]~
+        %sort                     [%sort 0 p.diff]~
+        %arranged-notes           [%order 0 p.diff]~
         %notes
       =*  id  p.p.diff
       =/  old-note  (get:on:notes:a old id)
-      ?~  old-note  `[%note id %set ~]
+      ?~  old-note  [%note id %set ~]~
       =/  new-note  (get:on-notes:d notes id)
       ?~  new-note  ~
       ?-  -.q.p.diff
-          %del                    `[%note id %set ~]
-          ?(%add %edit)           `[%note id %set u.new-note]
+          %del                    [%note id %set ~]~
+          ?(%add %edit)           [%note id %set u.new-note]~
           ?(%add-feel %del-feel)
-        `[%note id %feels ?~(u.new-note ~ feels.u.u.new-note)]
+        [%note id %feels ?~(u.new-note ~ feels.u.u.new-note)]~
       ::
           %quips
         ?~  u.new-note  ~
         =*  id-quip  p.p.q.p.diff
         =/  new-quip  (get:on-quips:d quips.u.u.new-note id-quip)
         ?~  new-quip  ~
-        :^  ~  %note  id
+        :_  ~
+        :+  %note  id
         :+  %quip  id-quip
         ?-  -.q.p.q.p.diff
           %del                    [%set ~]

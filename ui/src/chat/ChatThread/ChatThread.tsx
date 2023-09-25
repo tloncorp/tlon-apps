@@ -27,29 +27,26 @@ import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import QuipScroller from '../QuipScroller/QuipScroller';
 
 export default function ChatThread() {
-  const { name, chShip, ship, chName, idTime, idShip } = useParams<{
+  console.log('render ChatThread');
+  const { name, chShip, ship, chName, idTime } = useParams<{
     name: string;
     chShip: string;
     ship: string;
     chName: string;
-    idShip: string;
     idTime: string;
   }>();
-  // const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const nest = `chat/${flag}`;
-  // const whom = flag || ship || '';
   const groupFlag = useRouteGroup();
   const { mutate: sendMessage } = useAddQuipMutation();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const channel = useGroupChannel(groupFlag, nest)!;
   const { isOpen: leapIsOpen } = useLeap();
-  const id = `${idShip!}/${idTime!}`;
-  const dropZoneId = `chat-thread-input-dropzone-${id}`;
+  const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { note, isLoading } = useNote(nest, idTime!);
   const replies = note.seal.quips ?? newQuipMap();
@@ -64,8 +61,6 @@ export default function ChatThread() {
   const threadRef = useRef<HTMLDivElement | null>(null);
   const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
-  // const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
-  // const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
   const threadTitle = channel?.meta?.title;
   const canWrite =
     perms.writers.length === 0 ||
@@ -88,27 +83,6 @@ export default function ChatThread() {
   );
 
   useEventListener('keydown', onEscape, threadRef);
-
-  // const initializeChannel = useCallback(async () => {
-  // setLoading(true);
-  // if (!idTime) return;
-  // await useChatState
-  // .getState()
-  // .fetchMessagesAround(
-  // `${chShip}/${chName}`,
-  // '50',
-  // bigInt(udToDec(idTime))
-  // );
-  // setLoading(false);
-  // }, [chName, chShip, idTime]);
-
-  // useEffect(() => {
-  // if (!time || !writ) {
-  // initializeChannel();
-  // }
-  // }, [initializeChannel, time, writ]);
-
-  // if (!time || !writ) return null;
 
   const BackButton = isMobile ? Link : 'div';
 

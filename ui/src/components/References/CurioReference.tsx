@@ -46,13 +46,14 @@ function CurioReference({
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
-  if (!note) {
+  if (!note || !note.essay) {
     return <HeapLoadingBlock reference />;
   }
 
   const {
     essay: { content },
   } = note;
+
   const textFallbackTitle = (
     content.filter((c) => 'inline' in c)[0] as VerseInline
   ).inline

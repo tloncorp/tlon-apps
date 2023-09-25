@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React from 'react';
 import { pluralize } from '../logic/utils';
-import { Club } from '../types/chat';
+import { Club } from '../types/dms';
 import MultiDmAvatar from './MultiDmAvatar';
 import ShipName from '../components/ShipName';
 import PendingIndicator from './MultiDMPendingIndicator';

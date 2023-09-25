@@ -11,21 +11,13 @@ import React, {
 import { isSameDay } from 'date-fns';
 import { debounce, get } from 'lodash';
 import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
+import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import {
-  useChatState,
-  useIsDmOrMultiDm,
-  useWritWindow,
-} from '@/state/chat/chat';
-import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { emptyNote } from '@/types/channel';
-import { IChatScroller } from './IChatScroller';
+import { NoteTuple, emptyNote } from '@/types/channel';
 import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
-import { useChatStore } from '../useChatStore';
 import ChatNotice from '../ChatNotice';
 
 interface ChatScrollerItemProps extends ChatMessageProps {
@@ -117,6 +109,17 @@ function scrollToIndex(
   }
 }
 
+export interface ChatScrollerProps {
+  whom: string;
+  messages: NoteTuple[];
+  replying?: boolean;
+  prefixedElement?: ReactNode;
+  scrollTo?: BigInteger;
+  scrollerRef: React.RefObject<VirtuosoHandle>;
+  atBottomStateChange: (atBottom: boolean) => void;
+  atTopStateChange: (atTop: boolean) => void;
+}
+
 export default function ChatScroller({
   whom,
   messages,
@@ -126,13 +129,11 @@ export default function ChatScroller({
   scrollerRef,
   atBottomStateChange,
   atTopStateChange,
-}: IChatScroller) {
+}: ChatScrollerProps) {
   const isMobile = useIsMobile();
-  const writWindow = useWritWindow(whom, scrollTo);
   const [fetching, setFetching] = useState<FetchingState>('initial');
   const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
-  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: markChatRead } = useMarkReadMutation();
 
   const thresholds = {
@@ -148,7 +149,7 @@ export default function ChatScroller({
       const nonNullMessages = messages.filter(([_k, v]) => v !== null);
 
       const ks: bigInt.BigInteger[] = nonNullMessages.map(([k]) => k);
-      const min = nonNullMessages[0][0] || bigInt();
+      const min = nonNullMessages?.[0]?.[0] || bigInt();
       const es: ChatScrollerItemProps[] =
         nonNullMessages.map<ChatScrollerItemProps>(([index, writ]) => {
           if (!writ) {
@@ -193,6 +194,7 @@ export default function ChatScroller({
             writ,
             hideReplies: replying,
             time: index,
+            quipCount: writ.seal.meta.quipCount,
             newAuthor,
             newDay,
             isLast: keyIdx === ks.length - 1,
@@ -218,41 +220,6 @@ export default function ChatScroller({
     [fetching]
   );
 
-  const fetchMessages = useCallback(
-    async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
-      const newest = messages[messages.length - 1]?.[0];
-      const seenNewest =
-        newer && newest && writWindow && writWindow.loadedNewest;
-      const oldest = messages[0]?.[0];
-      const seenOldest =
-        !newer && oldest && writWindow && writWindow.loadedOldest;
-
-      if (seenNewest || seenOldest) {
-        return;
-      }
-
-      try {
-        setFetching(newer ? 'bottom' : 'top');
-
-        if (newer) {
-          await useChatState
-            .getState()
-            .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
-        } else {
-          await useChatState
-            .getState()
-            .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
-        }
-
-        setFetching('initial');
-      } catch (e) {
-        console.log(e);
-        setFetching('initial');
-      }
-    },
-    [whom, messages, scrollTo, writWindow]
-  );
-
   /**
    * For reverse infinite scroll of older messages:
    *
@@ -272,7 +239,7 @@ export default function ChatScroller({
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), hasScrollTo]);
+  }, [scrollTo?.toString(), hasScrollTo, keys]);
 
   const updateScroll = useRef(
     debounce(
@@ -310,29 +277,6 @@ export default function ChatScroller({
     [TopLoader]
   );
 
-  // perf: define these outside of render
-  // const atTopStateChange = (top: boolean) => top && fetchMessages(false);
-  // const atBottomStateChange = (bot: boolean) => {
-  // const { bottom, delayedRead } = useChatStore.getState();
-  // if (bot) {
-  // fetchMessages(true);
-  // bottom(true);
-
-  // if (!firstPass.current) {
-  // delayedRead(whom, () => {
-  // if (isDMOrMultiDM) {
-  // useChatState.getState().markDmRead(whom);
-  // } else {
-  // markChatRead({
-  // nest: `chat/${whom}`,
-  // });
-  // }
-  // });
-  // }
-  // } else {
-  // bottom(false);
-  // }
-  // };
   const totalListHeightChanged = useRef(
     debounce(() => {
       if (firstPass.current && !scrollTo) {

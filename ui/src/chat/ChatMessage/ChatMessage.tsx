@@ -1,5 +1,11 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import cn from 'classnames';
 import debounce from 'lodash/debounce';
 import bigInt, { BigInteger } from 'big-integer';
@@ -7,26 +13,25 @@ import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { ChatBrief } from '@/types/chat';
+import { DMBrief } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
-import {
-  useChatState,
-  useIsMessageDelivered,
-  useIsMessagePosted,
-  useIsDmOrMultiDm,
-} from '@/state/chat';
+import { useChatState, useTrackedMessageStatus } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
-import { useIsNotePending, useMarkReadMutation } from '@/state/channel/channel';
+import {
+  useIsNotePending,
+  useMarkReadMutation,
+  useTrackedNoteStatus,
+} from '@/state/channel/channel';
 import { Note } from '@/types/channel';
 import {
   useChatDialog,
@@ -40,6 +45,9 @@ export interface ChatMessageProps {
   whom: string;
   time: BigInteger;
   writ: Note;
+  // it's necessary to pass in the quipCount because if it's nested
+  // it won't trigger a re-render
+  quipCount?: number;
   newAuthor?: boolean;
   newDay?: boolean;
   hideReplies?: boolean;
@@ -49,7 +57,7 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function briefMatches(brief: ChatBrief, id: string): boolean {
+function briefMatches(brief: DMBrief, id: string): boolean {
   return brief['read-id'] === id;
 }
 
@@ -75,6 +83,7 @@ const ChatMessage = React.memo<
         whom,
         time,
         writ,
+        quipCount = 0,
         newAuthor = false,
         newDay = false,
         hideReplies = false,
@@ -92,6 +101,7 @@ const ChatMessage = React.memo<
         idTime: string;
       }>();
       const isThread = !!idShip && !!idTime;
+      // const [quipCount, setQuipCount] = useState(0);
       const threadOpId = isThread ? `${idShip}/${idTime}` : '';
       const isThreadOp = threadOpId === seal.id && hideReplies;
       const isMobile = useIsMobile();
@@ -154,16 +164,23 @@ const ChatMessage = React.memo<
           [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
-      const isMessageDelivered = useIsMessageDelivered(seal.id);
-      const isMessagePosted = useIsMessagePosted(seal.id);
-      const isNotePending = useIsNotePending(seal.id);
+      const msgStatus = useTrackedMessageStatus(seal.id);
+      const status = useTrackedNoteStatus({
+        author: window.our,
+        sent: essay.sent,
+      });
+      const isDelivered = msgStatus === 'delivered' || status === 'delivered';
+      const isSent = msgStatus === 'sent' || status === 'sent';
+      const isPending = msgStatus === 'pending' || status === 'pending';
+
       const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
 
-      const numReplies = seal.quipCount;
-      const replyAuthors = seal.lastQuippers;
-      const lastReplyTime = seal.lastQuip ? new Date(seal.lastQuip) : null;
+      const replyAuthors = seal.meta.lastQuippers;
+      const lastReplyTime = seal.meta.lastQuip
+        ? new Date(seal.meta.lastQuip)
+        : null;
 
       const hover = useRef(false);
       const setHover = useRef(
@@ -280,10 +297,7 @@ const ChatMessage = React.memo<
                 className={cn(
                   'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  !isMessageDelivered &&
-                    !isMessagePosted &&
-                    !isNotePending &&
-                    'text-gray-400',
+                  isPending && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
                 )}
               >
@@ -308,9 +322,9 @@ const ChatMessage = React.memo<
                     />
                   </>
                 )}
-                {numReplies > 0 && !hideReplies ? (
+                {quipCount > 0 && !hideReplies ? (
                   <NavLink
-                    to={`message/${essay.author}/${seal.id}`}
+                    to={`message/${seal.id}`}
                     className={({ isActive }) =>
                       cn(
                         'default-focus group -ml-2 whitespace-nowrap rounded p-2 text-sm font-semibold text-gray-800',
@@ -327,7 +341,7 @@ const ChatMessage = React.memo<
                       <div className="mr-2 flex flex-row-reverse">
                         {replyAuthors.map((ship, i) => (
                           <div
-                            key={ship}
+                            key={ship + i}
                             className={cn(
                               'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white sm:group-one-focus-within:outline-gray-50 sm:group-one-hover:outline-gray-50',
                               i !== 0 && '-mr-3'
@@ -344,7 +358,7 @@ const ChatMessage = React.memo<
                           'mr-2'
                         )}
                       >
-                        {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
+                        {quipCount} {quipCount > 1 ? 'replies' : 'reply'}{' '}
                       </span>
                       {/*
                       TODO: update when we have quip briefs
@@ -370,10 +384,10 @@ const ChatMessage = React.memo<
                 ) : null}
               </div>
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {(!isMessageDelivered || isNotePending) && (
+                {!isDelivered && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
-                    primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
+                    primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
                 )}

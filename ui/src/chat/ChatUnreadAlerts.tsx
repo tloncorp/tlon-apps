@@ -4,13 +4,8 @@ import { daToUnix, udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { VirtuosoHandle } from 'react-virtuoso';
 import XIcon from '@/components/icons/XIcon';
-import { pluralize } from '@/logic/utils';
-import {
-  useChatKeys,
-  useChatState,
-  useGetFirstUnreadID,
-  useIsDmOrMultiDm,
-} from '@/state/chat';
+import { pluralize, useIsDmOrMultiDm } from '@/logic/utils';
+import { useChatKeys, useChatState, useGetFirstUnreadID } from '@/state/chat';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 

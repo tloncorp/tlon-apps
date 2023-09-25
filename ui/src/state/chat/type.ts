@@ -1,52 +1,33 @@
-import bigInt, { BigInteger } from 'big-integer';
 import { Note, NoteEssay } from '@/types/channel';
 import {
-  ChatWhom,
+  DMWhom,
   Pact,
-  ChatBriefs,
-  ChatStory,
+  DMBriefs,
   Club,
   Hive,
   Clubs,
-  ChatInit,
-  TalkChatInit,
-} from '../../types/chat';
-import { BaseState } from '../base';
-import { GroupMeta } from '../../types/groups';
+  TalkInit,
+} from '@/types/dms';
+import { BaseState } from '@/state/base';
+import { GroupMeta } from '@/types/groups';
+import { WindowSet } from '@/logic/windows';
 
-export interface WritWindow {
-  oldest: bigInt.BigInteger;
-  newest: bigInt.BigInteger;
-  loadedOldest: boolean;
-  loadedNewest: boolean;
-  latest?: boolean;
-}
-
-export interface WritWindows {
-  latest?: WritWindow;
-  windows: WritWindow[];
+export interface TrackedMessage {
+  id: string;
+  status: 'pending' | 'sent' | 'delivered';
 }
 
 export interface ChatState {
-  // set: (fn: (sta: BasedChatState) => void) => void;
   batchSet: (fn: (sta: BasedChatState) => void) => void;
   multiDms: Clubs;
   dms: string[];
-  drafts: {
-    [whom: string]: ChatStory;
-  };
-  sentMessages: string[];
-  postedMessages: string[];
-  pins: ChatWhom[];
-  dmArchive: string[];
-  fetchDms: () => Promise<void>;
-  fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
-  fetchMultiDms: () => Promise<void>;
+  trackedMessages: TrackedMessage[];
+  pins: DMWhom[];
   pacts: {
-    [whom: ChatWhom]: Pact;
+    [whom: DMWhom]: Pact;
   };
   writWindows: {
-    [whom: ChatWhom]: WritWindows;
+    [whom: DMWhom]: WindowSet;
   };
   loadedRefs: {
     [path: string]: Note;
@@ -55,28 +36,28 @@ export interface ChatState {
     [path: string]: Note | 'loading' | 'error';
   };
   pendingDms: string[];
-  dmBriefs: ChatBriefs;
-  getTime: (whom: string, id: string) => bigInt.BigInteger;
+  fetchDms: () => Promise<void>;
+  fetchMultiDm: (id: string, force?: boolean) => Promise<Club>;
+  fetchMultiDms: () => Promise<void>;
   togglePin: (whom: string, pin: boolean) => Promise<void>;
   fetchPins: () => Promise<void>;
   markDmRead: (whom: string) => Promise<void>;
-  start: (init: ChatInit) => Promise<void>;
-  startTalk: (init: TalkChatInit, startBase?: boolean) => Promise<void>;
+  start: (init: TalkInit) => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   fetchMessages: (
     ship: string,
     count: string,
     dir: 'newer' | 'older',
-    time?: BigInteger
+    time?: string
   ) => Promise<boolean>;
   fetchMessagesAround: (
     ship: string,
     count: string,
-    time: BigInteger
+    time: string
   ) => Promise<void>;
   archiveDm: (ship: string) => Promise<void>;
   unarchiveDm: (ship: string) => Promise<void>;
-  sendMessage: (whom: string, essay: NoteEssay) => void;
+  sendMessage: (whom: string, essay: NoteEssay, replyingId?: string) => void;
   delDm: (flag: string, time: string) => void;
   addFeelToDm: (whom: string, id: string, feel: string) => Promise<void>;
   delFeelToDm: (whom: string, id: string) => Promise<void>;

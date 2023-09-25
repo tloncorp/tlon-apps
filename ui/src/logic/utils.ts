@@ -1,10 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import ob from 'urbit-ob';
 import bigInt, { BigInteger } from 'big-integer';
 import isURL from 'validator/es/lib/isURL';
 import {
   BigIntOrderedMap,
-  daToUnix,
   Docket,
   DocketHref,
   Treaty,
@@ -12,14 +11,13 @@ import {
 } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
-import { format, differenceInDays, endOfToday, isSameDay } from 'date-fns';
+import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import f from 'lodash/fp';
 import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { useParams } from 'react-router';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { ChatWhom, ChatStory } from '@/types/chat';
+import { DMWhom } from '@/types/dms';
 import {
   Cabals,
   GroupChannel,
@@ -33,20 +31,15 @@ import {
   Gang,
 } from '@/types/groups';
 import {
-  Brief,
-  Quip,
-  QuipMap,
   Story,
   Verse,
   VerseInline,
   VerseBlock,
   Listing,
   Cite,
-  Briefs,
+  ChatStory,
 } from '@/types/channel';
 import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
-// eslint-disable-next-line import/no-cycle
-import { DiaryCommentProps } from '@/diary/DiaryComment';
 import { isNativeApp, postActionToNativeApp } from './native';
 import type {
   ConnectionCompleteStatus,
@@ -61,7 +54,9 @@ export const isHosted =
 
 export function log(...args: any[]) {
   if (import.meta.env.DEV) {
-    console.log(...args);
+    const { stack } = new Error();
+    const line = stack?.split('\n')[2].trim();
+    console.log(`${line}:`, ...args);
   }
 }
 
@@ -193,26 +188,26 @@ export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
   };
 }
 
-export function whomIsDm(whom: ChatWhom): boolean {
+export function whomIsDm(whom: DMWhom): boolean {
   return whom.startsWith('~') && !whom.match('/');
 }
 
 // ship + term, term being a @tas: lower-case letters, numbers, and hyphens
-export function whomIsFlag(whom: ChatWhom): boolean {
+export function whomIsFlag(whom: DMWhom): boolean {
   return (
     /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
     ob.isValidPatp(whom.split('/')[0])
   );
 }
 
-export function whomIsNest(whom: ChatWhom): boolean {
+export function whomIsNest(whom: DMWhom): boolean {
   return (
     /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
     ob.isValidPatp(whom.split('/')[0])
   );
 }
 
-export function whomIsMultiDm(whom: ChatWhom): boolean {
+export function whomIsMultiDm(whom: DMWhom): boolean {
   return whom.startsWith(`0v`);
 }
 
@@ -1046,62 +1041,6 @@ export function getCompatibilityText(saga: Saga | null) {
   return "You're synced with host";
 }
 
-export function setNewDaysForQuips(quips: [string, DiaryCommentProps[]][]) {
-  return quips.map(([time, comments], index) => {
-    const prev = index !== 0 ? quips[index - 1] : undefined;
-    const prevQuipTime = prev ? bigInt(prev[0]) : undefined;
-    const unix = new Date(daToUnix(bigInt(time)));
-
-    const lastQuipDay = prevQuipTime
-      ? new Date(daToUnix(prevQuipTime))
-      : undefined;
-
-    const newDay = lastQuipDay ? !isSameDay(unix, lastQuipDay) : false;
-
-    const quip = comments.shift();
-    const newComments = [{ ...quip, newDay }, ...comments];
-    return [time, newComments] as [string, DiaryCommentProps[]];
-  });
-}
-
-export function groupQuips(
-  noteId: string,
-  quips: [bigInt.BigInteger, Quip][],
-  brief: Brief
-) {
-  const grouped: Record<string, DiaryCommentProps[]> = {};
-  let currentTime: string;
-
-  quips.forEach(([t, q], i) => {
-    const prev = i > 0 ? quips[i - 1] : undefined;
-    const { author } = q.memo;
-    const time = t.toString();
-    const newAuthor = author !== prev?.[1].memo.author;
-    const unreadBrief =
-      brief && brief['read-id'] === q.cork.id ? brief : undefined;
-
-    if (newAuthor) {
-      currentTime = time;
-    }
-
-    if (!(currentTime in grouped)) {
-      grouped[currentTime] = [];
-    }
-
-    grouped[currentTime].push({
-      han: 'diary',
-      time: t,
-      quip: q,
-      newAuthor,
-      noteId,
-      newDay: false,
-      unreadCount: unreadBrief && brief.count,
-    });
-  });
-
-  return Object.entries(grouped);
-}
-
 export function sagaCompatible(saga: Saga | null) {
   // either host or synced with host
   return saga === null || 'synced' in saga;
@@ -1116,10 +1055,21 @@ export function useIsInThread() {
   return !!idShip && !!idTime;
 }
 
-export function useThreadParentId() {
-  const { idTime } = useParams<{
+export function useIsDmOrMultiDm(whom: string) {
+  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
+}
+
+export function useThreadParentId(whom: string) {
+  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+
+  const { idShip, idTime } = useParams<{
+    idShip: string;
     idTime: string;
   }>();
+
+  if (isDMorMultiDM) {
+    return `${idShip}/${idTime}`;
+  }
 
   return idTime;
 }

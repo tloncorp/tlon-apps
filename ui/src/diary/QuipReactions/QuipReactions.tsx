@@ -8,6 +8,8 @@ import {
 } from '@/state/channel/channel';
 import { Han, QuipCork } from '@/types/channel';
 import { useIsMobile } from '@/logic/useMedia';
+import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
+import { useAddDMQuipFeelMutation } from '@/state/chat';
 import QuipReaction from './QuipReaction';
 
 interface QuipReactionsProps {
@@ -34,6 +36,9 @@ export default function QuipReactions({
   const nest = `${han}/${whom}`;
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
   const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
+  const { mutateAsync: addDmQuipFeel } = useAddDMQuipFeelMutation();
+  const isDMorMultiDm = useIsDmOrMultiDm(whom);
+  const threardParentId = useThreadParentId(whom);
 
   const onEmoji = useCallback(
     async (emoji: any) => {
@@ -43,16 +48,34 @@ export default function QuipReactions({
           noteId,
           feel: emoji.shortcodes,
         });
+      } else if (isDMorMultiDm) {
+        await addDmQuipFeel({
+          whom,
+          writId: threardParentId!,
+          quipId: cork.id,
+          feel: emoji.shortcodes,
+        });
       } else {
         addQuipFeel({
           nest,
           noteId,
-          quipId: time,
+          quipId: cork.id,
           feel: emoji.shortcodes,
         });
       }
     },
-    [time, noteId, addQuipFeel, addChatFeel, isParent, nest]
+    [
+      noteId,
+      addQuipFeel,
+      addChatFeel,
+      isParent,
+      nest,
+      whom,
+      isDMorMultiDm,
+      addDmQuipFeel,
+      threardParentId,
+      cork.id,
+    ]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
@@ -67,7 +90,7 @@ export default function QuipReactions({
         <QuipReaction
           han={han}
           key={feel}
-          time={time}
+          quipId={cork.id}
           noteId={noteId}
           ships={ships}
           feel={feel}

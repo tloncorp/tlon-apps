@@ -3,12 +3,7 @@ import cn from 'classnames';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
-import { BigIntOrderedMap } from '@urbit/api';
-import {
-  useJoinMutation,
-  useNote,
-  useOrderedNotes,
-} from '@/state/channel/channel';
+import { useNote, useOrderedNotes } from '@/state/channel/channel';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
@@ -19,7 +14,7 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import getHanDataFromEssay from '@/logic/getHanData';
-import { newQuipMap, Note, Quip } from '@/types/channel';
+import { newQuipMap, Note } from '@/types/channel';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
