@@ -134,9 +134,11 @@
                 =_want
             ==
         ^+  [[init kill] want]
-        ::  always track the subscriptions we (want to) have
+        ::  always track the subscriptions we (want to) have,
+        ::  but don't track subs already managed by the library
         ::
-        :_  =/  wan  (~(gut by want) gill ~)
+        :_  ?:  ?=([%~.~ %negotiate *] wire)  want
+            =/  wan  (~(gut by want) gill ~)
             %+  ~(put by want)  gill
             (~(put by wan) wire path)
         ::  if we don't need a specific version, leave the sub as-is
@@ -185,7 +187,7 @@
       %+  turn  ~(tap in kill)
       |=  [=wire =gill:gall]
       ^-  card
-      =.  wire  (pack-wire gill wire)
+      ::NOTE  kill wires come straight from the boat, don't modify them
       [%pass wire %agent gill %leave ~]
     ::  +play-card: handle watches, leaves and pokes specially
     ::

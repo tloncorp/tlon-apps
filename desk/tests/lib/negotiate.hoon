@@ -317,7 +317,7 @@
   ;<  ~  bind:m
     %+  expect-cards  caz
     :~  (ex-negotiate [~zod %hard] %prot)
-        (ex-inner-leave /kill ~zod %hard)
+        (ex-task /kill [~zod %hard] %leave ~)
     ==
   ::  must track our already-desired subscriptions
   ::
@@ -373,6 +373,21 @@
   %+  ex-equal  !>(want.state)
   !>  ^-  (map gill:gall (map wire path))
   [[~zod %easy]^[/wire^/path ~ ~] ~ ~]
+::
+++  test-avoid-self-tracking
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (perform-init-clean | ~ ~)
+  ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %hard] %watch /path] ~)
+  =/  outer-wire=wire  /~/negotiate/inner-watch/~zod/hard/wire
+  =.  wex.testbowl  (~(put by wex.testbowl) [outer-wire ~zod %hard] [| /path])
+  ;<  *  bind:m  (perform-upgrade | ~ ~)
+  ::  inflate must not have tracked the "wrapped" lib-generated sub
+  ::
+  ;<  state=libstate  bind:m  get-lib-state
+  %+  ex-equal  !>(want.state)
+  !>  ^-  (map gill:gall (map wire path))
+  [[~zod %hard]^[/wire^/path ~ ~] ~ ~]
 ::
 ++  test-handle-inner-kick-and-nack
   %-  eval-mare
@@ -443,7 +458,8 @@
     :~  (initiate:libn ~zod %hard)
         [%pass /wire %agent [~zod %hard] %watch /path]
     ==
-  =.  wex.testbowl  (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
+  =/  outer-wire=wire  /~/negotiate/inner-watch/~zod/hard/wire
+  =.  wex.testbowl  (~(put by wex.testbowl) [outer-wire ~zod %hard] [| /path])
   ;<  *  bind:m
     (perform-hear-version [~zod %hard] %prot %vers)
   ::  on kick, we wait a brief moment
@@ -511,8 +527,8 @@
     (perform-hear-version [~zod %hard] %prot2 %vers2)
   ;<  ~  bind:m
     (expect-cards caz (ex-inner-watch /wire [~zod %hard] /path) ~)
-  =.  wex.testbowl
-    (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
+  =/  outer-wire=wire  /~/negotiate/inner-watch/~zod/hard/wire
+  =.  wex.testbowl  (~(put by wex.testbowl) [outer-wire ~zod %hard] [| /path])
   ::  when versions stop matching, should rescind subs
   ::
   ;<  caz=(list card)  bind:m
@@ -520,11 +536,12 @@
   ;<  ~  bind:m
     (expect-cards caz (ex-inner-leave /wire ~zod %hard) ~)
   =.  wex.testbowl
-    (~(del by wex.testbowl) [/wire ~zod %hard])
+    (~(del by wex.testbowl) [outer-wire ~zod %hard])
   ::  with notify flag set, these changes must additionally send a poke
   ::
-  ;<  *  bind:m
+  ;<  caz=(list card)  bind:m
     (perform-upgrade & ~ config)
+  ;<  ~  bind:m  (expect-cards caz ~)
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %vers2)
   ;<  ~  bind:m
@@ -533,7 +550,7 @@
         (ex-notify [~zod %hard] &)
     ==
   =.  wex.testbowl
-    (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
+    (~(put by wex.testbowl) [outer-wire ~zod %hard] [| /path])
   ::
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %miss)
@@ -558,7 +575,8 @@
   ::
   ;<  caz=(list card)  bind:m
     (perform-cards [%pass /wire %agent [~zod %hard] %watch /path] ~)
-  =.  wex.testbowl  (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
+  =/  outer-wire=wire  /~/negotiate/inner-watch/~zod/hard/wire
+  =.  wex.testbowl  (~(put by wex.testbowl) [outer-wire ~zod %hard] [| /path])
   ::  when we impose version requirements, existing subs must be rescinded,
   ::  and we must start negotiation for them
   ::
@@ -570,14 +588,14 @@
         (ex-negotiate [~zod %hard] %prot2)
         (ex-inner-leave /wire ~zod %hard)
     ==
-  =.  wex.testbowl  (~(del by wex.testbowl) [/wire ~zod %hard])
+  =.  wex.testbowl  (~(del by wex.testbowl) [outer-wire ~zod %hard])
   ::  when we relax requirements, subs must be re-established
   ::
   ;<  caz=(list card)  bind:m
     (perform-upgrade | ~ ~)
   ;<  ~  bind:m
     (expect-cards caz (ex-inner-watch /wire [~zod %hard] /path) ~)
-  =.  wex.testbowl  (~(put by wex.testbowl) [/wire ~zod %hard] [| /path])
+  =.  wex.testbowl  (~(put by wex.testbowl) [outer-wire ~zod %hard] [| /path])
   ::  with notify flag set, these changes must additionally send a poke
   ::
   ;<  caz=(list card)  bind:m
@@ -587,7 +605,7 @@
     :~  (ex-notify [~zod %hard] |)
         (ex-inner-leave /wire ~zod %hard)
     ==
-  =.  wex.testbowl  (~(del by wex.testbowl) [/wire ~zod %hard])
+  =.  wex.testbowl  (~(del by wex.testbowl) [outer-wire ~zod %hard])
   ::
   ;<  caz=(list card)  bind:m
     (perform-upgrade & ~ ~)
@@ -643,7 +661,7 @@
   %+  expect-cards  caz
   :~  (ex-notify [~zod %hard] |)
       (ex-negotiate [~zod %hard] %prot)
-      (ex-inner-leave /wire ~zod %hard)
+      (ex-task /wire [~zod %hard] %leave ~)
   ==
 ::
 ++  test-status-scry
