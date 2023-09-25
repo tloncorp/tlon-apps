@@ -5,7 +5,11 @@ import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useAddDMQuipFeelMutation, useChatState } from '@/state/chat';
+import {
+  useAddDMQuipFeelMutation,
+  useChatState,
+  useDeleteDMQuipMutation,
+} from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -75,6 +79,7 @@ export default function QuipMessageOptions(props: {
   const location = useLocation();
   const { mutate: deleteQuip } = useDeleteQuipMutation();
   const { mutate: deleteChatMessage } = useDeleteNoteMutation();
+  const { mutate: deleteDMQuip } = useDeleteDMQuipMutation();
   const { mutate: addFeelToChat } = useAddNoteFeelMutation();
   const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
   const { mutate: addDMQuipFeel } = useAddDMQuipFeelMutation();
@@ -89,7 +94,11 @@ export default function QuipMessageOptions(props: {
 
     try {
       if (isDMorMultiDM) {
-        useChatState.getState().delDm(whom, cork.id);
+        deleteDMQuip({
+          whom,
+          writId: threadParentId!,
+          quipId: cork.id,
+        });
       } else if (isParent) {
         deleteChatMessage({
           nest,

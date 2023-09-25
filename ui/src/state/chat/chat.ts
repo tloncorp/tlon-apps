@@ -737,6 +737,80 @@ export function useWrit(whom: string, writId: string, disabled = false) {
   }, [data, rest]);
 }
 
+export function useDeleteDMQuipMutation() {
+  const mutationFn = async (variables: {
+    whom: string;
+    writId: string;
+    quipId: string;
+  }) => {
+    const delta: WritDelta = {
+      quip: {
+        id: variables.quipId,
+        delta: {
+          del: null,
+        },
+      },
+    };
+
+    const action: Poke<DmAction | ClubAction> = whomIsDm(variables.whom)
+      ? dmAction(variables.whom, delta as WritDelta, variables.writId)
+      : multiDmAction(variables.whom, {
+          writ: { id: variables.writId, delta: delta as WritDelta },
+        });
+
+    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+  };
+
+  return useMutation(mutationFn, {
+    onMutate: async (variables) => {
+      queryClient.setQueryData(
+        ['dms', variables.whom, variables.writId],
+        (writ: WritInCache | undefined) => {
+          if (!writ) {
+            return writ;
+          }
+
+          const prevQuips = writ.seal.quips || {};
+          const quips: Quips = {};
+
+          Object.entries(prevQuips).forEach(([k, v]) => {
+            quips[k] = v;
+          });
+
+          const quip = Object.values(quips).find(
+            (q) => q.cork.id === variables.quipId
+          );
+
+          if (!quip) {
+            return writ;
+          }
+
+          let time = '';
+
+          Object.entries(quips).forEach(([k, v]) => {
+            if (v.cork.id === variables.quipId) {
+              time = k;
+            }
+          });
+
+          delete quips[time];
+
+          return {
+            ...writ,
+            seal: {
+              ...writ.seal,
+              quips: quips as Quips,
+            },
+          };
+        }
+      );
+    },
+    onSuccess: async (data, variables) => {
+      queryClient.invalidateQueries(['dms', variables.whom, variables.writId]);
+    },
+  });
+}
+
 export function useAddDMQuipFeelMutation() {
   const mutationFn = async (variables: {
     whom: string;
@@ -752,6 +826,8 @@ export function useAddDMQuipFeelMutation() {
         },
       },
     };
+
+    console.log({ delta });
 
     const action: Poke<DmAction | ClubAction> = whomIsDm(variables.whom)
       ? dmAction(variables.whom, delta as WritDelta, variables.writId)

@@ -78,7 +78,7 @@
     %+  jab  id
     |=  =writ:c
     ^-  writ:c
-    =/  quips  (reduce-quip quips.writ now id.writ [id delta]:del)
+    =/  quips  (reduce-quip quips.writ now [id delta]:del)
     %=  writ
       quips       quips
       quip-count.meta  (wyt:on:quips:c quips)
@@ -109,7 +109,7 @@
   ==
 ::
 ++  reduce-quip
-  |=  [=quips:c now=time parent-id=id:c =id:c delta=delta:quips:c]
+  |=  [=quips:c now=time =id:c delta=delta:quips:c]
   ^-  quips:c
   |^
   ?-  -.delta
@@ -118,9 +118,9 @@
     ?:  (has:on:quips:c quips now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =/  cork  [id now ~]
-    ?:  (~(has by dex.pac) parent-id)
-      (put:on:quips:c quips now cork memo.delta)
-    quips
+    ?:  (~(has by dex.pac) id)  quips
+    =.  dex.pac  (~(put by dex.pac) id now)
+    (put:on:quips:c quips now cork memo.delta)
   ::
       %del
     =/  tim=(unit time)  (~(get by dex.pac) id)
@@ -144,13 +144,15 @@
   ++  get-quip
     |=  =id:c
     ^-  (unit [=time =quip:c])
-    =/  quip-list  (tap:on:quips:c quips)
-    =/  this-quip  (some (rear (skim quip-list |=([time q=quip:c] =(id id.q)))))
-    this-quip
+    ~&  ['dex' dex.pac]
+    ?~  tim=(~(get by dex.pac) id)        ~
+    ?~  qup=(get:on:quips:c quips u.tim)  ~
+    `[u.tim u.qup]
   ++  jab-quip
     |=  [=id:c fun=$-(quip:c quip:c)]
     ^+  quips
     ?~  v=(get-quip id)  quips
+    ~&  ['v' v]
     (put:on:quips:c quips time.u.v (fun quip.u.v))
   --
 ::
