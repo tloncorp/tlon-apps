@@ -137,7 +137,7 @@
       %del       ~
       %add-feel  (add-feel +.delta)
       %del-feel  (ship ship.delta)
-      %quip      (quip-delta [id delta]:delta)
+      %quip      (quip-delta +.delta)
     ::
         %add
       %-  pairs
@@ -148,10 +148,11 @@
     ==
   ::
   ++  quip-delta
-    |=  [i=id:c =delta:quips:c]
+    |=  [i=id:c meta=(unit quip-meta:d) =delta:quips:c]
     ^-  json
     %-  pairs
     :~  id+(id i)
+        meta+?~(meta ~ (quip-meta:enjs:dj u.meta))
         :-  %delta
         %+  frond  -.delta
         ?-  -.delta
@@ -400,9 +401,10 @@
     ==
   ::
   ++  quip-delta
-    ^-  $-(json [id:c delta:quips:c])
+    ^-  $-(json [id:c (unit quip-meta:d) delta:quips:c])
     %-  ot
     :~  id/id
+        meta/ul
         :-  %delta
         %-  of
         :~  del/ul

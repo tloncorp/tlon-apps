@@ -67,11 +67,11 @@
   +$  diff
     (pair id delta)
   +$  delta
-    ::  time is unit because we won't have it when we send, but we
-    ::  need it upon receipt
+    ::  time and meta are units because we won't have it when we send,
+    ::  but we need it upon receipt
     $%  [%add =memo:d =kind time=(unit time)]
         [%del ~]
-        [%quip =id =delta:quips]
+        [%quip =id meta=(unit quip-meta:d) =delta:quips]
         [%add-feel =ship =feel]
         [%del-feel =ship]
     ==

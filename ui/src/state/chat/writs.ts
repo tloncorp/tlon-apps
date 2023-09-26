@@ -26,7 +26,7 @@ interface WritsStore {
   getAround: (count: string, time: string) => Promise<void>;
 }
 
-export function writsReducer(whom: string) {
+export function writsReducer(whom: string, optimistic = false) {
   return (json: DmAction | WritDiff, draft: BasedChatState): BasedChatState => {
     let id: string | undefined;
     let delta: WritDelta;
@@ -48,11 +48,12 @@ export function writsReducer(whom: string) {
     };
 
     if ('add' in delta && !pact.index[id]) {
-      const time = bigInt(unixToDa(Date.now()));
+      const now = delta.add.time || Date.now();
+      const time = bigInt(unixToDa(now));
       pact.index[id] = time;
       const seal: WritSeal = {
         id,
-        time: delta.add.time!,
+        time: now,
         feels: {},
         quips: null,
         meta: {
@@ -133,12 +134,16 @@ export function writsReducer(whom: string) {
             }
           }
 
-          msg.seal.meta.quipCount += 1;
-          msg.seal.meta.lastQuippers = uniq([
-            ...msg.seal.meta.lastQuippers,
-            quipDelta.add.memo.author,
-          ]);
-          msg.seal.meta.lastQuip = quipDelta.add.memo.sent;
+          if (optimistic) {
+            msg.seal.meta.quipCount += 1;
+            msg.seal.meta.lastQuippers = uniq([
+              ...msg.seal.meta.lastQuippers,
+              quipDelta.add.memo.author,
+            ]);
+            msg.seal.meta.lastQuip = quipDelta.add.memo.sent;
+          } else if (delta.quip.meta) {
+            msg.seal.meta = delta.quip.meta;
+          }
 
           pact.writs = pact.writs.with(time, msg);
         }

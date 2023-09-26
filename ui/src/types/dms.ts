@@ -1,6 +1,12 @@
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
-import { HanChat, NoteEssay, NoteSeal, NoteSealInCache } from './channel';
+import {
+  HanChat,
+  NoteEssay,
+  NoteSeal,
+  NoteSealInCache,
+  QuipMeta,
+} from './channel';
 import { GroupMeta } from './groups';
 
 export type Patda = string;
@@ -16,14 +22,14 @@ export interface WritEssay extends NoteEssay {
 }
 
 export interface WritSeal extends NoteSeal {
-  time: Patda;
+  time: number;
 }
 
 interface WritDeltaAdd {
   add: {
     memo: Omit<NoteEssay, 'han-data'>;
     kind: null;
-    time: string | null;
+    time: number | null;
   };
 }
 
@@ -67,6 +73,7 @@ interface QuipDeltaDelFeel {
 interface QuipDelta {
   quip: {
     id: Patda;
+    meta: QuipMeta | null;
     delta: QuipDeltaAdd | QuipDeltaDel | QuipDeltaAddFeel | QuipDeltaDelFeel;
   };
 }
@@ -232,7 +239,7 @@ export interface ChatScanItem {
 export type ChatScan = ChatScanItem[];
 
 interface WritSealInCache extends NoteSealInCache {
-  time: Patda;
+  time: number;
 }
 
 export interface WritInCache {

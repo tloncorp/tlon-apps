@@ -840,6 +840,7 @@
       ?-  -.q.diff.delta
           ?(%del %add-feel %del-feel)  (cu-give-writs-diff diff.delta)
           %add
+        =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         =*  memo  memo.q.diff.delta
         =?  remark.club  =(author.memo our.bowl)
           remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
@@ -856,12 +857,13 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-hark new-yarn))
-        =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         (cu-give-writs-diff diff.delta)
       ::
           %quip
         =*  quip-id  id.q.diff.delta
         =*  delt  delta.q.diff.delta
+        =/  entry=(unit [=time =writ:c])  (get:cu-pact p.diff.delta)
+        =?  meta.q.diff.delta  !=(~ entry)  `meta.writ:(need entry)
         ?-  -.delt
             ?(%del %add-feel %del-feel)  (cu-give-writs-diff diff.delta)
             %add
@@ -870,7 +872,6 @@
             remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
           =.  cor  (give-brief club/id cu-brief)
           ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
-          =/  entry=(unit [=time =writ:c])  (get:cu-pact p.diff.delta)
           ?~  entry  (cu-give-writs-diff diff.delta)
           =*  op  writ.u.entry
           =/  new-yarn
@@ -884,7 +885,6 @@
             ~
           =?  cor  (want-hark %to-us)
             (emit (pass-hark new-yarn))
-          =.  time.delt  (~(get by dex.pact.club) quip-id)
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -1059,10 +1059,15 @@
     =.  net.dm  %archive
     (di-post-notice ' archived the channel')
   ::
+  ++  di-give-writs-diff
+    |=  =diff:writs:c
+    =.  cor
+      =/  =cage  writ-diff+!>(diff)
+      (emit %give %fact ~[(snoc di-area %ui)] cage)
+    di-core
+  ::
   ++  di-ingest-diff
     |=  =diff:dm:c
-    =/  =path  (snoc di-area %ui)
-    =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  =wire  /contacts/(scot %p ship)
     =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
@@ -1071,16 +1076,17 @@
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     ?-  -.q.diff
-        ?(%del %add-feel %del-feel)  di-core
+        ?(%del %add-feel %del-feel)  (di-give-writs-diff diff)
     ::
         %add
+      =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
       =*  memo  memo.q.diff
       =?  remark.dm  =(author.memo our.bowl)
         remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
       =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
         (give-brief ship/ship di-brief)
-      ?:  from-self    di-core
-      ?^  kind.q.diff  di-core
+      ?:  from-self    (di-give-writs-diff diff)
+      ?^  kind.q.diff  (di-give-writs-diff diff)
       =/  new-yarn
         %^  di-spin
           ~
@@ -1092,21 +1098,22 @@
         ~
       =?  cor  (want-hark %to-us)
         (emit (pass-hark new-yarn))
-      di-core
+      (di-give-writs-diff diff)
     ::
         %quip
       =*  delt  delta.q.diff
+      =/  entry=(unit [=time =writ:c])  (get:di-pact p.diff)
+      =?  meta.q.diff  !=(~ entry)  `meta.writ:(need entry)
       ?-  -.delt
-          ?(%del %add-feel %del-feel)  di-core
+          ?(%del %add-feel %del-feel)  (di-give-writs-diff diff)
           %add
         =*  memo  memo.delt
         =?  remark.dm  =(author.memo our.bowl)
           remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
         =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
           (give-brief ship/ship di-brief)
-        ?:  =(our.bowl author.memo)  di-core
-        =/  entry=(unit [=time =writ:c])  (get:di-pact p.diff)
-        ?~  entry  di-core
+        ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
+        ?~  entry  (di-give-writs-diff diff)
         =*  op  writ.u.entry
         =/  new-yarn
           %^  di-spin
@@ -1119,7 +1126,7 @@
           ~
         =?  cor  (want-hark %to-us)
           (emit (pass-hark new-yarn))
-        di-core
+        (di-give-writs-diff diff)
       ==
     ==
   ::

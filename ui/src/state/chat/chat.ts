@@ -121,7 +121,7 @@ async function optimisticAction(
       'writ' in action.json.diff.delta
         ? action.json.diff.delta.writ
         : (action.json as DmAction);
-    const reduced = writsReducer(whom)(potentialEvent, draft);
+    const reduced = writsReducer(whom, true)(potentialEvent, draft);
 
     return {
       pacts: { ...reduced.pacts },
@@ -400,6 +400,7 @@ export const useChatState = createState<ChatState>(
         diff = {
           quip: {
             id,
+            meta: null,
             delta: {
               add: {
                 memo,
@@ -746,6 +747,7 @@ export function useDeleteDMQuipMutation() {
     const delta: WritDelta = {
       quip: {
         id: variables.quipId,
+        meta: null,
         delta: {
           del: null,
         },
@@ -821,6 +823,7 @@ export function useAddDMQuipFeelMutation() {
     const delta: WritDelta = {
       quip: {
         id: variables.quipId,
+        meta: null,
         delta: {
           'add-feel': { feel: variables.feel, ship: window.our },
         },
@@ -908,6 +911,7 @@ export function useDeleteDMQuipFeelMutation() {
     const delta: WritDelta = {
       quip: {
         id: variables.quipId,
+        meta: null,
         delta: {
           'del-feel': window.our,
         },
