@@ -1,8 +1,6 @@
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { ViewProps } from '@/types/groups';
-import Layout from '@/components/Layout/Layout';
 import { useIsMobile } from '@/logic/useMedia';
 import { useOurContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
@@ -15,27 +13,6 @@ import AsteriskIcon from '@/components/icons/AsteriskIcon';
 import MobileHeader from '@/components/MobileHeader';
 import ProfileCoverImage from './ProfileCoverImage';
 
-const pageAnimationVariants = {
-  initial: {
-    opacity: 0,
-    x: '-100vw',
-  },
-  in: {
-    opacity: 1,
-    x: 0,
-  },
-  out: {
-    opacity: 0,
-    x: '100vw',
-  },
-};
-
-const pageTransition = {
-  type: 'tween',
-  ease: 'easeInOut',
-  duration: 0.2,
-};
-
 export default function Profile({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const contact = useOurContact();
@@ -46,14 +23,7 @@ export default function Profile({ title }: ViewProps) {
         <title>{title}</title>
       </Helmet>
       {isMobile ? <MobileHeader title="Profile" /> : null}
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageAnimationVariants}
-        transition={pageTransition}
-        className="grow overflow-y-auto bg-white"
-      >
+      <div className="grow overflow-y-auto bg-white">
         <div className="px-4">
           <ProfileCoverImage
             className="m-auto h-[345px] w-full shadow-2xl"
@@ -61,7 +31,7 @@ export default function Profile({ title }: ViewProps) {
           >
             <Link
               to="/profile/edit"
-              className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 px-6 pt-6 font-normal dark:bg-white/30"
+              className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 p-6 font-normal dark:bg-white/30"
             >
               <div className="flex w-full justify-end">
                 <Link
@@ -176,7 +146,7 @@ export default function Profile({ title }: ViewProps) {
             </SidebarItem>
           </a>
         </nav>
-      </motion.div>
+      </div>
     </div>
   );
 }
