@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Route, Routes, useMatch, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
@@ -7,7 +7,6 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
 import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
-import { useChatState } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';

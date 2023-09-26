@@ -1136,29 +1136,7 @@ export function useWritByFlagAndWritId(
   return cached;
 }
 
-export function useLatestMessage(chFlag: string): [BigInteger, Note | null] {
-  const messages = useMessagesForChat(chFlag);
-  const max = messages.maxKey();
-  return messages.size > 0 && max
-    ? [max, messages.get(max) || null]
-    : [bigInt(), null];
-}
-
-export function useGetLatestChat() {
-  const def = useMemo(() => newWritMap(), []);
-  const pacts = usePacts();
-
-  return (chFlag: string) => {
-    const pactFlag = chFlag.startsWith('~') ? chFlag : nestToFlag(chFlag)[1];
-    const messages = pacts[pactFlag]?.writs ?? def;
-    const max = messages.maxKey();
-    return messages.size > 0 && max
-      ? [max, messages.get(max) || null]
-      : [bigInt(), null];
-  };
-}
-
-export function useGetFirstUnreadID(whom: string) {
+export function useGetFirstDMUnreadID(whom: string) {
   const keys = useChatKeys({ replying: false, whom });
   const brief = useDmBrief(whom);
   if (!brief) {

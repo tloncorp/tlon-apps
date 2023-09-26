@@ -27,7 +27,6 @@ import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import QuipScroller from '../QuipScroller/QuipScroller';
 
 export default function ChatThread() {
-  console.log('render ChatThread');
   const { name, chShip, ship, chName, idTime } = useParams<{
     name: string;
     chShip: string;

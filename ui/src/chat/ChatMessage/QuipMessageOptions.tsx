@@ -135,10 +135,6 @@ export default function QuipMessageOptions(props: {
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        console.log({
-          threadParentId,
-          corkId: cork.id,
-        });
         addDMQuipFeel({
           whom,
           writId: threadParentId!,

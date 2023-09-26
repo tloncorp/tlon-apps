@@ -35,7 +35,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   } = useInfiniteNotes(nest, scrollTo?.toString());
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
-  const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const readTimeout = useChatInfo(nest).unread?.readTimeout;
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
@@ -74,6 +74,15 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
       }
     },
     [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]
+  );
+
+  useEffect(
+    () => () => {
+      if (readTimeout !== undefined && readTimeout !== 0) {
+        useChatStore.getState().read(whom);
+      }
+    },
+    [readTimeout, whom]
   );
 
   if (isLoading) {
