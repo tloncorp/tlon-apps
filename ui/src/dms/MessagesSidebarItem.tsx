@@ -31,7 +31,7 @@ function ChannelSidebarItem({
 }: MessagesSidebarItemWithOptionsProps) {
   const isMobile = useIsMobile();
   const groups = useGroups();
-  const nest = `chat/${whom}`;
+  const nest = whom;
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => nest in v.channels
   )?.[0];

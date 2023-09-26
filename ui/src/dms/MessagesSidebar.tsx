@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
@@ -23,6 +23,7 @@ import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { usePins } from '@/state/channel/channel';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -137,13 +138,14 @@ export default function MessagesSidebar() {
     key: 'messagesFilter',
   });
   const pinned = usePinned();
+  const chatPins = usePins();
   const groups = useGroups();
-  const filteredPins = pinned.filter((p) => {
-    const nest = `chat/${p}`;
+  const pins = useMemo(() => pinned.concat(chatPins), [pinned, chatPins]);
+  const filteredPins = pins.filter((p) => {
     const groupFlag = Object.entries(groups).find(
-      ([, v]) => nest in v.channels
+      ([, v]) => p in v.channels
     )?.[0];
-    const channel = groups[groupFlag || '']?.channels[nest];
+    const channel = groups[groupFlag || '']?.channels[p];
     return !!channel || whomIsDm(p) || whomIsMultiDm(p);
   });
 
