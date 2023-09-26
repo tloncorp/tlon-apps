@@ -40,11 +40,12 @@
   `[u.tim u.wit]
 ::
 ++  jab
-  |=  [=id:c fun=$-(writ:c writ:c)]
+  |=  [=id:c fun=$-(writ:c [pact:c writ:c])]
   ^+  pac
   ?~  v=(get id)  pac
-  =.  wit.pac  (put:on:writs:c wit.pac time.u.v (fun writ.u.v))
-  pac
+  =/  [=pact:c =writ:c]  (fun writ.u.v)
+  =.  wit.pact  (put:on:writs:c wit.pact time.u.v writ)
+  pact
 ::
 ++  got
   |=  =id:c
@@ -77,8 +78,8 @@
       %quip
     %+  jab  id
     |=  =writ:c
-    ^-  writ:c
-    =/  quips  (reduce-quip quips.writ now [id delta]:del)
+    =/  [=pact:c =quips:c]  (reduce-quip quips.writ now [id delta]:del)
+    :-  pact
     %=  writ
       quips       quips
       quip-count.meta  (wyt:on:quips:c quips)
@@ -100,17 +101,19 @@
       %add-feel
     %+  jab  id
     |=  =writ:c
+    :-  pac
     writ(feels (~(put by feels.writ) [ship feel]:del))
   ::
       %del-feel
     %+  jab  id
     |=  =writ:c
+    :-  pac
     writ(feels (~(del by feels.writ) ship.del))
   ==
 ::
 ++  reduce-quip
   |=  [=quips:c now=time =id:c delta=delta:quips:c]
-  ^-  quips:c
+  ^-  [pact:c quips:c]
   |^
   ?-  -.delta
       %add
@@ -118,25 +121,27 @@
     ?:  (has:on:quips:c quips now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =/  cork  [id now ~]
-    ?:  (~(has by dex.pac) id)  quips
+    ?:  (~(has by dex.pac) id)  [pac quips]
     =.  dex.pac  (~(put by dex.pac) id now)
-    (put:on:quips:c quips now cork memo.delta)
+    [pac (put:on:quips:c quips now cork memo.delta)]
   ::
       %del
     =/  tim=(unit time)  (~(get by dex.pac) id)
-    ?~  tim  quips
+    ?~  tim  [pac quips]
     =/  =time  (need tim)
     =^  quip=(unit quip:c)  quips
       (del:on:quips:c quips time)
     =.  dex.pac  (~(del by dex.pac) id)
-    quips
+    [pac quips]
   ::
       %add-feel
+    :-  pac
     %+  jab-quip  id
     |=  =quip:c
     quip(feels (~(put by feels.quip) [ship feel]:delta))
   ::
       %del-feel
+    :-  pac
     %+  jab-quip  id
     |=  =quip:c
     quip(feels (~(del by feels.quip) ship.delta))
@@ -144,7 +149,6 @@
   ++  get-quip
     |=  =id:c
     ^-  (unit [=time =quip:c])
-    ~&  ['dex' dex.pac]
     ?~  tim=(~(get by dex.pac) id)        ~
     ?~  qup=(get:on:quips:c quips u.tim)  ~
     `[u.tim u.qup]
@@ -152,7 +156,6 @@
     |=  [=id:c fun=$-(quip:c quip:c)]
     ^+  quips
     ?~  v=(get-quip id)  quips
-    ~&  ['v' v]
     (put:on:quips:c quips time.u.v (fun quip.u.v))
   --
 ::
