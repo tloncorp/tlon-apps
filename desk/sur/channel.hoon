@@ -15,12 +15,11 @@
 ::    commands _may_ become updates,
 ::    updates _may_ become responses.
 ::
-/-  g=groups, c=cite, e=epic
+/-  g=groups, c=cite
 /+  mp=mop-extensions
 |%
 +|  %ancients
 ::
-++  okay  `epic:e`1
 ++  mar
   |%
   ++  act  `mark`%channel-action
@@ -209,7 +208,7 @@
 ::
 ::  $net: subscriber-only state
 ::
-+$  net  [p=ship load=_| =saga:e]
++$  net  [p=ship load=_|]
 ::
 ::  $briefs: a map of diary unread information
 ::

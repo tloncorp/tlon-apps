@@ -5,9 +5,10 @@
 ::  TODO: import state from diary
 ::
 /-  d=channel, g=groups
-/-  e=epic
 /+  utils=channel-utils
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, neg=negotiate
+%-  %-  agent:neg
+    [| [~.channels^%0 ~ ~] ~]
 ^-  agent:gall
 =>
   |%
@@ -32,7 +33,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay:d])
+  ++  on-save  !>(state)
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -82,11 +83,10 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<([old=versioned-state cool=epic:e] vase)
+  =+  !<(old=versioned-state vase)
   ?>  ?=(%0 -.old)
   =.  state  old
-  =.  cor  inflate-io
-  (give %fact ~[/epic] epic+!>(okay:d))
+  inflate-io
   ::
   +$  versioned-state  $%(current-state)
   --
@@ -136,7 +136,6 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path+pole !!)
-      [%epic ~]  (give %fact ~ epic+!>(okay:d))
       [=han:d name=@ %create ~]
     ?>  =(our src):bowl
     =*  nest  [han.pole our.bowl name.pole]

@@ -7,11 +7,14 @@
 ::
 /-  d=channel, g=groups, ha=hark
 /-  meta
-/-  e=epic
-/+  default-agent, verb, dbug, sparse
+/+  default-agent, verb, dbug, sparse, neg=negotiate
 /+  utils=channel-utils, volume
 ::  performance, keep warm
 /+  channel-json
+%-  %-  agent:neg
+    :+  |
+      [~.channels^%0 ~ ~]
+    [%channels-server^[~.channels^%0 ~ ~] ~ ~]
 ^-  agent:gall
 =>
   |%
@@ -38,7 +41,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay:d])
+  ++  on-save  !>([state])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -96,11 +99,10 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<([old=versioned-state cool=epic:e] vase)
+  =+  !<([old=versioned-state] vase)
   ?>  ?=(%0 -.old)
   =.  state  old
-  =.  cor  inflate-io
-  (give %fact ~[/epic] epic+!>(okay:d))
+  inflate-io
   ::
   +$  versioned-state  $%(current-state)
   --
@@ -125,13 +127,11 @@
     =.  cor  core
     =/  keep=?
       ?+    pole  |
-          [%epic *]    &(=(dap.bowl dude) =(/epic pole) =(/epic path))
           [%groups *]  &(=(%groups dude) =(our.bowl ship) =(/groups path))
           [=han:d ship=@ name=@ %updates ~]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
         ?~  diary=(~(get by shelf) han.pole sub-ship name.pole)  |
-        ?.  ?=(%chi -.saga.net.u.diary)  |
         ?.  ?=([han:d @ %updates ?(~ [@ ~])] path)  |
         ?.  =(han.pole i.path)  |
         =(name.pole i.t.path)
@@ -140,7 +140,6 @@
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
         ?~  diary=(~(get by shelf) han.pole sub-ship name.pole)  |
-        ?.  ?=(%chi -.saga.net.u.diary)  |
         ?.  ?=([han:d @ %checkpoint %before @] path)  |
         ?.  =(han.pole i.path)  |
         =(name.pole i.t.path)
@@ -163,17 +162,6 @@
   ::  watch all the subscriptions we expect to have
   ::
   =.  cor  watch-groups
-  =/  diaries  ~(tap in ~(key by shelf))
-  =.  cor
-    =/  ships
-      %-  ~(gas in *(set ship))
-      %+  turn  diaries
-      |=  =nest:d
-      ship.nest
-    %+  roll  ~(tap in ships)
-    |=  [=ship cr=_cor]
-    ?:  =(ship our.bowl)  cr
-    (watch-epic:cr ship)
   ::
   =.  cor
     %+  roll
@@ -181,12 +169,6 @@
     |=  [[=nest:d *] core=_cor]
     di-abet:di-safe-sub:(di-abed:di-core:core nest)
   ::
-  =.  cor
-    |-
-    ?~  diaries
-      cor
-    =.  cor  di-abet:di-upgrade:(di-abed:di-core i.diaries)
-    $(diaries t.diaries)
   cor
 ::
 ++  poke
@@ -222,7 +204,6 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path+pole !!)
-      [%epic ~]                     (give %fact ~ epic+!>(okay:d))
       [%briefs ~]                   ?>(from-self cor)
       [%ui ~]                       ?>(from-self cor)
       [=han:d ship=@ name=@ %ui ~]  ?>(from-self cor)
@@ -278,7 +259,6 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
       ~          cor
-      [%epic ~]  (take-epic sign)
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
@@ -320,31 +300,6 @@
   ==
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
-++  watch-epic
-  |=  her=ship
-  (safe-watch /epic [her server] /epic)
-::
-++  take-epic
-  |=  =sign:agent:gall
-  ^+  cor
-  ?+    -.sign  cor
-      %kick  (watch-epic src.bowl)
-      %fact
-    ?.  =(%epic p.cage.sign)
-      ~&  '!!! weird fact on /epic'
-      ~&  p.cage.sign
-      cor
-    =+  !<(=epic:e q.cage.sign)
-    %+  roll  ~(tap by shelf)
-    |=  [[=nest:d =diary:d] out=_cor]
-    ?.  =(src.bowl ship.nest)  out
-    di-abet:(di-take-epic:(di-abed:di-core:out nest) epic)
-  ::
-      %watch-ack
-    %.  cor
-    ?~  p.sign  same
-    (slog leaf+"weird watch nack" u.p.sign)
-  ==
 ::
 ++  take-groups
   |=  =action:g
@@ -439,7 +394,6 @@
     =.  diary  *diary:d
     =.  group.perm.perm.diary  group.create
     =.  last-read.remark.diary  now.bowl
-    =.  saga.net.diary  chi+~
     =/  =cage  [%channel-command !>([%create create])]
     (emit %pass (weld di-area /create) %agent [our.bowl server] %poke cage)
   ::
@@ -453,15 +407,8 @@
     =.  diary  *diary:d
     =.  group.perm.perm.diary  group
     =.  last-read.remark.diary  now.bowl
-    =?  saga.net.diary  =(our.bowl ship.nest)  chi+~
     =.  di-core  di-give-brief
     =.  di-core  (di-response %join group)
-    =.  di-core
-      =/  diaries=(list [=nest:d =diary:d])  ~(tap by shelf)
-      |-
-      ?~  diaries  di-core(cor (watch-epic ship.nest))
-      ?:  !=(ship.nest.i.diaries ship.nest)  $(diaries t.diaries)
-      di-core(saga.net.diary saga.net.diary.i.diaries)
     di-safe-sub
   ::
   ::  handle an action from the client
@@ -518,56 +465,12 @@
       (said:utils nest plan notes.diary)
     (give %kick ~ ~)
   ::
-  ::  when we get a new %diary agent update, we need to check if we
-  ::  should upgrade any lagging diaries. if we're lagging, we need to
-  ::  change the saga to "chi" to resume syncing updates from the host.
-  ::  otherwise we can no-op, because we're not in sync yet.
-  ::
-  ++  di-upgrade
-    ^+  di-core
-    ::  if we're ahead or synced, no-op
-    ::
-    ?.  ?=(%dex -.saga.net.diary)
-      di-core
-    ::  if we're still behind even with the upgrade, no-op
-    ::
-    ?.  =(okay:d ver.saga.net.diary)
-      ~&  future-shock+[ver.saga.net.diary nest]
-      di-core
-    ::  safe to sync and resume updates from host
-    ::
-    =>  .(saga.net.diary `saga:e`saga.net.diary)
-    di-make-chi
-  ::
-  ::  when we hear a version number from a publisher, check if we match
-  ::
-  ++  di-take-epic
-    |=  her=epic:e
-    ^+  di-core
-    ?:  (lth her okay:d)  di-make-lev
-    ?:  (gth her okay:d)  (di-make-dex her)
-    di-make-chi
-  ::
-  ++  di-make-dex
-    |=  her=epic:e
-    =.  saga.net.diary  dex+her
-    di-simple-leave
-  ::
-  ++  di-make-lev
-    =.  saga.net.diary  lev+~
-    di-simple-leave
-  ::
-  ++  di-make-chi
-    =.  saga.net.diary  chi+~
-    di-safe-sub
-  ::
   ++  di-has-sub
     ^-  ?
     (~(has by wex.bowl) [di-sub-wire ship.nest dap.bowl])
   ::
   ++  di-safe-sub
     ?:  di-has-sub  di-core
-    ?.  ?=(%chi -.saga.net.diary)  di-core
     ?^  notes.diary  di-start-updates
     =.  load.net.diary  |
     %^  safe-watch  (weld di-area /checkpoint)  [ship.nest server]

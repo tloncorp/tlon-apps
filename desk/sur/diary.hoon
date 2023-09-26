@@ -8,7 +8,7 @@
   ++  zero  zer
   --
 ::
-++  okay  `epic:e`2
+++  okay  `epic:e`3
 ++  mar
   |%
   ++  act  `mark`(rap 3 %diary-action '-' (scot %ud okay) ~)
