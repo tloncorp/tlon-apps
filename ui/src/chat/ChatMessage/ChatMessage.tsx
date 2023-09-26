@@ -106,12 +106,12 @@ const ChatMessage = React.memo<
       const isThreadOp = threadOpId === seal.id && hideReplies;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isThread && isMobile;
-      const chatInfo = useChatInfo(whom);
+      const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+      const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
-      const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const { mutate: markChatRead } = useMarkReadMutation();
       const { ref: viewRef } = useInView({
         threshold: 1,

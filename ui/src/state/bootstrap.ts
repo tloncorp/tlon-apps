@@ -4,6 +4,7 @@ import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
+import { useChatStore } from '@/chat/useChatStore';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import useDocketState from './docket';
@@ -52,6 +53,7 @@ async function startGroups() {
   queryClient.setQueryData(['gangs'], gangs);
   queryClient.setQueryData(['shelf'], shelf);
   queryClient.setQueryData(['briefs'], briefs);
+  useChatStore.getState().update(briefs);
   queryClient.setQueryData(['pins'], pins);
 }
 

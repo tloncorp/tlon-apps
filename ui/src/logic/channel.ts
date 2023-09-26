@@ -99,7 +99,7 @@ function channelUnread(
   chats: ChatStore['chats']
 ) {
   const [app, chFlag] = nestToFlag(nest);
-  const unread = chats[chFlag]?.unread;
+  const unread = chats[nest]?.unread;
 
   if (app === 'chat') {
     return Boolean(unread && !unread.seen);
@@ -113,7 +113,13 @@ export function useCheckChannelUnread() {
   const chats = useChatStore(selChats);
 
   return useCallback(
-    (nest: string) => channelUnread(nest, briefs, chats),
+    (nest: string) => {
+      if (!briefs || !chats) {
+        return false;
+      }
+
+      return channelUnread(nest, briefs, chats);
+    },
     [briefs, chats]
   );
 }
