@@ -45,6 +45,7 @@ function ChannelSidebarItem({
 
   return (
     <SidebarItem
+      inexact
       to={`/groups/${groupFlag}/channels/${nest}`}
       icon={
         <GroupAvatar
