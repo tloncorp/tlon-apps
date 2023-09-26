@@ -123,7 +123,6 @@ export default function ChatMessageOptions(props: {
 
   const startThread = () => {
     navigate(`message/${seal.id}`);
-    console.log('start thread', seal.id);
   };
 
   const onEmoji = useCallback(
