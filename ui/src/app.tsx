@@ -456,7 +456,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<HeapChannel title={` • ${groupsTitle}`} />}
               />
               <Route
-                path="note/:idCurio"
+                path="curio/:idCurio"
                 element={<HeapDetail title={` • ${groupsTitle}`} />}
               />
             </Route>

@@ -29,9 +29,10 @@ export default function HeapDetailBody({ essay }: { essay?: NoteEssay }) {
   const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { embed, isError, error } = useEmbed(url, isMobile);
   const { isImage, isText, isAudio, isVideo } = getHeapContentType(url);
-  const { block } = content.filter(
+  const blocks = content.filter(
     (b) => 'block' in b && isCite(b.block)
-  )[0] as VerseBlock;
+  ) as VerseBlock[];
+  const block = blocks[0]?.block;
 
   useEffect(() => {
     if (isError) {
