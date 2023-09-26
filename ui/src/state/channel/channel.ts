@@ -36,6 +36,7 @@ import {
   PagedNotes,
   PagedNotesMap,
   NoteInCache,
+  Pins,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -929,6 +930,93 @@ export function useBrief(nest: Nest) {
   const briefs = useBriefs();
 
   return briefs[nest];
+}
+
+export function useChats(): Shelf {
+  const shelf = useShelf();
+
+  const chatKeys = Object.keys(shelf).filter((k) => k.startsWith('chat/'));
+
+  const chats: Shelf = {};
+
+  chatKeys.forEach((k) => {
+    chats[k] = shelf[k];
+  });
+
+  return chats;
+}
+
+export function usePins(): Pins {
+  const { data, ...rest } = useReactQueryScry<{ pins: Pins }>({
+    queryKey: ['pins'],
+    app: 'channels',
+    path: '/pins',
+  });
+
+  if (rest.isLoading || rest.isError || data === undefined || !data.pins) {
+    return [];
+  }
+
+  const { pins } = data;
+
+  return pins;
+}
+
+export function useAddPinMutation() {
+  const pins = usePins();
+  const mutationFn = async (variables: { nest: Nest }) => {
+    const newPins = pins.concat(variables.nest);
+
+    await api.poke({
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        pin: newPins,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['pins']);
+      const prev = queryClient.getQueryData<{ pins: Pins }>(['pins']);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData(['pins'], prev.pins.concat(variables.nest));
+      }
+    },
+  });
+}
+
+export function useDeletePinMutation() {
+  const pins = usePins();
+  const mutationFn = async (variables: { nest: Nest }) => {
+    const newPins = pins.filter((p) => p !== variables.nest);
+
+    await api.poke({
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        pin: newPins,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['pins']);
+      const prev = queryClient.getQueryData<{ pins: Pins }>(['pins']);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData(
+          ['pins'],
+          prev.pins.filter((p) => p !== variables.nest)
+        );
+      }
+    },
+  });
 }
 
 export function useDisplayMode(nest: string): DisplayMode {

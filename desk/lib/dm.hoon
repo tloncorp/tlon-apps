@@ -192,7 +192,7 @@
   ::
       [%around time=@ count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
-    =/  time  (slav %ud time.pole)
+    =/  time   (slav %ud time.pole)
     =/  older  (bat:mope wit.pac `time count)
     =/  newer  (tab:on:writs:c wit.pac `time count)
     =/  writ   (get:on:writs:c wit.pac time)
