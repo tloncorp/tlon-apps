@@ -8,12 +8,10 @@ import { useChatState, useMultiDm, useMultiDmIsPending } from '@/state/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Club } from '@/types/dms';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import useAppName from '@/logic/useAppName';
 import MobileHeader from '@/components/MobileHeader';
@@ -24,6 +22,7 @@ import MultiDmHero from './MultiDmHero';
 import DmOptions from './DMOptions';
 import MessageSelector from './MessageSelector';
 import PendingIndicator from './MultiDMPendingIndicator';
+import DmSearch from './DmSearch';
 
 function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
   const count = club.team.length;
@@ -106,13 +105,13 @@ export default function MultiDm() {
               <Route
                 path="search/:query?"
                 element={
-                  <ChatSearch
+                  <DmSearch
                     whom={clubId}
                     root={`/dm/${clubId}`}
                     placeholder="Search Messages"
                   >
                     <TitleButton club={club} isMobile={isMobile} />
-                  </ChatSearch>
+                  </DmSearch>
                 }
               />
               <Route

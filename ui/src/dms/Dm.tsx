@@ -15,7 +15,6 @@ import useMessageSelector from '@/logic/useMessageSelector';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import ShipName from '@/components/ShipName';
-import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { Contact } from '@/types/contact';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
@@ -26,6 +25,7 @@ import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import DmWindow from '@/dms/DmWindow';
 import MessageSelector from './MessageSelector';
+import DmSearch from './DmSearch';
 
 function TitleButton({
   ship,
@@ -134,7 +134,7 @@ export default function Dm() {
               <Route
                 path="search/:query?"
                 element={
-                  <ChatSearch
+                  <DmSearch
                     whom={ship}
                     root={`/dm/${ship}`}
                     placeholder="Search Messages"
@@ -144,7 +144,7 @@ export default function Dm() {
                       contact={contact}
                       isMobile={isMobile}
                     />
-                  </ChatSearch>
+                  </DmSearch>
                 }
               />
               <Route

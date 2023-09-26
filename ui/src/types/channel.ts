@@ -611,3 +611,9 @@ export interface NoteInCache {
   seal: NoteSealInCache;
   essay: NoteEssay;
 }
+
+export type ChannelScanItem =
+  | { note: Note }
+  | { 'id-note': string; quip: Quip };
+
+export type ChannelScan = ChannelScanItem[];

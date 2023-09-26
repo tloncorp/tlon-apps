@@ -1,106 +1,57 @@
 import cn from 'classnames';
-import React, {
-  ChangeEvent,
-  KeyboardEvent,
-  PropsWithChildren,
-  useCallback,
-} from 'react';
+import React, { PropsWithChildren, useCallback } from 'react';
 import { VirtuosoHandle } from 'react-virtuoso';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
-import bigInt from 'big-integer';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import X16Icon from '@/components/icons/X16Icon';
-import useDebounce from '@/logic/useDebounce';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import { disableDefault, isTalk } from '@/logic/utils';
-import { useChatSearch } from '@/state/chat';
 import ChatSearchResults from './ChatSearchResults';
+import { ChatMap, useChatSearchInput } from './useChatSearchInput';
 
-interface RouteParams {
-  chShip: string;
-  chName: string;
-  query: string;
-  [key: string]: string;
-}
-
-type ChatSearchProps = PropsWithChildren<{
+export type ChatSearchProps = PropsWithChildren<{
   whom: string;
   root: string;
+  query?: string;
+  scan: ChatMap;
+  isLoading: boolean;
   placeholder: string;
 }>;
 
 export default function ChatSearch({
   whom,
   root,
+  query,
+  scan,
+  isLoading,
   placeholder,
   children,
 }: ChatSearchProps) {
   const navigate = useNavigate();
-  const { query } = useParams<RouteParams>();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(min-width: 768px) and (max-width: 1099px)');
   const scrollerRef = React.useRef<VirtuosoHandle>(null);
-  const [rawInput, setRawInput] = React.useState(query || '');
-  const [selected, setSelected] = React.useState<{
-    index: number;
-    time: bigInt.BigInteger;
-  }>({ index: -1, time: bigInt.zero });
-  const { scan, isLoading } = useChatSearch(whom, query || '');
-  const debouncedSearch = useDebounce((input: string) => {
-    if (!input) {
-      navigate(`${root}/search`);
-      return;
-    }
-
-    navigate(`${root}/search/${input}`);
-  }, 500);
-
-  const onChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const input = e.target as HTMLInputElement;
-      setRawInput(input.value);
-      debouncedSearch(input.value);
-    },
-    [debouncedSearch]
-  );
-
-  const onKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLLabelElement>) => {
-      if (event.key === 'Escape') {
-        navigate(root);
-      }
-
-      if (event.key === 'Enter' && selected.index >= 0) {
-        const { time } = selected;
-        const scrollTo = `?msg=${time.toString()}`;
-        const to = `${root}${scrollTo}`;
-        navigate(to);
-      }
-
-      const arrow = event.key === 'ArrowDown' || event.key === 'ArrowUp';
+  const { selected, rawInput, onChange, onKeyDown } = useChatSearchInput({
+    root,
+    query,
+    scan,
+    onNavigate: useCallback(({ index, time, setSelected }) => {
       const scroller = scrollerRef.current;
-      if (!arrow || !scroller || scan.size === 0) {
+      if (!scroller) {
         return;
       }
 
-      event.preventDefault();
-      const next = event.key === 'ArrowDown' ? 1 : -1;
-      const index =
-        selected === undefined
-          ? 0
-          : (selected.index + next + scan.size) % scan.size;
       scroller.scrollIntoView({
         index,
         behavior: 'auto',
         done: () => {
-          setSelected({ index, time: [...scan.keys()][index] });
+          setSelected({ index, time });
         },
       });
-    },
-    [root, selected, scan, navigate]
-  );
+    }, []),
+  });
 
   const preventClose = useCallback((e: Event) => {
     const target = e.target as HTMLElement;

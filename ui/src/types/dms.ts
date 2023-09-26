@@ -231,12 +231,7 @@ export interface TalkInit {
   pins: string[];
 }
 
-export interface ChatScanItem {
-  time: string;
-  writ: Writ;
-}
-
-export type ChatScan = ChatScanItem[];
+export type ChatScan = Writ[];
 
 interface WritSealInCache extends NoteSealInCache {
   time: number;

@@ -32,7 +32,7 @@ interface DmScrollerItemProps extends ChatMessageProps {
 const emptyWrit: Writ = {
   seal: {
     id: '',
-    time: '',
+    time: 0,
     quips: newQuipMap(),
     feels: {},
     meta: {

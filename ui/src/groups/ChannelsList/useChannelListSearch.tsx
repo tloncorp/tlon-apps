@@ -1,14 +1,14 @@
 import React, { createContext, useContext } from 'react';
 
-interface ChannelSearchContext {
+interface ChannelListSearchContext {
   searchInput: string;
   setSearchInput: (input: string) => void;
 }
 
-const ChannelSearchContext = createContext({
+const ChannelListSearchContext = createContext({
   searchInput: '',
   setSearchInput: (_input: string) => null,
-} as ChannelSearchContext);
+} as ChannelListSearchContext);
 
 export function ChannelSearchProvider({
   children,
@@ -23,14 +23,14 @@ export function ChannelSearchProvider({
   );
 
   return (
-    <ChannelSearchContext.Provider value={contextValue}>
+    <ChannelListSearchContext.Provider value={contextValue}>
       {children}
-    </ChannelSearchContext.Provider>
+    </ChannelListSearchContext.Provider>
   );
 }
 
-export default function useChannelSearch() {
-  const { searchInput, setSearchInput } = useContext(ChannelSearchContext);
+export default function useChannelListSearch() {
+  const { searchInput, setSearchInput } = useContext(ChannelListSearchContext);
 
   return {
     searchInput,

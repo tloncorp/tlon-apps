@@ -37,6 +37,7 @@ import {
   PagedNotesMap,
   NoteInCache,
   Pins,
+  ChannelScan,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -52,6 +53,7 @@ import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
+import { ChatMap } from '@/chat/ChatSearch/useChatSearchInput';
 
 async function updateNoteInCache(
   variables: { nest: Nest; noteId: string },
@@ -2018,4 +2020,29 @@ export function useDeleteQuipFeelMutation() {
       ]);
     },
   });
+}
+
+export function useChannelSearch(nest: string, query: string) {
+  const { data, ...rest } = useReactQueryScry<ChannelScan>({
+    queryKey: ['channel', 'search', nest, query],
+    app: 'channels',
+    path: `/${nest}/search/text/0/1.000/${query}`,
+    options: {
+      enabled: query !== '',
+    },
+  });
+
+  const scan = useMemo(() => {
+    return newNoteMap(
+      ((data || []).filter((e) => 'note' in e) as { note: Note }[]).map(
+        ({ note }) => [bigInt(note.seal.id), note]
+      ),
+      true
+    ) as ChatMap;
+  }, [data]);
+
+  return {
+    scan,
+    ...rest,
+  };
 }

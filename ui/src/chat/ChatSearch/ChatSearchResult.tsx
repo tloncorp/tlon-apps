@@ -47,13 +47,11 @@ function ChatSearchResult({
     >
       <Author ship={essay.author} date={unix} />
       <div className="group-one wrap-anywhere relative z-0 flex w-full flex-col space-y-2 py-1 pl-9">
-        {'story' in essay.content ? (
-          <ChatContent
-            story={essay.content}
-            isScrolling={isScrolling}
-            writId={seal.id}
-          />
-        ) : null}
+        <ChatContent
+          story={essay.content}
+          isScrolling={isScrolling}
+          writId={seal.id}
+        />
         {Object.keys(seal.feels).length > 0 && (
           <ChatReactions seal={seal} whom={whom} />
         )}

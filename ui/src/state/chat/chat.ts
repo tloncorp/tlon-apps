@@ -1167,7 +1167,7 @@ export function useChatSearch(whom: string, query: string) {
 
   const scan = useMemo(() => {
     return newWritMap(
-      (data || []).map(({ time, writ }) => [bigInt(parseUd(time)), writ]),
+      (data || []).map((writ) => [bigInt(unixToDa(writ.seal.time)), writ]),
       true
     );
   }, [data]);
