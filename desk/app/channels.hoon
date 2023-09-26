@@ -1107,6 +1107,7 @@
     ^-  (unit (unit cage))
     =/  =notes:d  (gas:on-notes:d *notes:d ls)
     =-  ``channel-notes+!>(-)
+    ?:  =(0 (lent ls))  [*rr-notes:d ~ ~ 0]
     =/  notes=rr-notes:d
       ?:  =(%note mode)  (rr-notes:utils notes)
       (rr-notes-without-quips:utils notes)
