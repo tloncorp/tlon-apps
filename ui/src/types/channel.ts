@@ -357,6 +357,8 @@ export interface Init {
 
 export type Diff = CreateDiff | Command;
 
+export type Pins = Nest[];
+
 export type Action =
   | { join: Flag } // group flag
   | { leave: null }
@@ -368,7 +370,8 @@ export type Action =
 
 export type ShelfAction =
   | { diary: { nest: Nest; action: Action } }
-  | { create: Create };
+  | { create: Create }
+  | { pin: Pins };
 
 export type Command =
   | { note: NoteAction }

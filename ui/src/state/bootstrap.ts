@@ -36,7 +36,7 @@ async function chatScry<T>(path: string, def: T) {
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { shelf, briefs, pins, groups, gangs } = await asyncWithDefault(
+  const { shelf, briefs, groups, gangs } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
@@ -45,16 +45,11 @@ async function startGroups() {
     emptyGroupsInit
   );
 
-  // if (!talkStarted) {
-  //   useChatState.getState().start(chat);
-  // }
-
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
   queryClient.setQueryData(['shelf'], shelf);
   queryClient.setQueryData(['briefs'], briefs);
   useChatStore.getState().update(briefs);
-  queryClient.setQueryData(['pins'], pins);
 }
 
 async function startTalk() {

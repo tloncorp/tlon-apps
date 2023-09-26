@@ -830,8 +830,6 @@ export function useAddDMQuipFeelMutation() {
       },
     };
 
-    console.log({ delta });
-
     const action: Poke<DmAction | ClubAction> = whomIsDm(variables.whom)
       ? dmAction(variables.whom, delta as WritDelta, variables.writId)
       : multiDmAction(variables.whom, {

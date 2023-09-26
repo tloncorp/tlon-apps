@@ -12,8 +12,15 @@ import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import { useChatState, useIsDmUnread, usePinned } from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
-import { whomIsDm } from '@/logic/utils';
+import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import {
+  useAddPinMutation,
+  useDeletePinMutation,
+  useLeaveMutation,
+  usePins,
+} from '@/state/channel/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { useCheckChannelUnread } from '@/logic/channel';
 import DmInviteDialog from './DmInviteDialog';
 
 type DMOptionsProps = PropsWithChildren<{
@@ -44,8 +51,16 @@ export default function DmOptions({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const pinned = usePinned();
+  const chatPins = usePins();
+  const pins = pinned.concat(chatPins);
   const isUnread = useIsDmUnread(whom);
-  const hasActivity = isUnread || pending;
+  const isChannelUnread = useCheckChannelUnread();
+  const isDMorMultiDm = useIsDmOrMultiDm(whom);
+  const hasActivity =
+    isUnread || pending || (!isDMorMultiDm && isChannelUnread(whom));
+  const { mutate: leaveChat } = useLeaveMutation();
+  const { mutate: addPin } = useAddPinMutation();
+  const { mutate: deletePin } = useDeletePinMutation();
 
   const [isOpen, setIsOpen] = useState(open);
   const handleOpenChange = (innerOpen: boolean) => {
@@ -77,8 +92,10 @@ export default function DmOptions({
     navigate('/');
     if (whomIsDm(whom)) {
       await useChatState.getState().dmRsvp(whom, false);
-    } else {
+    } else if (whomIsMultiDm(whom)) {
       await useChatState.getState().multiDmRsvp(whom, false);
+    } else {
+      leaveChat({ nest: whom });
     }
   };
   const closeDialog = () => {
@@ -88,10 +105,16 @@ export default function DmOptions({
   const handlePin = useCallback(
     async (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
-      const isPinned = pinned.includes(whom);
-      await useChatState.getState().togglePin(whom, !isPinned);
+      const isPinned = pins.includes(whom);
+      if (isDMorMultiDm) {
+        await useChatState.getState().togglePin(whom, !isPinned);
+      } else if (isPinned) {
+        deletePin({ nest: whom });
+      } else {
+        addPin({ nest: whom });
+      }
     },
-    [whom, pinned]
+    [whom, pins, addPin, deletePin, isDMorMultiDm]
   );
 
   const handleInvite = () => {
