@@ -1,11 +1,53 @@
 # Channels
+## Table of Contents
+ - [Agents](#agents)
+ - [Using Channels](#using-channels)
+   - [Scries](#scries)
+     - [/shelf](#shelf)
+     - [/briefs](#briefs)
+     - [/init](#init)
+   - [Pokes](#pokes)
+     - [Create a Group](#create-a-group)
+     - [%channel-action](#channel-action)
+       - [%create](#create)
+       - [%diary](#diary)
+         - [%join](#join)
+         - [%leave](#leave)
+         - [%read](#read)
+         - [%read-at](#read-at)
+         - [%watch](#watch)
+         - [%unwatch](#unwatch)
+         - [%note](#note-add)
+           - [%add](#note-add)
+           - [%edit](#note-edit)
+           - [%del](#note-del)
+           - [%add-feel](#note-add-feel)
+           - [%del-feel](#note-del-feel)
+           - [%quip](#note-quip-add)
+             - [%add](#note-quip-add)
+             - [%del](#note-quip-del)
+             - [%add-feel](#note-quip-add-feel)
+             - [%del-feel](#note-quip-del-feel)
+         - [%view](#view)
+         - [%sort](#sort)
+         - [%order](#order)
+         - [%add-writers](#add-writers)
+         - [%del-writers](#del-writers)
+     - [%channel-migration](#channel-migration)
+   - [Subscriptions](#Subscriptions)
+     - [/briefs](#briefs-1)
+     - [/ui](#ui)
+     - [/\[han\]/\[ship\]/\[name\]/ui](#hanshipnameui)
+     - [/said/\[han\]/\[ship\]/\[name\]/note/\[time\]/\[(unit quip)\]](#saidhanshipnamenotetimeunit-quip)
+ - [Types](#types)
+
 ## Agents
 These agents keep track of chats, notebooks, and galleries. They don't handle group membership (that's `%groups`) or DMs (that's `%chat`)
 
 ```
-::        --action-->     --command-->
-::    client       subscriber       publisher
-::      <--response--     <--update--
+    --action-->     --command-->
+client       subscriber       publisher
+  <--response--     <--update--
 ```
 
 ### %channels
@@ -35,7 +77,7 @@ Get the channels our ship is in and their contents. Returns `rr-shelf`
 
 Get unread information for the channels our ship is in. Returns `briefs`
 
-[briefs](#briefs)
+[briefs](#briefs-2)
 #### /init
 ```hoon
 =c -build-file /=groups=/sur/channel/hoon
@@ -44,7 +86,7 @@ Get unread information for the channels our ship is in. Returns `briefs`
 
 Combination of `/shelf` and `/briefs`. Returns `[briefs rr-shelf]`
 
-[briefs](#briefs) \| [rr-shelf](#rr-shelf)
+[briefs](#briefs-2) \| [rr-shelf](#rr-shelf)
 ### Pokes
 #### Create a group
 ```hoon
@@ -354,8 +396,8 @@ Subscribe to unread & preview information. Each fact is a `[nest brief]`
 Similar to `/ui`, but only include updates for a particular nest. Each fact is an `r-shelf` (response shelf)
 
 [nest](#nest) \| [r-shelf](#r-shelf)
-#### /said/[han]/[ship]/[name]/note/[time]/[quip]
-(This is effectively /[nest]/note/[time]/[quip])
+#### /said/[han]/[ship]/[name]/note/[time]/[(unit quip)]
+(This is effectively /[nest]/note/[time]/[(unit quip)])
 
 Read a reference. Facts are either of the `%channel-denied` mark (meaning you cannot view the channel) or of the `%channel-said` mark and the `said` type
 
