@@ -1146,14 +1146,15 @@
             sip.s  len.s
             id.u.val.n.notes
             quips.u.val.n.notes
+            scan.s
             match-type
         ==
       ::
       $(notes l.notes)
     ::
     ++  scour-quips
-      |=  [sip=@ud len=@ud =id-note:d =quips:d =match-type]
-      =+  s=[sip=sip len=len *=scan:d]
+      |=  [sip=@ud len=@ud =id-note:d =quips:d =scan:d =match-type]
+      =+  s=[sip=sip len=len scan=scan]
       |-  ^+  s
       ?~  quips  s
       ?:  =(0 len.s)  s
