@@ -120,7 +120,7 @@ export default function MobileSidebar() {
 
   return (
     <section
-      className="fixed inset-0 z-40 flex h-full w-full flex-col border-gray-50 bg-white"
+      className="fixed inset-0 z-40 flex h-full w-full select-none flex-col border-gray-50 bg-white"
       style={{ paddingBottom: safeAreaInsets.bottom }}
     >
       <Outlet />

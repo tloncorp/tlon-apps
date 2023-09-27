@@ -20,7 +20,13 @@ export default function Layout({
   stickyHeader = false,
 }: LayoutProps) {
   return (
-    <div className={cn(className, 'layout', stickyHeader ? 'relative' : '')}>
+    <div
+      className={cn(
+        className,
+        'layout select-none',
+        stickyHeader ? 'relative' : ''
+      )}
+    >
       {header && (
         <header
           className={cn('header z-40', stickyHeader ? ' sticky top-0' : '')}
