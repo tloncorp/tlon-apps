@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
 import _ from 'lodash';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ViewProps } from '@/types/groups';
@@ -219,62 +218,29 @@ function EditProfileContent() {
   );
 }
 
-const pageAnimationVariants = {
-  initial: {
-    opacity: 0,
-    x: '100vw',
-  },
-  in: {
-    opacity: 1,
-    x: 0,
-  },
-  out: {
-    opacity: 0,
-    x: '-100vw',
-  },
-};
-
-const pageTransition = {
-  type: 'tween',
-  ease: 'easeInOut',
-  duration: 0.2,
-};
-
 export default function EditProfile({ title }: ViewProps) {
   useAnalyticsEvent('profile_edit');
   const isMobile = useIsMobile();
   const app = useAppName();
 
   return (
-    <div className="flex grow overflow-y-scroll bg-gray-50">
+    <Layout
+      header={
+        isMobile ? (
+          <MobileHeader
+            title="Edit Profile"
+            pathBack={app === 'Talk' ? '/' : '/profile'}
+          />
+        ) : null
+      }
+      className="bg-gray-50"
+    >
       <Helmet>
         <title>{title}</title>
       </Helmet>
-      <Layout
-        header={
-          isMobile ? (
-            <MobileHeader
-              title="Edit Profile"
-              pathBack={app === 'Talk' ? '/' : '/profile'}
-            />
-          ) : null
-        }
-        className="flex-1"
-      >
-        {isMobile ? (
-          <motion.div
-            initial="initial"
-            animate="in"
-            exit="out"
-            variants={pageAnimationVariants}
-            transition={pageTransition}
-          >
-            <EditProfileContent />
-          </motion.div>
-        ) : (
-          <EditProfileContent />
-        )}
-      </Layout>
-    </div>
+      <div className="h-full grow overflow-scroll">
+        <EditProfileContent />
+      </div>
+    </Layout>
   );
 }
