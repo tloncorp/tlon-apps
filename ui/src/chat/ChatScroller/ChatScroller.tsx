@@ -112,7 +112,8 @@ export default function ChatScroller({
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const contentElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const { userHasScrolled } = useUserHasScrolled(scrollElementRef);
+  const { userHasScrolled, resetUserHasScrolled } =
+    useUserHasScrolled(scrollElementRef);
   const isInverted = loadDirection === 'older';
 
   const {
@@ -139,6 +140,10 @@ export default function ChatScroller({
     [count, isInverted]
   );
 
+  const [anchorIndex, setAnchorIndex] = useState<number | null>(
+    scrollTo ? null : count - 1
+  );
+  const virtualizerRef = useRef<DivVirtualizer>();
   const virtualizer = useVirtualizer({
     count: activeMessageEntries.length,
     getScrollElement: useCallback(() => scrollElementRef.current, []),
@@ -184,16 +189,26 @@ export default function ChatScroller({
         if (isMobile && isScrolling) {
           return;
         }
-        // If we're at the bottom, we want to stay anchored at the bottom even if messages
-        // are resized. Without this, the scroller will scroll up if elements resize after
-        // the initial render.
-        if (!scrollTo && !userHasScrolled) {
-          return;
+        // By default, the virtualizer tries to keep the position of the topmost
+        // item on screen pinned, but we need to override that behavior to keep a
+        // message centered or to stay at the bottom of the chat.
+        if (anchorIndex !== null) {
+          const [nextOffset] = instance.getOffsetForIndex(
+            transformIndex(anchorIndex),
+            'center'
+          );
+          // Fix for no-param-reassign
+          const virt = instance;
+          virt.scrollOffset = nextOffset;
+          virt.scrollElement?.scrollTo({ top: nextOffset });
+        } else {
+          instance.scrollElement?.scrollTo({
+            top: offset + (adjustments ?? 0),
+            behavior,
+          });
         }
-        const top = offset + (adjustments ?? 0);
-        instance.scrollElement?.scrollTo({ top, behavior });
       },
-      [isScrolling, isMobile, scrollTo, userHasScrolled]
+      [isScrolling, isMobile, anchorIndex, transformIndex]
     ),
     overscan: thresholds.overscan,
     // Called by the virtualizer whenever any layout property changes.
@@ -217,6 +232,7 @@ export default function ChatScroller({
       setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
     }, [isInverted]),
   });
+  virtualizerRef.current = virtualizer;
 
   useFakeVirtuosoHandle(scrollerRef, virtualizer);
   useInvertedScrollInteraction(scrollElementRef, isInverted);
@@ -243,7 +259,7 @@ export default function ChatScroller({
     hasLoadedOldest,
   ]);
 
-  // TODO: This shouldn't run after we've scrolled to the given index
+  // Look for index of scrollTo message
   const scrollToIndex = useMemo(() => {
     if (!scrollTo || !activeMessages.has(scrollTo)) {
       return -1;
@@ -252,16 +268,33 @@ export default function ChatScroller({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTo?.toString(), activeMessageKeys]);
 
+  // Set anchor and scroll to proper index once that index is found
   useEffect(() => {
     if (scrollToIndex !== -1) {
-      scrollerRef.current?.scrollToIndex({
-        index: transformIndex(scrollToIndex),
-        align: 'center',
-      });
+      setAnchorIndex(scrollToIndex);
     }
+
     // We only want this to fire once for each index change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToIndex !== -1]);
+
+  // Reset to 'fresh' state when anchor changes
+  useEffect(() => {
+    resetUserHasScrolled();
+    if (anchorIndex !== null) {
+      // The offset value doesn't actually matter here. It just triggers a
+      // scrollToEvent, which will bring us to the correct index since we're
+      // anchored.
+      virtualizerRef.current?.scrollToOffset(0);
+    }
+  }, [anchorIndex, resetUserHasScrolled, scrollerRef]);
+
+  // Clear anchor on user interaction
+  useEffect(() => {
+    if (userHasScrolled) {
+      setAnchorIndex(null);
+    }
+  }, [userHasScrolled]);
 
   // Load more items when list reaches the top or bottom.
   useEffect(() => {
@@ -288,7 +321,7 @@ export default function ChatScroller({
   ]);
 
   // When the list inverts, we need to flip the scroll position in order to appear to stay in the same place.
-  // We do this here as opposed to in an effect so that virtualItems this render.
+  // We do this here as opposed to in an effect so that virtualItems is correct in time for this render.
   const lastIsInverted = useRef(isInverted);
   if (userHasScrolled && isInverted !== lastIsInverted.current) {
     virtualizer.scrollOffset = contentHeight - virtualizer.scrollOffset;
