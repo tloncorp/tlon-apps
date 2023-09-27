@@ -4,6 +4,7 @@ import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
+import { useChatStore } from '@/chat/useChatStore';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import useDocketState from './docket';
@@ -35,7 +36,7 @@ async function chatScry<T>(path: string, def: T) {
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { shelf, briefs, pins, groups, gangs } = await asyncWithDefault(
+  const { shelf, briefs, groups, gangs } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
@@ -44,15 +45,11 @@ async function startGroups() {
     emptyGroupsInit
   );
 
-  // if (!talkStarted) {
-  //   useChatState.getState().start(chat);
-  // }
-
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
   queryClient.setQueryData(['shelf'], shelf);
   queryClient.setQueryData(['briefs'], briefs);
-  queryClient.setQueryData(['pins'], pins);
+  useChatStore.getState().update(briefs);
 }
 
 async function startTalk() {

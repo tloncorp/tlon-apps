@@ -1,8 +1,8 @@
-/-  c=chat, d=channel, g=groups
+/-  c=chat, d=channel, g=groups, e=epic
 /-  meta
 /-  ha=hark
 /-  contacts
-/+  default-agent, verb-lib=verb, dbug
+/+  default-agent, verb-lib=verb, dbug, neg=negotiate
 /+  pac=dm
 /+  utils=channel-utils
 /+  volume
@@ -11,10 +11,15 @@
 ::  performance, keep warm
 /+  chat-json
 /*  desk-bill  %bill  /desk/bill
+%-  %-  agent:neg
+    :+  |
+      [~.chat-dms^%0 ~ ~]
+    [%chat^[~.chat-dms^%0 ~ ~] ~ ~]
 ^-  agent:gall
 =>
   |%
   +$  card  card:agent:gall
+  ++  okay  `epic:e`1
   ++  wood-state
     ^-  state:wood-lib
     :*  ver=|
@@ -48,7 +53,7 @@
       abet:init:cor
     [cards this]
   ::
-  ++  on-save  !>([state okay:d])
+  ++  on-save  !>([state okay])
   ++  on-load
     |=  =vase
     ^-  (quip card _this)
@@ -89,7 +94,7 @@
   --
 |_  [=bowl:gall cards=(list card)]
 +*  wood  ~(. wood-lib [bowl wood-state])
-    epos  ~(. epos-lib [bowl %chat-update okay:d])
+    epos  ~(. epos-lib [bowl %chat-update okay])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -368,6 +373,8 @@
       [%club id=@ rest=*]
     =/  =id:club:c  (slav %uv id.pole)
     cu-abet:(cu-watch:(cu-abed id) rest.pole)
+      [%epic ~]
+    (give %fact ~ epic+!>(okay))
   ==
 ::
 ++  agent
@@ -570,8 +577,8 @@
         remark  remark.chat
         net
       ?-  -.net.chat
-        %pub  [*ship & chi+~]
-        %sub  +.net.chat
+        %pub  [*ship &]
+        %sub  [host load]:net.chat
       ==
     ==
   ::

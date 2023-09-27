@@ -5,42 +5,37 @@ import bigInt from 'big-integer';
 import { VirtuosoHandle } from 'react-virtuoso';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
-import {
-  useGetFirstUnreadID,
-  useMarkReadMutation,
-  useNoteKeys,
-} from '@/state/channel/channel';
-import { useChatInfo } from './useChatStore';
+import { useChatKeys, useChatState, useGetFirstDMUnreadID } from '@/state/chat';
+import { useChatInfo, useChatStore } from './useChatStore';
 
-interface ChatUnreadAlertsProps {
+interface DMUnreadAlertsProps {
   scrollerRef: React.RefObject<VirtuosoHandle>;
   whom: string;
 }
 
-export default function ChatUnreadAlerts({
+export default function DMUnreadAlerts({
   scrollerRef,
   whom,
-}: ChatUnreadAlertsProps) {
-  const { mutate: markChatRead } = useMarkReadMutation();
-  const chatInfo = useChatInfo(`chat/${whom}`);
+}: DMUnreadAlertsProps) {
+  const chatInfo = useChatInfo(whom);
   const markRead = useCallback(() => {
-    markChatRead({ nest: `chat/${whom}` });
-  }, [whom, markChatRead]);
+    useChatState.getState().markDmRead(whom);
+    useChatStore.getState().read(whom);
+  }, [whom]);
 
   // TODO: how to handle replies?
-  const firstChatUnreadID = useGetFirstUnreadID(`chat/${whom}`);
-
-  const keys = useNoteKeys(`chat/${whom}`);
+  const firstDMUnreadID = useGetFirstDMUnreadID(whom);
+  const keys = useChatKeys({ whom, replying: false });
   const goToFirstUnread = useCallback(() => {
     if (!scrollerRef.current) {
       return;
     }
 
-    if (!firstChatUnreadID) {
+    if (!firstDMUnreadID) {
       return;
     }
 
-    const idx = keys.findIndex((k) => k.greaterOrEquals(firstChatUnreadID));
+    const idx = keys.findIndex((k) => k.greaterOrEquals(firstDMUnreadID));
     if (idx === -1) {
       return;
     }
@@ -50,7 +45,7 @@ export default function ChatUnreadAlerts({
       align: 'start',
       behavior: 'auto',
     });
-  }, [firstChatUnreadID, keys, scrollerRef]);
+  }, [firstDMUnreadID, keys, scrollerRef]);
 
   if (!chatInfo.unread || chatInfo.unread.seen) {
     return null;
@@ -58,7 +53,9 @@ export default function ChatUnreadAlerts({
 
   const { brief } = chatInfo.unread;
   const readId = brief['read-id'];
-  const udTime = readId ? daToUnix(bigInt(udToDec(readId))) : null;
+  const udTime = readId
+    ? daToUnix(bigInt(udToDec(readId.split('/')[1])))
+    : null;
   const date = udTime ? new Date(udTime) : new Date();
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`

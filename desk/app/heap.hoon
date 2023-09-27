@@ -1,6 +1,6 @@
 /-  h=heap, d=channel, g=groups, ha=hark, e=epic
 /-  meta
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, neg=negotiate
 /+  cur=curios
 /+  volume
 /+  epos-lib=saga
@@ -504,8 +504,8 @@
         remark  remark.heap
         net
       ?-  -.net.heap
-        %pub  [*ship & chi+~]
-        %sub  +.net.heap
+        %pub  [*ship &]
+        %sub  [p load]:net.heap
       ==
     ==
   ::

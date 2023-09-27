@@ -140,7 +140,6 @@
         perms+(perm perm.perm.di)
         view+s+view.view.di
         sort+s+sort.sort.di
-        saga+(saga net.di)
     ==
   ::
   ++  id
@@ -178,10 +177,6 @@
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
         group/(flag group.p)
     ==
-  ::
-  ++  saga
-    |=  n=net:d
-    (saga:enjs:gj saga.n)
   ::
   ++  feels
     |=  feels=(map ship:z feel:j)

@@ -36,6 +36,7 @@ import {
   PagedNotes,
   PagedNotesMap,
   NoteInCache,
+  Pins,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -50,6 +51,7 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
+import { useChatStore } from '@/chat/useChatStore';
 
 async function updateNoteInCache(
   variables: { nest: Nest; noteId: string },
@@ -893,6 +895,8 @@ export function useBriefs(): Briefs {
         }
         const newBriefs = { ...d };
         newBriefs[event.nest] = brief;
+
+        useChatStore.getState().update(newBriefs);
         return newBriefs;
       });
     }
@@ -910,7 +914,7 @@ export function useBriefs(): Briefs {
     return emptyBriefs;
   }
 
-  return data;
+  return data as Briefs;
 }
 
 export function useIsJoined(nest: Nest) {
@@ -926,6 +930,93 @@ export function useBrief(nest: Nest) {
   const briefs = useBriefs();
 
   return briefs[nest];
+}
+
+export function useChats(): Shelf {
+  const shelf = useShelf();
+
+  const chatKeys = Object.keys(shelf).filter((k) => k.startsWith('chat/'));
+
+  const chats: Shelf = {};
+
+  chatKeys.forEach((k) => {
+    chats[k] = shelf[k];
+  });
+
+  return chats;
+}
+
+export function usePins(): Pins {
+  const { data, ...rest } = useReactQueryScry<{ pins: Pins }>({
+    queryKey: ['pins'],
+    app: 'channels',
+    path: '/pins',
+  });
+
+  if (rest.isLoading || rest.isError || data === undefined || !data.pins) {
+    return [];
+  }
+
+  const { pins } = data;
+
+  return pins;
+}
+
+export function useAddPinMutation() {
+  const pins = usePins();
+  const mutationFn = async (variables: { nest: Nest }) => {
+    const newPins = pins.concat(variables.nest);
+
+    await api.poke({
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        pin: newPins,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['pins']);
+      const prev = queryClient.getQueryData<{ pins: Pins }>(['pins']);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData(['pins'], prev.pins.concat(variables.nest));
+      }
+    },
+  });
+}
+
+export function useDeletePinMutation() {
+  const pins = usePins();
+  const mutationFn = async (variables: { nest: Nest }) => {
+    const newPins = pins.filter((p) => p !== variables.nest);
+
+    await api.poke({
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        pin: newPins,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(['pins']);
+      const prev = queryClient.getQueryData<{ pins: Pins }>(['pins']);
+
+      if (prev !== undefined) {
+        queryClient.setQueryData(
+          ['pins'],
+          prev.pins.filter((p) => p !== variables.nest)
+        );
+      }
+    },
+  });
 }
 
 export function useDisplayMode(nest: string): DisplayMode {
@@ -962,32 +1053,26 @@ export function useRemoteNote(nest: Nest, id: string, blockLoad: boolean) {
   return note as Note;
 }
 
-// export function useRemoteQuip(
-// nest: Nest,
-// noteId: string,
-// quipId: string,
-// blockLoad: boolean
-// ) {
-// checkNest(nest);
-// const [han, flag] = nestToFlag(nest);
-// const path = `/said/${nest}/note/${decToUd(noteId)}/${decToUd(quipId)}`;
-// const { data, ...rest } = useReactQuerySubscribeOnce({
-// queryKey: [han, 'said', nest, noteId, quipId],
-// app: 'channels',
-// path,
-// options: {
-// enabled: !blockLoad,
-// },
-// });
+export function useNoteKeys(nest: Nest) {
+  const { notes } = useInfiniteNotes(nest);
 
-// if (rest.isLoading || rest.isError || !data) {
-// return {} as Quip;
-// }
+  return useMemo(() => notes.map(([k]) => k), [notes]);
+}
 
-// const { note } = data as Said;
+export function useGetFirstUnreadID(nest: Nest) {
+  const keys = useNoteKeys(nest);
+  const brief = useBrief(nest);
 
-// return note as Quip;
-// }
+  const { 'read-id': lastRead } = brief;
+
+  if (!lastRead) {
+    return null;
+  }
+
+  const lastReadBN = bigInt(lastRead);
+  const firstUnread = keys.find((key) => key.gt(lastReadBN));
+  return firstUnread ?? null;
+}
 
 export function useMarkReadMutation() {
   const mutationFn = async (variables: { nest: Nest }) => {

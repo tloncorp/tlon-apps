@@ -1,8 +1,8 @@
 import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
-import _ from 'lodash';
-import { useMatch, useSearchParams } from 'react-router-dom';
+import bigInt from 'big-integer';
+import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
-import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
+import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
 import {
   useChatLoading,
   useChatState,
@@ -10,7 +10,6 @@ import {
   useWritWindow,
 } from '@/state/chat';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
-import { useRouteGroup } from '@/state/groups';
 import { useChatInfo, useChatStore } from '../chat/useChatStore';
 import ChatScrollerPlaceholder from '../chat/ChatScroller/ChatScrollerPlaceholder';
 import DmScroller from './DmScroller';
@@ -20,29 +19,15 @@ interface DmWindowProps {
   prefixedElement?: ReactNode;
 }
 
-// function getScrollTo(
-//   whom: string,
-//   thread: ReturnType<typeof useMatch>,
-//   msg: string | null
-// ) {
-//   if (thread) {
-//     const { idShip, idTime } = thread.params;
-//     return useChatState.getState().getTime(whom, `${idShip}/${idTime}`);
-//   }
-
-//   return msg ? bigInt(msg) : undefined;
-// }
+function getScrollTo(msg: string | null) {
+  return msg ? bigInt(msg) : undefined;
+}
 
 export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
-  // const flag = useRouteGroup();
-  // const thread = useMatch(
-  // `/groups/${flag}/channels/chat/${whom}/message/:idShip/:idTime`
-  // );
   const [searchParams, setSearchParams] = useSearchParams();
-  // const scrollTo = getScrollTo(whom, thread, searchParams.get('msg'));
-  const scrollTo: string | undefined = undefined;
+  const scrollTo = getScrollTo(searchParams.get('msg'));
   const loading = useChatLoading(whom);
-  const messages = useMessagesForChat(whom, scrollTo);
+  const messages = useMessagesForChat(whom, scrollTo?.toString());
   const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
@@ -54,11 +39,11 @@ export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
 
   useEffect(() => {
     if (scrollTo && !messages.has(scrollTo)) {
-      useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
+      useChatState
+        .getState()
+        .fetchMessagesAround(whom, '25', scrollTo.toString());
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo, messages]);
+  }, [scrollTo, messages, whom]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -83,7 +68,7 @@ export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
 
   return (
     <div className="relative h-full">
-      <ChatUnreadAlerts whom={whom} scrollerRef={scrollerRef} />
+      <DMUnreadAlerts whom={whom} scrollerRef={scrollerRef} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <DmScroller
           /**

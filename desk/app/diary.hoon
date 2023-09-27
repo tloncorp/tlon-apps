@@ -528,8 +528,8 @@
         remark  remark.diary
         net
       ?-  -.net.diary
-        %pub  [*ship & chi+~]
-        %sub  +.net.diary
+        %pub  [*ship &]
+        %sub  [p load]:net.diary
       ==
     ==
   ::
