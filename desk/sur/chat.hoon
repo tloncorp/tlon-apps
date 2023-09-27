@@ -17,7 +17,11 @@
 ::  $feel: either an emoji identifier like :wave: or a URL for custom
 +$  feel   @ta
 ::  $scan: search results
-+$  scan  (list writ)
++$  scan  (list reference)
++$  reference
+  $%  [%writ =writ]
+      [%quip =id =quip]
+  ==
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::

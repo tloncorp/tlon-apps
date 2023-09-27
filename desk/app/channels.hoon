@@ -1115,16 +1115,16 @@
           (scour sip len %text nedl)
         --
     ::
-    ++  match-type
+    +$  match-type
       $%  [%mention nedl=ship]
           [%text nedl=@t]
       ==
     ::
     ++  scour
-      |=  [sip=@ud len=@ud =match-type]
+      |=  [skip=@ud len=@ud =match-type]
       =*  notes  notes.diary
       ?>  (gth len 0)
-      =+  s=[sip=sip len=len *=scan:d]
+      =+  s=[skip=skip len=len *=scan:d]
       =-  (flop scan)
       |-  ^+  s
       ?~  notes  s
@@ -1134,27 +1134,20 @@
       ::
       =.  s
         ?~  val.n.notes  s
-        ?.  (match match-type u.val.n.notes)  s
-        ?:  (gth sip.s 0)
-          s(sip (dec sip.s))
+        ?.  (match u.val.n.notes match-type)  s
+        ?:  (gth skip.s 0)
+          s(skip (dec skip.s))
         =/  res  [%note (rr-note-without-quips:utils u.val.n.notes)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
         ?~  val.n.notes  s
-        %:  scour-quips
-            sip.s  len.s
-            id.u.val.n.notes
-            quips.u.val.n.notes
-            scan.s
-            match-type
-        ==
+        (scour-quips s id.u.val.n.notes quips.u.val.n.notes match-type)
       ::
       $(notes l.notes)
     ::
     ++  scour-quips
-      |=  [sip=@ud len=@ud =id-note:d =quips:d =scan:d =match-type]
-      =+  s=[sip=sip len=len scan=scan]
+      |=  [s=[skip=@ud len=@ud =scan:d] =id-note:d =quips:d =match-type]
       |-  ^+  s
       ?~  quips  s
       ?:  =(0 len.s)  s
@@ -1163,16 +1156,16 @@
       ::
       =.  s
         ?~  val.n.quips  s
-        ?.  (match-quip match-type u.val.n.quips)  s
-        ?:  (gth sip.s 0)
-          s(sip (dec sip.s))
+        ?.  (match-quip u.val.n.quips match-type)  s
+        ?:  (gth skip.s 0)
+          s(skip (dec skip.s))
         =/  res  [%quip id-note (rr-quip:utils u.val.n.quips)]
         s(len (dec len.s), scan [res scan.s])
       ::
       $(quips l.quips)
     ::
     ++  match
-      |=  [=match-type =note:d]
+      |=  [=note:d =match-type]
       ^-  ?
       ?-  -.match-type
         %mention  (match-note-mention nedl.match-type note)
@@ -1180,7 +1173,7 @@
       ==
     ::
     ++  match-quip
-      |=  [=match-type =quip:d]
+      |=  [=quip:d =match-type]
       ?-  -.match-type
         %mention  (match-story-mention nedl.match-type content.quip)
         %text     (match-story-text nedl.match-type content.quip)
