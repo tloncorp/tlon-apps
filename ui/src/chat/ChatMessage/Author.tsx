@@ -17,7 +17,7 @@ interface AuthorProps {
   isRef?: boolean;
   className?: string;
 }
-export default function Author({
+function Author({
   ship,
   date,
   timeOnly,
@@ -140,3 +140,5 @@ export default function Author({
     </div>
   );
 }
+
+export default React.memo(Author);

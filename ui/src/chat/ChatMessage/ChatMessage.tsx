@@ -217,6 +217,10 @@ const ChatMessage = React.memo<
       const [reactionDetailsOpen, setReactionDetailsOpen] = useState(false);
       const { action, actionId, handlers } = useLongPress({ withId: true });
 
+      const handleReactionDetailsOpened = useCallback(() => {
+        setReactionDetailsOpen(true);
+      }, []);
+
       useEffect(() => {
         if (!isMobile) {
           return;
@@ -285,7 +289,7 @@ const ChatMessage = React.memo<
               whom={whom}
               writ={writ}
               hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
-              openReactionDetails={() => setReactionDetailsOpen(true)}
+              openReactionDetails={handleReactionDetailsOpened}
             />
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
