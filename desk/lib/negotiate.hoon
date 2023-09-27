@@ -252,8 +252,7 @@
         ::TODO  if heed was (map gill (map protocol (u v))) we could reasonably
         ::      look up where the mismatch was...
         ~|  [%negotiate %poke-to-mismatching-gill gill]
-        pass
-        ::  !!  XX  crashing here requires us to watch before poking
+        !!
       ::  watches will get reestablished once our versions match, but if we
       ::  haven't started negotiation yet, we should do that now
       ::

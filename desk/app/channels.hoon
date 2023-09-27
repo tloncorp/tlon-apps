@@ -118,6 +118,9 @@
   inflate-io
 ::
 ++  inflate-io
+  ::  initiate version negotiation with our own channels-server
+  ::
+  =.  cor  (emit (initiate:neg our.bowl server))
   ::  leave all subscriptions we don't recognize
   ::
   =.  cor
@@ -451,6 +454,11 @@
     ?.  =(src.bowl our.bowl)
       ~|("%channel-action poke failed: only allowed from self" !!)
     =/  =cage  [%channel-command !>(command)]
+    ::  NB: we must have already subscribed to something from this ship,
+    ::  so that we have negotiated a matching version.  If we want to do
+    ::  anything in particular on a mismatched version, we can call
+    ::  +can-poke:neg.
+    ::
     (emit %pass di-area %agent [ship.nest.command server] %poke cage)
   ::
   ::  handle a said (previews) request where we have the data to respond
