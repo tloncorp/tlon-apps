@@ -331,7 +331,7 @@ Delete a reaction from a comment
 
 Set the display format for a diary
 
-[view](#view)
+[view](#view-1)
 ###### %sort
 ```hoon
 =nest [%chat our %mychat]
@@ -342,7 +342,7 @@ Set the display format for a diary
 
 Set the sorting mechanism for a diary
 
-[sort](#sort)
+[sort](#sort-1)
 ###### %order
 ```hoon
 =nest [%chat our %mychat]
@@ -403,6 +403,14 @@ Read a reference. Facts are either of the `%channel-denied` mark (meaning you ca
 
 [nest](#nest) \| [said](#said)
 ## Types
+### said
+```hoon
++$  said  (pair nest rr-note)
+```
+
+A nest and an rr-note (note with no revision numbers). Used for references
+
+[nest](#nest) \| [rr-note](#rr-note)
 ### essay
 ```hoon
 +$  essay  [memo =han-data]
@@ -533,7 +541,7 @@ Like notes, quips (comments) are uniquely identified and indexed by the time the
 +$  feel  @ta
 ```
 
-Reaction, in the form of a text description of an emoji like ':grinning:'
+Reaction, in the form of a text description of an emoji like `':grinning:'`
 ### view
 ```hoon
 +$  view  $~(%list ?(%grid %list))
@@ -604,6 +612,43 @@ Response (subscriber to client communication) for a diary.
 ```
 
 Notes without revision numbers
+
+[id-note](#id-note) \| [rr-note](#rr-note)
+### rr-note
+```hoon
++$  rr-note   [rr-seal essay]
+```
+
+Note without revision numbers.
+
+[rr-seal](#rr-seal) \| [essay](#essay)
+### rr-seal
+```hoon
++$  rr-seal
+  $:  id=id-note
+      =rr-feels
+      =rr-quips
+      =quip-meta
+  ==
++$  rr-feels  (map ship feel)
++$  rr-quip   [rr-cork memo]
++$  rr-quips  ((mop id-quip rr-quip) lte)
++$  rr-cork   [id=id-quip =rr-feels]
+```
+
+Metadata for a note (no revision numbers)
+
+[id-quip](#id-quip) \| [memo](#memo) \| [quip-meta](#quip-meta)
+### quip-meta
+```hoon
++$  quip-meta
+  $:  quip-count=@ud
+      last-quippers=(set ship)
+      last-quip=(unit time)
+  ==
+```
+
+Metadata for quips
 ### create-diary
 ```hoon
 +$  create-diary
