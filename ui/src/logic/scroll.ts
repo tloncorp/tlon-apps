@@ -5,6 +5,7 @@ import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
  * a scroll event occurs.
  */
 export function useIsScrolling(
+  scrollElementRef: RefObject<HTMLElement>,
   options: {
     checkInterval: number;
     scrollStopDelay: number;
@@ -16,6 +17,18 @@ export function useIsScrolling(
   const { checkInterval, scrollStopDelay } = options;
   const [isScrolling, setIsScrolling] = useState(false);
   const lastScrollTime = useRef(0);
+
+  useEffect(() => {
+    const el = scrollElementRef.current;
+    if (!el) return undefined;
+
+    const handleScroll = () => {
+      lastScrollTime.current = Date.now();
+      setIsScrolling(true);
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [scrollElementRef]);
 
   // This performs a bit better than setting and clearing a million
   // setTimeouts, even debounced, but in the worst case takes 2 * checkInterval
@@ -30,12 +43,7 @@ export function useIsScrolling(
     return () => clearInterval(interval);
   }, [isScrolling, checkInterval, scrollStopDelay]);
 
-  const didScroll = useCallback(() => {
-    lastScrollTime.current = Date.now();
-    setIsScrolling(true);
-  }, []);
-
-  return { isScrolling, didScroll };
+  return isScrolling;
 }
 
 /**
@@ -44,11 +52,11 @@ export function useIsScrolling(
  * inside passive event listeners, which React uses in prop events by default.
  */
 export function useInvertedScrollInteraction(
-  scrollerRef: RefObject<HTMLDivElement>,
+  scrollElementRef: RefObject<HTMLDivElement>,
   isInverted: boolean
 ) {
   useEffect(() => {
-    const el = scrollerRef.current;
+    const el = scrollElementRef.current;
     if (!isInverted || !el) return undefined;
     const invertScrollWheel = (e: WheelEvent) => {
       el.scrollTop -= e.deltaY;
@@ -76,27 +84,39 @@ export function useInvertedScrollInteraction(
       el.removeEventListener('wheel', invertScrollWheel);
       el.removeEventListener('keydown', invertSpaceAndArrows);
     };
-  }, [isInverted, scrollerRef]);
+  }, [isInverted, scrollElementRef]);
 }
 
 /**
  * Tracks whether a user has manually scrolled the given element.
  */
-export function useHasScrolledRef(scrollElementRef: RefObject<HTMLElement>) {
-  const userHasScrolled = useRef(false);
+export function useUserHasScrolled(scrollElementRef: RefObject<HTMLElement>) {
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
+
   useEffect(() => {
+    if (userHasScrolled) return undefined;
     const el = scrollElementRef.current;
     const triggerEvents = ['mousedown', 'touchmove', 'wheel', 'keydown'];
     const listenerOptions = { capture: true, passive: true };
-    const handleInteraction = () => {
-      userHasScrolled.current = true;
+    function handleInteraction() {
+      setUserHasScrolled(true);
+      triggerEvents.forEach((eventName) =>
+        el?.removeEventListener(eventName, handleInteraction, listenerOptions)
+      );
+    }
+    triggerEvents.forEach((eventName) => {
+      el?.addEventListener(eventName, handleInteraction, listenerOptions);
+    });
+    return () => {
       triggerEvents.forEach((eventName) =>
         el?.removeEventListener(eventName, handleInteraction, listenerOptions)
       );
     };
-    triggerEvents.forEach((eventName) => {
-      el?.addEventListener(eventName, handleInteraction, listenerOptions);
-    });
-  }, [scrollElementRef]);
-  return userHasScrolled;
+  }, [scrollElementRef, userHasScrolled]);
+
+  const resetUserHasScrolled = useCallback(() => {
+    setUserHasScrolled(false);
+  }, []);
+
+  return { userHasScrolled, resetUserHasScrolled };
 }
