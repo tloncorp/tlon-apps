@@ -343,12 +343,24 @@
   ::
   +|  %said
   ::
+  ++  reference
+    |=  =reference:d
+    %+  frond  -.reference
+    ?-    -.reference
+        %note  (rr-note rr-note.reference)
+        %quip
+      %-  pairs
+      :~  id-note+(id id-note.reference)
+          quip+(rr-quip rr-quip.reference)
+      ==
+    ==
+  ::
   ++  said
     |=  s=said:d
     ^-  json
     %-  pairs
     :~  nest/(nest p.s)
-        note/(rr-note q.s)
+        reference/(reference q.s)
     ==
   --
 ::

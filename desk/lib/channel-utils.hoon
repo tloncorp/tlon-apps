@@ -49,7 +49,6 @@
 ++  rr-note-without-quips
   |=  =note:d
   ^-  rr-note:d
-  =/  quippers  (get-last-quippers note)
   :_  +>.note
   :*  id.note
       (rr-feels feels.note)
@@ -87,25 +86,39 @@
   |=  [=nest:d =plan:d =notes:d]
   ^-  cage
   =/  note=(unit (unit note:d))  (get:on-notes:d notes p.plan)
-  =/  =rr-note:d
+  ?~  q.plan
+    =/  =rr-note:d
+      ?~  note
+        ::TODO  give "outline" that formally declares deletion
+        :-  *rr-seal:d
+        ?-  han.nest
+          %diary  [*memo:d %diary 'Unknown post' '']
+          %heap   [*memo:d %heap ~ 'Unknown link']
+          %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
+        ==
+      ?~  u.note
+        :-  *rr-seal:d
+        ?-  han.nest
+            %diary  [*memo:d %diary 'This post was deleted' '']
+            %heap   [*memo:d %heap ~ 'This link was deleted']
+            %chat
+          [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
+        ==
+      (rr-note-without-quips u.u.note)
+    [%channel-said !>(`said:d`[nest %note rr-note])]
+  ::
+  =/  =rr-quip
     ?~  note
-      ::TODO  give "outline" that formally declares deletion
-      :-  *rr-seal:d
-      ?-  han.nest
-        %diary  [*memo:d %diary 'Unknown post' '']
-        %heap   [*memo:d %heap ~ 'Unknown link']
-        %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
-      ==
+      [*rr-cork:d ~[%inline 'Comment on unknown post']~ ~nul *@da]
     ?~  u.note
-      :-  *rr-seal:d
-      ?-  han.nest
-          %diary  [*memo:d %diary 'This post was deleted' '']
-          %heap   [*memo:d %heap ~ 'This link was deleted']
-          %chat
-        [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
-      ==
-    (rr-note u.u.note)
-  [%channel-said !>(`said:d`[nest rr-note])]
+      [*rr-cork:d ~[%inline 'Comment on deleted post']~ ~nul *@da]
+    =/  quip=(unit (unit quip:d))  (get:on-quips:d quips.u.u.note u.q.plan)
+    ?~  quip
+      [*rr-cork:d ~[%inline 'Unknown comment']~ ~nul *@da]
+    ?~  u.quip
+      [*rr-cork:d ~[%inline 'This comment was deleted']~ ~nul *@da]
+    (rr-quip u.u.quip)
+  [%channel-said !>(`said:d`[nest %quip p.plan rr-quip])]
 ::
 ++  was-mentioned
   |=  [=story:d who=ship]

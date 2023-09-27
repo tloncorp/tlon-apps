@@ -1137,7 +1137,7 @@
         ?.  (match match-type u.val.n.notes)  s
         ?:  (gth sip.s 0)
           s(sip (dec sip.s))
-        =/  res  [%note (rr-note:utils u.val.n.notes)]
+        =/  res  [%note (rr-note-without-quips:utils u.val.n.notes)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s

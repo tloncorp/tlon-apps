@@ -192,13 +192,13 @@
 +$  feel  @ta
 +$  feels  (map ship (rev (unit feel)))
 ::  $scan: search results
-+$  scan  (list scan-result)
-+$  scan-result
++$  scan  (list reference)
++$  reference
   $%  [%note =rr-note]
       [%quip =id-note =rr-quip]
   ==
 ::  $said: used for references
-+$  said  (pair nest rr-note)
++$  said  (pair nest reference)
 ::  $plan: index into diary state
 ::    p: Note being referred to
 ::    q: Quip being referred to, if any
