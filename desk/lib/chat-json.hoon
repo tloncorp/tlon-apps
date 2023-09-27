@@ -256,6 +256,18 @@
         feels+(feels feels.cork)
     ==
   ::
+  ++  reference
+    |=  =reference:c
+    %+  frond  -.reference
+    ?-    -.reference
+        %writ  (writ writ.reference)
+        %quip
+      %-  pairs
+      :~  id-note+(id id.reference)
+          quip+(quip quip.reference)
+      ==
+    ==
+  ::
   --
 ++  dejs
   =,  dejs:format

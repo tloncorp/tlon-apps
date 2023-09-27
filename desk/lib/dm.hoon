@@ -261,7 +261,7 @@
       ?.  (match-quip val.n.quips match-type)  s
       ?:  (gth skip.s 0)
         s(skip (dec skip.s))
-      s(len (dec len.s), scan [[%quip id.val.n.quips val.n.quips] scan.s])
+      s(len (dec len.s), scan [[%quip id val.n.quips] scan.s])
     ::
     $(quips l.quips)
   ::
