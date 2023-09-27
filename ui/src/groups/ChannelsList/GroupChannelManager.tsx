@@ -46,7 +46,7 @@ export default function GroupChannelManager({ title }: ViewProps) {
               </button>
             </GroupActions>
           }
-          pathBack={`/groups/${flag}`}
+          goBack
         />
       )}
       <div className="flex grow flex-col overflow-auto bg-gray-50 px-2 sm:px-6">

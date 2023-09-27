@@ -7,11 +7,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import fuzzy from 'fuzzy';
 import { Virtuoso } from 'react-virtuoso';
 import { deSig } from '@urbit/api';
 import { useLocation, useNavigate } from 'react-router';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import fuzzy from 'fuzzy';
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import Divider from '@/components/Divider';
@@ -366,7 +366,7 @@ export default function Members() {
             />
           )
         }
-        pathBack=".."
+        goBack
         action={
           <div className="flex h-12 flex-row items-center justify-end space-x-2">
             <button onClick={() => setToggleSearch(!toggleSearch)}>

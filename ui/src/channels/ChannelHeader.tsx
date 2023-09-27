@@ -71,7 +71,7 @@ export default function ChannelHeader({
             {children}
           </div>
         }
-        pathBack={isTalk ? '/' : `/groups/${groupFlag}`}
+        goBack
       />
     );
   }

@@ -56,7 +56,7 @@ export default function MobileGroupChannelList() {
             )}
           </div>
         }
-        pathBack="/"
+        goBack
       />
       <ChannelList />
     </>
