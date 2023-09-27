@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
 import { usePinnedGroups } from '@/state/chat';
-import { useGangList, useGroupsWithQuery } from '@/state/groups';
+import {
+  useGangList,
+  useGroupsWithQuery,
+  usePendingGangsWithoutClaim,
+} from '@/state/groups';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
@@ -14,6 +18,7 @@ import MobileHeader from '@/components/MobileHeader';
 import Layout from '@/components/Layout/Layout';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import GroupJoinList from '@/groups/GroupJoinList';
 
 export default function MobileRoot() {
   const [isScrolling, setIsScrolling] = useState(false);
@@ -23,6 +28,7 @@ export default function MobileRoot() {
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
   const { data: groups, isLoading } = useGroupsWithQuery();
   const gangs = useGangList();
+  const pendingGangs = usePendingGangsWithoutClaim();
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
   const pinnedGroupsOptions = useMemo(
@@ -38,7 +44,7 @@ export default function MobileRoot() {
       className="flex-1 bg-white"
       header={
         <MobileHeader
-          title="All Groups"
+          title="Groups"
           action={
             <div className="flex h-12 items-center justify-end space-x-2">
               <ReconnectingSpinner />
@@ -74,18 +80,28 @@ export default function MobileRoot() {
                 isScrolling={scroll.current}
               >
                 {Object.entries(pinnedGroups).length > 0 && (
-                  <>
-                    <div className="px-4">
-                      <h2 className="mb-0.5 p-2 font-system-sans  text-gray-900">
-                        Pinned Groups
-                      </h2>
-                      {pinnedGroupsOptions}
-                    </div>
-                    <h2 className="my-2 ml-2 p-2 pl-4 font-system-sans  text-gray-900">
-                      All Groups
+                  <div className="px-4">
+                    <h2 className="mb-0.5 p-2 font-system-sans text-gray-400">
+                      Pinned
                     </h2>
-                  </>
+                    {pinnedGroupsOptions}
+                  </div>
                 )}
+                {Object.entries(pendingGangs).length > 0 && (
+                  <div className="px-4">
+                    <h2 className="mb-0.5 p-2 font-system-sans text-gray-400">
+                      Invites
+                    </h2>
+                    <GroupJoinList highlightAll gangs={pendingGangs} />
+                  </div>
+                )}
+
+                {Object.entries(pinnedGroups).length > 0 ||
+                Object.entries(pendingGangs).length > 0 ? (
+                  <h2 className="my-2 ml-2 p-2 pl-4 font-system-sans text-gray-400">
+                    All Groups
+                  </h2>
+                ) : null}
 
                 <div className="px-4">
                   {gangs.map((flag) => (
