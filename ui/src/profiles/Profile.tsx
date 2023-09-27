@@ -1,8 +1,6 @@
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { ViewProps } from '@/types/groups';
-import Layout from '@/components/Layout/Layout';
 import { useIsMobile } from '@/logic/useMedia';
 import { useOurContact } from '@/state/contact';
 import Avatar from '@/components/Avatar';
@@ -12,29 +10,10 @@ import FeedbackIcon from '@/components/icons/FeedbackIcon';
 import GiftIcon from '@/components/icons/GiftIcon';
 import InfoIcon from '@/components/icons/InfoIcon';
 import AsteriskIcon from '@/components/icons/AsteriskIcon';
+import LogOutIcon from '@/components/icons/LogOutIcon';
 import MobileHeader from '@/components/MobileHeader';
+import { isNativeApp, postActionToNativeApp } from '@/logic/native';
 import ProfileCoverImage from './ProfileCoverImage';
-
-const pageAnimationVariants = {
-  initial: {
-    opacity: 0,
-    x: '-100vw',
-  },
-  in: {
-    opacity: 1,
-    x: 0,
-  },
-  out: {
-    opacity: 0,
-    x: '100vw',
-  },
-};
-
-const pageTransition = {
-  type: 'tween',
-  ease: 'easeInOut',
-  duration: 0.2,
-};
 
 export default function Profile({ title }: ViewProps) {
   const isMobile = useIsMobile();
@@ -46,14 +25,7 @@ export default function Profile({ title }: ViewProps) {
         <title>{title}</title>
       </Helmet>
       {isMobile ? <MobileHeader title="Profile" /> : null}
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageAnimationVariants}
-        transition={pageTransition}
-        className="grow overflow-y-auto bg-white"
-      >
+      <div className="flex grow flex-col overflow-y-auto bg-white">
         <div className="px-4">
           <ProfileCoverImage
             className="m-auto h-[345px] w-full shadow-2xl"
@@ -61,7 +33,7 @@ export default function Profile({ title }: ViewProps) {
           >
             <Link
               to="/profile/edit"
-              className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 px-6 pt-6 font-normal dark:bg-white/30"
+              className="absolute inset-0 flex h-[345px] w-full flex-col justify-between rounded-[36px] bg-black/30 p-6 font-normal dark:bg-white/30"
             >
               <div className="flex w-full justify-end">
                 <Link
@@ -100,83 +72,94 @@ export default function Profile({ title }: ViewProps) {
             </Link>
           </ProfileCoverImage>
         </div>
-        <nav className="flex flex-col space-y-1 px-4">
-          <Link to="/profile/settings" className="no-underline">
-            <SidebarItem
-              color="text-gray-900"
-              fontWeight="font-normal"
-              fontSize="text-[17px]"
-              className="leading-5"
-              showCaret
-              icon={
-                <div className="flex h-12 w-12 items-center justify-center">
-                  <AsteriskIcon className="h-6 w-6 text-gray-400" />
-                </div>
-              }
+        <nav className="flex grow flex-col justify-between gap-1 p-4">
+          <div className="space-y-1">
+            <Link to="/profile/settings" className="no-underline">
+              <SidebarItem
+                color="text-gray-900"
+                fontWeight="font-normal"
+                fontSize="text-[17px]"
+                className="leading-5"
+                showCaret
+                icon={
+                  <div className="flex h-12 w-12 items-center justify-center">
+                    <AsteriskIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                }
+              >
+                App Settings
+              </SidebarItem>
+            </Link>
+            <Link to="/profile/about" className="no-underline">
+              <SidebarItem
+                color="text-gray-900"
+                fontWeight="font-normal"
+                fontSize="text-[17px]"
+                className="leading-5"
+                showCaret
+                icon={
+                  <div className="flex h-12 w-12 items-center justify-center">
+                    <InfoIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                }
+              >
+                About Groups
+              </SidebarItem>
+            </Link>
+            <a
+              className="no-underline"
+              href="https://airtable.com/shrflFkf5UyDFKhmW"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Submit Feedback"
             >
-              App Settings
-            </SidebarItem>
-          </Link>
-          <Link to="/profile/about" className="no-underline">
-            <SidebarItem
-              color="text-gray-900"
-              fontWeight="font-normal"
-              fontSize="text-[17px]"
-              className="leading-5"
-              showCaret
-              icon={
-                <div className="flex h-12 w-12 items-center justify-center">
-                  <InfoIcon className="h-6 w-6 text-gray-400" />
-                </div>
-              }
+              <SidebarItem
+                color="text-gray-900"
+                fontWeight="font-normal"
+                fontSize="text-[17px]"
+                className="leading-5"
+                icon={
+                  <div className="flex h-12 w-12 items-center justify-center">
+                    <FeedbackIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                }
+              >
+                Submit Feedback
+              </SidebarItem>
+            </a>
+            <a
+              className="no-underline"
+              href="https://tlon.network/lure/~nibset-napwyn/tlon?id=186c283508814a3-073b187e44f6fa-1f525634-384000-186c28350892a15"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Share with Friends"
             >
-              About Groups
-            </SidebarItem>
-          </Link>
-          <a
-            className="no-underline"
-            href="https://airtable.com/shrflFkf5UyDFKhmW"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Submit Feedback"
-          >
-            <SidebarItem
-              color="text-gray-900"
-              fontWeight="font-normal"
-              fontSize="text-[17px]"
-              className="leading-5"
-              icon={
-                <div className="flex h-12 w-12 items-center justify-center">
-                  <FeedbackIcon className="h-6 w-6 text-gray-400" />
-                </div>
-              }
+              <SidebarItem
+                color="text-gray-900"
+                fontWeight="font-normal"
+                fontSize="text-[17px]"
+                className="leading-5"
+                icon={
+                  <div className="flex h-12 w-12 items-center justify-center">
+                    <GiftIcon className="h-6 w-6 -rotate-12 text-gray-400" />
+                  </div>
+                }
+              >
+                Share with Friends
+              </SidebarItem>
+            </a>
+          </div>
+          {isNativeApp() ? (
+            <button
+              className="flex items-center justify-between gap-1 rounded-lg px-6 py-4 text-[17px] leading-5 text-gray-600 hover:bg-gray-50 active:bg-gray-50 sm:text-base"
+              onClick={() => postActionToNativeApp('logout')}
             >
-              Submit Feedback
-            </SidebarItem>
-          </a>
-          <a
-            className="no-underline"
-            href="https://tlon.network/lure/~nibset-napwyn/tlon?id=186c283508814a3-073b187e44f6fa-1f525634-384000-186c28350892a15"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Share with Friends"
-          >
-            <SidebarItem
-              color="text-gray-900"
-              fontWeight="font-normal"
-              fontSize="text-[17px]"
-              className="leading-5"
-              icon={
-                <div className="flex h-12 w-12 items-center justify-center">
-                  <GiftIcon className="h-6 w-6 -rotate-12 text-gray-400" />
-                </div>
-              }
-            >
-              Share with Friends
-            </SidebarItem>
-          </a>
+              Log Out
+              <LogOutIcon className="h-6 w-6 text-gray-200" />
+            </button>
+          ) : null}
         </nav>
-      </motion.div>
+      </div>
     </div>
   );
 }

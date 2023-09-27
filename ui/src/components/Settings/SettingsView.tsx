@@ -1,31 +1,9 @@
 import { useIsMobile } from '@/logic/useMedia';
 import { ViewProps } from '@/types/groups';
 import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
 import Layout from '../Layout/Layout';
 import MobileHeader from '../MobileHeader';
 import Settings from './Settings';
-
-const pageAnimationVariants = {
-  initial: {
-    opacity: 0,
-    x: '100vw',
-  },
-  in: {
-    opacity: 1,
-    x: 0,
-  },
-  out: {
-    opacity: 0,
-    x: '-100vw',
-  },
-};
-
-const pageTransition = {
-  type: 'tween',
-  ease: 'easeInOut',
-  duration: 0.2,
-};
 
 export default function SettingsView({ title }: ViewProps) {
   const isMobile = useIsMobile();
@@ -35,22 +13,15 @@ export default function SettingsView({ title }: ViewProps) {
       header={
         isMobile ? <MobileHeader title="Settings" pathBack="/profile" /> : null
       }
-      className="flex flex-col overflow-y-auto px-4"
+      className="flex flex-col overflow-y-auto"
     >
       <Helmet>
         <title>{title}</title>
       </Helmet>
 
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageAnimationVariants}
-        transition={pageTransition}
-        className="px-8 pt-8"
-      >
+      <div className="px-6 pt-8">
         <Settings />
-      </motion.div>
+      </div>
     </Layout>
   );
 }

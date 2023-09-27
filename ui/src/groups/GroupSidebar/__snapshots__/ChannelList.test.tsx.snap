@@ -3,45 +3,21 @@
 exports[`ChannelList > renders as expected 1`] = `
 <DocumentFragment>
   <div
-    class="h-full w-full flex-1 overflow-y-auto"
+    class="h-full w-full flex-1 space-y-0.5 overflow-x-hidden"
+    data-test-id="virtuoso-scroller"
+    data-virtuoso-scroller="true"
+    style="height: 100%; outline: none; overflow-y: auto; position: relative;"
+    tabindex="0"
   >
     <div
-      class="border-gray-50 sm:flex sm:w-full sm:items-center sm:justify-between sm:border-t-2 sm:p-2 sm:py-3"
+      data-viewport-type="element"
+      style="width: 100%; height: 100%; position: absolute; top: 0px;"
     >
-      <h2
-        class="px-2 pb-0 text-sm font-semibold text-gray-400"
-      >
-        Arranged Channels
-      </h2>
-      <div>
-        <button
-          aria-expanded="false"
-          aria-haspopup="menu"
-          aria-label="Groups Sort Options"
-          class="appearance-none default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
-          data-state="closed"
-          id="radix-:r0:"
-          type="button"
-        >
-          <svg
-            class="h-6 w-6 text-gray-400 sm:h-4 sm:w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              class="fill-current"
-              clip-rule="evenodd"
-              d="M17.207 4.793a1 1 0 0 0-1.414 0l-3 3a1 1 0 0 0 1.414 1.414L15.5 7.914V17.5a1 1 0 1 0 2 0V7.914l1.293 1.293a1 1 0 1 0 1.414-1.414l-3-3ZM8.5 5.5a1 1 0 0 0-2 0v9.586l-1.293-1.293a1 1 0 0 0-1.414 1.414l3 3a1 1 0 0 0 1.414 0l3-3a1 1 0 0 0-1.414-1.414L8.5 15.086V5.5Z"
-              fill-rule="evenodd"
-            />
-          </svg>
-        </button>
-      </div>
+      <div
+        data-test-id="virtuoso-item-list"
+        style="box-sizing: border-box; padding-top: 0px; padding-bottom: 0px; margin-top: 0px;"
+      />
     </div>
-    <div
-      class="mx-4 space-y-0.5 sm:mx-2"
-    />
   </div>
 </DocumentFragment>
 `;

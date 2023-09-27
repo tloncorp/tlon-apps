@@ -128,15 +128,15 @@ export default function MobileMessagesSidebar() {
             {filteredPins && filteredPins.length > 0 ? (
               <>
                 <div className="px-4">
-                  <h2 className="my-0.5 p-2 font-system-sans text-lg text-gray-400 sm:text-base">
-                    Pinned Messages
+                  <h2 className="mb-0.5 p-2 font-system-sans text-gray-400">
+                    Pinned
                   </h2>
                   {filteredPins.map((ship: string) => (
                     <MessagesSidebarItem key={ship} whom={ship} />
                   ))}
                 </div>
                 <div className="flex flex-row items-center justify-between px-4">
-                  <h2 className="my-0.5 p-2 font-system-sans text-lg text-gray-400 sm:text-base">
+                  <h2 className="mb-0.5 p-2 font-system-sans text-gray-400">
                     {messagesFilter}
                   </h2>
                 </div>

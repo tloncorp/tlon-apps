@@ -1,5 +1,5 @@
-import React, { PropsWithChildren, useMemo } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
+import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import useMessageSort from '@/logic/useMessageSort';
 import { useGroups } from '@/state/groups';
 import { filters, SidebarFilter } from '@/state/settings';
@@ -32,6 +32,8 @@ function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
 
 const computeItemKey = (_i: number, [whom, _brief]: [string, ChatBrief]) =>
   whom;
+
+let virtuosoState: StateSnapshot | undefined;
 
 export default function MessagesList({
   filter,
@@ -98,9 +100,11 @@ export default function MessagesList({
     [allPending, briefs, chats, filter, groups, pinned, sortMessages]
   );
 
+  const headerHeightRef = useRef<number>(0);
+  const headerRef = useRef<HTMLDivElement>(null);
   const head = useMemo(
     () => (
-      <>
+      <div ref={headerRef}>
         {children}
         {allPending &&
           filter !== filters.groups &&
@@ -109,10 +113,26 @@ export default function MessagesList({
               <MessagesSidebarItem pending key={whom} whom={whom} />
             </div>
           ))}
-      </>
+      </div>
     ),
-    [children, allPending, filter]
+    [headerRef, children, allPending, filter]
   );
+
+  useEffect(() => {
+    if (!headerRef.current) {
+      return () => {
+        // do nothing
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      headerHeightRef.current =
+        headerRef.current?.offsetHeight ?? headerHeightRef.current;
+    });
+
+    resizeObserver.observe(headerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const components = useMemo(
     () => ({
@@ -121,15 +141,34 @@ export default function MessagesList({
     [head]
   );
 
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+
+  useEffect(() => {
+    const currentVirtuosoRef = virtuosoRef.current;
+
+    return () => {
+      currentVirtuosoRef?.getState((state) => {
+        virtuosoState = {
+          ...state,
+          // Virtuoso contains a bug where `scrollTop` includes the Header's size,
+          // though it's treated relatively to the List component when applied.
+          scrollTop: state.scrollTop - (headerHeightRef.current ?? 0),
+        };
+      });
+    };
+  }, []);
+
   return (
     <Virtuoso
       {...thresholds}
+      ref={virtuosoRef}
       data={organizedBriefs}
       computeItemKey={computeItemKey}
       itemContent={itemContent}
       components={components}
       atTopStateChange={atTopChange}
       isScrolling={isScrolling}
+      restoreStateFrom={virtuosoState}
       className="w-full overflow-x-hidden"
     />
   );

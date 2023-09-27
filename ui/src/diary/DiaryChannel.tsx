@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import bigInt from 'big-integer';
-import { Virtuoso } from 'react-virtuoso';
+import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { unixToDa } from '@urbit/api';
 import * as Toast from '@radix-ui/react-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -43,6 +43,8 @@ import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
 import DiaryHeader from './DiaryHeader';
+
+const virtuosoStateByFlag: Record<string, StateSnapshot> = {};
 
 function DiaryChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
@@ -264,6 +266,17 @@ function DiaryChannel({ title }: ViewProps) {
     [loadingOlderNotes]
   );
 
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+
+  useEffect(() => {
+    const currentVirtuosoRef = virtuosoRef.current;
+    return () => {
+      currentVirtuosoRef?.getState((state) => {
+        virtuosoStateByFlag[chFlag] = state;
+      });
+    };
+  }, [chFlag]);
+
   return (
     <Layout
       stickyHeader
@@ -322,6 +335,7 @@ function DiaryChannel({ title }: ViewProps) {
           <div className="h-full">
             <div className="mx-auto flex h-full w-full flex-col">
               <Virtuoso
+                ref={virtuosoRef}
                 style={{ height: '100%', width: '100%' }}
                 data={sortedNotes}
                 itemContent={itemContent}
@@ -333,6 +347,7 @@ function DiaryChannel({ title }: ViewProps) {
                   Header: () => <div />,
                   Footer: () => <div className="h-4 w-full" />,
                 }}
+                restoreStateFrom={virtuosoStateByFlag[chFlag]}
               />
             </div>
           </div>
