@@ -73,6 +73,14 @@ function getMessageItems({
 
 export type MessageFetchState = 'top' | 'bottom' | 'initial';
 
+const DEBUG_FETCH = false;
+
+function fetchDebugMessage(...args: unknown[]) {
+  if (DEBUG_FETCH) {
+    console.log('[useFetchMessages]', ...args);
+  }
+}
+
 export default function useFetchMessages({
   whom,
   messages,
@@ -87,6 +95,16 @@ export default function useFetchMessages({
 
   const fetchMessages = useCallback(
     async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
+      fetchDebugMessage(
+        'fetchMessages',
+        newer ? 'newer' : 'older',
+        'whom',
+        whom,
+        'scrolTo',
+        scrollTo,
+        pageSize
+      );
+
       const newest = messages.maxKey();
       const seenNewest =
         newer && newest && writWindow && writWindow.loadedNewest;
@@ -95,20 +113,24 @@ export default function useFetchMessages({
         !newer && oldest && writWindow && writWindow.loadedOldest;
 
       if (seenNewest || seenOldest) {
+        fetchDebugMessage('skipping fetch, seen', newer ? 'newest' : 'oldest');
         return;
       }
 
       try {
         setFetchState(newer ? 'bottom' : 'top');
-
         if (newer) {
-          await useChatState
+          fetchDebugMessage('load newer');
+          const result = await useChatState
             .getState()
             .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
+          fetchDebugMessage('load result', result);
         } else {
-          await useChatState
+          fetchDebugMessage('load older');
+          const result = await useChatState
             .getState()
             .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
+          fetchDebugMessage('load result', result);
         }
 
         setFetchState('initial');
@@ -123,8 +145,9 @@ export default function useFetchMessages({
     () => ({
       fetchMessages,
       fetchState,
-      hasLoadedNewest: writWindow?.loadedNewest,
-      hasLoadedOldest: writWindow?.loadedOldest,
+      // If there's no writWindow, we've loaded the newest we can load
+      hasLoadedNewest: writWindow?.loadedNewest ?? true,
+      hasLoadedOldest: writWindow?.loadedOldest ?? true,
     }),
     [fetchMessages, fetchState, writWindow]
   );
