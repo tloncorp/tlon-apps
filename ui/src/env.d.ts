@@ -5,6 +5,8 @@ interface ImportMetaEnv
   readonly VITE_APP: 'groups' | 'chat';
   readonly VITE_ENABLE_WDYR: 'true' | 'false' | undefined;
   readonly VITE_POSTHOG_KEY: string;
+  readonly VITE_BRANCH_KEY: string;
+  readonly VITE_BRANCH_DOMAIN: string;
 }
 
 interface ImportMeta {

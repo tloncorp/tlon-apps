@@ -22,8 +22,14 @@ function GroupInvitesPrivacy() {
           </div>
           <PrivacySelectorForm />
         </div>
-        <LureInviteBlock flag={groupFlag} group={group} className="grow" />
-        <GroupInviteBlock />
+        <div className="card space-y-4">
+          <div>
+            <h2 className="mb-2 text-lg font-bold">Share Group</h2>
+            <p className="leading-5 text-gray-600">{group.meta.title}</p>
+          </div>
+          <LureInviteBlock flag={groupFlag} group={group} className="grow" />
+          <GroupInviteBlock />
+        </div>
       </div>
     );
 

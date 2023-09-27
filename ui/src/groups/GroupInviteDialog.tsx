@@ -81,11 +81,8 @@ export function GroupInviteBlock() {
   ]);
 
   return (
-    <div className="card">
-      <h2 className="mb-1 text-lg font-bold">Invite by Urbit ID</h2>
-      <p className="mb-4 text-gray-600">
-        (e.g. ~sampel-palnet) or display name
-      </p>
+    <div>
+      <h2 className="text-xl">Invite via Urbit ID</h2>
       {hasIssue && (
         <HostConnection
           type="combo"
@@ -100,7 +97,7 @@ export function GroupInviteBlock() {
           ships={ships}
           setShips={setShips}
           onEnter={onInvite}
-          placeholder="Search"
+          placeholder="Search for Urbit ID"
           autoFocus={false}
         />
       </div>
@@ -147,13 +144,17 @@ export default function GroupInviteDialog() {
 
   function renderContent() {
     return (
-      <div className={cn('flex flex-col space-y-6', !isMobile && 'mt-10')}>
-        {group && (
+      <div className="space-y-6">
+        {group ? (
           <>
+            <div>
+              <h2 className="text-xl">Share Group</h2>
+              <h3 className="text-[17px] text-gray-500">{group.meta.title}</h3>
+            </div>
             <LureInviteBlock flag={flag} group={group} />
             <GroupInviteBlock />
           </>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -168,7 +169,7 @@ export default function GroupInviteDialog() {
     <Dialog
       open={true}
       onOpenChange={(isOpen) => !isOpen && dismiss()}
-      containerClass="w-full max-w-xl"
+      containerClass="w-full max-w-xl card"
       className="bg-transparent p-0"
       close="none"
     >
