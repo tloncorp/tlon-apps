@@ -233,7 +233,7 @@ export default function EditProfile({ title }: ViewProps) {
           />
         ) : null
       }
-      className="bg-gray-50"
+      className="w-full bg-gray-50"
     >
       <Helmet>
         <title>{title}</title>
