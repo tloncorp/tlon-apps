@@ -141,7 +141,7 @@ export default function ChatScroller({
   );
 
   const [anchorIndex, setAnchorIndex] = useState<number | null>(
-    scrollTo ? null : count - 1
+    scrollTo || count === 0 ? null : count - 1
   );
   const virtualizerRef = useRef<DivVirtualizer>();
   const virtualizer = useVirtualizer({
