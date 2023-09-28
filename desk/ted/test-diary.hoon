@@ -45,20 +45,20 @@
 ::
 ;<  now=@da  band:m  get-time:s
 =/  =memo:d   [~[[%inline ~['hacking is bad']]] our now]
-;<  ~  band:m  (act %diary nest %note %quip id-note %add memo)
+;<  ~  band:m  (act %channel nest %note %quip id-note %add memo)
 ::
 ::  ensure that we've got all the same notes on both sides
 ::
 ;<  =notes:d  band:m  (check-note-count +(count))
 ;<  sst=server-state  band:m  get-server-state
-?>  (eq !>(notes) !>(notes:(~(got by shelf.sst) nest)))
+?>  (eq !>(notes) !>(notes:(~(got by channels.sst) nest)))
 ::
 ::  nuke %diary and re-join the channel.  ensure we only got a partial
 ::  checkpoint
 ::
 :: ;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([app |]))
 :: ;<  ~  band:m  (poke-our:s %hood %kiln-revive !>(%groups))
-:: ;<  ~  band:m  (act %diary nest %join [our group])
+:: ;<  ~  band:m  (act %channel nest %join [our group])
 :: ;<  *  band:m  (check-note-count 20)
 :: ::
 :: ::  post another essay, ensure we got it
@@ -72,8 +72,8 @@
 ::
 (pure:m !>(%success))
 ::
-+$  state         [%0 =shelf:d voc=(map [nest:d plan:d] (unit said:d))]
-+$  server-state  [%0 =shelf:d]
++$  state         [%0 channels=v-channels:d voc=(map [nest:d plan:d] (unit said:d)) pins=(list nest:d)]
++$  server-state  [%0 channels=v-channels:d]
 ::
 ++  eq
   |=  [a=vase b=vase]
@@ -123,19 +123,19 @@
   ^-  form:m
   (poke-our:s dude %dbug !>([%state '']))
 ::
-++  get-diary
-  =/  m  (strand ,diary:d)
+++  get-channel
+  =/  m  (strand ,v-channel:d)
   ^-  form:m
   ;<  st=state  band:m  get-state
-  (pure:m (~(got by shelf.st) nest))
+  (pure:m (~(got by channels.st) nest))
 ::
 ++  get-state
   =/  m  (strand ,state)
   ^-  form:m
   ;<  =bowl:spider  band:m  get-bowl:s
   %-  pure:m
-  =<  -
-  !<  [state epic:e]
+  =-  !<(state vase)
+  !<  [[%negotiate *] =vase]
   .^  vase
       /gx/(scot %p our.bowl)/[app]/(scot %da now.bowl)/dbug/state/noun
   ==
@@ -145,8 +145,8 @@
   ^-  form:m
   ;<  =bowl:spider  band:m  get-bowl:s
   %-  pure:m
-  =<  -
-  !<  [server-state epic:e]
+  =-  !<(server-state vase)
+  !<  [[%negotiate *] =vase]
   .^  vase
       /gx/(scot %p our.bowl)/[server]/(scot %da now.bowl)/dbug/state/noun
   ==
@@ -155,9 +155,9 @@
   |=  count=@ud
   =/  m  (strand ,notes:d)
   ^-  form:m
-  ;<  =diary:d  band:m  get-diary
-  ?>  (eq !>(count) !>(~(wyt by notes.diary)))
-  (pure:m notes.diary)
+  ;<  channel=v-channel:d  band:m  get-channel
+  ?>  (eq !>(count) !>(~(wyt by notes.channel)))
+  (pure:m notes.channel)
 ::
 ++  add-note
   |=  count=@ud
@@ -165,7 +165,7 @@
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
   =/  =essay:d  [[~ our send] %diary (cat 3 'on hacking #' (scot %ud count)) '']
-  ;<  ~  bind:m  (act %diary nest %note %add essay)
+  ;<  ~  bind:m  (act %channel nest %note %add essay)
   (pure:m send)
 ::
 ++  add-quip
@@ -174,7 +174,7 @@
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
   =/  =memo:d  [~[[%inline ~[text]]] our send]
-  ;<  ~  bind:m  (act %diary nest %note %quip id-note %add memo)
+  ;<  ~  bind:m  (act %channel nest %note %quip id-note %add memo)
   (pure:m send)
 ::
 ::  test non-note diary commands
@@ -182,23 +182,23 @@
 ++  test-c-diary
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  band:m  (act %diary nest %add-writers %del-role ~ ~)
+  ;<  ~  band:m  (act %channel nest %add-writers %del-role ~ ~)
   ::
   ;<  now=@da  band:m  get-time:s
-  ;<  old=diary:d  band:m  get-diary
+  ;<  old=v-channel:d  band:m  get-channel
   ?>  (neq !>(%grid) !>(view.view.old))
   ?>  (neq !>(%alpha) !>(sort.sort.old))
   ?>  (neq !>(&) !>((~(has in writers.perm.perm.old) %add-role)))
   ?>  (neq !>(|) !>((~(has in writers.perm.perm.old) %del-role)))
   ?>  (neq !>(`~[now]) !>(order.order.old))
   ::
-  ;<  ~  band:m  (act %diary nest %view %grid)
-  ;<  ~  band:m  (act %diary nest %sort %alpha)
-  ;<  ~  band:m  (act %diary nest %add-writers %add-role ~ ~)
-  ;<  ~  band:m  (act %diary nest %del-writers %del-role ~ ~)
-  ;<  ~  band:m  (act %diary nest %order ~ now ~)
+  ;<  ~  band:m  (act %channel nest %view %grid)
+  ;<  ~  band:m  (act %channel nest %sort %alpha)
+  ;<  ~  band:m  (act %channel nest %add-writers %add-role ~ ~)
+  ;<  ~  band:m  (act %channel nest %del-writers %del-role ~ ~)
+  ;<  ~  band:m  (act %channel nest %order ~ now ~)
   ::
-  ;<  new=diary:d  band:m  get-diary
+  ;<  new=v-channel:d  band:m  get-channel
   ?>  (eq !>(%grid) !>(view.view.new))
   ?>  (eq !>(%alpha) !>(sort.sort.new))
   ?>  (eq !>(&) !>((~(has in writers.perm.perm.new) %add-role)))
@@ -216,31 +216,31 @@
 ++  test-c-note
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  old=diary:d  band:m  get-diary
+  ;<  old=v-channel:d  band:m  get-channel
   =/  count=@ud  ~(wyt by notes.old)
   ;<  id=id-note:d  band:m  (add-note 1.000)
-  ;<  new=diary:d  band:m  get-diary
+  ;<  new=v-channel:d  band:m  get-channel
   ?>  (eq !>(+(count)) !>(~(wyt by notes.new)))
   ?>  (eq !>(&) !>((has:on-notes:d notes.new id)))
   ::
   =/  =essay:d  [[~ our id] %diary 'yes' '']
-  ;<  ~  band:m  (act %diary nest %note %edit id essay)
+  ;<  ~  band:m  (act %channel nest %note %edit id essay)
   ;<  new=note:d  band:m  (get-note id)
   ?>  (eq !>([%diary 'yes' '']) !>(han-data.new))
   ::
   ?>  (eq !>(~) !>(feels.new))
-  ;<  ~  band:m  (act %diary nest %note %add-feel id our ':smile:')
+  ;<  ~  band:m  (act %channel nest %note %add-feel id our ':smile:')
   ;<  new=note:d  band:m  (get-note id)
   =/  feel  (~(got by feels.new) our)
   ?>  (eq !>([0 `':smile:']) !>(feel))
   ::
-  ;<  ~  band:m  (act %diary nest %note %del-feel id our)
+  ;<  ~  band:m  (act %channel nest %note %del-feel id our)
   ;<  new=note:d  band:m  (get-note id)
   =/  feel  (~(got by feels.new) our)
   ?>  (eq !>([1 ~]) !>(feel))
   ::
-  ;<  ~  band:m  (act %diary nest %note %del id)
-  ;<  new=diary:d  band:m  get-diary
+  ;<  ~  band:m  (act %channel nest %note %del id)
+  ;<  new=v-channel:d  band:m  get-channel
   ?>  (eq !>(~) !>((got:on-notes:d notes.new id)))
   ::
   (pure:m ~)
@@ -249,8 +249,8 @@
   |=  =id-note:d
   =/  m  (strand ,note:d)
   ^-  form:m
-  ;<  =diary:d  band:m  get-diary
-  (pure:m (need (got:on-notes:d notes.diary id-note)))
+  ;<  channel=v-channel:d  band:m  get-channel
+  (pure:m (need (got:on-notes:d notes.channel id-note)))
 ::  test diary quip commands
 ::
 ++  test-c-quip
@@ -262,17 +262,17 @@
   ;<  =quip:d  band:m  (get-quip id-note id)
   ?>  (eq !>([~ ~['hi']]) !>(content.quip))
   ::
-  ;<  ~  band:m  (act %diary nest %note %quip id-note %add-feel id our ':smile:')
+  ;<  ~  band:m  (act %channel nest %note %quip id-note %add-feel id our ':smile:')
   ;<  new=quip:d  band:m  (get-quip id-note id)
   =/  feel  (~(got by feels.quip) our)
   ?>  (eq !>([0 `':smile:']) !>(feel))
   ::
-  ;<  ~  band:m  (act %diary nest %note %quip id-note %del-feel id our)
+  ;<  ~  band:m  (act %channel nest %note %quip id-note %del-feel id our)
   ;<  new=quip:d  band:m  (get-quip id-note id)
   =/  feel  (~(got by feels.quip) our)
   ?>  (eq !>([1 ~]) !>(feel))
   ::
-  ;<  ~  band:m  (act %diary nest %note %quip id-note %del id)
+  ;<  ~  band:m  (act %channel nest %note %quip id-note %del id)
   ;<  =note:d  band:m  (get-note id-note)
   ?>  (eq !>(~) !>((got:on-quips:d quips.note id)))
   ::

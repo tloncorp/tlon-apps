@@ -515,10 +515,10 @@
     %-  ~(gas by *v-channels:d)
     %+  turn  ~(tap by shelf)
     |=  [=flag:a =diary:a]
-    ^-  [nest:d diary:d]
+    ^-  [nest:d v-channel:d]
     :-  [%diary flag]
     =/  =notes:d  (convert-notes notes.diary)
-    %*    .  *diary:d
+    %*    .  *v-channel:d
         notes   notes
         order   [0 arranged-notes.diary]
         view    [0 view.diary]
@@ -593,12 +593,12 @@
     %-  zing
     %+  turn  (tap:log-on:a log)
     |=  [=time =diff:a]
-    ^-  (list [id-note:d u-diary:d])
-    =;  new=(list u-diary:d)
+    ^-  (list [id-note:d u-channel:d])
+    =;  new=(list u-channel:d)
       ?~  new  ~
       ?~  t.new  [time i.new]~
       =.  time  (sub time ~s1)
-      =>  .(new `(list u-diary:d)`new)
+      =>  .(new `(list u-channel:d)`new)
       |-
       ?~  new  ~
       [[time i.new] $(time +(time), new t.new)]

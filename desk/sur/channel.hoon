@@ -31,8 +31,8 @@
 ::
 +|  %primitives
 ::
-+$  v-channels  (map nest diary)
-++  diary
++$  v-channels  (map nest v-channel)
+++  v-channel
   |^  ,[global local]
   ::  $global: should be identical between ships
   ::
@@ -62,7 +62,7 @@
         =future
     ==
   --
-::  $note: a diary post
+::  $note: a channel post
 ::
 +$  note      [seal (rev essay)]
 +$  id-note   time
@@ -78,7 +78,7 @@
 ++  mo-quips  ((mp time (unit quip)) lte)
 ::  $seal: host-side data for a note
 ::
-+$  seal  $+  diary-seal
++$  seal  $+  channel-seal
   $:  id=id-note
       =quips
       =feels
@@ -141,7 +141,7 @@
 ::    %listing: a traditional HTML list, ul and ol
 ::    %code: a block of code
 ::
-+$  block  $+  diary-block
++$  block  $+  channel-block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
@@ -163,7 +163,7 @@
 ::    %link: link to a URL with a face
 ::    %break: line break
 ::
-+$  inline  $+  diary-inline
++$  inline  $+  channel-inline
   $@  @t
   $%  [%italics p=(list inline)]
       [%bold p=(list inline)]
@@ -180,11 +180,11 @@
   ==
 ::
 +$  han  ?(%diary %heap %chat)
-::  $nest: identifier for a diary channel
+::  $nest: identifier for a channel
 +$  nest  [=han =ship name=term]
-::  $view: the persisted display format for a diary
+::  $view: the persisted display format for a channel
 +$  view  $~(%list ?(%grid %list))
-::  $sort: the persisted sort type for a diary
+::  $sort: the persisted sort type for a channel
 +$  sort  $~(%time ?(%alpha %time %arranged))
 ::  $arranged-notes: an array of noteIds
 +$  arranged-notes  (unit (list time))
@@ -199,7 +199,7 @@
   ==
 ::  $said: used for references
 +$  said  (pair nest reference)
-::  $plan: index into diary state
+::  $plan: index into channel state
 ::    p: Note being referred to
 ::    q: Quip being referred to, if any
 ::
@@ -210,9 +210,9 @@
 ::
 +$  net  [p=ship load=_|]
 ::
-::  $briefs: a map of diary unread information
+::  $briefs: a map of channel unread information
 ::
-::    brief: the last time a diary was read, how many posts since,
+::    brief: the last time a channel was read, how many posts since,
 ::    and the id of the last read note
 ::
 +$  briefs  (map nest brief)
@@ -221,7 +221,7 @@
 ::
 +$  remark  [last-read=time watching=_| ~]
 ::
-::  $perm: represents the permissions for a diary channel and gives a
+::  $perm: represents the permissions for a channel and gives a
 ::  pointer back to the group it belongs to.
 ::
 +$  perm
@@ -229,20 +229,20 @@
       group=flag:g
   ==
 ::
-::  $log: a time ordered history of modifications to a diary
+::  $log: a time ordered history of modifications to a channel
 ::
-+$  log     ((mop time u-diary) lte)
-++  log-on  ((on time u-diary) lte)
++$  log     ((mop time u-channel) lte)
+++  log-on  ((on time u-channel) lte)
 ::
-::  $create-diary: represents a request to create a channel
+::  $create-channel: represents a request to create a channel
 ::
-::    $create-diary is consumed by the diary agent first and then
+::    $create-channel is consumed by the channel agent first and then
 ::    passed to the groups agent to register the channel with the group.
 ::
 ::    Write permission is stored with the specific agent in the channel,
 ::    read permission is stored with the group's data.
 ::
-+$  create-diary
++$  create-channel
   $:  =han
       name=term
       group=flag:g
@@ -290,15 +290,15 @@
 ::      that through all the way, so that an $r-channels may indicate what
 ::      originally caused it
 +$  a-channels
-  $%  [%create =create-diary]
+  $%  [%create =create-channel]
       [%pin pins=(list nest)]
-      [%diary =nest =a-diary]
+      [%channel =nest =a-channel]
   ==
-+$  a-diary
++$  a-channel
   $%  [%join group=flag:g]
       [%leave ~]
       a-remark
-      c-diary
+      c-channel
   ==
 ::
 +$  a-remark
@@ -315,10 +315,10 @@
 +|  %commands
 ::
 +$  c-channels
-  $%  [%create =create-diary]
-      [%diary =nest =c-diary]
+  $%  [%create =create-channel]
+      [%channel =nest =c-channel]
   ==
-+$  c-diary
++$  c-channel
   $%  [%note =c-note]
       [%view =view]
       [%sort =sort]
@@ -348,9 +348,9 @@
 ::
 +|  %updates
 ::
-+$  update   [=time =u-diary]
-+$  u-channels  [=nest =u-diary]
-+$  u-diary
++$  update   [=time =u-channel]
++$  u-channels  [=nest =u-channel]
++$  u-channel
   $%  [%create =perm]
       [%order (rev order=arranged-notes)]
       [%view (rev =view)]
@@ -371,12 +371,12 @@
       [%feels =feels]
   ==
 ::
-+$  u-checkpoint  global:diary
++$  u-checkpoint  global:v-channel
 ::
 +|  %responses
 ::
-+$  r-channels  [=nest =r-diary]
-+$  r-diary
++$  r-channels  [=nest =r-channel]
++$  r-channel
   $%  [%notes =rr-notes]
       [%note id=id-note =r-note]
       [%order order=arranged-notes]
@@ -404,8 +404,8 @@
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
 ::
-+$  channels  (map nest rr-diary)
-++  rr-diary
++$  channels  (map nest channel)
+++  channel
   |^  ,[global local]
   +$  global
     $:  notes=rr-notes

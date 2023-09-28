@@ -9,28 +9,28 @@
   +|  %responses
   ::
   ++  r-channels
-    |=  [=nest:d =r-diary:d]
+    |=  [=nest:d =r-channel:d]
     %-  pairs
     :~  nest+(^nest nest)
-        response+(^r-diary r-diary)
+        response+(^r-channel r-channel)
     ==
   ::
-  ++  r-diary
-    |=  =r-diary:d
-    %+  frond  -.r-diary
-    ?-  -.r-diary
-      %notes   (rr-notes rr-notes.r-diary)
-      %note    (pairs id+(id id.r-diary) r-note+(r-note r-note.r-diary) ~)
-      %order    (order order.r-diary)
-      %view     s+view.r-diary
-      %sort     s+sort.r-diary
-      %perm     (perm perm.r-diary)
+  ++  r-channel
+    |=  =r-channel:d
+    %+  frond  -.r-channel
+    ?-  -.r-channel
+      %notes   (rr-notes rr-notes.r-channel)
+      %note    (pairs id+(id id.r-channel) r-note+(r-note r-note.r-channel) ~)
+      %order    (order order.r-channel)
+      %view     s+view.r-channel
+      %sort     s+sort.r-channel
+      %perm     (perm perm.r-channel)
     ::
-      %create   (perm perm.r-diary)
-      %join     (flag group.r-diary)
+      %create   (perm perm.r-channel)
+      %join     (flag group.r-channel)
       %leave    ~
       %read     ~
-      %read-at  s+(scot %ud time.r-diary)
+      %read-at  s+(scot %ud time.r-channel)
       %watch    ~
       %unwatch  ~
     ==
@@ -73,17 +73,17 @@
     |=  =channels:d
     %-  pairs
     %+  turn  ~(tap by channels)
-    |=  [n=nest:d di=rr-diary:d]
-    [(nest-cord n) (rr-diary di)]
+    |=  [n=nest:d ca=channel:d]
+    [(nest-cord n) (channel ca)]
   ::
-  ++  rr-diary
-    |=  =rr-diary:d
+  ++  channel
+    |=  =channel:d
     %-  pairs
-    :~  notes+(rr-notes notes.rr-diary)
-        order+(order order.rr-diary)
-        view+s+view.rr-diary
-        sort+s+sort.rr-diary
-        perms+(perm perm.rr-diary)
+    :~  notes+(rr-notes notes.channel)
+        order+(order order.channel)
+        view+s+view.channel
+        sort+s+sort.channel
+        perms+(perm perm.channel)
     ==
   ::
   ++  rr-notes
@@ -134,13 +134,13 @@
   ::
   +|  %primitives
   ::
-  ++  diary
-    |=  di=diary:d
+  ++  v-channel
+    |=  ca=v-channel:d
     %-  pairs
-    :~  order+(order order.order.di)
-        perms+(perm perm.perm.di)
-        view+s+view.view.di
-        sort+s+sort.sort.di
+    :~  order+(order order.order.ca)
+        perms+(perm perm.perm.ca)
+        view+s+view.view.ca
+        sort+s+sort.sort.ca
     ==
   ::
   ++  id
@@ -373,12 +373,12 @@
   ++  a-channels
     ^-  $-(json a-channels:d)
     %-  of
-    :~  create+create-diary
+    :~  create+create-channel
         pin+(ar nest)
-        diary+(ot nest+nest action+a-diary ~)
+        channel+(ot nest+nest action+a-channel ~)
     ==
-  ++  a-diary
-    ^-  $-(json a-diary:d)
+  ++  a-channel
+    ^-  $-(json a-channel:d)
     %-  of
     :~  join+flag
         leave+ul
@@ -426,8 +426,8 @@
   ++  flag-rule  ;~((glue fas) ship-rule sym)
   ++  nest-rule  ;~((glue fas) han-rule ship-rule sym)
   ::
-  ++  create-diary
-    ^-  $-(json create-diary:d)
+  ++  create-channel
+    ^-  $-(json create-channel:d)
     %-  ot
     :~  han+han
         name+(se %tas)

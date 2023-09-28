@@ -121,7 +121,7 @@
   %+  gas:log-on:two  *log:two
   %+  murn  (tap:log-on:d log.old-diary)
   |=  [=time =diff:one]
-  =;  new=(unit u-diary:two)
+  =;  new=(unit u-channel:two)
     (bind new (lead time))
   ?-    -.diff
       ?(%add-sects %del-sects)  `[%perm 0 perm.old-diary]
