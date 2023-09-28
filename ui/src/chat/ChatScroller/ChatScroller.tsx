@@ -314,7 +314,7 @@ export default function ChatScroller({
   useEffect(() => {
     if (fetchState !== 'initial' || !userHasScrolled) return;
     const chatStore = useChatStore.getState();
-    if (isAtTop) {
+    if (isAtTop && !hasLoadedOldest) {
       setLoadDirection('older');
       chatStore.bottom(false);
       fetchMessages(false);
@@ -330,6 +330,7 @@ export default function ChatScroller({
     isAtBottom,
     fetchMessages,
     whom,
+    hasLoadedOldest,
     hasLoadedNewest,
     userHasScrolled,
   ]);
