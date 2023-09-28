@@ -239,10 +239,10 @@
     ^-  card
     =/  =path  (welp (channel-scry nest) /perm/noun)
     =/  perms  .^(perm:d %gx path)
-    =/  =c-shelf:d  [%diary nest %del-writers writers.perms]
+    =/  =c-channels:d  [%diary nest %del-writers writers.perms]
     =/  =wire  /diary
     =/  =dock  [our.bowl %channels-server]
-    =/  =cage  [%channel-command !>(c-shelf)]
+    =/  =cage  [%channel-command !>(c-channels)]
     [%pass wire %agent dock %poke cage]
   core
 ::
@@ -880,7 +880,7 @@
       |=  nes=nest:g
       ^-  card
       =/  =dock  [our.bowl %channels]
-      =/  action=a-shelf:d
+      =/  action=a-channels:d
         ?>  ?=(?(%chat %diary %heap) p.nes)
         [%diary nes %leave ~]
       =/  =cage  channel-action+!>(action)
@@ -895,7 +895,7 @@
       |=  nes=nest:g
       ^-  card
       =/  =dock  [our.bowl %channels]
-      =/  action=a-shelf:d
+      =/  action=a-channels:d
         ?>  ?=(?(%chat %diary %heap) p.nes)
         [%diary nes %join flag]
       =/  =cage  ['channel-action' !>(action)]

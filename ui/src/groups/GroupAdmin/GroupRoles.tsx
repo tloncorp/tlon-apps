@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
-import { getPrivacyFromGroup, nestToFlag } from '@/logic/utils';
+import { getPrivacyFromGroup } from '@/logic/utils';
 import {
   useAmAdmin,
   useGroup,
@@ -19,8 +19,7 @@ import {
   useGroupEditRoleMutation,
   useRouteGroup,
 } from '@/state/groups';
-import { useChatState } from '@/state/chat';
-import { useShelf } from '@/state/channel/channel';
+import { useChannels } from '@/state/channel/channel';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GlobeIcon from '@/components/icons/GlobeIcon';
@@ -54,7 +53,7 @@ export default function GroupRoles({ title }: { title: string }) {
     useGroupDelRoleMutation();
   const roles = group?.cabals;
   const fleet = group?.fleet;
-  const shelf = useShelf();
+  const channels = useChannels();
   const { state } = useLocation();
 
   // TODO: is this needed?
@@ -68,7 +67,7 @@ export default function GroupRoles({ title }: { title: string }) {
           .flat(),
         ...Object.entries(group.channels)
           .map((c) => {
-            const channel = shelf[c[0]];
+            const channel = channels[c[0]];
 
             return channel?.perms.writers || [];
           })

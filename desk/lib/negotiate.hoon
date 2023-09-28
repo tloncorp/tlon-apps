@@ -103,6 +103,15 @@
       %-  ~(rep by u.need)  ::NOTE  +all:by is w/o key
       |=  [[p=protocol v=version] o=_&]
       &(o =(``v (~(get by heed) [gill p])))  :: negotiated & matches
+    ::
+    ++  certain-mismatch
+      |=  =gill:gall
+      ^-  ?
+      ?~  need=(~(get by know) q.gill)  |  ::  unversioned
+      %-  ~(rep by u.need)
+      |=  [[p=protocol v=version] o=_|]
+      =+  h=(~(get by heed) [gill p])
+      |(o &(?=([~ ~ *] h) !=(v u.u.h)))  ::  negotiated & non-matching
     ::  +inflate: update state & manage subscriptions to be self-consistent
     ::
     ::    get previously-unregistered subs from the bowl, put them in .want,
@@ -246,13 +255,18 @@
       ::
       ?:  (match gill)
         pass
-      ::  pokes may not happen if we don't know we match
+      ::  pokes may not happen if we know we mismatch
       ::
       ?:  ?=(?(%poke %poke-as) -.task.q.card)
-        ::TODO  if heed was (map gill (map protocol (u v))) we could reasonably
-        ::      look up where the mismatch was...
-        ~|  [%negotiate %poke-to-mismatching-gill gill]
-        !!
+        ?:  (certain-mismatch gill)
+          ::TODO  if heed was (map gill (map protocol (u v))) we could
+          ::      reasonably look up where the mismatch was...
+          ~|  [%negotiate %poke-to-mismatching-gill gill]
+          !!
+        ::  if we aren't certain of a match, ensure we've started negotiation
+        ::
+        =^  caz  state  (negotiate-missing gill)
+        [[card caz] state]
       ::  watches will get reestablished once our versions match, but if we
       ::  haven't started negotiation yet, we should do that now
       ::

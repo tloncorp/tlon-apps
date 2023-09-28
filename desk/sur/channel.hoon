@@ -31,7 +31,7 @@
 ::
 +|  %primitives
 ::
-+$  shelf  (map nest diary)
++$  v-channels  (map nest diary)
 ++  diary
   |^  ,[global local]
   ::  $global: should be identical between ships
@@ -287,9 +287,9 @@
 ::  change
 ::
 ::NOTE  we might want to add a action-id=uuid to this eventually, threading
-::      that through all the way, so that an $r-shelf may indicate what
+::      that through all the way, so that an $r-channels may indicate what
 ::      originally caused it
-+$  a-shelf
++$  a-channels
   $%  [%create =create-diary]
       [%pin pins=(list nest)]
       [%diary =nest =a-diary]
@@ -314,7 +314,7 @@
 ::
 +|  %commands
 ::
-+$  c-shelf
++$  c-channels
   $%  [%create =create-diary]
       [%diary =nest =c-diary]
   ==
@@ -349,7 +349,7 @@
 +|  %updates
 ::
 +$  update   [=time =u-diary]
-+$  u-shelf  [=nest =u-diary]
++$  u-channels  [=nest =u-diary]
 +$  u-diary
   $%  [%create =perm]
       [%order (rev order=arranged-notes)]
@@ -375,7 +375,7 @@
 ::
 +|  %responses
 ::
-+$  r-shelf  [=nest =r-diary]
++$  r-channels  [=nest =r-diary]
 +$  r-diary
   $%  [%notes =rr-notes]
       [%note id=id-note =r-note]
@@ -404,7 +404,7 @@
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
 ::
-+$  rr-shelf  (map nest rr-diary)
++$  channels  (map nest rr-diary)
 ++  rr-diary
   |^  ,[global local]
   +$  global

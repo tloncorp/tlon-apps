@@ -537,18 +537,18 @@
   |%
   ++  t  two:old:c
   ++  server
-    =/  server-shelf=shelf:d
-      %+  convert-shelf  &
+    =/  server-channels=v-channels:d
+      %+  convert-channels  &
       %-  ~(gas by *(map flag:t chat:t))
       %+  skim  ~(tap by old-chats)
       |=  [=flag:t =chat:t]
       =(our.bowl p.flag)
-    =/  =cage  [%channel-migration !>(server-shelf)]
+    =/  =cage  [%channel-migration !>(server-channels)]
     (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
   ::
   ++  client
-    =/  =shelf:d  (convert-shelf | old-chats)
-    =/  =cage  [%channel-migration !>(shelf)]
+    =/  =v-channels:d  (convert-channels | old-chats)
+    =/  =cage  [%channel-migration !>(v-channels)]
     =.  cor  (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
     =/  =^cage  [%channel-migration-pins !>((convert-pins old-pins))]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
@@ -561,10 +561,10 @@
     ?.  ?=(%flag -.whom)  ~
     (some %chat p.whom)
   ::
-  ++  convert-shelf
+  ++  convert-channels
     |=  [log=? =_old-chats]
-    ^-  shelf:d
-    %-  ~(gas by *shelf:d)
+    ^-  v-channels:d
+    %-  ~(gas by *v-channels:d)
     %+  turn  ~(tap by old-chats)
     |=  [=flag:t =chat:t]
     ^-  [nest:d diary:d]

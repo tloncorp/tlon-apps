@@ -1,14 +1,14 @@
 /-  d=channel
 /+  j=channel-json
-|_  =a-shelf:d
+|_  =a-channels:d
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  a-shelf
+  ++  noun  a-channels
   --
 ++  grab
   |%
-  ++  noun  a-shelf:d
-  ++  json  a-shelf:dejs:j
+  ++  noun  a-channels:d
+  ++  json  a-channels:dejs:j
   --
 --

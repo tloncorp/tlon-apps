@@ -1,11 +1,11 @@
-import { Briefs, Shelf } from './channel';
+import { Briefs, Channels } from './channel';
 import { DMBriefs, Clubs } from './dms';
 import { Groups, Gangs } from './groups';
 
 export interface GroupsInit {
   groups: Groups;
   gangs: Gangs;
-  shelf: Shelf;
+  channels: Channels;
   briefs: Briefs;
   pins: string[];
 }

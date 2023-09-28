@@ -311,7 +311,7 @@ export interface Diary {
   saga: Saga | null;
 }
 
-export interface Shelf {
+export interface Channels {
   [key: string]: Diary;
 }
 
@@ -365,7 +365,7 @@ export interface Said {
 
 export interface Init {
   briefs: Briefs;
-  shelf: Shelf;
+  channels: Channels;
 }
 
 export type Diff = CreateDiff | Command;
@@ -381,7 +381,7 @@ export type Action =
   | { unwatch: null }
   | Command;
 
-export type ShelfAction =
+export type ChannelsAction =
   | { diary: { nest: Nest; action: Action } }
   | { create: Create }
   | { pin: Pins };
@@ -422,7 +422,7 @@ export type Response =
   | { watch: null }
   | { unwatch: null };
 
-export interface ShelfResponse {
+export interface ChannelsResponse {
   nest: Nest;
   response: Response;
 }

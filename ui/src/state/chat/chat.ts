@@ -32,7 +32,7 @@ import {
   NoteEssay,
   Quip,
   Quips,
-  ShelfAction,
+  ChannelsAction,
 } from '@/types/channel';
 import api from '@/api';
 import {
@@ -129,7 +129,7 @@ async function optimisticAction(
     };
   });
 
-  await api.poke<ClubAction | DmAction | ShelfAction>(action);
+  await api.poke<ClubAction | DmAction | ChannelsAction>(action);
 }
 
 export const useChatState = createState<ChatState>(
@@ -760,7 +760,7 @@ export function useDeleteDMQuipMutation() {
           writ: { id: variables.writId, delta: delta as WritDelta },
         });
 
-    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+    await api.poke<ClubAction | DmAction | ChannelsAction>(action);
   };
 
   return useMutation(mutationFn, {
@@ -836,7 +836,7 @@ export function useAddDMQuipFeelMutation() {
           writ: { id: variables.writId, delta: delta as WritDelta },
         });
 
-    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+    await api.poke<ClubAction | DmAction | ChannelsAction>(action);
   };
 
   return useMutation(mutationFn, {
@@ -922,7 +922,7 @@ export function useDeleteDMQuipFeelMutation() {
           writ: { id: variables.writId, delta: delta as WritDelta },
         });
 
-    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+    await api.poke<ClubAction | DmAction | ChannelsAction>(action);
   };
 
   return useMutation(mutationFn, {
