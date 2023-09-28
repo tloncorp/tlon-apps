@@ -26,7 +26,7 @@
   ++  cmd  `mark`%channel-command
   ++  upd  `mark`%channel-update
   ++  log  `mark`%channel-logs
-  ++  not  `mark`%channel-notes
+  ++  not  `mark`%channel-posts
   --
 ::
 +|  %primitives
@@ -37,8 +37,8 @@
   ::  $global: should be identical between ships
   ::
   +$  global
-    $:  =notes
-        order=(rev order=arranged-notes)
+    $:  posts=v-posts
+        order=(rev order=arranged-posts)
         view=(rev =view)
         sort=(rev =sort)
         perm=(rev =perm)
@@ -47,11 +47,11 @@
   ::
   ::TODO  populate this
   +$  window  (list [from=time to=time])
-  ::  .window: time range for requested notes that we haven't received
-  ::  .diffs: diffs for notes in the window, to apply on receipt
+  ::  .window: time range for requested posts that we haven't received
+  ::  .diffs: diffs for posts in the window, to apply on receipt
   ::
   +$  future
-    [=window diffs=(jug id-note u-note)]
+    [=window diffs=(jug id-post u-post)]
   ::  $local: local-only information
   ::
   +$  local
@@ -62,13 +62,13 @@
         =future
     ==
   --
-::  $note: a channel post
+::  $v-post: a channel post
 ::
-+$  note      [seal (rev essay)]
-+$  id-note   time
-+$  notes     ((mop id-note (unit note)) lte)
-++  on-notes  ((on id-note (unit note)) lte)
-++  mo-notes  ((mp id-note (unit note)) lte)
++$  v-post     [seal (rev essay)]
++$  id-post    time
++$  v-posts     ((mop id-post (unit v-post)) lte)
+++  on-v-posts  ((on id-post (unit v-post)) lte)
+++  mo-v-posts  ((mp id-post (unit v-post)) lte)
 ::  $quip: a post comment
 ::
 +$  quip      [cork memo]
@@ -76,10 +76,10 @@
 +$  quips     ((mop id-quip (unit quip)) lte)
 ++  on-quips  ((on id-quip (unit quip)) lte)
 ++  mo-quips  ((mp time (unit quip)) lte)
-::  $seal: host-side data for a note
+::  $seal: host-side data for a post
 ::
 +$  seal  $+  channel-seal
-  $:  id=id-note
+  $:  id=id-post
       =quips
       =feels
   ==
@@ -186,21 +186,21 @@
 +$  view  $~(%list ?(%grid %list))
 ::  $sort: the persisted sort type for a channel
 +$  sort  $~(%time ?(%alpha %time %arranged))
-::  $arranged-notes: an array of noteIds
-+$  arranged-notes  (unit (list time))
+::  $arranged-posts: an array of postIds
++$  arranged-posts  (unit (list time))
 ::  $feel: either an emoji identifier like :diff or a URL for custom
 +$  feel  @ta
 +$  feels  (map ship (rev (unit feel)))
 ::  $scan: search results
 +$  scan  (list reference)
 +$  reference
-  $%  [%note =rr-note]
-      [%quip =id-note =rr-quip]
+  $%  [%post =post]
+      [%quip =id-post =rr-quip]
   ==
 ::  $said: used for references
 +$  said  (pair nest reference)
 ::  $plan: index into channel state
-::    p: Note being referred to
+::    p: Post being referred to
 ::    q: Quip being referred to, if any
 ::
 +$  plan
@@ -213,11 +213,11 @@
 ::  $briefs: a map of channel unread information
 ::
 ::    brief: the last time a channel was read, how many posts since,
-::    and the id of the last read note
+::    and the id of the last read post
 ::
 +$  briefs  (map nest brief)
 +$  brief   [last=time count=@ud read-id=(unit time)]
-::  $remark: a marker representing the last note I've read
+::  $remark: a marker representing the last post I've read
 ::
 +$  remark  [last-read=time watching=_| ~]
 ::
@@ -251,7 +251,7 @@
       readers=(set sect:g)
       writers=(set sect:g)
   ==
-::  $outline: abridged $note
+::  $outline: abridged $post
 ::    .quips: number of comments
 ::
 +$  outline
@@ -309,7 +309,7 @@
       [%unwatch ~]
   ==
 ::
-+$  a-note  c-note
++$  a-post  c-post
 +$  a-quip  c-quip
 ::
 +|  %commands
@@ -319,19 +319,19 @@
       [%channel =nest =c-channel]
   ==
 +$  c-channel
-  $%  [%note =c-note]
+  $%  [%post =c-post]
       [%view =view]
       [%sort =sort]
-      [%order order=arranged-notes]
+      [%order order=arranged-posts]
       [%add-writers sects=(set sect:g)]
       [%del-writers sects=(set sect:g)]
   ==
 ::
-+$  c-note
++$  c-post
   $%  [%add =essay]
-      [%edit id=id-note =essay]
-      [%del id=id-note]
-      [%quip id=id-note =c-quip]
+      [%edit id=id-post =essay]
+      [%del id=id-post]
+      [%quip id=id-post =c-quip]
       c-feel
   ==
 ::
@@ -352,15 +352,15 @@
 +$  u-channels  [=nest =u-channel]
 +$  u-channel
   $%  [%create =perm]
-      [%order (rev order=arranged-notes)]
+      [%order (rev order=arranged-posts)]
       [%view (rev =view)]
       [%sort (rev =sort)]
       [%perm (rev =perm)]
-      [%note id=id-note =u-note]
+      [%post id=id-post =u-post]
   ==
 ::
-+$  u-note
-  $%  [%set note=(unit note)]
++$  u-post
+  $%  [%set post=(unit v-post)]
       [%feels =feels]
       [%essay (rev =essay)]
       [%quip id=id-quip =u-quip]
@@ -377,9 +377,9 @@
 ::
 +$  r-channels  [=nest =r-channel]
 +$  r-channel
-  $%  [%notes =rr-notes]
-      [%note id=id-note =r-note]
-      [%order order=arranged-notes]
+  $%  [%posts =posts]
+      [%post id=id-post =r-post]
+      [%order order=arranged-posts]
       [%view =view]
       [%sort =sort]
       [%perm =perm]
@@ -390,8 +390,8 @@
       a-remark
   ==
 ::
-+$  r-note
-  $%  [%set note=(unit rr-note)]
++$  r-post
+  $%  [%set post=(unit post)]
       [%quip id=id-quip =quip-meta =r-quip]
       [%feels feels=rr-feels]
       [%essay =essay]
@@ -408,8 +408,8 @@
 ++  channel
   |^  ,[global local]
   +$  global
-    $:  notes=rr-notes
-        order=arranged-notes
+    $:  =posts
+        order=arranged-posts
         =view
         =sort
         =perm
@@ -420,16 +420,16 @@
         =remark
     ==
   --
-+$  paged-notes
-  $:  notes=rr-notes
++$  paged-posts
+  $:  =posts
       newer=(unit time)
       older=(unit time)
       total=@ud
   ==
-+$  rr-notes  ((mop id-note (unit rr-note)) lte)
-+$  rr-note   [rr-seal essay]
++$  posts  ((mop id-post (unit post)) lte)
++$  post   [rr-seal essay]
 +$  rr-seal
-  $:  id=id-note
+  $:  id=id-post
       =rr-feels
       =rr-quips
       =quip-meta
@@ -437,7 +437,7 @@
 +$  rr-feels  (map ship feel)
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [id=id-quip parent-id=id-note =rr-feels]
-++  rr-on-notes  ((on id-note (unit rr-note)) lte)
++$  rr-cork   [id=id-quip parent-id=id-post =rr-feels]
+++  on-posts  ((on id-post (unit post)) lte)
 ++  rr-on-quips  ((on id-quip rr-quip) lte)
 --

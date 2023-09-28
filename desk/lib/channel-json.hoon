@@ -19,8 +19,8 @@
     |=  =r-channel:d
     %+  frond  -.r-channel
     ?-  -.r-channel
-      %notes   (rr-notes rr-notes.r-channel)
-      %note    (pairs id+(id id.r-channel) r-note+(r-note r-note.r-channel) ~)
+      %posts   (posts posts.r-channel)
+      %post    (pairs id+(id id.r-channel) r-post+(r-post r-post.r-channel) ~)
       %order    (order order.r-channel)
       %view     s+view.r-channel
       %sort     s+sort.r-channel
@@ -35,19 +35,19 @@
       %unwatch  ~
     ==
   ::
-  ++  r-note
-    |=  =r-note:d
-    %+  frond  -.r-note
-    ?-  -.r-note
-      %set    ?~(note.r-note ~ (rr-note u.note.r-note))
-      %feels  (feels feels.r-note)
-      %essay  (essay essay.r-note)
+  ++  r-post
+    |=  =r-post:d
+    %+  frond  -.r-post
+    ?-  -.r-post
+      %set    ?~(post.r-post ~ (post u.post.r-post))
+      %feels  (feels feels.r-post)
+      %essay  (essay essay.r-post)
     ::
         %quip
       %-  pairs
-      :~  id+(id id.r-note)
-          r-quip+(r-quip r-quip.r-note)
-          meta+(quip-meta quip-meta.r-note)
+      :~  id+(id id.r-post)
+          r-quip+(r-quip r-quip.r-post)
+          meta+(quip-meta quip-meta.r-post)
       ==
     ==
   ::
@@ -59,10 +59,10 @@
       %feels  (feels feels.r-quip)
     ==
   ::
-  ++  paged-notes
-    |=  pn=paged-notes:d
+  ++  paged-posts
+    |=  pn=paged-posts:d
     %-  pairs
-    :~  notes+(rr-notes notes.pn)
+    :~  posts+(posts posts.pn)
         newer+?~(newer.pn ~ (id u.newer.pn))
         older+?~(older.pn ~ (id u.older.pn))
         total+(numb total.pn)
@@ -79,26 +79,26 @@
   ++  channel
     |=  =channel:d
     %-  pairs
-    :~  notes+(rr-notes notes.channel)
+    :~  posts+(posts posts.channel)
         order+(order order.channel)
         view+s+view.channel
         sort+s+sort.channel
         perms+(perm perm.channel)
     ==
   ::
-  ++  rr-notes
-    |=  notes=rr-notes:d
+  ++  posts
+    |=  =posts:d
     %-  pairs
-    %+  turn  (tap:rr-on-notes:d notes)
-    |=  [id=id-note:d note=(unit rr-note:d)]
-    [(scot %ud id) ?~(note ~ (rr-note u.note))]
+    %+  turn  (tap:on-posts:d posts)
+    |=  [id=id-post:d post=(unit post:d)]
+    [(scot %ud id) ?~(post ~ (^post u.post))]
   ::
-  ++  rr-note
+  ++  post
     |=  [=rr-seal:d =essay:d]
     %-  pairs
     :~  seal+(^rr-seal rr-seal)
         essay+(^essay essay)
-        type+s+%note
+        type+s+%post
     ==
   ::
   ++  rr-quips
@@ -167,7 +167,7 @@
     n+(rap 3 '"' (scot %p her) '"' ~)
   ::
   ++  order
-    |=  a=arranged-notes:d
+    |=  a=arranged-posts:d
     :-  %a
     =/  times=(list time:z)  ?~(a ~ u.a)
     (turn times id)
@@ -348,10 +348,10 @@
     |=  =reference:d
     %+  frond  -.reference
     ?-    -.reference
-        %note  (rr-note rr-note.reference)
+        %post  (post post.reference)
         %quip
       %-  pairs
-      :~  id-note+(id id-note.reference)
+      :~  id-post+(id id-post.reference)
           quip+(rr-quip rr-quip.reference)
       ==
     ==
@@ -387,7 +387,7 @@
         watch+ul
         unwatch+ul
       ::
-        note+a-note
+        post+a-post
         view+(su (perk %grid %list ~))
         sort+(su (perk %time %alpha %arranged ~))
         order+(mu (ar id))
@@ -395,8 +395,8 @@
         del-writers+del-sects
     ==
   ::
-  ++  a-note
-    ^-  $-(json a-note:d)
+  ++  a-post
+    ^-  $-(json a-post:d)
     %-  of
     :~  add+essay
         edit+(ot id+id essay+essay ~)

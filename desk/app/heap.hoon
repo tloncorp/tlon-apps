@@ -495,10 +495,10 @@
     |=  [=flag:h =heap:h]
     ^-  [nest:d v-channel:d]
     :-  [%heap flag]
-    =/  =notes:d  (convert-notes curios.heap)
+    =/  posts=v-posts:d  (convert-posts curios.heap)
     %*    .  *v-channel:d
-        notes   notes
-        log     ?.(log ~ (convert-log curios.heap notes perm.heap log.heap))
+        posts   posts
+        log     ?.(log ~ (convert-log curios.heap posts perm.heap log.heap))
         view    [0 view.heap]
         perm    [0 perm.heap]
         remark  remark.heap
@@ -509,9 +509,9 @@
       ==
     ==
   ::
-  ++  convert-notes
+  ++  convert-posts
     |=  old=curios:h
-    ^-  notes:d
+    ^-  v-posts:d
     =/  curios  (tap:on:curios:h old)
     =/  index=(map @da quips:d)
       %+  roll  curios
@@ -520,17 +520,17 @@
       =/  old-quips=quips:d  (~(gut by index) time *quips:d)
       %+  ~(put by index)  u.replying.curio
       (put:on-quips:d old-quips time `(convert-quip time curio))
-    %+  gas:on-notes:d  *notes:d
+    %+  gas:on-v-posts:d  *v-posts:d
     %+  murn  curios
     |=  [=time =curio:h]
-    ^-  (unit [id-note:d (unit note:d)])
+    ^-  (unit [id-post:d (unit v-post:d)])
     ?^  replying.curio  ~
     =/  =quips:d  (~(gut by index) time *quips:d)
-    (some time `(convert-note time curio quips))
+    (some time `(convert-post time curio quips))
   ::
-  ++  convert-note
+  ++  convert-post
     |=  [id=@da old=curio:h =quips:d]
-    ^-  note:d
+    ^-  v-post:d
     [[id quips (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
@@ -563,13 +563,13 @@
     [%inline q.old]~
   ::
   ++  convert-log
-    |=  [=curios:h =notes:d =perm:d =log:h]
+    |=  [=curios:h posts=v-posts:d =perm:d =log:h]
     ^-  log:d
     %+  gas:log-on:d  *log:d
     %-  zing
     %+  turn  (tap:log-on:h log)
     |=  [=time =diff:h]
-    ^-  (list [id-note:d u-channel:d])
+    ^-  (list [id-post:d u-channel:d])
     =;  new=(list u-channel:d)
       ?~  new  ~
       ?~  t.new  [time i.new]~
@@ -581,38 +581,38 @@
     ?-    -.diff
         ?(%add-sects %del-sects)  [%perm 0 perm]~
         ::  XX  here and in the other apps, we need to preserve the
-        ::  notes in the %create log.  they show up there from the
+        ::  posts in the %create log.  they show up there from the
         ::  december migration
         %view                     [%view 0 p.diff]~
         %create
       :-  [%create p.diff]
       %+  murn  (tap:on:curios:h q.diff)
       |=  [=^time =curio:h]
-      =/  new-note  (get:on-notes:d notes time)
-      ?~  new-note  ~
-      (some %note time %set u.new-note)
+      =/  new-post  (get:on-v-posts:d posts time)
+      ?~  new-post  ~
+      (some %post time %set u.new-post)
     ::
         %curios
       =*  id  p.p.diff
       =/  old-curio  (get:on:curios:h curios id)
-      ?~  old-curio  [%note id %set ~]~
+      ?~  old-curio  [%post id %set ~]~
       ?~  replying.u.old-curio
-        =/  new-note  (get:on-notes:d notes id)
-        ?~  new-note  ~
+        =/  new-post  (get:on-v-posts:d posts id)
+        ?~  new-post  ~
         :_  ~
-        :+  %note  id
+        :+  %post  id
         ?-  -.q.p.diff
           %del                    [%set ~]
-          ?(%add %edit)           [%set u.new-note]
-          ?(%add-feel %del-feel)  [%feels ?~(u.new-note ~ feels.u.u.new-note)]
+          ?(%add %edit)           [%set u.new-post]
+          ?(%add-feel %del-feel)  [%feels ?~(u.new-post ~ feels.u.u.new-post)]
         ==
-      =/  new-note  (get:on-notes:d notes u.replying.u.old-curio)
-      ?~  new-note  ~
-      ?~  u.new-note  ~
-      =/  new-quip  (get:on-quips:d quips.u.u.new-note id)
+      =/  new-post  (get:on-v-posts:d posts u.replying.u.old-curio)
+      ?~  new-post  ~
+      ?~  u.new-post  ~
+      =/  new-quip  (get:on-quips:d quips.u.u.new-post id)
       ?~  new-quip  ~
       :_  ~
-      :+  %note  u.replying.u.old-curio
+      :+  %post  u.replying.u.old-curio
       :+  %quip  id
       ^-  u-quip:d
       ?-  -.q.p.diff
