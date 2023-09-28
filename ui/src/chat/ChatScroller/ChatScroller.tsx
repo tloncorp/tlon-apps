@@ -241,7 +241,12 @@ export default function ChatScroller({
   // The main place this happens is when there are a bunch of replies in the recent chat history.
   const contentHeight = virtualizer.getTotalSize();
   useEffect(() => {
-    if (contentHeight < window.innerHeight && fetchState === 'initial') {
+    if (
+      contentHeight < window.innerHeight &&
+      fetchState === 'initial' &&
+      // don't try to load more in threads, because their content is already fetched by main window
+      !replying
+    ) {
       const loadingNewer = loadDirection === 'newer';
       if (
         (loadingNewer && !hasLoadedNewest) ||
@@ -251,6 +256,7 @@ export default function ChatScroller({
       }
     }
   }, [
+    replying,
     contentHeight,
     fetchMessages,
     fetchState,
@@ -300,7 +306,7 @@ export default function ChatScroller({
   useEffect(() => {
     if (fetchState !== 'initial' || !userHasScrolled) return;
     const chatStore = useChatStore.getState();
-    if (isAtTop) {
+    if (isAtTop && !hasLoadedOldest) {
       setLoadDirection('older');
       chatStore.bottom(false);
       fetchMessages(false);
@@ -316,6 +322,7 @@ export default function ChatScroller({
     isAtBottom,
     fetchMessages,
     whom,
+    hasLoadedOldest,
     hasLoadedNewest,
     userHasScrolled,
   ]);

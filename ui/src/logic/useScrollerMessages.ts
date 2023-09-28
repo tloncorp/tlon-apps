@@ -1,7 +1,13 @@
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
-import React, { ReactNode, useCallback, useMemo, useState } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import BTree from 'sorted-btree';
 
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
@@ -73,7 +79,7 @@ function getMessageItems({
 
 export type MessageFetchState = 'top' | 'bottom' | 'initial';
 
-const DEBUG_FETCH = false;
+const DEBUG_FETCH = true;
 
 function fetchDebugMessage(...args: unknown[]) {
   if (DEBUG_FETCH) {
@@ -141,6 +147,7 @@ export default function useFetchMessages({
     },
     [whom, messages, scrollTo, writWindow]
   );
+
   return useMemo(
     () => ({
       fetchMessages,
@@ -185,13 +192,22 @@ export function useMessageData({
       scrollTo,
     });
 
+  const [hasEverLoadedNewest, setHasEverLoadedNewest] = useState(false);
+  const nextHasLoadedNewest =
+    hasLoadedNewest || replying || hasEverLoadedNewest;
+  useEffect(() => {
+    if (nextHasLoadedNewest) {
+      setHasEverLoadedNewest(true);
+    }
+  }, [nextHasLoadedNewest]);
+
   return {
     activeMessages,
     activeMessageKeys,
     activeMessageEntries,
     fetchMessages,
     fetchState,
-    hasLoadedNewest,
-    hasLoadedOldest,
+    hasLoadedNewest: nextHasLoadedNewest,
+    hasLoadedOldest: replying ? true : hasLoadedOldest,
   };
 }
