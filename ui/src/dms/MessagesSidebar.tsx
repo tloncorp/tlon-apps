@@ -106,7 +106,7 @@ export function TalkAppMenu() {
           <a
             title="Back to Landscape"
             aria-label="Back to Landscape"
-            href="/apps/grid"
+            href="/apps/landscape"
             target="_blank"
             rel="noreferrer"
             className={cn(

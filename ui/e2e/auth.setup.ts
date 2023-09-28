@@ -10,7 +10,7 @@ setup('authenticate', async ({ page }) => {
     .getByPlaceholder('sampel-ticlyt-migfun-falmel')
     .fill((shipManifest as Record<string, any>)[ship].code);
   await page.getByRole('button', { name: 'Continue' }).click();
-  await page.waitForURL('http://localhost:3000/apps/grid/');
+  await page.waitForURL('http://localhost:3000/apps/landscape/');
   await page.context().storageState({ path: authFile });
   await page.getByRole('link', { name: 'Groups' }).waitFor();
 });
