@@ -341,7 +341,7 @@ export default function makeWritsStore(
             oldest,
             newest,
             loadedNewest: true,
-            loadedOldest: false,
+            loadedOldest: keys.length === 0,
             latest: true,
           },
           draft.writWindows[whom]
