@@ -106,10 +106,10 @@
   --
 ::
 ++  act
-  |=  =a-shelf:d
+  |=  =a-channels:d
   =/  m  (strand ,~)
   ^-  form:m
-  (poke-our:s app %channel-action !>(a-shelf))
+  (poke-our:s app %channel-action !>(a-channels))
 ::
 ++  group-create
   |=  =create:g

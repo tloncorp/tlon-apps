@@ -15,7 +15,7 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %0
-        =shelf:d
+        =v-channels:d
     ==
   --
 =|  current-state
@@ -111,23 +111,23 @@
   ^+  cor
   ?+    mark  ~|(bad-poke+mark !!)
       %channel-command
-    =+  !<(=c-shelf:d vase)
-    ?-    -.c-shelf
+    =+  !<(=c-channels:d vase)
+    ?-    -.c-channels
         %create
       =<  di-abet
-      =/  =nest:d  [han.create-diary.c-shelf our.bowl name.create-diary.c-shelf]
-      (di-create:di-core nest create-diary.c-shelf)
+      =/  =nest:d  [han.create-diary.c-channels our.bowl name.create-diary.c-channels]
+      (di-create:di-core nest create-diary.c-channels)
     ::
         %diary
-      =/  diary-core  (di-abed:di-core nest.c-shelf)
-      di-abet:(di-c-diary:diary-core c-diary.c-shelf)
+      =/  diary-core  (di-abed:di-core nest.c-channels)
+      di-abet:(di-c-diary:diary-core c-diary.c-channels)
     ==
   ::
       %channel-migration
     ?>  =(our src):bowl
-    =+  !<(new-shelf=shelf:d vase)
-    =.  shelf  (~(uni by new-shelf) shelf)  ::  existing overrides migration
-    %+  roll  ~(tap by shelf)
+    =+  !<(new-channels=v-channels:d vase)
+    =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
+    %+  roll  ~(tap by v-channels)
     |=  [[=nest:d =diary:d] cr=_cor]
     di-abet:di-migrate:(di-abed:di-core:cr nest)
   ==
@@ -139,7 +139,7 @@
       [=han:d name=@ %create ~]
     ?>  =(our src):bowl
     =*  nest  [han.pole our.bowl name.pole]
-    ?.  (~(has by shelf) nest)  cor
+    ?.  (~(has by v-channels) nest)  cor
     di-abet:di-watch-create:(di-abed:di-core nest)
   ::
       [=han:d name=@ %updates ~]
@@ -216,7 +216,7 @@
 ++  take-groups
   |=  =action:g
   =/  affected=(list nest:d)
-    %+  murn  ~(tap by shelf)
+    %+  murn  ~(tap by v-channels)
     |=  [=nest:d =diary:d]
     ?.  =(p.action group.perm.perm.diary)  ~
     `nest
@@ -262,13 +262,13 @@
   ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.diary)
   ++  di-abet
     %_  cor
-        shelf
-      ?:(gone (~(del by shelf) nest) (~(put by shelf) nest diary))
+        v-channels
+      ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest diary))
     ==
   ::
   ++  di-abed
     |=  n=nest:d
-    di-core(nest n, diary (~(got by shelf) n))
+    di-core(nest n, diary (~(got by v-channels) n))
   ::
   ++  di-area  `path`/[han.nest]/[name.nest]
   ++  di-sub-path  `path`(weld di-area /updates)
@@ -307,7 +307,7 @@
     ^+  di-core
     |^
     =.  nest  n
-    ?:  (~(has by shelf) n)
+    ?:  (~(has by v-channels) n)
       %-  (slog leaf+"channel-server: create already exists: {<n>}" ~)
       di-core
     ?>  can-nest
@@ -554,8 +554,8 @@
     |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
     =?  di-core  !=(sects ~)
-      =/  =c-shelf:d  [%diary nest %del-writers sects]
-      =/  =cage  [%channel-command !>(c-shelf)]
+      =/  =c-channels:d  [%diary nest %del-writers sects]
+      =/  =cage  [%channel-command !>(c-channels)]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in di-subscriptions)

@@ -12,7 +12,7 @@
     %-  pairs
     :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
-        shelf/(rr-shelf:enjs:dj shelf.init)
+        channels/(channels:enjs:dj channels.init)
         briefs/(briefs:enjs:dj briefs.init)
         pins/a/(turn pins.init (cork whom:enjs:cj (lead %s)))
     ==

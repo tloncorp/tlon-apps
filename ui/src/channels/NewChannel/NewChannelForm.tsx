@@ -10,7 +10,7 @@ import {
 } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
-import { useCreateMutation, useShelf } from '@/state/channel/channel';
+import { useCreateMutation, useChannels } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -22,7 +22,7 @@ export default function NewChannelForm() {
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
   const { compatible, text } = useGroupCompatibility(groupFlag);
-  const shelf = useShelf();
+  const channels = useChannels();
   const { mutate: mutateAddChannel, status: addChannelStatus } =
     useAddChannelMutation();
   const { mutateAsync: createChannel } = useCreateMutation();
@@ -67,15 +67,15 @@ export default function NewChannelForm() {
       const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
       const existingChannel = () => {
         if (type === 'chat') {
-          return shelf[`chat/${tempNewChannelFlag}`];
+          return channels[`chat/${tempNewChannelFlag}`];
         }
 
         if (type === 'diary') {
-          return shelf[`diary/${tempNewChannelFlag}`];
+          return channels[`diary/${tempNewChannelFlag}`];
         }
 
         if (type === 'heap') {
-          return shelf[`heap/ ${tempNewChannelFlag}`];
+          return channels[`heap/ ${tempNewChannelFlag}`];
         }
 
         return false;
@@ -128,7 +128,7 @@ export default function NewChannelForm() {
       navigate,
       isMobile,
       mutateAddChannel,
-      shelf,
+      channels,
       createChannel,
     ]
   );

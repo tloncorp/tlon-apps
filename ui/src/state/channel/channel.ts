@@ -7,7 +7,7 @@ import create from 'zustand';
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { Flag } from '@/types/hark';
 import {
-  Shelf,
+  Channels,
   NoteAction,
   Ship,
   Quips,
@@ -24,8 +24,8 @@ import {
   NoteEssay,
   Story,
   Notes,
-  ShelfResponse,
-  ShelfAction,
+  ChannelsResponse,
+  ChannelsAction,
   Note,
   Nest,
   NoteMap,
@@ -78,7 +78,10 @@ async function updateNotesInCache(
   queryClient.setQueryData([han, 'notes', flag], updater);
 }
 
-export function channelAction(nest: Nest, action: Action): Poke<ShelfAction> {
+export function channelAction(
+  nest: Nest,
+  action: Action
+): Poke<ChannelsAction> {
   checkNest(nest);
   return {
     app: 'channels',
@@ -309,7 +312,7 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
 
 const infiniteNoteUpdater = (
   queryKey: QueryKey,
-  data: ShelfResponse,
+  data: ChannelsResponse,
   initialTime?: string
 ) => {
   const { nest, response } = data;
@@ -552,7 +555,7 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
     api.subscribe({
       app: 'channels',
       path: `/${nest}/ui`,
-      event: (data: ShelfResponse) => {
+      event: (data: ChannelsResponse) => {
         infiniteNoteUpdater(queryKey, data, initialTime);
         invalidate.current();
       },
@@ -729,20 +732,20 @@ export function useOrderedNotes(
   };
 }
 
-const emptyShelf: Shelf = {};
-export function useShelf(): Shelf {
-  const { data, ...rest } = useReactQuerySubscription<Shelf>({
-    queryKey: ['shelf'],
+const emptyChannels: Channels = {};
+export function useChannels(): Channels {
+  const { data, ...rest } = useReactQuerySubscription<Channels>({
+    queryKey: ['channels'],
     app: 'channels',
     path: '/ui',
-    scry: '/shelf',
+    scry: '/channels',
     options: {
       refetchOnMount: false,
     },
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return emptyShelf;
+    return emptyChannels;
   }
 
   return data;
@@ -750,9 +753,9 @@ export function useShelf(): Shelf {
 
 export function useChannel(nest: Nest): Diary | undefined {
   checkNest(nest);
-  const shelf = useShelf();
+  const channels = useChannels();
 
-  return shelf[nest];
+  return channels[nest];
 }
 
 const defaultPerms = {
@@ -934,15 +937,15 @@ export function useBrief(nest: Nest) {
   return briefs[nest];
 }
 
-export function useChats(): Shelf {
-  const shelf = useShelf();
+export function useChats(): Channels {
+  const channels = useChannels();
 
-  const chatKeys = Object.keys(shelf).filter((k) => k.startsWith('chat/'));
+  const chatKeys = Object.keys(channels).filter((k) => k.startsWith('chat/'));
 
-  const chats: Shelf = {};
+  const chats: Channels = {};
 
   chatKeys.forEach((k) => {
-    chats[k] = shelf[k];
+    chats[k] = channels[k];
   });
 
   return chats;
@@ -1097,7 +1100,7 @@ export function useJoinMutation() {
       throw new Error('Invalid nest');
     }
 
-    await api.trackedPoke<ShelfAction, ShelfResponse>(
+    await api.trackedPoke<ChannelsAction, ChannelsResponse>(
       channelAction(chan, {
         join: group,
       }),
@@ -1119,7 +1122,7 @@ export function useLeaveMutation() {
     mutationFn,
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
       await queryClient.cancelQueries(['briefs']);
       await queryClient.cancelQueries([han, 'perms', flag]);
       await queryClient.cancelQueries([han, 'notes', flag]);
@@ -1127,7 +1130,7 @@ export function useLeaveMutation() {
       queryClient.removeQueries([han, 'notes', flag]);
     },
     onSettled: async (_data, _error) => {
-      await queryClient.invalidateQueries(['shelf']);
+      await queryClient.invalidateQueries(['channels']);
       await queryClient.invalidateQueries(['briefs']);
     },
   });
@@ -1142,12 +1145,14 @@ export function useViewMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1169,12 +1174,14 @@ export function useSortMutation() {
     onMutate: async (variables) => {
       checkNest(variables.nest);
 
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1212,12 +1219,14 @@ export function useArrangedNotesMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1244,7 +1253,7 @@ export function useAddNoteMutation(nest: string) {
     new Promise<string>((resolve) => {
       try {
         api
-          .trackedPoke<ShelfAction, ShelfResponse>(
+          .trackedPoke<ChannelsAction, ChannelsResponse>(
             channelNoteAction(nest, {
               add: variables.essay,
             }),
@@ -1402,7 +1411,7 @@ export function useDeleteNoteMutation() {
   const mutationFn = async (variables: { nest: Nest; time: string }) => {
     checkNest(variables.nest);
 
-    await api.trackedPoke<ShelfAction, ShelfResponse>(
+    await api.trackedPoke<ChannelsAction, ChannelsResponse>(
       channelNoteAction(variables.nest, { del: variables.time }),
       {
         app: 'channels',
@@ -1454,7 +1463,7 @@ export function useDeleteNoteMutation() {
 
 export function useCreateMutation() {
   const mutationFn = async (variables: Create) => {
-    await api.trackedPoke<ShelfAction, ShelfResponse>(
+    await api.trackedPoke<ChannelsAction, ChannelsResponse>(
       {
         app: 'channels',
         mark: 'channel-action',
@@ -1476,12 +1485,14 @@ export function useCreateMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['channels'], {
           ...prev,
           [`${variables.han}/${window.our}/${variables.name}`]: {
             perms: { writers: [], group: variables.group },
@@ -1494,7 +1505,7 @@ export function useCreateMutation() {
       }
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['shelf']);
+      await queryClient.invalidateQueries(['channels']);
       await queryClient.invalidateQueries([
         variables.han,
         'notes',
@@ -1517,12 +1528,14 @@ export function useAddSectsMutation() {
     onMutate: async (variables) => {
       checkNest(variables.nest);
 
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1552,12 +1565,14 @@ export function useDeleteSectsMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],

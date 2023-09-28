@@ -473,24 +473,24 @@
 ++  migrate
   |%
   ++  server
-    =/  server-shelf=shelf:d
-      %+  convert-shelf  &
+    =/  server-channels=v-channels:d
+      %+  convert-channels  &
       %-  ~(gas by *stash:h)
       %+  skim  ~(tap by stash)
       |=  [=flag:h =heap:h]
       =(our.bowl p.flag)
-    =/  =cage  [%channel-migration !>(server-shelf)]
+    =/  =cage  [%channel-migration !>(server-channels)]
     (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
   ::
   ++  client
-    =/  =shelf:d  (convert-shelf | stash)
-    =/  =cage  [%channel-migration !>(shelf)]
+    =/  =v-channels:d  (convert-channels | stash)
+    =/  =cage  [%channel-migration !>(v-channels)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
   ::
-  ++  convert-shelf
+  ++  convert-channels
     |=  [log=? =stash:h]
-    ^-  shelf:d
-    %-  ~(gas by *shelf:d)
+    ^-  v-channels:d
+    %-  ~(gas by *v-channels:d)
     %+  turn  ~(tap by stash)
     |=  [=flag:h =heap:h]
     ^-  [nest:d diary:d]

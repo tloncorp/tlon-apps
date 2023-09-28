@@ -18,7 +18,7 @@ import { useStorage } from './storage';
 const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
-  shelf: {},
+  channels: {},
   briefs: {},
   pins: [],
 };
@@ -36,7 +36,7 @@ async function chatScry<T>(path: string, def: T) {
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { shelf, briefs, groups, gangs } = await asyncWithDefault(
+  const { channels, briefs, groups, gangs } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
@@ -47,7 +47,7 @@ async function startGroups() {
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  queryClient.setQueryData(['shelf'], shelf);
+  queryClient.setQueryData(['channels'], channels);
   queryClient.setQueryData(['briefs'], briefs);
   useChatStore.getState().update(briefs);
 }

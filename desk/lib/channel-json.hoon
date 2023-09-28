@@ -8,7 +8,7 @@
   |%
   +|  %responses
   ::
-  ++  r-shelf
+  ++  r-channels
     |=  [=nest:d =r-diary:d]
     %-  pairs
     :~  nest+(^nest nest)
@@ -69,10 +69,10 @@
     ==
   +|  %rr
   ::
-  ++  rr-shelf
-    |=  =rr-shelf:d
+  ++  channels
+    |=  =channels:d
     %-  pairs
-    %+  turn  ~(tap by rr-shelf)
+    %+  turn  ~(tap by channels)
     |=  [n=nest:d di=rr-diary:d]
     [(nest-cord n) (rr-diary di)]
   ::
@@ -369,8 +369,8 @@
   |%
   +|  %actions
   ::
-  ++  a-shelf
-    ^-  $-(json a-shelf:d)
+  ++  a-channels
+    ^-  $-(json a-channels:d)
     %-  of
     :~  create+create-diary
         pin+(ar nest)

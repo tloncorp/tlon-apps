@@ -495,24 +495,24 @@
   ++  d  channel
   ++  a  ^d
   ++  server
-    =/  server-shelf=shelf:d
-      %+  convert-shelf  &
+    =/  server-channels=v-channels:d
+      %+  convert-channels  &
       %-  ~(gas by *shelf:a)
       %+  skim  ~(tap by shelf)
       |=  [=flag:a =diary:a]
       =(our.bowl p.flag)
-    =/  =cage  [%channel-migration !>(server-shelf)]
+    =/  =cage  [%channel-migration !>(server-channels)]
     (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
   ::
   ++  client
-    =/  =shelf:d  (convert-shelf | shelf)
-    =/  =cage  [%channel-migration !>(shelf)]
+    =/  =v-channels:d  (convert-channels | shelf)
+    =/  =cage  [%channel-migration !>(v-channels)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
   ::
-  ++  convert-shelf
+  ++  convert-channels
     |=  [log=? =shelf:a]
-    ^-  shelf:d
-    %-  ~(gas by *shelf:d)
+    ^-  v-channels:d
+    %-  ~(gas by *v-channels:d)
     %+  turn  ~(tap by shelf)
     |=  [=flag:a =diary:a]
     ^-  [nest:d diary:d]

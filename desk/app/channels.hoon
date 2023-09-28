@@ -21,7 +21,7 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %0
-        =shelf:d
+        =v-channels:d
         voc=(map [nest:d plan:d] (unit said:d))
         pins=(list nest:d)
     ==
@@ -134,7 +134,7 @@
           [=han:d ship=@ name=@ %updates ~]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
-        ?~  diary=(~(get by shelf) han.pole sub-ship name.pole)  |
+        ?~  diary=(~(get by v-channels) han.pole sub-ship name.pole)  |
         ?.  ?=([han:d @ %updates ?(~ [@ ~])] path)  |
         ?.  =(han.pole i.path)  |
         =(name.pole i.t.path)
@@ -142,7 +142,7 @@
           [=han:d ship=@ name=@ %checkpoint ~]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
-        ?~  diary=(~(get by shelf) han.pole sub-ship name.pole)  |
+        ?~  diary=(~(get by v-channels) han.pole sub-ship name.pole)  |
         ?.  ?=([han:d @ %checkpoint %before @] path)  |
         ?.  =(han.pole i.path)  |
         =(name.pole i.t.path)
@@ -168,7 +168,7 @@
   ::
   =.  cor
     %+  roll
-      ~(tap by shelf)
+      ~(tap by v-channels)
     |=  [[=nest:d *] core=_cor]
     di-abet:di-safe-sub:(di-abed:di-core:core nest)
   ::
@@ -180,20 +180,20 @@
   ?+    mark  ~|(bad-poke+mark !!)
     :: TODO: add transfer/import channels
       %channel-action
-    =+  !<(=a-shelf:d vase)
-    ?:  ?=(%create -.a-shelf)
-      di-abet:(di-create:di-core create-diary.a-shelf)
-    ?:  ?=(%pin -.a-shelf)
+    =+  !<(=a-channels:d vase)
+    ?:  ?=(%create -.a-channels)
+      di-abet:(di-create:di-core create-diary.a-channels)
+    ?:  ?=(%pin -.a-channels)
       ?>  from-self
-      cor(pins pins.a-shelf)
-    ?:  ?=(%join -.a-diary.a-shelf)
-      di-abet:(di-join:di-core [nest group.a-diary]:a-shelf)
-    di-abet:(di-a-diary:(di-abed:di-core nest.a-shelf) a-diary.a-shelf)
+      cor(pins pins.a-channels)
+    ?:  ?=(%join -.a-diary.a-channels)
+      di-abet:(di-join:di-core [nest group.a-diary]:a-channels)
+    di-abet:(di-a-diary:(di-abed:di-core nest.a-channels) a-diary.a-channels)
   ::
       %channel-migration
     ?>  =(our src):bowl
-    =+  !<(new-shelf=shelf:d vase)
-    =.  shelf  (~(uni by new-shelf) shelf)  ::  existing overrides migration
+    =+  !<(new-channels=v-channels:d vase)
+    =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
     cor
   ::
       %channel-migration-pins
@@ -219,7 +219,7 @@
 ::
 ++  watch-said
   |=  [=nest:d =plan:d]
-  ?.  (~(has by shelf) nest)
+  ?.  (~(has by v-channels) nest)
     =/  wire  (said-wire nest plan)
     (safe-watch wire [ship.nest server] wire)
   di-abet:(di-said:(di-abed:di-core nest) plan)
@@ -307,7 +307,7 @@
 ++  take-groups
   |=  =action:g
   =/  affected=(list nest:d)
-    %+  murn  ~(tap by shelf)
+    %+  murn  ~(tap by v-channels)
     |=  [=nest:d =diary:d]
     ?.  =(p.action group.perm.perm.diary)  ~
     `nest
@@ -336,8 +336,8 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %shelf ~]   ``channel-shelf+!>((rr-shelf:utils shelf))
-      [%x %init ~]    ``noun+!>([briefs (rr-shelf:utils shelf)])
+      [%x %channels ~]   ``channels+!>((channels:utils v-channels))
+      [%x %init ~]    ``noun+!>([briefs (channels:utils v-channels)])
       [%x %pins ~]    ``channel-pins+!>(pins)
       [%x %briefs ~]  ``channel-briefs+!>(briefs)
       [%x =han:d ship=@ name=@ rest=*]
@@ -346,13 +346,13 @@
   ::
       [%u =han:d ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
-    ``loob+!>((~(has by shelf) han.pole ship name.pole))
+    ``loob+!>((~(has by v-channels) han.pole ship name.pole))
   ==
 ::
 ++  briefs
   ^-  briefs:d
   %-  ~(gas by *briefs:d)
-  %+  turn  ~(tap in ~(key by shelf))
+  %+  turn  ~(tap in ~(key by v-channels))
   |=  =nest:d
   [nest di-brief:(di-abed:di-core nest)]
 ::
@@ -374,12 +374,12 @@
   ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.diary)
   ++  di-abet
     %_    cor
-        shelf
-      ?:(gone (~(del by shelf) nest) (~(put by shelf) nest diary))
+        v-channels
+      ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest diary))
     ==
   ++  di-abed
     |=  n=nest:d
-    di-core(nest n, diary (~(got by shelf) n))
+    di-core(nest n, diary (~(got by v-channels) n))
   ::
   ++  di-area  `path`/[han.nest]/(scot %p ship.nest)/[name.nest]
   ++  di-sub-wire  (weld di-area /updates)
@@ -393,7 +393,7 @@
     |=  create=create-diary:d
     ?>  from-self
     =.  nest  [han.create our.bowl name.create]
-    ?<  (~(has by shelf) nest)
+    ?<  (~(has by v-channels) nest)
     =.  diary  *diary:d
     =.  group.perm.perm.diary  group.create
     =.  last-read.remark.diary  now.bowl
@@ -404,7 +404,7 @@
   ::
   ++  di-join
     |=  [n=nest:d group=flag:g]
-    ?<  (~(has by shelf) nest)
+    ?<  (~(has by v-channels) nest)
     ?>  |(=(p.group src.bowl) from-self)
     =.  nest  n
     =.  diary  *diary:d
@@ -447,7 +447,7 @@
   ::  proxy command to host
   ::
   ++  di-send-command
-    |=  command=c-shelf:d
+    |=  command=c-channels:d
     ^+  di-core
     ?>  ?=(%diary -.command)
     ::  don't allow anyone else to proxy through us
@@ -528,7 +528,7 @@
       ?.  =(%channel-update p.cage)
         ~|(diary-strange-fact+p.cage !!)
       =+  !<(=update:d q.cage)
-      =.  di-core  (di-u-shelf update)
+      =.  di-core  (di-u-channels update)
       =.  di-core  di-give-brief
       =.  di-core
         (emit %pass (weld di-area /create) %agent [ship.nest server] %leave ~)
@@ -549,7 +549,7 @@
       =*  cage  cage.sign
       ?+  p.cage  ~|(channel-strange-fact+p.cage !!)
         %channel-logs    (di-apply-logs !<(log:d q.cage))
-        %channel-update  (di-u-shelf !<(update:d q.cage))
+        %channel-update  (di-u-channels !<(update:d q.cage))
       ==
     ==
   ::
@@ -647,7 +647,7 @@
     ^+  di-core
     %+  roll  (tap:log-on:d log)
     |=  [[=time =u-diary:d] di=_di-core]
-    (di-u-shelf:di time u-diary)
+    (di-u-channels:di time u-diary)
   ::
   ::  +di-u-* functions ingest updates and execute them
   ::
@@ -655,7 +655,7 @@
   ::    own subscribers.  it may also emit briefs and/or trigger hark
   ::    events.
   ::
-  ++  di-u-shelf
+  ++  di-u-channels
     |=  [=time =u-diary:d]
     ?>  di-from-host
     ^+  di-core
@@ -964,8 +964,8 @@
   ::
   ++  di-response
     |=  =r-diary:d
-    =/  =r-shelf:d  [nest r-diary]
-    (give %fact ~[/ui (snoc di-area %ui)] channel-response+!>(r-shelf))
+    =/  =r-channels:d  [nest r-diary]
+    (give %fact ~[/ui (snoc di-area %ui)] channel-response+!>(r-channels))
   ::
   ::  produce an up-to-date brief
   ::

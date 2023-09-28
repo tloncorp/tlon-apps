@@ -5,7 +5,7 @@ import {
 } from '@tloncorp/mock-http-api';
 import { BigIntOrderedMap } from '@urbit/api';
 import { subMinutes } from 'date-fns';
-import { newQuipMap, Notes, Perm, Shelf } from '@/types/channel';
+import { newQuipMap, Notes, Perm, Channels } from '@/types/channel';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 
@@ -14,7 +14,7 @@ const mockPerms: Perm = {
   group: '~zod/test',
 };
 
-const mockStash: Shelf = {
+const mockStash: Channels = {
   'heap/~zod/testHeap': {
     perms: mockPerms,
     view: 'grid',

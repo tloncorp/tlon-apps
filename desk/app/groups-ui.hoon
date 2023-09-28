@@ -93,12 +93,12 @@
   ?+    pole  [~ ~]
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v0/noun))
-    =+  .^([=briefs:d shelf=rr-shelf:d] (scry %gx %channels /init/noun))
+    =+  .^([=briefs:d =channels:d] (scry %gx %channels /init/noun))
     =+  .^(pins=(list whom:c) (scry %gx %chat /pins/noun))
     =/  =init:u
       :*  groups-ui
           gangs
-          shelf
+          channels
           briefs
           pins
       ==

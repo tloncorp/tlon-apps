@@ -5,10 +5,10 @@
 ::  +rr-* functions convert notes, quips, and feels into their "rr"
 ::  forms, suitable for responses to our subscribers
 ::
-++  rr-shelf
-  |=  =shelf:d
-  ^-  rr-shelf:d
-  %-  ~(run by shelf)
+++  channels
+  |=  =v-channels:d
+  ^-  channels:d
+  %-  ~(run by v-channels)
   |=  =diary:d
   ^-  rr-diary:d
   %*  .  *rr-diary:d
