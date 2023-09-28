@@ -217,11 +217,15 @@
         essay+(essay:enjs:dj +.writ)
     ==
   ::
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
+  ::
   ++  seal
     |=  =seal:c
     %-  pairs
     :~  id+(id id.seal)
-        time+(time time.seal)
+        time+(time-id time.seal)
         feels+(feels feels.seal)
         quips+(quips quips.seal)
         meta+(quip-meta:enjs:dj meta.seal)
@@ -252,7 +256,8 @@
     |=  =cork:c
     %-  pairs
     :~  id+(id id.cork)
-        time+(time time.cork)
+        parent-id+(id parent-id.cork)
+        time+(time-id time.cork)
         feels+(feels feels.cork)
     ==
   ::

@@ -5,6 +5,8 @@ import {
   NoteEssay,
   NoteSeal,
   NoteSealInCache,
+  Quip,
+  QuipCork,
   QuipMeta,
 } from './channel';
 import { GroupMeta } from './groups';
@@ -21,15 +23,32 @@ export interface WritEssay extends NoteEssay {
   'han-data': HanChat;
 }
 
+export interface WritQuipCork extends QuipCork {
+  time: string;
+}
+
+export interface WritQuip extends Quip {
+  cork: WritQuipCork;
+}
+
+export interface WritQuipReferenceResponse {
+  quip: {
+    'id-note': string;
+    quip: WritQuip;
+  };
+}
+
+export type WritQuipMap = BTree<BigInteger, WritQuip>;
+
 export interface WritSeal extends NoteSeal {
-  time: number;
+  time: string;
 }
 
 interface WritDeltaAdd {
   add: {
     memo: Omit<NoteEssay, 'han-data'>;
     kind: null;
-    time: number | null;
+    time: string | null;
   };
 }
 
@@ -231,7 +250,9 @@ export interface TalkInit {
   pins: string[];
 }
 
-export type ChatScan = Writ[];
+export type ChatScanItem = { writ: Writ } | WritQuipReferenceResponse;
+
+export type ChatScan = ChatScanItem[];
 
 interface WritSealInCache extends NoteSealInCache {
   time: number;

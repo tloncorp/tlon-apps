@@ -25,6 +25,7 @@ import {
   Patda,
   WritEssay,
   WritInCache,
+  WritTuple,
 } from '@/types/dms';
 import {
   newQuipMap,
@@ -33,6 +34,8 @@ import {
   Quip,
   Quips,
   ChannelsAction,
+  newChatMap,
+  QuipTuple,
 } from '@/types/channel';
 import api from '@/api';
 import {
@@ -1166,12 +1169,21 @@ export function useChatSearch(whom: string, query: string) {
     },
   });
 
-  const scan = useMemo(() => {
-    return newWritMap(
-      (data || []).map((writ) => [bigInt(unixToDa(writ.seal.time)), writ]),
-      true
-    );
-  }, [data]);
+  const scan = useMemo(
+    () =>
+      newChatMap(
+        (data || []).map((scItem) =>
+          scItem && 'writ' in scItem
+            ? ([bigInt(scItem.writ.seal.time), scItem.writ] as WritTuple)
+            : ([
+                bigInt(scItem.quip.quip.cork.time),
+                scItem.quip.quip,
+              ] as QuipTuple)
+        ),
+        true
+      ),
+    [data]
+  );
 
   return {
     scan,

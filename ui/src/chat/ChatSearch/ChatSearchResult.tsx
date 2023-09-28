@@ -29,17 +29,21 @@ function ChatSearchResult({
   selected,
   isScrolling,
 }: ChatSearchResultProps) {
-  const unix = new Date(daToUnix(time));
+  const unix = useMemo(() => new Date(daToUnix(time)), [time]);
   const noteId = useMemo(() => {
     if ('cork' in writ) {
       return writ.cork['parent-id'];
     }
     if ('seal' in writ) {
+      if ('time' in writ.seal) {
+        return time;
+      }
+
       return writ.seal.id;
     }
 
     return '';
-  }, [writ]);
+  }, [writ, time]);
   const isQuip = 'cork' in writ;
   const scrollTo = `?msg=${noteId}`;
   const to = isQuip ? `${root}/message/${noteId}` : `${root}${scrollTo}`;

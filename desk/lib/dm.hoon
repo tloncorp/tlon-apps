@@ -57,10 +57,10 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id now ~ ~ [0 ~ ~]]
     ?:  (~(has by dex.pac) id)
       pac
     |-
+    =/  =seal:c  [id now ~ ~ [0 ~ ~]]
     ?:  (has:on:writs:c wit.pac now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac

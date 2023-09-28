@@ -48,12 +48,13 @@ export function writsReducer(whom: string, optimistic = false) {
     };
 
     if ('add' in delta && !pact.index[id]) {
-      const now = delta.add.time || Date.now();
-      const time = bigInt(unixToDa(now));
+      const time = delta.add.time
+        ? bigInt(delta.add.time)
+        : unixToDa(Date.now());
       pact.index[id] = time;
       const seal: WritSeal = {
         id,
-        time: now,
+        time: time.toString(),
         feels: {},
         quips: null,
         meta: {

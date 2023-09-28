@@ -48,6 +48,10 @@ export default function QuipMessageOptions(props: {
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const threadParentId = cork['parent-id'];
+  console.log({
+    cork,
+    threadParentId,
+  });
   const { didCopy, doCopy } = useCopy(
     `/1/chan/${whom}/msg/${threadParentId}/${cork.id}`
   );
@@ -71,7 +75,8 @@ export default function QuipMessageOptions(props: {
   const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
-  const perms = usePerms(whom);
+  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+  const perms = usePerms(isDMorMultiDM ? `fake/nest/${whom}` : whom);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
@@ -84,7 +89,6 @@ export default function QuipMessageOptions(props: {
   const { mutate: addFeelToChat } = useAddNoteFeelMutation();
   const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
   const { mutate: addDMQuipFeel } = useAddDMQuipFeelMutation();
-  const isDMorMultiDM = useIsDmOrMultiDm(whom);
 
   const onDelete = async () => {
     if (isMobile) {
