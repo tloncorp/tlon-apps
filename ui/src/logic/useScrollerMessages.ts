@@ -1,7 +1,13 @@
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { isSameDay } from 'date-fns';
-import React, { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import BTree from 'sorted-btree';
 
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
@@ -187,7 +193,8 @@ export function useMessageData({
     });
 
   const [hasEverLoadedNewest, setHasEverLoadedNewest] = useState(false);
-  const nextHasLoadedNewest = hasLoadedNewest || replying || hasEverLoadedNewest;
+  const nextHasLoadedNewest =
+    hasLoadedNewest || replying || hasEverLoadedNewest;
   useEffect(() => {
     if (nextHasLoadedNewest) {
       setHasEverLoadedNewest(true);
@@ -200,7 +207,7 @@ export function useMessageData({
     activeMessageEntries,
     fetchMessages,
     fetchState,
-    hasLoadedNewest:nextHasLoadedNewest,
+    hasLoadedNewest: nextHasLoadedNewest,
     hasLoadedOldest: replying ? true : hasLoadedOldest,
   };
 }
