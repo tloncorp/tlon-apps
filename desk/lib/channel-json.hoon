@@ -43,20 +43,20 @@
       %feels  (feels feels.r-post)
       %essay  (essay essay.r-post)
     ::
-        %quip
+        %reply
       %-  pairs
       :~  id+(id id.r-post)
-          r-quip+(r-quip r-quip.r-post)
-          meta+(quip-meta quip-meta.r-post)
+          r-reply+(r-reply r-reply.r-post)
+          meta+(reply-meta reply-meta.r-post)
       ==
     ==
   ::
-  ++  r-quip
-    |=  =r-quip:d
-    %+  frond  -.r-quip
-    ?-  -.r-quip
-      %set    ?~(quip.r-quip ~ (rr-quip u.quip.r-quip))
-      %feels  (feels feels.r-quip)
+  ++  r-reply
+    |=  =r-reply:d
+    %+  frond  -.r-reply
+    ?-  -.r-reply
+      %set    ?~(reply.r-reply ~ (reply u.reply.r-reply))
+      %feels  (feels feels.r-reply)
     ==
   ::
   ++  paged-posts
@@ -101,14 +101,14 @@
         type+s+%post
     ==
   ::
-  ++  rr-quips
-    |=  quips=rr-quips:d
+  ++  replies
+    |=  =replies:d
     %-  pairs
-    %+  turn  (tap:rr-on-quips:d quips)
-    |=  [t=@da =rr-quip:d]
-    [(scot %ud t) (^rr-quip rr-quip)]
+    %+  turn  (tap:rr-on-replies:d replies)
+    |=  [t=@da =reply:d]
+    [(scot %ud t) (^reply reply)]
   ::
-  ++  rr-quip
+  ++  reply
     |=  [=rr-cork:d =memo:d]
     %-  pairs
     :~  cork+(^rr-cork rr-cork)
@@ -120,8 +120,8 @@
     %-  pairs
     :~  id+(id id.rr-seal)
         feels+(feels rr-feels.rr-seal)
-        quips+(rr-quips rr-quips.rr-seal)
-        meta+(quip-meta quip-meta.rr-seal)
+        replies+(replies replies.rr-seal)
+        meta+(reply-meta reply-meta.rr-seal)
     ==
   ::
   ++  rr-cork
@@ -205,12 +205,12 @@
       %diary  (pairs title+s+title.han-data image+s+image.han-data ~)
     ==
   ::
-  ++  quip-meta
-    |=  q=quip-meta:d
+  ++  reply-meta
+    |=  r=reply-meta:d
     %-  pairs
-    :~  'quipCount'^(numb quip-count.q)
-        'lastQuip'^?~(last-quip.q ~ (time u.last-quip.q))
-        'lastQuippers'^a/(turn ~(tap in last-quippers.q) ship)
+    :~  'replyCount'^(numb reply-count.r)
+        'lastReply'^?~(last-reply.r ~ (time u.last-reply.r))
+        'lastRepliers'^a/(turn ~(tap in last-repliers.r) ship)
     ==
   ::
   ++  verse
@@ -349,10 +349,10 @@
     %+  frond  -.reference
     ?-    -.reference
         %post  (post post.reference)
-        %quip
+        %reply
       %-  pairs
       :~  id-post+(id id-post.reference)
-          quip+(rr-quip rr-quip.reference)
+          reply+(reply reply.reference)
       ==
     ==
   ::
@@ -401,13 +401,13 @@
     :~  add+essay
         edit+(ot id+id essay+essay ~)
         del+id
-        quip+(ot id+id action+a-quip ~)
+        reply+(ot id+id action+a-reply ~)
         add-feel+(ot id+id ship+ship feel+so ~)
         del-feel+(ot id+id ship+ship ~)
     ==
   ::
-  ++  a-quip
-    ^-  $-(json a-quip:d)
+  ++  a-reply
+    ^-  $-(json a-reply:d)
     %-  of
     :~  add+memo
         del+id

@@ -550,16 +550,16 @@
   ::
   ++  convert-quips
     |=  old=quips:a
-    ^-  quips:d
-    %+  gas:on-quips:d  *quips:d
+    ^-  v-replies:d
+    %+  gas:on-v-replies:d  *v-replies:d
     %+  turn  (tap:on:quips:a old)
     |=  [=time =quip:a]
-    ^-  [id-quip:d (unit quip:d)]
+    ^-  [id-reply:d (unit v-reply:d)]
     [time `(convert-quip time quip)]
   ::
   ++  convert-quip
     |=  [id=@da old=quip:a]
-    ^-  quip:d
+    ^-  v-reply:d
     [[id (convert-feels feels.old)] (convert-memo +.old)]
   ::
   ++  convert-essay
@@ -629,16 +629,16 @@
       ::
           %quips
         ?~  u.new-post  ~
-        =*  id-quip  p.p.q.p.diff
-        =/  new-quip  (get:on-quips:d quips.u.u.new-post id-quip)
-        ?~  new-quip  ~
+        =*  id-reply  p.p.q.p.diff
+        =/  new-reply  (get:on-v-replies:d replies.u.u.new-post id-reply)
+        ?~  new-reply  ~
         :_  ~
-        :+  %post  id
-        :+  %quip  id-quip
+        :+  %post   id
+        :+  %reply  id-reply
         ?-  -.q.p.q.p.diff
           %del                    [%set ~]
-          %add                    [%set u.new-quip]
-          ?(%add-feel %del-feel)  [%feels ?~(u.new-quip ~ feels.u.u.new-quip)]
+          %add                    [%set u.new-reply]
+          ?(%add-feel %del-feel)  [%feels ?~(u.new-reply ~ feels.u.u.new-reply)]
         ==
       ==
     ==

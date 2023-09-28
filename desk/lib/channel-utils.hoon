@@ -2,7 +2,7 @@
 ::  convert a post to a preview for a "said" response
 ::
 |%
-::  +uv-* functions convert posts, quips, and feels into their "unversioned"
+::  +uv-* functions convert posts, replies, and feels into their "unversioned"
 ::  forms, suitable for responses to our subscribers
 ::
 ++  uv-channels
@@ -33,45 +33,45 @@
   :_  +>.v-post
   :*  id.v-post
       (uv-feels feels.v-post)
-      (uv-quips id.v-post quips.v-post)
-      (get-quip-meta v-post)
+      (uv-replies id.v-post replies.v-post)
+      (get-reply-meta v-post)
   ==
 ::
-++  uv-posts-without-quips
+++  uv-posts-without-replies
   |=  =v-posts:d
   ^-  posts:d
   %+  gas:on-posts:d  *posts:d
   %+  turn  (tap:on-v-posts:d v-posts)
   |=  [=id-post:d v-post=(unit v-post:d)]
   ^-  [id-post:d (unit post:d)]
-  [id-post ?~(v-post ~ `(uv-post-without-quips u.v-post))]
+  [id-post ?~(v-post ~ `(uv-post-without-replies u.v-post))]
 ::
-++  uv-post-without-quips
+++  uv-post-without-replies
   |=  post=v-post:d
   ^-  post:d
   :_  +>.post
   :*  id.post
       (uv-feels feels.post)
-      *rr-quips:d
-      (get-quip-meta post)
+      *replies:d
+      (get-reply-meta post)
   ==
 ::
-++  uv-quips
-  |=  [parent-id=id-post:d =quips:d]
-  ^-  rr-quips:d
-  %+  gas:rr-on-quips:d  *rr-quips:d
-  %+  murn  (tap:on-quips:d quips)
-  |=  [=time quip=(unit quip:d)]
-  ^-  (unit [id-quip:d rr-quip:d])
-  ?~  quip  ~
+++  uv-replies
+  |=  [parent-id=id-post:d =v-replies:d]
+  ^-  replies:d
+  %+  gas:rr-on-replies:d  *replies:d
+  %+  murn  (tap:on-v-replies:d v-replies)
+  |=  [=time v-reply=(unit v-reply:d)]
+  ^-  (unit [id-reply:d reply:d])
+  ?~  v-reply  ~
   %-  some
-  [time (uv-quip parent-id u.quip)]
+  [time (uv-reply parent-id u.v-reply)]
 ::
-++  uv-quip
-  |=  [parent-id=id-quip:d =quip:d]
-  ^-  rr-quip:d
-  :_  +.quip
-  [id.quip parent-id (uv-feels feels.quip)]
+++  uv-reply
+  |=  [parent-id=id-reply:d =v-reply:d]
+  ^-  reply:d
+  :_  +.v-reply
+  [id.v-reply parent-id (uv-feels feels.v-reply)]
 ::
 ++  uv-feels
   |=  =feels:d
@@ -104,21 +104,21 @@
             %chat
           [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
         ==
-      (uv-post-without-quips u.u.post)
+      (uv-post-without-replies u.u.post)
     [%channel-said !>(`said:d`[nest %post post])]
   ::
-  =/  =rr-quip:d
+  =/  =reply:d
     ?~  post
       [*rr-cork:d ~[%inline 'Comment on unknown post']~ ~nul *@da]
     ?~  u.post
       [*rr-cork:d ~[%inline 'Comment on deleted post']~ ~nul *@da]
-    =/  quip=(unit (unit quip:d))  (get:on-quips:d quips.u.u.post u.q.plan)
-    ?~  quip
+    =/  reply=(unit (unit v-reply:d))  (get:on-v-replies:d replies.u.u.post u.q.plan)
+    ?~  reply
       [*rr-cork:d ~[%inline 'Unknown comment']~ ~nul *@da]
-    ?~  u.quip
+    ?~  u.reply
       [*rr-cork:d ~[%inline 'This comment was deleted']~ ~nul *@da]
-    (uv-quip p.plan u.u.quip)
-  [%channel-said !>(`said:d`[nest %quip p.plan rr-quip])]
+    (uv-reply p.plan u.u.reply)
+  [%channel-said !>(`said:d`[nest %reply p.plan reply])]
 ::
 ++  was-mentioned
   |=  [=story:d who=ship]
@@ -160,36 +160,36 @@
 ++  trace
   |=  post=v-post:d
   ^-  outline:d
-  =;  quippers=(set ship)
-    [~(wyt by quips.post) quippers +>.post]
+  =;  replyers=(set ship)
+    [~(wyt by replies.post) replyers +>.post]
   =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
   %-  ~(gas in *(set ship))
-  %+  murn  (tap:on-quips:d quips.post)
-  |=  [@ quip=(unit quip:d)]
-  ?~  quip  ~
-  (some author.u.quip)
+  %+  murn  (tap:on-v-replies:d replies.post)
+  |=  [@ reply=(unit v-reply:d)]
+  ?~  reply  ~
+  (some author.u.reply)
 ::
-++  get-quip-meta
+++  get-reply-meta
   |=  post=v-post:d
-  ^-  quip-meta:d
-  :*  (wyt:on-quips:d quips.post)
-      (get-last-quippers post)
-      (biff (ram:on-quips:d quips.post) |=([=time *] `time))
+  ^-  reply-meta:d
+  :*  (wyt:on-v-replies:d replies.post)
+      (get-last-repliers post)
+      (biff (ram:on-v-replies:d replies.post) |=([=time *] `time))
   ==
 ::
-++  get-last-quippers
-  |=  post=v-post:d  ::TODO  could just take =quips
+++  get-last-repliers
+  |=  post=v-post:d  ::TODO  could just take =v-replies
   ^-  (set ship)
-  =|  quippers=(set ship)
-  =/  entries=(list [time (unit quip:d)])  (bap:on-quips:d quips.post)
+  =|  replyers=(set ship)
+  =/  entries=(list [time (unit v-reply:d)])  (bap:on-v-replies:d replies.post)
   |-
-  ?:  |(=(~ entries) =(3 ~(wyt in quippers)))
-    quippers
-  =/  [* quip=(unit quip:d)]  -.entries
-  ?~  quip  $(entries +.entries)
-  ?:  (~(has in quippers) author.u.quip)
+  ?:  |(=(~ entries) =(3 ~(wyt in replyers)))
+    replyers
+  =/  [* reply=(unit v-reply:d)]  -.entries
+  ?~  reply  $(entries +.entries)
+  ?:  (~(has in replyers) author.u.reply)
     $(entries +.entries)
-  (~(put in quippers) author.u.quip)
+  (~(put in replyers) author.u.reply)
 ++  perms
   |_  [our=@p now=@da =nest:d group=flag:g]
   ++  am-host  =(our ship.nest)

@@ -513,25 +513,25 @@
     |=  old=curios:h
     ^-  v-posts:d
     =/  curios  (tap:on:curios:h old)
-    =/  index=(map @da quips:d)
+    =/  index=(map @da v-replies:d)
       %+  roll  curios
-      |=  [[=time =curio:h] index=(map @da quips:d)]
+      |=  [[=time =curio:h] index=(map @da v-replies:d)]
       ?~  replying.curio  index
-      =/  old-quips=quips:d  (~(gut by index) time *quips:d)
+      =/  old-replies=v-replies:d  (~(gut by index) time *v-replies:d)
       %+  ~(put by index)  u.replying.curio
-      (put:on-quips:d old-quips time `(convert-quip time curio))
+      (put:on-v-replies:d old-replies time `(convert-reply time curio))
     %+  gas:on-v-posts:d  *v-posts:d
     %+  murn  curios
     |=  [=time =curio:h]
     ^-  (unit [id-post:d (unit v-post:d)])
     ?^  replying.curio  ~
-    =/  =quips:d  (~(gut by index) time *quips:d)
-    (some time `(convert-post time curio quips))
+    =/  replies=v-replies:d  (~(gut by index) time *v-replies:d)
+    (some time `(convert-post time curio replies))
   ::
   ++  convert-post
-    |=  [id=@da old=curio:h =quips:d]
+    |=  [id=@da old=curio:h replies=v-replies:d]
     ^-  v-post:d
-    [[id quips (convert-feels feels.old)] %0 (convert-essay +.old)]
+    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:d)
@@ -540,9 +540,9 @@
     |=  =feel:d
     [%0 `feel]
   ::
-  ++  convert-quip
+  ++  convert-reply
     |=  [id=@da old=curio:h]
-    ^-  quip:d
+    ^-  v-reply:d
     [[id (convert-feels feels.old)] (convert-memo +.old)]
   ::
   ++  convert-memo
@@ -609,16 +609,16 @@
       =/  new-post  (get:on-v-posts:d posts u.replying.u.old-curio)
       ?~  new-post  ~
       ?~  u.new-post  ~
-      =/  new-quip  (get:on-quips:d quips.u.u.new-post id)
-      ?~  new-quip  ~
+      =/  new-reply  (get:on-v-replies:d replies.u.u.new-post id)
+      ?~  new-reply  ~
       :_  ~
-      :+  %post  u.replying.u.old-curio
-      :+  %quip  id
-      ^-  u-quip:d
+      :+  %post   u.replying.u.old-curio
+      :+  %reply  id
+      ^-  u-reply:d
       ?-  -.q.p.diff
         %del                    [%set ~]
-        ?(%add %edit)           [%set u.new-quip]
-        ?(%add-feel %del-feel)  [%feels ?~(u.new-quip ~ feels.u.u.new-quip)]
+        ?(%add %edit)           [%set u.new-reply]
+        ?(%add-feel %del-feel)  [%feels ?~(u.new-reply ~ feels.u.u.new-reply)]
       ==
     ==
   --

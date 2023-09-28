@@ -217,7 +217,7 @@
   ++  writ-2-to-3
     |=  [=time old=writ:two =quips:c]
     ^-  writ:c
-    =;  qm=quip-meta:d
+    =;  qm=reply-meta:d
       :-  [id.old time feels.old quips qm]
       (essay-2-to-3 +.old)
     ::
@@ -586,27 +586,27 @@
     |=  old=pact:t
     ^-  v-posts:d
     =/  writs  (tap:on:writs:t wit.old)
-    =/  quip-index=(map @da quips:d)
+    =/  quip-index=(map @da v-replies:d)
       %+  roll  writs
-      |=  [[=time =writ:t] quip-index=(map @da quips:d)]
+      |=  [[=time =writ:t] quip-index=(map @da v-replies:d)]
       ?~  replying.writ  quip-index
-      =/  old-quips=quips:d  (~(gut by quip-index) time *quips:d)
+      =/  old-replies=v-replies:d  (~(gut by quip-index) time *v-replies:d)
       =/  quip-time  (~(get by dex.old) u.replying.writ)
       ?~  quip-time  quip-index
       %+  ~(put by quip-index)  u.quip-time
-      (put:on-quips:d old-quips time `(convert-quip time writ))
+      (put:on-v-replies:d old-replies time `(convert-quip time writ))
     %+  gas:on-v-posts:d  *v-posts:d
     %+  murn  writs
     |=  [=time =writ:t]
     ^-  (unit [id-post:d (unit v-post:d)])
     ?^  replying.writ  ~
-    =/  =quips:d  (~(gut by quip-index) time *quips:d)
-    (some time `(convert-post time writ quips))
+    =/  replies=v-replies:d  (~(gut by quip-index) time *v-replies:d)
+    (some time `(convert-post time writ replies))
   ::
   ++  convert-post
-    |=  [id=@da old=writ:t =quips:d]
+    |=  [id=@da old=writ:t replies=v-replies:d]
     ^-  v-post:d
-    [[id quips (convert-feels feels.old)] %0 (convert-essay +.old)]
+    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:d)
@@ -617,7 +617,7 @@
   ::
   ++  convert-quip
     |=  [id=@da old=writ:t]
-    ^-  quip:d
+    ^-  v-reply:d
     [[id (convert-feels feels.old)] (convert-memo +.old)]
   ::
   ++  convert-memo
@@ -688,12 +688,12 @@
       =/  new-post  (get:on-v-posts:d posts u.new-post-id)
       ?~  new-post  ~
       ?~  u.new-post  ~
-      =/  new-quip  (get:on-quips:d quips.u.u.new-post u.old-time)
+      =/  new-quip  (get:on-v-replies:d replies.u.u.new-post u.old-time)
       ?~  new-quip  ~
       :_  ~
-      :+  %post  u.new-post-id
-      :+  %quip  u.old-time
-      ^-  u-quip:d
+      :+  %post   u.new-post-id
+      :+  %reply  u.old-time
+      ^-  u-reply:d
       ?-  -.q.p.diff
         %del                    [%set ~]
         ?(%add %edit)           [%set u.new-quip]

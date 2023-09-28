@@ -147,13 +147,13 @@
         ?.  =(han.pole i.path)  |
         =(name.pole i.t.path)
       ::
-          [%said =han:d ship=@ name=@ %post time=@ quip=?(~ [@ ~])]
+          [%said =han:d ship=@ name=@ %post time=@ reply=?(~ [@ ~])]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
         ?~  pplan=(slaw %ud time.pole)  |
         =/  qplan=(unit (unit time))
-          ?~  quip.pole  `~
-          ?~  q=(slaw %ud -.quip.pole)  ~
+          ?~  reply.pole  `~
+          ?~  q=(slaw %ud -.reply.pole)  ~
           ``u.q
         ?~  qplan  |
         ?.  (~(has by voc) [han.pole sub-ship name.pole] u.pplan u.qplan)  |
@@ -210,10 +210,10 @@
       [%briefs ~]                   ?>(from-self cor)
       [%ui ~]                       ?>(from-self cor)
       [=han:d ship=@ name=@ %ui ~]  ?>(from-self cor)
-      [%said =han:d host=@ name=@ %post time=@ quip=?(~ [@ ~])]
+      [%said =han:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:d     [han.pole host name.pole]
-    =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
+    =/  =plan:d     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (watch-said nest plan)
   ==
 ::
@@ -272,10 +272,10 @@
     =/  =ship  (slav %p ship.pole)
     di-abet:(di-agent:(di-abed:di-core han.pole ship name.pole) rest.pole sign)
   ::
-      [%said =han:d host=@ name=@ %post time=@ quip=?(~ [@ ~])]
+      [%said =han:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:d     [han.pole host name.pole]
-    =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
+    =/  =plan:d     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (take-said nest plan sign)
   ::
       [%groups ~]
@@ -729,7 +729,7 @@
       di-core
     ::
     ?-    -.u-post
-        %quip   (di-u-quip id-post u.u.post id.u-post u-quip.u-post)
+        %reply  (di-u-reply id-post u.u.post id.u-post u-reply.u-post)
         %feels
       =/  merged  (di-apply-feels feels.u.u.post feels.u-post)
       ?:  =(merged feels.u.u.post)  di-core
@@ -744,47 +744,47 @@
       (di-response %post id-post %essay +>.u.u.post)
     ==
   ::
-  ++  di-u-quip
-    |=  [=id-post:d post=v-post:d =id-quip:d =u-quip:d]
+  ++  di-u-reply
+    |=  [=id-post:d post=v-post:d =id-reply:d =u-reply:d]
     ^+  di-core
     |^
-    =/  quip  (get:on-quips:d quips.post id-quip)
-    ?:  ?=([~ ~] quip)  di-core
-    ?:  ?=(%set -.u-quip)
-      ?~  quip
-        =/  rr-quip=(unit rr-quip:d)
-          ?~  quip.u-quip  ~
-          `(uv-quip:utils id-post u.quip.u-quip)
-        =?  di-core  ?=(^ quip.u-quip)
-          (on-quip:di-hark id-post post u.quip.u-quip)
-        (put-quip quip.u-quip %set rr-quip)
+    =/  reply  (get:on-v-replies:d replies.post id-reply)
+    ?:  ?=([~ ~] reply)  di-core
+    ?:  ?=(%set -.u-reply)
+      ?~  reply
+        =/  reply=(unit reply:d)
+          ?~  reply.u-reply  ~
+          `(uv-reply:utils id-post u.reply.u-reply)
+        =?  di-core  ?=(^ reply.u-reply)
+          (on-reply:di-hark id-post post u.reply.u-reply)
+        (put-reply reply.u-reply %set reply)
       ::
-      ?~  quip.u-quip  (put-quip ~ %set ~)
+      ?~  reply.u-reply  (put-reply ~ %set ~)
       ::
-      =*  old  u.u.quip
-      =*  new  u.quip.u-quip
-      =/  merged  (need (di-apply-quip id-quip `old `new))
+      =*  old  u.u.reply
+      =*  new  u.reply.u-reply
+      =/  merged  (need (di-apply-reply id-reply `old `new))
       ?:  =(merged old)  di-core
-      (put-quip `merged %set `(uv-quip:utils id-post merged))
+      (put-reply `merged %set `(uv-reply:utils id-post merged))
     ::
-    ?~  quip  di-core
+    ?~  reply  di-core
     ::
-    =/  merged  (di-apply-feels feels.u.u.quip feels.u-quip)
-    ?:  =(merged feels.u.u.quip)  di-core
-    (put-quip `u.u.quip(feels merged) %feels (uv-feels:utils merged))
+    =/  merged  (di-apply-feels feels.u.u.reply feels.u-reply)
+    ?:  =(merged feels.u.u.reply)  di-core
+    (put-reply `u.u.reply(feels merged) %feels (uv-feels:utils merged))
     ::
-    ::  put a quip into a post by id
+    ::  put a reply into a post by id
     ::
-    ++  put-quip
-      |=  [quip=(unit quip:d) =r-quip:d]
+    ++  put-reply
+      |=  [reply=(unit v-reply:d) =r-reply:d]
       ^+  di-core
       =/  post  (get:on-v-posts:d posts.channel id-post)
       ?~  post  di-core
       ?~  u.post  di-core
-      =.  quips.u.u.post  (put:on-quips:d quips.u.u.post id-quip quip)
+      =.  replies.u.u.post  (put:on-v-replies:d replies.u.u.post id-reply reply)
       =.  posts.channel  (put:on-v-posts:d posts.channel id-post `u.u.post)
-      =/  meta=quip-meta:d  (get-quip-meta:utils u.u.post)
-      (di-response %post id-post %quip id-quip meta r-quip)
+      =/  meta=reply-meta:d  (get-reply-meta:utils u.u.post)
+      (di-response %post id-post %reply id-reply meta r-reply)
     --
   ::
   ::  +di-apply-* functions apply new copies of data to old copies,
@@ -801,7 +801,7 @@
     |=  [=id-post:d old=v-post:d new=v-post:d]
     ^-  v-post:d
     %_  old
-      quips  (di-apply-quips quips.old quips.new)
+      replies  (di-apply-replies replies.old replies.new)
       feels  (di-apply-feels feels.old feels.new)
       +      +:(apply-rev:d +.old +.new)
     ==
@@ -813,13 +813,13 @@
     |=  [* a=(rev:d (unit feel:d)) b=(rev:d (unit feel:d))]
     +:(apply-rev:d a b)
   ::
-  ++  di-apply-quips
-    |=  [old=quips:d new=quips:d]
-    ((uno:mo-quips:d old new) di-apply-quip)
+  ++  di-apply-replies
+    |=  [old=v-replies:d new=v-replies:d]
+    ((uno:mo-v-replies:d old new) di-apply-reply)
   ::
-  ++  di-apply-quip
-    |=  [=id-quip:d old=(unit quip:d) new=(unit quip:d)]
-    ^-  (unit quip:d)
+  ++  di-apply-reply
+    |=  [=id-reply:d old=(unit v-reply:d) new=(unit v-reply:d)]
+    ^-  (unit v-reply:d)
     ?~  old  ~
     ?~  new  ~
     :-  ~
@@ -830,7 +830,7 @@
   ::
   ::  +di-hark: notification dispatch
   ::
-  ::    entry-points are +on-post and +on-quip, who may implement distinct
+  ::    entry-points are +on-post and +on-reply, who may implement distinct
   ::    notification behavior
   ::
   ++  di-hark
@@ -852,28 +852,28 @@
       ::TODO  if we (want-hark %any), notify
       di-core
     ::
-    ++  on-quip
-      |=  [=id-post:d post=v-post:d =quip:d]
+    ++  on-reply
+      |=  [=id-post:d post=v-post:d reply=v-reply:d]
       ^+  di-core
-      ?:  =(author.quip our.bowl)
+      ?:  =(author.reply our.bowl)
         di-core
       ::  preparation of common cases
       ::
       =*  diary-notification
-        :~  [%ship author.quip]  ' commented on '
+        :~  [%ship author.reply]  ' commented on '
             [%emph title.han-data.post]   ': '
-            [%ship author.quip]  ': '
-            (flatten:utils content.quip)
+            [%ship author.reply]  ': '
+            (flatten:utils content.reply)
         ==
       =*  heap-notification
-        =/  content  (flatten:utils content.quip)
+        =/  content  (flatten:utils content.reply)
         =/  title=@t
           ?^  title.han-data.post  (need title.han-data.post)
           ?:  (lte (met 3 content) 80)  content
           (cat 3 (end [3 77] content) '...')
-        :~  [%ship author.quip]  ' commented on '
+        :~  [%ship author.reply]  ' commented on '
             [%emph title]   ': '
-            [%ship author.quip]  ': '
+            [%ship author.reply]  ': '
             content
         ==
       ::  construct a notification message based on the reason to notify,
@@ -882,9 +882,9 @@
       =;  cs=(unit (list content:ha))
         ?~  cs  di-core
         =/  =path
-          /post/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.quip))
+          /post/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
         (emit (pass-hark (di-spin path u.cs ~)))
-      ::  notify because we wrote the post the quip responds to
+      ::  notify because we wrote the post the reply responds to
       ::
       ?:  =(author.post our.bowl)
         ?.  (want-hark %ours)  ~
@@ -893,35 +893,35 @@
             %heap   `heap-notification
             %chat
           :-  ~
-          :~  [%ship author.quip]
+          :~  [%ship author.reply]
               ' replied to you: '
-              (flatten:utils content.quip)
+              (flatten:utils content.reply)
           ==
         ==
-      ::  notify because we were mentioned in the quip
+      ::  notify because we were mentioned in the reply
       ::
-      ?:  (was-mentioned:utils content.quip our.bowl)
+      ?:  (was-mentioned:utils content.reply our.bowl)
         ?.  (want-hark %mention)  ~
-        `~[[%ship author.quip] ' mentioned you: ' (flatten:utils content.quip)]
+        `~[[%ship author.reply] ' mentioned you: ' (flatten:utils content.reply)]
       ::  notify because we ourselves responded to this post previously
       ::
-      ?:  %+  lien  (tap:on-quips:d quips.post)
-          |=  [=time quip=(unit quip:d)]
-          ?~  quip  |
-          =(author.u.quip our.bowl)
+      ?:  %+  lien  (tap:on-v-replies:d replies.post)
+          |=  [=time reply=(unit v-reply:d)]
+          ?~  reply  |
+          =(author.u.reply our.bowl)
         ?.  (want-hark %ours)  ~
         ?-    -.han-data.post
             %diary  `diary-notification
             %heap   `heap-notification
             %chat
           :-  ~
-          :~  [%ship author.quip]
+          :~  [%ship author.reply]
               ' replied to your message “'
               (flatten:utils content.post)
               '”: '
-              [%ship author.quip]
+              [%ship author.reply]
               ': '
-              (flatten:utils content.quip)
+              (flatten:utils content.reply)
           ==
         ==
       ::  only notify if we want to be notified about everything
@@ -933,9 +933,9 @@
           %heap   ~
           %chat
         :-  ~
-        :~  [%ship author.quip]
+        :~  [%ship author.reply]
             ' sent a message: '
-            (flatten:utils content.quip)
+            (flatten:utils content.reply)
         ==
       ==
     ::
@@ -1023,7 +1023,7 @@
     ?:  =(0 (lent ls))  [*posts:d ~ ~ 0]
     =/  =posts:d
       ?:  =(%post mode)  (uv-posts:utils posts)
-      (uv-posts-without-quips:utils posts)
+      (uv-posts-without-replies:utils posts)
     =/  newer=(unit time)
       =/  more  (tab:on-v-posts:d posts.channel `-:(rear ls) 1)
       ?~(more ~ `-:(head more))
@@ -1076,40 +1076,40 @@
       ?~  u.post  `~
       ``channel-post+!>((uv-post:utils u.u.post))
     ::
-        [%post %id time=@ %quips rest=*]
+        [%post %id time=@ %replies rest=*]
       =/  time  (slav %ud time.pole)
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
       ?~  u.post  `~
-      (di-peek-quips quips.u.u.post rest.pole)
+      (di-peek-replies replies.u.u.post rest.pole)
     ==
   ::
-  ++  di-peek-quips
-    |=  [=quips:d =(pole knot)]
+  ++  di-peek-replies
+    |=  [replies=v-replies:d =(pole knot)]
     ^-  (unit (unit cage))
-    =*  on   on-quips:d
+    =*  on   on-v-replies:d
     ?+    pole  [~ ~]
-        [%all ~]  ``channel-quips+!>(quips)
+        [%all ~]  ``channel-replies+!>(replies)
         [%newest count=@ ~]
       =/  count  (slav %ud count.pole)
-      ``channel-quips+!>((gas:on *quips:d (top:mo-quips:d quips count)))
+      ``channel-replies+!>((gas:on *v-replies:d (top:mo-v-replies:d replies count)))
     ::
         [%older start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-quips+!>((gas:on *quips:d (bat:mo-quips:d quips `start count)))
+      ``channel-replies+!>((gas:on *v-replies:d (bat:mo-v-replies:d replies `start count)))
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-quips+!>((gas:on *quips:d (tab:on quips `start count)))
+      ``channel-replies+!>((gas:on *v-replies:d (tab:on replies `start count)))
     ::
-        [%quip %id time=@ ~]
+        [%reply %id time=@ ~]
       =/  time  (slav %ud time.pole)
-      =/  quip  (get:on-quips:d quips `@da`time)
-      ?~  quip  ~
-      ?~  u.quip  `~
-      ``channel-quip+!>(u.u.quip)
+      =/  reply  (get:on-v-replies:d replies `@da`time)
+      ?~  reply  ~
+      ?~  u.reply  `~
+      ``channel-reply+!>(u.u.reply)
     ==
   ::
   ++  di-search
@@ -1147,32 +1147,32 @@
         ?.  (match u.val.n.posts match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%post (uv-post-without-quips:utils u.val.n.posts)]
+        =/  res  [%post (uv-post-without-replies:utils u.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
         ?~  val.n.posts  s
-        (scour-quips s id.u.val.n.posts quips.u.val.n.posts match-type)
+        (scour-replys s id.u.val.n.posts replies.u.val.n.posts match-type)
       ::
       $(posts l.posts)
     ::
-    ++  scour-quips
-      |=  [s=[skip=@ud len=@ud =scan:d] =id-post:d =quips:d =match-type]
+    ++  scour-replys
+      |=  [s=[skip=@ud len=@ud =scan:d] =id-post:d replies=v-replies:d =match-type]
       |-  ^+  s
-      ?~  quips  s
+      ?~  replies  s
       ?:  =(0 len.s)  s
-      =.  s  $(quips r.quips)
+      =.  s  $(replies r.replies)
       ?:  =(0 len.s)  s
       ::
       =.  s
-        ?~  val.n.quips  s
-        ?.  (match-quip u.val.n.quips match-type)  s
+        ?~  val.n.replies  s
+        ?.  (match-reply u.val.n.replies match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%quip id-post (uv-quip:utils id-post u.val.n.quips)]
+        =/  res  [%reply id-post (uv-reply:utils id-post u.val.n.replies)]
         s(len (dec len.s), scan [res scan.s])
       ::
-      $(quips l.quips)
+      $(replies l.replies)
     ::
     ++  match
       |=  [post=v-post:d =match-type]
@@ -1182,11 +1182,11 @@
         %text     (match-post-text nedl.match-type post)
       ==
     ::
-    ++  match-quip
-      |=  [=quip:d =match-type]
+    ++  match-reply
+      |=  [reply=v-reply:d =match-type]
       ?-  -.match-type
-        %mention  (match-story-mention nedl.match-type content.quip)
-        %text     (match-story-text nedl.match-type content.quip)
+        %mention  (match-story-mention nedl.match-type content.reply)
+        %text     (match-story-text nedl.match-type content.reply)
       ==
     ::
     ++  match-post-mention

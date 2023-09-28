@@ -169,10 +169,10 @@
     %-  di-watch-checkpoint-page:(di-abed:di-core han.pole our.bowl name.pole)
     (slav %ud n.pole)
   ::
-      [%said =han:d host=@ name=@ %post time=@ quip=?(~ [@ ~])]
+      [%said =han:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:d     [han.pole host name.pole]
-    =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
+    =/  =plan:d     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     ?>  =(our.bowl host)
     di-abet:(di-said:(di-abed:di-core nest) plan)
   ==
@@ -436,48 +436,48 @@
       :-  `[%post id.c-post %feels feels]
       (put:on-v-posts:d posts.channel id.c-post ~ u.u.post(feels feels))
     ::
-        %quip
+        %reply
       =/  post  (get:on-v-posts:d posts.channel id.c-post)
       ?~  post  `posts.channel
       ?~  u.post  `posts.channel
-      =^  update=(unit u-post:d)  quips.u.u.post
-        (di-c-quip quips.u.u.post c-quip.c-post)
+      =^  update=(unit u-post:d)  replies.u.u.post
+        (di-c-reply replies.u.u.post c-reply.c-post)
       ?~  update  `posts.channel
       :-  `[%post id.c-post u.update]
       (put:on-v-posts:d posts.channel id.c-post ~ u.u.post)
     ==
   ::
-  ++  di-c-quip
-    |=  [=quips:d =c-quip:d]
-    ^-  [(unit u-post:d) _quips]
-    ?-    -.c-quip
+  ++  di-c-reply
+    |=  [replies=v-replies:d =c-reply:d]
+    ^-  [(unit u-post:d) _replies]
+    ?-    -.c-reply
         %add
-      ?>  =(src.bowl author.memo.c-quip)
-      =/  id=id-quip:d
+      ?>  =(src.bowl author.memo.c-reply)
+      =/  id=id-reply:d
         |-
-        =/  quip  (get:on-quips:d quips now.bowl)
-        ?~  quip  now.bowl
+        =/  reply  (get:on-v-replies:d replies now.bowl)
+        ?~  reply  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  =cork:d  [id ~]
-      :-  `[%quip id %set ~ cork memo.c-quip]
-      (put:on-quips:d quips id ~ cork memo.c-quip)
+      :-  `[%reply id %set ~ cork memo.c-reply]
+      (put:on-v-replies:d replies id ~ cork memo.c-reply)
     ::
         %del
-      =/  quip  (get:on-quips:d quips id.c-quip)
-      ?~  quip  `(put:on-quips:d quips id.c-quip ~)
-      ?~  u.quip  `quips
-      ?>  =(src.bowl author.u.u.quip)
-      :-  `[%quip id.c-quip %set ~]
-      (put:on-quips:d quips id.c-quip ~)
+      =/  reply  (get:on-v-replies:d replies id.c-reply)
+      ?~  reply  `(put:on-v-replies:d replies id.c-reply ~)
+      ?~  u.reply  `replies
+      ?>  =(src.bowl author.u.u.reply)
+      :-  `[%reply id.c-reply %set ~]
+      (put:on-v-replies:d replies id.c-reply ~)
     ::
         ?(%add-feel %del-feel)
-      =/  quip  (get:on-quips:d quips id.c-quip)
-      ?~  quip  `quips
-      ?~  u.quip  `quips
-      =/  [update=? =feels:d]  (di-c-feel feels.u.u.quip c-quip)
-      ?.  update  `quips
-      :-  `[%quip id.c-quip %feels feels]
-      (put:on-quips:d quips id.c-quip ~ u.u.quip(feels feels))
+      =/  reply  (get:on-v-replies:d replies id.c-reply)
+      ?~  reply  `replies
+      ?~  u.reply  `replies
+      =/  [update=? =feels:d]  (di-c-feel feels.u.u.reply c-reply)
+      ?.  update  `replies
+      :-  `[%reply id.c-reply %feels feels]
+      (put:on-v-replies:d replies id.c-reply ~ u.u.reply(feels feels))
     ==
   ::
   ++  di-c-feel
@@ -500,8 +500,8 @@
     ^+  di-core
     =/  time
       |-
-      =/  quip  (get:log-on:d log.channel now.bowl)
-      ?~  quip  now.bowl
+      =/  reply  (get:log-on:d log.channel now.bowl)
+      ?~  reply  now.bowl
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:d  [time u-channel]
     =.  log.channel  (put:log-on:d log.channel update)

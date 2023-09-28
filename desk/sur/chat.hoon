@@ -35,7 +35,12 @@
       time=id-post:d
       =feels
       =quips
-      meta=quip-meta:d
+      meta=quip-meta
+  ==
++$  quip-meta
+  $:  quip-count=@ud
+      last-quippers=(set ship)
+      last-quip=(unit time)
   ==
 ::
 ::  $cork: chat reply metadata
@@ -76,7 +81,7 @@
     ::  but we need it upon receipt
     $%  [%add =memo:d =kind time=(unit time)]
         [%del ~]
-        [%quip =id meta=(unit quip-meta:d) =delta:quips]
+        [%quip =id meta=(unit quip-meta) =delta:quips]
         [%add-feel =ship =feel]
         [%del-feel =ship]
     ==

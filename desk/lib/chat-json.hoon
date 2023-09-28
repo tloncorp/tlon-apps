@@ -148,11 +148,11 @@
     ==
   ::
   ++  quip-delta
-    |=  [i=id:c meta=(unit quip-meta:d) =delta:quips:c]
+    |=  [i=id:c meta=(unit quip-meta:c) =delta:quips:c]
     ^-  json
     %-  pairs
     :~  id+(id i)
-        meta+?~(meta ~ (quip-meta:enjs:dj u.meta))
+        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
         :-  %delta
         %+  frond  -.delta
         ?-  -.delta
@@ -228,7 +228,7 @@
         time+(time-id time.seal)
         feels+(feels feels.seal)
         quips+(quips quips.seal)
-        meta+(quip-meta:enjs:dj meta.seal)
+        meta+(reply-meta:enjs:dj meta.seal)
     ==
   ::
   ++  feels
@@ -418,7 +418,7 @@
     ==
   ::
   ++  quip-delta
-    ^-  $-(json [id:c (unit quip-meta:d) delta:quips:c])
+    ^-  $-(json [id:c (unit quip-meta:c) delta:quips:c])
     %-  ot
     :~  id/id
         meta/ul

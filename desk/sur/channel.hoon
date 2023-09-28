@@ -69,34 +69,34 @@
 +$  v-posts     ((mop id-post (unit v-post)) lte)
 ++  on-v-posts  ((on id-post (unit v-post)) lte)
 ++  mo-v-posts  ((mp id-post (unit v-post)) lte)
-::  $quip: a post comment
+::  $v-reply: a post comment
 ::
-+$  quip      [cork memo]
-+$  id-quip   time
-+$  quips     ((mop id-quip (unit quip)) lte)
-++  on-quips  ((on id-quip (unit quip)) lte)
-++  mo-quips  ((mp time (unit quip)) lte)
++$  v-reply      [cork memo]
++$  id-reply   time
++$  v-replies     ((mop id-reply (unit v-reply)) lte)
+++  on-v-replies  ((on id-reply (unit v-reply)) lte)
+++  mo-v-replies  ((mp time (unit v-reply)) lte)
 ::  $seal: host-side data for a post
 ::
 +$  seal  $+  channel-seal
   $:  id=id-post
-      =quips
+      replies=v-replies
       =feels
   ==
-::  $cork: host-side data for a quip
+::  $cork: host-side data for a reply
 ::
 +$  cork
-  $:  id=id-quip
+  $:  id=id-reply
       =feels
   ==
 ::  $essay: top-level post, with metadata
 ::
 +$  essay  [memo =han-data]
-::  $quip-meta: metadata for all quips
-+$  quip-meta
-  $:  quip-count=@ud
-      last-quippers=(set ship)
-      last-quip=(unit time)
+::  $reply-meta: metadata for all replies
++$  reply-meta
+  $:  reply-count=@ud
+      last-repliers=(set ship)
+      last-reply=(unit time)
   ==
 ::  $han-data: metadata for a channel type's "post"
 ::
@@ -195,13 +195,13 @@
 +$  scan  (list reference)
 +$  reference
   $%  [%post =post]
-      [%quip =id-post =rr-quip]
+      [%reply =id-post =reply]
   ==
 ::  $said: used for references
 +$  said  (pair nest reference)
 ::  $plan: index into channel state
 ::    p: Post being referred to
-::    q: Quip being referred to, if any
+::    q: Reply being referred to, if any
 ::
 +$  plan
   (pair time (unit time))
@@ -252,10 +252,10 @@
       writers=(set sect:g)
   ==
 ::  $outline: abridged $post
-::    .quips: number of comments
+::    .replies: number of comments
 ::
 +$  outline
-  [quips=@ud quippers=(set ship) essay]
+  [replies=@ud replyers=(set ship) essay]
 ::
 ++  outlines
   =<  outlines
@@ -310,7 +310,7 @@
   ==
 ::
 +$  a-post  c-post
-+$  a-quip  c-quip
++$  a-reply  c-reply
 ::
 +|  %commands
 ::
@@ -331,13 +331,13 @@
   $%  [%add =essay]
       [%edit id=id-post =essay]
       [%del id=id-post]
-      [%quip id=id-post =c-quip]
+      [%reply id=id-post =c-reply]
       c-feel
   ==
 ::
-+$  c-quip
++$  c-reply
   $%  [%add =memo]
-      [%del id=id-quip]
+      [%del id=id-reply]
       c-feel
   ==
 ::
@@ -363,11 +363,11 @@
   $%  [%set post=(unit v-post)]
       [%feels =feels]
       [%essay (rev =essay)]
-      [%quip id=id-quip =u-quip]
+      [%reply id=id-reply =u-reply]
   ==
 ::
-+$  u-quip
-  $%  [%set quip=(unit quip)]
++$  u-reply
+  $%  [%set reply=(unit v-reply)]
       [%feels =feels]
   ==
 ::
@@ -392,13 +392,13 @@
 ::
 +$  r-post
   $%  [%set post=(unit post)]
-      [%quip id=id-quip =quip-meta =r-quip]
+      [%reply id=id-reply =reply-meta =r-reply]
       [%feels feels=rr-feels]
       [%essay =essay]
   ==
 ::
-+$  r-quip
-  $%  [%set quip=(unit rr-quip)]
++$  r-reply
+  $%  [%set reply=(unit reply)]
       [%feels feels=rr-feels]
   ==
 ::  versions of backend types with their revision numbers stripped,
@@ -431,13 +431,13 @@
 +$  rr-seal
   $:  id=id-post
       =rr-feels
-      =rr-quips
-      =quip-meta
+      =replies
+      =reply-meta
   ==
-+$  rr-feels  (map ship feel)
-+$  rr-quip   [rr-cork memo]
-+$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [id=id-quip parent-id=id-post =rr-feels]
-++  on-posts  ((on id-post (unit post)) lte)
-++  rr-on-quips  ((on id-quip rr-quip) lte)
++$  rr-feels       (map ship feel)
++$  reply       [rr-cork memo]
++$  replies     ((mop id-reply reply) lte)
++$  rr-cork        [id=id-reply parent-id=id-post =rr-feels]
+++  on-posts       ((on id-post (unit post)) lte)
+++  rr-on-replies  ((on id-reply reply) lte)
 --

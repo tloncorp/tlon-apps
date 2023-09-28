@@ -45,7 +45,7 @@
 ::
 ;<  now=@da  band:m  get-time:s
 =/  =memo:d   [~[[%inline ~['hacking is bad']]] our now]
-;<  ~  band:m  (act %channel nest %post %quip id-post %add memo)
+;<  ~  band:m  (act %channel nest %post %reply id-post %add memo)
 ::
 ::  ensure that we've got all the same posts on both sides
 ::
@@ -168,13 +168,13 @@
   ;<  ~  bind:m  (act %channel nest %post %add essay)
   (pure:m send)
 ::
-++  add-quip
+++  add-reply
   |=  [=id-post:d text=cord]
-  =/  m  (strand ,id-quip:d)
+  =/  m  (strand ,id-reply:d)
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
   =/  =memo:d  [~[[%inline ~[text]]] our send]
-  ;<  ~  bind:m  (act %channel nest %post %quip id-post %add memo)
+  ;<  ~  bind:m  (act %channel nest %post %reply id-post %add memo)
   (pure:m send)
 ::
 ::  test non-post diary commands
@@ -251,37 +251,37 @@
   ^-  form:m
   ;<  channel=v-channel:d  band:m  get-channel
   (pure:m (need (got:on-v-posts:d posts.channel id-post)))
-::  test diary quip commands
+::  test diary reply commands
 ::
-++  test-c-quip
+++  test-c-reply
   =/  m  (strand ,~)
   ^-  form:m
   ;<  =id-post:d  band:m  (add-post 1.001)
   ::
-  ;<  id=id-quip:d  band:m  (add-quip id-post 'hi')
-  ;<  =quip:d  band:m  (get-quip id-post id)
-  ?>  (eq !>([~ ~['hi']]) !>(content.quip))
+  ;<  id=id-reply:d  band:m  (add-reply id-post 'hi')
+  ;<  reply=v-reply:d  band:m  (get-reply id-post id)
+  ?>  (eq !>([~ ~['hi']]) !>(content.reply))
   ::
-  ;<  ~  band:m  (act %channel nest %post %quip id-post %add-feel id our ':smile:')
-  ;<  new=quip:d  band:m  (get-quip id-post id)
-  =/  feel  (~(got by feels.quip) our)
+  ;<  ~  band:m  (act %channel nest %post %reply id-post %add-feel id our ':smile:')
+  ;<  new=v-reply:d  band:m  (get-reply id-post id)
+  =/  feel  (~(got by feels.reply) our)
   ?>  (eq !>([0 `':smile:']) !>(feel))
   ::
-  ;<  ~  band:m  (act %channel nest %post %quip id-post %del-feel id our)
-  ;<  new=quip:d  band:m  (get-quip id-post id)
-  =/  feel  (~(got by feels.quip) our)
+  ;<  ~  band:m  (act %channel nest %post %reply id-post %del-feel id our)
+  ;<  new=v-reply:d  band:m  (get-reply id-post id)
+  =/  feel  (~(got by feels.reply) our)
   ?>  (eq !>([1 ~]) !>(feel))
   ::
-  ;<  ~  band:m  (act %channel nest %post %quip id-post %del id)
+  ;<  ~  band:m  (act %channel nest %post %reply id-post %del id)
   ;<  post=v-post:d  band:m  (get-post id-post)
-  ?>  (eq !>(~) !>((got:on-quips:d quips.post id)))
+  ?>  (eq !>(~) !>((got:on-v-replies:d replies.post id)))
   ::
   (pure:m ~)
 ::
-++  get-quip
-  |=  [=id-post:d =id-quip:d]
-  =/  m  (strand ,quip:d)
+++  get-reply
+  |=  [=id-post:d =id-reply:d]
+  =/  m  (strand ,v-reply:d)
   ^-  form:m
   ;<  post=v-post:d  band:m  (get-post id-post)
-  (pure:m (need (got:on-quips:d quips.post id-quip)))
+  (pure:m (need (got:on-v-replies:d replies.post id-reply)))
 --
