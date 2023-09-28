@@ -3,42 +3,42 @@
  - [Agents](#agents)
  - [Using Channels](#using-channels)
    - [Scries](#scries)
-     - [/shelf](#shelf)
-     - [/briefs](#briefs)
+     - [/channels](#channels)
+     - [/unreads](#unreads)
      - [/init](#init)
    - [Pokes](#pokes)
      - [Create a Group](#create-a-group)
      - [%channel-action](#channel-action)
        - [%create](#create)
-       - [%diary](#diary)
+       - [%channel](#channel)
          - [%join](#join)
          - [%leave](#leave)
          - [%read](#read)
          - [%read-at](#read-at)
          - [%watch](#watch)
          - [%unwatch](#unwatch)
-         - [%note](#note-add)
-           - [%add](#note-add)
-           - [%edit](#note-edit)
-           - [%del](#note-del)
-           - [%add-feel](#note-add-feel)
-           - [%del-feel](#note-del-feel)
-           - [%quip](#note-quip-add)
-             - [%add](#note-quip-add)
-             - [%del](#note-quip-del)
-             - [%add-feel](#note-quip-add-feel)
-             - [%del-feel](#note-quip-del-feel)
+         - [%post](#post-add)
+           - [%add](#post-add)
+           - [%edit](#post-edit)
+           - [%del](#post-del)
+           - [%add-react](#post-add-react)
+           - [%del-react](#post-del-react)
+           - [%reply](#post-reply-add)
+             - [%add](#post-reply-add)
+             - [%del](#post-reply-del)
+             - [%add-react](#post-reply-add-react)
+             - [%del-react](#post-reply-del-react)
          - [%view](#view)
          - [%sort](#sort)
-         - [%order](#order)
+         - [%set-order](#set-order)
          - [%add-writers](#add-writers)
          - [%del-writers](#del-writers)
      - [%channel-migration](#channel-migration)
    - [Subscriptions](#Subscriptions)
-     - [/briefs](#briefs-1)
-     - [/ui](#ui)
-     - [/\[han\]/\[ship\]/\[name\]/ui](#hanshipnameui)
-     - [/said/\[han\]/\[ship\]/\[name\]/note/\[time\]/\[(unit quip)\]](#saidhanshipnamenotetimeunit-quip)
+     - [/unreads](#unreads-1)
+     - [/](#)
+     - [/\[kind\]/\[ship\]/\[name\]](#kindshipname)
+     - [/said/\[kind\]/\[ship\]/\[name\]/post/\[time\]/\[(unit reply)\]](#saidkindshipnameposttimeunit-reply)
  - [Types](#types)
 
 ## Agents
@@ -60,35 +60,35 @@ This is an internal agent that handles channel publishing. A third-party or the 
 Code examples here are dojo commands.
 
 ### Scries
-#### /shelf
+#### /channels
 ```hoon
 =c -build-file /=groups=/sur/channel/hoon
-.^(rr-shelf:c %gx /=channels=/shelf/channel-shelf)
+.^(channels:c %gx /=channels=/channels/channel-channels)
 ```
 
-Get the channels our ship is in and their contents. Returns `rr-shelf`
+Get the channels our ship is in and their contents. Returns `channels`
 
-[rr-shelf](#rr-shelf)
-#### /briefs
+[channels](#channels-1)
+#### /unreads
 ```hoon
 =c -build-file /=groups=/sur/channel/hoon
-.^(briefs:c %gx /=channels=/briefs/channel-briefs)
+.^(unreads:c %gx /=channels=/unreads/channel-unreads)
 ```
 
-Get unread information for the channels our ship is in. Returns `briefs`
+Get unread information for the channels our ship is in. Returns `unreads`
 
-[briefs](#briefs-2)
+[unreads](#unreads-2)
 #### /init
 ```hoon
 =c -build-file /=groups=/sur/channel/hoon
-.^([briefs:c rr-shelf:c] %gx /=channels=/init/noun)
+.^([unreads:c channels:c] %gx /=channels=/init/noun)
 ```
 
-Combination of `/shelf` and `/briefs`. Returns `[briefs rr-shelf]`
+Combination of `/channels` and `/unreads`. Returns `[unreads channels]`
 
-[briefs](#briefs-2) \| [rr-shelf](#rr-shelf)
+[unreads](#unreads-2) \| [channels](#channels-1)
 ### Pokes
-#### Create a group
+#### Create a Group
 ```hoon
 =g -build-file /=groups=/sur/groups/hoon
 
@@ -110,14 +110,14 @@ This is done with `%groups` instead of `%channels`, but it's necessary for testi
 
 #### %channel-action
 
-Takes an [a-shelf](#a-shelf), which can be one of several actions. Each action is covered below
+Takes an [a-channels](#a-channels), which can be one of several actions. Each action is covered below.
 
 ##### %create
 ```hoon
 =c -build-file /=groups=/sur/channel/hoon
 =g -build-file /=groups=/sur/groups/hoon
 
-=create-diary :*
+=create-channel :*
   %chat
   %mychat
   [our %mygroup]
@@ -127,12 +127,12 @@ Takes an [a-shelf](#a-shelf), which can be one of several actions. Each action i
   writers=~
 ==
 
-:channels &channel-action [%create create-diary]
+:channels &channel-action [%create create-channel]
 ```
 
-[create-diary](#create-diary). 
+[create-channel](#create-channel)
 
-##### %diary
+##### %channel
 [nest](#nest)
 
 ###### %join
@@ -140,7 +140,7 @@ Takes an [a-shelf](#a-shelf), which can be one of several actions. Each action i
 =nest [%chat ~palnet-sampel %mychat]
 =action [%join group=[~sampel-palnet %mygroup]]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
 Join a channel. In this example, ~sampel-palnet is the group host and ~palnet-sampel is the channel host.
@@ -149,7 +149,7 @@ Join a channel. In this example, ~sampel-palnet is the group host and ~palnet-sa
 =nest [%chat ~palnet-sampel %mychat]
 =action [%leave ~]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
 Leave a channel
@@ -158,7 +158,7 @@ Leave a channel
 =nest [%chat our %mychat]
 =action [%read ~]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
 Mark a channel as read.
@@ -167,7 +167,7 @@ Mark a channel as read.
 =nest [%chat our %mychat]
 =action [%read-at now]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
 Mark a channel as read up to a certain time.
@@ -176,7 +176,7 @@ Mark a channel as read up to a certain time.
 =nest [%chat our %mychat]
 =action [%watch ~]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
 Watch a channel for unreads.
@@ -185,11 +185,11 @@ Watch a channel for unreads.
 =nest [%chat our %mychat]
 =action [%unwatch ~]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
 Stop watching a channel for unreads.
-###### %note %add
+###### %post %add
 ```hoon
 =nest [%chat our %mychat]
 =memo :*
@@ -197,18 +197,18 @@ Stop watching a channel for unreads.
   author=our
   sent=now
 ==
-=han-data [%chat ~]
-=essay [memo han-data]
-=note-action [%add essay]
-=action [%note note-action]
+=kind-data [%chat ~]
+=essay [memo kind-data]
+=post-action [%add essay]
+=action [%post post-action]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
-Add a note to a channel
+Add a post to a channel
 
 [essay](#essay)
-###### %note %edit
+###### %post %edit
 ```hoon
 =nest [%chat our %mychat]
 =memo :*
@@ -216,54 +216,54 @@ Add a note to a channel
   author=our
   sent=now
 ==
-=han-data [%chat ~]
-=essay [memo han-data]
-=note-action [%edit ~2023.1.1 essay]
-=action [%note note-action]
+=kind-data [%chat ~]
+=essay [memo kind-data]
+=post-action [%edit ~2023.1.1 essay]
+=action [%post post-action]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
-Edit a note in a channel
+Edit a post in a channel
 
-[essay](#essay) \| [id-note](#id-note)
-###### %note %del
+[essay](#essay) \| [id-post](#id-post)
+###### %post %del
 ```hoon
 =nest [%chat our %mychat]
-=note-action [%del ~2023.1.1]
-=action [%note note-action]
+=post-action [%del ~2023.1.1]
+=action [%post post-action]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
-Delete a note
+Delete a post
 
-[id-note](#id-note)
-###### %note %add-feel
+[id-post](#id-post)
+###### %post %add-react
 ```hoon
 =nest [%chat our %mychat]
-=note-action [%add-feel ~2023.1.1 our %':grinning:']
-=action [%note note-action]
+=post-action [%add-react ~2023.1.1 our %':grinning:']
+=action [%post post-action]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
-Add a reaction to a note
+Add a reaction to a post
 
-[feel](#feel)
-###### %note %del-feel
+[react](#react)
+###### %post %del-react
 ```hoon
 =nest [%chat our %mychat]
-=note-action [%del-feel ~2023.1.1 our]
-=action [%note note-action]
+=post-action [%del-react ~2023.1.1 our]
+=action [%post post-action]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
-Remove a reaction from a note
+Remove a reaction from a post
 
-[feel](#feel)
-###### %note %quip %add
+[react](#react)
+###### %post %reply %add
 ```hoon
 =nest [%chat our %mychat]
 =memo :*
@@ -271,154 +271,145 @@ Remove a reaction from a note
   author=our
   sent=now
 ==
-=quip-action [%add memo]
-=note-action [%quip ~2023.1.1 quip-action]
-=action [%note note-action]
-
-:channels &channel-action [%diary nest action]
+=reply-action [%add memo]
+=post-action [%reply ~2023.1.1 reply-action]
+=action [%post post-action]
+:channels &channel-action [%channel nest action]
 ```
 
-Add a comment to a note
+Add a reply to a post
 
-[id-note](#id-note) \| [memo](#memo)
-###### %note %quip %del
+[id-post](#id-post) \| [post](#post)
+###### %post %reply %del
 ```hoon
 =nest [%chat our %mychat]
-=quip-action [%del ~2023.2.2]
-=note-action [%quip ~2023.1.1 quip-action]
-=action [%note note-action]
-
-:channels &channel-action [%diary nest action]
+=reply-action [%del ~2023.2.2]
+=post-action [%reply ~2023.1.1 reply-action]
+=action [%post post-action]
+:channels &channel-action [%channel nest action]
 ```
 
-Delete a comment from a note
+Delete a reply from a post
 
-[id-note](#id-note) \| [id-quip](#id-quip)
-###### %note %quip %add-feel
+[id-post](#id-post) \| [id-reply](#id-reply)
+###### %post %reply %add-react
 ```hoon
 =nest [%chat our %mychat]
-=quip-action [%add-feel ~2023.2.2 our %':grinning:']
-=note-action [%quip ~2023.1.1 quip-action]
-=action [%note note-action]
-
-:channels &channel-action [%diary nest action]
+=reply-action [%add-react ~2023.2.2 our %':grinning:']
+=post-action [%reply ~2023.1.1 reply-action]
+=action [%post post-action]
+:channels &channel-action [%channel nest action]
 ```
 
+Add a reaction to a reply
 
-Add a reaction to a comment
-
-[id-note](#id-note) \| [id-quip](#id-quip) \| [feel](#feel)
-###### %note %quip %del-feel
+[id-post](#id-post) \| [id-reply](#id-reply) \| [react](#react)
+###### %post %reply %del-react
 ```hoon
 =nest [%chat our %mychat]
-=quip-action [%del-feel ~2023.2.2 our]
-=note-action [%quip ~2023.1.1 quip-action]
-=action [%note note-action]
-
-:channels &channel-action [%diary nest action]
+=reply-action [%del-react ~2023.2.2 our]
+=post-action [%reply ~2023.1.1 reply-action]
+=action [%post post-action]
+:channels &channel-action [%channel nest action]
 ```
 
-Delete a reaction from a comment
+Delete a reaction from a reply
 
-[id-note](#id-note) | [id-quip](#id-quip)
+[id-post](#id-post) | [id-reply](#id-reply)
 ###### %view
 ```hoon
 =nest [%chat our %mychat]
 =action [%view %grid]
-
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
-Set the display format for a diary
+Set the display format for a channel
 
 [view](#view-1)
 ###### %sort
 ```hoon
 =nest [%chat our %mychat]
 =action [%sort %alpha]
-
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
-Set the sorting mechanism for a diary
+Set the sorting mechanism for a channel
 
 [sort](#sort-1)
-###### %order
+###### %set-order
 ```hoon
 =nest [%chat our %mychat]
-=action [%order `~[~2023.1.1 ~2023.2.2]]
-
-:channels &channel-action [%diary nest action]
+=action [%set-order `~[~2023.1.1 ~2023.2.2]]
+:channels &channel-action [%channel nest action]
 ```
 
-Set manual note ordering for a diary
+Set manual post ordering for a channel
 
-[arranged-notes](#arranged-notes)
+[arranged-posts](#arranged-posts)
 ###### %add-writers
 ```hoon
 =nest [%chat our %mychat]
 =action [%add-writers (sy ~[%role1 %role2])]
-
-:channels &channel-action [%diary nest action]
+:channels &channel-action [%channel nest action]
 ```
 
-
-Enable writing to a diary for a certain set of roles
+Enable writing to a channel for a certain set of roles
 
 [sect:groups](#sectgroups)
+
 ###### %del-writers
 ```hoon
 =nest [%chat our %mychat]
 =action [%del-writers (sy ~[%role1 %role2])]
 
-:channels &channel-action [%diary nest action]
+:channels &channel-action [channel nest action]
 ```
 
 Disable writing to a diary for a certain set of roles
 
 [sect:groups](#sectgroups)
-#### %channel-migration
 
+#### %channel-migration
 Used internally to handle migrating from the previous version's state
 
 ### Subscriptions
-#### /briefs
-Subscribe to unread & preview information. Each fact is a `[nest brief]`
+#### /unreads
+Subscribe to unread & preview information. Each fact is a `[channels unreads]`
 
-[nest](#nest) \| [brief](#brief)
-#### /ui
-"Firehose" subscription path. Each fact is an `r-shelf` (response shelf)
+[channels](#channels) \| [unreads](#unreads)
+#### /
+"Firehose" subscription path. Each fact is an `r-channels` (response channels)
 
-[r-shelf](#r-shelf)
-#### /[han]/[ship]/[name]/ui
-(This is effectively /[nest]/ui)
+[r-channels](#r-channels)
+#### /[kind]/[ship]/[name]
+(This is effectively /[channels])
 
-Similar to `/ui`, but only include updates for a particular nest. Each fact is an `r-shelf` (response shelf)
+Similar to `/`, but only include updates for a particular channels. Each fact is a `set-order` (response channels)
 
-[nest](#nest) \| [r-shelf](#r-shelf)
-#### /said/[han]/[ship]/[name]/note/[time]/[(unit quip)]
-(This is effectively /[nest]/note/[time]/[(unit quip)])
+[channels](#channels) \| [set-order](#set-order)
+#### /said/[kind]/[ship]/[name]/post/[time]/[(unit reply)]
+(This is effectively /[channels]/post/[time]/[(unit reply)])
 
 Read a reference. Facts are either of the `%channel-denied` mark (meaning you cannot view the channel) or of the `%channel-said` mark and the `said` type
 
-[nest](#nest) \| [said](#said)
+[channels](#channels) \| [said](#said)
 ## Types
 ### said
 ```hoon
-+$  said  (pair nest rr-note)
++$  said  (pair nest note)
 ```
 
-A nest and an rr-note (note with no revision numbers). Used for references
+A nest and a note (post with no revision numbers). Used for references
 
-[nest](#nest) \| [rr-note](#rr-note)
+[nest](#nest) \| [note](#note)
 ### essay
 ```hoon
-+$  essay  [memo =han-data]
++$  essay  [memo =kind-data]
 ```
 
 Top-level post with metadata
 
-[memo](#memo) \| [han-data](#han-data)
+[memo](#memo) \| [kind-data](#kind-data)
 ### memo
 ```hoon
 +$  memo
@@ -447,12 +438,12 @@ The body of a post
   ==
 ```
 
-Chunk of post content. Blocks stand on their own, while inlines come and groups and are wrapped in a paragraph.
+Chunk of post content. Blocks stand on their own, while inlines come in groups and are wrapped in a paragraph.
 
 [block](#block) \| [inline](#inline)
 ### block
 ```hoon
-+$  block  $+  diary-block
++$  block  $+  channel-block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
@@ -484,7 +475,7 @@ HTML-style list. Recursively nesting
 [inline](#inline)
 ### inline
 ```hoon
-+$  inline  $+  diary-inline
++$  inline  $+  channel-inline
   $@  @t
   $%  [%italics p=(list inline)]
       [%bold p=(list inline)]
@@ -514,31 +505,31 @@ Chunk of post content that can live inside of a paragraph
 `%tag`: tag gets special signifier
 `%link`: link to a URL with a face
 `%break`: line break
-### han-data
+### kind-data
 ```hoon
-+$  han-data
-  $%  [%diary title=@t image=@t]
++$  kind-data
+  $%  [%channel title=@t image=@t]
       [%heap title=(unit @t)]
       [%chat kind=$@(~ [%notice ~])]
   ==
 ```
 
 Post metadata that varies by channel type
-### id-note
+### id-post
 ```hoon
-+$  id-note   time
++$  id-post   time
 ```
 
-Notes are uniquely identified and indexed by the time they're received by the channel host.
-### id-quip
+Posts are uniquely identified and indexed by the time they're received by the channel host.
+### id-reply
 ```hoon
-+$  id-quip   time
++$  id-reply   time
 ```
 
-Like notes, quips (comments) are uniquely identified and indexed by the time they're received by the channel host.
-### feel
+Like posts, replies (comments) are uniquely identified and indexed by the time they're received by the channel host.
+### react
 ```hoon
-+$  feel  @ta
++$  react  @ta
 ```
 
 Reaction, in the form of a text description of an emoji like `':grinning:'`
@@ -547,29 +538,29 @@ Reaction, in the form of a text description of an emoji like `':grinning:'`
 +$  view  $~(%list ?(%grid %list))
 ```
 
-The persisted display format for a diary
+The persisted display format for a channel
 ### sort
 ```hoon
 +$  sort  $~(%time ?(%alpha %time %arranged))
 ```
 
-The persisted sort format for a diary
-### arranged-notes
+The persisted sort format for a channel
+### arranged-posts
 ```hoon
-+$  arranged-notes  (unit (list time))
++$  arranged-posts  (unit (list time))
 ```
 
-Manually arranged notes. If null, use ordinary sorting.
-### briefs
+Manually arranged posts. If null, use ordinary sorting.
+### unreads
 ```hoon
-+$  briefs  (map nest brief)
++$  unreads  (map nest unread)
 ```
 
-Unread info for channels. Map of [nest](#nest) to [brief](#brief)
+Unread info for channels. Map of [nest](#nest) to [unread](#unread)
 
-### brief
+### unread
 ```hoon
-+$  brief   [last=time count=@ud read-id=(unit time)]
++$  unread   [last=time count=@ud read-id=(unit time)]
 ```
 
 Unread info for a channel. 
@@ -577,19 +568,19 @@ Unread info for a channel.
 `last`: last read time
 `count`: number of unread messages
 `read-id`: ID of last read message
-### r-shelf
+### r-channels
 ```hoon
-+$  r-shelf  [=nest =r-diary]
++$  r-channels  [=nest =r-channel]
 ```
-Response (subscriber to client communication) for a shelf
+Response (subscriber to client communication) for a channels
 
-[nest](#nest) \| [r-diary](#r-diary)
-### r-diary
+[nest](#nest) \| [r-channel](#r-channel)
+### r-channel
 ```hoon
-+$  r-diary
-  $%  [%notes =rr-notes]
-      [%note id=id-note =r-note]
-      [%order order=arranged-notes]
++$  r-channel
+  $%  [%posts =notes]
+      [%post id=id-post =r-post]
+      [%set-order order=arranged-posts]
       [%view =view]
       [%sort =sort]
       [%perm =perm]
@@ -605,54 +596,54 @@ Response (subscriber to client communication) for a shelf
   ==
 ```
 
-Response (subscriber to client communication) for a diary.
-### rr-notes
+Response (subscriber to client communication) for a channel.
+### posts
 ```hoon
-+$  rr-notes  ((mop id-note (unit rr-note)) lte)
++$  notes  ((mop id-post (unit note)) lte)
 ```
 
-Notes without revision numbers
+Posts indexed by time.
 
-[id-note](#id-note) \| [rr-note](#rr-note)
-### rr-note
+[id-post](#id-post) \| [note](#note)
+### post
 ```hoon
-+$  rr-note   [rr-seal essay]
++$  post   [reply-seal essay]
 ```
 
-Note without revision numbers.
+An individual post.
 
-[rr-seal](#rr-seal) \| [essay](#essay)
-### rr-seal
+[reply-seal](#reply-seal) \| [essay](#essay)
+### reply-seal
 ```hoon
-+$  rr-seal
-  $:  id=id-note
-      =rr-feels
-      =rr-quips
-      =quip-meta
++$  reply-seal
+  $:  id=id-post
+      =reacts
+      =replies
+      =reply-meta
   ==
-+$  rr-feels  (map ship feel)
-+$  rr-quip   [rr-cork memo]
-+$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [id=id-quip =rr-feels]
++$  reacts  (map ship react)
++$  reply   [reply-seal memo]
++$  replies  ((mop id-reply reply) lte)
++$  reply-seal   [id=id-reply =reacts]
 ```
 
-Metadata for a note (no revision numbers)
+Metadata for a post.
 
-[id-quip](#id-quip) \| [memo](#memo) \| [quip-meta](#quip-meta)
-### quip-meta
+[id-reply](#id-reply) \| [memo](#memo) \| [reply-meta](#reply-meta)
+### reply-meta
 ```hoon
-+$  quip-meta
-  $:  quip-count=@ud
-      last-quippers=(set ship)
-      last-quip=(unit time)
++$  reply-meta
+  $:  reply-count=@ud
+      last-repliers=(set ship)
+      last-reply=(unit time)
   ==
 ```
 
-Metadata for quips
-### create-diary
+Metadata for replies.
+### create-channel
 ```hoon
-+$  create-diary
-  $:  =han
++$  create-channel
+  $:  =kind
       name=term
       group=flag:g
       title=cord
@@ -662,80 +653,108 @@ Metadata for quips
   ==
 ```
 
-Action for creating diaries. 
+Action for creating channels. 
 
-[han](#han) | [flag:groups](#flaggroups) | [sect:groups](#sectgroups)
+[kind](#kind) | [flag:groups](#flaggroups) | [sect:groups](#sectgroups)
 ### sect:groups
 ```hoon
-::
-::  $sect: ID for cabal, similar to a role
-::
 +$  sect  term
 ```
 
-### rr-shelf
+Groups role.
+### flag:groups
 ```hoon
-+$  rr-shelf  (map nest rr-diary)
++$  flag  (pair ship term)
 ```
 
-A [shelf](#shelf) with no revision numbers
-
-### rr-diary
-A [diary](#diary) with no revision numbers.
-
-### shelf
+Unique identifier for a group.
+### r-channels
 ```hoon
-+$  shelf  (map nest diary)
++$  r-channels  (map nest r-channel)
+```
+Response (subscriber to client communication) for channels.
+
+### r-channel
+```hoon
++$  r-channel
+  $%  [%posts =kind-data-posts]
+      [%post id=id-post =r-post]
+      [%set-order order=pin-channel-posts]
+      [%view =view]
+      [%sort =sort]
+      [%perm =perm]
+    ::
+      [%create =perm]
+      [%join group=flag:g]
+      [%leave ~]
+    ::
+      [%read ~]
+      [%read-at =time]
+      [%watch ~]
+      [%unwatch ~]
+  ==
 ```
 
-A map of [nest](#nest) to [diary](#diary)
+Response (subscriber to client communication) for a channel.
 
-### diary
-The messages/notes/links in a channel. Contains a [global:diary](#globaldiary), a [local:diary](#localdiary), and some internal syncing information.
-
-### global:diary
+### channels
 ```hoon
-+$  global
-    $:  =notes
-        order=(rev order=arranged-notes)
-        view=(rev =view)
-        sort=(rev =sort)
-        perm=(rev =perm)
++$  channels  (map nest channel)
+```
+
+A map of [nest](#nest) to [channel](#channel)
+
+### channel
+```hoon
+++  channel
+  |^  ,[global local]
+  +$  global
+    $:  posts=posts
+        order=arranged-posts
+        =view
+        =sort
+        =perm
     ==
-```
-
-The parts of a diary that are synced. 
-
-[notes](#notes) | [order](#order) | [view](#view) | [sort](#sort) | [perm](#perm)
-
-### local:diary
-```hoon
-+$  local
+  ::
+  +$  local
     $:  =net
-        =log
         =remark
-        =window
-        =future
     ==
   --
 ```
 
-The parts of a diary that are not synced. 
+Posts and view/sort/order info for a channel
 
-[net](#net) | [log](#log) | [remark](#remark) | [window](#window) | [future](#future)
+[posts](#posts) \| [arranged-posts](#arranged-posts) \| [view](#view) \| [sort](#sort) \| [perm](#perm)
+
+### perm
+```hoon
++$  perm
+  $:  writers=(set sect:g)
+      group=flag:g
+  ==
+```
+
+Permissions for a channel
+
+[sect:groups](#sectgroups) \| [flag:groups](#flaggroups)
+### v-channel
+Internal representation of a channel. Contains syncing information and revision numbers.
+
+[channel](#channel)
 
 ### nest
 ```hoon
-+$  nest  [=han =ship name=term]
++$  nest  [=kind =ship name=term]
 ```
 
 Uniquely identifies a channel.
 
-[han](#han)
+[kind](#kind)
 
-### han
+### kind
 ```hoon
-+$  han  ?(%diary %heap %chat)
++$  han  ?(%notebook %gallery %chat)
 ```
 
-Channel type. A diary is a notebook, a heap is a link collection, and a chat is a chat.
+Channel type.
