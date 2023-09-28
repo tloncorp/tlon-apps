@@ -9,14 +9,14 @@
   |=  =v-channels:d
   ^-  channels:d
   %-  ~(run by v-channels)
-  |=  =diary:d
-  ^-  rr-diary:d
-  %*  .  *rr-diary:d
+  |=  channel=v-channel:d
+  ^-  channel:d
+  %*  .  *channel:d
     notes  *rr-notes:d
-    perm   +.perm.diary
-    view   +.view.diary
-    sort   +.sort.diary
-    order  +.order.diary
+    perm   +.perm.channel
+    view   +.view.channel
+    sort   +.sort.channel
+    order  +.order.channel
   ==
 ++  rr-notes
   |=  =notes:d

@@ -115,12 +115,12 @@
     ?-    -.c-channels
         %create
       =<  di-abet
-      =/  =nest:d  [han.create-diary.c-channels our.bowl name.create-diary.c-channels]
-      (di-create:di-core nest create-diary.c-channels)
+      =/  =nest:d  [han.create-channel.c-channels our.bowl name.create-channel.c-channels]
+      (di-create:di-core nest create-channel.c-channels)
     ::
-        %diary
-      =/  diary-core  (di-abed:di-core nest.c-channels)
-      di-abet:(di-c-diary:diary-core c-diary.c-channels)
+        %channel
+      =/  channel-core  (di-abed:di-core nest.c-channels)
+      di-abet:(di-c-channel:channel-core c-channel.c-channels)
     ==
   ::
       %channel-migration
@@ -128,7 +128,7 @@
     =+  !<(new-channels=v-channels:d vase)
     =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
     %+  roll  ~(tap by v-channels)
-    |=  [[=nest:d =diary:d] cr=_cor]
+    |=  [[=nest:d =v-channel:d] cr=_cor]
     di-abet:di-migrate:(di-abed:di-core:cr nest)
   ==
 ::
@@ -217,8 +217,8 @@
   |=  =action:g
   =/  affected=(list nest:d)
     %+  murn  ~(tap by v-channels)
-    |=  [=nest:d =diary:d]
-    ?.  =(p.action group.perm.perm.diary)  ~
+    |=  [=nest:d channel=v-channel:d]
+    ?.  =(p.action group.perm.perm.channel)  ~
     `nest
   =/  diff  q.q.action
   ?+    diff  cor
@@ -253,34 +253,34 @@
   di-abet:(di-recheck:di sects)
 ::
 ++  di-core
-  |_  [=nest:d =diary:d gone=_|]
-  +*  di-notes  ~(. not notes.diary)
+  |_  [=nest:d channel=v-channel:d gone=_|]
+  +*  di-notes  ~(. not notes.channel)
   ++  di-core  .
   ++  emit  |=(=card di-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) di-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall di-core(cor (^give gift)))
-  ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.diary)
+  ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.channel)
   ++  di-abet
     %_  cor
         v-channels
-      ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest diary))
+      ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest channel))
     ==
   ::
   ++  di-abed
     |=  n=nest:d
-    di-core(nest n, diary (~(got by v-channels) n))
+    di-core(nest n, channel (~(got by v-channels) n))
   ::
   ++  di-area  `path`/[han.nest]/[name.nest]
   ++  di-sub-path  `path`(weld di-area /updates)
   ++  di-watch-create
-    =/  =cage  [%channel-update !>([now.bowl %create perm.perm.diary])]
+    =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
     (give %fact ~[/[han.nest]/[name.nest]/create] cage)
   ::
   ++  di-watch-updates
     |=  =@da
     ^+  di-core
     ?>  (can-read:di-perms src.bowl)
-    =/  =log:d  (lot:log-on:d log.diary `da ~)
+    =/  =log:d  (lot:log-on:d log.channel `da ~)
     =.  di-core  (give %fact ~ %channel-logs !>(log))
     di-core
   ::
@@ -288,8 +288,8 @@
     |=  [from=@da to=(unit @da)]
     ^+  di-core
     ?>  (can-read:di-perms src.bowl)
-    =/  =notes:d  (lot:on-notes:d notes.diary `from to)
-    =/  chk=u-checkpoint:d  -.diary(notes notes)
+    =/  =notes:d  (lot:on-notes:d notes.channel `from to)
+    =/  chk=u-checkpoint:d  -.channel(notes notes)
     =.  di-core  (give %fact ~ %channel-checkpoint !>(chk))
     (give %kick ~ ~)
   ::
@@ -297,13 +297,13 @@
     |=  n=@
     ^+  di-core
     ?>  (can-read:di-perms src.bowl)
-    =/  =notes:d  (gas:on-notes:d *notes:d (bat:mo-notes:d notes.diary ~ n))
-    =/  chk=u-checkpoint:d  -.diary(notes notes)
+    =/  =notes:d  (gas:on-notes:d *notes:d (bat:mo-notes:d notes.channel ~ n))
+    =/  chk=u-checkpoint:d  -.channel(notes notes)
     =.  di-core  (give %fact ~ %channel-checkpoint !>(chk))
     (give %kick ~ ~)
   ::
   ++  di-create
-    |=  [n=nest:d new=create-diary:d]
+    |=  [n=nest:d new=create-channel:d]
     ^+  di-core
     |^
     =.  nest  n
@@ -313,12 +313,12 @@
     ?>  can-nest
     ?>  am-host:di-perms
     ?>  ((sane %tas) name.nest)
-    =.  diary
-      %*  .  *diary:d
+    =.  channel
+      %*  .  *v-channel:d
         perm  [0 writers.new group.new]
       ==
     =.  di-core
-      =/  =cage  [%channel-update !>([now.bowl %create perm.perm.diary])]
+      =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
       =/  =path  /[han.nest]/[name.nest]/create
       =.  di-core  (give %fact ~[path] cage)
       (give %kick ~[path] ~)
@@ -345,106 +345,106 @@
       ~(has in sects:(~(got by fleet.gop) our.bowl))
     --
   ::
-  ++  di-c-diary
-    |=  =c-diary:d
+  ++  di-c-channel
+    |=  =c-channel:d
     ^+  di-core
     ?>  am-host:di-perms
-    ?-    -.c-diary
+    ?-    -.c-channel
         %view
       ?>  (is-admin:di-perms src.bowl)
-      =^  changed  view.diary  (next-rev:d view.diary view.c-diary)
+      =^  changed  view.channel  (next-rev:d view.channel view.c-channel)
       ?.  changed  di-core
-      (di-update %view view.diary)
+      (di-update %view view.channel)
     ::
         %sort
       ?>  (is-admin:di-perms src.bowl)
-      =^  changed  sort.diary  (next-rev:d sort.diary sort.c-diary)
+      =^  changed  sort.channel  (next-rev:d sort.channel sort.c-channel)
       ?.  changed  di-core
-      (di-update %sort sort.diary)
+      (di-update %sort sort.channel)
     ::
         %order
       ?>  (is-admin:di-perms src.bowl)
-      =^  changed  order.diary  (next-rev:d order.diary order.c-diary)
+      =^  changed  order.channel  (next-rev:d order.channel order.c-channel)
       ?.  changed  di-core
-      (di-update %order order.diary)
+      (di-update %order order.channel)
     ::
         %add-writers
       ?>  (is-admin:di-perms src.bowl)
-      =/  new-writers  (~(uni in writers.perm.perm.diary) sects.c-diary)
-      =^  changed  perm.diary
-        (next-rev:d perm.diary new-writers group.perm.perm.diary)
+      =/  new-writers  (~(uni in writers.perm.perm.channel) sects.c-channel)
+      =^  changed  perm.channel
+        (next-rev:d perm.channel new-writers group.perm.perm.channel)
       ?.  changed  di-core
-      (di-update %perm perm.diary)
+      (di-update %perm perm.channel)
     ::
         %del-writers
       ?>  (is-admin:di-perms src.bowl)
-      =/  new-writers  (~(dif in writers.perm.perm.diary) sects.c-diary)
-      =^  changed  perm.diary
-        (next-rev:d perm.diary new-writers group.perm.perm.diary)
+      =/  new-writers  (~(dif in writers.perm.perm.channel) sects.c-channel)
+      =^  changed  perm.channel
+        (next-rev:d perm.channel new-writers group.perm.perm.channel)
       ?.  changed  di-core
-      (di-update %perm perm.diary)
+      (di-update %perm perm.channel)
     ::
         %note
-      =^  update=(unit u-diary:d)  notes.diary
-        (di-c-note c-note.c-diary)
+      =^  update=(unit u-channel:d)  notes.channel
+        (di-c-note c-note.c-channel)
       ?~  update  di-core
       (di-update u.update)
     ==
   ::
   ++  di-c-note
     |=  =c-note:d
-    ^-  [(unit u-diary:d) _notes.diary]
-    ?>  (can-write:di-perms src.bowl writers.perm.perm.diary)
+    ^-  [(unit u-channel:d) _notes.channel]
+    ?>  (can-write:di-perms src.bowl writers.perm.perm.channel)
     ?-    -.c-note
         %add
       ?>  =(src.bowl author.essay.c-note)
       ?>  =(han.nest -.han-data.essay.c-note)
       =/  id=id-note:d
         |-
-        =/  note  (get:on-notes:d notes.diary now.bowl)
+        =/  note  (get:on-notes:d notes.channel now.bowl)
         ?~  note  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  new=note:d  [[id ~ ~] 0 essay.c-note]
       :-  `[%note id %set ~ new]
-      (put:on-notes:d notes.diary id ~ new)
+      (put:on-notes:d notes.channel id ~ new)
     ::
         %edit
       ?>  =(src.bowl author.essay.c-note)
       ?>  =(han.nest -.han-data.essay.c-note)
-      =/  note  (get:on-notes:d notes.diary id.c-note)
-      ?~  note  `notes.diary
-      ?~  u.note  `notes.diary
+      =/  note  (get:on-notes:d notes.channel id.c-note)
+      ?~  note  `notes.channel
+      ?~  u.note  `notes.channel
       ?>  =(src.bowl author.u.u.note)
       =/  new=note:d  [-.u.u.note +(rev.u.u.note) essay.c-note]
       :-  `[%note id.c-note %set ~ new]
-      (put:on-notes:d notes.diary id.c-note ~ new)
+      (put:on-notes:d notes.channel id.c-note ~ new)
     ::
         %del
-      =/  note  (get:on-notes:d notes.diary id.c-note)
-      ?~  note  `(put:on-notes:d notes.diary id.c-note ~)
-      ?~  u.note  `notes.diary
+      =/  note  (get:on-notes:d notes.channel id.c-note)
+      ?~  note  `(put:on-notes:d notes.channel id.c-note ~)
+      ?~  u.note  `notes.channel
       ?>  =(src.bowl author.u.u.note)
       :-  `[%note id.c-note %set ~]
-      (put:on-notes:d notes.diary id.c-note ~)
+      (put:on-notes:d notes.channel id.c-note ~)
     ::
         ?(%add-feel %del-feel)
-      =/  note  (get:on-notes:d notes.diary id.c-note)
-      ?~  note  `notes.diary
-      ?~  u.note  `notes.diary
+      =/  note  (get:on-notes:d notes.channel id.c-note)
+      ?~  note  `notes.channel
+      ?~  u.note  `notes.channel
       =/  [update=? =feels:d]  (di-c-feel feels.u.u.note c-note)
-      ?.  update  `notes.diary
+      ?.  update  `notes.channel
       :-  `[%note id.c-note %feels feels]
-      (put:on-notes:d notes.diary id.c-note ~ u.u.note(feels feels))
+      (put:on-notes:d notes.channel id.c-note ~ u.u.note(feels feels))
     ::
         %quip
-      =/  note  (get:on-notes:d notes.diary id.c-note)
-      ?~  note  `notes.diary
-      ?~  u.note  `notes.diary
+      =/  note  (get:on-notes:d notes.channel id.c-note)
+      ?~  note  `notes.channel
+      ?~  u.note  `notes.channel
       =^  update=(unit u-note:d)  quips.u.u.note
         (di-c-quip quips.u.u.note c-quip.c-note)
-      ?~  update  `notes.diary
+      ?~  update  `notes.channel
       :-  `[%note id.c-note u.update]
-      (put:on-notes:d notes.diary id.c-note ~ u.u.note)
+      (put:on-notes:d notes.channel id.c-note ~ u.u.note)
     ==
   ::
   ++  di-c-quip
@@ -496,15 +496,15 @@
     &+(~(put by feels) ship new-rev new-feel)
   ::
   ++  di-update
-    |=  =u-diary:d
+    |=  =u-channel:d
     ^+  di-core
     =/  time
       |-
-      =/  quip  (get:log-on:d log.diary now.bowl)
+      =/  quip  (get:log-on:d log.channel now.bowl)
       ?~  quip  now.bowl
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-    =/  =update:d  [time u-diary]
-    =.  log.diary  (put:log-on:d log.diary update)
+    =/  =update:d  [time u-channel]
+    =.  log.channel  (put:log-on:d log.channel update)
     (di-give-update update)
   ::
   ++  di-subscription-paths
@@ -536,10 +536,10 @@
     %+  turn  paths
     |=  =path
     =/  =log:d
-      ?.  ?=([@ @ @ @ ~] path)  log.diary
+      ?.  ?=([@ @ @ @ ~] path)  log.channel
       =/  after  (slaw %da i.t.t.t.path)
-      ?~  after  log.diary
-      (lot:log-on:d log.diary after ~)
+      ?~  after  log.channel
+      (lot:log-on:d log.channel after ~)
     [%give %fact ~[path] %channel-logs !>(log)]
   ::
   ++  di-revoke
@@ -554,7 +554,7 @@
     |=  sects=(set sect:g)
     ::  if we have sects, we need to delete them from writers
     =?  di-core  !=(sects ~)
-      =/  =c-channels:d  [%diary nest %del-writers sects]
+      =/  =c-channels:d  [%channel nest %del-writers sects]
       =/  =cage  [%channel-command !>(c-channels)]
       (emit %pass di-area %agent [our.bowl dap.bowl] %poke cage)
     ::  if subs read permissions removed, kick
@@ -570,7 +570,7 @@
       %^  give  %fact  ~
       ?.  (can-read:di-perms src.bowl)
         channel-denied+!>(~)
-      (said:utils nest plan notes.diary)
+      (said:utils nest plan notes.channel)
     (give %kick ~ ~)
   --
 --

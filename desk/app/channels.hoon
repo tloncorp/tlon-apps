@@ -182,13 +182,13 @@
       %channel-action
     =+  !<(=a-channels:d vase)
     ?:  ?=(%create -.a-channels)
-      di-abet:(di-create:di-core create-diary.a-channels)
+      di-abet:(di-create:di-core create-channel.a-channels)
     ?:  ?=(%pin -.a-channels)
       ?>  from-self
       cor(pins pins.a-channels)
-    ?:  ?=(%join -.a-diary.a-channels)
-      di-abet:(di-join:di-core [nest group.a-diary]:a-channels)
-    di-abet:(di-a-diary:(di-abed:di-core nest.a-channels) a-diary.a-channels)
+    ?:  ?=(%join -.a-channel.a-channels)
+      di-abet:(di-join:di-core [nest group.a-channel]:a-channels)
+    di-abet:(di-a-diary:(di-abed:di-core nest.a-channels) a-channel.a-channels)
   ::
       %channel-migration
     ?>  =(our src):bowl
@@ -308,8 +308,8 @@
   |=  =action:g
   =/  affected=(list nest:d)
     %+  murn  ~(tap by v-channels)
-    |=  [=nest:d =diary:d]
-    ?.  =(p.action group.perm.perm.diary)  ~
+    |=  [=nest:d channel=v-channel:d]
+    ?.  =(p.action group.perm.perm.channel)  ~
     `nest
   =/  diff  q.q.action
   ?+    diff  cor
@@ -365,21 +365,21 @@
 ++  from-self  =(our src):bowl
 ::
 ++  di-core
-  |_  [=nest:d =diary:d gone=_|]
+  |_  [=nest:d channel=v-channel:d gone=_|]
   ++  di-core  .
   ++  emit  |=(=card di-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) di-core(cor (^emil caz)))
   ++  give  |=(=gift:agent:gall di-core(cor (^give gift)))
   ++  safe-watch  |=([=wire =dock =path] di-core(cor (^safe-watch +<)))
-  ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.diary)
+  ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.channel)
   ++  di-abet
     %_    cor
         v-channels
-      ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest diary))
+      ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest channel))
     ==
   ++  di-abed
     |=  n=nest:d
-    di-core(nest n, diary (~(got by v-channels) n))
+    di-core(nest n, channel (~(got by v-channels) n))
   ::
   ++  di-area  `path`/[han.nest]/(scot %p ship.nest)/[name.nest]
   ++  di-sub-wire  (weld di-area /updates)
@@ -390,13 +390,13 @@
   ::  handle creating a channel
   ::
   ++  di-create
-    |=  create=create-diary:d
+    |=  create=create-channel:d
     ?>  from-self
     =.  nest  [han.create our.bowl name.create]
     ?<  (~(has by v-channels) nest)
-    =.  diary  *diary:d
-    =.  group.perm.perm.diary  group.create
-    =.  last-read.remark.diary  now.bowl
+    =.  channel  *v-channel:d
+    =.  group.perm.perm.channel  group.create
+    =.  last-read.remark.channel  now.bowl
     =/  =cage  [%channel-command !>([%create create])]
     (emit %pass (weld di-area /create) %agent [our.bowl server] %poke cage)
   ::
@@ -407,9 +407,9 @@
     ?<  (~(has by v-channels) nest)
     ?>  |(=(p.group src.bowl) from-self)
     =.  nest  n
-    =.  diary  *diary:d
-    =.  group.perm.perm.diary  group
-    =.  last-read.remark.diary  now.bowl
+    =.  channel  *v-channel:d
+    =.  group.perm.perm.channel  group
+    =.  last-read.remark.channel  now.bowl
     =.  di-core  di-give-brief
     =.  di-core  (di-response %join group)
     di-safe-sub
@@ -421,25 +421,25 @@
   ::    host (for global things like posting a note).
   ::
   ++  di-a-diary
-    |=  =a-diary:d
+    |=  =a-channel:d
     ?>  from-self
-    ?+  -.a-diary  (di-send-command [%diary nest a-diary])
+    ?+  -.a-channel  (di-send-command [%channel nest a-channel])
       %join       !!  ::  handled elsewhere
       %leave      di-leave
-      ?(%read %read-at %watch %unwatch)  (di-a-remark a-diary)
+      ?(%read %read-at %watch %unwatch)  (di-a-remark a-channel)
     ==
   ::
   ++  di-a-remark
     |=  =a-remark:d
     ^+  di-core
-    =.  remark.diary
+    =.  remark.channel
       ?-    -.a-remark
-          %watch    remark.diary(watching &)
-          %unwatch  remark.diary(watching |)
+          %watch    remark.channel(watching &)
+          %unwatch  remark.channel(watching |)
           %read-at  !!
           %read
-        =/  [=time note=(unit note:d)]  (need (ram:on-notes:d notes.diary))
-        remark.diary(last-read `@da`(add time (div ~s1 100)))
+        =/  [=time note=(unit note:d)]  (need (ram:on-notes:d notes.channel))
+        remark.channel(last-read `@da`(add time (div ~s1 100)))
       ==
     =.  di-core  di-give-brief
     (di-response a-remark)
@@ -449,7 +449,7 @@
   ++  di-send-command
     |=  command=c-channels:d
     ^+  di-core
-    ?>  ?=(%diary -.command)
+    ?>  ?=(%channel -.command)
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%channel-action poke failed: only allowed from self" !!)
@@ -470,7 +470,7 @@
       %^  give  %fact  ~
       ?.  (can-read:di-perms src.bowl)
         channel-denied+!>(~)
-      (said:utils nest plan notes.diary)
+      (said:utils nest plan notes.channel)
     (give %kick ~ ~)
   ::
   ++  di-has-sub
@@ -479,8 +479,8 @@
   ::
   ++  di-safe-sub
     ?:  di-has-sub  di-core
-    ?^  notes.diary  di-start-updates
-    =.  load.net.diary  |
+    ?^  notes.channel  di-start-updates
+    =.  load.net.channel  |
     %^  safe-watch  (weld di-area /checkpoint)  [ship.nest server]
     ?.  =(our.bowl ship.nest)
       =/  count  ?:(=(%diary han.nest) '20' '100')
@@ -490,7 +490,7 @@
   ++  di-start-updates
     ::  not most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
-      (bind (ram:on-notes:d notes.diary) head)
+      (bind (ram:on-notes:d notes.channel) head)
     %^  safe-watch  di-sub-wire  [ship.nest server]
     /[han.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
   ::
@@ -558,7 +558,7 @@
     ^+  di-core
     ?+    -.sign  di-core
         :: only if kicked prematurely
-        %kick       ?:(load.net.diary di-core di-safe-sub)
+        %kick       ?:(load.net.channel di-core di-safe-sub)
         %watch-ack
       ?~  p.sign  di-core
       %-  (slog leaf+"{<dap.bowl>}: Failed partial checkpoint" u.p.sign)
@@ -594,7 +594,7 @@
   ++  di-ingest-checkpoint
     |=  chk=u-checkpoint:d
     ^+  di-core
-    =.  load.net.diary  &
+    =.  load.net.channel  &
     =.  di-core  (di-apply-checkpoint chk &)
     =.  di-core  di-start-updates
     =.  di-core  di-sync-backlog
@@ -603,24 +603,24 @@
   ::
   ++  di-apply-checkpoint
     |=  [chk=u-checkpoint:d send=?]
-    =^  changed  sort.diary  (apply-rev:d sort.diary sort.chk)
-    =?  di-core  &(changed send)  (di-response %sort sort.sort.diary)
-    =^  changed  view.diary  (apply-rev:d view.diary view.chk)
-    =?  di-core  &(changed send)  (di-response %view view.view.diary)
-    =^  changed  perm.diary  (apply-rev:d perm.diary perm.chk)
-    =?  di-core  &(changed send)  (di-response %perm perm.perm.diary)
-    =^  changed  order.diary  (apply-rev:d order.diary order.chk)
-    =?  di-core  &(changed send)  (di-response %order order.order.diary)
-    =/  old  notes.diary
-    =.  notes.diary
-      ((uno:mo-notes:d notes.diary notes.chk) di-apply-unit-note)
-    =?  di-core  &(send !=(old notes.diary))
+    =^  changed  sort.channel  (apply-rev:d sort.channel sort.chk)
+    =?  di-core  &(changed send)  (di-response %sort sort.sort.channel)
+    =^  changed  view.channel  (apply-rev:d view.channel view.chk)
+    =?  di-core  &(changed send)  (di-response %view view.view.channel)
+    =^  changed  perm.channel  (apply-rev:d perm.channel perm.chk)
+    =?  di-core  &(changed send)  (di-response %perm perm.perm.channel)
+    =^  changed  order.channel  (apply-rev:d order.channel order.chk)
+    =?  di-core  &(changed send)  (di-response %order order.order.channel)
+    =/  old  notes.channel
+    =.  notes.channel
+      ((uno:mo-notes:d notes.channel notes.chk) di-apply-unit-note)
+    =?  di-core  &(send !=(old notes.channel))
       %+  di-response  %notes
       %+  gas:rr-on-notes:d  *rr-notes:d
       %+  murn  (turn (tap:on-notes:d notes.chk) head)
       |=  id=id-note:d
       ^-  (unit [id-note:d (unit rr-note:d)])
-      =/  note  (got:on-notes:d notes.diary id)
+      =/  note  (got:on-notes:d notes.channel id)
       =/  old   (get:on-notes:d old id)
       ?:  =(old `note)  ~
       ?~  note  (some [id ~])
@@ -628,7 +628,7 @@
     di-core
   ::
   ++  di-sync-backlog
-    =/  checkpoint-start  (pry:on-notes:d notes.diary)
+    =/  checkpoint-start  (pry:on-notes:d notes.channel)
     ?~  checkpoint-start  di-core
     %^  safe-watch  (weld di-area /backlog)  [ship.nest server]
     %+  welp
@@ -646,8 +646,8 @@
     |=  =log:d
     ^+  di-core
     %+  roll  (tap:log-on:d log)
-    |=  [[=time =u-diary:d] di=_di-core]
-    (di-u-channels:di time u-diary)
+    |=  [[=time =u-channel:d] di=_di-core]
+    (di-u-channels:di time u-channel)
   ::
   ::  +di-u-* functions ingest updates and execute them
   ::
@@ -656,46 +656,46 @@
   ::    events.
   ::
   ++  di-u-channels
-    |=  [=time =u-diary:d]
+    |=  [=time =u-channel:d]
     ?>  di-from-host
     ^+  di-core
-    ?-    -.u-diary
+    ?-    -.u-channel
         %create
-      ?.  =(0 rev.perm.diary)  di-core
-      =.  perm.perm.diary  perm.u-diary
-      (di-response %create perm.u-diary)
+      ?.  =(0 rev.perm.channel)  di-core
+      =.  perm.perm.channel  perm.u-channel
+      (di-response %create perm.u-channel)
     ::
         %order
-      =^  changed  order.diary  (apply-rev:d order.diary +.u-diary)
+      =^  changed  order.channel  (apply-rev:d order.channel +.u-channel)
       ?.  changed  di-core
-      (di-response %order order.order.diary)
+      (di-response %order order.order.channel)
     ::
         %view
-      =^  changed  view.diary  (apply-rev:d view.diary +.u-diary)
+      =^  changed  view.channel  (apply-rev:d view.channel +.u-channel)
       ?.  changed  di-core
-      (di-response %view view.view.diary)
+      (di-response %view view.view.channel)
     ::
         %sort
-      =^  changed  sort.diary  (apply-rev:d sort.diary +.u-diary)
+      =^  changed  sort.channel  (apply-rev:d sort.channel +.u-channel)
       ?.  changed  di-core
-      (di-response %sort sort.sort.diary)
+      (di-response %sort sort.sort.channel)
     ::
         %perm
-      =^  changed  perm.diary  (apply-rev:d perm.diary +.u-diary)
+      =^  changed  perm.channel  (apply-rev:d perm.channel +.u-channel)
       ?.  changed  di-core
-      (di-response %perm perm.perm.diary)
+      (di-response %perm perm.perm.channel)
     ::
         %note
-      =/  old  notes.diary
-      =.  di-core  (di-u-note id.u-diary u-note.u-diary)
-      =?  di-core  !=(old notes.diary)  di-give-brief
+      =/  old  notes.channel
+      =.  di-core  (di-u-note id.u-channel u-note.u-channel)
+      =?  di-core  !=(old notes.channel)  di-give-brief
       di-core
     ==
   ::
   ++  di-u-note
     |=  [=id-note:d =u-note:d]
     ^+  di-core
-    =/  note  (get:on-notes:d notes.diary id-note)
+    =/  note  (get:on-notes:d notes.channel id-note)
     ?:  ?=([~ ~] note)  di-core
     ?:  ?=(%set -.u-note)
       ?~  note
@@ -703,29 +703,29 @@
         =?  di-core  ?=(^ note.u-note)
           ::TODO  what about the "mention was added during edit" case?
           (on-note:di-hark id-note u.note.u-note)
-        =.  notes.diary  (put:on-notes:d notes.diary id-note note.u-note)
+        =.  notes.channel  (put:on-notes:d notes.channel id-note note.u-note)
         (di-response %note id-note %set rr-note)
       ::
       ?~  note.u-note
-        =.  notes.diary  (put:on-notes:d notes.diary id-note ~)
+        =.  notes.channel  (put:on-notes:d notes.channel id-note ~)
         (di-response %note id-note %set ~)
       ::
       =*  old  u.u.note
       =*  new  u.note.u-note
       =/  merged  (di-apply-note id-note old new)
       ?:  =(merged old)  di-core
-      =.  notes.diary  (put:on-notes:d notes.diary id-note `merged)
+      =.  notes.channel  (put:on-notes:d notes.channel id-note `merged)
       (di-response %note id-note %set `(rr-note:utils merged))
     ::
     ?~  note
-      =.  diffs.future.diary
+      =.  diffs.future.channel
         ::  if the item affected by the update is not in the window we
         ::  care about, ignore it. otherwise, put it in the pending
         ::  diffs set.
         ::
-        ?.  (~(has as:sparse window.future.diary) id-note)
-          diffs.future.diary
-        (~(put ju diffs.future.diary) id-note u-note)
+        ?.  (~(has as:sparse window.future.channel) id-note)
+          diffs.future.channel
+        (~(put ju diffs.future.channel) id-note u-note)
       di-core
     ::
     ?-    -.u-note
@@ -733,14 +733,14 @@
         %feels
       =/  merged  (di-apply-feels feels.u.u.note feels.u-note)
       ?:  =(merged feels.u.u.note)  di-core
-      =.  notes.diary
-        (put:on-notes:d notes.diary id-note `u.u.note(feels merged))
+      =.  notes.channel
+        (put:on-notes:d notes.channel id-note `u.u.note(feels merged))
       (di-response %note id-note %feels (rr-feels:utils merged))
     ::
         %essay
       =^  changed  +.u.u.note  (apply-rev:d +.u.u.note +.u-note)
       ?.  changed  di-core
-      =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
+      =.  notes.channel  (put:on-notes:d notes.channel id-note `u.u.note)
       (di-response %note id-note %essay +>.u.u.note)
     ==
   ::
@@ -776,11 +776,11 @@
     ++  put-quip
       |=  [quip=(unit quip:d) =r-quip:d]
       ^+  di-core
-      =/  note  (get:on-notes:d notes.diary id-note)
+      =/  note  (get:on-notes:d notes.channel id-note)
       ?~  note  di-core
       ?~  u.note  di-core
       =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-quip quip)
-      =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
+      =.  notes.channel  (put:on-notes:d notes.channel id-note `u.u.note)
       =/  meta=quip-meta:d  (get-quip-meta:utils u.u.note)
       (di-response %note id-note %quip id-quip meta r-quip)
     --
@@ -953,7 +953,7 @@
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
-    =*  group  group.perm.perm.diary
+    =*  group  group.perm.perm.channel
     =/  gn=nest:g  nest
     =/  thread  (welp /[han.nest]/(scot %p ship.nest)/[name.nest] rest)
     =/  rope  [`group `gn q.byk.bowl thread]
@@ -963,8 +963,8 @@
   ::  give a "response" to our subscribers
   ::
   ++  di-response
-    |=  =r-diary:d
-    =/  =r-channels:d  [nest r-diary]
+    |=  =r-channel:d
+    =/  =r-channels:d  [nest r-channel]
     (give %fact ~[/ui (snoc di-area %ui)] channel-response+!>(r-channels))
   ::
   ::  produce an up-to-date brief
@@ -972,10 +972,10 @@
   ++  di-brief
     ^-  brief:d
     =/  =time
-      ?~  tim=(ram:on-notes:d notes.diary)  *time
+      ?~  tim=(ram:on-notes:d notes.channel)  *time
       key.u.tim
     =/  unreads
-      (lot:on-notes:d notes.diary `last-read.remark.diary ~)
+      (lot:on-notes:d notes.channel `last-read.remark.channel ~)
     =/  read-id=(unit ^time)
       =/  pried  (pry:on-notes:d unreads)
       ?~  pried  ~
@@ -997,7 +997,7 @@
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
         [%notes rest=*]  (di-peek-notes rest.pole)
-        [%perm ~]        ``channel-perm+!>(perm.perm.diary)
+        [%perm ~]        ``channel-perm+!>(perm.perm.channel)
         [%search %text skip=@ count=@ nedl=@ ~]
       :^  ~  ~  %channel-scan  !>
       %^    text:di-search
@@ -1023,15 +1023,15 @@
       ?:  =(%note mode)  (rr-notes:utils notes)
       (rr-notes-without-quips:utils notes)
     =/  newer=(unit time)
-      =/  more  (tab:on-notes:d notes.diary `-:(rear ls) 1)
+      =/  more  (tab:on-notes:d notes.channel `-:(rear ls) 1)
       ?~(more ~ `-:(head more))
     =/  older=(unit time)
-      =/  more  (bat:mo-notes:d notes.diary `-:(head ls) 1)
+      =/  more  (bat:mo-notes:d notes.channel `-:(head ls) 1)
       ?~(more ~ `-:(head more))
     :*  notes
         newer
         older
-        (wyt:on-notes:d notes.diary)
+        (wyt:on-notes:d notes.channel)
     ==
   ::
   ++  di-peek-notes
@@ -1041,27 +1041,27 @@
     ?+    pole  [~ ~]
         [%newest count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
-      =/  ls     (top:mo-notes:d notes.diary count)
+      =/  ls     (top:mo-notes:d notes.channel count)
       (give-notes mode.pole ls)
     ::
         [%older start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      =/  ls     (bat:mo-notes:d notes.diary `start count)
+      =/  ls     (bat:mo-notes:d notes.channel `start count)
       (give-notes mode.pole ls)
     ::
         [%newer start=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      =/  ls     (tab:on notes.diary `start count)
+      =/  ls     (tab:on notes.channel `start count)
       (give-notes mode.pole ls)
     ::
         [%around time=@ count=@ mode=?(%outline %note) ~]
       =/  count  (slav %ud count.pole)
       =/  time  (slav %ud time.pole)
-      =/  older  (bat:mo-notes:d notes.diary `time count)
-      =/  newer  (tab:on notes.diary `time count)
-      =/  note   (get:on notes.diary time)
+      =/  older  (bat:mo-notes:d notes.channel `time count)
+      =/  newer  (tab:on notes.channel `time count)
+      =/  note   (get:on notes.channel time)
       =/  notes
           ?~  note  (welp older newer)
           (welp (snoc older [time u.note]) newer)
@@ -1069,14 +1069,14 @@
     ::
         [%note time=@ ~]
       =/  time  (slav %ud time.pole)
-      =/  note  (get:on notes.diary time)
+      =/  note  (get:on notes.channel time)
       ?~  note  ~
       ?~  u.note  `~
       ``channel-note+!>((rr-note:utils u.u.note))
     ::
         [%note %id time=@ %quips rest=*]
       =/  time  (slav %ud time.pole)
-      =/  note  (get:on notes.diary `@da`time)
+      =/  note  (get:on notes.channel `@da`time)
       ?~  note  ~
       ?~  u.note  `~
       (di-peek-quips quips.u.u.note rest.pole)
@@ -1130,7 +1130,7 @@
     ::
     ++  scour
       |=  [skip=@ud len=@ud =match-type]
-      =*  notes  notes.diary
+      =*  notes  notes.channel
       ?>  (gth len 0)
       =+  s=[skip=skip len=len *=scan:d]
       =-  (flop scan)
@@ -1280,7 +1280,7 @@
   ::
   ::  assorted helpers
   ::
-  ++  di-from-host  |(=(ship.nest src.bowl) =(p.group.perm.perm.diary src.bowl))
+  ++  di-from-host  |(=(ship.nest src.bowl) =(p.group.perm.perm.channel src.bowl))
   ::
   ::  leave the subscription only
   ::

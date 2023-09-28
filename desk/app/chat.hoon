@@ -567,10 +567,10 @@
     %-  ~(gas by *v-channels:d)
     %+  turn  ~(tap by old-chats)
     |=  [=flag:t =chat:t]
-    ^-  [nest:d diary:d]
+    ^-  [nest:d v-channel:d]
     :-  [%chat flag]
     =/  =notes:d  (convert-notes pact.chat)
-    %*    .  *diary:d
+    %*    .  *v-channel:d
         notes   notes
         log     ?.(log ~ (convert-log pact.chat notes perm.chat log.chat))
         perm    [0 perm.chat]
@@ -648,12 +648,12 @@
     %-  zing
     %+  turn  (tap:log-on:t log)
     |=  [=time =diff:t]
-    ^-  (list [id-note:d u-diary:d])
-    =;  new=(list u-diary:d)
+    ^-  (list [id-note:d u-channel:d])
+    =;  new=(list u-channel:d)
       ?~  new  ~
       ?~  t.new  [time i.new]~
       =.  time  (sub time ~s1)
-      =>  .(new `(list u-diary:d)`new)
+      =>  .(new `(list u-channel:d)`new)
       |-
       ?~  new  ~
       [[time i.new] $(time +(time), new t.new)]

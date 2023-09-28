@@ -493,10 +493,10 @@
     %-  ~(gas by *v-channels:d)
     %+  turn  ~(tap by stash)
     |=  [=flag:h =heap:h]
-    ^-  [nest:d diary:d]
+    ^-  [nest:d v-channel:d]
     :-  [%heap flag]
     =/  =notes:d  (convert-notes curios.heap)
-    %*    .  *diary:d
+    %*    .  *v-channel:d
         notes   notes
         log     ?.(log ~ (convert-log curios.heap notes perm.heap log.heap))
         view    [0 view.heap]
@@ -569,12 +569,12 @@
     %-  zing
     %+  turn  (tap:log-on:h log)
     |=  [=time =diff:h]
-    ^-  (list [id-note:d u-diary:d])
-    =;  new=(list u-diary:d)
+    ^-  (list [id-note:d u-channel:d])
+    =;  new=(list u-channel:d)
       ?~  new  ~
       ?~  t.new  [time i.new]~
       =.  time  (sub time ~s1)
-      =>  .(new `(list u-diary:d)`new)
+      =>  .(new `(list u-channel:d)`new)
       |-
       ?~  new  ~
       [[time i.new] $(time +(time), new t.new)]
