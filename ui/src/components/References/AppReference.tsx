@@ -16,7 +16,7 @@ function AppReference({ flag, isScrolling }: AppReferenceProps) {
   const treaty = useTreaty(ship, deskId);
   const calm = useCalm();
   const dark = useIsDark();
-  const href = `/apps/grid/search/${ship}/apps/${ship}/${deskId}`;
+  const href = `/apps/landscape/search/${ship}/apps/${ship}/${deskId}`;
 
   function openLink() {
     window.open(`${window.location.origin}${href}`);
