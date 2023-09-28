@@ -11,12 +11,12 @@ import useRequestState from '@/logic/useRequestState';
 import { normalizeInline, JSONToInlines, makeMention } from '@/logic/tiptap';
 import X16Icon from '@/components/icons/X16Icon';
 import { pathToCite } from '@/logic/utils';
-import NoteCommentReference from '@/components/References/NoteCommentReference';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
 import { Story, Cite, Han } from '@/types/channel';
+import WritChanReference from '@/components/References/WritChanReference';
 
 interface DiaryCommentFieldProps {
   flag: string;
@@ -38,7 +38,7 @@ export default function DiaryCommentField({
   const isMobile = useIsMobile();
   const [searchParams, setSearchParms] = useSearchParams();
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
-  const quipReplyId = searchParams.get('quip_reply');
+  const quipReplyId = searchParams.get('reply');
   const nest = `${han}/${flag}`;
   const quipReply = useQuip(nest, replyTo, quipReplyId || '');
   const { isPending, setPending, setReady } = useRequestState();
@@ -187,11 +187,11 @@ export default function DiaryCommentField({
                 <X16Icon className="h-4 w-4" />
               </button>
             </div>
-            <NoteCommentReference
-              chFlag={flag}
+            <WritChanReference
               nest={nest}
-              noteId={replyTo}
-              quipId={quipReplyId || ''}
+              idWrit={replyTo}
+              idQuip={quipReplyId || ''}
+              isScrolling={false}
             />
           </div>
         )}

@@ -1,12 +1,12 @@
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useBrief, usePerms } from '@/state/channel/channel';
 import { QuipMap } from '@/types/channel';
-import DiaryComment from '@/diary/DiaryComment';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { groupQuips, setNewDaysForQuips } from '@/quips/quips';
+import QuipMessage from '@/chat/ChatMessage/QuipMessage';
 import HeapDetailCommentField from './HeapDetailCommentField';
 
 interface HeapDetailCommentsProps {
@@ -23,7 +23,7 @@ export default function HeapDetailComments({
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const chFlag = useChannelFlag();
-  const nest = `nest/${chFlag}`;
+  const nest = `heap/${chFlag}`;
   const perms = usePerms(nest);
   const sort = useDiaryCommentSortMode(chFlag ?? '');
   const vessel = useVessel(groupFlag, window.our);
@@ -49,7 +49,7 @@ export default function HeapDetailComments({
             {groupedQuips.map(([_t, g]) =>
               g.map((props) => (
                 <li key={props.time.toString()}>
-                  <DiaryComment {...props} han="heap" />
+                  <QuipMessage whom={nest} {...props} />
                 </li>
               ))
             )}

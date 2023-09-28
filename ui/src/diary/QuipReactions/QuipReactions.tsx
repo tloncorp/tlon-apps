@@ -17,7 +17,6 @@ interface QuipReactionsProps {
   cork: QuipCork;
   time: string;
   noteId: string;
-  han: Han;
   id?: string;
 }
 
@@ -26,14 +25,13 @@ export default function QuipReactions({
   cork,
   time,
   noteId,
-  han,
   id,
 }: QuipReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isMobile = useIsMobile();
   const feels = cork.feels ? _.invertBy(cork.feels) : {};
   const isParent = noteId === time;
-  const nest = `${han}/${whom}`;
+  const nest = whom;
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
   const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
   const { mutateAsync: addDmQuipFeel } = useAddDMQuipFeelMutation();
@@ -88,7 +86,6 @@ export default function QuipReactions({
     <div id={id} className="my-2 flex items-center space-x-2">
       {Object.entries(feels).map(([feel, ships]) => (
         <QuipReaction
-          han={han}
           key={feel}
           quipId={cork.id}
           noteId={noteId}

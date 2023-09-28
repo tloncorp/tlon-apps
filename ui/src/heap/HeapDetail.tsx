@@ -23,10 +23,10 @@ import HeapDetailBody from './HeapDetail/HeapDetailBody';
 export default function HeapDetail({ title }: ViewProps) {
   const location = useLocation();
   const groupFlag = useRouteGroup();
-  const { chShip, chName, idCurio } = useParams<{
+  const { chShip, chName, idTime } = useParams<{
     chShip: string;
     chName: string;
-    idCurio: string;
+    idTime: string;
   }>();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
@@ -35,11 +35,11 @@ export default function HeapDetail({ title }: ViewProps) {
     nest,
   });
   const isMobile = useIsMobile();
-  const { note, isLoading } = useNote(nest, idCurio || '');
+  const { note, isLoading } = useNote(nest, idTime || '');
   const { title: curioTitle } = getHanDataFromEssay(note.essay);
   const { hasNext, hasPrev, nextNote, prevNote } = useOrderedNotes(
     nest,
-    idCurio || ''
+    idTime || ''
   );
   const initialNote = location.state?.initialCurio as Note | undefined;
   const essay = note?.essay || initialNote?.essay;
@@ -75,7 +75,7 @@ export default function HeapDetail({ title }: ViewProps) {
       header={
         <HeapDetailHeader
           nest={nest}
-          idCurio={idCurio || ''}
+          idCurio={idTime || ''}
           essay={essay}
           groupFlag={groupFlag}
         />
@@ -128,9 +128,9 @@ export default function HeapDetail({ title }: ViewProps) {
         </div>
         <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
           <HeapDetailSidebarInfo essay={essay} />
-          {idCurio && (
+          {idTime && (
             <HeapDetailComments
-              time={idCurio}
+              time={idTime}
               comments={note.seal.quips ?? newQuipMap()}
               loading={isLoading}
             />

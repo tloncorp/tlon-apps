@@ -118,7 +118,7 @@ export default function ChatMessageOptions(props: {
   }, [doCopy, isMobile, onOpenChange]);
 
   const reply = useCallback(() => {
-    setSearchParams({ chat_reply: seal.id }, { replace: true });
+    setSearchParams({ reply: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
 
   const startThread = () => {

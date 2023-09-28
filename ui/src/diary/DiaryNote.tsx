@@ -21,7 +21,7 @@ import {
   useGroup,
   useGroupChannel,
 } from '@/state/groups/groups';
-import { Note, Notes, Quip } from '@/types/channel';
+import { Note, Notes } from '@/types/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import {
   canWriteChannel,
@@ -33,7 +33,7 @@ import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
 import getHanDataFromEssay from '@/logic/getHanData';
 import { groupQuips, setNewDaysForQuips } from '@/quips/quips';
-import DiaryComment from './DiaryComment';
+import QuipMessage from '@/chat/ChatMessage/QuipMessage';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
@@ -215,7 +215,7 @@ export default function DiaryNote({ title }: ViewProps) {
               {groupedQuips.map(([_t, g]) =>
                 g.map((props) => (
                   <li key={props.time.toString()}>
-                    <DiaryComment {...props} han="diary" />
+                    <QuipMessage whom={nest} {...props} showReply />
                   </li>
                 ))
               )}

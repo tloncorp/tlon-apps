@@ -184,7 +184,7 @@ export default function DMThread() {
             whom={whom}
             replying={id}
             sendDm={sendMessage}
-            inThread
+            showReply={false}
             autoFocus
             dropZoneId={dropZoneId}
           />

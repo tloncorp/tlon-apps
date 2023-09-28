@@ -1,5 +1,4 @@
 import cn from 'classnames';
-import _ from 'lodash';
 import React, {
   HTMLAttributes,
   ReactNode,
@@ -11,7 +10,7 @@ import React, {
 } from 'react';
 import BTree from 'sorted-btree';
 import { isSameDay } from 'date-fns';
-import { debounce } from 'lodash';
+import _, { debounce } from 'lodash';
 import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
@@ -131,12 +130,12 @@ export default function QuipScroller({
           if (!quip || !quip.memo || !quip.cork) {
             return {
               quip: emptyQuip,
-              han: 'chat',
               time: index,
               newAuthor: false,
               newDay: false,
               isLast: false,
               isLinked: false,
+              showReply: false,
               isScrolling,
               prefixedElement: index.eq(min) ? prefixedElement : undefined,
               whom,
@@ -167,6 +166,7 @@ export default function QuipScroller({
             han: 'chat',
             time: index,
             newAuthor,
+            showReply: true,
             newDay,
             isLast: keyIdx === ks.length - 1,
             isLinked: scrollTo ? index.eq(scrollTo) : false,

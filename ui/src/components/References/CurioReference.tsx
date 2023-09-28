@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import bigInt from 'big-integer';
+import { useLocation, useNavigate } from 'react-router';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 // eslint-disable-next-line import/no-cycle
 import HeapBlock from '@/heap/HeapBlock';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import { useChannelPreview, useGang } from '@/state/groups';
-import bigInt from 'big-integer';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useLocation, useNavigate } from 'react-router';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import { inlineToString } from '@/logic/tiptap';
 import { useRemoteNote } from '@/state/channel/channel';
@@ -25,17 +25,19 @@ import ReferenceInHeap from './ReferenceInHeap';
 function CurioReference({
   nest,
   idCurio,
+  idQuip,
   isScrolling = false,
   contextApp,
   children,
 }: {
   nest: string;
   idCurio: string;
+  idQuip?: string;
   isScrolling?: boolean;
   contextApp?: string;
   children?: React.ReactNode;
 }) {
-  const note = useRemoteNote(nest, idCurio, isScrolling);
+  const reference = useRemoteNote(nest, idCurio, isScrolling, idQuip);
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
@@ -43,16 +45,32 @@ function CurioReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
+  const content = useMemo(() => {
+    if (reference && 'note' in reference && 'essay' in reference.note) {
+      return reference.note.essay.content;
+    }
+    return [];
+  }, [reference]);
+  const author = useMemo(() => {
+    if (reference && 'note' in reference && 'essay' in reference.note) {
+      return reference.note.essay.author;
+    }
+    return '';
+  }, [reference]);
+  const note = useMemo(() => {
+    if (reference && 'note' in reference) {
+      return reference.note;
+    }
+    return undefined;
+  }, [reference]);
+
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
-  if (!note || !note.essay) {
+
+  if (!content || !note) {
     return <HeapLoadingBlock reference />;
   }
-
-  const {
-    essay: { content },
-  } = note;
 
   const textFallbackTitle = (
     content.filter((c) => 'inline' in c)[0] as VerseInline
@@ -87,7 +105,7 @@ function CurioReference({
         title={textFallbackTitle}
         byline={
           <span>
-            Post by <ShipName name={note.essay.author} showAlias /> in{' '}
+            Post by <ShipName name={author} showAlias /> in{' '}
             {preview?.meta?.title}
           </span>
         }
@@ -138,7 +156,7 @@ function CurioReference({
       <ReferenceBar
         nest={nest}
         time={bigInt(idCurio)}
-        author={note.essay.author}
+        author={author}
         groupFlag={preview?.group.flag}
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}

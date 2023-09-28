@@ -11,7 +11,6 @@ import { DMBrief } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
   useChatState,
@@ -23,7 +22,7 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { emptyQuip, Han, Quip } from '@/types/channel';
+import { emptyQuip, Quip } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 import QuipReactions from '@/diary/QuipReactions/QuipReactions';
 import {
@@ -45,7 +44,7 @@ export interface QuipMessageProps {
   isLast?: boolean;
   isLinked?: boolean;
   isScrolling?: boolean;
-  han: Han;
+  showReply?: boolean;
 }
 
 function briefMatches(brief: DMBrief, id: string): boolean {
@@ -80,7 +79,7 @@ const QuipMessage = React.memo<
         isLast = false,
         isLinked = false,
         isScrolling = false,
-        han,
+        showReply = false,
       }: QuipMessageProps,
       ref
     ) => {
@@ -135,7 +134,7 @@ const QuipMessage = React.memo<
                 if (isDMOrMultiDM) {
                   markDmRead(whom);
                 } else {
-                  markChatRead({ nest: `chat/${whom}` });
+                  markChatRead({ nest: whom });
                 }
               });
               return;
@@ -260,6 +259,7 @@ const QuipMessage = React.memo<
               onOpenChange={setOptionsOpen}
               whom={whom}
               quip={quip}
+              showReply={showReply}
               openReactionDetails={() => setReactionDetailsOpen(true)}
             />
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
@@ -285,7 +285,6 @@ const QuipMessage = React.memo<
                   <>
                     <QuipReactions
                       id="reactions-target"
-                      han={han}
                       cork={cork}
                       whom={whom}
                       time={time.toString()}

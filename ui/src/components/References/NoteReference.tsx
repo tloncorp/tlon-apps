@@ -23,14 +23,12 @@ import ReferenceInHeap from './ReferenceInHeap';
 import NotebookIcon from '../icons/NotebookIcon';
 
 function NoteReference({
-  chFlag,
   nest,
   id,
   isScrolling = false,
   contextApp,
   children,
 }: {
-  chFlag: string;
   nest: string;
   id: string;
   isScrolling?: boolean;
@@ -41,10 +39,16 @@ function NoteReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const note = useRemoteNote(nest, id, isScrolling);
+  const reference = useRemoteNote(nest, id, isScrolling);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
+  const note = useMemo(() => {
+    if (reference && 'note' in reference) {
+      return reference.note;
+    }
+    return undefined;
+  }, [reference]);
 
   const contentPreview = useMemo(() => {
     if (!note || !note.essay?.content) {

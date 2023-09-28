@@ -23,7 +23,7 @@ export default function WritBaitReference(props: {
     return <UnavailableReference time={time} nest={nest} preview={null} />;
   }
   return (
-    <WritBaseReference writ={note} contextApp={contextApp} {...props}>
+    <WritBaseReference reference={note} contextApp={contextApp} {...props}>
       {children}
     </WritBaseReference>
   );

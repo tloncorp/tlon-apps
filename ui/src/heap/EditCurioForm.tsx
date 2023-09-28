@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { JSONContent } from '@tiptap/core';
+import { useForm } from 'react-hook-form';
+import { useParams, useNavigate } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { useForm } from 'react-hook-form';
 import {
   useDeleteNoteMutation,
   useEditNoteMutation,
@@ -9,13 +11,11 @@ import {
 } from '@/state/channel/channel';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
-import { JSONContent } from '@tiptap/core';
 import { inlinesToJSON, JSONToInlines } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useChannelFlag } from '@/logic/channel';
 import { useRouteGroup } from '@/state/groups';
-import { useParams, useNavigate } from 'react-router';
 import { chatStoryFromStory, storyFromChatStory } from '@/types/channel';
 import getHanDataFromEssay from '@/logic/getHanData';
 import HeapTextInput from './HeapTextInput';
@@ -34,8 +34,8 @@ export default function EditCurioForm() {
   const chFlag = useChannelFlag() || '';
   const nest = `heap/${chFlag}`;
   const navigate = useNavigate();
-  const { idCurio } = useParams<{ idCurio: string }>();
-  const { note, isLoading } = useNote(nest, idCurio || '');
+  const { idTime } = useParams<{ idTime: string }>();
+  const { note, isLoading } = useNote(nest, idTime || '');
   const contentAsChatStory = useMemo(
     () =>
       isLoading
@@ -72,14 +72,14 @@ export default function EditCurioForm() {
     : Object.keys(draftText || {}).length > 0;
 
   const onDelete = useCallback(async () => {
-    if (!chFlag || !idCurio) {
+    if (!chFlag || !idTime) {
       return;
     }
 
     delMutation.mutate(
       {
         nest,
-        time: idCurio,
+        time: idTime,
       },
       {
         onSuccess: () => {
@@ -87,7 +87,7 @@ export default function EditCurioForm() {
         },
       }
     );
-  }, [chFlag, idCurio, nest, delMutation, groupFlag, navigate]);
+  }, [chFlag, idTime, nest, delMutation, groupFlag, navigate]);
 
   const onSubmit = useCallback(
     async ({ content, title: curioTitle }: EditCurioFormSchema) => {
@@ -104,7 +104,7 @@ export default function EditCurioForm() {
       editMutation.mutate(
         {
           nest,
-          time: idCurio?.toString() || '',
+          time: idTime?.toString() || '',
           essay: {
             ...note.essay,
             'han-data': {
@@ -127,7 +127,7 @@ export default function EditCurioForm() {
     },
     [
       nest,
-      idCurio,
+      idTime,
       note,
       isLinkMode,
       draftText,

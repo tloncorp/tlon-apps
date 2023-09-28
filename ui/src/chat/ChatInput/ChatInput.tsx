@@ -34,6 +34,7 @@ import {
   pathToCite,
   URL_REGEX,
   createStorageKey,
+  useThreadParentId,
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useGroupFlag } from '@/state/groups';
@@ -41,7 +42,14 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import { Nest, NoteEssay, Cite, Story, NoteTuple } from '@/types/channel';
+import {
+  Nest,
+  NoteEssay,
+  Cite,
+  Story,
+  NoteTuple,
+  QuipTuple,
+} from '@/types/channel';
 import { CacheId } from '@/state/channel/channel';
 import { WritTuple } from '@/types/dms';
 import messageSender from '@/logic/messageSender';
@@ -70,9 +78,8 @@ interface ChatInputProps {
     noteId: string;
     content: Story;
   }) => void;
-  inThread?: boolean;
   dropZoneId: string;
-  replyingWrit?: NoteTuple | WritTuple;
+  replyingWrit?: NoteTuple | WritTuple | QuipTuple;
 }
 
 export function UploadErrorPopover({
@@ -115,7 +122,6 @@ export default function ChatInput({
   sendDm,
   sendChatMessage,
   sendQuip,
-  inThread = false,
   dropZoneId,
   replyingWrit,
 }: ChatInputProps) {
@@ -131,15 +137,20 @@ export default function ChatInput({
     createStorageKey(`chat-${id}`),
     inlinesToJSON([''])
   );
+  const threadParentId = useThreadParentId(whom);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
-  // const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
-  const ship = replyingWrit && replyingWrit[1] && replyingWrit[1].essay.author;
+  const ship =
+    replyingWrit && replyingWrit[1] && 'essay' in replyingWrit[1]
+      ? replyingWrit[1].essay.author
+      : replyingWrit && replyingWrit[1] && 'memo' in replyingWrit[1]
+      ? replyingWrit[1].memo.author
+      : null;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
@@ -374,17 +385,15 @@ export default function ChatInput({
   }, [messageEditor]);
 
   useEffect(() => {
-    if (
-      replyingWrit &&
-      messageEditor &&
-      !messageEditor.isDestroyed &&
-      !inThread
-    ) {
+    if (replyingWrit && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.focus();
       const mention = ship ? makeMention(ship.slice(1)) : null;
       messageEditor?.commands.setContent(mention);
       messageEditor?.commands.insertContent(': ');
-      const path = `/1/chan/chat/${whom}/msg/${replyingWrit[0].toString()}`;
+      const path =
+        replyingWrit[1] && 'memo' in replyingWrit[1]
+          ? `/1/chan/chat/${whom}/msg/${threadParentId}/${replyingWrit[0].toString()}`
+          : `/1/chan/chat/${whom}/msg/${replyingWrit[0].toString()}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
         setReplyCite(cite);
@@ -392,13 +401,13 @@ export default function ChatInput({
     }
   }, [
     replyingWrit,
+    threadParentId,
     whom,
     setReplyCite,
     replyCite,
     groupFlag,
     messageEditor,
     ship,
-    inThread,
   ]);
 
   const editorText = messageEditor?.getText();
@@ -538,7 +547,6 @@ export default function ChatInput({
             </button>
           </div>
         ) : null}
-
         {showReply && ship && replyingWrit ? (
           <div className="mb-4 flex items-center justify-start font-semibold">
             <span className="text-gray-600">Replying to</span>

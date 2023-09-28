@@ -17,7 +17,6 @@ import {
 import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 
 interface QuipReactionProps {
-  han: string;
   whom: string;
   feel: string;
   ships: string[];
@@ -26,7 +25,6 @@ interface QuipReactionProps {
 }
 
 export default function QuipReaction({
-  han,
   whom,
   feel,
   ships,
@@ -37,7 +35,7 @@ export default function QuipReaction({
   const isMine = ships.includes(window.our);
   const count = ships.length;
   const isParent = noteId === quipId;
-  const nest = `${han}/${whom}`;
+  const nest = whom;
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
   const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
   const { mutateAsync: delQuipFeel } = useDeleteQuipFeelMutation();

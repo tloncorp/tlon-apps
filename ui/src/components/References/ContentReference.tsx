@@ -14,8 +14,6 @@ import NoteReference from './NoteReference';
 import AppReference from './AppReference';
 // eslint-disable-next-line import/no-cycle
 import BaitReference from './BaitReference';
-// eslint-disable-next-line import/no-cycle
-import NoteCommentReference from './NoteCommentReference';
 
 function ContentReference({
   cite,
@@ -66,10 +64,27 @@ function ContentReference({
 
     if (app === 'heap') {
       const idCurio = udToDec(segments[2]);
+      const idQuip = segments[3];
+
+      if (idQuip) {
+        return (
+          <WritChanReference
+            isScrolling={isScrolling}
+            nest={nest}
+            contextApp={contextApp}
+            idWrit={idCurio}
+            idQuip={idQuip}
+          >
+            {children}
+          </WritChanReference>
+        );
+      }
+
       return (
         <CurioReference
           nest={nest}
           idCurio={idCurio}
+          idQuip={idQuip}
           isScrolling={isScrolling}
           contextApp={contextApp}
         >
@@ -79,13 +94,14 @@ function ContentReference({
     }
     if (app === 'chat') {
       const idWrit = segments[2];
+      const idQuip = segments[3];
       return (
         <WritChanReference
           isScrolling={isScrolling}
-          chFlag={chFlag}
           nest={nest}
           contextApp={contextApp}
           idWrit={idWrit}
+          idQuip={idQuip}
         >
           {children}
         </WritChanReference>
@@ -97,22 +113,20 @@ function ContentReference({
 
       if (idQuip) {
         return (
-          <NoteCommentReference
+          <WritChanReference
             isScrolling={isScrolling}
-            chFlag={chFlag}
             nest={nest}
-            noteId={idNote}
-            quipId={idQuip}
             contextApp={contextApp}
+            idWrit={idNote}
+            idQuip={idQuip}
           >
             {children}
-          </NoteCommentReference>
+          </WritChanReference>
         );
       }
 
       return (
         <NoteReference
-          chFlag={chFlag}
           nest={nest}
           id={idNote}
           isScrolling={isScrolling}

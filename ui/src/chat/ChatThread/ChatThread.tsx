@@ -1,8 +1,8 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import _ from 'lodash';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
@@ -21,8 +21,13 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
-import { useAddQuipMutation, useNote, usePerms } from '@/state/channel/channel';
-import { newQuipMap } from '@/types/channel';
+import {
+  useAddQuipMutation,
+  useNote,
+  usePerms,
+  useQuip,
+} from '@/state/channel/channel';
+import { newQuipMap, QuipTuple } from '@/types/channel';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import QuipScroller from '../QuipScroller/QuipScroller';
 
@@ -44,6 +49,11 @@ export default function ChatThread() {
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const channel = useGroupChannel(groupFlag, nest)!;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const quipReplyId = useMemo(() => searchParams.get('reply'), [searchParams]);
+  const quipReply = useQuip(nest, idTime!, quipReplyId || '');
+  const replyingWrit: QuipTuple | undefined =
+    quipReply && quipReplyId ? [bigInt(quipReplyId), quipReply] : undefined;
   const { isOpen: leapIsOpen } = useLeap();
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
@@ -152,7 +162,7 @@ export default function ChatThread() {
             parentNote={note}
             key={idTime}
             messages={replies}
-            whom={flag}
+            whom={nest}
             scrollerRef={scrollerRef}
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
           />
@@ -169,8 +179,9 @@ export default function ChatThread() {
           <ChatInput
             whom={flag}
             replying={idTime}
+            replyingWrit={replyingWrit}
             sendQuip={sendMessage}
-            inThread
+            showReply
             autoFocus
             dropZoneId={dropZoneId}
           />

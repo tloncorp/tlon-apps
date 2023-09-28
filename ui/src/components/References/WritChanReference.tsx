@@ -4,17 +4,17 @@ import { useRemoteNote } from '@/state/channel/channel';
 import WritBaseReference from './WritBaseReference';
 
 function WritChanReference(props: {
-  chFlag: string;
   nest: string;
   idWrit: string;
+  idQuip?: string;
   isScrolling: boolean;
   contextApp?: string;
   children?: React.ReactNode;
 }) {
-  const { chFlag, idWrit, isScrolling, contextApp, children } = props;
-  const writ = useRemoteNote(`chat/${chFlag}`, idWrit, isScrolling);
+  const { nest, idWrit, idQuip, isScrolling, contextApp, children } = props;
+  const reference = useRemoteNote(nest, idWrit, isScrolling, idQuip);
   return (
-    <WritBaseReference writ={writ} contextApp={contextApp} {...props}>
+    <WritBaseReference reference={reference} contextApp={contextApp} {...props}>
       {children}
     </WritBaseReference>
   );

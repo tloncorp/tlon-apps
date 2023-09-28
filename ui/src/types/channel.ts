@@ -345,9 +345,22 @@ export interface Perm {
   group: Flag;
 }
 
+export interface QuipReferenceResponse {
+  quip: {
+    'id-note': string;
+    quip: Quip;
+  };
+}
+
+export interface NoteReferenceResponse {
+  note: Note;
+}
+
+export type ReferenceResponse = QuipReferenceResponse | NoteReferenceResponse;
+
 export interface Said {
   nest: Nest;
-  note: Note;
+  reference: ReferenceResponse;
 }
 
 export interface Init {

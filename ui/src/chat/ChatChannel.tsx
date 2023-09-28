@@ -45,10 +45,7 @@ function ChatChannel({ title }: ViewProps) {
   const { mutate: sendMessage } = useAddNoteMutation(nest);
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const chatReplyId = useMemo(
-    () => searchParams.get('chat_reply'),
-    [searchParams]
-  );
+  const chatReplyId = useMemo(() => searchParams.get('reply'), [searchParams]);
   const replyingWrit = useReplyNote(nest, chatReplyId);
 
   const {

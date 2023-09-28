@@ -38,6 +38,7 @@ import {
   NoteInCache,
   Pins,
   ChannelScan,
+  ReferenceResponse,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -1033,12 +1034,20 @@ export function useSortMode(nest: string): SortMode {
   return diary?.sort ?? 'time';
 }
 
-export function useRemoteNote(nest: Nest, id: string, blockLoad: boolean) {
+export function useRemoteNote(
+  nest: Nest,
+  id: string,
+  blockLoad: boolean,
+  quipId?: string
+) {
   checkNest(nest);
   const [han, flag] = nestToFlag(nest);
-  const path = `/said/${nest}/note/${decToUd(id)}`;
+  const path = `/said/${nest}/note/${decToUd(id)}${
+    quipId ? `/${decToUd(quipId)}` : ''
+  }`;
+
   const { data, ...rest } = useReactQuerySubscribeOnce({
-    queryKey: [han, 'said', nest, id],
+    queryKey: [han, 'said', nest, id, quipId],
     app: 'channels',
     path,
     options: {
@@ -1047,12 +1056,12 @@ export function useRemoteNote(nest: Nest, id: string, blockLoad: boolean) {
   });
 
   if (rest.isLoading || rest.isError || !data) {
-    return {} as Note;
+    return {} as ReferenceResponse;
   }
 
-  const { note } = data as Said;
+  const { reference } = data as Said;
 
-  return note as Note;
+  return reference as ReferenceResponse;
 }
 
 export function useNoteKeys(nest: Nest) {
