@@ -51,7 +51,7 @@
 ::
 ;<  =notes:d  band:m  (check-note-count +(count))
 ;<  sst=server-state  band:m  get-server-state
-?>  (eq !>(notes) !>(notes:(~(got by shelf.sst) nest)))
+?>  (eq !>(notes) !>(notes:(~(got by channels.sst) nest)))
 ::
 ::  nuke %diary and re-join the channel.  ensure we only got a partial
 ::  checkpoint
@@ -72,8 +72,8 @@
 ::
 (pure:m !>(%success))
 ::
-+$  state         [%0 =shelf:d voc=(map [nest:d plan:d] (unit said:d))]
-+$  server-state  [%0 =shelf:d]
++$  state         [%0 channels=v-channels:d voc=(map [nest:d plan:d] (unit said:d)) pins=(list nest:d)]
++$  server-state  [%0 channels=v-channels:d]
 ::
 ++  eq
   |=  [a=vase b=vase]
@@ -127,15 +127,15 @@
   =/  m  (strand ,diary:d)
   ^-  form:m
   ;<  st=state  band:m  get-state
-  (pure:m (~(got by shelf.st) nest))
+  (pure:m (~(got by channels.st) nest))
 ::
 ++  get-state
   =/  m  (strand ,state)
   ^-  form:m
   ;<  =bowl:spider  band:m  get-bowl:s
   %-  pure:m
-  =<  -
-  !<  [state epic:e]
+  =-  !<(state vase)
+  !<  [[%negotiate *] =vase]
   .^  vase
       /gx/(scot %p our.bowl)/[app]/(scot %da now.bowl)/dbug/state/noun
   ==
@@ -145,8 +145,8 @@
   ^-  form:m
   ;<  =bowl:spider  band:m  get-bowl:s
   %-  pure:m
-  =<  -
-  !<  [server-state epic:e]
+  =-  !<(server-state vase)
+  !<  [[%negotiate *] =vase]
   .^  vase
       /gx/(scot %p our.bowl)/[server]/(scot %da now.bowl)/dbug/state/noun
   ==
