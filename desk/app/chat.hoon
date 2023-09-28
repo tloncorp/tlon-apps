@@ -569,10 +569,10 @@
     |=  [=flag:t =chat:t]
     ^-  [nest:d v-channel:d]
     :-  [%chat flag]
-    =/  =notes:d  (convert-notes pact.chat)
+    =/  posts=v-posts:d  (convert-posts pact.chat)
     %*    .  *v-channel:d
-        notes   notes
-        log     ?.(log ~ (convert-log pact.chat notes perm.chat log.chat))
+        posts   posts
+        log     ?.(log ~ (convert-log pact.chat posts perm.chat log.chat))
         perm    [0 perm.chat]
         remark  remark.chat
         net
@@ -582,9 +582,9 @@
       ==
     ==
   ::
-  ++  convert-notes
+  ++  convert-posts
     |=  old=pact:t
-    ^-  notes:d
+    ^-  v-posts:d
     =/  writs  (tap:on:writs:t wit.old)
     =/  quip-index=(map @da quips:d)
       %+  roll  writs
@@ -595,17 +595,17 @@
       ?~  quip-time  quip-index
       %+  ~(put by quip-index)  u.quip-time
       (put:on-quips:d old-quips time `(convert-quip time writ))
-    %+  gas:on-notes:d  *notes:d
+    %+  gas:on-v-posts:d  *v-posts:d
     %+  murn  writs
     |=  [=time =writ:t]
-    ^-  (unit [id-note:d (unit note:d)])
+    ^-  (unit [id-post:d (unit v-post:d)])
     ?^  replying.writ  ~
     =/  =quips:d  (~(gut by quip-index) time *quips:d)
-    (some time `(convert-note time writ quips))
+    (some time `(convert-post time writ quips))
   ::
-  ++  convert-note
+  ++  convert-post
     |=  [id=@da old=writ:t =quips:d]
-    ^-  note:d
+    ^-  v-post:d
     [[id quips (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
@@ -642,13 +642,13 @@
     ==
   ::
   ++  convert-log
-    |=  [[=writs:t =index:t] =notes:d =perm:d =log:t]
+    |=  [[=writs:t =index:t] posts=v-posts:d =perm:d =log:t]
     ^-  log:d
     %+  gas:log-on:d  *log:d
     %-  zing
     %+  turn  (tap:log-on:t log)
     |=  [=time =diff:t]
-    ^-  (list [id-note:d u-channel:d])
+    ^-  (list [id-post:d u-channel:d])
     =;  new=(list u-channel:d)
       ?~  new  ~
       ?~  t.new  [time i.new]~
@@ -663,35 +663,35 @@
       :-  [%create p.diff]
       %+  murn  (tap:on:writs:t wit.q.diff)
       |=  [=^time =writ:t]
-      =/  new-note  (get:on-notes:d notes time)
-      ?~  new-note  ~
-      (some %note time %set u.new-note)
+      =/  new-post  (get:on-v-posts:d posts time)
+      ?~  new-post  ~
+      (some %post time %set u.new-post)
     ::
         %writs
       =*  id  p.p.diff
       =/  old-time  (~(get by index) id)
       ?~  old-time  ~
       =/  old-writ  (get:on:writs:t writs u.old-time)
-      ?~  old-writ  [%note u.old-time %set ~]~
+      ?~  old-writ  [%post u.old-time %set ~]~
       ?~  replying.u.old-writ
-        =/  new-note  (get:on-notes:d notes u.old-time)
-        ?~  new-note  ~
+        =/  new-post  (get:on-v-posts:d posts u.old-time)
+        ?~  new-post  ~
         :_  ~
-        :+  %note  u.old-time
+        :+  %post  u.old-time
         ?-  -.q.p.diff
           %del                    [%set ~]
-          ?(%add %edit)           [%set u.new-note]
-          ?(%add-feel %del-feel)  [%feels ?~(u.new-note ~ feels.u.u.new-note)]
+          ?(%add %edit)           [%set u.new-post]
+          ?(%add-feel %del-feel)  [%feels ?~(u.new-post ~ feels.u.u.new-post)]
        ==
-      =/  new-note-id  (~(get by index) u.replying.u.old-writ)
-      ?~  new-note-id  ~
-      =/  new-note  (get:on-notes:d notes u.new-note-id)
-      ?~  new-note  ~
-      ?~  u.new-note  ~
-      =/  new-quip  (get:on-quips:d quips.u.u.new-note u.old-time)
+      =/  new-post-id  (~(get by index) u.replying.u.old-writ)
+      ?~  new-post-id  ~
+      =/  new-post  (get:on-v-posts:d posts u.new-post-id)
+      ?~  new-post  ~
+      ?~  u.new-post  ~
+      =/  new-quip  (get:on-quips:d quips.u.u.new-post u.old-time)
       ?~  new-quip  ~
       :_  ~
-      :+  %note  u.new-note-id
+      :+  %post  u.new-post-id
       :+  %quip  u.old-time
       ^-  u-quip:d
       ?-  -.q.p.diff

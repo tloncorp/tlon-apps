@@ -32,7 +32,7 @@
 ::
 +$  seal
   $:  =id
-      time=id-note:d
+      time=id-post:d
       =feels
       =quips
       meta=quip-meta:d
@@ -42,7 +42,7 @@
 +$  cork
   $:  =id
       parent-id=id
-      time=id-note:d
+      time=id-post:d
       =feels
   ==
 ::

@@ -169,7 +169,7 @@
     %-  di-watch-checkpoint-page:(di-abed:di-core han.pole our.bowl name.pole)
     (slav %ud n.pole)
   ::
-      [%said =han:d host=@ name=@ %note time=@ quip=?(~ [@ ~])]
+      [%said =han:d host=@ name=@ %post time=@ quip=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:d     [han.pole host name.pole]
     =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
@@ -254,7 +254,7 @@
 ::
 ++  di-core
   |_  [=nest:d channel=v-channel:d gone=_|]
-  +*  di-notes  ~(. not notes.channel)
+  +*  di-posts  ~(. not posts.channel)
   ++  di-core  .
   ++  emit  |=(=card di-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) di-core(cor (^emil caz)))
@@ -288,8 +288,8 @@
     |=  [from=@da to=(unit @da)]
     ^+  di-core
     ?>  (can-read:di-perms src.bowl)
-    =/  =notes:d  (lot:on-notes:d notes.channel `from to)
-    =/  chk=u-checkpoint:d  -.channel(notes notes)
+    =/  posts=v-posts:d  (lot:on-v-posts:d posts.channel `from to)
+    =/  chk=u-checkpoint:d  -.channel(posts posts)
     =.  di-core  (give %fact ~ %channel-checkpoint !>(chk))
     (give %kick ~ ~)
   ::
@@ -297,8 +297,8 @@
     |=  n=@
     ^+  di-core
     ?>  (can-read:di-perms src.bowl)
-    =/  =notes:d  (gas:on-notes:d *notes:d (bat:mo-notes:d notes.channel ~ n))
-    =/  chk=u-checkpoint:d  -.channel(notes notes)
+    =/  posts=v-posts:d  (gas:on-v-posts:d *v-posts:d (bat:mo-v-posts:d posts.channel ~ n))
+    =/  chk=u-checkpoint:d  -.channel(posts posts)
     =.  di-core  (give %fact ~ %channel-checkpoint !>(chk))
     (give %kick ~ ~)
   ::
@@ -384,72 +384,72 @@
       ?.  changed  di-core
       (di-update %perm perm.channel)
     ::
-        %note
-      =^  update=(unit u-channel:d)  notes.channel
-        (di-c-note c-note.c-channel)
+        %post
+      =^  update=(unit u-channel:d)  posts.channel
+        (di-c-post c-post.c-channel)
       ?~  update  di-core
       (di-update u.update)
     ==
   ::
-  ++  di-c-note
-    |=  =c-note:d
-    ^-  [(unit u-channel:d) _notes.channel]
+  ++  di-c-post
+    |=  =c-post:d
+    ^-  [(unit u-channel:d) _posts.channel]
     ?>  (can-write:di-perms src.bowl writers.perm.perm.channel)
-    ?-    -.c-note
+    ?-    -.c-post
         %add
-      ?>  =(src.bowl author.essay.c-note)
-      ?>  =(han.nest -.han-data.essay.c-note)
-      =/  id=id-note:d
+      ?>  =(src.bowl author.essay.c-post)
+      ?>  =(han.nest -.han-data.essay.c-post)
+      =/  id=id-post:d
         |-
-        =/  note  (get:on-notes:d notes.channel now.bowl)
-        ?~  note  now.bowl
+        =/  post  (get:on-v-posts:d posts.channel now.bowl)
+        ?~  post  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-      =/  new=note:d  [[id ~ ~] 0 essay.c-note]
-      :-  `[%note id %set ~ new]
-      (put:on-notes:d notes.channel id ~ new)
+      =/  new=v-post:d  [[id ~ ~] 0 essay.c-post]
+      :-  `[%post id %set ~ new]
+      (put:on-v-posts:d posts.channel id ~ new)
     ::
         %edit
-      ?>  =(src.bowl author.essay.c-note)
-      ?>  =(han.nest -.han-data.essay.c-note)
-      =/  note  (get:on-notes:d notes.channel id.c-note)
-      ?~  note  `notes.channel
-      ?~  u.note  `notes.channel
-      ?>  =(src.bowl author.u.u.note)
-      =/  new=note:d  [-.u.u.note +(rev.u.u.note) essay.c-note]
-      :-  `[%note id.c-note %set ~ new]
-      (put:on-notes:d notes.channel id.c-note ~ new)
+      ?>  =(src.bowl author.essay.c-post)
+      ?>  =(han.nest -.han-data.essay.c-post)
+      =/  post  (get:on-v-posts:d posts.channel id.c-post)
+      ?~  post  `posts.channel
+      ?~  u.post  `posts.channel
+      ?>  =(src.bowl author.u.u.post)
+      =/  new=v-post:d  [-.u.u.post +(rev.u.u.post) essay.c-post]
+      :-  `[%post id.c-post %set ~ new]
+      (put:on-v-posts:d posts.channel id.c-post ~ new)
     ::
         %del
-      =/  note  (get:on-notes:d notes.channel id.c-note)
-      ?~  note  `(put:on-notes:d notes.channel id.c-note ~)
-      ?~  u.note  `notes.channel
-      ?>  =(src.bowl author.u.u.note)
-      :-  `[%note id.c-note %set ~]
-      (put:on-notes:d notes.channel id.c-note ~)
+      =/  post  (get:on-v-posts:d posts.channel id.c-post)
+      ?~  post  `(put:on-v-posts:d posts.channel id.c-post ~)
+      ?~  u.post  `posts.channel
+      ?>  =(src.bowl author.u.u.post)
+      :-  `[%post id.c-post %set ~]
+      (put:on-v-posts:d posts.channel id.c-post ~)
     ::
         ?(%add-feel %del-feel)
-      =/  note  (get:on-notes:d notes.channel id.c-note)
-      ?~  note  `notes.channel
-      ?~  u.note  `notes.channel
-      =/  [update=? =feels:d]  (di-c-feel feels.u.u.note c-note)
-      ?.  update  `notes.channel
-      :-  `[%note id.c-note %feels feels]
-      (put:on-notes:d notes.channel id.c-note ~ u.u.note(feels feels))
+      =/  post  (get:on-v-posts:d posts.channel id.c-post)
+      ?~  post  `posts.channel
+      ?~  u.post  `posts.channel
+      =/  [update=? =feels:d]  (di-c-feel feels.u.u.post c-post)
+      ?.  update  `posts.channel
+      :-  `[%post id.c-post %feels feels]
+      (put:on-v-posts:d posts.channel id.c-post ~ u.u.post(feels feels))
     ::
         %quip
-      =/  note  (get:on-notes:d notes.channel id.c-note)
-      ?~  note  `notes.channel
-      ?~  u.note  `notes.channel
-      =^  update=(unit u-note:d)  quips.u.u.note
-        (di-c-quip quips.u.u.note c-quip.c-note)
-      ?~  update  `notes.channel
-      :-  `[%note id.c-note u.update]
-      (put:on-notes:d notes.channel id.c-note ~ u.u.note)
+      =/  post  (get:on-v-posts:d posts.channel id.c-post)
+      ?~  post  `posts.channel
+      ?~  u.post  `posts.channel
+      =^  update=(unit u-post:d)  quips.u.u.post
+        (di-c-quip quips.u.u.post c-quip.c-post)
+      ?~  update  `posts.channel
+      :-  `[%post id.c-post u.update]
+      (put:on-v-posts:d posts.channel id.c-post ~ u.u.post)
     ==
   ::
   ++  di-c-quip
     |=  [=quips:d =c-quip:d]
-    ^-  [(unit u-note:d) _quips]
+    ^-  [(unit u-post:d) _quips]
     ?-    -.c-quip
         %add
       ?>  =(src.bowl author.memo.c-quip)
@@ -570,7 +570,7 @@
       %^  give  %fact  ~
       ?.  (can-read:di-perms src.bowl)
         channel-denied+!>(~)
-      (said:utils nest plan notes.channel)
+      (said:utils nest plan posts.channel)
     (give %kick ~ ~)
   --
 --
