@@ -253,14 +253,6 @@ export default function ChatScroller({
         (!loadingNewer && !hasLoadedOldest)
       ) {
         fetchMessages(loadingNewer);
-        console.log(
-          contentHeight,
-          window.innerHeight,
-          fetchState,
-          loadDirection,
-          hasLoadedNewest,
-          hasLoadedOldest
-        );
       }
     }
   }, [

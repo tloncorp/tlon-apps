@@ -302,7 +302,12 @@ export default function makeWritsStore(
         {
           oldest,
           newest,
-          loadedNewest: dir === 'newer' ? !updates : window.loadedNewest,
+          loadedNewest:
+            dir === 'newer'
+              ? updates
+                ? newest.eq(window.newest)
+                : true
+              : window.loadedNewest,
           loadedOldest: dir === 'older' ? !updates : window.loadedOldest,
         },
         draft.writWindows[whom],
