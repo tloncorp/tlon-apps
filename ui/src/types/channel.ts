@@ -5,6 +5,18 @@ import { Inline, isLink, Link } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
 
+export interface Writ {
+  seal: WritSeal;
+  essay: WritEssay;
+}
+
+export interface WritEssay extends NoteEssay {
+  'han-data': HanChat;
+}
+
+export interface WritSeal extends NoteSeal {
+  time: number;
+}
 export type Patda = string;
 export type Ship = string;
 export type Nest = string;
@@ -24,6 +36,7 @@ export interface NoteSeal {
 
 export interface QuipCork {
   id: string;
+  'parent-id': string;
   feels: {
     [ship: Ship]: string;
   };
@@ -547,6 +560,7 @@ export const emptyNote: Note = {
 export const emptyQuip: Quip = {
   cork: {
     id: '',
+    'parent-id': '',
     feels: {},
   },
   memo: {
@@ -607,6 +621,17 @@ export function newNoteMap(entries?: NoteTuple[], reverse = false): NoteMap {
   );
 }
 
+export type ChatMap = BTree<BigInteger, Note | Writ | Quip | null>;
+
+export function newChatMap(
+  entries?: [BigInteger, Note | Writ | Quip | null][],
+  reverse = false
+): ChatMap {
+  return new BTree<BigInteger, Note | Quip | null>(entries, (a, b) =>
+    reverse ? b.compare(a) : a.compare(b)
+  );
+}
+
 export interface NoteSealInCache {
   id: string;
   quips: Quips;
@@ -625,8 +650,6 @@ export interface NoteInCache {
   essay: NoteEssay;
 }
 
-export type ChannelScanItem =
-  | { note: Note }
-  | { 'id-note': string; quip: Quip };
+export type ChannelScanItem = { note: Note } | QuipReferenceResponse;
 
 export type ChannelScan = ChannelScanItem[];

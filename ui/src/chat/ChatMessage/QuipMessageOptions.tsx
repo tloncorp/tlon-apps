@@ -2,7 +2,7 @@ import React, { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
-import { useCopy, useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
+import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import {
@@ -47,7 +47,7 @@ export default function QuipMessageOptions(props: {
   const { cork, memo } = quip ?? emptyQuip;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
-  const threadParentId = useThreadParentId(whom);
+  const threadParentId = cork['parent-id'];
   const { didCopy, doCopy } = useCopy(
     `/1/chan/${whom}/msg/${threadParentId}/${cork.id}`
   );

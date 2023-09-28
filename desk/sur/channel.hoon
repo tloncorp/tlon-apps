@@ -428,7 +428,7 @@
   ==
 +$  rr-notes  ((mop id-note (unit rr-note)) lte)
 +$  rr-note   [rr-seal essay]
-+$  rr-seal   
++$  rr-seal
   $:  id=id-note
       =rr-feels
       =rr-quips
@@ -437,7 +437,7 @@
 +$  rr-feels  (map ship feel)
 +$  rr-quip   [rr-cork memo]
 +$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [id=id-quip =rr-feels]
++$  rr-cork   [id=id-quip parent-id=id-note =rr-feels]
 ++  rr-on-notes  ((on id-note (unit rr-note)) lte)
 ++  rr-on-quips  ((on id-quip rr-quip) lte)
 --

@@ -752,7 +752,9 @@
     ?:  ?=([~ ~] quip)  di-core
     ?:  ?=(%set -.u-quip)
       ?~  quip
-        =/  rr-quip=(unit rr-quip:d)  (bind quip.u-quip rr-quip:utils)
+        =/  rr-quip=(unit rr-quip:d)
+          ?~  quip.u-quip  ~
+          `(rr-quip:utils id-note u.quip.u-quip)
         =?  di-core  ?=(^ quip.u-quip)
           (on-quip:di-hark id-note note u.quip.u-quip)
         (put-quip quip.u-quip %set rr-quip)
@@ -763,7 +765,7 @@
       =*  new  u.quip.u-quip
       =/  merged  (need (di-apply-quip id-quip `old `new))
       ?:  =(merged old)  di-core
-      (put-quip `merged %set `(rr-quip:utils merged))
+      (put-quip `merged %set `(rr-quip:utils id-note merged))
     ::
     ?~  quip  di-core
     ::
@@ -1167,7 +1169,7 @@
         ?.  (match-quip u.val.n.quips match-type)  s
         ?:  (gth skip.s 0)
           s(skip (dec skip.s))
-        =/  res  [%quip id-note (rr-quip:utils u.val.n.quips)]
+        =/  res  [%quip id-note (rr-quip:utils id-note u.val.n.quips)]
         s(len (dec len.s), scan [res scan.s])
       ::
       $(quips l.quips)

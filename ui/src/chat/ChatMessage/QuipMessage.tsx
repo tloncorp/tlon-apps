@@ -85,11 +85,7 @@ const QuipMessage = React.memo<
     ) => {
       const { cork, memo } = quip ?? emptyQuip;
       const container = useRef<HTMLDivElement>(null);
-      const { idShip, idTime } = useParams<{
-        idShip: string;
-        idTime: string;
-      }>();
-      const isThreadOp = idTime === cork.id;
+      const isThreadOp = cork['parent-id'] === cork.id;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
       const chatInfo = useChatInfo(whom);
@@ -288,7 +284,6 @@ const QuipMessage = React.memo<
                       cork={cork}
                       whom={whom}
                       time={time.toString()}
-                      noteId={idTime!}
                     />
                     <ReactionDetails
                       open={reactionDetailsOpen}

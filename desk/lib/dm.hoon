@@ -78,7 +78,7 @@
       %quip
     %+  jab  id
     |=  =writ:c
-    =/  [=pact:c =quips:c]  (reduce-quip quips.writ now [id delta]:del)
+    =/  [=pact:c =quips:c]  (reduce-quip quips.writ now id [id delta]:del)
     :-  pact
     %=  writ
       quips       quips
@@ -112,7 +112,7 @@
   ==
 ::
 ++  reduce-quip
-  |=  [=quips:c now=time =id:c delta=delta:quips:c]
+  |=  [=quips:c now=time parent-id=id:c =id:c delta=delta:quips:c]
   ^-  [pact:c quips:c]
   |^
   ?-  -.delta
@@ -120,7 +120,7 @@
     |-
     ?:  (has:on:quips:c quips now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
-    =/  cork  [id now ~]
+    =/  cork  [id parent-id now ~]
     ?:  (~(has by dex.pac) id)  [pac quips]
     =.  dex.pac  (~(put by dex.pac) id now)
     [pac (put:on:quips:c quips now cork memo.delta)]

@@ -33,7 +33,7 @@
   :_  +>.note
   :*  id.note
       (rr-feels feels.note)
-      (rr-quips quips.note)
+      (rr-quips id.note quips.note)
       (get-quip-meta note)
   ==
 ::
@@ -57,7 +57,7 @@
   ==
 ::
 ++  rr-quips
-  |=  =quips:d
+  |=  [parent-id=id-note:d =quips:d]
   ^-  rr-quips:d
   %+  gas:rr-on-quips:d  *rr-quips:d
   %+  murn  (tap:on-quips:d quips)
@@ -65,13 +65,13 @@
   ^-  (unit [id-quip:d rr-quip:d])
   ?~  quip  ~
   %-  some
-  [time (rr-quip u.quip)]
+  [time (rr-quip parent-id u.quip)]
 ::
 ++  rr-quip
-  |=  =quip:d
+  |=  [parent-id=id-quip:d =quip:d]
   ^-  rr-quip:d
   :_  +.quip
-  [id.quip (rr-feels feels.quip)]
+  [id.quip parent-id (rr-feels feels.quip)]
 ::
 ++  rr-feels
   |=  =feels:d
@@ -117,7 +117,7 @@
       [*rr-cork:d ~[%inline 'Unknown comment']~ ~nul *@da]
     ?~  u.quip
       [*rr-cork:d ~[%inline 'This comment was deleted']~ ~nul *@da]
-    (rr-quip u.u.quip)
+    (rr-quip p.plan u.u.quip)
   [%channel-said !>(`said:d`[nest %quip p.plan rr-quip])]
 ::
 ++  was-mentioned

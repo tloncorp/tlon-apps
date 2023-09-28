@@ -64,6 +64,7 @@ export default function DMThread() {
       memo: writ.essay,
       cork: {
         id: writ.seal.id,
+        'parent-id': writ.seal.id,
         feels: writ.seal.feels,
       },
     });

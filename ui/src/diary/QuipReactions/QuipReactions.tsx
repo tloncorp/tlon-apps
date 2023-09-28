@@ -16,7 +16,6 @@ interface QuipReactionsProps {
   whom: string;
   cork: QuipCork;
   time: string;
-  noteId: string;
   id?: string;
 }
 
@@ -24,13 +23,12 @@ export default function QuipReactions({
   whom,
   cork,
   time,
-  noteId,
   id,
 }: QuipReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isMobile = useIsMobile();
   const feels = cork.feels ? _.invertBy(cork.feels) : {};
-  const isParent = noteId === time;
+  const isParent = cork['parent-id'] === time;
   const nest = whom;
   const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
   const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
@@ -43,7 +41,7 @@ export default function QuipReactions({
       if (isParent) {
         await addChatFeel({
           nest,
-          noteId,
+          noteId: cork['parent-id'],
           feel: emoji.shortcodes,
         });
       } else if (isDMorMultiDm) {
@@ -56,14 +54,14 @@ export default function QuipReactions({
       } else {
         addQuipFeel({
           nest,
-          noteId,
+          noteId: cork['parent-id'],
           quipId: cork.id,
           feel: emoji.shortcodes,
         });
       }
     },
     [
-      noteId,
+      cork,
       addQuipFeel,
       addChatFeel,
       isParent,
@@ -72,7 +70,6 @@ export default function QuipReactions({
       isDMorMultiDm,
       addDmQuipFeel,
       threardParentId,
-      cork.id,
     ]
   );
 
@@ -88,7 +85,7 @@ export default function QuipReactions({
         <QuipReaction
           key={feel}
           quipId={cork.id}
-          noteId={noteId}
+          noteId={cork['parent-id']}
           ships={ships}
           feel={feel}
           whom={whom}

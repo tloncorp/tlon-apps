@@ -429,6 +429,7 @@ export const useChatState = createState<ChatState>(
             const newQuip: Quip = {
               cork: {
                 id: quipId,
+                'parent-id': replying,
                 feels: {},
               },
               memo,

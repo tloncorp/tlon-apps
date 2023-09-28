@@ -128,6 +128,7 @@
     |=  =rr-cork:d
     %-  pairs
     :~  id+(id id.rr-cork)
+        parent-id+(id parent-id.rr-cork)
         feels+(feels rr-feels.rr-cork)
     ==
   ::

@@ -205,7 +205,7 @@
       =/  quip-time  (~(get by dex.pact) u.replying.writ)
       ?~  quip-time  quip-index
       %+  ~(put by quip-index)  u.quip-time
-      (put:on:quips:c old-quips time (quip-2-to-3 time writ))
+      (put:on:quips:c old-quips time (quip-2-to-3 u.replying.writ time writ))
     %+  gas:on:writs:c  *writs:c
     %+  murn  writs
     |=  [=time =writ:two]
@@ -237,9 +237,9 @@
     ==
   ::
   ++  quip-2-to-3
-    |=  [=time old=writ:two]
+    |=  [parent-id=id:c =time old=writ:two]
     ^-  quip:c
-    [[id.old time feels.old] (memo-2-to-3 +.old)]
+    [[id.old parent-id time feels.old] (memo-2-to-3 +.old)]
   ::
   ++  memo-2-to-3
     |=  memo:two

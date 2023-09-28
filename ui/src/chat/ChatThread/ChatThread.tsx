@@ -63,6 +63,7 @@ export default function ChatThread() {
     memo: note.essay,
     cork: {
       id: note.seal.id,
+      'parent-id': note.seal.id,
       feels: note.seal.feels,
     },
   });

@@ -41,6 +41,7 @@
 ::  $cork: chat reply metadata
 +$  cork
   $:  =id
+      parent-id=id
       time=id-note:d
       =feels
   ==

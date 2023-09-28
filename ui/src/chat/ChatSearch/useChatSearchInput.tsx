@@ -1,17 +1,13 @@
-import useDebounce from '@/logic/useDebounce';
-import { Note } from '@/types/channel';
-import { Writ } from '@/types/dms';
-import bigInt, { BigInteger } from 'big-integer';
+import bigInt from 'big-integer';
 import { useCallback, ChangeEvent, KeyboardEvent, useState } from 'react';
 import { useNavigate } from 'react-router';
-import BTree from 'sorted-btree';
+import useDebounce from '@/logic/useDebounce';
+import { ChatMap } from '@/types/channel';
 
 export interface Selection {
   index: number;
   time: bigInt.BigInteger;
 }
-
-export type ChatMap = BTree<BigInteger, Note | Writ>;
 
 interface onNavigateParams extends Selection {
   setSelected: (selection: Selection) => void;

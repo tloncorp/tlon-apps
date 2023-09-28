@@ -21,7 +21,6 @@ import {
   useReplyNote,
 } from '@/state/channel/channel';
 import ChannelSearch from '@/channels/ChannelSearch';
-import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {

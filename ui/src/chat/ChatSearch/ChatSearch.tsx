@@ -8,8 +8,9 @@ import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import { disableDefault, isTalk } from '@/logic/utils';
+import { ChatMap } from '@/types/channel';
 import ChatSearchResults from './ChatSearchResults';
-import { ChatMap, useChatSearchInput } from './useChatSearchInput';
+import { useChatSearchInput } from './useChatSearchInput';
 
 export type ChatSearchProps = PropsWithChildren<{
   whom: string;

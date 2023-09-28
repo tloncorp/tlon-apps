@@ -39,6 +39,8 @@ import {
   Pins,
   ChannelScan,
   ReferenceResponse,
+  QuipTuple,
+  newChatMap,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -54,7 +56,6 @@ import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
-import { ChatMap } from '@/chat/ChatSearch/useChatSearchInput';
 
 async function updateNoteInCache(
   variables: { nest: Nest; noteId: string },
@@ -1669,6 +1670,7 @@ export function useAddQuipMutation() {
           [decToUd(unixToDa(dateTime).toString())]: {
             cork: {
               id: unixToDa(dateTime).toString(),
+              'parent-id': decToUd(variables.noteId),
               feels: {},
             },
             memo: {
@@ -2056,14 +2058,21 @@ export function useChannelSearch(nest: string, query: string) {
     },
   });
 
-  const scan = useMemo(() => {
-    return newNoteMap(
-      ((data || []).filter((e) => 'note' in e) as { note: Note }[]).map(
-        ({ note }) => [bigInt(note.seal.id), note]
+  const scan = useMemo(
+    () =>
+      newChatMap(
+        (data || []).map((scItem) =>
+          scItem && 'note' in scItem
+            ? ([bigInt(scItem.note.seal.id), scItem.note] as NoteTuple)
+            : ([
+                bigInt(scItem.quip.quip.cork.id),
+                scItem.quip.quip,
+              ] as QuipTuple)
+        ),
+        true
       ),
-      true
-    ) as ChatMap;
-  }, [data]);
+    [data]
+  );
 
   return {
     scan,
