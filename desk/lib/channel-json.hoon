@@ -1,4 +1,4 @@
-/-  j=joint, d=channel, g=groups
+/-  j=joint, c=channel, g=groups
 /-  meta
 /+  cite=cite-json, gj=groups-json
 =*  z  ..zuse
@@ -9,14 +9,14 @@
   +|  %responses
   ::
   ++  r-channels
-    |=  [=nest:d =r-channel:d]
+    |=  [=nest:c =r-channel:c]
     %-  pairs
     :~  nest+(^nest nest)
         response+(^r-channel r-channel)
     ==
   ::
   ++  r-channel
-    |=  =r-channel:d
+    |=  =r-channel:c
     %+  frond  -.r-channel
     ?-  -.r-channel
       %posts    (posts posts.r-channel)
@@ -36,7 +36,7 @@
     ==
   ::
   ++  r-post
-    |=  =r-post:d
+    |=  =r-post:c
     %+  frond  -.r-post
     ?-  -.r-post
       %set    ?~(post.r-post ~ (post u.post.r-post))
@@ -52,7 +52,7 @@
     ==
   ::
   ++  r-reply
-    |=  =r-reply:d
+    |=  =r-reply:c
     %+  frond  -.r-reply
     ?-  -.r-reply
       %set    ?~(reply.r-reply ~ (reply u.reply.r-reply))
@@ -60,7 +60,7 @@
     ==
   ::
   ++  paged-posts
-    |=  pn=paged-posts:d
+    |=  pn=paged-posts:c
     %-  pairs
     :~  posts+(posts posts.pn)
         newer+?~(newer.pn ~ (id u.newer.pn))
@@ -70,14 +70,14 @@
   +|  %rr
   ::
   ++  channels
-    |=  =channels:d
+    |=  =channels:c
     %-  pairs
     %+  turn  ~(tap by channels)
-    |=  [n=nest:d ca=channel:d]
+    |=  [n=nest:c ca=channel:c]
     [(nest-cord n) (channel ca)]
   ::
   ++  channel
-    |=  =channel:d
+    |=  =channel:c
     %-  pairs
     :~  posts+(posts posts.channel)
         order+(order order.channel)
@@ -87,14 +87,14 @@
     ==
   ::
   ++  posts
-    |=  =posts:d
+    |=  =posts:c
     %-  pairs
-    %+  turn  (tap:on-posts:d posts)
-    |=  [id=id-post:d post=(unit post:d)]
+    %+  turn  (tap:on-posts:c posts)
+    |=  [id=id-post:c post=(unit post:c)]
     [(scot %ud id) ?~(post ~ (^post u.post))]
   ::
   ++  post
-    |=  [=seal:d =essay:d]
+    |=  [=seal:c =essay:c]
     %-  pairs
     :~  seal+(^seal seal)
         essay+(^essay essay)
@@ -102,21 +102,21 @@
     ==
   ::
   ++  replies
-    |=  =replies:d
+    |=  =replies:c
     %-  pairs
-    %+  turn  (tap:on-replies:d replies)
-    |=  [t=@da =reply:d]
+    %+  turn  (tap:on-replies:c replies)
+    |=  [t=@da =reply:c]
     [(scot %ud t) (^reply reply)]
   ::
   ++  reply
-    |=  [=reply-seal:d =memo:d]
+    |=  [=reply-seal:c =memo:c]
     %-  pairs
     :~  seal+(^reply-seal reply-seal)
         memo+(^memo memo)
     ==
   ::
   ++  seal
-    |=  =seal:d
+    |=  =seal:c
     %-  pairs
     :~  id+(id id.seal)
         reacts+(reacts reacts.seal)
@@ -125,7 +125,7 @@
     ==
   ::
   ++  reply-seal
-    |=  =reply-seal:d
+    |=  =reply-seal:c
     %-  pairs
     :~  id+(id id.reply-seal)
         parent-id+(id parent-id.reply-seal)
@@ -135,7 +135,7 @@
   +|  %primitives
   ::
   ++  v-channel
-    |=  ca=v-channel:d
+    |=  ca=v-channel:c
     %-  pairs
     :~  order+(order order.order.ca)
         perms+(perm perm.perm.ca)
@@ -153,12 +153,12 @@
     s/(rap 3 (scot %p p.f) '/' q.f ~)
   ::
   ++  nest
-    |=  n=nest:d
+    |=  n=nest:c
     ^-  json
     s/(nest-cord n)
   ::
   ++  nest-cord
-    |=  n=nest:d
+    |=  n=nest:c
     ^-  cord
     (rap 3 kind.n '/' (scot %p ship.n) '/' name.n ~)
   ::
@@ -167,13 +167,13 @@
     n+(rap 3 '"' (scot %p her) '"' ~)
   ::
   ++  order
-    |=  a=arranged-posts:d
+    |=  a=arranged-posts:c
     :-  %a
     =/  times=(list time:z)  ?~(a ~ u.a)
     (turn times id)
   ::
   ++  perm
-    |=  p=perm:d
+    |=  p=perm:c
     %-  pairs
     :~  writers/a/(turn ~(tap in writers.p) (lead %s))
         group/(flag group.p)
@@ -188,7 +188,7 @@
     [(scot %p her) s+react]
   ::
   ++  essay
-    |=  =essay:d
+    |=  =essay:c
     %-  pairs
     :~  content+(story content.essay)
         author+(ship author.essay)
@@ -197,7 +197,7 @@
     ==
   ::
   ++  kind-data
-    |=  =kind-data:d
+    |=  =kind-data:c
     %+  frond  -.kind-data
     ?-    -.kind-data
       %heap   ?~(title.kind-data ~ s+u.title.kind-data)
@@ -206,7 +206,7 @@
     ==
   ::
   ++  reply-meta
-    |=  r=reply-meta:d
+    |=  r=reply-meta:c
     %-  pairs
     :~  'replyCount'^(numb reply-count.r)
         'lastReply'^?~(last-reply.r ~ (time u.last-reply.r))
@@ -214,7 +214,7 @@
     ==
   ::
   ++  verse
-    |=  =verse:d
+    |=  =verse:c
     ^-  json
     %+  frond  -.verse
     ?-  -.verse
@@ -222,7 +222,7 @@
         %inline  a+(turn p.verse inline)
     ==
   ++  block
-    |=  b=block:d
+    |=  b=block:c
     ^-  json
     %+  frond  -.b
     ?-  -.b
@@ -249,7 +249,7 @@
     ==
   ::
   ++  listing
-    |=  l=listing:d
+    |=  l=listing:c
     ^-  json
     %+  frond  -.l
     ?-  -.l
@@ -263,7 +263,7 @@
     ==
   ::
   ++  inline
-    |=  i=inline:d
+    |=  i=inline:c
     ^-  json
     ?@  i  s+i
     %+  frond  -.i
@@ -299,12 +299,12 @@
     ==
   ::
   ++  story
-    |=  s=story:d
+    |=  s=story:c
     ^-  json
     a+(turn s verse)
   ::
   ++  memo
-    |=  m=memo:d
+    |=  m=memo:c
     ^-  json
     %-  pairs
     :~  content/(story content.m)
@@ -315,21 +315,21 @@
   +|  %unreads
   ::
   ++  unreads
-    |=  bs=unreads:d
+    |=  bs=unreads:c
     %-  pairs
     %+  turn  ~(tap by bs)
-    |=  [n=nest:d b=unread:d]
+    |=  [n=nest:c b=unread:c]
     [(nest-cord n) (unread b)]
   ::
   ++  unread-update
-    |=  u=(pair nest:d unread:d)
+    |=  u=(pair nest:c unread:c)
     %-  pairs
     :~  nest/(nest p.u)
         unread/(unread q.u)
     ==
   ::
   ++  unread
-    |=  b=unread:d
+    |=  b=unread:c
     %-  pairs
     :~  last/(id last.b)
         count/(numb count.b)
@@ -337,7 +337,7 @@
     ==
   ::
   ++  pins
-    |=  ps=(list nest:d)
+    |=  ps=(list nest:c)
     %-  pairs
     :~  pins/a/(turn ps nest)
     ==
@@ -345,7 +345,7 @@
   +|  %said
   ::
   ++  reference
-    |=  =reference:d
+    |=  =reference:c
     %+  frond  -.reference
     ?-    -.reference
         %post  (post post.reference)
@@ -357,7 +357,7 @@
     ==
   ::
   ++  said
-    |=  s=said:d
+    |=  s=said:c
     ^-  json
     %-  pairs
     :~  nest/(nest p.s)
@@ -371,14 +371,14 @@
   +|  %actions
   ::
   ++  a-channels
-    ^-  $-(json a-channels:d)
+    ^-  $-(json a-channels:c)
     %-  of
     :~  create+create-channel
         pin+(ar nest)
         channel+(ot nest+nest action+a-channel ~)
     ==
   ++  a-channel
-    ^-  $-(json a-channel:d)
+    ^-  $-(json a-channel:c)
     %-  of
     :~  join+flag
         leave+ul
@@ -396,7 +396,7 @@
     ==
   ::
   ++  a-post
-    ^-  $-(json a-post:d)
+    ^-  $-(json a-post:c)
     %-  of
     :~  add+essay
         edit+(ot id+id essay+essay ~)
@@ -407,7 +407,7 @@
     ==
   ::
   ++  a-reply
-    ^-  $-(json a-reply:d)
+    ^-  $-(json a-reply:c)
     %-  of
     :~  add+memo
         del+id
@@ -418,16 +418,16 @@
   +|  %primitives
   ++  id    (se %ud)
   ++  ship  `$-(json ship:z)`(su ship-rule)
-  ++  kind  `$-(json kind:d)`(su han-rule)
+  ++  kind  `$-(json kind:c)`(su han-rule)
   ++  flag  `$-(json flag:g)`(su flag-rule)
-  ++  nest  `$-(json nest:d)`(su nest-rule)
+  ++  nest  `$-(json nest:c)`(su nest-rule)
   ++  ship-rule  ;~(pfix sig fed:ag)
-  ++  han-rule   (sear (soft kind:d) sym)
+  ++  han-rule   (sear (soft kind:c) sym)
   ++  flag-rule  ;~((glue fas) ship-rule sym)
   ++  nest-rule  ;~((glue fas) han-rule ship-rule sym)
   ::
   ++  create-channel
-    ^-  $-(json create-channel:d)
+    ^-  $-(json create-channel:c)
     %-  ot
     :~  kind+kind
         name+(se %tas)
@@ -443,10 +443,10 @@
   ::
   ++  story  (ar verse)
   ++  essay
-    ^-  $-(json essay:d)
+    ^-  $-(json essay:c)
     %+  cu
-      |=  [=story:d =ship:z =time:z =kind-data:d]
-      `essay:d`[[story ship time] kind-data]
+      |=  [=story:c =ship:z =time:z =kind-data:c]
+      `essay:c`[[story ship time] kind-data]
     %-  ot
     :~  content/story
         author/ship
@@ -455,7 +455,7 @@
     ==
   ::
   ++  kind-data
-    ^-  $-(json kind-data:d)
+    ^-  $-(json kind-data:c)
     %-  of
     :~  diary+(ot title+so image+so ~)
         heap+(mu so)
@@ -469,7 +469,7 @@
     ((of notice+ul ~) jon)
   ::
   ++  verse
-    ^-  $-(json verse:d)
+    ^-  $-(json verse:c)
     %-  of
     :~  block/block
         inline/(ar inline)
@@ -477,7 +477,7 @@
   ::
   ++  block
     |=  j=json
-    ^-  block:d
+    ^-  block:c
     %.  j
     %-  of
     :~  rule/ul
@@ -507,7 +507,7 @@
   ::
   ++  listing
     |=  j=json
-    ^-  listing:d
+    ^-  listing:c
     %.  j
     %-  of
     :~
@@ -522,7 +522,7 @@
   ::
   ++  inline
     |=  j=json
-    ^-  inline:d
+    ^-  inline:c
     ?:  ?=([%s *] j)  p.j
     =>  .(j `json`j)
     %.  j

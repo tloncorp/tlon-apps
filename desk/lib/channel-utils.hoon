@@ -1,4 +1,4 @@
-/-  d=channel, g=groups
+/-  c=channel, g=groups
 ::  convert a post to a preview for a "said" response
 ::
 |%
@@ -6,30 +6,30 @@
 ::  forms, suitable for responses to our subscribers
 ::
 ++  uv-channels
-  |=  =v-channels:d
-  ^-  channels:d
+  |=  =v-channels:c
+  ^-  channels:c
   %-  ~(run by v-channels)
-  |=  channel=v-channel:d
-  ^-  channel:d
-  %*  .  *channel:d
-    posts  *posts:d
+  |=  channel=v-channel:c
+  ^-  channel:c
+  %*  .  *channel:c
+    posts  *posts:c
     perm   +.perm.channel
     view   +.view.channel
     sort   +.sort.channel
     order  +.order.channel
   ==
 ++  uv-posts
-  |=  =v-posts:d
-  ^-  posts:d
-  %+  gas:on-posts:d  *posts:d
-  %+  turn  (tap:on-v-posts:d v-posts)
-  |=  [=id-post:d v-post=(unit v-post:d)]
-  ^-  [id-post:d (unit post:d)]
+  |=  =v-posts:c
+  ^-  posts:c
+  %+  gas:on-posts:c  *posts:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:c)]
   [id-post ?~(v-post ~ `(uv-post u.v-post))]
 ::
 ++  uv-post
-  |=  =v-post:d
-  ^-  post:d
+  |=  =v-post:c
+  ^-  post:c
   :_  +>.v-post
   :*  id.v-post
       (uv-reacts reacts.v-post)
@@ -38,110 +38,110 @@
   ==
 ::
 ++  uv-posts-without-replies
-  |=  =v-posts:d
-  ^-  posts:d
-  %+  gas:on-posts:d  *posts:d
-  %+  turn  (tap:on-v-posts:d v-posts)
-  |=  [=id-post:d v-post=(unit v-post:d)]
-  ^-  [id-post:d (unit post:d)]
+  |=  =v-posts:c
+  ^-  posts:c
+  %+  gas:on-posts:c  *posts:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:c)]
   [id-post ?~(v-post ~ `(uv-post-without-replies u.v-post))]
 ::
 ++  uv-post-without-replies
-  |=  post=v-post:d
-  ^-  post:d
+  |=  post=v-post:c
+  ^-  post:c
   :_  +>.post
   :*  id.post
       (uv-reacts reacts.post)
-      *replies:d
+      *replies:c
       (get-reply-meta post)
   ==
 ::
 ++  uv-replies
-  |=  [parent-id=id-post:d =v-replies:d]
-  ^-  replies:d
-  %+  gas:on-replies:d  *replies:d
-  %+  murn  (tap:on-v-replies:d v-replies)
-  |=  [=time v-reply=(unit v-reply:d)]
-  ^-  (unit [id-reply:d reply:d])
+  |=  [parent-id=id-post:c =v-replies:c]
+  ^-  replies:c
+  %+  gas:on-replies:c  *replies:c
+  %+  murn  (tap:on-v-replies:c v-replies)
+  |=  [=time v-reply=(unit v-reply:c)]
+  ^-  (unit [id-reply:c reply:c])
   ?~  v-reply  ~
   %-  some
   [time (uv-reply parent-id u.v-reply)]
 ::
 ++  uv-reply
-  |=  [parent-id=id-reply:d =v-reply:d]
-  ^-  reply:d
+  |=  [parent-id=id-reply:c =v-reply:c]
+  ^-  reply:c
   :_  +.v-reply
   [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
 ++  uv-reacts
-  |=  =v-reacts:d
-  ^-  reacts:d
-  %-  ~(gas by *reacts:d)
+  |=  =v-reacts:c
+  ^-  reacts:c
+  %-  ~(gas by *reacts:c)
   %+  murn  ~(tap by v-reacts)
-  |=  [=ship (rev:d react=(unit react:d))]
+  |=  [=ship (rev:c react=(unit react:c))]
   ?~  react  ~
   (some ship u.react)
 ::
 ++  said
-  |=  [=nest:d =plan:d posts=v-posts:d]
+  |=  [=nest:c =plan:c posts=v-posts:c]
   ^-  cage
-  =/  post=(unit (unit v-post:d))  (get:on-v-posts:d posts p.plan)
+  =/  post=(unit (unit v-post:c))  (get:on-v-posts:c posts p.plan)
   ?~  q.plan
-    =/  =post:d
+    =/  =post:c
       ?~  post
         ::TODO  give "outline" that formally declares deletion
-        :-  *seal:d
+        :-  *seal:c
         ?-  kind.nest
-          %diary  [*memo:d %diary 'Unknown post' '']
-          %heap   [*memo:d %heap ~ 'Unknown link']
+          %diary  [*memo:c %diary 'Unknown post' '']
+          %heap   [*memo:c %heap ~ 'Unknown link']
           %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
         ==
       ?~  u.post
-        :-  *seal:d
+        :-  *seal:c
         ?-  kind.nest
-            %diary  [*memo:d %diary 'This post was deleted' '']
-            %heap   [*memo:d %heap ~ 'This link was deleted']
+            %diary  [*memo:c %diary 'This post was deleted' '']
+            %heap   [*memo:c %heap ~ 'This link was deleted']
             %chat
           [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
         ==
       (uv-post-without-replies u.u.post)
-    [%channel-said !>(`said:d`[nest %post post])]
+    [%channel-said !>(`said:c`[nest %post post])]
   ::
-  =/  =reply:d
+  =/  =reply:c
     ?~  post
-      [*reply-seal:d ~[%inline 'Comment on unknown post']~ ~nul *@da]
+      [*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
     ?~  u.post
-      [*reply-seal:d ~[%inline 'Comment on deleted post']~ ~nul *@da]
-    =/  reply=(unit (unit v-reply:d))  (get:on-v-replies:d replies.u.u.post u.q.plan)
+      [*reply-seal:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
+    =/  reply=(unit (unit v-reply:c))  (get:on-v-replies:c replies.u.u.post u.q.plan)
     ?~  reply
-      [*reply-seal:d ~[%inline 'Unknown comment']~ ~nul *@da]
+      [*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
     ?~  u.reply
-      [*reply-seal:d ~[%inline 'This comment was deleted']~ ~nul *@da]
+      [*reply-seal:c ~[%inline 'This comment was deleted']~ ~nul *@da]
     (uv-reply p.plan u.u.reply)
-  [%channel-said !>(`said:d`[nest %reply p.plan reply])]
+  [%channel-said !>(`said:c`[nest %reply p.plan reply])]
 ::
 ++  was-mentioned
-  |=  [=story:d who=ship]
+  |=  [=story:c who=ship]
   ^-  ?
   %+  lien  story
-  |=  =verse:d
+  |=  =verse:c
   ?:  ?=(%block -.verse)  |
   %+  lien  p.verse
   (cury test [%ship who])
 ::
 ++  flatten
-  |=  content=(list verse:d)
+  |=  content=(list verse:c)
   ^-  cord
   %+  rap   3
   %+  turn  content
-  |=  v=verse:d
+  |=  v=verse:c
   ^-  cord
   ?-  -.v
       %block  ''
       %inline
     %+  rap  3
     %+  turn  p.v
-    |=  c=inline:d
+    |=  c=inline:c
     ^-  cord
     ?@  c  c
     ?-  -.c
@@ -158,40 +158,40 @@
   ==
 ::
 ++  trace
-  |=  post=v-post:d
-  ^-  outline:d
+  |=  post=v-post:c
+  ^-  outline:c
   =;  replyers=(set ship)
     [~(wyt by replies.post) replyers +>.post]
   =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
   %-  ~(gas in *(set ship))
-  %+  murn  (tap:on-v-replies:d replies.post)
-  |=  [@ reply=(unit v-reply:d)]
+  %+  murn  (tap:on-v-replies:c replies.post)
+  |=  [@ reply=(unit v-reply:c)]
   ?~  reply  ~
   (some author.u.reply)
 ::
 ++  get-reply-meta
-  |=  post=v-post:d
-  ^-  reply-meta:d
-  :*  (wyt:on-v-replies:d replies.post)
+  |=  post=v-post:c
+  ^-  reply-meta:c
+  :*  (wyt:on-v-replies:c replies.post)
       (get-last-repliers post)
-      (biff (ram:on-v-replies:d replies.post) |=([=time *] `time))
+      (biff (ram:on-v-replies:c replies.post) |=([=time *] `time))
   ==
 ::
 ++  get-last-repliers
-  |=  post=v-post:d  ::TODO  could just take =v-replies
+  |=  post=v-post:c  ::TODO  could just take =v-replies
   ^-  (set ship)
   =|  replyers=(set ship)
-  =/  entries=(list [time (unit v-reply:d)])  (bap:on-v-replies:d replies.post)
+  =/  entries=(list [time (unit v-reply:c)])  (bap:on-v-replies:c replies.post)
   |-
   ?:  |(=(~ entries) =(3 ~(wyt in replyers)))
     replyers
-  =/  [* reply=(unit v-reply:d)]  -.entries
+  =/  [* reply=(unit v-reply:c)]  -.entries
   ?~  reply  $(entries +.entries)
   ?:  (~(has in replyers) author.u.reply)
     $(entries +.entries)
   (~(put in replyers) author.u.reply)
 ++  perms
-  |_  [our=@p now=@da =nest:d group=flag:g]
+  |_  [our=@p now=@da =nest:c group=flag:g]
   ++  am-host  =(our ship.nest)
   ++  groups-scry
     ^-  path

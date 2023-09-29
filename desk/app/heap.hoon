@@ -1,4 +1,4 @@
-/-  h=heap, d=channel, g=groups, ha=hark, e=epic
+/-  h=heap, c=channel, g=groups, ha=hark, e=epic
 /-  meta
 /+  default-agent, verb, dbug, neg=negotiate
 /+  cur=curios
@@ -473,7 +473,7 @@
 ++  migrate
   |%
   ++  server
-    =/  server-channels=v-channels:d
+    =/  server-channels=v-channels:c
       %+  convert-channels  &
       %-  ~(gas by *stash:h)
       %+  skim  ~(tap by stash)
@@ -483,20 +483,20 @@
     (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
   ::
   ++  client
-    =/  =v-channels:d  (convert-channels | stash)
+    =/  =v-channels:c  (convert-channels | stash)
     =/  =cage  [%channel-migration !>(v-channels)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
   ::
   ++  convert-channels
     |=  [log=? =stash:h]
-    ^-  v-channels:d
-    %-  ~(gas by *v-channels:d)
+    ^-  v-channels:c
+    %-  ~(gas by *v-channels:c)
     %+  turn  ~(tap by stash)
     |=  [=flag:h =heap:h]
-    ^-  [nest:d v-channel:d]
+    ^-  [nest:c v-channel:c]
     :-  [%heap flag]
-    =/  posts=v-posts:d  (convert-posts curios.heap)
-    %*    .  *v-channel:d
+    =/  posts=v-posts:c  (convert-posts curios.heap)
+    %*    .  *v-channel:c
         posts   posts
         log     ?.(log ~ (convert-log curios.heap posts perm.heap log.heap))
         view    [0 view.heap]
@@ -511,70 +511,70 @@
   ::
   ++  convert-posts
     |=  old=curios:h
-    ^-  v-posts:d
+    ^-  v-posts:c
     =/  curios  (tap:on:curios:h old)
-    =/  index=(map @da v-replies:d)
+    =/  index=(map @da v-replies:c)
       %+  roll  curios
-      |=  [[=time =curio:h] index=(map @da v-replies:d)]
+      |=  [[=time =curio:h] index=(map @da v-replies:c)]
       ?~  replying.curio  index
-      =/  old-replies=v-replies:d  (~(gut by index) time *v-replies:d)
+      =/  old-replies=v-replies:c  (~(gut by index) time *v-replies:c)
       %+  ~(put by index)  u.replying.curio
-      (put:on-v-replies:d old-replies time `(convert-reply time curio))
-    %+  gas:on-v-posts:d  *v-posts:d
+      (put:on-v-replies:c old-replies time `(convert-reply time curio))
+    %+  gas:on-v-posts:c  *v-posts:c
     %+  murn  curios
     |=  [=time =curio:h]
-    ^-  (unit [id-post:d (unit v-post:d)])
+    ^-  (unit [id-post:c (unit v-post:c)])
     ?^  replying.curio  ~
-    =/  replies=v-replies:d  (~(gut by index) time *v-replies:d)
+    =/  replies=v-replies:c  (~(gut by index) time *v-replies:c)
     (some time `(convert-post time curio replies))
   ::
   ++  convert-post
-    |=  [id=@da old=curio:h replies=v-replies:d]
-    ^-  v-post:d
+    |=  [id=@da old=curio:h replies=v-replies:c]
+    ^-  v-post:c
     [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:h)
-    ^-  v-reacts:d
+    ^-  v-reacts:c
     %-  ~(run by old)
     |=  =feel:h
     [%0 `feel]
   ::
   ++  convert-reply
     |=  [id=@da old=curio:h]
-    ^-  v-reply:d
+    ^-  v-reply:c
     [[id (convert-feels feels.old)] (convert-memo +.old)]
   ::
   ++  convert-memo
     |=  old=heart:h
-    ^-  memo:d
+    ^-  memo:c
     [(convert-story content.old) author.old sent.old]
   ::
   ++  convert-essay
     |=  old=heart:h
-    ^-  essay:d
+    ^-  essay:c
     [(convert-memo old) %heap title.old]
   ::
   ++  convert-story
     |=  old=content:h
-    ^-  story:d
+    ^-  story:c
     %+  welp
       (turn p.old |=(=block:h [%block block]))
     [%inline q.old]~
   ::
   ++  convert-log
-    |=  [=curios:h posts=v-posts:d =perm:d =log:h]
-    ^-  log:d
-    %+  gas:log-on:d  *log:d
+    |=  [=curios:h posts=v-posts:c =perm:c =log:h]
+    ^-  log:c
+    %+  gas:log-on:c  *log:c
     %-  zing
     %+  turn  (tap:log-on:h log)
     |=  [=time =diff:h]
-    ^-  (list [id-post:d u-channel:d])
-    =;  new=(list u-channel:d)
+    ^-  (list [id-post:c u-channel:c])
+    =;  new=(list u-channel:c)
       ?~  new  ~
       ?~  t.new  [time i.new]~
       =.  time  (sub time ~s1)
-      =>  .(new `(list u-channel:d)`new)
+      =>  .(new `(list u-channel:c)`new)
       |-
       ?~  new  ~
       [[time i.new] $(time +(time), new t.new)]
@@ -588,7 +588,7 @@
       :-  [%create p.diff]
       %+  murn  (tap:on:curios:h q.diff)
       |=  [=^time =curio:h]
-      =/  new-post  (get:on-v-posts:d posts time)
+      =/  new-post  (get:on-v-posts:c posts time)
       ?~  new-post  ~
       (some %post time %set u.new-post)
     ::
@@ -597,7 +597,7 @@
       =/  old-curio  (get:on:curios:h curios id)
       ?~  old-curio  [%post id %set ~]~
       ?~  replying.u.old-curio
-        =/  new-post  (get:on-v-posts:d posts id)
+        =/  new-post  (get:on-v-posts:c posts id)
         ?~  new-post  ~
         :_  ~
         :+  %post  id
@@ -606,15 +606,15 @@
           ?(%add %edit)           [%set u.new-post]
           ?(%add-feel %del-feel)  [%reacts ?~(u.new-post ~ reacts.u.u.new-post)]
         ==
-      =/  new-post  (get:on-v-posts:d posts u.replying.u.old-curio)
+      =/  new-post  (get:on-v-posts:c posts u.replying.u.old-curio)
       ?~  new-post  ~
       ?~  u.new-post  ~
-      =/  new-reply  (get:on-v-replies:d replies.u.u.new-post id)
+      =/  new-reply  (get:on-v-replies:c replies.u.u.new-post id)
       ?~  new-reply  ~
       :_  ~
       :+  %post   u.replying.u.old-curio
       :+  %reply  id
-      ^-  u-reply:d
+      ^-  u-reply:c
       ?-  -.q.p.diff
         %del                    [%set ~]
         ?(%add %edit)           [%set u.new-reply]

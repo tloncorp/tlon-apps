@@ -8,7 +8,7 @@
 ::  - test join, leave, read, read-at
 ::  - test permissions
 ::
-/-  spider, d=channel, g=groups, e=epic
+/-  spider, c=channel, g=groups, e=epic
 /+  s=strandio
 =,  strand=strand:spider
 ^-  thread:spider
@@ -21,7 +21,7 @@
 =/  app  %channels
 =/  server  (cat 3 app '-server')
 ;<  our=ship  bind:m  get-our:s
-=/  =nest:d  [%diary our chan]
+=/  =nest:c  [%diary our chan]
 |^
 =/  m  (strand ,vase)
 ;<  ~  band:m  (poke-our:s %hood %kiln-nuke !>([%groups &]))
@@ -38,18 +38,18 @@
 ::
 =|  count=@ud
 |-
-;<  =id-post:d  band:m  (add-post count)
+;<  =id-post:c  band:m  (add-post count)
 ?:  (lth count 30)
   $(count +(count))
 ::  leave a single comment on the last post
 ::
 ;<  now=@da  band:m  get-time:s
-=/  =memo:d   [~[[%inline ~['hacking is bad']]] our now]
+=/  =memo:c   [~[[%inline ~['hacking is bad']]] our now]
 ;<  ~  band:m  (act %channel nest %post %reply id-post %add memo)
 ::
 ::  ensure that we've got all the same posts on both sides
 ::
-;<  posts=v-posts:d  band:m  (check-post-count +(count))
+;<  posts=v-posts:c  band:m  (check-post-count +(count))
 ;<  sst=server-state  band:m  get-server-state
 ?>  (eq !>(posts) !>(posts:(~(got by channels.sst) nest)))
 ::
@@ -72,8 +72,8 @@
 ::
 (pure:m !>(%success))
 ::
-+$  state         [%0 channels=v-channels:d voc=(map [nest:d plan:d] (unit said:d)) pins=(list nest:d)]
-+$  server-state  [%0 channels=v-channels:d]
++$  state         [%0 channels=v-channels:c voc=(map [nest:c plan:c] (unit said:c)) pins=(list nest:c)]
++$  server-state  [%0 channels=v-channels:c]
 ::
 ++  eq
   |=  [a=vase b=vase]
@@ -106,7 +106,7 @@
   --
 ::
 ++  act
-  |=  =a-channels:d
+  |=  =a-channels:c
   =/  m  (strand ,~)
   ^-  form:m
   (poke-our:s app %channel-action !>(a-channels))
@@ -124,7 +124,7 @@
   (poke-our:s dude %dbug !>([%state '']))
 ::
 ++  get-channel
-  =/  m  (strand ,v-channel:d)
+  =/  m  (strand ,v-channel:c)
   ^-  form:m
   ;<  st=state  band:m  get-state
   (pure:m (~(got by channels.st) nest))
@@ -153,27 +153,27 @@
 ::
 ++  check-post-count
   |=  count=@ud
-  =/  m  (strand ,v-posts:d)
+  =/  m  (strand ,v-posts:c)
   ^-  form:m
-  ;<  channel=v-channel:d  band:m  get-channel
+  ;<  channel=v-channel:c  band:m  get-channel
   ?>  (eq !>(count) !>(~(wyt by posts.channel)))
   (pure:m posts.channel)
 ::
 ++  add-post
   |=  count=@ud
-  =/  m  (strand ,id-post:d)
+  =/  m  (strand ,id-post:c)
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
-  =/  =essay:d  [[~ our send] %diary (cat 3 'on hacking #' (scot %ud count)) '']
+  =/  =essay:c  [[~ our send] %diary (cat 3 'on hacking #' (scot %ud count)) '']
   ;<  ~  bind:m  (act %channel nest %post %add essay)
   (pure:m send)
 ::
 ++  add-reply
-  |=  [=id-post:d text=cord]
-  =/  m  (strand ,id-reply:d)
+  |=  [=id-post:c text=cord]
+  =/  m  (strand ,id-reply:c)
   ^-  form:m
   ;<  send=@da  band:m  get-time:s
-  =/  =memo:d  [~[[%inline ~[text]]] our send]
+  =/  =memo:c  [~[[%inline ~[text]]] our send]
   ;<  ~  bind:m  (act %channel nest %post %reply id-post %add memo)
   (pure:m send)
 ::
@@ -185,7 +185,7 @@
   ;<  ~  band:m  (act %channel nest %add-writers %del-role ~ ~)
   ::
   ;<  now=@da  band:m  get-time:s
-  ;<  old=v-channel:d  band:m  get-channel
+  ;<  old=v-channel:c  band:m  get-channel
   ?>  (neq !>(%grid) !>(view.view.old))
   ?>  (neq !>(%alpha) !>(sort.sort.old))
   ?>  (neq !>(&) !>((~(has in writers.perm.perm.old) %add-role)))
@@ -198,7 +198,7 @@
   ;<  ~  band:m  (act %channel nest %del-writers %del-role ~ ~)
   ;<  ~  band:m  (act %channel nest %order ~ now ~)
   ::
-  ;<  new=v-channel:d  band:m  get-channel
+  ;<  new=v-channel:c  band:m  get-channel
   ?>  (eq !>(%grid) !>(view.view.new))
   ?>  (eq !>(%alpha) !>(sort.sort.new))
   ?>  (eq !>(&) !>((~(has in writers.perm.perm.new) %add-role)))
@@ -216,72 +216,72 @@
 ++  test-c-post
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  old=v-channel:d  band:m  get-channel
+  ;<  old=v-channel:c  band:m  get-channel
   =/  count=@ud  ~(wyt by posts.old)
-  ;<  id=id-post:d  band:m  (add-post 1.000)
-  ;<  new=v-channel:d  band:m  get-channel
+  ;<  id=id-post:c  band:m  (add-post 1.000)
+  ;<  new=v-channel:c  band:m  get-channel
   ?>  (eq !>(+(count)) !>(~(wyt by posts.new)))
-  ?>  (eq !>(&) !>((has:on-v-posts:d posts.new id)))
+  ?>  (eq !>(&) !>((has:on-v-posts:c posts.new id)))
   ::
-  =/  =essay:d  [[~ our id] %diary 'yes' '']
+  =/  =essay:c  [[~ our id] %diary 'yes' '']
   ;<  ~  band:m  (act %channel nest %post %edit id essay)
-  ;<  new=v-post:d  band:m  (get-post id)
+  ;<  new=v-post:c  band:m  (get-post id)
   ?>  (eq !>([%diary 'yes' '']) !>(kind-data.new))
   ::
   ?>  (eq !>(~) !>(reacts.new))
   ;<  ~  band:m  (act %channel nest %post %add-react id our ':smile:')
-  ;<  new=v-post:d  band:m  (get-post id)
+  ;<  new=v-post:c  band:m  (get-post id)
   =/  react  (~(got by reacts.new) our)
   ?>  (eq !>([0 `':smile:']) !>(react))
   ::
   ;<  ~  band:m  (act %channel nest %post %del-react id our)
-  ;<  new=v-post:d  band:m  (get-post id)
+  ;<  new=v-post:c  band:m  (get-post id)
   =/  react  (~(got by reacts.new) our)
   ?>  (eq !>([1 ~]) !>(react))
   ::
   ;<  ~  band:m  (act %channel nest %post %del id)
-  ;<  new=v-channel:d  band:m  get-channel
-  ?>  (eq !>(~) !>((got:on-v-posts:d posts.new id)))
+  ;<  new=v-channel:c  band:m  get-channel
+  ?>  (eq !>(~) !>((got:on-v-posts:c posts.new id)))
   ::
   (pure:m ~)
 ::
 ++  get-post
-  |=  =id-post:d
-  =/  m  (strand ,v-post:d)
+  |=  =id-post:c
+  =/  m  (strand ,v-post:c)
   ^-  form:m
-  ;<  channel=v-channel:d  band:m  get-channel
-  (pure:m (need (got:on-v-posts:d posts.channel id-post)))
+  ;<  channel=v-channel:c  band:m  get-channel
+  (pure:m (need (got:on-v-posts:c posts.channel id-post)))
 ::  test diary reply commands
 ::
 ++  test-c-reply
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  =id-post:d  band:m  (add-post 1.001)
+  ;<  =id-post:c  band:m  (add-post 1.001)
   ::
-  ;<  id=id-reply:d  band:m  (add-reply id-post 'hi')
-  ;<  reply=v-reply:d  band:m  (get-reply id-post id)
+  ;<  id=id-reply:c  band:m  (add-reply id-post 'hi')
+  ;<  reply=v-reply:c  band:m  (get-reply id-post id)
   ?>  (eq !>([~ ~['hi']]) !>(content.reply))
   ::
   ;<  ~  band:m  (act %channel nest %post %reply id-post %add-react id our ':smile:')
-  ;<  new=v-reply:d  band:m  (get-reply id-post id)
+  ;<  new=v-reply:c  band:m  (get-reply id-post id)
   =/  react  (~(got by reacts.reply) our)
   ?>  (eq !>([0 `':smile:']) !>(react))
   ::
   ;<  ~  band:m  (act %channel nest %post %reply id-post %del-react id our)
-  ;<  new=v-reply:d  band:m  (get-reply id-post id)
+  ;<  new=v-reply:c  band:m  (get-reply id-post id)
   =/  react  (~(got by reacts.reply) our)
   ?>  (eq !>([1 ~]) !>(react))
   ::
   ;<  ~  band:m  (act %channel nest %post %reply id-post %del id)
-  ;<  post=v-post:d  band:m  (get-post id-post)
-  ?>  (eq !>(~) !>((got:on-v-replies:d replies.post id)))
+  ;<  post=v-post:c  band:m  (get-post id-post)
+  ?>  (eq !>(~) !>((got:on-v-replies:c replies.post id)))
   ::
   (pure:m ~)
 ::
 ++  get-reply
-  |=  [=id-post:d =id-reply:d]
-  =/  m  (strand ,v-reply:d)
+  |=  [=id-post:c =id-reply:c]
+  =/  m  (strand ,v-reply:c)
   ^-  form:m
-  ;<  post=v-post:d  band:m  (get-post id-post)
-  (pure:m (need (got:on-v-replies:d replies.post id-reply)))
+  ;<  post=v-post:c  band:m  (get-post id-post)
+  (pure:m (need (got:on-v-replies:c replies.post id-reply)))
 --
