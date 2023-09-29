@@ -4,7 +4,7 @@
   $:  groups=groups-ui:g
       =gangs:g
       =channels:d
-      =briefs:d
+      =unreads:d
       pins=(list whom:c)
   ==
 ::

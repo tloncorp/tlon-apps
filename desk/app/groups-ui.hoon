@@ -93,13 +93,13 @@
   ?+    pole  [~ ~]
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v0/noun))
-    =+  .^([=briefs:d =channels:d] (scry %gx %channels /init/noun))
+    =+  .^([=unreads:d =channels:d] (scry %gx %channels /init/noun))
     =+  .^(pins=(list whom:c) (scry %gx %chat /pins/noun))
     =/  =init:u
       :*  groups-ui
           gangs
           channels
-          briefs
+          unreads
           pins
       ==
     ``ui-init+!>(init)

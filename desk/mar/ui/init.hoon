@@ -13,7 +13,7 @@
     :~  groups/(groups-ui:enjs:gj groups.init)
         gangs/(gangs:enjs:gj gangs.init)
         channels/(channels:enjs:dj channels.init)
-        briefs/(briefs:enjs:dj briefs.init)
+        unreads/(unreads:enjs:dj unreads.init)
         pins/a/(turn pins.init (cork whom:enjs:cj (lead %s)))
     ==
   --

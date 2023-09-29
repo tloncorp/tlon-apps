@@ -207,8 +207,8 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path+pole !!)
-      [%briefs ~]                   ?>(from-self cor)
-      [%ui ~]                       ?>(from-self cor)
+      [%unreads ~]                   ?>(from-self cor)
+      [%ui ~]                        ?>(from-self cor)
       [=kind:d ship=@ name=@ %ui ~]  ?>(from-self cor)
       [%said =kind:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
@@ -337,9 +337,9 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %channels ~]   ``channels+!>((uv-channels:utils v-channels))
-      [%x %init ~]    ``noun+!>([briefs (uv-channels:utils v-channels)])
+      [%x %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
       [%x %pins ~]    ``channel-pins+!>(pins)
-      [%x %briefs ~]  ``channel-briefs+!>(briefs)
+      [%x %unreads ~]  ``channel-unreads+!>(unreads)
       [%x =kind:d ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
     (di-peek:(di-abed:di-core kind.pole ship name.pole) rest.pole)
@@ -349,12 +349,12 @@
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ==
 ::
-++  briefs
-  ^-  briefs:d
-  %-  ~(gas by *briefs:d)
+++  unreads
+  ^-  unreads:d
+  %-  ~(gas by *unreads:d)
   %+  turn  ~(tap in ~(key by v-channels))
   |=  =nest:d
-  [nest di-brief:(di-abed:di-core nest)]
+  [nest di-unread:(di-abed:di-core nest)]
 ::
 ++  pass-hark
   |=  =new-yarn:ha
@@ -383,8 +383,8 @@
   ::
   ++  di-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
   ++  di-sub-wire  (weld di-area /updates)
-  ++  di-give-brief
-    (give %fact ~[/briefs] channel-brief-update+!>([nest di-brief]))
+  ++  di-give-unread
+    (give %fact ~[/unreads] channel-unread-update+!>([nest di-unread]))
 ::
   ::
   ::  handle creating a channel
@@ -410,7 +410,7 @@
     =.  channel  *v-channel:d
     =.  group.perm.perm.channel  group
     =.  last-read.remark.channel  now.bowl
-    =.  di-core  di-give-brief
+    =.  di-core  di-give-unread
     =.  di-core  (di-response %join group)
     di-safe-sub
   ::
@@ -441,7 +441,7 @@
         =/  [=time post=(unit v-post:d)]  (need (ram:on-v-posts:d posts.channel))
         remark.channel(last-read `@da`(add time (div ~s1 100)))
       ==
-    =.  di-core  di-give-brief
+    =.  di-core  di-give-unread
     (di-response a-remark)
   ::
   ::  proxy command to host
@@ -529,7 +529,7 @@
         ~|(diary-strange-fact+p.cage !!)
       =+  !<(=update:d q.cage)
       =.  di-core  (di-u-channels update)
-      =.  di-core  di-give-brief
+      =.  di-core  di-give-unread
       =.  di-core
         (emit %pass (weld di-area /create) %agent [ship.nest server] %leave ~)
       di-safe-sub
@@ -652,7 +652,7 @@
   ::  +di-u-* functions ingest updates and execute them
   ::
   ::    often this will modify the state and emit a "response" to our
-  ::    own subscribers.  it may also emit briefs and/or trigger hark
+  ::    own subscribers.  it may also emit unreads and/or trigger hark
   ::    events.
   ::
   ++  di-u-channels
@@ -688,7 +688,7 @@
         %post
       =/  old  posts.channel
       =.  di-core  (di-u-post id.u-channel u-post.u-channel)
-      =?  di-core  !=(old posts.channel)  di-give-brief
+      =?  di-core  !=(old posts.channel)  di-give-unread
       di-core
     ==
   ::
@@ -969,10 +969,10 @@
     =/  =r-channels:d  [nest r-channel]
     (give %fact ~[/ui (snoc di-area %ui)] channel-response+!>(r-channels))
   ::
-  ::  produce an up-to-date brief
+  ::  produce an up-to-date unread state
   ::
-  ++  di-brief
-    ^-  brief:d
+  ++  di-unread
+    ^-  unread:d
     =/  =time
       ?~  tim=(ram:on-v-posts:d posts.channel)  *time
       key.u.tim

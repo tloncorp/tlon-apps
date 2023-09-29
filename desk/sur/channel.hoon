@@ -210,13 +210,13 @@
 ::
 +$  net  [p=ship load=_|]
 ::
-::  $briefs: a map of channel unread information
+::  $unreads: a map of channel unread information
 ::
-::    brief: the last time a channel was read, how many posts since,
+::    unread: the last time a channel was read, how many posts since,
 ::    and the id of the last read post
 ::
-+$  briefs  (map nest brief)
-+$  brief   [last=time count=@ud read-id=(unit time)]
++$  unreads  (map nest unread)
++$  unread   [last=time count=@ud read-id=(unit time)]
 ::  $remark: a marker representing the last post I've read
 ::
 +$  remark  [last-read=time watching=_| ~]

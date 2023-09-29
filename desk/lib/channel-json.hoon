@@ -312,24 +312,24 @@
         sent/(time sent.m)
     ==
   ::
-  +|  %briefs
+  +|  %unreads
   ::
-  ++  briefs
-    |=  bs=briefs:d
+  ++  unreads
+    |=  bs=unreads:d
     %-  pairs
     %+  turn  ~(tap by bs)
-    |=  [n=nest:d b=brief:d]
-    [(nest-cord n) (brief b)]
+    |=  [n=nest:d b=unread:d]
+    [(nest-cord n) (unread b)]
   ::
-  ++  brief-update
-    |=  u=(pair nest:d brief:d)
+  ++  unread-update
+    |=  u=(pair nest:d unread:d)
     %-  pairs
     :~  nest/(nest p.u)
-        brief/(brief q.u)
+        unread/(unread q.u)
     ==
   ::
-  ++  brief
-    |=  b=brief:d
+  ++  unread
+    |=  b=unread:d
     %-  pairs
     :~  last/(id last.b)
         count/(numb count.b)
