@@ -19,7 +19,7 @@ export const makeFakeChatWrit = (
   count: number,
   author: string,
   story: Story,
-  feels?: Record<string, string>,
+  reacts?: Record<string, string>,
   setTime?: Date
 ): Post => {
   const unix = getUnix(count, setTime);
@@ -28,7 +28,7 @@ export const makeFakeChatWrit = (
   return {
     seal: {
       id: `${author}/${da}`,
-      feels: feels ?? {},
+      reacts: reacts ?? {},
       replies: null,
       meta: {
         replyCount: 0,
@@ -60,7 +60,7 @@ export const makeFakeChatNotice = (
   return {
     seal: {
       id: `${author}/${da}`,
-      feels: {},
+      reacts: {},
       replies: null,
       meta: {
         replyCount: 0,

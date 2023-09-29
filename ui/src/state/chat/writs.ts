@@ -55,7 +55,7 @@ export function writsReducer(whom: string, optimistic = false) {
       const seal: WritSeal = {
         id,
         time: time.toString(),
-        feels: {},
+        reacts: {},
         replies: null,
         meta: {
           replyCount: 0,
@@ -86,22 +86,22 @@ export function writsReducer(whom: string, optimistic = false) {
       const time = pact.index[id];
       pact.writs = pact.writs.without(time);
       delete pact.index[id];
-    } else if ('add-feel' in delta && pact.index[id]) {
+    } else if ('add-react' in delta && pact.index[id]) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
-      const { ship, feel } = delta['add-feel'];
+      const { ship, react } = delta['add-react'];
 
       if (msg) {
-        msg.seal.feels[ship] = feel;
+        msg.seal.reacts[ship] = react;
         pact.writs = pact.writs.with(time, msg);
       }
-    } else if ('del-feel' in delta && pact.index[id]) {
+    } else if ('del-react' in delta && pact.index[id]) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
-      const ship = delta['del-feel'];
+      const ship = delta['del-react'];
 
       if (msg) {
-        delete msg.seal.feels[ship];
+        delete msg.seal.reacts[ship];
 
         pact.writs = pact.writs.with(time, {
           ...msg,

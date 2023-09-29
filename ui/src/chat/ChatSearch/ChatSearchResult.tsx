@@ -68,12 +68,12 @@ function ChatSearchResult({
 
     return '';
   }, [writ]);
-  const feels = useMemo(() => {
+  const reacts = useMemo(() => {
     if ('seal' in writ) {
-      return writ.seal.feels;
+      return writ.seal.reacts;
     }
     if ('cork' in writ) {
-      return writ.cork.feels;
+      return writ.cork.reacts;
     }
 
     return {};
@@ -94,7 +94,7 @@ function ChatSearchResult({
       <Author ship={author} date={unix} />
       <div className="group-one wrap-anywhere relative z-0 flex w-full flex-col space-y-2 py-1 pl-9">
         <ChatContent story={content} isScrolling={isScrolling} />
-        {Object.keys(feels).length > 0 &&
+        {Object.keys(reacts).length > 0 &&
           ('cork' in writ ? (
             <ReplyReactions
               time={time.toString()}

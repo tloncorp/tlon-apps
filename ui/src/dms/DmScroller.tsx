@@ -34,7 +34,7 @@ const emptyWrit: Writ = {
     id: '',
     time: '',
     replies: newReplyMap(),
-    feels: {},
+    reacts: {},
     meta: {
       replyCount: 0,
       lastRepliers: [],

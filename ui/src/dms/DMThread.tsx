@@ -65,7 +65,7 @@ export default function DMThread() {
       cork: {
         id: writ.seal.id,
         'parent-id': writ.seal.id,
-        feels: writ.seal.feels,
+        reacts: writ.seal.reacts,
       },
     });
   }, [writ, time]);

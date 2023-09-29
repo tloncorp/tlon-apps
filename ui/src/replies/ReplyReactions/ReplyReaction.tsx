@@ -5,20 +5,20 @@ import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
 import {
-  useAddPostFeelMutation,
-  useAddReplyFeelMutation,
-  useDeletePostFeelMutation,
-  useDeleteReplyFeelMutation,
+  useAddPostReactMutation,
+  useAddReplyReactMutation,
+  useDeletePostReactMutation,
+  useDeleteReplyReactMutation,
 } from '@/state/channel/channel';
 import {
-  useAddDMReplyFeelMutation,
-  useDeleteDMReplyFeelMutation,
+  useAddDMReplyReactMutation,
+  useDeleteDMReplyReactMutation,
 } from '@/state/chat';
 import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 
 interface ReplyReactionProps {
   whom: string;
-  feel: string;
+  react: string;
   ships: string[];
   replyId: string;
   noteId: string;
@@ -26,7 +26,7 @@ interface ReplyReactionProps {
 
 export default function ReplyReaction({
   whom,
-  feel,
+  react,
   ships,
   replyId,
   noteId,
@@ -36,12 +36,12 @@ export default function ReplyReaction({
   const count = ships.length;
   const isParent = noteId === replyId;
   const nest = whom;
-  const { mutateAsync: addReplyFeel } = useAddReplyFeelMutation();
-  const { mutateAsync: addChatFeel } = useAddPostFeelMutation();
-  const { mutateAsync: delReplyFeel } = useDeleteReplyFeelMutation();
-  const { mutateAsync: delChatFeel } = useDeletePostFeelMutation();
-  const { mutateAsync: addDmReplyFeel } = useAddDMReplyFeelMutation();
-  const { mutateAsync: delDmReplyFeel } = useDeleteDMReplyFeelMutation();
+  const { mutateAsync: addReplyFeel } = useAddReplyReactMutation();
+  const { mutateAsync: addChatFeel } = useAddPostReactMutation();
+  const { mutateAsync: delReplyFeel } = useDeleteReplyReactMutation();
+  const { mutateAsync: delChatFeel } = useDeletePostReactMutation();
+  const { mutateAsync: addDmReplyFeel } = useAddDMReplyReactMutation();
+  const { mutateAsync: delDmReplyFeel } = useDeleteDMReplyReactMutation();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const threardParentId = useThreadParentId(whom);
 
@@ -49,7 +49,7 @@ export default function ReplyReaction({
     load();
   }, [load]);
 
-  const editFeel = useCallback(async () => {
+  const editReact = useCallback(async () => {
     if (isMine) {
       if (isParent) {
         await delChatFeel({ nest, postId: noteId });
@@ -63,20 +63,20 @@ export default function ReplyReaction({
         await delReplyFeel({ nest, postId: noteId, replyId });
       }
     } else if (isParent) {
-      await addChatFeel({ nest, postId: noteId, feel });
+      await addChatFeel({ nest, postId: noteId, react });
     } else if (isDMorMultiDm) {
       await addDmReplyFeel({
         whom,
         writId: threardParentId!,
         replyId,
-        feel,
+        react,
       });
     } else {
-      await addReplyFeel({ nest, postId: noteId, replyId, feel });
+      await addReplyFeel({ nest, postId: noteId, replyId, react });
     }
   }, [
     isMine,
-    feel,
+    react,
     noteId,
     replyId,
     addReplyFeel,
@@ -98,16 +98,16 @@ export default function ReplyReaction({
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
             <button
-              onClick={editFeel}
+              onClick={editReact}
               className={cn(
                 'group relative flex items-center space-x-2 rounded border border-solid border-transparent bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-600 group-one-hover:border-gray-100',
                 isMine && 'bg-blue-softer group-one-hover:border-blue-soft'
               )}
               aria-label={
-                isMine ? 'Remove reaction' : `Add ${feel.replaceAll(':', '')}`
+                isMine ? 'Remove reaction' : `Add ${react.replaceAll(':', '')}`
               }
             >
-              <em-emoji shortcodes={feel} />
+              <em-emoji shortcodes={react} />
               <span className={cn(isMine && 'group-hover:opacity-0')}>
                 {count}
               </span>

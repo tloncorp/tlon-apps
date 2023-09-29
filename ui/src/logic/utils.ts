@@ -733,8 +733,8 @@ const general = [
   'add',
   'del',
   'edit',
-  'add-feel',
-  'del-feel',
+  'add-react',
+  'del-react',
   'meta',
   'init',
 ];

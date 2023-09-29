@@ -59,8 +59,8 @@ export interface ChatState {
   unarchiveDm: (ship: string) => Promise<void>;
   sendMessage: (whom: string, essay: PostEssay, replyingId?: string) => void;
   delDm: (flag: string, time: string) => void;
-  addFeelToDm: (whom: string, id: string, feel: string) => Promise<void>;
-  delFeelToDm: (whom: string, id: string) => Promise<void>;
+  addReactToDm: (whom: string, id: string, react: string) => Promise<void>;
+  delReactToDm: (whom: string, id: string) => Promise<void>;
   createMultiDm: (
     id: string,
     hive: string[] // array of ships

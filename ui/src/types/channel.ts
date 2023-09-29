@@ -29,7 +29,7 @@ export interface ReplyMeta {
 
 export interface PostSeal {
   id: string;
-  feels: { [ship: Ship]: string };
+  reacts: { [ship: Ship]: string };
   replies: ReplyMap | null;
   meta: ReplyMeta;
 }
@@ -37,7 +37,7 @@ export interface PostSeal {
 export interface ReplyCork {
   id: string;
   'parent-id': string;
-  feels: {
+  reacts: {
     [ship: Ship]: string;
   };
 }
@@ -232,16 +232,16 @@ interface PageActionDel {
   del: string;
 }
 
-interface PageActionAddFeel {
-  'add-feel': {
+interface PageActionAddReact {
+  'add-react': {
     id: string;
-    feel: string;
+    react: string;
     ship: string;
   };
 }
 
-interface PageActionDelFeel {
-  'del-feel': {
+interface PageActionDelReact {
+  'del-react': {
     id: string;
     ship: string;
   };
@@ -274,8 +274,8 @@ export type PostAction =
   | PageActionAdd
   | PageActionEdit
   | PageActionDel
-  | PageActionAddFeel
-  | PageActionDelFeel
+  | PageActionAddReact
+  | PageActionDelReact
   | PostActionReply;
 
 export interface DiffView {
@@ -300,8 +300,8 @@ export interface ReplyActionDel {
 export type ReplyAction =
   | ReplyActionAdd
   | ReplyActionDel
-  | PageActionAddFeel
-  | PageActionDelFeel;
+  | PageActionAddReact
+  | PageActionDelReact;
 
 export type DisplayMode = 'list' | 'grid';
 
@@ -402,9 +402,9 @@ export type PostResponse =
   | { set: Post | null }
   | { reply: { id: string; response: ReplyResponse; meta: ReplyMeta } }
   | { essay: PostEssay }
-  | { feels: Record<string, string> };
+  | { reacts: Record<string, string> };
 
-export type ReplyResponse = { set: Reply } | { feels: Record<string, string> };
+export type ReplyResponse = { set: Reply } | { reacts: Record<string, string> };
 
 export type Response =
   | { posts: PageMap }
@@ -517,11 +517,11 @@ export function getIdFromPostAction(postAction: PostAction): string {
   if ('del' in postAction) {
     return postAction.del;
   }
-  if ('add-feel' in postAction) {
-    return postAction['add-feel'].id;
+  if ('add-react' in postAction) {
+    return postAction['add-react'].id;
   }
-  if ('del-feel' in postAction) {
-    return postAction['del-feel'].id;
+  if ('del-react' in postAction) {
+    return postAction['del-react'].id;
   }
   if ('reply' in postAction) {
     return postAction.reply.id;
@@ -532,7 +532,7 @@ export function getIdFromPostAction(postAction: PostAction): string {
 export const emptyPost: Post = {
   seal: {
     id: '',
-    feels: {},
+    reacts: {},
     replies: null,
     meta: {
       replyCount: 0,
@@ -552,7 +552,7 @@ export const emptyReply: Reply = {
   cork: {
     id: '',
     'parent-id': '',
-    feels: {},
+    reacts: {},
   },
   memo: {
     author: '',
@@ -626,7 +626,7 @@ export function newChatMap(
 export interface PostSealInCache {
   id: string;
   replies: Replies;
-  feels: {
+  reacts: {
     [ship: Ship]: string;
   };
   meta: {

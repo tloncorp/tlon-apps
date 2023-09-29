@@ -407,7 +407,7 @@ const infinitePostUpdater = (
         }
       );
     }
-  } else if ('feels' in postResponse) {
+  } else if ('reacts' in postResponse) {
     queryClient.setQueryData(
       queryKey,
       (d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined) => {
@@ -415,7 +415,7 @@ const infinitePostUpdater = (
           return undefined;
         }
 
-        const { feels } = postResponse;
+        const { reacts } = postResponse;
 
         const newPages = d.pages.map((page) => {
           const inPage = page.posts.has(time);
@@ -429,7 +429,7 @@ const infinitePostUpdater = (
               ...post,
               seal: {
                 ...post.seal,
-                feels,
+                reacts,
               },
             });
 
@@ -1305,7 +1305,7 @@ export function useAddPostMutation(nest: string) {
         seal: {
           id: sent,
           replies: newReplyMap(),
-          feels: {},
+          reacts: {},
           meta: {
             replyCount: 0,
             lastRepliers: [],
@@ -1661,7 +1661,7 @@ export function useAddReplyMutation() {
             cork: {
               id: unixToDa(dateTime).toString(),
               'parent-id': decToUd(variables.postId),
-              feels: {},
+              reacts: {},
             },
             memo: {
               content: variables.content,
@@ -1780,19 +1780,19 @@ export function useDeleteReplyMutation() {
   });
 }
 
-export function useAddPostFeelMutation() {
+export function useAddPostReactMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
     postId: string;
-    feel: string;
+    react: string;
   }) => {
     checkNest(variables.nest);
 
     const action: Action = {
       post: {
-        'add-feel': {
+        'add-react': {
           id: decToUd(variables.postId),
-          feel: variables.feel,
+          react: variables.react,
           ship: window.our,
         },
       },
@@ -1808,17 +1808,17 @@ export function useAddPostFeelMutation() {
         if (prevPost === undefined) {
           return prevPost;
         }
-        const prevFeels = prevPost.seal.feels;
-        const newFeels = {
-          ...prevFeels,
-          [unixToDa(Date.now()).toString()]: variables.feel,
+        const prevReacts = prevPost.seal.reacts;
+        const newReacts = {
+          ...prevReacts,
+          [unixToDa(Date.now()).toString()]: variables.react,
         };
 
         const updatedPost: PostInCache = {
           ...prevPost,
           seal: {
             ...prevPost.seal,
-            feels: newFeels,
+            reacts: newReacts,
           },
         };
 
@@ -1840,13 +1840,13 @@ export function useAddPostFeelMutation() {
   });
 }
 
-export function useDeletePostFeelMutation() {
+export function useDeletePostReactMutation() {
   const mutationFn = async (variables: { nest: Nest; postId: string }) => {
     checkNest(variables.nest);
 
     const action: Action = {
       post: {
-        'del-feel': {
+        'del-react': {
           id: decToUd(variables.postId),
           ship: window.our,
         },
@@ -1864,17 +1864,17 @@ export function useDeletePostFeelMutation() {
           return prev;
         }
 
-        const prevFeels = prev.seal.feels;
-        const newFeels = {
-          ...prevFeels,
+        const prevReacts = prev.seal.reacts;
+        const newReacts = {
+          ...prevReacts,
         };
-        delete newFeels[window.our];
+        delete newReacts[window.our];
 
         const updatedPost = {
           ...prev,
           seal: {
             ...prev.seal,
-            feels: newFeels,
+            reacts: newReacts,
           },
         };
 
@@ -1896,12 +1896,12 @@ export function useDeletePostFeelMutation() {
   });
 }
 
-export function useAddReplyFeelMutation() {
+export function useAddReplyReactMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
     postId: string;
     replyId: string;
-    feel: string;
+    react: string;
   }) => {
     checkNest(variables.nest);
 
@@ -1910,9 +1910,9 @@ export function useAddReplyFeelMutation() {
         reply: {
           id: decToUd(variables.postId),
           action: {
-            'add-feel': {
+            'add-react': {
               id: decToUd(variables.replyId),
-              feel: variables.feel,
+              react: variables.react,
               ship: window.our,
             },
           },
@@ -1938,9 +1938,9 @@ export function useAddReplyFeelMutation() {
               ...reply,
               cork: {
                 ...reply.cork,
-                feels: {
-                  ...reply.cork.feels,
-                  [window.our]: variables.feel,
+                reacts: {
+                  ...reply.cork.reacts,
+                  [window.our]: variables.react,
                 },
               },
             };
@@ -1963,7 +1963,7 @@ export function useAddReplyFeelMutation() {
   });
 }
 
-export function useDeleteReplyFeelMutation() {
+export function useDeleteReplyReactMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
     postId: string;
@@ -1976,7 +1976,7 @@ export function useDeleteReplyFeelMutation() {
         reply: {
           id: decToUd(variables.postId),
           action: {
-            'del-feel': {
+            'del-react': {
               id: decToUd(variables.replyId),
               ship: window.our,
             },
@@ -1998,16 +1998,16 @@ export function useDeleteReplyFeelMutation() {
         const { replies } = prev.seal;
         Object.entries(replies).forEach(([time, reply]) => {
           if (time === decToUd(variables.replyId)) {
-            const newFeels = {
-              ...reply.cork.feels,
+            const newReacts = {
+              ...reply.cork.reacts,
             };
-            delete newFeels[window.our];
+            delete newReacts[window.our];
 
             replies[decToUd(variables.replyId)] = {
               ...reply,
               cork: {
                 ...reply.cork,
-                feels: newFeels,
+                reacts: newReacts,
               },
             };
           }

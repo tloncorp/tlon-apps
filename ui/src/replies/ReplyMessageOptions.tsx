@@ -6,7 +6,7 @@ import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import {
-  useAddDMReplyFeelMutation,
+  useAddDMReplyReactMutation,
   useDeleteDMReplyMutation,
 } from '@/state/chat';
 import IconButton from '@/components/IconButton';
@@ -26,8 +26,8 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
-  useAddPostFeelMutation,
-  useAddReplyFeelMutation,
+  useAddPostReactMutation,
+  useAddReplyReactMutation,
   useDeletePostMutation,
   useDeleteReplyMutation,
   usePerms,
@@ -82,9 +82,9 @@ export default function ReplyMessageOptions(props: {
   const { mutate: deleteReply } = useDeleteReplyMutation();
   const { mutate: deleteChatMessage } = useDeletePostMutation();
   const { mutate: deleteDMReply } = useDeleteDMReplyMutation();
-  const { mutate: addFeelToChat } = useAddPostFeelMutation();
-  const { mutate: addFeelToReply } = useAddReplyFeelMutation();
-  const { mutate: addDMReplyFeel } = useAddDMReplyFeelMutation();
+  const { mutate: addFeelToChat } = useAddPostReactMutation();
+  const { mutate: addFeelToReply } = useAddReplyReactMutation();
+  const { mutate: addDMReplyFeel } = useAddDMReplyReactMutation();
 
   const onDelete = async () => {
     if (isMobile) {
@@ -140,20 +140,20 @@ export default function ReplyMessageOptions(props: {
           whom,
           writId: threadParentId!,
           replyId: cork.id,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       } else if (isParent) {
         addFeelToChat({
           nest: whom,
           postId: cork.id,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       } else {
         addFeelToReply({
           nest: whom,
           postId: threadParentId!,
           replyId: cork.id,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       }
       captureGroupsAnalyticsEvent({
@@ -192,7 +192,7 @@ export default function ReplyMessageOptions(props: {
   // TODO handle reply replies
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === memo.author;
-  const reactionsCount = Object.keys(cork.feels).length;
+  const reactionsCount = Object.keys(cork.reacts).length;
 
   const actions: Action[] = [];
 

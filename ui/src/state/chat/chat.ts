@@ -425,7 +425,7 @@ export const useChatState = createState<ChatState>(
               cork: {
                 id: replyId,
                 'parent-id': replying,
-                feels: {},
+                reacts: {},
               },
               memo,
             };
@@ -490,14 +490,14 @@ export const useChatState = createState<ChatState>(
         );
       }
     },
-    addFeelToDm: async (whom, id, feel) => {
+    addReactToDm: async (whom, id, react) => {
       const delta: WritDelta = {
-        'add-feel': { feel, ship: window.our },
+        'add-react': { react, ship: window.our },
       };
       await optimisticAction(whom, id, delta, set);
     },
-    delFeelToDm: async (whom, id) => {
-      const delta: WritDelta = { 'del-feel': window.our };
+    delReactToDm: async (whom, id) => {
+      const delta: WritDelta = { 'del-react': window.our };
       await optimisticAction(whom, id, delta, set);
     },
     initializeMultiDm: async (id) => {
@@ -808,19 +808,19 @@ export function useDeleteDMReplyMutation() {
   });
 }
 
-export function useAddDMReplyFeelMutation() {
+export function useAddDMReplyReactMutation() {
   const mutationFn = async (variables: {
     whom: string;
     writId: string;
     replyId: string;
-    feel: string;
+    react: string;
   }) => {
     const delta: WritDelta = {
       reply: {
         id: variables.replyId,
         meta: null,
         delta: {
-          'add-feel': { feel: variables.feel, ship: window.our },
+          'add-react': { react: variables.react, ship: window.our },
         },
       },
     };
@@ -870,9 +870,9 @@ export function useAddDMReplyFeelMutation() {
             ...reply,
             cork: {
               ...reply.cork,
-              feels: {
-                ...reply.cork.feels,
-                [window.our]: variables.feel,
+              reacts: {
+                ...reply.cork.reacts,
+                [window.our]: variables.react,
               },
             },
           };
@@ -895,7 +895,7 @@ export function useAddDMReplyFeelMutation() {
   });
 }
 
-export function useDeleteDMReplyFeelMutation() {
+export function useDeleteDMReplyReactMutation() {
   const mutationFn = async (variables: {
     whom: string;
     writId: string;
@@ -906,7 +906,7 @@ export function useDeleteDMReplyFeelMutation() {
         id: variables.replyId,
         meta: null,
         delta: {
-          'del-feel': window.our,
+          'del-react': window.our,
         },
       },
     };
@@ -952,16 +952,16 @@ export function useDeleteDMReplyFeelMutation() {
             }
           });
 
-          const currentFeels = reply.cork.feels;
+          const currentReacts = reply.cork.reacts;
 
-          delete currentFeels[window.our];
+          delete currentReacts[window.our];
 
           const newReply: Reply = {
             ...reply,
             cork: {
               ...reply.cork,
-              feels: {
-                ...currentFeels,
+              reacts: {
+                ...currentReacts,
               },
             },
           };

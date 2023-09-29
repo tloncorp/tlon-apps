@@ -64,7 +64,7 @@ export default function ChatThread() {
     cork: {
       id: note.seal.id,
       'parent-id': note.seal.id,
-      feels: note.seal.feels,
+      reacts: note.seal.reacts,
     },
   });
   const navigate = useNavigate();

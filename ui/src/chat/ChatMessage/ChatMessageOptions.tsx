@@ -24,7 +24,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
-  useAddPostFeelMutation,
+  useAddPostReactMutation,
   useDeletePostMutation,
   usePerms,
 } from '@/state/channel/channel';
@@ -82,7 +82,7 @@ export default function ChatMessageOptions(props: {
   const location = useLocation();
   const threadParentId = useThreadParentId(whom);
   const { mutate: deleteChatMessage } = useDeletePostMutation();
-  const { mutate: addFeelToChat } = useAddPostFeelMutation();
+  const { mutate: addFeelToChat } = useAddPostReactMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
 
   const onDelete = async () => {
@@ -128,12 +128,12 @@ export default function ChatMessageOptions(props: {
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        useChatState.getState().addFeelToDm(whom, seal.id, emoji.shortcodes);
+        useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
       } else {
         addFeelToChat({
           nest,
           postId: seal.id,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       }
       captureGroupsAnalyticsEvent({
@@ -169,7 +169,7 @@ export default function ChatMessageOptions(props: {
   const showReplyAction = !hideReply;
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === essay.author;
-  const reactionsCount = Object.keys(seal.feels).length;
+  const reactionsCount = Object.keys(seal.reacts).length;
 
   const actions: Action[] = [];
 

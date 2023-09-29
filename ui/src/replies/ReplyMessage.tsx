@@ -277,7 +277,7 @@ const ReplyMessage = React.memo<
                     writId={cork.id}
                   />
                 ) : null}
-                {cork.feels && Object.keys(cork.feels).length > 0 && (
+                {cork.reacts && Object.keys(cork.reacts).length > 0 && (
                   <>
                     <ReplyReactions
                       id="reactions-target"
@@ -288,7 +288,7 @@ const ReplyMessage = React.memo<
                     <ReactionDetails
                       open={reactionDetailsOpen}
                       onOpenChange={setReactionDetailsOpen}
-                      feels={cork.feels}
+                      reactions={cork.reacts}
                     />
                   </>
                 )}

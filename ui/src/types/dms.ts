@@ -56,15 +56,15 @@ interface WritDeltaDel {
   del: null;
 }
 
-interface WritDeltaAddFeel {
-  'add-feel': {
-    feel: string;
+interface WritDeltaAddReact {
+  'add-react': {
+    react: string;
     ship: string;
   };
 }
 
-interface WritDeltaDelFeel {
-  'del-feel': string;
+interface WritDeltaDelReact {
+  'del-react': string;
 }
 
 interface ReplyDeltaAdd {
@@ -78,15 +78,15 @@ interface ReplyDeltaDel {
   del: null;
 }
 
-interface ReplyDeltaAddFeel {
-  'add-feel': {
+interface ReplyDeltaAddReact {
+  'add-react': {
     ship: string;
-    feel: string;
+    react: string;
   };
 }
 
-interface ReplyDeltaDelFeel {
-  'del-feel': string;
+interface ReplyDeltaDelReact {
+  'del-react': string;
 }
 
 interface ReplyDelta {
@@ -96,16 +96,16 @@ interface ReplyDelta {
     delta:
       | ReplyDeltaAdd
       | ReplyDeltaDel
-      | ReplyDeltaAddFeel
-      | ReplyDeltaDelFeel;
+      | ReplyDeltaAddReact
+      | ReplyDeltaDelReact;
   };
 }
 
 export type WritDelta =
   | WritDeltaAdd
   | WritDeltaDel
-  | WritDeltaAddFeel
-  | WritDeltaDelFeel
+  | WritDeltaAddReact
+  | WritDeltaDelReact
   | ReplyDelta;
 
 export interface WritDiff {

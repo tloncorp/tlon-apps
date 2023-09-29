@@ -3,13 +3,13 @@ import { useCallback, useState } from 'react';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
-  useAddPostFeelMutation,
-  useAddReplyFeelMutation,
+  useAddPostReactMutation,
+  useAddReplyReactMutation,
 } from '@/state/channel/channel';
 import { ReplyCork } from '@/types/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
-import { useAddDMReplyFeelMutation } from '@/state/chat';
+import { useAddDMReplyReactMutation } from '@/state/chat';
 import ReplyReaction from './ReplyReaction';
 
 interface ReplyReactionsProps {
@@ -27,12 +27,12 @@ export default function ReplyReactions({
 }: ReplyReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isMobile = useIsMobile();
-  const feels = cork.feels ? _.invertBy(cork.feels) : {};
+  const reacts = cork.reacts ? _.invertBy(cork.reacts) : {};
   const isParent = cork['parent-id'] === time;
   const nest = whom;
-  const { mutateAsync: addReplyFeel } = useAddReplyFeelMutation();
-  const { mutateAsync: addChatFeel } = useAddPostFeelMutation();
-  const { mutateAsync: addDmReplyFeel } = useAddDMReplyFeelMutation();
+  const { mutateAsync: addReplyFeel } = useAddReplyReactMutation();
+  const { mutateAsync: addChatFeel } = useAddPostReactMutation();
+  const { mutateAsync: addDmReplyFeel } = useAddDMReplyReactMutation();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const threardParentId = useThreadParentId(whom);
 
@@ -42,21 +42,21 @@ export default function ReplyReactions({
         await addChatFeel({
           nest,
           postId: cork['parent-id'],
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       } else if (isDMorMultiDm) {
         await addDmReplyFeel({
           whom,
           writId: threardParentId!,
           replyId: cork.id,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       } else {
         addReplyFeel({
           nest,
           postId: cork['parent-id'],
           replyId: cork.id,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       }
     },
@@ -75,19 +75,19 @@ export default function ReplyReactions({
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
-  if (!cork.feels) {
+  if (!cork.reacts) {
     return null;
   }
 
   return (
     <div id={id} className="my-2 flex items-center space-x-2">
-      {Object.entries(feels).map(([feel, ships]) => (
+      {Object.entries(reacts).map(([react, ships]) => (
         <ReplyReaction
-          key={feel}
+          key={react}
           replyId={cork.id}
           noteId={cork['parent-id']}
           ships={ships}
-          feel={feel}
+          react={react}
           whom={whom}
         />
       ))}

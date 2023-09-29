@@ -8,7 +8,7 @@ import { useChatState } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
-import { useAddPostFeelMutation } from '@/state/channel/channel';
+import { useAddPostReactMutation } from '@/state/channel/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 import { PostSeal } from '@/types/channel';
 import ChatReaction from './ChatReaction';
@@ -21,25 +21,25 @@ interface ChatReactionsProps {
 
 export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const feels = _.invertBy(seal.feels);
+  const reacts = _.invertBy(seal.reacts);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-  const { mutate: addChatFeel } = useAddPostFeelMutation();
+  const { mutate: addChatReact } = useAddPostReactMutation();
   const nest = `chat/${whom}`;
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMOrMultiDM) {
-        useChatState.getState().addFeelToDm(whom, seal.id, emoji.shortcodes);
+        useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
       } else {
-        addChatFeel({
+        addChatReact({
           nest,
           postId: seal.id,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       }
       captureGroupsAnalyticsEvent({
@@ -51,19 +51,19 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
       });
       setPickerOpen(false);
     },
-    [whom, groupFlag, privacy, seal, isDMOrMultiDM, addChatFeel, nest]
+    [whom, groupFlag, privacy, seal, isDMOrMultiDM, addChatReact, nest]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
   return (
     <div id={id} className="my-2 flex items-center space-x-2">
-      {Object.entries(feels).map(([feel, ships]) => (
+      {Object.entries(reacts).map(([react, ships]) => (
         <ChatReaction
-          key={feel}
+          key={react}
           seal={seal}
           ships={ships}
-          feel={feel}
+          react={react}
           whom={whom}
         />
       ))}

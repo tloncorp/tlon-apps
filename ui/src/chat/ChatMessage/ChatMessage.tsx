@@ -307,7 +307,7 @@ const ChatMessage = React.memo<
                     writId={seal.id}
                   />
                 ) : null}
-                {Object.keys(seal.feels).length > 0 && (
+                {Object.keys(seal.reacts).length > 0 && (
                   <>
                     <ChatReactions
                       id="reactions-target"
@@ -317,7 +317,7 @@ const ChatMessage = React.memo<
                     <ReactionDetails
                       open={reactionDetailsOpen}
                       onOpenChange={setReactionDetailsOpen}
-                      feels={seal.feels}
+                      reactions={seal.reacts}
                     />
                   </>
                 )}

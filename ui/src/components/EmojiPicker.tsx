@@ -5,14 +5,14 @@ import { useParams } from 'react-router';
 import useEmoji from '@/state/emoji';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useAddDMReplyFeelMutation } from '@/state/chat';
+import { useAddDMReplyReactMutation } from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import {
-  useAddPostFeelMutation,
-  useAddReplyFeelMutation,
+  useAddPostReactMutation,
+  useAddReplyReactMutation,
 } from '@/state/channel/channel';
 import {
   useIsDmOrMultiDm,
@@ -53,9 +53,9 @@ export default function EmojiPicker({
   const isDMOrMultiDM = useIsDmOrMultiDm(whom!);
   const inThread = useIsInThread();
   const threadParentId = useThreadParentId(whom!);
-  const { mutate: addFeelToChat } = useAddPostFeelMutation();
-  const { mutate: addFeelToReply } = useAddReplyFeelMutation();
-  const { mutate: addFeelToDmReply } = useAddDMReplyFeelMutation();
+  const { mutate: addFeelToChat } = useAddPostReactMutation();
+  const { mutate: addFeelToReply } = useAddReplyReactMutation();
+  const { mutate: addFeelToDmReply } = useAddDMReplyReactMutation();
   const width = window.innerWidth;
   const dismss = useDismissNavigate();
   const mobilePerLineCount = Math.floor((width - 10) / 36);
@@ -77,17 +77,17 @@ export default function EmojiPicker({
           whom: whom!,
           writId: threadParentId!,
           replyId: writId,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       } else if (inThread) {
         addFeelToReply({
           nest,
           postId: threadParentId!,
           replyId: writId,
-          feel: emoji.shortcodes,
+          react: emoji.shortcodes,
         });
       } else {
-        addFeelToChat({ nest, postId: writId, feel: emoji.shortcodes });
+        addFeelToChat({ nest, postId: writId, react: emoji.shortcodes });
       }
 
       captureGroupsAnalyticsEvent({

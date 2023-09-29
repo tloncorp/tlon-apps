@@ -34,7 +34,7 @@ const mockCurios: Posts = {
         replyCount: 0,
         lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
       'kind-data': {
@@ -60,7 +60,7 @@ const mockCurios: Posts = {
         replyCount: 0,
         lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
       'kind-data': {
@@ -86,7 +86,7 @@ const mockCurios: Posts = {
         replyCount: 0,
         lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
       'kind-data': {
@@ -112,7 +112,7 @@ const mockCurios: Posts = {
         replyCount: 0,
         lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
       'kind-data': {
@@ -138,7 +138,7 @@ const mockCurios: Posts = {
         replyCount: 0,
         lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
       'kind-data': {
