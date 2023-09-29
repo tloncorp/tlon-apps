@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { useCopy, canWriteChannel } from '@/logic/utils';
@@ -74,6 +74,7 @@ function ChatMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const onDelete = async () => {
     if (isMobile) {
@@ -227,6 +228,18 @@ function ChatMessageOptions(props: {
     });
   }
 
+  // Ensure options menu is visible even if the top of the message has scrolled
+  // off the page.
+  useLayoutEffect(() => {
+    if (open && !isMobile && containerRef.current) {
+      // This also accounts for the height of the header.
+      const minTopOffset = 65;
+      const rect = containerRef.current.getBoundingClientRect();
+      const offset = Math.max(minTopOffset - rect.top, 0);
+      containerRef.current.style.transform = `translateY(${`${offset}px`})`;
+    }
+  }, [open, isMobile]);
+
   if (!open && !isMobile) {
     return null;
   }
@@ -236,10 +249,10 @@ function ChatMessageOptions(props: {
       {isMobile ? (
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
-        <div className="absolute right-2 -top-5 z-10 h-full">
+        <div className="absolute right-2 -top-5 z-10 h-full" ref={containerRef}>
           <div
             data-testid="chat-message-options"
-            className="sticky top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
+            className="relative top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
           >
             {showReactAction && (
               <EmojiPicker
