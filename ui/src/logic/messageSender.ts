@@ -70,7 +70,7 @@ export default function messageSender({
   // data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
 
   const essay: PostEssay = {
-    'han-data': {
+    'kind-data': {
       chat: null,
     },
     author: `~${window.ship || 'zod'}`,

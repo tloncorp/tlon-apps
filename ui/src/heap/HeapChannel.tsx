@@ -18,7 +18,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import { Post, PageTuple } from '@/types/channel';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
@@ -101,8 +101,8 @@ function HeapChannel({ title }: ViewProps) {
       if (sortMode === 'alpha') {
         const postA = posts.find(([time]) => time.eq(a))![1];
         const postB = posts.find(([time]) => time.eq(b))![1];
-        const { title: postATitle } = getHanDataFromEssay(postA?.essay);
-        const { title: postBTitle } = getHanDataFromEssay(postB?.essay);
+        const { title: postATitle } = getKindDataFromEssay(postA?.essay);
+        const { title: postBTitle } = getKindDataFromEssay(postB?.essay);
 
         return postATitle.localeCompare(postBTitle);
       }

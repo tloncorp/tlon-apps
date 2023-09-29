@@ -94,7 +94,7 @@ export default function NewChannelForm() {
 
       try {
         await createChannel({
-          han: type,
+          kind: type,
           group: groupFlag,
           name: channelName,
           title: values.meta.title,

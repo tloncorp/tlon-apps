@@ -37,7 +37,7 @@ export const makeFakeChatWrit = (
       },
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         chat: null,
       },
       author,
@@ -69,7 +69,7 @@ export const makeFakeChatNotice = (
       },
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         chat: {
           notice: null,
         },

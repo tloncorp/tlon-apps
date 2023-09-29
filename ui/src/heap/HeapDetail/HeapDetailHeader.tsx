@@ -5,15 +5,13 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
-import { usePost } from '@/state/channel/channel';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import getHeapContentType from '@/logic/useHeapContentType';
-import useNest from '@/logic/useNest';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import { PostEssay, chatStoryFromStory } from '@/types/channel';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import { isLink } from '@/types/content';
 import useCurioActions from '../useCurioActions';
 
@@ -50,7 +48,7 @@ export default function HeapDetailHeader({
   );
   const isImageLink = isImageUrl(curioContent);
   const isCite = content.block.length > 0 && 'cite' in content.block[0];
-  const { title: curioTitle } = getHanDataFromEssay(essay);
+  const { title: curioTitle } = getKindDataFromEssay(essay);
 
   function truncate({ str, n }: { str: string; n: number }) {
     return str.length > n ? `${str.slice(0, n - 1)}…` : str;

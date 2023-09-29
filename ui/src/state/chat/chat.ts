@@ -376,7 +376,7 @@ export const useChatState = createState<ChatState>(
       const isDM = whomIsDm(whom);
       // ensure time and ID match up
       const { id, time } = makeId();
-      const memo: Omit<PostEssay, 'han-data'> = {
+      const memo: Omit<PostEssay, 'kind-data'> = {
         content: mem.content,
         author: mem.author,
         sent: time,

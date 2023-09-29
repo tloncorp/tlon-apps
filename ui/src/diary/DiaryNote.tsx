@@ -31,7 +31,7 @@ import {
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
 import ReplyMessage from '@/replies/ReplyMessage';
 import DiaryCommentField from './DiaryCommentField';
@@ -143,7 +143,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const { replies } = note.seal;
   const replyArray = replies ? replies.toArray().reverse() : []; // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const { title: noteTitle, image } = getHanDataFromEssay(note.essay);
+  const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
   const groupedReplies = setNewDaysForReplies(
     groupReplies(noteId, replyArray, brief).sort(([a], [b]) => {
       if (sort === 'asc') {

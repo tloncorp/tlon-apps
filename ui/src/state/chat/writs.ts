@@ -67,7 +67,7 @@ export function writsReducer(whom: string, optimistic = false) {
         seal,
         essay: {
           ...delta.add.memo,
-          'han-data': {
+          'kind-data': {
             chat: delta.add.kind,
           },
         },

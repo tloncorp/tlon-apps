@@ -1476,7 +1476,7 @@ export function useCreateMutation() {
         const { response, nest } = event;
         return (
           'create' in response &&
-          nest === `${variables.han}/${window.our}/${variables.name}`
+          nest === `${variables.kind}/${window.our}/${variables.name}`
         );
       }
     );
@@ -1494,7 +1494,7 @@ export function useCreateMutation() {
       if (prev !== undefined) {
         queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
           ...prev,
-          [`${variables.han}/${window.our}/${variables.name}`]: {
+          [`${variables.kind}/${window.our}/${variables.name}`]: {
             perms: { writers: [], group: variables.group },
             view: 'list',
             order: [],
@@ -1507,7 +1507,7 @@ export function useCreateMutation() {
     onSettled: async (_data, _error, variables) => {
       await queryClient.invalidateQueries(['channels']);
       await queryClient.invalidateQueries([
-        variables.han,
+        variables.kind,
         'posts',
         `${window.our}/${variables.name}`,
         { exact: true },

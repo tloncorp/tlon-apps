@@ -122,7 +122,7 @@ export default function HeapTextInput({
       const content = constructStory(data);
 
       const heart: PostEssay = {
-        'han-data': {
+        'kind-data': {
           heap: '', // TODO: Title input
         },
         author: window.our,

@@ -11,7 +11,7 @@ export interface Writ {
 }
 
 export interface WritEssay extends PostEssay {
-  'han-data': HanChat;
+  'kind-data': KindDataChat;
 }
 
 export interface WritSeal extends PostSeal {
@@ -149,29 +149,29 @@ export type ChatStory = {
   block: ChatBlock[];
 };
 
-export type HanHeap = {
+export type KindDataHeap = {
   heap: string;
 };
 
-export type HanDiary = {
+export type KindDataDiary = {
   diary: {
     title: string;
     image?: string;
   };
 };
 
-export type HanChat = {
+export type KindDataChat = {
   chat: null | { notice: null };
 };
 
-export type HanData = HanDiary | HanChat | HanHeap;
-export type Han = 'heap' | 'diary' | 'chat';
+export type KindData = KindDataDiary | KindDataChat | KindDataHeap;
+export type Kind = 'heap' | 'diary' | 'chat';
 
 export interface PostEssay {
   content: Story;
   author: Ship;
   sent: number;
-  'han-data': HanData;
+  'kind-data': KindData;
 }
 
 export type Post = {
@@ -335,7 +335,7 @@ export interface BriefUpdate {
 }
 
 export interface Create {
-  han: Han;
+  kind: Kind;
   group: Flag;
   name: string;
   title: string;
@@ -544,7 +544,7 @@ export const emptyPost: Post = {
     author: '',
     content: [],
     sent: 0,
-    'han-data': { chat: null },
+    'kind-data': { chat: null },
   },
 };
 

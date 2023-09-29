@@ -12,7 +12,7 @@ import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
 import Author from '@/chat/ChatMessage/Author';
 import { useChannelFlag } from '@/logic/channel';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import useDiaryActions from './useDiaryActions';
 
 interface DiaryListItemProps {
@@ -32,7 +32,7 @@ export default function DiaryNoteHeadline({
   isInList,
   isInGrid,
 }: DiaryListItemProps) {
-  const { title, image } = getHanDataFromEssay(essay);
+  const { title, image } = getKindDataFromEssay(essay);
   const chFlag = useChannelFlag();
   const flag = useRouteGroup();
   const navigate = useNavigate();

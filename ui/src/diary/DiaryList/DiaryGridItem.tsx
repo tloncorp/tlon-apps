@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router';
 import { Post } from '@/types/channel';
 import { useCalm } from '@/state/settings';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
@@ -14,7 +14,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const calm = useCalm();
 
   const { essay } = note;
-  const { image } = getHanDataFromEssay(essay);
+  const { image } = getKindDataFromEssay(essay);
   const hasImage = image?.length !== 0;
   const { replyCount, lastRepliers } = note.seal.meta;
 

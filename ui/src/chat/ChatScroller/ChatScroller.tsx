@@ -33,13 +33,13 @@ const ChatScrollerItem = React.forwardRef<
     return null;
   }
 
-  if (!('chat' in writ.essay['han-data'])) {
+  if (!('chat' in writ.essay['kind-data'])) {
     return null;
   }
 
   const isNotice =
-    writ.essay['han-data'].chat !== null &&
-    !!('notice' in writ.essay['han-data'].chat);
+    writ.essay['kind-data'].chat !== null &&
+    !!('notice' in writ.essay['kind-data'].chat);
 
   if (isNotice) {
     return (
@@ -175,9 +175,9 @@ export default function ChatScroller({
             : undefined;
           const newAuthor = lastWrit
             ? writ.essay.author !== lastWrit.essay.author ||
-              ('chat' in writ.essay['han-data'] &&
-                !!writ.essay['han-data'].chat &&
-                !!('notice' in writ.essay['han-data'].chat))
+              ('chat' in writ.essay['kind-data'] &&
+                !!writ.essay['kind-data'].chat &&
+                !!('notice' in writ.essay['kind-data'].chat))
             : true;
           const writDay = new Date(daToUnix(index));
           const lastWritDay = lastWritKey

@@ -1,10 +1,10 @@
 import { daToUnix } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import { isSameDay } from 'date-fns';
-import { Brief, Han, Reply } from '@/types/channel';
+import { Brief, Kind, Reply } from '@/types/channel';
 
 export interface ReplyProps {
-  han: Han;
+  han: Kind;
   noteId: string;
   time: BigInteger;
   reply: Reply;

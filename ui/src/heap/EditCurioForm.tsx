@@ -17,7 +17,7 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 import { useChannelFlag } from '@/logic/channel';
 import { useRouteGroup } from '@/state/groups';
 import { chatStoryFromStory, storyFromChatStory } from '@/types/channel';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import HeapTextInput from './HeapTextInput';
 
 type EditCurioFormSchema = {
@@ -48,7 +48,7 @@ export default function EditCurioForm() {
   const isLinkMode = !isLoading ? isLinkCurio(contentAsChatStory) : false;
   const { isPending, setPending, setReady } = useRequestState();
   const firstInline = !isLoading && contentAsChatStory.inline[0];
-  const { title } = getHanDataFromEssay(note.essay);
+  const { title } = getKindDataFromEssay(note.essay);
 
   const defaultValues: EditCurioFormSchema = {
     title: !isLoading ? title : '',
@@ -107,7 +107,7 @@ export default function EditCurioForm() {
           time: idTime?.toString() || '',
           essay: {
             ...note.essay,
-            'han-data': {
+            'kind-data': {
               heap: curioTitle || '',
             },
             content: storyFromChatStory(con),

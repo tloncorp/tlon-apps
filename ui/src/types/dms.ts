@@ -1,7 +1,7 @@
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
 import {
-  HanChat,
+  KindDataChat,
   PostEssay,
   PostSeal,
   PostSealInCache,
@@ -20,7 +20,7 @@ export interface Writ {
 }
 
 export interface WritEssay extends PostEssay {
-  'han-data': HanChat;
+  'kind-data': KindDataChat;
 }
 
 export interface WritReplyCork extends ReplyCork {
@@ -46,7 +46,7 @@ export interface WritSeal extends PostSeal {
 
 interface WritDeltaAdd {
   add: {
-    memo: Omit<PostEssay, 'han-data'>;
+    memo: Omit<PostEssay, 'kind-data'>;
     kind: null;
     time: string | null;
   };
@@ -69,7 +69,7 @@ interface WritDeltaDelFeel {
 
 interface ReplyDeltaAdd {
   add: {
-    memo: Omit<PostEssay, 'han-data'>;
+    memo: Omit<PostEssay, 'kind-data'>;
     time: string | null;
   };
 }

@@ -13,7 +13,7 @@ import { useFullChannel } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import { newReplyMap, Post } from '@/types/channel';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
@@ -36,7 +36,7 @@ export default function HeapDetail({ title }: ViewProps) {
   });
   const isMobile = useIsMobile();
   const { post: note, isLoading } = usePost(nest, idTime || '');
-  const { title: curioTitle } = getHanDataFromEssay(note.essay);
+  const { title: curioTitle } = getKindDataFromEssay(note.essay);
   const {
     hasNext,
     hasPrev,

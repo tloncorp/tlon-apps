@@ -1,11 +1,9 @@
-import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import { daToUnix, unixToDa } from '@urbit/api';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
-import bigInt from 'big-integer';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
@@ -30,7 +28,7 @@ import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
 import MobileHeader from '@/components/MobileHeader';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
@@ -52,7 +50,7 @@ export default function DiaryAddNote() {
     isLoading: loadingNote,
     fetchStatus,
   } = usePost(nest, id || '0', !id);
-  const { title, image } = getHanDataFromEssay(note.essay);
+  const { title, image } = getKindDataFromEssay(note.essay);
   const { mutateAsync: editNote, status: editStatus } = useEditPostMutation();
   const {
     data: returnTime,
@@ -143,7 +141,7 @@ export default function DiaryAddNote() {
               content: noteContent,
               author: window.our,
               sent: now,
-              'han-data': {
+              'kind-data': {
                 diary: {
                   ...values,
                 },

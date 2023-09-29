@@ -37,7 +37,7 @@ const mockCurios: Posts = {
       feels: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: 'House rendering',
       },
       content: [
@@ -63,7 +63,7 @@ const mockCurios: Posts = {
       feels: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: 'Description of a Martini',
       },
       content: [
@@ -89,7 +89,7 @@ const mockCurios: Posts = {
       feels: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: 'House rendering',
       },
       content: [
@@ -115,7 +115,7 @@ const mockCurios: Posts = {
       feels: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: '',
       },
       content: [
@@ -141,7 +141,7 @@ const mockCurios: Posts = {
       feels: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: 'One Thing About Me',
       },
       content: [

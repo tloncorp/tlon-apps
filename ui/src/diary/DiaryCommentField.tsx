@@ -15,12 +15,12 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
-import { Story, Cite, Han } from '@/types/channel';
+import { Story, Cite, Kind } from '@/types/channel';
 import WritChanReference from '@/components/References/WritChanReference';
 
 interface DiaryCommentFieldProps {
   flag: string;
-  han: Han;
+  han: Kind;
   groupFlag: string;
   replyTo: string;
   className?: string;

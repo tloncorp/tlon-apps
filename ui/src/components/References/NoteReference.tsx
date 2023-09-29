@@ -16,7 +16,7 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 // eslint-disable-next-line import/no-cycle
 import DiaryContent from '@/diary/DiaryContent/DiaryContent';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
@@ -67,7 +67,7 @@ function NoteReference({
     return <HeapLoadingBlock reference />;
   }
 
-  const { title, image } = getHanDataFromEssay(note.essay);
+  const { title, image } = getKindDataFromEssay(note.essay);
   const handleOpenReferenceClick = () => {
     if (!group) {
       navigate(`/gangs/${groupFlag}?type=note&nest=${nest}&id=${id}`, {

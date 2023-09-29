@@ -74,7 +74,7 @@ export async function createCurioHeart(input: JSONContent | string) {
   const story = storyFromChatStory(content);
 
   return {
-    'han-data': {
+    'kind-data': {
       heap: '',
     },
     content: story,
