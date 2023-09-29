@@ -64,28 +64,28 @@
   --
 ::  $v-post: a channel post
 ::
-+$  v-post     [seal (rev essay)]
-+$  id-post    time
++$  v-post      [v-seal (rev essay)]
++$  id-post     time
 +$  v-posts     ((mop id-post (unit v-post)) lte)
 ++  on-v-posts  ((on id-post (unit v-post)) lte)
 ++  mo-v-posts  ((mp id-post (unit v-post)) lte)
 ::  $v-reply: a post comment
 ::
-+$  v-reply      [cork memo]
-+$  id-reply   time
++$  v-reply       [v-reply-seal memo]
++$  id-reply      time
 +$  v-replies     ((mop id-reply (unit v-reply)) lte)
 ++  on-v-replies  ((on id-reply (unit v-reply)) lte)
 ++  mo-v-replies  ((mp time (unit v-reply)) lte)
-::  $seal: host-side data for a post
+::  $v-seal: host-side data for a post
 ::
-+$  seal  $+  channel-seal
++$  v-seal  $+  channel-seal
   $:  id=id-post
       replies=v-replies
       reacts=v-reacts
   ==
-::  $cork: host-side data for a reply
+::  $v-reply-seal: host-side data for a reply
 ::
-+$  cork
++$  v-reply-seal
   $:  id=id-reply
       reacts=v-reacts
   ==
@@ -427,17 +427,17 @@
       total=@ud
   ==
 +$  posts  ((mop id-post (unit post)) lte)
-+$  post   [rr-seal essay]
-+$  rr-seal
++$  post   [seal essay]
++$  seal
   $:  id=id-post
       =reacts
       =replies
       =reply-meta
   ==
 +$  reacts      (map ship react)
-+$  reply       [rr-cork memo]
++$  reply       [reply-seal memo]
 +$  replies     ((mop id-reply reply) lte)
-+$  rr-cork     [id=id-reply parent-id=id-post =reacts]
++$  reply-seal  [id=id-reply parent-id=id-post =reacts]
 ++  on-posts    ((on id-post (unit post)) lte)
 ++  on-replies  ((on id-reply reply) lte)
 --

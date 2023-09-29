@@ -458,9 +458,9 @@
         =/  reply  (get:on-v-replies:d replies now.bowl)
         ?~  reply  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
-      =/  =cork:d  [id ~]
-      :-  `[%reply id %set ~ cork memo.c-reply]
-      (put:on-v-replies:d replies id ~ cork memo.c-reply)
+      =/  reply-seal=v-reply-seal:d  [id ~]
+      :-  `[%reply id %set ~ reply-seal memo.c-reply]
+      (put:on-v-replies:d replies id ~ reply-seal memo.c-reply)
     ::
         %del
       =/  reply  (get:on-v-replies:d replies id.c-reply)

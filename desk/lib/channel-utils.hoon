@@ -90,14 +90,14 @@
     =/  =post:d
       ?~  post
         ::TODO  give "outline" that formally declares deletion
-        :-  *rr-seal:d
+        :-  *seal:d
         ?-  kind.nest
           %diary  [*memo:d %diary 'Unknown post' '']
           %heap   [*memo:d %heap ~ 'Unknown link']
           %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
         ==
       ?~  u.post
-        :-  *rr-seal:d
+        :-  *seal:d
         ?-  kind.nest
             %diary  [*memo:d %diary 'This post was deleted' '']
             %heap   [*memo:d %heap ~ 'This link was deleted']
@@ -109,14 +109,14 @@
   ::
   =/  =reply:d
     ?~  post
-      [*rr-cork:d ~[%inline 'Comment on unknown post']~ ~nul *@da]
+      [*reply-seal:d ~[%inline 'Comment on unknown post']~ ~nul *@da]
     ?~  u.post
-      [*rr-cork:d ~[%inline 'Comment on deleted post']~ ~nul *@da]
+      [*reply-seal:d ~[%inline 'Comment on deleted post']~ ~nul *@da]
     =/  reply=(unit (unit v-reply:d))  (get:on-v-replies:d replies.u.u.post u.q.plan)
     ?~  reply
-      [*rr-cork:d ~[%inline 'Unknown comment']~ ~nul *@da]
+      [*reply-seal:d ~[%inline 'Unknown comment']~ ~nul *@da]
     ?~  u.reply
-      [*rr-cork:d ~[%inline 'This comment was deleted']~ ~nul *@da]
+      [*reply-seal:d ~[%inline 'This comment was deleted']~ ~nul *@da]
     (uv-reply p.plan u.u.reply)
   [%channel-said !>(`said:d`[nest %reply p.plan reply])]
 ::

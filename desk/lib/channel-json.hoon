@@ -94,9 +94,9 @@
     [(scot %ud id) ?~(post ~ (^post u.post))]
   ::
   ++  post
-    |=  [=rr-seal:d =essay:d]
+    |=  [=seal:d =essay:d]
     %-  pairs
-    :~  seal+(^rr-seal rr-seal)
+    :~  seal+(^seal seal)
         essay+(^essay essay)
         type+s+%post
     ==
@@ -109,27 +109,27 @@
     [(scot %ud t) (^reply reply)]
   ::
   ++  reply
-    |=  [=rr-cork:d =memo:d]
+    |=  [=reply-seal:d =memo:d]
     %-  pairs
-    :~  cork+(^rr-cork rr-cork)
+    :~  seal+(^reply-seal reply-seal)
         memo+(^memo memo)
     ==
   ::
-  ++  rr-seal
-    |=  =rr-seal:d
+  ++  seal
+    |=  =seal:d
     %-  pairs
-    :~  id+(id id.rr-seal)
-        reacts+(reacts reacts.rr-seal)
-        replies+(replies replies.rr-seal)
-        meta+(reply-meta reply-meta.rr-seal)
+    :~  id+(id id.seal)
+        reacts+(reacts reacts.seal)
+        replies+(replies replies.seal)
+        meta+(reply-meta reply-meta.seal)
     ==
   ::
-  ++  rr-cork
-    |=  =rr-cork:d
+  ++  reply-seal
+    |=  =reply-seal:d
     %-  pairs
-    :~  id+(id id.rr-cork)
-        parent-id+(id parent-id.rr-cork)
-        reacts+(reacts reacts.rr-cork)
+    :~  id+(id id.reply-seal)
+        parent-id+(id parent-id.reply-seal)
+        reacts+(reacts reacts.reply-seal)
     ==
   ::
   +|  %primitives
