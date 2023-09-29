@@ -206,7 +206,7 @@ export function usePosts(nest: Nest) {
   const { data, ...rest } = useReactQuerySubscription<Posts>({
     queryKey: [han, 'posts', flag],
     app: 'channels',
-    path: `/${nest}/ui`,
+    path: `/${nest}`,
     scry: `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
   });
@@ -554,7 +554,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
   useEffect(() => {
     api.subscribe({
       app: 'channels',
-      path: `/${nest}/ui`,
+      path: `/${nest}`,
       event: (data: ChannelsResponse) => {
         infinitePostUpdater(queryKey, data, initialTime);
         invalidate.current();
@@ -737,7 +737,7 @@ export function useChannels(): Channels {
   const { data, ...rest } = useReactQuerySubscription<Channels>({
     queryKey: ['channels'],
     app: 'channels',
-    path: '/ui',
+    path: '/',
     scry: '/channels',
     options: {
       refetchOnMount: false,
@@ -1112,7 +1112,7 @@ export function useJoinMutation() {
       channelAction(chan, {
         join: group,
       }),
-      { app: 'channels', path: '/ui' },
+      { app: 'channels', path: '/' },
       (event) => event.nest === chan && 'create' in event.response
     );
   };
@@ -1265,7 +1265,7 @@ export function useAddPostMutation(nest: string) {
             channelPostAction(nest, {
               add: variables.essay,
             }),
-            { app: 'channels', path: `/${nest}/ui` },
+            { app: 'channels', path: `/${nest}` },
             ({ response }) => {
               if ('post' in response) {
                 const { id, 'r-post': postResponse } = response.post;
@@ -1414,7 +1414,7 @@ export function useDeletePostMutation() {
       channelPostAction(variables.nest, { del: variables.time }),
       {
         app: 'channels',
-        path: `/${variables.nest}/ui`,
+        path: `/${variables.nest}`,
       },
       (event) => {
         if ('post' in event.response) {
@@ -1470,7 +1470,7 @@ export function useCreateMutation() {
           create: variables,
         },
       },
-      { app: 'channels', path: '/ui' },
+      { app: 'channels', path: '/' },
       (event) => {
         const { response, nest } = event;
         return (
