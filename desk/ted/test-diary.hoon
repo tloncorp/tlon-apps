@@ -226,7 +226,7 @@
   =/  =essay:d  [[~ our id] %diary 'yes' '']
   ;<  ~  band:m  (act %channel nest %post %edit id essay)
   ;<  new=v-post:d  band:m  (get-post id)
-  ?>  (eq !>([%diary 'yes' '']) !>(han-data.new))
+  ?>  (eq !>([%diary 'yes' '']) !>(kind-data.new))
   ::
   ?>  (eq !>(~) !>(feels.new))
   ;<  ~  band:m  (act %channel nest %post %add-feel id our ':smile:')

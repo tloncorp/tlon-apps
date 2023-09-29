@@ -131,23 +131,23 @@
     =/  keep=?
       ?+    pole  |
           [%groups *]  &(=(%groups dude) =(our.bowl ship) =(/groups path))
-          [=han:d ship=@ name=@ %updates ~]
+          [=kind:d ship=@ name=@ %updates ~]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
-        ?~  diary=(~(get by v-channels) han.pole sub-ship name.pole)  |
-        ?.  ?=([han:d @ %updates ?(~ [@ ~])] path)  |
-        ?.  =(han.pole i.path)  |
+        ?~  diary=(~(get by v-channels) kind.pole sub-ship name.pole)  |
+        ?.  ?=([kind:d @ %updates ?(~ [@ ~])] path)  |
+        ?.  =(kind.pole i.path)  |
         =(name.pole i.t.path)
       ::
-          [=han:d ship=@ name=@ %checkpoint ~]
+          [=kind:d ship=@ name=@ %checkpoint ~]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
-        ?~  diary=(~(get by v-channels) han.pole sub-ship name.pole)  |
-        ?.  ?=([han:d @ %checkpoint %before @] path)  |
-        ?.  =(han.pole i.path)  |
+        ?~  diary=(~(get by v-channels) kind.pole sub-ship name.pole)  |
+        ?.  ?=([kind:d @ %checkpoint %before @] path)  |
+        ?.  =(kind.pole i.path)  |
         =(name.pole i.t.path)
       ::
-          [%said =han:d ship=@ name=@ %post time=@ reply=?(~ [@ ~])]
+          [%said =kind:d ship=@ name=@ %post time=@ reply=?(~ [@ ~])]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
         ?~  pplan=(slaw %ud time.pole)  |
@@ -156,7 +156,7 @@
           ?~  q=(slaw %ud -.reply.pole)  ~
           ``u.q
         ?~  qplan  |
-        ?.  (~(has by voc) [han.pole sub-ship name.pole] u.pplan u.qplan)  |
+        ?.  (~(has by voc) [kind.pole sub-ship name.pole] u.pplan u.qplan)  |
         =(wire path)
       ==
     ?:  keep  cor
@@ -209,10 +209,10 @@
   ?+    pole  ~|(bad-watch-path+pole !!)
       [%briefs ~]                   ?>(from-self cor)
       [%ui ~]                       ?>(from-self cor)
-      [=han:d ship=@ name=@ %ui ~]  ?>(from-self cor)
-      [%said =han:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+      [=kind:d ship=@ name=@ %ui ~]  ?>(from-self cor)
+      [%said =kind:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
-    =/  =nest:d     [han.pole host name.pole]
+    =/  =nest:d     [kind.pole host name.pole]
     =/  =plan:d     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (watch-said nest plan)
   ==
@@ -228,7 +228,7 @@
   |=  [=nest:d =plan:d]
   ^-  wire
   %+  welp
-    /said/[han.nest]/(scot %p ship.nest)/[name.nest]/(scot %ud p.plan)
+    /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/(scot %ud p.plan)
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
@@ -268,13 +268,13 @@
     %-  (slog leaf+"Failed to hark" u.p.sign)
     cor
   ::
-      [=han:d ship=@ name=@ rest=*]
+      [=kind:d ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    di-abet:(di-agent:(di-abed:di-core han.pole ship name.pole) rest.pole sign)
+    di-abet:(di-agent:(di-abed:di-core kind.pole ship name.pole) rest.pole sign)
   ::
-      [%said =han:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+      [%said =kind:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
-    =/  =nest:d     [han.pole host name.pole]
+    =/  =nest:d     [kind.pole host name.pole]
     =/  =plan:d     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (take-said nest plan sign)
   ::
@@ -340,13 +340,13 @@
       [%x %init ~]    ``noun+!>([briefs (uv-channels:utils v-channels)])
       [%x %pins ~]    ``channel-pins+!>(pins)
       [%x %briefs ~]  ``channel-briefs+!>(briefs)
-      [%x =han:d ship=@ name=@ rest=*]
+      [%x =kind:d ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    (di-peek:(di-abed:di-core han.pole ship name.pole) rest.pole)
+    (di-peek:(di-abed:di-core kind.pole ship name.pole) rest.pole)
   ::
-      [%u =han:d ship=@ name=@ ~]
+      [%u =kind:d ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
-    ``loob+!>((~(has by v-channels) han.pole ship name.pole))
+    ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ==
 ::
 ++  briefs
@@ -381,7 +381,7 @@
     |=  n=nest:d
     di-core(nest n, channel (~(got by v-channels) n))
   ::
-  ++  di-area  `path`/[han.nest]/(scot %p ship.nest)/[name.nest]
+  ++  di-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
   ++  di-sub-wire  (weld di-area /updates)
   ++  di-give-brief
     (give %fact ~[/briefs] channel-brief-update+!>([nest di-brief]))
@@ -392,7 +392,7 @@
   ++  di-create
     |=  create=create-channel:d
     ?>  from-self
-    =.  nest  [han.create our.bowl name.create]
+    =.  nest  [kind.create our.bowl name.create]
     ?<  (~(has by v-channels) nest)
     =.  channel  *v-channel:d
     =.  group.perm.perm.channel  group.create
@@ -483,16 +483,16 @@
     =.  load.net.channel  |
     %^  safe-watch  (weld di-area /checkpoint)  [ship.nest server]
     ?.  =(our.bowl ship.nest)
-      =/  count  ?:(=(%diary han.nest) '20' '100')
-      /[han.nest]/[name.nest]/checkpoint/before/[count]
-    /[han.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
+      =/  count  ?:(=(%diary kind.nest) '20' '100')
+      /[kind.nest]/[name.nest]/checkpoint/before/[count]
+    /[kind.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
   ::
   ++  di-start-updates
     ::  not most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
       (bind (ram:on-v-posts:d posts.channel) head)
     %^  safe-watch  di-sub-wire  [ship.nest server]
-    /[han.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
+    /[kind.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
   ::
   ++  di-agent
     |=  [=wire =sign:agent:gall]
@@ -513,7 +513,7 @@
       =+  ?~  p.sign  ~
           %-  (slog leaf+"{<dap.bowl>}: Failed creation (poke)" u.p.sign)
           ~
-      =/  =path  /[han.nest]/[name.nest]/create
+      =/  =path  /[kind.nest]/[name.nest]/create
       =/  =wire  (weld di-area /create)
       (emit %pass wire %agent [our.bowl server] %watch path)
     ::
@@ -632,7 +632,7 @@
     ?~  checkpoint-start  di-core
     %^  safe-watch  (weld di-area /backlog)  [ship.nest server]
     %+  welp
-    /[han.nest]/[name.nest]/checkpoint/time-range
+    /[kind.nest]/[name.nest]/checkpoint/time-range
     ~|  `*`key.u.checkpoint-start
     /(scot %da *@da)/(scot %da key.u.checkpoint-start)
   ::
@@ -861,14 +861,14 @@
       ::
       =*  diary-notification
         :~  [%ship author.reply]  ' commented on '
-            [%emph title.han-data.post]   ': '
+            [%emph title.kind-data.post]   ': '
             [%ship author.reply]  ': '
             (flatten:utils content.reply)
         ==
       =*  heap-notification
         =/  content  (flatten:utils content.reply)
         =/  title=@t
-          ?^  title.han-data.post  (need title.han-data.post)
+          ?^  title.kind-data.post  (need title.kind-data.post)
           ?:  (lte (met 3 content) 80)  content
           (cat 3 (end [3 77] content) '...')
         :~  [%ship author.reply]  ' commented on '
@@ -888,7 +888,7 @@
       ::
       ?:  =(author.post our.bowl)
         ?.  (want-hark %ours)  ~
-        ?-    -.han-data.post
+        ?-    -.kind-data.post
             %diary  `diary-notification
             %heap   `heap-notification
             %chat
@@ -910,7 +910,7 @@
           ?~  reply  |
           =(author.u.reply our.bowl)
         ?.  (want-hark %ours)  ~
-        ?-    -.han-data.post
+        ?-    -.kind-data.post
             %diary  `diary-notification
             %heap   `heap-notification
             %chat
@@ -928,7 +928,7 @@
       ::
       ?.  (want-hark %any)
         ~
-      ?-    -.han-data.post
+      ?-    -.kind-data.post
           %diary  ~
           %heap   ~
           %chat
@@ -957,7 +957,7 @@
     ^-  new-yarn:ha
     =*  group  group.perm.perm.channel
     =/  gn=nest:g  nest
-    =/  thread  (welp /[han.nest]/(scot %p ship.nest)/[name.nest] rest)
+    =/  thread  (welp /[kind.nest]/(scot %p ship.nest)/[name.nest] rest)
     =/  rope  [`group `gn q.byk.bowl thread]
     =/  link  (welp /groups/(scot %p p.group)/[q.group]/channels thread)
     [& & rope con link but]
@@ -1192,7 +1192,7 @@
     ++  match-post-mention
       |=  [nedl=ship post=v-post:d]
       ^-  ?
-      ?:  ?=([%chat %notice ~] han-data.post)  |
+      ?:  ?=([%chat %notice ~] kind-data.post)  |
       (match-story-mention nedl content.post)
     ::
     ++  match-story-mention
@@ -1210,18 +1210,18 @@
     ++  match-post-text
       |=  [nedl=@t post=v-post:d]
       ^-  ?
-      ?-    -.han-data.post
+      ?-    -.kind-data.post
           %diary
-        (match-story-text nedl ~[%inline title.han-data.post] content.post)
+        (match-story-text nedl ~[%inline title.kind-data.post] content.post)
       ::
           %heap
         %+  match-story-text  nedl
-        ?~  title.han-data.post
+        ?~  title.kind-data.post
           content.post
-        [~[%inline u.title.han-data.post] content.post]
+        [~[%inline u.title.kind-data.post] content.post]
       ::
           %chat
-        ?:  =([%notice ~] kind.han-data.post)  |
+        ?:  =([%notice ~] kind.kind-data.post)  |
         (match-story-text nedl content.post)
       ==
     ::

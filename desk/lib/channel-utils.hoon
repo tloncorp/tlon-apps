@@ -59,7 +59,7 @@
 ++  uv-replies
   |=  [parent-id=id-post:d =v-replies:d]
   ^-  replies:d
-  %+  gas:rr-on-replies:d  *replies:d
+  %+  gas:on-replies:d  *replies:d
   %+  murn  (tap:on-v-replies:d v-replies)
   |=  [=time v-reply=(unit v-reply:d)]
   ^-  (unit [id-reply:d reply:d])
@@ -91,14 +91,14 @@
       ?~  post
         ::TODO  give "outline" that formally declares deletion
         :-  *rr-seal:d
-        ?-  han.nest
+        ?-  kind.nest
           %diary  [*memo:d %diary 'Unknown post' '']
           %heap   [*memo:d %heap ~ 'Unknown link']
           %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
         ==
       ?~  u.post
         :-  *rr-seal:d
-        ?-  han.nest
+        ?-  kind.nest
             %diary  [*memo:d %diary 'This post was deleted' '']
             %heap   [*memo:d %heap ~ 'This link was deleted']
             %chat
@@ -205,7 +205,7 @@
     ;:  weld
         /gx
         groups-scry
-        /channel/[han.nest]/(scot %p ship.nest)/[name.nest]
+        /channel/[kind.nest]/(scot %p ship.nest)/[name.nest]
         /fleet/(scot %p her)/is-bloc/loob
     ==  ==
   ::
@@ -214,7 +214,7 @@
     ?:  =(ship.nest her)  &
     =/  =path
       %+  welp  groups-scry
-      :+  %channel  han.nest
+      :+  %channel  kind.nest
       /(scot %p ship.nest)/[name.nest]/can-write/(scot %p her)/noun
     =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
     ?~  write  |
@@ -227,7 +227,7 @@
     ?:  =(our her)  &
     =/  =path
       %+  welp  groups-scry
-      :+  %channel  han.nest
+      :+  %channel  kind.nest
       /(scot %p ship.nest)/[name.nest]/can-read/(scot %p her)/loob
     .^(? %gx path)
   --

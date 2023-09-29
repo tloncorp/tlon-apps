@@ -115,7 +115,7 @@
     ?-    -.c-channels
         %create
       =<  di-abet
-      =/  =nest:d  [han.create-channel.c-channels our.bowl name.create-channel.c-channels]
+      =/  =nest:d  [kind.create-channel.c-channels our.bowl name.create-channel.c-channels]
       (di-create:di-core nest create-channel.c-channels)
     ::
         %channel
@@ -136,42 +136,42 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path+pole !!)
-      [=han:d name=@ %create ~]
+      [=kind:d name=@ %create ~]
     ?>  =(our src):bowl
-    =*  nest  [han.pole our.bowl name.pole]
+    =*  nest  [kind.pole our.bowl name.pole]
     ?.  (~(has by v-channels) nest)  cor
     di-abet:di-watch-create:(di-abed:di-core nest)
   ::
-      [=han:d name=@ %updates ~]
-    =/  di  (di-abed:di-core han.pole our.bowl name.pole)
+      [=kind:d name=@ %updates ~]
+    =/  di  (di-abed:di-core kind.pole our.bowl name.pole)
     ?>  (can-read:di-perms:di src.bowl)
     cor
   ::
-      [=han:d name=@ %updates after=@ ~]
+      [=kind:d name=@ %updates after=@ ~]
     =<  di-abet
-    %-  di-watch-updates:(di-abed:di-core han.pole our.bowl name.pole)
+    %-  di-watch-updates:(di-abed:di-core kind.pole our.bowl name.pole)
     (slav %da after.pole)
   ::
-      [=han:d name=@ %checkpoint %time-range from=@ ~]
+      [=kind:d name=@ %checkpoint %time-range from=@ ~]
     =<  di-abet
-    %-  di-watch-checkpoint:(di-abed:di-core han.pole our.bowl name.pole)
+    %-  di-watch-checkpoint:(di-abed:di-core kind.pole our.bowl name.pole)
     [(slav %da from.pole) ~]
   ::
-      [=han:d name=@ %checkpoint %time-range from=@ to=@ ~]
+      [=kind:d name=@ %checkpoint %time-range from=@ to=@ ~]
     =<  di-abet
-    %^    di-watch-checkpoint:(di-abed:di-core han.pole our.bowl name.pole)
+    %^    di-watch-checkpoint:(di-abed:di-core kind.pole our.bowl name.pole)
         (slav %da from.pole)
       ~
     (slav %da to.pole)
   ::
-      [=han:d name=@ %checkpoint %before n=@ud ~]
+      [=kind:d name=@ %checkpoint %before n=@ud ~]
     =<  di-abet
-    %-  di-watch-checkpoint-page:(di-abed:di-core han.pole our.bowl name.pole)
+    %-  di-watch-checkpoint-page:(di-abed:di-core kind.pole our.bowl name.pole)
     (slav %ud n.pole)
   ::
-      [%said =han:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
+      [%said =kind:d host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
-    =/  =nest:d     [han.pole host name.pole]
+    =/  =nest:d     [kind.pole host name.pole]
     =/  =plan:d     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     ?>  =(our.bowl host)
     di-abet:(di-said:(di-abed:di-core nest) plan)
@@ -181,7 +181,7 @@
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
-      [=han:d *]
+      [=kind:d *]
     ?+    -.sign  !!
         %poke-ack
       ?~  p.sign  cor
@@ -270,11 +270,11 @@
     |=  n=nest:d
     di-core(nest n, channel (~(got by v-channels) n))
   ::
-  ++  di-area  `path`/[han.nest]/[name.nest]
+  ++  di-area  `path`/[kind.nest]/[name.nest]
   ++  di-sub-path  `path`(weld di-area /updates)
   ++  di-watch-create
     =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
-    (give %fact ~[/[han.nest]/[name.nest]/create] cage)
+    (give %fact ~[/[kind.nest]/[name.nest]/create] cage)
   ::
   ++  di-watch-updates
     |=  =@da
@@ -319,7 +319,7 @@
       ==
     =.  di-core
       =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]
-      =/  =path  /[han.nest]/[name.nest]/create
+      =/  =path  /[kind.nest]/[name.nest]/create
       =.  di-core  (give %fact ~[path] cage)
       (give %kick ~[path] ~)
     =/  =channel:g
@@ -398,7 +398,7 @@
     ?-    -.c-post
         %add
       ?>  =(src.bowl author.essay.c-post)
-      ?>  =(han.nest -.han-data.essay.c-post)
+      ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  id=id-post:d
         |-
         =/  post  (get:on-v-posts:d posts.channel now.bowl)
@@ -410,7 +410,7 @@
     ::
         %edit
       ?>  =(src.bowl author.essay.c-post)
-      ?>  =(han.nest -.han-data.essay.c-post)
+      ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  post  (get:on-v-posts:d posts.channel id.c-post)
       ?~  post  `posts.channel
       ?~  u.post  `posts.channel

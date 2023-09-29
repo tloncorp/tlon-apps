@@ -412,7 +412,7 @@
       ^-  $-(json [=memo:d =kind:c time=(unit time)])
       %-  ot
       :~  memo/memo:dejs:dj
-          kind/kind:dejs:dj
+          kind/chat-kind:dejs:dj
           time/(mu di)
       ==
     ==

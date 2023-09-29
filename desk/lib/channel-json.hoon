@@ -104,7 +104,7 @@
   ++  replies
     |=  =replies:d
     %-  pairs
-    %+  turn  (tap:rr-on-replies:d replies)
+    %+  turn  (tap:on-replies:d replies)
     |=  [t=@da =reply:d]
     [(scot %ud t) (^reply reply)]
   ::
@@ -160,7 +160,7 @@
   ++  nest-cord
     |=  n=nest:d
     ^-  cord
-    (rap 3 han.n '/' (scot %p ship.n) '/' name.n ~)
+    (rap 3 kind.n '/' (scot %p ship.n) '/' name.n ~)
   ::
   ++  ship
     |=  her=@p
@@ -193,16 +193,16 @@
     :~  content+(story content.essay)
         author+(ship author.essay)
         sent+(time sent.essay)
-        han-data+(han-data han-data.essay)
+        kind-data+(kind-data kind-data.essay)
     ==
   ::
-  ++  han-data
-    |=  =han-data:d
-    %+  frond  -.han-data
-    ?-    -.han-data
-      %heap   ?~(title.han-data ~ s+u.title.han-data)
-      %chat   ?~(kind.han-data ~ (pairs notice+~ ~))
-      %diary  (pairs title+s+title.han-data image+s+image.han-data ~)
+  ++  kind-data
+    |=  =kind-data:d
+    %+  frond  -.kind-data
+    ?-    -.kind-data
+      %heap   ?~(title.kind-data ~ s+u.title.kind-data)
+      %chat   ?~(kind.kind-data ~ (pairs notice+~ ~))
+      %diary  (pairs title+s+title.kind-data image+s+image.kind-data ~)
     ==
   ::
   ++  reply-meta
@@ -418,18 +418,18 @@
   +|  %primitives
   ++  id    (se %ud)
   ++  ship  `$-(json ship:z)`(su ship-rule)
-  ++  han   `$-(json han:d)`(su han-rule)
+  ++  kind  `$-(json kind:d)`(su han-rule)
   ++  flag  `$-(json flag:g)`(su flag-rule)
   ++  nest  `$-(json nest:d)`(su nest-rule)
   ++  ship-rule  ;~(pfix sig fed:ag)
-  ++  han-rule   (sear (soft han:d) sym)
+  ++  han-rule   (sear (soft kind:d) sym)
   ++  flag-rule  ;~((glue fas) ship-rule sym)
   ++  nest-rule  ;~((glue fas) han-rule ship-rule sym)
   ::
   ++  create-channel
     ^-  $-(json create-channel:d)
     %-  ot
-    :~  han+han
+    :~  kind+kind
         name+(se %tas)
         group+flag
         title+so
@@ -445,24 +445,24 @@
   ++  essay
     ^-  $-(json essay:d)
     %+  cu
-      |=  [=story:d =ship:z =time:z =han-data:d]
-      `essay:d`[[story ship time] han-data]
+      |=  [=story:d =ship:z =time:z =kind-data:d]
+      `essay:d`[[story ship time] kind-data]
     %-  ot
     :~  content/story
         author/ship
         sent/di
-        han-data/han-data
+        kind-data/kind-data
     ==
   ::
-  ++  han-data
-    ^-  $-(json han-data:d)
+  ++  kind-data
+    ^-  $-(json kind-data:d)
     %-  of
     :~  diary+(ot title+so image+so ~)
         heap+(mu so)
-        chat+kind
+        chat+chat-kind
     ==
   ::
-  ++  kind
+  ++  chat-kind
     ^-  $-(json $@(~ [%notice ~]))
     |=  jon=json
     ?~  jon  ~

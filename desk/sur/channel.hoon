@@ -91,16 +91,16 @@
   ==
 ::  $essay: top-level post, with metadata
 ::
-+$  essay  [memo =han-data]
++$  essay  [memo =kind-data]
 ::  $reply-meta: metadata for all replies
 +$  reply-meta
   $:  reply-count=@ud
       last-repliers=(set ship)
       last-reply=(unit time)
   ==
-::  $han-data: metadata for a channel type's "post"
+::  $kind-data: metadata for a channel type's "post"
 ::
-+$  han-data
++$  kind-data
   $%  [%diary title=@t image=@t]
       [%heap title=(unit @t)]
       [%chat kind=$@(~ [%notice ~])]
@@ -179,9 +179,9 @@
       [%break ~]
   ==
 ::
-+$  han  ?(%diary %heap %chat)
++$  kind  ?(%diary %heap %chat)
 ::  $nest: identifier for a channel
-+$  nest  [=han =ship name=term]
++$  nest  [=kind =ship name=term]
 ::  $view: the persisted display format for a channel
 +$  view  $~(%list ?(%grid %list))
 ::  $sort: the persisted sort type for a channel
@@ -243,7 +243,7 @@
 ::    read permission is stored with the group's data.
 ::
 +$  create-channel
-  $:  =han
+  $:  =kind
       name=term
       group=flag:g
       title=cord
@@ -434,10 +434,10 @@
       =replies
       =reply-meta
   ==
-+$  rr-feels       (map ship feel)
++$  rr-feels    (map ship feel)
 +$  reply       [rr-cork memo]
 +$  replies     ((mop id-reply reply) lte)
-+$  rr-cork        [id=id-reply parent-id=id-post =rr-feels]
-++  on-posts       ((on id-post (unit post)) lte)
-++  rr-on-replies  ((on id-reply reply) lte)
++$  rr-cork     [id=id-reply parent-id=id-post =rr-feels]
+++  on-posts    ((on id-post (unit post)) lte)
+++  on-replies  ((on id-reply reply) lte)
 --
