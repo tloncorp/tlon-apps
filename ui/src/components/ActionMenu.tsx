@@ -73,7 +73,7 @@ const ActionMenu = React.memo(
                 disabled={disabled}
                 asChild={asChild}
                 aria-label={ariaLabel}
-                className={cn('appearance-none', triggerClassName)}
+                className={cn('select-none appearance-none', triggerClassName)}
               >
                 {children}
               </Drawer.Trigger>
