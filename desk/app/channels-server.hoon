@@ -427,14 +427,14 @@
       :-  `[%post id.c-post %set ~]
       (put:on-v-posts:d posts.channel id.c-post ~)
     ::
-        ?(%add-feel %del-feel)
+        ?(%add-react %del-react)
       =/  post  (get:on-v-posts:d posts.channel id.c-post)
       ?~  post  `posts.channel
       ?~  u.post  `posts.channel
-      =/  [update=? =feels:d]  (di-c-feel feels.u.u.post c-post)
+      =/  [update=? reacts=v-reacts:d]  (di-c-react reacts.u.u.post c-post)
       ?.  update  `posts.channel
-      :-  `[%post id.c-post %feels feels]
-      (put:on-v-posts:d posts.channel id.c-post ~ u.u.post(feels feels))
+      :-  `[%post id.c-post %reacts reacts]
+      (put:on-v-posts:d posts.channel id.c-post ~ u.u.post(reacts reacts))
     ::
         %reply
       =/  post  (get:on-v-posts:d posts.channel id.c-post)
@@ -470,30 +470,30 @@
       :-  `[%reply id.c-reply %set ~]
       (put:on-v-replies:d replies id.c-reply ~)
     ::
-        ?(%add-feel %del-feel)
+        ?(%add-react %del-react)
       =/  reply  (get:on-v-replies:d replies id.c-reply)
       ?~  reply  `replies
       ?~  u.reply  `replies
-      =/  [update=? =feels:d]  (di-c-feel feels.u.u.reply c-reply)
+      =/  [update=? reacts=v-reacts:d]  (di-c-react reacts.u.u.reply c-reply)
       ?.  update  `replies
-      :-  `[%reply id.c-reply %feels feels]
-      (put:on-v-replies:d replies id.c-reply ~ u.u.reply(feels feels))
+      :-  `[%reply id.c-reply %reacts reacts]
+      (put:on-v-replies:d replies id.c-reply ~ u.u.reply(reacts reacts))
     ==
   ::
-  ++  di-c-feel
-    |=  [=feels:d =c-feel:d]
-    ^-  [changed=? feels:d]
-    =/  =ship     ?:(?=(%add-feel -.c-feel) p.c-feel p.c-feel)
+  ++  di-c-react
+    |=  [reacts=v-reacts:d =c-react:d]
+    ^-  [changed=? v-reacts:d]
+    =/  =ship     ?:(?=(%add-react -.c-react) p.c-react p.c-react)
     ?>  =(src.bowl ship)
-    =/  new-feel  ?:(?=(%add-feel -.c-feel) `q.c-feel ~)
+    =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]
-      =/  old-feel  (~(get by feels) ship)
-      ?~  old-feel  &+0
-      ?:  =(new-feel +.u.old-feel)
-        |+rev.u.old-feel
-      &++(rev.u.old-feel)
-    ?.  changed  [| feels]
-    &+(~(put by feels) ship new-rev new-feel)
+      =/  old-react  (~(get by reacts) ship)
+      ?~  old-react  &+0
+      ?:  =(new-react +.u.old-react)
+        |+rev.u.old-react
+      &++(rev.u.old-react)
+    ?.  changed  [| reacts]
+    &+(~(put by reacts) ship new-rev new-react)
   ::
   ++  di-update
     |=  =u-channel:d

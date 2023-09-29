@@ -228,16 +228,16 @@
   ;<  new=v-post:d  band:m  (get-post id)
   ?>  (eq !>([%diary 'yes' '']) !>(kind-data.new))
   ::
-  ?>  (eq !>(~) !>(feels.new))
-  ;<  ~  band:m  (act %channel nest %post %add-feel id our ':smile:')
+  ?>  (eq !>(~) !>(reacts.new))
+  ;<  ~  band:m  (act %channel nest %post %add-react id our ':smile:')
   ;<  new=v-post:d  band:m  (get-post id)
-  =/  feel  (~(got by feels.new) our)
-  ?>  (eq !>([0 `':smile:']) !>(feel))
+  =/  react  (~(got by reacts.new) our)
+  ?>  (eq !>([0 `':smile:']) !>(react))
   ::
-  ;<  ~  band:m  (act %channel nest %post %del-feel id our)
+  ;<  ~  band:m  (act %channel nest %post %del-react id our)
   ;<  new=v-post:d  band:m  (get-post id)
-  =/  feel  (~(got by feels.new) our)
-  ?>  (eq !>([1 ~]) !>(feel))
+  =/  react  (~(got by reacts.new) our)
+  ?>  (eq !>([1 ~]) !>(react))
   ::
   ;<  ~  band:m  (act %channel nest %post %del id)
   ;<  new=v-channel:d  band:m  get-channel
@@ -262,15 +262,15 @@
   ;<  reply=v-reply:d  band:m  (get-reply id-post id)
   ?>  (eq !>([~ ~['hi']]) !>(content.reply))
   ::
-  ;<  ~  band:m  (act %channel nest %post %reply id-post %add-feel id our ':smile:')
+  ;<  ~  band:m  (act %channel nest %post %reply id-post %add-react id our ':smile:')
   ;<  new=v-reply:d  band:m  (get-reply id-post id)
-  =/  feel  (~(got by feels.reply) our)
-  ?>  (eq !>([0 `':smile:']) !>(feel))
+  =/  react  (~(got by reacts.reply) our)
+  ?>  (eq !>([0 `':smile:']) !>(react))
   ::
-  ;<  ~  band:m  (act %channel nest %post %reply id-post %del-feel id our)
+  ;<  ~  band:m  (act %channel nest %post %reply id-post %del-react id our)
   ;<  new=v-reply:d  band:m  (get-reply id-post id)
-  =/  feel  (~(got by feels.reply) our)
-  ?>  (eq !>([1 ~]) !>(feel))
+  =/  react  (~(got by reacts.reply) our)
+  ?>  (eq !>([1 ~]) !>(react))
   ::
   ;<  ~  band:m  (act %channel nest %post %reply id-post %del id)
   ;<  post=v-post:d  band:m  (get-post id-post)

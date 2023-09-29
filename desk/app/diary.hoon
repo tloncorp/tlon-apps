@@ -580,10 +580,10 @@
     [%inline q.old]~
   ::
   ++  convert-feels
-    |=  old=(map ship feel:d)
-    ^-  feels:d
+    |=  old=(map ship feel:a)
+    ^-  v-reacts:d
     %-  ~(run by old)
-    |=  =feel:d
+    |=  =feel:a
     [%0 `feel]
   ::
   ++  convert-log
@@ -625,7 +625,7 @@
           %del                    [%post id %set ~]~
           ?(%add %edit)           [%post id %set u.new-post]~
           ?(%add-feel %del-feel)
-        [%post id %feels ?~(u.new-post ~ feels.u.u.new-post)]~
+        [%post id %reacts ?~(u.new-post ~ reacts.u.u.new-post)]~
       ::
           %quips
         ?~  u.new-post  ~
@@ -638,7 +638,7 @@
         ?-  -.q.p.q.p.diff
           %del                    [%set ~]
           %add                    [%set u.new-reply]
-          ?(%add-feel %del-feel)  [%feels ?~(u.new-reply ~ feels.u.u.new-reply)]
+          ?(%add-feel %del-feel)  [%reacts ?~(u.new-reply ~ reacts.u.u.new-reply)]
         ==
       ==
     ==

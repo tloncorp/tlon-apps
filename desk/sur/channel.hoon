@@ -81,13 +81,13 @@
 +$  seal  $+  channel-seal
   $:  id=id-post
       replies=v-replies
-      =feels
+      reacts=v-reacts
   ==
 ::  $cork: host-side data for a reply
 ::
 +$  cork
   $:  id=id-reply
-      =feels
+      reacts=v-reacts
   ==
 ::  $essay: top-level post, with metadata
 ::
@@ -188,9 +188,9 @@
 +$  sort  $~(%time ?(%alpha %time %arranged))
 ::  $arranged-posts: an array of postIds
 +$  arranged-posts  (unit (list time))
-::  $feel: either an emoji identifier like :diff or a URL for custom
-+$  feel  @ta
-+$  feels  (map ship (rev (unit feel)))
+::  $react: either an emoji identifier like :diff or a URL for custom
++$  react     @ta
++$  v-reacts  (map ship (rev (unit react)))
 ::  $scan: search results
 +$  scan  (list reference)
 +$  reference
@@ -332,18 +332,18 @@
       [%edit id=id-post =essay]
       [%del id=id-post]
       [%reply id=id-post =c-reply]
-      c-feel
+      c-react
   ==
 ::
 +$  c-reply
   $%  [%add =memo]
       [%del id=id-reply]
-      c-feel
+      c-react
   ==
 ::
-+$  c-feel
-  $%  [%add-feel id=@da p=ship q=feel]
-      [%del-feel id=@da p=ship]
++$  c-react
+  $%  [%add-react id=@da p=ship q=react]
+      [%del-react id=@da p=ship]
   ==
 ::
 +|  %updates
@@ -361,14 +361,14 @@
 ::
 +$  u-post
   $%  [%set post=(unit v-post)]
-      [%feels =feels]
+      [%reacts reacts=v-reacts]
       [%essay (rev =essay)]
       [%reply id=id-reply =u-reply]
   ==
 ::
 +$  u-reply
   $%  [%set reply=(unit v-reply)]
-      [%feels =feels]
+      [%reacts reacts=v-reacts]
   ==
 ::
 +$  u-checkpoint  global:v-channel
@@ -393,13 +393,13 @@
 +$  r-post
   $%  [%set post=(unit post)]
       [%reply id=id-reply =reply-meta =r-reply]
-      [%feels feels=rr-feels]
+      [%reacts =reacts]
       [%essay =essay]
   ==
 ::
 +$  r-reply
   $%  [%set reply=(unit reply)]
-      [%feels feels=rr-feels]
+      [%reacts =reacts]
   ==
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
@@ -430,14 +430,14 @@
 +$  post   [rr-seal essay]
 +$  rr-seal
   $:  id=id-post
-      =rr-feels
+      =reacts
       =replies
       =reply-meta
   ==
-+$  rr-feels    (map ship feel)
++$  reacts      (map ship react)
 +$  reply       [rr-cork memo]
 +$  replies     ((mop id-reply reply) lte)
-+$  rr-cork     [id=id-reply parent-id=id-post =rr-feels]
++$  rr-cork     [id=id-reply parent-id=id-post =reacts]
 ++  on-posts    ((on id-post (unit post)) lte)
 ++  on-replies  ((on id-reply reply) lte)
 --

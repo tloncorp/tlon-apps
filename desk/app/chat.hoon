@@ -609,10 +609,10 @@
     [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
-    |=  old=(map ship feel:d)
-    ^-  feels:d
+    |=  old=(map ship feel:t)
+    ^-  v-reacts:d
     %-  ~(run by old)
-    |=  =feel:d
+    |=  =feel:t
     [%0 `feel]
   ::
   ++  convert-quip
@@ -681,7 +681,7 @@
         ?-  -.q.p.diff
           %del                    [%set ~]
           ?(%add %edit)           [%set u.new-post]
-          ?(%add-feel %del-feel)  [%feels ?~(u.new-post ~ feels.u.u.new-post)]
+          ?(%add-feel %del-feel)  [%reacts ?~(u.new-post ~ reacts.u.u.new-post)]
        ==
       =/  new-post-id  (~(get by index) u.replying.u.old-writ)
       ?~  new-post-id  ~
@@ -697,7 +697,7 @@
       ?-  -.q.p.diff
         %del                    [%set ~]
         ?(%add %edit)           [%set u.new-quip]
-        ?(%add-feel %del-feel)  [%feels ?~(u.new-quip ~ feels.u.u.new-quip)]
+        ?(%add-feel %del-feel)  [%reacts ?~(u.new-quip ~ reacts.u.u.new-quip)]
       ==
     ==
   --

@@ -19,8 +19,8 @@
     |=  =r-channel:d
     %+  frond  -.r-channel
     ?-  -.r-channel
-      %posts   (posts posts.r-channel)
-      %post    (pairs id+(id id.r-channel) r-post+(r-post r-post.r-channel) ~)
+      %posts    (posts posts.r-channel)
+      %post     (pairs id+(id id.r-channel) r-post+(r-post r-post.r-channel) ~)
       %order    (order order.r-channel)
       %view     s+view.r-channel
       %sort     s+sort.r-channel
@@ -40,7 +40,7 @@
     %+  frond  -.r-post
     ?-  -.r-post
       %set    ?~(post.r-post ~ (post u.post.r-post))
-      %feels  (feels feels.r-post)
+      %reacts  (reacts reacts.r-post)
       %essay  (essay essay.r-post)
     ::
         %reply
@@ -56,7 +56,7 @@
     %+  frond  -.r-reply
     ?-  -.r-reply
       %set    ?~(reply.r-reply ~ (reply u.reply.r-reply))
-      %feels  (feels feels.r-reply)
+      %reacts  (reacts reacts.r-reply)
     ==
   ::
   ++  paged-posts
@@ -119,7 +119,7 @@
     |=  =rr-seal:d
     %-  pairs
     :~  id+(id id.rr-seal)
-        feels+(feels rr-feels.rr-seal)
+        reacts+(reacts reacts.rr-seal)
         replies+(replies replies.rr-seal)
         meta+(reply-meta reply-meta.rr-seal)
     ==
@@ -129,7 +129,7 @@
     %-  pairs
     :~  id+(id id.rr-cork)
         parent-id+(id parent-id.rr-cork)
-        feels+(feels rr-feels.rr-cork)
+        reacts+(reacts reacts.rr-cork)
     ==
   ::
   +|  %primitives
@@ -179,13 +179,13 @@
         group/(flag group.p)
     ==
   ::
-  ++  feels
-    |=  feels=(map ship:z feel:j)
+  ++  reacts
+    |=  reacts=(map ship:z react:j)
     ^-  json
     %-  pairs
-    %+  turn  ~(tap by feels)
-    |=  [her=@p =feel:j]
-    [(scot %p her) s+feel]
+    %+  turn  ~(tap by reacts)
+    |=  [her=@p =react:j]
+    [(scot %p her) s+react]
   ::
   ++  essay
     |=  =essay:d
@@ -402,8 +402,8 @@
         edit+(ot id+id essay+essay ~)
         del+id
         reply+(ot id+id action+a-reply ~)
-        add-feel+(ot id+id ship+ship feel+so ~)
-        del-feel+(ot id+id ship+ship ~)
+        add-react+(ot id+id ship+ship react+so ~)
+        del-react+(ot id+id ship+ship ~)
     ==
   ::
   ++  a-reply
@@ -411,8 +411,8 @@
     %-  of
     :~  add+memo
         del+id
-        add-feel+(ot id+id ship+ship feel+so ~)
-        del-feel+(ot id+id ship+ship ~)
+        add-react+(ot id+id ship+ship react+so ~)
+        del-react+(ot id+id ship+ship ~)
     ==
   ::
   +|  %primitives

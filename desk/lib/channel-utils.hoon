@@ -2,7 +2,7 @@
 ::  convert a post to a preview for a "said" response
 ::
 |%
-::  +uv-* functions convert posts, replies, and feels into their "unversioned"
+::  +uv-* functions convert posts, replies, and reacts into their "unversioned"
 ::  forms, suitable for responses to our subscribers
 ::
 ++  uv-channels
@@ -32,7 +32,7 @@
   ^-  post:d
   :_  +>.v-post
   :*  id.v-post
-      (uv-feels feels.v-post)
+      (uv-reacts reacts.v-post)
       (uv-replies id.v-post replies.v-post)
       (get-reply-meta v-post)
   ==
@@ -51,7 +51,7 @@
   ^-  post:d
   :_  +>.post
   :*  id.post
-      (uv-feels feels.post)
+      (uv-reacts reacts.post)
       *replies:d
       (get-reply-meta post)
   ==
@@ -71,16 +71,16 @@
   |=  [parent-id=id-reply:d =v-reply:d]
   ^-  reply:d
   :_  +.v-reply
-  [id.v-reply parent-id (uv-feels feels.v-reply)]
+  [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
-++  uv-feels
-  |=  =feels:d
-  ^-  (map ship feel:d)
-  %-  ~(gas by *(map ship feel:d))
-  %+  murn  ~(tap by feels)
-  |=  [=ship (rev:d feel=(unit feel:d))]
-  ?~  feel  ~
-  (some ship u.feel)
+++  uv-reacts
+  |=  =v-reacts:d
+  ^-  reacts:d
+  %-  ~(gas by *reacts:d)
+  %+  murn  ~(tap by v-reacts)
+  |=  [=ship (rev:d react=(unit react:d))]
+  ?~  react  ~
+  (some ship u.react)
 ::
 ++  said
   |=  [=nest:d =plan:d posts=v-posts:d]

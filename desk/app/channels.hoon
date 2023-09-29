@@ -730,12 +730,12 @@
     ::
     ?-    -.u-post
         %reply  (di-u-reply id-post u.u.post id.u-post u-reply.u-post)
-        %feels
-      =/  merged  (di-apply-feels feels.u.u.post feels.u-post)
-      ?:  =(merged feels.u.u.post)  di-core
+        %reacts
+      =/  merged  (di-apply-reacts reacts.u.u.post reacts.u-post)
+      ?:  =(merged reacts.u.u.post)  di-core
       =.  posts.channel
-        (put:on-v-posts:d posts.channel id-post `u.u.post(feels merged))
-      (di-response %post id-post %feels (uv-feels:utils merged))
+        (put:on-v-posts:d posts.channel id-post `u.u.post(reacts merged))
+      (di-response %post id-post %reacts (uv-reacts:utils merged))
     ::
         %essay
       =^  changed  +.u.u.post  (apply-rev:d +.u.u.post +.u-post)
@@ -769,9 +769,9 @@
     ::
     ?~  reply  di-core
     ::
-    =/  merged  (di-apply-feels feels.u.u.reply feels.u-reply)
-    ?:  =(merged feels.u.u.reply)  di-core
-    (put-reply `u.u.reply(feels merged) %feels (uv-feels:utils merged))
+    =/  merged  (di-apply-reacts reacts.u.u.reply reacts.u-reply)
+    ?:  =(merged reacts.u.u.reply)  di-core
+    (put-reply `u.u.reply(reacts merged) %reacts (uv-reacts:utils merged))
     ::
     ::  put a reply into a post by id
     ::
@@ -802,15 +802,15 @@
     ^-  v-post:d
     %_  old
       replies  (di-apply-replies replies.old replies.new)
-      feels  (di-apply-feels feels.old feels.new)
-      +      +:(apply-rev:d +.old +.new)
+      reacts   (di-apply-reacts reacts.old reacts.new)
+      +        +:(apply-rev:d +.old +.new)
     ==
   ::
-  ++  di-apply-feels
-    |=  [old=feels:d new=feels:d]
-    ^-  feels:d
+  ++  di-apply-reacts
+    |=  [old=v-reacts:d new=v-reacts:d]
+    ^-  v-reacts:d
     %-  (~(uno by old) new)
-    |=  [* a=(rev:d (unit feel:d)) b=(rev:d (unit feel:d))]
+    |=  [* a=(rev:d (unit react:d)) b=(rev:d (unit react:d))]
     +:(apply-rev:d a b)
   ::
   ++  di-apply-replies
@@ -824,7 +824,7 @@
     ?~  new  ~
     :-  ~
     %=  u.old
-      feels  (di-apply-feels feels.u.old feels.u.new)
+      reacts  (di-apply-reacts reacts.u.old reacts.u.new)
       +      +.u.new
     ==
   ::
