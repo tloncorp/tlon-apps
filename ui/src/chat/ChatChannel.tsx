@@ -59,7 +59,8 @@ function ChatChannel({ title }: ViewProps) {
   const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
   const isSmall = useMedia('(max-width: 1023px)');
-  const { compatible, text } = useChannelCompatibility(nest);
+  const { compatible, text: compatibilityError } =
+    useChannelCompatibility(nest);
   const isMobile = useIsMobile();
   const safeAreaInsets = useSafeAreaInsets();
   // We only inset the bottom for groups, since DMs display the navbar
@@ -174,7 +175,7 @@ function ChatChannel({ title }: ViewProps) {
         footer={
           <div
             className={cn(
-              !canWrite || ((isDragging || isOver) && !inThread)
+              (isDragging || isOver) && !inThread
                 ? ''
                 : 'border-t-2 border-gray-50 p-3 sm:p-4'
             )}
@@ -190,9 +191,11 @@ function ChatChannel({ title }: ViewProps) {
                   dropZoneId={dropZoneId}
                 />
               </div>
-            ) : !canWrite ? null : (
-              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
-                {text}
+            ) : (
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-400">
+                {!compatible
+                  ? compatibilityError
+                  : 'You need permission to post to this channel.'}
               </div>
             )}
           </div>
