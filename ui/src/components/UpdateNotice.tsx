@@ -3,14 +3,16 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import { isTalk } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
+import { useSafeAreaInsets } from '@/logic/native';
 
 const updateInterval =
   import.meta.env.MODE === 'sw' ? 10 * 1000 : 5 * 60 * 1000;
 
 export default function UpdateNotice() {
   const appName = isTalk ? 'Talk' : 'Groups';
-  const [headerOffset, setHeaderOffset] = useState(0);
+  const inset = useSafeAreaInsets();
   const isMobile = useIsMobile();
+  const [headerOffset, setHeaderOffset] = useState(0);
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
@@ -62,7 +64,11 @@ export default function UpdateNotice() {
   return (
     <div
       className="z-50 flex items-center justify-between bg-yellow py-1 px-2 text-sm font-medium text-black dark:text-white"
-      style={isMobile ? { position: 'fixed', top: headerOffset } : {}}
+      style={
+        isMobile
+          ? { position: 'fixed', top: headerOffset, left: inset.left ?? 0 }
+          : {}
+      }
     >
       <div className="flex items-center">
         <Asterisk16Icon className="mr-3 h-4 w-4" />
