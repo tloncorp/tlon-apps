@@ -1,9 +1,15 @@
 import Urbit from '@urbit/http-api';
 import api from '@/api';
-import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
+import {
+  asyncWithDefault,
+  asyncWithFallback,
+  isTalk,
+  log,
+} from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
+import { isNativeApp } from '@/logic/native';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import useDocketState from './docket';
@@ -157,10 +163,29 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
 
 useLocalState.setState({
   onReconnect: () => {
-    const { reset } = useSchedulerStore.getState();
-    reset();
-    bootstrap('reset');
+    useSchedulerStore.getState().reset();
 
-    useLocalState.setState({ lastReconnect: Date.now() });
+    const now = Date.now();
+    const { lastReconnect } = useLocalState.getState();
+    const diff = now - lastReconnect;
+    console.log(diff, now, lastReconnect);
+    const isMobile = isNativeApp() || window.innerWidth < 768;
+    const isDev = import.meta.env.DEV;
+    const mobileThreshold = isDev ? 10 * 1000 : 60 * 1000; // one minute
+    const desktopThreshold = isDev ? 10 * 1000 : 60 * 60 * 1000; // one hour
+    const diffTime = `${diff / 1000}s`;
+
+    if (isMobile && diff > mobileThreshold) {
+      console.log('avoiding reconnect, full reset', diffTime, mobileThreshold);
+      bootstrap('full-reset');
+    } else if (diff > desktopThreshold) {
+      console.log('avoiding reconnect, full reset', diffTime, desktopThreshold);
+      bootstrap('full-reset');
+    } else {
+      console.log('reconnecting', diffTime);
+      bootstrap('reset');
+    }
+
+    useLocalState.setState({ lastReconnect: now });
   },
 });

@@ -36,7 +36,7 @@ export const useLocalState = create<LocalState>(
       showDevTools: import.meta.env.DEV,
       errorCount: 0,
       airLockErrorCount: 0,
-      lastReconnect: 0,
+      lastReconnect: Date.now(),
       onReconnect: null,
     }),
     {
