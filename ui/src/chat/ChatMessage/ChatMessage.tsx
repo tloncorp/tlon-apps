@@ -13,7 +13,7 @@ import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { DMBrief } from '@/types/dms';
+import { DMUnread } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -57,8 +57,8 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function briefMatches(brief: DMBrief, id: string): boolean {
-  return brief['read-id'] === id;
+function unreadMatches(unread: DMUnread, id: string): boolean {
+  return unread['read-id'] === id;
 }
 
 const mergeRefs =
@@ -108,7 +108,7 @@ const ChatMessage = React.memo<
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.brief['read-id'];
+      const unreadId = unread?.unread['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
@@ -121,7 +121,7 @@ const ChatMessage = React.memo<
               return;
             }
 
-            const { brief, seen } = unread;
+            const { unread: brief, seen } = unread;
             /* the first fire of this function
                which we don't to do anything with. */
             if (!inView && !seen) {
@@ -141,7 +141,7 @@ const ChatMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && briefMatches(brief, seal.id) && !seen) {
+            if (inView && unreadMatches(brief, seal.id) && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -267,10 +267,10 @@ const ChatMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && briefMatches(unread.brief, seal.id) ? (
+          {unread && unreadMatches(unread.unread, seal.id) ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.brief.count}
+              unreadCount={unread.unread.count}
               ref={viewRef}
             />
           ) : null}

@@ -31,7 +31,7 @@ export default function useGroupSort() {
       [RECENT]: (flag: string, group: Group) => {
         /**
          * Use the latest channel flag associated with the Group; otherwise
-         * fallback to the Group flag itself, which won't be in the briefs and
+         * fallback to the Group flag itself, which won't be in the unreads and
          * thus use INFINITY by default
          */
         const channels = sortChannels(group.channels);

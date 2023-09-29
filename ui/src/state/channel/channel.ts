@@ -18,7 +18,7 @@ import {
   SortMode,
   Said,
   Create,
-  Briefs,
+  Unreads,
   PostEssay,
   Story,
   Posts,
@@ -30,7 +30,7 @@ import {
   newPostMap,
   newReplyMap,
   PageTuple,
-  BriefUpdate,
+  UnreadUpdate,
   PagedPosts,
   PagedPostsMap,
   PostInCache,
@@ -874,13 +874,13 @@ export function useReply(
   }, [post, replyId]);
 }
 
-const emptyBriefs: Briefs = {};
-export function useBriefs(): Briefs {
+const emptyUnreads: Unreads = {};
+export function useUnreads(): Unreads {
   const invalidate = useRef(
     _.debounce(
       () => {
         queryClient.invalidateQueries({
-          queryKey: ['briefs'],
+          queryKey: ['unreads'],
           refetchType: 'none',
         });
       },
@@ -889,52 +889,52 @@ export function useBriefs(): Briefs {
     )
   );
 
-  const eventHandler = (event: BriefUpdate) => {
+  const eventHandler = (event: UnreadUpdate) => {
     invalidate.current();
-    const { brief } = event;
+    const { unread } = event;
 
-    if (brief !== null) {
-      queryClient.setQueryData(['briefs'], (d: Briefs | undefined) => {
+    if (unread !== null) {
+      queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
         if (d === undefined) {
           return undefined;
         }
-        const newBriefs = { ...d };
-        newBriefs[event.nest] = brief;
+        const newUnreads = { ...d };
+        newUnreads[event.nest] = unread;
 
-        useChatStore.getState().update(newBriefs);
-        return newBriefs;
+        useChatStore.getState().update(newUnreads);
+        return newUnreads;
       });
     }
   };
 
-  const { data, ...rest } = useReactQuerySubscription<Briefs, BriefUpdate>({
-    queryKey: ['briefs'],
+  const { data, ...rest } = useReactQuerySubscription<Unreads, UnreadUpdate>({
+    queryKey: ['unreads'],
     app: 'channels',
-    path: '/briefs',
-    scry: '/briefs',
+    path: '/unreads',
+    scry: '/unreads',
     onEvent: eventHandler,
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return emptyBriefs;
+    return emptyUnreads;
   }
 
-  return data as Briefs;
+  return data as Unreads;
 }
 
 export function useIsJoined(nest: Nest) {
   checkNest(nest);
-  const briefs = useBriefs();
+  const unreads = useUnreads();
 
-  return Object.keys(briefs).includes(nest);
+  return Object.keys(unreads).includes(nest);
 }
 
-export function useBrief(nest: Nest) {
+export function useUnread(nest: Nest) {
   checkNest(nest);
 
-  const briefs = useBriefs();
+  const unreads = useUnreads();
 
-  return briefs[nest];
+  return unreads[nest];
 }
 
 export function useChats(): Channels {
@@ -1074,9 +1074,9 @@ export function usePostKeys(nest: Nest) {
 
 export function useGetFirstUnreadID(nest: Nest) {
   const keys = usePostKeys(nest);
-  const brief = useBrief(nest);
+  const unread = useUnread(nest);
 
-  const { 'read-id': lastRead } = brief;
+  const { 'read-id': lastRead } = unread;
 
   if (!lastRead) {
     return null;
@@ -1097,7 +1097,7 @@ export function useMarkReadMutation() {
   return useMutation({
     mutationFn,
     onSuccess: () => {
-      queryClient.invalidateQueries(['briefs']);
+      queryClient.invalidateQueries(['unreads']);
     },
   });
 }
@@ -1131,7 +1131,7 @@ export function useLeaveMutation() {
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
       await queryClient.cancelQueries(['channels']);
-      await queryClient.cancelQueries(['briefs']);
+      await queryClient.cancelQueries(['unreads']);
       await queryClient.cancelQueries([han, 'perms', flag]);
       await queryClient.cancelQueries([han, 'posts', flag]);
       queryClient.removeQueries([han, 'perms', flag]);
@@ -1139,7 +1139,7 @@ export function useLeaveMutation() {
     },
     onSettled: async (_data, _error) => {
       await queryClient.invalidateQueries(['channels']);
-      await queryClient.invalidateQueries(['briefs']);
+      await queryClient.invalidateQueries(['unreads']);
     },
   });
 }
@@ -1296,7 +1296,6 @@ export function useAddPostMutation(nest: string) {
     mutationFn,
     onMutate: async (variables) => {
       await queryClient.cancelQueries(queryKey());
-      // await queryClient.cancelQueries(['briefs']);
 
       usePostsStore.getState().addTracked(variables.cacheId);
 

@@ -51,8 +51,8 @@ export default function DMUnreadAlerts({
     return null;
   }
 
-  const { brief } = chatInfo.unread;
-  const readId = brief['read-id'];
+  const { unread } = chatInfo.unread;
+  const readId = unread['read-id'];
   const udTime = readId
     ? daToUnix(bigInt(udToDec(readId.split('/')[1])))
     : null;
@@ -62,10 +62,10 @@ export default function DMUnreadAlerts({
     : format(date, 'LLLL d');
 
   const unreadMessage =
-    brief &&
-    `${brief.count} new ${pluralize('message', brief.count)} since ${since}`;
+    unread &&
+    `${unread.count} new ${pluralize('message', unread.count)} since ${since}`;
 
-  if (!brief || brief?.count === 0) {
+  if (!unread || unread?.count === 0) {
     return null;
   }
 

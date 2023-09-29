@@ -1,7 +1,7 @@
 import { daToUnix } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import { isSameDay } from 'date-fns';
-import { Brief, Kind, Reply } from '@/types/channel';
+import { Unread, Kind, Reply } from '@/types/channel';
 
 export interface ReplyProps {
   han: Kind;
@@ -40,7 +40,7 @@ export function setNewDaysForReplies(
 export function groupReplies(
   noteId: string,
   replies: [bigInt.BigInteger, Reply][],
-  brief: Brief
+  unread: Unread
 ) {
   const grouped: Record<string, ReplyProps[]> = {};
   let currentTime: string;
@@ -50,8 +50,8 @@ export function groupReplies(
     const { author } = q.memo;
     const time = t.toString();
     const newAuthor = author !== prev?.[1].memo.author;
-    const unreadBrief =
-      brief && brief['read-id'] === q.cork.id ? brief : undefined;
+    const unreadUnread =
+      unread && unread['read-id'] === q.cork.id ? unread : undefined;
 
     if (newAuthor) {
       currentTime = time;
@@ -68,7 +68,7 @@ export function groupReplies(
       newAuthor,
       noteId,
       newDay: false,
-      unreadCount: unreadBrief && brief.count,
+      unreadCount: unreadUnread && unread.count,
     });
   });
 

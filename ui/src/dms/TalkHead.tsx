@@ -2,19 +2,19 @@ import { useMemo } from 'react';
 import _ from 'lodash';
 import { Helmet } from 'react-helmet';
 import { useMessagesFilter } from '@/state/settings';
-import { useBriefs, useChannels } from '@/state/channel/channel';
-import { useDmBriefs, useMultiDms } from '@/state/chat';
+import { useUnreads, useChannels } from '@/state/channel/channel';
+import { useDmUnreads, useMultiDms } from '@/state/chat';
 import { useGroups } from '@/state/groups';
 import { canReadChannel } from '@/logic/channel';
 
 export default function TalkHead() {
   const messagesFilter = useMessagesFilter();
-  const briefs = useBriefs();
-  const { data: dmBriefs } = useDmBriefs();
+  const channelUnreads = useUnreads();
+  const { data: dmUnreads } = useDmUnreads();
   const channels = useChannels();
   const multiDms = useMultiDms();
   const groups = useGroups();
-  const joinedChannels = Object.entries(briefs).filter(([k, v]) => {
+  const joinedChannels = Object.entries(channelUnreads).filter(([k, v]) => {
     const chat = channels[k];
     if (!chat) {
       return false;
@@ -25,7 +25,7 @@ export default function TalkHead() {
     const vessel = group?.fleet[window.our];
     return channel && vessel && canReadChannel(channel, vessel, group.bloc);
   });
-  const dms = Object.entries(dmBriefs).filter(([k, v]) => {
+  const dms = Object.entries(dmUnreads).filter(([k, v]) => {
     const club = multiDms[k];
     if (club) {
       return club.team.concat(club.hive).includes(window.our);

@@ -2,7 +2,7 @@ import { Post, PostEssay } from '@/types/channel';
 import {
   DMWhom,
   Pact,
-  DMBriefs,
+  DMUnreads,
   Club,
   Hive,
   Clubs,

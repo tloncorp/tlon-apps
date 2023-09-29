@@ -319,19 +319,19 @@ export interface Channels {
   [key: string]: Channel;
 }
 
-export interface Brief {
+export interface Unread {
   last: number;
   count: number;
   'read-id': string | null;
 }
 
-export interface Briefs {
-  [nest: Nest]: Brief;
+export interface Unreads {
+  [nest: Nest]: Unread;
 }
 
-export interface BriefUpdate {
+export interface UnreadUpdate {
   nest: Nest;
-  brief: Brief;
+  unread: Unread;
 }
 
 export interface Create {
@@ -368,7 +368,7 @@ export interface Said {
 }
 
 export interface Init {
-  briefs: Briefs;
+  unreads: Unreads;
   channels: Channels;
 }
 

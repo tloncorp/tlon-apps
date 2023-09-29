@@ -157,10 +157,10 @@ const mockCurios: Posts = {
   },
 };
 
-export const heapBriefsSub: SubscriptionHandler = {
+export const heapUnreadsSub: SubscriptionHandler = {
   action: 'subscribe',
   app: 'heap',
-  path: '/briefs',
+  path: '/unreads',
 };
 
 export const heapStashScry: ScryHandler = {
@@ -170,10 +170,10 @@ export const heapStashScry: ScryHandler = {
   func: () => mockStash,
 };
 
-export const heapBriefsScry: ScryHandler = {
+export const heapUnreadsScry: ScryHandler = {
   action: 'scry',
   app: 'heap',
-  path: '/briefs',
+  path: '/unreads',
   func: () => ({
     '~zod/testHeap': {
       last: unixTime,
@@ -208,9 +208,9 @@ export const heapCuriosSubscribe: SubscriptionHandler = {
 };
 
 const heapHandlers: Handler[] = [
-  heapBriefsSub,
+  heapUnreadsSub,
   heapStashScry,
-  heapBriefsScry,
+  heapUnreadsScry,
   heapPermsScry,
   heapCuriosScry,
   heapCuriosSubscribe,

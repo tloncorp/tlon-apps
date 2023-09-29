@@ -157,19 +157,19 @@ export interface Writs {
   [time: Patda]: Writ;
 }
 
-export interface DMBrief {
+export interface DMUnread {
   last: number;
   count: number;
   'read-id': string | null;
 }
 
-export interface DMBriefs {
-  [whom: DMWhom]: DMBrief;
+export interface DMUnreads {
+  [whom: DMWhom]: DMUnread;
 }
 
-export interface DMBriefUpdate {
+export interface DMUnreadUpdate {
   whom: DMWhom;
-  brief: DMBrief;
+  unread: DMUnread;
 }
 /**
  * Either a `@p` or `@uv` rendered as string
@@ -249,7 +249,7 @@ export interface ClubAction {
 export interface TalkInit {
   clubs: Clubs;
   dms: string[];
-  briefs: DMBriefs;
+  unreads: DMUnreads;
   invited: string[];
   pins: string[];
 }

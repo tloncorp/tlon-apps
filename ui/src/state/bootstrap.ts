@@ -19,7 +19,7 @@ const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
   channels: {},
-  briefs: {},
+  unreads: {},
   pins: [],
 };
 
@@ -36,7 +36,7 @@ async function chatScry<T>(path: string, def: T) {
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { channels, briefs, groups, gangs } = await asyncWithDefault(
+  const { channels, unreads, groups, gangs } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
@@ -48,8 +48,8 @@ async function startGroups() {
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
   queryClient.setQueryData(['channels'], channels);
-  queryClient.setQueryData(['briefs'], briefs);
-  useChatStore.getState().update(briefs);
+  queryClient.setQueryData(['unreads'], unreads);
+  useChatStore.getState().update(unreads);
 }
 
 async function startTalk() {
@@ -61,7 +61,7 @@ async function startTalk() {
         path: '/init',
       }),
     async () => {
-      const [groupsRes, gangsRes, dms, clubs, invited, pinsResp, briefs] =
+      const [groupsRes, gangsRes, dms, clubs, invited, pinsResp, unreads] =
         await Promise.all([
           asyncWithDefault(
             () =>
@@ -83,7 +83,7 @@ async function startTalk() {
           chatScry('/clubs', {}),
           chatScry('/dm/invited', []),
           chatScry('/pins', { pins: [] }),
-          chatScry('/briefs', {}),
+          chatScry('/unreads', {}),
         ]);
       return {
         groups: groupsRes,
@@ -92,7 +92,7 @@ async function startTalk() {
         clubs,
         invited,
         pins: pinsResp.pins,
-        briefs,
+        unreads,
       };
     }
   );

@@ -7,7 +7,7 @@ import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import { getFlagParts, pluralize } from '@/logic/utils';
 import {
-  useBrief,
+  useUnread,
   usePost,
   usePerms,
   useJoinMutation,
@@ -57,7 +57,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
-  const brief = useBrief(nest);
+  const unread = useUnread(nest);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = usePerms(nest);
   const { compatible } = useChannelCompatibility(nest);
@@ -145,7 +145,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
   const groupedReplies = setNewDaysForReplies(
-    groupReplies(noteId, replyArray, brief).sort(([a], [b]) => {
+    groupReplies(noteId, replyArray, unread).sort(([a], [b]) => {
       if (sort === 'asc') {
         return a.localeCompare(b);
       }

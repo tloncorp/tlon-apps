@@ -11,7 +11,7 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import { useBriefs } from '@/state/channel/channel';
+import { useUnreads } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { getFlagParts } from '@/logic/utils';
@@ -29,7 +29,7 @@ function Groups() {
   const { privacy } = useGroupPrivacy(flag);
   const { ship } = getFlagParts(flag);
   const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
-  const briefs = useBriefs();
+  const unreads = useUnreads();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -65,7 +65,7 @@ function Groups() {
     // 3) If we found a channel that matches what we have for "recent channel"
     // and you can read that channel (and you're not on mobile), navigate
     // directly to that channel.
-    // 4) If we don't have a recent channel, grab a channel from our briefs for
+    // 4) If we don't have a recent channel, grab a channel from our unreads for
     // that group, check if we can read it, and if we're not on mobile, then
     // navigate to that channel.
     // 5) If we're on mobile, just navigate to the channel list for the group.
@@ -85,9 +85,9 @@ function Groups() {
         return;
       }
 
-      const allBriefs = _.mapKeys(briefs, (k, v) => k);
+      const allUnreads = _.mapKeys(unreads, (k, v) => k);
       const channel = Object.entries(group.channels).find(
-        ([nest]) => nest in allBriefs
+        ([nest]) => nest in allUnreads
       );
 
       canRead = channel && canReadChannel(channel[1], vessel, group?.bloc);
@@ -99,7 +99,7 @@ function Groups() {
     }
   }, [
     root,
-    briefs,
+    unreads,
     gang,
     group,
     vessel,

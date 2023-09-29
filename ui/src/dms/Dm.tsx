@@ -4,7 +4,7 @@ import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import { useChatState, useDmBrief, useDmIsPending } from '@/state/chat';
+import { useChatState, useDmUnread, useDmIsPending } from '@/state/chat';
 import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';
@@ -103,9 +103,9 @@ export default function Dm() {
   const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
-  const brief = useDmBrief(ship);
+  const unread = useDmUnread(ship);
   const canStart = useChatState(
-    useCallback(() => ship && !!brief, [ship, brief])
+    useCallback(() => ship && !!unread, [ship, unread])
   );
 
   const {

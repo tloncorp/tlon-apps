@@ -27,7 +27,7 @@ import {
   pinnedDMs,
 } from '@/mocks/chat';
 import {
-  DMBriefs,
+  DMUnreads,
   DMWhom,
   Club,
   ClubAction,
@@ -94,10 +94,10 @@ const specificGroupSub = {
   path: '/groups/:ship/:name/ui',
 } as SubscriptionHandler;
 
-const briefsSub = {
+const unreadsSub = {
   action: 'subscribe',
   app: 'chat',
-  path: `/briefs`,
+  path: `/unreads`,
 } as SubscriptionHandler;
 
 const settingsSub = {
@@ -213,20 +213,20 @@ const chat: Handler[] = [
     },
     dataResponder: (req) => createResponse(req, 'diff'),
   },
-  briefsSub,
+  unreadsSub,
   {
     action: 'scry' as const,
     app: 'chat',
-    path: '/briefs',
+    path: '/unreads',
     func: () => {
       const unarchived = _.fromPairs(
         Object.entries(dmList).filter(([k]) => !archive.includes(k))
       );
 
-      const briefs: DMBriefs = {};
+      const unreads: DMUnreads = {};
       Object.values(mockGroups).forEach((group) =>
         Object.entries(group.channels).forEach(([k]) => {
-          briefs[k] = {
+          unreads[k] = {
             last: 1652302200000,
             count: 1,
             'read-id': null,
@@ -236,7 +236,7 @@ const chat: Handler[] = [
 
       return {
         ...unarchived,
-        ...briefs,
+        ...unreads,
         '0v4.00000.qcas9.qndoa.7loa7.loa7l': {
           last: 1652302200000,
           count: 1,
@@ -276,13 +276,13 @@ const chat: Handler[] = [
     action: 'poke',
     app: 'chat',
     mark: 'chat-remark-action',
-    returnSubscription: briefsSub,
+    returnSubscription: unreadsSub,
     dataResponder: (
       req: Message & Poke<{ whom: DMWhom; diff: { read: null } }>
     ) =>
       createResponse(req, 'diff', {
         whom: req.json.whom,
-        brief: { last: 0, count: 0, 'read-id': null },
+        unread: { last: 0, count: 0, 'read-id': null },
       }),
   },
 ];
@@ -438,18 +438,18 @@ const dms: Handler[] = [
       api: UrbitMock
     ) => {
       if (!Object.keys(dmList).includes(req.json.ship)) {
-        const brief = {
+        const unread = {
           last: 1652302200000,
           count: 1,
           'read-id': null,
         };
-        dmList[req.json.ship] = brief;
+        dmList[req.json.ship] = unread;
 
         api.publishUpdate(
-          briefsSub,
+          unreadsSub,
           {
             whom: req.json.ship,
-            brief,
+            unread,
           },
           req.mark
         );

@@ -7,7 +7,7 @@ import { daToUnix } from '@urbit/api';
 import { format } from 'date-fns';
 import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { DMBrief } from '@/types/dms';
+import { DMUnread } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -47,8 +47,8 @@ export interface ReplyMessageProps {
   showReply?: boolean;
 }
 
-function briefMatches(brief: DMBrief, id: string): boolean {
-  return brief['read-id'] === id;
+function unreadMatches(unread: DMUnread, id: string): boolean {
+  return unread['read-id'] === id;
 }
 
 const mergeRefs =
@@ -90,7 +90,7 @@ const ReplyMessage = React.memo<
       const isThreadOnMobile = isMobile;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.brief['read-id'];
+      const unreadId = unread?.unread['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, cork.id);
       const { open: pickerOpen } = useChatDialog(whom, cork.id, 'picker');
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
@@ -104,7 +104,7 @@ const ReplyMessage = React.memo<
               return;
             }
 
-            const { brief, seen } = unread;
+            const { unread: brief, seen } = unread;
             /* the first fire of this function
                which we don't to do anything with. */
             if (!inView && !seen) {
@@ -124,7 +124,7 @@ const ReplyMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && briefMatches(brief, cork.id) && !seen) {
+            if (inView && unreadMatches(brief, cork.id) && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -238,10 +238,10 @@ const ReplyMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && briefMatches(unread.brief, cork.id) ? (
+          {unread && unreadMatches(unread.unread, cork.id) ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.brief.count}
+              unreadCount={unread.unread.count}
               ref={viewRef}
             />
           ) : null}

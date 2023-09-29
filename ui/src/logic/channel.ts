@@ -4,12 +4,12 @@ import { useNavigate, useParams } from 'react-router';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import {
-  useBriefs,
+  useUnreads,
   useChannel,
   useJoinMutation,
   usePerms,
 } from '@/state/channel/channel';
-import { Briefs, Channel, Perm } from '@/types/channel';
+import { Unreads, Channel, Perm } from '@/types/channel';
 import { Zone, Channels, GroupChannel, Vessel, Group } from '@/types/groups';
 import { useLastReconnect } from '@/state/local';
 import {
@@ -30,12 +30,12 @@ import useSidebarSort, {
 } from './useSidebarSort';
 import useRecentChannel from './useRecentChannel';
 
-export function isChannelJoined(nest: string, briefs: Briefs) {
+export function isChannelJoined(nest: string, unreads: Unreads) {
   const [flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
 
   const isChannelHost = window.our === ship;
-  return isChannelHost || (nest && nest in briefs);
+  return isChannelHost || (nest && nest in unreads);
 }
 
 export function canReadChannel(
@@ -95,7 +95,7 @@ const selChats = (s: ChatStore) => s.chats;
 
 function channelUnread(
   nest: string,
-  briefs: Briefs,
+  unreads: Unreads,
   chats: ChatStore['chats']
 ) {
   const [app, chFlag] = nestToFlag(nest);
@@ -105,30 +105,30 @@ function channelUnread(
     return Boolean(unread && !unread.seen);
   }
 
-  return (briefs[nest]?.count ?? 0) > 0;
+  return (unreads[nest]?.count ?? 0) > 0;
 }
 
 export function useCheckChannelUnread() {
-  const briefs = useBriefs();
+  const unreads = useUnreads();
   const chats = useChatStore(selChats);
 
   return useCallback(
     (nest: string) => {
-      if (!briefs || !chats) {
+      if (!unreads || !chats) {
         return false;
       }
 
-      return channelUnread(nest, briefs, chats);
+      return channelUnread(nest, unreads, chats);
     },
-    [briefs, chats]
+    [unreads, chats]
   );
 }
 
 export function useIsChannelUnread(nest: string) {
-  const briefs = useBriefs();
+  const unreads = useUnreads();
   const chats = useChatStore(selChats);
 
-  return channelUnread(nest, briefs, chats);
+  return channelUnread(nest, unreads, chats);
 }
 
 export const useIsChannelHost = (flag: string) =>
@@ -226,18 +226,18 @@ export function useChannelSections(groupFlag: string) {
 }
 
 export function useChannelIsJoined(nest: string) {
-  const briefs = useBriefs();
-  return isChannelJoined(nest, briefs);
+  const unreads = useUnreads();
+  return isChannelJoined(nest, unreads);
 }
 
 export function useCheckChannelJoined() {
-  const briefs = useBriefs();
+  const unreads = useUnreads();
 
   return useCallback(
     (nest: string) => {
-      return isChannelJoined(nest, briefs);
+      return isChannelJoined(nest, unreads);
     },
-    [briefs]
+    [unreads]
   );
 }
 

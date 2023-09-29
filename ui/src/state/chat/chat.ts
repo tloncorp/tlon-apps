@@ -10,14 +10,14 @@ import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
 import {
-  DMBriefUpdate,
+  DMUnreadUpdate,
   ChatScan,
   Club,
   ClubAction,
   ClubDelta,
   Clubs,
   DmAction,
-  DMBriefs,
+  DMUnreads,
   newWritMap,
   Pact,
   Pins,
@@ -189,7 +189,7 @@ export const useChatState = createState<ChatState>(
         });
       }
     },
-    start: async ({ dms, clubs, briefs, pins, invited }) => {
+    start: async ({ dms, clubs, unreads, pins, invited }) => {
       get().batchSet((draft) => {
         draft.pins = pins;
         draft.multiDms = clubs;
@@ -198,7 +198,7 @@ export const useChatState = createState<ChatState>(
         draft.pins = pins;
       });
 
-      useChatStore.getState().update(briefs);
+      useChatStore.getState().update(unreads);
 
       api.subscribe(
         {
@@ -319,17 +319,17 @@ export const useChatState = createState<ChatState>(
         json: ship,
       });
       queryClient.setQueryData(
-        ['dm', 'briefs'],
-        (briefs: DMBriefs | undefined) => {
-          if (!briefs) {
-            return briefs;
+        ['dm', 'unreads'],
+        (unreads: DMUnreads | undefined) => {
+          if (!unreads) {
+            return unreads;
           }
 
-          const newBriefs = { ...briefs };
+          const newUnreads = { ...unreads };
 
-          delete newBriefs[ship];
+          delete newUnreads[ship];
 
-          return newBriefs;
+          return newUnreads;
         }
       );
       get().batchSet((draft) => {
@@ -343,21 +343,21 @@ export const useChatState = createState<ChatState>(
         if (!ok) {
           delete draft.pacts[ship];
           queryClient.setQueryData(
-            ['dm', 'briefs'],
-            (briefs: DMBriefs | undefined) => {
-              if (!briefs) {
-                return briefs;
+            ['dm', 'unreads'],
+            (unreads: DMUnreads | undefined) => {
+              if (!unreads) {
+                return unreads;
               }
 
               if (!ok) {
-                const newBriefs = { ...briefs };
+                const newUnreads = { ...unreads };
 
-                delete newBriefs[ship];
+                delete newUnreads[ship];
 
-                return newBriefs;
+                return newUnreads;
               }
 
-              return briefs;
+              return unreads;
             }
           );
           draft.dms = draft.dms.filter((s) => s !== ship);
@@ -623,21 +623,22 @@ export function useTrackedMessageStatus(id: string) {
   );
 }
 
-const emptyBriefs: DMBriefs = {};
-export function useDmBriefs() {
-  const { data, ...query } = useReactQuerySubscription<DMBriefs, DMBriefUpdate>(
-    {
-      queryKey: ['dm', 'briefs'],
-      app: 'chat',
-      path: '/briefs',
-      scry: '/briefs',
-    }
-  );
+const emptyUnreads: DMUnreads = {};
+export function useDmUnreads() {
+  const { data, ...query } = useReactQuerySubscription<
+    DMUnreads,
+    DMUnreadUpdate
+  >({
+    queryKey: ['dm', 'unreads'],
+    app: 'chat',
+    path: '/unreads',
+    scry: '/unreads',
+  });
 
   if (!data) {
     return {
       ...query,
-      data: emptyBriefs,
+      data: emptyUnreads,
     };
   }
 
@@ -647,16 +648,16 @@ export function useDmBriefs() {
   };
 }
 
-export function useDmBrief(whom: string) {
-  const briefs = useDmBriefs();
-  return briefs.data[whom];
+export function useDmUnread(whom: string) {
+  const unreads = useDmUnreads();
+  return unreads.data[whom];
 }
 
 export function useChatLoading(whom: string) {
-  const brief = useDmBrief(whom);
+  const unread = useDmUnread(whom);
 
   return useChatState(
-    useCallback((s) => !s.pacts[whom] && !!brief, [whom, brief])
+    useCallback((s) => !s.pacts[whom] && !!unread, [whom, unread])
   );
 }
 
@@ -985,9 +986,9 @@ export function useDeleteDMReplyReactMutation() {
 }
 
 export function useIsDmUnread(whom: string) {
-  const { data: briefs } = useDmBriefs();
-  const brief = briefs[whom];
-  return Boolean(brief?.count > 0 && brief['read-id']);
+  const { data: unreads } = useDmUnreads();
+  const unread = unreads[whom];
+  return Boolean(unread?.count > 0 && unread['read-id']);
 }
 
 const selPendingDms = (s: ChatState) => s.pendingDms;
@@ -1028,7 +1029,7 @@ export function usePendingMultiDms() {
 }
 
 export function useMultiDmIsPending(id: string): boolean {
-  const brief = useDmBrief(id);
+  const unread = useDmUnread(id);
   return useChatState(
     useCallback(
       (s) => {
@@ -1040,9 +1041,9 @@ export function useMultiDmIsPending(id: string): boolean {
           return true;
         }
 
-        return !brief && !inTeam;
+        return !unread && !inTeam;
       },
-      [id, brief]
+      [id, unread]
     )
   );
 }
@@ -1051,14 +1052,6 @@ const selDmArchive = (s: ChatState) => s.dmArchive;
 export function useDmArchive() {
   return useChatState(selDmArchive);
 }
-
-export function isGroupBrief(brief: string) {
-  return brief.includes('/');
-}
-
-// export function useBrief(whom: string) {
-// return useChatState(useCallback((s: ChatState) => s.briefs[whom], [whom]));
-// }
 
 export function usePinned() {
   return useChatState(useCallback((s: ChatState) => s.pins, []));
@@ -1135,11 +1128,11 @@ export function useWritByFlagAndWritId(
 
 export function useGetFirstDMUnreadID(whom: string) {
   const keys = useChatKeys({ replying: false, whom });
-  const brief = useDmBrief(whom);
-  if (!brief) {
+  const unread = useDmUnread(whom);
+  if (!unread) {
     return null;
   }
-  const { 'read-id': lastRead } = brief;
+  const { 'read-id': lastRead } = unread;
   if (!lastRead) {
     return null;
   }

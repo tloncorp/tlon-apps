@@ -1,5 +1,5 @@
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
-import { useBrief, usePerms } from '@/state/channel/channel';
+import { useUnread, usePerms } from '@/state/channel/channel';
 import { ReplyMap } from '@/types/channel';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
@@ -28,11 +28,11 @@ export default function HeapDetailComments({
   const sort = useDiaryCommentSortMode(chFlag ?? '');
   const vessel = useVessel(groupFlag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const brief = useBrief(nest);
+  const unread = useUnread(nest);
   const groupedReplies = !comments
     ? []
     : setNewDaysForReplies(
-        groupReplies(time, comments.toArray(), brief).sort(([a], [b]) => {
+        groupReplies(time, comments.toArray(), unread).sort(([a], [b]) => {
           if (sort === 'asc') {
             return a.localeCompare(b);
           }
