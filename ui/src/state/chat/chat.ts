@@ -1154,8 +1154,6 @@ export function useBlockedShips() {
 export function useIsShipBlocked(ship: string) {
   const { blocked } = useBlockedShips();
 
-  console.log({ blocked });
-
   return blocked.includes(ship);
 }
 
