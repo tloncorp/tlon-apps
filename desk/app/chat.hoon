@@ -1956,6 +1956,7 @@
   ++  di-ingest-diff
     |=  =diff:dm:c
     =/  =path  (snoc di-area %ui)
+    ?<  (~(has in blocked) ship)
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  =wire  /contacts/(scot %p ship)
     =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
