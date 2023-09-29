@@ -87,8 +87,12 @@ function CurioReference({
         title={textFallbackTitle}
         byline={
           <span>
-            Post by <ShipName name={curio?.heart.author} showAlias /> in{' '}
-            {preview?.meta?.title}
+            Post by{' '}
+            <ShipName
+              name={curioComment?.heart.author || curio?.heart.author}
+              showAlias
+            />{' '}
+            in {preview?.meta?.title}
           </span>
         }
       >
@@ -156,7 +160,7 @@ function CurioReference({
       <ReferenceBar
         nest={nest}
         time={bigInt(idCurio)}
-        author={curio.heart.author}
+        author={curioComment?.heart.author || curio?.heart.author}
         groupFlag={preview?.group.flag}
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}
