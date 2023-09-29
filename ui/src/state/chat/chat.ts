@@ -1146,7 +1146,7 @@ export function useBlockedShips() {
   }
 
   return {
-    blocked: data.blocked,
+    blocked: data,
     ...rest,
   };
 }
@@ -1167,9 +1167,10 @@ export function useBlockShipMutation() {
 
   return useMutation(mutationFn, {
     onMutate: ({ ship }) => {
-      queryClient.setQueryData<BlockedShips>(['chat', 'blocked'], (old) => ({
-        blocked: [...(old?.blocked ?? []), ship],
-      }));
+      queryClient.setQueryData<BlockedShips>(['chat', 'blocked'], (old) => [
+        ...(old ?? []),
+        ship,
+      ]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['chat', 'blocked']);
@@ -1187,9 +1188,9 @@ export function useUnblockShipMutation() {
 
   return useMutation(mutationFn, {
     onMutate: ({ ship }) => {
-      queryClient.setQueryData<BlockedShips>(['chat', 'blocked'], (old) => ({
-        blocked: (old?.blocked ?? []).filter((s) => s !== ship),
-      }));
+      queryClient.setQueryData<BlockedShips>(['chat', 'blocked'], (old) =>
+        (old ?? []).filter((s) => s !== ship)
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['chat', 'blocked']);
