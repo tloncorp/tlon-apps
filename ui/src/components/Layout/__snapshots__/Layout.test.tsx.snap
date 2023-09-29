@@ -2,7 +2,7 @@
 
 exports[`Layout > renders as expected 1`] = `
 <div
-  className="layout"
+  className="layout select-none"
 >
   <main
     className="main relative"
