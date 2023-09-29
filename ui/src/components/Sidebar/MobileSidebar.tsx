@@ -6,6 +6,7 @@ import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
 import { useChannelUnreadCounts } from '@/logic/channel';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useLocalState } from '@/state/local';
+import { useHasUnreadMessages } from '@/state/chat';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
 import MenuIcon from '../icons/MenuIcon';
@@ -55,7 +56,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
   const { messagesLocation } = useLocalState.getState();
-  const unreadCount = useChannelUnreadCounts({ scope: 'Direct Messages' });
+  const hasUnreads = useHasUnreadMessages();
 
   const onSingleClick = () => {
     if (isNativeApp()) {
@@ -83,7 +84,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       <div
         className={cn(
           'mt-[2px] h-1.5 w-1.5 rounded-full',
-          unreadCount > 0 && 'bg-blue'
+          hasUnreads && 'bg-blue'
         )}
       />
     </DoubleClickableNavTab>
@@ -131,12 +132,10 @@ export default function MobileSidebar() {
               isInactive={isInactive('/groups') && location.pathname !== '/'}
               isDarkMode={isDarkMode}
             />
-            {isNativeApp() && (
-              <MessagesTab
-                isInactive={isInactive('/messages') && isInactive('/dm')}
-                isDarkMode={isDarkMode}
-              />
-            )}
+            <MessagesTab
+              isInactive={isInactive('/messages') && isInactive('/dm')}
+              isDarkMode={isDarkMode}
+            />
             <ActivityTab
               isInactive={isInactive('/notifications')}
               isDarkMode={isDarkMode}
@@ -150,17 +149,6 @@ export default function MobileSidebar() {
                 />
               </div>
             </NavTab>
-            {!isNativeApp() && (
-              <NavTab to="/leap">
-                <div className="flex h-8 w-8 items-center justify-center">
-                  <MenuIcon
-                    className={cn('h-6 w-6', {
-                      'text-gray-200 dark:text-gray-700': isInactive('/leap'),
-                    })}
-                  />
-                </div>
-              </NavTab>
-            )}
             <NavTab to="/profile">
               <Avatar size="xs" className="" ship={window.our} />
             </NavTab>
