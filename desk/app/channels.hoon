@@ -207,9 +207,9 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path+pole !!)
-      [%unreads ~]                   ?>(from-self cor)
-      [%ui ~]                        ?>(from-self cor)
-      [=kind:c ship=@ name=@ %ui ~]  ?>(from-self cor)
+      ~                          ?>(from-self cor)
+      [%unreads ~]               ?>(from-self cor)
+      [=kind:c ship=@ name=@ ~]  ?>(from-self cor)
       [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
     =/  =nest:c     [kind.pole host name.pole]
@@ -967,7 +967,7 @@
   ++  ca-response
     |=  =r-channel:c
     =/  =r-channels:c  [nest r-channel]
-    (give %fact ~[/ui (snoc ca-area %ui)] channel-response+!>(r-channels))
+    (give %fact ~[/ ca-area] channel-response+!>(r-channels))
   ::
   ::  produce an up-to-date unread state
   ::
