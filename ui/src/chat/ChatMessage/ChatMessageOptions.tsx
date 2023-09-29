@@ -228,7 +228,7 @@ function ChatMessageOptions(props: {
     });
   }
 
-  // Ensure options menu is visible even if the top of the message has scorlled
+  // Ensure options menu is visible even if the top of the message has scrolled
   // off the page.
   useLayoutEffect(() => {
     if (open && !isMobile && containerRef.current) {
