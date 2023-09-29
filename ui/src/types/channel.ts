@@ -34,7 +34,7 @@ export interface PostSeal {
   meta: ReplyMeta;
 }
 
-export interface ReplyCork {
+export interface ReplySeal {
   id: string;
   'parent-id': string;
   reacts: {
@@ -201,7 +201,7 @@ export type ReplyTuple = [BigInteger, Reply | null];
 export type PageMap = BTree<BigInteger, Post | null>;
 
 export interface Reply {
-  cork: ReplyCork;
+  seal: ReplySeal;
   memo: Memo;
 }
 
@@ -549,7 +549,7 @@ export const emptyPost: Post = {
 };
 
 export const emptyReply: Reply = {
-  cork: {
+  seal: {
     id: '',
     'parent-id': '',
     reacts: {},

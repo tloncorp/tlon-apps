@@ -51,7 +51,7 @@ export function groupReplies(
     const time = t.toString();
     const newAuthor = author !== prev?.[1].memo.author;
     const unreadUnread =
-      unread && unread['read-id'] === q.cork.id ? unread : undefined;
+      unread && unread['read-id'] === q.seal.id ? unread : undefined;
 
     if (newAuthor) {
       currentTime = time;

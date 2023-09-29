@@ -62,7 +62,7 @@ export default function DMThread() {
 
     return writ.seal.replies.with(bigInt(time), {
       memo: writ.essay,
-      cork: {
+      seal: {
         id: writ.seal.id,
         'parent-id': writ.seal.id,
         reacts: writ.seal.reacts,

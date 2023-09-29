@@ -422,7 +422,7 @@ export const useChatState = createState<ChatState>(
             const replyId = unixToDa(memo.sent).toString();
 
             const newReply: Reply = {
-              cork: {
+              seal: {
                 id: replyId,
                 'parent-id': replying,
                 reacts: {},
@@ -776,7 +776,7 @@ export function useDeleteDMReplyMutation() {
           });
 
           const reply = Object.values(replies).find(
-            (q) => q.cork.id === variables.replyId
+            (q) => q.seal.id === variables.replyId
           );
 
           if (!reply) {
@@ -786,7 +786,7 @@ export function useDeleteDMReplyMutation() {
           let time = '';
 
           Object.entries(replies).forEach(([k, v]) => {
-            if (v.cork.id === variables.replyId) {
+            if (v.seal.id === variables.replyId) {
               time = k;
             }
           });
@@ -852,7 +852,7 @@ export function useAddDMReplyReactMutation() {
           });
 
           const reply = Object.values(replies).find(
-            (q) => q.cork.id === variables.replyId
+            (q) => q.seal.id === variables.replyId
           );
 
           if (!reply) {
@@ -862,17 +862,17 @@ export function useAddDMReplyReactMutation() {
           let time = '';
 
           Object.entries(replies).forEach(([k, v]) => {
-            if (v.cork.id === variables.replyId) {
+            if (v.seal.id === variables.replyId) {
               time = k;
             }
           });
 
           const newReply: Reply = {
             ...reply,
-            cork: {
-              ...reply.cork,
+            seal: {
+              ...reply.seal,
               reacts: {
-                ...reply.cork.reacts,
+                ...reply.seal.reacts,
                 [window.our]: variables.react,
               },
             },
@@ -938,7 +938,7 @@ export function useDeleteDMReplyReactMutation() {
           });
 
           const reply = Object.values(replies).find(
-            (q) => q.cork.id === variables.replyId
+            (q) => q.seal.id === variables.replyId
           );
 
           if (!reply) {
@@ -948,19 +948,19 @@ export function useDeleteDMReplyReactMutation() {
           let time = '';
 
           Object.entries(replies).forEach(([k, v]) => {
-            if (v.cork.id === variables.replyId) {
+            if (v.seal.id === variables.replyId) {
               time = k;
             }
           });
 
-          const currentReacts = reply.cork.reacts;
+          const currentReacts = reply.seal.reacts;
 
           delete currentReacts[window.our];
 
           const newReply: Reply = {
             ...reply,
-            cork: {
-              ...reply.cork,
+            seal: {
+              ...reply.seal,
               reacts: {
                 ...currentReacts,
               },
@@ -1160,7 +1160,7 @@ export function useChatSearch(whom: string, query: string) {
           scItem && 'writ' in scItem
             ? ([bigInt(scItem.writ.seal.time), scItem.writ] as WritTuple)
             : ([
-                bigInt(scItem.reply.reply.cork.time),
+                bigInt(scItem.reply.reply.seal.time),
                 scItem.reply.reply,
               ] as ReplyTuple)
         ),

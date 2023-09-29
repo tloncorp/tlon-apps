@@ -34,7 +34,7 @@ const ReplyScrollerItem = React.forwardRef<
 >(({ reply, prefixedElement, ...props }, ref) => (
   <>
     {prefixedElement || null}
-    <ReplyMessage key={reply.cork.id} ref={ref} reply={reply} {...props} />
+    <ReplyMessage key={reply.seal.id} ref={ref} reply={reply} {...props} />
   </>
 ));
 
@@ -127,7 +127,7 @@ export default function ReplyScroller({
       const min = nonNullMessages?.[0]?.[0] || bigInt();
       const es: ReplyScrollerItemProps[] =
         nonNullMessages.map<ReplyScrollerItemProps>(([index, reply]) => {
-          if (!reply || !reply.memo || !reply.cork) {
+          if (!reply || !reply.memo || !reply.seal) {
             return {
               reply: emptyReply,
               time: index,

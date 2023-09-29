@@ -61,7 +61,7 @@ export default function ChatThread() {
   const replies = note.seal.replies ?? newReplyMap();
   replies.set(bigInt(idTime!), {
     memo: note.essay,
-    cork: {
+    seal: {
       id: note.seal.id,
       'parent-id': note.seal.id,
       reacts: note.seal.reacts,

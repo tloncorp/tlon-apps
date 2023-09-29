@@ -12,12 +12,12 @@ import {
   useAddPostReactMutation,
   useDeletePostReactMutation,
 } from '@/state/channel/channel';
-import { PostSeal, ReplyCork } from '@/types/channel';
+import { PostSeal, ReplySeal } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 
 interface ChatReactionProps {
   whom: string;
-  seal: PostSeal | ReplyCork;
+  seal: PostSeal | ReplySeal;
   react: string;
   ships: string[];
 }

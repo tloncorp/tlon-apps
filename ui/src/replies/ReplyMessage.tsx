@@ -83,16 +83,16 @@ const ReplyMessage = React.memo<
       }: ReplyMessageProps,
       ref
     ) => {
-      const { cork, memo } = reply ?? emptyReply;
+      const { seal, memo } = reply ?? emptyReply;
       const container = useRef<HTMLDivElement>(null);
-      const isThreadOp = cork['parent-id'] === cork.id;
+      const isThreadOp = seal['parent-id'] === seal.id;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadId = unread?.unread['read-id'];
-      const { hovering, setHovering } = useChatHovering(whom, cork.id);
-      const { open: pickerOpen } = useChatDialog(whom, cork.id, 'picker');
+      const { hovering, setHovering } = useChatHovering(whom, seal.id);
+      const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const { mutate: markChatRead } = useMarkReadMutation();
       const { ref: viewRef } = useInView({
@@ -124,7 +124,7 @@ const ReplyMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && unreadMatches(brief, cork.id) && !seen) {
+            if (inView && unreadMatches(brief, seal.id) && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -143,12 +143,12 @@ const ReplyMessage = React.memo<
               markDmRead(whom);
             }
           },
-          [unread, whom, cork.id, isDMOrMultiDM, markChatRead]
+          [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
       // const isMessageDelivered = useIsMessageDelivered(cork.id);
       // const isMessagePosted = useIsMessagePosted(cork.id);
-      const isReplyOp = chatInfo?.replying === cork.id;
+      const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
 
@@ -238,7 +238,7 @@ const ReplyMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && unreadMatches(unread.unread, cork.id) ? (
+          {unread && unreadMatches(unread.unread, seal.id) ? (
             <DateDivider
               date={unix}
               unreadCount={unread.unread.count}
@@ -274,21 +274,21 @@ const ReplyMessage = React.memo<
                   <ChatContent
                     story={memo.content}
                     isScrolling={isScrolling}
-                    writId={cork.id}
+                    writId={seal.id}
                   />
                 ) : null}
-                {cork.reacts && Object.keys(cork.reacts).length > 0 && (
+                {seal.reacts && Object.keys(seal.reacts).length > 0 && (
                   <>
                     <ReplyReactions
                       id="reactions-target"
-                      cork={cork}
+                      seal={seal}
                       whom={whom}
                       time={time.toString()}
                     />
                     <ReactionDetails
                       open={reactionDetailsOpen}
                       onOpenChange={setReactionDetailsOpen}
-                      reactions={cork.reacts}
+                      reactions={seal.reacts}
                     />
                   </>
                 )}

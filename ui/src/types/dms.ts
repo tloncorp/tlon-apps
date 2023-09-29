@@ -6,7 +6,7 @@ import {
   PostSeal,
   PostSealInCache,
   Reply,
-  ReplyCork,
+  ReplySeal,
   ReplyMeta,
 } from './channel';
 import { GroupMeta } from './groups';
@@ -23,12 +23,12 @@ export interface WritEssay extends PostEssay {
   'kind-data': KindDataChat;
 }
 
-export interface WritReplyCork extends ReplyCork {
+export interface WritReplySeal extends ReplySeal {
   time: string;
 }
 
 export interface WritReply extends Reply {
-  cork: WritReplyCork;
+  seal: WritReplySeal;
 }
 
 export interface WritReplyReferenceResponse {

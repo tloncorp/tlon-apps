@@ -44,21 +44,21 @@ export default function ReplyMessageOptions(props: {
 }) {
   const { open, onOpenChange, whom, reply, openReactionDetails, showReply } =
     props;
-  const { cork, memo } = reply ?? emptyReply;
+  const { seal, memo } = reply ?? emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
-  const threadParentId = cork['parent-id'];
+  const threadParentId = seal['parent-id'];
   const { didCopy, doCopy } = useCopy(
-    `/1/chan/${whom}/msg/${threadParentId}/${cork.id}`
+    `/1/chan/${whom}/msg/${threadParentId}/${seal.id}`
   );
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,
-    cork.id,
+    seal.id,
     'picker'
   );
   const { open: deleteOpen, setOpen: setDeleteOpen } = useChatDialog(
     whom,
-    cork.id,
+    seal.id,
     'delete'
   );
   const {
@@ -67,7 +67,7 @@ export default function ReplyMessageOptions(props: {
     setReady,
   } = useRequestState();
   const { chShip, chName } = useParams();
-  const isParent = threadParentId === cork.id;
+  const isParent = threadParentId === seal.id;
   const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
@@ -98,7 +98,7 @@ export default function ReplyMessageOptions(props: {
         deleteDMReply({
           whom,
           writId: threadParentId!,
-          replyId: cork.id,
+          replyId: seal.id,
         });
       } else if (isParent) {
         deleteChatMessage({
@@ -110,7 +110,7 @@ export default function ReplyMessageOptions(props: {
         deleteReply({
           nest: whom,
           postId: threadParentId!,
-          replyId: cork.id,
+          replyId: seal.id,
         });
       }
     } catch (e) {
@@ -130,8 +130,8 @@ export default function ReplyMessageOptions(props: {
   }, [doCopy, isMobile, onOpenChange]);
 
   const setReplyParam = useCallback(() => {
-    setSearchParams({ reply: cork.id }, { replace: true });
-  }, [cork, setSearchParams]);
+    setSearchParams({ reply: seal.id }, { replace: true });
+  }, [seal, setSearchParams]);
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
@@ -139,20 +139,20 @@ export default function ReplyMessageOptions(props: {
         addDMReplyFeel({
           whom,
           writId: threadParentId!,
-          replyId: cork.id,
+          replyId: seal.id,
           react: emoji.shortcodes,
         });
       } else if (isParent) {
         addFeelToChat({
           nest: whom,
-          postId: cork.id,
+          postId: seal.id,
           react: emoji.shortcodes,
         });
       } else {
         addFeelToReply({
           nest: whom,
           postId: threadParentId!,
-          replyId: cork.id,
+          replyId: seal.id,
           react: emoji.shortcodes,
         });
       }
@@ -169,7 +169,7 @@ export default function ReplyMessageOptions(props: {
       whom,
       groupFlag,
       privacy,
-      cork,
+      seal,
       setPickerOpen,
       addFeelToChat,
       isDMorMultiDM,
@@ -192,7 +192,7 @@ export default function ReplyMessageOptions(props: {
   // TODO handle reply replies
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === memo.author;
-  const reactionsCount = Object.keys(cork.reacts).length;
+  const reactionsCount = Object.keys(seal.reacts).length;
 
   const actions: Action[] = [];
 
@@ -206,7 +206,7 @@ export default function ReplyMessageOptions(props: {
         </div>
       ),
       onClick: () => {
-        navigate(`picker/${cork.id}`, {
+        navigate(`picker/${seal.id}`, {
           state: { backgroundLocation: location },
         });
       },

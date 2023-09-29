@@ -30,23 +30,19 @@ function ChatSearchResult({
   isScrolling,
 }: ChatSearchResultProps) {
   const unix = useMemo(() => new Date(daToUnix(time)), [time]);
-  const noteId = useMemo(() => {
-    if ('cork' in writ) {
-      return writ.cork['parent-id'];
+  const postId = useMemo(() => {
+    if ('parent-id' in writ.seal) {
+      return writ.seal['parent-id'];
     }
-    if ('seal' in writ) {
-      if ('time' in writ.seal) {
-        return time;
-      }
-
-      return writ.seal.id;
+    if ('time' in writ.seal) {
+      return time;
     }
 
-    return '';
+    return writ.seal.id;
   }, [writ, time]);
-  const isReply = 'cork' in writ;
-  const scrollTo = `?msg=${noteId}`;
-  const to = isReply ? `${root}/message/${noteId}` : `${root}${scrollTo}`;
+  const isReply = 'parent-id' in writ.seal;
+  const scrollTo = `?msg=${postId}`;
+  const to = isReply ? `${root}/message/${postId}` : `${root}${scrollTo}`;
   const content = useMemo(() => {
     if ('essay' in writ) {
       return writ.essay.content;
@@ -68,16 +64,7 @@ function ChatSearchResult({
 
     return '';
   }, [writ]);
-  const reacts = useMemo(() => {
-    if ('seal' in writ) {
-      return writ.seal.reacts;
-    }
-    if ('cork' in writ) {
-      return writ.cork.reacts;
-    }
-
-    return {};
-  }, [writ]);
+  const reacts = useMemo(() => writ.seal.reacts, [writ]);
 
   return (
     <Link
@@ -95,11 +82,11 @@ function ChatSearchResult({
       <div className="group-one wrap-anywhere relative z-0 flex w-full flex-col space-y-2 py-1 pl-9">
         <ChatContent story={content} isScrolling={isScrolling} />
         {Object.keys(reacts).length > 0 &&
-          ('cork' in writ ? (
+          ('parent-id' in writ.seal ? (
             <ReplyReactions
               time={time.toString()}
               whom={whom}
-              cork={writ.cork}
+              seal={writ.seal}
             />
           ) : (
             <ChatReactions seal={writ.seal} whom={whom} />

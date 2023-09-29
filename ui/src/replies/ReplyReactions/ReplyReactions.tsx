@@ -6,7 +6,7 @@ import {
   useAddPostReactMutation,
   useAddReplyReactMutation,
 } from '@/state/channel/channel';
-import { ReplyCork } from '@/types/channel';
+import { ReplySeal } from '@/types/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 import { useAddDMReplyReactMutation } from '@/state/chat';
@@ -14,21 +14,21 @@ import ReplyReaction from './ReplyReaction';
 
 interface ReplyReactionsProps {
   whom: string;
-  cork: ReplyCork;
+  seal: ReplySeal;
   time: string;
   id?: string;
 }
 
 export default function ReplyReactions({
   whom,
-  cork,
+  seal,
   time,
   id,
 }: ReplyReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isMobile = useIsMobile();
-  const reacts = cork.reacts ? _.invertBy(cork.reacts) : {};
-  const isParent = cork['parent-id'] === time;
+  const reacts = seal.reacts ? _.invertBy(seal.reacts) : {};
+  const isParent = seal['parent-id'] === time;
   const nest = whom;
   const { mutateAsync: addReplyFeel } = useAddReplyReactMutation();
   const { mutateAsync: addChatFeel } = useAddPostReactMutation();
@@ -41,27 +41,27 @@ export default function ReplyReactions({
       if (isParent) {
         await addChatFeel({
           nest,
-          postId: cork['parent-id'],
+          postId: seal['parent-id'],
           react: emoji.shortcodes,
         });
       } else if (isDMorMultiDm) {
         await addDmReplyFeel({
           whom,
           writId: threardParentId!,
-          replyId: cork.id,
+          replyId: seal.id,
           react: emoji.shortcodes,
         });
       } else {
         addReplyFeel({
           nest,
-          postId: cork['parent-id'],
-          replyId: cork.id,
+          postId: seal['parent-id'],
+          replyId: seal.id,
           react: emoji.shortcodes,
         });
       }
     },
     [
-      cork,
+      seal,
       addReplyFeel,
       addChatFeel,
       isParent,
@@ -75,7 +75,7 @@ export default function ReplyReactions({
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
-  if (!cork.reacts) {
+  if (!seal.reacts) {
     return null;
   }
 
@@ -84,8 +84,8 @@ export default function ReplyReactions({
       {Object.entries(reacts).map(([react, ships]) => (
         <ReplyReaction
           key={react}
-          replyId={cork.id}
-          noteId={cork['parent-id']}
+          replyId={seal.id}
+          noteId={seal['parent-id']}
           ships={ships}
           react={react}
           whom={whom}

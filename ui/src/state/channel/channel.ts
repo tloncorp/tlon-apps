@@ -1657,7 +1657,7 @@ export function useAddReplyMutation() {
         const newReplies: Record<string, Reply> = {
           ...prevReplies,
           [decToUd(unixToDa(dateTime).toString())]: {
-            cork: {
+            seal: {
               id: unixToDa(dateTime).toString(),
               'parent-id': decToUd(variables.postId),
               reacts: {},
@@ -1935,10 +1935,10 @@ export function useAddReplyReactMutation() {
           if (time === decToUd(variables.replyId)) {
             replies[decToUd(variables.replyId)] = {
               ...reply,
-              cork: {
-                ...reply.cork,
+              seal: {
+                ...reply.seal,
                 reacts: {
-                  ...reply.cork.reacts,
+                  ...reply.seal.reacts,
                   [window.our]: variables.react,
                 },
               },
@@ -1998,14 +1998,14 @@ export function useDeleteReplyReactMutation() {
         Object.entries(replies).forEach(([time, reply]) => {
           if (time === decToUd(variables.replyId)) {
             const newReacts = {
-              ...reply.cork.reacts,
+              ...reply.seal.reacts,
             };
             delete newReacts[window.our];
 
             replies[decToUd(variables.replyId)] = {
               ...reply,
-              cork: {
-                ...reply.cork,
+              seal: {
+                ...reply.seal,
                 reacts: newReacts,
               },
             };
@@ -2054,7 +2054,7 @@ export function useChannelSearch(nest: string, query: string) {
           scItem && 'post' in scItem
             ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
             : ([
-                bigInt(scItem.reply.reply.cork.id),
+                bigInt(scItem.reply.reply.seal.id),
                 scItem.reply.reply,
               ] as ReplyTuple)
         ),
