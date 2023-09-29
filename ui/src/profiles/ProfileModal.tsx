@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useCopy } from '@/logic/utils';
@@ -13,11 +13,18 @@ import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import { isNativeApp } from '@/logic/native';
+import {
+  useBlockShipMutation,
+  useIsShipBlocked,
+  useUnblockShipMutation,
+} from '@/state/chat';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
 
 export default function ProfileModal() {
+  const [showBlock, setShowBlock] = useState(false);
   const { ship } = useParams();
   const { doCopy, didCopy } = useCopy(ship || '');
   const contact = useContact(ship ? ship : '');
@@ -27,6 +34,10 @@ export default function ProfileModal() {
   const navigateByApp = useNavigateByApp();
   const pals = usePalsState();
   const { data, showConnection } = useConnectivityCheck(ship || '');
+  const { mutate: blockShip } = useBlockShipMutation();
+  const { mutate: unblockShip } = useUnblockShipMutation();
+  const shipIsBlocked = useIsShipBlocked(ship || '');
+  const isUs = ship === window.our;
 
   useEffect(() => {
     if (ship) {
@@ -56,6 +67,19 @@ export default function ProfileModal() {
     } else {
       navigateByApp(`/dm/${ship}`);
     }
+  };
+
+  const handleBlockClick = () => {
+    blockShip({
+      ship,
+    });
+    setShowBlock(false);
+  };
+
+  const handleUnblockClick = () => {
+    unblockShip({
+      ship,
+    });
   };
 
   const handleCopyClick = () => {
@@ -118,10 +142,30 @@ export default function ProfileModal() {
         <button className="secondary-button" onClick={handleCopyClick}>
           {didCopy ? 'Copied!' : 'Copy Name'}
         </button>
+        {!isUs &&
+          (shipIsBlocked ? (
+            <button className="secondary-button" onClick={handleUnblockClick}>
+              Unblock User
+            </button>
+          ) : (
+            <button
+              className="secondary-button"
+              onClick={() => setShowBlock(true)}
+            >
+              Block User
+            </button>
+          ))}
         <button className="button" onClick={handleMessageClick}>
           Message
         </button>
       </footer>
+      <ConfirmationModal
+        open={showBlock}
+        setOpen={setShowBlock}
+        title="Block User"
+        message="Are you sure you want to block this user?"
+        onConfirm={handleBlockClick}
+      />
     </Dialog>
   );
 }

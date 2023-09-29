@@ -10,7 +10,8 @@ import React, {
   useState,
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { usePact } from '@/state/chat';
+import * as Popover from '@radix-ui/react-popover';
+import { useIsShipBlocked, usePact } from '@/state/chat';
 import { ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, {
   HandlerParams,
@@ -45,7 +46,6 @@ import {
   createStorageKey,
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import * as Popover from '@radix-ui/react-popover';
 import { useGroupFlag } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
@@ -141,6 +141,7 @@ export default function ChatInput({
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
   const safeAreaInsets = useSafeAreaInsets();
+  const shipIsBlocked = useIsShipBlocked(whom);
 
   const handleDrop = useCallback(
     (fileList: FileList) => {
@@ -519,6 +520,18 @@ export default function ChatInput({
 
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
+
+  if (shipIsBlocked) {
+    return (
+      <div className="flex w-full items-end space-x-2">
+        <div className="flex-1">
+          <div className="relative flex items-center justify-center">
+            You have blocked this user.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // only allow dropping if this component is the target
   if ((isDragging || isOver) && isTargetId) {

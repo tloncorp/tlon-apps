@@ -6,8 +6,10 @@ import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { Poke } from '@urbit/http-api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Groups } from '@/types/groups';
 import {
+  BlockedShips,
   Chat,
   ChatAction,
   ChatBriefUpdate,
@@ -41,6 +43,7 @@ import {
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
+import queryClient from '@/queryClient';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { getWritWindow, writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
@@ -1126,6 +1129,74 @@ export function useChatSearch(whom: string, query: string) {
     scan,
     ...rest,
   };
+}
+
+export function useBlockedShips() {
+  const { data, ...rest } = useReactQueryScry<BlockedShips>({
+    queryKey: ['chat', 'blocked'],
+    app: 'chat',
+    path: '/blocked',
+  });
+
+  if (!data) {
+    return {
+      blocked: [],
+      ...rest,
+    };
+  }
+
+  return {
+    blocked: data.blocked,
+    ...rest,
+  };
+}
+
+export function useIsShipBlocked(ship: string) {
+  const { blocked } = useBlockedShips();
+
+  console.log({ blocked });
+
+  return blocked.includes(ship);
+}
+
+export function useBlockShipMutation() {
+  const mutationFn = (variables: { ship: string }) =>
+    api.poke({
+      app: 'chat',
+      mark: 'chat-block-ship',
+      json: variables,
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: ({ ship }) => {
+      queryClient.setQueryData<BlockedShips>(['chat', 'blocked'], (old) => ({
+        blocked: [...(old?.blocked ?? []), ship],
+      }));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chat', 'blocked']);
+    },
+  });
+}
+
+export function useUnblockShipMutation() {
+  const mutationFn = (variables: { ship: string }) =>
+    api.poke({
+      app: 'chat',
+      mark: 'chat-unblock-ship',
+      json: variables,
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: ({ ship }) => {
+      queryClient.setQueryData<BlockedShips>(['chat', 'blocked'], (old) => ({
+        blocked: (old?.blocked ?? []).filter((s) => s !== ship),
+      }));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chat', 'blocked']);
+    },
+  });
 }
 
 (window as any).chat = useChatState.getState;

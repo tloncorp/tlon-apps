@@ -350,3 +350,5 @@ export interface ChatScanItem {
 }
 
 export type ChatScan = ChatScanItem[];
+
+export type BlockedShips = { blocked: string[] };
