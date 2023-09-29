@@ -834,7 +834,7 @@
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
   ::
-    [%x %blocked ~]  ``chat-blocked-ships+!>(blocked)
+    [%x %blocked ~]  ``ships+!>(blocked)
   ::
     [%x %briefs ~]  ``chat-briefs+!>(briefs)
   ::
