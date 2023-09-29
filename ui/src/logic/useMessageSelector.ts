@@ -6,7 +6,7 @@ import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
 import { useChatState, useDmBriefs, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
-import { NoteEssay } from '@/types/channel';
+import { PostEssay } from '@/types/channel';
 import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
@@ -85,7 +85,7 @@ export default function useMessageSelector() {
   );
 
   const sendDm = useCallback(
-    async (whom: string, essay: NoteEssay) => {
+    async (whom: string, essay: PostEssay) => {
       if (isMultiDm && shipValues && whom !== existingMultiDm) {
         await createClub(whom, shipValues);
       }

@@ -3,7 +3,7 @@ import cn from 'classnames';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
-import { useNote, useOrderedNotes } from '@/state/channel/channel';
+import { usePost, useOrderedPosts } from '@/state/channel/channel';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
@@ -14,7 +14,7 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import getHanDataFromEssay from '@/logic/getHanData';
-import { newQuipMap, Note } from '@/types/channel';
+import { newReplyMap, Post } from '@/types/channel';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -35,13 +35,15 @@ export default function HeapDetail({ title }: ViewProps) {
     nest,
   });
   const isMobile = useIsMobile();
-  const { note, isLoading } = useNote(nest, idTime || '');
+  const { post: note, isLoading } = usePost(nest, idTime || '');
   const { title: curioTitle } = getHanDataFromEssay(note.essay);
-  const { hasNext, hasPrev, nextNote, prevNote } = useOrderedNotes(
-    nest,
-    idTime || ''
-  );
-  const initialNote = location.state?.initialCurio as Note | undefined;
+  const {
+    hasNext,
+    hasPrev,
+    nextPost: nextNote,
+    prevPost: prevNote,
+  } = useOrderedPosts(nest, idTime || '');
+  const initialNote = location.state?.initialCurio as Post | undefined;
   const essay = note?.essay || initialNote?.essay;
 
   const curioHref = (id?: bigInt.BigInteger) => {
@@ -131,7 +133,7 @@ export default function HeapDetail({ title }: ViewProps) {
           {idTime && (
             <HeapDetailComments
               time={idTime}
-              comments={note.seal.quips ?? newQuipMap()}
+              comments={note.seal.replies ?? newReplyMap()}
               loading={isLoading}
             />
           )}

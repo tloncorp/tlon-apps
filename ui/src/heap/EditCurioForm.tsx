@@ -5,9 +5,9 @@ import { useParams, useNavigate } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useDismissNavigate } from '@/logic/routing';
 import {
-  useDeleteNoteMutation,
-  useEditNoteMutation,
-  useNote,
+  useDeletePostMutation,
+  useEditPostMutation,
+  usePost,
 } from '@/state/channel/channel';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
@@ -35,7 +35,7 @@ export default function EditCurioForm() {
   const nest = `heap/${chFlag}`;
   const navigate = useNavigate();
   const { idTime } = useParams<{ idTime: string }>();
-  const { note, isLoading } = useNote(nest, idTime || '');
+  const { post: note, isLoading } = usePost(nest, idTime || '');
   const contentAsChatStory = useMemo(
     () =>
       isLoading
@@ -43,8 +43,8 @@ export default function EditCurioForm() {
         : chatStoryFromStory(note.essay.content),
     [note, isLoading]
   );
-  const editMutation = useEditNoteMutation();
-  const delMutation = useDeleteNoteMutation();
+  const editMutation = useEditPostMutation();
+  const delMutation = useDeletePostMutation();
   const isLinkMode = !isLoading ? isLinkCurio(contentAsChatStory) : false;
   const { isPending, setPending, setReady } = useRequestState();
   const firstInline = !isLoading && contentAsChatStory.inline[0];

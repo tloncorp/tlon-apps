@@ -10,7 +10,7 @@ import { useChannelPreview, useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import { inlineToString } from '@/logic/tiptap';
-import { useRemoteNote } from '@/state/channel/channel';
+import { useRemotePost } from '@/state/channel/channel';
 import {
   imageUrlFromContent,
   linkUrlFromContent,
@@ -25,19 +25,19 @@ import ReferenceInHeap from './ReferenceInHeap';
 function CurioReference({
   nest,
   idCurio,
-  idQuip,
+  idReply,
   isScrolling = false,
   contextApp,
   children,
 }: {
   nest: string;
   idCurio: string;
-  idQuip?: string;
+  idReply?: string;
   isScrolling?: boolean;
   contextApp?: string;
   children?: React.ReactNode;
 }) {
-  const reference = useRemoteNote(nest, idCurio, isScrolling, idQuip);
+  const reference = useRemotePost(nest, idCurio, isScrolling, idReply);
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,20 +46,20 @@ function CurioReference({
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
   const content = useMemo(() => {
-    if (reference && 'note' in reference && 'essay' in reference.note) {
-      return reference.note.essay.content;
+    if (reference && 'post' in reference && 'essay' in reference.post) {
+      return reference.post.essay.content;
     }
     return [];
   }, [reference]);
   const author = useMemo(() => {
-    if (reference && 'note' in reference && 'essay' in reference.note) {
-      return reference.note.essay.author;
+    if (reference && 'post' in reference && 'essay' in reference.post) {
+      return reference.post.essay.author;
     }
     return '';
   }, [reference]);
   const note = useMemo(() => {
-    if (reference && 'note' in reference) {
-      return reference.note;
+    if (reference && 'post' in reference) {
+      return reference.post;
     }
     return undefined;
   }, [reference]);
@@ -151,7 +151,7 @@ function CurioReference({
         onClick={handleOpenReferenceClick}
         className="flex h-full cursor-pointer flex-col justify-between p-2"
       >
-        <HeapBlock note={note} time={idCurio} refToken={refToken} asRef />
+        <HeapBlock post={note} time={idCurio} refToken={refToken} asRef />
       </div>
       <ReferenceBar
         nest={nest}

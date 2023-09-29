@@ -64,16 +64,16 @@ function ContentReference({
 
     if (app === 'heap') {
       const idCurio = udToDec(segments[2]);
-      const idQuip = segments[3];
+      const idReply = segments[3];
 
-      if (idQuip) {
+      if (idReply) {
         return (
           <WritChanReference
             isScrolling={isScrolling}
             nest={nest}
             contextApp={contextApp}
             idWrit={idCurio}
-            idQuip={idQuip}
+            idReply={idReply}
           >
             {children}
           </WritChanReference>
@@ -84,7 +84,7 @@ function ContentReference({
         <CurioReference
           nest={nest}
           idCurio={idCurio}
-          idQuip={idQuip}
+          idReply={idReply}
           isScrolling={isScrolling}
           contextApp={contextApp}
         >
@@ -94,14 +94,14 @@ function ContentReference({
     }
     if (app === 'chat') {
       const idWrit = segments[2];
-      const idQuip = segments[3];
+      const idReply = segments[3];
       return (
         <WritChanReference
           isScrolling={isScrolling}
           nest={nest}
           contextApp={contextApp}
           idWrit={idWrit}
-          idQuip={idQuip}
+          idReply={idReply}
         >
           {children}
         </WritChanReference>
@@ -109,16 +109,16 @@ function ContentReference({
     }
     if (app === 'diary') {
       const idNote = udToDec(segments[2]);
-      const idQuip = segments[4] ? udToDec(segments[4]) : null;
+      const idReply = segments[4] ? udToDec(segments[4]) : null;
 
-      if (idQuip) {
+      if (idReply) {
         return (
           <WritChanReference
             isScrolling={isScrolling}
             nest={nest}
             contextApp={contextApp}
             idWrit={idNote}
-            idQuip={idQuip}
+            idReply={idReply}
           >
             {children}
           </WritChanReference>

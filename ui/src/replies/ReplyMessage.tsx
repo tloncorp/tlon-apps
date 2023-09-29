@@ -22,22 +22,22 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { emptyQuip, Quip } from '@/types/channel';
+import { emptyReply, Reply } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
-import QuipReactions from '@/diary/QuipReactions/QuipReactions';
 import {
   useChatDialog,
   useChatHovering,
   useChatInfo,
   useChatStore,
-} from '../useChatStore';
-import ReactionDetails from '../ChatReactions/ReactionDetails';
-import QuipMessageOptions from './QuipMessageOptions';
+} from '@/chat/useChatStore';
+import ReactionDetails from '@/chat/ChatReactions/ReactionDetails';
+import ReplyReactions from './ReplyReactions/ReplyReactions';
+import ReplyMessageOptions from './ReplyMessageOptions';
 
-export interface QuipMessageProps {
+export interface ReplyMessageProps {
   whom: string;
   time: BigInteger;
-  quip: Quip;
+  reply: Reply;
   newAuthor?: boolean;
   newDay?: boolean;
   hideOptions?: boolean;
@@ -64,15 +64,15 @@ const mergeRefs =
     });
   };
 
-const QuipMessage = React.memo<
-  QuipMessageProps & React.RefAttributes<HTMLDivElement>
+const ReplyMessage = React.memo<
+  ReplyMessageProps & React.RefAttributes<HTMLDivElement>
 >(
-  React.forwardRef<HTMLDivElement, QuipMessageProps>(
+  React.forwardRef<HTMLDivElement, ReplyMessageProps>(
     (
       {
         whom,
         time,
-        quip,
+        reply,
         newAuthor = false,
         newDay = false,
         hideOptions = false,
@@ -80,10 +80,10 @@ const QuipMessage = React.memo<
         isLinked = false,
         isScrolling = false,
         showReply = false,
-      }: QuipMessageProps,
+      }: ReplyMessageProps,
       ref
     ) => {
-      const { cork, memo } = quip ?? emptyQuip;
+      const { cork, memo } = reply ?? emptyReply;
       const container = useRef<HTMLDivElement>(null);
       const isThreadOp = cork['parent-id'] === cork.id;
       const isMobile = useIsMobile();
@@ -221,7 +221,7 @@ const QuipMessage = React.memo<
         isThreadOp,
       ]);
 
-      if (!quip) {
+      if (!reply) {
         return null;
       }
 
@@ -250,11 +250,11 @@ const QuipMessage = React.memo<
             <Author ship={memo.author} date={unix} hideRoles />
           ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
-            <QuipMessageOptions
+            <ReplyMessageOptions
               open={optionsOpen}
               onOpenChange={setOptionsOpen}
               whom={whom}
-              quip={quip}
+              reply={reply}
               showReply={showReply}
               openReactionDetails={() => setReactionDetailsOpen(true)}
             />
@@ -279,7 +279,7 @@ const QuipMessage = React.memo<
                 ) : null}
                 {cork.feels && Object.keys(cork.feels).length > 0 && (
                   <>
-                    <QuipReactions
+                    <ReplyReactions
                       id="reactions-target"
                       cork={cork}
                       whom={whom}
@@ -310,4 +310,4 @@ const QuipMessage = React.memo<
   )
 );
 
-export default QuipMessage;
+export default ReplyMessage;

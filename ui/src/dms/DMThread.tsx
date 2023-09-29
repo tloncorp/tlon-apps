@@ -24,8 +24,8 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
-import QuipScroller from '@/chat/QuipScroller/QuipScroller';
-import { newQuipMap } from '@/types/channel';
+import ReplyScroller from '@/replies/ReplyScroller/ReplyScroller';
+import { newReplyMap } from '@/types/channel';
 
 export default function DMThread() {
   const { chShip, ship, chName, idTime, idShip } = useParams<{
@@ -56,11 +56,11 @@ export default function DMThread() {
   const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
   const threadTitle = isClub ? club?.meta.title || ship : ship;
   const replies = useMemo(() => {
-    if (!writ || writ.seal.quips === null) {
-      return newQuipMap();
+    if (!writ || writ.seal.replies === null) {
+      return newReplyMap();
     }
 
-    return writ.seal.quips.with(bigInt(time), {
+    return writ.seal.replies.with(bigInt(time), {
       memo: writ.essay,
       cork: {
         id: writ.seal.id,
@@ -163,8 +163,8 @@ export default function DMThread() {
         {loading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
-          <QuipScroller
-            parentNote={writ}
+          <ReplyScroller
+            parentPost={writ}
             key={idTime}
             messages={replies}
             whom={whom}

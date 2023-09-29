@@ -5,14 +5,14 @@ import { useParams } from 'react-router';
 import useEmoji from '@/state/emoji';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useAddDMQuipFeelMutation } from '@/state/chat';
+import { useAddDMReplyFeelMutation } from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import {
-  useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
+  useAddPostFeelMutation,
+  useAddReplyFeelMutation,
 } from '@/state/channel/channel';
 import {
   useIsDmOrMultiDm,
@@ -53,9 +53,9 @@ export default function EmojiPicker({
   const isDMOrMultiDM = useIsDmOrMultiDm(whom!);
   const inThread = useIsInThread();
   const threadParentId = useThreadParentId(whom!);
-  const { mutate: addFeelToChat } = useAddNoteFeelMutation();
-  const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
-  const { mutate: addFeelToDm } = useAddDMQuipFeelMutation();
+  const { mutate: addFeelToChat } = useAddPostFeelMutation();
+  const { mutate: addFeelToReply } = useAddReplyFeelMutation();
+  const { mutate: addFeelToDmReply } = useAddDMReplyFeelMutation();
   const width = window.innerWidth;
   const dismss = useDismissNavigate();
   const mobilePerLineCount = Math.floor((width - 10) / 36);
@@ -72,22 +72,22 @@ export default function EmojiPicker({
 
   const onEmojiSelect = useCallback(
     (emoji: { shortcodes: string }) => {
-      if (isDMOrMultiDM) {
-        addFeelToDm({
+      if (isDMOrMultiDM && inThread) {
+        addFeelToDmReply({
           whom: whom!,
           writId: threadParentId!,
-          quipId: writId,
+          replyId: writId,
           feel: emoji.shortcodes,
         });
       } else if (inThread) {
-        addFeelToQuip({
+        addFeelToReply({
           nest,
-          noteId: threadParentId!,
-          quipId: writId,
+          postId: threadParentId!,
+          replyId: writId,
           feel: emoji.shortcodes,
         });
       } else {
-        addFeelToChat({ nest, noteId: writId, feel: emoji.shortcodes });
+        addFeelToChat({ nest, postId: writId, feel: emoji.shortcodes });
       }
 
       captureGroupsAnalyticsEvent({
@@ -108,8 +108,8 @@ export default function EmojiPicker({
       nest,
       isDMOrMultiDM,
       addFeelToChat,
-      addFeelToQuip,
-      addFeelToDm,
+      addFeelToReply,
+      addFeelToDmReply,
       inThread,
       threadParentId,
     ]

@@ -696,7 +696,7 @@ export function sliceMap<T>(
   return empty;
 }
 
-const apps = ['writ', 'writs', 'hive', 'team', 'curios', 'notes', 'quips'];
+const apps = ['writ', 'writs', 'hive', 'team', 'channels'];
 const groups = [
   'create',
   'zone',

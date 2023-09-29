@@ -3,9 +3,9 @@ import { BigInteger } from 'big-integer';
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { daToUnix } from '@urbit/api';
-import { Note, Quip } from '@/types/channel';
+import { Post, Reply } from '@/types/channel';
 import { Writ } from '@/types/dms';
-import QuipReactions from '@/diary/QuipReactions/QuipReactions';
+import ReplyReactions from '@/replies/ReplyReactions/ReplyReactions';
 import Author from '../ChatMessage/Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
@@ -14,7 +14,7 @@ export interface ChatSearchResultProps {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: Note | Writ | Quip;
+  writ: Post | Writ | Reply;
   index: number;
   selected: boolean;
   isScrolling?: boolean;
@@ -44,9 +44,9 @@ function ChatSearchResult({
 
     return '';
   }, [writ, time]);
-  const isQuip = 'cork' in writ;
+  const isReply = 'cork' in writ;
   const scrollTo = `?msg=${noteId}`;
-  const to = isQuip ? `${root}/message/${noteId}` : `${root}${scrollTo}`;
+  const to = isReply ? `${root}/message/${noteId}` : `${root}${scrollTo}`;
   const content = useMemo(() => {
     if ('essay' in writ) {
       return writ.essay.content;
@@ -96,7 +96,7 @@ function ChatSearchResult({
         <ChatContent story={content} isScrolling={isScrolling} />
         {Object.keys(feels).length > 0 &&
           ('cork' in writ ? (
-            <QuipReactions
+            <ReplyReactions
               time={time.toString()}
               whom={whom}
               cork={writ.cork}

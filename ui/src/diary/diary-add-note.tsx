@@ -11,9 +11,9 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
 import { diaryMixedToJSON, JSONToInlines } from '@/logic/tiptap';
 import {
-  useAddNoteMutation,
-  useEditNoteMutation,
-  useNote,
+  useAddPostMutation,
+  useEditPostMutation,
+  usePost,
 } from '@/state/channel/channel';
 import { useGroupChannel, useGroup, useRouteGroup } from '@/state/groups';
 import { constructStory } from '@/types/channel';
@@ -48,17 +48,17 @@ export default function DiaryAddNote() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const {
-    note,
+    post: note,
     isLoading: loadingNote,
     fetchStatus,
-  } = useNote(nest, id || '0', !id);
+  } = usePost(nest, id || '0', !id);
   const { title, image } = getHanDataFromEssay(note.essay);
-  const { mutateAsync: editNote, status: editStatus } = useEditNoteMutation();
+  const { mutateAsync: editNote, status: editStatus } = useEditPostMutation();
   const {
     data: returnTime,
     mutateAsync: addNote,
     status: addStatus,
-  } = useAddNoteMutation(nest);
+  } = useAddPostMutation(nest);
   const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
     usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
   const editWithMarkdown = useMarkdownInDiaries();

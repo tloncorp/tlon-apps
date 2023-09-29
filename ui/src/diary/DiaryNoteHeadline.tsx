@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { NoteEssay } from '@/types/channel';
+import { PostEssay } from '@/types/channel';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import IconButton from '@/components/IconButton';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -16,9 +16,9 @@ import getHanDataFromEssay from '@/logic/getHanData';
 import useDiaryActions from './useDiaryActions';
 
 interface DiaryListItemProps {
-  essay: NoteEssay;
-  quipCount: number;
-  lastQuippers: string[];
+  essay: PostEssay;
+  replyCount: number;
+  lastRepliers: string[];
   time: bigInt.BigInteger;
   isInList?: boolean;
   isInGrid?: boolean;
@@ -26,8 +26,8 @@ interface DiaryListItemProps {
 
 export default function DiaryNoteHeadline({
   essay,
-  quipCount,
-  lastQuippers,
+  replyCount,
+  lastRepliers,
   time,
   isInList,
   isInGrid,
@@ -41,7 +41,7 @@ export default function DiaryNoteHeadline({
     time: time.toString(),
   });
 
-  const commenters = lastQuippers;
+  const commenters = lastRepliers;
   const calm = useCalm();
 
   const isAdmin = useAmAdmin(flag);
@@ -80,7 +80,7 @@ export default function DiaryNoteHeadline({
                 >
                   <DiaryCommenters
                     commenters={commenters}
-                    quipCount={quipCount}
+                    replyCount={replyCount}
                     fullSize={false}
                   />
                 </span>
@@ -112,7 +112,7 @@ export default function DiaryNoteHeadline({
               <a href="#comments" className="no-underline">
                 <DiaryCommenters
                   commenters={commenters}
-                  quipCount={quipCount}
+                  replyCount={replyCount}
                   fullSize={true}
                 />
               </a>

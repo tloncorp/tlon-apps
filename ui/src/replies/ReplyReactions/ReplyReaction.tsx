@@ -5,43 +5,43 @@ import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
 import {
-  useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
-  useDeleteNoteFeelMutation,
-  useDeleteQuipFeelMutation,
+  useAddPostFeelMutation,
+  useAddReplyFeelMutation,
+  useDeletePostFeelMutation,
+  useDeleteReplyFeelMutation,
 } from '@/state/channel/channel';
 import {
-  useAddDMQuipFeelMutation,
-  useDeleteDMQuipFeelMutation,
+  useAddDMReplyFeelMutation,
+  useDeleteDMReplyFeelMutation,
 } from '@/state/chat';
 import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 
-interface QuipReactionProps {
+interface ReplyReactionProps {
   whom: string;
   feel: string;
   ships: string[];
-  quipId: string;
+  replyId: string;
   noteId: string;
 }
 
-export default function QuipReaction({
+export default function ReplyReaction({
   whom,
   feel,
   ships,
-  quipId,
+  replyId,
   noteId,
-}: QuipReactionProps) {
+}: ReplyReactionProps) {
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
-  const isParent = noteId === quipId;
+  const isParent = noteId === replyId;
   const nest = whom;
-  const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
-  const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
-  const { mutateAsync: delQuipFeel } = useDeleteQuipFeelMutation();
-  const { mutateAsync: delChatFeel } = useDeleteNoteFeelMutation();
-  const { mutateAsync: addDmQuipFeel } = useAddDMQuipFeelMutation();
-  const { mutateAsync: delDmQuipFeel } = useDeleteDMQuipFeelMutation();
+  const { mutateAsync: addReplyFeel } = useAddReplyFeelMutation();
+  const { mutateAsync: addChatFeel } = useAddPostFeelMutation();
+  const { mutateAsync: delReplyFeel } = useDeleteReplyFeelMutation();
+  const { mutateAsync: delChatFeel } = useDeletePostFeelMutation();
+  const { mutateAsync: addDmReplyFeel } = useAddDMReplyFeelMutation();
+  const { mutateAsync: delDmReplyFeel } = useDeleteDMReplyFeelMutation();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const threardParentId = useThreadParentId(whom);
 
@@ -52,44 +52,44 @@ export default function QuipReaction({
   const editFeel = useCallback(async () => {
     if (isMine) {
       if (isParent) {
-        await delChatFeel({ nest, noteId });
+        await delChatFeel({ nest, postId: noteId });
       } else if (isDMorMultiDm) {
-        await delDmQuipFeel({
+        await delDmReplyFeel({
           whom,
           writId: threardParentId!,
-          quipId,
+          replyId,
         });
       } else {
-        await delQuipFeel({ nest, noteId, quipId });
+        await delReplyFeel({ nest, postId: noteId, replyId });
       }
     } else if (isParent) {
-      await addChatFeel({ nest, noteId, feel });
+      await addChatFeel({ nest, postId: noteId, feel });
     } else if (isDMorMultiDm) {
-      await addDmQuipFeel({
+      await addDmReplyFeel({
         whom,
         writId: threardParentId!,
-        quipId,
+        replyId,
         feel,
       });
     } else {
-      await addQuipFeel({ nest, noteId, quipId, feel });
+      await addReplyFeel({ nest, postId: noteId, replyId, feel });
     }
   }, [
     isMine,
     feel,
     noteId,
-    quipId,
-    addQuipFeel,
-    delQuipFeel,
+    replyId,
+    addReplyFeel,
+    delReplyFeel,
     delChatFeel,
     nest,
     isParent,
     addChatFeel,
     whom,
     isDMorMultiDm,
-    addDmQuipFeel,
+    addDmReplyFeel,
     threardParentId,
-    delDmQuipFeel,
+    delDmReplyFeel,
   ]);
 
   return (

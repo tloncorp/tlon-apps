@@ -2,12 +2,12 @@ import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
 import {
   HanChat,
-  NoteEssay,
-  NoteSeal,
-  NoteSealInCache,
-  Quip,
-  QuipCork,
-  QuipMeta,
+  PostEssay,
+  PostSeal,
+  PostSealInCache,
+  Reply,
+  ReplyCork,
+  ReplyMeta,
 } from './channel';
 import { GroupMeta } from './groups';
 
@@ -19,34 +19,34 @@ export interface Writ {
   essay: WritEssay;
 }
 
-export interface WritEssay extends NoteEssay {
+export interface WritEssay extends PostEssay {
   'han-data': HanChat;
 }
 
-export interface WritQuipCork extends QuipCork {
+export interface WritReplyCork extends ReplyCork {
   time: string;
 }
 
-export interface WritQuip extends Quip {
-  cork: WritQuipCork;
+export interface WritReply extends Reply {
+  cork: WritReplyCork;
 }
 
-export interface WritQuipReferenceResponse {
-  quip: {
-    'id-note': string;
-    quip: WritQuip;
+export interface WritReplyReferenceResponse {
+  reply: {
+    'id-post': string;
+    reply: WritReply;
   };
 }
 
-export type WritQuipMap = BTree<BigInteger, WritQuip>;
+export type WritReplyMap = BTree<BigInteger, WritReply>;
 
-export interface WritSeal extends NoteSeal {
+export interface WritSeal extends PostSeal {
   time: string;
 }
 
 interface WritDeltaAdd {
   add: {
-    memo: Omit<NoteEssay, 'han-data'>;
+    memo: Omit<PostEssay, 'han-data'>;
     kind: null;
     time: string | null;
   };
@@ -67,33 +67,37 @@ interface WritDeltaDelFeel {
   'del-feel': string;
 }
 
-interface QuipDeltaAdd {
+interface ReplyDeltaAdd {
   add: {
-    memo: Omit<NoteEssay, 'han-data'>;
+    memo: Omit<PostEssay, 'han-data'>;
     time: string | null;
   };
 }
 
-interface QuipDeltaDel {
+interface ReplyDeltaDel {
   del: null;
 }
 
-interface QuipDeltaAddFeel {
+interface ReplyDeltaAddFeel {
   'add-feel': {
     ship: string;
     feel: string;
   };
 }
 
-interface QuipDeltaDelFeel {
+interface ReplyDeltaDelFeel {
   'del-feel': string;
 }
 
-interface QuipDelta {
-  quip: {
+interface ReplyDelta {
+  reply: {
     id: Patda;
-    meta: QuipMeta | null;
-    delta: QuipDeltaAdd | QuipDeltaDel | QuipDeltaAddFeel | QuipDeltaDelFeel;
+    meta: ReplyMeta | null;
+    delta:
+      | ReplyDeltaAdd
+      | ReplyDeltaDel
+      | ReplyDeltaAddFeel
+      | ReplyDeltaDelFeel;
   };
 }
 
@@ -102,7 +106,7 @@ export type WritDelta =
   | WritDeltaDel
   | WritDeltaAddFeel
   | WritDeltaDelFeel
-  | QuipDelta;
+  | ReplyDelta;
 
 export interface WritDiff {
   id: string;
@@ -250,11 +254,11 @@ export interface TalkInit {
   pins: string[];
 }
 
-export type ChatScanItem = { writ: Writ } | WritQuipReferenceResponse;
+export type ChatScanItem = { writ: Writ } | WritReplyReferenceResponse;
 
 export type ChatScan = ChatScanItem[];
 
-interface WritSealInCache extends NoteSealInCache {
+interface WritSealInCache extends PostSealInCache {
   time: number;
 }
 

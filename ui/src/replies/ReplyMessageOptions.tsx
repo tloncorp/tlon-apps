@@ -6,8 +6,8 @@ import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import {
-  useAddDMQuipFeelMutation,
-  useDeleteDMQuipMutation,
+  useAddDMReplyFeelMutation,
+  useDeleteDMReplyMutation,
 } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
@@ -26,32 +26,28 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
-  useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
-  useDeleteNoteMutation,
-  useDeleteQuipMutation,
+  useAddPostFeelMutation,
+  useAddReplyFeelMutation,
+  useDeletePostMutation,
+  useDeleteReplyMutation,
   usePerms,
 } from '@/state/channel/channel';
-import { emptyQuip, Quip } from '@/types/channel';
+import { emptyReply, Reply } from '@/types/channel';
 
-export default function QuipMessageOptions(props: {
+export default function ReplyMessageOptions(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   whom: string;
-  quip: Quip;
+  reply: Reply;
   openReactionDetails: () => void;
   showReply?: boolean;
 }) {
-  const { open, onOpenChange, whom, quip, openReactionDetails, showReply } =
+  const { open, onOpenChange, whom, reply, openReactionDetails, showReply } =
     props;
-  const { cork, memo } = quip ?? emptyQuip;
+  const { cork, memo } = reply ?? emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const threadParentId = cork['parent-id'];
-  console.log({
-    cork,
-    threadParentId,
-  });
   const { didCopy, doCopy } = useCopy(
     `/1/chan/${whom}/msg/${threadParentId}/${cork.id}`
   );
@@ -83,12 +79,12 @@ export default function QuipMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
-  const { mutate: deleteQuip } = useDeleteQuipMutation();
-  const { mutate: deleteChatMessage } = useDeleteNoteMutation();
-  const { mutate: deleteDMQuip } = useDeleteDMQuipMutation();
-  const { mutate: addFeelToChat } = useAddNoteFeelMutation();
-  const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
-  const { mutate: addDMQuipFeel } = useAddDMQuipFeelMutation();
+  const { mutate: deleteReply } = useDeleteReplyMutation();
+  const { mutate: deleteChatMessage } = useDeletePostMutation();
+  const { mutate: deleteDMReply } = useDeleteDMReplyMutation();
+  const { mutate: addFeelToChat } = useAddPostFeelMutation();
+  const { mutate: addFeelToReply } = useAddReplyFeelMutation();
+  const { mutate: addDMReplyFeel } = useAddDMReplyFeelMutation();
 
   const onDelete = async () => {
     if (isMobile) {
@@ -99,10 +95,10 @@ export default function QuipMessageOptions(props: {
 
     try {
       if (isDMorMultiDM) {
-        deleteDMQuip({
+        deleteDMReply({
           whom,
           writId: threadParentId!,
-          quipId: cork.id,
+          replyId: cork.id,
         });
       } else if (isParent) {
         deleteChatMessage({
@@ -111,10 +107,10 @@ export default function QuipMessageOptions(props: {
         });
         navigate(`/groups/${groupFlag}/channels/chat/${chShip}/${chName}`);
       } else {
-        deleteQuip({
+        deleteReply({
           nest: whom,
-          noteId: threadParentId!,
-          quipId: cork.id,
+          postId: threadParentId!,
+          replyId: cork.id,
         });
       }
     } catch (e) {
@@ -133,30 +129,30 @@ export default function QuipMessageOptions(props: {
     }
   }, [doCopy, isMobile, onOpenChange]);
 
-  const reply = useCallback(() => {
+  const setReplyParam = useCallback(() => {
     setSearchParams({ reply: cork.id }, { replace: true });
   }, [cork, setSearchParams]);
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        addDMQuipFeel({
+        addDMReplyFeel({
           whom,
           writId: threadParentId!,
-          quipId: cork.id,
+          replyId: cork.id,
           feel: emoji.shortcodes,
         });
       } else if (isParent) {
         addFeelToChat({
           nest: whom,
-          noteId: cork.id,
+          postId: cork.id,
           feel: emoji.shortcodes,
         });
       } else {
-        addFeelToQuip({
+        addFeelToReply({
           nest: whom,
-          noteId: threadParentId!,
-          quipId: cork.id,
+          postId: threadParentId!,
+          replyId: cork.id,
           feel: emoji.shortcodes,
         });
       }
@@ -177,8 +173,8 @@ export default function QuipMessageOptions(props: {
       setPickerOpen,
       addFeelToChat,
       isDMorMultiDM,
-      addFeelToQuip,
-      addDMQuipFeel,
+      addFeelToReply,
+      addDMReplyFeel,
       threadParentId,
       isParent,
     ]
@@ -193,7 +189,7 @@ export default function QuipMessageOptions(props: {
   }, [isMobile, loadEmoji]);
 
   const showReactAction = canWrite;
-  // TODO handle quip replies
+  // TODO handle reply replies
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === memo.author;
   const reactionsCount = Object.keys(cork.feels).length;
@@ -240,7 +236,7 @@ export default function QuipMessageOptions(props: {
           Reply
         </div>
       ),
-      onClick: reply,
+      onClick: setReplyParam,
     });
   }
 
@@ -312,7 +308,7 @@ export default function QuipMessageOptions(props: {
                 icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
                 label="Reply"
                 showTooltip
-                action={reply}
+                action={setReplyParam}
               />
             )}
             {showCopyAction && (

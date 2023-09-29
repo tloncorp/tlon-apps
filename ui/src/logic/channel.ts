@@ -9,7 +9,7 @@ import {
   useJoinMutation,
   usePerms,
 } from '@/state/channel/channel';
-import { Briefs, Diary, Perm } from '@/types/channel';
+import { Briefs, Channel, Perm } from '@/types/channel';
 import { Zone, Channels, GroupChannel, Vessel, Group } from '@/types/groups';
 import { useLastReconnect } from '@/state/local';
 import {

@@ -9,15 +9,15 @@ import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import {
-  useAddNoteFeelMutation,
-  useDeleteNoteFeelMutation,
+  useAddPostFeelMutation,
+  useDeletePostFeelMutation,
 } from '@/state/channel/channel';
-import { NoteSeal, QuipCork } from '@/types/channel';
+import { PostSeal, ReplyCork } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 
 interface ChatReactionProps {
   whom: string;
-  seal: NoteSeal | QuipCork;
+  seal: PostSeal | ReplyCork;
   feel: string;
   ships: string[];
 }
@@ -31,8 +31,8 @@ export default function ChatReaction({
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-  const { mutate: addChatFeel } = useAddNoteFeelMutation();
-  const { mutate: delChatFeel } = useDeleteNoteFeelMutation();
+  const { mutate: addChatFeel } = useAddPostFeelMutation();
+  const { mutate: delChatFeel } = useDeletePostFeelMutation();
   const nest = `chat/${whom}`;
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
@@ -50,7 +50,7 @@ export default function ChatReaction({
       } else {
         delChatFeel({
           nest,
-          noteId: seal.id,
+          postId: seal.id,
         });
       }
     } else {
@@ -59,7 +59,7 @@ export default function ChatReaction({
       } else {
         addChatFeel({
           nest,
-          noteId: seal.id,
+          postId: seal.id,
           feel,
         });
       }

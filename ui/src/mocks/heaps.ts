@@ -5,7 +5,7 @@ import {
 } from '@tloncorp/mock-http-api';
 import { BigIntOrderedMap } from '@urbit/api';
 import { subMinutes } from 'date-fns';
-import { newQuipMap, Notes, Perm, Channels } from '@/types/channel';
+import { newReplyMap, Posts, Perm, Channels } from '@/types/channel';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 
@@ -24,15 +24,15 @@ const mockStash: Channels = {
   },
 };
 
-const mockCurios: Notes = {
+const mockCurios: Posts = {
   '170141184505776467152677676749638598656': {
     seal: {
       id: '170141184505776467152677676749638598656',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
       feels: {},
     },
@@ -54,11 +54,11 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598657': {
     seal: {
       id: '170141184505776467152677676749638598657',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
       feels: {},
     },
@@ -80,11 +80,11 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598658': {
     seal: {
       id: '170141184505776467152677676749638598658',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
       feels: {},
     },
@@ -106,11 +106,11 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598659': {
     seal: {
       id: '170141184505776467152677676749638598659',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
       feels: {},
     },
@@ -132,11 +132,11 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598660': {
     seal: {
       id: '170141184505776467152677676749638598660',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
       feels: {},
     },

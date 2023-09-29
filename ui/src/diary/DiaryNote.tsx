@@ -8,11 +8,11 @@ import Layout from '@/components/Layout/Layout';
 import { getFlagParts, pluralize } from '@/logic/utils';
 import {
   useBrief,
-  useNote,
+  usePost,
   usePerms,
   useJoinMutation,
-  useIsNotePending,
-  useNotesOnHost,
+  useIsPostPending,
+  usePostsOnHost,
 } from '@/state/channel/channel';
 import {
   useRouteGroup,
@@ -21,7 +21,7 @@ import {
   useGroup,
   useGroupChannel,
 } from '@/state/groups/groups';
-import { Note, Notes } from '@/types/channel';
+import { Post, Posts } from '@/types/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import {
   canWriteChannel,
@@ -32,8 +32,8 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
 import getHanDataFromEssay from '@/logic/getHanData';
-import { groupQuips, setNewDaysForQuips } from '@/quips/quips';
-import QuipMessage from '@/chat/ChatMessage/QuipMessage';
+import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
+import ReplyMessage from '@/replies/ReplyMessage';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
@@ -49,8 +49,8 @@ export default function DiaryNote({ title }: ViewProps) {
   const group = useGroup(groupFlag);
   const channel = useGroupChannel(groupFlag, nest);
   const { ship } = getFlagParts(chFlag);
-  const { note, status } = useNote(nest, noteId);
-  const isPending = useIsNotePending({
+  const { post: note, status } = usePost(nest, noteId);
+  const isPending = useIsPostPending({
     author: window.our,
     sent: note?.essay?.sent,
   });
@@ -65,7 +65,7 @@ export default function DiaryNote({ title }: ViewProps) {
   const joinChannel = useCallback(async () => {
     await joinDiary({ group: groupFlag, chan: nest });
   }, [nest, groupFlag, joinDiary]);
-  const notesOnHost = useNotesOnHost(nest, isPending);
+  const notesOnHost = usePostsOnHost(nest, isPending);
   const checkIfPreviouslyCached = useCallback(() => {
     // If we have a note, and the host ship is online, and we have a noteId, and
     // the noteId matches the note's seal time, then we have a cached note.
@@ -83,7 +83,7 @@ export default function DiaryNote({ title }: ViewProps) {
     ) {
       if (notesOnHost && typeof notesOnHost === 'object') {
         const foundNote = Object.keys(notesOnHost).filter((n: string) => {
-          const noteOnHost: Note | null = (notesOnHost as Notes)[n];
+          const noteOnHost: Post | null = (notesOnHost as Posts)[n];
           if (noteOnHost) {
             return noteOnHost.seal.id === noteId;
           }
@@ -140,12 +140,12 @@ export default function DiaryNote({ title }: ViewProps) {
     );
   }
 
-  const { quips } = note.seal;
-  const quipArray = quips ? quips.toArray().reverse() : []; // natural reading order
+  const { replies } = note.seal;
+  const replyArray = replies ? replies.toArray().reverse() : []; // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { title: noteTitle, image } = getHanDataFromEssay(note.essay);
-  const groupedQuips = setNewDaysForQuips(
-    groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
+  const groupedReplies = setNewDaysForReplies(
+    groupReplies(noteId, replyArray, brief).sort(([a], [b]) => {
       if (sort === 'asc') {
         return a.localeCompare(b);
       }
@@ -178,8 +178,8 @@ export default function DiaryNote({ title }: ViewProps) {
       <div className="h-full overflow-y-scroll p-6">
         <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
           <DiaryNoteHeadline
-            quipCount={note.seal.quips ? note.seal.quips.size : 0}
-            lastQuippers={note.seal.meta.lastQuippers}
+            replyCount={note.seal.replies ? note.seal.replies.size : 0}
+            lastRepliers={note.seal.meta.lastRepliers}
             essay={note.essay}
             time={bigInt(noteId)}
           />
@@ -197,8 +197,8 @@ export default function DiaryNote({ title }: ViewProps) {
             <div className="mb-3 flex items-center py-3">
               <Divider className="flex-1">
                 <h2 className="font-semibold text-gray-400">
-                  {quips && quips.size > 0
-                    ? `${quips.size} ${pluralize('comment', quips.size)}`
+                  {replies && replies.size > 0
+                    ? `${replies.size} ${pluralize('comment', replies.size)}`
                     : 'No comments'}
                 </h2>
               </Divider>
@@ -212,10 +212,10 @@ export default function DiaryNote({ title }: ViewProps) {
               />
             ) : null}
             <ul className="mt-12">
-              {groupedQuips.map(([_t, g]) =>
+              {groupedReplies.map(([_t, g]) =>
                 g.map((props) => (
                   <li key={props.time.toString()}>
-                    <QuipMessage whom={nest} {...props} showReply />
+                    <ReplyMessage whom={nest} {...props} showReply />
                   </li>
                 ))
               )}

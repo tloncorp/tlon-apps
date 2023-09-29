@@ -5,14 +5,14 @@ import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
-import { useNote } from '@/state/channel/channel';
+import { usePost } from '@/state/channel/channel';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import getHeapContentType from '@/logic/useHeapContentType';
 import useNest from '@/logic/useNest';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
-import { NoteEssay, chatStoryFromStory } from '@/types/channel';
+import { PostEssay, chatStoryFromStory } from '@/types/channel';
 import getHanDataFromEssay from '@/logic/getHanData';
 import { isLink } from '@/types/content';
 import useCurioActions from '../useCurioActions';
@@ -20,7 +20,7 @@ import useCurioActions from '../useCurioActions';
 export interface HeapDetailHeaderProps {
   nest: string;
   idCurio: string;
-  essay: NoteEssay;
+  essay: PostEssay;
   groupFlag: string;
 }
 

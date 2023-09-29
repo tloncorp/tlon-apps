@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import bigInt from 'big-integer';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useRemoteNote } from '@/state/channel/channel';
+import { useRemotePost } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 import {
   isImageUrl,
@@ -39,13 +39,13 @@ function NoteReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const reference = useRemoteNote(nest, id, isScrolling);
+  const reference = useRemotePost(nest, id, isScrolling);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
   const note = useMemo(() => {
-    if (reference && 'note' in reference) {
-      return reference.note;
+    if (reference && 'post' in reference) {
+      return reference.post;
     }
     return undefined;
   }, [reference]);
@@ -171,10 +171,10 @@ function NoteReference({
         ) : null}
         <span className="text-2xl font-semibold">{title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
-        {note.seal.meta.quipCount > 0 ? (
+        {note.seal.meta.replyCount > 0 ? (
           <div className="flex space-x-2">
             <div className="relative flex items-center">
-              {note.seal.meta.lastQuippers.map((author, index) => (
+              {note.seal.meta.lastRepliers.map((author, index) => (
                 <Avatar
                   ship={author}
                   size="xs"
@@ -187,8 +187,8 @@ function NoteReference({
               ))}
             </div>
             <span className="font-semibold text-gray-600">
-              {note.seal.meta.quipCount}{' '}
-              {pluralize('comment', note.seal.meta.quipCount)}
+              {note.seal.meta.replyCount}{' '}
+              {pluralize('comment', note.seal.meta.replyCount)}
             </span>
           </div>
         ) : null}

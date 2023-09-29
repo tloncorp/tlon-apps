@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router';
-import { Note } from '@/types/channel';
+import { Post } from '@/types/channel';
 import { useCalm } from '@/state/settings';
 import getHanDataFromEssay from '@/logic/getHanData';
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
-  note: Note;
+  note: Post;
   time: bigInt.BigInteger;
 }
 
@@ -16,7 +16,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const { essay } = note;
   const { image } = getHanDataFromEssay(essay);
   const hasImage = image?.length !== 0;
-  const { quipCount, lastQuippers } = note.seal.meta;
+  const { replyCount, lastRepliers } = note.seal.meta;
 
   return (
     <div
@@ -36,8 +36,8 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
       onClick={() => navigate(`note/${time.toString()}`)}
     >
       <DiaryNoteHeadline
-        lastQuippers={lastQuippers}
-        quipCount={quipCount}
+        lastRepliers={lastRepliers}
+        replyCount={replyCount}
         essay={essay}
         time={time}
         isInGrid

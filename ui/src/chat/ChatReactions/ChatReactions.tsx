@@ -8,14 +8,14 @@ import { useChatState } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
-import { useAddNoteFeelMutation } from '@/state/channel/channel';
+import { useAddPostFeelMutation } from '@/state/channel/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
-import { NoteSeal } from '@/types/channel';
+import { PostSeal } from '@/types/channel';
 import ChatReaction from './ChatReaction';
 
 interface ChatReactionsProps {
   whom: string;
-  seal: NoteSeal;
+  seal: PostSeal;
   id?: string;
 }
 
@@ -28,7 +28,7 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-  const { mutate: addChatFeel } = useAddNoteFeelMutation();
+  const { mutate: addChatFeel } = useAddPostFeelMutation();
   const nest = `chat/${whom}`;
 
   const onEmoji = useCallback(
@@ -38,7 +38,7 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
       } else {
         addChatFeel({
           nest,
-          noteId: seal.id,
+          postId: seal.id,
           feel: emoji.shortcodes,
         });
       }

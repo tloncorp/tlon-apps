@@ -5,7 +5,7 @@ import { isImageUrl } from './utils';
 import { JSONContent } from '@tiptap/core';
 import { JSONToInlines } from '@/logic/tiptap';
 import { reduce } from 'lodash';
-import { NoteEssay, storyFromChatStory } from '@/types/channel';
+import { PostEssay, storyFromChatStory } from '@/types/channel';
 import { Inline, InlineKey } from '@/types/content';
 import { ChatStory } from '@/types/channel';
 

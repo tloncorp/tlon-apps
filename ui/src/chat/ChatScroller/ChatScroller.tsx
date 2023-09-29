@@ -16,7 +16,7 @@ import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { NoteTuple, emptyNote } from '@/types/channel';
+import { PageTuple, emptyPost } from '@/types/channel';
 import ChatMessage, { ChatMessageProps } from '../ChatMessage/ChatMessage';
 import ChatNotice from '../ChatNotice';
 
@@ -28,7 +28,7 @@ interface ChatScrollerItemProps extends ChatMessageProps {
 const ChatScrollerItem = React.forwardRef<
   HTMLDivElement,
   ChatScrollerItemProps
->(({ index, writ = emptyNote, prefixedElement, ...props }, ref) => {
+>(({ index, writ = emptyPost, prefixedElement, ...props }, ref) => {
   if (!writ) {
     return null;
   }
@@ -111,7 +111,7 @@ function scrollToIndex(
 
 export interface ChatScrollerProps {
   whom: string;
-  messages: NoteTuple[];
+  messages: PageTuple[];
   replying?: boolean;
   prefixedElement?: ReactNode;
   scrollTo?: BigInteger;
@@ -155,7 +155,7 @@ export default function ChatScroller({
           if (!writ) {
             return {
               index,
-              writ: emptyNote,
+              writ: emptyPost,
               hideReplies: replying,
               time: index,
               newAuthor: false,
@@ -194,7 +194,7 @@ export default function ChatScroller({
             writ,
             hideReplies: replying,
             time: index,
-            quipCount: writ.seal.meta.quipCount,
+            replyCount: writ.seal.meta.replyCount,
             newAuthor,
             newDay,
             isLast: keyIdx === ks.length - 1,

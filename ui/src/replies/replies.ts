@@ -1,52 +1,52 @@
-import { Brief, Han, Quip } from '@/types/channel';
 import { daToUnix } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import { isSameDay } from 'date-fns';
+import { Brief, Han, Reply } from '@/types/channel';
 
-export interface QuipProps {
+export interface ReplyProps {
   han: Han;
   noteId: string;
   time: BigInteger;
-  quip: Quip;
+  reply: Reply;
   newAuthor: boolean;
   newDay: boolean;
   unreadCount?: number;
 }
 
-export function setNewDaysForQuips(
-  quips: [string, QuipProps[]][]
-): [string, QuipProps[]][] {
-  return quips.map(([time, comments], index) => {
-    const prev = index !== 0 ? quips[index - 1] : undefined;
-    const prevQuipTime = prev ? bigInt(prev[0]) : undefined;
+export function setNewDaysForReplies(
+  replies: [string, ReplyProps[]][]
+): [string, ReplyProps[]][] {
+  return replies.map(([time, comments], index) => {
+    const prev = index !== 0 ? replies[index - 1] : undefined;
+    const prevReplyTime = prev ? bigInt(prev[0]) : undefined;
     const unix = new Date(daToUnix(bigInt(time)));
 
-    const lastQuipDay = prevQuipTime
-      ? new Date(daToUnix(prevQuipTime))
+    const lastReplyDay = prevReplyTime
+      ? new Date(daToUnix(prevReplyTime))
       : undefined;
 
-    const newDay = lastQuipDay ? !isSameDay(unix, lastQuipDay) : false;
+    const newDay = lastReplyDay ? !isSameDay(unix, lastReplyDay) : false;
 
-    const quip = comments.shift();
-    if (!quip) {
+    const reply = comments.shift();
+    if (!reply) {
       return [time, comments];
     }
 
-    const newComments: QuipProps[] = [{ ...quip, newDay }, ...comments];
+    const newComments: ReplyProps[] = [{ ...reply, newDay }, ...comments];
     return [time, newComments];
   });
 }
 
-export function groupQuips(
+export function groupReplies(
   noteId: string,
-  quips: [bigInt.BigInteger, Quip][],
+  replies: [bigInt.BigInteger, Reply][],
   brief: Brief
 ) {
-  const grouped: Record<string, QuipProps[]> = {};
+  const grouped: Record<string, ReplyProps[]> = {};
   let currentTime: string;
 
-  quips.forEach(([t, q], i) => {
-    const prev = i > 0 ? quips[i - 1] : undefined;
+  replies.forEach(([t, q], i) => {
+    const prev = i > 0 ? replies[i - 1] : undefined;
     const { author } = q.memo;
     const time = t.toString();
     const newAuthor = author !== prev?.[1].memo.author;
@@ -64,7 +64,7 @@ export function groupQuips(
     grouped[currentTime].push({
       han: 'diary',
       time: t,
-      quip: q,
+      reply: q,
       newAuthor,
       noteId,
       newDay: false,

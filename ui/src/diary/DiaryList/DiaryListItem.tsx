@@ -1,23 +1,23 @@
 import cn from 'classnames';
 import { useNavigate } from 'react-router';
-import { Note } from '@/types/channel';
+import { Post } from '@/types/channel';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
-import { useIsNotePending } from '@/state/channel/channel';
+import { useIsPostPending } from '@/state/channel/channel';
 
 interface DiaryListItemProps {
-  note: Note;
+  note: Post;
   time: bigInt.BigInteger;
 }
 
 export default function DiaryListItem({ note, time }: DiaryListItemProps) {
-  const isPending = useIsNotePending({
+  const isPending = useIsPostPending({
     author: note.essay.author,
     sent: note.essay.sent,
   });
   const navigate = useNavigate();
 
   const { essay } = note;
-  const { lastQuippers, quipCount } = note.seal.meta;
+  const { lastRepliers, replyCount } = note.seal.meta;
 
   return (
     <div
@@ -29,8 +29,8 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
       onClick={() => navigate(`note/${time.toString()}`)}
     >
       <DiaryNoteHeadline
-        lastQuippers={lastQuippers}
-        quipCount={quipCount}
+        lastRepliers={lastRepliers}
+        replyCount={replyCount}
         essay={essay}
         time={time}
         isInList

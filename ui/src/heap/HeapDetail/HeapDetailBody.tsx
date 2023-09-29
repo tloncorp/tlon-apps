@@ -15,14 +15,14 @@ import {
   VerseBlock,
   linkUrlFromContent,
   imageUrlFromContent,
-  NoteEssay,
+  PostEssay,
 } from '@/types/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import HeapYoutubePlayer from '../HeapYoutubePlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';
 import HeapVideoPlayer from '../HeapVideoPlayer';
 
-export default function HeapDetailBody({ essay }: { essay?: NoteEssay }) {
+export default function HeapDetailBody({ essay }: { essay?: PostEssay }) {
   const calm = useCalm();
   const isMobile = useIsMobile();
   const { content } = essay || { content: [] };

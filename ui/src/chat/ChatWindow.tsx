@@ -6,7 +6,7 @@ import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { log } from '@/logic/utils';
-import { useInfiniteNotes, useMarkReadMutation } from '@/state/channel/channel';
+import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 
@@ -24,7 +24,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   const scrollTo = getScrollTo(searchParams.get('msg'));
   const nest = `chat/${whom}`;
   const {
-    notes: messages,
+    posts: messages,
     hasNextPage,
     hasPreviousPage,
     fetchPreviousPage,
@@ -32,7 +32,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     isLoading,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = useInfiniteNotes(nest, scrollTo?.toString());
+  } = useInfinitePosts(nest, scrollTo?.toString());
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(nest).unread?.readTimeout;

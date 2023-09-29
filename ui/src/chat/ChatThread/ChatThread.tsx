@@ -22,14 +22,14 @@ import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
 import {
-  useAddQuipMutation,
-  useNote,
+  useAddReplyMutation,
+  usePost,
   usePerms,
-  useQuip,
+  useReply,
 } from '@/state/channel/channel';
-import { newQuipMap, QuipTuple } from '@/types/channel';
+import { newReplyMap, ReplyTuple } from '@/types/channel';
+import ReplyScroller from '@/replies/ReplyScroller/ReplyScroller';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
-import QuipScroller from '../QuipScroller/QuipScroller';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
@@ -45,20 +45,20 @@ export default function ChatThread() {
   const flag = useChannelFlag()!;
   const nest = `chat/${flag}`;
   const groupFlag = useRouteGroup();
-  const { mutate: sendMessage } = useAddQuipMutation();
+  const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const channel = useGroupChannel(groupFlag, nest)!;
   const [searchParams, setSearchParams] = useSearchParams();
-  const quipReplyId = useMemo(() => searchParams.get('reply'), [searchParams]);
-  const quipReply = useQuip(nest, idTime!, quipReplyId || '');
-  const replyingWrit: QuipTuple | undefined =
-    quipReply && quipReplyId ? [bigInt(quipReplyId), quipReply] : undefined;
+  const replyId = useMemo(() => searchParams.get('reply'), [searchParams]);
+  const reply = useReply(nest, idTime!, replyId || '');
+  const replyingWrit: ReplyTuple | undefined =
+    reply && replyId ? [bigInt(replyId), reply] : undefined;
   const { isOpen: leapIsOpen } = useLeap();
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const { note, isLoading } = useNote(nest, idTime!);
-  const replies = note.seal.quips ?? newQuipMap();
+  const { post: note, isLoading } = usePost(nest, idTime!);
+  const replies = note.seal.replies ?? newReplyMap();
   replies.set(bigInt(idTime!), {
     memo: note.essay,
     cork: {
@@ -159,8 +159,8 @@ export default function ChatThread() {
         {isLoading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
-          <QuipScroller
-            parentNote={note}
+          <ReplyScroller
+            parentPost={note}
             key={idTime}
             messages={replies}
             whom={nest}
@@ -181,7 +181,7 @@ export default function ChatThread() {
             whom={flag}
             replying={idTime}
             replyingWrit={replyingWrit}
-            sendQuip={sendMessage}
+            sendReply={sendMessage}
             showReply
             autoFocus
             dropZoneId={dropZoneId}

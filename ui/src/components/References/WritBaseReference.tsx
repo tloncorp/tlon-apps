@@ -49,29 +49,29 @@ function WritBaseReference({
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
   const content = useMemo(() => {
-    if (reference && 'note' in reference && 'essay' in reference.note) {
-      return reference.note.essay.content;
+    if (reference && 'post' in reference && 'essay' in reference.post) {
+      return reference.post.essay.content;
     }
-    if (reference && 'quip' in reference && 'memo' in reference.quip.quip) {
-      return reference.quip.quip.memo.content;
+    if (reference && 'reply' in reference && 'memo' in reference.reply.reply) {
+      return reference.reply.reply.memo.content;
     }
     return [];
   }, [reference]);
   const author = useMemo(() => {
-    if (reference && 'note' in reference && 'essay' in reference.note) {
-      return reference.note.essay.author;
+    if (reference && 'post' in reference && 'essay' in reference.post) {
+      return reference.post.essay.author;
     }
-    if (reference && 'quip' in reference && 'memo' in reference.quip.quip) {
-      return reference.quip.quip.memo.author;
+    if (reference && 'reply' in reference && 'memo' in reference.reply.reply) {
+      return reference.reply.reply.memo.author;
     }
     return '';
   }, [reference]);
   const noteId = useMemo(() => {
-    if (reference && 'note' in reference) {
-      return reference.note.seal.id;
+    if (reference && 'post' in reference) {
+      return reference.post.seal.id;
     }
-    if (reference && 'quip' in reference) {
-      return reference.quip['id-note'];
+    if (reference && 'reply' in reference) {
+      return reference.reply['id-post'];
     }
     return '';
   }, [reference]);
@@ -87,16 +87,16 @@ function WritBaseReference({
 
   const handleOpenReferenceClick = () => {
     if (!group) {
-      if ('note' in reference) {
+      if ('post' in reference) {
         navigate(
-          `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${reference.note.seal.id}`,
+          `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${reference.post.seal.id}`,
           {
             state: { backgroundLocation: location },
           }
         );
       } else {
         navigate(
-          `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${reference.quip['id-note']}`,
+          `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${reference.reply['id-post']}`,
           {
             state: { backgroundLocation: location },
           }
@@ -104,13 +104,13 @@ function WritBaseReference({
       }
       return;
     }
-    if ('note' in reference) {
+    if ('post' in reference) {
       navigate(
-        `/groups/${groupFlag}/channels/${nest}?msg=${reference.note.seal.id}`
+        `/groups/${groupFlag}/channels/${nest}?msg=${reference.post.seal.id}`
       );
     } else {
       navigate(
-        `/groups/${groupFlag}/channels/${nest}/${refMessageType}/${reference.quip['id-note']}`
+        `/groups/${groupFlag}/channels/${nest}/${refMessageType}/${reference.reply['id-post']}`
       );
     }
   };

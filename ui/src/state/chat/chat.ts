@@ -3,7 +3,8 @@ import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { SetState } from 'zustand';
 import { Poke } from '@urbit/http-api';
-import { formatUd, parseUd, unixToDa } from '@urbit/aura';
+import { formatUd, unixToDa } from '@urbit/aura';
+import { useMutation } from '@tanstack/react-query';
 import { udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -22,36 +23,27 @@ import {
   Pins,
   WritDelta,
   Writ,
-  Patda,
-  WritEssay,
   WritInCache,
   WritTuple,
 } from '@/types/dms';
 import {
-  newQuipMap,
-  Note,
-  NoteEssay,
-  Quip,
-  Quips,
+  newReplyMap,
+  Post,
+  PostEssay,
+  Reply,
+  Replies,
   ChannelsAction,
   newChatMap,
-  QuipTuple,
+  ReplyTuple,
 } from '@/types/channel';
 import api from '@/api';
-import {
-  whomIsDm,
-  whomIsMultiDm,
-  whomIsFlag,
-  nestToFlag,
-  whomIsNest,
-} from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { getWindow } from '@/logic/windows';
 import queryClient from '@/queryClient';
-import { useMutation } from '@tanstack/react-query';
 import { createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
@@ -384,7 +376,7 @@ export const useChatState = createState<ChatState>(
       const isDM = whomIsDm(whom);
       // ensure time and ID match up
       const { id, time } = makeId();
-      const memo: Omit<NoteEssay, 'han-data'> = {
+      const memo: Omit<PostEssay, 'han-data'> = {
         content: mem.content,
         author: mem.author,
         sent: time,
@@ -401,7 +393,7 @@ export const useChatState = createState<ChatState>(
         };
       } else {
         diff = {
-          quip: {
+          reply: {
             id,
             meta: null,
             delta: {
@@ -420,31 +412,31 @@ export const useChatState = createState<ChatState>(
               return writ;
             }
 
-            const prevQuips = writ.seal.quips || {};
-            const quips: Quips = {};
+            const prevReplies = writ.seal.replies || {};
+            const replies: Replies = {};
 
-            Object.entries(prevQuips).forEach(([k, v]) => {
-              quips[k] = v;
+            Object.entries(prevReplies).forEach(([k, v]) => {
+              replies[k] = v;
             });
 
-            const quipId = unixToDa(memo.sent).toString();
+            const replyId = unixToDa(memo.sent).toString();
 
-            const newQuip: Quip = {
+            const newReply: Reply = {
               cork: {
-                id: quipId,
+                id: replyId,
                 'parent-id': replying,
                 feels: {},
               },
               memo,
             };
 
-            quips[quipId] = newQuip;
+            replies[replyId] = newReply;
 
             return {
               ...writ,
               seal: {
                 ...writ.seal,
-                quips: quips as Quips,
+                replies: replies as Replies,
               },
             };
           }
@@ -718,39 +710,38 @@ export function useWrit(whom: string, writId: string, disabled = false) {
     }
 
     const writ = data;
-    const quips = (writ.seal.quips || {}) as Quips;
+    const replies = (writ.seal.replies || {}) as Replies;
 
-    const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
-      bigInt(udToDec(k)),
-      v as Quip,
-    ]);
+    const diff: [BigInteger, Reply][] = Object.entries(replies).map(
+      ([k, v]) => [bigInt(udToDec(k)), v as Reply]
+    );
 
-    const quipMap = newQuipMap(diff);
+    const replyMap = newReplyMap(diff);
 
-    const writWithQuips: Writ = {
+    const writWithReplies: Writ = {
       ...writ,
       seal: {
         ...writ.seal,
-        quips: quipMap,
+        replies: replyMap,
       },
     };
 
     return {
-      writ: writWithQuips,
+      writ: writWithReplies,
       ...rest,
     };
   }, [data, rest]);
 }
 
-export function useDeleteDMQuipMutation() {
+export function useDeleteDMReplyMutation() {
   const mutationFn = async (variables: {
     whom: string;
     writId: string;
-    quipId: string;
+    replyId: string;
   }) => {
     const delta: WritDelta = {
-      quip: {
-        id: variables.quipId,
+      reply: {
+        id: variables.replyId,
         meta: null,
         delta: {
           del: null,
@@ -776,36 +767,36 @@ export function useDeleteDMQuipMutation() {
             return writ;
           }
 
-          const prevQuips = writ.seal.quips || {};
-          const quips: Quips = {};
+          const prevReplies = writ.seal.replies || {};
+          const replies: Replies = {};
 
-          Object.entries(prevQuips).forEach(([k, v]) => {
-            quips[k] = v;
+          Object.entries(prevReplies).forEach(([k, v]) => {
+            replies[k] = v;
           });
 
-          const quip = Object.values(quips).find(
-            (q) => q.cork.id === variables.quipId
+          const reply = Object.values(replies).find(
+            (q) => q.cork.id === variables.replyId
           );
 
-          if (!quip) {
+          if (!reply) {
             return writ;
           }
 
           let time = '';
 
-          Object.entries(quips).forEach(([k, v]) => {
-            if (v.cork.id === variables.quipId) {
+          Object.entries(replies).forEach(([k, v]) => {
+            if (v.cork.id === variables.replyId) {
               time = k;
             }
           });
 
-          delete quips[time];
+          delete replies[time];
 
           return {
             ...writ,
             seal: {
               ...writ.seal,
-              quips: quips as Quips,
+              replies: replies as Replies,
             },
           };
         }
@@ -817,16 +808,16 @@ export function useDeleteDMQuipMutation() {
   });
 }
 
-export function useAddDMQuipFeelMutation() {
+export function useAddDMReplyFeelMutation() {
   const mutationFn = async (variables: {
     whom: string;
     writId: string;
-    quipId: string;
+    replyId: string;
     feel: string;
   }) => {
     const delta: WritDelta = {
-      quip: {
-        id: variables.quipId,
+      reply: {
+        id: variables.replyId,
         meta: null,
         delta: {
           'add-feel': { feel: variables.feel, ship: window.our },
@@ -852,47 +843,47 @@ export function useAddDMQuipFeelMutation() {
             return writ;
           }
 
-          const prevQuips = writ.seal.quips || {};
-          const quips: Quips = {};
+          const prevReplies = writ.seal.replies || {};
+          const replies: Replies = {};
 
-          Object.entries(prevQuips).forEach(([k, v]) => {
-            quips[k] = v;
+          Object.entries(prevReplies).forEach(([k, v]) => {
+            replies[k] = v;
           });
 
-          const quip = Object.values(quips).find(
-            (q) => q.cork.id === variables.quipId
+          const reply = Object.values(replies).find(
+            (q) => q.cork.id === variables.replyId
           );
 
-          if (!quip) {
+          if (!reply) {
             return writ;
           }
 
           let time = '';
 
-          Object.entries(quips).forEach(([k, v]) => {
-            if (v.cork.id === variables.quipId) {
+          Object.entries(replies).forEach(([k, v]) => {
+            if (v.cork.id === variables.replyId) {
               time = k;
             }
           });
 
-          const newQuip: Quip = {
-            ...quip,
+          const newReply: Reply = {
+            ...reply,
             cork: {
-              ...quip.cork,
+              ...reply.cork,
               feels: {
-                ...quip.cork.feels,
+                ...reply.cork.feels,
                 [window.our]: variables.feel,
               },
             },
           };
 
-          quips[time] = newQuip;
+          replies[time] = newReply;
 
           return {
             ...writ,
             seal: {
               ...writ.seal,
-              quips: quips as Quips,
+              replies: replies as Replies,
             },
           };
         }
@@ -904,15 +895,15 @@ export function useAddDMQuipFeelMutation() {
   });
 }
 
-export function useDeleteDMQuipFeelMutation() {
+export function useDeleteDMReplyFeelMutation() {
   const mutationFn = async (variables: {
     whom: string;
     writId: string;
-    quipId: string;
+    replyId: string;
   }) => {
     const delta: WritDelta = {
-      quip: {
-        id: variables.quipId,
+      reply: {
+        id: variables.replyId,
         meta: null,
         delta: {
           'del-feel': window.our,
@@ -938,50 +929,50 @@ export function useDeleteDMQuipFeelMutation() {
             return writ;
           }
 
-          const prevQuips = writ.seal.quips || {};
-          const quips: Quips = {};
+          const prevReplies = writ.seal.replies || {};
+          const replies: Replies = {};
 
-          Object.entries(prevQuips).forEach(([k, v]) => {
-            quips[k] = v;
+          Object.entries(prevReplies).forEach(([k, v]) => {
+            replies[k] = v;
           });
 
-          const quip = Object.values(quips).find(
-            (q) => q.cork.id === variables.quipId
+          const reply = Object.values(replies).find(
+            (q) => q.cork.id === variables.replyId
           );
 
-          if (!quip) {
+          if (!reply) {
             return writ;
           }
 
           let time = '';
 
-          Object.entries(quips).forEach(([k, v]) => {
-            if (v.cork.id === variables.quipId) {
+          Object.entries(replies).forEach(([k, v]) => {
+            if (v.cork.id === variables.replyId) {
               time = k;
             }
           });
 
-          const currentFeels = quip.cork.feels;
+          const currentFeels = reply.cork.feels;
 
           delete currentFeels[window.our];
 
-          const newQuip: Quip = {
-            ...quip,
+          const newReply: Reply = {
+            ...reply,
             cork: {
-              ...quip.cork,
+              ...reply.cork,
               feels: {
                 ...currentFeels,
               },
             },
           };
 
-          quips[time] = newQuip;
+          replies[time] = newReply;
 
           return {
             ...writ,
             seal: {
               ...writ.seal,
-              quips: quips as Quips,
+              replies: replies as Replies,
             },
           };
         }
@@ -1104,7 +1095,7 @@ export function usePinnedClubs() {
 
 type UnsubbedWrit = {
   flag: string;
-  writ: Note;
+  writ: Post;
 };
 
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();
@@ -1176,9 +1167,9 @@ export function useChatSearch(whom: string, query: string) {
           scItem && 'writ' in scItem
             ? ([bigInt(scItem.writ.seal.time), scItem.writ] as WritTuple)
             : ([
-                bigInt(scItem.quip.quip.cork.time),
-                scItem.quip.quip,
-              ] as QuipTuple)
+                bigInt(scItem.reply.reply.cork.time),
+                scItem.reply.reply,
+              ] as ReplyTuple)
         ),
         true
       ),

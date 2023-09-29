@@ -1,11 +1,11 @@
 import { URL_REGEX, makePrettyDay } from '@/logic/utils';
 import { inlineToString } from '@/logic/tiptap';
 import Author from '@/chat/ChatMessage/Author';
-import { NoteEssay, VerseInline } from '@/types/channel';
+import { PostEssay, VerseInline } from '@/types/channel';
 import getHanDataFromEssay from '@/logic/getHanData';
 
 interface HeapDetailSidebarProps {
-  essay: NoteEssay;
+  essay: PostEssay;
 }
 
 export default function HeapDetailSidebarInfo({

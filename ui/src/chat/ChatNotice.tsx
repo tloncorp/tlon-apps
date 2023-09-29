@@ -1,11 +1,11 @@
 import React from 'react';
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
-import { Note } from '@/types/channel';
+import { Post } from '@/types/channel';
 import DateDivider from './ChatMessage/DateDivider';
 import ChatContent from './ChatContent/ChatContent';
 
 interface ChatNoticeProps {
-  writ: Note;
+  writ: Post;
   newDay?: Date;
 }
 

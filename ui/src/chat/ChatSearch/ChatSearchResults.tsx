@@ -3,7 +3,7 @@ import { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import BTree from 'sorted-btree';
 import { useIsMobile } from '@/logic/useMedia';
-import { ChatMap, Note, Quip } from '@/types/channel';
+import { ChatMap, Post, Reply } from '@/types/channel';
 import { Writ } from '@/types/dms';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
@@ -21,7 +21,7 @@ interface ChatSearchResultEntry {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: Note | Writ | Quip;
+  writ: Post | Writ | Reply;
   selected: boolean;
 }
 
@@ -59,7 +59,7 @@ const ChatSearchResults = React.forwardRef<
                 whom,
                 root,
                 time: int,
-                writ: writ as Note | Writ | Quip,
+                writ: writ as Post | Writ | Reply,
                 selected: i === selected,
               })
             )

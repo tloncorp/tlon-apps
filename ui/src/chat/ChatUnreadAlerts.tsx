@@ -8,7 +8,7 @@ import { pluralize } from '@/logic/utils';
 import {
   useGetFirstUnreadID,
   useMarkReadMutation,
-  useNoteKeys,
+  usePostKeys,
 } from '@/state/channel/channel';
 import { useChatInfo } from './useChatStore';
 
@@ -30,7 +30,7 @@ export default function ChatUnreadAlerts({
   // TODO: how to handle replies?
   const firstChatUnreadID = useGetFirstUnreadID(`chat/${whom}`);
 
-  const keys = useNoteKeys(`chat/${whom}`);
+  const keys = usePostKeys(`chat/${whom}`);
   const goToFirstUnread = useCallback(() => {
     if (!scrollerRef.current) {
       return;

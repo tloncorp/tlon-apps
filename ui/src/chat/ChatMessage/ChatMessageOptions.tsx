@@ -24,17 +24,17 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
-  useAddNoteFeelMutation,
-  useDeleteNoteMutation,
+  useAddPostFeelMutation,
+  useDeletePostMutation,
   usePerms,
 } from '@/state/channel/channel';
-import { emptyNote, Note } from '@/types/channel';
+import { emptyPost, Post } from '@/types/channel';
 
 export default function ChatMessageOptions(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   whom: string;
-  writ: Note;
+  writ: Post;
   hideThreadReply?: boolean;
   hideReply?: boolean;
   openReactionDetails: () => void;
@@ -43,7 +43,7 @@ export default function ChatMessageOptions(props: {
     open,
     onOpenChange,
     whom,
-    writ = emptyNote,
+    writ = emptyPost,
     hideThreadReply,
     hideReply,
     openReactionDetails,
@@ -81,8 +81,8 @@ export default function ChatMessageOptions(props: {
   const navigate = useNavigate();
   const location = useLocation();
   const threadParentId = useThreadParentId(whom);
-  const { mutate: deleteChatMessage } = useDeleteNoteMutation();
-  const { mutate: addFeelToChat } = useAddNoteFeelMutation();
+  const { mutate: deleteChatMessage } = useDeletePostMutation();
+  const { mutate: addFeelToChat } = useAddPostFeelMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
 
   const onDelete = async () => {
@@ -132,7 +132,7 @@ export default function ChatMessageOptions(props: {
       } else {
         addFeelToChat({
           nest,
-          noteId: seal.id,
+          postId: seal.id,
           feel: emoji.shortcodes,
         });
       }

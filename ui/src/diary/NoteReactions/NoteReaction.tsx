@@ -5,8 +5,8 @@ import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
 import {
-  useAddNoteFeelMutation,
-  useDeleteNoteFeelMutation,
+  useAddPostFeelMutation,
+  useDeletePostFeelMutation,
 } from '@/state/channel/channel';
 
 interface NotReactionProps {
@@ -25,8 +25,8 @@ export default function NoteReaction({
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
-  const { mutateAsync: addFeel } = useAddNoteFeelMutation();
-  const { mutateAsync: delFeel } = useDeleteNoteFeelMutation();
+  const { mutateAsync: addFeel } = useAddPostFeelMutation();
+  const { mutateAsync: delFeel } = useDeletePostFeelMutation();
 
   useEffect(() => {
     load();
@@ -34,9 +34,9 @@ export default function NoteReaction({
 
   const editFeel = useCallback(async () => {
     if (isMine) {
-      await delFeel({ nest: `diary/${whom}`, noteId: time });
+      await delFeel({ nest: `diary/${whom}`, postId: time });
     } else {
-      await addFeel({ nest: `diary/${whom}`, feel, noteId: time });
+      await addFeel({ nest: `diary/${whom}`, feel, postId: time });
     }
   }, [isMine, whom, feel, time, addFeel, delFeel]);
 

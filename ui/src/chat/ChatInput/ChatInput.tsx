@@ -44,11 +44,11 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import {
   Nest,
-  NoteEssay,
+  PostEssay,
   Cite,
   Story,
-  NoteTuple,
-  QuipTuple,
+  PageTuple,
+  ReplyTuple,
 } from '@/types/channel';
 import { CacheId } from '@/state/channel/channel';
 import { WritTuple } from '@/types/dms';
@@ -61,25 +61,25 @@ interface ChatInputProps {
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
-  sendDm?: (whom: string, essay: NoteEssay, replying?: string) => void;
+  sendDm?: (whom: string, essay: PostEssay, replying?: string) => void;
   sendChatMessage?: ({
     cacheId,
     essay,
   }: {
     cacheId: CacheId;
-    essay: NoteEssay;
+    essay: PostEssay;
   }) => void;
-  sendQuip?: ({
+  sendReply?: ({
     nest,
-    noteId,
+    postId,
     content,
   }: {
     nest: Nest;
-    noteId: string;
+    postId: string;
     content: Story;
   }) => void;
   dropZoneId: string;
-  replyingWrit?: NoteTuple | WritTuple | QuipTuple;
+  replyingWrit?: PageTuple | WritTuple | ReplyTuple;
 }
 
 export function UploadErrorPopover({
@@ -121,7 +121,7 @@ export default function ChatInput({
   sendDisabled = false,
   sendDm,
   sendChatMessage,
-  sendQuip,
+  sendReply,
   dropZoneId,
   replyingWrit,
 }: ChatInputProps) {
@@ -304,7 +304,7 @@ export default function ChatInput({
         now,
         sendDm,
         sendChatMessage,
-        sendQuip,
+        sendReply,
       });
 
       captureGroupsAnalyticsEvent({
@@ -332,7 +332,7 @@ export default function ChatInput({
       clearAttachments,
       sendDm,
       sendChatMessage,
-      sendQuip,
+      sendReply,
       sendDisabled,
       replyCite,
       reply,

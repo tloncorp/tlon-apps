@@ -9,15 +9,15 @@ import {
   useDisplayMode,
   useSortMode,
   useMarkReadMutation,
-  useArrangedNotes,
-  useInfiniteNotes,
+  useArrangedPosts,
+  useInfinitePosts,
 } from '@/state/channel/channel';
 import {
   useUserDiarySortMode,
   useUserDiaryDisplayMode,
 } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
-import { NoteTuple } from '@/types/channel';
+import { PageTuple } from '@/types/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
@@ -35,8 +35,12 @@ function DiaryChannel({ title }: ViewProps) {
   const nest = `diary/${chFlag}`;
   const { data } = useConnectivityCheck(chShip ?? '');
   const groupFlag = useRouteGroup();
-  const { notes, isLoading, hasPreviousPage, fetchPreviousPage } =
-    useInfiniteNotes(nest);
+  const {
+    posts: notes,
+    isLoading,
+    hasPreviousPage,
+    fetchPreviousPage,
+  } = useInfinitePosts(nest);
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
@@ -68,7 +72,7 @@ function DiaryChannel({ title }: ViewProps) {
   const userSortMode = useUserDiarySortMode(chFlag);
   const displayMode = useDisplayMode(nest);
   const sortMode = useSortMode(nest);
-  const arrangedNotes = useArrangedNotes(nest);
+  const arrangedNotes = useArrangedPosts(nest);
   const lastArrangedNote = arrangedNotes[arrangedNotes.length - 1];
 
   useEffect(() => {
@@ -130,7 +134,7 @@ function DiaryChannel({ title }: ViewProps) {
       return b.compare(a);
     });
 
-  const itemContent = (i: number, [time, outline]: NoteTuple) => (
+  const itemContent = (i: number, [time, outline]: PageTuple) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
       <DiaryListItem note={outline!} time={time} />
       {lastArrangedNote === time.toString() && (

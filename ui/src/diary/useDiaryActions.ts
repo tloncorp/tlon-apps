@@ -3,9 +3,9 @@ import { useState, useCallback, MouseEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { citeToPath, useCopy } from '@/logic/utils';
 import {
-  useArrangedNotes,
-  useArrangedNotesMutation,
-  useDeleteNoteMutation,
+  useArrangedPosts,
+  useArrangedPostsMutation,
+  useDeletePostMutation,
 } from '@/state/channel/channel';
 
 interface useDiaryActionsParams {
@@ -15,10 +15,10 @@ interface useDiaryActionsParams {
 
 export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const [isOpen, setIsOpen] = useState(false);
-  const arrangedNotes = useArrangedNotes(`diary/${flag}`);
+  const arrangedNotes = useArrangedPosts(`diary/${flag}`);
   const navigate = useNavigate();
-  const { mutate: deleteNote } = useDeleteNoteMutation();
-  const { mutate: arrangedNotesMutation } = useArrangedNotesMutation();
+  const { mutate: deleteNote } = useDeletePostMutation();
+  const { mutate: arrangedNotesMutation } = useArrangedPostsMutation();
   const nest = `diary/${flag}`;
   const { doCopy, didCopy } = useCopy(
     citeToPath({
@@ -32,7 +32,7 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const addToArrangedNotes = useCallback(() => {
     const newArranagedNotes = [...arrangedNotes, time.toString()];
     arrangedNotesMutation({
-      arrangedNotes: newArranagedNotes,
+      arrangedPosts: newArranagedNotes,
       nest,
     });
   }, [arrangedNotesMutation, nest, time, arrangedNotes]);
@@ -42,7 +42,7 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
       (note) => note !== time.toString()
     );
     arrangedNotesMutation({
-      arrangedNotes: newArranagedNotes,
+      arrangedPosts: newArranagedNotes,
       nest,
     });
   }, [arrangedNotesMutation, nest, time, arrangedNotes]);
@@ -54,7 +54,7 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
     const index = arrangedNotes.indexOf(time.toString());
     newArranagedNotes.splice(index - 1, 0, time.toString());
     arrangedNotesMutation({
-      arrangedNotes: newArranagedNotes,
+      arrangedPosts: newArranagedNotes,
       nest,
     });
   }, [arrangedNotesMutation, nest, time, arrangedNotes]);
@@ -66,7 +66,7 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
     const index = arrangedNotes.indexOf(time.toString());
     newArranagedNotes.splice(index + 1, 0, time.toString());
     arrangedNotesMutation({
-      arrangedNotes: newArranagedNotes,
+      arrangedPosts: newArranagedNotes,
       nest,
     });
   }, [arrangedNotesMutation, nest, time, arrangedNotes]);

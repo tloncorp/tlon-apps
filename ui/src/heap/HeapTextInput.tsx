@@ -1,15 +1,14 @@
 import cn from 'classnames';
 import { Editor, JSONContent } from '@tiptap/react';
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { unixToDa } from '@urbit/api';
+import React, { useCallback, useEffect } from 'react';
 import { reduce } from 'lodash';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import {
-  useAddNoteMutation,
-  useAddQuipMutation,
+  useAddPostMutation,
+  useAddReplyMutation,
 } from '@/state/channel/channel';
 import useRequestState from '@/logic/useRequestState';
 import { JSONToInlines } from '@/logic/tiptap';
@@ -24,7 +23,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import Tooltip from '@/components/Tooltip';
 import { useChannelCompatibility } from '@/logic/channel';
-import { constructStory, NoteEssay, storyFromChatStory } from '@/types/channel';
+import { constructStory, PostEssay } from '@/types/channel';
 import { Inline, InlineKey } from '@/types/content';
 
 interface HeapTextInputProps {
@@ -96,8 +95,8 @@ export default function HeapTextInput({
   const chatInfo = useChatInfo(flag);
   const { privacy } = useGroupPrivacy(groupFlag);
   const { compatible, text } = useChannelCompatibility(nest);
-  const { mutate } = useAddNoteMutation(nest);
-  const { mutate: addQuip } = useAddQuipMutation();
+  const { mutate } = useAddPostMutation(nest);
+  const { mutate: addReply } = useAddReplyMutation();
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -122,7 +121,7 @@ export default function HeapTextInput({
       const data = JSONToInlines(editor?.getJSON());
       const content = constructStory(data);
 
-      const heart: NoteEssay = {
+      const heart: PostEssay = {
         'han-data': {
           heap: '', // TODO: Title input
         },
@@ -136,11 +135,11 @@ export default function HeapTextInput({
       useChatStore.getState().setBlocks(flag, []);
 
       if (replyTo) {
-        addQuip(
+        addReply(
           {
             nest: `heap/${flag}`,
             content: heart.content,
-            noteId: replyTo,
+            postId: replyTo,
           },
           {
             onSuccess: () => {
@@ -186,7 +185,7 @@ export default function HeapTextInput({
       setDraft,
       setReady,
       mutate,
-      addQuip,
+      addReply,
       replyTo,
     ]
   );

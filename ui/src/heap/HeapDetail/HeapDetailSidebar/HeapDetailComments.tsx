@@ -1,17 +1,17 @@
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useBrief, usePerms } from '@/state/channel/channel';
-import { QuipMap } from '@/types/channel';
+import { ReplyMap } from '@/types/channel';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { groupQuips, setNewDaysForQuips } from '@/quips/quips';
-import QuipMessage from '@/chat/ChatMessage/QuipMessage';
+import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
+import ReplyMessage from '@/replies/ReplyMessage';
 import HeapDetailCommentField from './HeapDetailCommentField';
 
 interface HeapDetailCommentsProps {
   time: string;
-  comments: QuipMap;
+  comments: ReplyMap;
   loading: boolean;
 }
 
@@ -29,10 +29,10 @@ export default function HeapDetailComments({
   const vessel = useVessel(groupFlag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const brief = useBrief(nest);
-  const groupedQuips = !comments
+  const groupedReplies = !comments
     ? []
-    : setNewDaysForQuips(
-        groupQuips(time, comments.toArray(), brief).sort(([a], [b]) => {
+    : setNewDaysForReplies(
+        groupReplies(time, comments.toArray(), brief).sort(([a], [b]) => {
           if (sort === 'asc') {
             return a.localeCompare(b);
           }
@@ -46,10 +46,10 @@ export default function HeapDetailComments({
       <div className="mx-4 mb-2 flex flex-col space-y-2 overflow-y-auto lg:flex-1">
         {!loading ? (
           <ul className="mt-12">
-            {groupedQuips.map(([_t, g]) =>
+            {groupedReplies.map(([_t, g]) =>
               g.map((props) => (
                 <li key={props.time.toString()}>
-                  <QuipMessage whom={nest} {...props} />
+                  <ReplyMessage whom={nest} {...props} />
                 </li>
               ))
             )}

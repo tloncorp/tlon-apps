@@ -1,7 +1,7 @@
 import React from 'react';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
-import { useRemoteNote } from '@/state/channel/channel';
+import { useRemotePost } from '@/state/channel/channel';
 // import { useWritByFlagAndGraphIndex } from '@/state/chat';
 // eslint-disable-next-line import/no-cycle
 import WritBaseReference from './WritBaseReference';
@@ -16,7 +16,7 @@ export default function WritBaitReference(props: {
   children?: React.ReactNode;
 }) {
   const { chFlag, nest, index, isScrolling, contextApp, children } = props;
-  const note = useRemoteNote(chFlag, index, isScrolling);
+  const note = useRemotePost(chFlag, index, isScrolling);
   const [, udId] = index.split('/');
   if (note === undefined) {
     const time = bigInt(udToDec(udId));

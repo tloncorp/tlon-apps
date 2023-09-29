@@ -15,7 +15,7 @@ import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
-import { newQuipMap } from '@/types/channel';
+import { newReplyMap } from '@/types/channel';
 import ChatMessage, { ChatMessageProps } from '@/chat/ChatMessage/ChatMessage';
 import { useChatStore } from '@/chat/useChatStore';
 import ChatNotice from '@/chat/ChatNotice';
@@ -33,12 +33,12 @@ const emptyWrit: Writ = {
   seal: {
     id: '',
     time: '',
-    quips: newQuipMap(),
+    replies: newReplyMap(),
     feels: {},
     meta: {
-      quipCount: 0,
-      lastQuippers: [],
-      lastQuip: null,
+      replyCount: 0,
+      lastRepliers: [],
+      lastReply: null,
     },
   },
   essay: {
@@ -204,7 +204,7 @@ export default function DmScroller({
           whom,
           writ,
           hideReplies: replying,
-          quipCount: writ.seal.meta.quipCount,
+          replyCount: writ.seal.meta.replyCount,
           time: index,
           newAuthor,
           newDay,
