@@ -400,8 +400,6 @@
     ::  don't proxy to self, creates an infinite loop
     ?:  =(p.action our.bowl)
       ~|("%dm-action poke failed: can't dm self" !!)
-    ?:  (~(has in blocked) src.bowl)
-      ~|("%dm-action poke failed: ship blocked" !!)
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %dm-diff
@@ -1956,7 +1954,6 @@
   ++  di-ingest-diff
     |=  =diff:dm:c
     =/  =path  (snoc di-area %ui)
-    ?<  (~(has in blocked) ship)
     =.  cor  (emit %give %fact ~[path] writ-diff+!>(diff))
     =/  =wire  /contacts/(scot %p ship)
     =/  =cage  [act:mar:contacts !>(`action:contacts`[%heed ~[ship]])]
@@ -1996,6 +1993,7 @@
   ++  di-take-counter
     |=  =diff:dm:c
     ?<  =(%archive net.dm)
+    ?<  (~(has in blocked) ship)
     (di-ingest-diff diff)
   ::
   ++  di-post-notice
