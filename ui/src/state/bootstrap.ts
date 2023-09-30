@@ -163,29 +163,10 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
 
 useLocalState.setState({
   onReconnect: () => {
-    useSchedulerStore.getState().reset();
+    const { reset } = useSchedulerStore.getState();
+    reset();
+    bootstrap('reset');
 
-    const now = Date.now();
-    const { lastReconnect } = useLocalState.getState();
-    const diff = now - lastReconnect;
-    console.log(diff, now, lastReconnect);
-    const isMobile = isNativeApp() || window.innerWidth < 768;
-    const isDev = import.meta.env.DEV;
-    const mobileThreshold = isDev ? 10 * 1000 : 60 * 1000; // one minute
-    const desktopThreshold = isDev ? 10 * 1000 : 60 * 60 * 1000; // one hour
-    const diffTime = `${diff / 1000}s`;
-
-    if (isMobile && diff > mobileThreshold) {
-      console.log('avoiding reconnect, full reset', diffTime, mobileThreshold);
-      bootstrap('full-reset');
-    } else if (diff > desktopThreshold) {
-      console.log('avoiding reconnect, full reset', diffTime, desktopThreshold);
-      bootstrap('full-reset');
-    } else {
-      console.log('reconnecting', diffTime);
-      bootstrap('reset');
-    }
-
-    useLocalState.setState({ lastReconnect: now });
+    useLocalState.setState({ lastReconnect: Date.now() });
   },
 });
