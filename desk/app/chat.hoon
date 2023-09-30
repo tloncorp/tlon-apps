@@ -950,6 +950,18 @@
       %del-feel  =(src.bowl p.delta)
   ==
 ::
+++  diff-to-response
+  |=  [=diff:writs:c =pact:c]
+  ^-  (unit response:writs:c)
+  =;  delta
+    ?~  delta  ~
+    `[p.diff delta]
+  ?+  -.q.diff  q.diff
+      %add
+    =/  time=(unit time)  (~(get by dex.pact) p.diff)
+    ?~  time  ~
+    [%add p.q.diff u.time]
+  ==
 ++  from-self  =(our src):bowl
 ++  cu-abed  cu-abed:cu-core
 ::
@@ -1055,6 +1067,11 @@
     =.  cor
       =/  =cage  writ-diff+!>(diff)
       (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
+    =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
+    ?~  response  cu-core
+    =.  cor
+      =/  =cage  writ-response+!>(u.response)
+      (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1069,7 +1086,7 @@
     =.  cor  (emil (gossip:cu-pass diff))
     =.  cu-core
       ?+  -.delta  (cu-give-action [id diff])
-          %writ  (cu-give-writs-diff diff.delta)
+          %writ  cu-core
       ==
     ?-    -.delta
     ::
@@ -1093,15 +1110,15 @@
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       ?-  -.q.diff.delta
-          ?(%del %add-feel %del-feel)  cu-core
+          ?(%del %add-feel %del-feel)  (cu-give-writs-diff diff.delta)
           %add
         =/  memo=memo:c  p.q.diff.delta
         =?  remark.club  =(author.memo our.bowl)
           remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief club/id cu-brief)
-        ?:  =(our.bowl author.memo)  cu-core
+        ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
         ?-  -.content.memo
-            %notice  cu-core
+            %notice  (cu-give-writs-diff diff.delta)
             %story
           =/  new-yarn
             %+  cu-spin
@@ -1112,7 +1129,7 @@
             ~
           =?  cor  (want-hark ~ %to-us)
             (emit (pass-hark new-yarn))
-          cu-core
+          (cu-give-writs-diff diff.delta)
         ==
       ==
     ::
@@ -1606,8 +1623,14 @@
     =/  cag=cage  [upd:mar:c !>([time d])]
     =.  cor  (give %fact ~[/ui] act:mar:c !>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
-      =/  =cage  writ-diff+!>(p.d)
-      (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
+      =/  wire  ~[(welp ca-area /ui/writs)]
+      %-  emil
+      %+  welp
+        ~[[%give %fact wire writ-diff+!>(p.d)]]
+      =/  response=(unit response:writs:c)
+        (diff-to-response p.d pact.chat)
+      ?~  response  ~
+      ~[[%give %fact wire writ-response+!>(u.response)]]
     =.  cor  (give %fact ~(tap in paths) cag)
     ca-core
   ::
@@ -1899,6 +1922,11 @@
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
+    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
+    ~&  response
+    =.  cor
+      ?~  response   cor
+      (give %fact ~[path] writ-response+!>(u.response))
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     =.  di-core

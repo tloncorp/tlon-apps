@@ -10,6 +10,9 @@
     ^-  json
     s/(rap 3 (scot %p p.f) '/' q.f ~)
   ::
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
   ++  said
     |=  s=said:c
     ^-  json
@@ -207,6 +210,26 @@
       %del       ~
       %add-feel  (add-feel +.delta)
       %del-feel  (ship p.delta)
+    ==
+  ++  writs-response
+    |=  =response:writs:c
+    %-  pairs
+    :~  id/(id id.response)
+        response/(response-delta response.response)
+    ==
+  ::
+  ++  response-delta
+    |=  delta=response-delta:writs:c
+    %+  frond  -.delta
+    ?-  -.delta
+        %del       ~
+        %add-feel  (add-feel [ship feel]:delta)
+        %del-feel  (ship ship.delta)
+        %add
+      %-  pairs
+      :~  memo+(memo memo.delta)
+          time+(time-id time.delta)
+      ==
     ==
   ++  add-feel
     |=  [her=@p =feel:c]

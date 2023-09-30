@@ -12,6 +12,7 @@ import {
   ChatAction,
   DmAction,
   newWritMap,
+  WritResponse,
 } from '@/types/chat';
 import { BasedChatState, WritWindow, WritWindows } from './type';
 
@@ -123,7 +124,7 @@ function extendCurrentWindow(
 
 export function writsReducer(whom: string) {
   return (
-    json: ChatAction | DmAction | WritDiff,
+    json: ChatAction | DmAction | WritResponse,
     draft: BasedChatState
   ): BasedChatState => {
     let id: string | undefined;
@@ -138,7 +139,7 @@ export function writsReducer(whom: string) {
       delta = json.diff.delta;
     } else {
       id = json.id;
-      delta = json.delta;
+      delta = json.response;
     }
     if (!delta || !id) {
       return draft;
@@ -150,10 +151,12 @@ export function writsReducer(whom: string) {
     };
 
     if ('add' in delta && !pact.index[id]) {
-      const time = bigInt(unixToDa(Date.now()));
+      const time =
+        'time' in delta.add ? bigInt(delta.add.time) : unixToDa(Date.now());
       pact.index[id] = time;
+      const memo = 'memo' in delta.add ? delta.add.memo : delta.add;
       const seal = { id, feels: {}, replied: [] };
-      const writ = { seal, memo: delta.add };
+      const writ = { seal, memo };
       pact.writs = pact.writs.with(time, writ);
       draft.writWindows[whom] = extendCurrentWindow(
         {
@@ -164,8 +167,8 @@ export function writsReducer(whom: string) {
         },
         draft.writWindows[whom]
       );
-      if (delta.add.replying) {
-        const replyTime = pact.index[delta.add.replying];
+      if (memo.replying) {
+        const replyTime = pact.index[memo.replying];
         if (replyTime) {
           const ancestor = pact.writs.get(replyTime);
           if (ancestor) {
@@ -351,9 +354,13 @@ export default function makeWritsStore(
       api.subscribe({
         app: 'chat',
         path: subPath,
-        event: (data: WritDiff) => {
+        event: (data: WritDiff | WritResponse, mark: string) => {
+          if (mark !== 'writ-response') {
+            return;
+          }
+
           set((draft) => {
-            writsReducer(whom)(data, draft);
+            writsReducer(whom)(data as WritResponse, draft);
             return {
               pacts: { ...draft.pacts },
               writWindows: { ...draft.writWindows },

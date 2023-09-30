@@ -149,6 +149,24 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
+export interface WritResponseAdd {
+  add: {
+    memo: ChatMemo;
+    time: string;
+  };
+}
+
+export type WritResponseDelta =
+  | WritResponseAdd
+  | WritDeltaDel
+  | WritDeltaAddFeel
+  | WritDeltaDelFeel;
+
+export interface WritResponse {
+  id: string;
+  response: WritResponseDelta;
+}
+
 export interface ChatDiffCreate {
   create: Chat;
 }
