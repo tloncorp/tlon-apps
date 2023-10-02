@@ -13,8 +13,6 @@ export default function ShipScroller({
 }: ShipScrollerProps) {
   const ShipItem = shipItem;
 
-  console.log({ ships });
-
   const thresholds = {
     atBottomThreshold: 125,
     atTopThreshold: 125,
@@ -22,7 +20,9 @@ export default function ShipScroller({
   };
 
   if (ships.length === 0) {
-    return <p>No {shipLabel}s</p>;
+    return (
+      <p className="text-center leading-5 text-gray-600">No {shipLabel}s</p>
+    );
   }
 
   return (
