@@ -98,7 +98,7 @@ export default function MultiDm() {
     <>
       <Layout
         style={{
-          paddingBottom: 50,
+          paddingBottom: isMobile ? 50 : 0,
         }}
         className="flex-1"
         header={
