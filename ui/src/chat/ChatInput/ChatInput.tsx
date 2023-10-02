@@ -11,7 +11,11 @@ import React, {
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
-import { useIsShipBlocked, usePact } from '@/state/chat';
+import {
+  useIsShipBlocked,
+  usePact,
+  useUnblockShipMutation,
+} from '@/state/chat';
 import { ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, {
   HandlerParams,
@@ -139,6 +143,13 @@ export default function ChatInput({
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
   const shipIsBlocked = useIsShipBlocked(whom);
+  const { mutate: unblockShip } = useUnblockShipMutation();
+
+  const handleUnblockClick = useCallback(() => {
+    unblockShip({
+      ship: whom,
+    });
+  }, [unblockShip, whom]);
 
   const handleDrop = useCallback(
     (fileList: FileList) => {
@@ -518,8 +529,11 @@ export default function ChatInput({
     return (
       <div className="flex w-full items-end space-x-2">
         <div className="flex-1">
-          <div className="relative flex items-center justify-center">
-            You have blocked this user.
+          <div className="flex items-center justify-center space-x-2">
+            <span>You have blocked this user.</span>
+            <button className="small-button" onClick={handleUnblockClick}>
+              Unblock
+            </button>
           </div>
         </div>
       </div>
