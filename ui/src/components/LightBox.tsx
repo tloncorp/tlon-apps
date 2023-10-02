@@ -1,5 +1,6 @@
-import Dialog from '@/components/Dialog';
 import React from 'react';
+import Dialog from '@/components/Dialog';
+import { useSafeAreaInsets } from '@/logic/native';
 
 export default function LightBox({
   showLightBox,
@@ -12,12 +13,16 @@ export default function LightBox({
   source?: string;
   children: React.ReactNode;
 }) {
+  const safeAreaInsets = useSafeAreaInsets();
   return (
     <Dialog
       open={showLightBox}
       onOpenChange={(open) => setShowLightBox(open)}
       containerClass="h-full w-full"
       className="flex h-full w-full items-center justify-center bg-transparent p-0"
+      style={{
+        paddingTop: safeAreaInsets.top,
+      }}
       close="lightbox"
       onClick={() => setShowLightBox(false)}
     >
