@@ -124,6 +124,9 @@ export default function Dm() {
   return (
     <>
       <Layout
+        style={{
+          paddingBottom: 50,
+        }}
         className="flex-1"
         header={
           isSelecting ? (

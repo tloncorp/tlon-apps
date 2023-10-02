@@ -125,7 +125,9 @@ export default function MobileSidebar() {
       style={{ paddingBottom: safeAreaInsets.bottom }}
     >
       <Outlet />
-      <footer className={cn('flex-none border-t-2 border-gray-50')}>
+      <footer
+        className={cn('z-50 flex-none border-t-2 border-gray-50 bg-white')}
+      >
         <nav>
           <ul className="flex h-12">
             <GroupsTab
