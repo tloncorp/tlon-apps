@@ -1,6 +1,8 @@
 import React from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import Dialog from '@/components/Dialog';
 import { useSafeAreaInsets } from '@/logic/native';
+import X16Icon from './icons/X16Icon';
 
 export default function LightBox({
   showLightBox,
@@ -23,7 +25,7 @@ export default function LightBox({
       style={{
         paddingTop: safeAreaInsets.top,
       }}
-      close="lightbox"
+      close="none"
       onClick={() => setShowLightBox(false)}
     >
       {children}
@@ -37,6 +39,9 @@ export default function LightBox({
           Source
         </a>
       )}
+      <DialogPrimitive.Close className="icon-button absolute top-2 right-2 bg-white">
+        <X16Icon className="white h-4 w-4" />
+      </DialogPrimitive.Close>
     </Dialog>
   );
 }
