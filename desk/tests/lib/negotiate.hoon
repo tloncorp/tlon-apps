@@ -198,18 +198,37 @@
   !>  ^-  (map gill:gall (map wire path))
   [[~zod %easy]^[/wire^/path ~ ~] ~ ~]
 ::
+++  test-no-self-negotiation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m
+    (perform-init-clean | ~ [[%negotiate-test [%prot^%vers ~ ~]] ~ ~])
+  =/  poke=card
+    [%pass /wire %agent [~zod %negotiate-test] %poke %noun !>(~)]
+  ;<  caz=(list card)  bind:m
+    %-  perform-cards
+    :~  [%pass /wire %agent [~zod %negotiate-test] %watch /path]
+        poke
+    ==
+  ::  must emit the watch, allow the poke, and not do negotiation
+  ::
+  %+  ex-cards  caz
+  :~  (ex-inner-watch /wire [~zod %negotiate-test] /path)
+      (ex-card poke)
+  ==
+::
 ++  test-avoid-self-tracking
   %-  eval-mare
   =/  m  (mare ,~)
   ;<  *  bind:m  (perform-init-clean | ~ ~)
-  ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %hard] %watch /path] ~)
+  ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %easy] %watch /path] ~)
   ;<  *  bind:m  (perform-upgrade | ~ ~)
   ::  inflate must not have tracked the "wrapped" lib-generated sub
   ::
   ;<  state=libstate  bind:m  get-lib-state
   %+  ex-equal  !>(want.state)
   !>  ^-  (map gill:gall (map wire path))
-  [[~zod %hard]^[/wire^/path ~ ~] ~ ~]
+  [[~zod %easy]^[/wire^/path ~ ~] ~ ~]
 ::
 ++  test-handle-inner-kick-and-nack
   %-  eval-mare

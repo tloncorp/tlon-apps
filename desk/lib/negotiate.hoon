@@ -99,6 +99,7 @@
     ++  match
       |=  =gill:gall
       ^-  ?
+      ?:  =([our dap]:bowl gill)  &
       ?~  need=(~(get by know) q.gill)  &  ::  unversioned
       %-  ~(rep by u.need)  ::NOTE  +all:by is w/o key
       |=  [[p=protocol v=version] o=_&]
@@ -107,6 +108,7 @@
     ++  certain-mismatch
       |=  =gill:gall
       ^-  ?
+      ?:  =([our dap]:bowl gill)  |
       ?~  need=(~(get by know) q.gill)  |  ::  unversioned
       %-  ~(rep by u.need)
       |=  [[p=protocol v=version] o=_|]
@@ -156,6 +158,7 @@
             (~(put by wan) wire path)
         ::  if we don't need a specific version, leave the sub as-is
         ::
+        ?:  =([our dap]:bowl gill)  [init kill]
         =/  need=(list [p=protocol v=version])
           ~(tap by (~(gut by know) q.gill ~))
         |-
@@ -242,6 +245,10 @@
       ::
       =?  p.card  ?=(?(%watch %leave) -.task.q.card)
         (pack-wire gill p.card)
+      ::  if the target agent is ourselves, always let the card go
+      ::
+      ?:  =([our dap]:bowl [ship name]:q.card)
+        pass
       ::  if we don't require versions for the target agent, let the card go
       ::
       =*  dude=dude:gall  name.q.card
@@ -284,6 +291,7 @@
     ++  negotiate-missing
       |=  =gill:gall
       ^-  (quip card _state)
+      ?:  =([our dap]:bowl gill)  [~ state]
       =/  need=(list protocol)
         ~(tap in ~(key by (~(gut by know) q.gill ~)))
       =|  out=(list card)
@@ -570,6 +578,7 @@
           [(slav %p i.p) i.t.p]
         :^  ~  ~  %noun
         !>  ^-  ?(%match %clash %await %unmet)
+        ?:  =([our dap]:bowl for)  %match
         =/  need  (~(gut by know) q.for ~)
         ?:  =(~ need)  %match
         =/  need  ~(tap in ~(key by need))
