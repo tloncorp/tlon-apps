@@ -29,7 +29,7 @@ import { useChatStore } from '../useChatStore';
 import { IChatScroller } from './IChatScroller';
 
 const ChatScrollerItem = React.memo(
-  ({ index, writ, prefixedElement, ...props }: ScrollerItemData) => {
+  ({ time, writ, prefixedElement, ...props }: ScrollerItemData) => {
     const isNotice = writ ? 'notice' in writ.memo.content : false;
     return (
       <>
@@ -38,10 +38,10 @@ const ChatScrollerItem = React.memo(
           <ChatNotice
             key={writ.seal.id}
             writ={writ}
-            newDay={new Date(daToUnix(index))}
+            newDay={new Date(daToUnix(time))}
           />
         ) : (
-          <ChatMessage key={writ.seal.id} writ={writ} {...props} />
+          <ChatMessage key={writ.seal.id} writ={writ} time={time} {...props} />
         )}
       </>
     );
