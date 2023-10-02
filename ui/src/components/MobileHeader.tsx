@@ -20,6 +20,7 @@ export default function MobileHeader({
   const safeAreaInsets = useSafeAreaInsets();
   return (
     <div
+      id="mobile-header"
       className="grid w-full grid-cols-5 justify-between bg-white font-system-sans"
       style={{ paddingTop: safeAreaInsets.top }}
     >

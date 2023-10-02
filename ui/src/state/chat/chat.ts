@@ -800,6 +800,24 @@ export function useDmList() {
   return useChatState(selDmList);
 }
 
+export function useHasUnreadMessages() {
+  const chats = useChatStore((s) => s.chats);
+  const { dms, clubs } = useChatState((s) => ({
+    dms: s.dms,
+    clubs: s.multiDms,
+  }));
+
+  return dms.concat(Object.keys(clubs)).some((k) => {
+    const chat = chats[k];
+    if (!chat) {
+      return false;
+    }
+
+    const { unread } = chat;
+    return Boolean(unread && !unread.seen);
+  });
+}
+
 const emptyPact = { index: {}, writs: newWritMap() };
 export function usePact(whom: string): Pact {
   return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));

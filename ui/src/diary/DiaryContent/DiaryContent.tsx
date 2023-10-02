@@ -292,7 +292,7 @@ export default function DiaryContent({
 }: DiaryContentProps) {
   return (
     <article
-      className={cn('prose break-words dark:prose-invert', {
+      className={cn('prose select-auto break-words dark:prose-invert', {
         'prose-sm': isPreview,
         'prose-lg': !isPreview,
       })}

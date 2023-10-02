@@ -51,7 +51,6 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import { useSafeAreaInsets } from '@/logic/native';
 
 interface ChatInputProps {
   whom: string;
@@ -126,7 +125,6 @@ export default function ChatInput({
   );
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
   const groupFlag = useGroupFlag();
-  const isGroupChatInput = !!groupFlag;
   const { privacy } = useGroupPrivacy(groupFlag);
   const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
@@ -140,7 +138,6 @@ export default function ChatInput({
   const files = useMemo(() => uploader?.files, [uploader]);
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
-  const safeAreaInsets = useSafeAreaInsets();
   const shipIsBlocked = useIsShipBlocked(whom);
 
   const handleDrop = useCallback(
@@ -514,10 +511,6 @@ export default function ChatInput({
     [id, uploader]
   );
 
-  if (!messageEditor) {
-    return null;
-  }
-
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
 
@@ -609,15 +602,17 @@ export default function ChatInput({
           {!isMobile && (
             <Avatar size="xs" ship={window.our} className="mr-2 mb-1" />
           )}
-          <MessageEditor
-            editor={messageEditor}
-            className={cn(
-              'w-full break-words',
-              uploader && !uploadError && mostRecentFile?.status !== 'loading'
-                ? 'pr-8'
-                : ''
-            )}
-          />
+          {messageEditor && (
+            <MessageEditor
+              editor={messageEditor}
+              className={cn(
+                'w-full break-words',
+                uploader && !uploadError && mostRecentFile?.status !== 'loading'
+                  ? 'pr-8'
+                  : ''
+              )}
+            />
+          )}
           {uploader && !uploadError && mostRecentFile?.status !== 'loading' ? (
             <button
               title={'Upload an image'}
@@ -648,7 +643,8 @@ export default function ChatInput({
           mostRecentFile?.status === 'loading' ||
           mostRecentFile?.status === 'error' ||
           mostRecentFile?.url === '' ||
-          (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
+          !messageEditor ||
+          (messageEditor?.getText() === '' && chatInfo.blocks.length === 0)
         }
         onMouseDown={(e) => {
           e.preventDefault();
