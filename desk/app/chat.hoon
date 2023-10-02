@@ -1629,6 +1629,7 @@
         ~[[%give %fact wire writ-diff+!>(p.d)]]
       =/  response=(unit response:writs:c)
         (diff-to-response p.d pact.chat)
+      ~&  [response p.d]
       ?~  response  ~
       ~[[%give %fact wire writ-response+!>(u.response)]]
     =.  cor  (give %fact ~(tap in paths) cag)
@@ -1661,7 +1662,9 @@
     =.  log.chat
       (put:log-on:c log.chat time d)
     =.  ca-core
-      (ca-give-updates time d)
+      ?+  -.d  (ca-give-updates time d)
+        %writs  ca-core
+      ==
     ?-    -.d
         %add-sects
       ?>  ca-from-host
@@ -1689,6 +1692,7 @@
               &(ca-am-host (check-writ-ownership p.d))
           ==
       =.  pact.chat  (reduce:ca-pact time p.d)
+      =.  ca-core  (ca-give-updates time d)
       ?-  -.delta
           ?(%del %add-feel %del-feel)  ca-core
           %add

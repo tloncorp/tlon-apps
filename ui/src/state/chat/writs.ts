@@ -1,5 +1,4 @@
 import _ from 'lodash';
-import produce from 'immer';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
@@ -13,14 +12,18 @@ import {
   DmAction,
   newWritMap,
   WritResponse,
+  ChatWritEntry,
 } from '@/types/chat';
+import { asyncWithDefault } from '@/logic/utils';
 import { BasedChatState, WritWindow, WritWindows } from './type';
 
 interface WritsStore {
   initialize: () => Promise<void>;
   getNewer: (count: string, time?: BigInteger) => Promise<boolean>;
   getOlder: (count: string, time?: BigInteger) => Promise<boolean>;
-  getAround: (count: string, time: BigInteger) => Promise<void>;
+  getAroundTime: (count: string, time: BigInteger) => Promise<void>;
+  getAroundId: (count: string, id: string) => Promise<void>;
+  getWrit: (id: string) => Promise<void>;
 }
 
 export const emptyWindow: WritWindow = {
@@ -322,6 +325,29 @@ export default function makeWritsStore(
     return newMessageSize !== oldMessagesSize;
   };
 
+  const updateAround = async (writs: ChatWrits, time: BigInteger) => {
+    get().batchSet((draft) => {
+      const keys = Object.keys(writs).sort();
+      if (keys.length === 0) {
+        return;
+      }
+
+      updatePact(whom, writs, draft);
+      const oldest = bigInt(udToDec(keys[0]));
+      const newest = bigInt(udToDec(keys[keys.length - 1]));
+      draft.writWindows[whom] = extendCurrentWindow(
+        {
+          oldest,
+          newest,
+          loadedNewest: false,
+          loadedOldest: false,
+        },
+        draft.writWindows[whom],
+        time
+      );
+    });
+  };
+
   return {
     initialize: async () => {
       const writs = await scry<ChatWrits>(
@@ -372,32 +398,59 @@ export default function makeWritsStore(
     },
     getNewer: async (count, time) => getMessages(count, 'newer', time),
     getOlder: async (count, time) => getMessages(count, 'older', time),
-    getAround: async (count, time) => {
+    getAroundTime: async (count, time) => {
       const writs = await api.scry<ChatWrits>({
         app: 'chat',
         path: `${scryPath}/around/${decToUd(time.toString())}/${count}`,
       });
+      updateAround(writs, time);
+    },
+    getAroundId: async (count, id) => {
+      const parts = id.split('/');
+      if (parts.length !== 2) {
+        throw new Error('Invalid id');
+      }
 
-      get().batchSet((draft) => {
-        const keys = Object.keys(writs).sort();
-        if (keys.length === 0) {
-          return;
-        }
-
-        updatePact(whom, writs, draft);
-        const oldest = bigInt(udToDec(keys[0]));
-        const newest = bigInt(udToDec(keys[keys.length - 1]));
-        draft.writWindows[whom] = extendCurrentWindow(
-          {
-            oldest,
-            newest,
-            loadedNewest: false,
-            loadedOldest: false,
-          },
-          draft.writWindows[whom],
-          time
-        );
+      const writs = await api.scry<ChatWrits>({
+        app: 'chat',
+        path: `${scryPath}/around/${id}/${count}`,
       });
+
+      const entries = Object.entries(writs);
+      if (entries.length === 0) {
+        return;
+      }
+
+      const entry = entries.find(([, writ]) => writ.seal.id === id);
+      if (!entry) {
+        return;
+      }
+      updateAround(writs, bigInt(udToDec(entry[0])));
+    },
+    getWrit: async (id) => {
+      const parts = id.split('/');
+      if (parts.length !== 2) {
+        throw new Error('Invalid id');
+      }
+
+      const entry = await asyncWithDefault(
+        () =>
+          api.scry<ChatWritEntry>({
+            app: 'chat',
+            path: `${scryPath}/writ/id/${id}`,
+          }),
+        undefined
+      );
+
+      if (!entry) {
+        return;
+      }
+
+      const writs = {
+        [decToUd(entry.time)]: entry.writ,
+      };
+
+      updateAround(writs, bigInt(entry.time));
     },
   };
 }

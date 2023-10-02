@@ -34,7 +34,6 @@ export default function ChatThread() {
     idShip: string;
     idTime: string;
   }>();
-  const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
@@ -49,7 +48,7 @@ export default function ChatThread() {
   const id = `${idShip!}/${idTime!}`;
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const maybeWrit = useWrit(whom, id);
+  const { entry: maybeWrit, isLoading } = useWrit(whom, id, true);
   const replies = useReplies(whom, id);
   const navigate = useNavigate();
   const [time, writ] = maybeWrit ?? [null, null];
@@ -89,31 +88,14 @@ export default function ChatThread() {
     },
     [navigate, returnURL, leapIsOpen]
   );
-
   useEventListener('keydown', onEscape, threadRef);
 
-  const initializeChannel = useCallback(async () => {
-    setLoading(true);
-    if (!idTime) return;
-    await useChatState
-      .getState()
-      .fetchMessagesAround(
-        `${chShip}/${chName}`,
-        '50',
-        bigInt(udToDec(idTime))
-      );
-    setLoading(false);
-  }, [chName, chShip, idTime]);
+  // useEffect(() => {
+  //   if (whom && id) {
+  //     useChatState.getState().fetchMessagesAround(whom, '50', id);
+  //   }
+  // }, [whom, id]);
 
-  useEffect(() => {
-    if (!time || !writ) {
-      initializeChannel();
-    }
-  }, [initializeChannel, time, writ]);
-
-  if (!time || !writ) return null;
-
-  const thread = replies.with(time, writ);
   const BackButton = isMobile ? Link : 'div';
 
   return (
@@ -176,12 +158,12 @@ export default function ChatThread() {
         </header>
       )}
       <div className="flex flex-1 flex-col overflow-hidden p-0 pr-2">
-        {loading ? (
+        {isLoading || !time || !writ ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
           <ChatScroller
             key={idTime}
-            messages={thread}
+            messages={replies.with(time, writ)}
             whom={whom}
             scrollerRef={scrollerRef}
             replying

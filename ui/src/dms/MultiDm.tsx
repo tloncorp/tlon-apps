@@ -73,6 +73,7 @@ export default function MultiDm() {
   const club = useMultiDm(clubId);
   const appName = useAppName();
   const groupName = club?.meta.title || club?.team.concat(club.hive).join(', ');
+  const root = `/dm/${clubId}`;
 
   const {
     isSelectingMessage,
@@ -108,7 +109,7 @@ export default function MultiDm() {
                 element={
                   <ChatSearch
                     whom={clubId}
-                    root={`/dm/${clubId}`}
+                    root={root}
                     placeholder="Search Messages"
                   >
                     <TitleButton club={club} isMobile={isMobile} />
@@ -198,6 +199,7 @@ export default function MultiDm() {
         {isAccepted ? (
           <ChatWindow
             whom={clubId}
+            root={root}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <MultiDmHero club={club} />

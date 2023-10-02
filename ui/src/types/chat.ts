@@ -362,9 +362,9 @@ export interface TalkChatInit extends ChatInit {
   pins: string[];
 }
 
-export interface ChatScanItem {
+export interface ChatWritEntry {
   time: string;
   writ: ChatWrit;
 }
 
-export type ChatScan = ChatScanItem[];
+export type ChatScan = ChatWritEntry[];

@@ -195,6 +195,12 @@
       %del-sects  a/(turn ~(tap in p.diff) (lead %s))
     ==
   ::
+  ++  writ-entry
+    |=  [tim=^time w=writ:c]
+    %-  pairs
+    :~  time/(time-id tim)
+        writ/(writ w)
+    ==
   ++  writs-diff
     |=  =diff:writs:c
     %-  pairs
