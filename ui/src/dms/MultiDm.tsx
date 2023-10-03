@@ -98,6 +98,9 @@ export default function MultiDm() {
   return (
     <>
       <Layout
+        style={{
+          paddingBottom: isMobile ? 50 : 0,
+        }}
         className="flex-1"
         header={
           isSelecting ? (

@@ -39,7 +39,7 @@
   ++  club-delta
     |=  d=delta:club:c
     %+  frond  -.d
-    ?-  -.d 
+    ?-  -.d
         %writ  (writs-diff diff.d)
     ::
         %meta  (meta meta.d)
@@ -104,6 +104,31 @@
     :~  ship/(ship ship.r)
         ok/b/ok.r
     ==
+  ::
+  ++  blocked-by-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  blocked-by/s/(scot %p s)
+    ==
+  ::
+  ++  unblocked-by-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  unblocked-by/s/(scot %p s)
+    ==
+  ::
+  ++  block-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  ship/s/(scot %p s)
+    ==
+  ::
+  ++  unblock-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  ship/s/(scot %p s)
+    ==
+  ::
   ++  whom
     |=  w=whom:c
     ?-  -.w
@@ -140,6 +165,12 @@
     :~  pins/a/(turn ps (cork whom (lead %s)))
     ==
   ::
+  ++  blocked
+    |=  bs=(set @p)
+    %-  pairs
+    :~  blocked/a/(turn ~(tap in bs) ship)
+    ==
+  ::
   ++  chats
     |=  cs=(map flag:c chat:c)
     %-  pairs
@@ -167,7 +198,7 @@
   ++  ship
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)
-  ++  id 
+  ++  id
     |=  =id:c
     n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
   ::
@@ -251,7 +282,7 @@
         diff+(writs-diff q.action)
     ==
   ::
-  ++  memo 
+  ++  memo
     |=  =memo:c
     %-  pairs
     :~  replying+?~(replying.memo ~ (id u.replying.memo))
@@ -273,7 +304,7 @@
           width+(numb width.b)
           alt+s+alt.b
       ==
-      
+
     ==
   ::
   ++  clubs
@@ -376,7 +407,7 @@
     |=  =writs:c
     ^-  json
     %-  pairs
-    %+  turn  (tap:on:writs:c writs) 
+    %+  turn  (tap:on:writs:c writs)
     |=  [key=@da w=writ:c]
     [(scot %ud key) (writ w)]
 
@@ -395,6 +426,16 @@
         ok/bo
     ==
   ::
+  ++  block-ship
+    %-  ot
+    :~  ship/(se %p)
+    ==
+  ::
+  ++  unblock-ship
+    %-  ot
+    :~  ship/(se %p)
+    ==
+  ::
   ++  club-rsvp
     %-  ot
     :~  id/(se %uv)
@@ -407,6 +448,10 @@
     :~  pins/(ar whom)
     ==
   ::
+  ++  blocked
+    %-  ot
+    :~  blocked/(as ship)
+    ==
   ++  whom
     ^-  $-(json whom:c)
     %-  su
@@ -495,7 +540,7 @@
   ::
   ++  club-delta
     %-  of
-    :~  
+    :~
       writ/writs-diff
       meta/meta
     ::
@@ -534,9 +579,9 @@
         del-sects/del-sects
     ==
   ::
-  ++  id  
+  ++  id
     ^-  $-(json id:c)
-    %-  su 
+    %-  su
     %+  cook  |=([p=@p q=@] `id:c`[p `@da`q])
     ;~((glue fas) ;~(pfix sig fed:ag) dem:ag)
   ::

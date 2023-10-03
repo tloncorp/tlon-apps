@@ -151,7 +151,12 @@ function Groups() {
   }
 
   return (
-    <div className="flex min-w-0 grow bg-gray-50">
+    <div
+      style={{
+        marginBottom: -50,
+      }}
+      className="flex h-full w-full flex-col"
+    >
       <Outlet />
     </div>
   );

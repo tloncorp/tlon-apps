@@ -23,6 +23,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
+import { inlineToString } from '@/logic/tiptap';
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -47,6 +48,11 @@ function ChatMessageOptions(props: {
   const { didCopy, doCopy } = useCopy(
     `/1/chan/chat/${whom}/msg/${writ.seal.id}`
   );
+  const messageText =
+    'story' in writ.memo.content && 'inline' in writ.memo.content.story
+      ? writ.memo.content.story.inline.map((i) => inlineToString(i)).join('')
+      : '';
+  const { didCopy: didCopyText, doCopy: doCopyText } = useCopy(messageText);
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,
     writ.seal.id,
@@ -100,6 +106,16 @@ function ChatMessageOptions(props: {
       }, 2000);
     }
   }, [doCopy, isMobile, onOpenChange]);
+
+  const onCopyText = useCallback(() => {
+    doCopyText();
+
+    if (isMobile) {
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 2000);
+    }
+  }, [doCopyText, isMobile, onOpenChange]);
 
   const reply = useCallback(() => {
     setSearchParams({ chat_reply: writ.seal.id }, { replace: true });
@@ -205,13 +221,29 @@ function ChatMessageOptions(props: {
           ) : (
             <CopyIcon className="mr-2 h-6 w-6" />
           )}
-          {didCopy ? 'Copied!' : 'Copy'}
+          {didCopy ? 'Copied!' : 'Copy Link'}
         </div>
       ),
       onClick: onCopy,
       keepOpenOnClick: true,
     });
   }
+
+  actions.push({
+    key: 'copyText',
+    content: (
+      <div className="flex items-center">
+        {didCopyText ? (
+          <CheckIcon className="mr-2 h-6 w-6" />
+        ) : (
+          <CopyIcon className="mr-2 h-6 w-6" />
+        )}
+        {didCopyText ? 'Copied!' : 'Copy Text'}
+      </div>
+    ),
+    onClick: onCopyText,
+    keepOpenOnClick: true,
+  });
 
   if (showDeleteAction) {
     actions.push({
@@ -249,7 +281,10 @@ function ChatMessageOptions(props: {
       {isMobile ? (
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
-        <div className="absolute right-2 -top-5 z-10 h-full" ref={containerRef}>
+        <div
+          className="absolute right-2 -top-5 z-10 min-h-fit"
+          ref={containerRef}
+        >
           <div
             data-testid="chat-message-options"
             className="relative top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
