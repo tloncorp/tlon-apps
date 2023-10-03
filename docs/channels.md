@@ -7,7 +7,6 @@
      - [/unreads](#unreads)
      - [/init](#init)
    - [Pokes](#pokes)
-     - [Create a Group](#create-a-group)
      - [%channel-action](#channel-action)
        - [%create](#create)
        - [%channel](#channel)
@@ -17,23 +16,25 @@
          - [%read-at](#read-at)
          - [%watch](#watch)
          - [%unwatch](#unwatch)
-         - [%post](#post-add)
-           - [%add](#post-add)
-           - [%edit](#post-edit)
-           - [%del](#post-del)
-           - [%add-react](#post-add-react)
-           - [%del-react](#post-del-react)
-           - [%reply](#post-reply-add)
-             - [%add](#post-reply-add)
-             - [%del](#post-reply-del)
-             - [%add-react](#post-reply-add-react)
-             - [%del-react](#post-reply-del-react)
-         - [%view](#view)
-         - [%sort](#sort)
-         - [%set-order](#set-order)
-         - [%add-writers](#add-writers)
-         - [%del-writers](#del-writers)
+         - [Commands](#commands)
+           - [%post](#post-add)
+             - [%add](#post-add)
+             - [%edit](#post-edit)
+             - [%del](#post-del)
+             - [%add-react](#post-add-react)
+             - [%del-react](#post-del-react)
+             - [%reply](#post-reply-add)
+               - [%add](#post-reply-add)
+               - [%del](#post-reply-del)
+               - [%add-react](#post-reply-add-react)
+               - [%del-react](#post-reply-del-react)
+           - [%view](#view)
+           - [%sort](#sort)
+           - [%set-order](#set-order)
+           - [%add-writers](#add-writers)
+           - [%del-writers](#del-writers)
      - [%channel-migration](#channel-migration)
+ - [Create a Group](#create-a-group)
    - [Subscriptions](#Subscriptions)
      - [/unreads](#unreads-1)
      - [/](#)
@@ -88,26 +89,6 @@ Combination of `/channels` and `/unreads`. Returns `[unreads channels]`
 
 [unreads](#unreads-2) \| [channels](#channels-1)
 ### Pokes
-#### Create a Group
-```hoon
-=g -build-file /=groups=/sur/groups/hoon
-
-=create :*
-  name=%mygroup
-  title='My group'
-  description='This is my group'
-  image=''
-  cover=''
-  cordon=`cordon:g`[%open ban=[ships=~ ranks=~]]
-  members=`(jug ship sect:g)`(~(put ju *(jug ship sect:g)) our %admin)
-  secret=%.n
-  ==
-
-:groups &group-create create
-```
-
-This is done with `%groups` instead of `%channels`, but it's necessary for testing. 
-
 #### %channel-action
 
 Takes an [a-channels](#a-channels), which can be one of several actions. Each action is covered below.
@@ -129,6 +110,8 @@ Takes an [a-channels](#a-channels), which can be one of several actions. Each ac
 
 :channels &channel-action [%create create-channel]
 ```
+
+Create a channel. This also updates the metadata in the %groups agent.
 
 [create-channel](#create-channel)
 
@@ -189,6 +172,10 @@ Watch a channel for unreads.
 ```
 
 Stop watching a channel for unreads.
+
+##### Commands
+The following pokes are commands. 
+
 ###### %post %add
 ```hoon
 =nest [%chat our %mychat]
@@ -372,6 +359,25 @@ Disable writing to a diary for a certain set of roles
 #### %channel-migration
 Used internally to handle migrating from the previous version's state
 
+#### Create a Group
+```hoon
+=g -build-file /=groups=/sur/groups/hoon
+
+=create :*
+  name=%mygroup
+  title='My group'
+  description='This is my group'
+  image=''
+  cover=''
+  cordon=`cordon:g`[%open ban=[ships=~ ranks=~]]
+  members=`(jug ship sect:g)`(~(put ju *(jug ship sect:g)) our %admin)
+  secret=%.n
+  ==
+
+:groups &group-create create
+```
+
+This is done with `%groups` instead of `%channels`, but it's included here since it's necessary for testing.
 ### Subscriptions
 #### /unreads
 Subscribe to unread & preview information. Each fact is a `[channels unreads]`
@@ -382,17 +388,17 @@ Subscribe to unread & preview information. Each fact is a `[channels unreads]`
 
 [r-channels](#r-channels)
 #### /[kind]/[ship]/[name]
-(This is effectively /[channels])
+(This is effectively /[nest])
 
-Similar to `/`, but only include updates for a particular channels. Each fact is a `set-order` (response channels)
+Similar to `/`, but only include updates for a particular channels. Each fact is a `r-channels` (response channels)
 
-[channels](#channels) \| [set-order](#set-order)
+[nest](#nest) \| [r-channels](#r-channels)
 #### /said/[kind]/[ship]/[name]/post/[time]/[(unit reply)]
-(This is effectively /[channels]/post/[time]/[(unit reply)])
+(This is effectively /said/[nest]/post/[time]/[(unit reply)])
 
 Read a reference. Facts are either of the `%channel-denied` mark (meaning you cannot view the channel) or of the `%channel-said` mark and the `said` type
 
-[channels](#channels) \| [said](#said)
+[nest](#nest) \| [said](#said)
 ## Types
 ### said
 ```hoon
@@ -508,7 +514,7 @@ Chunk of post content that can live inside of a paragraph
 ### kind-data
 ```hoon
 +$  kind-data
-  $%  [%channel title=@t image=@t]
+  $%  [%diary title=@t image=@t]
       [%heap title=(unit @t)]
       [%chat kind=$@(~ [%notice ~])]
   ==
@@ -578,7 +584,7 @@ Response (subscriber to client communication) for a channels
 ### r-channel
 ```hoon
 +$  r-channel
-  $%  [%posts =notes]
+  $%  [%posts =posts]
       [%post id=id-post =r-post]
       [%set-order order=arranged-posts]
       [%view =view]
@@ -599,7 +605,7 @@ Response (subscriber to client communication) for a channels
 Response (subscriber to client communication) for a channel.
 ### posts
 ```hoon
-+$  notes  ((mop id-post (unit note)) lte)
++$  posts  ((mop id-post (unit post)) lte)
 ```
 
 Posts indexed by time.
@@ -754,7 +760,7 @@ Uniquely identifies a channel.
 
 ### kind
 ```hoon
-+$  han  ?(%notebook %gallery %chat)
++$  kind  ?(%notebook %gallery %chat)
 ```
 
 Channel type.
