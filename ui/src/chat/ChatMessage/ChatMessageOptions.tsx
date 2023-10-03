@@ -249,7 +249,10 @@ function ChatMessageOptions(props: {
       {isMobile ? (
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
-        <div className="absolute right-2 -top-5 z-10 h-full" ref={containerRef}>
+        <div
+          className="absolute right-2 -top-5 z-10 min-h-fit"
+          ref={containerRef}
+        >
           <div
             data-testid="chat-message-options"
             className="relative top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
