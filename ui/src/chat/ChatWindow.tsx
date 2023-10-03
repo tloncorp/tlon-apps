@@ -59,12 +59,12 @@ export default function ChatWindow({
   }, [setSearchParams]);
 
   useEffect(() => {
-    if (scrollTo && !messages.has(scrollTo) && !thread) {
+    if (scrollTo && !thread) {
       useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), messages, thread]);
+  }, [scrollTo?.toString(), thread]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
