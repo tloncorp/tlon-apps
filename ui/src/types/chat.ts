@@ -149,6 +149,24 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
+export interface WritResponseAdd {
+  add: {
+    memo: ChatMemo;
+    time: string;
+  };
+}
+
+export type WritResponseDelta =
+  | WritResponseAdd
+  | WritDeltaDel
+  | WritDeltaAddFeel
+  | WritDeltaDelFeel;
+
+export interface WritResponse {
+  id: string;
+  response: WritResponseDelta;
+}
+
 export interface ChatDiffCreate {
   create: Chat;
 }
@@ -354,12 +372,12 @@ export interface TalkChatInit extends ChatInit {
   pins: string[];
 }
 
-export interface ChatScanItem {
+export interface ChatWritEntry {
   time: string;
   writ: ChatWrit;
 }
 
-export type ChatScan = ChatScanItem[];
+export type ChatScan = ChatWritEntry[];
 
 export type BlockedShips = string[];
 

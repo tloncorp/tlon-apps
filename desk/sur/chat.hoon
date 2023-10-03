@@ -184,6 +184,13 @@
         [%add-feel p=ship q=feel]
         [%del-feel p=ship]
     ==
+  +$  response  [=id response=response-delta]
+  +$  response-delta
+    $%  [%add =memo =time]
+        [%del ~]
+        [%add-feel =ship =feel]
+        [%del-feel =ship]
+    ==
   --
 ::
 ::  $dm: a direct line of communication between two ships
@@ -202,11 +209,11 @@
         =net
         pin=_|
     ==
-  +$  net     ?(%inviting %invited %archive %done)
-  +$  id      (pair ship time)
-  +$  diff    diff:writs
-  +$  action  (pair ship diff)
-  +$  rsvp    [=ship ok=?]
+  +$  net       ?(%inviting %invited %archive %done)
+  +$  id        (pair ship time)
+  +$  diff      diff:writs
+  +$  action    (pair ship diff)
+  +$  rsvp      [=ship ok=?]
   --
 ::
 ::  $log: a time ordered map of all modifications to chats

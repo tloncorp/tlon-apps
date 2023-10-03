@@ -66,6 +66,7 @@ function ChatChannel({ title }: ViewProps) {
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
   const bottomInset = group ? safeAreaInsets.bottom : 0;
+  const root = `/groups/${groupFlag}/channels/${nest}`;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -129,7 +130,7 @@ function ChatChannel({ title }: ViewProps) {
                 <>
                   <ChatSearch
                     whom={chFlag}
-                    root={`/groups/${groupFlag}/channels/${nest}`}
+                    root={root}
                     placeholder={
                       channel ? `Search in ${channel.meta.title}` : 'Search'
                     }
@@ -209,7 +210,7 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        <ChatWindow whom={chFlag} />
+        <ChatWindow whom={chFlag} root={root} />
       </Layout>
       <Routes>
         {isSmall ? null : (
