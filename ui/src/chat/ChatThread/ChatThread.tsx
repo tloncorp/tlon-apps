@@ -42,7 +42,8 @@ export default function ChatThread() {
   const groupFlag = useRouteGroup();
   const { sendMessage } = useChatState.getState();
   const location = useLocation();
-  const scrollTo = new URLSearchParams(location.search).get('msg');
+  const msg = new URLSearchParams(location.search).get('msg');
+  const scrollTo = msg ? bigInt(msg) : undefined;
   const channel = useChannel(groupFlag, `chat/${flag}`)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
@@ -90,11 +91,13 @@ export default function ChatThread() {
   );
   useEventListener('keydown', onEscape, threadRef);
 
-  // useEffect(() => {
-  //   if (whom && id) {
-  //     useChatState.getState().fetchMessagesAround(whom, '50', id);
-  //   }
-  // }, [whom, id]);
+  useEffect(() => {
+    if (scrollTo && !replies.has(scrollTo)) {
+      useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo?.toString(), replies]);
 
   const BackButton = isMobile ? Link : 'div';
 
@@ -167,7 +170,7 @@ export default function ChatThread() {
             whom={whom}
             scrollerRef={scrollerRef}
             replying
-            scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
+            scrollTo={scrollTo}
           />
         )}
       </div>
