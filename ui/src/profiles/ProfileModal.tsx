@@ -124,7 +124,7 @@ export default function ProfileModal() {
         )}
         {shipHasBlockedUs && (
           <div className="mt-5">
-            <h2 className="mb-3 font-semibold">Blocked You</h2>
+            <h2 className="mb-3 font-semibold">Blocked</h2>
             <p className="text-gray-600">
               This user has blocked you. You will not be able to send messages
               to them.
