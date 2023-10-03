@@ -102,6 +102,7 @@ import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import { isNativeApp } from './logic/native';
+import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -359,6 +360,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </Route>
               {isSmall && (
                 <Route
+                  path=":ship/search/:query?"
+                  element={<MobileChatSearch />}
+                />
+              )}
+              {isSmall && (
+                <Route
                   path=":ship/message/:idShip/:idTime"
                   element={<ChatThread />}
                 />
@@ -437,6 +444,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   />
                 )}
               </Route>
+              {isSmall && (
+                <Route path="search/:query?" element={<MobileChatSearch />} />
+              )}
               {isSmall ? (
                 <Route
                   path="message/:idShip/:idTime"
@@ -797,7 +807,7 @@ function RoutedApp() {
           <Scheduler />
         </TooltipProvider>
         <LureAutojoiner />
-        {showDevTools && (
+        {false && (
           <>
             <React.Suspense fallback={null}>
               <ReactQueryDevtoolsProduction />
