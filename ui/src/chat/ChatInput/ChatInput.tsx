@@ -14,6 +14,7 @@ import * as Popover from '@radix-ui/react-popover';
 import {
   useIsShipBlocked,
   usePact,
+  useShipHasBlockedUs,
   useUnblockShipMutation,
 } from '@/state/chat';
 import { ChatImage, ChatMemo, Cite } from '@/types/chat';
@@ -143,6 +144,7 @@ export default function ChatInput({
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
   const shipIsBlocked = useIsShipBlocked(whom);
+  const shipHasBlockedUs = useShipHasBlockedUs(whom);
   const { mutate: unblockShip } = useUnblockShipMutation();
 
   const handleUnblockClick = useCallback(() => {
@@ -524,6 +526,18 @@ export default function ChatInput({
 
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
+
+  if (shipHasBlockedUs) {
+    return (
+      <div className="flex w-full items-end space-x-2">
+        <div className="flex-1">
+          <div className="flex items-center justify-center space-x-2">
+            <span>This user has blocked you.</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (shipIsBlocked) {
     return (

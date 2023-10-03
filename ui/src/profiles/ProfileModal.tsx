@@ -16,6 +16,7 @@ import { isNativeApp } from '@/logic/native';
 import {
   useBlockShipMutation,
   useIsShipBlocked,
+  useShipHasBlockedUs,
   useUnblockShipMutation,
 } from '@/state/chat';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -37,6 +38,7 @@ export default function ProfileModal() {
   const { mutate: blockShip } = useBlockShipMutation();
   const { mutate: unblockShip } = useUnblockShipMutation();
   const shipIsBlocked = useIsShipBlocked(ship || '');
+  const shipHasBlockedUs = useShipHasBlockedUs(ship || '');
   const isUs = ship === window.our;
 
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function ProfileModal() {
           className="translate-y-9"
         />
       </ProfileCoverImage>
-      <div className="p-5 pt-14">
+      <div className="flex flex-col space-y-2 p-5 pt-14">
         <div className="flex items-center space-x-2 text-lg font-bold">
           <ShipName name={ship} showAlias />
           {contact && contact.nickname ? (
@@ -118,6 +120,15 @@ export default function ProfileModal() {
           <div className="mt-5">
             <h2 className="mb-3 font-semibold">Favorite Groups</h2>
             <FavoriteGroupGrid groupFlags={contact.groups} />
+          </div>
+        )}
+        {shipHasBlockedUs && (
+          <div className="mt-5">
+            <h2 className="mb-3 font-semibold">Blocked You</h2>
+            <p className="text-gray-600">
+              This user has blocked you. You will not be able to send messages
+              to them.
+            </p>
           </div>
         )}
       </div>
@@ -155,9 +166,11 @@ export default function ProfileModal() {
               Block User
             </button>
           ))}
-        <button className="button" onClick={handleMessageClick}>
-          Message
-        </button>
+        {!shipHasBlockedUs && (
+          <button className="button" onClick={handleMessageClick}>
+            Message
+          </button>
+        )}
       </footer>
       <ConfirmationModal
         open={showBlock}

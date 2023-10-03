@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Groups } from '@/types/groups';
 import {
+  BlockedByShips,
   BlockedShips,
   Chat,
   ChatAction,
@@ -16,6 +17,7 @@ import {
   ChatCreate,
   ChatDiff,
   ChatDraft,
+  ChatEvent,
   ChatJoin,
   ChatMemo,
   ChatPerm,
@@ -281,24 +283,52 @@ export const useChatState = createState<ChatState>(
         {
           app: 'chat',
           path: '/ui',
-          event: (event: ChatAction) => {
+          event: (event: ChatEvent) => {
             get().batchSet((draft) => {
-              const {
-                flag,
-                update: { diff },
-              } = event;
-              const chat = draft.chats[flag];
+              if ('blocked-by' in event) {
+                queryClient.setQueryData<BlockedByShips>(
+                  ['chat', 'blocked-by'],
+                  (prev) => {
+                    if (!prev) {
+                      return [event['blocked-by']];
+                    }
 
-              if ('create' in diff) {
-                draft.chats[flag] = diff.create;
-              } else if ('del-sects' in diff) {
-                chat.perms.writers = chat.perms.writers.filter(
-                  (w) => !diff['del-sects'].includes(w)
+                    return [...prev, event['blocked-by']];
+                  }
                 );
-              } else if ('add-sects' in diff) {
-                chat.perms.writers = chat.perms.writers.concat(
-                  diff['add-sects']
+              }
+
+              if ('unblocked-by' in event) {
+                queryClient.setQueryData<BlockedByShips>(
+                  ['chat', 'blocked-by'],
+                  (prev) => {
+                    if (!prev) {
+                      return [];
+                    }
+
+                    return prev.filter((s) => s !== event['unblocked-by']);
+                  }
                 );
+              }
+
+              if ('flag' in event) {
+                const {
+                  flag,
+                  update: { diff },
+                } = event;
+                const chat = draft.chats[flag];
+
+                if ('create' in diff) {
+                  draft.chats[flag] = diff.create;
+                } else if ('del-sects' in diff) {
+                  chat.perms.writers = chat.perms.writers.filter(
+                    (w) => !diff['del-sects'].includes(w)
+                  );
+                } else if ('add-sects' in diff) {
+                  chat.perms.writers = chat.perms.writers.concat(
+                    diff['add-sects']
+                  );
+                }
               }
             });
           },
@@ -1173,6 +1203,32 @@ export function useIsShipBlocked(ship: string) {
   const { blocked } = useBlockedShips();
 
   return blocked.includes(ship);
+}
+
+export function useBlockedByShips() {
+  const { data, ...rest } = useReactQueryScry<BlockedByShips>({
+    queryKey: ['chat', 'blocked-by'],
+    app: 'chat',
+    path: '/blocked-by',
+  });
+
+  if (!data) {
+    return {
+      blockedBy: [],
+      ...rest,
+    };
+  }
+
+  return {
+    blockedBy: data,
+    ...rest,
+  };
+}
+
+export function useShipHasBlockedUs(ship: string) {
+  const { blockedBy } = useBlockedByShips();
+
+  return blockedBy.includes(ship);
 }
 
 export function useBlockShipMutation() {

@@ -30,6 +30,7 @@
 +$  said   (pair flag writ)
 ::  $blocked: a set of ships that the user has blocked
 +$  blocked  (set ship)
++$  blocked-by  (set ship)
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::

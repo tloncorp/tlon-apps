@@ -33,6 +33,7 @@
         drafts=(map whom:c story:c)
         pins=(list whom:c)
         blocked=(set ship)
+        blocked-by=(set ship)
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
@@ -204,6 +205,7 @@
       drafts  drafts.s
       pins    pins.s
       blocked  ~
+      blocked-by  ~
       bad     bad.s
       inv     inv.s
       fish    fish.s
@@ -310,6 +312,14 @@
       %chat-pins
     =+  !<(ps=(list whom:c) vase)
     (pin ps)
+  ::
+      %chat-blocked
+    ?<  from-self
+    (has-blocked src.bowl)
+  ::
+      %chat-unblocked
+    ?<  from-self
+    (has-unblocked src.bowl)
   ::
       %chat-block-ship
     =+  !<(=ship vase)
@@ -454,12 +464,34 @@
     cor
   --
   ::
+  ++  has-blocked
+    |=  =ship
+    ^+  cor
+    ?<  (~(has in blocked-by) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked-by  (~(put in blocked-by) ship)
+    =.  cor
+      (give %fact ~[/ui] chat-blocked-by+!>(ship))
+    cor
+  ::
+  ++  has-unblocked
+    |=  =ship
+    ^+  cor
+    ?>  (~(has in blocked-by) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked-by  (~(del in blocked-by) ship)
+    =.  cor
+      (give %fact ~[/ui] chat-unblocked-by+!>(ship))
+    cor
+  ::
   ++  block
     |=  =ship
     ^+  cor
     ?<  (~(has in blocked) ship)
     ?<  =(our.bowl ship)
     =.  blocked  (~(put in blocked) ship)
+    =.  cor
+      (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-blocked !>(0))
     cor
   ::
   ++  unblock
@@ -467,6 +499,8 @@
     ^+  cor
     ?>  (~(has in blocked) ship)
     =.  blocked  (~(del in blocked) ship)
+    =.  cor
+      (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-unblocked !>(0))
     cor
   ::
 ++  watch
@@ -835,6 +869,8 @@
     [%x %pins ~]  ``chat-pins+!>(pins)
   ::
     [%x %blocked ~]  ``ships+!>(blocked)
+  ::
+    [%x %blocked-by ~]  ``ships+!>(blocked-by)
   ::
     [%x %briefs ~]  ``chat-briefs+!>(briefs)
   ::

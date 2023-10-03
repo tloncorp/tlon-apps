@@ -102,6 +102,18 @@
         ok/b/ok.r
     ==
   ::
+  ++  blocked-by-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  blocked-by/s/(scot %p s)
+    ==
+  ::
+  ++  unblocked-by-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  unblocked-by/s/(scot %p s)
+    ==
+  ::
   ++  block-ship
     |=  s=ship:c
     %-  pairs
@@ -383,6 +395,16 @@
     %-  ot
     :~  ship/(se %p)
         ok/bo
+    ==
+  ::
+  ++  blocked-by-ship
+    %-  ot
+    :~  blocked-by/(se %p)
+    ==
+  ::
+  ++  unblocked-by-ship
+    %-  ot
+    :~  unblocked-by/(se %p)
     ==
   ::
   ++  block-ship
