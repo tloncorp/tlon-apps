@@ -92,7 +92,7 @@ type DivVirtualizer = Virtualizer<HTMLDivElement, HTMLDivElement>;
 
 const thresholds = {
   atEndThreshold: 2000,
-  overscan: 6,
+  overscan: 12,
 };
 
 export default function ChatScroller({
@@ -140,10 +140,31 @@ export default function ChatScroller({
     [count, isInverted]
   );
 
-  const [anchorIndex, setAnchorIndex] = useState<number | null>(
-    scrollTo || count === 0 ? null : count - 1
-  );
+  const [anchorIndex, setAnchorIndex] = useState<number | null>(() => {
+    if (count === 0) {
+      return null;
+    }
+    if (scrollTo) {
+      const index = activeMessageKeys.findIndex((k) =>
+        k.greaterOrEquals(scrollTo)
+      );
+      return index === -1 ? null : index;
+    }
+    return count - 1;
+  });
+
   const virtualizerRef = useRef<DivVirtualizer>();
+
+  /**
+   * Set scroll position, bypassing virtualizer change logic.
+   */
+  const forceScroll = useCallback((offset: number) => {
+    const virt = virtualizerRef.current;
+    if (!virt) return;
+    virt.scrollOffset = offset;
+    virt.scrollElement?.scrollTo({ top: offset });
+  }, []);
+
   const virtualizer = useVirtualizer({
     count: activeMessageEntries.length,
     getScrollElement: useCallback(() => scrollElementRef.current, []),
@@ -186,21 +207,20 @@ export default function ChatScroller({
         instance: DivVirtualizer
       ) => {
         // On iOS, changing scroll during momentum scrolling will cause stutters
-        if (isMobile && isScrolling) {
+        if (isMobile && isScrolling && userHasScrolled) {
           return;
         }
         // By default, the virtualizer tries to keep the position of the topmost
         // item on screen pinned, but we need to override that behavior to keep a
         // message centered or to stay at the bottom of the chat.
         if (anchorIndex !== null) {
-          const [nextOffset] = instance.getOffsetForIndex(
-            transformIndex(anchorIndex),
-            'center'
-          );
           // Fix for no-param-reassign
           const virt = instance;
-          virt.scrollOffset = nextOffset;
-          virt.scrollElement?.scrollTo({ top: nextOffset });
+          const index = transformIndex(anchorIndex);
+          const [nextOffset] = virt.getOffsetForIndex(index, 'center');
+          const measurement = virt.measurementsCache[anchorIndex];
+          const sizeAdjustment = index === 0 ? 0 : (measurement?.size ?? 0) / 2;
+          forceScroll(nextOffset + sizeAdjustment);
         } else {
           instance.scrollElement?.scrollTo({
             top: offset + (adjustments ?? 0),
@@ -208,7 +228,14 @@ export default function ChatScroller({
           });
         }
       },
-      [isScrolling, isMobile, anchorIndex, transformIndex]
+      [
+        isScrolling,
+        isMobile,
+        anchorIndex,
+        transformIndex,
+        userHasScrolled,
+        forceScroll,
+      ]
     ),
     overscan: thresholds.overscan,
     // Called by the virtualizer whenever any layout property changes.
@@ -331,8 +358,7 @@ export default function ChatScroller({
   // We do this here as opposed to in an effect so that virtualItems is correct in time for this render.
   const lastIsInverted = useRef(isInverted);
   if (userHasScrolled && isInverted !== lastIsInverted.current) {
-    virtualizer.scrollOffset = contentHeight - virtualizer.scrollOffset;
-    virtualizer.scrollToOffset(virtualizer.scrollOffset, { align: 'start' });
+    forceScroll(contentHeight - virtualizer.scrollOffset);
     lastIsInverted.current = isInverted;
   }
 
