@@ -176,7 +176,7 @@ Watch a channel for unreads.
 Stop watching a channel for unreads.
 
 ##### Actions
-All of the previous pokes affected your local ship (joining and leaving, unreads, and so on). The following pokes are *actions*, meaning they will be synced across the network. When `%channels` on your ship hears an action, it issues a *command* to the host's `%channels-server` (see the above [diagram](#diagram)).
+All of the previous pokes affected your local ship (joining and leaving, unreads, and so on). The following pokes have effects that need to be synced across the network. They're called *actions*. When %channels on your ship hears an action, it issues a *command* to the host's %channels-server (see the above [diagram](#diagram)).
 
 ###### %post %add
 ```hoon
