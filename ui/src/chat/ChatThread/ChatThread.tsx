@@ -103,7 +103,7 @@ export default function ChatThread() {
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
+      className="relative flex h-full w-full flex-col overflow-y-auto bg-white pb-[50px] sm:pb-0 lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
     >
       {isMobile ? (
