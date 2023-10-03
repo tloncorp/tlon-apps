@@ -41,12 +41,19 @@ import {
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
+import {
+  UseQueryResult,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { pokeOptimisticallyN, createState } from '../base';
 import makeWritsStore, { getWritWindow, writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
+import { updateSearchHistory } from './search';
 
 setAutoFreeze(false);
 
@@ -1063,7 +1070,7 @@ export function useWritByFlagAndGraphIndex(
           useChatState.getState().batchSet((draft) => {
             draft.loadedGraphRefs[chFlag + index] = 'loading';
           });
-          const { writ } = await subscribeOnce(
+          const { writ } = await subscribeOnce<{ writ: ChatWrit }>(
             'chat',
             `/hook/${chFlag}${index}`
           );
@@ -1120,30 +1127,6 @@ export function useGetFirstUnreadID(whom: string) {
   const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
   const firstUnread = keys.find((key) => key.gt(lastReadBN));
   return firstUnread ?? null;
-}
-
-export function useChatSearch(whom: string, query: string) {
-  const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
-  const { data, ...rest } = useReactQueryScry<ChatScan>({
-    queryKey: ['chat', 'search', whom, query],
-    app: 'chat',
-    path: `/${type}/${whom}/search/text/0/1.000/${query}`,
-    options: {
-      enabled: query !== '',
-    },
-  });
-
-  const scan = useMemo(() => {
-    return newWritMap(
-      (data || []).map(({ time, writ }) => [bigInt(udToDec(time)), writ]),
-      true
-    );
-  }, [data]);
-
-  return {
-    scan,
-    ...rest,
-  };
 }
 
 (window as any).chat = useChatState.getState;
