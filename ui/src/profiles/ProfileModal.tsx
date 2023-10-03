@@ -131,6 +131,15 @@ export default function ProfileModal() {
             </p>
           </div>
         )}
+        {shipIsBlocked && (
+          <div className="mt-5">
+            <h2 className="mb-3 font-semibold">Blocked</h2>
+            <p className="text-gray-600">
+              You have blocked this user. You will not be able to send messages
+              to them.
+            </p>
+          </div>
+        )}
       </div>
       <footer className="flex items-center justify-end space-x-2 py-4 px-6">
         {pals.installed &&
