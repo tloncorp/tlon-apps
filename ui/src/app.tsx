@@ -65,7 +65,6 @@ import GroupRoles from '@/groups/GroupAdmin/GroupRoles';
 import GroupInfoEditor from '@/groups/GroupAdmin/GroupInfoEditor';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from '@/components/DisconnectNotice';
-import MobileGroupSidebar from '@/groups/GroupSidebar/MobileGroupSidebar';
 import TalkNav from '@/nav/TalkNav';
 import TalkHead from '@/dms/TalkHead';
 import MobileMessagesSidebar from '@/dms/MobileMessagesSidebar';
@@ -84,7 +83,6 @@ import { LeapProvider } from '@/components/Leap/useLeap';
 import VitaMessage from '@/components/VitaMessage';
 import Dialog from '@/components/Dialog';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
-import queryClient from '@/queryClient';
 import EmojiPicker from '@/components/EmojiPicker';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
 import { captureAnalyticsEvent, captureError } from '@/logic/analytics';
@@ -102,6 +100,8 @@ import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import { isNativeApp } from './logic/native';
+import BlockedUsersView from './components/Settings/BlockedUsersView';
+import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -391,6 +391,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               element={<SettingsView title={`Settings • ${groupsTitle}`} />}
             />
             <Route
+              path="/profile/settings/blocked"
+              element={<BlockedUsersView />}
+            />
+            <Route
               path="/profile/about"
               element={<AboutView title={`About • ${groupsTitle}`} />}
             />
@@ -482,6 +486,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/about" element={<AboutDialog />} />
           <Route path="/privacy" element={<PrivacyNotice />} />
           <Route path="/settings" element={<SettingsDialog />} />
+          <Route path="/blocked" element={<BlockedUsersDialog />} />
           <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
           <Route path="/activity-collection" element={<ActivityModal />} />
           <Route

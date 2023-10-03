@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useCopy } from '@/logic/utils';
@@ -13,11 +13,19 @@ import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import { isNativeApp } from '@/logic/native';
+import {
+  useBlockShipMutation,
+  useIsShipBlocked,
+  useShipHasBlockedUs,
+  useUnblockShipMutation,
+} from '@/state/chat';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
 
 export default function ProfileModal() {
+  const [showBlock, setShowBlock] = useState(false);
   const { ship } = useParams();
   const { doCopy, didCopy } = useCopy(ship || '');
   const contact = useContact(ship ? ship : '');
@@ -27,6 +35,11 @@ export default function ProfileModal() {
   const navigateByApp = useNavigateByApp();
   const pals = usePalsState();
   const { data, showConnection } = useConnectivityCheck(ship || '');
+  const { mutate: blockShip } = useBlockShipMutation();
+  const { mutate: unblockShip } = useUnblockShipMutation();
+  const shipIsBlocked = useIsShipBlocked(ship || '');
+  const shipHasBlockedUs = useShipHasBlockedUs(ship || '');
+  const isUs = ship === window.our;
 
   useEffect(() => {
     if (ship) {
@@ -58,6 +71,19 @@ export default function ProfileModal() {
     }
   };
 
+  const handleBlockClick = () => {
+    blockShip({
+      ship,
+    });
+    setShowBlock(false);
+  };
+
+  const handleUnblockClick = () => {
+    unblockShip({
+      ship,
+    });
+  };
+
   const handleCopyClick = () => {
     onCopy();
   };
@@ -80,7 +106,7 @@ export default function ProfileModal() {
           className="translate-y-9"
         />
       </ProfileCoverImage>
-      <div className="p-5 pt-14">
+      <div className="flex flex-col space-y-2 p-5 pt-14">
         <div className="flex items-center space-x-2 text-lg font-bold">
           <ShipName name={ship} showAlias />
           {contact && contact.nickname ? (
@@ -94,6 +120,24 @@ export default function ProfileModal() {
           <div className="mt-5">
             <h2 className="mb-3 font-semibold">Favorite Groups</h2>
             <FavoriteGroupGrid groupFlags={contact.groups} />
+          </div>
+        )}
+        {shipHasBlockedUs && (
+          <div className="mt-5">
+            <h2 className="mb-3 font-semibold">Blocked</h2>
+            <p className="text-gray-600">
+              This user has blocked you. You will not be able to send messages
+              to them.
+            </p>
+          </div>
+        )}
+        {shipIsBlocked && (
+          <div className="mt-5">
+            <h2 className="mb-3 font-semibold">Blocked</h2>
+            <p className="text-gray-600">
+              You have blocked this user. You will not be able to send messages
+              to them.
+            </p>
           </div>
         )}
       </div>
@@ -118,10 +162,32 @@ export default function ProfileModal() {
         <button className="secondary-button" onClick={handleCopyClick}>
           {didCopy ? 'Copied!' : 'Copy Name'}
         </button>
-        <button className="button" onClick={handleMessageClick}>
-          Message
-        </button>
+        {!isUs &&
+          (shipIsBlocked ? (
+            <button className="secondary-button" onClick={handleUnblockClick}>
+              Unblock User
+            </button>
+          ) : (
+            <button
+              className="secondary-button"
+              onClick={() => setShowBlock(true)}
+            >
+              Block User
+            </button>
+          ))}
+        {!shipHasBlockedUs && (
+          <button className="button" onClick={handleMessageClick}>
+            Message
+          </button>
+        )}
       </footer>
+      <ConfirmationModal
+        open={showBlock}
+        setOpen={setShowBlock}
+        title="Block User"
+        message="Are you sure you want to block this user?"
+        onConfirm={handleBlockClick}
+      />
     </Dialog>
   );
 }

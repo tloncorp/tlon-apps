@@ -26,12 +26,14 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %2
+    $:  %3
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         drafts=(map whom:c story:c)
         pins=(list whom:c)
+        blocked=(set ship)
+        blocked-by=(set ship)
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
@@ -115,8 +117,9 @@
   ?-  -.old
     %0  $(old (state-0-to-1 old))
     %1  $(old (state-1-to-2 old))
+    %2  $(old (state-2-to-3 old))
     ::
-      %2
+      %3
     =.  state  old
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
@@ -146,7 +149,7 @@
     ~&  >  %keep
     [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
   ::
-  +$  versioned-state  $%(current-state state-1 state-0)
+  +$  versioned-state  $%(current-state state-2 state-1 state-0)
   +$  state-0
     $:  %0
         chats=(map flag:zero chat:zero)
@@ -175,10 +178,40 @@
         ::  true represents imported, false pending import
         imp=(map flag:one ?)
     ==
-  +$  state-2  current-state
+  +$  state-2
+    $:  %2
+        chats=(map flag:c chat:c)
+        dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
+        drafts=(map whom:c story:c)
+        pins=(list whom:c)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:c id:c] (unit said:c))
+        fish=(map [flag:c @] id:c)
+        ::  true represents imported, false pending import
+        imp=(map flag:c ?)
+    ==
+  +$  state-3  current-state
   ++  zero     zero:old:c
   ++  one      one:old:c
   ++  two      c
+  ++  state-2-to-3
+    |=  s=state-2
+    ^-  state-3
+    %*  .  *state-3
+      dms     dms.s
+      clubs   clubs.s
+      drafts  drafts.s
+      pins    pins.s
+      blocked  ~
+      blocked-by  ~
+      bad     bad.s
+      inv     inv.s
+      fish    fish.s
+      voc     voc.s
+      chats   chats.s
+    ==
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -275,9 +308,28 @@
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
+  ::
       %chat-pins
     =+  !<(ps=(list whom:c) vase)
     (pin ps)
+  ::
+      %chat-blocked
+    ?<  from-self
+    (has-blocked src.bowl)
+  ::
+      %chat-unblocked
+    ?<  from-self
+    (has-unblocked src.bowl)
+  ::
+      %chat-block-ship
+    =+  !<(=ship vase)
+    ?>  from-self
+    (block ship)
+  ::
+      %chat-unblock-ship
+    =+  !<(=ship vase)
+    ?>  from-self
+    (unblock ship)
   ::
       %flag
     =+  !<(f=flag:c vase)
@@ -405,11 +457,52 @@
         /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
       ==
     --
+  ::
   ++  pin
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
   --
+  ::
+  ++  has-blocked
+    |=  =ship
+    ^+  cor
+    ?<  (~(has in blocked-by) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked-by  (~(put in blocked-by) ship)
+    =.  cor
+      (give %fact ~[/ui] chat-blocked-by+!>(ship))
+    cor
+  ::
+  ++  has-unblocked
+    |=  =ship
+    ^+  cor
+    ?>  (~(has in blocked-by) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked-by  (~(del in blocked-by) ship)
+    =.  cor
+      (give %fact ~[/ui] chat-unblocked-by+!>(ship))
+    cor
+  ::
+  ++  block
+    |=  =ship
+    ^+  cor
+    ?<  (~(has in blocked) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked  (~(put in blocked) ship)
+    =.  cor
+      (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-blocked !>(0))
+    cor
+  ::
+  ++  unblock
+    |=  =ship
+    ^+  cor
+    ?>  (~(has in blocked) ship)
+    =.  blocked  (~(del in blocked) ship)
+    =.  cor
+      (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-unblocked !>(0))
+    cor
+  ::
 ++  watch
   |=  =(pole knot)
   ^+  cor
@@ -774,6 +867,10 @@
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
+  ::
+    [%x %blocked ~]  ``ships+!>(blocked)
+  ::
+    [%x %blocked-by ~]  ``ships+!>(blocked-by)
   ::
     [%x %briefs ~]  ``chat-briefs+!>(briefs)
   ::
@@ -1932,6 +2029,7 @@
   ++  di-take-counter
     |=  =diff:dm:c
     ?<  =(%archive net.dm)
+    ?<  (~(has in blocked) ship)
     (di-ingest-diff diff)
   ::
   ++  di-post-notice

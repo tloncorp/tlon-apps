@@ -164,10 +164,20 @@ export interface ChatUpdate {
   diff: ChatDiff;
 }
 
+export interface BlockedByUpdate {
+  'blocked-by': string;
+}
+
+export interface UnblockedByUpdate {
+  'unblocked-by': string;
+}
+
 export interface ChatAction {
   flag: string;
   update: ChatUpdate;
 }
+
+export type ChatEvent = ChatAction | BlockedByUpdate | UnblockedByUpdate;
 
 export interface Chat {
   perms: ChatPerm;
@@ -350,3 +360,7 @@ export interface ChatScanItem {
 }
 
 export type ChatScan = ChatScanItem[];
+
+export type BlockedShips = string[];
+
+export type BlockedByShips = string[];
