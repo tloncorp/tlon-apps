@@ -8,6 +8,7 @@ type LayoutProps = PropsWithChildren<{
   header?: React.ReactNode;
   aside?: React.ReactNode;
   mainClass?: string;
+  style?: React.CSSProperties;
 }>;
 
 export default function Layout({
@@ -18,9 +19,13 @@ export default function Layout({
   header,
   aside,
   stickyHeader = false,
+  style,
 }: LayoutProps) {
   return (
-    <div className={cn(className, 'layout', stickyHeader ? 'relative' : '')}>
+    <div
+      style={style}
+      className={cn(className, 'layout', stickyHeader ? 'relative' : '')}
+    >
       {header && (
         <header
           className={cn('header z-40', stickyHeader ? ' sticky top-0' : '')}

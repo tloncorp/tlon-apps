@@ -400,82 +400,82 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             />
             <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route path="/leap" element={<Leap openDefault />} />
-          </Route>
-          <Route path="/groups/:ship/:name" element={<Groups />}>
-            <Route element={isMobile ? <MobileSidebar /> : undefined}>
+            <Route path="/groups/:ship/:name" element={<Groups />}>
+              <Route element={isMobile ? <MobileSidebar /> : undefined}>
+                <Route
+                  index
+                  element={isMobile ? <MobileGroupChannelList /> : null}
+                />
+                <Route
+                  path="activity"
+                  element={
+                    <Notifications
+                      child={GroupNotification}
+                      title={`• ${groupsTitle}`}
+                    />
+                  }
+                />
+                <Route
+                  path="channels"
+                  element={<GroupChannelManager title={` • ${groupsTitle}`} />}
+                />
+                <Route path="members" element={<Members />} />
+              </Route>
               <Route
-                index
-                element={isMobile ? <MobileGroupChannelList /> : null}
-              />
-              <Route
-                path="activity"
-                element={
-                  <Notifications
-                    child={GroupNotification}
-                    title={`• ${groupsTitle}`}
-                  />
-                }
-              />
-              <Route
-                path="channels"
-                element={<GroupChannelManager title={` • ${groupsTitle}`} />}
-              />
-              <Route path="members" element={<Members />} />
-            </Route>
-            <Route
-              path="channels/chat/:chShip/:chName"
-              element={<GroupChannel type="chat" />}
-            >
-              <Route
-                index
-                element={<ChatChannel title={` • ${groupsTitle}`} />}
-              />
-              <Route
-                path="*"
-                element={<ChatChannel title={` • ${groupsTitle}`} />}
+                path="channels/chat/:chShip/:chName"
+                element={<GroupChannel type="chat" />}
               >
-                {isSmall ? null : (
+                <Route
+                  index
+                  element={<ChatChannel title={` • ${groupsTitle}`} />}
+                />
+                <Route
+                  path="*"
+                  element={<ChatChannel title={` • ${groupsTitle}`} />}
+                >
+                  {isSmall ? null : (
+                    <Route
+                      path="message/:idShip/:idTime"
+                      element={<ChatThread />}
+                    />
+                  )}
+                </Route>
+                {isSmall ? (
                   <Route
                     path="message/:idShip/:idTime"
                     element={<ChatThread />}
                   />
-                )}
+                ) : null}
               </Route>
-              {isSmall ? (
+              <Route
+                path="channels/heap/:chShip/:chName"
+                element={<GroupChannel type="heap" />}
+              >
                 <Route
-                  path="message/:idShip/:idTime"
-                  element={<ChatThread />}
+                  index
+                  element={<HeapChannel title={` • ${groupsTitle}`} />}
                 />
-              ) : null}
-            </Route>
-            <Route
-              path="channels/heap/:chShip/:chName"
-              element={<GroupChannel type="heap" />}
-            >
+                <Route
+                  path="curio/:idCurio"
+                  element={<HeapDetail title={` • ${groupsTitle}`} />}
+                />
+              </Route>
               <Route
-                index
-                element={<HeapChannel title={` • ${groupsTitle}`} />}
-              />
-              <Route
-                path="curio/:idCurio"
-                element={<HeapDetail title={` • ${groupsTitle}`} />}
-              />
-            </Route>
-            <Route
-              path="channels/diary/:chShip/:chName"
-              element={<GroupChannel type="diary" />}
-            >
-              <Route
-                index
-                element={<DiaryChannel title={` • ${groupsTitle}`} />}
-              />
-              <Route
-                path="note/:noteId"
-                element={<DiaryNote title={` • ${groupsTitle}`} />}
-              />
-              <Route path="edit">
-                <Route index element={SuspendedDiaryAddNote} />
-                <Route path=":id" element={SuspendedDiaryAddNote} />
+                path="channels/diary/:chShip/:chName"
+                element={<GroupChannel type="diary" />}
+              >
+                <Route
+                  index
+                  element={<DiaryChannel title={` • ${groupsTitle}`} />}
+                />
+                <Route
+                  path="note/:noteId"
+                  element={<DiaryNote title={` • ${groupsTitle}`} />}
+                />
+                <Route path="edit">
+                  <Route index element={SuspendedDiaryAddNote} />
+                  <Route path=":id" element={SuspendedDiaryAddNote} />
+                </Route>
               </Route>
             </Route>
           </Route>

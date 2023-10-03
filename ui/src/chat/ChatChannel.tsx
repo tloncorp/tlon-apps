@@ -117,6 +117,9 @@ function ChatChannel({ title }: ViewProps) {
   return (
     <>
       <Layout
+        style={{
+          paddingBottom: isMobile ? 50 : 0,
+        }}
         className="flex-1 bg-white"
         header={
           <Routes>
@@ -181,16 +184,14 @@ function ChatChannel({ title }: ViewProps) {
             )}
           >
             {compatible && canWrite ? (
-              <div style={{ paddingBottom: bottomInset }}>
-                <ChatInput
-                  key={chFlag}
-                  whom={chFlag}
-                  sendMessage={sendMessage}
-                  showReply
-                  autoFocus={!inThread && !inSearch}
-                  dropZoneId={dropZoneId}
-                />
-              </div>
+              <ChatInput
+                key={chFlag}
+                whom={chFlag}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus={!inThread && !inSearch}
+                dropZoneId={dropZoneId}
+              />
             ) : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-400">
                 {!compatible
