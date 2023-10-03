@@ -20,6 +20,14 @@ export const useStorage = createState<BaseStorageState>(
   () => ({
     loaded: false,
     hasCredentials: false,
+    // XXX: This is for PR testing, the current case is covered by the "s3"
+    // backend. The endpoint and token are supposed to come from the ship, like
+    // the S3 credentials.
+    backend: 'tlon-hosting',
+    tlonHosting: {
+      endpoint: 'http://localhost:8888',
+      token: 'token',
+    },
     s3: {
       configuration: {
         buckets: new Set(),

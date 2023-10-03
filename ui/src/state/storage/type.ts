@@ -7,9 +7,17 @@ export interface GcpToken {
   expiresIn: number;
 }
 
+export interface StorageCredentialsTlonHosting {
+  endpoint: string;
+  token: string;
+}
+
+export type StorageBackend = 's3' | 'tlon-hosting';
+
 export interface BaseStorageState {
   loaded?: boolean;
   hasCredentials?: boolean;
+  backend: StorageBackend;
   s3: {
     configuration: {
       buckets: Set<string>;
@@ -18,6 +26,7 @@ export interface BaseStorageState {
     };
     credentials: S3Credentials | null;
   };
+  tlonHosting: StorageCredentialsTlonHosting;
   [ref: string]: unknown;
 }
 
@@ -54,10 +63,15 @@ export interface Uploader {
 }
 
 export interface FileStore {
-  client: S3Client | null;
+  // Only one among S3 client or Tlon credentials will be set at a given time.
+  s3Client: S3Client | null;
+  tlonHostingCredentials: StorageCredentialsTlonHosting | null;
   uploaders: Record<string, Uploader>;
   getUploader: (key: string) => Uploader;
-  createClient: (s3: S3Credentials, region: string) => void;
+  createS3Client: (s3: S3Credentials, region: string) => void;
+  setTlonHostingCredentials: (
+    credentials: StorageCredentialsTlonHosting
+  ) => void;
   update: (key: string, updateFn: (uploader: Uploader) => void) => void;
   uploadFiles: (
     uploader: string,
