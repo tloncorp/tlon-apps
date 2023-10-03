@@ -10,6 +10,5 @@
 ++  grab
   |%
   ++  noun  ship
-  ++  json  unblocked-by-ship:dejs:j
   --
 --

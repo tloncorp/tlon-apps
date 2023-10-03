@@ -397,16 +397,6 @@
         ok/bo
     ==
   ::
-  ++  blocked-by-ship
-    %-  ot
-    :~  blocked-by/(se %p)
-    ==
-  ::
-  ++  unblocked-by-ship
-    %-  ot
-    :~  unblocked-by/(se %p)
-    ==
-  ::
   ++  block-ship
     %-  ot
     :~  ship/(se %p)
