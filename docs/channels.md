@@ -16,7 +16,7 @@
          - [%read-at](#read-at)
          - [%watch](#watch)
          - [%unwatch](#unwatch)
-         - [Commands](#commands)
+         - [Actions](#actions)
            - [%post](#post-add)
              - [%add](#post-add)
              - [%edit](#post-edit)
@@ -45,10 +45,12 @@
 ## Agents
 These agents keep track of chats, notebooks, and galleries. They don't handle group membership (that's `%groups`) or DMs (that's `%chat`)
 
+### Diagram
 ```
-    --action-->     --command-->
-client       subscriber       publisher
-  <--response--     <--update--
+    --action-->           --command-->
+client            subscriber           publisher
+FE or 3rd party   %channels        %channels-server
+    <--response--         <--update--
 ```
 
 ### %channels
@@ -173,8 +175,8 @@ Watch a channel for unreads.
 
 Stop watching a channel for unreads.
 
-##### Commands
-The following pokes are commands. 
+##### Actions
+All of the previous pokes affected your local ship (joining and leaving, unreads, and so on). The following pokes are *actions*, meaning they will be synced across the network. When `%channels` on your ship hears an action, it issues a *command* to the host's `%channels-server` (see the above [diagram](#diagram)).
 
 ###### %post %add
 ```hoon
@@ -390,7 +392,7 @@ Subscribe to unread & preview information. Each fact is a `[channels unreads]`
 #### /[kind]/[ship]/[name]
 (This is effectively /[nest])
 
-Similar to `/`, but only include updates for a particular channels. Each fact is a `r-channels` (response channels)
+Similar to `/`, but only include updates for a particular channels. Each fact is an `r-channels` (response channels)
 
 [nest](#nest) \| [r-channels](#r-channels)
 #### /said/[kind]/[ship]/[name]/post/[time]/[(unit reply)]
