@@ -1726,7 +1726,6 @@
         ~[[%give %fact wire writ-diff+!>(p.d)]]
       =/  response=(unit response:writs:c)
         (diff-to-response p.d pact.chat)
-      ~&  [response p.d]
       ?~  response  ~
       ~[[%give %fact wire writ-response+!>(u.response)]]
     =.  cor  (give %fact ~(tap in paths) cag)
