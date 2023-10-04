@@ -13,6 +13,7 @@ import {
   FlatScrollIntoViewLocation,
   VirtuosoHandle,
 } from 'react-virtuoso';
+import { BigInteger } from 'big-integer';
 
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import {
@@ -23,7 +24,6 @@ import {
 import { useIsMobile } from '@/logic/useMedia';
 import { ScrollerItemData, useMessageData } from '@/logic/useScrollerMessages';
 import { useChatState } from '@/state/chat/chat';
-import { BigInteger } from 'big-integer';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatNotice from '../ChatNotice';
 import { useChatStore } from '../useChatStore';
@@ -178,14 +178,27 @@ export default function ChatScroller({
     virt.scrollElement?.scrollTo({ top: offset });
   }, []);
 
-  const triggerAnchorScroll = useCallback(() => {
+  const scrollToAnchor = useCallback(() => {
+    const virt = virtualizerRef.current;
+    if (!virt || anchorIndex === null) return;
+    const index = transformIndex(anchorIndex);
+    const [nextOffset] = virt.getOffsetForIndex(index, 'center');
+    const measurement = virt.measurementsCache[index];
+    const sizeAdjustment = index === 0 ? 0 : (measurement?.size ?? 0) / 2;
+    forceScroll(nextOffset + sizeAdjustment);
+  }, [anchorIndex, forceScroll, transformIndex]);
+
+  const anchorScrollFn = useCallback(() => {
     virtualizerRef.current?.scrollToOffset(0);
-    requestAnimationFrame(() => virtualizerRef.current?.scrollToOffset(0));
   }, []);
+
+  const forceAnchorScroll = useCallback(() => {
+    anchorScrollFn();
+  }, [anchorScrollFn]);
 
   useEffect(() => {
     resetUserHasScrolled();
-    triggerAnchorScroll();
+    forceAnchorScroll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTo]);
 
@@ -239,12 +252,7 @@ export default function ChatScroller({
         // message centered or to stay at the bottom of the chat.
         if (anchorIndex !== null) {
           // Fix for no-param-reassign
-          const virt = instance;
-          const index = transformIndex(anchorIndex);
-          const [nextOffset] = virt.getOffsetForIndex(index, 'center');
-          const measurement = virt.measurementsCache[index];
-          const sizeAdjustment = index === 0 ? 0 : (measurement?.size ?? 0) / 2;
-          forceScroll(nextOffset + sizeAdjustment);
+          scrollToAnchor();
         } else {
           instance.scrollElement?.scrollTo({
             top: offset + (adjustments ?? 0),
@@ -252,21 +260,14 @@ export default function ChatScroller({
           });
         }
       },
-      [
-        isScrolling,
-        isMobile,
-        anchorIndex,
-        transformIndex,
-        userHasScrolled,
-        forceScroll,
-      ]
+      [isScrolling, isMobile, anchorIndex, userHasScrolled, scrollToAnchor]
     ),
     overscan: thresholds.overscan,
     // Called by the virtualizer whenever any layout property changes.
     // We're using it to keep track of top and bottom thresholds.
     onChange: useCallback(() => {
       if (anchorIndex !== null && !userHasScrolled) {
-        triggerAnchorScroll();
+        forceAnchorScroll();
       }
       const { clientHeight, scrollTop, scrollHeight } =
         scrollElementRef.current ?? {
@@ -284,7 +285,7 @@ export default function ChatScroller({
       const isAtEnd = scrollTop + clientHeight >= scrollHeight - atEndThreshold;
       setIsAtTop((isInverted && isAtEnd) || (!isInverted && isAtBeginning));
       setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
-    }, [isInverted, anchorIndex, userHasScrolled, triggerAnchorScroll]),
+    }, [isInverted, anchorIndex, userHasScrolled, forceAnchorScroll]),
   });
   virtualizerRef.current = virtualizer;
 
@@ -358,15 +359,19 @@ export default function ChatScroller({
   return (
     <div
       ref={scrollElementRef}
-      className="h-full overflow-y-auto overflow-x-clip"
+      className="h-full w-full overflow-y-auto overflow-x-clip"
       style={{ transform: `scaleY(${scaleY})` }}
       // We need this in order to get key events on the div, which we use remap
       // arrow and spacebar navigation when scrolling.
       // TODO: This now gets outlined when scrolling with keys. Should it?
       tabIndex={-1}
     >
+      <div className="absolute top-0 w-full">
+        <Loader show={fetchState === (isInverted ? 'bottom' : 'top')} />
+      </div>
+
       <div
-        className="relative w-full"
+        className="l-0 absolute top-0 w-full"
         ref={contentElementRef}
         style={{
           height: `${contentHeight}px`,
@@ -374,16 +379,12 @@ export default function ChatScroller({
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
       >
-        <div className="absolute top-0 w-full">
-          <Loader show={fetchState === (isInverted ? 'bottom' : 'top')} />
-        </div>
-
         {virtualItems.map((virtualItem) => {
           const item = activeMessageEntries[transformIndex(virtualItem.index)];
           return (
             <div
               key={virtualItem.key}
-              className="px-4"
+              className="w-full px-4"
               ref={virtualizer.measureElement}
               data-index={virtualItem.index}
               style={{
@@ -394,9 +395,10 @@ export default function ChatScroller({
             </div>
           );
         })}
-        <div className="absolute bottom-0 w-full">
-          <Loader show={fetchState === (isInverted ? 'top' : 'bottom')} />
-        </div>
+      </div>
+
+      <div className="absolute bottom-0 w-full">
+        <Loader show={fetchState === (isInverted ? 'top' : 'bottom')} />
       </div>
     </div>
   );
