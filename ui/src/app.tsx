@@ -100,6 +100,7 @@ import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import { isNativeApp } from './logic/native';
+import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 
@@ -359,6 +360,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </Route>
               {isSmall && (
                 <Route
+                  path=":ship/search/:query?"
+                  element={<MobileChatSearch />}
+                />
+              )}
+              {isSmall && (
+                <Route
                   path=":ship/message/:idShip/:idTime"
                   element={<ChatThread />}
                 />
@@ -446,6 +453,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                     element={<ChatThread />}
                   />
                 ) : null}
+                {isMobile && (
+                  <Route path="search/:query?" element={<MobileChatSearch />} />
+                )}
               </Route>
               <Route
                 path="channels/heap/:chShip/:chName"

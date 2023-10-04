@@ -47,6 +47,7 @@ import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
+import { updateSearchHistory } from './search';
 
 setAutoFreeze(false);
 
@@ -1162,7 +1163,7 @@ export function useWritByFlagAndGraphIndex(
           useChatState.getState().batchSet((draft) => {
             draft.loadedGraphRefs[chFlag + index] = 'loading';
           });
-          const { writ } = await subscribeOnce(
+          const { writ } = await subscribeOnce<{ writ: ChatWrit }>(
             'chat',
             `/hook/${chFlag}${index}`
           );
