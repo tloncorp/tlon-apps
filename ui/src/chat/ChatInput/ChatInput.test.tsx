@@ -31,6 +31,7 @@ describe('ChatInput', () => {
           // placeholder;
         }}
         dropZoneId="dropzone"
+        scrollElementRef={{ current: null }}
       />
     );
     expect(asFragment()).toMatchSnapshot();

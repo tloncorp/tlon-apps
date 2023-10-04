@@ -102,6 +102,7 @@ export default function ChatScroller({
   prefixedElement,
   scrollTo = undefined,
   scrollerRef,
+  scrollElementRef,
 }: IChatScroller) {
   const isMobile = useIsMobile();
   const [loadDirection, setLoadDirection] = useState<'newer' | 'older'>(
@@ -109,7 +110,6 @@ export default function ChatScroller({
   );
   const [isAtBottom, setIsAtBottom] = useState(loadDirection === 'older');
   const [isAtTop, setIsAtTop] = useState(false);
-  const scrollElementRef = useRef<HTMLDivElement>(null);
   const contentElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { userHasScrolled, resetUserHasScrolled } =
@@ -146,7 +146,10 @@ export default function ChatScroller({
   const virtualizerRef = useRef<DivVirtualizer>();
   const virtualizer = useVirtualizer({
     count: activeMessageEntries.length,
-    getScrollElement: useCallback(() => scrollElementRef.current, []),
+    getScrollElement: useCallback(
+      () => scrollElementRef.current,
+      [scrollElementRef]
+    ),
     // Used by the virtualizer to keep track of scroll position. Note that the is
     // the *only* place the virtualizer accesses scroll position, so we can change
     // the virtualizer's idea of world state by modifying it.
@@ -230,7 +233,7 @@ export default function ChatScroller({
       const isAtEnd = scrollTop + clientHeight >= scrollHeight - atEndThreshold;
       setIsAtTop((isInverted && isAtEnd) || (!isInverted && isAtBeginning));
       setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
-    }, [isInverted]),
+    }, [isInverted, scrollElementRef]),
   });
   virtualizerRef.current = virtualizer;
 

@@ -20,6 +20,7 @@ interface ChatWindowProps {
   whom: string;
   root: string;
   prefixedElement?: ReactNode;
+  scrollElementRef: React.RefObject<HTMLDivElement>;
 }
 
 function getScrollTo(
@@ -39,6 +40,7 @@ export default function ChatWindow({
   whom,
   root,
   prefixedElement,
+  scrollElementRef,
 }: ChatWindowProps) {
   const flag = useRouteGroup();
   const thread = useMatch(
@@ -106,6 +108,7 @@ export default function ChatWindow({
           prefixedElement={prefixedElement}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}
+          scrollElementRef={scrollElementRef}
         />
       </div>
       {scrollTo && !window?.latest ? (

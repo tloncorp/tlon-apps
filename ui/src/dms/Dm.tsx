@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import cn from 'classnames';
 import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -103,6 +103,7 @@ export default function Dm() {
   const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
+  const scrollElementRef = useRef<HTMLDivElement>(null);
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
@@ -242,6 +243,7 @@ export default function Dm() {
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}
+                scrollElementRef={scrollElementRef}
               />
             </div>
           ) : null
@@ -251,6 +253,7 @@ export default function Dm() {
           <ChatWindow
             whom={ship}
             root={root}
+            scrollElementRef={scrollElementRef}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <DMHero ship={ship} contact={contact} />

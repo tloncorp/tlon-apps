@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import cn from 'classnames';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
@@ -12,6 +12,7 @@ export default function NewDM() {
   const { sendDm, validShips, whom } = useMessageSelector();
   const dropZoneId = 'chat-new-dm-input-dropzone';
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
+  const scrollElementRef = useRef<HTMLDivElement>(null);
 
   return (
     <Layout
@@ -33,6 +34,7 @@ export default function NewDM() {
             sendDisabled={!validShips}
             sendMessage={sendDm}
             dropZoneId={dropZoneId}
+            scrollElementRef={scrollElementRef}
           />
         </div>
       }
