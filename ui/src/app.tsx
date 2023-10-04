@@ -807,7 +807,7 @@ function RoutedApp() {
           <Scheduler />
         </TooltipProvider>
         <LureAutojoiner />
-        {false && (
+        {showDevTools && (
           <>
             <React.Suspense fallback={null}>
               <ReactQueryDevtoolsProduction />
