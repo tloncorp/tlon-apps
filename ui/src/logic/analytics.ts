@@ -45,6 +45,7 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   // this is to prevent accidentally capturing data. all opting is managed
   // in the activity checker in ActivityModal.
   opt_out_capturing_by_default: true,
+  advanced_disable_decide: true,
 });
 
 export const analyticsClient = posthog;
