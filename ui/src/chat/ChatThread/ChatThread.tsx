@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import _ from 'lodash';
 import ob from 'urbit-ob';
-import { udToDec } from '@urbit/api';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -22,7 +21,6 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
-import { useSafeAreaInsets } from '@/logic/native';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -34,7 +32,6 @@ export default function ChatThread() {
     idShip: string;
     idTime: string;
   }>();
-  const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
@@ -43,13 +40,14 @@ export default function ChatThread() {
   const groupFlag = useRouteGroup();
   const { sendMessage } = useChatState.getState();
   const location = useLocation();
-  const scrollTo = new URLSearchParams(location.search).get('msg');
+  const msg = new URLSearchParams(location.search).get('msg');
+  const scrollTo = msg ? bigInt(msg) : undefined;
   const channel = useChannel(groupFlag, `chat/${flag}`)!;
   const { isOpen: leapIsOpen } = useLeap();
   const id = `${idShip!}/${idTime!}`;
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const maybeWrit = useWrit(whom, id);
+  const { entry: maybeWrit, isLoading } = useWrit(whom, id, true);
   const replies = useReplies(whom, id);
   const navigate = useNavigate();
   const [time, writ] = maybeWrit ?? [null, null];
@@ -67,10 +65,6 @@ export default function ChatThread() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
-  const safeAreaInsets = useSafeAreaInsets();
-  // We only inset the bottom for groups, since DMs display the navbar
-  // underneath this view
-  const bottomInset = channel ? safeAreaInsets.bottom : 0;
 
   const returnURL = useCallback(() => {
     if (!time || !writ) return '#';
@@ -89,37 +83,25 @@ export default function ChatThread() {
     },
     [navigate, returnURL, leapIsOpen]
   );
-
   useEventListener('keydown', onEscape, threadRef);
 
-  const initializeChannel = useCallback(async () => {
-    setLoading(true);
-    if (!idTime) return;
-    await useChatState
-      .getState()
-      .fetchMessagesAround(
-        `${chShip}/${chName}`,
-        '50',
-        bigInt(udToDec(idTime))
-      );
-    setLoading(false);
-  }, [chName, chShip, idTime]);
-
   useEffect(() => {
-    if (!time || !writ) {
-      initializeChannel();
+    if (scrollTo && !replies.has(scrollTo)) {
+      useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
     }
-  }, [initializeChannel, time, writ]);
 
-  if (!time || !writ) return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo?.toString(), replies]);
 
-  const thread = replies.with(time, writ);
   const BackButton = isMobile ? Link : 'div';
 
   return (
     <div
       className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
+      style={{
+        paddingBottom: isMobile ? 50 : 0,
+      }}
     >
       {isMobile ? (
         <MobileHeader
@@ -176,16 +158,16 @@ export default function ChatThread() {
         </header>
       )}
       <div className="flex flex-1 flex-col overflow-hidden p-0 pr-2">
-        {loading ? (
+        {isLoading || !time || !writ ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
           <ChatScroller
             key={idTime}
-            messages={thread}
+            messages={replies.with(time, writ)}
             whom={whom}
             scrollerRef={scrollerRef}
             replying
-            scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
+            scrollTo={scrollTo}
           />
         )}
       </div>
@@ -197,19 +179,14 @@ export default function ChatThread() {
         )}
       >
         {compatible && canWrite ? (
-          <div
-            className="safe-area-input"
-            style={{ paddingBottom: bottomInset }}
-          >
-            <ChatInput
-              whom={whom}
-              replying={id}
-              sendMessage={sendMessage}
-              inThread
-              autoFocus
-              dropZoneId={dropZoneId}
-            />
-          </div>
+          <ChatInput
+            whom={whom}
+            replying={id}
+            sendMessage={sendMessage}
+            inThread
+            autoFocus
+            dropZoneId={dropZoneId}
+          />
         ) : !canWrite ? null : (
           <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
             {text}

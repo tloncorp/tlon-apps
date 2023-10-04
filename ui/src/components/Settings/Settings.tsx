@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Theme,
   useCalm,
@@ -13,10 +15,10 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import Setting from './Setting';
 import SettingDropdown from './SettingDropdown';
-import RadioGroup from '../RadioGroup';
 import VolumeSetting from '../VolumeSetting';
 
 export default function Settings() {
+  const location = useLocation();
   const isMobile = useIsMobile();
   const logActivity = useLogActivity();
   const {
@@ -48,6 +50,20 @@ export default function Settings() {
       {!isMobile ? (
         <span className="text-lg font-bold">App Settings</span>
       ) : null}
+      <div className="space-y-4">
+        <div className="flex flex-col">
+          <h2 className="mb-2 text-lg font-bold">Blocked Users</h2>
+          <div className="flex flex-row items-center space-x-2">
+            <Link
+              state={{ backgroundLocation: location.state?.backgroundLocation }}
+              to={isMobile ? './blocked' : '/blocked'}
+              className="small-button"
+            >
+              Manage Blocked Users
+            </Link>
+          </div>
+        </div>
+      </div>
       <div className="space-y-4">
         <div className="mb-6 flex flex-col">
           <h2 className="mb-2 text-lg font-bold">CalmEngine</h2>

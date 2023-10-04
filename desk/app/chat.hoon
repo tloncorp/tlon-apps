@@ -26,12 +26,14 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %2
+    $:  %3
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         drafts=(map whom:c story:c)
         pins=(list whom:c)
+        blocked=(set ship)
+        blocked-by=(set ship)
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
@@ -115,8 +117,9 @@
   ?-  -.old
     %0  $(old (state-0-to-1 old))
     %1  $(old (state-1-to-2 old))
+    %2  $(old (state-2-to-3 old))
     ::
-      %2
+      %3
     =.  state  old
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
@@ -146,7 +149,7 @@
     ~&  >  %keep
     [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
   ::
-  +$  versioned-state  $%(current-state state-1 state-0)
+  +$  versioned-state  $%(current-state state-2 state-1 state-0)
   +$  state-0
     $:  %0
         chats=(map flag:zero chat:zero)
@@ -175,10 +178,40 @@
         ::  true represents imported, false pending import
         imp=(map flag:one ?)
     ==
-  +$  state-2  current-state
+  +$  state-2
+    $:  %2
+        chats=(map flag:c chat:c)
+        dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
+        drafts=(map whom:c story:c)
+        pins=(list whom:c)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:c id:c] (unit said:c))
+        fish=(map [flag:c @] id:c)
+        ::  true represents imported, false pending import
+        imp=(map flag:c ?)
+    ==
+  +$  state-3  current-state
   ++  zero     zero:old:c
   ++  one      one:old:c
   ++  two      c
+  ++  state-2-to-3
+    |=  s=state-2
+    ^-  state-3
+    %*  .  *state-3
+      dms     dms.s
+      clubs   clubs.s
+      drafts  drafts.s
+      pins    pins.s
+      blocked  ~
+      blocked-by  ~
+      bad     bad.s
+      inv     inv.s
+      fish    fish.s
+      voc     voc.s
+      chats   chats.s
+    ==
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -275,9 +308,28 @@
       %dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
+  ::
       %chat-pins
     =+  !<(ps=(list whom:c) vase)
     (pin ps)
+  ::
+      %chat-blocked
+    ?<  from-self
+    (has-blocked src.bowl)
+  ::
+      %chat-unblocked
+    ?<  from-self
+    (has-unblocked src.bowl)
+  ::
+      %chat-block-ship
+    =+  !<(=ship vase)
+    ?>  from-self
+    (block ship)
+  ::
+      %chat-unblock-ship
+    =+  !<(=ship vase)
+    ?>  from-self
+    (unblock ship)
   ::
       %flag
     =+  !<(f=flag:c vase)
@@ -405,11 +457,52 @@
         /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
       ==
     --
+  ::
   ++  pin
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
   --
+  ::
+  ++  has-blocked
+    |=  =ship
+    ^+  cor
+    ?<  (~(has in blocked-by) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked-by  (~(put in blocked-by) ship)
+    =.  cor
+      (give %fact ~[/ui] chat-blocked-by+!>(ship))
+    cor
+  ::
+  ++  has-unblocked
+    |=  =ship
+    ^+  cor
+    ?>  (~(has in blocked-by) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked-by  (~(del in blocked-by) ship)
+    =.  cor
+      (give %fact ~[/ui] chat-unblocked-by+!>(ship))
+    cor
+  ::
+  ++  block
+    |=  =ship
+    ^+  cor
+    ?<  (~(has in blocked) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked  (~(put in blocked) ship)
+    =.  cor
+      (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-blocked !>(0))
+    cor
+  ::
+  ++  unblock
+    |=  =ship
+    ^+  cor
+    ?>  (~(has in blocked) ship)
+    =.  blocked  (~(del in blocked) ship)
+    =.  cor
+      (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-unblocked !>(0))
+    cor
+  ::
 ++  watch
   |=  =(pole knot)
   ^+  cor
@@ -775,6 +868,10 @@
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
   ::
+    [%x %blocked ~]  ``ships+!>(blocked)
+  ::
+    [%x %blocked-by ~]  ``ships+!>(blocked-by)
+  ::
     [%x %briefs ~]  ``chat-briefs+!>(briefs)
   ::
     [%x %init ~]  ``noun+!>([briefs chats-light pins])
@@ -950,6 +1047,18 @@
       %del-feel  =(src.bowl p.delta)
   ==
 ::
+++  diff-to-response
+  |=  [=diff:writs:c =pact:c]
+  ^-  (unit response:writs:c)
+  =;  delta
+    ?~  delta  ~
+    `[p.diff delta]
+  ?+  -.q.diff  q.diff
+      %add
+    =/  time=(unit time)  (~(get by dex.pact) p.diff)
+    ?~  time  ~
+    [%add p.q.diff u.time]
+  ==
 ++  from-self  =(our src):bowl
 ++  cu-abed  cu-abed:cu-core
 ::
@@ -1055,6 +1164,11 @@
     =.  cor
       =/  =cage  writ-diff+!>(diff)
       (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
+    =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
+    ?~  response  cu-core
+    =.  cor
+      =/  =cage  writ-response+!>(u.response)
+      (emit %give %fact ~[(welp cu-area /ui/writs)] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1069,7 +1183,7 @@
     =.  cor  (emil (gossip:cu-pass diff))
     =.  cu-core
       ?+  -.delta  (cu-give-action [id diff])
-          %writ  (cu-give-writs-diff diff.delta)
+          %writ  cu-core
       ==
     ?-    -.delta
     ::
@@ -1093,15 +1207,15 @@
         %writ
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       ?-  -.q.diff.delta
-          ?(%del %add-feel %del-feel)  cu-core
+          ?(%del %add-feel %del-feel)  (cu-give-writs-diff diff.delta)
           %add
         =/  memo=memo:c  p.q.diff.delta
         =?  remark.club  =(author.memo our.bowl)
           remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief club/id cu-brief)
-        ?:  =(our.bowl author.memo)  cu-core
+        ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
         ?-  -.content.memo
-            %notice  cu-core
+            %notice  (cu-give-writs-diff diff.delta)
             %story
           =/  new-yarn
             %+  cu-spin
@@ -1112,7 +1226,7 @@
             ~
           =?  cor  (want-hark ~ %to-us)
             (emit (pass-hark new-yarn))
-          cu-core
+          (cu-give-writs-diff diff.delta)
         ==
       ==
     ::
@@ -1606,8 +1720,14 @@
     =/  cag=cage  [upd:mar:c !>([time d])]
     =.  cor  (give %fact ~[/ui] act:mar:c !>([flag [time d]]))
     =?  cor  ?=(%writs -.d)
-      =/  =cage  writ-diff+!>(p.d)
-      (give %fact ~[(welp ca-area /ui/writs)] writ-diff+!>(p.d))
+      =/  wire  ~[(welp ca-area /ui/writs)]
+      %-  emil
+      %+  welp
+        ~[[%give %fact wire writ-diff+!>(p.d)]]
+      =/  response=(unit response:writs:c)
+        (diff-to-response p.d pact.chat)
+      ?~  response  ~
+      ~[[%give %fact wire writ-response+!>(u.response)]]
     =.  cor  (give %fact ~(tap in paths) cag)
     ca-core
   ::
@@ -1638,7 +1758,9 @@
     =.  log.chat
       (put:log-on:c log.chat time d)
     =.  ca-core
-      (ca-give-updates time d)
+      ?+  -.d  (ca-give-updates time d)
+        %writs  ca-core
+      ==
     ?-    -.d
         %add-sects
       ?>  ca-from-host
@@ -1666,6 +1788,7 @@
               &(ca-am-host (check-writ-ownership p.d))
           ==
       =.  pact.chat  (reduce:ca-pact time p.d)
+      =.  ca-core  (ca-give-updates time d)
       ?-  -.delta
           ?(%del %add-feel %del-feel)  ca-core
           %add
@@ -1899,6 +2022,11 @@
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
+    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
+    ~&  response
+    =.  cor
+      ?~  response   cor
+      (give %fact ~[path] writ-response+!>(u.response))
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     =.  di-core
@@ -1932,6 +2060,7 @@
   ++  di-take-counter
     |=  =diff:dm:c
     ?<  =(%archive net.dm)
+    ?<  (~(has in blocked) ship)
     (di-ingest-diff diff)
   ::
   ++  di-post-notice

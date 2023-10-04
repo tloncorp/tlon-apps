@@ -24,7 +24,6 @@ import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import { useSafeAreaInsets } from '@/logic/native';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -62,10 +61,9 @@ function ChatChannel({ title }: ViewProps) {
   const { compatible, text: compatibilityError } =
     useChannelCompatibility(nest);
   const isMobile = useIsMobile();
-  const safeAreaInsets = useSafeAreaInsets();
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
-  const bottomInset = group ? safeAreaInsets.bottom : 0;
+  const root = `/groups/${groupFlag}/channels/${nest}`;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -117,6 +115,9 @@ function ChatChannel({ title }: ViewProps) {
   return (
     <>
       <Layout
+        style={{
+          paddingBottom: isMobile ? 50 : 0,
+        }}
         className="flex-1 bg-white"
         header={
           <Routes>
@@ -127,7 +128,7 @@ function ChatChannel({ title }: ViewProps) {
                   <>
                     <ChatSearch
                       whom={chFlag}
-                      root={`/groups/${groupFlag}/channels/${nest}`}
+                      root={root}
                       placeholder={
                         channel ? `Search in ${channel.meta.title}` : 'Search'
                       }
@@ -183,16 +184,14 @@ function ChatChannel({ title }: ViewProps) {
             )}
           >
             {compatible && canWrite ? (
-              <div style={{ paddingBottom: bottomInset }}>
-                <ChatInput
-                  key={chFlag}
-                  whom={chFlag}
-                  sendMessage={sendMessage}
-                  showReply
-                  autoFocus={!inThread && !inSearch}
-                  dropZoneId={dropZoneId}
-                />
-              </div>
+              <ChatInput
+                key={chFlag}
+                whom={chFlag}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus={!inThread && !inSearch}
+                dropZoneId={dropZoneId}
+              />
             ) : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-400">
                 {!compatible
@@ -210,7 +209,7 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        <ChatWindow whom={chFlag} />
+        <ChatWindow whom={chFlag} root={root} />
       </Layout>
       <Routes>
         {isSmall ? null : (
