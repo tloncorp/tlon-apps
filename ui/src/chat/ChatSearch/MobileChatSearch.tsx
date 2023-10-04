@@ -7,7 +7,6 @@ import ChatSearchResults from '@/chat/ChatSearch/ChatSearchResults';
 import { useInfiniteChatSearch } from '@/state/chat/search';
 import useDebounce from '@/logic/useDebounce';
 import { VirtuosoHandle } from 'react-virtuoso';
-import bigInt from 'big-integer';
 import { useSearchState } from '@/state/chat/search';
 
 export default function MobileChatSearch() {
@@ -21,11 +20,7 @@ export default function MobileChatSearch() {
   const location = useLocation();
   const insets = useSafeAreaInsets();
   const scrollerRef = useRef<VirtuosoHandle>(null);
-  const [searchInput, setSearchInput] = useState('');
-  const [selected, setSelected] = useState<{
-    index: number;
-    time: bigInt.BigInteger;
-  }>({ index: -1, time: bigInt.zero });
+  const [searchInput, setSearchInput] = useState(params.query || '');
 
   const whom =
     params.chShip && params.chName
@@ -35,7 +30,7 @@ export default function MobileChatSearch() {
     whom,
     params.query || ''
   );
-  const history = useSearchState.getState().history?.get(whom);
+  const history = useSearchState.getState().history[whom];
 
   const root = location.pathname.split('/search')[0];
   const debouncedSearch = useDebounce((input: string) => {
@@ -115,7 +110,7 @@ export default function MobileChatSearch() {
           query={
             showRecentResults ? history.lastQuery.query : params.query || ''
           }
-          selected={selected.index}
+          selected={-1}
           withHeader={!showRecentResults}
           endReached={() => fetchNextPage()}
         />
