@@ -122,29 +122,31 @@ function ChatChannel({ title }: ViewProps) {
         className="flex-1 bg-white"
         header={
           <Routes>
-            <Route
-              path="search/:query?"
-              element={
-                <>
-                  <ChatSearch
-                    whom={chFlag}
-                    root={root}
-                    placeholder={
-                      channel ? `Search in ${channel.meta.title}` : 'Search'
-                    }
-                  >
-                    <ChannelTitleButton flag={groupFlag} nest={nest} />
-                  </ChatSearch>
-                  <Helmet>
-                    <title>
-                      {channel && group
-                        ? `${channel.meta.title} in ${group.meta.title} Search`
-                        : 'Search'}
-                    </title>
-                  </Helmet>
-                </>
-              }
-            />
+            {!isMobile && (
+              <Route
+                path="search/:query?"
+                element={
+                  <>
+                    <ChatSearch
+                      whom={chFlag}
+                      root={root}
+                      placeholder={
+                        channel ? `Search in ${channel.meta.title}` : 'Search'
+                      }
+                    >
+                      <ChannelTitleButton flag={groupFlag} nest={nest} />
+                    </ChatSearch>
+                    <Helmet>
+                      <title>
+                        {channel && group
+                          ? `${channel.meta.title} in ${group.meta.title} Search`
+                          : 'Search'}
+                      </title>
+                    </Helmet>
+                  </>
+                }
+              />
+            )}
             <Route
               path="*"
               element={
