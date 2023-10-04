@@ -453,10 +453,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                     element={<ChatThread />}
                   />
                 ) : null}
+                {isMobile && (
+                  <Route path="search/:query?" element={<MobileChatSearch />} />
+                )}
               </Route>
-              {isSmall && (
-                <Route path="search/:query?" element={<MobileChatSearch />} />
-              )}
               <Route
                 path="channels/heap/:chShip/:chName"
                 element={<GroupChannel type="heap" />}

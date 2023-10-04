@@ -121,7 +121,7 @@ function ChatChannel({ title }: ViewProps) {
         className="flex-1 bg-white"
         header={
           <Routes>
-            {!isSmall && (
+            {!isMobile && (
               <Route
                 path="search/:query?"
                 element={
