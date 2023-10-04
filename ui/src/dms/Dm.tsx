@@ -106,6 +106,7 @@ export default function Dm() {
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
+  const root = `/dm/${ship}`;
 
   const {
     isSelectingMessage,
@@ -124,6 +125,9 @@ export default function Dm() {
   return (
     <>
       <Layout
+        style={{
+          paddingBottom: isMobile ? 50 : 0,
+        }}
         className="flex-1"
         header={
           isSelecting ? (
@@ -135,7 +139,7 @@ export default function Dm() {
                 element={
                   <ChatSearch
                     whom={ship}
-                    root={`/dm/${ship}`}
+                    root={root}
                     placeholder="Search Messages"
                   >
                     <TitleButton
@@ -246,6 +250,7 @@ export default function Dm() {
         {isAccepted ? (
           <ChatWindow
             whom={ship}
+            root={root}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <DMHero ship={ship} contact={contact} />

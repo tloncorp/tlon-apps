@@ -70,16 +70,17 @@ export interface ChatState {
   startTalk: (init: TalkChatInit, startBase?: boolean) => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   getDraft: (whom: string) => void;
+  fetchMessage: (whom: string, id: string) => Promise<void>;
   fetchMessages: (
-    ship: string,
+    whom: string,
     count: string,
     dir: 'newer' | 'older',
     time?: BigInteger
   ) => Promise<boolean>;
   fetchMessagesAround: (
-    ship: string,
+    whom: string,
     count: string,
-    time: BigInteger
+    timeOrId: BigInteger | string
   ) => Promise<void>;
   draft: (whom: string, story: ChatStory) => Promise<void>;
   joinChat: (groupFlag: string, flag: string) => Promise<void>;

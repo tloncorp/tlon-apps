@@ -179,7 +179,7 @@ const ChatMessage = React.memo<
         return aTime.compare(bTime);
       });
       const lastReply = _.last(repliesSortedByTime);
-      const lastReplyWrit = useWrit(whom, lastReply ?? '')!;
+      const { entry: lastReplyWrit } = useWrit(whom, lastReply ?? '');
       const lastReplyTime = lastReplyWrit
         ? new Date(daToUnix(lastReplyWrit[0]))
         : new Date();

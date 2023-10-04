@@ -4,11 +4,13 @@ import ShipSelector from '@/components/ShipSelector';
 import useMessageSelector from '@/logic/useMessageSelector';
 import { useIsMobile } from '@/logic/useMedia';
 import useAppName from '@/logic/useAppName';
+import { useSafeAreaInsets } from '@/logic/native';
 
 export default function MessageSelector() {
   const { action, onEnter, setShips, ships, validShips } = useMessageSelector();
   const isMobile = useIsMobile();
   const appName = useAppName();
+  const safeAreaInsets = useSafeAreaInsets();
 
   const navigate = useNavigate();
 
@@ -22,7 +24,12 @@ export default function MessageSelector() {
   }, [navigate, setShips, appName, isMobile]);
 
   return (
-    <div className="relative z-50 flex w-full flex-col items-center py-3 px-4 sm:flex-row sm:space-x-2">
+    <div
+      style={{
+        paddingTop: safeAreaInsets.top,
+      }}
+      className="relative z-50 flex w-full flex-col items-center py-3 px-4 sm:flex-row sm:space-x-2"
+    >
       <ShipSelector
         ships={ships}
         setShips={setShips}

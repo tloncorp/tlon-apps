@@ -1,10 +1,4 @@
-import React, {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
+import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
 import _ from 'lodash';
 import bigInt from 'big-integer';
 import { useMatch, useSearchParams } from 'react-router-dom';
@@ -16,14 +10,15 @@ import {
   useMessagesForChat,
   useWritWindow,
 } from '@/state/chat';
+import { useRouteGroup } from '@/state/groups';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
-import { useRouteGroup } from '@/state/groups';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 
 interface ChatWindowProps {
   whom: string;
+  root: string;
   prefixedElement?: ReactNode;
 }
 
@@ -40,13 +35,18 @@ function getScrollTo(
   return msg ? bigInt(msg) : undefined;
 }
 
-export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
+export default function ChatWindow({
+  whom,
+  root,
+  prefixedElement,
+}: ChatWindowProps) {
   const flag = useRouteGroup();
   const thread = useMatch(
     `/groups/${flag}/channels/chat/${whom}/message/:idShip/:idTime`
   );
   const [searchParams, setSearchParams] = useSearchParams();
-  const scrollTo = getScrollTo(whom, thread, searchParams.get('msg'));
+  const msg = searchParams.get('msg');
+  const scrollTo = getScrollTo(whom, thread, msg);
   const initialized = useChatInitialized(whom);
   const messages = useMessagesForChat(whom, scrollTo);
   const window = useWritWindow(whom);
@@ -59,12 +59,12 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   }, [setSearchParams]);
 
   useEffect(() => {
-    if (scrollTo && !messages.has(scrollTo)) {
+    if (scrollTo && !thread) {
       useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), messages]);
+  }, [scrollTo?.toString(), thread]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -89,7 +89,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
 
   return (
     <div className="relative h-full">
-      <ChatUnreadAlerts whom={whom} scrollerRef={scrollerRef} />
+      <ChatUnreadAlerts whom={whom} root={root} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           /**
