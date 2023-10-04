@@ -23,6 +23,7 @@ import {
 import { useIsMobile } from '@/logic/useMedia';
 import { ScrollerItemData, useMessageData } from '@/logic/useScrollerMessages';
 import { useChatState } from '@/state/chat/chat';
+import { BigInteger } from 'big-integer';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatNotice from '../ChatNotice';
 import { useChatStore } from '../useChatStore';
@@ -54,6 +55,18 @@ function Loader({ show }: { show: boolean }) {
       <LoadingSpinner primary="fill-gray-50" secondary="fill-white" />
     </div>
   ) : null;
+}
+
+function useBigInt(value?: BigInteger) {
+  const lastValueRef = useRef(value);
+  return useMemo(() => {
+    const last = lastValueRef.current;
+    if (last !== value && last && value && last.eq(value)) {
+      return last;
+    }
+    lastValueRef.current = value;
+    return value;
+  }, [value]);
 }
 
 function useFakeVirtuosoHandle(
@@ -100,10 +113,11 @@ export default function ChatScroller({
   messages,
   replying = false,
   prefixedElement,
-  scrollTo = undefined,
+  scrollTo: rawScrollTo = undefined,
   scrollerRef,
 }: IChatScroller) {
   const isMobile = useIsMobile();
+  const scrollTo = useBigInt(rawScrollTo);
   const [loadDirection, setLoadDirection] = useState<'newer' | 'older'>(
     'older'
   );
@@ -119,7 +133,6 @@ export default function ChatScroller({
   const {
     activeMessageKeys,
     activeMessageEntries,
-    activeMessages,
     fetchMessages,
     fetchState,
     hasLoadedNewest,
@@ -140,7 +153,7 @@ export default function ChatScroller({
     [count, isInverted]
   );
 
-  const [anchorIndex, setAnchorIndex] = useState<number | null>(() => {
+  const anchorIndex = useMemo(() => {
     if (count === 0) {
       return null;
     }
@@ -151,7 +164,7 @@ export default function ChatScroller({
       return index === -1 ? null : index;
     }
     return count - 1;
-  });
+  }, [activeMessageKeys, count, scrollTo]);
 
   const virtualizerRef = useRef<DivVirtualizer>();
 
@@ -164,6 +177,17 @@ export default function ChatScroller({
     virt.scrollOffset = offset;
     virt.scrollElement?.scrollTo({ top: offset });
   }, []);
+
+  const triggerAnchorScroll = useCallback(() => {
+    virtualizerRef.current?.scrollToOffset(0);
+    requestAnimationFrame(() => virtualizerRef.current?.scrollToOffset(0));
+  }, []);
+
+  useEffect(() => {
+    resetUserHasScrolled();
+    triggerAnchorScroll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollTo]);
 
   const virtualizer = useVirtualizer({
     count: activeMessageEntries.length,
@@ -218,7 +242,7 @@ export default function ChatScroller({
           const virt = instance;
           const index = transformIndex(anchorIndex);
           const [nextOffset] = virt.getOffsetForIndex(index, 'center');
-          const measurement = virt.measurementsCache[anchorIndex];
+          const measurement = virt.measurementsCache[index];
           const sizeAdjustment = index === 0 ? 0 : (measurement?.size ?? 0) / 2;
           forceScroll(nextOffset + sizeAdjustment);
         } else {
@@ -241,6 +265,9 @@ export default function ChatScroller({
     // Called by the virtualizer whenever any layout property changes.
     // We're using it to keep track of top and bottom thresholds.
     onChange: useCallback(() => {
+      if (anchorIndex !== null && !userHasScrolled) {
+        triggerAnchorScroll();
+      }
       const { clientHeight, scrollTop, scrollHeight } =
         scrollElementRef.current ?? {
           clientHeight: 0,
@@ -257,7 +284,7 @@ export default function ChatScroller({
       const isAtEnd = scrollTop + clientHeight >= scrollHeight - atEndThreshold;
       setIsAtTop((isInverted && isAtEnd) || (!isInverted && isAtBeginning));
       setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
-    }, [isInverted]),
+    }, [isInverted, anchorIndex, userHasScrolled, triggerAnchorScroll]),
   });
   virtualizerRef.current = virtualizer;
 
@@ -291,43 +318,6 @@ export default function ChatScroller({
     hasLoadedNewest,
     hasLoadedOldest,
   ]);
-
-  // Look for index of scrollTo message
-  const scrollToIndex = useMemo(() => {
-    if (!scrollTo || !activeMessages.has(scrollTo)) {
-      return -1;
-    }
-    return activeMessageKeys.findIndex((k) => k.greaterOrEquals(scrollTo));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), activeMessageKeys]);
-
-  // Set anchor and scroll to proper index once that index is found
-  useEffect(() => {
-    if (scrollToIndex !== -1) {
-      setAnchorIndex(scrollToIndex);
-    }
-
-    // We only want this to fire once for each index change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollToIndex !== -1]);
-
-  // Reset to 'fresh' state when anchor changes
-  useEffect(() => {
-    resetUserHasScrolled();
-    if (anchorIndex !== null) {
-      // The offset value doesn't actually matter here. It just triggers a
-      // scrollToEvent, which will bring us to the correct index since we're
-      // anchored.
-      virtualizerRef.current?.scrollToOffset(0);
-    }
-  }, [anchorIndex, resetUserHasScrolled, scrollerRef]);
-
-  // Clear anchor on user interaction
-  useEffect(() => {
-    if (userHasScrolled) {
-      setAnchorIndex(null);
-    }
-  }, [userHasScrolled]);
 
   // Load more items when list reaches the top or bottom.
   useEffect(() => {
@@ -363,6 +353,7 @@ export default function ChatScroller({
   }
 
   const scaleY = isInverted ? -1 : 1;
+  const virtualItems = virtualizer.getVirtualItems();
 
   return (
     <div
@@ -379,22 +370,24 @@ export default function ChatScroller({
         ref={contentElementRef}
         style={{
           height: `${contentHeight}px`,
+          paddingTop: virtualItems[0].start,
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
       >
         <div className="absolute top-0 w-full">
           <Loader show={fetchState === (isInverted ? 'bottom' : 'top')} />
         </div>
-        {virtualizer.getVirtualItems().map((virtualItem) => {
+
+        {virtualItems.map((virtualItem) => {
           const item = activeMessageEntries[transformIndex(virtualItem.index)];
           return (
             <div
               key={virtualItem.key}
-              className="t-0 l-0 absolute w-full px-4"
+              className="px-4"
               ref={virtualizer.measureElement}
               data-index={virtualItem.index}
               style={{
-                transform: `translateY(${virtualItem.start}px) scaleY(${scaleY})`,
+                transform: `scaleY(${scaleY})`,
               }}
             >
               <ChatScrollerItem {...item} isScrolling={isScrolling} />
