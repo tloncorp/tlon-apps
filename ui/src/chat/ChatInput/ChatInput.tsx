@@ -461,7 +461,7 @@ export default function ChatInput({
 
   useEffect(() => {
     if (messageEditor && !messageEditor.isDestroyed && isScrolling) {
-      messageEditor?.commands.blur();
+      messageEditor.commands.blur();
     }
   }, [isScrolling, messageEditor]);
 

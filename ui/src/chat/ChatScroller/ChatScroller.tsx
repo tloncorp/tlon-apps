@@ -344,7 +344,7 @@ export default function ChatScroller({
   return (
     <div
       ref={scrollElementRef}
-      className="h-full overflow-y-auto overflow-x-clip"
+      className="h-full overflow-y-auto overflow-x-clip overscroll-contain"
       style={{ transform: `scaleY(${scaleY})` }}
       // We need this in order to get key events on the div, which we use remap
       // arrow and spacebar navigation when scrolling.
