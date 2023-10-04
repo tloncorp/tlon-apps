@@ -105,6 +105,9 @@ export default function ChatThread() {
     <div
       className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
+      style={{
+        paddingBottom: isMobile ? 50 : 0,
+      }}
     >
       {isMobile ? (
         <MobileHeader
@@ -182,19 +185,14 @@ export default function ChatThread() {
         )}
       >
         {compatible && canWrite ? (
-          <div
-            className="safe-area-input"
-            style={{ paddingBottom: bottomInset }}
-          >
-            <ChatInput
-              whom={whom}
-              replying={id}
-              sendMessage={sendMessage}
-              inThread
-              autoFocus
-              dropZoneId={dropZoneId}
-            />
-          </div>
+          <ChatInput
+            whom={whom}
+            replying={id}
+            sendMessage={sendMessage}
+            inThread
+            autoFocus
+            dropZoneId={dropZoneId}
+          />
         ) : !canWrite ? null : (
           <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
             {text}

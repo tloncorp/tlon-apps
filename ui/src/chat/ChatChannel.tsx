@@ -24,7 +24,6 @@ import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import { useSafeAreaInsets } from '@/logic/native';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -62,10 +61,8 @@ function ChatChannel({ title }: ViewProps) {
   const { compatible, text: compatibilityError } =
     useChannelCompatibility(nest);
   const isMobile = useIsMobile();
-  const safeAreaInsets = useSafeAreaInsets();
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
-  const bottomInset = group ? safeAreaInsets.bottom : 0;
   const root = `/groups/${groupFlag}/channels/${nest}`;
 
   const joinChannel = useCallback(async () => {
