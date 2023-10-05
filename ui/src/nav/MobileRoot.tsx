@@ -81,7 +81,7 @@ export default function MobileRoot() {
               >
                 {Object.entries(pinnedGroups).length > 0 && (
                   <div className="px-4">
-                    <h2 className="mb-0.5 p-2 font-system-sans text-gray-400">
+                    <h2 className="mb-0.5 p-2 font-sans text-gray-400">
                       Pinned
                     </h2>
                     {pinnedGroupsOptions}
@@ -89,7 +89,7 @@ export default function MobileRoot() {
                 )}
                 {Object.entries(pendingGangs).length > 0 && (
                   <div className="px-4">
-                    <h2 className="mb-0.5 p-2 font-system-sans text-gray-400">
+                    <h2 className="mb-0.5 p-2 font-sans text-gray-400">
                       Invites
                     </h2>
                     <GroupJoinList highlightAll gangs={pendingGangs} />
@@ -98,7 +98,7 @@ export default function MobileRoot() {
 
                 {Object.entries(pinnedGroups).length > 0 ||
                 Object.entries(pendingGangs).length > 0 ? (
-                  <h2 className="my-2 ml-2 p-2 pl-4 font-system-sans text-gray-400">
+                  <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
                     All Groups
                   </h2>
                 ) : null}
