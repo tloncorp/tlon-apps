@@ -19,7 +19,6 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import {
   useUserHasScrolled,
   useInvertedScrollInteraction,
-  useIsScrolling,
 } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import { ScrollerItemData, useMessageData } from '@/logic/useScrollerMessages';
@@ -118,6 +117,8 @@ export default function ChatScroller({
   prefixedElement,
   scrollTo: rawScrollTo = undefined,
   scrollerRef,
+  scrollElementRef,
+  isScrolling,
 }: IChatScroller) {
   const isMobile = useIsMobile();
   const scrollTo = useBigInt(rawScrollTo);
@@ -126,9 +127,7 @@ export default function ChatScroller({
   );
   const [isAtBottom, setIsAtBottom] = useState(loadDirection === 'older');
   const [isAtTop, setIsAtTop] = useState(false);
-  const scrollElementRef = useRef<HTMLDivElement>(null);
   const contentElementRef = useRef<HTMLDivElement>(null);
-  const isScrolling = useIsScrolling(scrollElementRef);
   const { userHasScrolled, resetUserHasScrolled } =
     useUserHasScrolled(scrollElementRef);
   const isInverted = loadDirection === 'older';
@@ -208,7 +207,10 @@ export default function ChatScroller({
 
   const virtualizer = useVirtualizer({
     count: activeMessageEntries.length,
-    getScrollElement: useCallback(() => scrollElementRef.current, []),
+    getScrollElement: useCallback(
+      () => scrollElementRef.current,
+      [scrollElementRef]
+    ),
     // Used by the virtualizer to keep track of scroll position. Note that the is
     // the *only* place the virtualizer accesses scroll position, so we can change
     // the virtualizer's idea of world state by modifying it.
@@ -289,7 +291,13 @@ export default function ChatScroller({
       const isAtEnd = scrollTop + clientHeight >= scrollHeight - atEndThreshold;
       setIsAtTop((isInverted && isAtEnd) || (!isInverted && isAtBeginning));
       setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
-    }, [isInverted, anchorIndex, userHasScrolled, scrollToAnchor]),
+    }, [
+      isInverted,
+      anchorIndex,
+      userHasScrolled,
+      scrollToAnchor,
+      scrollElementRef,
+    ]),
   });
   virtualizerRef.current = virtualizer;
 
@@ -367,7 +375,7 @@ export default function ChatScroller({
   return (
     <div
       ref={scrollElementRef}
-      className="h-full w-full overflow-y-auto overflow-x-clip"
+      className="h-full w-full overflow-y-auto overflow-x-clip overscroll-contain"
       style={{ transform: `scaleY(${scaleY})` }}
       // We need this in order to get key events on the div, which we use remap
       // arrow and spacebar navigation when scrolling.

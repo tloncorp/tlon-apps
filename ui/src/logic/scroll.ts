@@ -1,4 +1,5 @@
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { throttle } from 'lodash';
 
 /**
  * Utility for tracking scrolling state. Caller should call `didScroll` whenever
@@ -22,10 +23,10 @@ export function useIsScrolling(
     const el = scrollElementRef.current;
     if (!el) return undefined;
 
-    const handleScroll = () => {
-      lastScrollTime.current = Date.now();
+    const handleScroll = throttle(() => {
+      lastScrollTime.current = performance.now();
       setIsScrolling(true);
-    };
+    }, 50);
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
   }, [scrollElementRef]);
@@ -36,7 +37,7 @@ export function useIsScrolling(
     if (!isScrolling) return undefined;
 
     const interval = setInterval(() => {
-      const delta = Date.now() - lastScrollTime.current;
+      const delta = performance.now() - lastScrollTime.current;
       setIsScrolling(delta < scrollStopDelay);
     }, checkInterval);
 

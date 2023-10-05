@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import cn from 'classnames';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
@@ -6,12 +6,15 @@ import useMessageSelector from '@/logic/useMessageSelector';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { isNativeApp } from '@/logic/native';
 import MobileHeader from '@/components/MobileHeader';
+import { useIsScrolling } from '@/logic/scroll';
 import MessageSelector from './MessageSelector';
 
 export default function NewDM() {
   const { sendDm, validShips, whom } = useMessageSelector();
   const dropZoneId = 'chat-new-dm-input-dropzone';
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
 
   return (
     <Layout
@@ -33,6 +36,7 @@ export default function NewDM() {
             sendDisabled={!validShips}
             sendMessage={sendDm}
             dropZoneId={dropZoneId}
+            isScrolling={isScrolling}
           />
         </div>
       }

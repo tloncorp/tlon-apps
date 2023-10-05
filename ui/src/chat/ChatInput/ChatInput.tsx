@@ -67,6 +67,7 @@ interface ChatInputProps {
   sendMessage: (whom: string, memo: ChatMemo) => void;
   inThread?: boolean;
   dropZoneId: string;
+  isScrolling: boolean;
 }
 
 export function UploadErrorPopover({
@@ -109,6 +110,7 @@ export default function ChatInput({
   sendMessage,
   inThread = false,
   dropZoneId,
+  isScrolling,
 }: ChatInputProps) {
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
@@ -454,6 +456,12 @@ export default function ChatInput({
     ship,
     inThread,
   ]);
+
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed && isScrolling) {
+      messageEditor.commands.blur();
+    }
+  }, [isScrolling, messageEditor]);
 
   const editorText = messageEditor?.getText();
   const editorHTML = messageEditor?.getHTML();

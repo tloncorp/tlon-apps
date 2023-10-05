@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import cn from 'classnames';
 import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -18,6 +18,7 @@ import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import useAppName from '@/logic/useAppName';
 import MobileHeader from '@/components/MobileHeader';
+import { useIsScrolling } from '@/logic/scroll';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -74,6 +75,8 @@ export default function MultiDm() {
   const appName = useAppName();
   const groupName = club?.meta.title || club?.team.concat(club.hive).join(', ');
   const root = `/dm/${clubId}`;
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
 
   const {
     isSelectingMessage,
@@ -194,6 +197,7 @@ export default function MultiDm() {
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}
+                isScrolling={isScrolling}
               />
             </div>
           ) : null
@@ -203,6 +207,8 @@ export default function MultiDm() {
           <ChatWindow
             whom={clubId}
             root={root}
+            scrollElementRef={scrollElementRef}
+            isScrolling={isScrolling}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <MultiDmHero club={club} />

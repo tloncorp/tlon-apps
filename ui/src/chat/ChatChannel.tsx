@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Route, Routes, useMatch, useNavigate, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -24,6 +24,7 @@ import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+import { useIsScrolling } from '@/logic/scroll';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -61,6 +62,8 @@ function ChatChannel({ title }: ViewProps) {
   const { compatible, text: compatibilityError } =
     useChannelCompatibility(nest);
   const isMobile = useIsMobile();
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
   const root = `/groups/${groupFlag}/channels/${nest}`;
@@ -191,6 +194,7 @@ function ChatChannel({ title }: ViewProps) {
                 showReply
                 autoFocus={!inThread && !inSearch}
                 dropZoneId={dropZoneId}
+                isScrolling={isScrolling}
               />
             ) : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-400">
@@ -209,7 +213,12 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        <ChatWindow whom={chFlag} root={root} />
+        <ChatWindow
+          scrollElementRef={scrollElementRef}
+          isScrolling={isScrolling}
+          whom={chFlag}
+          root={root}
+        />
       </Layout>
       <Routes>
         {isSmall ? null : (
