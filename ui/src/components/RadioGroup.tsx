@@ -23,7 +23,7 @@ export default function RadioGroup({
 }) {
   return (
     <RadioGroupPrimitive.Root
-      className="flex w-full flex-col rounded-xl border border-gray-200 font-system-sans text-[17px]"
+      className="flex w-full flex-col rounded-xl border border-gray-200 font-sans text-[17px]"
       value={value}
       defaultValue={defaultOption}
       onValueChange={(val: string) => {

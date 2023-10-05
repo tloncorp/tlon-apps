@@ -25,7 +25,7 @@ export default function MobileHeader({
   return (
     <div
       id="mobile-header"
-      className="grid w-full grid-cols-5 justify-between bg-white font-system-sans"
+      className="grid w-full grid-cols-5 justify-between bg-white font-sans"
       style={{ paddingTop: safeAreaInsets.top }}
     >
       {goBack ? (

@@ -163,6 +163,7 @@
     "refractor": "^4.8.0",
     "slugify": "^1.6.6",
     "sorted-btree": "^1.8.1",
+    "tailwindcss-opentype": "^1.1.0",
     "tailwindcss-scoped-groups": "^2.0.0",
     "tippy.js": "^6.3.7",
     "urbit-ob": "^5.0.1",
