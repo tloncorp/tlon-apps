@@ -40,7 +40,7 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         <HomeIconMobileNav
           isInactive={props.isInactive}
           isDarkMode={props.isDarkMode}
-          className="h-6 w-6"
+          className="h-[20px] w-[18px]"
         />
       </div>
       <div
@@ -78,7 +78,7 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
         <MessagesIcon
           isInactive={props.isInactive}
           isDarkMode={props.isDarkMode}
-          className="h-6 w-6"
+          className="h-[20px] w-[18px]"
         />
       </div>
       <div
@@ -104,7 +104,7 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       <div className="flex h-8 w-8 items-center justify-center ">
         <BellIcon
           isInactive={props.isInactive}
-          className="h-6 w-6"
+          className="h-6 w-[18px]"
           isDarkMode={props.isDarkMode}
         />
       </div>
@@ -147,7 +147,7 @@ export default function MobileSidebar() {
                 <MagnifyingGlassMobileNavIcon
                   isInactive={isInactive('/find')}
                   isDarkMode={isDarkMode}
-                  className="h-6 w-6"
+                  className="h-6 w-[18px]"
                 />
               </div>
             </NavTab>
