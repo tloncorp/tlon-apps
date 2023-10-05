@@ -178,27 +178,26 @@ export default function ChatScroller({
     virt.scrollElement?.scrollTo({ top: offset });
   }, []);
 
+  /**
+   * Scroll to current anchor index
+   */
   const scrollToAnchor = useCallback(() => {
     const virt = virtualizerRef.current;
     if (!virt || anchorIndex === null) return;
     const index = transformIndex(anchorIndex);
     const [nextOffset] = virt.getOffsetForIndex(index, 'center');
     const measurement = virt.measurementsCache[index];
+    // If the anchor index is 0 (the newest message) we want to stay locked all
+    // the way to the bottom
+    // TODO: This looks a little off visually since the author of the message isn't highlighted.
     const sizeAdjustment = index === 0 ? 0 : (measurement?.size ?? 0) / 2;
     forceScroll(nextOffset + sizeAdjustment);
   }, [anchorIndex, forceScroll, transformIndex]);
 
-  const anchorScrollFn = useCallback(() => {
-    virtualizerRef.current?.scrollToOffset(0);
-  }, []);
-
-  const forceAnchorScroll = useCallback(() => {
-    anchorScrollFn();
-  }, [anchorScrollFn]);
-
+  // Reset scroll when scrollTo changes
   useEffect(() => {
     resetUserHasScrolled();
-    forceAnchorScroll();
+    scrollToAnchor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTo]);
 
@@ -250,7 +249,7 @@ export default function ChatScroller({
         // By default, the virtualizer tries to keep the position of the topmost
         // item on screen pinned, but we need to override that behavior to keep a
         // message centered or to stay at the bottom of the chat.
-        if (anchorIndex !== null) {
+        if (anchorIndex !== null && !userHasScrolled) {
           // Fix for no-param-reassign
           scrollToAnchor();
         } else {
@@ -267,7 +266,7 @@ export default function ChatScroller({
     // We're using it to keep track of top and bottom thresholds.
     onChange: useCallback(() => {
       if (anchorIndex !== null && !userHasScrolled) {
-        forceAnchorScroll();
+        scrollToAnchor();
       }
       const { clientHeight, scrollTop, scrollHeight } =
         scrollElementRef.current ?? {
@@ -285,7 +284,7 @@ export default function ChatScroller({
       const isAtEnd = scrollTop + clientHeight >= scrollHeight - atEndThreshold;
       setIsAtTop((isInverted && isAtEnd) || (!isInverted && isAtBeginning));
       setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
-    }, [isInverted, anchorIndex, userHasScrolled, forceAnchorScroll]),
+    }, [isInverted, anchorIndex, userHasScrolled, scrollToAnchor]),
   });
   virtualizerRef.current = virtualizer;
 
