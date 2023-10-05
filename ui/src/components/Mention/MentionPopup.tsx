@@ -82,7 +82,10 @@ const MentionList = React.forwardRef<
     selectItem(selectedIndex);
   };
 
-  useEffect(() => setSelectedIndex(props.items.length - 1), [props.items]);
+  useEffect(
+    () => setSelectedIndex(isNativeApp() ? props.items.length - 1 : 0),
+    [props.items]
+  );
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
@@ -211,8 +214,11 @@ const MentionPopup: Partial<SuggestionOptions> = {
 
     const items = fuzzyNames
       .slice(0, 5)
-      .reverse()
       .map((entry) => ({ id: contactNames[entry.index] }));
+
+    if (isNativeApp()) {
+      items.reverse();
+    }
 
     return items;
   },
@@ -250,7 +256,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
           },
           onAfterUpdate: ({ popperInstance }) => {
             popperInstance?.setOptions({
-              placement: 'top',
+              placement: isNativeApp() ? 'top' : 'top-start',
               modifiers: [{ name: 'flip', enabled: false }],
             });
           },
