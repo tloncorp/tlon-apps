@@ -24,10 +24,13 @@ import {
 import { useIsMobile } from '@/logic/useMedia';
 import { ScrollerItemData, useMessageData } from '@/logic/useScrollerMessages';
 import { useChatState } from '@/state/chat/chat';
+import { createDevLogger } from '@/logic/utils';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatNotice from '../ChatNotice';
 import { useChatStore } from '../useChatStore';
 import { IChatScroller } from './IChatScroller';
+
+const logger = createDevLogger('ChatScroller', false);
 
 const ChatScrollerItem = React.memo(
   ({ time, writ, prefixedElement, ...props }: ScrollerItemData) => {
@@ -105,7 +108,7 @@ type DivVirtualizer = Virtualizer<HTMLDivElement, HTMLDivElement>;
 
 const thresholds = {
   atEndThreshold: 2000,
-  overscan: 12,
+  overscan: 6,
 };
 
 export default function ChatScroller({
@@ -182,6 +185,7 @@ export default function ChatScroller({
    * Scroll to current anchor index
    */
   const scrollToAnchor = useCallback(() => {
+    logger.log('scrolling to anchor');
     const virt = virtualizerRef.current;
     if (!virt || anchorIndex === null) return;
     const index = transformIndex(anchorIndex);
@@ -196,6 +200,7 @@ export default function ChatScroller({
 
   // Reset scroll when scrollTo changes
   useEffect(() => {
+    logger.log('scrollto changed');
     resetUserHasScrolled();
     scrollToAnchor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,6 +311,7 @@ export default function ChatScroller({
         (loadingNewer && !hasLoadedNewest) ||
         (!loadingNewer && !hasLoadedOldest)
       ) {
+        logger.log('not enough content, loading more');
         fetchMessages(loadingNewer);
       }
     }
@@ -324,10 +330,12 @@ export default function ChatScroller({
     if (fetchState !== 'initial' || !userHasScrolled) return;
     const chatStore = useChatStore.getState();
     if (isAtTop && !hasLoadedOldest) {
+      logger.log('loading older messages');
       setLoadDirection('older');
       chatStore.bottom(false);
       fetchMessages(false);
     } else if (isAtBottom && !hasLoadedNewest) {
+      logger.log('loading newer messages');
       setLoadDirection('newer');
       fetchMessages(true);
       chatStore.bottom(true);
@@ -348,6 +356,7 @@ export default function ChatScroller({
   // We do this here as opposed to in an effect so that virtualItems is correct in time for this render.
   const lastIsInverted = useRef(isInverted);
   if (userHasScrolled && isInverted !== lastIsInverted.current) {
+    logger.log('inverting chat scroller');
     forceScroll(contentHeight - virtualizer.scrollOffset);
     lastIsInverted.current = isInverted;
   }
