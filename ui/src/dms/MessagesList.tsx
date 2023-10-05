@@ -13,7 +13,8 @@ import {
   usePendingMultiDms,
   usePinned,
   useChats,
-  useChatState,
+  useDms,
+  useMultiDms,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
@@ -48,6 +49,8 @@ export default function MessagesList({
   const { sortMessages } = useMessageSort();
   const briefs = useBriefs();
   const chats = useChats();
+  const dms = useDms();
+  const multiDms = useMultiDms();
   const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
   const isMobile = useIsMobile();
@@ -67,8 +70,8 @@ export default function MessagesList({
         const group = groups[groupFlag || ''];
         const vessel = group?.fleet[window.our];
         const channel = group?.channels[`chat/${b}`];
-        const club = useChatState.getState().multiDms[b];
-        const dm = useChatState.getState().dms.filter((d) => d === b)[0];
+        const club = multiDms[b];
+        const dm = dms.filter((d) => d === b)[0];
 
         if (whomIsMultiDm(b) && !club) {
           return false;
@@ -112,7 +115,17 @@ export default function MessagesList({
 
         return true; // is all
       }),
-    [allPending, briefs, chats, filter, groups, pinned, sortMessages]
+    [
+      allPending,
+      briefs,
+      chats,
+      filter,
+      groups,
+      pinned,
+      sortMessages,
+      dms,
+      multiDms,
+    ]
   );
 
   const headerHeightRef = useRef<number>(0);

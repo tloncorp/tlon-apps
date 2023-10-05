@@ -958,9 +958,8 @@
   ^-  briefs:c
   %-  ~(gas by *briefs:c)
   %+  welp
-    %+  turn  ~(tap in ~(key by clubs))
-    |=  =id:club:c
-    =/  =club:c  (~(got by clubs) id)
+    %+  turn  ~(tap by clubs)
+    |=  [=id:club:c =club:c]
     =/  loyal  (~(has in team.crew.club) our.bowl)
     =/  invited  (~(has in hive.crew.club) our.bowl)
     ?:  &(!loyal !invited)
