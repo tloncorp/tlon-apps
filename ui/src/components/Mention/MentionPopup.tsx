@@ -11,6 +11,7 @@ import { isValidPatp, clan } from 'urbit-ob';
 import { ReactRenderer } from '@tiptap/react';
 import { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion';
 import tippy from 'tippy.js';
+import { isNativeApp } from '@/logic/native';
 import { deSig } from '@urbit/api';
 import useContactState, { useContacts } from '@/state/contact';
 import { useGroup, useGroupFlag } from '@/state/groups';
@@ -81,7 +82,10 @@ const MentionList = React.forwardRef<
     selectItem(selectedIndex);
   };
 
-  useEffect(() => setSelectedIndex(0), [props.items]);
+  useEffect(
+    () => setSelectedIndex(isNativeApp() ? props.items.length - 1 : 0),
+    [props.items]
+  );
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
@@ -107,9 +111,14 @@ const MentionList = React.forwardRef<
   }));
 
   return (
-    <div className="dropdown min-w-80 p-1">
+    <div
+      className={cn(
+        'dropdown mb-2 p-1',
+        isNativeApp() ? 'w-[100vw]' : 'min-w-80'
+      )}
+    >
       <ul className="w-full">
-        {(props.items || []).map((i, index) => (
+        {(props.items || []).map((i: any, index: number) => (
           <li key={i.id} className="w-full">
             <button
               className={cn(
@@ -207,6 +216,10 @@ const MentionPopup: Partial<SuggestionOptions> = {
       .slice(0, 5)
       .map((entry) => ({ id: contactNames[entry.index] }));
 
+    if (isNativeApp()) {
+      items.reverse();
+    }
+
     return items;
   },
 
@@ -234,7 +247,19 @@ const MentionPopup: Partial<SuggestionOptions> = {
           showOnCreate: true,
           interactive: true,
           trigger: 'manual',
-          placement: 'top-start',
+          placement: isNativeApp() ? 'top' : 'top-start',
+          onMount: ({ popperInstance }) => {
+            popperInstance?.setOptions({
+              placement: isNativeApp() ? 'top' : 'top-start',
+              modifiers: [{ name: 'flip', enabled: false }],
+            });
+          },
+          onAfterUpdate: ({ popperInstance }) => {
+            popperInstance?.setOptions({
+              placement: isNativeApp() ? 'top' : 'top-start',
+              modifiers: [{ name: 'flip', enabled: false }],
+            });
+          },
         });
       },
       onUpdate: (props) => {
