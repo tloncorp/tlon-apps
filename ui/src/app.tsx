@@ -689,7 +689,7 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {!disableWayfinding && <LandscapeWayfinding />}
+      {!disableWayfinding && !isMobile && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
         <DragAndDropProvider>
