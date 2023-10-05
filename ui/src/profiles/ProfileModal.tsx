@@ -141,45 +141,49 @@ export default function ProfileModal() {
           </div>
         )}
       </div>
-      <footer className="flex items-center justify-end space-x-2 py-4 px-6">
-        {pals.installed &&
-          ship !== window.our &&
-          (pals.pals.outgoing[ship.slice(1)] ? (
-            <button
-              className="secondary-button bg-red-100 dark:bg-red dark:text-white"
-              onClick={() => pals.removePal(ship.slice(1))}
-            >
-              Remove Pal
+      <footer className="flex flex-col space-y-2 py-4 px-6">
+        <div className="flex items-center justify-end space-x-2">
+          {pals.installed &&
+            ship !== window.our &&
+            (pals.pals.outgoing[ship.slice(1)] ? (
+              <button
+                className="secondary-button bg-red-100 dark:bg-red dark:text-white"
+                onClick={() => pals.removePal(ship.slice(1))}
+              >
+                Remove Pal
+              </button>
+            ) : (
+              <button
+                className="secondary-button"
+                onClick={() => pals.addPal(ship.slice(1))}
+              >
+                Add Pal
+              </button>
+            ))}
+          {!shipHasBlockedUs && (
+            <button className="button" onClick={handleMessageClick}>
+              Message
             </button>
-          ) : (
-            <button
-              className="secondary-button"
-              onClick={() => pals.addPal(ship.slice(1))}
-            >
-              Add Pal
-            </button>
-          ))}
-        <button className="secondary-button" onClick={handleCopyClick}>
-          {didCopy ? 'Copied!' : 'Copy Name'}
-        </button>
-        {!isUs &&
-          (shipIsBlocked ? (
-            <button className="secondary-button" onClick={handleUnblockClick}>
-              Unblock User
-            </button>
-          ) : (
-            <button
-              className="secondary-button"
-              onClick={() => setShowBlock(true)}
-            >
-              Block User
-            </button>
-          ))}
-        {!shipHasBlockedUs && (
-          <button className="button" onClick={handleMessageClick}>
-            Message
+          )}
+        </div>
+        <div className="flex items-center justify-end space-x-2">
+          <button className="secondary-button" onClick={handleCopyClick}>
+            {didCopy ? 'Copied!' : 'Copy Name'}
           </button>
-        )}
+          {!isUs &&
+            (shipIsBlocked ? (
+              <button className="secondary-button" onClick={handleUnblockClick}>
+                Unblock User
+              </button>
+            ) : (
+              <button
+                className="secondary-button"
+                onClick={() => setShowBlock(true)}
+              >
+                Block User
+              </button>
+            ))}
+        </div>
       </footer>
       <ConfirmationModal
         open={showBlock}
