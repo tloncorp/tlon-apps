@@ -3,6 +3,7 @@ import React, { PropsWithChildren } from 'react';
 import { Contact } from '@urbit/api';
 import { useContact } from '@/state/contact';
 import { useCalm } from '@/state/settings';
+import { useIsMobile } from '@/logic/useMedia';
 
 type CoverProps = PropsWithChildren<{
   cover: string;
@@ -26,11 +27,13 @@ export default function ProfileCoverImage({
   children,
 }: CoverProps) {
   const { disableRemoteContent } = useCalm();
+  const isMobile = useIsMobile();
 
   return (
     <div
       className={classNames(
-        'relative h-36 w-full rounded-[36px] bg-gray-100 bg-cover bg-center px-4',
+        'relative h-36 w-full rounded-[36px] bg-cover bg-center px-4',
+        isMobile ? 'bg-gray-100 dark:bg-gray-200' : 'bg-gray-100',
         className
       )}
       style={
