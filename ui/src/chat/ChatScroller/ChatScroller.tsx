@@ -383,7 +383,7 @@ export default function ChatScroller({
         ref={contentElementRef}
         style={{
           height: `${contentHeight}px`,
-          paddingTop: virtualItems[0].start,
+          paddingTop: virtualItems[0]?.start,
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
       >
