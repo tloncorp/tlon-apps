@@ -44,10 +44,11 @@ You'll also need a group to put channels in. Use this code snippet in your dojo 
 ## Scries
 | Path | Mark | Description | Example
 |------|------|-------------|--------
-| `/channels` | [channel-channels](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/mar/channel/channels.hoon) | Get known channels and their contents. Returns [$channels](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L407) | <code>.^(channels:c %gx /=channels=/channels/channel-channels)</code>
-| `/unreads` | [channel-unreads](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/mar/channel/unreads.hoon) | Get unread information for the channels our ship is in. Returns [$unreads](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L218) | <code>.^(unreads:c %gx /=channels=/unreads/channel-unreads)</code>
-| `/init` | noun | Combination of `/channels` and `/unreads`. Returns [[$unreads](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L218) [$channels](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L407)] | <code>.^([unreads:c channels:c] %gx /=channels=/init/noun)</code>
-| `/pins` | [channel-pins](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/mar/channel/pins.hoon) | Get pinned channels. Returns (list [$nest](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L184)) | <code>.^((list nest:c) %gx /=channels=/pins/channel-pins)</code>
+| `/x/channels` | [channel-channels](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/mar/channel/channels.hoon) | Get known channels and their contents. Returns [$channels](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L407) | <code>.^(channels:c %gx /=channels=/channels/channel-channels)</code>
+| `/x/unreads` | [channel-unreads](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/mar/channel/unreads.hoon) | Get unread information for the channels our ship is in. Returns [$unreads](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L218) | <code>.^(unreads:c %gx /=channels=/unreads/channel-unreads)</code>
+| `/x/init` | noun | Combination of `/channels` and `/unreads`. Returns [[$unreads](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L218) [$channels](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L407)] | <code>.^([unreads:c channels:c] %gx /=channels=/init/noun)</code>
+| `/x/pins` | [channel-pins](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/mar/channel/pins.hoon) | Get pinned channels. Returns (list [$nest](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L184)) | <code>.^((list nest:c) %gx /=channels=/pins/channel-pins)</code>
+| `/x/pins` | | |
 
 ## Pokes
 All pokes here have the [channel-action](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/mar/channel/action.hoon) mark.
@@ -56,14 +57,14 @@ All pokes here have the [channel-action](https://github.com/tloncorp/landscape-a
 | Description | Example
 |-------------|--------
 | Create a channel. This also updates the metadata in the `%groups` agent. See [$create-channel](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L245) | <pre>=create-channel :\*<br>  %chat<br>  %mychat<br>  [our %mygroup]<br>  title='My chat channel'<br>  description='Chat about things'<br>  readers=\~<br>  writers=\~<br>==<br><br>:channels &channel-action [%create create-channel]</pre>
-| Join a channel. In this example, `~sampel-palnet` is the group host and `~palnet-sampel` is the channel host. | <pre>=nest [%chat \~palnet-sampel %mychat]<br>=action [%join group=[\~sampel-palnet %mygroup]]<br><br>:channels &channel-action [%channel nest action]</pre>
-| Leave a channel | <pre>=nest [%chat ~palnet-sampel %mychat]<br>=action [%leave ~]<br><br>:channels &channel-action [%channel nest action]</pre>
+| Join a channel. In this example, `~sogrup` is the group host and `~hoster` is the channel host. | <pre>=nest [%chat \~hoster %mychat]<br>=action [%join group=[\~sogrup %mygroup]]<br><br>:channels &channel-action [%channel nest action]</pre>
+| Leave a channel | <pre>=nest [%chat ~hoster %mychat]<br>=action [%leave ~]<br><br>:channels &channel-action [%channel nest action]</pre>
 | Set the display format for a channel. See [$view](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L186) | <pre>=nest [%chat our %mychat]<br>=action [%view %grid]<br><br>:channels &channel-action [%channel nest action]</pre>
 | Set the sorting mechanism for a channel. See [$sort](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L188) | <pre>=nest [%chat our %mychat]<br>=action [%sort %alpha]<br><br>:channels &channel-action [%channel nest action]</pre>
 | Set manual post ordering for a channel. See [$arranged-notes](https://github.com/tloncorp/landscape-apps/blob/hm/hackweek/desk/sur/channel.hoon#L190) | <pre>=nest [%chat our %mychat]<br>=action [%set-order `~[~2023.1.1 ~2023.2.2]]<br><br>:channels &channel-action [%channel nest action]</pre>
 | Allow writing to a channel for certain roles. | <pre>=nest [%chat our %mychat]<br>=action [%add-writers (sy ~[%role1 %role2])]<br><br>:channels &channel-action [%channel nest action]</pre>
 | Disallow writing to a diary for a certain set of roles. | <pre>=nest [%chat our %mychat]<br>=action [%del-writers (sy ~[%role1 %role2])]<br><br>:channels &channel-action [channel nest action]</pre>
-| Pin channels | <pre>=pins ~[[%chat ~sampel-palnet %mychat]]<br><br>:channels &channel-action [%pin pins]</pre>
+| Pin channels | <pre>=pins ~[[%chat ~pinner %mychat]]<br><br>:channels &channel-action [%pin pins]</pre>
 
 ### Unreads
 | Description | Example
