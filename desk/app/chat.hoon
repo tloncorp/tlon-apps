@@ -960,6 +960,11 @@
   %+  welp
     %+  turn  ~(tap in ~(key by clubs))
     |=  =id:club:c
+    =/  =club:c  (~(got by clubs) id)
+    =/  loyal  (~(has in team.crew.club) our.bowl)
+    =/  invited  (~(has in hive.crew.club) our.bowl)
+    ?:  &(!loyal !invited)
+      [club/id *time 0 ~]
     =/  cu  (cu-abed id)
     [club/id cu-brief:cu]
   %+  welp
@@ -1205,6 +1210,10 @@
       cu-core
     ::
         %writ
+      =/  loyal  (~(has in team.crew.club) our.bowl)
+      =/  invited  (~(has in hive.crew.club) our.bowl)
+      ?:  &(!loyal !invited)
+         cu-core
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       ?-  -.q.diff.delta
           ?(%del %add-feel %del-feel)  (cu-give-writs-diff diff.delta)

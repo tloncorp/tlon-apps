@@ -171,6 +171,7 @@ export function MultiDMSidebarItem({
           whom={whom}
           pending={!!pending}
           isHovered={hover}
+          isMulti
           triggerDisabled={isMobile}
         />
       )}

@@ -13,6 +13,7 @@ import {
   usePendingMultiDms,
   usePinned,
   useChats,
+  useChatState,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
@@ -66,6 +67,20 @@ export default function MessagesList({
         const group = groups[groupFlag || ''];
         const vessel = group?.fleet[window.our];
         const channel = group?.channels[`chat/${b}`];
+        const club = useChatState.getState().multiDms[b];
+        const dm = useChatState.getState().dms.filter((d) => d === b)[0];
+
+        if (whomIsMultiDm(b) && !club) {
+          return false;
+        }
+
+        if (whomIsMultiDm(b) && !club.team.includes(window.our)) {
+          return false;
+        }
+
+        if (whomIsDm(b) && !dm) {
+          return false;
+        }
 
         if (
           channel &&
