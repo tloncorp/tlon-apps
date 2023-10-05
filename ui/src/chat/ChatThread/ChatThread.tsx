@@ -1,8 +1,8 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import _ from 'lodash';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
@@ -21,10 +21,15 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
-import { useAddQuipMutation, useNote, usePerms } from '@/state/channel/channel';
-import { newQuipMap } from '@/types/channel';
+import {
+  useAddReplyMutation,
+  usePost,
+  usePerms,
+  useReply,
+} from '@/state/channel/channel';
+import { newReplyMap, ReplyTuple } from '@/types/channel';
+import ReplyScroller from '@/replies/ReplyScroller/ReplyScroller';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
-import QuipScroller from '../QuipScroller/QuipScroller';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
@@ -40,20 +45,26 @@ export default function ChatThread() {
   const flag = useChannelFlag()!;
   const nest = `chat/${flag}`;
   const groupFlag = useRouteGroup();
-  const { mutate: sendMessage } = useAddQuipMutation();
+  const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const channel = useGroupChannel(groupFlag, nest)!;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const replyId = useMemo(() => searchParams.get('reply'), [searchParams]);
+  const reply = useReply(nest, idTime!, replyId || '');
+  const replyingWrit: ReplyTuple | undefined =
+    reply && replyId ? [bigInt(replyId), reply] : undefined;
   const { isOpen: leapIsOpen } = useLeap();
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const { note, isLoading } = useNote(nest, idTime!);
-  const replies = note.seal.quips ?? newQuipMap();
+  const { post: note, isLoading } = usePost(nest, idTime!);
+  const replies = note.seal.replies ?? newReplyMap();
   replies.set(bigInt(idTime!), {
     memo: note.essay,
-    cork: {
+    seal: {
       id: note.seal.id,
-      feels: note.seal.feels,
+      'parent-id': note.seal.id,
+      reacts: note.seal.reacts,
     },
   });
   const navigate = useNavigate();
@@ -148,11 +159,11 @@ export default function ChatThread() {
         {isLoading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
-          <QuipScroller
-            parentNote={note}
+          <ReplyScroller
+            parentPost={note}
             key={idTime}
             messages={replies}
-            whom={flag}
+            whom={nest}
             scrollerRef={scrollerRef}
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
           />
@@ -169,8 +180,9 @@ export default function ChatThread() {
           <ChatInput
             whom={flag}
             replying={idTime}
-            sendQuip={sendMessage}
-            inThread
+            replyingWrit={replyingWrit}
+            sendReply={sendMessage}
+            showReply
             autoFocus
             dropZoneId={dropZoneId}
           />

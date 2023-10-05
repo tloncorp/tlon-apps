@@ -1,134 +1,147 @@
-/-  d=channel, g=groups
-::  convert a note to a preview for a "said" response
+/-  c=channel, g=groups
+::  convert a post to a preview for a "said" response
 ::
 |%
-::  +rr-* functions convert notes, quips, and feels into their "rr"
+::  +uv-* functions convert posts, replies, and reacts into their "unversioned"
 ::  forms, suitable for responses to our subscribers
 ::
-++  rr-shelf
-  |=  =shelf:d
-  ^-  rr-shelf:d
-  %-  ~(run by shelf)
-  |=  =diary:d
-  ^-  rr-diary:d
-  %*  .  *rr-diary:d
-    notes  *rr-notes:d
-    perm   +.perm.diary
-    view   +.view.diary
-    sort   +.sort.diary
-    order  +.order.diary
+++  uv-channels
+  |=  =v-channels:c
+  ^-  channels:c
+  %-  ~(run by v-channels)
+  |=  channel=v-channel:c
+  ^-  channel:c
+  %*  .  *channel:c
+    posts  *posts:c
+    perm   +.perm.channel
+    view   +.view.channel
+    sort   +.sort.channel
+    order  +.order.channel
   ==
-++  rr-notes
-  |=  =notes:d
-  ^-  rr-notes:d
-  %+  gas:rr-on-notes:d  *rr-notes:d
-  %+  turn  (tap:on-notes:d notes)
-  |=  [=id-note:d note=(unit note:d)]
-  ^-  [id-note:d (unit rr-note:d)]
-  [id-note ?~(note ~ `(rr-note u.note))]
+++  uv-posts
+  |=  =v-posts:c
+  ^-  posts:c
+  %+  gas:on-posts:c  *posts:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:c)]
+  [id-post ?~(v-post ~ `(uv-post u.v-post))]
 ::
-++  rr-note
-  |=  =note:d
-  ^-  rr-note:d
-  :_  +>.note
-  :*  id.note
-      (rr-feels feels.note)
-      (rr-quips quips.note)
-      (get-quip-meta note)
-  ==
-::
-++  rr-notes-without-quips
-  |=  =notes:d
-  ^-  rr-notes:d
-  %+  gas:rr-on-notes:d  *rr-notes:d
-  %+  turn  (tap:on-notes:d notes)
-  |=  [=id-note:d note=(unit note:d)]
-  ^-  [id-note:d (unit rr-note:d)]
-  [id-note ?~(note ~ `(rr-note-without-quips u.note))]
-::
-++  rr-note-without-quips
-  |=  =note:d
-  ^-  rr-note:d
-  =/  quippers  (get-last-quippers note)
-  :_  +>.note
-  :*  id.note
-      (rr-feels feels.note)
-      *rr-quips:d
-      (get-quip-meta note)
+++  uv-post
+  |=  =v-post:c
+  ^-  post:c
+  :_  +>.v-post
+  :*  id.v-post
+      (uv-reacts reacts.v-post)
+      (uv-replies id.v-post replies.v-post)
+      (get-reply-meta v-post)
   ==
 ::
-++  rr-quips
-  |=  =quips:d
-  ^-  rr-quips:d
-  %+  gas:rr-on-quips:d  *rr-quips:d
-  %+  murn  (tap:on-quips:d quips)
-  |=  [=time quip=(unit quip:d)]
-  ^-  (unit [id-quip:d rr-quip:d])
-  ?~  quip  ~
+++  uv-posts-without-replies
+  |=  =v-posts:c
+  ^-  posts:c
+  %+  gas:on-posts:c  *posts:c
+  %+  turn  (tap:on-v-posts:c v-posts)
+  |=  [=id-post:c v-post=(unit v-post:c)]
+  ^-  [id-post:c (unit post:c)]
+  [id-post ?~(v-post ~ `(uv-post-without-replies u.v-post))]
+::
+++  uv-post-without-replies
+  |=  post=v-post:c
+  ^-  post:c
+  :_  +>.post
+  :*  id.post
+      (uv-reacts reacts.post)
+      *replies:c
+      (get-reply-meta post)
+  ==
+::
+++  uv-replies
+  |=  [parent-id=id-post:c =v-replies:c]
+  ^-  replies:c
+  %+  gas:on-replies:c  *replies:c
+  %+  murn  (tap:on-v-replies:c v-replies)
+  |=  [=time v-reply=(unit v-reply:c)]
+  ^-  (unit [id-reply:c reply:c])
+  ?~  v-reply  ~
   %-  some
-  [time (rr-quip u.quip)]
+  [time (uv-reply parent-id u.v-reply)]
 ::
-++  rr-quip
-  |=  =quip:d
-  ^-  rr-quip:d
-  :_  +.quip
-  [id.quip (rr-feels feels.quip)]
+++  uv-reply
+  |=  [parent-id=id-reply:c =v-reply:c]
+  ^-  reply:c
+  :_  +.v-reply
+  [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
-++  rr-feels
-  |=  =feels:d
-  ^-  (map ship feel:d)
-  %-  ~(gas by *(map ship feel:d))
-  %+  murn  ~(tap by feels)
-  |=  [=ship (rev:d feel=(unit feel:d))]
-  ?~  feel  ~
-  (some ship u.feel)
+++  uv-reacts
+  |=  =v-reacts:c
+  ^-  reacts:c
+  %-  ~(gas by *reacts:c)
+  %+  murn  ~(tap by v-reacts)
+  |=  [=ship (rev:c react=(unit react:c))]
+  ?~  react  ~
+  (some ship u.react)
 ::
 ++  said
-  |=  [=nest:d =plan:d =notes:d]
+  |=  [=nest:c =plan:c posts=v-posts:c]
   ^-  cage
-  =/  note=(unit (unit note:d))  (get:on-notes:d notes p.plan)
-  =/  =rr-note:d
-    ?~  note
-      ::TODO  give "outline" that formally declares deletion
-      :-  *rr-seal:d
-      ?-  han.nest
-        %diary  [*memo:d %diary 'Unknown post' '']
-        %heap   [*memo:d %heap ~ 'Unknown link']
-        %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
-      ==
-    ?~  u.note
-      :-  *rr-seal:d
-      ?-  han.nest
-          %diary  [*memo:d %diary 'This post was deleted' '']
-          %heap   [*memo:d %heap ~ 'This link was deleted']
-          %chat
-        [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
-      ==
-    (rr-note u.u.note)
-  [%channel-said !>(`said:d`[nest rr-note])]
+  =/  post=(unit (unit v-post:c))  (get:on-v-posts:c posts p.plan)
+  ?~  q.plan
+    =/  =post:c
+      ?~  post
+        ::TODO  give "outline" that formally declares deletion
+        :-  *seal:c
+        ?-  kind.nest
+          %diary  [*memo:c %diary 'Unknown post' '']
+          %heap   [*memo:c %heap ~ 'Unknown link']
+          %chat   [[[%inline 'Unknown message' ~]~ ~nul *@da] %chat ~]
+        ==
+      ?~  u.post
+        :-  *seal:c
+        ?-  kind.nest
+            %diary  [*memo:c %diary 'This post was deleted' '']
+            %heap   [*memo:c %heap ~ 'This link was deleted']
+            %chat
+          [[[%inline 'This message was deleted' ~]~ ~nul *@da] %chat ~]
+        ==
+      (uv-post-without-replies u.u.post)
+    [%channel-said !>(`said:c`[nest %post post])]
+  ::
+  =/  =reply:c
+    ?~  post
+      [*reply-seal:c ~[%inline 'Comment on unknown post']~ ~nul *@da]
+    ?~  u.post
+      [*reply-seal:c ~[%inline 'Comment on deleted post']~ ~nul *@da]
+    =/  reply=(unit (unit v-reply:c))  (get:on-v-replies:c replies.u.u.post u.q.plan)
+    ?~  reply
+      [*reply-seal:c ~[%inline 'Unknown comment']~ ~nul *@da]
+    ?~  u.reply
+      [*reply-seal:c ~[%inline 'This comment was deleted']~ ~nul *@da]
+    (uv-reply p.plan u.u.reply)
+  [%channel-said !>(`said:c`[nest %reply p.plan reply])]
 ::
 ++  was-mentioned
-  |=  [=story:d who=ship]
+  |=  [=story:c who=ship]
   ^-  ?
   %+  lien  story
-  |=  =verse:d
+  |=  =verse:c
   ?:  ?=(%block -.verse)  |
   %+  lien  p.verse
   (cury test [%ship who])
 ::
 ++  flatten
-  |=  content=(list verse:d)
+  |=  content=(list verse:c)
   ^-  cord
   %+  rap   3
   %+  turn  content
-  |=  v=verse:d
+  |=  v=verse:c
   ^-  cord
   ?-  -.v
       %block  ''
       %inline
     %+  rap  3
     %+  turn  p.v
-    |=  c=inline:d
+    |=  c=inline:c
     ^-  cord
     ?@  c  c
     ?-  -.c
@@ -145,40 +158,40 @@
   ==
 ::
 ++  trace
-  |=  =note:d
-  ^-  outline:d
-  =;  quippers=(set ship)
-    [~(wyt by quips.note) quippers +>.note]
+  |=  post=v-post:c
+  ^-  outline:c
+  =;  replyers=(set ship)
+    [~(wyt by replies.post) replyers +>.post]
   =-  (~(gas in *(set ship)) (scag 3 ~(tap in -)))
   %-  ~(gas in *(set ship))
-  %+  murn  (tap:on-quips:d quips.note)
-  |=  [@ quip=(unit quip:d)]
-  ?~  quip  ~
-  (some author.u.quip)
+  %+  murn  (tap:on-v-replies:c replies.post)
+  |=  [@ reply=(unit v-reply:c)]
+  ?~  reply  ~
+  (some author.u.reply)
 ::
-++  get-quip-meta
-  |=  =note:d
-  ^-  quip-meta:d
-  :*  (wyt:on-quips:d quips.note)
-      (get-last-quippers note)
-      (biff (ram:on-quips:d quips.note) |=([=time *] `time))
+++  get-reply-meta
+  |=  post=v-post:c
+  ^-  reply-meta:c
+  :*  (wyt:on-v-replies:c replies.post)
+      (get-last-repliers post)
+      (biff (ram:on-v-replies:c replies.post) |=([=time *] `time))
   ==
 ::
-++  get-last-quippers
-  |=  =note:d  ::TODO  could just take =quips
+++  get-last-repliers
+  |=  post=v-post:c  ::TODO  could just take =v-replies
   ^-  (set ship)
-  =|  quippers=(set ship)
-  =/  entries=(list [time (unit quip:d)])  (bap:on-quips:d quips.note)
+  =|  replyers=(set ship)
+  =/  entries=(list [time (unit v-reply:c)])  (bap:on-v-replies:c replies.post)
   |-
-  ?:  |(=(~ entries) =(3 ~(wyt in quippers)))
-    quippers
-  =/  [* quip=(unit quip:d)]  -.entries
-  ?~  quip  $(entries +.entries)
-  ?:  (~(has in quippers) author.u.quip)
+  ?:  |(=(~ entries) =(3 ~(wyt in replyers)))
+    replyers
+  =/  [* reply=(unit v-reply:c)]  -.entries
+  ?~  reply  $(entries +.entries)
+  ?:  (~(has in replyers) author.u.reply)
     $(entries +.entries)
-  (~(put in quippers) author.u.quip)
+  (~(put in replyers) author.u.reply)
 ++  perms
-  |_  [our=@p now=@da =nest:d group=flag:g]
+  |_  [our=@p now=@da =nest:c group=flag:g]
   ++  am-host  =(our ship.nest)
   ++  groups-scry
     ^-  path
@@ -192,7 +205,7 @@
     ;:  weld
         /gx
         groups-scry
-        /channel/[han.nest]/(scot %p ship.nest)/[name.nest]
+        /channel/[kind.nest]/(scot %p ship.nest)/[name.nest]
         /fleet/(scot %p her)/is-bloc/loob
     ==  ==
   ::
@@ -201,7 +214,7 @@
     ?:  =(ship.nest her)  &
     =/  =path
       %+  welp  groups-scry
-      :+  %channel  han.nest
+      :+  %channel  kind.nest
       /(scot %p ship.nest)/[name.nest]/can-write/(scot %p her)/noun
     =+  .^(write=(unit [bloc=? sects=(set sect:g)]) %gx path)
     ?~  write  |
@@ -214,7 +227,7 @@
     ?:  =(our her)  &
     =/  =path
       %+  welp  groups-scry
-      :+  %channel  han.nest
+      :+  %channel  kind.nest
       /(scot %p ship.nest)/[name.nest]/can-read/(scot %p her)/loob
     .^(? %gx path)
   --

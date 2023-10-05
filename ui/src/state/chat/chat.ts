@@ -3,52 +3,47 @@ import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { SetState } from 'zustand';
 import { Poke } from '@urbit/http-api';
-import { formatUd, parseUd, unixToDa } from '@urbit/aura';
+import { formatUd, unixToDa } from '@urbit/aura';
+import { useMutation } from '@tanstack/react-query';
 import { udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
 import { Groups } from '@/types/groups';
 import {
-  DMBriefUpdate,
+  DMUnreadUpdate,
   ChatScan,
   Club,
   ClubAction,
   ClubDelta,
   Clubs,
   DmAction,
-  DMBriefs,
+  DMUnreads,
   newWritMap,
   Pact,
   Pins,
   WritDelta,
   Writ,
-  Patda,
-  WritEssay,
   WritInCache,
+  WritTuple,
 } from '@/types/dms';
 import {
-  newQuipMap,
-  Note,
-  NoteEssay,
-  Quip,
-  Quips,
-  ShelfAction,
+  newReplyMap,
+  Post,
+  PostEssay,
+  Reply,
+  Replies,
+  ChannelsAction,
+  newChatMap,
+  ReplyTuple,
 } from '@/types/channel';
 import api from '@/api';
-import {
-  whomIsDm,
-  whomIsMultiDm,
-  whomIsFlag,
-  nestToFlag,
-  whomIsNest,
-} from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
 import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { getWindow } from '@/logic/windows';
 import queryClient from '@/queryClient';
-import { useMutation } from '@tanstack/react-query';
 import { createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
@@ -121,7 +116,7 @@ async function optimisticAction(
       'writ' in action.json.diff.delta
         ? action.json.diff.delta.writ
         : (action.json as DmAction);
-    const reduced = writsReducer(whom)(potentialEvent, draft);
+    const reduced = writsReducer(whom, true)(potentialEvent, draft);
 
     return {
       pacts: { ...reduced.pacts },
@@ -129,7 +124,7 @@ async function optimisticAction(
     };
   });
 
-  await api.poke<ClubAction | DmAction | ShelfAction>(action);
+  await api.poke<ClubAction | DmAction | ChannelsAction>(action);
 }
 
 export const useChatState = createState<ChatState>(
@@ -194,7 +189,7 @@ export const useChatState = createState<ChatState>(
         });
       }
     },
-    start: async ({ dms, clubs, briefs, pins, invited }) => {
+    start: async ({ dms, clubs, unreads, pins, invited }) => {
       get().batchSet((draft) => {
         draft.pins = pins;
         draft.multiDms = clubs;
@@ -203,7 +198,7 @@ export const useChatState = createState<ChatState>(
         draft.pins = pins;
       });
 
-      useChatStore.getState().update(briefs);
+      useChatStore.getState().update(unreads);
 
       api.subscribe(
         {
@@ -324,17 +319,17 @@ export const useChatState = createState<ChatState>(
         json: ship,
       });
       queryClient.setQueryData(
-        ['dm', 'briefs'],
-        (briefs: DMBriefs | undefined) => {
-          if (!briefs) {
-            return briefs;
+        ['dm', 'unreads'],
+        (unreads: DMUnreads | undefined) => {
+          if (!unreads) {
+            return unreads;
           }
 
-          const newBriefs = { ...briefs };
+          const newUnreads = { ...unreads };
 
-          delete newBriefs[ship];
+          delete newUnreads[ship];
 
-          return newBriefs;
+          return newUnreads;
         }
       );
       get().batchSet((draft) => {
@@ -348,21 +343,21 @@ export const useChatState = createState<ChatState>(
         if (!ok) {
           delete draft.pacts[ship];
           queryClient.setQueryData(
-            ['dm', 'briefs'],
-            (briefs: DMBriefs | undefined) => {
-              if (!briefs) {
-                return briefs;
+            ['dm', 'unreads'],
+            (unreads: DMUnreads | undefined) => {
+              if (!unreads) {
+                return unreads;
               }
 
               if (!ok) {
-                const newBriefs = { ...briefs };
+                const newUnreads = { ...unreads };
 
-                delete newBriefs[ship];
+                delete newUnreads[ship];
 
-                return newBriefs;
+                return newUnreads;
               }
 
-              return briefs;
+              return unreads;
             }
           );
           draft.dms = draft.dms.filter((s) => s !== ship);
@@ -381,7 +376,7 @@ export const useChatState = createState<ChatState>(
       const isDM = whomIsDm(whom);
       // ensure time and ID match up
       const { id, time } = makeId();
-      const memo: Omit<NoteEssay, 'han-data'> = {
+      const memo: Omit<PostEssay, 'kind-data'> = {
         content: mem.content,
         author: mem.author,
         sent: time,
@@ -398,8 +393,9 @@ export const useChatState = createState<ChatState>(
         };
       } else {
         diff = {
-          quip: {
+          reply: {
             id,
+            meta: null,
             delta: {
               add: {
                 memo,
@@ -416,30 +412,31 @@ export const useChatState = createState<ChatState>(
               return writ;
             }
 
-            const prevQuips = writ.seal.quips || {};
-            const quips: Quips = {};
+            const prevReplies = writ.seal.replies || {};
+            const replies: Replies = {};
 
-            Object.entries(prevQuips).forEach(([k, v]) => {
-              quips[k] = v;
+            Object.entries(prevReplies).forEach(([k, v]) => {
+              replies[k] = v;
             });
 
-            const quipId = unixToDa(memo.sent).toString();
+            const replyId = unixToDa(memo.sent).toString();
 
-            const newQuip: Quip = {
-              cork: {
-                id: quipId,
-                feels: {},
+            const newReply: Reply = {
+              seal: {
+                id: replyId,
+                'parent-id': replying,
+                reacts: {},
               },
               memo,
             };
 
-            quips[quipId] = newQuip;
+            replies[replyId] = newReply;
 
             return {
               ...writ,
               seal: {
                 ...writ.seal,
-                quips: quips as Quips,
+                replies: replies as Replies,
               },
             };
           }
@@ -493,14 +490,14 @@ export const useChatState = createState<ChatState>(
         );
       }
     },
-    addFeelToDm: async (whom, id, feel) => {
+    addReactToDm: async (whom, id, react) => {
       const delta: WritDelta = {
-        'add-feel': { feel, ship: window.our },
+        'add-react': { react, ship: window.our },
       };
       await optimisticAction(whom, id, delta, set);
     },
-    delFeelToDm: async (whom, id) => {
-      const delta: WritDelta = { 'del-feel': window.our };
+    delReactToDm: async (whom, id) => {
+      const delta: WritDelta = { 'del-react': window.our };
       await optimisticAction(whom, id, delta, set);
     },
     initializeMultiDm: async (id) => {
@@ -626,21 +623,22 @@ export function useTrackedMessageStatus(id: string) {
   );
 }
 
-const emptyBriefs: DMBriefs = {};
-export function useDmBriefs() {
-  const { data, ...query } = useReactQuerySubscription<DMBriefs, DMBriefUpdate>(
-    {
-      queryKey: ['dm', 'briefs'],
-      app: 'chat',
-      path: '/briefs',
-      scry: '/briefs',
-    }
-  );
+const emptyUnreads: DMUnreads = {};
+export function useDmUnreads() {
+  const { data, ...query } = useReactQuerySubscription<
+    DMUnreads,
+    DMUnreadUpdate
+  >({
+    queryKey: ['dm', 'unreads'],
+    app: 'chat',
+    path: '/unreads',
+    scry: '/unreads',
+  });
 
   if (!data) {
     return {
       ...query,
-      data: emptyBriefs,
+      data: emptyUnreads,
     };
   }
 
@@ -650,16 +648,16 @@ export function useDmBriefs() {
   };
 }
 
-export function useDmBrief(whom: string) {
-  const briefs = useDmBriefs();
-  return briefs.data[whom];
+export function useDmUnread(whom: string) {
+  const unreads = useDmUnreads();
+  return unreads.data[whom];
 }
 
 export function useChatLoading(whom: string) {
-  const brief = useDmBrief(whom);
+  const unread = useDmUnread(whom);
 
   return useChatState(
-    useCallback((s) => !s.pacts[whom] && !!brief, [whom, brief])
+    useCallback((s) => !s.pacts[whom] && !!unread, [whom, unread])
   );
 }
 
@@ -713,39 +711,39 @@ export function useWrit(whom: string, writId: string, disabled = false) {
     }
 
     const writ = data;
-    const quips = (writ.seal.quips || {}) as Quips;
+    const replies = (writ.seal.replies || {}) as Replies;
 
-    const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
-      bigInt(udToDec(k)),
-      v as Quip,
-    ]);
+    const diff: [BigInteger, Reply][] = Object.entries(replies).map(
+      ([k, v]) => [bigInt(udToDec(k)), v as Reply]
+    );
 
-    const quipMap = newQuipMap(diff);
+    const replyMap = newReplyMap(diff);
 
-    const writWithQuips: Writ = {
+    const writWithReplies: Writ = {
       ...writ,
       seal: {
         ...writ.seal,
-        quips: quipMap,
+        replies: replyMap,
       },
     };
 
     return {
-      writ: writWithQuips,
+      writ: writWithReplies,
       ...rest,
     };
   }, [data, rest]);
 }
 
-export function useDeleteDMQuipMutation() {
+export function useDeleteDMReplyMutation() {
   const mutationFn = async (variables: {
     whom: string;
     writId: string;
-    quipId: string;
+    replyId: string;
   }) => {
     const delta: WritDelta = {
-      quip: {
-        id: variables.quipId,
+      reply: {
+        id: variables.replyId,
+        meta: null,
         delta: {
           del: null,
         },
@@ -758,7 +756,7 @@ export function useDeleteDMQuipMutation() {
           writ: { id: variables.writId, delta: delta as WritDelta },
         });
 
-    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+    await api.poke<ClubAction | DmAction | ChannelsAction>(action);
   };
 
   return useMutation(mutationFn, {
@@ -770,36 +768,36 @@ export function useDeleteDMQuipMutation() {
             return writ;
           }
 
-          const prevQuips = writ.seal.quips || {};
-          const quips: Quips = {};
+          const prevReplies = writ.seal.replies || {};
+          const replies: Replies = {};
 
-          Object.entries(prevQuips).forEach(([k, v]) => {
-            quips[k] = v;
+          Object.entries(prevReplies).forEach(([k, v]) => {
+            replies[k] = v;
           });
 
-          const quip = Object.values(quips).find(
-            (q) => q.cork.id === variables.quipId
+          const reply = Object.values(replies).find(
+            (q) => q.seal.id === variables.replyId
           );
 
-          if (!quip) {
+          if (!reply) {
             return writ;
           }
 
           let time = '';
 
-          Object.entries(quips).forEach(([k, v]) => {
-            if (v.cork.id === variables.quipId) {
+          Object.entries(replies).forEach(([k, v]) => {
+            if (v.seal.id === variables.replyId) {
               time = k;
             }
           });
 
-          delete quips[time];
+          delete replies[time];
 
           return {
             ...writ,
             seal: {
               ...writ.seal,
-              quips: quips as Quips,
+              replies: replies as Replies,
             },
           };
         }
@@ -811,18 +809,19 @@ export function useDeleteDMQuipMutation() {
   });
 }
 
-export function useAddDMQuipFeelMutation() {
+export function useAddDMReplyReactMutation() {
   const mutationFn = async (variables: {
     whom: string;
     writId: string;
-    quipId: string;
-    feel: string;
+    replyId: string;
+    react: string;
   }) => {
     const delta: WritDelta = {
-      quip: {
-        id: variables.quipId,
+      reply: {
+        id: variables.replyId,
+        meta: null,
         delta: {
-          'add-feel': { feel: variables.feel, ship: window.our },
+          'add-react': { react: variables.react, ship: window.our },
         },
       },
     };
@@ -833,7 +832,7 @@ export function useAddDMQuipFeelMutation() {
           writ: { id: variables.writId, delta: delta as WritDelta },
         });
 
-    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+    await api.poke<ClubAction | DmAction | ChannelsAction>(action);
   };
 
   return useMutation(mutationFn, {
@@ -845,47 +844,47 @@ export function useAddDMQuipFeelMutation() {
             return writ;
           }
 
-          const prevQuips = writ.seal.quips || {};
-          const quips: Quips = {};
+          const prevReplies = writ.seal.replies || {};
+          const replies: Replies = {};
 
-          Object.entries(prevQuips).forEach(([k, v]) => {
-            quips[k] = v;
+          Object.entries(prevReplies).forEach(([k, v]) => {
+            replies[k] = v;
           });
 
-          const quip = Object.values(quips).find(
-            (q) => q.cork.id === variables.quipId
+          const reply = Object.values(replies).find(
+            (q) => q.seal.id === variables.replyId
           );
 
-          if (!quip) {
+          if (!reply) {
             return writ;
           }
 
           let time = '';
 
-          Object.entries(quips).forEach(([k, v]) => {
-            if (v.cork.id === variables.quipId) {
+          Object.entries(replies).forEach(([k, v]) => {
+            if (v.seal.id === variables.replyId) {
               time = k;
             }
           });
 
-          const newQuip: Quip = {
-            ...quip,
-            cork: {
-              ...quip.cork,
-              feels: {
-                ...quip.cork.feels,
-                [window.our]: variables.feel,
+          const newReply: Reply = {
+            ...reply,
+            seal: {
+              ...reply.seal,
+              reacts: {
+                ...reply.seal.reacts,
+                [window.our]: variables.react,
               },
             },
           };
 
-          quips[time] = newQuip;
+          replies[time] = newReply;
 
           return {
             ...writ,
             seal: {
               ...writ.seal,
-              quips: quips as Quips,
+              replies: replies as Replies,
             },
           };
         }
@@ -897,17 +896,18 @@ export function useAddDMQuipFeelMutation() {
   });
 }
 
-export function useDeleteDMQuipFeelMutation() {
+export function useDeleteDMReplyReactMutation() {
   const mutationFn = async (variables: {
     whom: string;
     writId: string;
-    quipId: string;
+    replyId: string;
   }) => {
     const delta: WritDelta = {
-      quip: {
-        id: variables.quipId,
+      reply: {
+        id: variables.replyId,
+        meta: null,
         delta: {
-          'del-feel': window.our,
+          'del-react': window.our,
         },
       },
     };
@@ -918,7 +918,7 @@ export function useDeleteDMQuipFeelMutation() {
           writ: { id: variables.writId, delta: delta as WritDelta },
         });
 
-    await api.poke<ClubAction | DmAction | ShelfAction>(action);
+    await api.poke<ClubAction | DmAction | ChannelsAction>(action);
   };
 
   return useMutation(mutationFn, {
@@ -930,50 +930,50 @@ export function useDeleteDMQuipFeelMutation() {
             return writ;
           }
 
-          const prevQuips = writ.seal.quips || {};
-          const quips: Quips = {};
+          const prevReplies = writ.seal.replies || {};
+          const replies: Replies = {};
 
-          Object.entries(prevQuips).forEach(([k, v]) => {
-            quips[k] = v;
+          Object.entries(prevReplies).forEach(([k, v]) => {
+            replies[k] = v;
           });
 
-          const quip = Object.values(quips).find(
-            (q) => q.cork.id === variables.quipId
+          const reply = Object.values(replies).find(
+            (q) => q.seal.id === variables.replyId
           );
 
-          if (!quip) {
+          if (!reply) {
             return writ;
           }
 
           let time = '';
 
-          Object.entries(quips).forEach(([k, v]) => {
-            if (v.cork.id === variables.quipId) {
+          Object.entries(replies).forEach(([k, v]) => {
+            if (v.seal.id === variables.replyId) {
               time = k;
             }
           });
 
-          const currentFeels = quip.cork.feels;
+          const currentReacts = reply.seal.reacts;
 
-          delete currentFeels[window.our];
+          delete currentReacts[window.our];
 
-          const newQuip: Quip = {
-            ...quip,
-            cork: {
-              ...quip.cork,
-              feels: {
-                ...currentFeels,
+          const newReply: Reply = {
+            ...reply,
+            seal: {
+              ...reply.seal,
+              reacts: {
+                ...currentReacts,
               },
             },
           };
 
-          quips[time] = newQuip;
+          replies[time] = newReply;
 
           return {
             ...writ,
             seal: {
               ...writ.seal,
-              quips: quips as Quips,
+              replies: replies as Replies,
             },
           };
         }
@@ -986,9 +986,9 @@ export function useDeleteDMQuipFeelMutation() {
 }
 
 export function useIsDmUnread(whom: string) {
-  const { data: briefs } = useDmBriefs();
-  const brief = briefs[whom];
-  return Boolean(brief?.count > 0 && brief['read-id']);
+  const { data: unreads } = useDmUnreads();
+  const unread = unreads[whom];
+  return Boolean(unread?.count > 0 && unread['read-id']);
 }
 
 const selPendingDms = (s: ChatState) => s.pendingDms;
@@ -1029,7 +1029,7 @@ export function usePendingMultiDms() {
 }
 
 export function useMultiDmIsPending(id: string): boolean {
-  const brief = useDmBrief(id);
+  const unread = useDmUnread(id);
   return useChatState(
     useCallback(
       (s) => {
@@ -1041,9 +1041,9 @@ export function useMultiDmIsPending(id: string): boolean {
           return true;
         }
 
-        return !brief && !inTeam;
+        return !unread && !inTeam;
       },
-      [id, brief]
+      [id, unread]
     )
   );
 }
@@ -1052,14 +1052,6 @@ const selDmArchive = (s: ChatState) => s.dmArchive;
 export function useDmArchive() {
   return useChatState(selDmArchive);
 }
-
-export function isGroupBrief(brief: string) {
-  return brief.includes('/');
-}
-
-// export function useBrief(whom: string) {
-// return useChatState(useCallback((s: ChatState) => s.briefs[whom], [whom]));
-// }
 
 export function usePinned() {
   return useChatState(useCallback((s: ChatState) => s.pins, []));
@@ -1096,7 +1088,7 @@ export function usePinnedClubs() {
 
 type UnsubbedWrit = {
   flag: string;
-  writ: Note;
+  writ: Post;
 };
 
 const { shouldLoad, newAttempt, finished } = getPreviewTracker();
@@ -1136,11 +1128,11 @@ export function useWritByFlagAndWritId(
 
 export function useGetFirstDMUnreadID(whom: string) {
   const keys = useChatKeys({ replying: false, whom });
-  const brief = useDmBrief(whom);
-  if (!brief) {
+  const unread = useDmUnread(whom);
+  if (!unread) {
     return null;
   }
-  const { 'read-id': lastRead } = brief;
+  const { 'read-id': lastRead } = unread;
   if (!lastRead) {
     return null;
   }
@@ -1161,12 +1153,21 @@ export function useChatSearch(whom: string, query: string) {
     },
   });
 
-  const scan = useMemo(() => {
-    return newWritMap(
-      (data || []).map(({ time, writ }) => [bigInt(parseUd(time)), writ]),
-      true
-    );
-  }, [data]);
+  const scan = useMemo(
+    () =>
+      newChatMap(
+        (data || []).map((scItem) =>
+          scItem && 'writ' in scItem
+            ? ([bigInt(scItem.writ.seal.time), scItem.writ] as WritTuple)
+            : ([
+                bigInt(scItem.reply.reply.seal.time),
+                scItem.reply.reply,
+              ] as ReplyTuple)
+        ),
+        true
+      ),
+    [data]
+  );
 
   return {
     scan,

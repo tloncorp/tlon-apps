@@ -15,23 +15,24 @@ import {
   VerseBlock,
   linkUrlFromContent,
   imageUrlFromContent,
-  NoteEssay,
+  PostEssay,
 } from '@/types/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import HeapYoutubePlayer from '../HeapYoutubePlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';
 import HeapVideoPlayer from '../HeapVideoPlayer';
 
-export default function HeapDetailBody({ essay }: { essay?: NoteEssay }) {
+export default function HeapDetailBody({ essay }: { essay?: PostEssay }) {
   const calm = useCalm();
   const isMobile = useIsMobile();
   const { content } = essay || { content: [] };
   const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { embed, isError, error } = useEmbed(url, isMobile);
   const { isImage, isText, isAudio, isVideo } = getHeapContentType(url);
-  const { block } = content.filter(
+  const blocks = content.filter(
     (b) => 'block' in b && isCite(b.block)
-  )[0] as VerseBlock;
+  ) as VerseBlock[];
+  const block = blocks[0]?.block;
 
   useEffect(() => {
     if (isError) {

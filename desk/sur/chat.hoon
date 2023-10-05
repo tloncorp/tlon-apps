@@ -17,7 +17,11 @@
 ::  $feel: either an emoji identifier like :wave: or a URL for custom
 +$  feel   @ta
 ::  $scan: search results
-+$  scan  (list writ)
++$  scan  (list reference)
++$  reference
+  $%  [%writ =writ]
+      [%quip =id =quip]
+  ==
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
@@ -28,16 +32,22 @@
 ::
 +$  seal
   $:  =id
-      time=id-note:d
+      time=id-post:d
       =feels
       =quips
-      meta=quip-meta:d
+      meta=quip-meta
+  ==
++$  quip-meta
+  $:  quip-count=@ud
+      last-quippers=(set ship)
+      last-quip=(unit time)
   ==
 ::
 ::  $cork: chat reply metadata
 +$  cork
   $:  =id
-      time=id-note:d
+      parent-id=id
+      time=id-post:d
       =feels
   ==
 ::
@@ -67,11 +77,11 @@
   +$  diff
     (pair id delta)
   +$  delta
-    ::  time is unit because we won't have it when we send, but we
-    ::  need it upon receipt
+    ::  time and meta are units because we won't have it when we send,
+    ::  but we need it upon receipt
     $%  [%add =memo:d =kind time=(unit time)]
         [%del ~]
-        [%quip =id =delta:quips]
+        [%quip =id meta=(unit quip-meta) =delta:quips]
         [%add-feel =ship =feel]
         [%del-feel =ship]
     ==

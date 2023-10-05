@@ -15,7 +15,7 @@ import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
-import { newQuipMap } from '@/types/channel';
+import { newReplyMap } from '@/types/channel';
 import ChatMessage, { ChatMessageProps } from '@/chat/ChatMessage/ChatMessage';
 import { useChatStore } from '@/chat/useChatStore';
 import ChatNotice from '@/chat/ChatNotice';
@@ -33,19 +33,19 @@ const emptyWrit: Writ = {
   seal: {
     id: '',
     time: '',
-    quips: newQuipMap(),
-    feels: {},
+    replies: newReplyMap(),
+    reacts: {},
     meta: {
-      quipCount: 0,
-      lastQuippers: [],
-      lastQuip: null,
+      replyCount: 0,
+      lastRepliers: [],
+      lastReply: null,
     },
   },
   essay: {
     content: [],
     author: window.our,
     sent: Date.now(),
-    'han-data': {
+    'kind-data': {
       chat: null,
     },
   },
@@ -57,7 +57,7 @@ const DmScrollerItem = React.forwardRef<HTMLDivElement, DmScrollerItemProps>(
       return null;
     }
 
-    const han = writ.essay['han-data'].chat;
+    const han = writ.essay['kind-data'].chat;
     const isNotice = han && 'notice' in han;
 
     if (isNotice) {
@@ -185,7 +185,7 @@ export default function DmScroller({
         const keyIdx = ks.findIndex((idx) => idx.eq(index));
         const lastWritKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
         const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
-        const han = writ.essay['han-data'];
+        const han = writ.essay['kind-data'];
         const newAuthor = lastWrit
           ? writ.essay.author !== lastWrit.essay.author ||
             !!('chat' in han && han.chat && 'notice' in han.chat)
@@ -204,7 +204,7 @@ export default function DmScroller({
           whom,
           writ,
           hideReplies: replying,
-          quipCount: writ.seal.meta.quipCount,
+          replyCount: writ.seal.meta.replyCount,
           time: index,
           newAuthor,
           newDay,

@@ -57,10 +57,10 @@
   ^+  pac
   ?-  -.del
       %add
-    =/  =seal:c  [id now ~ ~ [0 ~ ~]]
     ?:  (~(has by dex.pac) id)
       pac
     |-
+    =/  =seal:c  [id now ~ ~ [0 ~ ~]]
     ?:  (has:on:writs:c wit.pac now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
     =.  wit.pac
@@ -78,7 +78,7 @@
       %quip
     %+  jab  id
     |=  =writ:c
-    =/  [=pact:c =quips:c]  (reduce-quip quips.writ now [id delta]:del)
+    =/  [=pact:c =quips:c]  (reduce-quip quips.writ now id [id delta]:del)
     :-  pact
     %=  writ
       quips       quips
@@ -112,7 +112,7 @@
   ==
 ::
 ++  reduce-quip
-  |=  [=quips:c now=time =id:c delta=delta:quips:c]
+  |=  [=quips:c now=time parent-id=id:c =id:c delta=delta:quips:c]
   ^-  [pact:c quips:c]
   |^
   ?-  -.delta
@@ -120,7 +120,7 @@
     |-
     ?:  (has:on:quips:c quips now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
-    =/  cork  [id now ~]
+    =/  cork  [id parent-id now ~]
     ?:  (~(has by dex.pac) id)  [pac quips]
     =.  dex.pac  (~(put by dex.pac) id now)
     [pac (put:on:quips:c quips now cork memo.delta)]
@@ -214,49 +214,81 @@
       ++  mention
         |=  [sip=@ud len=@ud nedl=^ship]
         ^-  scan:c
-        (scour sip len (mntn nedl))
+        (scour sip len %mention nedl)
       ::
       ++  text
         |=  [sip=@ud len=@ud nedl=@t]
         ^-  scan:c
-        (scour sip len (txt nedl))
+        (scour sip len %text nedl)
       --
   ::
-  +$  query
-    $:  skip=@ud
-        more=@ud
-        =scan:c
+  +$  match-type
+    $%  [%mention nedl=ship]
+        [%text nedl=@t]
     ==
   ::
   ++  scour
-    |=  [sip=@ud len=@ud matc=$-(writ:c ?)]
+    |=  [sip=@ud len=@ud =match-type]
     ?>  (gth len 0)
     ^-  scan:c
-    %-  flop
-    =<  scan.-
-    %^    (dop:mope query)
-        wit.pac     :: (gas:on:writs:c wit.pac ls)
-      [sip len ~]   :: (gas:on:quilt:h *quilt:h (bat:mope quilt `idx blanket-size))
-    |=  $:  =query
-            =time
-            =writ:c
-        ==
-    ^-  [(unit writ:c) stop=? _query]
-    :-  ~
-    ?:  (matc writ)
-      ?:  =(0 skip.query)
-        :-  =(1 more.query)
-        query(more (dec more.query), scan [writ scan.query])
-      [| query(skip (dec skip.query))]
-    [| query]
+    =+  s=[sip=sip len=len *=scan:c]
+    =-  (flop scan)
+    |-  ^+  s
+    ?~  wit.pac  s
+    ?:  =(0 len.s)  s
+    =.  s  $(wit.pac r.wit.pac)
+    ?:  =(0 len.s)  s
+    ::
+    =.  s
+      ?.  (match val.n.wit.pac match-type)  s
+      ?:  (gth sip.s 0)
+        s(sip (dec sip.s))
+      s(len (dec len.s), scan [[%writ val.n.wit.pac] scan.s])
+    ::
+    =.  s  (scour-quips s id.val.n.wit.pac quips.val.n.wit.pac match-type)
+    ::
+    $(wit.pac l.wit.pac)
   ::
-  ++  mntn
-    |=  nedl=ship
-    ^-  $-(writ:c ?)
-    |=  =writ:c
+  ++  scour-quips
+    |=  [s=[skip=@ud len=@ud =scan:c] =id:c =quips:c =match-type]
+    |-  ^+  s
+    ?~  quips  s
+    ?:  =(0 len.s)  s
+    =.  s  $(quips r.quips)
+    ?:  =(0 len.s)  s
+    ::
+    =.  s
+      ?.  (match-quip val.n.quips match-type)  s
+      ?:  (gth skip.s 0)
+        s(skip (dec skip.s))
+      s(len (dec len.s), scan [[%quip id val.n.quips] scan.s])
+    ::
+    $(quips l.quips)
+  ::
+  ++  match
+    |=  [=writ:c =match-type]
+    ^-  ?
+    ?-  -.match-type
+      %mention  (match-writ-mention nedl.match-type writ)
+      %text     (match-writ-text nedl.match-type writ)
+    ==
+  ::
+  ++  match-quip
+    |=  [=quip:c =match-type]
+    ?-  -.match-type
+      %mention  (match-story-mention nedl.match-type content.quip)
+      %text     (match-story-text nedl.match-type content.quip)
+    ==
+  ::
+  ++  match-writ-mention
+    |=  [nedl=ship =writ:c]
     ^-  ?
     ?:  ?=([%notice ~] kind.writ)  |
-    %+  lien  content.writ
+    (match-story-mention nedl content.writ)
+  ::
+  ++  match-story-mention
+    |=  [nedl=ship =story:d]
+    %+  lien  story
     |=  =verse:d
     ?.  ?=(%inline -.verse)  |
     %+  lien  p.verse
@@ -266,54 +298,54 @@
       ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
     ==
   ::
-  ++  txt
-    |=  nedl=@t
-    ^-  $-(writ:c ?)
-    |=  =writ:c
+  ++  match-writ-text
+    |=  [nedl=@t =writ:c]
+    ?:  ?=([%notice ~] kind.writ)  |
+    (match-story-text nedl content.writ)
+  ::
+  ++  match-story-text
+    |=  [nedl=@t =story:d]
+    %+  lien  story
+    |=  =verse:d
+    ?.  ?=(%inline -.verse)  |
+    %+  lien  p.verse
+    |=  =inline:d
+    ?@  inline
+      (find nedl inline |)
+    ?.  ?=(?(%bold %italics %strike %blockquote) -.inline)  |
+    ^$(p.verse p.inline)
+  ::
+  ++  find
+    |=  [nedl=@t hay=@t case=?]
     ^-  ?
-    ?:  =([%notice ~] kind.writ)  |
-    |^  %+  lien  content.writ
-        |=  =verse:d
-        ?.  ?=(%inline -.verse)  |
-        %+  lien  p.verse
-        |=  =inline:d
-        ?@  inline
-          (find nedl inline |)
-        ?.  ?=(?(%bold %italics %strike %blockquote) -.inline)  |
-        ^$(p.verse p.inline)
-    ::
-    ++  find
-      |=  [nedl=@t hay=@t case=?]
-      ^-  ?
-      =/  nlen  (met 3 nedl)
-      =/  hlen  (met 3 hay)
-      ?:  (lth hlen nlen)
-        |
-      =?  nedl  !case
-        (cass nedl)
-      =/  pos  0
-      =/  lim  (sub hlen nlen)
-      |-
-      ?:  (gth pos lim)
-        |
-      ?:  .=  nedl
-          ?:  case
-            (cut 3 [pos nlen] hay)
-          (cass (cut 3 [pos nlen] hay))
-        &
-      $(pos +(pos))
-    ::
-    ++  cass
-      |=  text=@t
-      ^-  @t
-      %^    run
-          3
-        text
-      |=  dat=@
-      ^-  @
-      ?.  &((gth dat 64) (lth dat 91))
-        dat
-      (add dat 32)
-    --
+    =/  nlen  (met 3 nedl)
+    =/  hlen  (met 3 hay)
+    ?:  (lth hlen nlen)
+      |
+    =?  nedl  !case
+      (cass nedl)
+    =/  pos  0
+    =/  lim  (sub hlen nlen)
+    |-
+    ?:  (gth pos lim)
+      |
+    ?:  .=  nedl
+        ?:  case
+          (cut 3 [pos nlen] hay)
+        (cass (cut 3 [pos nlen] hay))
+      &
+    $(pos +(pos))
+  ::
+  ++  cass
+    |=  text=@t
+    ^-  @t
+    %^    run
+        3
+      text
+    |=  dat=@
+    ^-  @
+    ?.  &((gth dat 64) (lth dat 91))
+      dat
+    (add dat 32)
   --
 --

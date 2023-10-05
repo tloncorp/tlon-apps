@@ -7,36 +7,38 @@ import create from 'zustand';
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { Flag } from '@/types/hark';
 import {
-  Shelf,
-  NoteAction,
-  Ship,
-  Quips,
-  Diary,
+  Channels,
+  PostAction,
+  Channel,
   Perm,
   Memo,
-  Quip,
+  Reply,
   Action,
   DisplayMode,
   SortMode,
   Said,
   Create,
-  Briefs,
-  NoteEssay,
+  Unreads,
+  PostEssay,
   Story,
-  Notes,
-  ShelfResponse,
-  ShelfAction,
-  Note,
+  Posts,
+  ChannelsResponse,
+  ChannelsAction,
+  Post,
   Nest,
-  NoteMap,
-  newNoteMap,
-  newQuipMap,
-  NoteTuple,
-  BriefUpdate,
-  PagedNotes,
-  PagedNotesMap,
-  NoteInCache,
+  PageMap,
+  newPostMap,
+  newReplyMap,
+  PageTuple,
+  UnreadUpdate,
+  PagedPosts,
+  PagedPostsMap,
+  PostInCache,
   Pins,
+  ChannelScan,
+  ReferenceResponse,
+  ReplyTuple,
+  newChatMap,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -53,36 +55,39 @@ import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
 
-async function updateNoteInCache(
-  variables: { nest: Nest; noteId: string },
-  updater: (note: NoteInCache | undefined) => NoteInCache | undefined
+async function updatePostInCache(
+  variables: { nest: Nest; postId: string },
+  updater: (post: PostInCache | undefined) => PostInCache | undefined
 ) {
   const [han, flag] = nestToFlag(variables.nest);
   await queryClient.cancelQueries({
-    queryKey: [han, 'notes', flag, variables.noteId],
+    queryKey: [han, 'posts', flag, variables.postId],
     exact: true,
   });
 
-  queryClient.setQueryData([han, 'notes', flag, variables.noteId], updater);
+  queryClient.setQueryData([han, 'posts', flag, variables.postId], updater);
 }
 
-async function updateNotesInCache(
+async function updatePostsInCache(
   variables: { nest: Nest },
-  updater: (notes: Notes | undefined) => Notes | undefined
+  updater: (posts: Posts | undefined) => Posts | undefined
 ) {
   const [han, flag] = nestToFlag(variables.nest);
-  await queryClient.cancelQueries([han, 'notes', flag]);
+  await queryClient.cancelQueries([han, 'posts', flag]);
 
-  queryClient.setQueryData([han, 'notes', flag], updater);
+  queryClient.setQueryData([han, 'posts', flag], updater);
 }
 
-export function channelAction(nest: Nest, action: Action): Poke<ShelfAction> {
+export function channelAction(
+  nest: Nest,
+  action: Action
+): Poke<ChannelsAction> {
   checkNest(nest);
   return {
     app: 'channels',
     mark: 'channel-action',
     json: {
-      diary: {
+      channel: {
         nest,
         action,
       },
@@ -90,23 +95,23 @@ export function channelAction(nest: Nest, action: Action): Poke<ShelfAction> {
   };
 }
 
-export function channelNoteAction(nest: Nest, action: NoteAction) {
+export function channelPostAction(nest: Nest, action: PostAction) {
   checkNest(nest);
 
   return channelAction(nest, {
-    note: action,
+    post: action,
   });
 }
 
-export interface NoteWindows {
+export interface PostWindows {
   [nest: string]: WindowSet;
 }
 
-export type NoteStatus = 'pending' | 'sent' | 'delivered';
+export type PostStatus = 'pending' | 'sent' | 'delivered';
 
-export interface TrackedNote {
+export interface TrackedPost {
   cacheId: CacheId;
-  status: NoteStatus;
+  status: PostStatus;
 }
 
 export interface CacheId {
@@ -115,27 +120,27 @@ export interface CacheId {
 }
 
 export interface State {
-  trackedNotes: TrackedNote[];
-  noteWindows: NoteWindows;
+  trackedPosts: TrackedPost[];
+  postWindows: PostWindows;
   addTracked: (id: CacheId) => void;
-  updateStatus: (id: CacheId, status: NoteStatus) => void;
+  updateStatus: (id: CacheId, status: PostStatus) => void;
   getCurrentWindow: (nest: string, time?: string) => Window | undefined;
   extendCurrentWindow: (nest: Nest, newWindow: Window, time?: string) => void;
   [key: string]: unknown;
 }
 
-export const useNotesStore = create<State>((set, get) => ({
-  trackedNotes: [],
-  noteWindows: {},
+export const usePostsStore = create<State>((set, get) => ({
+  trackedPosts: [],
+  postWindows: {},
   addTracked: (id) => {
     set((state) => ({
-      trackedNotes: [{ status: 'pending', cacheId: id }, ...state.trackedNotes],
+      trackedPosts: [{ status: 'pending', cacheId: id }, ...state.trackedPosts],
     }));
   },
   updateStatus: (id, s) => {
     log('setting status', s);
     set((state) => ({
-      trackedNotes: state.trackedNotes.map(({ cacheId, status }) => {
+      trackedPosts: state.trackedPosts.map(({ cacheId, status }) => {
         if (_.isEqual(cacheId, id)) {
           return { status: s, cacheId };
         }
@@ -145,16 +150,16 @@ export const useNotesStore = create<State>((set, get) => ({
     }));
   },
   getCurrentWindow: (nest, time) => {
-    const currentSet = get().noteWindows[nest];
+    const currentSet = get().postWindows[nest];
     return getWindow(currentSet, time);
   },
   extendCurrentWindow: (nest, newWindow, time) => {
     set((state) => {
-      const currentSet = state.noteWindows[nest];
+      const currentSet = state.postWindows[nest];
 
       return {
-        noteWindows: {
-          ...state.noteWindows,
+        postWindows: {
+          ...state.postWindows,
           [nest]: extendCurrentWindow(newWindow, currentSet, time),
         },
       };
@@ -164,77 +169,77 @@ export const useNotesStore = create<State>((set, get) => ({
 
 export function useCurrentWindow(nest: Nest, time?: string) {
   const getCurrentWindow = useCallback(
-    () => useNotesStore.getState().getCurrentWindow(nest, time),
+    () => usePostsStore.getState().getCurrentWindow(nest, time),
     [time, nest]
   );
 
   return getCurrentWindow();
 }
 
-export function useTrackedNotes() {
-  return useNotesStore((s) => s.trackedNotes);
+export function useTrackedPosts() {
+  return usePostsStore((s) => s.trackedPosts);
 }
 
-export function useIsNotePending(cacheId: CacheId) {
-  return useNotesStore((s) =>
-    s.trackedNotes.some(
-      ({ status: noteStatus, cacheId: nId }) =>
-        noteStatus === 'pending' &&
+export function useIsPostPending(cacheId: CacheId) {
+  return usePostsStore((s) =>
+    s.trackedPosts.some(
+      ({ status: postStatus, cacheId: nId }) =>
+        postStatus === 'pending' &&
         nId.author === cacheId.author &&
         nId.sent === cacheId.sent
     )
   );
 }
 
-export function useTrackedNoteStatus(cacheId: CacheId) {
-  return useNotesStore(
+export function useTrackedPostStatus(cacheId: CacheId) {
+  return usePostsStore(
     (s) =>
-      s.trackedNotes.find(
+      s.trackedPosts.find(
         ({ cacheId: nId }) =>
           nId.author === cacheId.author && nId.sent === cacheId.sent
       )?.status || 'delivered'
   );
 }
 
-export function useNotes(nest: Nest) {
+export function usePosts(nest: Nest) {
   const [han, flag] = nestToFlag(nest);
-  const { data, ...rest } = useReactQuerySubscription<Notes>({
-    queryKey: [han, 'notes', flag],
+  const { data, ...rest } = useReactQuerySubscription<Posts>({
+    queryKey: [han, 'posts', flag],
     app: 'channels',
-    path: `/${nest}/ui`,
-    scry: `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/${nest}`,
+    scry: `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
   });
 
   if (data === undefined || Object.entries(data).length === 0) {
     return {
-      notes: newNoteMap(),
+      posts: newPostMap(),
       ...rest,
     };
   }
 
-  const diff: [BigInteger, Note][] = Object.entries(data).map(([k, v]) => [
+  const diff: [BigInteger, Post][] = Object.entries(data).map(([k, v]) => [
     bigInt(udToDec(k)),
-    v as Note,
+    v as Post,
   ]);
 
-  const notesMap = newNoteMap(diff);
+  const postsMap = newPostMap(diff);
 
   return {
-    notes: notesMap as NoteMap,
+    posts: postsMap as PageMap,
     ...rest,
   };
 }
 
-export function useNotesOnHost(
+export function usePostsOnHost(
   nest: Nest,
   enabled: boolean
-): Notes | undefined {
+): Posts | undefined {
   const [han, flag] = nestToFlag(nest);
   const { data } = useReactQueryScry({
-    queryKey: [han, 'notes', 'live', flag],
+    queryKey: [han, 'posts', 'live', flag],
     app: 'channels',
-    path: `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
     options: {
       cacheTime: 0,
@@ -251,32 +256,32 @@ export function useNotesOnHost(
     return undefined;
   }
 
-  return data as Notes;
+  return data as Posts;
 }
 
-export function useOlderNotes(nest: Nest, count: number, enabled = false) {
+export function useOlderPosts(nest: Nest, count: number, enabled = false) {
   checkNest(nest);
-  const { notes } = useNotes(nest);
+  const { posts } = usePosts(nest);
 
-  let noteMap = restoreMap<Note>(notes);
+  let postMap = restoreMap<Post>(posts);
 
-  const index = noteMap.peekSmallest()?.[0];
-  const oldNotesSize = noteMap.size ?? 0;
+  const index = postMap.peekSmallest()?.[0];
+  const oldPostsSize = postMap.size ?? 0;
 
   const fetchStart = index ? decToUd(index.toString()) : decToUd('0');
 
   const [han, flag] = nestToFlag(nest);
 
   const { data, ...rest } = useReactQueryScry({
-    queryKey: [han, 'notes', flag, 'older', fetchStart],
+    queryKey: [han, 'posts', flag, 'older', fetchStart],
     app: 'channels',
-    path: `/${nest}/notes/older/${fetchStart}/${count}/outline`,
+    path: `/${nest}/posts/older/${fetchStart}/${count}/outline`,
     priority: 2,
     options: {
       enabled:
         enabled &&
         index !== undefined &&
-        oldNotesSize !== 0 &&
+        oldPostsSize !== 0 &&
         !!fetchStart &&
         fetchStart !== decToUd('0'),
     },
@@ -293,51 +298,51 @@ export function useOlderNotes(nest: Nest, count: number, enabled = false) {
 
   const diff = Object.entries(data as object).map(([k, v]) => ({
     tim: bigInt(udToDec(k)),
-    note: v as Note,
+    post: v as Post,
   }));
 
-  diff.forEach(({ tim, note }) => {
-    noteMap = noteMap.set(tim, note);
+  diff.forEach(({ tim, post }) => {
+    postMap = postMap.set(tim, post);
   });
 
-  queryClient.setQueryData([han, 'notes', flag], noteMap.root);
+  queryClient.setQueryData([han, 'posts', flag], postMap.root);
 
   return rest.isLoading;
 }
 
-const infiniteNoteUpdater = (
+const infinitePostUpdater = (
   queryKey: QueryKey,
-  data: ShelfResponse,
+  data: ChannelsResponse,
   initialTime?: string
 ) => {
   const { nest, response } = data;
 
-  if (!('note' in response)) {
+  if (!('post' in response)) {
     return;
   }
 
-  const noteResponse = response.note['r-note'];
-  const { id } = response.note;
+  const postResponse = response.post['r-post'];
+  const { id } = response.post;
   const time = bigInt(udToDec(id));
 
-  if ('set' in noteResponse) {
-    const note = noteResponse.set;
+  if ('set' in postResponse) {
+    const post = postResponse.set;
 
-    if (note === null) {
+    if (post === null) {
       queryClient.setQueryData(
         queryKey,
         (
-          d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined
+          d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined
         ) => {
           if (d === undefined) {
             return undefined;
           }
 
           const newPages = d.pages.map((page) => {
-            const inPage = page.notes.has(time);
+            const inPage = page.posts.has(time);
 
             if (inPage) {
-              page.notes.set(bigInt(id), null);
+              page.posts.set(bigInt(id), null);
             }
 
             return page;
@@ -353,13 +358,13 @@ const infiniteNoteUpdater = (
       queryClient.setQueryData(
         queryKey,
         (
-          d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined
+          d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined
         ) => {
           if (d === undefined) {
             return {
               pages: [
                 {
-                  notes: newNoteMap([[time, note]]),
+                  posts: newPostMap([[time, post]]),
                   newer: null,
                   older: null,
                   total: 1,
@@ -377,20 +382,20 @@ const infiniteNoteUpdater = (
 
           const newLastPage = {
             ...lastPage,
-            notes: lastPage.notes.with(time, note),
+            posts: lastPage.posts.with(time, post),
           };
 
-          const cachedNote = lastPage.notes.get(unixToDa(note.essay.sent));
+          const cachedPost = lastPage.posts.get(unixToDa(post.essay.sent));
 
-          if (cachedNote && id !== unixToDa(note.essay.sent).toString()) {
-            // remove cached note if it exists
-            newLastPage.notes.delete(unixToDa(note.essay.sent));
+          if (cachedPost && id !== unixToDa(post.essay.sent).toString()) {
+            // remove cached post if it exists
+            newLastPage.posts.delete(unixToDa(post.essay.sent));
 
-            // set delivered now that we have the real note
-            useNotesStore
+            // set delivered now that we have the real post
+            usePostsStore
               .getState()
               .updateStatus(
-                { author: note.essay.author, sent: note.essay.sent },
+                { author: post.essay.author, sent: post.essay.sent },
                 'delivered'
               );
           }
@@ -402,29 +407,29 @@ const infiniteNoteUpdater = (
         }
       );
     }
-  } else if ('feels' in noteResponse) {
+  } else if ('reacts' in postResponse) {
     queryClient.setQueryData(
       queryKey,
-      (d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
 
-        const { feels } = noteResponse;
+        const { reacts } = postResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.notes.has(time);
+          const inPage = page.posts.has(time);
 
           if (inPage) {
-            const note = page.notes.get(time);
-            if (!note) {
+            const post = page.posts.get(time);
+            if (!post) {
               return page;
             }
-            page.notes.set(time, {
-              ...note,
+            page.posts.set(time, {
+              ...post,
               seal: {
-                ...note.seal,
-                feels,
+                ...post.seal,
+                reacts,
               },
             });
 
@@ -440,26 +445,26 @@ const infiniteNoteUpdater = (
         };
       }
     );
-  } else if ('essay' in noteResponse) {
+  } else if ('essay' in postResponse) {
     queryClient.setQueryData(
       queryKey,
-      (d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
 
-        const { essay } = noteResponse;
+        const { essay } = postResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.notes.has(time);
+          const inPage = page.posts.has(time);
 
           if (inPage) {
-            const note = page.notes.get(time);
-            if (!note) {
+            const post = page.posts.get(time);
+            if (!post) {
               return page;
             }
-            page.notes.set(time, {
-              ...note,
+            page.posts.set(time, {
+              ...post,
               essay,
             });
 
@@ -475,36 +480,36 @@ const infiniteNoteUpdater = (
         };
       }
     );
-  } else if ('quip' in noteResponse) {
+  } else if ('reply' in postResponse) {
     queryClient.setQueryData(
       queryKey,
-      (d: { pages: PagedNotesMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
 
         const {
-          quip: {
-            meta: { quipCount, lastQuip, lastQuippers },
+          reply: {
+            meta: { replyCount, lastReply, lastRepliers },
           },
-        } = noteResponse;
+        } = postResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.notes.has(time);
+          const inPage = page.posts.has(time);
 
           if (inPage) {
-            const note = page.notes.get(time);
-            if (!note) {
+            const post = page.posts.get(time);
+            if (!post) {
               return page;
             }
-            page.notes.set(time, {
-              ...note,
+            page.posts.set(time, {
+              ...post,
               seal: {
-                ...note.seal,
+                ...post.seal,
                 meta: {
-                  quipCount,
-                  lastQuip,
-                  lastQuippers,
+                  replyCount,
+                  lastReply,
+                  lastRepliers,
                 },
               },
             });
@@ -529,9 +534,9 @@ interface PageParam {
   direction: string;
 }
 
-export function useInfiniteNotes(nest: Nest, initialTime?: string) {
+export function useInfinitePosts(nest: Nest, initialTime?: string) {
   const [han, flag] = nestToFlag(nest);
-  const queryKey = useMemo(() => [han, 'notes', flag, 'infinite'], [han, flag]);
+  const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
 
   const invalidate = useRef(
     _.debounce(
@@ -549,15 +554,15 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
   useEffect(() => {
     api.subscribe({
       app: 'channels',
-      path: `/${nest}/ui`,
-      event: (data: ShelfResponse) => {
-        infiniteNoteUpdater(queryKey, data, initialTime);
+      path: `/${nest}`,
+      event: (data: ChannelsResponse) => {
+        infinitePostUpdater(queryKey, data, initialTime);
         invalidate.current();
       },
     });
   }, [nest, invalidate, queryKey, initialTime]);
 
-  const { data, ...rest } = useInfiniteQuery<PagedNotesMap>({
+  const { data, ...rest } = useInfiniteQuery<PagedPostsMap>({
     queryKey,
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
@@ -565,27 +570,27 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
       if (pageParam) {
         const { time, direction } = pageParam;
         const ud = decToUd(time.toString());
-        path = `/${nest}/notes/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        path = `/${nest}/posts/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       } else if (initialTime) {
-        path = `/${nest}/notes/around/${decToUd(initialTime)}/${
+        path = `/${nest}/posts/around/${decToUd(initialTime)}/${
           INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
         }/outline`;
       } else {
-        path = `/${nest}/notes/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        path = `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       }
 
-      const response = await api.scry<PagedNotes>({
+      const response = await api.scry<PagedPosts>({
         app: 'channels',
         path,
       });
 
-      const notes = newNoteMap(
-        Object.entries(response.notes).map(([k, v]) => [bigInt(udToDec(k)), v])
+      const posts = newPostMap(
+        Object.entries(response.posts).map(([k, v]) => [bigInt(udToDec(k)), v])
       );
 
       return {
         ...response,
-        notes,
+        posts,
       };
     },
     getNextPageParam: (lastPage): PageParam | undefined => {
@@ -619,26 +624,26 @@ export function useInfiniteNotes(nest: Nest, initialTime?: string) {
 
   if (data === undefined || data.pages.length === 0) {
     return {
-      notes: [] as NoteTuple[],
+      posts: [] as PageTuple[],
       data,
       ...rest,
     };
   }
 
-  const notes: NoteTuple[] = data.pages
-    .map((page) => page.notes.toArray())
+  const posts: PageTuple[] = data.pages
+    .map((page) => page.posts.toArray())
     .flat();
 
   return {
-    notes,
+    posts,
     data,
     ...rest,
   };
 }
 
-function removeNoteFromInfiniteQuery(nest: string, time: string) {
+function removePostFromInfiniteQuery(nest: string, time: string) {
   const [han, flag] = nestToFlag(nest);
-  const queryKey = [han, 'notes', flag, 'infinite'];
+  const queryKey = [han, 'posts', flag, 'infinite'];
   const deletedId = decToUd(time);
   const currentData = queryClient.getQueryData(queryKey) as any;
   const newPages =
@@ -651,7 +656,7 @@ function removeNoteFromInfiniteQuery(nest: string, time: string) {
   }));
 }
 
-export async function prefetchNoteWithComments({
+export async function prefetchPostWithComments({
   nest,
   time,
 }: {
@@ -662,143 +667,143 @@ export async function prefetchNoteWithComments({
   const [han] = nestToFlag(nest);
   const data = (await api.scry({
     app: 'channels',
-    path: `/${nest}/notes/note/${ud}`,
-  })) as Note;
+    path: `/${nest}/posts/post/${ud}`,
+  })) as Post;
   if (data) {
-    queryClient.setQueryData([han, nest, 'notes', time, 'withComments'], data);
+    queryClient.setQueryData([han, nest, 'posts', time, 'withComments'], data);
   }
 }
 
-export function useReplyNote(nest: Nest, id: string | null) {
-  const { notes } = useInfiniteNotes(nest);
+export function useReplyPost(nest: Nest, id: string | null) {
+  const { posts } = useInfinitePosts(nest);
 
-  return id && notes.find(([k, v]) => k.eq(bigInt(id)));
+  return id && posts.find(([k, v]) => k.eq(bigInt(id)));
 }
 
-export function useOrderedNotes(
+export function useOrderedPosts(
   nest: Nest,
   currentId: bigInt.BigInteger | string
 ) {
   checkNest(nest);
-  const { notes } = useInfiniteNotes(nest);
+  const { posts } = useInfinitePosts(nest);
 
-  if (notes.length === 0) {
+  if (posts.length === 0) {
     return {
       hasNext: false,
       hasPrev: false,
-      nextNote: null,
-      prevNote: null,
+      nextPost: null,
+      prevPost: null,
       sortedOutlines: [],
     };
   }
 
-  const sortedOutlines = notes;
+  const sortedOutlines = posts;
 
   sortedOutlines.sort(([a], [b]) => b.compare(a));
 
-  const noteId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
-  const newest = notes[notes.length - 1]?.[0];
-  const oldest = notes[0]?.[0];
-  const hasNext = notes.length > 0 && newest && noteId.gt(newest);
-  const hasPrev = notes.length > 0 && oldest && noteId.lt(oldest);
-  const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(noteId));
+  const postId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
+  const newest = posts[posts.length - 1]?.[0];
+  const oldest = posts[0]?.[0];
+  const hasNext = posts.length > 0 && newest && postId.gt(newest);
+  const hasPrev = posts.length > 0 && oldest && postId.lt(oldest);
+  const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(postId));
 
-  const nextNote = hasNext ? sortedOutlines[currentIdx - 1] : null;
-  if (nextNote) {
-    prefetchNoteWithComments({
+  const nextPost = hasNext ? sortedOutlines[currentIdx - 1] : null;
+  if (nextPost) {
+    prefetchPostWithComments({
       nest,
-      time: udToDec(nextNote[0].toString()),
+      time: udToDec(nextPost[0].toString()),
     });
   }
-  const prevNote = hasPrev ? sortedOutlines[currentIdx + 1] : null;
-  if (prevNote) {
-    prefetchNoteWithComments({
+  const prevPost = hasPrev ? sortedOutlines[currentIdx + 1] : null;
+  if (prevPost) {
+    prefetchPostWithComments({
       nest,
-      time: udToDec(prevNote[0].toString()),
+      time: udToDec(prevPost[0].toString()),
     });
   }
 
   return {
     hasNext,
     hasPrev,
-    nextNote,
-    prevNote,
+    nextPost,
+    prevPost,
     sortedOutlines,
   };
 }
 
-const emptyShelf: Shelf = {};
-export function useShelf(): Shelf {
-  const { data, ...rest } = useReactQuerySubscription<Shelf>({
-    queryKey: ['shelf'],
+const emptyChannels: Channels = {};
+export function useChannels(): Channels {
+  const { data, ...rest } = useReactQuerySubscription<Channels>({
+    queryKey: ['channels'],
     app: 'channels',
-    path: '/ui',
-    scry: '/shelf',
+    path: '/',
+    scry: '/channels',
     options: {
       refetchOnMount: false,
     },
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return emptyShelf;
+    return emptyChannels;
   }
 
   return data;
 }
 
-export function useChannel(nest: Nest): Diary | undefined {
+export function useChannel(nest: Nest): Channel | undefined {
   checkNest(nest);
-  const shelf = useShelf();
+  const channels = useChannels();
 
-  return shelf[nest];
+  return channels[nest];
 }
 
 const defaultPerms = {
   writers: [],
 };
 
-export function useArrangedNotes(nest: Nest): string[] {
+export function useArrangedPosts(nest: Nest): string[] {
   checkNest(nest);
-  const diary = useChannel(nest);
+  const channel = useChannel(nest);
 
-  if (diary === undefined || diary.order === undefined) {
+  if (channel === undefined || channel.order === undefined) {
     return [];
   }
 
-  return diary.order;
+  return channel.order;
 }
 
 export function usePerms(nest: Nest): Perm {
-  const diary = useChannel(nest);
+  const channel = useChannel(nest);
 
   const [_han, flag] = nestToFlag(nest);
 
-  if (diary === undefined) {
+  if (channel === undefined) {
     return {
       group: flag,
       ...defaultPerms,
     };
   }
 
-  return diary.perms as Perm;
+  return channel.perms as Perm;
 }
 
-export function useNote(nest: Nest, noteId: string, disabled = false) {
+export function usePost(nest: Nest, postId: string, disabled = false) {
   const [han, flag] = nestToFlag(nest);
 
   const queryKey = useMemo(
-    () => [han, 'notes', flag, noteId],
-    [han, flag, noteId]
+    () => [han, 'posts', flag, postId],
+    [han, flag, postId]
   );
 
   const path = useMemo(
-    () => `/${nest}/notes/note/${decToUd(noteId)}`,
-    [nest, noteId]
+    () => `/${nest}/posts/post/${decToUd(postId)}`,
+    [nest, postId]
   );
 
   const enabled = useMemo(
-    () => noteId !== '0' && nest !== '' && !disabled,
-    [noteId, nest, disabled]
+    () => postId !== '0' && nest !== '' && !disabled,
+    [postId, nest, disabled]
   );
   const { data, ...rest } = useReactQueryScry({
     queryKey,
@@ -809,73 +814,73 @@ export function useNote(nest: Nest, noteId: string, disabled = false) {
     },
   });
 
-  const note = data as NoteInCache;
+  const post = data as PostInCache;
 
-  const quips = note?.seal?.quips;
+  const replies = post?.seal?.replies;
 
-  if (quips === undefined || Object.entries(quips).length === 0) {
+  if (replies === undefined || Object.entries(replies).length === 0) {
     return {
-      note: {
-        ...note,
+      post: {
+        ...post,
         seal: {
-          ...note?.seal,
-          quips: newQuipMap(),
-          lastQuip: null,
+          ...post?.seal,
+          replies: newReplyMap(),
+          lastReply: null,
         },
       },
       ...rest,
     };
   }
 
-  const diff: [BigInteger, Quip][] = Object.entries(quips).map(([k, v]) => [
+  const diff: [BigInteger, Reply][] = Object.entries(replies).map(([k, v]) => [
     bigInt(udToDec(k)),
-    v as Quip,
+    v as Reply,
   ]);
 
-  const quipMap = newQuipMap(diff);
+  const replyMap = newReplyMap(diff);
 
-  const noteWithQuips: Note = {
-    ...note,
+  const postWithReplies: Post = {
+    ...post,
     seal: {
-      ...note?.seal,
-      quips: quipMap,
+      ...post?.seal,
+      replies: replyMap,
     },
   };
 
   return {
-    note: noteWithQuips,
+    post: postWithReplies,
     ...rest,
   };
 }
 
-export function useQuip(
+export function useReply(
   nest: Nest,
-  noteId: string,
-  quipId: string,
+  postId: string,
+  replyId: string,
   isScrolling = false
 ) {
   checkNest(nest);
 
-  const { note } = useNote(nest, noteId, isScrolling);
+  const { post } = usePost(nest, postId, isScrolling);
   return useMemo(() => {
-    if (note === undefined) {
+    if (post === undefined) {
       return undefined;
     }
-    if (note.seal.quips === null || note.seal.quips.size === undefined) {
+    if (post.seal.replies === null || post.seal.replies.size === undefined) {
       return undefined;
     }
-    const quip = note.seal.quips.get(bigInt(quipId));
-    return quip;
-  }, [note, quipId]);
+    const reply = post.seal.replies.get(bigInt(replyId));
+    return reply;
+  }, [post, replyId]);
 }
 
-const emptyBriefs: Briefs = {};
-export function useBriefs(): Briefs {
+const emptyUnreads: Unreads = {};
+export function useUnreads(): Unreads {
   const invalidate = useRef(
     _.debounce(
       () => {
         queryClient.invalidateQueries({
-          queryKey: ['briefs'],
+          queryKey: ['unreads'],
           refetchType: 'none',
         });
       },
@@ -884,63 +889,63 @@ export function useBriefs(): Briefs {
     )
   );
 
-  const eventHandler = (event: BriefUpdate) => {
+  const eventHandler = (event: UnreadUpdate) => {
     invalidate.current();
-    const { brief } = event;
+    const { unread } = event;
 
-    if (brief !== null) {
-      queryClient.setQueryData(['briefs'], (d: Briefs | undefined) => {
+    if (unread !== null) {
+      queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
         if (d === undefined) {
           return undefined;
         }
-        const newBriefs = { ...d };
-        newBriefs[event.nest] = brief;
+        const newUnreads = { ...d };
+        newUnreads[event.nest] = unread;
 
-        useChatStore.getState().update(newBriefs);
-        return newBriefs;
+        useChatStore.getState().update(newUnreads);
+        return newUnreads;
       });
     }
   };
 
-  const { data, ...rest } = useReactQuerySubscription<Briefs, BriefUpdate>({
-    queryKey: ['briefs'],
+  const { data, ...rest } = useReactQuerySubscription<Unreads, UnreadUpdate>({
+    queryKey: ['unreads'],
     app: 'channels',
-    path: '/briefs',
-    scry: '/briefs',
+    path: '/unreads',
+    scry: '/unreads',
     onEvent: eventHandler,
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return emptyBriefs;
+    return emptyUnreads;
   }
 
-  return data as Briefs;
+  return data as Unreads;
 }
 
 export function useIsJoined(nest: Nest) {
   checkNest(nest);
-  const briefs = useBriefs();
+  const unreads = useUnreads();
 
-  return Object.keys(briefs).includes(nest);
+  return Object.keys(unreads).includes(nest);
 }
 
-export function useBrief(nest: Nest) {
+export function useUnread(nest: Nest) {
   checkNest(nest);
 
-  const briefs = useBriefs();
+  const unreads = useUnreads();
 
-  return briefs[nest];
+  return unreads[nest];
 }
 
-export function useChats(): Shelf {
-  const shelf = useShelf();
+export function useChats(): Channels {
+  const channels = useChannels();
 
-  const chatKeys = Object.keys(shelf).filter((k) => k.startsWith('chat/'));
+  const chatKeys = Object.keys(channels).filter((k) => k.startsWith('chat/'));
 
-  const chats: Shelf = {};
+  const chats: Channels = {};
 
   chatKeys.forEach((k) => {
-    chats[k] = shelf[k];
+    chats[k] = channels[k];
   });
 
   return chats;
@@ -1021,22 +1026,30 @@ export function useDeletePinMutation() {
 
 export function useDisplayMode(nest: string): DisplayMode {
   checkNest(nest);
-  const diary = useChannel(nest);
-  return diary?.view ?? 'list';
+  const channel = useChannel(nest);
+  return channel?.view ?? 'list';
 }
 
 export function useSortMode(nest: string): SortMode {
   checkNest(nest);
-  const diary = useChannel(nest);
-  return diary?.sort ?? 'time';
+  const channel = useChannel(nest);
+  return channel?.sort ?? 'time';
 }
 
-export function useRemoteNote(nest: Nest, id: string, blockLoad: boolean) {
+export function useRemotePost(
+  nest: Nest,
+  id: string,
+  blockLoad: boolean,
+  replyId?: string
+) {
   checkNest(nest);
   const [han, flag] = nestToFlag(nest);
-  const path = `/said/${nest}/note/${decToUd(id)}`;
+  const path = `/said/${nest}/post/${decToUd(id)}${
+    replyId ? `/${decToUd(replyId)}` : ''
+  }`;
+
   const { data, ...rest } = useReactQuerySubscribeOnce({
-    queryKey: [han, 'said', nest, id],
+    queryKey: [han, 'said', nest, id, replyId],
     app: 'channels',
     path,
     options: {
@@ -1045,25 +1058,25 @@ export function useRemoteNote(nest: Nest, id: string, blockLoad: boolean) {
   });
 
   if (rest.isLoading || rest.isError || !data) {
-    return {} as Note;
+    return {} as ReferenceResponse;
   }
 
-  const { note } = data as Said;
+  const { reference } = data as Said;
 
-  return note as Note;
+  return reference as ReferenceResponse;
 }
 
-export function useNoteKeys(nest: Nest) {
-  const { notes } = useInfiniteNotes(nest);
+export function usePostKeys(nest: Nest) {
+  const { posts } = useInfinitePosts(nest);
 
-  return useMemo(() => notes.map(([k]) => k), [notes]);
+  return useMemo(() => posts.map(([k]) => k), [posts]);
 }
 
 export function useGetFirstUnreadID(nest: Nest) {
-  const keys = useNoteKeys(nest);
-  const brief = useBrief(nest);
+  const keys = usePostKeys(nest);
+  const unread = useUnread(nest);
 
-  const { 'read-id': lastRead } = brief;
+  const { 'read-id': lastRead } = unread;
 
   if (!lastRead) {
     return null;
@@ -1084,7 +1097,7 @@ export function useMarkReadMutation() {
   return useMutation({
     mutationFn,
     onSuccess: () => {
-      queryClient.invalidateQueries(['briefs']);
+      queryClient.invalidateQueries(['unreads']);
     },
   });
 }
@@ -1095,11 +1108,11 @@ export function useJoinMutation() {
       throw new Error('Invalid nest');
     }
 
-    await api.trackedPoke<ShelfAction, ShelfResponse>(
+    await api.trackedPoke<ChannelsAction, ChannelsResponse>(
       channelAction(chan, {
         join: group,
       }),
-      { app: 'channels', path: '/ui' },
+      { app: 'channels', path: '/' },
       (event) => event.nest === chan && 'create' in event.response
     );
   };
@@ -1117,16 +1130,16 @@ export function useLeaveMutation() {
     mutationFn,
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.cancelQueries(['shelf']);
-      await queryClient.cancelQueries(['briefs']);
+      await queryClient.cancelQueries(['channels']);
+      await queryClient.cancelQueries(['unreads']);
       await queryClient.cancelQueries([han, 'perms', flag]);
-      await queryClient.cancelQueries([han, 'notes', flag]);
+      await queryClient.cancelQueries([han, 'posts', flag]);
       queryClient.removeQueries([han, 'perms', flag]);
-      queryClient.removeQueries([han, 'notes', flag]);
+      queryClient.removeQueries([han, 'posts', flag]);
     },
     onSettled: async (_data, _error) => {
-      await queryClient.invalidateQueries(['shelf']);
-      await queryClient.invalidateQueries(['briefs']);
+      await queryClient.invalidateQueries(['channels']);
+      await queryClient.invalidateQueries(['unreads']);
     },
   });
 }
@@ -1140,12 +1153,14 @@ export function useViewMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1167,12 +1182,14 @@ export function useSortMutation() {
     onMutate: async (variables) => {
       checkNest(variables.nest);
 
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1184,17 +1201,17 @@ export function useSortMutation() {
   });
 }
 
-export function useArrangedNotesMutation() {
+export function useArrangedPostsMutation() {
   const { mutate: changeSortMutation } = useSortMutation();
 
   const mutationFn = async (variables: {
     nest: Nest;
-    arrangedNotes: string[];
+    arrangedPosts: string[];
   }) => {
     checkNest(variables.nest);
 
-    // change sort mode automatically if arrangedNotes is empty/not-empty
-    if (variables.arrangedNotes.length === 0) {
+    // change sort mode automatically if arrangedPosts is empty/not-empty
+    if (variables.arrangedPosts.length === 0) {
       changeSortMutation({ nest: variables.nest, sort: 'time' });
     } else {
       changeSortMutation({ nest: variables.nest, sort: 'arranged' });
@@ -1202,7 +1219,7 @@ export function useArrangedNotesMutation() {
 
     await api.poke(
       channelAction(variables.nest, {
-        order: variables.arrangedNotes.map((t) => decToUd(t)),
+        order: variables.arrangedPosts.map((t) => decToUd(t)),
       })
     );
   };
@@ -1210,16 +1227,18 @@ export function useArrangedNotesMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
-            order: variables.arrangedNotes.map((t) => decToUd(t)),
+            order: variables.arrangedPosts.map((t) => decToUd(t)),
           },
         });
       }
@@ -1227,34 +1246,34 @@ export function useArrangedNotesMutation() {
   });
 }
 
-export function useAddNoteMutation(nest: string) {
+export function useAddPostMutation(nest: string) {
   const [han, flag] = nestToFlag(nest);
   const queryKey = useCallback(
-    (...args: any[]) => [han, 'notes', flag, ...args],
+    (...args: any[]) => [han, 'posts', flag, ...args],
     [han, flag]
   );
 
   let timePosted: string;
   const mutationFn = async (variables: {
     cacheId: CacheId;
-    essay: NoteEssay;
+    essay: PostEssay;
   }) =>
     new Promise<string>((resolve) => {
       try {
         api
-          .trackedPoke<ShelfAction, ShelfResponse>(
-            channelNoteAction(nest, {
+          .trackedPoke<ChannelsAction, ChannelsResponse>(
+            channelPostAction(nest, {
               add: variables.essay,
             }),
-            { app: 'channels', path: `/${nest}/ui` },
+            { app: 'channels', path: `/${nest}` },
             ({ response }) => {
-              if ('note' in response) {
-                const { id, 'r-note': noteResponse } = response.note;
+              if ('post' in response) {
+                const { id, 'r-post': postResponse } = response.post;
                 if (
-                  'set' in noteResponse &&
-                  noteResponse.set !== null &&
-                  noteResponse.set.essay.author === variables.essay.author &&
-                  noteResponse.set.essay.sent === variables.essay.sent
+                  'set' in postResponse &&
+                  postResponse.set !== null &&
+                  postResponse.set.essay.author === variables.essay.author &&
+                  postResponse.set.essay.sent === variables.essay.sent
                 ) {
                   timePosted = id;
                   return true;
@@ -1277,49 +1296,40 @@ export function useAddNoteMutation(nest: string) {
     mutationFn,
     onMutate: async (variables) => {
       await queryClient.cancelQueries(queryKey());
-      // await queryClient.cancelQueries(['briefs']);
 
-      useNotesStore.getState().addTracked(variables.cacheId);
+      usePostsStore.getState().addTracked(variables.cacheId);
 
       const sent = unixToDa(variables.essay.sent).toString();
-      const note = {
+      const post = {
         seal: {
           id: sent,
-          quips: newQuipMap(),
-          feels: {},
+          replies: newReplyMap(),
+          reacts: {},
           meta: {
-            quipCount: 0,
-            lastQuippers: [],
-            lastQuip: null,
+            replyCount: 0,
+            lastRepliers: [],
+            lastReply: null,
           },
         },
         essay: variables.essay,
       };
 
-      // for the unlikely case that the user navigates away from the editor
-      // before the mutation is complete, or if the host ship is offline,
-      // we update the cache optimistically.
-      // queryClient.setQueryData<Notes>(queryKey(), (notes) => ({
-      // ...(notes || {}),
-      // // this time is temporary, and will be replaced by the actual time
-      // [variables.essay.sent]: note,
-      // }));
-      queryClient.setQueryData<Note>(queryKey(variables.cacheId), note);
+      queryClient.setQueryData<Post>(queryKey(variables.cacheId), post);
 
-      infiniteNoteUpdater(queryKey('infinite'), {
+      infinitePostUpdater(queryKey('infinite'), {
         nest,
         response: {
-          note: {
+          post: {
             id: sent,
-            'r-note': {
-              set: note,
+            'r-post': {
+              set: post,
             },
           },
         },
       });
     },
     onSuccess: async (_data, variables) => {
-      useNotesStore.getState().updateStatus(variables.cacheId, 'sent');
+      usePostsStore.getState().updateStatus(variables.cacheId, 'sent');
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
     onSettled: async (_data, _error) => {
@@ -1331,16 +1341,16 @@ export function useAddNoteMutation(nest: string) {
   });
 }
 
-export function useEditNoteMutation() {
+export function useEditPostMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
     time: string;
-    essay: NoteEssay;
+    essay: PostEssay;
   }) => {
     checkNest(variables.nest);
 
     await api.poke(
-      channelNoteAction(variables.nest, {
+      channelPostAction(variables.nest, {
         edit: {
           id: decToUd(variables.time),
           essay: variables.essay,
@@ -1352,7 +1362,7 @@ export function useEditNoteMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: NoteInCache | undefined) => {
+      const updater = (prev: PostInCache | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1363,56 +1373,56 @@ export function useEditNoteMutation() {
         };
       };
 
-      const notesUpdater = (prev: Notes | undefined) => {
+      const postsUpdater = (prev: Posts | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
-        const prevNote = prev[decToUd(variables.time)];
+        const prevPost = prev[decToUd(variables.time)];
 
-        if (prevNote === null) {
+        if (prevPost === null) {
           return prev;
         }
 
         return {
           ...prev,
           [variables.time]: {
-            seal: prevNote.seal,
+            seal: prevPost.seal,
             essay: variables.essay,
           },
         };
       };
 
-      await updateNoteInCache(
+      await updatePostInCache(
         {
           nest: variables.nest,
-          noteId: variables.time,
+          postId: variables.time,
         },
         updater
       );
 
-      await updateNotesInCache(variables, notesUpdater);
+      await updatePostsInCache(variables, postsUpdater);
     },
   });
 }
 
-export function useDeleteNoteMutation() {
+export function useDeletePostMutation() {
   const mutationFn = async (variables: { nest: Nest; time: string }) => {
     checkNest(variables.nest);
 
-    await api.trackedPoke<ShelfAction, ShelfResponse>(
-      channelNoteAction(variables.nest, { del: variables.time }),
+    await api.trackedPoke<ChannelsAction, ChannelsResponse>(
+      channelPostAction(variables.nest, { del: variables.time }),
       {
         app: 'channels',
-        path: `/${variables.nest}/ui`,
+        path: `/${variables.nest}`,
       },
       (event) => {
-        if ('note' in event.response) {
-          const { id, 'r-note': noteResponse } = event.response.note;
+        if ('post' in event.response) {
+          const { id, 'r-post': postResponse } = event.response.post;
           return (
             id === variables.time &&
-            'set' in noteResponse &&
-            noteResponse.set === null
+            'set' in postResponse &&
+            postResponse.set === null
           );
         }
         return false;
@@ -1425,7 +1435,7 @@ export function useDeleteNoteMutation() {
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
 
-      const updater = (prev: Notes | undefined) => {
+      const updater = (prev: Posts | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1435,24 +1445,24 @@ export function useDeleteNoteMutation() {
         return rest;
       };
 
-      await updateNotesInCache(variables, updater);
+      await updatePostsInCache(variables, updater);
 
-      await queryClient.cancelQueries([han, 'notes', flag, variables.time]);
+      await queryClient.cancelQueries([han, 'posts', flag, variables.time]);
     },
     onSuccess: async (_data, variables) => {
-      removeNoteFromInfiniteQuery(variables.nest, variables.time);
+      removePostFromInfiniteQuery(variables.nest, variables.time);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'notes', flag]);
-      await queryClient.invalidateQueries([han, 'notes', flag, 'infinite']);
+      await queryClient.invalidateQueries([han, 'posts', flag]);
+      await queryClient.invalidateQueries([han, 'posts', flag, 'infinite']);
     },
   });
 }
 
 export function useCreateMutation() {
   const mutationFn = async (variables: Create) => {
-    await api.trackedPoke<ShelfAction, ShelfResponse>(
+    await api.trackedPoke<ChannelsAction, ChannelsResponse>(
       {
         app: 'channels',
         mark: 'channel-action',
@@ -1460,12 +1470,12 @@ export function useCreateMutation() {
           create: variables,
         },
       },
-      { app: 'channels', path: '/ui' },
+      { app: 'channels', path: '/' },
       (event) => {
         const { response, nest } = event;
         return (
           'create' in response &&
-          nest === `${variables.han}/${window.our}/${variables.name}`
+          nest === `${variables.kind}/${window.our}/${variables.name}`
         );
       }
     );
@@ -1474,14 +1484,16 @@ export function useCreateMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
           ...prev,
-          [`${variables.han}/${window.our}/${variables.name}`]: {
+          [`${variables.kind}/${window.our}/${variables.name}`]: {
             perms: { writers: [], group: variables.group },
             view: 'list',
             order: [],
@@ -1492,10 +1504,10 @@ export function useCreateMutation() {
       }
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['shelf']);
+      await queryClient.invalidateQueries(['channels']);
       await queryClient.invalidateQueries([
-        variables.han,
-        'notes',
+        variables.kind,
+        'posts',
         `${window.our}/${variables.name}`,
         { exact: true },
       ]);
@@ -1515,12 +1527,14 @@ export function useAddSectsMutation() {
     onMutate: async (variables) => {
       checkNest(variables.nest);
 
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1550,12 +1564,14 @@ export function useDeleteSectsMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['shelf']);
+      await queryClient.cancelQueries(['channels']);
 
-      const prev = queryClient.getQueryData<{ [nest: Nest]: Diary }>(['shelf']);
+      const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
+        'channels',
+      ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Diary }>(['shelf'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1572,23 +1588,23 @@ export function useDeleteSectsMutation() {
   });
 }
 
-export function useAddQuipMutation() {
+export function useAddReplyMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
-    noteId: string;
+    postId: string;
     content: Story;
   }) => {
     checkNest(variables.nest);
 
-    const replying = decToUd(variables.noteId);
+    const replying = decToUd(variables.postId);
     const memo: Memo = {
       content: variables.content,
       author: window.our,
       sent: Date.now(),
     };
     const action: Action = {
-      note: {
-        quip: {
+      post: {
+        reply: {
           id: replying,
           action: {
             add: memo,
@@ -1603,47 +1619,48 @@ export function useAddQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, Note | null> | undefined) => {
+      const postsUpdater = (prev: Record<string, Post | null> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
-        const replying = decToUd(variables.noteId);
+        const replying = decToUd(variables.postId);
         if (replying in prev) {
-          const replyingNote = prev[replying] as Note;
-          if (replyingNote === null) {
+          const replyingPost = prev[replying] as Post;
+          if (replyingPost === null) {
             return prev;
           }
 
-          const updatedNote = {
-            ...replyingNote,
+          const updatedPost = {
+            ...replyingPost,
             seal: {
-              ...replyingNote.seal,
-              quipCount: replyingNote.seal.meta.quipCount + 1,
-              quippers: [...replyingNote.seal.meta.lastQuippers, window.our],
+              ...replyingPost.seal,
+              replyCount: replyingPost.seal.meta.replyCount + 1,
+              repliers: [...replyingPost.seal.meta.lastRepliers, window.our],
             },
           };
 
           return {
             ...prev,
-            [replying]: updatedNote,
+            [replying]: updatedPost,
           };
         }
         return prev;
       };
 
-      const updater = (prevNote: NoteInCache | undefined) => {
-        if (prevNote === undefined) {
-          return prevNote;
+      const updater = (prevPost: PostInCache | undefined) => {
+        if (prevPost === undefined) {
+          return prevPost;
         }
-        const prevQuips = prevNote.seal.quips;
+        const prevReplies = prevPost.seal.replies;
         const dateTime = Date.now();
-        const newQuips: Record<string, Quip> = {
-          ...prevQuips,
+        const newReplies: Record<string, Reply> = {
+          ...prevReplies,
           [decToUd(unixToDa(dateTime).toString())]: {
-            cork: {
+            seal: {
               id: unixToDa(dateTime).toString(),
-              feels: {},
+              'parent-id': decToUd(variables.postId),
+              reacts: {},
             },
             memo: {
               content: variables.content,
@@ -1653,42 +1670,42 @@ export function useAddQuipMutation() {
           },
         };
 
-        const updatedNote: NoteInCache = {
-          ...prevNote,
+        const updatedPost: PostInCache = {
+          ...prevPost,
           seal: {
-            ...prevNote.seal,
-            quips: newQuips,
+            ...prevPost.seal,
+            replies: newReplies,
           },
         };
 
-        return updatedNote;
+        return updatedPost;
       };
 
-      await updateNotesInCache(variables, notesUpdater);
-      await updateNoteInCache(variables, updater);
+      await updatePostsInCache(variables, postsUpdater);
+      await updatePostInCache(variables, updater);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.refetchQueries([han, 'notes', flag]);
-      await queryClient.refetchQueries([han, 'notes', flag, variables.noteId]);
+      await queryClient.refetchQueries([han, 'posts', flag]);
+      await queryClient.refetchQueries([han, 'posts', flag, variables.postId]);
     },
   });
 }
 
-export function useDeleteQuipMutation() {
+export function useDeleteReplyMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
-    noteId: string;
-    quipId: string;
+    postId: string;
+    replyId: string;
   }) => {
     checkNest(variables.nest);
 
     const action: Action = {
-      note: {
-        quip: {
-          id: decToUd(variables.noteId),
+      post: {
+        reply: {
+          id: decToUd(variables.postId),
           action: {
-            del: decToUd(variables.quipId),
+            del: decToUd(variables.replyId),
           },
         },
       },
@@ -1700,81 +1717,81 @@ export function useDeleteQuipMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const notesUpdater = (prev: Record<string, Note | null> | undefined) => {
+      const postsUpdater = (prev: Record<string, Post | null> | undefined) => {
         if (prev === undefined) {
           return prev;
         }
-        const replying = decToUd(variables.noteId);
+        const replying = decToUd(variables.postId);
         if (replying in prev) {
-          const replyingNote = prev[replying] as Note;
+          const replyingPost = prev[replying] as Post;
 
-          if (replyingNote === null) {
+          if (replyingPost === null) {
             return prev;
           }
 
-          const updatedNote = {
-            ...replyingNote,
+          const updatedPost = {
+            ...replyingPost,
             seal: {
-              ...replyingNote.seal,
-              quipCount: replyingNote.seal.meta.quipCount - 1,
-              quippers: replyingNote.seal.meta.lastQuippers.filter(
-                (quipper) => quipper !== window.our
+              ...replyingPost.seal,
+              replyCount: replyingPost.seal.meta.replyCount - 1,
+              repliers: replyingPost.seal.meta.lastRepliers.filter(
+                (replier) => replier !== window.our
               ),
             },
           };
 
           return {
             ...prev,
-            [replying]: updatedNote,
+            [replying]: updatedPost,
           };
         }
         return prev;
       };
 
-      const updater = (prevNote: NoteInCache | undefined) => {
-        if (prevNote === undefined) {
-          return prevNote;
+      const updater = (prevPost: PostInCache | undefined) => {
+        if (prevPost === undefined) {
+          return prevPost;
         }
 
-        const prevQuips = prevNote.seal.quips;
-        const newQuips = { ...prevQuips };
-        delete newQuips[variables.quipId];
+        const prevReplies = prevPost.seal.replies;
+        const newReplies = { ...prevReplies };
+        delete newReplies[variables.replyId];
 
-        const updatedNote: NoteInCache = {
-          ...prevNote,
+        const updatedPost: PostInCache = {
+          ...prevPost,
           seal: {
-            ...prevNote.seal,
-            quips: newQuips,
+            ...prevPost.seal,
+            replies: newReplies,
           },
         };
 
-        return updatedNote;
+        return updatedPost;
       };
 
-      await updateNoteInCache(variables, updater);
-      await updateNotesInCache(variables, notesUpdater);
+      await updatePostInCache(variables, updater);
+      await updatePostsInCache(variables, postsUpdater);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.refetchQueries([han, 'notes', flag]);
-      await queryClient.refetchQueries([han, 'notes', flag, variables.noteId]);
+      await queryClient.refetchQueries([han, 'posts', flag]);
+      await queryClient.refetchQueries([han, 'posts', flag, variables.postId]);
     },
   });
 }
 
-export function useAddNoteFeelMutation() {
+export function useAddPostReactMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
-    noteId: string;
-    feel: string;
+    postId: string;
+    react: string;
   }) => {
     checkNest(variables.nest);
 
     const action: Action = {
-      note: {
-        'add-feel': {
-          id: decToUd(variables.noteId),
-          feel: variables.feel,
+      post: {
+        'add-react': {
+          id: decToUd(variables.postId),
+          react: variables.react,
           ship: window.our,
         },
       },
@@ -1786,50 +1803,50 @@ export function useAddNoteFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prevNote: NoteInCache | undefined) => {
-        if (prevNote === undefined) {
-          return prevNote;
+      const updater = (prevPost: PostInCache | undefined) => {
+        if (prevPost === undefined) {
+          return prevPost;
         }
-        const prevFeels = prevNote.seal.feels;
-        const newFeels = {
-          ...prevFeels,
-          [unixToDa(Date.now()).toString()]: variables.feel,
+        const prevReacts = prevPost.seal.reacts;
+        const newReacts = {
+          ...prevReacts,
+          [unixToDa(Date.now()).toString()]: variables.react,
         };
 
-        const updatedNote: NoteInCache = {
-          ...prevNote,
+        const updatedPost: PostInCache = {
+          ...prevPost,
           seal: {
-            ...prevNote.seal,
-            feels: newFeels,
+            ...prevPost.seal,
+            reacts: newReacts,
           },
         };
 
-        return updatedNote;
+        return updatedPost;
       };
 
-      await updateNoteInCache(variables, updater);
+      await updatePostInCache(variables, updater);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'notes', flag]);
+      await queryClient.invalidateQueries([han, 'posts', flag]);
       await queryClient.invalidateQueries([
         han,
-        'notes',
+        'posts',
         flag,
-        variables.noteId,
+        variables.postId,
       ]);
     },
   });
 }
 
-export function useDeleteNoteFeelMutation() {
-  const mutationFn = async (variables: { nest: Nest; noteId: string }) => {
+export function useDeletePostReactMutation() {
+  const mutationFn = async (variables: { nest: Nest; postId: string }) => {
     checkNest(variables.nest);
 
     const action: Action = {
-      note: {
-        'del-feel': {
-          id: decToUd(variables.noteId),
+      post: {
+        'del-react': {
+          id: decToUd(variables.postId),
           ship: window.our,
         },
       },
@@ -1841,60 +1858,60 @@ export function useDeleteNoteFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: NoteInCache | undefined) => {
+      const updater = (prev: PostInCache | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
-        const prevFeels = prev.seal.feels;
-        const newFeels = {
-          ...prevFeels,
+        const prevReacts = prev.seal.reacts;
+        const newReacts = {
+          ...prevReacts,
         };
-        delete newFeels[window.our];
+        delete newReacts[window.our];
 
-        const updatedNote = {
+        const updatedPost = {
           ...prev,
           seal: {
             ...prev.seal,
-            feels: newFeels,
+            reacts: newReacts,
           },
         };
 
-        return updatedNote;
+        return updatedPost;
       };
 
-      await updateNoteInCache(variables, updater);
+      await updatePostInCache(variables, updater);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'notes', flag]);
+      await queryClient.invalidateQueries([han, 'posts', flag]);
       await queryClient.invalidateQueries([
         han,
-        'notes',
+        'posts',
         flag,
-        variables.noteId,
+        variables.postId,
       ]);
     },
   });
 }
 
-export function useAddQuipFeelMutation() {
+export function useAddReplyReactMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
-    noteId: string;
-    quipId: string;
-    feel: string;
+    postId: string;
+    replyId: string;
+    react: string;
   }) => {
     checkNest(variables.nest);
 
     const action: Action = {
-      note: {
-        quip: {
-          id: decToUd(variables.noteId),
+      post: {
+        reply: {
+          id: decToUd(variables.postId),
           action: {
-            'add-feel': {
-              id: decToUd(variables.quipId),
-              feel: variables.feel,
+            'add-react': {
+              id: decToUd(variables.replyId),
+              react: variables.react,
               ship: window.our,
             },
           },
@@ -1908,58 +1925,58 @@ export function useAddQuipFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: NoteInCache | undefined) => {
+      const updater = (prev: PostInCache | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
-        const { quips } = prev.seal;
-        Object.entries(quips).forEach(([time, quip]) => {
-          if (time === decToUd(variables.quipId)) {
-            quips[decToUd(variables.quipId)] = {
-              ...quip,
-              cork: {
-                ...quip.cork,
-                feels: {
-                  ...quip.cork.feels,
-                  [window.our]: variables.feel,
+        const { replies } = prev.seal;
+        Object.entries(replies).forEach(([time, reply]) => {
+          if (time === decToUd(variables.replyId)) {
+            replies[decToUd(variables.replyId)] = {
+              ...reply,
+              seal: {
+                ...reply.seal,
+                reacts: {
+                  ...reply.seal.reacts,
+                  [window.our]: variables.react,
                 },
               },
             };
           }
         });
 
-        const updatedNote = {
+        const updatedPost = {
           ...prev,
           seal: {
             ...prev.seal,
-            quips,
+            replies,
           },
         };
 
-        return updatedNote;
+        return updatedPost;
       };
 
-      await updateNoteInCache(variables, updater);
+      await updatePostInCache(variables, updater);
     },
   });
 }
 
-export function useDeleteQuipFeelMutation() {
+export function useDeleteReplyReactMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
-    noteId: string;
-    quipId: string;
+    postId: string;
+    replyId: string;
   }) => {
     checkNest(variables.nest);
 
     const action: Action = {
-      note: {
-        quip: {
-          id: decToUd(variables.noteId),
+      post: {
+        reply: {
+          id: decToUd(variables.postId),
           action: {
-            'del-feel': {
-              id: decToUd(variables.quipId),
+            'del-react': {
+              id: decToUd(variables.replyId),
               ship: window.our,
             },
           },
@@ -1973,49 +1990,81 @@ export function useDeleteQuipFeelMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: NoteInCache | undefined) => {
+      const updater = (prev: PostInCache | undefined) => {
         if (prev === undefined) {
           return prev;
         }
-        const { quips } = prev.seal;
-        Object.entries(quips).forEach(([time, quip]) => {
-          if (time === decToUd(variables.quipId)) {
-            const newFeels = {
-              ...quip.cork.feels,
+        const { replies } = prev.seal;
+        Object.entries(replies).forEach(([time, reply]) => {
+          if (time === decToUd(variables.replyId)) {
+            const newReacts = {
+              ...reply.seal.reacts,
             };
-            delete newFeels[window.our];
+            delete newReacts[window.our];
 
-            quips[decToUd(variables.quipId)] = {
-              ...quip,
-              cork: {
-                ...quip.cork,
-                feels: newFeels,
+            replies[decToUd(variables.replyId)] = {
+              ...reply,
+              seal: {
+                ...reply.seal,
+                reacts: newReacts,
               },
             };
           }
         });
 
-        const updatedNote = {
+        const updatedPost = {
           ...prev,
           seal: {
             ...prev.seal,
-            quips,
+            replies,
           },
         };
 
-        return updatedNote;
+        return updatedPost;
       };
 
-      await updateNoteInCache(variables, updater);
+      await updatePostInCache(variables, updater);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
       await queryClient.invalidateQueries([
         han,
-        'notes',
+        'posts',
         flag,
-        variables.noteId,
+        variables.postId,
       ]);
     },
   });
+}
+
+export function useChannelSearch(nest: string, query: string) {
+  const { data, ...rest } = useReactQueryScry<ChannelScan>({
+    queryKey: ['channel', 'search', nest, query],
+    app: 'channels',
+    path: `/${nest}/search/text/0/1.000/${query}`,
+    options: {
+      enabled: query !== '',
+    },
+  });
+
+  const scan = useMemo(
+    () =>
+      newChatMap(
+        (data || []).map((scItem) =>
+          scItem && 'post' in scItem
+            ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
+            : ([
+                bigInt(scItem.reply.reply.seal.id),
+                scItem.reply.reply,
+              ] as ReplyTuple)
+        ),
+        true
+      ),
+    [data]
+  );
+
+  return {
+    scan,
+    ...rest,
+  };
 }

@@ -6,21 +6,21 @@ import { Inline } from '@/types/content';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import { useAddQuipMutation, useQuip } from '@/state/channel/channel';
+import { useAddReplyMutation, useReply } from '@/state/channel/channel';
 import useRequestState from '@/logic/useRequestState';
 import { normalizeInline, JSONToInlines, makeMention } from '@/logic/tiptap';
 import X16Icon from '@/components/icons/X16Icon';
 import { pathToCite } from '@/logic/utils';
-import NoteCommentReference from '@/components/References/NoteCommentReference';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
-import { Story, Cite, Han } from '@/types/channel';
+import { Story, Cite, Kind } from '@/types/channel';
+import WritChanReference from '@/components/References/WritChanReference';
 
 interface DiaryCommentFieldProps {
   flag: string;
-  han: Han;
+  han: Kind;
   groupFlag: string;
   replyTo: string;
   className?: string;
@@ -38,11 +38,11 @@ export default function DiaryCommentField({
   const isMobile = useIsMobile();
   const [searchParams, setSearchParms] = useSearchParams();
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
-  const quipReplyId = searchParams.get('quip_reply');
+  const replyId = searchParams.get('reply');
   const nest = `${han}/${flag}`;
-  const quipReply = useQuip(nest, replyTo, quipReplyId || '');
+  const reply = useReply(nest, replyTo, replyId || '');
   const { isPending, setPending, setReady } = useRequestState();
-  const { mutateAsync: addQuip } = useAddQuipMutation();
+  const { mutateAsync: addReply } = useAddReplyMutation();
   const { privacy } = useGroupPrivacy(groupFlag);
   const { compatible, text } = useChannelCompatibility(nest);
 
@@ -77,9 +77,9 @@ export default function DiaryCommentField({
         ];
       }
 
-      await addQuip({
+      await addReply({
         nest,
-        noteId: replyTo,
+        postId: replyTo,
         content,
       });
       captureGroupsAnalyticsEvent({
@@ -105,7 +105,7 @@ export default function DiaryCommentField({
       replyCite,
       setReplyCite,
       setSearchParms,
-      addQuip,
+      addReply,
     ]
   );
 
@@ -137,31 +137,18 @@ export default function DiaryCommentField({
   }, [flag, messageEditor]);
 
   useEffect(() => {
-    if (
-      quipReply &&
-      quipReplyId &&
-      messageEditor &&
-      !messageEditor.isDestroyed
-    ) {
+    if (reply && replyId && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.focus();
-      const mention = makeMention(quipReply?.memo.author.slice(1));
+      const mention = makeMention(reply?.memo.author.slice(1));
       messageEditor?.commands.setContent(mention);
       messageEditor?.commands.insertContent(': ');
-      const path = `/1/chan/diary/${flag}/note/${replyTo}/msg/${quipReplyId}`;
+      const path = `/1/chan/diary/${flag}/note/${replyTo}/msg/${replyId}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
         setReplyCite({ cite });
       }
     }
-  }, [
-    quipReplyId,
-    replyTo,
-    setReplyCite,
-    replyCite,
-    flag,
-    messageEditor,
-    quipReply,
-  ]);
+  }, [replyId, replyTo, setReplyCite, replyCite, flag, messageEditor, reply]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
@@ -187,11 +174,11 @@ export default function DiaryCommentField({
                 <X16Icon className="h-4 w-4" />
               </button>
             </div>
-            <NoteCommentReference
-              chFlag={flag}
+            <WritChanReference
               nest={nest}
-              noteId={replyTo}
-              quipId={quipReplyId || ''}
+              idWrit={replyTo}
+              idReply={replyId || ''}
+              isScrolling={false}
             />
           </div>
         )}

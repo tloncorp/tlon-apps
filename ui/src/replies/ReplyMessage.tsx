@@ -7,11 +7,10 @@ import { daToUnix } from '@urbit/api';
 import { format } from 'date-fns';
 import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { DMBrief } from '@/types/dms';
+import { DMUnread } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
-import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
   useChatState,
@@ -23,33 +22,33 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { emptyQuip, Han, Quip } from '@/types/channel';
+import { emptyReply, Reply } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
-import QuipReactions from '@/diary/QuipReactions/QuipReactions';
 import {
   useChatDialog,
   useChatHovering,
   useChatInfo,
   useChatStore,
-} from '../useChatStore';
-import ReactionDetails from '../ChatReactions/ReactionDetails';
-import QuipMessageOptions from './QuipMessageOptions';
+} from '@/chat/useChatStore';
+import ReactionDetails from '@/chat/ChatReactions/ReactionDetails';
+import ReplyReactions from './ReplyReactions/ReplyReactions';
+import ReplyMessageOptions from './ReplyMessageOptions';
 
-export interface QuipMessageProps {
+export interface ReplyMessageProps {
   whom: string;
   time: BigInteger;
-  quip: Quip;
+  reply: Reply;
   newAuthor?: boolean;
   newDay?: boolean;
   hideOptions?: boolean;
   isLast?: boolean;
   isLinked?: boolean;
   isScrolling?: boolean;
-  han: Han;
+  showReply?: boolean;
 }
 
-function briefMatches(brief: DMBrief, id: string): boolean {
-  return brief['read-id'] === id;
+function unreadMatches(unread: DMUnread, id: string): boolean {
+  return unread['read-id'] === id;
 }
 
 const mergeRefs =
@@ -65,39 +64,35 @@ const mergeRefs =
     });
   };
 
-const QuipMessage = React.memo<
-  QuipMessageProps & React.RefAttributes<HTMLDivElement>
+const ReplyMessage = React.memo<
+  ReplyMessageProps & React.RefAttributes<HTMLDivElement>
 >(
-  React.forwardRef<HTMLDivElement, QuipMessageProps>(
+  React.forwardRef<HTMLDivElement, ReplyMessageProps>(
     (
       {
         whom,
         time,
-        quip,
+        reply,
         newAuthor = false,
         newDay = false,
         hideOptions = false,
         isLast = false,
         isLinked = false,
         isScrolling = false,
-        han,
-      }: QuipMessageProps,
+        showReply = false,
+      }: ReplyMessageProps,
       ref
     ) => {
-      const { cork, memo } = quip ?? emptyQuip;
+      const { seal, memo } = reply ?? emptyReply;
       const container = useRef<HTMLDivElement>(null);
-      const { idShip, idTime } = useParams<{
-        idShip: string;
-        idTime: string;
-      }>();
-      const isThreadOp = idTime === cork.id;
+      const isThreadOp = seal['parent-id'] === seal.id;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.brief['read-id'];
-      const { hovering, setHovering } = useChatHovering(whom, cork.id);
-      const { open: pickerOpen } = useChatDialog(whom, cork.id, 'picker');
+      const unreadId = unread?.unread['read-id'];
+      const { hovering, setHovering } = useChatHovering(whom, seal.id);
+      const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const { mutate: markChatRead } = useMarkReadMutation();
       const { ref: viewRef } = useInView({
@@ -109,7 +104,7 @@ const QuipMessage = React.memo<
               return;
             }
 
-            const { brief, seen } = unread;
+            const { unread: brief, seen } = unread;
             /* the first fire of this function
                which we don't to do anything with. */
             if (!inView && !seen) {
@@ -129,13 +124,13 @@ const QuipMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && briefMatches(brief, cork.id) && !seen) {
+            if (inView && unreadMatches(brief, seal.id) && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
                   markDmRead(whom);
                 } else {
-                  markChatRead({ nest: `chat/${whom}` });
+                  markChatRead({ nest: whom });
                 }
               });
               return;
@@ -148,12 +143,12 @@ const QuipMessage = React.memo<
               markDmRead(whom);
             }
           },
-          [unread, whom, cork.id, isDMOrMultiDM, markChatRead]
+          [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
       // const isMessageDelivered = useIsMessageDelivered(cork.id);
       // const isMessagePosted = useIsMessagePosted(cork.id);
-      const isReplyOp = chatInfo?.replying === cork.id;
+      const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
 
@@ -226,7 +221,7 @@ const QuipMessage = React.memo<
         isThreadOp,
       ]);
 
-      if (!quip) {
+      if (!reply) {
         return null;
       }
 
@@ -243,10 +238,10 @@ const QuipMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && briefMatches(unread.brief, cork.id) ? (
+          {unread && unreadMatches(unread.unread, seal.id) ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.brief.count}
+              unreadCount={unread.unread.count}
               ref={viewRef}
             />
           ) : null}
@@ -255,11 +250,12 @@ const QuipMessage = React.memo<
             <Author ship={memo.author} date={unix} hideRoles />
           ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
-            <QuipMessageOptions
+            <ReplyMessageOptions
               open={optionsOpen}
               onOpenChange={setOptionsOpen}
               whom={whom}
-              quip={quip}
+              reply={reply}
+              showReply={showReply}
               openReactionDetails={() => setReactionDetailsOpen(true)}
             />
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
@@ -278,23 +274,21 @@ const QuipMessage = React.memo<
                   <ChatContent
                     story={memo.content}
                     isScrolling={isScrolling}
-                    writId={cork.id}
+                    writId={seal.id}
                   />
                 ) : null}
-                {cork.feels && Object.keys(cork.feels).length > 0 && (
+                {seal.reacts && Object.keys(seal.reacts).length > 0 && (
                   <>
-                    <QuipReactions
+                    <ReplyReactions
                       id="reactions-target"
-                      han={han}
-                      cork={cork}
+                      seal={seal}
                       whom={whom}
                       time={time.toString()}
-                      noteId={idTime!}
                     />
                     <ReactionDetails
                       open={reactionDetailsOpen}
                       onOpenChange={setReactionDetailsOpen}
-                      feels={cork.feels}
+                      reactions={seal.reacts}
                     />
                   </>
                 )}
@@ -316,4 +310,4 @@ const QuipMessage = React.memo<
   )
 );
 
-export default QuipMessage;
+export default ReplyMessage;

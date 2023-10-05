@@ -14,8 +14,6 @@ import NoteReference from './NoteReference';
 import AppReference from './AppReference';
 // eslint-disable-next-line import/no-cycle
 import BaitReference from './BaitReference';
-// eslint-disable-next-line import/no-cycle
-import NoteCommentReference from './NoteCommentReference';
 
 function ContentReference({
   cite,
@@ -66,10 +64,27 @@ function ContentReference({
 
     if (app === 'heap') {
       const idCurio = udToDec(segments[2]);
+      const idReply = segments[3];
+
+      if (idReply) {
+        return (
+          <WritChanReference
+            isScrolling={isScrolling}
+            nest={nest}
+            contextApp={contextApp}
+            idWrit={idCurio}
+            idReply={idReply}
+          >
+            {children}
+          </WritChanReference>
+        );
+      }
+
       return (
         <CurioReference
           nest={nest}
           idCurio={idCurio}
+          idReply={idReply}
           isScrolling={isScrolling}
           contextApp={contextApp}
         >
@@ -79,13 +94,14 @@ function ContentReference({
     }
     if (app === 'chat') {
       const idWrit = segments[2];
+      const idReply = segments[3];
       return (
         <WritChanReference
           isScrolling={isScrolling}
-          chFlag={chFlag}
           nest={nest}
           contextApp={contextApp}
           idWrit={idWrit}
+          idReply={idReply}
         >
           {children}
         </WritChanReference>
@@ -93,26 +109,24 @@ function ContentReference({
     }
     if (app === 'diary') {
       const idNote = udToDec(segments[2]);
-      const idQuip = segments[4] ? udToDec(segments[4]) : null;
+      const idReply = segments[4] ? udToDec(segments[4]) : null;
 
-      if (idQuip) {
+      if (idReply) {
         return (
-          <NoteCommentReference
+          <WritChanReference
             isScrolling={isScrolling}
-            chFlag={chFlag}
             nest={nest}
-            noteId={idNote}
-            quipId={idQuip}
             contextApp={contextApp}
+            idWrit={idNote}
+            idReply={idReply}
           >
             {children}
-          </NoteCommentReference>
+          </WritChanReference>
         );
       }
 
       return (
         <NoteReference
-          chFlag={chFlag}
           nest={nest}
           id={idNote}
           isScrolling={isScrolling}

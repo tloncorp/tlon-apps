@@ -5,7 +5,7 @@
 ::  XX  chat thread entries can no longer be edited.  maybe fix before
 ::      release?
 ::
-/-  d=channel, g=groups, ha=hark
+/-  c=channel, g=groups, ha=hark
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate
 /+  utils=channel-utils, volume
@@ -21,9 +21,9 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %0
-        =shelf:d
-        voc=(map [nest:d plan:d] (unit said:d))
-        pins=(list nest:d)
+        =v-channels:c
+        voc=(map [nest:c plan:c] (unit said:c))
+        pins=(list nest:c)
     ==
   --
 =|  current-state
@@ -118,6 +118,9 @@
   inflate-io
 ::
 ++  inflate-io
+  ::  initiate version negotiation with our own channels-server
+  ::
+  =.  cor  (emit (initiate:neg our.bowl server))
   ::  leave all subscriptions we don't recognize
   ::
   =.  cor
@@ -128,32 +131,32 @@
     =/  keep=?
       ?+    pole  |
           [%groups *]  &(=(%groups dude) =(our.bowl ship) =(/groups path))
-          [=han:d ship=@ name=@ %updates ~]
+          [=kind:c ship=@ name=@ %updates ~]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
-        ?~  diary=(~(get by shelf) han.pole sub-ship name.pole)  |
-        ?.  ?=([han:d @ %updates ?(~ [@ ~])] path)  |
-        ?.  =(han.pole i.path)  |
+        ?~  diary=(~(get by v-channels) kind.pole sub-ship name.pole)  |
+        ?.  ?=([kind:c @ %updates ?(~ [@ ~])] path)  |
+        ?.  =(kind.pole i.path)  |
         =(name.pole i.t.path)
       ::
-          [=han:d ship=@ name=@ %checkpoint ~]
+          [=kind:c ship=@ name=@ %checkpoint ~]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
-        ?~  diary=(~(get by shelf) han.pole sub-ship name.pole)  |
-        ?.  ?=([han:d @ %checkpoint %before @] path)  |
-        ?.  =(han.pole i.path)  |
+        ?~  diary=(~(get by v-channels) kind.pole sub-ship name.pole)  |
+        ?.  ?=([kind:c @ %checkpoint %before @] path)  |
+        ?.  =(kind.pole i.path)  |
         =(name.pole i.t.path)
       ::
-          [%said =han:d ship=@ name=@ %note time=@ quip=?(~ [@ ~])]
+          [%said =kind:c ship=@ name=@ %post time=@ reply=?(~ [@ ~])]
         ?.  =(server dude)  |
         ?.  =((scot %p sub-ship) ship.pole)  |
         ?~  pplan=(slaw %ud time.pole)  |
         =/  qplan=(unit (unit time))
-          ?~  quip.pole  `~
-          ?~  q=(slaw %ud -.quip.pole)  ~
+          ?~  reply.pole  `~
+          ?~  q=(slaw %ud -.reply.pole)  ~
           ``u.q
         ?~  qplan  |
-        ?.  (~(has by voc) [han.pole sub-ship name.pole] u.pplan u.qplan)  |
+        ?.  (~(has by voc) [kind.pole sub-ship name.pole] u.pplan u.qplan)  |
         =(wire path)
       ==
     ?:  keep  cor
@@ -165,9 +168,9 @@
   ::
   =.  cor
     %+  roll
-      ~(tap by shelf)
-    |=  [[=nest:d *] core=_cor]
-    di-abet:di-safe-sub:(di-abed:di-core:core nest)
+      ~(tap by v-channels)
+    |=  [[=nest:c *] core=_cor]
+    ca-abet:ca-safe-sub:(ca-abed:ca-core:core nest)
   ::
   cor
 ::
@@ -177,25 +180,25 @@
   ?+    mark  ~|(bad-poke+mark !!)
     :: TODO: add transfer/import channels
       %channel-action
-    =+  !<(=a-shelf:d vase)
-    ?:  ?=(%create -.a-shelf)
-      di-abet:(di-create:di-core create-diary.a-shelf)
-    ?:  ?=(%pin -.a-shelf)
+    =+  !<(=a-channels:c vase)
+    ?:  ?=(%create -.a-channels)
+      ca-abet:(ca-create:ca-core create-channel.a-channels)
+    ?:  ?=(%pin -.a-channels)
       ?>  from-self
-      cor(pins pins.a-shelf)
-    ?:  ?=(%join -.a-diary.a-shelf)
-      di-abet:(di-join:di-core [nest group.a-diary]:a-shelf)
-    di-abet:(di-a-diary:(di-abed:di-core nest.a-shelf) a-diary.a-shelf)
+      cor(pins pins.a-channels)
+    ?:  ?=(%join -.a-channel.a-channels)
+      ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
+    ca-abet:(ca-a-diary:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
   ::
       %channel-migration
     ?>  =(our src):bowl
-    =+  !<(new-shelf=shelf:d vase)
-    =.  shelf  (~(uni by new-shelf) shelf)  ::  existing overrides migration
+    =+  !<(new-channels=v-channels:c vase)
+    =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
     cor
   ::
       %channel-migration-pins
     ?>  =(our src):bowl
-    =+  !<(new-pins=(list nest:d) vase)
+    =+  !<(new-pins=(list nest:c) vase)
     =.  pins  (weld pins new-pins)
     cor
   ==
@@ -204,32 +207,32 @@
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path+pole !!)
-      [%briefs ~]                   ?>(from-self cor)
-      [%ui ~]                       ?>(from-self cor)
-      [=han:d ship=@ name=@ %ui ~]  ?>(from-self cor)
-      [%said =han:d host=@ name=@ %note time=@ quip=?(~ [@ ~])]
+      ~                          ?>(from-self cor)
+      [%unreads ~]               ?>(from-self cor)
+      [=kind:c ship=@ name=@ ~]  ?>(from-self cor)
+      [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
-    =/  =nest:d     [han.pole host name.pole]
-    =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
+    =/  =nest:c     [kind.pole host name.pole]
+    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (watch-said nest plan)
   ==
 ::
 ++  watch-said
-  |=  [=nest:d =plan:d]
-  ?.  (~(has by shelf) nest)
+  |=  [=nest:c =plan:c]
+  ?.  (~(has by v-channels) nest)
     =/  wire  (said-wire nest plan)
     (safe-watch wire [ship.nest server] wire)
-  di-abet:(di-said:(di-abed:di-core nest) plan)
+  ca-abet:(ca-said:(ca-abed:ca-core nest) plan)
 ::
 ++  said-wire
-  |=  [=nest:d =plan:d]
+  |=  [=nest:c =plan:c]
   ^-  wire
   %+  welp
-    /said/[han.nest]/(scot %p ship.nest)/[name.nest]/(scot %ud p.plan)
+    /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/(scot %ud p.plan)
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
-  |=  [=nest:d =plan:d =sign:agent:gall]
+  |=  [=nest:c =plan:c =sign:agent:gall]
   =/  =wire  (said-wire nest plan)
   ^+  cor
   ?+    -.sign  !!
@@ -249,7 +252,7 @@
     ?+    p.cage.sign  ~|(funny-mark+p.cage.sign !!)
         %channel-denied  cor(voc (~(put by voc) [nest plan] ~))
         %channel-said
-      =+  !<(=said:d q.cage.sign)
+      =+  !<(=said:c q.cage.sign)
       cor(voc (~(put by voc) [nest plan] `said))
     ==
   ==
@@ -265,14 +268,14 @@
     %-  (slog leaf+"Failed to hark" u.p.sign)
     cor
   ::
-      [=han:d ship=@ name=@ rest=*]
+      [=kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    di-abet:(di-agent:(di-abed:di-core han.pole ship name.pole) rest.pole sign)
+    ca-abet:(ca-agent:(ca-abed:ca-core kind.pole ship name.pole) rest.pole sign)
   ::
-      [%said =han:d host=@ name=@ %note time=@ quip=?(~ [@ ~])]
+      [%said =kind:c host=@ name=@ %post time=@ reply=?(~ [@ ~])]
     =/  host=ship   (slav %p host.pole)
-    =/  =nest:d     [han.pole host name.pole]
-    =/  =plan:d     =,(pole [(slav %ud time) ?~(quip ~ `(slav %ud -.quip))])
+    =/  =nest:c     [kind.pole host name.pole]
+    =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     (take-said nest plan sign)
   ::
       [%groups ~]
@@ -303,10 +306,10 @@
 ::
 ++  take-groups
   |=  =action:g
-  =/  affected=(list nest:d)
-    %+  murn  ~(tap by shelf)
-    |=  [=nest:d =diary:d]
-    ?.  =(p.action group.perm.perm.diary)  ~
+  =/  affected=(list nest:c)
+    %+  murn  ~(tap by v-channels)
+    |=  [=nest:c channel=v-channel:c]
+    ?.  =(p.action group.perm.perm.channel)  ~
     `nest
   =/  diff  q.q.action
   ?+    diff  cor
@@ -322,36 +325,36 @@
   ==
 ::
 ++  recheck-perms
-  |=  [affected=(list nest:d) sects=(set sect:g)]
+  |=  [affected=(list nest:c) sects=(set sect:g)]
   ~&  "%channel recheck permissions for {<affected>}"
   %+  roll  affected
-  |=  [=nest:d co=_cor]
-  =/  di  (di-abed:di-core:co nest)
-  di-abet:(di-recheck:di sects)
+  |=  [=nest:c co=_cor]
+  =/  ca  (ca-abed:ca-core:co nest)
+  ca-abet:(ca-recheck:ca sects)
 ::
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %shelf ~]   ``channel-shelf+!>((rr-shelf:utils shelf))
-      [%x %init ~]    ``noun+!>([briefs (rr-shelf:utils shelf)])
+      [%x %channels ~]   ``channels+!>((uv-channels:utils v-channels))
+      [%x %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
       [%x %pins ~]    ``channel-pins+!>(pins)
-      [%x %briefs ~]  ``channel-briefs+!>(briefs)
-      [%x =han:d ship=@ name=@ rest=*]
+      [%x %unreads ~]  ``channel-unreads+!>(unreads)
+      [%x =kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
-    (di-peek:(di-abed:di-core han.pole ship name.pole) rest.pole)
+    (ca-peek:(ca-abed:ca-core kind.pole ship name.pole) rest.pole)
   ::
-      [%u =han:d ship=@ name=@ ~]
+      [%u =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
-    ``loob+!>((~(has by shelf) han.pole ship name.pole))
+    ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
   ==
 ::
-++  briefs
-  ^-  briefs:d
-  %-  ~(gas by *briefs:d)
-  %+  turn  ~(tap in ~(key by shelf))
-  |=  =nest:d
-  [nest di-brief:(di-abed:di-core nest)]
+++  unreads
+  ^-  unreads:c
+  %-  ~(gas by *unreads:c)
+  %+  turn  ~(tap in ~(key by v-channels))
+  |=  =nest:c
+  [nest ca-unread:(ca-abed:ca-core nest)]
 ::
 ++  pass-hark
   |=  =new-yarn:ha
@@ -361,571 +364,578 @@
 ::
 ++  from-self  =(our src):bowl
 ::
-++  di-core
-  |_  [=nest:d =diary:d gone=_|]
-  ++  di-core  .
-  ++  emit  |=(=card di-core(cor (^emit card)))
-  ++  emil  |=(caz=(list card) di-core(cor (^emil caz)))
-  ++  give  |=(=gift:agent:gall di-core(cor (^give gift)))
-  ++  safe-watch  |=([=wire =dock =path] di-core(cor (^safe-watch +<)))
-  ++  di-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.diary)
-  ++  di-abet
+++  ca-core
+  |_  [=nest:c channel=v-channel:c gone=_|]
+  ++  ca-core  .
+  ++  emit  |=(=card ca-core(cor (^emit card)))
+  ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
+  ++  give  |=(=gift:agent:gall ca-core(cor (^give gift)))
+  ++  safe-watch  |=([=wire =dock =path] ca-core(cor (^safe-watch +<)))
+  ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.perm.channel)
+  ++  ca-abet
     %_    cor
-        shelf
-      ?:(gone (~(del by shelf) nest) (~(put by shelf) nest diary))
+        v-channels
+      ?:(gone (~(del by v-channels) nest) (~(put by v-channels) nest channel))
     ==
-  ++  di-abed
-    |=  n=nest:d
-    di-core(nest n, diary (~(got by shelf) n))
+  ++  ca-abed
+    |=  n=nest:c
+    ca-core(nest n, channel (~(got by v-channels) n))
   ::
-  ++  di-area  `path`/[han.nest]/(scot %p ship.nest)/[name.nest]
-  ++  di-sub-wire  (weld di-area /updates)
-  ++  di-give-brief
-    (give %fact ~[/briefs] channel-brief-update+!>([nest di-brief]))
+  ++  ca-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
+  ++  ca-sub-wire  (weld ca-area /updates)
+  ++  ca-give-unread
+    (give %fact ~[/unreads] channel-unread-update+!>([nest ca-unread]))
 ::
   ::
   ::  handle creating a channel
   ::
-  ++  di-create
-    |=  create=create-diary:d
+  ++  ca-create
+    |=  create=create-channel:c
     ?>  from-self
-    =.  nest  [han.create our.bowl name.create]
-    ?<  (~(has by shelf) nest)
-    =.  diary  *diary:d
-    =.  group.perm.perm.diary  group.create
-    =.  last-read.remark.diary  now.bowl
+    =.  nest  [kind.create our.bowl name.create]
+    ?<  (~(has by v-channels) nest)
+    =.  channel  *v-channel:c
+    =.  group.perm.perm.channel  group.create
+    =.  last-read.remark.channel  now.bowl
     =/  =cage  [%channel-command !>([%create create])]
-    (emit %pass (weld di-area /create) %agent [our.bowl server] %poke cage)
+    (emit %pass (weld ca-area /create) %agent [our.bowl server] %poke cage)
   ::
   ::  handle joining a channel
   ::
-  ++  di-join
-    |=  [n=nest:d group=flag:g]
-    ?<  (~(has by shelf) nest)
+  ++  ca-join
+    |=  [n=nest:c group=flag:g]
+    ?<  (~(has by v-channels) nest)
     ?>  |(=(p.group src.bowl) from-self)
     =.  nest  n
-    =.  diary  *diary:d
-    =.  group.perm.perm.diary  group
-    =.  last-read.remark.diary  now.bowl
-    =.  di-core  di-give-brief
-    =.  di-core  (di-response %join group)
-    di-safe-sub
+    =.  channel  *v-channel:c
+    =.  group.perm.perm.channel  group
+    =.  last-read.remark.channel  now.bowl
+    =.  ca-core  ca-give-unread
+    =.  ca-core  (ca-response %join group)
+    ca-safe-sub
   ::
   ::  handle an action from the client
   ::
   ::    typically this will either handle the action directly (for local
   ::    things like marking channels read) or proxy the request to the
-  ::    host (for global things like posting a note).
+  ::    host (for global things like posting a post).
   ::
-  ++  di-a-diary
-    |=  =a-diary:d
+  ++  ca-a-diary
+    |=  =a-channel:c
     ?>  from-self
-    ?+  -.a-diary  (di-send-command [%diary nest a-diary])
+    ?+  -.a-channel  (ca-send-command [%channel nest a-channel])
       %join       !!  ::  handled elsewhere
-      %leave      di-leave
-      ?(%read %read-at %watch %unwatch)  (di-a-remark a-diary)
+      %leave      ca-leave
+      ?(%read %read-at %watch %unwatch)  (ca-a-remark a-channel)
     ==
   ::
-  ++  di-a-remark
-    |=  =a-remark:d
-    ^+  di-core
-    =.  remark.diary
+  ++  ca-a-remark
+    |=  =a-remark:c
+    ^+  ca-core
+    =.  remark.channel
       ?-    -.a-remark
-          %watch    remark.diary(watching &)
-          %unwatch  remark.diary(watching |)
+          %watch    remark.channel(watching &)
+          %unwatch  remark.channel(watching |)
           %read-at  !!
           %read
-        =/  [=time note=(unit note:d)]  (need (ram:on-notes:d notes.diary))
-        remark.diary(last-read `@da`(add time (div ~s1 100)))
+        =/  [=time post=(unit v-post:c)]  (need (ram:on-v-posts:c posts.channel))
+        remark.channel(last-read `@da`(add time (div ~s1 100)))
       ==
-    =.  di-core  di-give-brief
-    (di-response a-remark)
+    =.  ca-core  ca-give-unread
+    (ca-response a-remark)
   ::
   ::  proxy command to host
   ::
-  ++  di-send-command
-    |=  command=c-shelf:d
-    ^+  di-core
-    ?>  ?=(%diary -.command)
+  ++  ca-send-command
+    |=  command=c-channels:c
+    ^+  ca-core
+    ?>  ?=(%channel -.command)
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%channel-action poke failed: only allowed from self" !!)
     =/  =cage  [%channel-command !>(command)]
-    (emit %pass di-area %agent [ship.nest.command server] %poke cage)
+    ::  NB: we must have already subscribed to something from this ship,
+    ::  so that we have negotiated a matching version.  If we want to do
+    ::  anything in particular on a mismatched version, we can call
+    ::  +can-poke:neg.
+    ::
+    (emit %pass ca-area %agent [ship.nest.command server] %poke cage)
   ::
   ::  handle a said (previews) request where we have the data to respond
   ::
-  ++  di-said
-    |=  =plan:d
-    ^+  di-core
-    =.  di-core
+  ++  ca-said
+    |=  =plan:c
+    ^+  ca-core
+    =.  ca-core
       %^  give  %fact  ~
-      ?.  (can-read:di-perms src.bowl)
+      ?.  (can-read:ca-perms src.bowl)
         channel-denied+!>(~)
-      (said:utils nest plan notes.diary)
+      (said:utils nest plan posts.channel)
     (give %kick ~ ~)
   ::
-  ++  di-has-sub
+  ++  ca-has-sub
     ^-  ?
-    (~(has by wex.bowl) [di-sub-wire ship.nest dap.bowl])
+    (~(has by wex.bowl) [ca-sub-wire ship.nest dap.bowl])
   ::
-  ++  di-safe-sub
-    ?:  di-has-sub  di-core
-    ?^  notes.diary  di-start-updates
-    =.  load.net.diary  |
-    %^  safe-watch  (weld di-area /checkpoint)  [ship.nest server]
+  ++  ca-safe-sub
+    ?:  ca-has-sub  ca-core
+    ?^  posts.channel  ca-start-updates
+    =.  load.net.channel  |
+    %^  safe-watch  (weld ca-area /checkpoint)  [ship.nest server]
     ?.  =(our.bowl ship.nest)
-      =/  count  ?:(=(%diary han.nest) '20' '100')
-      /[han.nest]/[name.nest]/checkpoint/before/[count]
-    /[han.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
+      =/  count  ?:(=(%diary kind.nest) '20' '100')
+      /[kind.nest]/[name.nest]/checkpoint/before/[count]
+    /[kind.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
   ::
-  ++  di-start-updates
+  ++  ca-start-updates
     ::  not most optimal time, should maintain last heard time instead
     =/  tim=(unit time)
-      (bind (ram:on-notes:d notes.diary) head)
-    %^  safe-watch  di-sub-wire  [ship.nest server]
-    /[han.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
+      (bind (ram:on-v-posts:c posts.channel) head)
+    %^  safe-watch  ca-sub-wire  [ship.nest server]
+    /[kind.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
   ::
-  ++  di-agent
+  ++  ca-agent
     |=  [=wire =sign:agent:gall]
-    ^+  di-core
+    ^+  ca-core
     ?+    wire  ~|(channel-strange-agent-wire+wire !!)
-      ~  di-core  :: noop wire, should only send pokes
-      [%create ~]       (di-take-create sign)
-      [%updates ~]      (di-take-update sign)
-      [%backlog ~]      (di-take-backlog sign)
-      [%checkpoint ~]   (di-take-checkpoint sign)
+      ~  ca-core  :: noop wire, should only send pokes
+      [%create ~]       (ca-take-create sign)
+      [%updates ~]      (ca-take-update sign)
+      [%backlog ~]      (ca-take-backlog sign)
+      [%checkpoint ~]   (ca-take-checkpoint sign)
     ==
   ::
-  ++  di-take-create
+  ++  ca-take-create
     |=  =sign:agent:gall
-    ^+  di-core
+    ^+  ca-core
     ?-    -.sign
         %poke-ack
       =+  ?~  p.sign  ~
           %-  (slog leaf+"{<dap.bowl>}: Failed creation (poke)" u.p.sign)
           ~
-      =/  =path  /[han.nest]/[name.nest]/create
-      =/  =wire  (weld di-area /create)
+      =/  =path  /[kind.nest]/[name.nest]/create
+      =/  =wire  (weld ca-area /create)
       (emit %pass wire %agent [our.bowl server] %watch path)
     ::
-        %kick       di-safe-sub
+        %kick       ca-safe-sub
         %watch-ack
-      ?~  p.sign  di-core
+      ?~  p.sign  ca-core
       %-  (slog leaf+"{<dap.bowl>}: Failed creation" u.p.sign)
-      di-core
+      ca-core
     ::
         %fact
       =*  cage  cage.sign
       ?.  =(%channel-update p.cage)
         ~|(diary-strange-fact+p.cage !!)
-      =+  !<(=update:d q.cage)
-      =.  di-core  (di-u-shelf update)
-      =.  di-core  di-give-brief
-      =.  di-core
-        (emit %pass (weld di-area /create) %agent [ship.nest server] %leave ~)
-      di-safe-sub
+      =+  !<(=update:c q.cage)
+      =.  ca-core  (ca-u-channels update)
+      =.  ca-core  ca-give-unread
+      =.  ca-core
+        (emit %pass (weld ca-area /create) %agent [ship.nest server] %leave ~)
+      ca-safe-sub
     ==
   ::
-  ++  di-take-update
+  ++  ca-take-update
     |=  =sign:agent:gall
-    ^+  di-core
-    ?+    -.sign  di-core
-        %kick       di-safe-sub
+    ^+  ca-core
+    ?+    -.sign  ca-core
+        %kick       ca-safe-sub
         %watch-ack
-      ?~  p.sign  di-core
+      ?~  p.sign  ca-core
       %-  (slog leaf+"{<dap.bowl>}: Failed subscription" u.p.sign)
-      di-core
+      ca-core
     ::
         %fact
       =*  cage  cage.sign
       ?+  p.cage  ~|(channel-strange-fact+p.cage !!)
-        %channel-logs    (di-apply-logs !<(log:d q.cage))
-        %channel-update  (di-u-shelf !<(update:d q.cage))
+        %channel-logs    (ca-apply-logs !<(log:c q.cage))
+        %channel-update  (ca-u-channels !<(update:c q.cage))
       ==
     ==
   ::
-  ++  di-take-checkpoint
+  ++  ca-take-checkpoint
     |=  =sign:agent:gall
-    ^+  di-core
-    ?+    -.sign  di-core
+    ^+  ca-core
+    ?+    -.sign  ca-core
         :: only if kicked prematurely
-        %kick       ?:(load.net.diary di-core di-safe-sub)
+        %kick       ?:(load.net.channel ca-core ca-safe-sub)
         %watch-ack
-      ?~  p.sign  di-core
+      ?~  p.sign  ca-core
       %-  (slog leaf+"{<dap.bowl>}: Failed partial checkpoint" u.p.sign)
-      di-core
+      ca-core
     ::
         %fact
       =*  cage  cage.sign
       ?+    p.cage  ~|(diary-strange-fact+p.cage !!)
           %channel-checkpoint
-        (di-ingest-checkpoint !<(u-checkpoint:d q.cage))
+        (ca-ingest-checkpoint !<(u-checkpoint:c q.cage))
       ==
     ==
   ::
-  ++  di-take-backlog
+  ++  ca-take-backlog
     |=  =sign:agent:gall
-    ^+  di-core
-    ?+    -.sign  di-core
+    ^+  ca-core
+    ?+    -.sign  ca-core
         :: only if kicked prematurely
-        %kick  di-sync-backlog
+        %kick  ca-sync-backlog
         %watch-ack
-      ?~  p.sign  di-core
+      ?~  p.sign  ca-core
       %-  (slog leaf+"{<dap.bowl>}: Failed backlog" u.p.sign)
-      di-core
+      ca-core
     ::
         %fact
       =*  cage  cage.sign
       ?+    p.cage  ~|(diary-strange-fact+p.cage !!)
           %channel-checkpoint
-        (di-ingest-backlog !<(u-checkpoint:d q.cage))
+        (ca-ingest-backlog !<(u-checkpoint:c q.cage))
       ==
     ==
   ::
-  ++  di-ingest-checkpoint
-    |=  chk=u-checkpoint:d
-    ^+  di-core
-    =.  load.net.diary  &
-    =.  di-core  (di-apply-checkpoint chk &)
-    =.  di-core  di-start-updates
-    =.  di-core  di-sync-backlog
-    =/  wire  (weld di-area /checkpoint)
+  ++  ca-ingest-checkpoint
+    |=  chk=u-checkpoint:c
+    ^+  ca-core
+    =.  load.net.channel  &
+    =.  ca-core  (ca-apply-checkpoint chk &)
+    =.  ca-core  ca-start-updates
+    =.  ca-core  ca-sync-backlog
+    =/  wire  (weld ca-area /checkpoint)
     (emit %pass wire %agent [ship.nest dap.bowl] %leave ~)
   ::
-  ++  di-apply-checkpoint
-    |=  [chk=u-checkpoint:d send=?]
-    =^  changed  sort.diary  (apply-rev:d sort.diary sort.chk)
-    =?  di-core  &(changed send)  (di-response %sort sort.sort.diary)
-    =^  changed  view.diary  (apply-rev:d view.diary view.chk)
-    =?  di-core  &(changed send)  (di-response %view view.view.diary)
-    =^  changed  perm.diary  (apply-rev:d perm.diary perm.chk)
-    =?  di-core  &(changed send)  (di-response %perm perm.perm.diary)
-    =^  changed  order.diary  (apply-rev:d order.diary order.chk)
-    =?  di-core  &(changed send)  (di-response %order order.order.diary)
-    =/  old  notes.diary
-    =.  notes.diary
-      ((uno:mo-notes:d notes.diary notes.chk) di-apply-unit-note)
-    =?  di-core  &(send !=(old notes.diary))
-      %+  di-response  %notes
-      %+  gas:rr-on-notes:d  *rr-notes:d
-      %+  murn  (turn (tap:on-notes:d notes.chk) head)
-      |=  id=id-note:d
-      ^-  (unit [id-note:d (unit rr-note:d)])
-      =/  note  (got:on-notes:d notes.diary id)
-      =/  old   (get:on-notes:d old id)
-      ?:  =(old `note)  ~
-      ?~  note  (some [id ~])
-      (some [id `(rr-note:utils u.note)])
-    di-core
+  ++  ca-apply-checkpoint
+    |=  [chk=u-checkpoint:c send=?]
+    =^  changed  sort.channel  (apply-rev:c sort.channel sort.chk)
+    =?  ca-core  &(changed send)  (ca-response %sort sort.sort.channel)
+    =^  changed  view.channel  (apply-rev:c view.channel view.chk)
+    =?  ca-core  &(changed send)  (ca-response %view view.view.channel)
+    =^  changed  perm.channel  (apply-rev:c perm.channel perm.chk)
+    =?  ca-core  &(changed send)  (ca-response %perm perm.perm.channel)
+    =^  changed  order.channel  (apply-rev:c order.channel order.chk)
+    =?  ca-core  &(changed send)  (ca-response %order order.order.channel)
+    =/  old  posts.channel
+    =.  posts.channel
+      ((uno:mo-v-posts:c posts.channel posts.chk) ca-apply-unit-post)
+    =?  ca-core  &(send !=(old posts.channel))
+      %+  ca-response  %posts
+      %+  gas:on-posts:c  *posts:c
+      %+  murn  (turn (tap:on-v-posts:c posts.chk) head)
+      |=  id=id-post:c
+      ^-  (unit [id-post:c (unit post:c)])
+      =/  post  (got:on-v-posts:c posts.channel id)
+      =/  old   (get:on-v-posts:c old id)
+      ?:  =(old `post)  ~
+      ?~  post  (some [id ~])
+      (some [id `(uv-post:utils u.post)])
+    ca-core
   ::
-  ++  di-sync-backlog
-    =/  checkpoint-start  (pry:on-notes:d notes.diary)
-    ?~  checkpoint-start  di-core
-    %^  safe-watch  (weld di-area /backlog)  [ship.nest server]
+  ++  ca-sync-backlog
+    =/  checkpoint-start  (pry:on-v-posts:c posts.channel)
+    ?~  checkpoint-start  ca-core
+    %^  safe-watch  (weld ca-area /backlog)  [ship.nest server]
     %+  welp
-    /[han.nest]/[name.nest]/checkpoint/time-range
+    /[kind.nest]/[name.nest]/checkpoint/time-range
     ~|  `*`key.u.checkpoint-start
     /(scot %da *@da)/(scot %da key.u.checkpoint-start)
   ::
-  ++  di-ingest-backlog
-    |=  chk=u-checkpoint:d
-    =.  di-core  (di-apply-checkpoint chk |)
-    =/  wire  (weld di-area /backlog)
+  ++  ca-ingest-backlog
+    |=  chk=u-checkpoint:c
+    =.  ca-core  (ca-apply-checkpoint chk |)
+    =/  wire  (weld ca-area /backlog)
     (emit %pass wire %agent [ship.nest dap.bowl] %leave ~)
   ::
-  ++  di-apply-logs
-    |=  =log:d
-    ^+  di-core
-    %+  roll  (tap:log-on:d log)
-    |=  [[=time =u-diary:d] di=_di-core]
-    (di-u-shelf:di time u-diary)
+  ++  ca-apply-logs
+    |=  =log:c
+    ^+  ca-core
+    %+  roll  (tap:log-on:c log)
+    |=  [[=time =u-channel:c] ca=_ca-core]
+    (ca-u-channels:ca time u-channel)
   ::
-  ::  +di-u-* functions ingest updates and execute them
+  ::  +ca-u-* functions ingest updates and execute them
   ::
   ::    often this will modify the state and emit a "response" to our
-  ::    own subscribers.  it may also emit briefs and/or trigger hark
+  ::    own subscribers.  it may also emit unreads and/or trigger hark
   ::    events.
   ::
-  ++  di-u-shelf
-    |=  [=time =u-diary:d]
-    ?>  di-from-host
-    ^+  di-core
-    ?-    -.u-diary
+  ++  ca-u-channels
+    |=  [=time =u-channel:c]
+    ?>  ca-from-host
+    ^+  ca-core
+    ?-    -.u-channel
         %create
-      ?.  =(0 rev.perm.diary)  di-core
-      =.  perm.perm.diary  perm.u-diary
-      (di-response %create perm.u-diary)
+      ?.  =(0 rev.perm.channel)  ca-core
+      =.  perm.perm.channel  perm.u-channel
+      (ca-response %create perm.u-channel)
     ::
         %order
-      =^  changed  order.diary  (apply-rev:d order.diary +.u-diary)
-      ?.  changed  di-core
-      (di-response %order order.order.diary)
+      =^  changed  order.channel  (apply-rev:c order.channel +.u-channel)
+      ?.  changed  ca-core
+      (ca-response %order order.order.channel)
     ::
         %view
-      =^  changed  view.diary  (apply-rev:d view.diary +.u-diary)
-      ?.  changed  di-core
-      (di-response %view view.view.diary)
+      =^  changed  view.channel  (apply-rev:c view.channel +.u-channel)
+      ?.  changed  ca-core
+      (ca-response %view view.view.channel)
     ::
         %sort
-      =^  changed  sort.diary  (apply-rev:d sort.diary +.u-diary)
-      ?.  changed  di-core
-      (di-response %sort sort.sort.diary)
+      =^  changed  sort.channel  (apply-rev:c sort.channel +.u-channel)
+      ?.  changed  ca-core
+      (ca-response %sort sort.sort.channel)
     ::
         %perm
-      =^  changed  perm.diary  (apply-rev:d perm.diary +.u-diary)
-      ?.  changed  di-core
-      (di-response %perm perm.perm.diary)
+      =^  changed  perm.channel  (apply-rev:c perm.channel +.u-channel)
+      ?.  changed  ca-core
+      (ca-response %perm perm.perm.channel)
     ::
-        %note
-      =/  old  notes.diary
-      =.  di-core  (di-u-note id.u-diary u-note.u-diary)
-      =?  di-core  !=(old notes.diary)  di-give-brief
-      di-core
+        %post
+      =/  old  posts.channel
+      =.  ca-core  (ca-u-post id.u-channel u-post.u-channel)
+      =?  ca-core  !=(old posts.channel)  ca-give-unread
+      ca-core
     ==
   ::
-  ++  di-u-note
-    |=  [=id-note:d =u-note:d]
-    ^+  di-core
-    =/  note  (get:on-notes:d notes.diary id-note)
-    ?:  ?=([~ ~] note)  di-core
-    ?:  ?=(%set -.u-note)
-      ?~  note
-        =/  rr-note=(unit rr-note:d)  (bind note.u-note rr-note:utils)
-        =?  di-core  ?=(^ note.u-note)
+  ++  ca-u-post
+    |=  [=id-post:c =u-post:c]
+    ^+  ca-core
+    =/  post  (get:on-v-posts:c posts.channel id-post)
+    ?:  ?=([~ ~] post)  ca-core
+    ?:  ?=(%set -.u-post)
+      ?~  post
+        =/  post=(unit post:c)  (bind post.u-post uv-post:utils)
+        =?  ca-core  ?=(^ post.u-post)
           ::TODO  what about the "mention was added during edit" case?
-          (on-note:di-hark id-note u.note.u-note)
-        =.  notes.diary  (put:on-notes:d notes.diary id-note note.u-note)
-        (di-response %note id-note %set rr-note)
+          (on-post:ca-hark id-post u.post.u-post)
+        =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
+        (ca-response %post id-post %set post)
       ::
-      ?~  note.u-note
-        =.  notes.diary  (put:on-notes:d notes.diary id-note ~)
-        (di-response %note id-note %set ~)
+      ?~  post.u-post
+        =.  posts.channel  (put:on-v-posts:c posts.channel id-post ~)
+        (ca-response %post id-post %set ~)
       ::
-      =*  old  u.u.note
-      =*  new  u.note.u-note
-      =/  merged  (di-apply-note id-note old new)
-      ?:  =(merged old)  di-core
-      =.  notes.diary  (put:on-notes:d notes.diary id-note `merged)
-      (di-response %note id-note %set `(rr-note:utils merged))
+      =*  old  u.u.post
+      =*  new  u.post.u-post
+      =/  merged  (ca-apply-post id-post old new)
+      ?:  =(merged old)  ca-core
+      =.  posts.channel  (put:on-v-posts:c posts.channel id-post `merged)
+      (ca-response %post id-post %set `(uv-post:utils merged))
     ::
-    ?~  note
-      =.  diffs.future.diary
+    ?~  post
+      =.  diffs.future.channel
         ::  if the item affected by the update is not in the window we
         ::  care about, ignore it. otherwise, put it in the pending
         ::  diffs set.
         ::
-        ?.  (~(has as:sparse window.future.diary) id-note)
-          diffs.future.diary
-        (~(put ju diffs.future.diary) id-note u-note)
-      di-core
+        ?.  (~(has as:sparse window.future.channel) id-post)
+          diffs.future.channel
+        (~(put ju diffs.future.channel) id-post u-post)
+      ca-core
     ::
-    ?-    -.u-note
-        %quip   (di-u-quip id-note u.u.note id.u-note u-quip.u-note)
-        %feels
-      =/  merged  (di-apply-feels feels.u.u.note feels.u-note)
-      ?:  =(merged feels.u.u.note)  di-core
-      =.  notes.diary
-        (put:on-notes:d notes.diary id-note `u.u.note(feels merged))
-      (di-response %note id-note %feels (rr-feels:utils merged))
+    ?-    -.u-post
+        %reply  (ca-u-reply id-post u.u.post id.u-post u-reply.u-post)
+        %reacts
+      =/  merged  (ca-apply-reacts reacts.u.u.post reacts.u-post)
+      ?:  =(merged reacts.u.u.post)  ca-core
+      =.  posts.channel
+        (put:on-v-posts:c posts.channel id-post `u.u.post(reacts merged))
+      (ca-response %post id-post %reacts (uv-reacts:utils merged))
     ::
         %essay
-      =^  changed  +.u.u.note  (apply-rev:d +.u.u.note +.u-note)
-      ?.  changed  di-core
-      =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
-      (di-response %note id-note %essay +>.u.u.note)
+      =^  changed  +.u.u.post  (apply-rev:c +.u.u.post +.u-post)
+      ?.  changed  ca-core
+      =.  posts.channel  (put:on-v-posts:c posts.channel id-post `u.u.post)
+      (ca-response %post id-post %essay +>.u.u.post)
     ==
   ::
-  ++  di-u-quip
-    |=  [=id-note:d =note:d =id-quip:d =u-quip:d]
-    ^+  di-core
+  ++  ca-u-reply
+    |=  [=id-post:c post=v-post:c =id-reply:c =u-reply:c]
+    ^+  ca-core
     |^
-    =/  quip  (get:on-quips:d quips.note id-quip)
-    ?:  ?=([~ ~] quip)  di-core
-    ?:  ?=(%set -.u-quip)
-      ?~  quip
-        =/  rr-quip=(unit rr-quip:d)  (bind quip.u-quip rr-quip:utils)
-        =?  di-core  ?=(^ quip.u-quip)
-          (on-quip:di-hark id-note note u.quip.u-quip)
-        (put-quip quip.u-quip %set rr-quip)
+    =/  reply  (get:on-v-replies:c replies.post id-reply)
+    ?:  ?=([~ ~] reply)  ca-core
+    ?:  ?=(%set -.u-reply)
+      ?~  reply
+        =/  reply=(unit reply:c)
+          ?~  reply.u-reply  ~
+          `(uv-reply:utils id-post u.reply.u-reply)
+        =?  ca-core  ?=(^ reply.u-reply)
+          (on-reply:ca-hark id-post post u.reply.u-reply)
+        (put-reply reply.u-reply %set reply)
       ::
-      ?~  quip.u-quip  (put-quip ~ %set ~)
+      ?~  reply.u-reply  (put-reply ~ %set ~)
       ::
-      =*  old  u.u.quip
-      =*  new  u.quip.u-quip
-      =/  merged  (need (di-apply-quip id-quip `old `new))
-      ?:  =(merged old)  di-core
-      (put-quip `merged %set `(rr-quip:utils merged))
+      =*  old  u.u.reply
+      =*  new  u.reply.u-reply
+      =/  merged  (need (ca-apply-reply id-reply `old `new))
+      ?:  =(merged old)  ca-core
+      (put-reply `merged %set `(uv-reply:utils id-post merged))
     ::
-    ?~  quip  di-core
+    ?~  reply  ca-core
     ::
-    =/  merged  (di-apply-feels feels.u.u.quip feels.u-quip)
-    ?:  =(merged feels.u.u.quip)  di-core
-    (put-quip `u.u.quip(feels merged) %feels (rr-feels:utils merged))
+    =/  merged  (ca-apply-reacts reacts.u.u.reply reacts.u-reply)
+    ?:  =(merged reacts.u.u.reply)  ca-core
+    (put-reply `u.u.reply(reacts merged) %reacts (uv-reacts:utils merged))
     ::
-    ::  put a quip into a note by id
+    ::  put a reply into a post by id
     ::
-    ++  put-quip
-      |=  [quip=(unit quip:d) =r-quip:d]
-      ^+  di-core
-      =/  note  (get:on-notes:d notes.diary id-note)
-      ?~  note  di-core
-      ?~  u.note  di-core
-      =.  quips.u.u.note  (put:on-quips:d quips.u.u.note id-quip quip)
-      =.  notes.diary  (put:on-notes:d notes.diary id-note `u.u.note)
-      =/  meta=quip-meta:d  (get-quip-meta:utils u.u.note)
-      (di-response %note id-note %quip id-quip meta r-quip)
+    ++  put-reply
+      |=  [reply=(unit v-reply:c) =r-reply:c]
+      ^+  ca-core
+      =/  post  (get:on-v-posts:c posts.channel id-post)
+      ?~  post  ca-core
+      ?~  u.post  ca-core
+      =.  replies.u.u.post  (put:on-v-replies:c replies.u.u.post id-reply reply)
+      =.  posts.channel  (put:on-v-posts:c posts.channel id-post `u.u.post)
+      =/  meta=reply-meta:c  (get-reply-meta:utils u.u.post)
+      (ca-response %post id-post %reply id-reply meta r-reply)
     --
   ::
-  ::  +di-apply-* functions apply new copies of data to old copies,
+  ::  +ca-apply-* functions apply new copies of data to old copies,
   ::  keeping the most recent versions of each sub-piece of data
   ::
-  ++  di-apply-unit-note
-    |=  [=id-note:d old=(unit note:d) new=(unit note:d)]
-    ^-  (unit note:d)
+  ++  ca-apply-unit-post
+    |=  [=id-post:c old=(unit v-post:c) new=(unit v-post:c)]
+    ^-  (unit v-post:c)
     ?~  old  ~
     ?~  new  ~
-    `(di-apply-note id-note u.old u.new)
+    `(ca-apply-post id-post u.old u.new)
   ::
-  ++  di-apply-note
-    |=  [=id-note:d old=note:d new=note:d]
-    ^-  note:d
+  ++  ca-apply-post
+    |=  [=id-post:c old=v-post:c new=v-post:c]
+    ^-  v-post:c
     %_  old
-      quips  (di-apply-quips quips.old quips.new)
-      feels  (di-apply-feels feels.old feels.new)
-      +      +:(apply-rev:d +.old +.new)
+      replies  (ca-apply-replies replies.old replies.new)
+      reacts   (ca-apply-reacts reacts.old reacts.new)
+      +        +:(apply-rev:c +.old +.new)
     ==
   ::
-  ++  di-apply-feels
-    |=  [old=feels:d new=feels:d]
-    ^-  feels:d
+  ++  ca-apply-reacts
+    |=  [old=v-reacts:c new=v-reacts:c]
+    ^-  v-reacts:c
     %-  (~(uno by old) new)
-    |=  [* a=(rev:d (unit feel:d)) b=(rev:d (unit feel:d))]
-    +:(apply-rev:d a b)
+    |=  [* a=(rev:c (unit react:c)) b=(rev:c (unit react:c))]
+    +:(apply-rev:c a b)
   ::
-  ++  di-apply-quips
-    |=  [old=quips:d new=quips:d]
-    ((uno:mo-quips:d old new) di-apply-quip)
+  ++  ca-apply-replies
+    |=  [old=v-replies:c new=v-replies:c]
+    ((uno:mo-v-replies:c old new) ca-apply-reply)
   ::
-  ++  di-apply-quip
-    |=  [=id-quip:d old=(unit quip:d) new=(unit quip:d)]
-    ^-  (unit quip:d)
+  ++  ca-apply-reply
+    |=  [=id-reply:c old=(unit v-reply:c) new=(unit v-reply:c)]
+    ^-  (unit v-reply:c)
     ?~  old  ~
     ?~  new  ~
     :-  ~
     %=  u.old
-      feels  (di-apply-feels feels.u.old feels.u.new)
+      reacts  (ca-apply-reacts reacts.u.old reacts.u.new)
       +      +.u.new
     ==
   ::
-  ::  +di-hark: notification dispatch
+  ::  +ca-hark: notification dispatch
   ::
-  ::    entry-points are +on-note and +on-quip, who may implement distinct
+  ::    entry-points are +on-post and +on-reply, who may implement distinct
   ::    notification behavior
   ::
-  ++  di-hark
+  ++  ca-hark
     |%
-    ++  on-note
-      |=  [=id-note:d =note:d]
-      ^+  di-core
-      ?:  =(author.note our.bowl)
-        di-core
-      ::  we want to be notified if we were mentioned in the note
+    ++  on-post
+      |=  [=id-post:c post=v-post:c]
+      ^+  ca-core
+      ?:  =(author.post our.bowl)
+        ca-core
+      ::  we want to be notified if we were mentioned in the post
       ::
-      ?:  (was-mentioned:utils content.note our.bowl)
+      ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
-          di-core
+          ca-core
         =/  cs=(list content:ha)
-          ~[[%ship author.note] ' mentioned you: ' (flatten:utils content.note)]
-        (emit (pass-hark (di-spin /note/(rsh 4 (scot %ui id-note)) cs ~)))
+          ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
+        (emit (pass-hark (ca-spin /post/(rsh 4 (scot %ui id-post)) cs ~)))
       ::
       ::TODO  if we (want-hark %any), notify
-      di-core
+      ca-core
     ::
-    ++  on-quip
-      |=  [=id-note:d =note:d =quip:d]
-      ^+  di-core
-      ?:  =(author.quip our.bowl)
-        di-core
+    ++  on-reply
+      |=  [=id-post:c post=v-post:c reply=v-reply:c]
+      ^+  ca-core
+      ?:  =(author.reply our.bowl)
+        ca-core
       ::  preparation of common cases
       ::
       =*  diary-notification
-        :~  [%ship author.quip]  ' commented on '
-            [%emph title.han-data.note]   ': '
-            [%ship author.quip]  ': '
-            (flatten:utils content.quip)
+        :~  [%ship author.reply]  ' commented on '
+            [%emph title.kind-data.post]   ': '
+            [%ship author.reply]  ': '
+            (flatten:utils content.reply)
         ==
       =*  heap-notification
-        =/  content  (flatten:utils content.quip)
+        =/  content  (flatten:utils content.reply)
         =/  title=@t
-          ?^  title.han-data.note  (need title.han-data.note)
+          ?^  title.kind-data.post  (need title.kind-data.post)
           ?:  (lte (met 3 content) 80)  content
           (cat 3 (end [3 77] content) '...')
-        :~  [%ship author.quip]  ' commented on '
+        :~  [%ship author.reply]  ' commented on '
             [%emph title]   ': '
-            [%ship author.quip]  ': '
+            [%ship author.reply]  ': '
             content
         ==
       ::  construct a notification message based on the reason to notify,
       ::  if we even need to notify at all
       ::
       =;  cs=(unit (list content:ha))
-        ?~  cs  di-core
+        ?~  cs  ca-core
         =/  =path
-          /note/(rsh 4 (scot %ui id-note))/(rsh 4 (scot %ui id.quip))
-        (emit (pass-hark (di-spin path u.cs ~)))
-      ::  notify because we wrote the note the quip responds to
+          /post/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
+        (emit (pass-hark (ca-spin path u.cs ~)))
+      ::  notify because we wrote the post the reply responds to
       ::
-      ?:  =(author.note our.bowl)
+      ?:  =(author.post our.bowl)
         ?.  (want-hark %ours)  ~
-        ?-    -.han-data.note
+        ?-    -.kind-data.post
             %diary  `diary-notification
             %heap   `heap-notification
             %chat
           :-  ~
-          :~  [%ship author.quip]
+          :~  [%ship author.reply]
               ' replied to you: '
-              (flatten:utils content.quip)
+              (flatten:utils content.reply)
           ==
         ==
-      ::  notify because we were mentioned in the quip
+      ::  notify because we were mentioned in the reply
       ::
-      ?:  (was-mentioned:utils content.quip our.bowl)
+      ?:  (was-mentioned:utils content.reply our.bowl)
         ?.  (want-hark %mention)  ~
-        `~[[%ship author.quip] ' mentioned you: ' (flatten:utils content.quip)]
-      ::  notify because we ourselves responded to this note previously
+        `~[[%ship author.reply] ' mentioned you: ' (flatten:utils content.reply)]
+      ::  notify because we ourselves responded to this post previously
       ::
-      ?:  %+  lien  (tap:on-quips:d quips.note)
-          |=  [=time quip=(unit quip:d)]
-          ?~  quip  |
-          =(author.u.quip our.bowl)
+      ?:  %+  lien  (tap:on-v-replies:c replies.post)
+          |=  [=time reply=(unit v-reply:c)]
+          ?~  reply  |
+          =(author.u.reply our.bowl)
         ?.  (want-hark %ours)  ~
-        ?-    -.han-data.note
+        ?-    -.kind-data.post
             %diary  `diary-notification
             %heap   `heap-notification
             %chat
           :-  ~
-          :~  [%ship author.quip]
+          :~  [%ship author.reply]
               ' replied to your message “'
-              (flatten:utils content.note)
+              (flatten:utils content.post)
               '”: '
-              [%ship author.quip]
+              [%ship author.reply]
               ': '
-              (flatten:utils content.quip)
+              (flatten:utils content.reply)
           ==
         ==
       ::  only notify if we want to be notified about everything
       ::
       ?.  (want-hark %any)
         ~
-      ?-    -.han-data.note
+      ?-    -.kind-data.post
           %diary  ~
           %heap   ~
           %chat
         :-  ~
-        :~  [%ship author.quip]
+        :~  [%ship author.reply]
             ' sent a message: '
-            (flatten:utils content.quip)
+            (flatten:utils content.reply)
         ==
       ==
     ::
@@ -942,292 +952,286 @@
   ::
   ::  convert content into a full yarn suitable for hark
   ::
-  ++  di-spin
+  ++  ca-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
-    =*  group  group.perm.perm.diary
+    =*  group  group.perm.perm.channel
     =/  gn=nest:g  nest
-    =/  thread  (welp /[han.nest]/(scot %p ship.nest)/[name.nest] rest)
+    =/  thread  (welp /[kind.nest]/(scot %p ship.nest)/[name.nest] rest)
     =/  rope  [`group `gn q.byk.bowl thread]
     =/  link  (welp /groups/(scot %p p.group)/[q.group]/channels thread)
     [& & rope con link but]
   ::
   ::  give a "response" to our subscribers
   ::
-  ++  di-response
-    |=  =r-diary:d
-    =/  =r-shelf:d  [nest r-diary]
-    (give %fact ~[/ui (snoc di-area %ui)] channel-response+!>(r-shelf))
+  ++  ca-response
+    |=  =r-channel:c
+    =/  =r-channels:c  [nest r-channel]
+    (give %fact ~[/ ca-area] channel-response+!>(r-channels))
   ::
-  ::  produce an up-to-date brief
+  ::  produce an up-to-date unread state
   ::
-  ++  di-brief
-    ^-  brief:d
+  ++  ca-unread
+    ^-  unread:c
     =/  =time
-      ?~  tim=(ram:on-notes:d notes.diary)  *time
+      ?~  tim=(ram:on-v-posts:c posts.channel)  *time
       key.u.tim
     =/  unreads
-      (lot:on-notes:d notes.diary `last-read.remark.diary ~)
+      (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
     =/  read-id=(unit ^time)
-      =/  pried  (pry:on-notes:d unreads)
+      =/  pried  (pry:on-v-posts:c unreads)
       ?~  pried  ~
       ?~  val.u.pried  ~
       `id.u.val.u.pried
     =/  count
       %-  lent
       %+  skim  ~(tap by unreads)
-      |=  [tim=^time note=(unit note:d)]
-      ?&  ?=(^ note)
-          !=(author.u.note our.bowl)
+      |=  [tim=^time post=(unit v-post:c)]
+      ?&  ?=(^ post)
+          !=(author.u.post our.bowl)
       ==
     [time count read-id]
   ::
   ::  handle scries
   ::
-  ++  di-peek
+  ++  ca-peek
     |=  =(pole knot)
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
-        [%notes rest=*]  (di-peek-notes rest.pole)
-        [%perm ~]        ``channel-perm+!>(perm.perm.diary)
+        [%posts rest=*]  (ca-peek-posts rest.pole)
+        [%perm ~]        ``channel-perm+!>(perm.perm.channel)
         [%search %text skip=@ count=@ nedl=@ ~]
       :^  ~  ~  %channel-scan  !>
-      %^    text:di-search
+      %^    text:ca-search
           (slav %ud skip.pole)
         (slav %ud count.pole)
       nedl.pole
     ::
         [%search %mention skip=@ count=@ nedl=@ ~]
       :^  ~  ~  %channel-scan  !>
-      %^    mention:di-search
+      %^    mention:ca-search
           (slav %ud skip.pole)
         (slav %ud count.pole)
       (slav %p nedl.pole)
     ==
   ::
-  ++  give-notes
-    |=  [mode=?(%outline %note) ls=(list [time (unit note:d)])]
+  ++  give-posts
+    |=  [mode=?(%outline %post) ls=(list [time (unit v-post:c)])]
     ^-  (unit (unit cage))
-    =/  =notes:d  (gas:on-notes:d *notes:d ls)
-    =-  ``channel-notes+!>(-)
-    ?:  =(0 (lent ls))  [*rr-notes:d ~ ~ 0]
-    =/  notes=rr-notes:d
-      ?:  =(%note mode)  (rr-notes:utils notes)
-      (rr-notes-without-quips:utils notes)
+    =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
+    =-  ``channel-posts+!>(-)
+    ?:  =(0 (lent ls))  [*posts:c ~ ~ 0]
+    =/  =posts:c
+      ?:  =(%post mode)  (uv-posts:utils posts)
+      (uv-posts-without-replies:utils posts)
     =/  newer=(unit time)
-      =/  more  (tab:on-notes:d notes.diary `-:(rear ls) 1)
+      =/  more  (tab:on-v-posts:c posts.channel `-:(rear ls) 1)
       ?~(more ~ `-:(head more))
     =/  older=(unit time)
-      =/  more  (bat:mo-notes:d notes.diary `-:(head ls) 1)
+      =/  more  (bat:mo-v-posts:c posts.channel `-:(head ls) 1)
       ?~(more ~ `-:(head more))
-    :*  notes
+    :*  posts
         newer
         older
-        (wyt:on-notes:d notes.diary)
+        (wyt:on-v-posts:c posts.channel)
     ==
   ::
-  ++  di-peek-notes
+  ++  ca-peek-posts
     |=  =(pole knot)
     ^-  (unit (unit cage))
-    =*  on   on-notes:d
+    =*  on   on-v-posts:c
     ?+    pole  [~ ~]
-        [%newest count=@ mode=?(%outline %note) ~]
+        [%newest count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
-      =/  ls     (top:mo-notes:d notes.diary count)
-      (give-notes mode.pole ls)
+      =/  ls     (top:mo-v-posts:c posts.channel count)
+      (give-posts mode.pole ls)
     ::
-        [%older start=@ count=@ mode=?(%outline %note) ~]
-      =/  count  (slav %ud count.pole)
-      =/  start  (slav %ud start.pole)
-      =/  ls     (bat:mo-notes:d notes.diary `start count)
-      (give-notes mode.pole ls)
-    ::
-        [%newer start=@ count=@ mode=?(%outline %note) ~]
+        [%older start=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      =/  ls     (tab:on notes.diary `start count)
-      (give-notes mode.pole ls)
+      =/  ls     (bat:mo-v-posts:c posts.channel `start count)
+      (give-posts mode.pole ls)
     ::
-        [%around time=@ count=@ mode=?(%outline %note) ~]
+        [%newer start=@ count=@ mode=?(%outline %post) ~]
+      =/  count  (slav %ud count.pole)
+      =/  start  (slav %ud start.pole)
+      =/  ls     (tab:on posts.channel `start count)
+      (give-posts mode.pole ls)
+    ::
+        [%around time=@ count=@ mode=?(%outline %post) ~]
       =/  count  (slav %ud count.pole)
       =/  time  (slav %ud time.pole)
-      =/  older  (bat:mo-notes:d notes.diary `time count)
-      =/  newer  (tab:on notes.diary `time count)
-      =/  note   (get:on notes.diary time)
-      =/  notes
-          ?~  note  (welp older newer)
-          (welp (snoc older [time u.note]) newer)
-      (give-notes mode.pole notes)
+      =/  older  (bat:mo-v-posts:c posts.channel `time count)
+      =/  newer  (tab:on posts.channel `time count)
+      =/  post   (get:on posts.channel time)
+      =/  posts
+          ?~  post  (welp older newer)
+          (welp (snoc older [time u.post]) newer)
+      (give-posts mode.pole posts)
     ::
-        [%note time=@ ~]
+        [%post time=@ ~]
       =/  time  (slav %ud time.pole)
-      =/  note  (get:on notes.diary time)
-      ?~  note  ~
-      ?~  u.note  `~
-      ``channel-note+!>((rr-note:utils u.u.note))
+      =/  post  (get:on posts.channel time)
+      ?~  post  ~
+      ?~  u.post  `~
+      ``channel-post+!>((uv-post:utils u.u.post))
     ::
-        [%note %id time=@ %quips rest=*]
+        [%post %id time=@ %replies rest=*]
       =/  time  (slav %ud time.pole)
-      =/  note  (get:on notes.diary `@da`time)
-      ?~  note  ~
-      ?~  u.note  `~
-      (di-peek-quips quips.u.u.note rest.pole)
+      =/  post  (get:on posts.channel `@da`time)
+      ?~  post  ~
+      ?~  u.post  `~
+      (ca-peek-replies replies.u.u.post rest.pole)
     ==
   ::
-  ++  di-peek-quips
-    |=  [=quips:d =(pole knot)]
+  ++  ca-peek-replies
+    |=  [replies=v-replies:c =(pole knot)]
     ^-  (unit (unit cage))
-    =*  on   on-quips:d
+    =*  on   on-v-replies:c
     ?+    pole  [~ ~]
-        [%all ~]  ``channel-quips+!>(quips)
+        [%all ~]  ``channel-replies+!>(replies)
         [%newest count=@ ~]
       =/  count  (slav %ud count.pole)
-      ``channel-quips+!>((gas:on *quips:d (top:mo-quips:d quips count)))
+      ``channel-replies+!>((gas:on *v-replies:c (top:mo-v-replies:c replies count)))
     ::
         [%older start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-quips+!>((gas:on *quips:d (bat:mo-quips:d quips `start count)))
+      ``channel-replies+!>((gas:on *v-replies:c (bat:mo-v-replies:c replies `start count)))
     ::
         [%newer start=@ count=@ ~]
       =/  count  (slav %ud count.pole)
       =/  start  (slav %ud start.pole)
-      ``channel-quips+!>((gas:on *quips:d (tab:on quips `start count)))
+      ``channel-replies+!>((gas:on *v-replies:c (tab:on replies `start count)))
     ::
-        [%quip %id time=@ ~]
+        [%reply %id time=@ ~]
       =/  time  (slav %ud time.pole)
-      =/  quip  (get:on-quips:d quips `@da`time)
-      ?~  quip  ~
-      ?~  u.quip  `~
-      ``channel-quip+!>(u.u.quip)
+      =/  reply  (get:on-v-replies:c replies `@da`time)
+      ?~  reply  ~
+      ?~  u.reply  `~
+      ``channel-reply+!>(u.u.reply)
     ==
   ::
-  ++  di-search
+  ++  ca-search
     |^  |%
         ++  mention
           |=  [sip=@ud len=@ud nedl=ship]
-          ^-  scan:d
+          ^-  scan:c
           (scour sip len %mention nedl)
         ::
         ++  text
           |=  [sip=@ud len=@ud nedl=@t]
-          ^-  scan:d
+          ^-  scan:c
           (scour sip len %text nedl)
         --
     ::
-    ++  match-type
+    +$  match-type
       $%  [%mention nedl=ship]
           [%text nedl=@t]
       ==
     ::
     ++  scour
-      |=  [sip=@ud len=@ud =match-type]
-      =*  notes  notes.diary
+      |=  [skip=@ud len=@ud =match-type]
+      =*  posts  posts.channel
       ?>  (gth len 0)
-      =+  s=[sip=sip len=len *=scan:d]
+      =+  s=[skip=skip len=len *=scan:c]
       =-  (flop scan)
       |-  ^+  s
-      ?~  notes  s
+      ?~  posts  s
       ?:  =(0 len.s)  s
-      =.  s  $(notes r.notes)
+      =.  s  $(posts r.posts)
       ?:  =(0 len.s)  s
       ::
       =.  s
-        ?~  val.n.notes  s
-        ?.  (match match-type u.val.n.notes)  s
-        ?:  (gth sip.s 0)
-          s(sip (dec sip.s))
-        =/  res  [%note (rr-note:utils u.val.n.notes)]
+        ?~  val.n.posts  s
+        ?.  (match u.val.n.posts match-type)  s
+        ?:  (gth skip.s 0)
+          s(skip (dec skip.s))
+        =/  res  [%post (uv-post-without-replies:utils u.val.n.posts)]
         s(len (dec len.s), scan [res scan.s])
       ::
       =.  s
-        ?~  val.n.notes  s
-        %:  scour-quips
-            sip.s  len.s
-            id.u.val.n.notes
-            quips.u.val.n.notes
-            match-type
-        ==
+        ?~  val.n.posts  s
+        (scour-replys s id.u.val.n.posts replies.u.val.n.posts match-type)
       ::
-      $(notes l.notes)
+      $(posts l.posts)
     ::
-    ++  scour-quips
-      |=  [sip=@ud len=@ud =id-note:d =quips:d =match-type]
-      =+  s=[sip=sip len=len *=scan:d]
+    ++  scour-replys
+      |=  [s=[skip=@ud len=@ud =scan:c] =id-post:c replies=v-replies:c =match-type]
       |-  ^+  s
-      ?~  quips  s
+      ?~  replies  s
       ?:  =(0 len.s)  s
-      =.  s  $(quips r.quips)
+      =.  s  $(replies r.replies)
       ?:  =(0 len.s)  s
       ::
       =.  s
-        ?~  val.n.quips  s
-        ?.  (match-quip match-type u.val.n.quips)  s
-        ?:  (gth sip.s 0)
-          s(sip (dec sip.s))
-        =/  res  [%quip id-note (rr-quip:utils u.val.n.quips)]
+        ?~  val.n.replies  s
+        ?.  (match-reply u.val.n.replies match-type)  s
+        ?:  (gth skip.s 0)
+          s(skip (dec skip.s))
+        =/  res  [%reply id-post (uv-reply:utils id-post u.val.n.replies)]
         s(len (dec len.s), scan [res scan.s])
       ::
-      $(quips l.quips)
+      $(replies l.replies)
     ::
     ++  match
-      |=  [=match-type =note:d]
+      |=  [post=v-post:c =match-type]
       ^-  ?
       ?-  -.match-type
-        %mention  (match-note-mention nedl.match-type note)
-        %text     (match-note-text nedl.match-type note)
+        %mention  (match-post-mention nedl.match-type post)
+        %text     (match-post-text nedl.match-type post)
       ==
     ::
-    ++  match-quip
-      |=  [=match-type =quip:d]
+    ++  match-reply
+      |=  [reply=v-reply:c =match-type]
       ?-  -.match-type
-        %mention  (match-story-mention nedl.match-type content.quip)
-        %text     (match-story-text nedl.match-type content.quip)
+        %mention  (match-story-mention nedl.match-type content.reply)
+        %text     (match-story-text nedl.match-type content.reply)
       ==
     ::
-    ++  match-note-mention
-      |=  [nedl=ship =note:d]
+    ++  match-post-mention
+      |=  [nedl=ship post=v-post:c]
       ^-  ?
-      ?:  ?=([%chat %notice ~] han-data.note)  |
-      (match-story-mention nedl content.note)
+      ?:  ?=([%chat %notice ~] kind-data.post)  |
+      (match-story-mention nedl content.post)
     ::
     ++  match-story-mention
-      |=  [nedl=ship =story:d]
+      |=  [nedl=ship =story:c]
       %+  lien  story
-      |=  =verse:d
+      |=  =verse:c
       ?.  ?=(%inline -.verse)  |
       %+  lien  p.verse
-      |=  =inline:d
+      |=  =inline:c
       ?+  -.inline  |
         %ship                                  =(nedl p.inline)
         ?(%bold %italics %strike %blockquote)  ^$(p.verse p.inline)
       ==
     ::
-    ++  match-note-text
-      |=  [nedl=@t =note:d]
+    ++  match-post-text
+      |=  [nedl=@t post=v-post:c]
       ^-  ?
-      ?-    -.han-data.note
+      ?-    -.kind-data.post
           %diary
-        (match-story-text nedl ~[%inline title.han-data.note] content.note)
+        (match-story-text nedl ~[%inline title.kind-data.post] content.post)
       ::
           %heap
         %+  match-story-text  nedl
-        ?~  title.han-data.note
-          content.note
-        [~[%inline u.title.han-data.note] content.note]
+        ?~  title.kind-data.post
+          content.post
+        [~[%inline u.title.kind-data.post] content.post]
       ::
           %chat
-        ?:  =([%notice ~] kind.han-data.note)  |
-        (match-story-text nedl content.note)
+        ?:  =([%notice ~] kind.kind-data.post)  |
+        (match-story-text nedl content.post)
       ==
     ::
     ++  match-story-text
-      |=  [nedl=@t =story:d]
+      |=  [nedl=@t =story:c]
       %+  lien  story
-      |=  =verse:d
+      |=  =verse:c
       ?.  ?=(%inline -.verse)  |
       %+  lien  p.verse
-      |=  =inline:d
+      |=  =inline:c
       ?@  inline
         (find nedl inline |)
       ?.  ?=(?(%bold %italics %strike %blockquote) -.inline)  |
@@ -1270,28 +1274,28 @@
   ::  when we receive an update from the group we're in, check if we
   ::  need to change anything
   ::
-  ++  di-recheck
+  ++  ca-recheck
     |=  sects=(set sect:g)
     ::  if our read permissions restored, re-subscribe
-    ?:  (can-read:di-perms our.bowl)  di-safe-sub
-    di-core
+    ?:  (can-read:ca-perms our.bowl)  ca-safe-sub
+    ca-core
   ::
   ::  assorted helpers
   ::
-  ++  di-from-host  |(=(ship.nest src.bowl) =(p.group.perm.perm.diary src.bowl))
+  ++  ca-from-host  |(=(ship.nest src.bowl) =(p.group.perm.perm.channel src.bowl))
   ::
   ::  leave the subscription only
   ::
-  ++  di-simple-leave
-    (emit %pass di-sub-wire %agent [ship.nest server] %leave ~)
+  ++  ca-simple-leave
+    (emit %pass ca-sub-wire %agent [ship.nest server] %leave ~)
   ::
   ::  Leave the subscription, tell people about it, and delete our local
   ::  state for the channel
   ::
-  ++  di-leave
-    =.  di-core  di-simple-leave
-    =.  di-core  (di-response %leave ~)
+  ++  ca-leave
+    =.  ca-core  ca-simple-leave
+    =.  ca-core  (ca-response %leave ~)
     =.  gone  &
-    di-core
+    ca-core
   --
 --

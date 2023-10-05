@@ -8,7 +8,7 @@ import { useRouteGroup } from '@/state/groups';
 
 export default function HeapDetailCommentField() {
   const nest = useNest();
-  const { idCurio } = useParams();
+  const { idTime } = useParams();
   const groupFlag = useRouteGroup();
   const [, chFlag] = nestToFlag(nest);
   const [draftText, setDraftText] = useState<JSONContent>();
@@ -20,7 +20,7 @@ export default function HeapDetailCommentField() {
         groupFlag={groupFlag}
         draft={draftText}
         setDraft={setDraftText}
-        replyTo={idCurio}
+        replyTo={idTime}
         placeholder="Comment"
         comment={true}
       />

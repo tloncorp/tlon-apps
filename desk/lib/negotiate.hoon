@@ -99,10 +99,21 @@
     ++  match
       |=  =gill:gall
       ^-  ?
+      ?:  =([our dap]:bowl gill)  &
       ?~  need=(~(get by know) q.gill)  &  ::  unversioned
       %-  ~(rep by u.need)  ::NOTE  +all:by is w/o key
       |=  [[p=protocol v=version] o=_&]
       &(o =(``v (~(get by heed) [gill p])))  :: negotiated & matches
+    ::
+    ++  certain-mismatch
+      |=  =gill:gall
+      ^-  ?
+      ?:  =([our dap]:bowl gill)  |
+      ?~  need=(~(get by know) q.gill)  |  ::  unversioned
+      %-  ~(rep by u.need)
+      |=  [[p=protocol v=version] o=_|]
+      =+  h=(~(get by heed) [gill p])
+      |(o &(?=([~ ~ *] h) !=(v u.u.h)))  ::  negotiated & non-matching
     ::  +inflate: update state & manage subscriptions to be self-consistent
     ::
     ::    get previously-unregistered subs from the bowl, put them in .want,
@@ -147,6 +158,7 @@
             (~(put by wan) wire path)
         ::  if we don't need a specific version, leave the sub as-is
         ::
+        ?:  =([our dap]:bowl gill)  [init kill]
         =/  need=(list [p=protocol v=version])
           ~(tap by (~(gut by know) q.gill ~))
         |-
@@ -233,6 +245,10 @@
       ::
       =?  p.card  ?=(?(%watch %leave) -.task.q.card)
         (pack-wire gill p.card)
+      ::  if the target agent is ourselves, always let the card go
+      ::
+      ?:  =([our dap]:bowl [ship name]:q.card)
+        pass
       ::  if we don't require versions for the target agent, let the card go
       ::
       =*  dude=dude:gall  name.q.card
@@ -246,13 +262,18 @@
       ::
       ?:  (match gill)
         pass
-      ::  pokes may not happen if we don't know we match
+      ::  pokes may not happen if we know we mismatch
       ::
       ?:  ?=(?(%poke %poke-as) -.task.q.card)
-        ::TODO  if heed was (map gill (map protocol (u v))) we could reasonably
-        ::      look up where the mismatch was...
-        ~|  [%negotiate %poke-to-mismatching-gill gill]
-        !!
+        ?:  (certain-mismatch gill)
+          ::TODO  if heed was (map gill (map protocol (u v))) we could
+          ::      reasonably look up where the mismatch was...
+          ~|  [%negotiate %poke-to-mismatching-gill gill]
+          !!
+        ::  if we aren't certain of a match, ensure we've started negotiation
+        ::
+        =^  caz  state  (negotiate-missing gill)
+        [[card caz] state]
       ::  watches will get reestablished once our versions match, but if we
       ::  haven't started negotiation yet, we should do that now
       ::
@@ -270,6 +291,7 @@
     ++  negotiate-missing
       |=  =gill:gall
       ^-  (quip card _state)
+      ?:  =([our dap]:bowl gill)  [~ state]
       =/  need=(list protocol)
         ~(tap in ~(key by (~(gut by know) q.gill ~)))
       =|  out=(list card)
@@ -556,6 +578,7 @@
           [(slav %p i.p) i.t.p]
         :^  ~  ~  %noun
         !>  ^-  ?(%match %clash %await %unmet)
+        ?:  =([our dap]:bowl for)  %match
         =/  need  (~(gut by know) q.for ~)
         ?:  =(~ need)  %match
         =/  need  ~(tap in ~(key by need))

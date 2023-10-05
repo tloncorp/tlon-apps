@@ -1,19 +1,17 @@
-import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import { daToUnix, unixToDa } from '@urbit/api';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
-import bigInt from 'big-integer';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
 import { diaryMixedToJSON, JSONToInlines } from '@/logic/tiptap';
 import {
-  useAddNoteMutation,
-  useEditNoteMutation,
-  useNote,
+  useAddPostMutation,
+  useEditPostMutation,
+  usePost,
 } from '@/state/channel/channel';
 import { useGroupChannel, useGroup, useRouteGroup } from '@/state/groups';
 import { constructStory } from '@/types/channel';
@@ -30,7 +28,7 @@ import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
 import MobileHeader from '@/components/MobileHeader';
-import getHanDataFromEssay from '@/logic/getHanData';
+import getKindDataFromEssay from '@/logic/getKindData';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
@@ -48,17 +46,17 @@ export default function DiaryAddNote() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const {
-    note,
+    post: note,
     isLoading: loadingNote,
     fetchStatus,
-  } = useNote(nest, id || '0', !id);
-  const { title, image } = getHanDataFromEssay(note.essay);
-  const { mutateAsync: editNote, status: editStatus } = useEditNoteMutation();
+  } = usePost(nest, id || '0', !id);
+  const { title, image } = getKindDataFromEssay(note.essay);
+  const { mutateAsync: editNote, status: editStatus } = useEditPostMutation();
   const {
     data: returnTime,
     mutateAsync: addNote,
     status: addStatus,
-  } = useAddNoteMutation(nest);
+  } = useAddPostMutation(nest);
   const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
     usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
   const editWithMarkdown = useMarkdownInDiaries();
@@ -143,7 +141,7 @@ export default function DiaryAddNote() {
               content: noteContent,
               author: window.our,
               sent: now,
-              'han-data': {
+              'kind-data': {
                 diary: {
                   ...values,
                 },

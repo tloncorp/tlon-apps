@@ -3,7 +3,7 @@ import cn from 'classnames';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
-import { useNote, useOrderedNotes } from '@/state/channel/channel';
+import { usePost, useOrderedPosts } from '@/state/channel/channel';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
@@ -13,8 +13,8 @@ import { useFullChannel } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import getHanDataFromEssay from '@/logic/getHanData';
-import { newQuipMap, Note } from '@/types/channel';
+import getKindDataFromEssay from '@/logic/getKindData';
+import { newReplyMap, Post } from '@/types/channel';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -23,10 +23,10 @@ import HeapDetailBody from './HeapDetail/HeapDetailBody';
 export default function HeapDetail({ title }: ViewProps) {
   const location = useLocation();
   const groupFlag = useRouteGroup();
-  const { chShip, chName, idCurio } = useParams<{
+  const { chShip, chName, idTime } = useParams<{
     chShip: string;
     chName: string;
-    idCurio: string;
+    idTime: string;
   }>();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
@@ -35,13 +35,15 @@ export default function HeapDetail({ title }: ViewProps) {
     nest,
   });
   const isMobile = useIsMobile();
-  const { note, isLoading } = useNote(nest, idCurio || '');
-  const { title: curioTitle } = getHanDataFromEssay(note.essay);
-  const { hasNext, hasPrev, nextNote, prevNote } = useOrderedNotes(
-    nest,
-    idCurio || ''
-  );
-  const initialNote = location.state?.initialCurio as Note | undefined;
+  const { post: note, isLoading } = usePost(nest, idTime || '');
+  const { title: curioTitle } = getKindDataFromEssay(note.essay);
+  const {
+    hasNext,
+    hasPrev,
+    nextPost: nextNote,
+    prevPost: prevNote,
+  } = useOrderedPosts(nest, idTime || '');
+  const initialNote = location.state?.initialCurio as Post | undefined;
   const essay = note?.essay || initialNote?.essay;
 
   const curioHref = (id?: bigInt.BigInteger) => {
@@ -75,7 +77,7 @@ export default function HeapDetail({ title }: ViewProps) {
       header={
         <HeapDetailHeader
           nest={nest}
-          idCurio={idCurio || ''}
+          idCurio={idTime || ''}
           essay={essay}
           groupFlag={groupFlag}
         />
@@ -128,10 +130,10 @@ export default function HeapDetail({ title }: ViewProps) {
         </div>
         <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
           <HeapDetailSidebarInfo essay={essay} />
-          {idCurio && (
+          {idTime && (
             <HeapDetailComments
-              time={idCurio}
-              comments={note.seal.quips ?? newQuipMap()}
+              time={idTime}
+              comments={note.seal.replies ?? newReplyMap()}
               loading={isLoading}
             />
           )}

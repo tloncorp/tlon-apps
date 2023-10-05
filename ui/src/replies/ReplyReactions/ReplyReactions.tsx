@@ -3,40 +3,36 @@ import { useCallback, useState } from 'react';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
-  useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
+  useAddPostReactMutation,
+  useAddReplyReactMutation,
 } from '@/state/channel/channel';
-import { Han, QuipCork } from '@/types/channel';
+import { ReplySeal } from '@/types/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
-import { useAddDMQuipFeelMutation } from '@/state/chat';
-import QuipReaction from './QuipReaction';
+import { useAddDMReplyReactMutation } from '@/state/chat';
+import ReplyReaction from './ReplyReaction';
 
-interface QuipReactionsProps {
+interface ReplyReactionsProps {
   whom: string;
-  cork: QuipCork;
+  seal: ReplySeal;
   time: string;
-  noteId: string;
-  han: Han;
   id?: string;
 }
 
-export default function QuipReactions({
+export default function ReplyReactions({
   whom,
-  cork,
+  seal,
   time,
-  noteId,
-  han,
   id,
-}: QuipReactionsProps) {
+}: ReplyReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const isMobile = useIsMobile();
-  const feels = cork.feels ? _.invertBy(cork.feels) : {};
-  const isParent = noteId === time;
-  const nest = `${han}/${whom}`;
-  const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
-  const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
-  const { mutateAsync: addDmQuipFeel } = useAddDMQuipFeelMutation();
+  const reacts = seal.reacts ? _.invertBy(seal.reacts) : {};
+  const isParent = seal['parent-id'] === time;
+  const nest = whom;
+  const { mutateAsync: addReplyFeel } = useAddReplyReactMutation();
+  const { mutateAsync: addChatFeel } = useAddPostReactMutation();
+  const { mutateAsync: addDmReplyFeel } = useAddDMReplyReactMutation();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const threardParentId = useThreadParentId(whom);
 
@@ -45,55 +41,53 @@ export default function QuipReactions({
       if (isParent) {
         await addChatFeel({
           nest,
-          noteId,
-          feel: emoji.shortcodes,
+          postId: seal['parent-id'],
+          react: emoji.shortcodes,
         });
       } else if (isDMorMultiDm) {
-        await addDmQuipFeel({
+        await addDmReplyFeel({
           whom,
           writId: threardParentId!,
-          quipId: cork.id,
-          feel: emoji.shortcodes,
+          replyId: seal.id,
+          react: emoji.shortcodes,
         });
       } else {
-        addQuipFeel({
+        addReplyFeel({
           nest,
-          noteId,
-          quipId: cork.id,
-          feel: emoji.shortcodes,
+          postId: seal['parent-id'],
+          replyId: seal.id,
+          react: emoji.shortcodes,
         });
       }
     },
     [
-      noteId,
-      addQuipFeel,
+      seal,
+      addReplyFeel,
       addChatFeel,
       isParent,
       nest,
       whom,
       isDMorMultiDm,
-      addDmQuipFeel,
+      addDmReplyFeel,
       threardParentId,
-      cork.id,
     ]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
-  if (!cork.feels) {
+  if (!seal.reacts) {
     return null;
   }
 
   return (
     <div id={id} className="my-2 flex items-center space-x-2">
-      {Object.entries(feels).map(([feel, ships]) => (
-        <QuipReaction
-          han={han}
-          key={feel}
-          quipId={cork.id}
-          noteId={noteId}
+      {Object.entries(reacts).map(([react, ships]) => (
+        <ReplyReaction
+          key={react}
+          replyId={seal.id}
+          noteId={seal['parent-id']}
           ships={ships}
-          feel={feel}
+          react={react}
           whom={whom}
         />
       ))}

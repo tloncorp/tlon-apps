@@ -495,36 +495,36 @@
   ++  d  channel
   ++  a  ^d
   ++  server
-    =/  server-shelf=shelf:d
-      %+  convert-shelf  &
+    =/  server-channels=v-channels:d
+      %+  convert-channels  &
       %-  ~(gas by *shelf:a)
       %+  skim  ~(tap by shelf)
       |=  [=flag:a =diary:a]
       =(our.bowl p.flag)
-    =/  =cage  [%channel-migration !>(server-shelf)]
+    =/  =cage  [%channel-migration !>(server-channels)]
     (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
   ::
   ++  client
-    =/  =shelf:d  (convert-shelf | shelf)
-    =/  =cage  [%channel-migration !>(shelf)]
+    =/  =v-channels:d  (convert-channels | shelf)
+    =/  =cage  [%channel-migration !>(v-channels)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
   ::
-  ++  convert-shelf
+  ++  convert-channels
     |=  [log=? =shelf:a]
-    ^-  shelf:d
-    %-  ~(gas by *shelf:d)
+    ^-  v-channels:d
+    %-  ~(gas by *v-channels:d)
     %+  turn  ~(tap by shelf)
     |=  [=flag:a =diary:a]
-    ^-  [nest:d diary:d]
+    ^-  [nest:d v-channel:d]
     :-  [%diary flag]
-    =/  =notes:d  (convert-notes notes.diary)
-    %*    .  *diary:d
-        notes   notes
+    =/  posts=v-posts:d  (convert-notes notes.diary)
+    %*    .  *v-channel:d
+        posts   posts
         order   [0 arranged-notes.diary]
         view    [0 view.diary]
         sort    [0 sort.diary]
         perm    [0 perm.diary]
-        log     ?.(log ~ (convert-log notes.diary notes perm.diary log.diary))
+        log     ?.(log ~ (convert-log notes.diary posts perm.diary log.diary))
         remark  remark.diary
         net
       ?-  -.net.diary
@@ -535,31 +535,31 @@
   ::
   ++  convert-notes
     |=  old=notes:a
-    ^-  notes:d
-    %+  gas:on-notes:d  *notes:d
+    ^-  v-posts:d
+    %+  gas:on-v-posts:d  *v-posts:d
     %+  turn  (tap:on:notes:a old)
     |=  [=time =note:a]
-    ^-  [id-note:d (unit note:d)]
+    ^-  [id-post:d (unit v-post:d)]
     [time `(convert-note time note)]
   ::
   ++  convert-note
     |=  [id=@da old=note:a]
-    ^-  note:d
+    ^-  v-post:d
     :-  [id (convert-quips quips.old) (convert-feels feels.old)]
     [%0 (convert-essay +.old)]
   ::
   ++  convert-quips
     |=  old=quips:a
-    ^-  quips:d
-    %+  gas:on-quips:d  *quips:d
+    ^-  v-replies:d
+    %+  gas:on-v-replies:d  *v-replies:d
     %+  turn  (tap:on:quips:a old)
     |=  [=time =quip:a]
-    ^-  [id-quip:d (unit quip:d)]
+    ^-  [id-reply:d (unit v-reply:d)]
     [time `(convert-quip time quip)]
   ::
   ++  convert-quip
     |=  [id=@da old=quip:a]
-    ^-  quip:d
+    ^-  v-reply:d
     [[id (convert-feels feels.old)] (convert-memo +.old)]
   ::
   ++  convert-essay
@@ -580,25 +580,25 @@
     [%inline q.old]~
   ::
   ++  convert-feels
-    |=  old=(map ship feel:d)
-    ^-  feels:d
+    |=  old=(map ship feel:a)
+    ^-  v-reacts:d
     %-  ~(run by old)
-    |=  =feel:d
+    |=  =feel:a
     [%0 `feel]
   ::
   ++  convert-log
-    |=  [old=notes:a =notes:d =perm:d =log:a]
+    |=  [old=notes:a posts=v-posts:d =perm:d =log:a]
     ^-  log:d
     %+  gas:log-on:d  *log:d
     %-  zing
     %+  turn  (tap:log-on:a log)
     |=  [=time =diff:a]
-    ^-  (list [id-note:d u-diary:d])
-    =;  new=(list u-diary:d)
+    ^-  (list [id-post:d u-channel:d])
+    =;  new=(list u-channel:d)
       ?~  new  ~
       ?~  t.new  [time i.new]~
       =.  time  (sub time ~s1)
-      =>  .(new `(list u-diary:d)`new)
+      =>  .(new `(list u-channel:d)`new)
       |-
       ?~  new  ~
       [[time i.new] $(time +(time), new t.new)]
@@ -608,9 +608,9 @@
       :-  [%create p.diff]
       %+  murn  (tap:on:notes:a q.diff)
       |=  [=^time =note:a]
-      =/  new-note  (get:on-notes:d notes time)
-      ?~  new-note  ~
-      (some %note time %set u.new-note)
+      =/  new-post  (get:on-v-posts:d posts time)
+      ?~  new-post  ~
+      (some %post time %set u.new-post)
     ::
         %view                     [%view 0 p.diff]~
         %sort                     [%sort 0 p.diff]~
@@ -618,27 +618,27 @@
         %notes
       =*  id  p.p.diff
       =/  old-note  (get:on:notes:a old id)
-      ?~  old-note  [%note id %set ~]~
-      =/  new-note  (get:on-notes:d notes id)
-      ?~  new-note  ~
+      ?~  old-note  [%post id %set ~]~
+      =/  new-post  (get:on-v-posts:d posts id)
+      ?~  new-post  ~
       ?-  -.q.p.diff
-          %del                    [%note id %set ~]~
-          ?(%add %edit)           [%note id %set u.new-note]~
+          %del                    [%post id %set ~]~
+          ?(%add %edit)           [%post id %set u.new-post]~
           ?(%add-feel %del-feel)
-        [%note id %feels ?~(u.new-note ~ feels.u.u.new-note)]~
+        [%post id %reacts ?~(u.new-post ~ reacts.u.u.new-post)]~
       ::
           %quips
-        ?~  u.new-note  ~
-        =*  id-quip  p.p.q.p.diff
-        =/  new-quip  (get:on-quips:d quips.u.u.new-note id-quip)
-        ?~  new-quip  ~
+        ?~  u.new-post  ~
+        =*  id-reply  p.p.q.p.diff
+        =/  new-reply  (get:on-v-replies:d replies.u.u.new-post id-reply)
+        ?~  new-reply  ~
         :_  ~
-        :+  %note  id
-        :+  %quip  id-quip
+        :+  %post   id
+        :+  %reply  id-reply
         ?-  -.q.p.q.p.diff
           %del                    [%set ~]
-          %add                    [%set u.new-quip]
-          ?(%add-feel %del-feel)  [%feels ?~(u.new-quip ~ feels.u.u.new-quip)]
+          %add                    [%set u.new-reply]
+          ?(%add-feel %del-feel)  [%reacts ?~(u.new-reply ~ reacts.u.u.new-reply)]
         ==
       ==
     ==

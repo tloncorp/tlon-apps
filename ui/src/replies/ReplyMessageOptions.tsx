@@ -2,13 +2,12 @@ import React, { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
-import { useCopy, useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
+import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import {
-  useAddDMQuipFeelMutation,
-  useChatState,
-  useDeleteDMQuipMutation,
+  useAddDMReplyReactMutation,
+  useDeleteDMReplyMutation,
 } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
@@ -27,34 +26,39 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
-  useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
-  useDeleteNoteMutation,
-  useDeleteQuipMutation,
+  useAddPostReactMutation,
+  useAddReplyReactMutation,
+  useDeletePostMutation,
+  useDeleteReplyMutation,
   usePerms,
 } from '@/state/channel/channel';
-import { emptyQuip, Quip } from '@/types/channel';
+import { emptyReply, Reply } from '@/types/channel';
 
-export default function QuipMessageOptions(props: {
+export default function ReplyMessageOptions(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   whom: string;
-  quip: Quip;
+  reply: Reply;
   openReactionDetails: () => void;
+  showReply?: boolean;
 }) {
-  const { open, onOpenChange, whom, quip, openReactionDetails } = props;
-  const { cork, memo } = quip ?? emptyQuip;
+  const { open, onOpenChange, whom, reply, openReactionDetails, showReply } =
+    props;
+  const { seal, memo } = reply ?? emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
-  const { didCopy, doCopy } = useCopy(`/1/chan/chat/${whom}/msg/${cork.id}`);
+  const threadParentId = seal['parent-id'];
+  const { didCopy, doCopy } = useCopy(
+    `/1/chan/${whom}/msg/${threadParentId}/${seal.id}`
+  );
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,
-    cork.id,
+    seal.id,
     'picker'
   );
   const { open: deleteOpen, setOpen: setDeleteOpen } = useChatDialog(
     whom,
-    cork.id,
+    seal.id,
     'delete'
   );
   const {
@@ -63,27 +67,24 @@ export default function QuipMessageOptions(props: {
     setReady,
   } = useRequestState();
   const { chShip, chName } = useParams();
-  const threadParentId = useThreadParentId(whom);
-  const isParent = threadParentId === cork.id;
+  const isParent = threadParentId === seal.id;
   const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
-  const chFlag = `${chShip}/${chName}`;
-  const nest = `chat/${chFlag}`;
-  const perms = usePerms(nest);
+  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+  const perms = usePerms(isDMorMultiDM ? `fake/nest/${whom}` : whom);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
-  const { mutate: deleteQuip } = useDeleteQuipMutation();
-  const { mutate: deleteChatMessage } = useDeleteNoteMutation();
-  const { mutate: deleteDMQuip } = useDeleteDMQuipMutation();
-  const { mutate: addFeelToChat } = useAddNoteFeelMutation();
-  const { mutate: addFeelToQuip } = useAddQuipFeelMutation();
-  const { mutate: addDMQuipFeel } = useAddDMQuipFeelMutation();
-  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+  const { mutate: deleteReply } = useDeleteReplyMutation();
+  const { mutate: deleteChatMessage } = useDeletePostMutation();
+  const { mutate: deleteDMReply } = useDeleteDMReplyMutation();
+  const { mutate: addFeelToChat } = useAddPostReactMutation();
+  const { mutate: addFeelToReply } = useAddReplyReactMutation();
+  const { mutate: addDMReplyFeel } = useAddDMReplyReactMutation();
 
   const onDelete = async () => {
     if (isMobile) {
@@ -94,22 +95,22 @@ export default function QuipMessageOptions(props: {
 
     try {
       if (isDMorMultiDM) {
-        deleteDMQuip({
+        deleteDMReply({
           whom,
           writId: threadParentId!,
-          quipId: cork.id,
+          replyId: seal.id,
         });
       } else if (isParent) {
         deleteChatMessage({
-          nest,
+          nest: whom,
           time: decToUd(threadParentId),
         });
         navigate(`/groups/${groupFlag}/channels/chat/${chShip}/${chName}`);
       } else {
-        deleteQuip({
-          nest,
-          noteId: threadParentId!,
-          quipId: cork.id,
+        deleteReply({
+          nest: whom,
+          postId: threadParentId!,
+          replyId: seal.id,
         });
       }
     } catch (e) {
@@ -128,31 +129,31 @@ export default function QuipMessageOptions(props: {
     }
   }, [doCopy, isMobile, onOpenChange]);
 
-  const reply = useCallback(() => {
-    setSearchParams({ chat_reply: cork.id }, { replace: true });
-  }, [cork, setSearchParams]);
+  const setReplyParam = useCallback(() => {
+    setSearchParams({ reply: seal.id }, { replace: true });
+  }, [seal, setSearchParams]);
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        addDMQuipFeel({
+        addDMReplyFeel({
           whom,
           writId: threadParentId!,
-          quipId: cork.id,
-          feel: emoji.shortcodes,
+          replyId: seal.id,
+          react: emoji.shortcodes,
         });
       } else if (isParent) {
         addFeelToChat({
-          nest,
-          noteId: cork.id,
-          feel: emoji.shortcodes,
+          nest: whom,
+          postId: seal.id,
+          react: emoji.shortcodes,
         });
       } else {
-        addFeelToQuip({
-          nest,
-          noteId: threadParentId!,
-          quipId: cork.id,
-          feel: emoji.shortcodes,
+        addFeelToReply({
+          nest: whom,
+          postId: threadParentId!,
+          replyId: seal.id,
+          react: emoji.shortcodes,
         });
       }
       captureGroupsAnalyticsEvent({
@@ -168,13 +169,12 @@ export default function QuipMessageOptions(props: {
       whom,
       groupFlag,
       privacy,
-      cork,
+      seal,
       setPickerOpen,
       addFeelToChat,
-      nest,
       isDMorMultiDM,
-      addFeelToQuip,
-      addDMQuipFeel,
+      addFeelToReply,
+      addDMReplyFeel,
       threadParentId,
       isParent,
     ]
@@ -189,11 +189,10 @@ export default function QuipMessageOptions(props: {
   }, [isMobile, loadEmoji]);
 
   const showReactAction = canWrite;
-  // TODO handle quip replies
-  const showReplyAction = false;
+  // TODO handle reply replies
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === memo.author;
-  const reactionsCount = Object.keys(cork.feels).length;
+  const reactionsCount = Object.keys(seal.reacts).length;
 
   const actions: Action[] = [];
 
@@ -207,7 +206,7 @@ export default function QuipMessageOptions(props: {
         </div>
       ),
       onClick: () => {
-        navigate(`picker/${cork.id}`, {
+        navigate(`picker/${seal.id}`, {
           state: { backgroundLocation: location },
         });
       },
@@ -228,7 +227,7 @@ export default function QuipMessageOptions(props: {
     });
   }
 
-  if (showReplyAction) {
+  if (showReply) {
     actions.push({
       key: 'reply',
       content: (
@@ -237,7 +236,7 @@ export default function QuipMessageOptions(props: {
           Reply
         </div>
       ),
-      onClick: reply,
+      onClick: setReplyParam,
     });
   }
 
@@ -304,12 +303,12 @@ export default function QuipMessageOptions(props: {
                 />
               </EmojiPicker>
             )}
-            {showReplyAction && (
+            {showReply && (
               <IconButton
                 icon={<BubbleIcon className="h-6 w-6 text-gray-400" />}
                 label="Reply"
                 showTooltip
-                action={reply}
+                action={setReplyParam}
               />
             )}
             {showCopyAction && (

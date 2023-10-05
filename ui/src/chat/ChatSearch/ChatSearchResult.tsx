@@ -1,10 +1,11 @@
 import cn from 'classnames';
 import { BigInteger } from 'big-integer';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { daToUnix } from '@urbit/api';
-import { Note } from '@/types/channel';
+import { Post, Reply } from '@/types/channel';
 import { Writ } from '@/types/dms';
+import ReplyReactions from '@/replies/ReplyReactions/ReplyReactions';
 import Author from '../ChatMessage/Author';
 import ChatContent from '../ChatContent/ChatContent';
 import ChatReactions from '../ChatReactions/ChatReactions';
@@ -13,7 +14,7 @@ export interface ChatSearchResultProps {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: Note | Writ;
+  writ: Post | Writ | Reply;
   index: number;
   selected: boolean;
   isScrolling?: boolean;
@@ -28,10 +29,42 @@ function ChatSearchResult({
   selected,
   isScrolling,
 }: ChatSearchResultProps) {
-  const { seal, essay } = writ;
-  const unix = new Date(daToUnix(time));
-  const scrollTo = `?msg=${time.toString()}`;
-  const to = `${root}${scrollTo}`;
+  const unix = useMemo(() => new Date(daToUnix(time)), [time]);
+  const postId = useMemo(() => {
+    if ('parent-id' in writ.seal) {
+      return writ.seal['parent-id'];
+    }
+    if ('time' in writ.seal) {
+      return time;
+    }
+
+    return writ.seal.id;
+  }, [writ, time]);
+  const isReply = 'parent-id' in writ.seal;
+  const scrollTo = `?msg=${postId}`;
+  const to = isReply ? `${root}/message/${postId}` : `${root}${scrollTo}`;
+  const content = useMemo(() => {
+    if ('essay' in writ) {
+      return writ.essay.content;
+    }
+    if ('memo' in writ) {
+      return writ.memo.content;
+    }
+
+    return [];
+  }, [writ]);
+
+  const author = useMemo(() => {
+    if ('essay' in writ) {
+      return writ.essay.author;
+    }
+    if ('memo' in writ) {
+      return writ.memo.author;
+    }
+
+    return '';
+  }, [writ]);
+  const reacts = useMemo(() => writ.seal.reacts, [writ]);
 
   return (
     <Link
@@ -45,18 +78,19 @@ function ChatSearchResult({
       aria-posinset={index + 1}
       aria-selected={selected}
     >
-      <Author ship={essay.author} date={unix} />
+      <Author ship={author} date={unix} />
       <div className="group-one wrap-anywhere relative z-0 flex w-full flex-col space-y-2 py-1 pl-9">
-        {'story' in essay.content ? (
-          <ChatContent
-            story={essay.content}
-            isScrolling={isScrolling}
-            writId={seal.id}
-          />
-        ) : null}
-        {Object.keys(seal.feels).length > 0 && (
-          <ChatReactions seal={seal} whom={whom} />
-        )}
+        <ChatContent story={content} isScrolling={isScrolling} />
+        {Object.keys(reacts).length > 0 &&
+          ('parent-id' in writ.seal ? (
+            <ReplyReactions
+              time={time.toString()}
+              whom={whom}
+              seal={writ.seal}
+            />
+          ) : (
+            <ChatReactions seal={writ.seal} whom={whom} />
+          ))}
       </div>
     </Link>
   );

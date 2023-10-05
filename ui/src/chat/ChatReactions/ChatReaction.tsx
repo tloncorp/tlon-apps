@@ -9,30 +9,30 @@ import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import {
-  useAddNoteFeelMutation,
-  useDeleteNoteFeelMutation,
+  useAddPostReactMutation,
+  useDeletePostReactMutation,
 } from '@/state/channel/channel';
-import { NoteSeal, QuipCork } from '@/types/channel';
+import { PostSeal, ReplySeal } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 
 interface ChatReactionProps {
   whom: string;
-  seal: NoteSeal | QuipCork;
-  feel: string;
+  seal: PostSeal | ReplySeal;
+  react: string;
   ships: string[];
 }
 
 export default function ChatReaction({
   whom,
   seal,
-  feel,
+  react,
   ships,
 }: ChatReactionProps) {
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-  const { mutate: addChatFeel } = useAddNoteFeelMutation();
-  const { mutate: delChatFeel } = useDeleteNoteFeelMutation();
+  const { mutate: addChatReact } = useAddPostReactMutation();
+  const { mutate: delChatReact } = useDeletePostReactMutation();
   const nest = `chat/${whom}`;
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
@@ -43,24 +43,24 @@ export default function ChatReaction({
     load();
   }, [load]);
 
-  const editFeel = useCallback(() => {
+  const editReact = useCallback(() => {
     if (isMine) {
       if (isDMOrMultiDM) {
-        useChatState.getState().delFeelToDm(whom, seal.id);
+        useChatState.getState().delReactToDm(whom, seal.id);
       } else {
-        delChatFeel({
+        delChatReact({
           nest,
-          noteId: seal.id,
+          postId: seal.id,
         });
       }
     } else {
       if (isDMOrMultiDM) {
-        useChatState.getState().addFeelToDm(whom, seal.id, feel);
+        useChatState.getState().addReactToDm(whom, seal.id, react);
       } else {
-        addChatFeel({
+        addChatReact({
           nest,
-          noteId: seal.id,
-          feel,
+          postId: seal.id,
+          react,
         });
       }
       captureGroupsAnalyticsEvent({
@@ -77,11 +77,11 @@ export default function ChatReaction({
     groupFlag,
     privacy,
     seal,
-    feel,
-    delChatFeel,
+    react,
+    delChatReact,
     nest,
     isDMOrMultiDM,
-    addChatFeel,
+    addChatReact,
   ]);
 
   return (
@@ -90,7 +90,7 @@ export default function ChatReaction({
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
             <button
-              onClick={editFeel}
+              onClick={editReact}
               className={cn(
                 'group relative flex items-center space-x-2 rounded border border-solid border-transparent px-2 py-1 text-sm font-semibold leading-4 text-gray-600',
                 {
@@ -99,10 +99,10 @@ export default function ChatReaction({
                 }
               )}
               aria-label={
-                isMine ? 'Remove reaction' : `Add ${feel.replaceAll(':', '')}`
+                isMine ? 'Remove reaction' : `Add ${react.replaceAll(':', '')}`
               }
             >
-              <em-emoji shortcodes={feel} />
+              <em-emoji shortcodes={react} />
               <span className={cn(isMine && 'sm:group-hover:opacity-0')}>
                 {count}
               </span>

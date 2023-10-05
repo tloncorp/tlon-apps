@@ -1,8 +1,8 @@
-import { Note, NoteEssay } from '@/types/channel';
+import { Post, PostEssay } from '@/types/channel';
 import {
   DMWhom,
   Pact,
-  DMBriefs,
+  DMUnreads,
   Club,
   Hive,
   Clubs,
@@ -30,10 +30,10 @@ export interface ChatState {
     [whom: DMWhom]: WindowSet;
   };
   loadedRefs: {
-    [path: string]: Note;
+    [path: string]: Post;
   };
   loadedGraphRefs: {
-    [path: string]: Note | 'loading' | 'error';
+    [path: string]: Post | 'loading' | 'error';
   };
   pendingDms: string[];
   fetchDms: () => Promise<void>;
@@ -57,10 +57,10 @@ export interface ChatState {
   ) => Promise<void>;
   archiveDm: (ship: string) => Promise<void>;
   unarchiveDm: (ship: string) => Promise<void>;
-  sendMessage: (whom: string, essay: NoteEssay, replyingId?: string) => void;
+  sendMessage: (whom: string, essay: PostEssay, replyingId?: string) => void;
   delDm: (flag: string, time: string) => void;
-  addFeelToDm: (whom: string, id: string, feel: string) => Promise<void>;
-  delFeelToDm: (whom: string, id: string) => Promise<void>;
+  addReactToDm: (whom: string, id: string, react: string) => Promise<void>;
+  delReactToDm: (whom: string, id: string) => Promise<void>;
   createMultiDm: (
     id: string,
     hive: string[] // array of ships

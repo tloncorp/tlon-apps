@@ -2,7 +2,7 @@ import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
 import { Block } from '@/types/channel';
-import { DMBrief, DMBriefs } from '@/types/dms';
+import { DMUnread, DMUnreads } from '@/types/dms';
 
 export interface ChatInfo {
   replying: string | null;
@@ -10,7 +10,7 @@ export interface ChatInfo {
   unread?: {
     readTimeout: number;
     seen: boolean;
-    brief: DMBrief; // lags behind actual brief, only gets update if unread
+    unread: DMUnread; // lags behind actual unread, only gets update if unread
   };
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
@@ -40,10 +40,10 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  unread: (whom: string, brief: DMBrief) => void;
+  unread: (whom: string, unread: DMUnread) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (briefs: DMBriefs) => void;
+  update: (unreads: DMUnreads) => void;
 }
 
 const emptyInfo: ChatInfo = {
@@ -57,18 +57,18 @@ const emptyInfo: ChatInfo = {
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
-  update: (briefs) => {
+  update: (unreads) => {
     set(
       produce((draft: ChatStore) => {
-        Object.entries(briefs).forEach(([whom, brief]) => {
+        Object.entries(unreads).forEach(([whom, unread]) => {
           const chat = draft.chats[whom];
-          if (brief.count > 0 && brief['read-id']) {
+          if (unread.count > 0 && unread['read-id']) {
             draft.chats[whom] = {
               ...(chat || emptyInfo),
               unread: {
                 seen: false,
                 readTimeout: 0,
-                brief,
+                unread,
               },
             };
             return;
@@ -154,7 +154,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         const chat = draft.chats[whom];
         const unread = chat.unread || {
-          brief: { last: 0, count: 0, 'read-id': '' },
+          unread: { last: 0, count: 0, 'read-id': '' },
           readTimeout: 0,
         };
 
@@ -202,7 +202,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  unread: (whom, brief) => {
+  unread: (whom, unread) => {
     set(
       produce((draft: ChatStore) => {
         const chat = draft.chats[whom] || emptyInfo;
@@ -212,7 +212,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           unread: {
             seen: false,
             readTimeout: 0,
-            brief,
+            unread,
           },
         };
       })

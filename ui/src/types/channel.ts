@@ -5,26 +5,39 @@ import { Inline, isLink, Link } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
 
+export interface Writ {
+  seal: WritSeal;
+  essay: WritEssay;
+}
+
+export interface WritEssay extends PostEssay {
+  'kind-data': KindDataChat;
+}
+
+export interface WritSeal extends PostSeal {
+  time: number;
+}
 export type Patda = string;
 export type Ship = string;
 export type Nest = string;
 
-export interface QuipMeta {
-  quipCount: number;
-  lastQuippers: Ship[];
-  lastQuip: number | null;
+export interface ReplyMeta {
+  replyCount: number;
+  lastRepliers: Ship[];
+  lastReply: number | null;
 }
 
-export interface NoteSeal {
+export interface PostSeal {
   id: string;
-  feels: { [ship: Ship]: string };
-  quips: QuipMap | null;
-  meta: QuipMeta;
+  reacts: { [ship: Ship]: string };
+  replies: ReplyMap | null;
+  meta: ReplyMeta;
 }
 
-export interface QuipCork {
+export interface ReplySeal {
   id: string;
-  feels: {
+  'parent-id': string;
+  reacts: {
     [ship: Ship]: string;
   };
 }
@@ -136,59 +149,59 @@ export type ChatStory = {
   block: ChatBlock[];
 };
 
-export type HanHeap = {
+export type KindDataHeap = {
   heap: string;
 };
 
-export type HanDiary = {
+export type KindDataDiary = {
   diary: {
     title: string;
     image?: string;
   };
 };
 
-export type HanChat = {
+export type KindDataChat = {
   chat: null | { notice: null };
 };
 
-export type HanData = HanDiary | HanChat | HanHeap;
-export type Han = 'heap' | 'diary' | 'chat';
+export type KindData = KindDataDiary | KindDataChat | KindDataHeap;
+export type Kind = 'heap' | 'diary' | 'chat';
 
-export interface NoteEssay {
+export interface PostEssay {
   content: Story;
   author: Ship;
   sent: number;
-  'han-data': HanData;
+  'kind-data': KindData;
 }
 
-export type Note = {
-  seal: NoteSeal;
-  essay: NoteEssay;
+export type Post = {
+  seal: PostSeal;
+  essay: PostEssay;
 };
 
-export interface PagedNotes {
-  notes: Notes;
+export interface PagedPosts {
+  posts: Posts;
   newer: string | null;
   older: string | null;
   total: number;
 }
 
-export interface PagedNotesMap extends Omit<PagedNotes, 'notes'> {
-  notes: NoteMap;
+export interface PagedPostsMap extends Omit<PagedPosts, 'posts'> {
+  posts: PageMap;
 }
 
-export interface Notes {
-  [time: string]: Note | null;
+export interface Posts {
+  [time: string]: Post | null;
 }
 
-export type NoteTuple = [BigInteger, Note | null];
+export type PageTuple = [BigInteger, Post | null];
 
-export type QuipTuple = [BigInteger, Quip | null];
+export type ReplyTuple = [BigInteger, Reply | null];
 
-export type NoteMap = BTree<BigInteger, Note | null>;
+export type PageMap = BTree<BigInteger, Post | null>;
 
-export interface Quip {
-  cork: QuipCork;
+export interface Reply {
+  seal: ReplySeal;
   memo: Memo;
 }
 
@@ -198,37 +211,37 @@ export interface Memo {
   sent: number;
 }
 
-export type QuipMap = BTree<BigInteger, Quip>;
+export type ReplyMap = BTree<BigInteger, Reply>;
 
-export interface Quips {
-  [id: string]: Quip;
+export interface Replies {
+  [id: string]: Reply;
 }
 
-interface NoteActionAdd {
-  add: NoteEssay;
+interface PageActionAdd {
+  add: PostEssay;
 }
 
-interface NoteActionEdit {
+interface PageActionEdit {
   edit: {
     id: string;
-    essay: NoteEssay;
+    essay: PostEssay;
   };
 }
 
-interface NoteActionDel {
+interface PageActionDel {
   del: string;
 }
 
-interface NoteActionAddFeel {
-  'add-feel': {
+interface PageActionAddReact {
+  'add-react': {
     id: string;
-    feel: string;
+    react: string;
     ship: string;
   };
 }
 
-interface NoteActionDelFeel {
-  'del-feel': {
+interface PageActionDelReact {
+  'del-react': {
     id: string;
     ship: string;
   };
@@ -242,7 +255,7 @@ interface DiffDelWriters {
   'del-writers': string[];
 }
 
-interface DiffArrangedNotes {
+interface DiffArrangedPosts {
   order: string[];
 }
 
@@ -250,29 +263,20 @@ interface DiffSort {
   sort: SortMode;
 }
 
-interface NoteActionQuip {
-  quip: {
-    id: string; // note id
-    action: QuipAction;
+interface PostActionReply {
+  reply: {
+    id: string; // post id
+    action: ReplyAction;
   };
 }
 
-// export interface NoteCommand {
-// set: null | Note;
-// quip: Quip;
-
-// export interface NoteDiff {
-// id: string;
-// command: NoteAction;
-// }
-
-export type NoteAction =
-  | NoteActionAdd
-  | NoteActionEdit
-  | NoteActionDel
-  | NoteActionAddFeel
-  | NoteActionDelFeel
-  | NoteActionQuip;
+export type PostAction =
+  | PageActionAdd
+  | PageActionEdit
+  | PageActionDel
+  | PageActionAddReact
+  | PageActionDelReact
+  | PostActionReply;
 
 export interface DiffView {
   view: DisplayMode;
@@ -281,29 +285,29 @@ export interface DiffView {
 export interface CreateDiff {
   create: {
     perm: Perm;
-    notes: NoteMap;
+    posts: PageMap;
   };
 }
 
-export interface QuipActionAdd {
+export interface ReplyActionAdd {
   add: Memo;
 }
 
-export interface QuipActionDel {
+export interface ReplyActionDel {
   del: string;
 }
 
-export type QuipAction =
-  | QuipActionAdd
-  | QuipActionDel
-  | NoteActionAddFeel
-  | NoteActionDelFeel;
+export type ReplyAction =
+  | ReplyActionAdd
+  | ReplyActionDel
+  | PageActionAddReact
+  | PageActionDelReact;
 
 export type DisplayMode = 'list' | 'grid';
 
 export type SortMode = 'alpha' | 'time' | 'arranged';
 
-export interface Diary {
+export interface Channel {
   perms: Perm;
   view: DisplayMode;
   order: string[];
@@ -311,27 +315,27 @@ export interface Diary {
   saga: Saga | null;
 }
 
-export interface Shelf {
-  [key: string]: Diary;
+export interface Channels {
+  [key: string]: Channel;
 }
 
-export interface Brief {
+export interface Unread {
   last: number;
   count: number;
   'read-id': string | null;
 }
 
-export interface Briefs {
-  [nest: Nest]: Brief;
+export interface Unreads {
+  [nest: Nest]: Unread;
 }
 
-export interface BriefUpdate {
+export interface UnreadUpdate {
   nest: Nest;
-  brief: Brief;
+  unread: Unread;
 }
 
 export interface Create {
-  han: Han;
+  kind: Kind;
   group: Flag;
   name: string;
   title: string;
@@ -345,14 +349,27 @@ export interface Perm {
   group: Flag;
 }
 
+export interface ReplyReferenceResponse {
+  reply: {
+    'id-post': string;
+    reply: Reply;
+  };
+}
+
+export interface PostReferenceResponse {
+  post: Post;
+}
+
+export type ReferenceResponse = ReplyReferenceResponse | PostReferenceResponse;
+
 export interface Said {
   nest: Nest;
-  note: Note;
+  reference: ReferenceResponse;
 }
 
 export interface Init {
-  briefs: Briefs;
-  shelf: Shelf;
+  unreads: Unreads;
+  channels: Channels;
 }
 
 export type Diff = CreateDiff | Command;
@@ -368,33 +385,33 @@ export type Action =
   | { unwatch: null }
   | Command;
 
-export type ShelfAction =
-  | { diary: { nest: Nest; action: Action } }
+export type ChannelsAction =
+  | { channel: { nest: Nest; action: Action } }
   | { create: Create }
   | { pin: Pins };
 
 export type Command =
-  | { note: NoteAction }
+  | { post: PostAction }
   | DiffView
   | DiffAddWriters
   | DiffDelWriters
-  | DiffArrangedNotes
+  | DiffArrangedPosts
   | DiffSort;
 
-export type NoteResponse =
-  | { set: Note | null }
-  | { quip: { id: string; response: QuipResponse; meta: QuipMeta } }
-  | { essay: NoteEssay }
-  | { feels: Record<string, string> };
+export type PostResponse =
+  | { set: Post | null }
+  | { reply: { id: string; response: ReplyResponse; meta: ReplyMeta } }
+  | { essay: PostEssay }
+  | { reacts: Record<string, string> };
 
-export type QuipResponse = { set: Quip } | { feels: Record<string, string> };
+export type ReplyResponse = { set: Reply } | { reacts: Record<string, string> };
 
 export type Response =
-  | { notes: NoteMap }
+  | { posts: PageMap }
   | {
-      note: {
+      post: {
         id: string;
-        'r-note': NoteResponse;
+        'r-post': PostResponse;
       };
     }
   | { order: string[] }
@@ -409,7 +426,7 @@ export type Response =
   | { watch: null }
   | { unwatch: null };
 
-export interface ShelfResponse {
+export interface ChannelsResponse {
   nest: Nest;
   response: Response;
 }
@@ -490,51 +507,52 @@ export function storyFromChatStory(chatStory: ChatStory): Story {
   return newStory;
 }
 
-export function getIdFromNoteAction(noteAction: NoteAction): string {
-  if ('add' in noteAction) {
-    return noteAction.add.sent.toString();
+export function getIdFromPostAction(postAction: PostAction): string {
+  if ('add' in postAction) {
+    return postAction.add.sent.toString();
   }
-  if ('edit' in noteAction) {
-    return noteAction.edit.id;
+  if ('edit' in postAction) {
+    return postAction.edit.id;
   }
-  if ('del' in noteAction) {
-    return noteAction.del;
+  if ('del' in postAction) {
+    return postAction.del;
   }
-  if ('add-feel' in noteAction) {
-    return noteAction['add-feel'].id;
+  if ('add-react' in postAction) {
+    return postAction['add-react'].id;
   }
-  if ('del-feel' in noteAction) {
-    return noteAction['del-feel'].id;
+  if ('del-react' in postAction) {
+    return postAction['del-react'].id;
   }
-  if ('quip' in noteAction) {
-    return noteAction.quip.id;
+  if ('reply' in postAction) {
+    return postAction.reply.id;
   }
   return '';
 }
 
-export const emptyNote: Note = {
+export const emptyPost: Post = {
   seal: {
     id: '',
-    feels: {},
-    quips: null,
+    reacts: {},
+    replies: null,
     meta: {
-      quipCount: 0,
-      lastQuippers: [],
-      lastQuip: null,
+      replyCount: 0,
+      lastRepliers: [],
+      lastReply: null,
     },
   },
   essay: {
     author: '',
     content: [],
     sent: 0,
-    'han-data': { chat: null },
+    'kind-data': { chat: null },
   },
 };
 
-export const emptyQuip: Quip = {
-  cork: {
+export const emptyReply: Reply = {
+  seal: {
     id: '',
-    feels: {},
+    'parent-id': '',
+    reacts: {},
   },
   memo: {
     author: '',
@@ -556,7 +574,7 @@ export function constructStory(data: (Inline | Block)[]): Story {
       'rule',
       'code',
     ].some((k) => typeof c !== 'string' && k in c);
-  const noteContent: Story = [];
+  const postContent: Story = [];
   let index = 0;
   data.forEach((c, i) => {
     if (i < index) {
@@ -564,50 +582,65 @@ export function constructStory(data: (Inline | Block)[]): Story {
     }
 
     if (isBlock(c)) {
-      noteContent.push({ block: c as Block });
+      postContent.push({ block: c as Block });
       index += 1;
     } else {
       const inline = _.takeWhile(
         _.drop(data, index),
         (d) => !isBlock(d)
       ) as Inline[];
-      noteContent.push({ inline });
+      postContent.push({ inline });
       index += inline.length;
     }
   });
 
-  return noteContent;
+  return postContent;
 }
 
-export function newQuipMap(
-  entries?: [BigInteger, Quip][],
+export function newReplyMap(
+  entries?: [BigInteger, Reply][],
   reverse = false
-): BTree<BigInteger, Quip> {
-  return new BTree<BigInteger, Quip>(entries, (a, b) =>
+): BTree<BigInteger, Reply> {
+  return new BTree<BigInteger, Reply>(entries, (a, b) =>
     reverse ? b.compare(a) : a.compare(b)
   );
 }
 
-export function newNoteMap(entries?: NoteTuple[], reverse = false): NoteMap {
-  return new BTree<BigInteger, Note | null>(entries, (a, b) =>
+export function newPostMap(entries?: PageTuple[], reverse = false): PageMap {
+  return new BTree<BigInteger, Post | null>(entries, (a, b) =>
     reverse ? b.compare(a) : a.compare(b)
   );
 }
 
-export interface NoteSealInCache {
+export type ChatMap = BTree<BigInteger, Post | Writ | Reply | null>;
+
+export function newChatMap(
+  entries?: [BigInteger, Post | Writ | Reply | null][],
+  reverse = false
+): ChatMap {
+  return new BTree<BigInteger, Post | Reply | null>(entries, (a, b) =>
+    reverse ? b.compare(a) : a.compare(b)
+  );
+}
+
+export interface PostSealInCache {
   id: string;
-  quips: Quips;
-  feels: {
+  replies: Replies;
+  reacts: {
     [ship: Ship]: string;
   };
   meta: {
-    quipCount: number;
-    lastQuippers: Ship[];
-    lastQuip: number | null;
+    replyCount: number;
+    lastRepliers: Ship[];
+    lastReply: number | null;
   };
 }
 
-export interface NoteInCache {
-  seal: NoteSealInCache;
-  essay: NoteEssay;
+export interface PostInCache {
+  seal: PostSealInCache;
+  essay: PostEssay;
 }
+
+export type ChannelScanItem = { post: Post } | ReplyReferenceResponse;
+
+export type ChannelScan = ChannelScanItem[];

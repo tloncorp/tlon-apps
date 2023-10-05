@@ -2,20 +2,20 @@ import { useMemo } from 'react';
 import _ from 'lodash';
 import { Helmet } from 'react-helmet';
 import { useMessagesFilter } from '@/state/settings';
-import { useBriefs, useShelf } from '@/state/channel/channel';
-import { useDmBriefs, useMultiDms } from '@/state/chat';
+import { useUnreads, useChannels } from '@/state/channel/channel';
+import { useDmUnreads, useMultiDms } from '@/state/chat';
 import { useGroups } from '@/state/groups';
 import { canReadChannel } from '@/logic/channel';
 
 export default function TalkHead() {
   const messagesFilter = useMessagesFilter();
-  const briefs = useBriefs();
-  const { data: dmBriefs } = useDmBriefs();
-  const shelf = useShelf();
+  const channelUnreads = useUnreads();
+  const { data: dmUnreads } = useDmUnreads();
+  const channels = useChannels();
   const multiDms = useMultiDms();
   const groups = useGroups();
-  const channels = Object.entries(briefs).filter(([k, v]) => {
-    const chat = shelf[k];
+  const joinedChannels = Object.entries(channelUnreads).filter(([k, v]) => {
+    const chat = channels[k];
     if (!chat) {
       return false;
     }
@@ -25,7 +25,7 @@ export default function TalkHead() {
     const vessel = group?.fleet[window.our];
     return channel && vessel && canReadChannel(channel, vessel, group.bloc);
   });
-  const dms = Object.entries(dmBriefs).filter(([k, v]) => {
+  const dms = Object.entries(dmUnreads).filter(([k, v]) => {
     const club = multiDms[k];
     if (club) {
       return club.team.concat(club.hive).includes(window.our);
@@ -37,15 +37,15 @@ export default function TalkHead() {
   const unreads = useMemo(() => {
     switch (messagesFilter) {
       case 'All Messages':
-        return _.sumBy(Object.values(_.concat(channels, dms)), 'count');
+        return _.sumBy(Object.values(_.concat(joinedChannels, dms)), 'count');
       case 'Group Channels':
-        return _.sumBy(Object.values(channels), 'count');
+        return _.sumBy(Object.values(joinedChannels), 'count');
       case 'Direct Messages':
         return _.sumBy(Object.values(dms), 'count');
       default:
-        return _.sumBy(Object.values(_.concat(channels, dms)), 'count');
+        return _.sumBy(Object.values(_.concat(joinedChannels, dms)), 'count');
     }
-  }, [messagesFilter, channels, dms]);
+  }, [messagesFilter, joinedChannels, dms]);
 
   return (
     <Helmet defer={false}>

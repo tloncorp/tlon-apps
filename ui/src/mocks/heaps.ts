@@ -5,7 +5,7 @@ import {
 } from '@tloncorp/mock-http-api';
 import { BigIntOrderedMap } from '@urbit/api';
 import { subMinutes } from 'date-fns';
-import { newQuipMap, Notes, Perm, Shelf } from '@/types/channel';
+import { newReplyMap, Posts, Perm, Channels } from '@/types/channel';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 
@@ -14,7 +14,7 @@ const mockPerms: Perm = {
   group: '~zod/test',
 };
 
-const mockStash: Shelf = {
+const mockStash: Channels = {
   'heap/~zod/testHeap': {
     perms: mockPerms,
     view: 'grid',
@@ -24,20 +24,20 @@ const mockStash: Shelf = {
   },
 };
 
-const mockCurios: Notes = {
+const mockCurios: Posts = {
   '170141184505776467152677676749638598656': {
     seal: {
       id: '170141184505776467152677676749638598656',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: 'House rendering',
       },
       content: [
@@ -54,16 +54,16 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598657': {
     seal: {
       id: '170141184505776467152677676749638598657',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: 'Description of a Martini',
       },
       content: [
@@ -80,16 +80,16 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598658': {
     seal: {
       id: '170141184505776467152677676749638598658',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: 'House rendering',
       },
       content: [
@@ -106,16 +106,16 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598659': {
     seal: {
       id: '170141184505776467152677676749638598659',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: '',
       },
       content: [
@@ -132,16 +132,16 @@ const mockCurios: Notes = {
   '170141184505776467152677676749638598660': {
     seal: {
       id: '170141184505776467152677676749638598660',
-      quips: newQuipMap(),
+      replies: newReplyMap(),
       meta: {
-        lastQuip: null,
-        quipCount: 0,
-        lastQuippers: [],
+        lastReply: null,
+        replyCount: 0,
+        lastRepliers: [],
       },
-      feels: {},
+      reacts: {},
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         heap: 'One Thing About Me',
       },
       content: [
@@ -157,10 +157,10 @@ const mockCurios: Notes = {
   },
 };
 
-export const heapBriefsSub: SubscriptionHandler = {
+export const heapUnreadsSub: SubscriptionHandler = {
   action: 'subscribe',
   app: 'heap',
-  path: '/briefs',
+  path: '/unreads',
 };
 
 export const heapStashScry: ScryHandler = {
@@ -170,10 +170,10 @@ export const heapStashScry: ScryHandler = {
   func: () => mockStash,
 };
 
-export const heapBriefsScry: ScryHandler = {
+export const heapUnreadsScry: ScryHandler = {
   action: 'scry',
   app: 'heap',
-  path: '/briefs',
+  path: '/unreads',
   func: () => ({
     '~zod/testHeap': {
       last: unixTime,
@@ -208,9 +208,9 @@ export const heapCuriosSubscribe: SubscriptionHandler = {
 };
 
 const heapHandlers: Handler[] = [
-  heapBriefsSub,
+  heapUnreadsSub,
   heapStashScry,
-  heapBriefsScry,
+  heapUnreadsScry,
   heapPermsScry,
   heapCuriosScry,
   heapCuriosSubscribe,

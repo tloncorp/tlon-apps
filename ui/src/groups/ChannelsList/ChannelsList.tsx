@@ -3,13 +3,13 @@ import { useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import { canReadChannel } from '@/logic/channel';
 import ChannelsListDropContext from './ChannelsListDropContext';
 import { SectionMap } from './types';
-import useChannelSearch from './useChannelSearch';
+import useChannelListSearch from './useChannelListSearch';
 
 export default function ChannelsList() {
   const flag = useRouteGroup();
   const vessel = useVessel(flag, window.our);
   const group = useGroup(flag);
-  const { searchInput } = useChannelSearch();
+  const { searchInput } = useChannelListSearch();
 
   const getSectionedChannels = useMemo(() => {
     const sectionedChannels: SectionMap = {};

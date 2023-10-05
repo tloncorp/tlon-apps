@@ -1,5 +1,4 @@
 import cn from 'classnames';
-import _ from 'lodash';
 import React, {
   HTMLAttributes,
   ReactNode,
@@ -11,7 +10,7 @@ import React, {
 } from 'react';
 import BTree from 'sorted-btree';
 import { isSameDay } from 'date-fns';
-import { debounce } from 'lodash';
+import _, { debounce } from 'lodash';
 import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
@@ -20,27 +19,27 @@ import { useChatState, useWritWindow } from '@/state/chat/chat';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
-import { Note, Quip, emptyQuip } from '@/types/channel';
+import { Post, Reply, emptyReply } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
-import QuipMessage, { QuipMessageProps } from '../ChatMessage/QuipMessage';
-import { useChatStore } from '../useChatStore';
+import { useChatStore } from '@/chat/useChatStore';
+import ReplyMessage, { ReplyMessageProps } from '../ReplyMessage';
 
-interface QuipScrollerItemProps extends QuipMessageProps {
+interface ReplyScrollerItemProps extends ReplyMessageProps {
   prefixedElement?: ReactNode;
 }
 
-const QuipScrollerItem = React.forwardRef<
+const ReplyScrollerItem = React.forwardRef<
   HTMLDivElement,
-  QuipScrollerItemProps
->(({ quip, prefixedElement, ...props }, ref) => (
+  ReplyScrollerItemProps
+>(({ reply, prefixedElement, ...props }, ref) => (
   <>
     {prefixedElement || null}
-    <QuipMessage key={quip.cork.id} ref={ref} quip={quip} {...props} />
+    <ReplyMessage key={reply.seal.id} ref={ref} reply={reply} {...props} />
   </>
 ));
 
-function itemContent(_i: number, entry: QuipScrollerItemProps) {
-  return <QuipScrollerItem {...entry} />;
+function itemContent(_i: number, entry: ReplyScrollerItemProps) {
+  return <ReplyScrollerItem {...entry} />;
 }
 
 function Loader({ show }: { show: boolean }) {
@@ -55,7 +54,7 @@ type FetchingState = 'top' | 'bottom' | 'initial';
 
 function computeItemKey(
   index: number,
-  item: QuipScrollerItemProps,
+  item: ReplyScrollerItemProps,
   context: any
 ) {
   return item.time.toString();
@@ -86,22 +85,22 @@ function scrollToIndex(
   }
 }
 
-export interface QuipScrollerProps {
+export interface ReplyScrollerProps {
   whom: string;
-  messages: BTree<BigInteger, Quip>;
-  parentNote: Note;
+  messages: BTree<BigInteger, Reply>;
+  parentPost: Post;
   prefixedElement?: ReactNode;
   scrollTo?: BigInteger;
   scrollerRef: React.RefObject<VirtuosoHandle>;
 }
 
-export default function QuipScroller({
+export default function ReplyScroller({
   whom,
   messages,
   prefixedElement,
   scrollTo = undefined,
   scrollerRef,
-}: QuipScrollerProps) {
+}: ReplyScrollerProps) {
   const isMobile = useIsMobile();
   const writWindow = useWritWindow(whom, scrollTo?.toString());
   const [fetching, setFetching] = useState<FetchingState>('initial');
@@ -118,7 +117,7 @@ export default function QuipScroller({
       : { main: 400, reverse: 400 },
   };
 
-  const [keys, entries]: [BigInteger[], QuipScrollerItemProps[]] =
+  const [keys, entries]: [BigInteger[], ReplyScrollerItemProps[]] =
     useMemo(() => {
       const nonNullMessages = messages
         .toArray()
@@ -126,17 +125,17 @@ export default function QuipScroller({
 
       const ks: BigInteger[] = nonNullMessages.map(([k]) => k);
       const min = nonNullMessages?.[0]?.[0] || bigInt();
-      const es: QuipScrollerItemProps[] =
-        nonNullMessages.map<QuipScrollerItemProps>(([index, quip]) => {
-          if (!quip || !quip.memo || !quip.cork) {
+      const es: ReplyScrollerItemProps[] =
+        nonNullMessages.map<ReplyScrollerItemProps>(([index, reply]) => {
+          if (!reply || !reply.memo || !reply.seal) {
             return {
-              quip: emptyQuip,
-              han: 'chat',
+              reply: emptyReply,
               time: index,
               newAuthor: false,
               newDay: false,
               isLast: false,
               isLinked: false,
+              showReply: false,
               isScrolling,
               prefixedElement: index.eq(min) ? prefixedElement : undefined,
               whom,
@@ -144,29 +143,30 @@ export default function QuipScroller({
           }
 
           const keyIdx = ks.findIndex((idx) => idx.eq(index));
-          const lastQuipKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
-          const lastQuip = lastQuipKey
-            ? nonNullMessages.find(([k]) => k.eq(lastQuipKey))
+          const lastReplyKey = keyIdx > 0 ? ks[keyIdx - 1] : undefined;
+          const lastReply = lastReplyKey
+            ? nonNullMessages.find(([k]) => k.eq(lastReplyKey))
             : undefined;
-          const newAuthor = lastQuip
-            ? quip.memo.author !== lastQuip[1].memo.author
+          const newAuthor = lastReply
+            ? reply.memo.author !== lastReply[1].memo.author
             : true;
-          const quipDay = new Date(daToUnix(index));
-          const lastQuipDay = lastQuipKey
-            ? new Date(daToUnix(lastQuipKey))
+          const replyDay = new Date(daToUnix(index));
+          const lastReplyDay = lastReplyKey
+            ? new Date(daToUnix(lastReplyKey))
             : undefined;
           const newDay =
-            lastQuip && lastQuipDay
-              ? !isSameDay(quipDay, lastQuipDay)
-              : !lastQuip;
+            lastReply && lastReplyDay
+              ? !isSameDay(replyDay, lastReplyDay)
+              : !lastReply;
 
           return {
             index,
             whom,
-            quip,
+            reply,
             han: 'chat',
             time: index,
             newAuthor,
+            showReply: true,
             newDay,
             isLast: keyIdx === ks.length - 1,
             isLinked: scrollTo ? index.eq(scrollTo) : false,

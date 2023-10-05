@@ -1,14 +1,14 @@
 /-  d=channel
 /+  j=channel-json
-|_  =briefs:d
+|_  =reply:d
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  briefs
-  ++  json  (briefs:enjs:j briefs)
+  ++  noun  reply
+  ++  json  (reply:enjs:j reply)
   --
 ++  grab
   |%
-  ++  noun  briefs:d
+  ++  noun  reply:d
   --
 --

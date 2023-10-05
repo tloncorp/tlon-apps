@@ -137,7 +137,7 @@
       %del       ~
       %add-feel  (add-feel +.delta)
       %del-feel  (ship ship.delta)
-      %quip      (quip-delta [id delta]:delta)
+      %quip      (quip-delta +.delta)
     ::
         %add
       %-  pairs
@@ -148,10 +148,11 @@
     ==
   ::
   ++  quip-delta
-    |=  [i=id:c =delta:quips:c]
+    |=  [i=id:c meta=(unit quip-meta:c) =delta:quips:c]
     ^-  json
     %-  pairs
     :~  id+(id i)
+        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
         :-  %delta
         %+  frond  -.delta
         ?-  -.delta
@@ -216,14 +217,18 @@
         essay+(essay:enjs:dj +.writ)
     ==
   ::
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
+  ::
   ++  seal
     |=  =seal:c
     %-  pairs
     :~  id+(id id.seal)
-        time+(time time.seal)
+        time+(time-id time.seal)
         feels+(feels feels.seal)
         quips+(quips quips.seal)
-        meta+(quip-meta:enjs:dj meta.seal)
+        meta+(reply-meta:enjs:dj meta.seal)
     ==
   ::
   ++  feels
@@ -251,8 +256,21 @@
     |=  =cork:c
     %-  pairs
     :~  id+(id id.cork)
-        time+(time time.cork)
+        parent-id+(id parent-id.cork)
+        time+(time-id time.cork)
         feels+(feels feels.cork)
+    ==
+  ::
+  ++  reference
+    |=  =reference:c
+    %+  frond  -.reference
+    ?-    -.reference
+        %writ  (writ writ.reference)
+        %quip
+      %-  pairs
+      :~  id-note+(id id.reference)
+          quip+(quip quip.reference)
+      ==
     ==
   ::
   --
@@ -394,15 +412,16 @@
       ^-  $-(json [=memo:d =kind:c time=(unit time)])
       %-  ot
       :~  memo/memo:dejs:dj
-          kind/kind:dejs:dj
+          kind/chat-kind:dejs:dj
           time/(mu di)
       ==
     ==
   ::
   ++  quip-delta
-    ^-  $-(json [id:c delta:quips:c])
+    ^-  $-(json [id:c (unit quip-meta:c) delta:quips:c])
     %-  ot
     :~  id/id
+        meta/ul
         :-  %delta
         %-  of
         :~  del/ul

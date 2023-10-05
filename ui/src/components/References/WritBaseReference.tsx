@@ -9,8 +9,8 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useChannelFlag } from '@/logic/channel';
-import { isImageUrl } from '@/logic/utils';
-import { Note } from '@/types/channel';
+import { isImageUrl, nestToFlag } from '@/logic/utils';
+import { ReferenceResponse } from '@/types/channel';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
@@ -18,8 +18,7 @@ import BubbleIcon from '../icons/BubbleIcon';
 
 interface WritBaseReferenceProps {
   nest: string;
-  chFlag: string;
-  writ?: Note;
+  reference?: ReferenceResponse;
   isScrolling: boolean;
   contextApp?: string;
   children?: React.ReactNode;
@@ -27,40 +26,93 @@ interface WritBaseReferenceProps {
 
 function WritBaseReference({
   nest,
-  writ,
-  chFlag,
+  reference,
   isScrolling,
   contextApp,
   children,
 }: WritBaseReferenceProps) {
-  const isReply = useChannelFlag() === chFlag;
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
+  const [app, chFlag] = nestToFlag(nest);
+  const refMessageType = useMemo(() => {
+    if (app === 'chat') {
+      return 'message';
+    }
+    if (app === 'heap') {
+      return 'curio';
+    }
+    return 'note';
+  }, [app]);
+  const isReply = useChannelFlag() === chFlag;
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
+  const content = useMemo(() => {
+    if (reference && 'post' in reference && 'essay' in reference.post) {
+      return reference.post.essay.content;
+    }
+    if (reference && 'reply' in reference && 'memo' in reference.reply.reply) {
+      return reference.reply.reply.memo.content;
+    }
+    return [];
+  }, [reference]);
+  const author = useMemo(() => {
+    if (reference && 'post' in reference && 'essay' in reference.post) {
+      return reference.post.essay.author;
+    }
+    if (reference && 'reply' in reference && 'memo' in reference.reply.reply) {
+      return reference.reply.reply.memo.author;
+    }
+    return '';
+  }, [reference]);
+  const noteId = useMemo(() => {
+    if (reference && 'post' in reference) {
+      return reference.post.seal.id;
+    }
+    if (reference && 'reply' in reference) {
+      return reference.reply['id-post'];
+    }
+    return '';
+  }, [reference]);
 
   // TODO: handle failure for useWritByFlagAndWritId call.
-  if (!writ) {
+  if (!reference) {
     return <HeapLoadingBlock reference />;
   }
 
-  if (!writ.essay?.content) {
+  if (content.length === 0) {
     return null;
   }
 
   const handleOpenReferenceClick = () => {
     if (!group) {
-      navigate(
-        `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${writ.seal.id}`,
-        {
-          state: { backgroundLocation: location },
-        }
-      );
+      if ('post' in reference) {
+        navigate(
+          `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${reference.post.seal.id}`,
+          {
+            state: { backgroundLocation: location },
+          }
+        );
+      } else {
+        navigate(
+          `/gangs/${groupFlag}?type=chat&nest=${nest}&id=${reference.reply['id-post']}`,
+          {
+            state: { backgroundLocation: location },
+          }
+        );
+      }
       return;
     }
-    navigate(`/groups/${groupFlag}/channels/${nest}?msg=${writ.seal.id}`);
+    if ('post' in reference) {
+      navigate(
+        `/groups/${groupFlag}/channels/${nest}?msg=${reference.post.seal.id}`
+      );
+    } else {
+      navigate(
+        `/groups/${groupFlag}/channels/${nest}/${refMessageType}/${reference.reply['id-post']}`
+      );
+    }
   };
 
   if (contextApp === 'heap-row') {
@@ -82,19 +134,19 @@ function WritBaseReference({
           )
         }
         title={
-          writ.essay.content.filter((c) => 'block' in c).length > 0 ? (
+          content.filter((c) => 'block' in c).length > 0 ? (
             <span>Nested content references</span>
           ) : (
             <ChatContent
               className="line-clamp-1"
-              story={writ.essay.content}
+              story={content}
               isScrolling={false}
             />
           )
         }
         byline={
           <span>
-            Chat message by <ShipName name={writ.essay.author} showAlias /> in{' '}
+            Chat message by <ShipName name={author} showAlias /> in{' '}
             {preview?.meta?.title}
           </span>
         }
@@ -113,14 +165,14 @@ function WritBaseReference({
         <ReferenceInHeap type="text" contextApp={contextApp}>
           <ChatContent
             className="p-2 line-clamp-1"
-            story={writ.essay.content}
+            story={content}
             isScrolling={false}
           />
           {children}
           <ReferenceBar
             nest={nest}
-            time={bigInt(writ.seal.id)}
-            author={writ.essay.author}
+            time={bigInt(noteId)}
+            author={author}
             groupFlag={preview?.group.flag}
             groupImage={group?.meta.image}
             groupTitle={preview?.group.meta.title}
@@ -142,16 +194,12 @@ function WritBaseReference({
         onClick={handleOpenReferenceClick}
         className={'cursor-pointer p-2 group-hover:bg-gray-50'}
       >
-        <ChatContent
-          className="p-2"
-          story={writ.essay.content}
-          isScrolling={false}
-        />
+        <ChatContent className="p-2" story={content} isScrolling={false} />
       </div>
       <ReferenceBar
         nest={nest}
-        time={bigInt(writ.seal.id)}
-        author={writ.essay.author}
+        time={bigInt(noteId)}
+        author={author}
         groupFlag={preview?.group.flag}
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}

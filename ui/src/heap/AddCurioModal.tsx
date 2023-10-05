@@ -9,7 +9,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useIsMobile } from '@/logic/useMedia';
 import { useFileStore, useUploader } from '@/state/storage';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import { useAddNoteMutation } from '@/state/channel/channel';
+import { useAddPostMutation } from '@/state/channel/channel';
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';
 import CurioPreview, { canPreview } from './CurioPreview';
 
@@ -46,7 +46,7 @@ export default function AddCurioModal({
   const [previewUrl, setPreviewUrl] = useState('');
   const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
-  const { mutate } = useAddNoteMutation(nest);
+  const { mutate } = useAddPostMutation(nest);
   const { privacy } = useGroupPrivacy(flag);
 
   const isEmpty = !content && !draggedFile && !pastedFile;

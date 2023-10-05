@@ -1,19 +1,19 @@
-import { Briefs, Shelf } from './channel';
-import { DMBriefs, Clubs } from './dms';
+import { Unreads, Channels } from './channel';
+import { DMUnreads, Clubs } from './dms';
 import { Groups, Gangs } from './groups';
 
 export interface GroupsInit {
   groups: Groups;
   gangs: Gangs;
-  shelf: Shelf;
-  briefs: Briefs;
+  channels: Channels;
+  unreads: Unreads;
   pins: string[];
 }
 
 export interface TalkInit {
   groups: Groups;
   gangs: Gangs;
-  briefs: DMBriefs;
+  unreads: DMUnreads;
   clubs: Clubs;
   dms: string[];
   invited: string[];

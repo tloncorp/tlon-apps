@@ -1,13 +1,13 @@
+import { JSONContent } from '@tiptap/core';
 import { CacheId } from '@/state/channel/channel';
 import {
   Block,
   Cite,
   constructStory,
   Nest,
-  NoteEssay,
+  PostEssay,
   Story,
 } from '@/types/channel';
-import { JSONContent } from '@tiptap/core';
 import { JSONToInlines } from './tiptap';
 import { isImageUrl } from './utils';
 
@@ -19,21 +19,21 @@ interface MessageSender {
   blocks: Block[];
   text: string;
   now: number;
-  sendDm?: (whom: string, essay: NoteEssay, replying?: string) => void;
+  sendDm?: (whom: string, essay: PostEssay, replying?: string) => void;
   sendChatMessage?: ({
     cacheId,
     essay,
   }: {
     cacheId: CacheId;
-    essay: NoteEssay;
+    essay: PostEssay;
   }) => void;
-  sendQuip?: ({
+  sendReply?: ({
     nest,
-    noteId,
+    postId,
     content,
   }: {
     nest: Nest;
-    noteId: string;
+    postId: string;
     content: Story;
   }) => void;
 }
@@ -48,7 +48,7 @@ export default function messageSender({
   now,
   sendDm,
   sendChatMessage,
-  sendQuip,
+  sendReply,
 }: MessageSender) {
   const data = JSONToInlines(editorJson);
   const noteContent = constructStory(data);
@@ -69,8 +69,8 @@ export default function messageSender({
   // const dataIsJustBreak =
   // data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
 
-  const essay: NoteEssay = {
-    'han-data': {
+  const essay: PostEssay = {
+    'kind-data': {
       chat: null,
     },
     author: `~${window.ship || 'zod'}`,
@@ -125,10 +125,10 @@ export default function messageSender({
             content,
           },
         });
-      } else if (sendQuip && replying) {
-        sendQuip({
+      } else if (sendReply && replying) {
+        sendReply({
           nest: `chat/${whom}`,
-          noteId: replying,
+          postId: replying,
           content,
         });
       }
@@ -141,10 +141,10 @@ export default function messageSender({
             cacheId,
             essay,
           });
-        } else if (sendQuip && replying) {
-          sendQuip({
+        } else if (sendReply && replying) {
+          sendReply({
             nest: `chat/${whom}`,
-            noteId: replying,
+            postId: replying,
             content: essay.content,
           });
         }
@@ -157,10 +157,10 @@ export default function messageSender({
       cacheId,
       essay,
     });
-  } else if (sendQuip && replying) {
-    sendQuip({
+  } else if (sendReply && replying) {
+    sendReply({
       nest: `chat/${whom}`,
-      noteId: replying,
+      postId: replying,
       content: essay.content,
     });
   }

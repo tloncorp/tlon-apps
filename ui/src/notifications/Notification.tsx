@@ -13,7 +13,7 @@ import { useGang, useGroup } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
 import HeapBlock from '@/heap/HeapBlock';
 import { useIsMobile } from '@/logic/useMedia';
-import { useNote } from '@/state/channel/channel';
+import { usePost } from '@/state/channel/channel';
 import {
   isComment,
   isGroupMeta,
@@ -212,7 +212,7 @@ export default function Notification({
   const heapFlag = isBlockBool
     ? `${bin.top.wer.split('/')[6]}/${bin.top.wer.split('/')[7]}`
     : '/';
-  const { note, isLoading } = useNote(`heap/${heapFlag}`, curioId);
+  const { post: note, isLoading } = usePost(`heap/${heapFlag}`, curioId);
 
   if (isBlockBool && note && !isLoading) {
     return (
@@ -236,7 +236,7 @@ export default function Notification({
               <div className="max-w-[36px] sm:max-w-[190px]">
                 <div className="aspect-h-1 aspect-w-1 cursor-pointer">
                   <HeapBlock
-                    note={note}
+                    post={note}
                     time={curioId}
                     asMobileNotification={isMobile}
                     linkFromNotification={bin.top.wer}

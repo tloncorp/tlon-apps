@@ -1,11 +1,11 @@
 import React from 'react';
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
-import { Note } from '@/types/channel';
+import { Post } from '@/types/channel';
 import DateDivider from './ChatMessage/DateDivider';
 import ChatContent from './ChatContent/ChatContent';
 
 interface ChatNoticeProps {
-  writ: Note;
+  writ: Post;
   newDay?: Date;
 }
 
@@ -14,15 +14,15 @@ export default function ChatNotice({ writ, newDay }: ChatNoticeProps) {
     return null;
   }
 
-  if (!('chat' in writ.essay['han-data'])) {
+  if (!('chat' in writ.essay['kind-data'])) {
     return null;
   }
 
-  if (!writ.essay['han-data'].chat) {
+  if (!writ.essay['kind-data'].chat) {
     return null;
   }
 
-  if (!('notice' in writ.essay['han-data'].chat)) {
+  if (!('notice' in writ.essay['kind-data'].chat)) {
     return null;
   }
 

@@ -26,19 +26,19 @@
   ++  cmd  `mark`%channel-command
   ++  upd  `mark`%channel-update
   ++  log  `mark`%channel-logs
-  ++  not  `mark`%channel-notes
+  ++  not  `mark`%channel-posts
   --
 ::
 +|  %primitives
 ::
-+$  shelf  (map nest diary)
-++  diary
++$  v-channels  (map nest v-channel)
+++  v-channel
   |^  ,[global local]
   ::  $global: should be identical between ships
   ::
   +$  global
-    $:  =notes
-        order=(rev order=arranged-notes)
+    $:  posts=v-posts
+        order=(rev order=arranged-posts)
         view=(rev =view)
         sort=(rev =sort)
         perm=(rev =perm)
@@ -47,11 +47,11 @@
   ::
   ::TODO  populate this
   +$  window  (list [from=time to=time])
-  ::  .window: time range for requested notes that we haven't received
-  ::  .diffs: diffs for notes in the window, to apply on receipt
+  ::  .window: time range for requested posts that we haven't received
+  ::  .diffs: diffs for posts in the window, to apply on receipt
   ::
   +$  future
-    [=window diffs=(jug id-note u-note)]
+    [=window diffs=(jug id-post u-post)]
   ::  $local: local-only information
   ::
   +$  local
@@ -62,45 +62,45 @@
         =future
     ==
   --
-::  $note: a diary post
+::  $v-post: a channel post
 ::
-+$  note      [seal (rev essay)]
-+$  id-note   time
-+$  notes     ((mop id-note (unit note)) lte)
-++  on-notes  ((on id-note (unit note)) lte)
-++  mo-notes  ((mp id-note (unit note)) lte)
-::  $quip: a post comment
++$  v-post      [v-seal (rev essay)]
++$  id-post     time
++$  v-posts     ((mop id-post (unit v-post)) lte)
+++  on-v-posts  ((on id-post (unit v-post)) lte)
+++  mo-v-posts  ((mp id-post (unit v-post)) lte)
+::  $v-reply: a post comment
 ::
-+$  quip      [cork memo]
-+$  id-quip   time
-+$  quips     ((mop id-quip (unit quip)) lte)
-++  on-quips  ((on id-quip (unit quip)) lte)
-++  mo-quips  ((mp time (unit quip)) lte)
-::  $seal: host-side data for a note
++$  v-reply       [v-reply-seal memo]
++$  id-reply      time
++$  v-replies     ((mop id-reply (unit v-reply)) lte)
+++  on-v-replies  ((on id-reply (unit v-reply)) lte)
+++  mo-v-replies  ((mp time (unit v-reply)) lte)
+::  $v-seal: host-side data for a post
 ::
-+$  seal  $+  diary-seal
-  $:  id=id-note
-      =quips
-      =feels
++$  v-seal  $+  channel-seal
+  $:  id=id-post
+      replies=v-replies
+      reacts=v-reacts
   ==
-::  $cork: host-side data for a quip
+::  $v-reply-seal: host-side data for a reply
 ::
-+$  cork
-  $:  id=id-quip
-      =feels
++$  v-reply-seal
+  $:  id=id-reply
+      reacts=v-reacts
   ==
 ::  $essay: top-level post, with metadata
 ::
-+$  essay  [memo =han-data]
-::  $quip-meta: metadata for all quips
-+$  quip-meta
-  $:  quip-count=@ud
-      last-quippers=(set ship)
-      last-quip=(unit time)
++$  essay  [memo =kind-data]
+::  $reply-meta: metadata for all replies
++$  reply-meta
+  $:  reply-count=@ud
+      last-repliers=(set ship)
+      last-reply=(unit time)
   ==
-::  $han-data: metadata for a channel type's "post"
+::  $kind-data: metadata for a channel type's "post"
 ::
-+$  han-data
++$  kind-data
   $%  [%diary title=@t image=@t]
       [%heap title=(unit @t)]
       [%chat kind=$@(~ [%notice ~])]
@@ -141,7 +141,7 @@
 ::    %listing: a traditional HTML list, ul and ol
 ::    %code: a block of code
 ::
-+$  block  $+  diary-block
++$  block  $+  channel-block
   $%  [%image src=cord height=@ud width=@ud alt=cord]
       [%cite =cite:c]
       [%header p=?(%h1 %h2 %h3 %h4 %h5 %h6) q=(list inline)]
@@ -163,7 +163,7 @@
 ::    %link: link to a URL with a face
 ::    %break: line break
 ::
-+$  inline  $+  diary-inline
++$  inline  $+  channel-inline
   $@  @t
   $%  [%italics p=(list inline)]
       [%bold p=(list inline)]
@@ -179,29 +179,29 @@
       [%break ~]
   ==
 ::
-+$  han  ?(%diary %heap %chat)
-::  $nest: identifier for a diary channel
-+$  nest  [=han =ship name=term]
-::  $view: the persisted display format for a diary
++$  kind  ?(%diary %heap %chat)
+::  $nest: identifier for a channel
++$  nest  [=kind =ship name=term]
+::  $view: the persisted display format for a channel
 +$  view  $~(%list ?(%grid %list))
-::  $sort: the persisted sort type for a diary
+::  $sort: the persisted sort type for a channel
 +$  sort  $~(%time ?(%alpha %time %arranged))
-::  $arranged-notes: an array of noteIds
-+$  arranged-notes  (unit (list time))
-::  $feel: either an emoji identifier like :diff or a URL for custom
-+$  feel  @ta
-+$  feels  (map ship (rev (unit feel)))
+::  $arranged-posts: an array of postIds
++$  arranged-posts  (unit (list time))
+::  $react: either an emoji identifier like :diff or a URL for custom
++$  react     @ta
++$  v-reacts  (map ship (rev (unit react)))
 ::  $scan: search results
-+$  scan  (list scan-result)
-+$  scan-result
-  $%  [%note =rr-note]
-      [%quip =id-note =rr-quip]
++$  scan  (list reference)
++$  reference
+  $%  [%post =post]
+      [%reply =id-post =reply]
   ==
 ::  $said: used for references
-+$  said  (pair nest rr-note)
-::  $plan: index into diary state
-::    p: Note being referred to
-::    q: Quip being referred to, if any
++$  said  (pair nest reference)
+::  $plan: index into channel state
+::    p: Post being referred to
+::    q: Reply being referred to, if any
 ::
 +$  plan
   (pair time (unit time))
@@ -210,18 +210,18 @@
 ::
 +$  net  [p=ship load=_|]
 ::
-::  $briefs: a map of diary unread information
+::  $unreads: a map of channel unread information
 ::
-::    brief: the last time a diary was read, how many posts since,
-::    and the id of the last read note
+::    unread: the last time a channel was read, how many posts since,
+::    and the id of the last read post
 ::
-+$  briefs  (map nest brief)
-+$  brief   [last=time count=@ud read-id=(unit time)]
-::  $remark: a marker representing the last note I've read
++$  unreads  (map nest unread)
++$  unread   [last=time count=@ud read-id=(unit time)]
+::  $remark: a marker representing the last post I've read
 ::
 +$  remark  [last-read=time watching=_| ~]
 ::
-::  $perm: represents the permissions for a diary channel and gives a
+::  $perm: represents the permissions for a channel and gives a
 ::  pointer back to the group it belongs to.
 ::
 +$  perm
@@ -229,21 +229,21 @@
       group=flag:g
   ==
 ::
-::  $log: a time ordered history of modifications to a diary
+::  $log: a time ordered history of modifications to a channel
 ::
-+$  log     ((mop time u-diary) lte)
-++  log-on  ((on time u-diary) lte)
++$  log     ((mop time u-channel) lte)
+++  log-on  ((on time u-channel) lte)
 ::
-::  $create-diary: represents a request to create a channel
+::  $create-channel: represents a request to create a channel
 ::
-::    $create-diary is consumed by the diary agent first and then
+::    $create-channel is consumed by the channel agent first and then
 ::    passed to the groups agent to register the channel with the group.
 ::
 ::    Write permission is stored with the specific agent in the channel,
 ::    read permission is stored with the group's data.
 ::
-+$  create-diary
-  $:  =han
++$  create-channel
+  $:  =kind
       name=term
       group=flag:g
       title=cord
@@ -251,11 +251,11 @@
       readers=(set sect:g)
       writers=(set sect:g)
   ==
-::  $outline: abridged $note
-::    .quips: number of comments
+::  $outline: abridged $post
+::    .replies: number of comments
 ::
 +$  outline
-  [quips=@ud quippers=(set ship) essay]
+  [replies=@ud replyers=(set ship) essay]
 ::
 ++  outlines
   =<  outlines
@@ -287,18 +287,18 @@
 ::  change
 ::
 ::NOTE  we might want to add a action-id=uuid to this eventually, threading
-::      that through all the way, so that an $r-shelf may indicate what
+::      that through all the way, so that an $r-channels may indicate what
 ::      originally caused it
-+$  a-shelf
-  $%  [%create =create-diary]
++$  a-channels
+  $%  [%create =create-channel]
       [%pin pins=(list nest)]
-      [%diary =nest =a-diary]
+      [%channel =nest =a-channel]
   ==
-+$  a-diary
++$  a-channel
   $%  [%join group=flag:g]
       [%leave ~]
       a-remark
-      c-diary
+      c-channel
   ==
 ::
 +$  a-remark
@@ -309,77 +309,77 @@
       [%unwatch ~]
   ==
 ::
-+$  a-note  c-note
-+$  a-quip  c-quip
++$  a-post  c-post
++$  a-reply  c-reply
 ::
 +|  %commands
 ::
-+$  c-shelf
-  $%  [%create =create-diary]
-      [%diary =nest =c-diary]
++$  c-channels
+  $%  [%create =create-channel]
+      [%channel =nest =c-channel]
   ==
-+$  c-diary
-  $%  [%note =c-note]
++$  c-channel
+  $%  [%post =c-post]
       [%view =view]
       [%sort =sort]
-      [%order order=arranged-notes]
+      [%order order=arranged-posts]
       [%add-writers sects=(set sect:g)]
       [%del-writers sects=(set sect:g)]
   ==
 ::
-+$  c-note
++$  c-post
   $%  [%add =essay]
-      [%edit id=id-note =essay]
-      [%del id=id-note]
-      [%quip id=id-note =c-quip]
-      c-feel
+      [%edit id=id-post =essay]
+      [%del id=id-post]
+      [%reply id=id-post =c-reply]
+      c-react
   ==
 ::
-+$  c-quip
++$  c-reply
   $%  [%add =memo]
-      [%del id=id-quip]
-      c-feel
+      [%del id=id-reply]
+      c-react
   ==
 ::
-+$  c-feel
-  $%  [%add-feel id=@da p=ship q=feel]
-      [%del-feel id=@da p=ship]
++$  c-react
+  $%  [%add-react id=@da p=ship q=react]
+      [%del-react id=@da p=ship]
   ==
 ::
 +|  %updates
 ::
-+$  update   [=time =u-diary]
-+$  u-shelf  [=nest =u-diary]
-+$  u-diary
++$  update   [=time =u-channel]
++$  u-channels  [=nest =u-channel]
++$  u-channel
   $%  [%create =perm]
-      [%order (rev order=arranged-notes)]
+      [%order (rev order=arranged-posts)]
       [%view (rev =view)]
       [%sort (rev =sort)]
       [%perm (rev =perm)]
-      [%note id=id-note =u-note]
+      [%post id=id-post =u-post]
   ==
 ::
-+$  u-note
-  $%  [%set note=(unit note)]
-      [%feels =feels]
++$  u-post
+  $%  [%set post=(unit v-post)]
+      [%reacts reacts=v-reacts]
       [%essay (rev =essay)]
-      [%quip id=id-quip =u-quip]
+      [%reply id=id-reply =u-reply]
   ==
 ::
-+$  u-quip
-  $%  [%set quip=(unit quip)]
-      [%feels =feels]
++$  u-reply
+  $%  [%set reply=(unit v-reply)]
+      [%reacts reacts=v-reacts]
   ==
 ::
-+$  u-checkpoint  global:diary
++$  u-checkpoint  global:v-channel
 ::
 +|  %responses
 ::
-+$  r-shelf  [=nest =r-diary]
-+$  r-diary
-  $%  [%notes =rr-notes]
-      [%note id=id-note =r-note]
-      [%order order=arranged-notes]
++$  r-channels  [=nest =r-channel]
++$  r-channel
+  $%  [%posts =posts]
+      [%post id=id-post =r-post]
+      [%order order=arranged-posts]
       [%view =view]
       [%sort =sort]
       [%perm =perm]
@@ -390,26 +390,26 @@
       a-remark
   ==
 ::
-+$  r-note
-  $%  [%set note=(unit rr-note)]
-      [%quip id=id-quip =quip-meta =r-quip]
-      [%feels feels=rr-feels]
++$  r-post
+  $%  [%set post=(unit post)]
+      [%reply id=id-reply =reply-meta =r-reply]
+      [%reacts =reacts]
       [%essay =essay]
   ==
 ::
-+$  r-quip
-  $%  [%set quip=(unit rr-quip)]
-      [%feels feels=rr-feels]
++$  r-reply
+  $%  [%set reply=(unit reply)]
+      [%reacts =reacts]
   ==
 ::  versions of backend types with their revision numbers stripped,
 ::  because the frontend shouldn't care to learn those.
 ::
-+$  rr-shelf  (map nest rr-diary)
-++  rr-diary
++$  channels  (map nest channel)
+++  channel
   |^  ,[global local]
   +$  global
-    $:  notes=rr-notes
-        order=arranged-notes
+    $:  =posts
+        order=arranged-posts
         =view
         =sort
         =perm
@@ -420,24 +420,24 @@
         =remark
     ==
   --
-+$  paged-notes
-  $:  notes=rr-notes
++$  paged-posts
+  $:  =posts
       newer=(unit time)
       older=(unit time)
       total=@ud
   ==
-+$  rr-notes  ((mop id-note (unit rr-note)) lte)
-+$  rr-note   [rr-seal essay]
-+$  rr-seal   
-  $:  id=id-note
-      =rr-feels
-      =rr-quips
-      =quip-meta
++$  posts  ((mop id-post (unit post)) lte)
++$  post   [seal essay]
++$  seal
+  $:  id=id-post
+      =reacts
+      =replies
+      =reply-meta
   ==
-+$  rr-feels  (map ship feel)
-+$  rr-quip   [rr-cork memo]
-+$  rr-quips  ((mop id-quip rr-quip) lte)
-+$  rr-cork   [id=id-quip =rr-feels]
-++  rr-on-notes  ((on id-note (unit rr-note)) lte)
-++  rr-on-quips  ((on id-quip rr-quip) lte)
++$  reacts      (map ship react)
++$  reply       [reply-seal memo]
++$  replies     ((mop id-reply reply) lte)
++$  reply-seal  [id=id-reply parent-id=id-post =reacts]
+++  on-posts    ((on id-post (unit post)) lte)
+++  on-replies  ((on id-reply reply) lte)
 --

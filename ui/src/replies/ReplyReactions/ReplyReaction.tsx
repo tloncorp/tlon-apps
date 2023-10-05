@@ -5,45 +5,43 @@ import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
 import {
-  useAddNoteFeelMutation,
-  useAddQuipFeelMutation,
-  useDeleteNoteFeelMutation,
-  useDeleteQuipFeelMutation,
+  useAddPostReactMutation,
+  useAddReplyReactMutation,
+  useDeletePostReactMutation,
+  useDeleteReplyReactMutation,
 } from '@/state/channel/channel';
 import {
-  useAddDMQuipFeelMutation,
-  useDeleteDMQuipFeelMutation,
+  useAddDMReplyReactMutation,
+  useDeleteDMReplyReactMutation,
 } from '@/state/chat';
 import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 
-interface QuipReactionProps {
-  han: string;
+interface ReplyReactionProps {
   whom: string;
-  feel: string;
+  react: string;
   ships: string[];
-  quipId: string;
+  replyId: string;
   noteId: string;
 }
 
-export default function QuipReaction({
-  han,
+export default function ReplyReaction({
   whom,
-  feel,
+  react,
   ships,
-  quipId,
+  replyId,
   noteId,
-}: QuipReactionProps) {
+}: ReplyReactionProps) {
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
-  const isParent = noteId === quipId;
-  const nest = `${han}/${whom}`;
-  const { mutateAsync: addQuipFeel } = useAddQuipFeelMutation();
-  const { mutateAsync: addChatFeel } = useAddNoteFeelMutation();
-  const { mutateAsync: delQuipFeel } = useDeleteQuipFeelMutation();
-  const { mutateAsync: delChatFeel } = useDeleteNoteFeelMutation();
-  const { mutateAsync: addDmQuipFeel } = useAddDMQuipFeelMutation();
-  const { mutateAsync: delDmQuipFeel } = useDeleteDMQuipFeelMutation();
+  const isParent = noteId === replyId;
+  const nest = whom;
+  const { mutateAsync: addReplyFeel } = useAddReplyReactMutation();
+  const { mutateAsync: addChatFeel } = useAddPostReactMutation();
+  const { mutateAsync: delReplyFeel } = useDeleteReplyReactMutation();
+  const { mutateAsync: delChatFeel } = useDeletePostReactMutation();
+  const { mutateAsync: addDmReplyFeel } = useAddDMReplyReactMutation();
+  const { mutateAsync: delDmReplyFeel } = useDeleteDMReplyReactMutation();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const threardParentId = useThreadParentId(whom);
 
@@ -51,47 +49,47 @@ export default function QuipReaction({
     load();
   }, [load]);
 
-  const editFeel = useCallback(async () => {
+  const editReact = useCallback(async () => {
     if (isMine) {
       if (isParent) {
-        await delChatFeel({ nest, noteId });
+        await delChatFeel({ nest, postId: noteId });
       } else if (isDMorMultiDm) {
-        await delDmQuipFeel({
+        await delDmReplyFeel({
           whom,
           writId: threardParentId!,
-          quipId,
+          replyId,
         });
       } else {
-        await delQuipFeel({ nest, noteId, quipId });
+        await delReplyFeel({ nest, postId: noteId, replyId });
       }
     } else if (isParent) {
-      await addChatFeel({ nest, noteId, feel });
+      await addChatFeel({ nest, postId: noteId, react });
     } else if (isDMorMultiDm) {
-      await addDmQuipFeel({
+      await addDmReplyFeel({
         whom,
         writId: threardParentId!,
-        quipId,
-        feel,
+        replyId,
+        react,
       });
     } else {
-      await addQuipFeel({ nest, noteId, quipId, feel });
+      await addReplyFeel({ nest, postId: noteId, replyId, react });
     }
   }, [
     isMine,
-    feel,
+    react,
     noteId,
-    quipId,
-    addQuipFeel,
-    delQuipFeel,
+    replyId,
+    addReplyFeel,
+    delReplyFeel,
     delChatFeel,
     nest,
     isParent,
     addChatFeel,
     whom,
     isDMorMultiDm,
-    addDmQuipFeel,
+    addDmReplyFeel,
     threardParentId,
-    delDmQuipFeel,
+    delDmReplyFeel,
   ]);
 
   return (
@@ -100,16 +98,16 @@ export default function QuipReaction({
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
             <button
-              onClick={editFeel}
+              onClick={editReact}
               className={cn(
                 'group relative flex items-center space-x-2 rounded border border-solid border-transparent bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-600 group-one-hover:border-gray-100',
                 isMine && 'bg-blue-softer group-one-hover:border-blue-soft'
               )}
               aria-label={
-                isMine ? 'Remove reaction' : `Add ${feel.replaceAll(':', '')}`
+                isMine ? 'Remove reaction' : `Add ${react.replaceAll(':', '')}`
               }
             >
-              <em-emoji shortcodes={feel} />
+              <em-emoji shortcodes={react} />
               <span className={cn(isMine && 'group-hover:opacity-0')}>
                 {count}
               </span>

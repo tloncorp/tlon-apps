@@ -1,6 +1,14 @@
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
-import { HanChat, NoteEssay, NoteSeal, NoteSealInCache } from './channel';
+import {
+  KindDataChat,
+  PostEssay,
+  PostSeal,
+  PostSealInCache,
+  Reply,
+  ReplySeal,
+  ReplyMeta,
+} from './channel';
 import { GroupMeta } from './groups';
 
 export type Patda = string;
@@ -11,17 +19,34 @@ export interface Writ {
   essay: WritEssay;
 }
 
-export interface WritEssay extends NoteEssay {
-  'han-data': HanChat;
+export interface WritEssay extends PostEssay {
+  'kind-data': KindDataChat;
 }
 
-export interface WritSeal extends NoteSeal {
-  time: Patda;
+export interface WritReplySeal extends ReplySeal {
+  time: string;
+}
+
+export interface WritReply extends Reply {
+  seal: WritReplySeal;
+}
+
+export interface WritReplyReferenceResponse {
+  reply: {
+    'id-post': string;
+    reply: WritReply;
+  };
+}
+
+export type WritReplyMap = BTree<BigInteger, WritReply>;
+
+export interface WritSeal extends PostSeal {
+  time: string;
 }
 
 interface WritDeltaAdd {
   add: {
-    memo: Omit<NoteEssay, 'han-data'>;
+    memo: Omit<PostEssay, 'kind-data'>;
     kind: null;
     time: string | null;
   };
@@ -31,52 +56,57 @@ interface WritDeltaDel {
   del: null;
 }
 
-interface WritDeltaAddFeel {
-  'add-feel': {
-    feel: string;
+interface WritDeltaAddReact {
+  'add-react': {
+    react: string;
     ship: string;
   };
 }
 
-interface WritDeltaDelFeel {
-  'del-feel': string;
+interface WritDeltaDelReact {
+  'del-react': string;
 }
 
-interface QuipDeltaAdd {
+interface ReplyDeltaAdd {
   add: {
-    memo: Omit<NoteEssay, 'han-data'>;
+    memo: Omit<PostEssay, 'kind-data'>;
     time: string | null;
   };
 }
 
-interface QuipDeltaDel {
+interface ReplyDeltaDel {
   del: null;
 }
 
-interface QuipDeltaAddFeel {
-  'add-feel': {
+interface ReplyDeltaAddReact {
+  'add-react': {
     ship: string;
-    feel: string;
+    react: string;
   };
 }
 
-interface QuipDeltaDelFeel {
-  'del-feel': string;
+interface ReplyDeltaDelReact {
+  'del-react': string;
 }
 
-interface QuipDelta {
-  quip: {
+interface ReplyDelta {
+  reply: {
     id: Patda;
-    delta: QuipDeltaAdd | QuipDeltaDel | QuipDeltaAddFeel | QuipDeltaDelFeel;
+    meta: ReplyMeta | null;
+    delta:
+      | ReplyDeltaAdd
+      | ReplyDeltaDel
+      | ReplyDeltaAddReact
+      | ReplyDeltaDelReact;
   };
 }
 
 export type WritDelta =
   | WritDeltaAdd
   | WritDeltaDel
-  | WritDeltaAddFeel
-  | WritDeltaDelFeel
-  | QuipDelta;
+  | WritDeltaAddReact
+  | WritDeltaDelReact
+  | ReplyDelta;
 
 export interface WritDiff {
   id: string;
@@ -127,19 +157,19 @@ export interface Writs {
   [time: Patda]: Writ;
 }
 
-export interface DMBrief {
+export interface DMUnread {
   last: number;
   count: number;
   'read-id': string | null;
 }
 
-export interface DMBriefs {
-  [whom: DMWhom]: DMBrief;
+export interface DMUnreads {
+  [whom: DMWhom]: DMUnread;
 }
 
-export interface DMBriefUpdate {
+export interface DMUnreadUpdate {
   whom: DMWhom;
-  brief: DMBrief;
+  unread: DMUnread;
 }
 /**
  * Either a `@p` or `@uv` rendered as string
@@ -219,20 +249,17 @@ export interface ClubAction {
 export interface TalkInit {
   clubs: Clubs;
   dms: string[];
-  briefs: DMBriefs;
+  unreads: DMUnreads;
   invited: string[];
   pins: string[];
 }
 
-export interface ChatScanItem {
-  time: string;
-  writ: Writ;
-}
+export type ChatScanItem = { writ: Writ } | WritReplyReferenceResponse;
 
 export type ChatScan = ChatScanItem[];
 
-interface WritSealInCache extends NoteSealInCache {
-  time: Patda;
+interface WritSealInCache extends PostSealInCache {
+  time: number;
 }
 
 export interface WritInCache {

@@ -2,42 +2,42 @@ import _ from 'lodash';
 import { useCallback, useState } from 'react';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
-import { useAddNoteFeelMutation } from '@/state/channel/channel';
-import { NoteSeal } from '@/types/channel';
+import { useAddPostReactMutation } from '@/state/channel/channel';
+import { PostSeal } from '@/types/channel';
 import NoteReaction from './NoteReaction';
 
 interface NotReactionsProps {
   whom: string;
-  seal: NoteSeal;
+  seal: PostSeal;
   time: string;
 }
 
 export default function NoteReactions({ whom, seal, time }: NotReactionsProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const { mutateAsync: addFeel } = useAddNoteFeelMutation();
-  const feels = _.invertBy(seal.feels);
+  const { mutateAsync: addReact } = useAddPostReactMutation();
+  const reacts = _.invertBy(seal.reacts);
 
   const onEmoji = useCallback(
     async (emoji: any) => {
-      await addFeel({
+      await addReact({
         nest: `diary/${whom}`,
-        noteId: time,
-        feel: emoji.shortcodes,
+        postId: time,
+        react: emoji.shortcodes,
       });
     },
-    [whom, time, addFeel]
+    [whom, time, addReact]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
   return (
     <div className="my-2 flex items-center space-x-2">
-      {Object.entries(feels).map(([feel, ships]) => (
+      {Object.entries(reacts).map(([react, ships]) => (
         <NoteReaction
-          key={feel}
+          key={react}
           time={time}
           ships={ships}
-          feel={feel}
+          react={react}
           whom={whom}
         />
       ))}

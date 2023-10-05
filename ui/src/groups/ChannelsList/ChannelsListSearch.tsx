@@ -1,14 +1,14 @@
 import cn from 'classnames';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import React, { ChangeEvent } from 'react';
-import useChannelSearch from './useChannelSearch';
+import useChannelListSearch from './useChannelListSearch';
 
 export default function ChannelsListSearch({
   className,
 }: {
   className?: string;
 }) {
-  const { searchInput, setSearchInput } = useChannelSearch();
+  const { searchInput, setSearchInput } = useChannelListSearch();
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.target as HTMLInputElement;

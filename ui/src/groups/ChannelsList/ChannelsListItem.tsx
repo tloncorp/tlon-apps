@@ -15,7 +15,7 @@ import {
   WritePermissions,
 } from '@/logic/utils';
 import {
-  useShelf,
+  useChannels,
   useJoinMutation,
   useLeaveMutation,
 } from '@/state/channel/channel';
@@ -38,9 +38,9 @@ interface ChannelsListItemProps {
 }
 
 function useGetChannel(app: string, flag: string): WritePermissions {
-  const shelf = useShelf();
+  const channels = useChannels();
 
-  return shelf[flag];
+  return channels[flag];
 }
 
 export default function ChannelsListItem({

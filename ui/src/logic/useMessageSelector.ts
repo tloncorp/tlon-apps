@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
-import { useChatState, useDmBriefs, useMultiDms } from '@/state/chat';
+import { useChatState, useDmUnreads, useMultiDms } from '@/state/chat';
 import createClub from '@/state/chat/createClub';
-import { NoteEssay } from '@/types/channel';
+import { PostEssay } from '@/types/channel';
 import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
@@ -20,7 +20,7 @@ export default function useMessageSelector() {
   const isMultiDm = ships.length > 1;
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
-  const { data: briefs } = useDmBriefs();
+  const { data: unreads } = useDmUnreads();
 
   const existingDm = useMemo(() => {
     if (ships.length !== 1) {
@@ -28,13 +28,13 @@ export default function useMessageSelector() {
     }
 
     return (
-      Object.entries(briefs).find(([flag, _brief]) => {
+      Object.entries(unreads).find(([flag, _unread]) => {
         const theShip = ships[0].value;
         const sameDM = theShip === flag;
         return sameDM;
       })?.[0] ?? null
     );
-  }, [ships, briefs]);
+  }, [ships, unreads]);
 
   const existingMultiDm = useMemo(() => {
     if (!shipValues.length) {
@@ -50,9 +50,10 @@ export default function useMessageSelector() {
       const sameDM =
         difference(shipValues, theShips).length === 0 &&
         shipValues.length === theShips.length;
-      const brief = briefs[key];
-      const newBrief = briefs[k];
-      const newer = !brief || (brief && newBrief && newBrief.last > brief.last);
+      const unread = unreads[key];
+      const newUnread = unreads[k];
+      const newer =
+        !unread || (unread && newUnread && newUnread.last > unread.last);
       if (sameDM && newer) {
         return k;
       }
@@ -61,7 +62,7 @@ export default function useMessageSelector() {
     }, '');
 
     return clubId !== '' ? clubId : null;
-  }, [multiDms, shipValues, briefs]);
+  }, [multiDms, shipValues, unreads]);
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
@@ -85,7 +86,7 @@ export default function useMessageSelector() {
   );
 
   const sendDm = useCallback(
-    async (whom: string, essay: NoteEssay) => {
+    async (whom: string, essay: PostEssay) => {
       if (isMultiDm && shipValues && whom !== existingMultiDm) {
         await createClub(whom, shipValues);
       }

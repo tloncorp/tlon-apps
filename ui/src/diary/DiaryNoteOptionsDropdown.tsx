@@ -2,7 +2,7 @@ import React, { PropsWithChildren, useState } from 'react';
 import classNames from 'classnames';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import { useArrangedNotes } from '@/state/channel/channel';
+import { useArrangedPosts } from '@/state/channel/channel';
 import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -24,7 +24,7 @@ export default function DiaryNoteOptionsDropdown({
 }: DiaryNoteOptionsDropdownProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const nest = `diary/${flag}`;
-  const arrangedNotes = useArrangedNotes(nest);
+  const arrangedNotes = useArrangedPosts(nest);
   const { ship } = getFlagParts(flag);
   const { compatible } = useChannelCompatibility(nest);
   const {

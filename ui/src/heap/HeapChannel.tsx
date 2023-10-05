@@ -7,7 +7,7 @@ import { VirtuosoGrid } from 'react-virtuoso';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
-import { useMarkReadMutation, useInfiniteNotes } from '@/state/channel/channel';
+import { useMarkReadMutation, useInfinitePosts } from '@/state/channel/channel';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
@@ -18,8 +18,8 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
-import getHanDataFromEssay from '@/logic/getHanData';
-import { Note, NoteTuple } from '@/types/channel';
+import getKindDataFromEssay from '@/logic/getKindData';
+import { Post, PageTuple } from '@/types/channel';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
@@ -42,8 +42,8 @@ function HeapChannel({ title }: ViewProps) {
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  const { notes, fetchPreviousPage, hasPreviousPage, isLoading } =
-    useInfiniteNotes(nest);
+  const { posts, fetchPreviousPage, hasPreviousPage, isLoading } =
+    useInfinitePosts(nest);
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
 
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
@@ -71,17 +71,17 @@ function HeapChannel({ title }: ViewProps) {
   });
 
   const renderCurio = useCallback(
-    (i: number, outline: Note, time: bigInt.BigInteger) => (
+    (i: number, outline: Post, time: bigInt.BigInteger) => (
       <div key={time.toString()} tabIndex={0} className="cursor-pointer">
         {displayMode === 'grid' ? (
           <div className="aspect-h-1 aspect-w-1">
-            <HeapBlock note={outline} time={time.toString()} />
+            <HeapBlock post={outline} time={time.toString()} />
           </div>
         ) : (
           <div onClick={() => navigateToDetail(time)}>
             <HeapRow
               key={time.toString()}
-              note={outline}
+              post={outline}
               time={time.toString()}
             />
           </div>
@@ -91,20 +91,20 @@ function HeapChannel({ title }: ViewProps) {
     [displayMode, navigateToDetail]
   );
 
-  const empty = useMemo(() => notes.length === 0, [notes]);
-  const sortedNotes = notes
+  const empty = useMemo(() => posts.length === 0, [posts]);
+  const sortedPosts = posts
     .filter((k, v) => v !== null)
     .sort(([a], [b]) => {
       if (sortMode === 'time') {
         return b.compare(a);
       }
       if (sortMode === 'alpha') {
-        const noteA = notes.find(([time]) => time.eq(a))![1];
-        const noteB = notes.find(([time]) => time.eq(b))![1];
-        const { title: noteATitle } = getHanDataFromEssay(noteA?.essay);
-        const { title: noteBTitle } = getHanDataFromEssay(noteB?.essay);
+        const postA = posts.find(([time]) => time.eq(a))![1];
+        const postB = posts.find(([time]) => time.eq(b))![1];
+        const { title: postATitle } = getKindDataFromEssay(postA?.essay);
+        const { title: postBTitle } = getKindDataFromEssay(postB?.essay);
 
-        return noteATitle.localeCompare(noteBTitle);
+        return postATitle.localeCompare(postBTitle);
       }
       return b.compare(a);
     });
@@ -118,7 +118,7 @@ function HeapChannel({ title }: ViewProps) {
     [fetchPreviousPage, hasPreviousPage]
   );
 
-  const computeItemKey = (_i: number, [time, _curio]: NoteTuple) =>
+  const computeItemKey = (_i: number, [time, _curio]: PageTuple) =>
     time.toString();
 
   const thresholds = {
@@ -209,7 +209,7 @@ function HeapChannel({ title }: ViewProps) {
           </div>
         ) : (
           <VirtuosoGrid
-            data={sortedNotes}
+            data={sortedPosts}
             itemContent={(i, [time, curio]) => renderCurio(i, curio!, time)}
             computeItemKey={computeItemKey}
             style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
@@ -244,7 +244,7 @@ function HeapChannel({ title }: ViewProps) {
               </div>
             </Toast.Description>
           </Toast.Root>
-          <Toast.Viewport label="Note successfully published" />
+          <Toast.Viewport label="Post successfully published" />
         </Toast.Provider>
       </div>
     </Layout>

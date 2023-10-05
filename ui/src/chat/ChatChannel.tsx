@@ -16,11 +16,11 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import {
-  useAddNoteMutation,
+  useAddPostMutation,
   useLeaveMutation,
-  useReplyNote,
+  useReplyPost,
 } from '@/state/channel/channel';
-import ChatSearch from './ChatSearch/ChatSearch';
+import ChannelSearch from '@/channels/ChannelSearch';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
@@ -41,14 +41,11 @@ function ChatChannel({ title }: ViewProps) {
   const inThread = idShip && idTime;
   const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
   const { mutateAsync: leaveChat } = useLeaveMutation();
-  const { mutate: sendMessage } = useAddNoteMutation(nest);
+  const { mutate: sendMessage } = useAddPostMutation(nest);
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const chatReplyId = useMemo(
-    () => searchParams.get('chat_reply'),
-    [searchParams]
-  );
-  const replyingWrit = useReplyNote(nest, chatReplyId);
+  const chatReplyId = useMemo(() => searchParams.get('reply'), [searchParams]);
+  const replyingWrit = useReplyPost(nest, chatReplyId);
 
   const {
     group,
@@ -70,15 +67,15 @@ function ChatChannel({ title }: ViewProps) {
               path="search/:query?"
               element={
                 <>
-                  <ChatSearch
-                    whom={chFlag}
+                  <ChannelSearch
+                    whom={nest}
                     root={`/groups/${groupFlag}/channels/${nest}`}
                     placeholder={
                       channel ? `Search in ${channel.meta.title}` : 'Search'
                     }
                   >
                     <ChannelTitleButton flag={groupFlag} nest={nest} />
-                  </ChatSearch>
+                  </ChannelSearch>
                   <Helmet>
                     <title>
                       {channel && group

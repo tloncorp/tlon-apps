@@ -6,13 +6,13 @@ import ReactionsWidget from './ReactionsWidget';
 interface ReactionsDetailsProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  feels: Record<string, string>;
+  reactions: Record<string, string>;
 }
 
 export default function ReactionDetails({
   open,
   onOpenChange,
-  feels,
+  reactions,
 }: ReactionsDetailsProps) {
   const isMobile = useIsMobile();
 
@@ -23,7 +23,7 @@ export default function ReactionDetails({
         open={open}
         onOpenChange={onOpenChange}
       >
-        <ReactionsWidget feels={feels} className="h-[40vh] pt-3 pb-12" />
+        <ReactionsWidget reacts={reactions} className="h-[40vh] pt-3 pb-12" />
       </WidgetDrawer>
     );
   }
@@ -38,7 +38,7 @@ export default function ReactionDetails({
         <h2 className="text-lg font-bold">Reaction Details</h2>
       </header>
       <div className="h-[300px] w-full">
-        <ReactionsWidget className="h-full" feels={feels} />
+        <ReactionsWidget className="h-full" reacts={reactions} />
       </div>
     </Dialog>
   );

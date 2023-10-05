@@ -24,17 +24,17 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import {
-  useAddNoteFeelMutation,
-  useDeleteNoteMutation,
+  useAddPostReactMutation,
+  useDeletePostMutation,
   usePerms,
 } from '@/state/channel/channel';
-import { emptyNote, Note } from '@/types/channel';
+import { emptyPost, Post } from '@/types/channel';
 
 export default function ChatMessageOptions(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   whom: string;
-  writ: Note;
+  writ: Post;
   hideThreadReply?: boolean;
   hideReply?: boolean;
   openReactionDetails: () => void;
@@ -43,7 +43,7 @@ export default function ChatMessageOptions(props: {
     open,
     onOpenChange,
     whom,
-    writ = emptyNote,
+    writ = emptyPost,
     hideThreadReply,
     hideReply,
     openReactionDetails,
@@ -81,8 +81,8 @@ export default function ChatMessageOptions(props: {
   const navigate = useNavigate();
   const location = useLocation();
   const threadParentId = useThreadParentId(whom);
-  const { mutate: deleteChatMessage } = useDeleteNoteMutation();
-  const { mutate: addFeelToChat } = useAddNoteFeelMutation();
+  const { mutate: deleteChatMessage } = useDeletePostMutation();
+  const { mutate: addFeelToChat } = useAddPostReactMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
 
   const onDelete = async () => {
@@ -118,7 +118,7 @@ export default function ChatMessageOptions(props: {
   }, [doCopy, isMobile, onOpenChange]);
 
   const reply = useCallback(() => {
-    setSearchParams({ chat_reply: seal.id }, { replace: true });
+    setSearchParams({ reply: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
 
   const startThread = () => {
@@ -128,12 +128,12 @@ export default function ChatMessageOptions(props: {
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        useChatState.getState().addFeelToDm(whom, seal.id, emoji.shortcodes);
+        useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
       } else {
         addFeelToChat({
           nest,
-          noteId: seal.id,
-          feel: emoji.shortcodes,
+          postId: seal.id,
+          react: emoji.shortcodes,
         });
       }
       captureGroupsAnalyticsEvent({
@@ -169,7 +169,7 @@ export default function ChatMessageOptions(props: {
   const showReplyAction = !hideReply;
   const showCopyAction = !!groupFlag;
   const showDeleteAction = isAdmin || window.our === essay.author;
-  const reactionsCount = Object.keys(seal.feels).length;
+  const reactionsCount = Object.keys(seal.reacts).length;
 
   const actions: Action[] = [];
 

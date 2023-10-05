@@ -1,14 +1,14 @@
 /-  d=channel
 /+  j=channel-json
-|_  update=[=nest:d =brief:d]
+|_  update=[=nest:d =unread:d]
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  update
-  ++  json  (brief-update:enjs:j update)
+  ++  json  (unread-update:enjs:j update)
   --
 ++  grab
   |%
-  ++  noun  ,[nest:d brief:d]
+  ++  noun  ,[nest:d unread:d]
   --
 --

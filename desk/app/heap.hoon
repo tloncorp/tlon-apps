@@ -1,4 +1,4 @@
-/-  h=heap, d=channel, g=groups, ha=hark, e=epic
+/-  h=heap, c=channel, g=groups, ha=hark, e=epic
 /-  meta
 /+  default-agent, verb, dbug, neg=negotiate
 /+  cur=curios
@@ -473,32 +473,32 @@
 ++  migrate
   |%
   ++  server
-    =/  server-shelf=shelf:d
-      %+  convert-shelf  &
+    =/  server-channels=v-channels:c
+      %+  convert-channels  &
       %-  ~(gas by *stash:h)
       %+  skim  ~(tap by stash)
       |=  [=flag:h =heap:h]
       =(our.bowl p.flag)
-    =/  =cage  [%channel-migration !>(server-shelf)]
+    =/  =cage  [%channel-migration !>(server-channels)]
     (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
   ::
   ++  client
-    =/  =shelf:d  (convert-shelf | stash)
-    =/  =cage  [%channel-migration !>(shelf)]
+    =/  =v-channels:c  (convert-channels | stash)
+    =/  =cage  [%channel-migration !>(v-channels)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
   ::
-  ++  convert-shelf
+  ++  convert-channels
     |=  [log=? =stash:h]
-    ^-  shelf:d
-    %-  ~(gas by *shelf:d)
+    ^-  v-channels:c
+    %-  ~(gas by *v-channels:c)
     %+  turn  ~(tap by stash)
     |=  [=flag:h =heap:h]
-    ^-  [nest:d diary:d]
+    ^-  [nest:c v-channel:c]
     :-  [%heap flag]
-    =/  =notes:d  (convert-notes curios.heap)
-    %*    .  *diary:d
-        notes   notes
-        log     ?.(log ~ (convert-log curios.heap notes perm.heap log.heap))
+    =/  posts=v-posts:c  (convert-posts curios.heap)
+    %*    .  *v-channel:c
+        posts   posts
+        log     ?.(log ~ (convert-log curios.heap posts perm.heap log.heap))
         view    [0 view.heap]
         perm    [0 perm.heap]
         remark  remark.heap
@@ -509,116 +509,116 @@
       ==
     ==
   ::
-  ++  convert-notes
+  ++  convert-posts
     |=  old=curios:h
-    ^-  notes:d
+    ^-  v-posts:c
     =/  curios  (tap:on:curios:h old)
-    =/  index=(map @da quips:d)
+    =/  index=(map @da v-replies:c)
       %+  roll  curios
-      |=  [[=time =curio:h] index=(map @da quips:d)]
+      |=  [[=time =curio:h] index=(map @da v-replies:c)]
       ?~  replying.curio  index
-      =/  old-quips=quips:d  (~(gut by index) time *quips:d)
+      =/  old-replies=v-replies:c  (~(gut by index) time *v-replies:c)
       %+  ~(put by index)  u.replying.curio
-      (put:on-quips:d old-quips time `(convert-quip time curio))
-    %+  gas:on-notes:d  *notes:d
+      (put:on-v-replies:c old-replies time `(convert-reply time curio))
+    %+  gas:on-v-posts:c  *v-posts:c
     %+  murn  curios
     |=  [=time =curio:h]
-    ^-  (unit [id-note:d (unit note:d)])
+    ^-  (unit [id-post:c (unit v-post:c)])
     ?^  replying.curio  ~
-    =/  =quips:d  (~(gut by index) time *quips:d)
-    (some time `(convert-note time curio quips))
+    =/  replies=v-replies:c  (~(gut by index) time *v-replies:c)
+    (some time `(convert-post time curio replies))
   ::
-  ++  convert-note
-    |=  [id=@da old=curio:h =quips:d]
-    ^-  note:d
-    [[id quips (convert-feels feels.old)] %0 (convert-essay +.old)]
+  ++  convert-post
+    |=  [id=@da old=curio:h replies=v-replies:c]
+    ^-  v-post:c
+    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
-    |=  old=(map ship feel:d)
-    ^-  feels:d
+    |=  old=(map ship feel:h)
+    ^-  v-reacts:c
     %-  ~(run by old)
-    |=  =feel:d
+    |=  =feel:h
     [%0 `feel]
   ::
-  ++  convert-quip
+  ++  convert-reply
     |=  [id=@da old=curio:h]
-    ^-  quip:d
+    ^-  v-reply:c
     [[id (convert-feels feels.old)] (convert-memo +.old)]
   ::
   ++  convert-memo
     |=  old=heart:h
-    ^-  memo:d
+    ^-  memo:c
     [(convert-story content.old) author.old sent.old]
   ::
   ++  convert-essay
     |=  old=heart:h
-    ^-  essay:d
+    ^-  essay:c
     [(convert-memo old) %heap title.old]
   ::
   ++  convert-story
     |=  old=content:h
-    ^-  story:d
+    ^-  story:c
     %+  welp
       (turn p.old |=(=block:h [%block block]))
     [%inline q.old]~
   ::
   ++  convert-log
-    |=  [=curios:h =notes:d =perm:d =log:h]
-    ^-  log:d
-    %+  gas:log-on:d  *log:d
+    |=  [=curios:h posts=v-posts:c =perm:c =log:h]
+    ^-  log:c
+    %+  gas:log-on:c  *log:c
     %-  zing
     %+  turn  (tap:log-on:h log)
     |=  [=time =diff:h]
-    ^-  (list [id-note:d u-diary:d])
-    =;  new=(list u-diary:d)
+    ^-  (list [id-post:c u-channel:c])
+    =;  new=(list u-channel:c)
       ?~  new  ~
       ?~  t.new  [time i.new]~
       =.  time  (sub time ~s1)
-      =>  .(new `(list u-diary:d)`new)
+      =>  .(new `(list u-channel:c)`new)
       |-
       ?~  new  ~
       [[time i.new] $(time +(time), new t.new)]
     ?-    -.diff
         ?(%add-sects %del-sects)  [%perm 0 perm]~
         ::  XX  here and in the other apps, we need to preserve the
-        ::  notes in the %create log.  they show up there from the
+        ::  posts in the %create log.  they show up there from the
         ::  december migration
         %view                     [%view 0 p.diff]~
         %create
       :-  [%create p.diff]
       %+  murn  (tap:on:curios:h q.diff)
       |=  [=^time =curio:h]
-      =/  new-note  (get:on-notes:d notes time)
-      ?~  new-note  ~
-      (some %note time %set u.new-note)
+      =/  new-post  (get:on-v-posts:c posts time)
+      ?~  new-post  ~
+      (some %post time %set u.new-post)
     ::
         %curios
       =*  id  p.p.diff
       =/  old-curio  (get:on:curios:h curios id)
-      ?~  old-curio  [%note id %set ~]~
+      ?~  old-curio  [%post id %set ~]~
       ?~  replying.u.old-curio
-        =/  new-note  (get:on-notes:d notes id)
-        ?~  new-note  ~
+        =/  new-post  (get:on-v-posts:c posts id)
+        ?~  new-post  ~
         :_  ~
-        :+  %note  id
+        :+  %post  id
         ?-  -.q.p.diff
           %del                    [%set ~]
-          ?(%add %edit)           [%set u.new-note]
-          ?(%add-feel %del-feel)  [%feels ?~(u.new-note ~ feels.u.u.new-note)]
+          ?(%add %edit)           [%set u.new-post]
+          ?(%add-feel %del-feel)  [%reacts ?~(u.new-post ~ reacts.u.u.new-post)]
         ==
-      =/  new-note  (get:on-notes:d notes u.replying.u.old-curio)
-      ?~  new-note  ~
-      ?~  u.new-note  ~
-      =/  new-quip  (get:on-quips:d quips.u.u.new-note id)
-      ?~  new-quip  ~
+      =/  new-post  (get:on-v-posts:c posts u.replying.u.old-curio)
+      ?~  new-post  ~
+      ?~  u.new-post  ~
+      =/  new-reply  (get:on-v-replies:c replies.u.u.new-post id)
+      ?~  new-reply  ~
       :_  ~
-      :+  %note  u.replying.u.old-curio
-      :+  %quip  id
-      ^-  u-quip:d
+      :+  %post   u.replying.u.old-curio
+      :+  %reply  id
+      ^-  u-reply:c
       ?-  -.q.p.diff
         %del                    [%set ~]
-        ?(%add %edit)           [%set u.new-quip]
-        ?(%add-feel %del-feel)  [%feels ?~(u.new-quip ~ feels.u.u.new-quip)]
+        ?(%add %edit)           [%set u.new-reply]
+        ?(%add-feel %del-feel)  [%reacts ?~(u.new-reply ~ reacts.u.u.new-reply)]
       ==
     ==
   --

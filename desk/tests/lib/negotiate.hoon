@@ -198,18 +198,37 @@
   !>  ^-  (map gill:gall (map wire path))
   [[~zod %easy]^[/wire^/path ~ ~] ~ ~]
 ::
+++  test-no-self-negotiation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m
+    (perform-init-clean | ~ [[%negotiate-test [%prot^%vers ~ ~]] ~ ~])
+  =/  poke=card
+    [%pass /wire %agent [~zod %negotiate-test] %poke %noun !>(~)]
+  ;<  caz=(list card)  bind:m
+    %-  perform-cards
+    :~  [%pass /wire %agent [~zod %negotiate-test] %watch /path]
+        poke
+    ==
+  ::  must emit the watch, allow the poke, and not do negotiation
+  ::
+  %+  ex-cards  caz
+  :~  (ex-inner-watch /wire [~zod %negotiate-test] /path)
+      (ex-card poke)
+  ==
+::
 ++  test-avoid-self-tracking
   %-  eval-mare
   =/  m  (mare ,~)
   ;<  *  bind:m  (perform-init-clean | ~ ~)
-  ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %hard] %watch /path] ~)
+  ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %easy] %watch /path] ~)
   ;<  *  bind:m  (perform-upgrade | ~ ~)
   ::  inflate must not have tracked the "wrapped" lib-generated sub
   ::
   ;<  state=libstate  bind:m  get-lib-state
   %+  ex-equal  !>(want.state)
   !>  ^-  (map gill:gall (map wire path))
-  [[~zod %hard]^[/wire^/path ~ ~] ~ ~]
+  [[~zod %easy]^[/wire^/path ~ ~] ~ ~]
 ::
 ++  test-handle-inner-kick-and-nack
   %-  eval-mare
@@ -249,13 +268,21 @@
   =/  m  (mare ,~)
   =/  poke=card  [%pass /wire %agent [~zod %hard] %poke %noun !>(~)]
   ;<  *  bind:m  (perform-init-clean | ~ [[%hard [%prot^%vers ~ ~]] ~ ~])
-  ::  if we don't match, trying to poke must crash
+  ::  if we don't know whether we match, pokes must be let through,
+  ::  and negotiation must be started
   ::
+  ;<  caz=(list card)  bind:m  (do-poke %emit-cards !>([poke]~))
   ;<  ~  bind:m
-    (ex-crash (do-poke %emit-cards !>([poke]~)))
-  ::  once we do, poking is fine
+    %+  ex-cards  caz
+    :~  (ex-card poke)
+        (ex-negotiate [~zod %hard] %prot)
+    ==
+  ::  if we know for sure we don't match, sending a poke must crash
   ::
-  ;<  *  bind:m  (perform-cards (initiate:libn ~zod %hard) ~)
+  ;<  *  bind:m  (perform-hear-version [~zod %hard] %prot %miss)
+  ;<  ~  bind:m  (ex-crash (do-poke %emit-cards !>([poke]~)))
+  ::  once we do exactly match, poking is fine again
+  ::
   ;<  *  bind:m  (perform-hear-version [~zod %hard] %prot %vers)
   ;<  caz=(list card)  bind:m
     (perform-cards poke ~)

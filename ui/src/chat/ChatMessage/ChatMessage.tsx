@@ -13,7 +13,7 @@ import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { DMBrief } from '@/types/dms';
+import { DMUnread } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -28,11 +28,11 @@ import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import {
-  useIsNotePending,
+  useIsPostPending,
   useMarkReadMutation,
-  useTrackedNoteStatus,
+  useTrackedPostStatus,
 } from '@/state/channel/channel';
-import { Note } from '@/types/channel';
+import { Post } from '@/types/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -44,10 +44,10 @@ import ReactionDetails from '../ChatReactions/ReactionDetails';
 export interface ChatMessageProps {
   whom: string;
   time: BigInteger;
-  writ: Note;
-  // it's necessary to pass in the quipCount because if it's nested
+  writ: Post;
+  // it's necessary to pass in the replyCount because if it's nested
   // it won't trigger a re-render
-  quipCount?: number;
+  replyCount?: number;
   newAuthor?: boolean;
   newDay?: boolean;
   hideReplies?: boolean;
@@ -57,8 +57,8 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function briefMatches(brief: DMBrief, id: string): boolean {
-  return brief['read-id'] === id;
+function unreadMatches(unread: DMUnread, id: string): boolean {
+  return unread['read-id'] === id;
 }
 
 const mergeRefs =
@@ -83,7 +83,7 @@ const ChatMessage = React.memo<
         whom,
         time,
         writ,
-        quipCount = 0,
+        replyCount = 0,
         newAuthor = false,
         newDay = false,
         hideReplies = false,
@@ -101,7 +101,6 @@ const ChatMessage = React.memo<
         idTime: string;
       }>();
       const isThread = !!idShip && !!idTime;
-      // const [quipCount, setQuipCount] = useState(0);
       const threadOpId = isThread ? `${idShip}/${idTime}` : '';
       const isThreadOp = threadOpId === seal.id && hideReplies;
       const isMobile = useIsMobile();
@@ -109,7 +108,7 @@ const ChatMessage = React.memo<
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.brief['read-id'];
+      const unreadId = unread?.unread['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
@@ -122,7 +121,7 @@ const ChatMessage = React.memo<
               return;
             }
 
-            const { brief, seen } = unread;
+            const { unread: brief, seen } = unread;
             /* the first fire of this function
                which we don't to do anything with. */
             if (!inView && !seen) {
@@ -142,7 +141,7 @@ const ChatMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && briefMatches(brief, seal.id) && !seen) {
+            if (inView && unreadMatches(brief, seal.id) && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -165,7 +164,7 @@ const ChatMessage = React.memo<
         ),
       });
       const msgStatus = useTrackedMessageStatus(seal.id);
-      const status = useTrackedNoteStatus({
+      const status = useTrackedPostStatus({
         author: window.our,
         sent: essay.sent,
       });
@@ -177,9 +176,9 @@ const ChatMessage = React.memo<
 
       const unix = new Date(daToUnix(time));
 
-      const replyAuthors = seal.meta.lastQuippers;
-      const lastReplyTime = seal.meta.lastQuip
-        ? new Date(seal.meta.lastQuip)
+      const replyAuthors = seal.meta.lastRepliers;
+      const lastReplyTime = seal.meta.lastReply
+        ? new Date(seal.meta.lastReply)
         : null;
 
       const hover = useRef(false);
@@ -268,10 +267,10 @@ const ChatMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && briefMatches(unread.brief, seal.id) ? (
+          {unread && unreadMatches(unread.unread, seal.id) ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.brief.count}
+              unreadCount={unread.unread.count}
               ref={viewRef}
             />
           ) : null}
@@ -308,7 +307,7 @@ const ChatMessage = React.memo<
                     writId={seal.id}
                   />
                 ) : null}
-                {Object.keys(seal.feels).length > 0 && (
+                {Object.keys(seal.reacts).length > 0 && (
                   <>
                     <ChatReactions
                       id="reactions-target"
@@ -318,11 +317,11 @@ const ChatMessage = React.memo<
                     <ReactionDetails
                       open={reactionDetailsOpen}
                       onOpenChange={setReactionDetailsOpen}
-                      feels={seal.feels}
+                      reactions={seal.reacts}
                     />
                   </>
                 )}
-                {quipCount > 0 && !hideReplies ? (
+                {replyCount > 0 && !hideReplies ? (
                   <NavLink
                     to={`message/${seal.id}`}
                     className={({ isActive }) =>
@@ -358,10 +357,10 @@ const ChatMessage = React.memo<
                           'mr-2'
                         )}
                       >
-                        {quipCount} {quipCount > 1 ? 'replies' : 'reply'}{' '}
+                        {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
                       </span>
                       {/*
-                      TODO: update when we have quip briefs
+                      TODO: update when we have reply briefs
                       repliesContainsUnreadId ? (
                         <UnreadIndicator
                           className="h-6 w-6 text-blue transition-opacity"

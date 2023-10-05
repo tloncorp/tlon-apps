@@ -3,7 +3,7 @@ import { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import BTree from 'sorted-btree';
 import { useIsMobile } from '@/logic/useMedia';
-import { Note } from '@/types/channel';
+import { ChatMap, Post, Reply } from '@/types/channel';
 import { Writ } from '@/types/dms';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
@@ -11,7 +11,7 @@ import ChatSearchResult from './ChatSearchResult';
 interface ChatSearchResultsProps {
   whom: string;
   root: string;
-  scan: BTree<BigInteger, Note> | null;
+  scan: ChatMap;
   isLoading: boolean;
   query?: string;
   selected?: number;
@@ -21,7 +21,7 @@ interface ChatSearchResultEntry {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: Note | Writ;
+  writ: Post | Writ | Reply;
   selected: boolean;
 }
 
@@ -51,15 +51,18 @@ const ChatSearchResults = React.forwardRef<
   const entries = useMemo(
     () =>
       scan
-        ? scan.toArray().map(
-            ([int, writ], i): ChatSearchResultEntry => ({
-              whom,
-              root,
-              time: int,
-              writ,
-              selected: i === selected,
-            })
-          )
+        ? scan
+            .toArray()
+            .filter(([_int, writ]) => writ !== null)
+            .map(
+              ([int, writ], i): ChatSearchResultEntry => ({
+                whom,
+                root,
+                time: int,
+                writ: writ as Post | Writ | Reply,
+                selected: i === selected,
+              })
+            )
         : [],
     [scan, whom, root, selected]
   );

@@ -1,7 +1,7 @@
 import { Status } from '@/logic/status';
 import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
 import { useGroupFlag } from '@/state/groups';
-import { useDeleteNoteMutation } from '@/state/channel/channel';
+import { useDeletePostMutation } from '@/state/channel/channel';
 import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { decToUd } from '@urbit/api';
@@ -32,7 +32,7 @@ export default function useCurioActions({
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<Status>('idle');
 
-  const delMutation = useDeleteNoteMutation();
+  const delMutation = useDeletePostMutation();
 
   const onDelete = useCallback(async () => {
     setMenuOpen(false);

@@ -14,7 +14,7 @@ import {
   WritDelta,
   WritInCache,
 } from '@/types/dms';
-import { newQuipMap, Quip } from '@/types/channel';
+import { newReplyMap, Reply } from '@/types/channel';
 import queryClient from '@/queryClient';
 import { extendCurrentWindow, getWindow } from '@/logic/windows';
 import { BasedChatState } from './type';
@@ -26,7 +26,7 @@ interface WritsStore {
   getAround: (count: string, time: string) => Promise<void>;
 }
 
-export function writsReducer(whom: string) {
+export function writsReducer(whom: string, optimistic = false) {
   return (json: DmAction | WritDiff, draft: BasedChatState): BasedChatState => {
     let id: string | undefined;
     let delta: WritDelta;
@@ -48,24 +48,26 @@ export function writsReducer(whom: string) {
     };
 
     if ('add' in delta && !pact.index[id]) {
-      const time = bigInt(unixToDa(Date.now()));
+      const time = delta.add.time
+        ? bigInt(delta.add.time)
+        : unixToDa(Date.now());
       pact.index[id] = time;
       const seal: WritSeal = {
         id,
-        time: delta.add.time!,
-        feels: {},
-        quips: null,
+        time: time.toString(),
+        reacts: {},
+        replies: null,
         meta: {
-          quipCount: 0,
-          lastQuippers: [],
-          lastQuip: null,
+          replyCount: 0,
+          lastRepliers: [],
+          lastReply: null,
         },
       };
       const writ: Writ = {
         seal,
         essay: {
           ...delta.add.memo,
-          'han-data': {
+          'kind-data': {
             chat: delta.add.kind,
           },
         },
@@ -84,61 +86,65 @@ export function writsReducer(whom: string) {
       const time = pact.index[id];
       pact.writs = pact.writs.without(time);
       delete pact.index[id];
-    } else if ('add-feel' in delta && pact.index[id]) {
+    } else if ('add-react' in delta && pact.index[id]) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
-      const { ship, feel } = delta['add-feel'];
+      const { ship, react } = delta['add-react'];
 
       if (msg) {
-        msg.seal.feels[ship] = feel;
+        msg.seal.reacts[ship] = react;
         pact.writs = pact.writs.with(time, msg);
       }
-    } else if ('del-feel' in delta && pact.index[id]) {
+    } else if ('del-react' in delta && pact.index[id]) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
-      const ship = delta['del-feel'];
+      const ship = delta['del-react'];
 
       if (msg) {
-        delete msg.seal.feels[ship];
+        delete msg.seal.reacts[ship];
 
         pact.writs = pact.writs.with(time, {
           ...msg,
           seal: msg.seal,
         });
       }
-    } else if ('quip' in delta && pact.index[id]) {
+    } else if ('reply' in delta && pact.index[id]) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
-      const { quip } = delta;
+      const { reply } = delta;
 
       if (msg) {
-        const quipDelta = quip.delta;
+        const replyDelta = reply.delta;
 
-        if ('add' in quipDelta) {
-          const currentNote = queryClient.getQueryData<WritInCache>([
+        if ('add' in replyDelta) {
+          const currentPost = queryClient.getQueryData<WritInCache>([
             'dms',
             whom,
             id,
           ]);
 
-          if (currentNote) {
+          if (currentPost) {
             queryClient.invalidateQueries(['dms', whom, id]);
-            const currentQuips = currentNote.seal.quips;
-            const cachedQuip = Object.entries(currentQuips).find(
-              ([_, q]) => q.memo.sent === quipDelta.add.memo.sent
+            const currentReplies = currentPost.seal.replies;
+            const cachedReply = Object.entries(currentReplies).find(
+              ([_, q]) => q.memo.sent === replyDelta.add.memo.sent
             );
 
-            if (!cachedQuip && quipDelta.add.memo.author === window.our) {
+            if (!cachedReply && replyDelta.add.memo.author === window.our) {
               return draft;
             }
           }
 
-          msg.seal.meta.quipCount += 1;
-          msg.seal.meta.lastQuippers = uniq([
-            ...msg.seal.meta.lastQuippers,
-            quipDelta.add.memo.author,
-          ]);
-          msg.seal.meta.lastQuip = quipDelta.add.memo.sent;
+          if (optimistic) {
+            msg.seal.meta.replyCount += 1;
+            msg.seal.meta.lastRepliers = uniq([
+              ...msg.seal.meta.lastRepliers,
+              replyDelta.add.memo.author,
+            ]);
+            msg.seal.meta.lastReply = replyDelta.add.memo.sent;
+          } else if (delta.reply.meta) {
+            msg.seal.meta = delta.reply.meta;
+          }
 
           pact.writs = pact.writs.with(time, msg);
         }
@@ -167,20 +173,20 @@ export function updatePact(whom: string, writs: Writs, draft: BasedChatState) {
 
   pact.writs.mapValues((writ) => {
     const newWrit = { ...writ };
-    if (writ.seal.quips) {
-      if (Object.entries(writ.seal.quips).length === 0) {
-        newWrit.seal.quips = null;
+    if (writ.seal.replies) {
+      if (Object.entries(writ.seal.replies).length === 0) {
+        newWrit.seal.replies = null;
 
         return newWrit;
       }
 
-      const quips = writ.seal.quips as unknown;
+      const replies = writ.seal.replies as unknown;
 
-      if (quips && typeof quips === 'object' && 'with' in quips) {
+      if (replies && typeof replies === 'object' && 'with' in replies) {
         return newWrit;
       }
 
-      newWrit.seal.quips = newQuipMap(quips as [BigInteger, Quip][]);
+      newWrit.seal.replies = newReplyMap(replies as [BigInteger, Reply][]);
 
       return newWrit;
     }

@@ -8,7 +8,7 @@ import { pluralize } from '@/logic/utils';
 import {
   useGetFirstUnreadID,
   useMarkReadMutation,
-  useNoteKeys,
+  usePostKeys,
 } from '@/state/channel/channel';
 import { useChatInfo } from './useChatStore';
 
@@ -30,7 +30,7 @@ export default function ChatUnreadAlerts({
   // TODO: how to handle replies?
   const firstChatUnreadID = useGetFirstUnreadID(`chat/${whom}`);
 
-  const keys = useNoteKeys(`chat/${whom}`);
+  const keys = usePostKeys(`chat/${whom}`);
   const goToFirstUnread = useCallback(() => {
     if (!scrollerRef.current) {
       return;
@@ -56,8 +56,8 @@ export default function ChatUnreadAlerts({
     return null;
   }
 
-  const { brief } = chatInfo.unread;
-  const readId = brief['read-id'];
+  const { unread } = chatInfo.unread;
+  const readId = unread['read-id'];
   const udTime = readId ? daToUnix(bigInt(udToDec(readId))) : null;
   const date = udTime ? new Date(udTime) : new Date();
   const since = isToday(date)
@@ -65,10 +65,10 @@ export default function ChatUnreadAlerts({
     : format(date, 'LLLL d');
 
   const unreadMessage =
-    brief &&
-    `${brief.count} new ${pluralize('message', brief.count)} since ${since}`;
+    unread &&
+    `${unread.count} new ${pluralize('message', unread.count)} since ${since}`;
 
-  if (!brief || brief?.count === 0) {
+  if (!unread || unread?.count === 0) {
     return null;
   }
 

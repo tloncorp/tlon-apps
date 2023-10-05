@@ -11,7 +11,7 @@ function byShortcode(a: [string, string], b: [string, string]) {
   return aCode.localeCompare(bCode);
 }
 
-function FeelRow({ shortcode, ship }: { shortcode: string; ship: string }) {
+function ReactRow({ shortcode, ship }: { shortcode: string; ship: string }) {
   return (
     <div className="mb-4 flex w-full items-center justify-between">
       <div className="flex items-center">
@@ -23,7 +23,7 @@ function FeelRow({ shortcode, ship }: { shortcode: string; ship: string }) {
   );
 }
 
-function FeelTab({
+function ReactTab({
   tabId,
   count,
   selected,
@@ -54,25 +54,25 @@ function FeelTab({
 }
 
 interface ReactionsDisplayProps {
-  feels: Record<string, string>;
+  reacts: Record<string, string>;
   className?: string;
 }
 
 export default function ReactionsWidget({
-  feels,
+  reacts,
   className,
 }: ReactionsDisplayProps) {
   const [selectedTab, setSelectedTab] = useState('all');
 
-  const feelCount = useMemo(() => Object.keys(feels).length, [feels]);
-  const feelsByShortcode = useMemo(() => _.invertBy(feels), [feels]);
-  const allFeels = useMemo(
-    () => Object.entries(feels).sort(byShortcode),
-    [feels]
+  const reactCount = useMemo(() => Object.keys(reacts).length, [reacts]);
+  const reactsByShortcode = useMemo(() => _.invertBy(reacts), [reacts]);
+  const allReacts = useMemo(
+    () => Object.entries(reacts).sort(byShortcode),
+    [reacts]
   );
   const allShortcodes = useMemo(
-    () => Object.entries(feelsByShortcode).map(([code]) => code),
-    [feelsByShortcode]
+    () => Object.entries(reactsByShortcode).map(([code]) => code),
+    [reactsByShortcode]
   );
   const tabIds = ['all', ...allShortcodes];
 
@@ -92,10 +92,10 @@ export default function ReactionsWidget({
             onClick={() => setSelectedTab(tabId)}
             aria-label={tabId === 'all' ? 'All Reactions' : tabId}
           >
-            <FeelTab
+            <ReactTab
               tabId={tabId}
               count={
-                tabId === 'all' ? feelCount : feelsByShortcode[tabId].length
+                tabId === 'all' ? reactCount : reactsByShortcode[tabId].length
               }
               selected={selectedTab === tabId}
             />
@@ -109,12 +109,12 @@ export default function ReactionsWidget({
           className="h-full overflow-y-auto pl-3 pr-5"
         >
           {tabId === 'all' &&
-            allFeels.map(([ship, shortcode]) => (
-              <FeelRow key={ship} ship={ship} shortcode={shortcode} />
+            allReacts.map(([ship, shortcode]) => (
+              <ReactRow key={ship} ship={ship} shortcode={shortcode} />
             ))}
           {tabId !== 'all' &&
-            feelsByShortcode[tabId].map((ship) => (
-              <FeelRow key={ship} ship={ship} shortcode={tabId} />
+            reactsByShortcode[tabId].map((ship) => (
+              <ReactRow key={ship} ship={ship} shortcode={tabId} />
             ))}
         </Tabs.Content>
       ))}

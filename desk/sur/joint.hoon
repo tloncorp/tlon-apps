@@ -1,31 +1,31 @@
 ::  Common types among channels
 ::
 |%
-::  $feel: either an emoji identifier like :diff or a URL for custom
-+$  feel  @ta
-+$  feels  (map ship (rev (unit feel)))
-+$  rr-feels  (map ship feel)
+::  $react: either an emoji identifier like :diff or a URL for custom
++$  react      @ta
++$  v-reacts   (map ship (rev (unit react)))
++$  reacts     (map ship react)
 ::
-+$  c-feel
-  $%  [%add-feel id=@da p=ship q=feel]
-      [%del-feel id=@da p=ship]
++$  c-react
+  $%  [%add-react id=@da p=ship q=react]
+      [%del-react id=@da p=ship]
   ==
 ::
-++  apply-feels
-  |=  [old=feels new=feels]
-  ^-  feels
+++  apply-reacts
+  |=  [old=v-reacts new=v-reacts]
+  ^-  v-reacts
   %-  (~(uno by old) new)
-  |=  [* a=(rev (unit feel)) b=(rev (unit feel))]
+  |=  [* a=(rev (unit react)) b=(rev (unit react))]
   +:(apply-rev a b)
 ::
-++  reduce-feels
-  |=  =feels
-  ^-  (map ship feel)
-  %-  ~(gas by *(map ship feel))
-  %+  murn  ~(tap by feels)
-  |=  [=ship (rev feel=(unit feel))]
-  ?~  feel  ~
-  (some ship u.feel)
+++  reduce-reacts
+  |=  reacts=v-reacts
+  ^-  (map ship react)
+  %-  ~(gas by *(map ship react))
+  %+  murn  ~(tap by reacts)
+  |=  [=ship (rev react=(unit react))]
+  ?~  react  ~
+  (some ship u.react)
 ::
 +$  a-remark
   $~  [%read ~]

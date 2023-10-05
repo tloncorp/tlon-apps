@@ -5,8 +5,8 @@ import { subDays, subMinutes } from 'date-fns';
 import faker from '@faker-js/faker';
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
-import { Note, Notes, Story, storyFromChatStory } from '@/types/channel';
-import { DMBriefs } from '../types/dms';
+import { Post, Posts, Story, storyFromChatStory } from '@/types/channel';
+import { DMUnreads } from '../types/dms';
 
 const getUnix = (count: number, setTime?: Date) =>
   count > 1
@@ -19,25 +19,25 @@ export const makeFakeChatWrit = (
   count: number,
   author: string,
   story: Story,
-  feels?: Record<string, string>,
+  reacts?: Record<string, string>,
   setTime?: Date
-): Note => {
+): Post => {
   const unix = getUnix(count, setTime);
   const time = unixToDa(unix);
   const da = decToUd(time.toString());
   return {
     seal: {
       id: `${author}/${da}`,
-      feels: feels ?? {},
-      quips: null,
+      reacts: reacts ?? {},
+      replies: null,
       meta: {
-        quipCount: 0,
-        lastQuippers: [],
-        lastQuip: null,
+        replyCount: 0,
+        lastRepliers: [],
+        lastReply: null,
       },
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         chat: null,
       },
       author,
@@ -53,23 +53,23 @@ export const makeFakeChatNotice = (
   count: number,
   author: string,
   setTime?: Date
-): Note => {
+): Post => {
   const unix = getUnix(count, setTime);
   const time = unixToDa(unix);
   const da = decToUd(time.toString());
   return {
     seal: {
       id: `${author}/${da}`,
-      feels: {},
-      quips: null,
+      reacts: {},
+      replies: null,
       meta: {
-        quipCount: 0,
-        lastQuippers: [],
-        lastQuip: null,
+        replyCount: 0,
+        lastRepliers: [],
+        lastReply: null,
       },
     },
     essay: {
-      'han-data': {
+      'kind-data': {
         chat: {
           notice: null,
         },
@@ -104,9 +104,9 @@ export const messageSequence = ({
 }: {
   start?: Date;
   count: number;
-}): Note[] => {
+}): Post[] => {
   const times = [];
-  const messages: Note[] = [];
+  const messages: Post[] = [];
   // eslint-disable-next-line no-plusplus
   for (let i = 0; i < count; i++) {
     times.push(subMinutes(start, i + randInt(30)));
@@ -120,7 +120,7 @@ export const messageSequence = ({
 };
 
 export const makeFakeChatWrits = (offset: number) => {
-  const fakeChatWrits: Notes = _.keyBy(
+  const fakeChatWrits: Posts = _.keyBy(
     messageSequence({ start: subDays(new Date(), offset), count: 100 }),
     (val) => decToUd(unixToDa(val.essay.sent).toString())
   );
@@ -130,7 +130,7 @@ export const makeFakeChatWrits = (offset: number) => {
 
 export const chatKeys = ['~zod/test'];
 
-export const dmList: DMBriefs = {
+export const dmList: DMUnreads = {
   '~fabled-faster': {
     last: 0,
     count: 0,
