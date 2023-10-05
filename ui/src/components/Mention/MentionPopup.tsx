@@ -82,7 +82,7 @@ const MentionList = React.forwardRef<
     selectItem(selectedIndex);
   };
 
-  useEffect(() => setSelectedIndex(0), [props.items]);
+  useEffect(() => setSelectedIndex(props.items.length - 1), [props.items]);
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event) => {
@@ -115,7 +115,7 @@ const MentionList = React.forwardRef<
       )}
     >
       <ul className="w-full">
-        {(props.items || []).map((i, index) => (
+        {(props.items || []).map((i: any, index: number) => (
           <li key={i.id} className="w-full">
             <button
               className={cn(
@@ -211,6 +211,7 @@ const MentionPopup: Partial<SuggestionOptions> = {
 
     const items = fuzzyNames
       .slice(0, 5)
+      .reverse()
       .map((entry) => ({ id: contactNames[entry.index] }));
 
     return items;
