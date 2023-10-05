@@ -18,7 +18,6 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import {
   useUserHasScrolled,
   useInvertedScrollInteraction,
-  useIsScrolling,
 } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import { ScrollerItemData, useMessageData } from '@/logic/useScrollerMessages';
@@ -103,6 +102,7 @@ export default function ChatScroller({
   scrollTo = undefined,
   scrollerRef,
   scrollElementRef,
+  isScrolling,
 }: IChatScroller) {
   const isMobile = useIsMobile();
   const [loadDirection, setLoadDirection] = useState<'newer' | 'older'>(
@@ -111,7 +111,6 @@ export default function ChatScroller({
   const [isAtBottom, setIsAtBottom] = useState(loadDirection === 'older');
   const [isAtTop, setIsAtTop] = useState(false);
   const contentElementRef = useRef<HTMLDivElement>(null);
-  const isScrolling = useIsScrolling(scrollElementRef);
   const { userHasScrolled, resetUserHasScrolled } =
     useUserHasScrolled(scrollElementRef);
   const isInverted = loadDirection === 'older';

@@ -12,4 +12,5 @@ export interface IChatScroller {
   scrollTo?: BigInteger;
   scrollerRef: React.RefObject<VirtuosoHandle>;
   scrollElementRef: React.RefObject<HTMLDivElement>;
+  isScrolling: boolean;
 }

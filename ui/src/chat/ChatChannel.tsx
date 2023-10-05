@@ -24,6 +24,7 @@ import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+import { useIsScrolling } from '@/logic/scroll';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
@@ -62,6 +63,7 @@ function ChatChannel({ title }: ViewProps) {
     useChannelCompatibility(nest);
   const isMobile = useIsMobile();
   const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
   const root = `/groups/${groupFlag}/channels/${nest}`;
@@ -192,7 +194,7 @@ function ChatChannel({ title }: ViewProps) {
                 showReply
                 autoFocus={!inThread && !inSearch}
                 dropZoneId={dropZoneId}
-                scrollElementRef={scrollElementRef}
+                isScrolling={isScrolling}
               />
             ) : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-400">
@@ -213,6 +215,7 @@ function ChatChannel({ title }: ViewProps) {
         </Helmet>
         <ChatWindow
           scrollElementRef={scrollElementRef}
+          isScrolling={isScrolling}
           whom={chFlag}
           root={root}
         />

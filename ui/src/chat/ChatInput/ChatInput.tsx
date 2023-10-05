@@ -56,7 +56,6 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-import { useIsScrolling } from '@/logic/scroll';
 
 interface ChatInputProps {
   whom: string;
@@ -68,7 +67,7 @@ interface ChatInputProps {
   sendMessage: (whom: string, memo: ChatMemo) => void;
   inThread?: boolean;
   dropZoneId: string;
-  scrollElementRef: React.RefObject<HTMLDivElement>;
+  isScrolling: boolean;
 }
 
 export function UploadErrorPopover({
@@ -111,9 +110,8 @@ export default function ChatInput({
   sendMessage,
   inThread = false,
   dropZoneId,
-  scrollElementRef,
+  isScrolling,
 }: ChatInputProps) {
-  const isScrolling = useIsScrolling(scrollElementRef);
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
   const [didDrop, setDidDrop] = useState(false);

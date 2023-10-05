@@ -21,6 +21,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
+import { useIsScrolling } from '@/logic/scroll';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -57,6 +58,7 @@ export default function ChatThread() {
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
   const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
   const threadTitle = whomIsFlag(whom)
     ? channel?.meta?.title || ''
     : isClub
@@ -170,6 +172,7 @@ export default function ChatThread() {
             replying
             scrollTo={scrollTo}
             scrollElementRef={scrollElementRef}
+            isScrolling={isScrolling}
           />
         )}
       </div>
@@ -188,7 +191,7 @@ export default function ChatThread() {
             inThread
             autoFocus
             dropZoneId={dropZoneId}
-            scrollElementRef={scrollElementRef}
+            isScrolling={isScrolling}
           />
         ) : !canWrite ? null : (
           <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">

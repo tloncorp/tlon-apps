@@ -25,6 +25,7 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+import { useIsScrolling } from '@/logic/scroll';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -104,6 +105,7 @@ export default function Dm() {
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
   const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
   const canStart = useChatState(
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
@@ -243,7 +245,7 @@ export default function Dm() {
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}
-                scrollElementRef={scrollElementRef}
+                isScrolling={isScrolling}
               />
             </div>
           ) : null
@@ -254,6 +256,7 @@ export default function Dm() {
             whom={ship}
             root={root}
             scrollElementRef={scrollElementRef}
+            isScrolling={isScrolling}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <DMHero ship={ship} contact={contact} />
