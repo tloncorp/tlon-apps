@@ -178,7 +178,7 @@ export default function ChatScroller({
     const virt = virtualizerRef.current;
     if (!virt) return;
     virt.scrollOffset = offset;
-    virt.scrollElement?.scrollTo({ top: offset });
+    virt.scrollElement?.scrollTo?.({ top: offset });
   }, []);
 
   /**
@@ -258,7 +258,7 @@ export default function ChatScroller({
           // Fix for no-param-reassign
           scrollToAnchor();
         } else {
-          instance.scrollElement?.scrollTo({
+          instance.scrollElement?.scrollTo?.({
             top: offset + (adjustments ?? 0),
             behavior,
           });
@@ -383,7 +383,7 @@ export default function ChatScroller({
         ref={contentElementRef}
         style={{
           height: `${contentHeight}px`,
-          paddingTop: virtualItems[0]?.start,
+          paddingTop: virtualItems[0]?.start ?? 0,
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
       >
