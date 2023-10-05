@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import cn from 'classnames';
 import { useNavigate, useParams } from 'react-router';
 import { useDismissNavigate } from '@/logic/routing';
 import { useCopy } from '@/logic/utils';
@@ -19,10 +20,37 @@ import {
   useShipHasBlockedUs,
   useUnblockShipMutation,
 } from '@/state/chat';
+import { useIsMobile } from '@/logic/useMedia';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import WidgetDrawer from '@/components/WidgetDrawer';
 import ProfileCoverImage from './ProfileCoverImage';
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';
+
+function ProfileContainer({
+  onOpenChange,
+  isMobile,
+  children,
+}: {
+  onOpenChange: (open: boolean) => void;
+  isMobile: boolean;
+  children: React.ReactNode;
+}) {
+  return isMobile ? (
+    <WidgetDrawer open={true} onOpenChange={onOpenChange} className="h-[70vh]">
+      {children}
+    </WidgetDrawer>
+  ) : (
+    <Dialog
+      defaultOpen
+      onOpenChange={onOpenChange}
+      className="overflow-y-auto p-0"
+      containerClass="w-full sm:max-w-lg"
+    >
+      {children}
+    </Dialog>
+  );
+}
 
 export default function ProfileModal() {
   const [showBlock, setShowBlock] = useState(false);
@@ -33,6 +61,7 @@ export default function ProfileModal() {
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
   const navigateByApp = useNavigateByApp();
+  const isMobile = useIsMobile();
   const pals = usePalsState();
   const { data, showConnection } = useConnectivityCheck(ship || '');
   const { mutate: blockShip } = useBlockShipMutation();
@@ -89,14 +118,12 @@ export default function ProfileModal() {
   };
 
   return (
-    <Dialog
-      defaultOpen
-      onOpenChange={onOpenChange}
-      className="overflow-y-auto p-0"
-      containerClass="w-full sm:max-w-lg"
-    >
+    <ProfileContainer onOpenChange={onOpenChange} isMobile={isMobile}>
       <ProfileCoverImage
-        className="flex items-end rounded-t-xl rounded-b-none"
+        className={cn(
+          'flex items-end rounded-b-none',
+          isMobile ? 'rounded-t-[32px]' : 'rounded-t-xl'
+        )}
         cover={cover}
       >
         <Avatar
@@ -192,6 +219,6 @@ export default function ProfileModal() {
         message="Are you sure you want to block this user?"
         onConfirm={handleBlockClick}
       />
-    </Dialog>
+    </ProfileContainer>
   );
 }
