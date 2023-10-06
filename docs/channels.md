@@ -11,7 +11,7 @@ This document covers the scries, pokes, and subscriptions for Tlon's chat, noteb
 ### Agents
 Tlon's channels are implemented through two agents, `%channels` and `%channels-server`. These both communicate with each other, and `%channels` also communicates with frontends and third-party agents.
 
-`%channels-server` is intended for internal use by %channels. As such, we will not be elaborating on its API here.
+`%channels-server` is intended for internal use by `%channels`. As such, we will not be elaborating on its API here.
 
 `%channels`, on the other hand, is there precisely to facilitate use by frontend clients and third-party agents. Its API is made up primarily of two types:
 
