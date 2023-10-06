@@ -13,6 +13,8 @@ import AsteriskIcon from '@/components/icons/AsteriskIcon';
 import LogOutIcon from '@/components/icons/LogOutIcon';
 import MobileHeader from '@/components/MobileHeader';
 import { isNativeApp, postActionToNativeApp } from '@/logic/native';
+import PersonIcon from '@/components/icons/PersonIcon';
+import { isHosted } from '@/logic/utils';
 import ProfileCoverImage from './ProfileCoverImage';
 
 export default function Profile({ title }: ViewProps) {
@@ -106,27 +108,29 @@ export default function Profile({ title }: ViewProps) {
                 About Groups
               </SidebarItem>
             </Link>
-            <a
-              className="no-underline"
-              href="https://airtable.com/shrflFkf5UyDFKhmW"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Submit Feedback"
-            >
-              <SidebarItem
-                color="text-gray-900"
-                fontWeight="font-normal"
-                fontSize="text-[17px]"
-                className="leading-5"
-                icon={
-                  <div className="flex h-12 w-12 items-center justify-center">
-                    <FeedbackIcon className="h-6 w-6 text-gray-400" />
-                  </div>
-                }
+            {isHosted && (
+              <a
+                className="no-underline"
+                href={`https://tlon.network/dashboard/${window.our.slice(1)}`}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Manage Account"
               >
-                Submit Feedback
-              </SidebarItem>
-            </a>
+                <SidebarItem
+                  color="text-gray-900"
+                  fontWeight="font-normal"
+                  fontSize="text-[17px]"
+                  className="leading-5"
+                  icon={
+                    <div className="flex h-12 w-12 items-center justify-center">
+                      <PersonIcon className="h-8 w-8 text-gray-400" />
+                    </div>
+                  }
+                >
+                  Manage Account
+                </SidebarItem>
+              </a>
+            )}
             <a
               className="no-underline"
               href="https://tlon.network/lure/~nibset-napwyn/tlon?id=186c283508814a3-073b187e44f6fa-1f525634-384000-186c28350892a15"
@@ -146,6 +150,27 @@ export default function Profile({ title }: ViewProps) {
                 }
               >
                 Share with Friends
+              </SidebarItem>
+            </a>
+            <a
+              className="no-underline"
+              href="https://airtable.com/shrflFkf5UyDFKhmW"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Submit Feedback"
+            >
+              <SidebarItem
+                color="text-gray-900"
+                fontWeight="font-normal"
+                fontSize="text-[17px]"
+                className="leading-5"
+                icon={
+                  <div className="flex h-12 w-12 items-center justify-center">
+                    <FeedbackIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                }
+              >
+                Submit Feedback
               </SidebarItem>
             </a>
           </div>
