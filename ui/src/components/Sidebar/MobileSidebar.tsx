@@ -8,6 +8,8 @@ import { useNotifications } from '@/notifications/useNotifications';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useLocalState } from '@/state/local';
 import { useHasUnreadMessages } from '@/state/chat';
+import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
+import { useNeedsUpdate } from '@/state/docket';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
 import MenuIcon from '../icons/MenuIcon';
@@ -118,6 +120,7 @@ export default function MobileSidebar() {
   const location = useLocation();
   const isInactive = (path: string) => !location.pathname.startsWith(path);
   const isDarkMode = useIsDark();
+  const needsUpdate = useNeedsUpdate();
   const safeAreaInsets = useSafeAreaInsets();
   const { isChatInputFocused } = useChatInputFocus();
 
@@ -156,9 +159,20 @@ export default function MobileSidebar() {
                 />
               </div>
             </NavTab>
-            <NavTab to="/profile">
-              <Avatar size="xs" className="" ship={window.our} />
-            </NavTab>
+            {needsUpdate ? (
+              <NavTab
+                to="/update-needed"
+                state={{ backgroundLocation: location }}
+              >
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow">
+                  <Asterisk16Icon className="h-4 w-4 text-black dark:text-white" />
+                </div>
+              </NavTab>
+            ) : (
+              <NavTab to="/profile">
+                <Avatar size="xs" className="" ship={window.our} />
+              </NavTab>
+            )}
           </ul>
         </nav>
       </footer>
