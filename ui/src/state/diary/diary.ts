@@ -2,7 +2,7 @@ import bigInt from 'big-integer';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
 import { BigIntOrderedMap, decToUd, udToDec, unixToDa } from '@urbit/api';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   QueryClient,
   useMutation,
@@ -31,6 +31,8 @@ import {
   DiaryStory,
   DiaryOutlines,
   Shelf,
+  HiddenPosts,
+  TogglePost,
 } from '@/types/diary';
 import api from '@/api';
 import { restoreMap } from '@/logic/utils';
@@ -1399,4 +1401,67 @@ export function useDeleteQuipFeelMutation() {
       ]);
     },
   });
+}
+
+export function useHiddenPosts() {
+  return useReactQuerySubscription<HiddenPosts>({
+    queryKey: ['diary', 'hidden'],
+    app: 'diary',
+    path: '/ui',
+    scry: '/hidden-posts',
+    options: {
+      placeholderData: [],
+    },
+  });
+}
+
+export function useTogglePostMutation() {
+  const mutationFn = (variables: { toggle: TogglePost }) =>
+    api.poke({
+      app: 'diary',
+      mark: 'toggle-post',
+      json: variables,
+    });
+  const queryClient = useQueryClient();
+
+  return useMutation(mutationFn, {
+    onMutate: ({ toggle }) => {
+      const hiding = 'hide' in toggle;
+      queryClient.setQueryData<HiddenPosts>(['diary', 'hidden'], (prev) => {
+        if (!prev) {
+          return hiding ? [toggle.hide] : [];
+        }
+
+        return hiding
+          ? [...prev, toggle.hide]
+          : prev.filter((id) => id !== toggle.show);
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chat', 'hidden']);
+    },
+  });
+}
+
+export function usePostToggler(id: string) {
+  const { mutate } = useTogglePostMutation();
+  const { data: hidden } = useHiddenPosts();
+  const isHidden = useMemo(
+    () => (hidden || []).some((h) => h === id),
+    [hidden, id]
+  );
+  const show = useCallback(
+    () => mutate({ toggle: { show: id } }),
+    [mutate, id]
+  );
+  const hide = useCallback(
+    () => mutate({ toggle: { hide: id } }),
+    [mutate, id]
+  );
+
+  return {
+    show,
+    hide,
+    isHidden,
+  };
 }

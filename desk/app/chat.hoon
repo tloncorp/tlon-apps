@@ -547,8 +547,8 @@
     ^+  cor
     =.  hidden-messages
       ?-  -.toggle
-        %hide  (~(del in hidden-messages) id.toggle)
-        %show  (~(put in hidden-messages) id.toggle)
+        %hide  (~(put in hidden-messages) id.toggle)
+        %show  (~(del in hidden-messages) id.toggle)
       ==
     (give %fact ~[/ui] chat-message-toggle+!>(toggle))
   ::

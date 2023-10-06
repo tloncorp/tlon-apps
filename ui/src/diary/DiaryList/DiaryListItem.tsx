@@ -3,7 +3,7 @@ import cn from 'classnames';
 import { DiaryOutline } from '@/types/diary';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
-import { useIsNotePending } from '@/state/diary';
+import { useIsNotePending, usePostToggler } from '@/state/diary';
 
 interface DiaryListItemProps {
   outline: DiaryOutline;
@@ -15,15 +15,17 @@ export default function DiaryListItem({ outline, time }: DiaryListItemProps) {
   const navigate = useNavigate();
   const essay = outline;
   const { quippers, quipCount } = outline;
+  const { isHidden } = usePostToggler(time.toString());
 
   return (
     <div
-      className={cn('card cursor-pointer border border-gray-100', {
+      className={cn('card border border-gray-100', {
+        'cursor-pointer': !isHidden,
         'bg-gray-100': isPending,
       })}
       role="link"
       tabIndex={0}
-      onClick={() => navigate(`note/${time.toString()}`)}
+      onClick={() => !isHidden && navigate(`note/${time.toString()}`)}
     >
       <DiaryNoteHeadline
         quippers={quippers}
