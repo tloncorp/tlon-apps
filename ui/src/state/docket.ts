@@ -249,6 +249,10 @@ export function useCharges() {
   return useDocketState(selCharges);
 }
 
+export function useNeedsUpdate() {
+  return true;
+}
+
 export function useCharge(desk: string) {
   const defaultCharge = React.useMemo(
     () => ({
