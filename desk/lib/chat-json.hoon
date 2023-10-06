@@ -129,7 +129,7 @@
     :~  ship/s/(scot %p s)
     ==
   ::
-  ++  message-toggle
+  ++  toggle-message
     |=  m=message-toggle:c
     %+  frond  -.m
     ?-  -.m
@@ -696,7 +696,7 @@
       ==
     ==
   ::
-  ++  message-toggle
+  ++  toggle-message
     ^-  $-(json message-toggle:c)
     %-  of
     :~  hide/id

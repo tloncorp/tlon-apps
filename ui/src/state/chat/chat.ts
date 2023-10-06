@@ -1361,7 +1361,7 @@ export function useToggleMessageMutation() {
     api.poke({
       app: 'chat',
       mark: 'chat-toggle-message',
-      json: variables,
+      json: variables.toggle,
     });
 
   return useMutation(mutationFn, {

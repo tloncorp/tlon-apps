@@ -373,7 +373,7 @@
     ?>  from-self
     (unblock ship)
   ::
-      %chat-message-toggle
+      %chat-toggle-message
     =+  !<(toggle=message-toggle:c vase)
     ?>  from-self
     (toggle-message toggle)
@@ -550,7 +550,7 @@
         %hide  (~(put in hidden-messages) id.toggle)
         %show  (~(del in hidden-messages) id.toggle)
       ==
-    (give %fact ~[/ui] chat-message-toggle+!>(toggle))
+    (give %fact ~[/ui] chat-toggle-message+!>(toggle))
   ::
 ++  watch
   |=  =(pole knot)
