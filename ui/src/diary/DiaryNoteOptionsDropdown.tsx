@@ -1,6 +1,6 @@
 import React, { PropsWithChildren, useState } from 'react';
 import classNames from 'classnames';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useArrangedNotes, usePostToggler } from '@/state/diary';
 import { useChannelCompatibility } from '@/logic/channel';
@@ -29,6 +29,8 @@ export default function DiaryNoteOptionsDropdown({
   const { ship } = getFlagParts(flag);
   const nest = `diary/${flag}`;
   const { compatible } = useChannelCompatibility(nest);
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     isOpen,
     didCopy,
@@ -100,6 +102,19 @@ export default function DiaryNoteOptionsDropdown({
       key: 'hide',
       content: isHidden ? 'Show Note' : 'Hide Note for Me',
       onClick: isHidden ? show : hide,
+    });
+    actions.push({
+      key: 'hide',
+      content: 'Report Note',
+      onClick: () => {
+        navigate('/report-content', {
+          state: {
+            backgroundLocation: location,
+            contentId: 'placeholder',
+            nest,
+          },
+        });
+      },
     });
   }
 
