@@ -468,12 +468,10 @@ export default function ChatInput({
   useEffect(() => {
     if (messageEditor && !messageEditor.isDestroyed) {
       if (!isChatInputFocused && messageEditor.isFocused) {
-        console.log('focus');
         handleFocus();
       }
 
       if (isChatInputFocused && !messageEditor.isFocused) {
-        console.log('blur');
         handleBlur();
       }
     }
