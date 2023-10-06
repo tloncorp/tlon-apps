@@ -48,6 +48,11 @@
 ::    (the initial state, of not having negotiated at all, counts as "not
 ::    matching".)
 ::
+::    regardless of the value of the notify flag, subscription updates about
+::    version compatibility will always be given on the following paths:
+::    /~/negotiate/notify       %negotiate-notifcation; [match=? =gill:gall]
+::    /~/negotiate/notify/json  %json; {'gill': '~ship/dude', 'match': true}
+::
 ::    if an agent was previously using epic, it can trivially upgrade into
 ::    this library by making the following changes:
 ::    - change its own epic version number
@@ -61,6 +66,7 @@
 +$  protocol  @ta
 +$  version   *
 +$  config    (map dude:gall (map protocol version))
++$  status    ?(%match %clash %await %unmet)
 ::
 ++  initiate
   |=  =gill:gall
@@ -69,7 +75,7 @@
 ::
 ++  read-status
   |=  [bowl:gall =gill:gall]
-  .^  ?(%match %clash %await %unmet)
+  .^  status
     %gx  (scot %p our)  dap  (scot %da now)
     /~/negotiate/status/(scot %p p.gill)/[q.gill]/noun
   ==
@@ -114,6 +120,19 @@
       |=  [[p=protocol v=version] o=_|]
       =+  h=(~(get by heed) [gill p])
       |(o &(?=([~ ~ *] h) !=(v u.u.h)))  ::  negotiated & non-matching
+    ::
+    ++  get-status
+      |=  =gill:gall
+      ^-  status
+      ?:  =([our dap]:bowl gill)  %match
+      =/  need  (~(gut by know) q.gill ~)
+      ?:  =(~ need)  %match
+      =/  need  ~(tap in ~(key by need))
+      ?.  (levy need |=(p=protocol (~(has by heed) gill p)))
+        %unmet
+      ?:  (lien need |=(p=protocol =(~ (~(got by heed) gill p))))
+        %await
+      ?:((match gill) %match %clash)
     ::  +inflate: update state & manage subscriptions to be self-consistent
     ::
     ::    get previously-unregistered subs from the bowl, put them in .want,
@@ -186,15 +205,17 @@
         $(caz (weld car caz), inz t.inz)
       ::
       =/  notes=(list card)
-        ?.  notify  ~
         ?~  knew    ~
-        %+  murn  ~(tap in `(set gill:gall)`(~(run in ~(key by heed)) head))
+        %-  zing
+        %+  turn  ~(tap in `(set gill:gall)`(~(run in ~(key by heed)) head))
         |=  =gill:gall
-        ^-  (unit card)
+        ^-  (list card)
         =/  did=?  (match(know u.knew) gill)
         =/  now=?  (match gill)
         ?:  =(did now)  ~
-        `(notify-inner now gill)
+        %+  weld  (notify-outer now gill)
+        ?.  notify  ~
+        [(notify-inner now gill)]~
       ::
       :_  state
       %+  weld  notes
@@ -332,14 +353,16 @@
         ~|  %unrequested-heed
         (~(got by heed) for)
       ?:  =(new hav)  [~ state]
-      =/  did=?  &(notify (match gill.for))
+      =/  did=?  (match gill.for)
       =.  heed   (~(put by heed) for new)
-      ::  we may need to notify the inner agent
+      =/  now=?  (match gill.for)
+      ::  we need to notify subscribers,
+      ::  and we may need to notify the inner agent
       ::
       =/  nos=(list card)
-        ?.  notify  ~
-        =/  now=?  (match gill.for)
         ?:  =(did now)  ~
+        %+  weld  (notify-outer now gill.for)
+        ?.  notify  ~
         [(notify-inner now gill.for)]~
       =^  caz  state  (inflate ~)
       [(weld caz nos) state]
@@ -355,6 +378,21 @@
       ?.  ?=([%~.~ %negotiate %inner-watch @ @ *] wire)  [~ wire]
       =,  t.t.t.wire
       [`[(slav %p i) i.t] t.t]
+    ::
+    ++  notify-outer
+      |=  event=[match=? =gill:gall]
+      ^-  (list card)
+      =/  =path  /~/negotiate/notify
+      =/  =json
+        :-  %o
+        %-  ~(gas by *(map @t json))
+        =,  event
+        :~  'match'^b+match
+            'gill'^s+(rap 3 (scot %p p.gill) '/' q.gill ~)
+        ==
+      :~  [%give %fact [path]~ %negotiate-notification !>(event)]
+          [%give %fact [(snoc path %json)]~ %json !>(json)]
+      ==
     ::
     ++  notify-inner
       |=  event=[match=? =gill:gall]
@@ -471,11 +509,16 @@
         =^  cards  inner  (on-watch:og path)
         =^  cards  state  (play-cards:up cards)
       [cards this]
-      ::  /~/negotiate/version/[protocol]
-      ?>  ?=([%version @ ~] t.t.path)
-      ::  it is important that we nack if we don't expose this protocol
+      ?+  t.t.path  !!
+          [%version @ ~]  ::  /~/negotiate/version/[protocol]
+        ::  it is important that we nack if we don't expose this protocol
+        ::
+        [[%give %fact ~ %noun !>((~(got by ours) i.t.t.t.path))]~ this]
       ::
-      [[%give %fact ~ %noun !>((~(got by ours) i.t.t.t.path))]~ this]
+          [%notify ?([%json ~] ~)]  ::  /~/negotiate/notify(/json)
+        ?>  =(our src):bowl
+        [~ this]
+      ==
     ::
     ++  on-agent
       |=  [=wire =sign:agent:gall]
@@ -571,22 +614,47 @@
         !>  ^-  (unit version)
         (~(gut by heed) for ~)
       ::
-          [%status @ @ ~]
-        ::TODO  mb also expose over subscription interface? useful for fe
+          [%status ?([%json ~] ~)]
+        :+  ~  ~
+        =/  stas=(list [gill:gall status])
+          %+  turn  ~(tap in `(set gill:gall)`(~(run in ~(key by heed)) head))
+          |=(=gill:gall [gill (get-status:up gill)])
+        ?~  t.t.t.t.path
+          noun+!>((~(gas by *(map gill:gall status)) stas))
+        ?>  ?=([%json ~] t.t.t.t.path)
+        :-  %json
+        !>  ^-  json
+        :-  %o
+        %-  ~(gas by *(map @t json))
+        %+  turn  stas
+        |=  [=gill:gall =status]
+        [(rap 3 (scot %p p.gill) '/' q.gill ~) s+status]
+      ::
+          [%status @ @ ?([%json ~] ~)]
         =/  for=gill:gall
           =*  p  t.t.t.t.path
           [(slav %p i.p) i.t.p]
-        :^  ~  ~  %noun
-        !>  ^-  ?(%match %clash %await %unmet)
-        ?:  =([our dap]:bowl for)  %match
-        =/  need  (~(gut by know) q.for ~)
-        ?:  =(~ need)  %match
-        =/  need  ~(tap in ~(key by need))
-        ?.  (levy need |=(p=protocol (~(has by heed) for p)))
-          %unmet
-        ?:  (lien need |=(p=protocol =(~ (~(got by heed) for p))))
-          %await
-        ?:((match:up for) %match %clash)
+        =/  res=status
+          (get-status:up for)
+        ?~  t.t.t.t.t.t.path  ``noun+!>(res)
+        ?>  ?=([%json ~] t.t.t.t.t.t.path)
+        ``json+!>(`json`s+res)
+      ::
+          [%matching ?(~ [%json ~])]
+        :+  ~  ~
+        =/  mats=(list [gill:gall ?])
+          %+  turn  ~(tap in `(set gill:gall)`(~(run in ~(key by heed)) head))
+          |=(=gill:gall [gill (match:up gill)])
+        ?~  t.t.t.t.path
+          noun+!>((~(gas by *(map gill:gall ?)) mats))
+        ?>  ?=([%json ~] t.t.t.t.path)
+        :-  %json
+        !>  ^-  json
+        :-  %o
+        %-  ~(gas by *(map @t json))
+        %+  turn  mats
+        |=  [=gill:gall match=?]
+        [(rap 3 (scot %p p.gill) '/' q.gill ~) b+match]
       ==
     ::
     ++  on-leave

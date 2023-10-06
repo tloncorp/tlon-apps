@@ -72,11 +72,34 @@
     /~/negotiate/heed/(scot %p p.gill)/[q.gill]/[prot]
   [gill %watch /~/negotiate/version/[prot]]
 ::
-++  ex-notify
+++  ex-notifications
+  |=  inner=?
+  |=  [=gill:gall match=?]
+  ^-  (list $-(card tang))
+  :+  (ex-notify-outer gill match)
+    (ex-notify-json gill match)
+  ?.  inner  ~
+  [(ex-notify-inner gill match)]~
+::
+++  ex-notify-inner
   |=  [=gill:gall match=?]
   %^  ex-poke  /~/negotiate/notify
     [~zod %negotiate-test]
   [%negotiate-notification !>([match gill])]
+::
+++  ex-notify-outer
+  |=  [=gill:gall match=?]
+  %^  ex-fact  [/~/negotiate/notify]~
+    %negotiate-notification
+  !>([match gill])
+::
+++  ex-notify-json
+  |=  [=gill:gall match=?]
+  %^  ex-fact  [/~/negotiate/notify/json]~
+    %json
+  =/  git=@t  (rap 3 (scot %p p.gill) '/' q.gill ~)
+  !>(`json`o+(~(gas by *(map @t json)) 'match'^b+match 'gill'^s+git ~))
+::
 --
 ::
 |%
@@ -321,9 +344,9 @@
     (do-agent /~/negotiate/heed/~zod/hard/prot [~zod %hard] %watch-ack `['err']~)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-card wait(time (add *@da ~m30)))
+    :*  (ex-card wait(time (add *@da ~m30)))
         (ex-inner-leave /wire ~zod %hard)
-        (ex-notify [~zod %hard] |)
+        ((ex-notifications &) [~zod %hard] |)
     ==
   ::  after the long timeout, try again
   ::
@@ -356,13 +379,17 @@
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %vers2)
   ;<  ~  bind:m
-    (ex-cards caz (ex-inner-watch /wire [~zod %hard] /path) ~)
+    %+  ex-cards  caz
+    :-  (ex-inner-watch /wire [~zod %hard] /path)
+    ((ex-notifications |) [~zod %hard] &)
   ::  when versions stop matching, should rescind subs
   ::
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %miss)
   ;<  ~  bind:m
-    (ex-cards caz (ex-inner-leave /wire ~zod %hard) ~)
+    %+  ex-cards  caz
+    :-  (ex-inner-leave /wire ~zod %hard)
+    ((ex-notifications |) [~zod %hard] |)
   ::  with notify flag set, these changes must additionally send a poke
   ::
   ;<  caz=(list card)  bind:m
@@ -372,15 +399,15 @@
     (perform-hear-version [~zod %hard] %prot2 %vers2)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-inner-watch /wire [~zod %hard] /path)
-        (ex-notify [~zod %hard] &)
+    :*  (ex-inner-watch /wire [~zod %hard] /path)
+        ((ex-notifications &) [~zod %hard] &)
     ==
   ::
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %miss)
   %+  ex-cards  caz
-  :~  (ex-inner-leave /wire ~zod %hard)
-      (ex-notify [~zod %hard] |)
+  :*  (ex-inner-leave /wire ~zod %hard)
+      ((ex-notifications &) [~zod %hard] |)
   ==
 ::
 ++  test-change-config
@@ -406,6 +433,8 @@
     (perform-upgrade | ~ config)
   ;<  ~  bind:m
     %+  ex-cards  caz
+    %+  welp
+      ((ex-notifications |) [~zod %hard] |)
     :~  (ex-negotiate [~zod %hard] %prot1)
         (ex-negotiate [~zod %hard] %prot2)
         (ex-inner-leave /wire ~zod %hard)
@@ -415,23 +444,26 @@
   ;<  caz=(list card)  bind:m
     (perform-upgrade | ~ ~)
   ;<  ~  bind:m
-    (ex-cards caz (ex-inner-watch /wire [~zod %hard] /path) ~)
+    %+  ex-cards  caz
+    %+  snoc
+      ((ex-notifications |) [~zod %hard] &)
+    (ex-inner-watch /wire [~zod %hard] /path)
   ::  with notify flag set, these changes must additionally send a poke
   ::
   ;<  caz=(list card)  bind:m
     (perform-upgrade & ~ config)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-notify [~zod %hard] |)
-        (ex-inner-leave /wire ~zod %hard)
-    ==
+    %+  snoc
+      ((ex-notifications &) [~zod %hard] |)
+    (ex-inner-leave /wire ~zod %hard)
   ::
   ;<  caz=(list card)  bind:m
     (perform-upgrade & ~ ~)
   %+  ex-cards  caz
-  :~  (ex-notify [~zod %hard] &)
-      (ex-inner-watch /wire [~zod %hard] /path)
-  ==
+  %+  snoc
+    ((ex-notifications &) [~zod %hard] &)
+  (ex-inner-watch /wire [~zod %hard] /path)
 ::
 ++  test-version-watch-fact
   %-  eval-mare
@@ -475,8 +507,9 @@
   ;<  caz=(list card)  bind:m
     (perform-upgrade & ~ [[%hard %prot^%vers ~ ~] ~ ~])
   %+  ex-cards  caz
-  :~  (ex-notify [~zod %hard] |)
-      (ex-negotiate [~zod %hard] %prot)
+  %+  welp
+    ((ex-notifications &) [~zod %hard] |)
+  :~  (ex-negotiate [~zod %hard] %prot)
       (ex-inner-leave /wire ~zod %hard)
   ==
 ::
