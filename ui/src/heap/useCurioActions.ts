@@ -27,7 +27,6 @@ export default function useCurioActions({
     },
   });
   const { doCopy, didCopy } = useCopy(refToken ? refToken : chanPath);
-  console.log({ time });
   const { isHidden, show, hide } = useCurioToggler(time);
 
   const [menuOpen, setMenuOpen] = useState(false);
