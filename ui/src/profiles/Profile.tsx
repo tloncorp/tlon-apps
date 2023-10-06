@@ -13,6 +13,7 @@ import AsteriskIcon from '@/components/icons/AsteriskIcon';
 import LogOutIcon from '@/components/icons/LogOutIcon';
 import MobileHeader from '@/components/MobileHeader';
 import { isNativeApp, postActionToNativeApp } from '@/logic/native';
+import PersonIcon from '@/components/icons/PersonIcon';
 import ProfileCoverImage from './ProfileCoverImage';
 
 export default function Profile({ title }: ViewProps) {
@@ -108,10 +109,10 @@ export default function Profile({ title }: ViewProps) {
             </Link>
             <a
               className="no-underline"
-              href="https://airtable.com/shrflFkf5UyDFKhmW"
+              href={`https://tlon.network/dashboard/${window.our.slice(1)}`}
               target="_blank"
               rel="noreferrer"
-              aria-label="Submit Feedback"
+              aria-label="Manage Account"
             >
               <SidebarItem
                 color="text-gray-900"
@@ -120,11 +121,11 @@ export default function Profile({ title }: ViewProps) {
                 className="leading-5"
                 icon={
                   <div className="flex h-12 w-12 items-center justify-center">
-                    <FeedbackIcon className="h-6 w-6 text-gray-400" />
+                    <PersonIcon className="h-8 w-8 text-gray-400" />
                   </div>
                 }
               >
-                Submit Feedback
+                Manage Account
               </SidebarItem>
             </a>
             <a
@@ -146,6 +147,27 @@ export default function Profile({ title }: ViewProps) {
                 }
               >
                 Share with Friends
+              </SidebarItem>
+            </a>
+            <a
+              className="no-underline"
+              href="https://airtable.com/shrflFkf5UyDFKhmW"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Submit Feedback"
+            >
+              <SidebarItem
+                color="text-gray-900"
+                fontWeight="font-normal"
+                fontSize="text-[17px]"
+                className="leading-5"
+                icon={
+                  <div className="flex h-12 w-12 items-center justify-center">
+                    <FeedbackIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+                }
+              >
+                Submit Feedback
               </SidebarItem>
             </a>
           </div>
