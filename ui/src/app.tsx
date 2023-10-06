@@ -104,6 +104,7 @@ import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
+import ReportContent from './components/ReportContent';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -578,6 +579,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             element={<NewChannelModal />}
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
+          <Route path="/report-content" element={<ReportContent />} />
           {isMobile ? (
             <>
               <Route
