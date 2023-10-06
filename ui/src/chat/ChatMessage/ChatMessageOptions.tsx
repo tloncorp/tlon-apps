@@ -41,11 +41,8 @@ import {
 import { emptyPost, Post } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
-<<<<<<< HEAD
 import { inlineSummary } from '@/logic/tiptap';
-=======
 import CautionIcon from '@/components/icons/CautionIcon';
->>>>>>> 586debe70 (chat: add ability to report messages)
 
 function ChatMessageOptions(props: {
   open: boolean;
