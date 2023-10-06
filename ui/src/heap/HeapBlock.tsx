@@ -71,6 +71,7 @@ function TopBar({
     navigateToCurio,
     toggleHidden,
     isHidden,
+    reportContent,
   } = useCurioActions({
     nest,
     time,
@@ -111,6 +112,12 @@ function TopBar({
       key: 'hide',
       content: isHidden ? 'Show Post' : 'Hide Post for Me',
       onClick: toggleHidden,
+    });
+
+    actions.push({
+      key: 'report',
+      content: 'Report Post',
+      onClick: reportContent,
     });
   }
 
