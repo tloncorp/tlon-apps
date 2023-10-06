@@ -103,6 +103,7 @@ import { isNativeApp } from './logic/native';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
+import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -692,26 +693,28 @@ function App() {
       {!disableWayfinding && !isMobile && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
-        <DragAndDropProvider>
-          {isTalk ? (
-            <>
-              <TalkHead />
-              <ChatRoutes
+        <ChatInputFocusProvider>
+          <DragAndDropProvider>
+            {isTalk ? (
+              <>
+                <TalkHead />
+                <ChatRoutes
+                  state={state}
+                  location={location}
+                  isMobile={isMobile}
+                  isSmall={isSmall}
+                />
+              </>
+            ) : (
+              <GroupsRoutes
                 state={state}
                 location={location}
                 isMobile={isMobile}
                 isSmall={isSmall}
               />
-            </>
-          ) : (
-            <GroupsRoutes
-              state={state}
-              location={location}
-              isMobile={isMobile}
-              isSmall={isSmall}
-            />
-          )}
-        </DragAndDropProvider>
+            )}
+          </DragAndDropProvider>
+        </ChatInputFocusProvider>
         <Leap />
       </LeapProvider>
       <VitaMessage />

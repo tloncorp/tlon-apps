@@ -5,6 +5,7 @@ import { useIsDark } from '@/logic/useMedia';
 import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
 import { useChannelUnreadCounts } from '@/logic/channel';
 import { useNotifications } from '@/notifications/useNotifications';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useLocalState } from '@/state/local';
 import { useHasUnreadMessages } from '@/state/chat';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
@@ -118,6 +119,7 @@ export default function MobileSidebar() {
   const isInactive = (path: string) => !location.pathname.startsWith(path);
   const isDarkMode = useIsDark();
   const safeAreaInsets = useSafeAreaInsets();
+  const { isChatInputFocused } = useChatInputFocus();
 
   return (
     <section
@@ -125,38 +127,40 @@ export default function MobileSidebar() {
       style={{ paddingBottom: safeAreaInsets.bottom }}
     >
       <Outlet />
-      <footer
-        className={cn('z-50 flex-none border-t-2 border-gray-50 bg-white')}
-      >
-        <nav>
-          <ul className="flex h-12">
-            <GroupsTab
-              isInactive={isInactive('/groups') && location.pathname !== '/'}
-              isDarkMode={isDarkMode}
-            />
-            <MessagesTab
-              isInactive={isInactive('/messages') && isInactive('/dm')}
-              isDarkMode={isDarkMode}
-            />
-            <ActivityTab
-              isInactive={isInactive('/notifications')}
-              isDarkMode={isDarkMode}
-            />
-            <NavTab to="/find">
-              <div className="flex h-8 w-8 items-center justify-center">
-                <MagnifyingGlassMobileNavIcon
-                  isInactive={isInactive('/find')}
-                  isDarkMode={isDarkMode}
-                  className="h-6 w-[18px]"
-                />
-              </div>
-            </NavTab>
-            <NavTab to="/profile">
-              <Avatar size="xs" className="" ship={window.our} />
-            </NavTab>
-          </ul>
-        </nav>
-      </footer>
+      {!isChatInputFocused && (
+        <footer
+          className={cn('z-50 flex-none border-t-2 border-gray-50 bg-white')}
+        >
+          <nav>
+            <ul className="flex h-12">
+              <GroupsTab
+                isInactive={isInactive('/groups') && location.pathname !== '/'}
+                isDarkMode={isDarkMode}
+              />
+              <MessagesTab
+                isInactive={isInactive('/messages') && isInactive('/dm')}
+                isDarkMode={isDarkMode}
+              />
+              <ActivityTab
+                isInactive={isInactive('/notifications')}
+                isDarkMode={isDarkMode}
+              />
+              <NavTab to="/find">
+                <div className="flex h-8 w-8 items-center justify-center">
+                  <MagnifyingGlassMobileNavIcon
+                    isInactive={isInactive('/find')}
+                    isDarkMode={isDarkMode}
+                    className="h-6 w-[18px]"
+                  />
+                </div>
+              </NavTab>
+              <NavTab to="/profile">
+                <Avatar size="xs" className="" ship={window.our} />
+              </NavTab>
+            </ul>
+          </nav>
+        </footer>
+      )}
     </section>
   );
 }
