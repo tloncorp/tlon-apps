@@ -117,7 +117,7 @@
     $(diaries t.diaries)
   ==
   ::
-  +$  versioned-state  $%(current-state state-0)
+  +$  versioned-state  $%(current-state state-0 state-1)
   +$  state-0
     $:  %0
         shelf=shelf:zero
@@ -138,7 +138,7 @@
     |=  s=state-1
     ^-  state-2
     %*  .  *state-2
-      shelf  (convert-shelf shelf.s)
+      shelf  shelf.s
       voc    voc.s
       hidden-posts  ~
       imp    imp.s
@@ -295,8 +295,8 @@
     ^+  cor
     =.  hidden-posts
       ?-  -.toggle
-        %hide  (~(put by hidden-posts) id.toggle)
-        %show  (~(del by hidden-posts) id.toggle)
+        %hide  (~(put in hidden-posts) time.toggle)
+        %show  (~(del in hidden-posts) time.toggle)
       ==
     (give %fact ~[/ui] toggle-post+!>(toggle))
   ::
