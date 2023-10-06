@@ -56,6 +56,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
 interface ChatInputProps {
   whom: string;
@@ -114,6 +115,7 @@ export default function ChatInput({
 }: ChatInputProps) {
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
+  const { handleFocus, handleBlur, isChatInputFocused } = useChatInputFocus();
   const [didDrop, setDidDrop] = useState(false);
   const isTargetId = useMemo(
     () => targetId === dropZoneId,
@@ -462,6 +464,26 @@ export default function ChatInput({
       messageEditor.commands.blur();
     }
   }, [isScrolling, messageEditor]);
+
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed) {
+      if (!isChatInputFocused && messageEditor.isFocused) {
+        console.log('focus');
+        handleFocus();
+      }
+
+      if (isChatInputFocused && !messageEditor.isFocused) {
+        console.log('blur');
+        handleBlur();
+      }
+    }
+  }, [
+    isChatInputFocused,
+    messageEditor,
+    messageEditor?.isFocused,
+    handleFocus,
+    handleBlur,
+  ]);
 
   const editorText = messageEditor?.getText();
   const editorHTML = messageEditor?.getHTML();
