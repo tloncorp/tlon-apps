@@ -41,7 +41,11 @@ import {
 import { emptyPost, Post } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
+<<<<<<< HEAD
 import { inlineSummary } from '@/logic/tiptap';
+=======
+import CautionIcon from '@/components/icons/CautionIcon';
+>>>>>>> 586debe70 (chat: add ability to report messages)
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -209,6 +213,16 @@ function ChatMessageOptions(props: {
     [isPostHidden, showPost, hidePost]
   );
 
+  const reportContent = useCallback(() => {
+    navigate('/report-content', {
+      state: {
+        backgroundLocation: location,
+        contendId: 'placeholder',
+        nest: `chat/${chFlag}`,
+      },
+    });
+  }, [navigate, location, chFlag]);
+
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
   useEffect(() => {
@@ -334,6 +348,17 @@ function ChatMessageOptions(props: {
     ),
   });
 
+  actions.push({
+    key: 'report',
+    onClick: reportContent,
+    content: (
+      <div className="flex items-center">
+        <CautionIcon className="mr-2 h-6 w-6" />
+        Report Message
+      </div>
+    ),
+  });
+
   if (showDeleteAction) {
     actions.push({
       key: 'delete',
@@ -446,6 +471,12 @@ function ChatMessageOptions(props: {
               label={isHidden ? 'Show Message' : 'Hide Message'}
               showTooltip
               action={isDMorMultiDM ? toggleMsg : togglePost}
+            />
+            <IconButton
+              icon={<CautionIcon className="h-6 w-6 text-gray-400" />}
+              label={isHidden ? 'Show Message' : 'Report Message'}
+              showTooltip
+              action={reportContent}
             />
             {showDeleteAction && (
               <IconButton
