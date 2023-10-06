@@ -195,7 +195,11 @@ export interface ChatAction {
   update: ChatUpdate;
 }
 
-export type ChatEvent = ChatAction | BlockedByUpdate | UnblockedByUpdate;
+export type ChatEvent =
+  | ChatAction
+  | BlockedByUpdate
+  | UnblockedByUpdate
+  | ToggleMessage;
 
 export interface Chat {
   perms: ChatPerm;
@@ -382,3 +386,7 @@ export type ChatScan = ChatWritEntry[];
 export type BlockedShips = string[];
 
 export type BlockedByShips = string[];
+
+export type ToggleMessage = { hide: string } | { show: string };
+
+export type HiddenMessages = string[];

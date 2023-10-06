@@ -1,6 +1,8 @@
+import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { DiaryOutline, NoteEssay } from '@/types/diary';
 import { useCalm } from '@/state/settings';
+import { usePostToggler } from '@/state/diary';
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
@@ -15,14 +17,18 @@ export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
   const calm = useCalm();
   const commenters = outline.quippers;
   const { quipCount } = outline;
+  const { isHidden } = usePostToggler(time.toString());
 
   return (
     <div
       role="link"
       tabIndex={0}
-      className={
-        'flex w-full cursor-pointer flex-col space-y-8 rounded-xl bg-white bg-cover bg-center p-8'
-      }
+      className={cn(
+        'flex w-full flex-col space-y-8 rounded-xl bg-white bg-cover bg-center p-8',
+        {
+          'cursor-pointer': !isHidden,
+        }
+      )}
       style={
         hasImage && !calm?.disableRemoteContent
           ? {

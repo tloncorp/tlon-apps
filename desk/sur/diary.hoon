@@ -29,6 +29,7 @@
 +$  shelf  (map flag diary)
 ::  $said: used for references
 +$  said  (pair flag outline)
++$  hidden-posts  (set time)
 ::  $plan: index into diary state
 ::    p: Note being referred to
 ::    q: Quip being referred to, if any
@@ -324,6 +325,12 @@
       readers=(set sect:g)
       writers=(set sect:g)
   ==
+::
++$  post-toggle
+  $%  [%hide =time]
+      [%show =time]
+  ==
+::
 +$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
 ::
 +$  imports  (map flag import)

@@ -15,8 +15,9 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %2
         =shelf:d
+        hidden-posts=(set time)
         voc=(map [flag:d plan:d] (unit said:d))
         ::  true represents imported, false pending import
         imp=(map flag:d ?)
@@ -93,8 +94,9 @@
   |-
   ?-  -.old
     %0  $(old (state-0-to-1 old))
+    %1  $(old (state-1-to-2 old))
     ::
-      %1
+      %2
     =.  state  old
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
@@ -115,7 +117,7 @@
     $(diaries t.diaries)
   ==
   ::
-  +$  versioned-state  $%(current-state state-0)
+  +$  versioned-state  $%(current-state state-0 state-1)
   +$  state-0
     $:  %0
         shelf=shelf:zero
@@ -123,8 +125,25 @@
         ::  true represents imported, false pending import
         imp=(map flag:zero ?)
     ==
-  +$  state-1  current-state
+  +$  state-1
+    $:  %1
+        =shelf:d
+        voc=(map [flag:d plan:d] (unit said:d))
+        ::  true represents imported, false pending import
+        imp=(map flag:d ?)
+    ==
+  +$  state-2  current-state
   ++  zero  zero:old:d
+  ++  state-1-to-2
+    |=  s=state-1
+    ^-  state-2
+    %*  .  *state-2
+      shelf  shelf.s
+      voc    voc.s
+      hidden-posts  ~
+      imp    imp.s
+    ==
+  ::
   ++  state-0-to-1
     |=  s=state-0
     ^-  state-1
@@ -217,6 +236,11 @@
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)
   ::
+      %post-toggle
+    =+  !<(toggle=post-toggle:d vase)
+    ?>  from-self
+    (toggle-post toggle)
+  ::
       %leave-old-channels
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
@@ -265,6 +289,16 @@
     ^+  cor
     ?<  (~(has by shelf) chan.join)
     di-abet:(di-join:di-core join)
+  ::
+  ++  toggle-post
+    |=  toggle=post-toggle:d
+    ^+  cor
+    =.  hidden-posts
+      ?-  -.toggle
+        %hide  (~(put in hidden-posts) time.toggle)
+        %show  (~(del in hidden-posts) time.toggle)
+      ==
+    (give %fact ~[/ui] toggle-post+!>(toggle))
   ::
   ++  create
     |=  req=create:d
@@ -578,6 +612,7 @@
     [%x %shelf ~]  ``shelf+!>(shelf)
     [%x %init ~]   ``noun+!>([briefs shelf])
     [%x %briefs ~]  ``diary-briefs+!>(briefs)
+    [%x %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
   ::
       [%x %diary ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)

@@ -376,3 +376,7 @@ export interface DiaryInit {
   briefs: DiaryBriefs;
   shelf: Shelf;
 }
+
+export type TogglePost = { hide: string } | { show: string };
+
+export type HiddenPosts = string[];

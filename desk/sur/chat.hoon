@@ -31,6 +31,7 @@
 ::  $blocked: a set of ships that the user has blocked
 +$  blocked  (set ship)
 +$  blocked-by  (set ship)
++$  hidden-messages  (set id)
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
@@ -367,6 +368,11 @@
       description=cord
       readers=(set sect:g)
       writers=(set sect:g)
+  ==
+::
++$  message-toggle
+  $%  [%hide =id]
+      [%show =id]
   ==
 ++  met     metadata-store
 +$  club-import  [ships=(set ship) =association:met =graph:gra]

@@ -26,7 +26,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %3
+    $:  %4
         chats=(map flag:c chat:c)
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
@@ -34,6 +34,7 @@
         pins=(list whom:c)
         blocked=(set ship)
         blocked-by=(set ship)
+        hidden-messages=(set id:c)
         bad=(set ship)
         inv=(set ship)
         voc=(map [flag:c id:c] (unit said:c))
@@ -118,8 +119,9 @@
     %0  $(old (state-0-to-1 old))
     %1  $(old (state-1-to-2 old))
     %2  $(old (state-2-to-3 old))
+    %3  $(old (state-3-to-4 old))
     ::
-      %3
+      %4
     =.  state  old
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
@@ -149,7 +151,13 @@
     ~&  >  %keep
     [%pass /keep/chat %arvo %k %fard q.byk.bowl %keep %noun bad]
   ::
-  +$  versioned-state  $%(current-state state-2 state-1 state-0)
+  +$  versioned-state
+    $%  current-state
+        state-3
+        state-2
+        state-1
+        state-0
+    ==
   +$  state-0
     $:  %0
         chats=(map flag:zero chat:zero)
@@ -192,10 +200,44 @@
         ::  true represents imported, false pending import
         imp=(map flag:c ?)
     ==
-  +$  state-3  current-state
+  ::
+  +$  state-3
+    $:  %3
+        chats=(map flag:c chat:c)
+        dms=(map ship dm:c)
+        clubs=(map id:club:c club:c)
+        drafts=(map whom:c story:c)
+        pins=(list whom:c)
+        blocked=(set ship)
+        blocked-by=(set ship)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:c id:c] (unit said:c))
+        fish=(map [flag:c @] id:c)
+        ::  true represents imported, false pending import
+        imp=(map flag:c ?)
+    ==
+  +$  state-4  current-state
   ++  zero     zero:old:c
   ++  one      one:old:c
   ++  two      c
+  ++  state-3-to-4
+    |=  s=state-3
+    ^-  state-4
+    %*  .  *state-4
+      dms     dms.s
+      clubs   clubs.s
+      drafts  drafts.s
+      pins    pins.s
+      blocked  blocked.s
+      blocked-by  blocked-by.s
+      hidden-messages  ~
+      bad     bad.s
+      inv     inv.s
+      fish    fish.s
+      voc     voc.s
+      chats   chats.s
+    ==
   ++  state-2-to-3
     |=  s=state-2
     ^-  state-3
@@ -330,6 +372,11 @@
     =+  !<(=ship vase)
     ?>  from-self
     (unblock ship)
+  ::
+      %chat-toggle-message
+    =+  !<(toggle=message-toggle:c vase)
+    ?>  from-self
+    (toggle-message toggle)
   ::
       %flag
     =+  !<(f=flag:c vase)
@@ -470,9 +517,7 @@
     ?<  (~(has in blocked-by) ship)
     ?<  =(our.bowl ship)
     =.  blocked-by  (~(put in blocked-by) ship)
-    =.  cor
-      (give %fact ~[/ui] chat-blocked-by+!>(ship))
-    cor
+    (give %fact ~[/ui] chat-blocked-by+!>(ship))
   ::
   ++  has-unblocked
     |=  =ship
@@ -480,9 +525,7 @@
     ?>  (~(has in blocked-by) ship)
     ?<  =(our.bowl ship)
     =.  blocked-by  (~(del in blocked-by) ship)
-    =.  cor
-      (give %fact ~[/ui] chat-unblocked-by+!>(ship))
-    cor
+    (give %fact ~[/ui] chat-unblocked-by+!>(ship))
   ::
   ++  block
     |=  =ship
@@ -490,18 +533,24 @@
     ?<  (~(has in blocked) ship)
     ?<  =(our.bowl ship)
     =.  blocked  (~(put in blocked) ship)
-    =.  cor
-      (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-blocked !>(0))
-    cor
+    (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-blocked !>(0))
   ::
   ++  unblock
     |=  =ship
     ^+  cor
     ?>  (~(has in blocked) ship)
     =.  blocked  (~(del in blocked) ship)
-    =.  cor
-      (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-unblocked !>(0))
-    cor
+    (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-unblocked !>(0))
+  ::
+  ++  toggle-message
+    |=  toggle=message-toggle:c
+    ^+  cor
+    =.  hidden-messages
+      ?-  -.toggle
+        %hide  (~(put in hidden-messages) id.toggle)
+        %show  (~(del in hidden-messages) id.toggle)
+      ==
+    (give %fact ~[/ui] chat-toggle-message+!>(toggle))
   ::
 ++  watch
   |=  =(pole knot)
@@ -871,6 +920,8 @@
     [%x %blocked ~]  ``ships+!>(blocked)
   ::
     [%x %blocked-by ~]  ``ships+!>(blocked-by)
+  ::
+    [%x %hidden-messages ~]  ``hidden-messages+!>(hidden-messages)
   ::
     [%x %briefs ~]  ``chat-briefs+!>(briefs)
   ::
