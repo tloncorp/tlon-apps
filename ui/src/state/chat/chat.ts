@@ -29,9 +29,11 @@ import {
   ClubDelta,
   Clubs,
   DmAction,
+  HiddenMessages,
   newWritMap,
   Pact,
   Pins,
+  ToggleMessage,
   WritDelta,
   WritResponse,
 } from '@/types/chat';
@@ -41,13 +43,12 @@ import { useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import queryClient from '@/queryClient';
-import { pokeOptimisticallyN, createState } from '../base';
+import { createState } from '../base';
 import makeWritsStore, { getWritWindow, writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
 import useSchedulerStore from '../scheduler';
-import { updateSearchHistory } from './search';
 
 setAutoFreeze(false);
 
@@ -201,6 +202,19 @@ function getStore(
   );
 }
 
+function resolveHiddenMessages(toggle: ToggleMessage) {
+  const hiding = 'hide' in toggle;
+  return (prev: HiddenMessages | undefined) => {
+    if (!prev) {
+      return hiding ? [toggle.hide] : [];
+    }
+
+    return hiding
+      ? [...prev, toggle.hide]
+      : prev.filter((id) => id !== toggle.show);
+  };
+}
+
 export const useChatState = createState<ChatState>(
   'chat',
   (set, get) => ({
@@ -331,8 +345,16 @@ export const useChatState = createState<ChatState>(
         {
           app: 'chat',
           path: '/ui',
-          event: (event: ChatEvent) => {
+          event: (event: ChatEvent, mark) => {
             get().batchSet((draft) => {
+              if (mark === 'chat-toggle-message') {
+                const toggle = event as ToggleMessage;
+                queryClient.setQueryData<HiddenMessages>(
+                  ['chat', 'hidden'],
+                  resolveHiddenMessages(toggle)
+                );
+              }
+
               if ('blocked-by' in event) {
                 queryClient.setQueryData<BlockedByShips>(
                   ['chat', 'blocked-by'],
@@ -1321,6 +1343,61 @@ export function useUnblockShipMutation() {
       queryClient.invalidateQueries(['chat', 'blocked']);
     },
   });
+}
+
+export function useHiddenMessages() {
+  return useReactQueryScry<HiddenMessages>({
+    queryKey: ['chat', 'hidden'],
+    app: 'chat',
+    path: '/hidden-messages',
+    options: {
+      placeholderData: [],
+    },
+  });
+}
+
+export function useToggleMessageMutation() {
+  const mutationFn = (variables: { toggle: ToggleMessage }) =>
+    api.poke({
+      app: 'chat',
+      mark: 'chat-toggle-message',
+      json: variables,
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: ({ toggle }) => {
+      queryClient.setQueryData<HiddenMessages>(
+        ['chat', 'hidden'],
+        resolveHiddenMessages(toggle)
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chat', 'hidden']);
+    },
+  });
+}
+
+export function useMessageToggler(id: string) {
+  const { mutate } = useToggleMessageMutation();
+  const { data: hidden } = useHiddenMessages();
+  const isHidden = useMemo(
+    () => (hidden || []).some((h) => h === id),
+    [hidden, id]
+  );
+  const show = useCallback(
+    () => mutate({ toggle: { show: id } }),
+    [mutate, id]
+  );
+  const hide = useCallback(
+    () => mutate({ toggle: { hide: id } }),
+    [mutate, id]
+  );
+
+  return {
+    show,
+    hide,
+    isHidden,
+  };
 }
 
 (window as any).chat = useChatState.getState;

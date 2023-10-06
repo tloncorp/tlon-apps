@@ -4,7 +4,13 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { useCopy, canWriteChannel } from '@/logic/utils';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useChatPerms, useChatState } from '@/state/chat';
+import {
+  useChatPerms,
+  useChatState,
+  useHiddenMessages,
+  useMessageToggler,
+  useToggleMessageMutation,
+} from '@/state/chat';
 import { ChatWrit } from '@/types/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
@@ -24,6 +30,8 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { inlineToString } from '@/logic/tiptap';
+import VisibleIcon from '@/components/icons/VisibleIcon';
+import HiddenIcon from '@/components/icons/HiddenIcon';
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -81,6 +89,7 @@ function ChatMessageOptions(props: {
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
+  const { show, hide, isHidden } = useMessageToggler(writ.seal.id);
 
   const onDelete = async () => {
     if (isMobile) {
@@ -134,6 +143,11 @@ function ChatMessageOptions(props: {
       setPickerOpen(false);
     },
     [whom, groupFlag, privacy, writ, setPickerOpen]
+  );
+
+  const toggleMsg = useCallback(
+    () => (isHidden ? show() : hide()),
+    [isHidden, show, hide]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
@@ -245,6 +259,26 @@ function ChatMessageOptions(props: {
     keepOpenOnClick: true,
   });
 
+  actions.push({
+    key: 'hide',
+    onClick: toggleMsg,
+    content: (
+      <div className="flex items-center">
+        {isHidden ? (
+          <>
+            <VisibleIcon className="mr-2 h-6 w-6" />
+            Show Message
+          </>
+        ) : (
+          <>
+            <HiddenIcon className="mr-2 h-6 w-6" />
+            Hide Message
+          </>
+        )}
+      </div>
+    ),
+  });
+
   if (showDeleteAction) {
     actions.push({
       key: 'delete',
@@ -346,6 +380,18 @@ function ChatMessageOptions(props: {
                 action={openReactionDetails}
               />
             )}
+            <IconButton
+              icon={
+                isHidden ? (
+                  <VisibleIcon className="h-6 w-6 text-gray-400" />
+                ) : (
+                  <HiddenIcon className="h-6 w-6 text-gray-400" />
+                )
+              }
+              label={isHidden ? 'Show Message' : 'Hide Message'}
+              showTooltip
+              action={toggleMsg}
+            />
             {showDeleteAction && (
               <IconButton
                 icon={<XIcon className="h-6 w-6 text-red" />}
