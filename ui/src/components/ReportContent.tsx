@@ -44,10 +44,11 @@ export default function ReportContent() {
   };
 
   const onReport = () => {
-    if (!location.state.id || !location.state.nest) {
-      console.error('Error reporting content.');
-    }
+    // if (!location.state.id || !location.state.nest) {
+    //   console.error('Error reporting content.');
+    // }
     // TODO
+    dismiss();
   };
 
   return (
