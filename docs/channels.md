@@ -75,8 +75,8 @@ All pokes here have the [channel-action](https://github.com/tloncorp/landscape-a
 |-------------|--------
 | Mark a channel as read. | <pre>=nest [%chat our %mychat]<br>=action [%read ~]<br><br>:channels &channel-action [%channel nest action]</pre>
 | Mark a channel as read up to a certain time. | <pre>=nest [%chat our %mychat]<br>=action [%read-at now]<br><br>:channels &channel-action [%channel nest action]</pre>
-| Watch a channel for unreads. This affects notifications on the frontend. | <pre>=nest [%chat our %mychat]<br>=action [%watch ~]<br><br>:channels &channel-action [%channel nest action]</pre>
-| Stop watching a channel for unreads. This affects notifications on the frontend. | <pre>=nest [%chat our %mychat]<br>=action [%unwatch ~]<br><br>:channels &channel-action [%channel nest action]</pre>
+| *Currently unused*: Watch a channel for unreads. | <pre>=nest [%chat our %mychat]<br>=action [%watch ~]<br><br>:channels &channel-action [%channel nest action]</pre>
+| *Currently unused*: Stop watching a channel for unreads. | <pre>=nest [%chat our %mychat]<br>=action [%unwatch ~]<br><br>:channels &channel-action [%channel nest action]</pre>
 
 ### Posts
 | Description | Example
