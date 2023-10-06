@@ -1,9 +1,9 @@
+import { useState, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router';
 import { Status } from '@/logic/status';
 import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
 import { useGroupFlag } from '@/state/groups';
-import { useDelCurioMutation } from '@/state/heap/heap';
-import { useState, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router';
+import { useCurioToggler, useDelCurioMutation } from '@/state/heap/heap';
 
 interface useCurioActionsProps {
   nest: string;
@@ -27,6 +27,8 @@ export default function useCurioActions({
     },
   });
   const { doCopy, didCopy } = useCopy(refToken ? refToken : chanPath);
+  console.log({ time });
+  const { isHidden, show, hide } = useCurioToggler(time);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<Status>('idle');
@@ -68,6 +70,14 @@ export default function useCurioActions({
     }, 1000);
   }, [doCopy]);
 
+  const toggleHidden = useCallback(() => {
+    if (isHidden) {
+      show();
+    } else {
+      hide();
+    }
+  }, [isHidden, show, hide]);
+
   return {
     didCopy,
     menuOpen,
@@ -77,5 +87,7 @@ export default function useCurioActions({
     onEdit,
     onCopy,
     navigateToCurio,
+    isHidden,
+    toggleHidden,
   };
 }

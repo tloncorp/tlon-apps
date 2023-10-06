@@ -247,3 +247,6 @@ export interface HeapInit {
   briefs: HeapBriefs;
   stash: Stash;
 }
+
+export type ToggleCurio = { hide: string } | { show: string };
+export type HiddenCurios = string[];

@@ -1419,8 +1419,8 @@ export function useTogglePostMutation() {
   const mutationFn = (variables: { toggle: TogglePost }) =>
     api.poke({
       app: 'diary',
-      mark: 'toggle-post',
-      json: variables,
+      mark: 'post-toggle',
+      json: variables.toggle,
     });
   const queryClient = useQueryClient();
 
@@ -1429,21 +1429,22 @@ export function useTogglePostMutation() {
       const hiding = 'hide' in toggle;
       queryClient.setQueryData<HiddenPosts>(['diary', 'hidden'], (prev) => {
         if (!prev) {
-          return hiding ? [toggle.hide] : [];
+          return hiding ? [udToDec(toggle.hide)] : [];
         }
 
         return hiding
-          ? [...prev, toggle.hide]
-          : prev.filter((id) => id !== toggle.show);
+          ? [...prev, udToDec(toggle.hide)]
+          : prev.filter((id) => id !== udToDec(toggle.show));
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['chat', 'hidden']);
+      queryClient.invalidateQueries(['diary', 'hidden']);
     },
   });
 }
 
 export function usePostToggler(id: string) {
+  const udId = decToUd(id);
   const { mutate } = useTogglePostMutation();
   const { data: hidden } = useHiddenPosts();
   const isHidden = useMemo(
@@ -1451,12 +1452,12 @@ export function usePostToggler(id: string) {
     [hidden, id]
   );
   const show = useCallback(
-    () => mutate({ toggle: { show: id } }),
-    [mutate, id]
+    () => mutate({ toggle: { show: udId } }),
+    [mutate, udId]
   );
   const hide = useCallback(
-    () => mutate({ toggle: { hide: id } }),
-    [mutate, id]
+    () => mutate({ toggle: { hide: udId } }),
+    [mutate, udId]
   );
 
   return {

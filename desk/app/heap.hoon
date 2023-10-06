@@ -120,7 +120,7 @@
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     he-abet:he-leave:(he-abed:he-core leave)
   ::
-      %heap-curio-toggle
+      %post-toggle
     =+  !<(toggle=post-toggle:d vase)
     ?>  from-self
     (toggle-curio toggle)
@@ -460,7 +460,7 @@
     [%x %imp ~]    ``migrate-map+!>(imp)
     [%x %init ~]  ``noun+!>([briefs stash])
     [%x %briefs ~]  ``heap-briefs+!>(briefs)
-    [%x %hidden-curios ~]  ``hidden-curios+!>(hidden-curios)
+    [%x %hidden-curios ~]  ``hidden-posts+!>(hidden-curios)
   ::
       [%x %heap ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)

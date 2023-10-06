@@ -5,11 +5,11 @@
 ++  grow
   |%
   ++  noun  toggle
-  ++  json  (toggle-post:enjs:j toggle)
+  ++  json  (post-toggle:enjs:j toggle)
   --
 ++  grab
   |%
   ++  noun  post-toggle:d
-  ++  json  toggle-post:dejs:j
+  ++  json  post-toggle:dejs:j
   --
 --

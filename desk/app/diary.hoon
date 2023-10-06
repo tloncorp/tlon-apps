@@ -236,7 +236,7 @@
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     di-abet:di-leave:(di-abed:di-core leave)
   ::
-      %diary-post-toggle
+      %post-toggle
     =+  !<(toggle=post-toggle:d vase)
     ?>  from-self
     (toggle-post toggle)

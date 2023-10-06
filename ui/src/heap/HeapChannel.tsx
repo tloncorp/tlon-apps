@@ -84,13 +84,6 @@ function HeapChannel({ title }: ViewProps) {
     setJoining(false);
   }, [flag, chFlag, joinHeap]);
 
-  const navigateToDetail = useCallback(
-    (time: bigInt.BigInteger) => {
-      navigate(`curio/${time}`);
-    },
-    [navigate]
-  );
-
   useEffect(() => {
     if (!joined) {
       joinChannel();
@@ -132,17 +125,11 @@ function HeapChannel({ title }: ViewProps) {
             <HeapBlock curio={curio} time={time.toString()} />
           </div>
         ) : (
-          <div onClick={() => navigateToDetail(time)}>
-            <HeapRow
-              key={time.toString()}
-              curio={curio}
-              time={time.toString()}
-            />
-          </div>
+          <HeapRow key={time.toString()} curio={curio} time={time.toString()} />
         )}
       </div>
     ),
-    [displayMode, navigateToDetail]
+    [displayMode]
   );
 
   const getCurioTitle = (curio: HeapCurio) =>
