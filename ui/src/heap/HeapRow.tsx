@@ -70,6 +70,7 @@ function Actions({
     navigateToCurio,
     toggleHidden,
     isHidden,
+    reportContent,
   } = useCurioActions({ nest: `heap/${chFlag}`, time, refToken });
 
   return (
@@ -165,9 +166,14 @@ function Actions({
                 </>
               ) : null}
               {!asRef && author !== window.our ? (
-                <button onClick={toggleHidden} className="small-menu-button">
-                  {isHidden ? 'Show Post' : 'Hide Post for Me'}
-                </button>
+                <>
+                  <button onClick={toggleHidden} className="small-menu-button">
+                    {isHidden ? 'Show Post' : 'Hide Post for Me'}
+                  </button>
+                  <button onClick={reportContent} className="small-menu-button">
+                    Report Post
+                  </button>
+                </>
               ) : null}
             </div>
           </div>

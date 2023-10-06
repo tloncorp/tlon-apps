@@ -69,6 +69,16 @@ export default function useCurioActions({
     }
   }, [isHidden, show, hide]);
 
+  const reportContent = useCallback(() => {
+    navigate('/report-content', {
+      state: {
+        backgroundLocation: location,
+        contendId: 'placeholder',
+        nest,
+      },
+    });
+  }, [navigate, location, nest]);
+
   return {
     didCopy,
     menuOpen,
@@ -80,5 +90,6 @@ export default function useCurioActions({
     navigateToCurio,
     isHidden,
     toggleHidden,
+    reportContent,
   };
 }
