@@ -83,9 +83,10 @@ export default function useCurioActions({
         backgroundLocation: location,
         contendId: 'placeholder',
         nest,
+        groupFlag: flag,
       },
     });
-  }, [navigate, location, nest]);
+  }, [navigate, location, nest, flag]);
 
   return {
     didCopy,
