@@ -70,6 +70,10 @@ export interface AfarCordon {
 
 export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
+export interface FlaggedContent {
+  [nest: string]: Record<string, null>;
+}
+
 export interface Group {
   fleet: Fleet;
   cabals: Cabals;
@@ -81,6 +85,7 @@ export interface Group {
   bloc: string[];
   secret: boolean;
   saga: Saga | null;
+  'flagged-content': FlaggedContent;
 }
 
 export interface Fleet {
@@ -269,6 +274,13 @@ export interface SecretDiff {
   secret: boolean;
 }
 
+export interface FlagContentDiff {
+  'flag-content': {
+    nest: string;
+    id: string;
+  };
+}
+
 // TODO: elaborate
 export type GroupDiff =
   | GroupDelDiff
@@ -279,7 +291,8 @@ export type GroupDiff =
   | ChannelDiff
   | CordonDiff
   | SecretDiff
-  | ZoneDiff;
+  | ZoneDiff
+  | FlagContentDiff;
 
 export interface GroupUpdate {
   time: string;

@@ -776,8 +776,19 @@
     |=  =(pole knot)
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
-      [%curios rest=*]  (peek:he-curios rest.pole)
-      [%perm ~]        ``heap-perm+!>(perm.heap)
+        [%curios rest=*]  (peek:he-curios rest.pole)
+        [%perm ~]        ``heap-perm+!>(perm.heap)
+    ::
+        [%hark %link time=@ ~]
+      =/  time  (slav %ud time.pole)
+      =*  group  group.perm.heap
+      =/  link=path
+        ;:  welp
+          /groups/(scot %p p.group)/[q.group]
+          /channels/heap/(scot %p p.flag)/[q.flag]
+          /curio/(rsh 4 (scot %ui time))
+        ==
+      ``noun+!>(`link)
     ==
   ::
   ++  he-revoke

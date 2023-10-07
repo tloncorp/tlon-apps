@@ -7,6 +7,7 @@ import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import useDiaryActions from './useDiaryActions';
+import { useRouteGroup } from '@/state/groups';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
   time: string;
@@ -24,6 +25,7 @@ export default function DiaryNoteOptionsDropdown({
   triggerClassName,
   canEdit,
 }: DiaryNoteOptionsDropdownProps) {
+  const groupFlag = useRouteGroup();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const arrangedNotes = useArrangedNotes(flag);
   const { ship } = getFlagParts(flag);
@@ -110,10 +112,12 @@ export default function DiaryNoteOptionsDropdown({
         navigate('/report-content', {
           state: {
             backgroundLocation: location,
-            contentId: 'placeholder',
+            groupFlag,
+            contentId: time,
             nest,
           },
         });
+        hide();
       },
     });
   }

@@ -3,6 +3,7 @@ import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
 import { useDismissNavigate } from '@/logic/routing';
 import { isNativeApp } from '@/logic/native';
+import { useFlagContentMutation } from '@/state/groups';
 import Dialog from './Dialog';
 import WidgetDrawer from './WidgetDrawer';
 import CautionIcon from './icons/CautionIcon';
@@ -36,6 +37,7 @@ export default function ReportContent() {
   const isMobile = useIsMobile();
   const location = useLocation();
   const dismiss = useDismissNavigate();
+  const { mutate } = useFlagContentMutation();
 
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -44,10 +46,20 @@ export default function ReportContent() {
   };
 
   const onReport = () => {
-    // if (!location.state.id || !location.state.nest) {
-    //   console.error('Error reporting content.');
-    // }
-    // TODO
+    if (
+      !location.state.groupFlag ||
+      !location.state.contentId ||
+      !location.state.nest
+    ) {
+      console.error('Error reporting content.', location.state);
+      return;
+    }
+
+    mutate({
+      id: location.state.contentId,
+      nest: location.state.nest,
+      flag: location.state.groupFlag,
+    });
     dismiss();
   };
 
@@ -56,7 +68,7 @@ export default function ReportContent() {
       <div
         className={cn(
           'flex items-center justify-center bg-red py-6',
-          isNativeApp() && 'rounded-t-[32px]'
+          isMobile && 'rounded-t-[32px]'
         )}
       >
         <CautionIcon className="h-6 w-6 text-black dark:text-white" />
@@ -71,7 +83,7 @@ export default function ReportContent() {
           further action.
         </p>
         <button
-          className={cn('button mt-10', isNativeApp() && 'p-4')}
+          className={cn('button mt-10', isMobile && 'p-4')}
           onClick={onReport}
         >
           Send Report

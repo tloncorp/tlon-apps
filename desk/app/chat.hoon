@@ -1553,6 +1553,28 @@
         [%perm ~]
       ``chat-perm+!>(perm.chat)
     ::
+        [%hark %link time=@ ~]
+      =/  time  (slav %ud time.pole)
+      =/  maybe-writ=(unit writ:c)  (get:on:writs:c wit.pact.chat time)
+      ?~  maybe-writ
+        ``noun+!>(~)
+      =/  memo  +.u.maybe-writ
+      =*  group  group.perm.chat
+      =/  rest=path
+        ::  anything following op gets translated to a "scrollTo" on the
+        ::  frontend notification
+        ?~  replying.memo
+          /op/(scot %ud time)
+        =/  id  u.replying.memo
+        /message/(scot %p p.id)/(scot %ud q.id)/op/(scot %ud time)
+      =/  link=path
+        ;:  welp
+          /groups/(scot %p p.group)/[q.group]
+          /channels/chat/(scot %p p.flag)/[q.flag]
+          rest
+        ==
+      ``noun+!>(`link)
+    ::
         [%search %text skip=@ count=@ nedl=@ ~]
       %-  some
       %-  some

@@ -836,6 +836,17 @@
     ?+  pole  [~ ~]
         [%notes rest=*]  (peek:di-notes rest.pole)
         [%perm ~]        ``diary-perm+!>(perm.diary)
+    ::
+        [%hark %link time=@ ~]
+      =/  time  (slav %ud time.pole)
+      =*  group  group.perm.diary
+      =/  link=path
+        ;:  welp
+          /groups/(scot %p p.group)/[q.group]
+          /channels/diary/(scot %p p.flag)/[q.flag]
+          /note/(rsh 4 (scot %ui time))
+        ==
+      ``noun+!>(`link)
     ==
   ::
   ++  di-revoke

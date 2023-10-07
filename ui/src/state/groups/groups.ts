@@ -47,7 +47,7 @@ export const GROUPS_KEY = 'groups';
 function groupAction(flag: string, diff: GroupDiff): Poke<GroupAction> {
   return {
     app: 'groups',
-    mark: 'group-action-2',
+    mark: 'group-action-3',
     json: {
       flag,
       update: {
@@ -1287,4 +1287,23 @@ export function useGroupCompatibility(flag: string) {
     compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
   };
+}
+
+export function useFlagContentMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    nest: string;
+    id: string;
+  }) => {
+    await api.poke<GroupAction>(
+      groupAction(variables.flag, {
+        'flag-content': {
+          nest: variables.nest,
+          id: variables.id,
+        },
+      })
+    );
+  };
+
+  return useGroupMutation(mutationFn);
 }

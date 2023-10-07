@@ -65,6 +65,7 @@
       %meta     (meta p.d)
       %secret   b/p.d
       %del      ~
+      %flag-content  (flag-content [nest id]:d)
     ==
   ::
   ++  zone-diff
@@ -148,6 +149,13 @@
       %del-sects  a/(turn ~(tap in sects.d) (lead %s))
     ==
   ::
+  ++  flag-content
+    |=  [n=nest:g t=^time]
+    %-  pairs
+    :~  nest/s/(nest n)
+        id/(time-id t)
+    ==
+  ::
   ++  groups
     |=  gs=groups:g
     %-  pairs
@@ -215,6 +223,7 @@
         cordon/(cordon cordon.gr)
         meta/(meta meta.gr)
         secret/b/secret.gr
+        flagged-content/(flagged-content flagged-content.gr)
     ==
   ::
   ++  group-ui
@@ -230,6 +239,7 @@
         meta/(meta meta.gr)
         secret/b/secret.gr
         saga/?~(saga.gr ~ (saga u.saga.gr))
+        flagged-content/(flagged-content flagged-content.gr)
     ==
   ::
   ++  fleet
@@ -330,6 +340,22 @@
       %chi  synced/~
       %lev  behind/~
     ==
+  ::
+  ++  flagged-content
+    |=  fc=flagged-content:g
+    %-  pairs
+    %+  turn  ~(tap by fc)
+    |=  [n=nest:g c=(set ^time)]
+    :-  (nest n)
+    ::  object so we can easily check if it's in the set
+    %-  pairs
+    %+  turn  ~(tap in c)
+    |=  t=^time
+    [(scot %ud t) ~]
+  ::
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
   --
 ::
 ++  dejs
@@ -388,6 +414,7 @@
         meta/meta
         secret/bo
         del/ul
+        flag-content/flag-content
     ==
   ::
   ++  zone-delta
@@ -489,6 +516,11 @@
         delta/zone-delta
     ==
   ::
+  ++  flag-content
+    %-  ot
+    :~  nest/nest
+        time/(se %ud)
+    ==
   ++  meta
     %-  ot
     :~  title/so

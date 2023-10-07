@@ -33,6 +33,7 @@ import { inlineToString } from '@/logic/tiptap';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
 import CautionIcon from '@/components/icons/CautionIcon';
+import { decToUd } from '@urbit/api';
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -155,12 +156,15 @@ function ChatMessageOptions(props: {
     navigate('/report-content', {
       state: {
         backgroundLocation: location,
-        contendId: 'placeholder',
+        contentId: decToUd(
+          useChatState.getState().getTime(whom, writ.seal.id).toString()
+        ),
         nest: `chat/${chFlag}`,
         groupFlag,
       },
     });
-  }, [navigate, location, chFlag, groupFlag]);
+    hide();
+  }, [navigate, hide, writ, whom, location, chFlag, groupFlag]);
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 

@@ -81,12 +81,13 @@ export default function useCurioActions({
     navigate('/report-content', {
       state: {
         backgroundLocation: location,
-        contendId: 'placeholder',
+        contentId: time,
         nest,
         groupFlag: flag,
       },
     });
-  }, [navigate, location, nest, flag]);
+    hide();
+  }, [navigate, hide, location, nest, time, flag]);
 
   return {
     didCopy,
