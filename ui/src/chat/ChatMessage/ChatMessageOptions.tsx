@@ -216,9 +216,10 @@ function ChatMessageOptions(props: {
         backgroundLocation: location,
         contendId: 'placeholder',
         nest: `chat/${chFlag}`,
+        groupFlag,
       },
     });
-  }, [navigate, location, chFlag]);
+  }, [navigate, location, chFlag, groupFlag]);
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
@@ -345,16 +346,18 @@ function ChatMessageOptions(props: {
     ),
   });
 
-  actions.push({
-    key: 'report',
-    onClick: reportContent,
-    content: (
-      <div className="flex items-center">
-        <CautionIcon className="mr-2 h-6 w-6" />
-        Report Message
-      </div>
-    ),
-  });
+  if (!location.pathname.includes('groups/messages')) {
+    actions.push({
+      key: 'report',
+      onClick: reportContent,
+      content: (
+        <div className="flex items-center">
+          <CautionIcon className="mr-2 h-6 w-6" />
+          Report Message
+        </div>
+      ),
+    });
+  }
 
   if (showDeleteAction) {
     actions.push({
@@ -469,12 +472,14 @@ function ChatMessageOptions(props: {
               showTooltip
               action={isDMorMultiDM ? toggleMsg : togglePost}
             />
-            <IconButton
-              icon={<CautionIcon className="h-6 w-6 text-gray-400" />}
-              label={isHidden ? 'Show Message' : 'Report Message'}
-              showTooltip
-              action={reportContent}
-            />
+            {!location.pathname.includes('groups/messages') && (
+              <IconButton
+                icon={<CautionIcon className="h-6 w-6 text-gray-400" />}
+                label={isHidden ? 'Show Message' : 'Report Message'}
+                showTooltip
+                action={reportContent}
+              />
+            )}
             {showDeleteAction && (
               <IconButton
                 icon={<XIcon className="h-6 w-6 text-red" />}
