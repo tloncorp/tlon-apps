@@ -1,2 +1,2 @@
-/=  mark  /mar/dummy
+/=  mark  /mar/group/action-0
 mark

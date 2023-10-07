@@ -70,6 +70,12 @@ export interface AfarCordon {
 
 export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
+// values are an object keyed by post id with a value if any of the
+// post's replies are flagged
+export interface FlaggedContent {
+  [nest: string]: Record<string, string[]>;
+}
+
 export interface Group {
   fleet: Fleet;
   cabals: Cabals;
@@ -81,6 +87,7 @@ export interface Group {
   bloc: string[];
   secret: boolean;
   saga: Saga | null;
+  'flagged-content': FlaggedContent;
 }
 
 export interface Fleet {
@@ -269,6 +276,16 @@ export interface SecretDiff {
   secret: boolean;
 }
 
+export interface FlagContentDiff {
+  'flag-content': {
+    nest: string;
+    'post-key': {
+      post: string;
+      reply: string | null;
+    };
+  };
+}
+
 // TODO: elaborate
 export type GroupDiff =
   | GroupDelDiff
@@ -279,7 +296,8 @@ export type GroupDiff =
   | ChannelDiff
   | CordonDiff
   | SecretDiff
-  | ZoneDiff;
+  | ZoneDiff
+  | FlagContentDiff;
 
 export interface GroupUpdate {
   time: string;
