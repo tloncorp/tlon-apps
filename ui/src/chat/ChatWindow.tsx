@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
+import React, { ReactElement, useCallback, useEffect, useRef } from 'react';
 import _ from 'lodash';
 import bigInt from 'big-integer';
 import { useMatch, useSearchParams } from 'react-router-dom';
@@ -19,7 +19,7 @@ import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 interface ChatWindowProps {
   whom: string;
   root: string;
-  prefixedElement?: ReactNode;
+  prefixedElement?: ReactElement;
   scrollElementRef: React.RefObject<HTMLDivElement>;
   isScrolling: boolean;
 }
@@ -107,7 +107,7 @@ export default function ChatWindow({
           key={whom}
           messages={messages}
           whom={whom}
-          prefixedElement={prefixedElement}
+          topLoadEndMarker={prefixedElement}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}
           scrollElementRef={scrollElementRef}
