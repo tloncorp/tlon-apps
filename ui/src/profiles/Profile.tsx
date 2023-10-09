@@ -111,7 +111,7 @@ export default function Profile({ title }: ViewProps) {
             {isHosted && (
               <a
                 className="no-underline"
-                href={`https://tlon.network/dashboard/${window.our.slice(1)}`}
+                href="https://tlon.network/account"
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Manage Account"
