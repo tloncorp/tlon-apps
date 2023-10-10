@@ -1,6 +1,6 @@
 import { useSafeAreaContext } from './SafeAreaContext';
 
-type Action = 'copy' | 'logout';
+type Action = 'copy' | 'logout' | 'manageAccount';
 
 export const isNativeApp = () => !!window.ReactNativeWebView;
 

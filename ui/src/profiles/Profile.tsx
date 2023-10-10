@@ -108,7 +108,7 @@ export default function Profile({ title }: ViewProps) {
                 About Groups
               </SidebarItem>
             </Link>
-            {isHosted && (
+            {!isNativeApp() && isHosted && (
               <a
                 className="no-underline"
                 href="https://tlon.network/account"
@@ -130,6 +130,23 @@ export default function Profile({ title }: ViewProps) {
                   Manage Account
                 </SidebarItem>
               </a>
+            )}
+            {isNativeApp() && isHosted && (
+              <button onClick={() => postActionToNativeApp('manageAccount')}>
+                <SidebarItem
+                  color="text-gray-900"
+                  fontWeight="font-normal"
+                  fontSize="text-[17px]"
+                  className="leading-5"
+                  icon={
+                    <div className="flex h-12 w-12 items-center justify-center">
+                      <PersonIcon className="h-8 w-8 text-gray-400" />
+                    </div>
+                  }
+                >
+                  Manage Account
+                </SidebarItem>
+              </button>
             )}
             <a
               className="no-underline"
