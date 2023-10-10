@@ -96,6 +96,9 @@ export default function HeapDetail({ title }: ViewProps) {
 
   return (
     <Layout
+      style={{
+        paddingBottom: isMobile ? 50 : 0,
+      }}
       className="flex-1 bg-white"
       header={
         <HeapDetailHeader
