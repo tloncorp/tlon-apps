@@ -123,44 +123,45 @@ export default function MobileSidebar() {
 
   return (
     <section
-      className="fixed inset-0 z-40 flex h-full w-full select-none flex-col border-gray-50 bg-white"
-      style={{ paddingBottom: safeAreaInsets.bottom }}
+      className="padding-bottom-transition fixed inset-0 z-40 flex h-full w-full select-none flex-col border-gray-50 bg-white"
+      style={{ paddingBottom: isChatInputFocused ? 0 : safeAreaInsets.bottom }}
     >
       <Outlet />
-      {!isChatInputFocused && (
-        <footer
-          className={cn('z-50 flex-none border-t-2 border-gray-50 bg-white')}
-        >
-          <nav>
-            <ul className="flex h-12">
-              <GroupsTab
-                isInactive={isInactive('/groups') && location.pathname !== '/'}
-                isDarkMode={isDarkMode}
-              />
-              <MessagesTab
-                isInactive={isInactive('/messages') && isInactive('/dm')}
-                isDarkMode={isDarkMode}
-              />
-              <ActivityTab
-                isInactive={isInactive('/notifications')}
-                isDarkMode={isDarkMode}
-              />
-              <NavTab to="/find">
-                <div className="flex h-8 w-8 items-center justify-center">
-                  <MagnifyingGlassMobileNavIcon
-                    isInactive={isInactive('/find')}
-                    isDarkMode={isDarkMode}
-                    className="h-6 w-[18px]"
-                  />
-                </div>
-              </NavTab>
-              <NavTab to="/profile">
-                <Avatar size="xs" className="" ship={window.our} />
-              </NavTab>
-            </ul>
-          </nav>
-        </footer>
-      )}
+      <footer
+        className={cn(
+          'navbar-transition z-50 flex-none border-t-2 border-gray-50 bg-white',
+          isChatInputFocused && 'translate-y-[200%] opacity-0'
+        )}
+      >
+        <nav>
+          <ul className="flex h-12">
+            <GroupsTab
+              isInactive={isInactive('/groups') && location.pathname !== '/'}
+              isDarkMode={isDarkMode}
+            />
+            <MessagesTab
+              isInactive={isInactive('/messages') && isInactive('/dm')}
+              isDarkMode={isDarkMode}
+            />
+            <ActivityTab
+              isInactive={isInactive('/notifications')}
+              isDarkMode={isDarkMode}
+            />
+            <NavTab to="/find">
+              <div className="flex h-8 w-8 items-center justify-center">
+                <MagnifyingGlassMobileNavIcon
+                  isInactive={isInactive('/find')}
+                  isDarkMode={isDarkMode}
+                  className="h-6 w-[18px]"
+                />
+              </div>
+            </NavTab>
+            <NavTab to="/profile">
+              <Avatar size="xs" className="" ship={window.our} />
+            </NavTab>
+          </ul>
+        </nav>
+      </footer>
     </section>
   );
 }

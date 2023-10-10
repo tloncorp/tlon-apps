@@ -124,7 +124,7 @@ function ChatChannel({ title }: ViewProps) {
         style={{
           paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
         }}
-        className="flex-1 bg-white"
+        className="padding-bottom-transition flex-1 bg-white"
         header={
           <Routes>
             {!isMobile && (
