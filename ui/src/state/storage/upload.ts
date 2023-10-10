@@ -107,7 +107,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const url = `${endpoint}/${key}`;
       const urlWithToken = `${url}?token=${token}`;
       fetch(urlWithToken, requestOptions)
-        .then(async () => {
+        .then(async (response) => {
+          if (response.status !== 200) {
+            const body = await response.text();
+            throw new Error(body || 'Incorrect response status');
+          }
           // When the PUT succeeded, we fetch the actual URL of the file. We do
           // this to avoid having to proxy every single GET request, and to
           // avoid remembering which file corresponds to which bucket, when
