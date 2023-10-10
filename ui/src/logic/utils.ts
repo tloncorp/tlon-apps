@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import ob from 'urbit-ob';
 import bigInt, { BigInteger } from 'big-integer';
 import isURL from 'validator/es/lib/isURL';
@@ -73,6 +73,23 @@ export function log(...args: any[]) {
   if (import.meta.env.DEV) {
     console.log(...args);
   }
+}
+
+/**
+ * Logs a message when any property of an object changes. Uses shallow equality
+ * check to determine whether a change has occurred.
+ */
+export function useObjectChangeLogging(
+  o: Record<string, unknown>,
+  logger: Console = window.console
+) {
+  const lastValues = useRef(o);
+  Object.entries(o).forEach(([k, v]) => {
+    if (v !== lastValues.current[k]) {
+      logger.log('[change]', k);
+      lastValues.current[k] = v;
+    }
+  });
 }
 
 export function logTime(...args: any[]) {

@@ -1,12 +1,6 @@
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import BTree from 'sorted-btree';
 
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
@@ -215,22 +209,13 @@ export function useMessageData({
       scrollTo,
     });
 
-  const [hasEverLoadedNewest, setHasEverLoadedNewest] = useState(false);
-  const nextHasLoadedNewest =
-    hasLoadedNewest || replying || hasEverLoadedNewest;
-  useEffect(() => {
-    if (nextHasLoadedNewest) {
-      setHasEverLoadedNewest(true);
-    }
-  }, [nextHasLoadedNewest]);
-
   return {
     activeMessages,
     activeMessageKeys,
     activeMessageEntries,
     fetchMessages,
     fetchState,
-    hasLoadedNewest: nextHasLoadedNewest,
+    hasLoadedNewest,
     hasLoadedOldest: replying ? true : hasLoadedOldest,
   };
 }
