@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIsMobile } from './useMedia';
 import { logTime } from './utils';
 
@@ -9,6 +9,16 @@ interface LongPressOptions {
   withId?: boolean;
 }
 
+const getActionId = (element: HTMLElement): string | null => {
+  if (element.id) {
+    return element.id;
+  }
+  if (element.parentElement) {
+    return getActionId(element.parentElement);
+  }
+  return null;
+};
+
 export default function useLongPress(options?: LongPressOptions) {
   const [action, setAction] = useState<Action>('');
   const [actionId, setActionId] = useState<string | null>(null);
@@ -18,17 +28,7 @@ export default function useLongPress(options?: LongPressOptions) {
   const downPoint = React.useRef<Point>({ x: 0, y: 0 });
   const currentPoint = React.useRef<Point>({ x: 0, y: 0 });
 
-  const getActionId = (element: HTMLElement): string | null => {
-    if (element.id) {
-      return element.id;
-    }
-    if (element.parentElement) {
-      return getActionId(element.parentElement);
-    }
-    return null;
-  };
-
-  const release = (point: Point) => {
+  const release = useCallback((point: Point) => {
     if (
       isLongPress.current &&
       Math.abs(point.x - downPoint.current.x) < 10 &&
@@ -43,79 +43,100 @@ export default function useLongPress(options?: LongPressOptions) {
     }
 
     isLongPress.current = false;
-  };
+  }, []);
 
-  const start = (element: HTMLElement) => {
-    logTime('start', downPoint.current);
-    setAction('');
-    setActionId(null);
+  const start = useCallback(
+    (element: HTMLElement) => {
+      logTime('start', downPoint.current);
+      setAction('');
+      setActionId(null);
 
-    if (options?.withId) {
-      setActionId(getActionId(element));
-    }
+      if (options?.withId) {
+        setActionId(getActionId(element));
+      }
 
-    timerRef.current = setTimeout(() => {
-      isLongPress.current = true;
-      release(currentPoint.current);
-    }, 300);
-  };
+      timerRef.current = setTimeout(() => {
+        isLongPress.current = true;
+        release(currentPoint.current);
+      }, 300);
+    },
+    [options?.withId, release]
+  );
 
-  const stop = (point: Point) => {
-    logTime('stop', point, isLongPress.current);
-    clearTimeout(timerRef.current);
-    release(point);
-  };
+  const stop = useCallback(
+    (point: Point) => {
+      logTime('stop', point, isLongPress.current);
+      clearTimeout(timerRef.current);
+      release(point);
+    },
+    [release]
+  );
 
-  const onClick = () => {
+  const onClick = useCallback(() => {
     if (isLongPress.current) {
       return;
     }
     setAction('click');
-  };
+  }, []);
 
-  const onMouseDown = (e: React.MouseEvent) => {
-    downPoint.current = { x: e.pageX, y: e.pageY };
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      downPoint.current = { x: e.pageX, y: e.pageY };
+      currentPoint.current = { x: e.pageX, y: e.pageY };
+      start(e.target as HTMLElement);
+    },
+    [start]
+  );
+
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
     currentPoint.current = { x: e.pageX, y: e.pageY };
-    start(e.target as HTMLElement);
-  };
+  }, []);
 
-  const onMouseMove = (e: React.MouseEvent) => {
-    currentPoint.current = { x: e.pageX, y: e.pageY };
-  };
+  const onMouseUp = useCallback(
+    (e: React.MouseEvent) => {
+      stop({ x: e.pageX, y: e.pageY });
+    },
+    [stop]
+  );
 
-  const onMouseUp = (e: React.MouseEvent) => {
-    stop({ x: e.pageX, y: e.pageY });
-  };
+  const onTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      downPoint.current = {
+        x: e.changedTouches[0].pageX,
+        y: e.changedTouches[0].pageY,
+      };
+      currentPoint.current = {
+        x: e.changedTouches[0].pageX,
+        y: e.changedTouches[0].pageY,
+      };
+      start(e.target as HTMLElement);
+    },
+    [start]
+  );
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    downPoint.current = {
-      x: e.changedTouches[0].pageX,
-      y: e.changedTouches[0].pageY,
-    };
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
     currentPoint.current = {
       x: e.changedTouches[0].pageX,
       y: e.changedTouches[0].pageY,
     };
-    start(e.target as HTMLElement);
-  };
+  }, []);
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    currentPoint.current = {
-      x: e.changedTouches[0].pageX,
-      y: e.changedTouches[0].pageY,
-    };
-  };
+  const onTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      stop({ x: e.changedTouches[0].pageX, y: e.changedTouches[0].pageY });
+    },
+    [stop]
+  );
 
-  const onTouchEnd = (e: React.TouchEvent) => {
-    stop({ x: e.changedTouches[0].pageX, y: e.changedTouches[0].pageY });
-  };
-
-  const onContextMenu = (e: React.MouseEvent) => {
-    logTime('onContextMenu', action, isMobile, isLongPress.current);
-    if (isMobile && (action === 'longpress' || isLongPress.current)) {
-      e.preventDefault();
-    }
-  };
+  const onContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      logTime('onContextMenu', action, isMobile, isLongPress.current);
+      if (isMobile && (action === 'longpress' || isLongPress.current)) {
+        e.preventDefault();
+      }
+    },
+    [action, isMobile]
+  );
 
   useEffect(
     () => () => {
@@ -125,10 +146,8 @@ export default function useLongPress(options?: LongPressOptions) {
     []
   );
 
-  return {
-    action,
-    actionId: options?.withId ? actionId : undefined,
-    handlers: {
+  const handlers = useMemo(
+    () => ({
       onClick,
       onMouseDown,
       onMouseMove,
@@ -137,6 +156,22 @@ export default function useLongPress(options?: LongPressOptions) {
       onTouchMove,
       onTouchEnd,
       onContextMenu,
-    },
+    }),
+    [
+      onClick,
+      onMouseDown,
+      onMouseMove,
+      onMouseUp,
+      onTouchStart,
+      onTouchMove,
+      onTouchEnd,
+      onContextMenu,
+    ]
+  );
+
+  return {
+    action,
+    actionId: options?.withId ? actionId : undefined,
+    handlers,
   };
 }

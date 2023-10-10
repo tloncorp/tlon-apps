@@ -1,16 +1,32 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { ReactNode, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useIsMobile } from '@/logic/useMedia';
 import { Group } from '@/types/groups';
 import GroupListPlaceholder from './GroupListPlaceholder';
 import GroupsSidebarItem from './GroupsSidebarItem';
 
-function itemContent(_i: number, [flag, _group]: [string, Group]) {
+type TopContentListItem = { type: 'top'; component: ReactNode };
+type GroupListItem = { type: 'group'; data: [string, Group] };
+type AnyListItem = TopContentListItem | GroupListItem;
+
+function itemContent(_i: number, item: AnyListItem) {
+  if (item.type === 'top') {
+    return item.component;
+  }
+  const [flag] = item.data;
   return (
     <div className="px-4 sm:px-2">
       <GroupsSidebarItem key={flag} flag={flag} />
     </div>
   );
+}
+
+function computeItemKey(_i: number, item: AnyListItem) {
+  if (item.type === 'top') {
+    return 'top';
+  }
+  const [flag] = item.data;
+  return flag;
 }
 
 interface GroupListProps {
@@ -49,9 +65,20 @@ export default function GroupList({
 
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);
-  const head = useMemo(
+  const header = useMemo(
     () => <div ref={headerRef}>{children}</div>,
-    [headerRef, children]
+    [children]
+  );
+
+  const listItems: AnyListItem[] = useMemo(
+    () => [
+      { type: 'top', component: header },
+      ...groupsWithoutPinned.map<GroupListItem>((g) => ({
+        type: 'group',
+        data: g,
+      })),
+    ],
+    [groupsWithoutPinned, header]
   );
 
   useEffect(() => {
@@ -69,13 +96,6 @@ export default function GroupList({
     resizeObserver.observe(headerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
-
-  const components = useMemo(
-    () => ({
-      Header: () => head,
-    }),
-    [head]
-  );
 
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
@@ -102,10 +122,9 @@ export default function GroupList({
     <Virtuoso
       {...thresholds}
       ref={virtuosoRef}
-      data={groupsWithoutPinned}
-      computeItemKey={(_i, [flag]) => flag}
+      data={listItems}
+      computeItemKey={computeItemKey}
       itemContent={itemContent}
-      components={components}
       restoreStateFrom={virtuosoState}
       className="h-full w-full list-none overflow-x-hidden"
       isScrolling={isScrolling}
