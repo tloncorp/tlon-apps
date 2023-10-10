@@ -475,7 +475,7 @@ export default function ChatScroller({
           return (
             <div
               key={virtualItem.key}
-              className="w-full px-4"
+              className="relative w-full px-4 sm:hover:z-10"
               ref={virtualizer.measureElement}
               data-index={virtualItem.index}
               style={{
