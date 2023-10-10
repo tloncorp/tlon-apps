@@ -191,3 +191,15 @@
 .small-menu-button {
   @apply w-full rounded bg-transparent p-2 text-left font-semibold ring-gray-200 hover:bg-gray-50 focus:outline-none focus-visible:ring-2;
 }
+
+.padding-bottom-transition {
+  transition-property: padding-bottom;
+  transition-timing-function: ease-out;
+  transition-duration: 150ms;
+}
+
+.navbar-transition {
+  transition-property: transform, opacity;
+  transition-timing-function: ease-in-out;
+  transition-duration: 250ms;
+}

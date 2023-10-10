@@ -107,7 +107,7 @@ export default function MultiDm() {
         style={{
           paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
         }}
-        className="flex-1"
+        className="padding-bottom-transition flex-1"
         header={
           isSelecting ? (
             <MessageSelector />
