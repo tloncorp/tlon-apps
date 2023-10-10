@@ -691,6 +691,7 @@
 ++  from-self  =(our src):bowl
 ++  pass-hark
   |=  =new-yarn:ha
+  ~&  new-yarn
   ^-  card
   =/  =wire  /hark
   =/  =dock  [our.bowl %hark]
@@ -876,7 +877,8 @@
   |=  [=nest:g id=time]
   ^-  (unit path)
   =/  prefix  (channel-scry nest)
-  =/  ch-path  (welp prefix /hark/link/(scot %ud id))  
+  =/  ch-path  (welp prefix /hark/link/(scot %ud id)/noun)
+  ~&  ch-path
   .^((unit path) %gx ch-path)
 ::
 ++  group-core
@@ -1356,7 +1358,9 @@
   ++  go-flag-content
     |=  [=nest:g id=time]
     =.  flagged-content.group  (~(put ju flagged-content.group) nest id)
+    ~&  [from-self go-is-our-bloc]
     ?:  |(from-self !go-is-our-bloc)  go-core
+    ~&  'sending notification'
     =/  ch-link  (get-channel-link nest id)
     =/  link
       ?^  ch-link  u.ch-link
@@ -1369,6 +1373,7 @@
           :~  'A member of your group has reported a post as inappropriate.'
           ==
       ==
+    ~&  'passing yarn'
     =.  cor  (emit (pass-hark new-yarn))
     go-core
   ++  go-zone-update

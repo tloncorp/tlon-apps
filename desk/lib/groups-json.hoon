@@ -519,7 +519,7 @@
   ++  flag-content
     %-  ot
     :~  nest/nest
-        time/(se %ud)
+        id/(se %ud)
     ==
   ++  meta
     %-  ot

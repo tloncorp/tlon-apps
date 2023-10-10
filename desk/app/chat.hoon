@@ -940,6 +940,7 @@
       [%x %chat @ @ *]
     =/  =ship  (slav %p i.t.t.path)
     =*  name   i.t.t.t.path
+    ~&  [ship name]
     (ca-peek:(ca-abed:ca-core ship name) %x t.t.t.t.path)
   ::
       [%x %dm ~]
@@ -1545,6 +1546,7 @@
   ::
   ++  ca-peek
     |=  [care=@tas =(pole knot)]
+    ~&  [care pole]
     ^-  (unit (unit cage))
     ?+    pole  [~ ~]
         [%writs rest=*]
@@ -1555,6 +1557,7 @@
     ::
         [%hark %link time=@ ~]
       =/  time  (slav %ud time.pole)
+      ~&  ['got into chat' time]
       =/  maybe-writ=(unit writ:c)  (get:on:writs:c wit.pact.chat time)
       ?~  maybe-writ
         ``noun+!>(~)
@@ -1564,9 +1567,9 @@
         ::  anything following op gets translated to a "scrollTo" on the
         ::  frontend notification
         ?~  replying.memo
-          /op/(scot %ud time)
+          /op/(rsh 4 (scot %ui time))
         =/  id  u.replying.memo
-        /message/(scot %p p.id)/(scot %ud q.id)/op/(scot %ud time)
+        /message/(scot %p p.id)/(scot %ud q.id)/op/(rsh 4 (scot %ui time))
       =/  link=path
         ;:  welp
           /groups/(scot %p p.group)/[q.group]
