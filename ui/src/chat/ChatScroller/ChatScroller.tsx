@@ -28,7 +28,7 @@ import {
   useMessageData,
 } from '@/logic/useScrollerMessages';
 import { useChatState } from '@/state/chat/chat';
-import { createDevLogger } from '@/logic/utils';
+import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { ChatWrit } from '@/types/chat';
 import ChatMessage from '../ChatMessage/ChatMessage';
@@ -182,13 +182,10 @@ export default function ChatScroller({
     replying,
   });
 
-  useEffect(() => {
-    logger.log('hasLoadedNewest', hasLoadedNewest);
-  }, [hasLoadedNewest]);
-
-  useEffect(() => {
-    logger.log('hasLoadedOldest', hasLoadedOldest);
-  }, [hasLoadedOldest]);
+  useObjectChangeLogging(
+    { hasLoadedNewest, hasLoadedOldest, isAtTop, isAtBottom },
+    logger
+  );
 
   const topItem: CustomScrollItemData | null = useMemo(
     () =>
