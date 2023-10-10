@@ -66,20 +66,30 @@ export default function GroupList({
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);
   const header = useMemo(
-    () => <div ref={headerRef}>{children}</div>,
+    // Re: min-h below: if virtuoso ever encounters a 0-height element, its
+    // whole render will fail. This min height ensures that no matter what's
+    // passed, it'll have at least 1px of height.
+    () =>
+      children ? (
+        <div className="min-h-[1px]" ref={headerRef}>
+          {children}
+        </div>
+      ) : null,
     [children]
   );
 
-  const listItems: AnyListItem[] = useMemo(
-    () => [
-      { type: 'top', component: header },
+  const listItems: AnyListItem[] = useMemo(() => {
+    const top: TopContentListItem[] = header
+      ? [{ type: 'top', component: header }]
+      : [];
+    return [
+      ...top,
       ...groupsWithoutPinned.map<GroupListItem>((g) => ({
         type: 'group',
         data: g,
       })),
-    ],
-    [groupsWithoutPinned, header]
-  );
+    ];
+  }, [groupsWithoutPinned, header]);
 
   useEffect(() => {
     if (!headerRef.current) {
