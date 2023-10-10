@@ -24,6 +24,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import { ScrollerItemData, useMessageData } from '@/logic/useScrollerMessages';
 import { useChatState } from '@/state/chat/chat';
 import { createDevLogger } from '@/logic/utils';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatNotice from '../ChatNotice';
 import { useChatStore } from '../useChatStore';
@@ -130,7 +131,6 @@ export default function ChatScroller({
   const contentElementRef = useRef<HTMLDivElement>(null);
   const { userHasScrolled, resetUserHasScrolled } =
     useUserHasScrolled(scrollElementRef);
-  const isInverted = loadDirection === 'older';
 
   const {
     activeMessageKeys,
@@ -148,6 +148,9 @@ export default function ChatScroller({
   });
 
   const count = activeMessageEntries.length;
+  const isEmpty = count === 0 && hasLoadedNewest && hasLoadedOldest;
+  const isInverted = !isEmpty && loadDirection === 'older';
+
   // We want to render newest messages first, but we receive them oldest-first.
   // This is a simple way to reverse the order without having to reverse a big array.
   const transformIndex = useCallback(
@@ -382,6 +385,12 @@ export default function ChatScroller({
       // TODO: This now gets outlined when scrolling with keys. Should it?
       tabIndex={-1}
     >
+      {hasLoadedNewest && hasLoadedOldest && count === 0 && (
+        <EmptyPlaceholder>
+          There are no messages in this channel
+        </EmptyPlaceholder>
+      )}
+
       <div className="absolute top-0 w-full">
         <Loader show={fetchState === (isInverted ? 'bottom' : 'top')} />
       </div>
