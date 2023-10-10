@@ -1,5 +1,5 @@
 import { get } from 'lodash';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Group, Groups } from '@/types/groups';
 import useSidebarSort, {
   ALPHABETICAL,
@@ -25,26 +25,30 @@ export default function useGroupSort() {
   });
   const { sortChannels } = useChannelSort();
 
-  function sortGroups(groups?: Groups) {
-    const accessors: Record<string, (k: string, v: Group) => string> = {
-      [ALPHABETICAL]: (_flag: string, group: Group) => get(group, 'meta.title'),
-      [RECENT]: (flag: string, group: Group) => {
-        /**
-         * Use the latest channel flag associated with the Group; otherwise
-         * fallback to the Group flag itself, which won't be in the briefs and
-         * thus use INFINITY by default
-         */
-        const channels = sortChannels(group.channels);
-        return channels.length > 0 ? channels[0][0] : flag;
-      },
-    };
+  const sortGroups = useCallback(
+    (groups?: Groups) => {
+      const accessors: Record<string, (k: string, v: Group) => string> = {
+        [ALPHABETICAL]: (_flag: string, group: Group) =>
+          get(group, 'meta.title'),
+        [RECENT]: (flag: string, group: Group) => {
+          /**
+           * Use the latest channel flag associated with the Group; otherwise
+           * fallback to the Group flag itself, which won't be in the briefs and
+           * thus use INFINITY by default
+           */
+          const channels = sortChannels(group.channels);
+          return channels.length > 0 ? channels[0][0] : flag;
+        },
+      };
 
-    return sortRecordsBy(
-      groups || {},
-      accessors[sortFn] || accessors[ALPHABETICAL],
-      sortFn === RECENT
-    );
-  }
+      return sortRecordsBy(
+        groups || {},
+        accessors[sortFn] || accessors[ALPHABETICAL],
+        sortFn === RECENT
+      );
+    },
+    [sortChannels, sortFn, sortRecordsBy]
+  );
 
   return {
     setSortFn,
