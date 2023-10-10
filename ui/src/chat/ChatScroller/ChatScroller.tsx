@@ -212,14 +212,6 @@ export default function ChatScroller({
   }, [activeMessageKeys, activeMessageEntries, topItem]);
 
   const count = messageKeys.length;
-  const isEmpty = count === 0 && hasLoadedNewest && hasLoadedOldest;
-  const isInverted = !isEmpty && loadDirection === 'older';
-  // We want to render newest messages first, but we receive them oldest-first.
-  // This is a simple way to reverse the order without having to reverse a big array.
-  const transformIndex = useCallback(
-    (index: number) => (isInverted ? count - 1 - index : index),
-    [count, isInverted]
-  );
 
   const anchorIndex = useMemo(() => {
     if (count === 0) {
@@ -245,6 +237,22 @@ export default function ChatScroller({
     virt.scrollOffset = offset;
     virt.scrollElement?.scrollTo?.({ top: offset });
   }, []);
+
+  const isEmpty = count === 0 && hasLoadedNewest && hasLoadedOldest;
+  const contentHeight = virtualizerRef.current?.getTotalSize() ?? 0;
+  const scrollElementHeight = scrollElementRef.current?.clientHeight ?? 0;
+  const isScrollable = contentHeight > scrollElementHeight;
+  const isInverted = isEmpty
+    ? false
+    : !isScrollable
+    ? true
+    : loadDirection === 'older';
+  // We want to render newest messages first, but we receive them oldest-first.
+  // This is a simple way to reverse the order without having to reverse a big array.
+  const transformIndex = useCallback(
+    (index: number) => (isInverted ? count - 1 - index : index),
+    [count, isInverted]
+  );
 
   /**
    * Scroll to current anchor index
@@ -372,10 +380,10 @@ export default function ChatScroller({
 
   // Load more content if there's not enough to fill the scroller + there's more to load.
   // The main place this happens is when there are a bunch of replies in the recent chat history.
-  const contentHeight = virtualizer.getTotalSize();
+  const contentIsShort = contentHeight < scrollElementHeight;
   useEffect(() => {
     if (
-      contentHeight < window.innerHeight &&
+      contentIsShort &&
       fetchState === 'initial' &&
       // don't try to load more in threads, because their content is already fetched by main window
       !replying
@@ -391,7 +399,7 @@ export default function ChatScroller({
     }
   }, [
     replying,
-    contentHeight,
+    contentIsShort,
     fetchMessages,
     fetchState,
     loadDirection,
@@ -437,6 +445,9 @@ export default function ChatScroller({
 
   const scaleY = isInverted ? -1 : 1;
   const virtualItems = virtualizer.getVirtualItems();
+  // On first run, virtualizerRef will be empty, so contentHeight will be undefined.
+  // TODO: Distentangle virtualizer init to avoid this.
+  const finalHeight = contentHeight ?? virtualizer.getTotalSize();
 
   return (
     <div
@@ -462,7 +473,7 @@ export default function ChatScroller({
         className="l-0 absolute top-0 w-full"
         ref={contentElementRef}
         style={{
-          height: `${contentHeight}px`,
+          height: `${finalHeight}px`,
           paddingTop: virtualItems[0]?.start ?? 0,
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
