@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import cn from 'classnames';
 import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -127,6 +127,15 @@ export default function Dm() {
       useChatState.getState().initializeDm(ship);
     }
   }, [ship, canStart]);
+
+  const conversationHeader = useMemo(
+    () => (
+      <div className="pt-4 pb-12">
+        <DMHero ship={ship} contact={contact} />
+      </div>
+    ),
+    [ship, contact]
+  );
 
   return (
     <>
@@ -260,11 +269,7 @@ export default function Dm() {
             root={root}
             scrollElementRef={scrollElementRef}
             isScrolling={isScrolling}
-            prefixedElement={
-              <div className="pt-4 pb-12">
-                <DMHero ship={ship} contact={contact} />
-              </div>
-            }
+            prefixedElement={conversationHeader}
           />
         ) : (
           <DmInvite ship={ship} />
