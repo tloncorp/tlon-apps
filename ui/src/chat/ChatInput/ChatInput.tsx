@@ -475,6 +475,12 @@ export default function ChatInput({
         handleBlur();
       }
     }
+
+    return () => {
+      if (isChatInputFocused) {
+        handleBlur();
+      }
+    };
   }, [
     isChatInputFocused,
     messageEditor,
