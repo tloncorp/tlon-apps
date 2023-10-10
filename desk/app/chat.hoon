@@ -998,6 +998,17 @@
   =/  =dock  [our.bowl %hark]
   =/  =cage  hark-action-1+!>([%new-yarn new-yarn])
   [%pass wire %agent dock %poke cage]
+::
+++  hark-path
+  |=  [=memo:c op=time]
+  =/  time-id  (rsh 4 (scot %ui time))
+  ::  anything following op gets translated to a "scrollTo" on the
+  ::  frontend notification
+  ?~  replying.memo
+    /op/[time-id]
+  =/  id  u.replying.memo
+  /message/(scot %p p.id)/(scot %ud q.id)/op/[time-id]
+::
 ++  flatten
   |=  content=(list inline:c)
   ^-  cord
@@ -1366,14 +1377,20 @@
     (ca-remark-diff read/~)
   ::
   ++  ca-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha) lnk=path]
+    |=  [=memo:c op=time con=(list content:ha)]
     ^-  new-yarn:ha
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
-    =/  rope  [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
+    =/  rest=path  (hark-path memo op)
     =/  link
-      (welp /groups/(scot %p p.group)/[q.group]/channels/chat/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
-    [& & rope con link but]
+      ;:  welp 
+        /groups/(scot %p p.group)/[q.group]
+        /channels/chat/(scot %p p.flag)/[q.flag]
+        rest
+      ==
+    =/  rope
+      [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
+    [& & rope con link ~]
   ::
   ++  ca-watch
     |=  =(pole knot)
@@ -1801,6 +1818,10 @@
           ?(%del %add-feel %del-feel)  ca-core
           %add
         =/  memo=memo:c  p.delta
+        =/  entry=(unit [=time =writ:c])  (get:ca-pact p.p.d)
+        ::  we just added this, but if it's not there bail
+        ?~  entry  ca-core
+        =/  =time  time.u.entry
         =/  want-soft-notify  (want-hark flag %to-us)
         =/  want-loud-notify  (want-hark flag %msg)
         =?  remark.chat  =(author.memo our.bowl)
@@ -1809,21 +1830,39 @@
         ?-  -.content.memo
             %notice  ca-core
             %story
-          =/  new-message-yarn  (ca-message-hark memo p.content.memo p.p.d)
           =/  from-me  =(author.memo our.bowl)
-          =?  cor  &(want-loud-notify !from-me)
-            (emit (pass-hark new-message-yarn))
-          ?.  ?&  !=(author.memo our.bowl)
-                  |(!=(~ replying.memo) (mentioned q.p.content.memo our.bowl))
+          =/  is-mention  (mentioned q.p.content.memo our.bowl)
+          =/  to-us  |(!=(~ replying.memo) is-mention)
+          ::  if from me or don't want notifications, bail immediately
+          ?:  |(from-me &(!want-soft-notify !want-loud-notify))  ca-core
+          ?.  to-us
+            ::  if it's not a mention or reply and we want all notifications,
+            ::  send regular message notification
+            =?  cor  want-loud-notify
+              =/  =new-yarn:ha
+              %^  ca-spin  memo  time
+              :~  [%ship author.memo]
+                  ': '
+                  (flatten q.p.content.memo)
               ==
-            ca-core
-          ?:  (mentioned q.p.content.memo our.bowl)
-            =/  new-yarn  (ca-mention-hark memo p.content.memo p.p.d)
-            =?  cor  &(want-soft-notify !want-loud-notify)
               (emit (pass-hark new-yarn))
+            ca-core
+          ::  since the following are "to-us" notifications we don't have
+          ::  to check want notify anymore
+          ::
+          ::  if it's a mention send regular notification and bail
+          ?:  is-mention
+            =/  =new-yarn:ha
+            %^  ca-spin  memo  time
+            :~  [%ship author.memo]
+                ' mentioned you :'
+                (flatten q.p.content.memo)
+            ==
+            =.  cor  (emit (pass-hark new-yarn))
             ca-core
           =/  replying  (need replying.memo)
           =/  op  (~(get pac pact.chat) replying)
+          ::  if missing op, bail
           ?~  op  ca-core
           =/  opwrit  writ.u.op
           =/  in-replies
@@ -1833,56 +1872,29 @@
             =/  writ  (~(get pac pact.chat) id)
             ?~  writ  %.n
             =(author.writ.u.writ our.bowl)
-          ?:  &(!=(author.opwrit our.bowl) !in-replies)  ca-core
+          ::  bail if we haven't participated or we don't want loud
+          ?:  &(!=(author.opwrit our.bowl) !in-replies !want-loud-notify)
+            ca-core
           ?-  -.content.opwrit
               %notice  ca-core
               %story
-            =?  cor  &(want-soft-notify !want-loud-notify)
-              %-  emit  %-  pass-hark
-              %-  ca-spin
-                :^  /message/(scot %p p.replying)/(scot %ud q.replying)
-                  :~  [%ship author.memo]
-                      ' replied to your message “'
-                      (flatten q.p.content.opwrit)
-                      '”: '
-                      [%ship author.memo]
-                      ': '
-                      (flatten q.p.content.memo)
-                  ==
-                  ~
-                  ~
+            =.  cor
+              %-  emit  
+              %-  pass-hark
+              %^  ca-spin  memo  time
+              :~  [%ship author.memo]
+                  ' replied to your message “'
+                  (flatten q.p.content.opwrit)
+                  '”: '
+                  [%ship author.memo]
+                  ': '
+                  (flatten q.p.content.memo)
+              ==
             ca-core
           ==
         ==
       ==
     ==
-  ::
-  ++  ca-mention-hark
-    |=  [=memo:c =story:c op=id:c]
-    =/  path
-      ?~  replying.memo
-        /op/(scot %p p.op)/(scot %ud q.op)
-      =/  id  u.replying.memo
-      /message/(scot %p p.id)/(scot %ud q.id)/op/(scot %p p.op)/(scot %ud q.op)
-    %-  ca-spin
-      :^  path
-        :~  [%ship author.memo]
-            ' mentioned you :'
-            (flatten q.story)
-        ==
-        ~
-        ~
-  ::
-  ++  ca-message-hark
-    |=  [=memo:c =story:c op=id:c]
-    %-  ca-spin
-      :^  ~
-        :~  [%ship author.memo]
-            ': '
-            (flatten q.story)
-        ==
-        ~
-        /message/(scot %p p.op)/(scot %ud q.op)
   ::
   ++  ca-transfer-channel
     |=  [new-group=flag:g new=flag:c tim=time]

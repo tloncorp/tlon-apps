@@ -83,7 +83,7 @@ function Groups() {
 
       let canRead = found && canReadChannel(found[1], vessel, group?.bloc);
       if (recentChannel && canRead && !isMobile) {
-        navigate(`./channels/${recentChannel}`);
+        navigate(`./channels/${recentChannel}`, { replace: true });
         return;
       }
 
@@ -100,9 +100,9 @@ function Groups() {
 
       canRead = channel && canReadChannel(channel[1], vessel, group?.bloc);
       if (channel && canRead && !isMobile) {
-        navigate(`./channels/${channel[0]}`);
+        navigate(`./channels/${channel[0]}`, { replace: true });
       } else if (!isMobile) {
-        navigate('./channels');
+        navigate('./channels', { replace: true });
       }
     }
   }, [
