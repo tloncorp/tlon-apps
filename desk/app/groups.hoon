@@ -878,7 +878,7 @@
     ?~  id-reply  
       (welp prefix /hark/rope/(scot %ud id-post))
     (welp prefix /hark/rope/(scot %ud id-post)/(scot %ud u.id-reply))
-  .^(rope:ha %gx ch-path)
+  .^(rope:ha %gx (snoc ch-path %noun))
 ::
 ++  group-core
   |_  [=flag:g =net:g =group:g gone=_|]
