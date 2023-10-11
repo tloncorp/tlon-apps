@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import { useSkeins } from '@/state/hark';
-import { Flag, Skein, Yarn } from '@/types/hark';
+import { Flag, Rope, Skein, Yarn } from '@/types/hark';
 import { makePrettyDay } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
 
 export interface DayGrouping {
   date: string;
@@ -59,12 +60,15 @@ export const isChannelEdit = (yarn: Yarn) =>
 export const isGroupMeta = (yarn: Yarn) =>
   isJoin(yarn) || isRoleChange(yarn) || isLeave(yarn) || isChannelEdit(yarn);
 
+export const isDm = (rope: Rope) => rope.thread.startsWith('/dm');
+
 export type NotificationFilterType = 'mentions' | 'replies' | 'invites' | 'all';
 
 export const useNotifications = (
   flag?: Flag,
   showOnly: NotificationFilterType = 'all'
 ) => {
+  const isMobile = useIsMobile();
   const { data: skeins, status: skeinsStatus } = useSkeins(flag);
 
   if (skeinsStatus !== 'success') {
@@ -91,9 +95,16 @@ export const useNotifications = (
 
   const unreads = skeins.filter((s) => s.unread);
   const filteredSkeins = skeins.filter(filter);
+  const filteredSkeinsForDesktop = filteredSkeins.filter(
+    (s) => !isDm(s.top.rope)
+  );
+
+  const notifications = groupSkeinsByDate(
+    isMobile ? filteredSkeins : filteredSkeinsForDesktop
+  );
 
   return {
-    notifications: groupSkeinsByDate(filteredSkeins),
+    notifications,
     unreadMentions: unreads.filter((s) => isMention(s.top)),
     unreadReplies: unreads.filter((s) => isReply(s.top)),
     unreadInvites: unreads.filter((s) => isInvite(s.top)),
