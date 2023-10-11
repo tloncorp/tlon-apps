@@ -1150,6 +1150,13 @@
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
     [uid cu-core(counter +(counter))]
   ::
+  ++  cu-spin-groups
+    |=  [con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
+    =/  rope  [~ ~ %groups /club/(scot %uv id)]
+    =/  link  /dm/(scot %uv id)
+    [& & rope con link but]
+  ::
   ++  cu-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
@@ -1276,6 +1283,15 @@
         ?-  -.content.memo
             %notice  (cu-give-writs-diff diff.delta)
             %story
+          =/  new-yarn-groups
+            %+  cu-spin-groups
+              :~  [%ship author.memo]
+                  ': '
+                  (flatten q.p.content.memo)
+              ==
+            ~
+          =?  cor  (want-hark ~ %to-us)
+            (emit (pass-hark new-yarn-groups))
           =/  new-yarn
             %+  cu-spin
               :~  [%ship author.memo]
@@ -2035,6 +2051,14 @@
     di-invited:di-core(ship s, dm d)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
+  ::
+  ++  di-spin-groups
+    |=  [con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
+    =/  rope  [~ ~ %groups /dm/(scot %p ship)]
+    =/  link  /dm/(scot %p ship)
+    [& & rope con link but]
+  ::
   ++  di-spin
     |=  [con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
@@ -2082,7 +2106,6 @@
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
-    ~&  response
     =.  cor
       ?~  response   cor
       (give %fact ~[path] writ-response+!>(u.response))
@@ -2102,6 +2125,16 @@
       ?-  -.content.memo
           %notice  di-core
           %story
+        =/  new-yarn-groups
+          %+  di-spin-groups
+            :~  [%ship author.memo]
+                ?:  =(net.dm %invited)  ' has invited you to a direct message'
+                ': '
+                ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
+            ==
+          ~
+        =?  cor  (want-hark ~ %to-us)
+          (emit (pass-hark new-yarn-groups))
         =/  new-yarn
           %+  di-spin
             :~  [%ship author.memo]
