@@ -1,6 +1,7 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
 import { daToUnix } from '@urbit/api';
 import React, {
+  PropsWithChildren,
   ReactElement,
   useCallback,
   useEffect,
@@ -27,10 +28,10 @@ import {
   ChatMessageListItemData,
   useMessageData,
 } from '@/logic/useScrollerMessages';
-import { useChatState } from '@/state/chat/chat';
 import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { ChatWrit } from '@/types/chat';
+import { useChatState } from '@/state/chat';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatNotice from '../ChatNotice';
 import { useChatStore } from '../useChatStore';
@@ -73,12 +74,25 @@ const ChatScrollerItem = React.memo(
   }
 );
 
-function Loader({ show }: { show: boolean }) {
-  return show ? (
-    <div className="align-center flex h-8 w-full justify-center p-1">
-      <LoadingSpinner primary="fill-gray-50" secondary="fill-white" />
+function Loader({
+  className,
+  scaleY,
+  children,
+}: PropsWithChildren<{ className?: string; scaleY: number }>) {
+  return (
+    <div
+      className={`absolute flex w-full justify-start text-base ${className}`}
+      style={{ transform: `scaleY(${scaleY})` }}
+    >
+      <div className="m-4 flex items-center gap-3 rounded-lg text-gray-500">
+        <div className="flex h-6 w-6 items-center justify-center">
+          <LoadingSpinner primary="fill-gray-900" secondary="fill-gray-200" />
+        </div>
+
+        {children}
+      </div>
     </div>
-  ) : null;
+  );
 }
 
 function useBigInt(value?: BigInteger) {
@@ -130,6 +144,11 @@ type DivVirtualizer = Virtualizer<HTMLDivElement, HTMLDivElement>;
 const thresholds = {
   atEndThreshold: 2000,
   overscan: 6,
+};
+
+const loaderPadding = {
+  top: 40,
+  bottom: 50,
 };
 
 export interface ChatScrollerProps {
@@ -279,6 +298,19 @@ export default function ChatScroller({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTo]);
 
+  const isLoadingAtStart = fetchState === (isInverted ? 'bottom' : 'top');
+  const isLoadingAtEnd = fetchState === (isInverted ? 'top' : 'bottom');
+  const paddingStart = isLoadingAtStart
+    ? isInverted
+      ? loaderPadding.bottom
+      : loaderPadding.top
+    : 0;
+  const paddingEnd = isLoadingAtEnd
+    ? isInverted
+      ? loaderPadding.top
+      : loaderPadding.bottom
+    : 0;
+
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: useCallback(
@@ -314,6 +346,8 @@ export default function ChatScroller({
       (index: number) => messageKeys[transformIndex(index)].toString(),
       [messageKeys, transformIndex]
     ),
+    paddingStart,
+    paddingEnd,
     scrollToFn: useCallback(
       (
         offset: number,
@@ -464,11 +498,6 @@ export default function ChatScroller({
           There are no messages in this channel
         </EmptyPlaceholder>
       )}
-
-      <div className="absolute top-0 w-full">
-        <Loader show={fetchState === (isInverted ? 'bottom' : 'top')} />
-      </div>
-
       <div
         className="l-0 absolute top-0 w-full"
         ref={contentElementRef}
@@ -478,6 +507,11 @@ export default function ChatScroller({
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
       >
+        {isLoadingAtStart && (
+          <Loader className="top-0" scaleY={scaleY}>
+            Loading {isInverted ? 'Newer' : 'Older'}
+          </Loader>
+        )}
         {virtualItems.map((virtualItem) => {
           const item = messageEntries[transformIndex(virtualItem.index)];
           return (
@@ -494,10 +528,11 @@ export default function ChatScroller({
             </div>
           );
         })}
-      </div>
-
-      <div className="absolute bottom-0 w-full">
-        <Loader show={fetchState === (isInverted ? 'top' : 'bottom')} />
+        {isLoadingAtEnd && (
+          <Loader className="bottom-0" scaleY={scaleY}>
+            Loading {isInverted ? 'Older' : 'Newer'}
+          </Loader>
+        )}
       </div>
     </div>
   );
