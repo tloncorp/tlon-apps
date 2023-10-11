@@ -20,7 +20,7 @@ export const getDeepLink = async (alias: string) => {
 
 export const createDeepLink = async (canonicalUrl: string, lure: string) => {
   const alias = lure.replace('~', '').replace('/', '-');
-  let url = await getDeepLink(alias);
+  let url = await getDeepLink(alias).catch(() => canonicalUrl);
   if (!url) {
     const response = await fetchBranchApi('/v1/url', {
       method: 'POST',
@@ -34,8 +34,9 @@ export const createDeepLink = async (canonicalUrl: string, lure: string) => {
         },
       }),
     });
+
     if (!response.ok) {
-      return undefined;
+      return canonicalUrl;
     }
 
     ({ url } = (await response.json()) as { url: string });
