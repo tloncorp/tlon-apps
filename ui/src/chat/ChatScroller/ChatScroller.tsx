@@ -1,6 +1,7 @@
 import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
 import { daToUnix } from '@urbit/api';
 import React, {
+  PropsWithChildren,
   ReactElement,
   useCallback,
   useEffect,
@@ -27,10 +28,10 @@ import {
   ChatMessageListItemData,
   useMessageData,
 } from '@/logic/useScrollerMessages';
-import { useChatState } from '@/state/chat/chat';
 import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { ChatWrit } from '@/types/chat';
+import { useChatState } from '@/state/chat';
 import ChatMessage from '../ChatMessage/ChatMessage';
 import ChatNotice from '../ChatNotice';
 import { useChatStore } from '../useChatStore';
@@ -73,12 +74,25 @@ const ChatScrollerItem = React.memo(
   }
 );
 
-function Loader({ show }: { show: boolean }) {
-  return show ? (
-    <div className="align-center flex h-8 w-full justify-center p-1">
-      <LoadingSpinner primary="fill-gray-50" secondary="fill-white" />
+function Loader({
+  className,
+  scaleY,
+  children,
+}: PropsWithChildren<{ className?: string; scaleY: number }>) {
+  return (
+    <div
+      className={`absolute flex w-full justify-start text-base ${className}`}
+      style={{ transform: `scaleY(${scaleY})` }}
+    >
+      <div className="m-4 flex items-center gap-3 rounded-lg text-gray-500">
+        <div className="flex h-6 w-6 items-center justify-center">
+          <LoadingSpinner primary="fill-gray-900" secondary="fill-gray-200" />
+        </div>
+
+        {children}
+      </div>
     </div>
-  ) : null;
+  );
 }
 
 function useBigInt(value?: BigInteger) {
@@ -130,6 +144,11 @@ type DivVirtualizer = Virtualizer<HTMLDivElement, HTMLDivElement>;
 const thresholds = {
   atEndThreshold: 2000,
   overscan: 6,
+};
+
+const loaderPadding = {
+  top: 40,
+  bottom: 0,
 };
 
 export interface ChatScrollerProps {
@@ -212,14 +231,6 @@ export default function ChatScroller({
   }, [activeMessageKeys, activeMessageEntries, topItem]);
 
   const count = messageKeys.length;
-  const isEmpty = count === 0 && hasLoadedNewest && hasLoadedOldest;
-  const isInverted = !isEmpty && loadDirection === 'older';
-  // We want to render newest messages first, but we receive them oldest-first.
-  // This is a simple way to reverse the order without having to reverse a big array.
-  const transformIndex = useCallback(
-    (index: number) => (isInverted ? count - 1 - index : index),
-    [count, isInverted]
-  );
 
   const anchorIndex = useMemo(() => {
     if (count === 0) {
@@ -246,6 +257,22 @@ export default function ChatScroller({
     virt.scrollElement?.scrollTo?.({ top: offset });
   }, []);
 
+  const isEmpty = count === 0 && hasLoadedNewest && hasLoadedOldest;
+  const contentHeight = virtualizerRef.current?.getTotalSize() ?? 0;
+  const scrollElementHeight = scrollElementRef.current?.clientHeight ?? 0;
+  const isScrollable = contentHeight > scrollElementHeight;
+  const isInverted = isEmpty
+    ? false
+    : !isScrollable
+    ? true
+    : loadDirection === 'older';
+  // We want to render newest messages first, but we receive them oldest-first.
+  // This is a simple way to reverse the order without having to reverse a big array.
+  const transformIndex = useCallback(
+    (index: number) => (isInverted ? count - 1 - index : index),
+    [count, isInverted]
+  );
+
   /**
    * Scroll to current anchor index
    */
@@ -270,6 +297,19 @@ export default function ChatScroller({
     scrollToAnchor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTo]);
+
+  const isLoadingAtStart = fetchState === (isInverted ? 'bottom' : 'top');
+  const isLoadingAtEnd = fetchState === (isInverted ? 'top' : 'bottom');
+  const paddingStart = isLoadingAtStart
+    ? isInverted
+      ? loaderPadding.bottom
+      : loaderPadding.top
+    : 0;
+  const paddingEnd = isLoadingAtEnd
+    ? isInverted
+      ? loaderPadding.top
+      : loaderPadding.bottom
+    : 0;
 
   const virtualizer = useVirtualizer({
     count,
@@ -306,6 +346,8 @@ export default function ChatScroller({
       (index: number) => messageKeys[transformIndex(index)].toString(),
       [messageKeys, transformIndex]
     ),
+    paddingStart,
+    paddingEnd,
     scrollToFn: useCallback(
       (
         offset: number,
@@ -372,10 +414,10 @@ export default function ChatScroller({
 
   // Load more content if there's not enough to fill the scroller + there's more to load.
   // The main place this happens is when there are a bunch of replies in the recent chat history.
-  const contentHeight = virtualizer.getTotalSize();
+  const contentIsShort = contentHeight < scrollElementHeight;
   useEffect(() => {
     if (
-      contentHeight < window.innerHeight &&
+      contentIsShort &&
       fetchState === 'initial' &&
       // don't try to load more in threads, because their content is already fetched by main window
       !replying
@@ -391,7 +433,7 @@ export default function ChatScroller({
     }
   }, [
     replying,
-    contentHeight,
+    contentIsShort,
     fetchMessages,
     fetchState,
     loadDirection,
@@ -437,6 +479,9 @@ export default function ChatScroller({
 
   const scaleY = isInverted ? -1 : 1;
   const virtualItems = virtualizer.getVirtualItems();
+  // On first run, virtualizerRef will be empty, so contentHeight will be undefined.
+  // TODO: Distentangle virtualizer init to avoid this.
+  const finalHeight = contentHeight ?? virtualizer.getTotalSize();
 
   return (
     <div
@@ -453,20 +498,20 @@ export default function ChatScroller({
           There are no messages in this channel
         </EmptyPlaceholder>
       )}
-
-      <div className="absolute top-0 w-full">
-        <Loader show={fetchState === (isInverted ? 'bottom' : 'top')} />
-      </div>
-
       <div
         className="l-0 absolute top-0 w-full"
         ref={contentElementRef}
         style={{
-          height: `${contentHeight}px`,
+          height: `${finalHeight}px`,
           paddingTop: virtualItems[0]?.start ?? 0,
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
       >
+        {isLoadingAtStart && !isInverted && (
+          <Loader className="top-0" scaleY={scaleY}>
+            Loading {isInverted ? 'Newer' : 'Older'}
+          </Loader>
+        )}
         {virtualItems.map((virtualItem) => {
           const item = messageEntries[transformIndex(virtualItem.index)];
           return (
@@ -483,10 +528,11 @@ export default function ChatScroller({
             </div>
           );
         })}
-      </div>
-
-      <div className="absolute bottom-0 w-full">
-        <Loader show={fetchState === (isInverted ? 'top' : 'bottom')} />
+        {isLoadingAtEnd && isInverted && (
+          <Loader className="bottom-0" scaleY={scaleY}>
+            Loading {isInverted ? 'Older' : 'Newer'}
+          </Loader>
+        )}
       </div>
     </div>
   );
