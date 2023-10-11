@@ -166,19 +166,20 @@ function NotificationContent({
   );
 }
 
-function mentionPath(bin: Skein): string {
+const msgTimePattern = /(.*)\/op\/(\d+)$/i;
+function chatPath(bin: Skein): string {
   const { wer } = bin.top;
-  const parts = wer.split('/');
-  const index = parts.indexOf('op');
-  const ship = parts[index + 1];
-  const id = parts[index + 2];
+  const matches = wer.match(msgTimePattern);
 
-  if (index < 0 || !ship || !id) {
+  if (!matches) {
     return wer;
   }
 
-  const time = useChatState.getState().getTime(ship, `${ship}/${id}`);
-  return `${parts.slice(0, index).join('/')}?msg=${time}`;
+  return wer.replace(msgTimePattern, '$1?msg=$2');
+}
+
+function hasChatPath(path: string): boolean {
+  return !!path.match(msgTimePattern) && path.includes('/channels/chat/');
 }
 
 export default function Notification({
@@ -198,7 +199,7 @@ export default function Notification({
   const isBlockBool = isBlock(bin.top);
   const groupMetaBool = isGroupMeta(bin.top);
   const replyBool = isReply(bin.top);
-  const path = mentionBool ? mentionPath(bin) : bin.top.wer;
+  const path = hasChatPath(bin.top.wer) ? chatPath(bin) : bin.top.wer;
   const onClick = useCallback(() => {
     sawRopeMutation({ rope });
   }, [rope, sawRopeMutation]);

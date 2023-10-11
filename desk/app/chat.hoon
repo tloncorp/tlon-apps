@@ -1001,7 +1001,8 @@
 ::
 ++  hark-path
   |=  [=memo:c op=time]
-  =/  time-id  (rsh 4 (scot %ui time))
+  ^-  path
+  =/  time-id  (rsh 4 (scot %ui op))
   ::  anything following op gets translated to a "scrollTo" on the
   ::  frontend notification
   ?~  replying.memo
@@ -1111,12 +1112,13 @@
     [uid cu-core(counter +(counter))]
   ::
   ++  cu-spin
-    |=  [con=(list content:ha) but=(unit button:ha)]
+    |=  [=memo:c op=time con=(list content:ha)]
     ^-  new-yarn:ha
+    =/  rest=path  (hark-path memo op)
     ::  hard coded desk because these shouldn't appear in groups
-    =/  rope  [~ ~ %talk /club/(scot %uv id)]
-    =/  link  /dm/(scot %uv id)
-    [& & rope con link but]
+    =/  rope  [~ ~ %talk (welp /club/(scot %uv id) rest)]
+    =/  link  (welp /dm/(scot %uv id) rest)
+    [& & rope con link ~]
   ::
   ++  cu-pass
     |%
@@ -1233,16 +1235,19 @@
           remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief club/id cu-brief)
         ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
+        =/  time  (~(get by dex.pact.club) p.diff.delta)
+        ?~  time  cu-core
         ?-  -.content.memo
             %notice  (cu-give-writs-diff diff.delta)
             %story
           =/  new-yarn
-            %+  cu-spin
+            %^  cu-spin
+              memo
+              u.time
               :~  [%ship author.memo]
                   ': '
                   (flatten q.p.content.memo)
               ==
-            ~
           =?  cor  (want-hark ~ %to-us)
             (emit (pass-hark new-yarn))
           (cu-give-writs-diff diff.delta)
@@ -1818,10 +1823,10 @@
           ?(%del %add-feel %del-feel)  ca-core
           %add
         =/  memo=memo:c  p.delta
-        =/  entry=(unit [=time =writ:c])  (get:ca-pact p.p.d)
+        =/  entry  (get:ca-pact p.p.d)
         ::  we just added this, but if it's not there bail
         ?~  entry  ca-core
-        =/  =time  time.u.entry
+        =/  ti=^time  time.u.entry
         =/  want-soft-notify  (want-hark flag %to-us)
         =/  want-loud-notify  (want-hark flag %msg)
         =?  remark.chat  =(author.memo our.bowl)
@@ -1840,7 +1845,7 @@
             ::  send regular message notification
             =?  cor  want-loud-notify
               =/  =new-yarn:ha
-              %^  ca-spin  memo  time
+              %^  ca-spin  memo  ti
               :~  [%ship author.memo]
                   ': '
                   (flatten q.p.content.memo)
@@ -1997,12 +2002,13 @@
   ::
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-spin
-    |=  [con=(list content:ha) but=(unit button:ha)]
+    |=  [=memo:c op=time con=(list content:ha)]
     ^-  new-yarn:ha
+    =/  rest=path  (hark-path memo op)
     ::  hard coded desk because these shouldn't appear in groups
-    =/  rope  [~ ~ %talk /dm/(scot %p ship)]
-    =/  link  /dm/(scot %p ship)
-    [& & rope con link but]
+    =/  link  (welp /dm/(scot %p ship) rest)
+    =/  rope  [~ ~ %talk link]
+    [& & rope con link ~]
   ::
   ++  di-proxy
     |=  =diff:dm:c
@@ -2043,7 +2049,6 @@
     =/  old-brief  di-brief
     =.  pact.dm  (reduce:di-pact now.bowl diff)
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
-    ~&  response
     =.  cor
       ?~  response   cor
       (give %fact ~[path] writ-response+!>(u.response))
@@ -2059,18 +2064,21 @@
         remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
       =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
         (give-brief ship/ship di-brief)
+      =/  time  (~(get by dex.pact.dm) p.diff)
+      ?~  time       di-core
       ?:  from-self  di-core
       ?-  -.content.memo
           %notice  di-core
           %story
         =/  new-yarn
-          %+  di-spin
+          %^  di-spin
+            memo
+            u.time
             :~  [%ship author.memo]
                 ?:  =(net.dm %invited)  ' has invited you to a direct message'
                 ': '
                 ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
             ==
-          ~
         =?  cor  (want-hark ~ %to-us)
           (emit (pass-hark new-yarn))
         di-core
