@@ -1,7 +1,10 @@
 import _ from 'lodash';
-import { useEffect, useState } from 'react';
-import { HeapCurio, isLink } from '@/types/heap';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+import bigInt from 'big-integer';
 import cn from 'classnames';
+import { formatDistanceToNow } from 'date-fns';
+import { CurioContent, HeapCurio, isLink } from '@/types/heap';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
@@ -9,7 +12,6 @@ import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
-import { formatDistanceToNow } from 'date-fns';
 import IconButton from '@/components/IconButton';
 import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
@@ -25,6 +27,7 @@ import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
+import { useCurioToggler } from '@/state/heap/heap';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -38,6 +41,7 @@ interface TopBarProps extends CurioDisplayProps {
   hasIcon?: boolean;
   canEdit: boolean;
   longPress: boolean;
+  author: string;
 }
 
 function Actions({
@@ -48,6 +52,7 @@ function Actions({
   longPress = false,
   time,
   canEdit,
+  author,
 }: TopBarProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const nest = useNest();
@@ -60,6 +65,8 @@ function Actions({
     onEdit,
     onCopy,
     navigateToCurio,
+    toggleHidden,
+    isHidden,
   } = useCurioActions({ nest, time, refToken });
 
   return (
@@ -104,58 +111,59 @@ function Actions({
             />
           )}
         </div>
-        {canEdit && (
+        <div className={longPress ? 'relative' : 'relative group-hover:block'}>
+          {asRef ? (
+            <IconButton
+              icon={<ElipsisSmallIcon className="h-4 w-4" />}
+              action={() => setMenuOpen(true)}
+              label="expand"
+              className="rounded border border-gray-100 bg-white"
+              small
+            />
+          ) : (
+            <IconButton
+              icon={<ElipsisSmallIcon className="h-4 w-4" />}
+              label="options"
+              className="rounded bg-white"
+              action={() => setMenuOpen(!menuOpen)}
+            />
+          )}
           <div
-            className={longPress ? 'relative' : 'relative group-hover:block'}
+            className={cn(
+              'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
+              { hidden: !menuOpen }
+            )}
+            onMouseLeave={() => setMenuOpen(false)}
           >
             {asRef ? (
-              <IconButton
-                icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                action={() => setMenuOpen(true)}
-                label="expand"
-                className="rounded border border-gray-100 bg-white"
-                small
-              />
-            ) : (
-              <IconButton
-                icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                label="options"
-                className="rounded bg-white"
-                action={() => setMenuOpen(!menuOpen)}
-              />
-            )}
-            <div
-              className={cn(
-                'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
-                { hidden: !menuOpen }
-              )}
-              onMouseLeave={() => setMenuOpen(false)}
-            >
-              {asRef ? (
-                <button
-                  className="small-menu-button"
-                  onClick={onCopy}
-                  disabled={didCopy}
-                >
-                  {didCopy ? 'Copied' : 'Share'}
+              <button
+                className="small-menu-button"
+                onClick={onCopy}
+                disabled={didCopy}
+              >
+                {didCopy ? 'Copied' : 'Share'}
+              </button>
+            ) : null}
+            {!asRef && canEdit ? (
+              <>
+                <button onClick={onEdit} className="small-menu-button">
+                  Edit
                 </button>
-              ) : null}
-              {!asRef && canEdit ? (
-                <>
-                  <button onClick={onEdit} className="small-menu-button">
-                    Edit
-                  </button>
-                  <button
-                    className="small-menu-button text-red"
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    Delete
-                  </button>
-                </>
-              ) : null}
-            </div>
+                <button
+                  className="small-menu-button text-red"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  Delete
+                </button>
+              </>
+            ) : null}
+            {!asRef && author !== window.our ? (
+              <button onClick={toggleHidden} className="small-menu-button">
+                {isHidden ? 'Show Post' : 'Hide Post for Me'}
+              </button>
+            ) : null}
           </div>
-        )}
+        </div>
       </div>
       <ConfirmationModal
         open={deleteOpen}
@@ -170,6 +178,15 @@ function Actions({
   );
 }
 
+const hiddenPostContent: CurioContent = {
+  block: [],
+  inline: [
+    {
+      italics: ['You have hidden this post.'],
+    },
+  ],
+};
+
 interface HeapRowProps extends CurioDisplayProps {
   curio: HeapCurio;
   isComment?: boolean;
@@ -183,6 +200,8 @@ export default function HeapRow({
   refToken = undefined,
 }: HeapRowProps) {
   const { content } = curio.heart;
+  const navigate = useNavigate();
+  const { isHidden } = useCurioToggler(time);
   const url =
     content.inline.length > 0 && isLink(content.inline[0])
       ? content.inline[0].link.href
@@ -194,6 +213,10 @@ export default function HeapRow({
     .map((inline) => inlineToString(inline))
     .join(' ')
     .toString();
+
+  const navigateToDetail = useCallback(() => {
+    navigate(`curio/${bigInt(time)}`);
+  }, [navigate, time]);
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
@@ -232,9 +255,52 @@ export default function HeapRow({
   const replyCount = curio.seal.replied.length;
   const prettySent = formatDistanceToNow(sent);
 
-  if (content.block.length > 0 && 'cite' in content.block[0]) {
+  if (isHidden) {
     return (
       <div className={cnm()}>
+        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
+          <TextIcon className="h-6 w-6 text-gray-400" />
+        </div>
+        <div className="flex grow flex-col">
+          <div className="text-lg font-semibold line-clamp-1">
+            <HeapContent
+              className={cn('line-clamp-1')}
+              content={hiddenPostContent}
+            />
+          </div>
+          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+            <span>Text</span>
+          </div>
+          <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
+            <Avatar
+              size="xxs"
+              className="inline-block"
+              ship={curio.heart.author}
+            />
+            <ShipName
+              showAlias={!calm.disableNicknames}
+              name={curio.heart.author}
+            />
+            <span className="hidden text-gray-400 sm:inline">
+              {prettySent} ago
+            </span>
+          </div>
+        </div>
+        <div className="shrink-0">
+          <Actions
+            longPress={false}
+            canEdit={canEdit}
+            time={time}
+            author={curio.heart.author}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (content.block.length > 0 && 'cite' in content.block[0]) {
+    return (
+      <div onClick={navigateToDetail} className={cnm()}>
         <ContentReference contextApp="heap-row" cite={content.block[0].cite}>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
             <Avatar
@@ -255,7 +321,8 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={time}
+            author={curio.heart.author}
           />
         </div>
       </div>
@@ -264,7 +331,7 @@ export default function HeapRow({
 
   if (isText) {
     return (
-      <div className={cnm()}>
+      <div onClick={navigateToDetail} className={cnm()}>
         <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
           <TextIcon className="h-6 w-6 text-gray-400" />
         </div>
@@ -295,7 +362,8 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={time}
+            author={curio.heart.author}
           />
         </div>
       </div>
@@ -304,7 +372,7 @@ export default function HeapRow({
 
   if (isImage) {
     return (
-      <div className={cnm()}>
+      <div onClick={navigateToDetail} className={cnm()}>
         <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
           {!calm?.disableRemoteContent ? (
             <img
@@ -347,7 +415,8 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={time}
+            author={curio.heart.author}
           />
         </div>
       </div>
@@ -356,7 +425,7 @@ export default function HeapRow({
 
   if (isAudio && !calm?.disableRemoteContent) {
     return (
-      <div className={cnm()}>
+      <div onClick={navigateToDetail} className={cnm()}>
         <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
           <MusicLargeIcon className="h-6 w-6 text-gray-400" />
         </div>
@@ -390,7 +459,8 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={time}
+            author={curio.heart.author}
           />
         </div>
       </div>
@@ -407,7 +477,7 @@ export default function HeapRow({
       const twitterProfilePic = `https://unavatar.io/twitter/${twitterHandle}`;
 
       return (
-        <div className={cnm()}>
+        <div onClick={navigateToDetail} className={cnm()}>
           <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
             <img
               className="h-[72px] w-[72px] rounded object-cover"
@@ -445,7 +515,8 @@ export default function HeapRow({
             <Actions
               longPress={false}
               canEdit={canEdit}
-              time={curio.heart.sent.toString()}
+              time={time}
+              author={curio.heart.author}
             />
           </div>
         </div>
@@ -453,7 +524,7 @@ export default function HeapRow({
     }
 
     return (
-      <div className={cnm()}>
+      <div onClick={navigateToDetail} className={cnm()}>
         <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
           {thumbnail && !calm?.disableRemoteContent ? (
             <img
@@ -496,7 +567,8 @@ export default function HeapRow({
           <Actions
             longPress={false}
             canEdit={canEdit}
-            time={curio.heart.sent.toString()}
+            time={time}
+            author={curio.heart.author}
           />
         </div>
       </div>
@@ -504,7 +576,7 @@ export default function HeapRow({
   }
 
   return (
-    <div className={cnm()}>
+    <div onClick={navigateToDetail} className={cnm()}>
       <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded bg-gray-100">
         <LinkIcon className="h-6 w-6 text-gray-400" />
       </div>
@@ -538,7 +610,8 @@ export default function HeapRow({
         <Actions
           longPress={false}
           canEdit={canEdit}
-          time={curio.heart.sent.toString()}
+          time={time}
+          author={curio.heart.author}
         />
       </div>
     </div>

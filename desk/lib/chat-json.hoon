@@ -129,6 +129,18 @@
     :~  ship/s/(scot %p s)
     ==
   ::
+  ++  toggle-message
+    |=  m=message-toggle:c
+    %+  frond  -.m
+    ?-  -.m
+      %hide  (id id.m)
+      %show  (id id.m)
+    ==
+  ::
+  ++  hidden-messages
+    |=  hm=hidden-messages:c
+    a+(turn ~(tap in hm) id)
+  ::
   ++  whom
     |=  w=whom:c
     ?-  -.w
@@ -682,6 +694,13 @@
       :~  href/so
           content/so
       ==
+    ==
+  ::
+  ++  toggle-message
+    ^-  $-(json message-toggle:c)
+    %-  of
+    :~  hide/id
+        show/id
     ==
   --
 --

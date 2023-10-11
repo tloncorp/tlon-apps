@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import cn from 'classnames';
 import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -26,6 +26,7 @@ import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import { useIsScrolling } from '@/logic/scroll';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -95,6 +96,7 @@ function TitleButton({
 export default function Dm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const ship = useParams<{ ship: string }>().ship!;
+  const { isChatInputFocused } = useChatInputFocus();
   const dropZoneId = `chat-dm-input-dropzone-${ship}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { sendMessage } = useChatState.getState();
@@ -110,6 +112,7 @@ export default function Dm() {
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
   const root = `/dm/${ship}`;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const {
     isSelectingMessage,
@@ -125,13 +128,22 @@ export default function Dm() {
     }
   }, [ship, canStart]);
 
+  const conversationHeader = useMemo(
+    () => (
+      <div className="pt-4 pb-12">
+        <DMHero ship={ship} contact={contact} />
+      </div>
+    ),
+    [ship, contact]
+  );
+
   return (
     <>
       <Layout
         style={{
-          paddingBottom: isMobile ? 50 : 0,
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
         }}
-        className="flex-1"
+        className="padding-bottom-transition flex-1"
         header={
           isSelecting ? (
             <MessageSelector />
@@ -257,11 +269,7 @@ export default function Dm() {
             root={root}
             scrollElementRef={scrollElementRef}
             isScrolling={isScrolling}
-            prefixedElement={
-              <div className="pt-4 pb-12">
-                <DMHero ship={ship} contact={contact} />
-              </div>
-            }
+            prefixedElement={conversationHeader}
           />
         ) : (
           <DmInvite ship={ship} />

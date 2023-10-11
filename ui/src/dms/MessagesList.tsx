@@ -6,6 +6,7 @@ import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { ChatBrief } from '@/types/chat';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import {
   usePendingDms,
   useBriefs,
@@ -165,8 +166,14 @@ export default function MessagesList({
   const components = useMemo(
     () => ({
       Header: () => head,
+      EmptyPlaceholder: () =>
+        isMobile ? (
+          <EmptyPlaceholder>
+            Your direct messages will be shown here
+          </EmptyPlaceholder>
+        ) : null,
     }),
-    [head]
+    [head, isMobile]
   );
 
   const virtuosoRef = useRef<VirtuosoHandle>(null);

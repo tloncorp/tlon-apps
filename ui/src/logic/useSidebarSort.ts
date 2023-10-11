@@ -96,22 +96,25 @@ export default function useSidebarSort({
    * @param reverse Whether to reverse the sorted list (ASC --> DEC)
    * @returns [string, T][]
    */
-  function sortRecordsBy<T>(
-    records: Record<string, T>,
-    accessor: (k: string, v: T) => string,
-    reverse = false
-  ) {
-    const entries = Object.entries(records);
-    entries.sort(([aKey, aObj], [bKey, bObj]) => {
-      const aVal = accessor(aKey, aObj);
-      const bVal = accessor(bKey, bObj);
+  const sortRecordsBy = useCallback(
+    <T>(
+      records: Record<string, T>,
+      accessor: (k: string, v: T) => string,
+      reverse = false
+    ) => {
+      const entries = Object.entries(records);
+      entries.sort(([aKey, aObj], [bKey, bObj]) => {
+        const aVal = accessor(aKey, aObj);
+        const bVal = accessor(bKey, bObj);
 
-      const sorter = sortOptions[sortFn] ?? sortOptions[ALPHABETICAL];
-      return sorter(aVal, bVal);
-    });
+        const sorter = sortOptions[sortFn] ?? sortOptions[ALPHABETICAL];
+        return sorter(aVal, bVal);
+      });
 
-    return reverse ? entries.reverse() : entries;
-  }
+      return reverse ? entries.reverse() : entries;
+    },
+    [sortFn, sortOptions]
+  );
 
   const setSortFn = useMemo(
     () => (mode: string) =>

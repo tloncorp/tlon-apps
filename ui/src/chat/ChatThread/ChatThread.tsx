@@ -22,6 +22,7 @@ import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
 import { useIsScrolling } from '@/logic/scroll';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
@@ -34,6 +35,7 @@ export default function ChatThread() {
     idTime: string;
   }>();
   const isMobile = useIsMobile();
+  const { isChatInputFocused } = useChatInputFocus();
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
@@ -68,6 +70,7 @@ export default function ChatThread() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const returnURL = useCallback(() => {
     if (!time || !writ) return '#';
@@ -100,10 +103,10 @@ export default function ChatThread() {
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
+      className="padding-bottom-transition relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
       style={{
-        paddingBottom: isMobile ? 50 : 0,
+        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
       }}
     >
       {isMobile ? (

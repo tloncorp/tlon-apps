@@ -94,15 +94,16 @@ import SettingsView from '@/components/Settings/SettingsView';
 import AboutView from '@/components/About/AboutView';
 import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
+import { isNativeApp, postActionToNativeApp } from '@/logic/native';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
-import { isNativeApp } from './logic/native';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
+import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -661,6 +662,11 @@ function App() {
   const { disableWayfinding } = useCalm();
 
   useEffect(() => {
+    if (isNativeApp()) {
+      postActionToNativeApp('appLoaded');
+    }
+  }, []);
+  useEffect(() => {
     handleError(() => {
       checkIfLoggedIn();
       handleGridRedirect(navigate);
@@ -689,29 +695,31 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {!disableWayfinding && <LandscapeWayfinding />}
+      {!disableWayfinding && !isMobile && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
-        <DragAndDropProvider>
-          {isTalk ? (
-            <>
-              <TalkHead />
-              <ChatRoutes
+        <ChatInputFocusProvider>
+          <DragAndDropProvider>
+            {isTalk ? (
+              <>
+                <TalkHead />
+                <ChatRoutes
+                  state={state}
+                  location={location}
+                  isMobile={isMobile}
+                  isSmall={isSmall}
+                />
+              </>
+            ) : (
+              <GroupsRoutes
                 state={state}
                 location={location}
                 isMobile={isMobile}
                 isSmall={isSmall}
               />
-            </>
-          ) : (
-            <GroupsRoutes
-              state={state}
-              location={location}
-              isMobile={isMobile}
-              isSmall={isSmall}
-            />
-          )}
-        </DragAndDropProvider>
+            )}
+          </DragAndDropProvider>
+        </ChatInputFocusProvider>
         <Leap />
       </LeapProvider>
       <VitaMessage />

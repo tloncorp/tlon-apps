@@ -29,7 +29,7 @@ export function useIsScrolling(
     }, 50);
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [scrollElementRef]);
+  });
 
   // This performs a bit better than setting and clearing a million
   // setTimeouts, even debounced, but in the worst case takes 2 * checkInterval
@@ -43,7 +43,6 @@ export function useIsScrolling(
 
     return () => clearInterval(interval);
   }, [isScrolling, checkInterval, scrollStopDelay]);
-
   return isScrolling;
 }
 

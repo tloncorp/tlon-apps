@@ -39,6 +39,9 @@ export default function MobileRoot() {
     [pinnedGroups]
   );
 
+  const hasPinnedGroups = !!pinnedGroupsOptions.length;
+  const hasPendingGangs = !!pendingGangs.length;
+
   return (
     <Layout
       className="flex-1 bg-white"
@@ -79,35 +82,34 @@ export default function MobileRoot() {
                 pinnedGroups={Object.entries(pinnedGroups)}
                 isScrolling={scroll.current}
               >
-                {Object.entries(pinnedGroups).length > 0 && (
-                  <div className="px-4">
-                    <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                      Pinned
-                    </h2>
-                    {pinnedGroupsOptions}
-                  </div>
-                )}
-                {Object.entries(pendingGangs).length > 0 && (
-                  <div className="px-4">
-                    <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                      Invites
-                    </h2>
-                    <GroupJoinList highlightAll gangs={pendingGangs} />
-                  </div>
-                )}
+                {hasPinnedGroups || hasPendingGangs ? (
+                  <>
+                    {hasPinnedGroups ? (
+                      <div className="px-4">
+                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
+                          Pinned
+                        </h2>
+                        {pinnedGroupsOptions}
+                      </div>
+                    ) : null}
 
-                {Object.entries(pinnedGroups).length > 0 ||
-                Object.entries(pendingGangs).length > 0 ? (
-                  <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
-                    All Groups
-                  </h2>
+                    {hasPendingGangs ? (
+                      <div className="px-4">
+                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
+                          Invites
+                        </h2>
+                        <GroupJoinList highlightAll gangs={pendingGangs} />
+                      </div>
+                    ) : null}
+
+                    <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
+                      All Groups
+                    </h2>
+                    {gangs.length
+                      ? gangs.map((flag) => <GangItem key={flag} flag={flag} />)
+                      : null}
+                  </>
                 ) : null}
-
-                <div className="px-4">
-                  {gangs.map((flag) => (
-                    <GangItem key={flag} flag={flag} />
-                  ))}
-                </div>
               </GroupList>
             </GroupsScrollingContext.Provider>
           )}

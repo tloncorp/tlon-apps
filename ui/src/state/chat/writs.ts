@@ -165,7 +165,7 @@ export function writsReducer(whom: string) {
         {
           oldest: time,
           newest: time,
-          loadedNewest: false,
+          loadedNewest: true,
           loadedOldest: false,
         },
         draft.writWindows[whom]

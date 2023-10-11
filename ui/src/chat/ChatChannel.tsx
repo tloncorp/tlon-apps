@@ -25,10 +25,12 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import { useIsScrolling } from '@/logic/scroll';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
+  const { isChatInputFocused } = useChatInputFocus();
   const navigate = useNavigate();
   const { chShip, chName, idTime, idShip } = useParams<{
     name: string;
@@ -67,6 +69,7 @@ function ChatChannel({ title }: ViewProps) {
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
   const root = `/groups/${groupFlag}/channels/${nest}`;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -119,9 +122,9 @@ function ChatChannel({ title }: ViewProps) {
     <>
       <Layout
         style={{
-          paddingBottom: isMobile ? 50 : 0,
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
         }}
-        className="flex-1 bg-white"
+        className="padding-bottom-transition flex-1 bg-white"
         header={
           <Routes>
             {!isMobile && (

@@ -1,25 +1,25 @@
 import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
-import React, {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import BTree from 'sorted-btree';
 
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useChatState, useWritWindow } from '@/state/chat/chat';
 import { ChatWrit } from '@/types/chat';
-import { ChatMessageProps } from '@/chat/ChatMessage/ChatMessage';
 
 export type ChatWritTree = BTree<bigInt.BigInteger, ChatWrit>;
 
-export interface ScrollerItemData extends ChatMessageProps {
-  prefixedElement?: ReactNode;
-}
+export type ChatMessageListItemData = {
+  writ: ChatWrit;
+  type: 'message';
+  time: bigInt.BigInteger;
+  newAuthor: boolean;
+  newDay: boolean;
+  whom: string;
+  isLast: boolean;
+  isLinked: boolean;
+  hideReplies: boolean;
+};
 
 function useMessageItems({
   messages,
@@ -60,27 +60,35 @@ function useMessageItems({
     return day;
   }
 
-  const ks: bigInt.BigInteger[] = Array.from(filteredMessages.keys());
-  const es = filteredMessages.toArray().map(([key, writ]) => {
-    const lastWritKey = filteredMessages.nextLowerKey(key);
-    const lastWrit = lastWritKey ? messages.get(lastWritKey) : undefined;
-    const newAuthor = lastWrit
-      ? writ.memo.author !== lastWrit.memo.author ||
-        'notice' in lastWrit.memo.content
-      : true;
-    const newDay =
-      !lastWritKey ||
-      !lastWrit ||
-      !(getDay(lastWrit?.seal.id, lastWritKey) === getDay(writ.seal.id, key));
-    return {
-      writ,
-      time: key,
-      newAuthor,
-      newDay,
-    };
-  });
+  const [keys, entries] = useMemo(() => {
+    const ks: bigInt.BigInteger[] = Array.from(filteredMessages.keys());
+    const es = filteredMessages.toArray().map(([key, writ]) => {
+      const lastWritKey = filteredMessages.nextLowerKey(key);
+      const lastWrit = lastWritKey
+        ? filteredMessages.get(lastWritKey)
+        : undefined;
+      const newAuthor = lastWrit
+        ? writ.memo.author !== lastWrit.memo.author ||
+          'notice' in lastWrit.memo.content
+        : true;
+      const newDay =
+        !lastWritKey ||
+        !lastWrit ||
+        !(getDay(lastWrit?.seal.id, lastWritKey) === getDay(writ.seal.id, key));
+      return {
+        writ,
+        time: key,
+        newAuthor,
+        newDay,
+      };
+    }, []);
+    return [ks, es];
+  }, [filteredMessages]);
 
-  return [ks, es, filteredMessages];
+  return useMemo(
+    () => [keys, entries, filteredMessages],
+    [keys, entries, filteredMessages]
+  );
 }
 
 export type MessageFetchState = 'top' | 'bottom' | 'initial';
@@ -170,30 +178,28 @@ export function useMessageData({
   scrollTo,
   messages,
   replying,
-  prefixedElement,
 }: {
   whom: string;
   scrollTo?: bigInt.BigInteger;
   messages: ChatWritTree;
   replying: boolean;
-  prefixedElement: React.ReactNode;
 }) {
   const [activeMessageKeys, messageEntries, activeMessages] = useMessageItems({
     messages,
     filterReplies: !replying,
   });
 
-  const activeMessageEntries: ScrollerItemData[] = useMemo(
+  const activeMessageEntries: ChatMessageListItemData[] = useMemo(
     () =>
       messageEntries.map((props, index) => ({
+        type: 'message',
         whom,
-        prefixedElement: index === 0 ? prefixedElement : undefined,
         isLast: index === messageEntries.length - 1,
-        isLinked: scrollTo && props.time?.eq(scrollTo),
+        isLinked: !!scrollTo && (props.time?.eq(scrollTo) ?? false),
         hideReplies: replying,
         ...props,
       })),
-    [whom, prefixedElement, scrollTo, messageEntries, replying]
+    [whom, scrollTo, messageEntries, replying]
   );
 
   const { fetchMessages, fetchState, hasLoadedNewest, hasLoadedOldest } =
@@ -203,22 +209,13 @@ export function useMessageData({
       scrollTo,
     });
 
-  const [hasEverLoadedNewest, setHasEverLoadedNewest] = useState(false);
-  const nextHasLoadedNewest =
-    hasLoadedNewest || replying || hasEverLoadedNewest;
-  useEffect(() => {
-    if (nextHasLoadedNewest) {
-      setHasEverLoadedNewest(true);
-    }
-  }, [nextHasLoadedNewest]);
-
   return {
     activeMessages,
     activeMessageKeys,
     activeMessageEntries,
     fetchMessages,
     fetchState,
-    hasLoadedNewest: nextHasLoadedNewest,
+    hasLoadedNewest,
     hasLoadedOldest: replying ? true : hasLoadedOldest,
   };
 }

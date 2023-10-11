@@ -35,7 +35,7 @@ export default function LureInviteBlock({
 
   useEffect(() => {
     if (status === 'ready') {
-      QRCode.toDataURL(
+      QRCode.toString(
         shareUrl,
         {
           margin: 0,
@@ -44,8 +44,8 @@ export default function LureInviteBlock({
             light: isDarkMode ? '#000' : '#fff',
           },
         },
-        (_, dataUrl) => {
-          setQrCode(dataUrl);
+        (_, dataString) => {
+          setQrCode(dataString);
         }
       );
     }
@@ -62,7 +62,10 @@ export default function LureInviteBlock({
           <div className="w-[60%] max-w-[256px]">
             {qrCode ? (
               <div className="rounded-xl border border-gray-100 p-4">
-                <img className="w-full" src={qrCode} />
+                <svg
+                  className="h-full w-full"
+                  dangerouslySetInnerHTML={{ __html: qrCode }}
+                />
               </div>
             ) : (
               <div className="aspect-w-1 aspect-h-1">

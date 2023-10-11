@@ -5,6 +5,9 @@
 ++  enjs
   =,  enjs:format
   |%
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
   ++  said
     |=  s=said:d
     ^-  json
@@ -96,6 +99,18 @@
       times
     |=  t=^time
     s/(scot %ud t)
+  ::
+  ++  post-toggle
+    |=  p=post-toggle:d
+    %+  frond  -.p
+    ?-  -.p
+      %hide  (time-id time.p)
+      %show  (time-id time.p)
+    ==
+  ::
+  ++  hidden-posts
+    |=  hp=hidden-posts:d
+    a+(turn ~(tap in hp) time-id)
   ::
   ++  diary
     |=  di=diary:d
@@ -556,6 +571,12 @@
     :~  read/ul
         watch/ul
         unwatch/ul
+    ==
+  ++  post-toggle
+    ^-  $-(json post-toggle:d)
+    %-  of
+    :~  hide/(se %ud)
+        show/(se %ud)
     ==
   --
 --

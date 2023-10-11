@@ -5,6 +5,7 @@ import { useIsDark } from '@/logic/useMedia';
 import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
 import { useChannelUnreadCounts } from '@/logic/channel';
 import { useNotifications } from '@/notifications/useNotifications';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useLocalState } from '@/state/local';
 import { useHasUnreadMessages } from '@/state/chat';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
@@ -118,15 +119,19 @@ export default function MobileSidebar() {
   const isInactive = (path: string) => !location.pathname.startsWith(path);
   const isDarkMode = useIsDark();
   const safeAreaInsets = useSafeAreaInsets();
+  const { isChatInputFocused } = useChatInputFocus();
 
   return (
     <section
-      className="fixed inset-0 z-40 flex h-full w-full select-none flex-col border-gray-50 bg-white"
-      style={{ paddingBottom: safeAreaInsets.bottom }}
+      className="padding-bottom-transition fixed inset-0 z-40 flex h-full w-full select-none flex-col border-gray-50 bg-white"
+      style={{ paddingBottom: isChatInputFocused ? 0 : safeAreaInsets.bottom }}
     >
       <Outlet />
       <footer
-        className={cn('z-50 flex-none border-t-2 border-gray-50 bg-white')}
+        className={cn(
+          'navbar-transition z-50 flex-none border-t-2 border-gray-50 bg-white',
+          isChatInputFocused && 'translate-y-[200%] opacity-0'
+        )}
       >
         <nav>
           <ul className="flex h-12">
