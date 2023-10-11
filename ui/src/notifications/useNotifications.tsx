@@ -62,6 +62,8 @@ export const isGroupMeta = (yarn: Yarn) =>
 
 export const isDm = (rope: Rope) => rope.thread.startsWith('/dm');
 
+export const isClub = (rope: Rope) => rope.thread.startsWith('/club');
+
 export type NotificationFilterType = 'mentions' | 'replies' | 'invites' | 'all';
 
 export const useNotifications = (
@@ -96,7 +98,7 @@ export const useNotifications = (
   const unreads = skeins.filter((s) => s.unread);
   const filteredSkeins = skeins.filter(filter);
   const filteredSkeinsForDesktop = filteredSkeins.filter(
-    (s) => !isDm(s.top.rope)
+    (s) => !isDm(s.top.rope) && !isClub(s.top.rope)
   );
 
   const notifications = groupSkeinsByDate(
