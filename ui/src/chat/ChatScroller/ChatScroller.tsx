@@ -148,7 +148,7 @@ const thresholds = {
 
 const loaderPadding = {
   top: 40,
-  bottom: 50,
+  bottom: 0,
 };
 
 export interface ChatScrollerProps {
@@ -507,7 +507,7 @@ export default function ChatScroller({
           pointerEvents: isScrolling ? 'none' : 'all',
         }}
       >
-        {isLoadingAtStart && (
+        {isLoadingAtStart && !isInverted && (
           <Loader className="top-0" scaleY={scaleY}>
             Loading {isInverted ? 'Newer' : 'Older'}
           </Loader>
@@ -528,7 +528,7 @@ export default function ChatScroller({
             </div>
           );
         })}
-        {isLoadingAtEnd && (
+        {isLoadingAtEnd && isInverted && (
           <Loader className="bottom-0" scaleY={scaleY}>
             Loading {isInverted ? 'Older' : 'Newer'}
           </Loader>
