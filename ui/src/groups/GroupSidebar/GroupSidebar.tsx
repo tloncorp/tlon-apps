@@ -22,10 +22,13 @@ import { Link, useLocation } from 'react-router-dom';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import InviteIcon from '@/components/icons/InviteIcon';
 import HomeIcon from '@/components/icons/HomeIcon';
+import { useLocalState } from '@/state/local';
+import AsteriskIcon from '@/components/icons/AsteriskIcon';
 
 function GroupHeader() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
+  const needsUpdate = useLocalState((state) => state.needsUpdate);
   const { preview, claim } = useGang(flag);
   const defaultImportCover = group?.meta.cover === '0x0';
   const calm = useCalm();
@@ -95,9 +98,16 @@ function GroupHeader() {
       </GroupActions>
       <Link
         to=".."
-        className="h-6-w-6 absolute top-2.5 left-2 z-40 flex items-center justify-center rounded bg-white bg-transparent p-1 text-gray-400"
+        className={cn(
+          'h-6-w-6 absolute top-2.5 left-2 z-40 flex items-center justify-center rounded bg-white bg-transparent p-1 text-gray-400',
+          needsUpdate ? 'bg-yellow' : 'bg-transparent'
+        )}
       >
-        <CaretLeft16Icon className="h-4 w-4" />
+        {needsUpdate ? (
+          <AsteriskIcon className="h-4 w-4 text-black dark:text-white" />
+        ) : (
+          <CaretLeft16Icon className="h-4 w-4" />
+        )}
       </Link>
     </div>
   );
