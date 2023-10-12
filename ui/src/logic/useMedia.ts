@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import create from 'zustand';
 
 interface MediaMatchStore {
@@ -19,7 +19,17 @@ const useMediaMatchStore = create<MediaMatchStore>((set, get) => ({
 
 function useQuery(query: string) {
   return useMediaMatchStore(
-    useCallback((s) => s.media[query] || false, [query])
+    useCallback(
+      (s) => {
+        if (s.media[query]) {
+          return s.media[query];
+        }
+
+        const mQuery = window.matchMedia(query);
+        return mQuery.matches;
+      },
+      [query]
+    )
   );
 }
 

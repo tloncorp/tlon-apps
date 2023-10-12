@@ -1,24 +1,18 @@
 import cn from 'classnames';
 import { VirtuosoHandle } from 'react-virtuoso';
-import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
-import X16Icon from '@/components/icons/X16Icon';
 import useDebounce from '@/logic/useDebounce';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import { isTalk } from '@/logic/utils';
-import React, {
-  ChangeEvent,
-  KeyboardEvent,
-  PropsWithChildren,
-  useCallback,
-} from 'react';
+import React, { KeyboardEvent, PropsWithChildren, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
 import { disableDefault } from '@/logic/utils';
-import { useChatSearch } from '@/state/chat';
+import { useInfiniteChatSearch } from '@/state/chat/search';
 import bigInt from 'big-integer';
 import { useSafeAreaInsets } from '@/logic/native';
 import ChatSearchResults from './ChatSearchResults';
+import SearchBar from './SearchBar';
 
 interface RouteParams {
   chShip: string;
@@ -50,7 +44,10 @@ export default function ChatSearch({
     index: number;
     time: bigInt.BigInteger;
   }>({ index: -1, time: bigInt.zero });
-  const { scan, isLoading } = useChatSearch(whom, query || '');
+  const { scan, isLoading, fetchNextPage } = useInfiniteChatSearch(
+    whom,
+    query || ''
+  );
   const debouncedSearch = useDebounce((input: string) => {
     if (!input) {
       navigate(`${root}/search`);
@@ -61,10 +58,9 @@ export default function ChatSearch({
   }, 500);
 
   const onChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const input = e.target as HTMLInputElement;
-      setRawInput(input.value);
-      debouncedSearch(input.value);
+    (newValue: string) => {
+      setRawInput(newValue);
+      debouncedSearch(newValue);
     },
     [debouncedSearch]
   );
@@ -147,32 +143,12 @@ export default function ChatSearch({
             className="relative flex w-full items-center"
             onKeyDown={onKeyDown}
           >
-            <span className="sr-only">Search</span>
-            <span className="absolute left-0 pl-2">
-              <MagnifyingGlassIcon className="h-6 w-6 text-gray-400" />
-            </span>
-            <input
-              id="search"
-              type="text"
-              role="combobox"
-              aria-controls="search-results"
-              aria-owns="search-results"
-              aria-activedescendant={`search-result-${selected.time.toString()}`}
-              aria-expanded={true}
-              autoFocus
-              className="input h-8 w-full bg-gray-50 pl-8 text-lg mix-blend-multiply placeholder:font-normal dark:mix-blend-normal md:text-base"
+            <SearchBar
               value={rawInput}
-              onChange={onChange}
+              setValue={onChange}
               placeholder={placeholder}
+              isSmall={isSmall}
             />
-            {isSmall ? (
-              <Link
-                className="absolute right-1 flex h-6 w-6 items-center justify-center rounded hover:bg-gray-50"
-                to={`${root}/search`}
-              >
-                <X16Icon className="h-4 w-4 text-gray-400" />
-              </Link>
-            ) : null}
           </label>
           <Dialog.Root open modal={false} onOpenChange={onDialogClose}>
             <Dialog.Content
@@ -187,7 +163,7 @@ export default function ChatSearch({
                 id="search-results"
                 className={cn(
                   'default-focus dialog border-2 border-transparent shadow-lg dark:border-gray-50',
-                  query ? 'h-[60vh] min-h-[480px]' : 'h-[200px]'
+                  query ? 'flex h-[60vh] min-h-[480px] flex-col' : 'h-[200px]'
                 )}
               >
                 <ChatSearchResults
@@ -198,6 +174,7 @@ export default function ChatSearch({
                   isLoading={isLoading}
                   query={query}
                   selected={selected.index}
+                  endReached={() => fetchNextPage()}
                 />
               </section>
             </Dialog.Content>

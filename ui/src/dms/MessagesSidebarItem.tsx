@@ -45,6 +45,7 @@ function ChannelSidebarItem({
 
   return (
     <SidebarItem
+      inexact
       to={`/groups/${groupFlag}/channels/${nest}`}
       icon={
         <GroupAvatar
@@ -170,6 +171,7 @@ export function MultiDMSidebarItem({
           whom={whom}
           pending={!!pending}
           isHovered={hover}
+          isMulti
           triggerDisabled={isMobile}
         />
       )}

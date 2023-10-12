@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Route, Routes, useMatch, useNavigate, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -24,11 +24,13 @@ import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import { useSafeAreaInsets } from '@/logic/native';
+import { useIsScrolling } from '@/logic/scroll';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import ChatSearch from './ChatSearch/ChatSearch';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
+  const { isChatInputFocused } = useChatInputFocus();
   const navigate = useNavigate();
   const { chShip, chName, idTime, idShip } = useParams<{
     name: string;
@@ -59,12 +61,15 @@ function ChatChannel({ title }: ViewProps) {
   const joined = useChannelIsJoined(nest);
   const lastReconnect = useLastReconnect();
   const isSmall = useMedia('(max-width: 1023px)');
-  const { compatible, text } = useChannelCompatibility(nest);
+  const { compatible, text: compatibilityError } =
+    useChannelCompatibility(nest);
   const isMobile = useIsMobile();
-  const safeAreaInsets = useSafeAreaInsets();
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
-  const bottomInset = group ? safeAreaInsets.bottom : 0;
+  const root = `/groups/${groupFlag}/channels/${nest}`;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);
@@ -116,32 +121,37 @@ function ChatChannel({ title }: ViewProps) {
   return (
     <>
       <Layout
-        className="flex-1 bg-white"
+        style={{
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        }}
+        className="padding-bottom-transition flex-1 bg-white"
         header={
           <Routes>
-            <Route
-              path="search/:query?"
-              element={
-                <>
-                  <ChatSearch
-                    whom={chFlag}
-                    root={`/groups/${groupFlag}/channels/${nest}`}
-                    placeholder={
-                      channel ? `Search in ${channel.meta.title}` : 'Search'
-                    }
-                  >
-                    <ChannelTitleButton flag={groupFlag} nest={nest} />
-                  </ChatSearch>
-                  <Helmet>
-                    <title>
-                      {channel && group
-                        ? `${channel.meta.title} in ${group.meta.title} Search`
-                        : 'Search'}
-                    </title>
-                  </Helmet>
-                </>
-              }
-            />
+            {!isMobile && (
+              <Route
+                path="search/:query?"
+                element={
+                  <>
+                    <ChatSearch
+                      whom={chFlag}
+                      root={root}
+                      placeholder={
+                        channel ? `Search in ${channel.meta.title}` : 'Search'
+                      }
+                    >
+                      <ChannelTitleButton flag={groupFlag} nest={nest} />
+                    </ChatSearch>
+                    <Helmet>
+                      <title>
+                        {channel && group
+                          ? `${channel.meta.title} in ${group.meta.title} Search`
+                          : 'Search'}
+                      </title>
+                    </Helmet>
+                  </>
+                }
+              />
+            )}
             <Route
               path="*"
               element={
@@ -174,25 +184,26 @@ function ChatChannel({ title }: ViewProps) {
         footer={
           <div
             className={cn(
-              !canWrite || ((isDragging || isOver) && !inThread)
+              (isDragging || isOver) && !inThread
                 ? ''
                 : 'border-t-2 border-gray-50 p-3 sm:p-4'
             )}
           >
             {compatible && canWrite ? (
-              <div style={{ paddingBottom: bottomInset }}>
-                <ChatInput
-                  key={chFlag}
-                  whom={chFlag}
-                  sendMessage={sendMessage}
-                  showReply
-                  autoFocus={!inThread && !inSearch}
-                  dropZoneId={dropZoneId}
-                />
-              </div>
-            ) : !canWrite ? null : (
-              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
-                {text}
+              <ChatInput
+                key={chFlag}
+                whom={chFlag}
+                sendMessage={sendMessage}
+                showReply
+                autoFocus={!inThread && !inSearch}
+                dropZoneId={dropZoneId}
+                isScrolling={isScrolling}
+              />
+            ) : (
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-400">
+                {!compatible
+                  ? compatibilityError
+                  : 'You need permission to post to this channel.'}
               </div>
             )}
           </div>
@@ -205,7 +216,12 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        <ChatWindow whom={chFlag} />
+        <ChatWindow
+          scrollElementRef={scrollElementRef}
+          isScrolling={isScrolling}
+          whom={chFlag}
+          root={root}
+        />
       </Layout>
       <Routes>
         {isSmall ? null : (

@@ -65,7 +65,6 @@ import GroupRoles from '@/groups/GroupAdmin/GroupRoles';
 import GroupInfoEditor from '@/groups/GroupAdmin/GroupInfoEditor';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from '@/components/DisconnectNotice';
-import MobileGroupSidebar from '@/groups/GroupSidebar/MobileGroupSidebar';
 import TalkNav from '@/nav/TalkNav';
 import TalkHead from '@/dms/TalkHead';
 import MobileMessagesSidebar from '@/dms/MobileMessagesSidebar';
@@ -84,7 +83,6 @@ import { LeapProvider } from '@/components/Leap/useLeap';
 import VitaMessage from '@/components/VitaMessage';
 import Dialog from '@/components/Dialog';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
-import queryClient from '@/queryClient';
 import EmojiPicker from '@/components/EmojiPicker';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
 import { captureAnalyticsEvent, captureError } from '@/logic/analytics';
@@ -96,12 +94,16 @@ import SettingsView from '@/components/Settings/SettingsView';
 import AboutView from '@/components/About/AboutView';
 import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
+import { isNativeApp, postActionToNativeApp } from '@/logic/native';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
-import { isNativeApp } from './logic/native';
+import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
+import BlockedUsersView from './components/Settings/BlockedUsersView';
+import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
+import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -359,6 +361,12 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               </Route>
               {isSmall && (
                 <Route
+                  path=":ship/search/:query?"
+                  element={<MobileChatSearch />}
+                />
+              )}
+              {isSmall && (
+                <Route
                   path=":ship/message/:idShip/:idTime"
                   element={<ChatThread />}
                 />
@@ -391,87 +399,94 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               element={<SettingsView title={`Settings • ${groupsTitle}`} />}
             />
             <Route
+              path="/profile/settings/blocked"
+              element={<BlockedUsersView />}
+            />
+            <Route
               path="/profile/about"
               element={<AboutView title={`About • ${groupsTitle}`} />}
             />
             <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route path="/leap" element={<Leap openDefault />} />
-          </Route>
-          <Route path="/groups/:ship/:name" element={<Groups />}>
-            <Route element={isMobile ? <MobileSidebar /> : undefined}>
+            <Route path="/groups/:ship/:name" element={<Groups />}>
+              <Route element={isMobile ? <MobileSidebar /> : undefined}>
+                <Route
+                  index
+                  element={isMobile ? <MobileGroupChannelList /> : null}
+                />
+                <Route
+                  path="activity"
+                  element={
+                    <Notifications
+                      child={GroupNotification}
+                      title={`• ${groupsTitle}`}
+                    />
+                  }
+                />
+                <Route
+                  path="channels"
+                  element={<GroupChannelManager title={` • ${groupsTitle}`} />}
+                />
+                <Route path="members" element={<Members />} />
+              </Route>
               <Route
-                index
-                element={isMobile ? <MobileGroupChannelList /> : null}
-              />
-              <Route
-                path="activity"
-                element={
-                  <Notifications
-                    child={GroupNotification}
-                    title={`• ${groupsTitle}`}
-                  />
-                }
-              />
-              <Route
-                path="channels"
-                element={<GroupChannelManager title={` • ${groupsTitle}`} />}
-              />
-              <Route path="members" element={<Members />} />
-            </Route>
-            <Route
-              path="channels/chat/:chShip/:chName"
-              element={<GroupChannel type="chat" />}
-            >
-              <Route
-                index
-                element={<ChatChannel title={` • ${groupsTitle}`} />}
-              />
-              <Route
-                path="*"
-                element={<ChatChannel title={` • ${groupsTitle}`} />}
+                path="channels/chat/:chShip/:chName"
+                element={<GroupChannel type="chat" />}
               >
-                {isSmall ? null : (
+                <Route
+                  index
+                  element={<ChatChannel title={` • ${groupsTitle}`} />}
+                />
+                <Route
+                  path="*"
+                  element={<ChatChannel title={` • ${groupsTitle}`} />}
+                >
+                  {isSmall ? null : (
+                    <Route
+                      path="message/:idShip/:idTime"
+                      element={<ChatThread />}
+                    />
+                  )}
+                </Route>
+                {isSmall ? (
                   <Route
                     path="message/:idShip/:idTime"
                     element={<ChatThread />}
                   />
+                ) : null}
+                {isMobile && (
+                  <Route path="search/:query?" element={<MobileChatSearch />} />
                 )}
               </Route>
-              {isSmall ? (
+              <Route
+                path="channels/heap/:chShip/:chName"
+                element={<GroupChannel type="heap" />}
+              >
                 <Route
-                  path="message/:idShip/:idTime"
-                  element={<ChatThread />}
+                  index
+                  element={<HeapChannel title={` • ${groupsTitle}`} />}
                 />
-              ) : null}
-            </Route>
-            <Route
-              path="channels/heap/:chShip/:chName"
-              element={<GroupChannel type="heap" />}
-            >
+                <Route
+                  path="curio/:idCurio"
+                  element={<HeapDetail title={` • ${groupsTitle}`} />}
+                />
+              </Route>
               <Route
-                index
-                element={<HeapChannel title={` • ${groupsTitle}`} />}
-              />
-              <Route
-                path="curio/:idCurio"
-                element={<HeapDetail title={` • ${groupsTitle}`} />}
-              />
-            </Route>
-            <Route
-              path="channels/diary/:chShip/:chName"
-              element={<GroupChannel type="diary" />}
-            >
-              <Route
-                index
-                element={<DiaryChannel title={` • ${groupsTitle}`} />}
-              />
-              <Route
-                path="note/:noteId"
-                element={<DiaryNote title={` • ${groupsTitle}`} />}
-              />
-              <Route path="edit">
-                <Route index element={SuspendedDiaryAddNote} />
-                <Route path=":id" element={SuspendedDiaryAddNote} />
+                path="channels/diary/:chShip/:chName"
+                element={<GroupChannel type="diary" />}
+              >
+                <Route
+                  index
+                  element={<DiaryChannel title={` • ${groupsTitle}`} />}
+                />
+                <Route
+                  path="note/:noteId"
+                  element={<DiaryNote title={` • ${groupsTitle}`} />}
+                />
+                <Route path="edit">
+                  <Route index element={SuspendedDiaryAddNote} />
+                  <Route path=":id" element={SuspendedDiaryAddNote} />
+                </Route>
               </Route>
             </Route>
           </Route>
@@ -482,6 +497,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/about" element={<AboutDialog />} />
           <Route path="/privacy" element={<PrivacyNotice />} />
           <Route path="/settings" element={<SettingsDialog />} />
+          <Route path="/blocked" element={<BlockedUsersDialog />} />
           <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
           <Route path="/activity-collection" element={<ActivityModal />} />
           <Route
@@ -646,6 +662,11 @@ function App() {
   const { disableWayfinding } = useCalm();
 
   useEffect(() => {
+    if (isNativeApp()) {
+      postActionToNativeApp('appLoaded');
+    }
+  }, []);
+  useEffect(() => {
     handleError(() => {
       checkIfLoggedIn();
       handleGridRedirect(navigate);
@@ -674,29 +695,31 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {!disableWayfinding && <LandscapeWayfinding />}
+      {!disableWayfinding && !isMobile && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
-        <DragAndDropProvider>
-          {isTalk ? (
-            <>
-              <TalkHead />
-              <ChatRoutes
+        <ChatInputFocusProvider>
+          <DragAndDropProvider>
+            {isTalk ? (
+              <>
+                <TalkHead />
+                <ChatRoutes
+                  state={state}
+                  location={location}
+                  isMobile={isMobile}
+                  isSmall={isSmall}
+                />
+              </>
+            ) : (
+              <GroupsRoutes
                 state={state}
                 location={location}
                 isMobile={isMobile}
                 isSmall={isSmall}
               />
-            </>
-          ) : (
-            <GroupsRoutes
-              state={state}
-              location={location}
-              isMobile={isMobile}
-              isSmall={isSmall}
-            />
-          )}
-        </DragAndDropProvider>
+            )}
+          </DragAndDropProvider>
+        </ChatInputFocusProvider>
         <Leap />
       </LeapProvider>
       <VitaMessage />

@@ -233,7 +233,7 @@ export default function Notifications({
             ) : (
               notifications.map((grouping) => (
                 <div key={grouping.date}>
-                  <h2 className="mb-4 font-system-sans text-[17px] font-normal leading-[22px] text-gray-400">
+                  <h2 className="mb-4 font-sans text-[17px] font-normal leading-[22px] text-gray-400">
                     {grouping.date}
                   </h2>
                   <ul className="mb-4 space-y-2">

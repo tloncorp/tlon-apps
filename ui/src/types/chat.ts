@@ -149,6 +149,24 @@ export interface WritDiff {
   delta: WritDelta;
 }
 
+export interface WritResponseAdd {
+  add: {
+    memo: ChatMemo;
+    time: string;
+  };
+}
+
+export type WritResponseDelta =
+  | WritResponseAdd
+  | WritDeltaDel
+  | WritDeltaAddFeel
+  | WritDeltaDelFeel;
+
+export interface WritResponse {
+  id: string;
+  response: WritResponseDelta;
+}
+
 export interface ChatDiffCreate {
   create: Chat;
 }
@@ -164,10 +182,24 @@ export interface ChatUpdate {
   diff: ChatDiff;
 }
 
+export interface BlockedByUpdate {
+  'blocked-by': string;
+}
+
+export interface UnblockedByUpdate {
+  'unblocked-by': string;
+}
+
 export interface ChatAction {
   flag: string;
   update: ChatUpdate;
 }
+
+export type ChatEvent =
+  | ChatAction
+  | BlockedByUpdate
+  | UnblockedByUpdate
+  | ToggleMessage;
 
 export interface Chat {
   perms: ChatPerm;
@@ -344,9 +376,17 @@ export interface TalkChatInit extends ChatInit {
   pins: string[];
 }
 
-export interface ChatScanItem {
+export interface ChatWritEntry {
   time: string;
   writ: ChatWrit;
 }
 
-export type ChatScan = ChatScanItem[];
+export type ChatScan = ChatWritEntry[];
+
+export type BlockedShips = string[];
+
+export type BlockedByShips = string[];
+
+export type ToggleMessage = { hide: string } | { show: string };
+
+export type HiddenMessages = string[];

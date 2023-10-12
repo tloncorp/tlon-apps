@@ -22,6 +22,7 @@ export default function ReactionDetails({
         title="Reaction Details"
         open={open}
         onOpenChange={onOpenChange}
+        className="px-[20px] pt-6"
       >
         <ReactionsWidget feels={feels} className="h-[40vh] pt-3 pb-12" />
       </WidgetDrawer>

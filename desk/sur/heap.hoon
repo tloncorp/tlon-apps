@@ -21,6 +21,7 @@
 +$  stash  (map flag heap)
 ::  $said: used for curio references
 +$  said  (pair flag curio)
++$  hidden-curios  (set time)
 ::
 ::  $heap: a collection of curiosities
 ::
@@ -169,7 +170,7 @@
 ::
 ++  briefs
   =<  briefs
-  |% 
+  |%
   +$  briefs
     (map flag brief)
   +$  brief
@@ -208,11 +209,11 @@
 +$  leave  flag:g
 ::
 ::  $create: represents a request to create a channel
-::    
+::
 ::    The name will be used as part of the flag which represents the
 ::    channel. $create is consumed by the heap agent first and then
 ::    passed to the groups agent to register the channel with the group.
-::  
+::
 ::    Write permission is stored with the specific agent in the channel,
 ::    read permission is stored with the group's data.
 ::

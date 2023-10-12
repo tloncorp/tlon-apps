@@ -29,3 +29,10 @@ export default function useIsGroupUnread() {
     isGroupUnread,
   };
 }
+
+export function useIsAnyGroupUnread() {
+  const groups = useGroups();
+  const { isGroupUnread } = useIsGroupUnread();
+  if (!groups) return undefined;
+  return Object.keys(groups).some((flag) => isGroupUnread(flag));
+}

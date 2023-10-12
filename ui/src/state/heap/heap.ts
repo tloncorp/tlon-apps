@@ -27,6 +27,8 @@ import {
   HeapUpdate,
   HeapBriefs,
   Stash,
+  ToggleCurio,
+  HiddenCurios,
 } from '@/types/heap';
 import api from '@/api';
 import { canWriteChannel, restoreMap } from '@/logic/utils';
@@ -864,4 +866,68 @@ export function useRemoteCurio(flag: string, time: string, blockLoad: boolean) {
   });
 
   return data;
+}
+
+export function useHiddenPosts() {
+  return useReactQuerySubscription<HiddenCurios>({
+    queryKey: ['heap', 'hidden'],
+    app: 'heap',
+    path: '/ui',
+    scry: '/hidden-curios',
+    options: {
+      placeholderData: [],
+    },
+  });
+}
+
+export function useToggleCurioMutation() {
+  const mutationFn = (variables: { toggle: ToggleCurio }) =>
+    api.poke({
+      app: 'heap',
+      mark: 'post-toggle',
+      json: variables.toggle,
+    });
+  const queryClient = useQueryClient();
+
+  return useMutation(mutationFn, {
+    onMutate: ({ toggle }) => {
+      const hiding = 'hide' in toggle;
+      queryClient.setQueryData<HiddenCurios>(['heap', 'hidden'], (prev) => {
+        if (!prev) {
+          return hiding ? [udToDec(toggle.hide)] : [];
+        }
+
+        return hiding
+          ? [...prev, udToDec(toggle.hide)]
+          : prev.filter((id) => id !== udToDec(toggle.show));
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['heap', 'hidden']);
+    },
+  });
+}
+
+export function useCurioToggler(id: string) {
+  const udId = decToUd(id);
+  const { mutate } = useToggleCurioMutation();
+  const { data: hidden } = useHiddenPosts();
+  const isHidden = useMemo(
+    () => (hidden || []).some((h) => h === id),
+    [hidden, id]
+  );
+  const show = useCallback(
+    () => mutate({ toggle: { show: udId } }),
+    [mutate, udId]
+  );
+  const hide = useCallback(
+    () => mutate({ toggle: { hide: udId } }),
+    [mutate, udId]
+  );
+
+  return {
+    show,
+    hide,
+    isHidden,
+  };
 }

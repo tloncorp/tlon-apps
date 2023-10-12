@@ -512,7 +512,8 @@ export function useShowActivityMessage() {
       isLoading ||
       data === undefined ||
       window.desk !== 'groups' ||
-      import.meta.env.DEV
+      import.meta.env.DEV ||
+      isNativeApp()
     ) {
       return false;
     }

@@ -24,7 +24,7 @@ export default function ChannelsListSearch({
         <MagnifyingGlass16Icon className="h-4 w-4" />
       </span>
       <input
-        className="input h-10 w-full bg-gray-50 pl-7 text-sm mix-blend-multiply placeholder:font-normal focus-within:mix-blend-normal dark:bg-white dark:mix-blend-normal md:text-base"
+        className="input h-10 w-full bg-gray-50 pl-7 mix-blend-multiply placeholder:font-normal focus-within:mix-blend-normal dark:bg-white dark:mix-blend-normal md:text-base"
         placeholder="Filter Channel Titles and Sections"
         value={searchInput}
         onChange={handleChange}

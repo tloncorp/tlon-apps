@@ -1,7 +1,6 @@
 import { ReactElement, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { FormProvider, useForm } from 'react-hook-form';
-import { useStep } from 'usehooks-ts';
 import { useCreateGroupMutation } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
@@ -18,16 +17,26 @@ interface ShipWithRoles {
 }
 
 // type TemplateTypes = 'none' | 'small' | 'medium' | 'large';
+//
 
-export default function NewGroup() {
+interface NewGroupProps {
+  stepMeta: {
+    currentStep: number;
+    maxStep: number;
+    setStep: (step: number) => void;
+    goToNextStep: () => void;
+    goToPrevStep: () => void;
+  };
+}
+
+export default function NewGroup({ stepMeta }: NewGroupProps) {
   const navigate = useNavigate();
   const [shipsToInvite, setShipsToInvite] = useState<ShipWithRoles[]>([]);
   // const [templateType, setTemplateType] = useState<TemplateTypes>('none');
   const { mutate: createGroupMutation, status } = useCreateGroupMutation();
 
   const maxStep = 3;
-  const [currentStep, { goToNextStep, goToPrevStep, setStep }] =
-    useStep(maxStep);
+  const { currentStep, goToNextStep, goToPrevStep, setStep } = stepMeta;
 
   const defaultValues: GroupFormSchema = {
     title: '',
