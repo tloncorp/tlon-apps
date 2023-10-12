@@ -154,6 +154,7 @@ const useDocketState = create<DocketState>((set, get) => ({
     return api.poke(allyShip(ship));
   },
   start: () => {
+    useLocalState.setState({ needsUpdate: false });
     api.subscribe({
       app: 'docket',
       path: '/charges',
@@ -163,12 +164,13 @@ const useDocketState = create<DocketState>((set, get) => ({
             const { desk, charge } = data['add-charge'];
 
             // on native we can't count on the service worker to track updates,
-            // so we scan for them here
+            // so we check for them here
             if (
               desk === 'groups' &&
+              state.charges.groups &&
               charge.version > state.charges.groups?.version
             ) {
-              useLocalState().set((s) => ({ ...s, requiresUpdate: true }));
+              useLocalState.setState({ needsUpdate: true });
             }
 
             return addCharge(state, desk, charge);
