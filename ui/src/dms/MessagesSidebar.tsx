@@ -23,6 +23,8 @@ import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { useLocalState } from '@/state/local';
+import { DesktopUpdateButton } from '@/components/UpdateNotices';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -128,6 +130,7 @@ export function TalkAppMenu() {
 }
 
 export default function MessagesSidebar() {
+  const needsUpdate = useLocalState((state) => state.needsUpdate);
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -192,7 +195,7 @@ export default function MessagesSidebar() {
       <div
         className={cn('flex w-full flex-col p-2', !atTop && 'bottom-shadow')}
       >
-        <TalkAppMenu />
+        {needsUpdate ? <DesktopUpdateButton /> : <TalkAppMenu />}
         <SystemChrome />
         <SidebarItem
           icon={<Avatar size="xs" ship={window.our} />}
