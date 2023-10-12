@@ -23,7 +23,12 @@ export default function UpdateNoticeSheet() {
           Tlon was updated in the background, but the changes need to be
           installed. Please do so now.
         </p>
-        <button className="button mt-10 py-3 px-4">Install Update</button>
+        <button
+          className="button mt-10 py-3 px-4"
+          onClick={() => window.location.reload()}
+        >
+          Install Update
+        </button>
       </div>
     </WidgetDrawer>
   );

@@ -29,7 +29,12 @@ import {
   useSettingsLoaded,
   useTheme,
 } from '@/state/settings';
-import { toggleDevTools, useLocalState, useShowDevTools } from '@/state/local';
+import {
+  toggleDevTools,
+  useLocalState,
+  useShowDevTools,
+  useNeedsUpdate,
+} from '@/state/local';
 import ErrorAlert from '@/components/ErrorAlert';
 import DMHome from '@/dms/DMHome';
 import GroupsNav from '@/nav/GroupsNav';
@@ -105,7 +110,6 @@ import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import UpdateNoticeSheet from './components/UpdateNoticeSheet';
-import { useNeedsUpdate } from './state/docket';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(

@@ -9,7 +9,7 @@ import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useLocalState } from '@/state/local';
 import { useHasUnreadMessages } from '@/state/chat';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
-import { useNeedsUpdate } from '@/state/docket';
+import { useNeedsUpdate } from '@/state/local';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
 import MenuIcon from '../icons/MenuIcon';

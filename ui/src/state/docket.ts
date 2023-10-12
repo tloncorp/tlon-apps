@@ -26,6 +26,7 @@ import {
 } from '@urbit/api';
 import { normalizeUrbitColor } from '@/logic/utils';
 import api from '../api';
+import { useLocalState } from './local';
 
 export type Status = 'initial' | 'loading' | 'success' | 'error';
 export interface ChargeWithDesk extends Charge {
@@ -160,6 +161,16 @@ const useDocketState = create<DocketState>((set, get) => ({
         useDocketState.setState((state) => {
           if ('add-charge' in data) {
             const { desk, charge } = data['add-charge'];
+
+            // on native we can't count on the service worker to track updates,
+            // so we scan for them here
+            if (
+              desk === 'groups' &&
+              charge.version > state.charges.groups?.version
+            ) {
+              useLocalState().set((s) => ({ ...s, requiresUpdate: true }));
+            }
+
             return addCharge(state, desk, charge);
           }
 
@@ -247,10 +258,6 @@ const selCharges = (s: DocketState) => s.charges;
 
 export function useCharges() {
   return useDocketState(selCharges);
-}
-
-export function useNeedsUpdate() {
-  return true;
 }
 
 export function useCharge(desk: string) {
