@@ -3,16 +3,15 @@ import { Outlet, useLocation, useNavigate } from 'react-router';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
 import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
-import { useChannelUnreadCounts } from '@/logic/channel';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useLocalState } from '@/state/local';
 import { useHasUnreadMessages } from '@/state/chat';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
-import { useNeedsUpdate } from '@/state/local';
+import { useEffect, useState } from 'react';
+import { useCharge } from '@/state/docket';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
-import MenuIcon from '../icons/MenuIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import MagnifyingGlassMobileNavIcon from '../icons/MagnifyingGlassMobileNavIcon';
 import MessagesIcon from '../icons/MessagesIcon';
@@ -118,11 +117,28 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 export default function MobileSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [informedOfUpdate, setInformedOfUpdate] = useState(false);
   const isInactive = (path: string) => !location.pathname.startsWith(path);
   const isDarkMode = useIsDark();
-  const needsUpdate = useNeedsUpdate();
+  const needsUpdate = useLocalState((state) => state.needsUpdate);
   const safeAreaInsets = useSafeAreaInsets();
   const { isChatInputFocused } = useChatInputFocus();
+  const groupsCharge = useCharge('groups');
+
+  useEffect(() => {
+    if (groupsCharge && needsUpdate && !informedOfUpdate) {
+      navigate('/update-needed', { state: { backgroundLocation: location } });
+      setInformedOfUpdate(true);
+    }
+  }, [
+    needsUpdate,
+    navigate,
+    location,
+    informedOfUpdate,
+    setInformedOfUpdate,
+    groupsCharge,
+  ]);
 
   return (
     <section
