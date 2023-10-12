@@ -1051,9 +1051,8 @@
   [%pass wire %agent dock %poke cage]
 ::
 ++  hark-path
-  |=  [=memo:c op=time prefix=path]
-  ^-  [thread=path full=path]
-  =/  time-id  (rsh 4 (scot %ui op))
+  |=  [prefix=path =memo:c op=(unit time)]
+  ^-  path
   =/  thread=path
     %+  welp  prefix
     ?~  replying.memo  ~
@@ -1061,7 +1060,9 @@
     /message/(scot %p p.id)/(scot %ud q.id)
   ::  anything following op gets translated to a "scrollTo" on the
   ::  frontend notification
-  [thread (welp thread /op/[time-id])]
+  ?~  op  thread
+  =/  time-id  (rsh 4 (scot %ui u.op))
+  (welp thread /op/[time-id])
 ::
 ++  flatten
   |=  content=(list inline:c)
@@ -1165,11 +1166,11 @@
     [uid cu-core(counter +(counter))]
   ::
   ++  cu-spin
-    |=  [desk=term =memo:c op=time con=(list content:ha)]
+    |=  [desk=term =memo:c op=(unit time) con=(list content:ha)]
     ^-  new-yarn:ha
-    =/  [thread=path link=path]  (hark-path memo op /dm/(scot %uv id))
+    =/  link=path  (hark-path /dm/(scot %uv id) memo op)
     ::  hard coded desk because these shouldn't appear in groups
-    =/  rope  [~ ~ desk thread]
+    =/  rope  [~ ~ desk link]
     [& & rope con link ~]
   ::
   ++  cu-pass
@@ -1286,22 +1287,23 @@
         =?  remark.club  =(author.memo our.bowl)
           remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
         =.  cor  (give-brief club/id cu-brief)
-        ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
-        =/  time  (~(get by dex.pact.club) p.diff.delta)
-        ?~  time  cu-core
+        ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta) 
         ?-  -.content.memo
             %notice  (cu-give-writs-diff diff.delta)
             %story
           ?.  (want-hark ~ %to-us)  (cu-give-writs-diff diff.delta)
+          =/  time
+            ?.  (mentioned q.p.content.memo our.bowl)  ~
+            (~(get by dex.pact.club) p.diff.delta)
           =/  contents
             :~  [%ship author.memo]
                 ': '
                 (flatten q.p.content.memo)
             ==
           =.  cor
-            (emit (pass-hark (cu-spin %talk memo u.time contents)))
+            (emit (pass-hark (cu-spin %talk memo time contents)))
           =.  cor
-            (emit (pass-hark (cu-spin %groups memo u.time contents)))
+            (emit (pass-hark (cu-spin %groups memo time contents)))
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -1434,16 +1436,17 @@
     (ca-remark-diff read/~)
   ::
   ++  ca-spin
-    |=  [=memo:c op=time con=(list content:ha)]
+    |=  [=memo:c op=(unit time) con=(list content:ha)]
     ^-  new-yarn:ha
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
-    =/  [thread=path link=path]
-      %^  hark-path  memo  op
-      %+  welp
-      /groups/(scot %p p.group)/[q.group]
-      /channels/chat/(scot %p p.flag)/[q.flag]
-    =/  rope  [`group `nest q.byk.bowl thread]
+    =/  link=path
+      %^  hark-path
+        %+  welp
+        /groups/(scot %p p.group)/[q.group]
+        /channels/chat/(scot %p p.flag)/[q.flag]
+      memo  op
+    =/  rope  [`group `nest q.byk.bowl link]
     [& & rope con link ~]
   ::
   ++  ca-watch
@@ -1894,7 +1897,7 @@
             ::  send regular message notification
             =?  cor  want-loud-notify
               =/  =new-yarn:ha
-              %^  ca-spin  memo  ti
+              %^  ca-spin  memo  ~
               :~  [%ship author.memo]
                   ': '
                   (flatten q.p.content.memo)
@@ -1907,7 +1910,7 @@
           ::  if it's a mention send regular notification and bail
           ?:  is-mention
             =/  =new-yarn:ha
-            %^  ca-spin  memo  time
+            %^  ca-spin  memo  `ti
             :~  [%ship author.memo]
                 ' mentioned you :'
                 (flatten q.p.content.memo)
@@ -1935,7 +1938,7 @@
             =.  cor
               %-  emit  
               %-  pass-hark
-              %^  ca-spin  memo  time
+              %^  ca-spin  memo  ~
               :~  [%ship author.memo]
                   ' replied to your message “'
                   (flatten q.p.content.opwrit)
@@ -2052,10 +2055,10 @@
   ++  di-area  `path`/dm/(scot %p ship)
   ::
   ++  di-spin
-    |=  [desk=term =memo:c op=time con=(list content:ha)]
+    |=  [desk=term =memo:c con=(list content:ha)]
     ^-  new-yarn:ha
-    =/  [thread=path link=path]  (hark-path memo op /dm/(scot %p ship))
-    =/  rope  [~ ~ desk thread]
+    =/  link=path  (hark-path /dm/(scot %p ship) memo ~)
+    =/  rope  [~ ~ desk link]
     [& & rope con link ~]
   ::
   ++  di-proxy
@@ -2112,8 +2115,6 @@
         remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
       =?  cor  &(!=(old-brief di-brief) !=(net.dm %invited))
         (give-brief ship/ship di-brief)
-      =/  time  (~(get by dex.pact.dm) p.diff)
-      ?~  time       di-core
       ?:  from-self  di-core
       ?-  -.content.memo
           %notice  di-core
@@ -2126,9 +2127,9 @@
               ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
           ==
         =.  cor
-          (emit (pass-hark (di-spin %talk memo u.time contents)))
+          (emit (pass-hark (di-spin %talk memo contents)))
         =.  cor
-          (emit (pass-hark (di-spin %groups memo u.time contents)))
+          (emit (pass-hark (di-spin %groups memo contents)))
         di-core
       ==
     ==

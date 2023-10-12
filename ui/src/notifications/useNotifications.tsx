@@ -60,9 +60,9 @@ export const isChannelEdit = (yarn: Yarn) =>
 export const isGroupMeta = (yarn: Yarn) =>
   isJoin(yarn) || isRoleChange(yarn) || isLeave(yarn) || isChannelEdit(yarn);
 
-export const isDm = (rope: Rope) => rope.thread.startsWith('/dm');
+export const isDm = (rope: Rope) => rope.thread.startsWith('/dm/~');
 
-export const isClub = (rope: Rope) => rope.thread.startsWith('/club');
+export const isClub = (rope: Rope) => rope.thread.startsWith('/dm/0v');
 
 export type NotificationFilterType = 'mentions' | 'replies' | 'invites' | 'all';
 
