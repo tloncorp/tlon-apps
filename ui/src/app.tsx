@@ -104,6 +104,8 @@ import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
+import UpdateNoticeSheet from './components/UpdateNoticeSheet';
+import { useNeedsUpdate } from './state/docket';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -598,6 +600,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
             </>
           ) : null}
+          {isNativeApp() && (
+            <Route path="/update-needed" element={<UpdateNoticeSheet />} />
+          )}
         </Routes>
       ) : null}
     </>
@@ -660,6 +665,8 @@ function App() {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
   const { disableWayfinding } = useCalm();
+  const needsUpdate = useNeedsUpdate();
+  const [informedOfUpdate, setInformedOfUpdate] = useState(false);
 
   useEffect(() => {
     if (isNativeApp()) {
@@ -678,6 +685,13 @@ function App() {
       bootstrap();
     })();
   }, [handleError]);
+
+  useEffect(() => {
+    if (needsUpdate && !informedOfUpdate) {
+      navigate('/update-needed', { state: { backgroundLocation: location } });
+      setInformedOfUpdate(true);
+    }
+  }, [needsUpdate, navigate, location, informedOfUpdate, setInformedOfUpdate]);
 
   useEffect(() => {
     if (!isMobile) return;
