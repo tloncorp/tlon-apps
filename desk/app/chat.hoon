@@ -1051,15 +1051,17 @@
   [%pass wire %agent dock %poke cage]
 ::
 ++  hark-path
-  |=  [=memo:c op=time]
-  ^-  path
+  |=  [=memo:c op=time prefix=path]
+  ^-  [thread=path full=path]
   =/  time-id  (rsh 4 (scot %ui op))
+  =/  thread=path
+    %+  welp  prefix
+    ?~  replying.memo  ~
+    =/  id  u.replying.memo
+    /message/(scot %p p.id)/(scot %ud q.id)
   ::  anything following op gets translated to a "scrollTo" on the
   ::  frontend notification
-  ?~  replying.memo
-    /op/[time-id]
-  =/  id  u.replying.memo
-  /message/(scot %p p.id)/(scot %ud q.id)/op/[time-id]
+  [thread (welp thread /op/[time-id])]
 ::
 ++  flatten
   |=  content=(list inline:c)
@@ -1162,20 +1164,12 @@
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
     [uid cu-core(counter +(counter))]
   ::
-  ++  cu-spin-groups
-    |=  [con=(list content:ha) but=(unit button:ha)]
-    ^-  new-yarn:ha
-    =/  rope  [~ ~ %groups /club/(scot %uv id)]
-    =/  link  /dm/(scot %uv id)
-    [& & rope con link but]
-  ::
   ++  cu-spin
-    |=  [=memo:c op=time con=(list content:ha)]
+    |=  [desk=term =memo:c op=time con=(list content:ha)]
     ^-  new-yarn:ha
-    =/  rest=path  (hark-path memo op)
+    =/  [thread=path link=path]  (hark-path memo op /dm/(scot %uv id))
     ::  hard coded desk because these shouldn't appear in groups
-    =/  rope  [~ ~ %talk (welp /club/(scot %uv id) rest)]
-    =/  link  (welp /dm/(scot %uv id) rest)
+    =/  rope  [~ ~ desk thread]
     [& & rope con link ~]
   ::
   ++  cu-pass
@@ -1298,25 +1292,16 @@
         ?-  -.content.memo
             %notice  (cu-give-writs-diff diff.delta)
             %story
-          =/  new-yarn-groups
-            %+  cu-spin-groups
-              :~  [%ship author.memo]
-                  ': '
-                  (flatten q.p.content.memo)
-              ==
-            ~
-          =?  cor  (want-hark ~ %to-us)
-            (emit (pass-hark new-yarn-groups))
-          =/  new-yarn
-            %^  cu-spin
-              memo
-              u.time
-              :~  [%ship author.memo]
-                  ': '
-                  (flatten q.p.content.memo)
-              ==
-          =?  cor  (want-hark ~ %to-us)
-            (emit (pass-hark new-yarn))
+          ?.  (want-hark ~ %to-us)  (cu-give-writs-diff diff.delta)
+          =/  contents
+            :~  [%ship author.memo]
+                ': '
+                (flatten q.p.content.memo)
+            ==
+          =.  cor
+            (emit (pass-hark (cu-spin %talk memo u.time contents)))
+          =.  cor
+            (emit (pass-hark (cu-spin %groups memo u.time contents)))
           (cu-give-writs-diff diff.delta)
         ==
       ==
@@ -1453,15 +1438,12 @@
     ^-  new-yarn:ha
     =*  group  group.perm.chat
     =/  =nest:g  [dap.bowl flag]
-    =/  rest=path  (hark-path memo op)
-    =/  link
-      ;:  welp 
-        /groups/(scot %p p.group)/[q.group]
-        /channels/chat/(scot %p p.flag)/[q.flag]
-        rest
-      ==
-    =/  rope
-      [`group `nest q.byk.bowl (welp /(scot %p p.flag)/[q.flag] rest)]
+    =/  [thread=path link=path]
+      %^  hark-path  memo  op
+      %+  welp
+      /groups/(scot %p p.group)/[q.group]
+      /channels/chat/(scot %p p.flag)/[q.flag]
+    =/  rope  [`group `nest q.byk.bowl thread]
     [& & rope con link ~]
   ::
   ++  ca-watch
@@ -2069,20 +2051,11 @@
   ::
   ++  di-area  `path`/dm/(scot %p ship)
   ::
-  ++  di-spin-groups
-    |=  [con=(list content:ha) but=(unit button:ha)]
-    ^-  new-yarn:ha
-    =/  rope  [~ ~ %groups /dm/(scot %p ship)]
-    =/  link  /dm/(scot %p ship)
-    [& & rope con link but]
-  ::
   ++  di-spin
-    |=  [=memo:c op=time con=(list content:ha)]
+    |=  [desk=term =memo:c op=time con=(list content:ha)]
     ^-  new-yarn:ha
-    =/  rest=path  (hark-path memo op)
-    ::  hard coded desk because these shouldn't appear in groups
-    =/  link  (welp /dm/(scot %p ship) rest)
-    =/  rope  [~ ~ %talk link]
+    =/  [thread=path link=path]  (hark-path memo op /dm/(scot %p ship))
+    =/  rope  [~ ~ desk thread]
     [& & rope con link ~]
   ::
   ++  di-proxy
@@ -2145,27 +2118,17 @@
       ?-  -.content.memo
           %notice  di-core
           %story
-        =/  new-yarn-groups
-          %+  di-spin-groups
-            :~  [%ship author.memo]
-                ?:  =(net.dm %invited)  ' has invited you to a direct message'
-                ': '
-                ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
-            ==
-          ~
-        =?  cor  (want-hark ~ %to-us)
-          (emit (pass-hark new-yarn-groups))
-        =/  new-yarn
-          %^  di-spin
-            memo
-            u.time
-            :~  [%ship author.memo]
-                ?:  =(net.dm %invited)  ' has invited you to a direct message'
-                ': '
-                ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
-            ==
-        =?  cor  (want-hark ~ %to-us)
-          (emit (pass-hark new-yarn))
+        ?.  (want-hark ~ %to-us)  di-core
+        =/  contents
+          :~  [%ship author.memo]
+              ?:  =(net.dm %invited)  ' has invited you to a direct message'
+              ': '
+              ?:(=(net.dm %invited) '' (flatten q.p.content.memo))
+          ==
+        =.  cor
+          (emit (pass-hark (di-spin %talk memo u.time contents)))
+        =.  cor
+          (emit (pass-hark (di-spin %groups memo u.time contents)))
         di-core
       ==
     ==

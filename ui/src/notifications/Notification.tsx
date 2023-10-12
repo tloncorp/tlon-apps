@@ -179,7 +179,10 @@ function chatPath(bin: Skein): string {
 }
 
 function hasChatPath(path: string): boolean {
-  return !!path.match(msgTimePattern) && path.includes('/channels/chat/');
+  return (
+    !!path.match(msgTimePattern) &&
+    (path.includes('/channels/chat/') || path.includes('/dm/'))
+  );
 }
 
 export default function Notification({
