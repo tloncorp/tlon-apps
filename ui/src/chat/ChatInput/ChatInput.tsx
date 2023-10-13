@@ -17,7 +17,7 @@ import {
   useShipHasBlockedUs,
   useUnblockShipMutation,
 } from '@/state/chat';
-import { ChatImage, ChatMemo, Cite } from '@/types/chat';
+import { ChatBlock, ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, {
   HandlerParams,
   useMessageEditor,
@@ -26,6 +26,7 @@ import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import {
+  chatStoreLogger,
   fetchChatBlocks,
   useChatInfo,
   useChatStore,
@@ -122,6 +123,7 @@ export default function ChatInput({
     [targetId, dropZoneId]
   );
   const id = replying ? `${whom}-${replying}` : whom;
+  chatStoreLogger.log('InputRender', id);
   const [draft, setDraft] = useLocalStorage(
     createStorageKey(`chat-${id}`),
     inlinesToJSON([''])
@@ -199,6 +201,7 @@ export default function ChatInput({
   }, [mostRecentFile]);
 
   const clearAttachments = useCallback(() => {
+    chatStoreLogger.log('clearAttachments', { id, uploadKey });
     useChatStore.getState().setBlocks(id, []);
     useFileStore.getState().getUploader(uploadKey)?.clear();
     if (replyCite) {
@@ -225,6 +228,7 @@ export default function ChatInput({
       const uploadType = useFileStore.getState().getUploadType(uploadKey);
 
       if (isTargetId && uploadType === 'drag' && didDrop) {
+        chatStoreLogger.log('DragUpload', { id, files });
         // TODO: handle existing blocks (other refs)
         useChatStore.getState().setBlocks(
           id,
@@ -241,6 +245,7 @@ export default function ChatInput({
       }
 
       if (uploadType !== 'drag') {
+        chatStoreLogger.log('Upload', { id, files });
         // TODO: handle existing blocks (other refs)
         useChatStore.getState().setBlocks(
           id,
@@ -508,6 +513,7 @@ export default function ChatInput({
             return;
           }
           setBlocks(id, [{ cite }]);
+          chatStoreLogger.log('AndroidPaste', { id, cite });
           messageEditor.commands.deleteRange({
             from: editorText.indexOf(path),
             to: editorText.indexOf(path) + path.length + 1,
@@ -550,6 +556,7 @@ export default function ChatInput({
         // @ts-expect-error type check on previous line
         uploader.removeByURL(blocks[idx].image.src);
       }
+      chatStoreLogger.log('onRemove', { id, blocks });
       useChatStore.getState().setBlocks(
         id,
         blocks.filter((_b, k) => k !== idx)
@@ -560,6 +567,7 @@ export default function ChatInput({
 
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
+  // chatStoreLogger.log('ChatInputRender', id, chatInfo);
 
   if (shipHasBlockedUs) {
     return (

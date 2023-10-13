@@ -17,7 +17,11 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { refPasteRule, Shortcuts } from '@/logic/tiptap';
-import { useChatBlocks, useChatStore } from '@/chat/useChatStore';
+import {
+  chatStoreLogger,
+  useChatBlocks,
+  useChatStore,
+} from '@/chat/useChatStore';
 import { useCalm } from '@/state/settings';
 import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
@@ -70,6 +74,7 @@ export function useMessageEditor({
         return;
       }
       setBlocks(whom, [...chatBlocks, { cite: r }]);
+      chatStoreLogger.log('onReference', { whom, r, chatBlocks });
     },
     [chatBlocks, setBlocks, whom]
   );
