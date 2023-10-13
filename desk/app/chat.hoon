@@ -28,12 +28,15 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %3
+    $:  %5
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
         bad=(set ship)
         inv=(set ship)
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:c)
         old-chats=(map flag:two:old:c chat:two:old:c)  :: for migration
         old-pins=(list whom:two:old:c)
     ==
@@ -112,10 +115,12 @@
     %0  $(old (state-0-to-1 old))
     %1  $(old (state-1-to-2 old))
     %2  $(old (state-2-to-3 old))
-    %3  (emil(state old) (drop load:epos))
+    %3  $(old (state-3-to-4 old))
+    %4  $(old (state-4-to-5 old))
+    %5  (emil(state old) (drop load:epos))
   ==
   ::
-  +$  versioned-state  $%(current-state state-2 state-1 state-0)
+  +$  versioned-state  $%(current-state state-4 state-3 state-2 state-1 state-0)
   +$  state-0
     $:  %0
         chats=(map flag:zero chat:zero)
@@ -158,41 +163,74 @@
         ::  true represents imported, false pending import
         imp=(map flag:two ?)
     ==
-  +$  state-3  current-state
+  +$  state-3
+    $:  %3
+        chats=(map flag:two chat:two)
+        dms=(map ship dm:two)
+        clubs=(map id:club:two club:two)
+        drafts=(map whom:two story:two)
+        pins=(list whom:two)
+        blocked=(set ship)
+        blocked-by=(set ship)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:two id:two] (unit said:two))
+        fish=(map [flag:two @] id:two)
+        ::  true represents imported, false pending import
+        imp=(map flag:two ?)
+    ==
+  +$  state-4
+    $:  %4
+        chats=(map flag:two chat:two)
+        dms=(map ship dm:two)
+        clubs=(map id:club:two club:two)
+        drafts=(map whom:two story:two)
+        pins=(list whom:two)
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:two)
+        bad=(set ship)
+        inv=(set ship)
+        voc=(map [flag:two id:two] (unit said:two))
+        fish=(map [flag:two @] id:two)
+        ::  true represents imported, false pending import
+        imp=(map flag:two ?)
+    ==
+  +$  state-5  current-state
   ++  zero     zero:old:c
   ++  one      one:old:c
   ++  two      two:old:c
   ++  three    c
-  ++  state-2-to-3
-    |=  state-2
-    ^-  state-3
-    :-  %3
-    :+  (dms-2-to-3 dms)
-      (clubs-2-to-3 clubs)
-    [(pins-2-to-3 pins) bad inv chats pins]
+  ++  state-4-to-5
+    |=  state-4
+    ^-  state-5
+    :-  %5
+    :+  (dms-4-to-5 dms)
+      (clubs-4-to-5 clubs)
+    [(pins-4-to-5 pins) bad inv blocked blocked-by hidden-messages chats pins]
   ::
-  ++  pins-2-to-3
+  ++  pins-4-to-5
     |=  pins=(list whom:two)
     ^-  (list whom:c)
     %+  murn  pins
     |=(w=whom:two ?:(?=(%flag -.w) ~ (some w)))
   ::
-  ++  dms-2-to-3
+  ++  dms-4-to-5
     |=  dms=(map ship dm:two)
     ^-  (map ship dm:c)
     %-  ~(run by dms)
     |=  dm:two
     ^-  dm:c
-    [(pact-2-to-3 pact) remark net pin]
+    [(pact-4-to-5 pact) remark net pin]
   ::
-  ++  clubs-2-to-3
+  ++  clubs-4-to-5
     |=  clubs=(map id:club:two club:two)
     ^-  (map id:club:c club:c)
     %-  ~(run by clubs)
     |=  club:two
-    [heard remark (pact-2-to-3 pact) crew]
+    [heard remark (pact-4-to-5 pact) crew]
   ::
-  ++  pact-2-to-3
+  ++  pact-4-to-5
     |=  =pact:two
     ^-  pact:c
     :_  dex.pact
@@ -205,21 +243,21 @@
       =/  quip-time  (~(get by dex.pact) u.replying.writ)
       ?~  quip-time  quip-index
       %+  ~(put by quip-index)  u.quip-time
-      (put:on:quips:c old-quips time (quip-2-to-3 u.replying.writ time writ))
+      (put:on:quips:c old-quips time (quip-4-to-5 u.replying.writ time writ))
     %+  gas:on:writs:c  *writs:c
     %+  murn  writs
     |=  [=time =writ:two]
     ^-  (unit [^time writ:c])
     ?^  replying.writ  ~
     =/  =quips:c  (~(gut by quip-index) time *quips:c)
-    (some time (writ-2-to-3 time writ quips))
+    (some time (writ-4-to-5 time writ quips))
   ::
-  ++  writ-2-to-3
+  ++  writ-4-to-5
     |=  [=time old=writ:two =quips:c]
     ^-  writ:c
     =;  qm=reply-meta:d
       :-  [id.old time feels.old quips qm]
-      (essay-2-to-3 +.old)
+      (essay-4-to-5 +.old)
     ::
     =/  last-quippers=(set ship)
       =|  quippers=(set ship)
@@ -236,22 +274,22 @@
         (biff (ram:on:quips:c quips) |=([=^time *] `time))
     ==
   ::
-  ++  quip-2-to-3
+  ++  quip-4-to-5
     |=  [parent-id=id:c =time old=writ:two]
     ^-  quip:c
-    [[id.old parent-id time feels.old] (memo-2-to-3 +.old)]
+    [[id.old parent-id time feels.old] (memo-4-to-5 +.old)]
   ::
-  ++  memo-2-to-3
+  ++  memo-4-to-5
     |=  memo:two
     ^-  memo:d
-    [(story-2-to-3 author content) author sent]
+    [(story-4-to-5 author content) author sent]
   ::
-  ++  essay-2-to-3
+  ++  essay-4-to-5
     |=  memo:two
     ^-  essay:c
-    [(memo-2-to-3 +<) %chat ?-(-.content %story ~, %notice [%notice ~])]
+    [(memo-4-to-5 +<) %chat ?-(-.content %story ~, %notice [%notice ~])]
   ::
-  ++  story-2-to-3
+  ++  story-4-to-5
     |=  [=ship old=content:two]
     ^-  story:d
     ?-    -.old
@@ -262,6 +300,39 @@
       [%inline q.p.old]~
     ==
   ::
+  ++  state-3-to-4
+    |=  s=state-3
+    ^-  state-4
+    %*  .  *state-4
+      dms     dms.s
+      clubs   clubs.s
+      drafts  drafts.s
+      pins    pins.s
+      blocked  blocked.s
+      blocked-by  blocked-by.s
+      hidden-messages  ~
+      bad     bad.s
+      inv     inv.s
+      fish    fish.s
+      voc     voc.s
+      chats   chats.s
+    ==
+  ++  state-2-to-3
+    |=  s=state-2
+    ^-  state-3
+    %*  .  *state-3
+      dms     dms.s
+      clubs   clubs.s
+      drafts  drafts.s
+      pins    pins.s
+      blocked  ~
+      blocked-by  ~
+      bad     bad.s
+      inv     inv.s
+      fish    fish.s
+      voc     voc.s
+      chats   chats.s
+    ==
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
