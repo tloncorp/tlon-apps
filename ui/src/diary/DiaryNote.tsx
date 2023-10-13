@@ -200,15 +200,18 @@ export default function DiaryNote({ title }: ViewProps) {
   const { quips } = note.seal;
   const quipArray = Array.from(quips).reverse(); // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const groupedQuips = setNewDays(
-    groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
-      if (sort === 'asc') {
-        return a.localeCompare(b);
-      }
+  const groupedQuips =
+    noteId !== ''
+      ? setNewDays(
+          groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
+            if (sort === 'asc') {
+              return a.localeCompare(b);
+            }
 
-      return b.localeCompare(a);
-    })
-  );
+            return b.localeCompare(a);
+          })
+        )
+      : [];
 
   return (
     <Layout
