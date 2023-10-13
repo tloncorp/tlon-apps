@@ -163,8 +163,6 @@ const useDocketState = create<DocketState>((set, get) => ({
           if ('add-charge' in data) {
             const { desk, charge } = data['add-charge'];
 
-            // on native we can't count on the service worker to track updates,
-            // so we check for them here
             if (
               desk === 'groups' &&
               state.charges.groups &&
