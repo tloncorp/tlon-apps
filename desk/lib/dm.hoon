@@ -91,6 +91,17 @@
     writ(feels (~(del by feels.writ) p.del))
   ==
 ::
+++  get-around
+  |=  [=time count=@ud]
+  ^-  (unit (unit cage))
+  =/  older  (bat:mope wit.pac `time count)
+  =/  newer  (tab:on:writs:c wit.pac `time count)
+  =/  writ   (get:on:writs:c wit.pac time)
+  =-  ``chat-writs+!>(-)
+  %+  gas:on:writs:c  *writs:c
+  ?~  writ
+    (welp older newer)
+  (welp (snoc older [time u.writ]) newer)
 ++  peek
   |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
@@ -112,16 +123,17 @@
     ``chat-writs+!>((gas:on *writs:c (tab:on wit.pac `start count)))
   ::
       [%around time=@ count=@ ~]
-    =/  count  (slav %ud count.pole)
-    =/  time  (slav %ud time.pole)
-    =/  older  (bat:mope wit.pac `time count)
-    =/  newer  (tab:on:writs:c wit.pac `time count)
-    =/  writ   (get:on:writs:c wit.pac time)
-    =-  ``chat-writs+!>(-)
-    %+  gas:on  *writs:c
-    ?~  writ
-      (welp older newer)
-    (welp (snoc older [time u.writ]) newer)
+    =/  time    (slav %ud time.pole)
+    =/  count   (slav %ud count.pole)
+    (get-around time count)
+  ::
+      [%around ship=@ time=@ count=@ ~]
+    =/  ship    (slav %p ship.pole)
+    =/  time    (slav %ud time.pole)
+    =/  count   (slav %ud count.pole)
+    =/  entry   (get ship `@da`time)
+    ?~  entry  ``chat-writs+!>(*writs:c)
+    (get-around time.u.entry count)
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)

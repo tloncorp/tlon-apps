@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Outlet, useParams, useNavigate } from 'react-router';
 import * as Toast from '@radix-ui/react-toast';
 import { Helmet } from 'react-helmet';
 import bigInt from 'big-integer';
-import { VirtuosoGrid } from 'react-virtuoso';
+import { GridStateSnapshot, VirtuosoGrid } from 'react-virtuoso';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import {
@@ -34,6 +34,8 @@ import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
+
+const virtuosoStateByFlag: Record<string, GridStateSnapshot> = {};
 
 function HeapChannel({ title }: ViewProps) {
   const [joining, setJoining] = useState(false);
@@ -82,13 +84,6 @@ function HeapChannel({ title }: ViewProps) {
     setJoining(false);
   }, [flag, chFlag, joinHeap]);
 
-  const navigateToDetail = useCallback(
-    (time: bigInt.BigInteger) => {
-      navigate(`curio/${time}`);
-    },
-    [navigate]
-  );
-
   useEffect(() => {
     if (!joined) {
       joinChannel();
@@ -130,17 +125,11 @@ function HeapChannel({ title }: ViewProps) {
             <HeapBlock curio={curio} time={time.toString()} />
           </div>
         ) : (
-          <div onClick={() => navigateToDetail(time)}>
-            <HeapRow
-              key={time.toString()}
-              curio={curio}
-              time={time.toString()}
-            />
-          </div>
+          <HeapRow key={time.toString()} curio={curio} time={time.toString()} />
         )}
       </div>
     ),
-    [displayMode, navigateToDetail]
+    [displayMode]
   );
 
   const getCurioTitle = (curio: HeapCurio) =>
@@ -277,6 +266,10 @@ function HeapChannel({ title }: ViewProps) {
                 ? 'heap-grid-mobile'
                 : 'heap-grid'
             }
+            stateChanged={(state) => {
+              virtuosoStateByFlag[chFlag] = state;
+            }}
+            restoreStateFrom={virtuosoStateByFlag[chFlag]}
             {...thresholds}
           />
         )}

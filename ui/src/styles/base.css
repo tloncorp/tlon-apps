@@ -36,6 +36,8 @@ body,
   @apply h-full min-h-screen w-full;
   min-height: -webkit-fill-available;
   font-variant-ligatures: contextual;
+  /* Prevents undesirable scroll capture / locking on iOS */
+  overflow: clip;
 }
 
 @media all and (display-mode: standalone) {

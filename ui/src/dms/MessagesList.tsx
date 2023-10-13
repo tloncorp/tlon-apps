@@ -1,11 +1,12 @@
-import React, { PropsWithChildren, useMemo } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
+import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import useMessageSort from '@/logic/useMessageSort';
 import { useGroups } from '@/state/groups';
 import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
 import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { ChatBrief } from '@/types/chat';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import {
   usePendingDms,
   useBriefs,
@@ -13,6 +14,8 @@ import {
   usePendingMultiDms,
   usePinned,
   useChats,
+  useDms,
+  useMultiDms,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
@@ -33,6 +36,8 @@ function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
 const computeItemKey = (_i: number, [whom, _brief]: [string, ChatBrief]) =>
   whom;
 
+let virtuosoState: StateSnapshot | undefined;
+
 export default function MessagesList({
   filter,
   atTopChange,
@@ -45,6 +50,8 @@ export default function MessagesList({
   const { sortMessages } = useMessageSort();
   const briefs = useBriefs();
   const chats = useChats();
+  const dms = useDms();
+  const multiDms = useMultiDms();
   const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
   const isMobile = useIsMobile();
@@ -64,6 +71,20 @@ export default function MessagesList({
         const group = groups[groupFlag || ''];
         const vessel = group?.fleet[window.our];
         const channel = group?.channels[`chat/${b}`];
+        const club = multiDms[b];
+        const dm = dms.filter((d) => d === b)[0];
+
+        if (whomIsMultiDm(b) && !club) {
+          return false;
+        }
+
+        if (whomIsMultiDm(b) && !club.team.includes(window.our)) {
+          return false;
+        }
+
+        if (whomIsDm(b) && !dm) {
+          return false;
+        }
 
         if (
           channel &&
@@ -95,12 +116,24 @@ export default function MessagesList({
 
         return true; // is all
       }),
-    [allPending, briefs, chats, filter, groups, pinned, sortMessages]
+    [
+      allPending,
+      briefs,
+      chats,
+      filter,
+      groups,
+      pinned,
+      sortMessages,
+      dms,
+      multiDms,
+    ]
   );
 
+  const headerHeightRef = useRef<number>(0);
+  const headerRef = useRef<HTMLDivElement>(null);
   const head = useMemo(
     () => (
-      <>
+      <div ref={headerRef}>
         {children}
         {allPending &&
           filter !== filters.groups &&
@@ -109,27 +142,68 @@ export default function MessagesList({
               <MessagesSidebarItem pending key={whom} whom={whom} />
             </div>
           ))}
-      </>
+      </div>
     ),
-    [children, allPending, filter]
+    [headerRef, children, allPending, filter]
   );
+
+  useEffect(() => {
+    if (!headerRef.current) {
+      return () => {
+        // do nothing
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      headerHeightRef.current =
+        headerRef.current?.offsetHeight ?? headerHeightRef.current;
+    });
+
+    resizeObserver.observe(headerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const components = useMemo(
     () => ({
       Header: () => head,
+      EmptyPlaceholder: () =>
+        isMobile ? (
+          <EmptyPlaceholder>
+            Your direct messages will be shown here
+          </EmptyPlaceholder>
+        ) : null,
     }),
-    [head]
+    [head, isMobile]
   );
+
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+
+  useEffect(() => {
+    const currentVirtuosoRef = virtuosoRef.current;
+
+    return () => {
+      currentVirtuosoRef?.getState((state) => {
+        virtuosoState = {
+          ...state,
+          // Virtuoso contains a bug where `scrollTop` includes the Header's size,
+          // though it's treated relatively to the List component when applied.
+          scrollTop: state.scrollTop - (headerHeightRef.current ?? 0),
+        };
+      });
+    };
+  }, []);
 
   return (
     <Virtuoso
       {...thresholds}
+      ref={virtuosoRef}
       data={organizedBriefs}
       computeItemKey={computeItemKey}
       itemContent={itemContent}
       components={components}
       atTopStateChange={atTopChange}
       isScrolling={isScrolling}
+      restoreStateFrom={virtuosoState}
       className="w-full overflow-x-hidden"
     />
   );

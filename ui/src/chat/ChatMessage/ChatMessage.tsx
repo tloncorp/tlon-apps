@@ -9,7 +9,7 @@ import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { ChatBrief, ChatWrit } from '@/types/chat';
+import { ChatBrief, ChatStory, ChatWrit } from '@/types/chat';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -22,6 +22,7 @@ import {
   useIsMessageDelivered,
   useIsMessagePosted,
   useWrit,
+  useMessageToggler,
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
@@ -67,6 +68,17 @@ const mergeRefs =
     });
   };
 
+const hiddenMessage: ChatStory = {
+  block: [],
+  inline: [
+    {
+      italics: [
+        'You have hidden this message. You can unhide it from the options menu.',
+      ],
+    },
+  ],
+};
+
 const ChatMessage = React.memo<
   ChatMessageProps & React.RefAttributes<HTMLDivElement>
 >(
@@ -101,6 +113,7 @@ const ChatMessage = React.memo<
       const unread = chatInfo?.unread;
       const unreadId = unread?.brief['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
+      const { isHidden } = useMessageToggler(writ.seal.id);
       const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
       const { ref: viewRef } = useInView({
         threshold: 1,
@@ -179,7 +192,7 @@ const ChatMessage = React.memo<
         return aTime.compare(bTime);
       });
       const lastReply = _.last(repliesSortedByTime);
-      const lastReplyWrit = useWrit(whom, lastReply ?? '')!;
+      const { entry: lastReplyWrit } = useWrit(whom, lastReply ?? '');
       const lastReplyTime = lastReplyWrit
         ? new Date(daToUnix(lastReplyWrit[0]))
         : new Date();
@@ -216,6 +229,10 @@ const ChatMessage = React.memo<
       const [optionsOpen, setOptionsOpen] = useState(false);
       const [reactionDetailsOpen, setReactionDetailsOpen] = useState(false);
       const { action, actionId, handlers } = useLongPress({ withId: true });
+
+      const handleReactionDetailsOpened = useCallback(() => {
+        setReactionDetailsOpen(true);
+      }, []);
 
       useEffect(() => {
         if (!isMobile) {
@@ -285,7 +302,7 @@ const ChatMessage = React.memo<
               whom={whom}
               writ={writ}
               hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
-              openReactionDetails={() => setReactionDetailsOpen(true)}
+              openReactionDetails={handleReactionDetailsOpened}
             />
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
@@ -299,7 +316,13 @@ const ChatMessage = React.memo<
                   isLinked && 'bg-blue-softer'
                 )}
               >
-                {'story' in memo.content ? (
+                {isHidden ? (
+                  <ChatContent
+                    story={hiddenMessage}
+                    isScrolling={isScrolling}
+                    writId={seal.id}
+                  />
+                ) : 'story' in memo.content ? (
                   <ChatContent
                     story={memo.content.story}
                     isScrolling={isScrolling}

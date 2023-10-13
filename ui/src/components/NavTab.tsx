@@ -25,13 +25,13 @@ export default function NavTab({
   ...props
 }: NavTabProps) {
   return (
-    <li className={cn('flex-1 text-xs font-semibold', className)}>
+    <li className={cn('flex-1', className)}>
       {isNavLinkProps(props) ? (
         <NavLink
           {...props}
           to={props.to}
           className={cn(
-            'flex h-full w-full flex-col items-center justify-center bg-white py-2 text-black',
+            'flex h-full w-full items-center justify-center',
             linkClass
           )}
         >
@@ -41,7 +41,7 @@ export default function NavTab({
         <a
           {...props}
           className={cn(
-            'flex h-full w-full flex-col items-center justify-center bg-white p-2 text-black',
+            'flex h-full flex-col items-center justify-end pb-0.5',
             linkClass
           )}
         >

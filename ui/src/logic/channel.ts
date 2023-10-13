@@ -139,51 +139,58 @@ export function useChannelSort() {
   const group = useGroup(groupFlag);
   const sortRecent = useRecentSort();
 
-  const sortDefault = (a: Zone, b: Zone) => {
-    if (!group) {
-      return 0;
-    }
-    const aIdx =
-      a in group['zone-ord']
-        ? group['zone-ord'].findIndex((e) => e === a)
-        : Number.POSITIVE_INFINITY;
-    const bIdx =
-      b in group['zone-ord']
-        ? group['zone-ord'].findIndex((e) => e === b)
-        : Number.POSITIVE_INFINITY;
-    return aIdx - bIdx;
-  };
+  const sortDefault = useCallback(
+    (a: Zone, b: Zone) => {
+      if (!group) {
+        return 0;
+      }
+      const aIdx =
+        a in group['zone-ord']
+          ? group['zone-ord'].findIndex((e) => e === a)
+          : Number.POSITIVE_INFINITY;
+      const bIdx =
+        b in group['zone-ord']
+          ? group['zone-ord'].findIndex((e) => e === b)
+          : Number.POSITIVE_INFINITY;
+      return aIdx - bIdx;
+    },
+    [group]
+  );
 
-  const sortOptions: Record<string, Sorter> = {
-    [ALPHABETICAL]: sortAlphabetical,
-    [DEFAULT]: sortDefault,
-    [RECENT]: sortRecent,
-  };
+  const sortOptions: Record<string, Sorter> = useMemo(
+    () => ({
+      [ALPHABETICAL]: sortAlphabetical,
+      [DEFAULT]: sortDefault,
+      [RECENT]: sortRecent,
+    }),
+    [sortDefault, sortRecent]
+  );
 
   const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({
     sortOptions,
     flag: groupFlag === '' ? '~' : groupFlag,
   });
 
-  function sortChannels(channels: Channels) {
-    const accessors: Record<string, (k: string, v: GroupChannel) => string> = {
-      [ALPHABETICAL]: (_flag: string, channel: GroupChannel) =>
-        get(channel, 'meta.title'),
-      [DEFAULT]: (_flag: string, channel: GroupChannel) =>
-        channel.zone || UNZONED,
-      [RECENT]: (flag: string, _channel: GroupChannel) => flag,
-    };
+  const sortChannels = useCallback(
+    (channels: Channels) => {
+      const accessors: Record<string, (k: string, v: GroupChannel) => string> =
+        {
+          [ALPHABETICAL]: (_flag: string, channel: GroupChannel) =>
+            get(channel, 'meta.title'),
+          [DEFAULT]: (_flag: string, channel: GroupChannel) =>
+            channel.zone || UNZONED,
+          [RECENT]: (flag: string, _channel: GroupChannel) => flag,
+        };
 
-    return sortRecordsBy(channels, accessors[sortFn], sortFn === RECENT);
-  }
+      return sortRecordsBy(channels, accessors[sortFn], sortFn === RECENT);
+    },
+    [sortFn, sortRecordsBy]
+  );
 
   return {
     setSortFn,
     sortFn,
-    sortOptions: {
-      ...sortOptions,
-      [DEFAULT]: sortDefault,
-    },
+    sortOptions,
     sortChannels,
   };
 }

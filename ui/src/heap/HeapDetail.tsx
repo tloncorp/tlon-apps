@@ -96,7 +96,10 @@ export default function HeapDetail({ title }: ViewProps) {
 
   return (
     <Layout
-      className="flex-1 bg-white"
+      style={{
+        paddingBottom: isMobile ? 50 : 0,
+      }}
+      className="padding-bottom-transition flex-1 bg-white"
       header={
         <HeapDetailHeader
           flag={groupFlag}
