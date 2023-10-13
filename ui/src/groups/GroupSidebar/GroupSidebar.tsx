@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import React from 'react';
+import { useContext } from 'react';
 import { useIsDark } from '@/logic/useMedia';
 import {
   useAmAdmin,
@@ -22,13 +22,13 @@ import { Link, useLocation } from 'react-router-dom';
 import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import InviteIcon from '@/components/icons/InviteIcon';
 import HomeIcon from '@/components/icons/HomeIcon';
-import { useLocalState } from '@/state/local';
 import AsteriskIcon from '@/components/icons/AsteriskIcon';
+import { AppUpdateContext } from '@/logic/useAppUpdates';
 
 function GroupHeader() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
-  const needsUpdate = useLocalState((state) => state.needsUpdate);
+  const { needsUpdate } = useContext(AppUpdateContext);
   const { preview, claim } = useGang(flag);
   const defaultImportCover = group?.meta.cover === '0x0';
   const calm = useCalm();

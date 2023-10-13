@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useContext } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
@@ -22,6 +22,7 @@ import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useLocalState } from '@/state/local';
+import { AppUpdateContext } from '@/logic/useAppUpdates';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import GroupsSidebarItem from './GroupsSidebarItem';
@@ -141,7 +142,7 @@ export function GroupsAppMenu() {
 export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
-  const needsUpdate = useLocalState((state) => state.needsUpdate);
+  const { needsUpdate } = useContext(AppUpdateContext);
   const pendingInvites = usePendingInvites();
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);

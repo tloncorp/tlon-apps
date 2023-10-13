@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useContext } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
@@ -25,6 +25,7 @@ import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useLocalState } from '@/state/local';
 import { DesktopUpdateButton } from '@/components/UpdateNotices';
+import { AppUpdateContext } from '@/logic/useAppUpdates';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -130,7 +131,7 @@ export function TalkAppMenu() {
 }
 
 export default function MessagesSidebar() {
-  const needsUpdate = useLocalState((state) => state.needsUpdate);
+  const { needsUpdate } = useContext(AppUpdateContext);
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
