@@ -7,9 +7,9 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getImageSize } from 'react-image-size';
 import { useCallback, useEffect, useState } from 'react';
 import { Status } from '@/logic/status';
+import api from '@/api';
 import { FileStore, StorageCredentialsTlonHosting, Uploader } from './type';
 import { useStorage } from './storage';
-import { StorageState } from './reducer';
 
 export function prefixEndpoint(endpoint: string) {
   return endpoint.match(/https?:\/\//) ? endpoint : `https://${endpoint}`;
@@ -103,7 +103,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
         },
         body: file,
       };
-      const { endpoint, token } = tlonHostingCredentials;
+      const { endpoint } = tlonHostingCredentials;
+      const token = await api.scry<string>({
+        app: 'genuine',
+        path: '/secret',
+      });
       const url = `${endpoint}/${key}`;
       const urlWithToken = `${url}?token=${token}`;
       fetch(urlWithToken, requestOptions)
