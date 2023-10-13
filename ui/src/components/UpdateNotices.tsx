@@ -1,24 +1,11 @@
 import { useDismissNavigate } from '@/logic/routing';
-import { useLocalState } from '@/state/local';
-import { isTalk } from '@/logic/utils';
+import useAppUpdates from '@/logic/useAppUpdates';
 import WidgetDrawer from './WidgetDrawer';
 import Asterisk16Icon from './icons/Asterisk16Icon';
 
-function triggerUpdate(returnToRoot: boolean) {
-  const basePath = isTalk ? 'apps/talk' : 'apps/groups';
-  const path = returnToRoot
-    ? `${window.location.origin}/${basePath}/?updatedAt=${Date.now()}`
-    : `${window.location.href}?updatedAt=${Date.now()}`;
-
-  // defensively reset the state and wait until next tick before reloading
-  useLocalState.setState({ needsUpdate: false });
-  setTimeout(() => {
-    window.location.assign(path);
-  });
-}
-
 export default function UpdateNoticeSheet() {
   const dismiss = useDismissNavigate();
+  const { triggerUpdate } = useAppUpdates();
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
@@ -51,6 +38,8 @@ export default function UpdateNoticeSheet() {
 }
 
 export function DesktopUpdateButton() {
+  const { triggerUpdate } = useAppUpdates();
+
   return (
     <button
       className="mb-2 mt-1 flex flex-col justify-center rounded-lg bg-yellow p-2"
