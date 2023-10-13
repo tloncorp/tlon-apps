@@ -19,7 +19,6 @@ interface LocalState {
   showDevTools: boolean;
   errorCount: number;
   airLockErrorCount: number;
-  needsUpdate: boolean;
   lastReconnect: number;
   onReconnect: (() => void) | null;
   set: (f: (s: LocalState) => void) => void;
@@ -37,7 +36,6 @@ export const useLocalState = create<LocalState>(
       showDevTools: import.meta.env.DEV,
       errorCount: 0,
       airLockErrorCount: 0,
-      needsUpdate: false,
       lastReconnect: Date.now(),
       onReconnect: null,
     }),
@@ -66,11 +64,6 @@ export function useBrowserId() {
 const selCurrentTheme = (s: LocalState) => s.currentTheme;
 export function useCurrentTheme() {
   return useLocalState(selCurrentTheme);
-}
-
-const selNeedsUpdate = (s: LocalState) => s.needsUpdate;
-export function useNeedsUpdate() {
-  return useLocalState(selNeedsUpdate);
 }
 
 export const setLocalState = (f: (s: LocalState) => void) =>

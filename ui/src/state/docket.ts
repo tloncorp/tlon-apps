@@ -154,7 +154,6 @@ const useDocketState = create<DocketState>((set, get) => ({
     return api.poke(allyShip(ship));
   },
   start: () => {
-    useLocalState.setState({ needsUpdate: false });
     api.subscribe({
       app: 'docket',
       path: '/charges',
@@ -162,15 +161,6 @@ const useDocketState = create<DocketState>((set, get) => ({
         useDocketState.setState((state) => {
           if ('add-charge' in data) {
             const { desk, charge } = data['add-charge'];
-
-            if (
-              desk === 'groups' &&
-              state.charges.groups &&
-              charge.version > state.charges.groups?.version
-            ) {
-              useLocalState.setState({ needsUpdate: true });
-            }
-
             return addCharge(state, desk, charge);
           }
 
