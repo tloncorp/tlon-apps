@@ -26,7 +26,6 @@ import {
 } from '@urbit/api';
 import { normalizeUrbitColor } from '@/logic/utils';
 import api from '../api';
-import { useLocalState } from './local';
 
 export type Status = 'initial' | 'loading' | 'success' | 'error';
 export interface ChargeWithDesk extends Charge {
