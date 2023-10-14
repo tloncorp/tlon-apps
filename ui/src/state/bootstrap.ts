@@ -1,15 +1,9 @@
 import Urbit from '@urbit/http-api';
 import api from '@/api';
-import {
-  asyncWithDefault,
-  asyncWithFallback,
-  isTalk,
-  log,
-} from '@/logic/utils';
+import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
-import { isNativeApp } from '@/logic/native';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import useDocketState from './docket';
@@ -124,20 +118,8 @@ async function startTalk(groupsStarted: boolean) {
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
 
-export default async function bootstrap(reset = 'initial' as Bootstrap) {
+function auxiliaryData() {
   const { wait } = useSchedulerStore.getState();
-  if (reset === 'full-reset') {
-    api.reset();
-  }
-
-  if (isTalk) {
-    startTalk(false);
-    wait(() => startGroups(true), 5);
-  } else {
-    startGroups(false);
-    wait(async () => startTalk(true), 5);
-  }
-
   wait(() => {
     useContactState.getState().start();
     useStorage.getState().initialize(api as unknown as Urbit);
@@ -153,12 +135,43 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     if (!import.meta.env.DEV) {
       usePalsState.getState().initializePals();
     }
-    api.poke({
-      app: isTalk ? 'talk-ui' : 'groups-ui',
-      mark: 'ui-vita',
-      json: null,
-    });
   }, 5);
+
+  api.poke({
+    app: isTalk ? 'talk-ui' : 'groups-ui',
+    mark: 'ui-vita',
+    json: null,
+  });
+}
+
+let auxiliaryTimer = 0;
+export default async function bootstrap(
+  reset = 'initial' as Bootstrap,
+  sendVita = true
+) {
+  const { wait } = useSchedulerStore.getState();
+
+  if (reset === 'full-reset') {
+    api.reset();
+  }
+
+  if (isTalk) {
+    startTalk(false);
+    wait(() => startGroups(true), 5);
+  } else {
+    startGroups(false);
+    wait(async () => startTalk(true), 5);
+  }
+
+  if (reset === 'initial') {
+    auxiliaryData();
+  } else {
+    clearTimeout(auxiliaryTimer);
+    auxiliaryTimer = setTimeout(
+      () => auxiliaryData(),
+      30 * 1000
+    ) as unknown as number;
+  }
 }
 
 useLocalState.setState({
@@ -167,6 +180,9 @@ useLocalState.setState({
     reset();
     bootstrap('reset');
 
-    useLocalState.setState({ lastReconnect: Date.now() });
+    useLocalState.setState({
+      lastReconnect: Date.now(),
+      subscription: 'connected',
+    });
   },
 });
