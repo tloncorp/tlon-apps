@@ -7,6 +7,8 @@ type Action = 'click' | 'longpress' | '';
 
 interface LongPressOptions {
   withId?: boolean;
+  withStartTime?: boolean;
+  longpressThreshold?: number;
 }
 
 const getActionId = (element: HTMLElement): string | null => {
@@ -22,6 +24,7 @@ const getActionId = (element: HTMLElement): string | null => {
 export default function useLongPress(options?: LongPressOptions) {
   const [action, setAction] = useState<Action>('');
   const [actionId, setActionId] = useState<string | null>(null);
+  const [actionStartTime, setActionStartTime] = useState<number | null>(null);
   const isMobile = useIsMobile();
   const timerRef = React.useRef<ReturnType<typeof setTimeout>>();
   const isLongPress = React.useRef(false);
@@ -40,6 +43,7 @@ export default function useLongPress(options?: LongPressOptions) {
       logTime('release without longpress', point, downPoint.current);
       setAction('');
       setActionId(null);
+      setActionStartTime(null);
     }
 
     isLongPress.current = false;
@@ -50,17 +54,22 @@ export default function useLongPress(options?: LongPressOptions) {
       logTime('start', downPoint.current);
       setAction('');
       setActionId(null);
+      setActionStartTime(null);
 
       if (options?.withId) {
         setActionId(getActionId(element));
       }
 
+      if (options?.withStartTime) {
+        setActionStartTime(Date.now());
+      }
+
       timerRef.current = setTimeout(() => {
         isLongPress.current = true;
         release(currentPoint.current);
-      }, 300);
+      }, options?.longpressThreshold || 300);
     },
-    [options?.withId, release]
+    [options, release]
   );
 
   const stop = useCallback(
@@ -172,6 +181,7 @@ export default function useLongPress(options?: LongPressOptions) {
   return {
     action,
     actionId: options?.withId ? actionId : undefined,
+    actionStartTime,
     handlers,
   };
 }

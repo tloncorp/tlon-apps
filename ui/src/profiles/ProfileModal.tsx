@@ -37,7 +37,12 @@ function ProfileContainer({
   children: React.ReactNode;
 }) {
   return isMobile ? (
-    <WidgetDrawer open={true} onOpenChange={onOpenChange} className="h-[70vh]">
+    <WidgetDrawer
+      open={true}
+      onOpenChange={onOpenChange}
+      className="h-[70vh]"
+      showDragHandle={false}
+    >
       {children}
     </WidgetDrawer>
   ) : (

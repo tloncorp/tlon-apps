@@ -104,6 +104,7 @@ import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
+import ChatMessageFocus from './chat/ChatMessage/ChatMessageFocus';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -581,6 +582,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           {isMobile ? (
             <>
               <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/focused/:writShip/:writTime"
+                element={<ChatMessageFocus />}
+              />
+              <Route
                 path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
@@ -820,7 +825,7 @@ function RoutedApp() {
           <Scheduler />
         </TooltipProvider>
         <LureAutojoiner />
-        {showDevTools && (
+        {false && (
           <>
             <React.Suspense fallback={null}>
               <ReactQueryDevtoolsProduction />
