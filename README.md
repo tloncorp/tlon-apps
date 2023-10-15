@@ -33,7 +33,7 @@ images, media, and even random musings.
 
 This project uses the [formal comment spec](https://developers.urbit.org/reference/hoon/style#comments-and-unparsed-bytes)
 for all Hoon code to ensure compatibility with
-[doccords](https://github.com/urbit/urbit/pull/5873) once support is released.
+[doccords](https://github.com/urbit/urbit/pull/5873).
 
 Additionally, detailed documentation is available in the [Docs Landscape
 app](https://urbit.org/applications/~pocwet/docs) if you have both Docs and
