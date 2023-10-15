@@ -1,8 +1,8 @@
 diff --git a/node_modules/@urbit/http-api/dist/esm/index.js b/node_modules/@urbit/http-api/dist/esm/index.js
-index 4376a41..06d039c 100644
+index 2e6756f..32ca00a 100644
 --- a/node_modules/@urbit/http-api/dist/esm/index.js
 +++ b/node_modules/@urbit/http-api/dist/esm/index.js
-@@ -435,10 +435,11 @@ class Urbit {
+@@ -442,10 +442,11 @@ class Urbit {
       * be the empty string.
       * @param code The access code for the ship at that address
       */
@@ -15,7 +15,7 @@ index 4376a41..06d039c 100644
          if (isBrowser_1) {
              window.addEventListener('beforeunload', this.delete);
          }
-@@ -726,7 +727,7 @@ class Urbit {
+@@ -776,7 +777,7 @@ class Urbit {
          return eventId;
      }
      async sendJSONtoChannel(...json) {
