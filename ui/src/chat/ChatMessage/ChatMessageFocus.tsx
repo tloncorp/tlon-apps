@@ -341,7 +341,7 @@ export default function ChatMessageFocus() {
             onClick={(e) => e.stopPropagation()}
           >
             {scaleFactor === 1 ? (
-              <div className="absolute top-[35%] flex w-full justify-start">
+              <div className="absolute top-[30%] flex w-full justify-start">
                 <div
                   id="focusedMessageContainer"
                   className="ml-6 flex min-w-[280px] max-w-[80%] flex-col items-start justify-center rounded-xl bg-white p-4"
