@@ -44,7 +44,7 @@ function useServiceWorker() {
 
 export default function useAppUpdates() {
   const { needRefresh, updateServiceWorker } = useServiceWorker();
-  const pike = usePike('groups');
+  const pike = usePike(isTalk ? 'talk' : 'groups');
 
   const [needsUpdate, setNeedsUpdate] = useState(false);
   const [initialHash, setInitialHash] = useState<string | null>(null);
