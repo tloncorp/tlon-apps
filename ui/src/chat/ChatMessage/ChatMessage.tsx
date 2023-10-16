@@ -1,8 +1,8 @@
 /* eslint-disable react/no-unused-prop-types */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import { motion } from 'framer-motion';
 import cn from 'classnames';
-import _, { set } from 'lodash';
+import _ from 'lodash';
 import debounce from 'lodash/debounce';
 import f from 'lodash/fp';
 import { BigInteger } from 'big-integer';
@@ -116,9 +116,7 @@ const ChatMessage = React.memo<
       const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
       const { isHidden } = useMessageToggler(writ.seal.id);
       const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
-      const [isFocused, setIsFocused] = useState(false);
       const [isPotentialLongPress, setIsPotentialLongPress] = useState(false);
-      const params = useParams<{ focusedWritId?: string }>();
       const navigate = useNavigate();
       const location = useLocation();
       const messageRef = useRef<HTMLDivElement | null>(null);
@@ -241,7 +239,19 @@ const ChatMessage = React.memo<
         longpressThreshold: 500,
       });
 
+      const handleReactionDetailsOpened = useCallback(() => {
+        setReactionDetailsOpen(true);
+      }, []);
+
+      // handle "potential longpress" for shrinking the message
+      // just before the actual longpress fires
       useEffect(() => {
+        if (!isMobile) {
+          return function () {
+            return null;
+          };
+        }
+
         setIsPotentialLongPress(false);
         if (action !== 'longpress' && actionStartTime) {
           const intervalStartTime = actionStartTime;
@@ -261,27 +271,9 @@ const ChatMessage = React.memo<
         return function () {
           return null;
         };
-      }, [action, actionStartTime]);
+      }, [action, actionStartTime, isMobile]);
 
-      const handleReactionDetailsOpened = useCallback(() => {
-        setReactionDetailsOpen(true);
-      }, []);
-
-      // useEffect(() => {
-      //   if (!isMobile) {
-      //     return;
-      //   }
-
-      //   if (action === 'longpress') {
-      //     if (actionId === 'reactions-target') {
-      //       setReactionDetailsOpen(true);
-      //     } else {
-      //       setOptionsOpen(true);
-      //     }
-      //   }
-      // }, [action, actionId, isMobile]);
-      const controls = useAnimation();
-
+      // handle actual longpress
       useEffect(() => {
         if (!isMobile) {
           return;
@@ -291,8 +283,6 @@ const ChatMessage = React.memo<
           if (actionId === 'reactions-target') {
             setReactionDetailsOpen(true);
           } else {
-            // setOptionsOpen(true);
-            setIsFocused(true);
             navigate(`focused/${writ.seal.id}`, {
               state: {
                 backgroundLocation: location,
@@ -300,10 +290,6 @@ const ChatMessage = React.memo<
                 height: messageRef.current?.offsetHeight,
               },
             });
-            // const rect = messageRef.current!.getBoundingClientRect();
-            // const x = window.innerWidth / 2 - (rect.left + rect.width / 2);
-            // const y = window.innerHeight / 2 - (rect.top + rect.height / 2);
-            // controls.start({ x, y, scale: 1.2, zIndex: 1 });
           }
         }
       }, [action, actionId, isMobile, location, navigate, writ]);
