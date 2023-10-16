@@ -355,15 +355,19 @@ const ChatMessage = React.memo<
                 'group-one relative z-0 flex w-full select-none sm:select-auto'
               )}
             >
-              <ChatMessageOptions
-                open={optionsOpen}
-                onOpenChange={setOptionsOpen}
-                hideThreadReply={hideReplies}
-                whom={whom}
-                writ={writ}
-                hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
-                openReactionDetails={handleReactionDetailsOpened}
-              />
+              {!isMobile && (
+                <ChatMessageOptions
+                  open={optionsOpen}
+                  onOpenChange={setOptionsOpen}
+                  hideThreadReply={hideReplies}
+                  whom={whom}
+                  writ={writ}
+                  hideReply={
+                    whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies
+                  }
+                  openReactionDetails={handleReactionDetailsOpened}
+                />
+              )}
               <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
                 {format(unix, 'HH:mm')}
               </div>
