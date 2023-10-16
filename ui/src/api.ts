@@ -111,9 +111,6 @@ class API {
       if (onReconnect) {
         onReconnect();
       }
-      useLocalState.setState((state) => ({
-        subscription: 'connected',
-      }));
     };
 
     this.client.onRetry = () => {
@@ -254,6 +251,16 @@ class API {
                 ...params,
                 event: eventListener(params.event),
               });
+
+              // should only happen once since we call this each invocation
+              // and onReconnect will set the lastReconnect time
+              const { lastReconnect, onReconnect } = useLocalState.getState();
+              const threshold = import.meta.env.DEV
+                ? 60 * 1000
+                : 12 * 60 * 60 * 1000; // 12 hours
+              if (Date.now() - lastReconnect >= threshold && onReconnect) {
+                onReconnect();
+              }
             },
           })
         ),
