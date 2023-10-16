@@ -1,151 +1,94 @@
+import { useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import cn from 'classnames';
-import { AnimatePresence, Transition, motion } from 'framer-motion';
-import { ChatStory, ChatWrit, isChatImage } from '@/types/chat';
+import { Transition, motion } from 'framer-motion';
+import { ChatWrit } from '@/types/chat';
 import { useDismissNavigate } from '@/logic/routing';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
-import { useChatState } from '@/state/chat';
-import WidgetDrawer from '@/components/WidgetDrawer';
-import { useEffect, useMemo, useState } from 'react';
-import Picker from '@emoji-mart/react';
-import useEmoji from '@/state/emoji';
-import { useCurrentTheme } from '@/state/local';
+import ConfirmationModal from '@/components/ConfirmationModal';
 import Author from './Author';
 import ChatContent from '../ChatContent/ChatContent';
-import ChatMessage from './ChatMessage';
+import ReactionDetails from '../ChatReactions/ReactionDetails';
+import useChatMessage, { ChatMessage } from './useChatMessageActions';
+import ReactionSheet from '../ChatReactions/EmojiPickerSheet';
 
-function ChatOptionsMenu({ writ }: { writ: ChatWrit }) {
+interface ChatOptionsMenuProps {
+  chatMessage: ChatMessage;
+  showAllReactions: () => void;
+  initiateDelete: () => void;
+}
+function ChatOptionsMenu({
+  chatMessage,
+  showAllReactions,
+  initiateDelete,
+}: ChatOptionsMenuProps) {
+  const dismiss = useDismissNavigate();
+
+  const handleCopy = () => {
+    chatMessage.actions.copy();
+    setTimeout(() => {
+      dismiss();
+    }, 1000);
+  };
+
+  const handleHideToggle = () => {
+    if (chatMessage.state.isHidden) {
+      chatMessage.actions.show();
+    } else {
+      chatMessage.actions.hide();
+    }
+    dismiss();
+  };
+
   return (
     <motion.div
-      id="chatOptionsMenu"
       initial={{ opacity: 0, x: 0 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative left-12 mt-3 flex w-48 flex-col rounded-lg border border-gray-300 bg-gray-200 text-lg text-black"
+      onClick={(e) => e.stopPropagation()}
+      className="flex w-48 flex-col rounded-lg border border-gray-200 bg-gray-100 text-lg"
     >
       <button
-        className="border-b border-gray-300 py-3"
-        onClick={() => {
-          /* View Reactions */
-        }}
+        className="border-b border-gray-200 py-3"
+        onClick={showAllReactions}
       >
         View Reactions
       </button>
-      <button
-        className="border-b border-gray-300 py-3"
-        onClick={() => {
-          /* Start Thread */
-        }}
-      >
-        Start Thread
-      </button>
-      <button
-        className="border-b border-gray-300 py-3"
-        onClick={() => {
-          /* Copy Link */
-        }}
-      >
-        Copy Link
-      </button>
-      <button
-        className="border-b border-gray-300 py-3"
-        onClick={() => {
-          /* Delete */
-        }}
-      >
-        Hide
-      </button>
-      <button
-        className="py-3 text-red"
-        onClick={() => {
-          /* Hide */
-        }}
-      >
-        Delete
-      </button>
+      {chatMessage.context.canReply && (
+        <button
+          className="border-b border-gray-200 py-3"
+          onClick={chatMessage.actions.reply}
+        >
+          Reply
+        </button>
+      )}
+      {!chatMessage.context.inThread && (
+        <button
+          className="border-b border-gray-200 py-3"
+          onClick={chatMessage.actions.goToThread}
+        >
+          Start Thread
+        </button>
+      )}
+      {chatMessage.context.canCopy && (
+        <button className="border-b border-gray-200 py-3" onClick={handleCopy}>
+          {chatMessage.state.didCopy ? 'Copied!' : 'Copy Link'}
+        </button>
+      )}
+      {chatMessage.context.canHide && (
+        <button
+          className="border-b border-gray-200 py-3"
+          onClick={handleHideToggle}
+        >
+          {chatMessage.state.isHidden ? 'Show Message' : 'Hide Message'}
+        </button>
+      )}
+      {chatMessage.context.canDelete && (
+        <button className="py-3 text-red" onClick={initiateDelete}>
+          Delete
+        </button>
+      )}
     </motion.div>
-  );
-}
-
-function ReactionSheet({
-  open,
-  onOpenChange,
-  onEmojiSelect,
-}: {
-  open: boolean;
-  onOpenChange: (change: boolean) => void;
-  onEmojiSelect: (shortcode: string) => void;
-}) {
-  const { data, load } = useEmoji();
-  const currentTheme = useCurrentTheme();
-  const emojisPerLine = Math.floor((window.innerWidth - 20) / 48);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  useEffect(() => {
-    const rgbValue = currentTheme === 'light' ? '255, 255, 255' : '0, 0, 0';
-    document.documentElement.style.setProperty('--rgb-background', rgbValue);
-
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        console.log(JSON.stringify(mutation, null, 2));
-        if (mutation.addedNodes.length) {
-          mutation.addedNodes.forEach((node) => {
-            console.log('checking node', node.nodeName);
-            if (node.nodeName.toLowerCase() === 'em-emoji-picker') {
-              console.log('found picker!');
-              const picker = node as HTMLDivElement;
-              const pickerContainer =
-                document.getElementById('pickerContainer');
-              console.log('height:', pickerContainer?.clientHeight);
-              if (pickerContainer) {
-                picker.style.height = `${pickerContainer.clientHeight}px`;
-                observer.disconnect();
-              }
-            }
-          });
-        }
-      });
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [currentTheme]);
-
-  return (
-    <WidgetDrawer
-      open={open}
-      onOpenChange={onOpenChange}
-      hideOverlay
-      // snapPoints={[0.6, 0.8]} activeSnapPoint={currSnapPoint} setActiveSnapPoint={setSnapPoint}
-      className={cn('h-[70vh]')}
-    >
-      <div
-        id="pickerContainer"
-        className="mx-4 mt-8 h-full"
-        onTouchMove={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Picker
-          data={data}
-          autoFocus={false}
-          previewPosition="none"
-          navPosition="none"
-          skinTonePosition="none"
-          searchPosition="sticky"
-          emojiButtonSize={48}
-          emojiSize={32}
-          perLine={emojisPerLine}
-          dynamicWidth={true}
-          theme={currentTheme}
-          onEmojiSelect={({ shortcodes }: { shortcodes: string }) =>
-            onEmojiSelect(shortcodes)
-          }
-        />
-      </div>
-    </WidgetDrawer>
   );
 }
 
@@ -173,120 +116,84 @@ function QuickReactOption({
 
 function EmojiQuickReact({
   addFeel,
-  sheetOpenChange,
+  openPicker,
 }: {
   addFeel: (shortcode: string) => void;
-  sheetOpenChange: (open: boolean) => void;
+  openPicker: () => void;
 }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const { data, load } = useEmoji();
-  const [currSnapPoint, setSnapPoint] = useState<number | string | null>(0.6);
-
-  const pickEmoji = ({ shortcodes }: { shortcodes: string }) => {
-    console.log(`picked: ${shortcodes}`);
-    addFeel(shortcodes);
-  };
-
-  const openPicker = () => {
-    sheetOpenChange(true);
-    setPickerOpen(true);
-  };
-
-  const onOpenChange = (open: boolean) => {
-    sheetOpenChange(open);
-    setPickerOpen(open);
-  };
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const onFocused = () => {
-    console.log('on focus!');
-    setSnapPoint(0.8);
-  };
-
   return (
-    <>
-      <motion.div
-        id="quickReactionMenu"
-        initial={{ scale: 0, x: 0 }}
-        animate={{ scale: 1, x: 0 }}
-        transition={{ type: 'spring', stiffness: 200, duration: 0.005 }}
-        className="mb-3 flex w-[280px] items-center justify-evenly rounded-[24px] bg-gray-200 py-2 px-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <QuickReactOption
-          transition={{
-            delay: 0.05,
-            type: 'inertia',
-            velocity: 300,
-            power: 0.9,
-            timeConstant: 150,
-            restDelta: 1,
-          }}
-          shortcode=":+1:"
-          addFeel={addFeel}
-        />
-        <QuickReactOption
-          transition={{
-            delay: 0.1,
-            type: 'inertia',
-            velocity: 300,
-            power: 0.9,
-            timeConstant: 150,
-            restDelta: 1,
-          }}
-          shortcode=":heart:"
-          addFeel={addFeel}
-        />
-        <QuickReactOption
-          transition={{
-            delay: 0.15,
-            type: 'inertia',
-            velocity: 300,
-            power: 0.9,
-            timeConstant: 150,
-            restDelta: 1,
-          }}
-          shortcode=":cyclone:"
-          addFeel={addFeel}
-        />
-        <QuickReactOption
-          transition={{
-            delay: 0.2,
-            type: 'inertia',
-            velocity: 300,
-            power: 0.9,
-            timeConstant: 150,
-            restDelta: 1,
-          }}
-          shortcode=":seedling:"
-          addFeel={addFeel}
-        />
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{
-            delay: 0.25,
-            type: 'inertia',
-            velocity: 300,
-            power: 0.9,
-            timeConstant: 150,
-            restDelta: 1,
-          }}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-300 p-3"
-          onClick={openPicker}
-        >
-          <ElipsisIcon className="h-8 w-8" />
-        </motion.div>
-      </motion.div>
-      <ReactionSheet
-        onEmojiSelect={addFeel}
-        open={pickerOpen}
-        onOpenChange={onOpenChange}
+    <motion.div
+      initial={{ scale: 0, x: 0 }}
+      animate={{ scale: 1, x: 0 }}
+      transition={{ type: 'spring', stiffness: 200, duration: 0.005 }}
+      className="flex w-[280px] items-center justify-evenly rounded-[24px] bg-white py-2 px-3 dark:bg-gray-200"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <QuickReactOption
+        transition={{
+          delay: 0.05,
+          type: 'inertia',
+          velocity: 300,
+          power: 0.9,
+          timeConstant: 150,
+          restDelta: 1,
+        }}
+        shortcode=":+1:"
+        addFeel={addFeel}
       />
-    </>
+      <QuickReactOption
+        transition={{
+          delay: 0.1,
+          type: 'inertia',
+          velocity: 300,
+          power: 0.9,
+          timeConstant: 150,
+          restDelta: 1,
+        }}
+        shortcode=":heart:"
+        addFeel={addFeel}
+      />
+      <QuickReactOption
+        transition={{
+          delay: 0.15,
+          type: 'inertia',
+          velocity: 300,
+          power: 0.9,
+          timeConstant: 150,
+          restDelta: 1,
+        }}
+        shortcode=":cyclone:"
+        addFeel={addFeel}
+      />
+      <QuickReactOption
+        transition={{
+          delay: 0.2,
+          type: 'inertia',
+          velocity: 300,
+          power: 0.9,
+          timeConstant: 150,
+          restDelta: 1,
+        }}
+        shortcode=":seedling:"
+        addFeel={addFeel}
+      />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{
+          delay: 0.25,
+          type: 'inertia',
+          velocity: 300,
+          power: 0.9,
+          timeConstant: 150,
+          restDelta: 1,
+        }}
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 p-3"
+        onClick={openPicker}
+      >
+        <ElipsisIcon className="h-8 w-8" />
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -303,37 +210,74 @@ function getScaleFactor(targetHeight: number, height?: number) {
 export default function ChatMessageFocus() {
   const params = useParams<{
     ship?: string;
-    chName?: string;
+    name?: string;
     chShip?: string;
+    chName?: string;
+    idShip?: string;
+    idTime?: string;
   }>();
   const location = useLocation();
   const dismiss = useDismissNavigate();
-  const [showOptions, setShowOptions] = useState(true);
+
+  const [showPicker, setShowPicker] = useState(false);
+  const [showAllReactions, setShowAllReactions] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const showOptions = !showPicker && !showAllReactions && !showDeleteConfirm;
+  const showMessage = !showDeleteConfirm;
 
   const { writ, height } = location.state as {
     writ: ChatWrit;
     height?: number;
   };
   const { memo, seal } = writ;
+  const chatMessage = useChatMessage(writ);
 
   // we need to constrain the height of the focused message, 40% of window height is
   // arbitrarily chosen
-  const messageTargetHeight = window.innerHeight * 0.4;
+  const messageTargetHeight = Math.round(window.innerHeight * 0.3);
   const scaleFactor = useMemo(
     () => getScaleFactor(messageTargetHeight, height),
     [height, messageTargetHeight]
   );
 
-  // if we scale the message, we need to resize it's relevant container element as well
-  // since layout isn't affected by the transform
-  const quickReactionElement = document.getElementById('quickReactionMenu');
-  const messageContainerHeight =
-    scaleFactor !== 1
-      ? `${
-          messageTargetHeight +
-          (quickReactionElement ? quickReactionElement.clientHeight : 0)
-        }px`
-      : undefined;
+  // if we scale the message, the layout doesn't update automatically, so we
+  // need to measure and position manually
+  const quickReactionEl = document.getElementById('quickReactionMenu');
+  const messageContainerEl = document.getElementById('focusedMessageContainer');
+  const authorEl = document.getElementById('author');
+  const messageContentEl = document.getElementById('focusedMessageContent');
+  const optionsMenuEl = document.getElementById('chatOptionsMenu');
+
+  let messageContainerHeight = '0px';
+  let messageContentTop = '0px';
+  if (authorEl && messageContentEl && messageContainerEl && scaleFactor !== 1) {
+    const contentRec = messageContentEl!.getBoundingClientRect();
+    messageContainerHeight = `${Math.round(
+      contentRec.bottom - contentRec.top + authorEl.clientHeight
+    )}px`;
+    messageContentTop = `${authorEl.clientHeight}px`;
+  }
+
+  const focusedMessageMargin = 14;
+  let quickReactTop = '0px';
+  let quickReactLeft = '18px';
+  if (messageContainerEl && quickReactionEl) {
+    const fmRect = messageContainerEl!.getBoundingClientRect();
+    quickReactTop = `${Math.round(
+      fmRect.top - quickReactionEl.clientHeight - focusedMessageMargin
+    )}px`;
+    quickReactLeft = `${fmRect.left}px`;
+  }
+
+  const optionsMenuTopMargin = 14;
+  let optionsMenuTop = '0px';
+  let optionsMenuLeft = '0px';
+  if (messageContainerEl && optionsMenuEl) {
+    const fmRect = messageContainerEl!.getBoundingClientRect();
+    optionsMenuTop = `${Math.round(fmRect.bottom + optionsMenuTopMargin)}px`;
+    optionsMenuLeft = `${Math.round(fmRect.right) - 192}px`;
+  }
 
   const overlayClick = (
     event: React.MouseEvent<HTMLDivElement, MouseEvent>
@@ -345,24 +289,17 @@ export default function ChatMessageFocus() {
     dismiss();
   };
 
-  const contentClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    e.stopPropagation();
+  const addFeel = async (shortcode: string) => {
+    await chatMessage.actions.react(shortcode);
+    dismiss();
   };
 
-  const handleSheetChange = (open: boolean) => {
-    if (open) {
-      setShowOptions(false);
-    } else {
+  const delMessage = async () => {
+    try {
+      await chatMessage.actions.del();
+    } finally {
       dismiss();
     }
-  };
-
-  const addFeel = async (shortcode: string) => {
-    const whom = params.chShip
-      ? `${params.chShip}/${params.chName}`
-      : params.ship;
-    await useChatState.getState().addFeel(whom!, writ.seal.id, shortcode);
-    dismiss();
   };
 
   if ('story' in memo.content) {
@@ -370,50 +307,209 @@ export default function ChatMessageFocus() {
       <>
         <div
           id="overlay"
-          className="z-30 flex h-full w-full bg-black/20 backdrop-blur-md"
+          className="fixed z-30 h-full w-full bg-black/20 backdrop-blur-md"
           onClick={overlayClick}
         />
+
         <div
-          className="fixed inset-0 z-40 flex select-none flex-col items-center justify-center"
+          className="z-40 h-full w-full select-none"
           onClick={containerClick}
         >
           <div
-            className="mx-4 flex flex-col items-start  justify-center"
+            id="quickReactionMenu"
+            className={
+              !showOptions || !messageContainerEl ? 'invisible' : 'absolute'
+            }
+            style={{ top: quickReactTop, left: quickReactLeft }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <EmojiQuickReact
+              addFeel={addFeel}
+              openPicker={() => setShowPicker(true)}
+            />
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 0 }}
+            animate={{
+              opacity: 1,
+              x: 0,
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.05 }}
+            layoutId={seal.id}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {scaleFactor === 1 ? (
+              <div className="absolute top-[35%] flex w-full justify-start">
+                <div
+                  id="focusedMessageContainer"
+                  className="ml-6 flex min-w-[280px] max-w-[80%] flex-col items-start justify-center rounded-xl bg-white p-4"
+                >
+                  <Author className="mb-2" ship={memo.author} hideRoles />
+                  <div id="focusedMessageContent">
+                    <ChatContent
+                      story={memo.content.story}
+                      writId={writ.seal.id}
+                      className="select-auto"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                id="focusedMessageContainer"
+                className={cn(
+                  'absolute top-[20%] ml-6 flex w-[300px] flex-col rounded-xl bg-white'
+                )}
+                style={{ height: messageContainerHeight }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  id="author"
+                  className="flex items-center justify-start pt-4 pl-4"
+                >
+                  <Author className="" ship={memo.author} hideRoles />
+                </div>
+                <div className="flex flex-1 items-center justify-center overflow-hidden">
+                  <div
+                    id="focusedMessageContent"
+                    className="pt-3 pb-4"
+                    style={{ transform: `scale(${scaleFactor})` }}
+                  >
+                    <ChatContent
+                      story={memo.content.story}
+                      writId={writ.seal.id}
+                      className="select-auto"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+
+          <div
+            id="chatOptionsMenu"
+            className={
+              !showOptions || !messageContainerEl ? 'invisible' : 'absolute'
+            }
+            style={{ top: optionsMenuTop, left: optionsMenuLeft }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ChatOptionsMenu
+              chatMessage={chatMessage}
+              showAllReactions={() => setShowAllReactions(true)}
+              initiateDelete={() => setShowDeleteConfirm(true)}
+            />
+          </div>
+
+          {showAllReactions && (
+            <div>
+              <ReactionDetails
+                open={showAllReactions}
+                onOpenChange={setShowAllReactions}
+                feels={writ.seal.feels}
+              />
+            </div>
+          )}
+
+          {showPicker && (
+            <ReactionSheet
+              onEmojiSelect={addFeel}
+              open={showPicker}
+              onOpenChange={setShowPicker}
+            />
+          )}
+
+          {showDeleteConfirm && (
+            <ConfirmationModal
+              title="Delete Message"
+              message="Are you sure you want to delete this message?"
+              onConfirm={delMessage}
+              open={showDeleteConfirm}
+              setOpen={setShowDeleteConfirm}
+              confirmText="Delete"
+              loading={chatMessage.state.isDeleting}
+            />
+          )}
+        </div>
+
+        {/* <div
+          className="fixed inset-0 z-40 flex select-none flex-col items-center justify-center border-2 border-red"
+          onClick={containerClick}
+        >
+          <div
+            className="mx-4 flex flex-col items-start justify-center border-2 border-green"
             style={{ height: messageContainerHeight }}
           >
             <div className={!showOptions ? 'invisible' : ''}>
               <EmojiQuickReact
                 addFeel={addFeel}
-                sheetOpenChange={handleSheetChange}
+                openPicker={() => setShowPicker(true)}
               />
             </div>
-            <motion.div
-              initial={{ opacity: 0, x: 0 }}
-              animate={{
-                opacity: 1,
-                x: 0,
-                scale: scaleFactor,
-              }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.05 }}
-              id="focusedMessage"
-              layoutId={seal.id}
-              className="rounded-lg bg-white p-4"
-              onClick={contentClick}
-            >
-              <Author className="mb-2" ship={memo.author} />
-              <ChatContent
-                story={memo.content.story}
-                writId={writ.seal.id}
-                className="select-auto"
-              />
-            </motion.div>
+            { showMessage && (
+              <motion.div
+                initial={{ opacity: 0, x: 0 }}
+                animate={{
+                  opacity: 1,
+                  x: 0,
+                  scale: scaleFactor,
+                }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.05 }}
+                id="focusedMessage"
+                layoutId={seal.id}
+                className="rounded-lg bg-white p-4"
+                onClick={contentClick}
+              >
+                <Author className="mb-2" ship={memo.author} hideRoles />
+                <ChatContent
+                  story={memo.content.story}
+                  writId={writ.seal.id}
+                  className="select-auto"
+                />
+              </motion.div>
+            )}
           </div>
 
           <div className={!showOptions ? 'invisible' : ''}>
-            <ChatOptionsMenu writ={writ} />
+            <ChatOptionsMenu 
+              chatMessage={chatMessage}
+              showAllReactions={() => setShowAllReactions(true)}
+              initiateDelete={() => setShowDeleteConfirm(true)}
+            />
           </div>
-        </div>
+          
+          { showAllReactions && (
+            <div>
+              <ReactionDetails 
+                open={showAllReactions} 
+                onOpenChange={setShowAllReactions} feels={writ.seal.feels} 
+              />
+            </div>
+          )}
+          
+          { showPicker && (
+            <ReactionSheet
+              onEmojiSelect={addFeel}
+              open={showPicker}
+              onOpenChange={setShowPicker}
+            />
+          )}
+
+          { showDeleteConfirm && (
+            <ConfirmationModal
+              title="Delete Message"
+              message="Are you sure you want to delete this message?"
+              onConfirm={delMessage}
+              open={showDeleteConfirm}
+              setOpen={setShowDeleteConfirm}
+              confirmText="Delete"
+              loading={chatMessage.state.isDeleting}
+            />
+          )}
+        </div> */}
       </>
     );
   }
