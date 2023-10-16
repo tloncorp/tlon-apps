@@ -3,6 +3,7 @@ import { useCalm } from '@/state/settings';
 import LightBox from '@/components/LightBox';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import { useParams } from 'react-router';
+import { useIsMobile } from '@/logic/useMedia';
 import { useChatDialog, useChatFailedToLoadContent } from '../useChatStore';
 
 interface ChatContentImage {
@@ -27,6 +28,7 @@ export default function ChatContentImage({
     chName: string;
   }>();
   const whom = `${chShip}/${chName}`;
+  const isMobile = useIsMobile();
   const calm = useCalm();
   const { failedToLoad, setFailedToLoad } = useChatFailedToLoadContent(
     whom,
@@ -81,6 +83,7 @@ export default function ChatContentImage({
             onError={() => setFailedToLoad(true)}
             className="max-h-[50vh] max-w-full cursor-pointer rounded"
             alt={altText ? altText : 'A chat image'}
+            draggable={!isMobile}
           />
         </button>
       )}
@@ -95,6 +98,7 @@ export default function ChatContentImage({
           height={height}
           width={width}
           alt={altText ? altText : 'A chat image'}
+          draggable={!isMobile}
         />
       </LightBox>
 

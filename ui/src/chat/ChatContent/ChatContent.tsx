@@ -22,6 +22,7 @@ import ShipName from '@/components/ShipName';
 import { Link } from 'react-router-dom';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
 import { isSingleEmoji } from '@/logic/utils';
+import { useIsMobile } from '@/logic/useMedia';
 
 interface ChatContentProps {
   story: ChatStory;
@@ -64,6 +65,8 @@ export function InlineContent({
   story,
   writId = 'not-writ',
 }: InlineContentProps) {
+  const isMobile = useIsMobile();
+
   if (typeof story === 'string') {
     if (isSingleEmoji(story)) {
       return <span className="text-[32px]">{story}</span>;
@@ -103,11 +106,13 @@ export function InlineContent({
 
   if (isLink(story)) {
     return (
-      <ChatEmbedContent
-        writId={writId}
-        url={story.link.href}
-        content={story.link.content}
-      />
+      <div className="select-none" draggable={!isMobile}>
+        <ChatEmbedContent
+          writId={writId}
+          url={story.link.href}
+          content={story.link.content}
+        />
+      </div>
     );
   }
 
@@ -173,7 +178,11 @@ export function BlockContent({
     );
   }
   if ('cite' in story) {
-    return <ContentReference cite={story.cite} isScrolling={isScrolling} />;
+    return (
+      <div className="select-none">
+        <ContentReference cite={story.cite} isScrolling={isScrolling} />
+      </div>
+    );
   }
 
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
