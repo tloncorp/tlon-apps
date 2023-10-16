@@ -73,7 +73,7 @@ Groups and Talk are distributed via the Urbit network by way of a [glob](https:/
 1. Create or launch an urbit using the -F flag.
 2. On that urbit, if you don't already have a desk to run from, run `|merge %work our %base` to create a new desk and mount it with `|mount %work`.
 3. Now the `%work` desk is accessible through the host OS's filesystem as a directory of that urbit's pier ie `~/zod/work`.
-4. From the `ui` directory you can run `rsync -avL --delete dist/ ~/zod/work/groups` and `rsync -avL --delete desk/ ~/zod/work/` where `~/zod` is your fake urbit's pier.
+4. From the repo you can run `rsync -avL --delete ui/dist/ ~/zod/work/groups` and `rsync -avL desk/mar/webmanifest.hoon ~/zod/work/mar/webmanifest.hoon` where `~/zod` is your fake urbit's pier.
 5. Once completed, run `|commit %work` on your urbit and you should see your files logged back out from the dojo.
 6. Run `=dir /=landscape` to switch to the landscape desk directory.
 7. Run `-make-glob %work /groups`. This will create a glob from the folder where you just added files. It will output to `~/zod/.urb/put`.
