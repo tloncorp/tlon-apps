@@ -126,7 +126,7 @@ function EmojiQuickReact({
       initial={{ scale: 0, x: 0 }}
       animate={{ scale: 1, x: 0 }}
       transition={{ type: 'spring', stiffness: 200, duration: 0.005 }}
-      className="flex w-[280px] items-center justify-evenly rounded-[24px] bg-white py-2 px-3 dark:bg-gray-200"
+      className="flex w-[280px] items-center justify-evenly rounded-[24px] bg-white py-2 px-3"
       onClick={(e) => e.stopPropagation()}
     >
       <QuickReactOption
