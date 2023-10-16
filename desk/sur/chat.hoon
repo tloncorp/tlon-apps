@@ -18,6 +18,14 @@
 +$  feel   @ta
 ::  $scan: search results
 +$  scan  (list reference)
+::  $blocked: a set of ships that the user has blocked
++$  blocked  (set ship)
++$  blocked-by  (set ship)
++$  hidden-messages  (set id)
++$  message-toggle
+  $%  [%hide =id]
+      [%show =id]
+  ==
 +$  reference
   $%  [%writ =writ]
       [%quip =id =quip]

@@ -644,3 +644,7 @@ export interface PostInCache {
 export type ChannelScanItem = { post: Post } | ReplyReferenceResponse;
 
 export type ChannelScan = ChannelScanItem[];
+
+export type TogglePost = { hide: string } | { show: string };
+
+export type HiddenPosts = string[];

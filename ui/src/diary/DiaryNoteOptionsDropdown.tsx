@@ -2,7 +2,7 @@ import React, { PropsWithChildren, useState } from 'react';
 import classNames from 'classnames';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import { useArrangedPosts } from '@/state/channel/channel';
+import { useArrangedPosts, usePostToggler } from '@/state/channel/channel';
 import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -12,6 +12,7 @@ type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
   time: string;
   flag: string;
   canEdit: boolean;
+  author: string;
   triggerClassName?: string;
 }>;
 
@@ -20,6 +21,7 @@ export default function DiaryNoteOptionsDropdown({
   flag,
   time,
   triggerClassName,
+  author,
   canEdit,
 }: DiaryNoteOptionsDropdownProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -41,6 +43,7 @@ export default function DiaryNoteOptionsDropdown({
     flag,
     time,
   });
+  const { show, hide, isHidden } = usePostToggler(time);
 
   const actions: Action[] = [
     {
@@ -90,6 +93,14 @@ export default function DiaryNoteOptionsDropdown({
         onClick: () => setDeleteOpen(true),
       }
     );
+  }
+
+  if (author !== window.our) {
+    actions.push({
+      key: 'hide',
+      content: isHidden ? 'Show Note' : 'Hide Note for Me',
+      onClick: isHidden ? show : hide,
+    });
   }
 
   return (

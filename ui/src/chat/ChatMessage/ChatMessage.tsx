@@ -20,7 +20,11 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
-import { useChatState, useTrackedMessageStatus } from '@/state/chat';
+import {
+  useChatState,
+  useMessageToggler,
+  useTrackedMessageStatus,
+} from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
@@ -30,9 +34,10 @@ import useLongPress from '@/logic/useLongPress';
 import {
   useIsPostPending,
   useMarkReadMutation,
+  usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import { Post } from '@/types/channel';
+import { Post, Story } from '@/types/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -74,6 +79,18 @@ const mergeRefs =
     });
   };
 
+const hiddenMessage: Story = [
+  {
+    inline: [
+      {
+        italics: [
+          'You have hidden this message. You can unhide it from the options menu.',
+        ],
+      },
+    ],
+  },
+];
+
 const ChatMessage = React.memo<
   ChatMessageProps & React.RefAttributes<HTMLDivElement>
 >(
@@ -95,6 +112,7 @@ const ChatMessage = React.memo<
       ref
     ) => {
       const { seal, essay } = writ;
+      console.log({ seal, essay });
       const container = useRef<HTMLDivElement>(null);
       const { idShip, idTime } = useParams<{
         idShip: string;
@@ -112,6 +130,12 @@ const ChatMessage = React.memo<
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
+      const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
+      const { isHidden: isPostHidden } = usePostToggler(seal.id);
+      const isHidden = useMemo(
+        () => isMessageHidden || isPostHidden,
+        [isMessageHidden, isPostHidden]
+      );
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -300,7 +324,13 @@ const ChatMessage = React.memo<
                   isLinked && 'bg-blue-softer'
                 )}
               >
-                {essay.content ? (
+                {isHidden ? (
+                  <ChatContent
+                    story={hiddenMessage}
+                    isScrolling={isScrolling}
+                    writId={seal.id}
+                  />
+                ) : essay.content ? (
                   <ChatContent
                     story={essay.content}
                     isScrolling={isScrolling}

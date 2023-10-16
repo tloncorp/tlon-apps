@@ -1,7 +1,9 @@
+import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Post } from '@/types/channel';
 import { useCalm } from '@/state/settings';
 import getKindDataFromEssay from '@/logic/getKindData';
+import { usePostToggler } from '@/state/channel/channel';
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
@@ -17,14 +19,18 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const { image } = getKindDataFromEssay(essay);
   const hasImage = image?.length !== 0;
   const { replyCount, lastRepliers } = note.seal.meta;
+  const { isHidden } = usePostToggler(time.toString());
 
   return (
     <div
       role="link"
       tabIndex={0}
-      className={
-        'flex w-full cursor-pointer flex-col space-y-8 rounded-xl bg-white bg-cover bg-center p-8'
-      }
+      className={cn(
+        'flex w-full cursor-pointer flex-col space-y-8 rounded-xl bg-white bg-cover bg-center p-8',
+        {
+          'cursor-pointer': !isHidden,
+        }
+      )}
       style={
         hasImage && !calm?.disableRemoteContent
           ? {

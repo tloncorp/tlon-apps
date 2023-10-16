@@ -1,10 +1,10 @@
-import { Status } from '@/logic/status';
-import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
-import { useGroupFlag } from '@/state/groups';
-import { useDeletePostMutation } from '@/state/channel/channel';
 import { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { decToUd } from '@urbit/api';
+import { Status } from '@/logic/status';
+import { nestToFlag, citeToPath, useCopy } from '@/logic/utils';
+import { useGroupFlag } from '@/state/groups';
+import { useDeletePostMutation, usePostToggler } from '@/state/channel/channel';
 
 interface useCurioActionsProps {
   nest: string;
@@ -28,6 +28,7 @@ export default function useCurioActions({
     },
   });
   const { doCopy, didCopy } = useCopy(refToken ? refToken : chanPath);
+  const { isHidden, show, hide } = usePostToggler(time);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState<Status>('idle');
@@ -69,6 +70,14 @@ export default function useCurioActions({
     }, 1000);
   }, [doCopy]);
 
+  const toggleHidden = useCallback(() => {
+    if (isHidden) {
+      show();
+    } else {
+      hide();
+    }
+  }, [isHidden, show, hide]);
+
   return {
     didCopy,
     menuOpen,
@@ -78,5 +87,7 @@ export default function useCurioActions({
     onEdit,
     onCopy,
     navigateToCurio,
+    isHidden,
+    toggleHidden,
   };
 }

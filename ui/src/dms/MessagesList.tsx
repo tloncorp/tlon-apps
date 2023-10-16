@@ -109,6 +109,12 @@ export default function MessagesList({
     [allPending, unreads, filter, pinned, sortMessages, chats, groups]
   );
 
+  console.log({
+    unreads,
+    chats,
+    organizedUnreads,
+  });
+
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);
   const head = useMemo(

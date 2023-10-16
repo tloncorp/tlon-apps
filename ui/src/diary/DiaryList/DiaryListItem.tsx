@@ -2,7 +2,7 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Post } from '@/types/channel';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
-import { useIsPostPending } from '@/state/channel/channel';
+import { useIsPostPending, usePostToggler } from '@/state/channel/channel';
 
 interface DiaryListItemProps {
   note: Post;
@@ -18,10 +18,12 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
 
   const { essay } = note;
   const { lastRepliers, replyCount } = note.seal.meta;
+  const { isHidden } = usePostToggler(time.toString());
 
   return (
     <div
       className={cn('card cursor-pointer border border-gray-100', {
+        'cursor-pointer': !isHidden,
         'bg-gray-100': isPending,
       })}
       role="link"

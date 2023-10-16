@@ -132,6 +132,19 @@
         reacts+(reacts reacts.reply-seal)
     ==
   ::
+  ++  post-toggle
+    |=  p=post-toggle:c
+    %+  frond  -.p
+    ?-  -.p
+      %hide  (id id-post.p)
+      %show  (id id-post.p)
+    ==
+  ::
+  ++  hidden-posts
+    |=  hp=hidden-posts:c
+    a+(turn ~(tap in hp) id)
+  ::
+  ::
   +|  %primitives
   ::
   ++  v-channel
@@ -376,6 +389,7 @@
     :~  create+create-channel
         pin+(ar nest)
         channel+(ot nest+nest action+a-channel ~)
+        toggle-post+post-toggle
     ==
   ++  a-channel
     ^-  $-(json a-channel:c)
@@ -560,6 +574,13 @@
   ++  pins
     %-  ot
     :~  pins/(ar nest)
+    ==
+  ::
+  ++  post-toggle
+    ^-  $-(json post-toggle:c)
+    %-  of
+    :~  hide/(se %ud)
+        show/(se %ud)
     ==
   --
 --

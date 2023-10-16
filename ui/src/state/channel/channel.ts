@@ -39,6 +39,8 @@ import {
   ReferenceResponse,
   ReplyTuple,
   newChatMap,
+  HiddenPosts,
+  TogglePost,
 } from '@/types/channel';
 import {
   extendCurrentWindow,
@@ -2066,5 +2068,69 @@ export function useChannelSearch(nest: string, query: string) {
   return {
     scan,
     ...rest,
+  };
+}
+
+export function useHiddenPosts() {
+  return useReactQueryScry<HiddenPosts>({
+    queryKey: ['channels', 'hidden'],
+    app: 'channels',
+    path: '/hidden-posts',
+    options: {
+      placeholderData: [],
+    },
+  });
+}
+
+export function useTogglePostMutation() {
+  const mutationFn = (variables: { toggle: TogglePost }) =>
+    api.poke({
+      app: 'channels',
+      mark: 'channel-action',
+      json: {
+        'toggle-post': variables.toggle,
+      },
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: ({ toggle }) => {
+      const hiding = 'hide' in toggle;
+      queryClient.setQueryData<HiddenPosts>(['diary', 'hidden'], (prev) => {
+        if (!prev) {
+          return hiding ? [udToDec(toggle.hide)] : [];
+        }
+
+        return hiding
+          ? [...prev, udToDec(toggle.hide)]
+          : prev.filter((postId) => postId !== udToDec(toggle.show));
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['diary', 'hidden']);
+    },
+  });
+}
+
+export function usePostToggler(postId: string) {
+  const udId = decToUd(postId);
+  const { mutate } = useTogglePostMutation();
+  const { data: hidden } = useHiddenPosts();
+  const isHidden = useMemo(
+    () => (hidden || []).some((h) => h === postId),
+    [hidden, postId]
+  );
+  const show = useCallback(
+    () => mutate({ toggle: { show: udId } }),
+    [mutate, udId]
+  );
+  const hide = useCallback(
+    () => mutate({ toggle: { hide: udId } }),
+    [mutate, udId]
+  );
+
+  return {
+    show,
+    hide,
+    isHidden,
   };
 }

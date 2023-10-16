@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useChatState } from '@/state/chat';
+import { useChatState, useMessageToggler } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -27,8 +27,11 @@ import {
   useAddPostReactMutation,
   useDeletePostMutation,
   usePerms,
+  usePostToggler,
 } from '@/state/channel/channel';
 import { emptyPost, Post } from '@/types/channel';
+import VisibleIcon from '@/components/icons/VisibleIcon';
+import HiddenIcon from '@/components/icons/HiddenIcon';
 
 export default function ChatMessageOptions(props: {
   open: boolean;
@@ -84,6 +87,20 @@ export default function ChatMessageOptions(props: {
   const { mutate: deleteChatMessage } = useDeletePostMutation();
   const { mutate: addFeelToChat } = useAddPostReactMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
+  const {
+    show: showPost,
+    hide: hidePost,
+    isHidden: isPostHidden,
+  } = usePostToggler(seal.id);
+  const {
+    show: showChatMessage,
+    hide: hideChatMessage,
+    isHidden: isMessageHidden,
+  } = useMessageToggler(seal.id);
+  const isHidden = useMemo(
+    () => isMessageHidden || isPostHidden,
+    [isMessageHidden, isPostHidden]
+  );
 
   const onDelete = async () => {
     if (isMobile) {
@@ -155,6 +172,16 @@ export default function ChatMessageOptions(props: {
       nest,
       isDMorMultiDM,
     ]
+  );
+
+  const toggleMsg = useCallback(
+    () => (isMessageHidden ? showChatMessage() : hideChatMessage()),
+    [isMessageHidden, showChatMessage, hideChatMessage]
+  );
+
+  const togglePost = useCallback(
+    () => (isPostHidden ? showPost() : hidePost()),
+    [isPostHidden, showPost, hidePost]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
@@ -246,6 +273,26 @@ export default function ChatMessageOptions(props: {
     });
   }
 
+  actions.push({
+    key: 'hide',
+    onClick: isDMorMultiDM ? toggleMsg : togglePost,
+    content: (
+      <div className="flex items-center">
+        {isHidden ? (
+          <>
+            <VisibleIcon className="mr-2 h-6 w-6" />
+            Show Message
+          </>
+        ) : (
+          <>
+            <HiddenIcon className="mr-2 h-6 w-6" />
+            Hide Message
+          </>
+        )}
+      </div>
+    ),
+  });
+
   if (showDeleteAction) {
     actions.push({
       key: 'delete',
@@ -332,6 +379,18 @@ export default function ChatMessageOptions(props: {
                 action={openReactionDetails}
               />
             )}
+            <IconButton
+              icon={
+                isHidden ? (
+                  <VisibleIcon className="h-6 w-6 text-gray-400" />
+                ) : (
+                  <HiddenIcon className="h-6 w-6 text-gray-400" />
+                )
+              }
+              label={isHidden ? 'Show Message' : 'Hide Message'}
+              showTooltip
+              action={isDMorMultiDM ? toggleMsg : togglePost}
+            />
             {showDeleteAction && (
               <IconButton
                 icon={<XIcon className="h-6 w-6 text-red" />}

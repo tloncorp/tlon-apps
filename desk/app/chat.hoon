@@ -390,6 +390,29 @@
     =+  !<(ps=(list whom:c) vase)
     (pin ps)
   ::
+      %chat-blocked
+    ?<  from-self
+    (has-blocked src.bowl)
+  ::
+      %chat-unblocked
+    ?<  from-self
+    (has-unblocked src.bowl)
+  ::
+      %chat-block-ship
+    =+  !<(=ship vase)
+    ?>  from-self
+    (block ship)
+  ::
+      %chat-unblock-ship
+    =+  !<(=ship vase)
+    ?>  from-self
+    (unblock ship)
+  ::
+      %chat-toggle-message
+    =+  !<(toggle=message-toggle:c vase)
+    ?>  from-self
+    (toggle-message toggle)
+  ::
       %chat-remark-action
     =+  !<(act=remark-action:c vase)
     ?-  -.p.act
@@ -428,6 +451,48 @@
     =.  pins  ps
     cor
   --
+  ::
+  ++  has-blocked
+    |=  =ship
+    ^+  cor
+    ?<  (~(has in blocked-by) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked-by  (~(put in blocked-by) ship)
+    (give %fact ~[/ui] chat-blocked-by+!>(ship))
+  ::
+  ++  has-unblocked
+    |=  =ship
+    ^+  cor
+    ?>  (~(has in blocked-by) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked-by  (~(del in blocked-by) ship)
+    (give %fact ~[/ui] chat-unblocked-by+!>(ship))
+  ::
+  ++  block
+    |=  =ship
+    ^+  cor
+    ?<  (~(has in blocked) ship)
+    ?<  =(our.bowl ship)
+    =.  blocked  (~(put in blocked) ship)
+    (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-blocked !>(0))
+  ::
+  ++  unblock
+    |=  =ship
+    ^+  cor
+    ?>  (~(has in blocked) ship)
+    =.  blocked  (~(del in blocked) ship)
+    (emit %pass di-area:di-core:cor %agent [ship dap.bowl] %poke %chat-unblocked !>(0))
+  ::
+  ++  toggle-message
+    |=  toggle=message-toggle:c
+    ^+  cor
+    =.  hidden-messages
+      ?-  -.toggle
+        %hide  (~(put in hidden-messages) id.toggle)
+        %show  (~(del in hidden-messages) id.toggle)
+      ==
+    (give %fact ~[/ui] chat-toggle-message+!>(toggle))
+  ::
 ++  watch
   |=  =(pole knot)
   ^+  cor
@@ -492,6 +557,12 @@
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
   ::
     [%x %pins ~]  ``chat-pins+!>(pins)
+  ::
+    [%x %blocked ~]  ``ships+!>(blocked)
+  ::
+    [%x %blocked-by ~]  ``ships+!>(blocked-by)
+  ::
+    [%x %hidden-messages ~]  ``hidden-messages+!>(hidden-messages)
   ::
     [%x %briefs ~]  ``chat-briefs+!>(briefs)
   ::
@@ -808,6 +879,13 @@
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
     [uid cu-core(counter +(counter))]
   ::
+  ++  cu-spin-groups
+    |=  [con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
+    =/  rope  [~ ~ %groups /club/(scot %uv id)]
+    =/  link  /dm/(scot %uv id)
+    [& & rope con link but]
+  ::
   ++  cu-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
@@ -925,6 +1003,15 @@
         =.  cor  (give-brief club/id cu-brief)
         ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
         ?^  kind.q.diff.delta  (cu-give-writs-diff diff.delta)
+        =/  new-yarn-groups
+          %+  cu-spin-groups
+            :~  [%ship author.memo]
+                ': '
+                (flatten:utils content.memo)
+            ==
+          ~
+        =?  cor  (want-hark %to-us)
+          (emit (pass-hark new-yarn-groups))
         =/  new-yarn
           %^  cu-spin
             ~
@@ -1119,6 +1206,13 @@
     di-core(ship s, dm d)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
+  ++  di-spin-groups
+    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
+    =/  rope  [~ ~ %groups /dm/(scot %p ship)]
+    =/  link  /dm/(scot %p ship)
+    [& & rope con link but]
+  ::
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
@@ -1165,6 +1259,17 @@
         (give-brief ship/ship di-brief)
       ?:  from-self    (di-give-writs-diff diff)
       ?^  kind.q.diff  (di-give-writs-diff diff)
+      =/  new-yarn-groups
+        %^  di-spin-groups
+          ~
+          :~  [%ship author.memo]
+              ?:  =(net.dm %invited)  ' has invited you to a direct message'
+              ': '
+              ?:(=(net.dm %invited) '' (flatten:utils content.memo))
+          ==
+        ~
+      =?  cor  (want-hark %to-us)
+        (emit (pass-hark new-yarn-groups))
       =/  new-yarn
         %^  di-spin
           ~
@@ -1193,6 +1298,17 @@
         ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
         ?~  entry  (di-give-writs-diff diff)
         =*  op  writ.u.entry
+        =/  new-yarn-groups
+          %^  di-spin-groups
+            /(rsh 4 (scot %ui time.u.entry))
+            :~  [%ship author.memo]  ' replied to '
+                [%emph (flatten:utils content.op)]  ': '
+                [%ship author.memo]  ': '
+                (flatten:utils content.memo)
+            ==
+          ~
+        =?  cor  (want-hark %to-us)
+          (emit (pass-hark new-yarn-groups))
         =/  new-yarn
           %^  di-spin
             /(rsh 4 (scot %ui time.u.entry))
@@ -1211,6 +1327,7 @@
   ++  di-take-counter
     |=  =diff:dm:c
     ?<  =(%archive net.dm)
+    ?<  (~(has in blocked) ship)
     (di-ingest-diff diff)
   ::
   ++  di-post-notice

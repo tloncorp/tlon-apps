@@ -24,6 +24,7 @@
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)
+        hidden-posts=(set id-post:c)
     ==
   --
 =|  current-state
@@ -186,6 +187,9 @@
     ?:  ?=(%pin -.a-channels)
       ?>  from-self
       cor(pins pins.a-channels)
+    ?:  ?=(%toggle-post -.a-channels)
+      ?>  from-self
+      (toggle-post toggle.a-channels)
     ?:  ?=(%join -.a-channel.a-channels)
       ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
     ca-abet:(ca-a-diary:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
@@ -202,6 +206,16 @@
     =.  pins  (weld pins new-pins)
     cor
   ==
+  ++  toggle-post
+    |=  toggle=post-toggle:c
+    ^+  cor
+    =.  hidden-posts
+      ?-  -.toggle
+        %hide  (~(put in hidden-posts) id-post.toggle)
+        %show  (~(del in hidden-posts) id-post.toggle)
+      ==
+    (give %fact ~[/] toggle-post+!>(toggle))
+  ::
 ::
 ++  watch
   |=  =(pole knot)
@@ -339,6 +353,7 @@
       [%x %channels ~]   ``channels+!>((uv-channels:utils v-channels))
       [%x %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
       [%x %pins ~]    ``channel-pins+!>(pins)
+      [%x %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x %unreads ~]  ``channel-unreads+!>(unreads)
       [%x =kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)

@@ -126,6 +126,16 @@ export interface Clubs {
   [id: string]: Club; // id is `@uv`
 }
 
+export interface BlockedByUpdate {
+  'blocked-by': string;
+}
+
+export interface UnblockedByUpdate {
+  'unblocked-by': string;
+}
+
+export type ChatUIEvent = BlockedByUpdate | UnblockedByUpdate | ToggleMessage;
+
 export interface DmAction {
   ship: string;
   diff: WritDiff;
@@ -266,3 +276,11 @@ export interface WritInCache {
   seal: WritSealInCache;
   memo: WritEssay;
 }
+
+export type BlockedShips = string[];
+
+export type BlockedByShips = string[];
+
+export type ToggleMessage = { hide: string } | { show: string };
+
+export type HiddenMessages = string[];

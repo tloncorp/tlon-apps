@@ -25,6 +25,11 @@ import {
   Writ,
   WritInCache,
   WritTuple,
+  ChatUIEvent,
+  ToggleMessage,
+  HiddenMessages,
+  BlockedByShips,
+  BlockedShips,
 } from '@/types/dms';
 import {
   newReplyMap,
@@ -127,6 +132,19 @@ async function optimisticAction(
   await api.poke<ClubAction | DmAction | ChannelsAction>(action);
 }
 
+function resolveHiddenMessages(toggle: ToggleMessage) {
+  const hiding = 'hide' in toggle;
+  return (prev: HiddenMessages | undefined) => {
+    if (!prev) {
+      return hiding ? [toggle.hide] : [];
+    }
+
+    return hiding
+      ? [...prev, toggle.hide]
+      : prev.filter((id) => id !== toggle.show);
+  };
+}
+
 export const useChatState = createState<ChatState>(
   'chat',
   (set, get) => ({
@@ -199,6 +217,49 @@ export const useChatState = createState<ChatState>(
       });
 
       useChatStore.getState().update(unreads);
+
+      api.subscribe(
+        {
+          app: 'chat',
+          path: '/ui',
+          event: (event: ChatUIEvent, mark) => {
+            if (mark === 'chat-toggle-message') {
+              const toggle = event as ToggleMessage;
+              queryClient.setQueryData<HiddenMessages>(
+                ['chat', 'hidden'],
+                resolveHiddenMessages(toggle)
+              );
+            }
+
+            if ('blocked-by' in event) {
+              queryClient.setQueryData<BlockedByShips>(
+                ['chat', 'blocked-by'],
+                (prev) => {
+                  if (!prev) {
+                    return [event['blocked-by']];
+                  }
+
+                  return [...prev, event['blocked-by']];
+                }
+              );
+            }
+
+            if ('unblocked-by' in event) {
+              queryClient.setQueryData<BlockedByShips>(
+                ['chat', 'blocked-by'],
+                (prev) => {
+                  if (!prev) {
+                    return [];
+                  }
+
+                  return prev.filter((s) => s !== event['unblocked-by']);
+                }
+              );
+            }
+          },
+        },
+        3
+      );
 
       api.subscribe(
         {
@@ -631,8 +692,8 @@ export function useDmUnreads() {
   >({
     queryKey: ['dm', 'unreads'],
     app: 'chat',
-    path: '/unreads',
-    scry: '/unreads',
+    path: '/briefs',
+    scry: '/briefs',
   });
 
   if (!data) {
@@ -1172,6 +1233,154 @@ export function useChatSearch(whom: string, query: string) {
   return {
     scan,
     ...rest,
+  };
+}
+
+export function useBlockedShips() {
+  const { data, ...rest } = useReactQueryScry<BlockedShips>({
+    queryKey: ['chat', 'blocked'],
+    app: 'chat',
+    path: '/blocked',
+  });
+
+  if (!data) {
+    return {
+      blocked: [],
+      ...rest,
+    };
+  }
+
+  return {
+    blocked: data,
+    ...rest,
+  };
+}
+
+export function useIsShipBlocked(ship: string) {
+  const { blocked } = useBlockedShips();
+
+  return blocked.includes(ship);
+}
+
+export function useBlockedByShips() {
+  const { data, ...rest } = useReactQueryScry<BlockedByShips>({
+    queryKey: ['chat', 'blocked-by'],
+    app: 'chat',
+    path: '/blocked-by',
+  });
+
+  if (!data) {
+    return {
+      blockedBy: [],
+      ...rest,
+    };
+  }
+
+  return {
+    blockedBy: data,
+    ...rest,
+  };
+}
+
+export function useShipHasBlockedUs(ship: string) {
+  const { blockedBy } = useBlockedByShips();
+
+  return blockedBy.includes(ship);
+}
+
+export function useBlockShipMutation() {
+  const mutationFn = (variables: { ship: string }) =>
+    api.poke({
+      app: 'chat',
+      mark: 'chat-block-ship',
+      json: variables,
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: ({ ship }) => {
+      queryClient.setQueryData<BlockedShips>(['chat', 'blocked'], (old) => [
+        ...(old ?? []),
+        ship,
+      ]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chat', 'blocked']);
+    },
+  });
+}
+
+export function useUnblockShipMutation() {
+  const mutationFn = (variables: { ship: string }) =>
+    api.poke({
+      app: 'chat',
+      mark: 'chat-unblock-ship',
+      json: variables,
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: ({ ship }) => {
+      queryClient.setQueryData<BlockedShips>(['chat', 'blocked'], (old) =>
+        (old ?? []).filter((s) => s !== ship)
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chat', 'blocked']);
+    },
+  });
+}
+
+export function useHiddenMessages() {
+  return useReactQueryScry<HiddenMessages>({
+    queryKey: ['chat', 'hidden'],
+    app: 'chat',
+    path: '/hidden-messages',
+    options: {
+      placeholderData: [],
+    },
+  });
+}
+
+export function useToggleMessageMutation() {
+  const mutationFn = (variables: { toggle: ToggleMessage }) =>
+    api.poke({
+      app: 'chat',
+      mark: 'chat-toggle-message',
+      json: variables.toggle,
+    });
+
+  return useMutation(mutationFn, {
+    onMutate: ({ toggle }) => {
+      queryClient.setQueryData<HiddenMessages>(
+        ['chat', 'hidden'],
+        resolveHiddenMessages(toggle)
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['chat', 'hidden']);
+    },
+  });
+}
+
+export function useMessageToggler(id: string) {
+  const { mutate } = useToggleMessageMutation();
+  const { data: hidden } = useHiddenMessages();
+  const isHidden = useMemo(
+    () => (hidden || []).some((h) => h === id),
+    [hidden, id]
+  );
+  const show = useCallback(
+    () => mutate({ toggle: { show: id } }),
+    [mutate, id]
+  );
+  const hide = useCallback(
+    () => mutate({ toggle: { hide: id } }),
+    [mutate, id]
+  );
+
+  return {
+    show,
+    hide,
+    isHidden,
   };
 }
 

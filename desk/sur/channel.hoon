@@ -188,6 +188,13 @@
 +$  sort  $~(%time ?(%alpha %time %arranged))
 ::  $arranged-posts: an array of postIds
 +$  arranged-posts  (unit (list time))
+::  $hidden-posts: a set of ids for posts that are hidden
++$  hidden-posts  (set id-post)
+::  $post-toggle: hide or show a particular post by id
++$  post-toggle
+  $%  [%hide =id-post]
+      [%show =id-post]
+  ==
 ::  $react: either an emoji identifier like :diff or a URL for custom
 +$  react     @ta
 +$  v-reacts  (map ship (rev (unit react)))
@@ -293,6 +300,7 @@
   $%  [%create =create-channel]
       [%pin pins=(list nest)]
       [%channel =nest =a-channel]
+      [%toggle-post toggle=post-toggle]
   ==
 +$  a-channel
   $%  [%join group=flag:g]

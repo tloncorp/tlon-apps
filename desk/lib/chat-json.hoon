@@ -81,6 +81,19 @@
     :~  ship/(ship ship.r)
         ok/b/ok.r
     ==
+  ::
+  ++  toggle-message
+    |=  m=message-toggle:c
+    %+  frond  -.m
+    ?-  -.m
+      %hide  (id id.m)
+      %show  (id id.m)
+    ==
+  ::
+  ++  hidden-messages
+    |=  hm=hidden-messages:c
+    a+(turn ~(tap in hm) id)
+  ::
   ++  whom
     |=  w=whom:c
     ?-  -.w

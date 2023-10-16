@@ -29,7 +29,9 @@ import {
   isCite,
   linkUrlFromContent,
   Post,
+  Story,
 } from '@/types/channel';
+import { usePostToggler } from '@/state/channel/channel';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -45,6 +47,7 @@ interface TopBarProps extends CurioDisplayProps {
   canEdit: boolean;
   longPress: boolean;
   linkFromNotification?: string;
+  author: string;
 }
 
 function TopBar({
@@ -57,6 +60,7 @@ function TopBar({
   longPress = false,
   time,
   canEdit,
+  author,
 }: TopBarProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const chFlag = useChannelFlag();
@@ -70,6 +74,8 @@ function TopBar({
     onEdit,
     onCopy,
     navigateToCurio,
+    toggleHidden,
+    isHidden,
   } = useCurioActions({
     nest,
     time,
@@ -104,6 +110,14 @@ function TopBar({
         },
       ]
     : [];
+
+  if (window.our !== author) {
+    actions.push({
+      key: 'hide',
+      content: isHidden ? 'Show Post' : 'Hide Post for Me',
+      onClick: toggleHidden,
+    });
+  }
 
   return (
     <div
@@ -146,33 +160,31 @@ function TopBar({
             />
           )}
         </div>
-        {canEdit && (
-          <div>
-            <ActionMenu
-              open={menuOpen}
-              onOpenChange={setMenuOpen}
-              asChild={false}
-              actions={actions}
-            >
-              {asRef ? (
-                <IconButton
-                  icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                  action={() => setMenuOpen(true)}
-                  label="expand"
-                  className="rounded border border-gray-100 bg-white"
-                  small
-                />
-              ) : (
-                <IconButton
-                  icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                  label="options"
-                  className="rounded bg-white"
-                  action={() => setMenuOpen(!menuOpen)}
-                />
-              )}
-            </ActionMenu>
-          </div>
-        )}
+        <div>
+          <ActionMenu
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            asChild={false}
+            actions={actions}
+          >
+            {asRef ? (
+              <IconButton
+                icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                action={() => setMenuOpen(true)}
+                label="expand"
+                className="rounded border border-gray-100 bg-white"
+                small
+              />
+            ) : (
+              <IconButton
+                icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                label="options"
+                className="rounded bg-white"
+                action={() => setMenuOpen(!menuOpen)}
+              />
+            )}
+          </ActionMenu>
+        </div>
       </div>
       <ConfirmationModal
         open={deleteOpen}
@@ -234,23 +246,29 @@ function HeapBlockWrapper({
   children,
   post,
   linkFromNotification,
+  isHidden,
 }: React.PropsWithChildren<{
   time: string;
   setLongPress: (b: boolean) => void;
   post: Post;
   linkFromNotification?: string;
+  isHidden?: boolean;
 }>) {
   const navigate = useNavigate();
   const { action, handlers } = useLongPress();
   const navigateToDetail = useCallback(
     (blockTime: string) => {
+      if (isHidden) {
+        return;
+      }
+
       if (linkFromNotification) {
         navigate(linkFromNotification);
         return;
       }
       navigate(`curio/${blockTime}`, { state: { initialCurio: post } });
     },
-    [navigate, post, linkFromNotification]
+    [navigate, post, linkFromNotification, isHidden]
   );
 
   useEffect(() => {
@@ -275,6 +293,16 @@ interface HeapBlockProps extends CurioDisplayProps {
   linkFromNotification?: string;
 }
 
+const hiddenPostContent: Story = [
+  {
+    inline: [
+      {
+        italics: ['You have hidden this post.'],
+      },
+    ],
+  },
+];
+
 export default function HeapBlock({
   post,
   time,
@@ -284,6 +312,7 @@ export default function HeapBlock({
   linkFromNotification,
 }: HeapBlockProps) {
   const [longPress, setLongPress] = useState(false);
+  const { isHidden } = usePostToggler(time);
   const { content } = post ? post.essay : { content: [] };
   const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const {
@@ -326,8 +355,33 @@ export default function HeapBlock({
     linkFromNotification,
     refToken,
     longPress,
+    author: post.essay.author,
   };
   const botBar = { post, asRef, asMobileNotification, longPress };
+
+  if (isHidden) {
+    return (
+      <HeapBlockWrapper
+        time={time}
+        post={post}
+        setLongPress={setLongPress}
+        isHidden={isHidden}
+      >
+        <div className={cnm()}>
+          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <HeapContent
+            className={cn('mx-3 my-2 leading-6', asRef ? 'line-clamp-9' : '')}
+            leading-6
+            content={hiddenPostContent}
+          />
+          {!asRef && (
+            <div className="from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent" />
+          )}
+          <BottomBar {...botBar} />
+        </div>
+      </HeapBlockWrapper>
+    );
+  }
 
   if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {
     return (

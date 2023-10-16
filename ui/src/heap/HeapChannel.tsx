@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { Outlet, useParams, useNavigate } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import * as Toast from '@radix-ui/react-toast';
 import { Helmet } from 'react-helmet';
 import bigInt from 'big-integer';
@@ -25,7 +25,6 @@ import HeapPlaceholder from './HeapPlaceholder';
 
 function HeapChannel({ title }: ViewProps) {
   const isMobile = useIsMobile();
-  const navigate = useNavigate();
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
@@ -57,13 +56,6 @@ function HeapChannel({ title }: ViewProps) {
     dragEnabled && !isLoading && !addCurioOpen && isDragging && isOver;
   const [dragErrorMessage, setDragErrorMessage] = useState('');
 
-  const navigateToDetail = useCallback(
-    (time: bigInt.BigInteger) => {
-      navigate(`curio/${time}`);
-    },
-    [navigate]
-  );
-
   useDismissChannelNotifications({
     nest,
     markRead: useCallback(() => markRead({ nest }), [markRead, nest]),
@@ -78,17 +70,15 @@ function HeapChannel({ title }: ViewProps) {
             <HeapBlock post={outline} time={time.toString()} />
           </div>
         ) : (
-          <div onClick={() => navigateToDetail(time)}>
-            <HeapRow
-              key={time.toString()}
-              post={outline}
-              time={time.toString()}
-            />
-          </div>
+          <HeapRow
+            key={time.toString()}
+            post={outline}
+            time={time.toString()}
+          />
         )}
       </div>
     ),
-    [displayMode, navigateToDetail]
+    [displayMode]
   );
 
   const empty = useMemo(() => posts.length === 0, [posts]);
