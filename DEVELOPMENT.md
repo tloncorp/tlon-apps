@@ -20,27 +20,48 @@ Regardless of what you run to develop, Vite will hot-reload code changes as you 
 
 ## Fakezod Development
 
-Follow these instructions or use Tlon's
+To get started, make sure your %groups desk is mounted: 
+
+```
+|mount %groups
+```
+
+Sync the latest %groups files:
+
+```
+rsync -avL --delete desk/* ~/urbit/zod/groups/
+```
+
+And commit:
+
+```
+|commit %groups
+```
+
+Since %groups and %talk have already been released and are now in the pill. It is very unlikely that you would have to create those desks from scratch, but if you do you can follow these instructions or use Tlon's
 [Bouncer](https://github.com/tloncorp/bouncer) utility (requires Ruby 3+).
 
-0. Clone or pull latest versions of this repo and `urbit/urbit`.
-1. Boot a fake ship. Use local networking with `-F` like so:
+1. Clone or pull latest versions of this repo, `tloncorp/landscape` and `urbit/urbit`.
+2. Boot a fake ship. Use local networking with `-F` like so:
    `urbit -F zod`
-2. Mount or create the appropriate desks on local `~zod`:
-   1. `|mount %landscape`
-   2. `|new-dek`
-   3. `|mount %groups`
-3. From the `urbit/urbit` repo:
-   1. `rsync -avL --delete pkg/landscape/* ~/urbit/zod/landscape/`
+3. Create and mount the appropriate desks on local `~zod`:
+   1. `|new-desk %landscape`
+   2. `|mount %landscape`
+   3. `|new-desk %groups`
+   4. `|mount %groups`
+4. From the `urbit/urbit` repo:
+   1. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
    2. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/groups/`
-   3. `rsync -avL pkg/landscape-dev/* ~/urbit/zod/groups/`
-4. From this repo:
+5. From the `tloncorp/landscape` repo:
+   1. `rsync -avL --delete desk/* ~/urbit/zod/landscape/`
+   2. `rsync -avL --delete desk-dev/* ~/urbit/zod/groups/`
+6. From this repo:
    1. `rsync -avL desk/* ~/urbit/zod/groups/`
    2. `rsync -avL landscape-dev/* ~/urbit/zod/groups/`
-5. Commit and install landscape on local `~zod`:
+7. Commit and install landscape on local `~zod`:
    1. `|commit %landscape`
    2. `|install our %landscape`
-6. Similarly commit and install Groups:
+8. Similarly commit and install Groups:
    1. `|commit %groups`
    2. `|install our %groups`
 
