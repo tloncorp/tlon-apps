@@ -586,6 +586,18 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<ChatMessageFocus />}
               />
               <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/focused/:writShip/:writTime"
+                element={<ChatMessageFocus />}
+              />
+              <Route
+                path="/dm/:ship/focused/:writShip/:writTime"
+                element={<ChatMessageFocus />}
+              />
+              <Route
+                path="/dm/:ship/message/:idShip/:idTime/focused/:writShip/:writTime"
+                element={<ChatMessageFocus />}
+              />
+              <Route
                 path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
                 element={<EmojiPicker />}
               />
