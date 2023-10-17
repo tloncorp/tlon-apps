@@ -18,7 +18,14 @@ export const getDeepLink = async (alias: string) => {
   return url;
 };
 
-export const createDeepLink = async (canonicalUrl: string, lure: string) => {
+export const createDeepLink = async (
+  canonicalUrl: string | undefined,
+  lure: string
+) => {
+  if (!canonicalUrl) {
+    return undefined;
+  }
+
   const alias = lure.replace('~', '').replace('/', '-');
   let url = await getDeepLink(alias).catch(() => canonicalUrl);
   if (!url) {
