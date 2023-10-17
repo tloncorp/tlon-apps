@@ -3,25 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import ShipSelector from '@/components/ShipSelector';
 import useMessageSelector from '@/logic/useMessageSelector';
 import { useIsMobile } from '@/logic/useMedia';
-import useAppName from '@/logic/useAppName';
 import { useSafeAreaInsets } from '@/logic/native';
+import { dmListPath } from '@/logic/utils';
 
 export default function MessageSelector() {
   const { action, onEnter, setShips, ships, validShips } = useMessageSelector();
   const isMobile = useIsMobile();
-  const appName = useAppName();
   const safeAreaInsets = useSafeAreaInsets();
 
   const navigate = useNavigate();
 
   const onCancel = useCallback(() => {
     setShips([]);
-    if (appName === 'Groups' && isMobile) {
-      navigate('/messages');
-    } else {
-      navigate('/');
-    }
-  }, [navigate, setShips, appName, isMobile]);
+    navigate(dmListPath);
+  }, [navigate, setShips]);
 
   return (
     <div

@@ -1,13 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import cn from 'classnames';
-import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
+import {
+  Outlet,
+  Route,
+  Routes,
+  useMatch,
+  useNavigate,
+  useParams,
+} from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import { useChatState, useMultiDm, useMultiDmIsPending } from '@/state/chat';
 import ChatWindow from '@/chat/ChatWindow';
 import { useIsMobile } from '@/logic/useMedia';
-import { pluralize } from '@/logic/utils';
+import { dmListPath, pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
@@ -71,6 +78,7 @@ export default function MultiDm() {
   const dropZoneId = `chat-dm-input-dropzone-${clubId}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const inSearch = useMatch(`/dm/${clubId}/search/*`);
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
@@ -96,6 +104,10 @@ export default function MultiDm() {
   }, [clubId, club]);
 
   const { sendMessage } = useChatState.getState();
+
+  const handleLeave = useCallback(() => {
+    navigate(dmListPath);
+  }, [navigate]);
 
   if (!club) {
     return null;
@@ -136,6 +148,7 @@ export default function MultiDm() {
                           whom={clubId}
                           isMulti
                           pending={!isAccepted}
+                          onLeave={handleLeave}
                         >
                           <button className="flex w-full items-center justify-center">
                             <div className="flex h-6 w-6 flex-none items-center justify-center rounded text-center">
@@ -175,6 +188,7 @@ export default function MultiDm() {
                           pending={!isAccepted}
                           isMulti
                           alwaysShowEllipsis
+                          onLeave={handleLeave}
                         />
                       </div>
                     </div>
