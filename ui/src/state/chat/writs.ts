@@ -112,9 +112,13 @@ export function writsReducer(whom: string, optimistic = false) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
       const { reply } = delta;
+      console.log({ delta });
 
       if (msg) {
+        console.log({ msg });
         const replyDelta = reply.delta;
+
+        console.log({ replyDelta });
 
         if ('add' in replyDelta) {
           const currentPost = queryClient.getQueryData<WritInCache>([

@@ -12,10 +12,10 @@
 +$  id     (pair ship time)
 ::  $writ: a chat message
 +$  writ   [seal essay]
-::  $quip: a chat reply
-+$  quip   [cork memo:d]
-::  $feel: either an emoji identifier like :wave: or a URL for custom
-+$  feel   @ta
+::  $reply: a chat reply
++$  reply   [reply-seal memo:d]
+::  $react: either an emoji identifier like :wave: or a URL for custom
++$  react   @ta
 ::  $scan: search results
 +$  scan  (list reference)
 ::  $blocked: a set of ships that the user has blocked
@@ -28,43 +28,43 @@
   ==
 +$  reference
   $%  [%writ =writ]
-      [%quip =id =quip]
+      [%reply =id =reply]
   ==
 ::
 ::  $seal: the id of a chat and its meta-responses
 ::
 ::    id: the id of the message
 ::    time: the time the message was received
-::    quips: set of replies to a message
-::    feels: reactions to a message
+::    replies: set of replies to a message
+::    reacts: reactions to a message
 ::
 +$  seal
   $:  =id
       time=id-post:d
-      =feels
-      =quips
-      meta=quip-meta
+      =reacts
+      =replies
+      meta=reply-meta
   ==
-+$  quip-meta
-  $:  quip-count=@ud
-      last-quippers=(set ship)
-      last-quip=(unit time)
++$  reply-meta
+  $:  reply-count=@ud
+      last-repliers=(set ship)
+      last-reply=(unit time)
   ==
 ::
-::  $cork: chat reply metadata
-+$  cork
+::  $reply-seal: chat reply metadata
++$  reply-seal
   $:  =id
       parent-id=id
       time=id-post:d
-      =feels
+      =reacts
   ==
 ::
 ::  $essay: a chat message with metadata
 +$  essay  [memo:d %chat =kind]
 ::  $kind: whether or not the chat is a system message
 +$  kind  $@(~ [%notice ~])
-::  $feels: a set of reactions to a chat message
-+$  feels  (map ship feel)
+::  $reacts: a set of reactions to a chat message
++$  reacts  (map ship react)
 ::
 ::  $pact: a double indexed map of chat messages, id -> time -> message
 ::
@@ -89,26 +89,26 @@
     ::  but we need it upon receipt
     $%  [%add =memo:d =kind time=(unit time)]
         [%del ~]
-        [%quip =id meta=(unit quip-meta) =delta:quips]
-        [%add-feel =ship =feel]
-        [%del-feel =ship]
+        [%reply =id meta=(unit reply-meta) =delta:replies]
+        [%add-react =ship =react]
+        [%del-react =ship]
     ==
   --
 ::
-::  $quips: a set of time ordered chat replies
+::  $replies: a set of time ordered chat replies
 ::
-++  quips
-  =<  quips
+++  replies
+  =<  replies
   |%
-  +$  quips
-    ((mop time quip) lte)
+  +$  replies
+    ((mop time reply) lte)
   ++  on
-    ((^on time quip) lte)
+    ((^on time reply) lte)
   +$  delta
     $%  [%add =memo:d time=(unit time)]
         [%del ~]
-        [%add-feel =ship =feel]
-        [%del-feel =ship]
+        [%add-react =ship =react]
+        [%del-react =ship]
     ==
   --
 ::
@@ -206,20 +206,20 @@
       [%club p=id:club]
   ==
 ::
-::  $briefs: a map of club/dm unread information
+::  $unreads: a map of club/dm unread information
 ::
-::    brief: the last time a message was read, how many messages since,
+::    unread: the last time a message was read, how many messages since,
 ::    and the id of the last read message
 ::
-++  briefs
-  =<  briefs
+++  unreads
+  =<  unreads
   |%
-  +$  briefs
-    (map whom brief)
-  +$  brief
+  +$  unreads
+    (map whom unread)
+  +$  unread
     [last=time count=@ud read-id=(unit id)]
   +$  update
-    (pair whom brief)
+    (pair whom unread)
   --
 ::
 +$  remark

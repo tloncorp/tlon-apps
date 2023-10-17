@@ -5,7 +5,7 @@ import { useParams } from 'react-router';
 import useEmoji from '@/state/emoji';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useAddDMReplyReactMutation } from '@/state/chat';
+import { useAddDMReplyReactMutation, useChatState } from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
@@ -71,8 +71,12 @@ export default function EmojiPicker({
   };
 
   const onEmojiSelect = useCallback(
-    (emoji: { shortcodes: string }) => {
-      if (isDMOrMultiDM && inThread) {
+    async (emoji: { shortcodes: string }) => {
+      if (isDMOrMultiDM && !inThread) {
+        await useChatState
+          .getState()
+          .addReactToDm(whom!, writId, emoji.shortcodes);
+      } else if (isDMOrMultiDM && inThread) {
         addFeelToDmReply({
           whom: whom!,
           writId: threadParentId!,

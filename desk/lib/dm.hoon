@@ -16,9 +16,9 @@
     [id.writ time]
   ==
 ::
-++  brief
+++  unread
   |=  [our=ship last-read=time]
-  ^-  brief:briefs:c
+  ^-  unread:unreads:c
   =/  =time
     ?~  tim=(ram:on:writs:c wit.pac)  *time
     key.u.tim
@@ -75,88 +75,88 @@
       (del:on:writs:c wit.pac time)
     pac(dex (~(del by dex.pac) id))
   ::
-      %quip
+      %reply
     %+  jab  id
     |=  =writ:c
-    =/  [=pact:c =quips:c]  (reduce-quip quips.writ now id [id delta]:del)
+    =/  [=pact:c =replies:c]  (reduce-reply replies.writ now id [id delta]:del)
     :-  pact
     %=  writ
-      quips       quips
-      quip-count.meta  (wyt:on:quips:c quips)
-      last-quip.meta   (biff (ram:on:quips:c quips) |=([=time *] `time))
+      replies       replies
+      reply-count.meta  (wyt:on:replies:c replies)
+      last-reply.meta   (biff (ram:on:replies:c replies) |=([=time *] `time))
     ::
-        last-quippers.meta
+        last-repliers.meta
       ^-  (set ship)
-      =|  quippers=(set ship)
-      =/  entries=(list [time quip:c])  (bap:on:quips:c quips)
+      =|  repliers=(set ship)
+      =/  entries=(list [time reply:c])  (bap:on:replies:c replies)
       |-
-      ?:  |(=(~ entries) =(3 ~(wyt in quippers)))
-        quippers
-      =/  [* =quip:c]  -.entries
-      ?:  (~(has in quippers) author.quip)
+      ?:  |(=(~ entries) =(3 ~(wyt in repliers)))
+        repliers
+      =/  [* =reply:c]  -.entries
+      ?:  (~(has in repliers) author.reply)
         $(entries +.entries)
-      (~(put in quippers) author.quip)
+      (~(put in repliers) author.reply)
     ==
   ::
-      %add-feel
+      %add-react
     %+  jab  id
     |=  =writ:c
     :-  pac
-    writ(feels (~(put by feels.writ) [ship feel]:del))
+    writ(reacts (~(put by reacts.writ) [ship react]:del))
   ::
-      %del-feel
+      %del-react
     %+  jab  id
     |=  =writ:c
     :-  pac
-    writ(feels (~(del by feels.writ) ship.del))
+    writ(reacts (~(del by reacts.writ) ship.del))
   ==
 ::
-++  reduce-quip
-  |=  [=quips:c now=time parent-id=id:c =id:c delta=delta:quips:c]
-  ^-  [pact:c quips:c]
+++  reduce-reply
+  |=  [=replies:c now=time parent-id=id:c =id:c delta=delta:replies:c]
+  ^-  [pact:c replies:c]
   |^
   ?-  -.delta
       %add
     |-
-    ?:  (has:on:quips:c quips now)
+    ?:  (has:on:replies:c replies now)
       $(now `@da`(add now ^~((div ~s1 (bex 16)))))
-    =/  cork  [id parent-id now ~]
-    ?:  (~(has by dex.pac) id)  [pac quips]
+    =/  reply-seal  [id parent-id now ~]
+    ?:  (~(has by dex.pac) id)  [pac replies]
     =.  dex.pac  (~(put by dex.pac) id now)
-    [pac (put:on:quips:c quips now cork memo.delta)]
+    [pac (put:on:replies:c replies now reply-seal memo.delta)]
   ::
       %del
     =/  tim=(unit time)  (~(get by dex.pac) id)
-    ?~  tim  [pac quips]
+    ?~  tim  [pac replies]
     =/  =time  (need tim)
-    =^  quip=(unit quip:c)  quips
-      (del:on:quips:c quips time)
+    =^  reply=(unit reply:c)  replies
+      (del:on:replies:c replies time)
     =.  dex.pac  (~(del by dex.pac) id)
-    [pac quips]
+    [pac replies]
   ::
-      %add-feel
+      %add-react
     :-  pac
-    %+  jab-quip  id
-    |=  =quip:c
-    quip(feels (~(put by feels.quip) [ship feel]:delta))
+    %+  jab-reply  id
+    |=  =reply:c
+    reply(reacts (~(put by reacts.reply) [ship react]:delta))
   ::
-      %del-feel
+      %del-react
     :-  pac
-    %+  jab-quip  id
-    |=  =quip:c
-    quip(feels (~(del by feels.quip) ship.delta))
+    %+  jab-reply  id
+    |=  =reply:c
+    reply(reacts (~(del by reacts.reply) ship.delta))
   ==
-  ++  get-quip
+  ++  get-reply
     |=  =id:c
-    ^-  (unit [=time =quip:c])
+    ^-  (unit [=time =reply:c])
     ?~  tim=(~(get by dex.pac) id)        ~
-    ?~  qup=(get:on:quips:c quips u.tim)  ~
+    ?~  qup=(get:on:replies:c replies u.tim)  ~
     `[u.tim u.qup]
-  ++  jab-quip
-    |=  [=id:c fun=$-(quip:c quip:c)]
-    ^+  quips
-    ?~  v=(get-quip id)  quips
-    (put:on:quips:c quips time.u.v (fun quip.u.v))
+  ++  jab-reply
+    |=  [=id:c fun=$-(reply:c reply:c)]
+    ^+  replies
+    ?~  v=(get-reply id)  replies
+    (put:on:replies:c replies time.u.v (fun reply.u.v))
   --
 ::
 ++  give-writs
@@ -166,7 +166,7 @@
   ?:  =(%heavy mode)  writs
   %+  turn  writs
   |=  [=time =writ:c]
-  [time writ(quips *quips:c)]
+  [time writ(replies *replies:c)]
 ++  peek
   |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
@@ -245,25 +245,25 @@
         s(sip (dec sip.s))
       s(len (dec len.s), scan [[%writ val.n.wit.pac] scan.s])
     ::
-    =.  s  (scour-quips s id.val.n.wit.pac quips.val.n.wit.pac match-type)
+    =.  s  (scour-replies s id.val.n.wit.pac replies.val.n.wit.pac match-type)
     ::
     $(wit.pac l.wit.pac)
   ::
-  ++  scour-quips
-    |=  [s=[skip=@ud len=@ud =scan:c] =id:c =quips:c =match-type]
+  ++  scour-replies
+    |=  [s=[skip=@ud len=@ud =scan:c] =id:c =replies:c =match-type]
     |-  ^+  s
-    ?~  quips  s
+    ?~  replies  s
     ?:  =(0 len.s)  s
-    =.  s  $(quips r.quips)
+    =.  s  $(replies r.replies)
     ?:  =(0 len.s)  s
     ::
     =.  s
-      ?.  (match-quip val.n.quips match-type)  s
+      ?.  (match-reply val.n.replies match-type)  s
       ?:  (gth skip.s 0)
         s(skip (dec skip.s))
-      s(len (dec len.s), scan [[%quip id val.n.quips] scan.s])
+      s(len (dec len.s), scan [[%reply id val.n.replies] scan.s])
     ::
-    $(quips l.quips)
+    $(replies l.replies)
   ::
   ++  match
     |=  [=writ:c =match-type]
@@ -273,11 +273,11 @@
       %text     (match-writ-text nedl.match-type writ)
     ==
   ::
-  ++  match-quip
-    |=  [=quip:c =match-type]
+  ++  match-reply
+    |=  [=reply:c =match-type]
     ?-  -.match-type
-      %mention  (match-story-mention nedl.match-type content.quip)
-      %text     (match-story-text nedl.match-type content.quip)
+      %mention  (match-story-mention nedl.match-type content.reply)
+      %text     (match-story-text nedl.match-type content.reply)
     ==
   ::
   ++  match-writ-mention

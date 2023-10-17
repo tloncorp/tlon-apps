@@ -221,7 +221,7 @@ export const useChatState = createState<ChatState>(
       api.subscribe(
         {
           app: 'chat',
-          path: '/ui',
+          path: '/',
           event: (event: ChatUIEvent, mark) => {
             if (mark === 'chat-toggle-message') {
               const toggle = event as ToggleMessage;
@@ -276,7 +276,7 @@ export const useChatState = createState<ChatState>(
       api.subscribe(
         {
           app: 'chat',
-          path: '/clubs/ui',
+          path: '/clubs',
           event: (event: ClubAction) => {
             get().batchSet(clubReducer(event));
           },
@@ -293,7 +293,7 @@ export const useChatState = createState<ChatState>(
         get,
         set,
         `/${type}/${whom}/writs`,
-        `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
+        `/${type}/${whom}${isDM ? '' : '/writs'}`
       );
 
       if (dir === 'older') {
@@ -311,7 +311,7 @@ export const useChatState = createState<ChatState>(
         get,
         set,
         `/${type}/${whom}/writs`,
-        `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
+        `/${type}/${whom}${isDM ? '' : '/writs'}`
       ).getAround(count, time);
     },
     fetchMultiDms: async () => {
@@ -567,7 +567,7 @@ export const useChatState = createState<ChatState>(
         get,
         set,
         `/club/${id}/writs`,
-        `/club/${id}/ui/writs`
+        `/club/${id}/writs`
       ).initialize();
     },
     createMultiDm: async (id, hive) => {
@@ -597,7 +597,7 @@ export const useChatState = createState<ChatState>(
         multiDmAction(id, { meta }),
         {
           app: 'chat',
-          path: `/clubs/ui`,
+          path: `/clubs`,
         },
         (event) =>
           'meta' in event.diff.delta &&
@@ -619,7 +619,7 @@ export const useChatState = createState<ChatState>(
         get,
         set,
         `/chat/${whom}/writs`,
-        `/chat/${whom}/ui/writs`
+        `/chat/${whom}/writs`
       ).initialize();
     },
     initializeDm: async (ship: string) => {
@@ -628,7 +628,7 @@ export const useChatState = createState<ChatState>(
         get,
         set,
         `/dm/${ship}/writs`,
-        `/dm/${ship}/ui`
+        `/dm/${ship}`
       ).initialize();
     },
   }),
@@ -652,6 +652,11 @@ const emptyWrits = newWritMap();
 export function useMessagesForChat(whom: string, near?: string) {
   const window = useWritWindow(whom, near);
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
+
+  console.log({
+    writs,
+    window,
+  });
 
   return useMemo(() => {
     return window && writs
@@ -692,8 +697,8 @@ export function useDmUnreads() {
   >({
     queryKey: ['dm', 'unreads'],
     app: 'chat',
-    path: '/briefs',
-    scry: '/briefs',
+    path: '/unreads',
+    scry: '/unreads',
   });
 
   if (!data) {

@@ -101,22 +101,22 @@
       %club  (scot %uv p.w)
     ==
   ::
-  ++  briefs
-    |=  bs=briefs:c
+  ++  unreads
+    |=  bs=unreads:c
     %-  pairs
     %+  turn  ~(tap by bs)
-    |=  [w=whom:c b=brief:briefs:c]
-    [(whom w) (brief b)]
+    |=  [w=whom:c b=unread:unreads:c]
+    [(whom w) (unread b)]
   ::
-  ++  brief-update
-    |=  u=update:briefs:c
+  ++  unread-update
+    |=  u=update:unreads:c
     %-  pairs
     :~  whom/s/(whom p.u)
-        brief/(brief q.u)
+        unread/(unread q.u)
     ==
   ::
-  ++  brief
-    |=  b=brief:briefs:c
+  ++  unread
+    |=  b=unread:unreads:c
     %-  pairs
     :~  last/(time last.b)
         count/(numb count.b)
@@ -126,7 +126,7 @@
   ++  pins
     |=  ps=(list whom:c)
     %-  pairs
-    :~  pins/a/(turn ps (^cork whom (lead %s)))
+    :~  pins/a/(turn ps (cork whom (lead %s)))
     ==
   ::
   ++  ship
@@ -148,20 +148,20 @@
     %+  frond  -.delta
     ?-  -.delta
       %del       ~
-      %add-feel  (add-feel +.delta)
-      %del-feel  (ship ship.delta)
-      %quip      (quip-delta +.delta)
+      %add-react  (add-react +.delta)
+      %del-react  (ship ship.delta)
+      %reply      (reply-delta +.delta)
     ::
         %add
       %-  pairs
       :~  memo+(memo:enjs:dj memo.delta)
           kind+?~(kind.delta ~ (pairs notice/~ ~))
-          time+?~(time.delta ~ (time u.time.delta))
+          time+?~(time.delta ~ (time-id u.time.delta))
       ==
     ==
   ::
-  ++  quip-delta
-    |=  [i=id:c meta=(unit quip-meta:c) =delta:quips:c]
+  ++  reply-delta
+    |=  [i=id:c meta=(unit reply-meta:c) =delta:replies:c]
     ^-  json
     %-  pairs
     :~  id+(id i)
@@ -170,8 +170,8 @@
         %+  frond  -.delta
         ?-  -.delta
           %del       ~
-          %add-feel  (add-feel +.delta)
-          %del-feel  (ship ship.delta)
+          %add-react  (add-react +.delta)
+          %del-react  (ship ship.delta)
         ::
             %add
           %-  pairs
@@ -180,10 +180,10 @@
           ==
         ==
     ==
-  ++  add-feel
-    |=  [her=@p =feel:c]
+  ++  add-react
+    |=  [her=@p =react:c]
     %-  pairs
-    :~  feel+s+feel
+    :~  react+s+react
         ship+(ship her)
     ==
   ::
@@ -239,39 +239,39 @@
     %-  pairs
     :~  id+(id id.seal)
         time+(time-id time.seal)
-        feels+(feels feels.seal)
-        quips+(quips quips.seal)
+        reacts+(reacts reacts.seal)
+        replies+(replies replies.seal)
         meta+(reply-meta:enjs:dj meta.seal)
     ==
   ::
-  ++  feels
-    |=  =feels:c
+  ++  reacts
+    |=  =reacts:c
     %-  pairs
-    %+  turn  ~(tap by feels)
-    |=  [her=@p =feel:c]
-    [(scot %p her) s+feel]
+    %+  turn  ~(tap by reacts)
+    |=  [her=@p =react:c]
+    [(scot %p her) s+react]
   ::
-  ++  quips
-    |=  =quips:c
+  ++  replies
+    |=  =replies:c
     %-  pairs
-    %+  turn  (tap:on:quips:c quips)
-    |=  [key=@da q=quip:c]
-    [(scot %ud key) (quip q)]
+    %+  turn  (tap:on:replies:c replies)
+    |=  [key=@da q=reply:c]
+    [(scot %ud key) (reply q)]
   ::
-  ++  quip
-    |=  =quip:c
+  ++  reply
+    |=  =reply:c
     %-  pairs
-    :~  cork+(cork -.quip)
-        memo+(memo:enjs:dj +.quip)
+    :~  seal+(reply-seal -.reply)
+        memo+(memo:enjs:dj +.reply)
     ==
   ::
-  ++  cork
-    |=  =cork:c
+  ++  reply-seal
+    |=  =reply-seal:c
     %-  pairs
-    :~  id+(id id.cork)
-        parent-id+(id parent-id.cork)
-        time+(time-id time.cork)
-        feels+(feels feels.cork)
+    :~  id+(id id.reply-seal)
+        parent-id+(id parent-id.reply-seal)
+        time+(time-id time.reply-seal)
+        reacts+(reacts reacts.reply-seal)
     ==
   ::
   ++  reference
@@ -279,10 +279,10 @@
     %+  frond  -.reference
     ?-    -.reference
         %writ  (writ writ.reference)
-        %quip
+        %reply
       %-  pairs
       :~  id-note+(id id.reference)
-          quip+(quip quip.reference)
+          reply+(reply reply.reference)
       ==
     ==
   ::
@@ -417,35 +417,35 @@
     ^-  $-(json delta:writs:c)
     %-  of
     :~  del/ul
-        add-feel/add-feel
-        del-feel/ship
-        quip/quip-delta
+        add-react/add-react
+        del-react/ship
+        reply/reply-delta
     ::
       :-  %add
       ^-  $-(json [=memo:d =kind:c time=(unit time)])
       %-  ot
       :~  memo/memo:dejs:dj
           kind/chat-kind:dejs:dj
-          time/(mu di)
+          time/(mu (se %ud))
       ==
     ==
   ::
-  ++  quip-delta
-    ^-  $-(json [id:c (unit quip-meta:c) delta:quips:c])
+  ++  reply-delta
+    ^-  $-(json [id:c (unit reply-meta:c) delta:replies:c])
     %-  ot
     :~  id/id
         meta/ul
         :-  %delta
         %-  of
         :~  del/ul
-            add-feel/add-feel
-            del-feel/ship
+            add-react/add-react
+            del-react/ship
         ::
           :-  %add
           ^-  $-(json [=memo:d time=(unit time)])
           %-  ot
           :~  memo/memo:dejs:dj
-              time/(mu di)
+              time/(mu (se %ud))
           ==
         ==
     ==
@@ -453,10 +453,10 @@
   ::
   ++  del-sects  (as so)
   ::
-  ++  add-feel
+  ++  add-react
     %-  ot
     :~  ship/ship
-        feel/so
+        react/so
     ==
   --
 --

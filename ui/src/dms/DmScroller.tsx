@@ -21,7 +21,7 @@ import { useChatStore } from '@/chat/useChatStore';
 import ChatNotice from '@/chat/ChatNotice';
 import { Writ, WritMap } from '@/types/dms';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { useChatState, useWritWindow } from '@/state/chat';
+import { useChatState, useMessagesForChat, useWritWindow } from '@/state/chat';
 
 interface DmScrollerItemProps extends ChatMessageProps {
   index: BigInteger;

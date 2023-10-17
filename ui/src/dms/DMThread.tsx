@@ -1,12 +1,5 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import ob from 'urbit-ob';
-import { udToDec } from '@urbit/api';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -43,8 +36,11 @@ export default function DMThread() {
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const whom = ship || '';
   const id = `${idShip!}/${idTime!}`;
-  const time = udToDec(idTime!);
   const { writ, isLoading } = useWrit(whom, id);
+  const time = useMemo(() => {
+    if (!writ) return '0';
+    return writ.seal.time;
+  }, [writ]);
   const { sendMessage } = useChatState.getState();
   const { isOpen: leapIsOpen } = useLeap();
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
@@ -86,15 +82,6 @@ export default function DMThread() {
   );
 
   useEventListener('keydown', onEscape, threadRef);
-
-  const initializeChannel = useCallback(async () => {
-    setLoading(true);
-    if (!time) return;
-    await useChatState
-      .getState()
-      .fetchMessagesAround(`${chShip}/${chName}`, '50', time);
-    setLoading(false);
-  }, [chName, chShip, time]);
 
   if (!writ || isLoading) return null;
 

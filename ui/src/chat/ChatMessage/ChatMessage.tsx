@@ -112,7 +112,6 @@ const ChatMessage = React.memo<
       ref
     ) => {
       const { seal, essay } = writ;
-      console.log({ seal, essay });
       const container = useRef<HTMLDivElement>(null);
       const { idShip, idTime } = useParams<{
         idShip: string;

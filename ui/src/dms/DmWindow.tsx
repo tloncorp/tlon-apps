@@ -28,6 +28,9 @@ export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
   const scrollTo = getScrollTo(searchParams.get('msg'));
   const loading = useChatLoading(whom);
   const messages = useMessagesForChat(whom, scrollTo?.toString());
+  console.log({
+    messages,
+  });
   const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
