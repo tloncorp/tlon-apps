@@ -53,8 +53,8 @@ Since %groups and %talk have already been released and are now in the pill. It i
    1. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
    2. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/groups/`
 5. From the `tloncorp/landscape` repo:
-   1. `rsync -avL --delete desk/* ~/urbit/zod/landscape/`
-   2. `rsync -avL --delete desk-dev/* ~/urbit/zod/groups/`
+   1. `rsync -avL desk/* ~/urbit/zod/landscape/`
+   2. `rsync -avL desk-dev/* ~/urbit/zod/groups/`
 6. From this repo:
    1. `rsync -avL desk/* ~/urbit/zod/groups/`
    2. `rsync -avL landscape-dev/* ~/urbit/zod/groups/`
