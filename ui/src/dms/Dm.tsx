@@ -159,7 +159,12 @@ export default function Dm() {
         className="padding-bottom-transition flex-1"
         header={
           isSelecting ? (
-            <MessageSelector />
+            <>
+              {isMobile && (
+                <MobileHeader title="New Message" pathBack="/messages" />
+              )}
+              <MessageSelector />
+            </>
           ) : (
             <Routes>
               <Route

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from '@/logic/native';
 import { dmListPath } from '@/logic/utils';
 
 export default function MessageSelector() {
-  const { action, onEnter, setShips, ships, validShips } = useMessageSelector();
+  const { onEnter, setShips, ships } = useMessageSelector();
   const isMobile = useIsMobile();
   const safeAreaInsets = useSafeAreaInsets();
 
@@ -33,21 +33,14 @@ export default function MessageSelector() {
         containerClassName="w-full grow"
       />
       <div className="my-2.5 flex w-full flex-row justify-evenly sm:w-auto">
-        {isMobile ? (
+        {!isMobile ? (
           <button
-            className="secondary-button mr-1 w-1/2 py-2.5 sm:mr-auto sm:w-auto"
-            disabled={!validShips}
-            onClick={() => onEnter(ships)}
+            className="secondary-button ml-1 w-1/2 py-2.5 sm:ml-auto sm:w-auto"
+            onClick={onCancel}
           >
-            {action}
+            Cancel
           </button>
         ) : null}
-        <button
-          className="secondary-button ml-1 w-1/2 py-2.5 sm:ml-auto sm:w-auto"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );

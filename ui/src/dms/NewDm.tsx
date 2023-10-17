@@ -4,25 +4,30 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import useMessageSelector from '@/logic/useMessageSelector';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { isNativeApp } from '@/logic/native';
 import MobileHeader from '@/components/MobileHeader';
 import { useIsScrolling } from '@/logic/scroll';
+import { useIsMobile } from '@/logic/useMedia';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import MessageSelector from './MessageSelector';
 
 export default function NewDM() {
   const { sendDm, validShips, whom } = useMessageSelector();
   const dropZoneId = 'chat-new-dm-input-dropzone';
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
+  const isMobile = useIsMobile();
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
+  const { isChatInputFocused } = useChatInputFocus();
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   return (
     <Layout
       className="flex-1"
+      style={{
+        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+      }}
       header={
-        isNativeApp() && (
-          <MobileHeader title="New Message" pathBack="/messages" />
-        )
+        isMobile && <MobileHeader title="New Message" pathBack="/messages" />
       }
       footer={
         <div
