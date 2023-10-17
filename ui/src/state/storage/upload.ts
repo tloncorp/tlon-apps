@@ -297,7 +297,7 @@ function useS3Client() {
 const selUploader = (key: string) => (s: FileStore) => s.uploaders[key];
 export function useUploader(key: string): Uploader | undefined {
   const {
-    tlonHosting: { token },
+    tlonHosting: { endpoint },
     s3: {
       configuration: { currentBucket },
     },
@@ -306,7 +306,7 @@ export function useUploader(key: string): Uploader | undefined {
   const uploader = useFileStore(selUploader(key));
 
   useEffect(() => {
-    if ((s3Client && currentBucket) || token) {
+    if ((s3Client && currentBucket) || endpoint) {
       useFileStore.setState(
         produce((draft) => {
           draft.uploaders[key] = emptyUploader(key, currentBucket);
@@ -321,7 +321,7 @@ export function useUploader(key: string): Uploader | undefined {
         })
       );
     };
-  }, [s3Client, currentBucket, key, token]);
+  }, [s3Client, currentBucket, key, endpoint]);
 
   return uploader;
 }

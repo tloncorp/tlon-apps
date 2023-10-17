@@ -9,7 +9,6 @@ export interface GcpToken {
 
 export interface StorageCredentialsTlonHosting {
   endpoint: string;
-  token: string;
 }
 
 export type StorageBackend = 's3' | 'tlon-hosting';
