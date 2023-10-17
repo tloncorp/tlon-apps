@@ -1,6 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import cookies from 'browser-cookies';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import _ from 'lodash';
 import {
@@ -104,6 +104,8 @@ import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
+import UpdateNoticeSheet from './components/UpdateNotices';
+import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -598,6 +600,9 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
             </>
           ) : null}
+          {isMobile && (
+            <Route path="/update-needed" element={<UpdateNoticeSheet />} />
+          )}
         </Routes>
       ) : null}
     </>
@@ -736,8 +741,14 @@ function RoutedApp() {
   const logActivity = useLogActivity();
   const posthog = usePostHog();
   const analyticsId = useAnalyticsId();
+  const { needsUpdate, triggerUpdate } = useAppUpdates();
   const body = document.querySelector('body');
   const colorSchemeFromNative = window.colorscheme;
+
+  const appUpdateContextValue = useMemo(
+    () => ({ needsUpdate, triggerUpdate }),
+    [needsUpdate, triggerUpdate]
+  );
 
   const basename = (appName: string) => {
     if (mode === 'mock' || mode === 'staging') {
@@ -815,10 +826,12 @@ function RoutedApp() {
           />
           <meta name="theme-color" content={userThemeColor} />
         </Helmet>
-        <TooltipProvider delayDuration={0} skipDelayDuration={400}>
-          <App />
-          <Scheduler />
-        </TooltipProvider>
+        <AppUpdateContext.Provider value={appUpdateContextValue}>
+          <TooltipProvider delayDuration={0} skipDelayDuration={400}>
+            <App />
+            <Scheduler />
+          </TooltipProvider>
+        </AppUpdateContext.Provider>
         <LureAutojoiner />
         {showDevTools && (
           <>

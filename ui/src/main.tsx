@@ -25,7 +25,6 @@ import './styles/index.css';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import queryClient from './queryClient';
 import indexedDBPersistor from './indexedDBPersistor';
-import UpdateNotice from './components/UpdateNotice';
 import { analyticsClient, captureError } from './logic/analytics';
 import { createRoot } from 'react-dom/client';
 import SafeAreaProvider from './logic/SafeAreaContext';
@@ -56,7 +55,6 @@ root.render(
       }}
     >
       <SafeAreaProvider>
-        <UpdateNotice />
         <PostHogProvider client={analyticsClient}>
           <App />
         </PostHogProvider>

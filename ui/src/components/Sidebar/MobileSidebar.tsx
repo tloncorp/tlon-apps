@@ -3,14 +3,16 @@ import { Outlet, useLocation, useNavigate } from 'react-router';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
 import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
-import { useChannelUnreadCounts } from '@/logic/channel';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useLocalState } from '@/state/local';
 import { useHasUnreadMessages } from '@/state/chat';
+import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
+import { useContext, useEffect, useState } from 'react';
+import { useCharge } from '@/state/docket';
+import { AppUpdateContext } from '@/logic/useAppUpdates';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
-import MenuIcon from '../icons/MenuIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import MagnifyingGlassMobileNavIcon from '../icons/MagnifyingGlassMobileNavIcon';
 import MessagesIcon from '../icons/MessagesIcon';
@@ -116,10 +118,28 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
 
 export default function MobileSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [informedOfUpdate, setInformedOfUpdate] = useState(false);
   const isInactive = (path: string) => !location.pathname.startsWith(path);
   const isDarkMode = useIsDark();
+  const { needsUpdate } = useContext(AppUpdateContext);
   const safeAreaInsets = useSafeAreaInsets();
   const { isChatInputFocused } = useChatInputFocus();
+  const groupsCharge = useCharge('groups');
+
+  useEffect(() => {
+    if (groupsCharge && needsUpdate && !informedOfUpdate) {
+      navigate('/update-needed', { state: { backgroundLocation: location } });
+      setInformedOfUpdate(true);
+    }
+  }, [
+    needsUpdate,
+    navigate,
+    location,
+    informedOfUpdate,
+    setInformedOfUpdate,
+    groupsCharge,
+  ]);
 
   return (
     <section
@@ -156,9 +176,20 @@ export default function MobileSidebar() {
                 />
               </div>
             </NavTab>
-            <NavTab to="/profile">
-              <Avatar size="xs" className="" ship={window.our} />
-            </NavTab>
+            {needsUpdate ? (
+              <NavTab
+                to="/update-needed"
+                state={{ backgroundLocation: location }}
+              >
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-yellow">
+                  <Asterisk16Icon className="h-4 w-4 text-black dark:text-white" />
+                </div>
+              </NavTab>
+            ) : (
+              <NavTab to="/profile">
+                <Avatar size="xs" className="" ship={window.our} />
+              </NavTab>
+            )}
           </ul>
         </nav>
       </footer>
