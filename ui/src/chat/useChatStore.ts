@@ -1,3 +1,4 @@
+import { createDevLogger } from '@/logic/utils';
 import { ChatBlock, ChatBrief, ChatBriefs } from '@/types/chat';
 import produce from 'immer';
 import { useCallback } from 'react';
@@ -45,14 +46,16 @@ export interface ChatStore {
   update: (briefs: ChatBriefs) => void;
 }
 
-const emptyInfo: ChatInfo = {
+const emptyInfo: () => ChatInfo = () => ({
   replying: null,
   blocks: [],
   unread: undefined,
   dialogs: {},
   hovering: '',
   failedToLoadContent: {},
-};
+});
+
+export const chatStoreLogger = createDevLogger('ChatStore', false);
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
@@ -61,9 +64,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       produce((draft: ChatStore) => {
         Object.entries(briefs).forEach(([whom, brief]) => {
           const chat = draft.chats[whom];
+          chatStoreLogger.log('update', whom, chat, brief, draft.chats);
           if (brief.count > 0 && brief['read-id']) {
             draft.chats[whom] = {
-              ...(chat || emptyInfo),
+              ...(chat || emptyInfo()),
               unread: {
                 seen: false,
                 readTimeout: 0,
@@ -88,9 +92,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft) => {
         if (!draft.chats[whom]) {
-          draft.chats[whom] = emptyInfo;
+          draft.chats[whom] = emptyInfo();
         }
 
+        chatStoreLogger.log('setBlocks', whom, blocks);
         draft.chats[whom].blocks = blocks;
       })
     );
@@ -99,7 +104,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft) => {
         if (!draft.chats[whom]) {
-          draft.chats[whom] = emptyInfo;
+          draft.chats[whom] = emptyInfo();
         }
 
         draft.chats[whom].dialogs[writId] = dialogs;
@@ -110,7 +115,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft) => {
         if (!draft.chats[whom]) {
-          draft.chats[whom] = emptyInfo;
+          draft.chats[whom] = emptyInfo();
         }
 
         if (!draft.chats[whom].failedToLoadContent[writId]) {
@@ -126,7 +131,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft) => {
         if (!draft.chats[whom]) {
-          draft.chats[whom] = emptyInfo;
+          draft.chats[whom] = emptyInfo();
         }
 
         draft.chats[whom].hovering = hovering ? writId : '';
@@ -137,7 +142,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft) => {
         if (!draft.chats[whom]) {
-          draft.chats[whom] = emptyInfo;
+          draft.chats[whom] = emptyInfo();
         }
 
         draft.chats[whom].replying = msgId;
@@ -148,7 +153,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft: ChatStore) => {
         if (!draft.chats[whom]) {
-          draft.chats[whom] = emptyInfo;
+          draft.chats[whom] = emptyInfo();
         }
 
         const chat = draft.chats[whom];
@@ -172,13 +177,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           return;
         }
 
+        chatStoreLogger.log('read', whom, chat);
         delete chat.unread;
       })
     );
   },
   delayedRead: (whom, cb) => {
     const { chats, read } = get();
-    const chat = chats[whom] || emptyInfo;
+    const chat = chats[whom] || emptyInfo();
 
     if (!chat.unread || chat.unread.readTimeout) {
       return;
@@ -191,10 +197,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     set(
       produce((draft) => {
+        const latest = draft.chats[whom] || emptyInfo();
+        chatStoreLogger.log('delayedRead', whom, chat, latest);
         draft.chats[whom] = {
-          ...chat,
+          ...latest,
           unread: {
-            ...chat.unread,
+            ...latest.unread,
             readTimeout,
           },
         };
@@ -204,8 +212,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   unread: (whom, brief) => {
     set(
       produce((draft: ChatStore) => {
-        const chat = draft.chats[whom] || emptyInfo;
-
+        const chat = draft.chats[whom] || emptyInfo();
+        chatStoreLogger.log('unread', whom, chat, brief);
         draft.chats[whom] = {
           ...chat,
           unread: {
