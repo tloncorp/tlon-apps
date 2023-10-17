@@ -25,6 +25,7 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+import { isGroups } from '@/logic/utils';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import MessageSelector from './MessageSelector';
@@ -112,7 +113,7 @@ export default function Dm() {
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
   const root = `/dm/${ship}`;
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
 
   const {
     isSelectingMessage,
