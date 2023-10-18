@@ -1,7 +1,6 @@
 /* eslint-disable react/no-unused-prop-types */
 import React from 'react';
 import { BigInteger } from 'big-integer';
-import { daToUnix } from '@urbit/api';
 import { format } from 'date-fns';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
@@ -32,7 +31,7 @@ const DiaryComment = React.memo<
     ) => {
       const { cork, memo } = quip;
       const flag = useChannelFlag();
-      const unix = new Date(daToUnix(time));
+      const unix = new Date(quip.memo.sent);
       const normalizedContent: ChatStory = {
         ...memo.content,
         block: memo.content.block.filter(

@@ -109,57 +109,49 @@
   |=  [=flag:d =bowl:gall =time =delta:notes:d]
   ^-  (list (list content:ha))
   ?.  ?=(%quips -.delta)
-    ?.  ?=(%add -.delta)
+    ?.  ?=(%add -.delta)  ~
+    ?.  (want-hark [flag %msg bowl])  ~
+    =/  =essay:d  p.+.delta
+    =/  from-me  =(author.essay our.bowl)
+    ?:  from-me  ~
+    =/  content
+      %+  turn
+        content.essay
+      |=  =verse:d
+      ?.  ?=(%block -.verse)
+        p.+.verse
       ~
-    ?:  (want-hark [flag %msg bowl])
-      =/  =essay:d  p.+.delta
-      =/  from-me  =(author.essay our.bowl)
-      ?:  from-me  ~
-      =/  content
-        %+  turn
-          content.essay
-        |=  =verse:d
-        ?.  ?=(%block -.verse)
-          p.+.verse
-        ~
-      =-  ~[-]
-      :~  [%ship author.essay]
-          ' published a note: '
-          [%emph title.essay]
-          ' '
-          (flatten (zing content))
-      ==
-    ~
-  =/  [@ =note:d]  (got time)
-  ~!  q.p.delta
-  ?.  ?=(%add -.q.p.delta)
-    ~
+    =-  ~[-]
+    :~  [%ship author.essay]
+        ' published a note: '
+        [%emph title.essay]
+        ' '
+        (flatten (zing content))
+    ==
+  ?.  ?=(%add -.q.p.delta)  ~
+  ::  let's be extra safe here
+  =/  entry=(unit [@ =note:d])  (get time)
+  ?~  entry  ~
+  =*  note  note.u.entry
   =/  =memo:d  p.q.p.delta
   =/  in-replies
     %+  lien  (tap:on:quips:d quips.note)
     |=  [=^time =quip:d]
     =(author.quip our.bowl)
-  ?:  (want-hark [flag %msg bowl])
-    =-  ~[-]
-    :~  [%ship author.memo]
-        ' commented on '
-        [%emph title.note]
-        ': '
-        [%ship author.memo]
-        ': '
-        (flatten q.content.memo)
-    ==
+  =/  contents
+      :~  :~  [%ship author.memo]
+              ' commented on '
+              [%emph title.note]
+              ': '
+              [%ship author.memo]
+              ': '
+              (flatten q.content.memo)
+      ==  ==
+  ?:  (want-hark [flag %msg bowl])  contents
   ?:  |(=(author.memo our.bowl) &(!in-replies !=(author.note our.bowl)))  ~
   ?.  (want-hark [flag %to-us bowl])  ~
-  =-  ~[-]
-  :~  [%ship author.memo]
-      ' commented on '
-      [%emph title.note]
-      ': '
-      [%ship author.memo]
-      ': '
-      (flatten q.content.memo)
-  ==
+  contents
+::
 ::  +trace: turn note into outline
 ::
 ::    XX: should trim actual note contents, probably

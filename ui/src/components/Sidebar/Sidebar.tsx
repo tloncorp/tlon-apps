@@ -1,9 +1,8 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useContext } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
@@ -22,6 +21,8 @@ import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
+import { useLocalState } from '@/state/local';
+import { AppUpdateContext } from '@/logic/useAppUpdates';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import GroupsSidebarItem from './GroupsSidebarItem';
@@ -31,6 +32,7 @@ import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import SystemChrome from './SystemChrome';
 import ActionMenu, { Action } from '../ActionMenu';
+import { DesktopUpdateButton } from '../UpdateNotices';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,6 +142,7 @@ export function GroupsAppMenu() {
 export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
+  const { needsUpdate } = useContext(AppUpdateContext);
   const pendingInvites = usePendingInvites();
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
@@ -176,7 +179,7 @@ export default function Sidebar() {
           'bottom-shadow': !atTop,
         })}
       >
-        <GroupsAppMenu />
+        {needsUpdate ? <DesktopUpdateButton /> : <GroupsAppMenu />}
         <SystemChrome />
         <SidebarItem
           highlight={shipColor}

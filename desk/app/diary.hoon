@@ -1087,7 +1087,12 @@
       =.  notes.diary  (reduce:di-notes time p.dif)
       =.  cor  (give-brief flag di-brief)
       =/  cons=(list (list content:ha))
-        (hark:di-notes [flag bowl p.dif])
+        ::  when using time, we need to use the new time if we're adding,
+        ::  otherwise the time on the diff is correct
+        =-  (hark:di-notes [flag bowl - q.p.dif])
+        ?+  -.q.p.dif  p.p.dif
+          %add  time
+        ==
       =/  rope
         ?:  =(%quips -.q.p.dif)
           /note/(rsh 4 (scot %ui p.p.dif))
