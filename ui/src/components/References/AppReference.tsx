@@ -16,7 +16,7 @@ function AppReference({ flag, isScrolling }: AppReferenceProps) {
   const treaty = useTreaty(ship, deskId);
   const calm = useCalm();
   const dark = useIsDark();
-  const href = `/apps/grid/search/${ship}/apps/${ship}/${deskId}`;
+  const href = `/apps/landscape/search/${ship}/apps/${ship}/${deskId}`;
 
   function openLink() {
     window.open(`${window.location.origin}${href}`);
@@ -29,7 +29,7 @@ function AppReference({ flag, isScrolling }: AppReferenceProps) {
   }, [treaty, ship, isScrolling, deskId]);
 
   return (
-    <div className="relative flex items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
+    <div className="relative flex min-w-[300px] max-w-[600px] items-center rounded-lg border-2 border-gray-50 text-base transition-colors hover:border-gray-100 hover:bg-white group-one-hover:border-gray-100 group-one-hover:bg-white">
       {treaty ? (
         <div className="flex w-full flex-row flex-wrap items-center justify-between">
           <div className="flex items-center justify-start rounded-lg p-2 text-left">

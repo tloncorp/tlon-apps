@@ -413,6 +413,25 @@
     ?>  from-self
     (toggle-message toggle)
   ::
+      %chat-unblocked
+    ?<  from-self
+    (has-unblocked src.bowl)
+  ::
+      %chat-block-ship
+    =+  !<(=ship vase)
+    ?>  from-self
+    (block ship)
+  ::
+      %chat-unblock-ship
+    =+  !<(=ship vase)
+    ?>  from-self
+    (unblock ship)
+  ::
+      %chat-toggle-message
+    =+  !<(toggle=message-toggle:c vase)
+    ?>  from-self
+    (toggle-message toggle)
+  ::
       %chat-remark-action
     =+  !<(act=remark-action:c vase)
     ?-  -.p.act
@@ -613,8 +632,12 @@
   ^-  unreads:c
   %-  ~(gas by *unreads:c)
   %+  welp
-    %+  turn  ~(tap in ~(key by clubs))
-    |=  =id:club:c
+    %+  turn  ~(tap by clubs)
+    |=  [=id:club:c =club:c]
+    =/  loyal  (~(has in team.crew.club) our.bowl)
+    =/  invited  (~(has in hive.crew.club) our.bowl)
+    ?:  &(!loyal !invited)
+      [club/id *time 0 ~]
     =/  cu  (cu-abed id)
     [club/id cu-unread:cu]
   %+  murn  ~(tap in ~(key by dms))
@@ -674,6 +697,29 @@
       %del-react  =(src.bowl ship.delta)
   ==
 ::
+++  diff-to-response
+  |=  [=diff:writs:c =pact:c]
+  ^-  (unit response:writs:c)
+  =;  delta=?(~ response-delta:writs:c)
+    ?~  delta  ~
+    `[p.diff delta]
+  ?+  -.q.diff  q.diff
+      %add
+    =/  time=(unit time)  (~(get by dex.pact) p.diff)
+    ?~  time  ~
+    [%add memo.q.diff u.time]
+  ::
+      %reply
+    =;  delta=?(~ response-delta:replies:c)
+      ?~  delta  ~
+      [%reply id.q.diff meta.q.diff delta]
+    ?+  -.delta.q.diff  delta.q.diff
+        %add
+      =/  time=(unit time)  (~(get by dex.pact) id.q.diff)
+      ?~  time  ~
+      [%add memo.delta.q.diff u.time]
+    ==
+  ==
 ++  from-self  =(our src):bowl
 ++  migrate
   |%
@@ -959,6 +1005,11 @@
     =.  cor
       =/  =cage  writ-diff+!>(diff)
       (emit %give %fact ~[(welp cu-area /writs)] cage)
+    =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
+    ?~  response  cu-core
+    =.  cor
+      =/  =cage  writ-response+!>(u.response)
+      (emit %give %fact ~[(welp cu-area /writs)] cage)
     cu-core
   ::
   ++  cu-diff
@@ -992,6 +1043,10 @@
       cu-core
     ::
         %writ
+      =/  loyal  (~(has in team.crew.club) our.bowl)
+      =/  invited  (~(has in hive.crew.club) our.bowl)
+      ?:  &(!loyal !invited)
+         cu-core
       =.  pact.club  (reduce:cu-pact now.bowl diff.delta)
       ?-  -.q.diff.delta
           ?(%del %add-react %del-react)  (cu-give-writs-diff diff.delta)
@@ -1206,8 +1261,9 @@
     di-core(ship s, dm d)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
+  ::
   ++  di-spin-groups
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
+    |=  [con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
     =/  rope  [~ ~ %groups /dm/(scot %p ship)]
     =/  link  /dm/(scot %p ship)
@@ -1245,6 +1301,11 @@
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-unread  di-unread
     =.  pact.dm  (reduce:di-pact now.bowl diff)
+    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
+    =.  cor
+      ?~  response   cor
+      :: TODO: figure out why this was `path` and not `di-area`
+      (give %fact ~[di-area] writ-response+!>(u.response))
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     ?-  -.q.diff
@@ -1260,8 +1321,7 @@
       ?:  from-self    (di-give-writs-diff diff)
       ?^  kind.q.diff  (di-give-writs-diff diff)
       =/  new-yarn-groups
-        %^  di-spin-groups
-          ~
+        %+  di-spin-groups
           :~  [%ship author.memo]
               ?:  =(net.dm %invited)  ' has invited you to a direct message'
               ': '
@@ -1271,8 +1331,7 @@
       =?  cor  (want-hark %to-us)
         (emit (pass-hark new-yarn-groups))
       =/  new-yarn
-        %^  di-spin
-          ~
+        %^  di-spin  ~
           :~  [%ship author.memo]
               ?:  =(net.dm %invited)  ' has invited you to a direct message'
               ': '
@@ -1299,8 +1358,7 @@
         ?~  entry  (di-give-writs-diff diff)
         =*  op  writ.u.entry
         =/  new-yarn-groups
-          %^  di-spin-groups
-            /(rsh 4 (scot %ui time.u.entry))
+          %+  di-spin-groups
             :~  [%ship author.memo]  ' replied to '
                 [%emph (flatten:utils content.op)]  ': '
                 [%ship author.memo]  ': '
@@ -1310,8 +1368,7 @@
         =?  cor  (want-hark %to-us)
           (emit (pass-hark new-yarn-groups))
         =/  new-yarn
-          %^  di-spin
-            /(rsh 4 (scot %ui time.u.entry))
+          %^  di-spin  /(rsh 4 (scot %ui time.u.entry))
             :~  [%ship author.memo]  ' replied to '
                 [%emph (flatten:utils content.op)]  ': '
                 [%ship author.memo]  ': '

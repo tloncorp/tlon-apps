@@ -73,7 +73,10 @@ export default function HeapDetail({ title }: ViewProps) {
   // with at least an essay we can show content and wait for everything else
   return (
     <Layout
-      className="flex-1 bg-white"
+      style={{
+        paddingBottom: isMobile ? 50 : 0,
+      }}
+      className="padding-bottom-transition flex-1 bg-white"
       header={
         <HeapDetailHeader
           nest={nest}

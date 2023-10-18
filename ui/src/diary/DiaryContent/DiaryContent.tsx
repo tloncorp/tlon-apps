@@ -270,7 +270,12 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     const tree = refractor.highlight(story.code.code, story.code.lang);
     const element = toH(React.createElement, tree);
     return (
-      <pre className={cn({ invert: dark, 'bg-white': dark })}>
+      <pre
+        className={cn('max-w-xs sm:max-w-md  lg:max-w-none xl:max-w-none', {
+          invert: dark,
+          'bg-white': dark,
+        })}
+      >
         <code className={`language-${story.code.lang}`}>{element}</code>
       </pre>
     );
@@ -285,7 +290,7 @@ export default function DiaryContent({
 }: DiaryContentProps) {
   return (
     <article
-      className={cn('prose break-words dark:prose-invert', {
+      className={cn('prose select-auto break-words dark:prose-invert', {
         'prose-sm': isPreview,
         'prose-lg': !isPreview,
       })}

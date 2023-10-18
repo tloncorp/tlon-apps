@@ -28,8 +28,10 @@ import {
   useReply,
 } from '@/state/channel/channel';
 import { newReplyMap, ReplyTuple } from '@/types/channel';
-import ReplyScroller from '@/replies/ReplyScroller/ReplyScroller';
+import { useIsScrolling } from '@/logic/scroll';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
@@ -40,6 +42,7 @@ export default function ChatThread() {
     idTime: string;
   }>();
   const isMobile = useIsMobile();
+  const { isChatInputFocused } = useChatInputFocus();
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
@@ -71,11 +74,14 @@ export default function ChatThread() {
   const threadRef = useRef<HTMLDivElement | null>(null);
   const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
   const threadTitle = channel?.meta?.title;
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const returnURL = useCallback(
     () =>
@@ -91,15 +97,17 @@ export default function ChatThread() {
     },
     [navigate, returnURL, leapIsOpen]
   );
-
   useEventListener('keydown', onEscape, threadRef);
 
   const BackButton = isMobile ? Link : 'div';
 
   return (
     <div
-      className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
+      className="padding-bottom-transition relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
+      style={{
+        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+      }}
     >
       {isMobile ? (
         <MobileHeader
@@ -159,13 +167,15 @@ export default function ChatThread() {
         {isLoading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
-          <ReplyScroller
-            parentPost={note}
+          <ChatScroller
             key={idTime}
-            messages={replies}
+            messages={replies.toArray()}
+            fetchState={'initial'}
             whom={nest}
             scrollerRef={scrollerRef}
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
+            scrollElementRef={scrollElementRef}
+            isScrolling={isScrolling}
           />
         )}
       </div>
@@ -185,6 +195,7 @@ export default function ChatThread() {
             showReply
             autoFocus
             dropZoneId={dropZoneId}
+            isScrolling={isScrolling}
           />
         ) : !canWrite ? null : (
           <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">

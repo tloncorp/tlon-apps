@@ -4,10 +4,10 @@ import produce, { setAutoFreeze } from 'immer';
 import { SetState } from 'zustand';
 import { Poke } from '@urbit/http-api';
 import { formatUd, unixToDa } from '@urbit/aura';
-import { useMutation } from '@tanstack/react-query';
 import { udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Groups } from '@/types/groups';
 import {
   DMUnreadUpdate,
@@ -30,6 +30,7 @@ import {
   HiddenMessages,
   BlockedByShips,
   BlockedShips,
+  WritResponse,
 } from '@/types/dms';
 import {
   newReplyMap,
@@ -104,6 +105,11 @@ function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   };
 }
 
+interface OptimisticAction {
+  action: Poke<DmAction | ClubAction>;
+  event: DmAction | WritResponse;
+}
+
 async function optimisticAction(
   whom: string,
   id: string,
@@ -113,7 +119,6 @@ async function optimisticAction(
   const action: Poke<DmAction | ClubAction> = whomIsDm(whom)
     ? dmAction(whom, delta as WritDelta, id)
     : multiDmAction(whom, { writ: { id, delta: delta as WritDelta } });
-
   set((draft) => {
     const potentialEvent =
       action.mark === 'club-action-0' &&
@@ -143,6 +148,23 @@ function resolveHiddenMessages(toggle: ToggleMessage) {
       ? [...prev, toggle.hide]
       : prev.filter((id) => id !== toggle.show);
   };
+}
+
+function getStore(
+  whom: string,
+  get: () => BasedChatState,
+  set: SetState<BasedChatState>
+) {
+  const isDM = whomIsDm(whom);
+  const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
+
+  return makeWritsStore(
+    whom,
+    get,
+    set,
+    `/${type}/${whom}/writs`,
+    `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
+  );
 }
 
 export const useChatState = createState<ChatState>(
@@ -285,16 +307,7 @@ export const useChatState = createState<ChatState>(
       );
     },
     fetchMessages: async (whom: string, count: string, dir, time) => {
-      const isDM = whomIsDm(whom);
-      const type = isDM ? 'dm' : 'club';
-
-      const { getOlder, getNewer } = makeWritsStore(
-        whom,
-        get,
-        set,
-        `/${type}/${whom}/writs`,
-        `/${type}/${whom}${isDM ? '' : '/writs'}`
-      );
+      const { getOlder, getNewer } = getStore(whom, get, set);
 
       if (dir === 'older') {
         return getOlder(count, time);
@@ -302,17 +315,10 @@ export const useChatState = createState<ChatState>(
 
       return getNewer(count, time);
     },
-    fetchMessagesAround: async (whom: string, count: string, time) => {
-      const isDM = whomIsDm(whom);
-      const type = isDM ? 'dm' : 'club';
+    fetchMessagesAround: async (whom, count, timeOrId) => {
+      const store = getStore(whom, get, set);
 
-      return makeWritsStore(
-        whom,
-        get,
-        set,
-        `/${type}/${whom}/writs`,
-        `/${type}/${whom}${isDM ? '' : '/writs'}`
-      ).getAround(count, time);
+      return store.getAround(count, timeOrId);
     },
     fetchMultiDms: async () => {
       const dms = await api.scry<Clubs>({
@@ -653,21 +659,16 @@ export function useMessagesForChat(whom: string, near?: string) {
   const window = useWritWindow(whom, near);
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
 
-  console.log({
-    writs,
-    window,
-  });
-
   return useMemo(() => {
     return window && writs
-      ? newWritMap(writs.getRange(window.oldest, window.newest, true))
-      : writs || emptyWrits;
+      ? writs.getRange(window.oldest, window.newest, true)
+      : writs.toArray() || [];
   }, [writs, window]);
 }
 
 export function useHasMessages(whom: string) {
   const messages = useMessagesForChat(whom);
-  return messages.size > 0;
+  return messages.length > 0;
 }
 
 /**
@@ -677,7 +678,7 @@ export function useHasMessages(whom: string) {
  */
 export function useChatKeys({ whom }: { replying: boolean; whom: string }) {
   const messages = useMessagesForChat(whom ?? '');
-  return useMemo(() => Array.from(messages.keys()), [messages]);
+  return useMemo(() => messages.map(([k]) => k), [messages]);
 }
 
 export function useTrackedMessageStatus(id: string) {
@@ -725,6 +726,24 @@ export function useChatLoading(whom: string) {
   return useChatState(
     useCallback((s) => !s.pacts[whom] && !!unread, [whom, unread])
   );
+}
+
+export function useHasUnreadMessages() {
+  const chats = useChatStore((s) => s.chats);
+  const { dms, clubs } = useChatState((s) => ({
+    dms: s.dms,
+    clubs: s.multiDms,
+  }));
+
+  return dms.concat(Object.keys(clubs)).some((k) => {
+    const chat = chats[k];
+    if (!chat) {
+      return false;
+    }
+
+    const { unread } = chat;
+    return Boolean(unread && !unread.seen);
+  });
 }
 
 const emptyPact = { index: {}, writs: newWritMap() };
@@ -1206,6 +1225,15 @@ export function useGetFirstDMUnreadID(whom: string) {
   const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
   const firstUnread = keys.find((key) => key.gt(lastReadBN));
   return firstUnread ?? null;
+}
+
+export function useLatestMessage(chFlag: string): [BigInteger, Writ | null] {
+  const messages = useMessagesForChat(chFlag);
+  const messagesTree = newWritMap(messages);
+  const max = messagesTree.maxKey();
+  return messagesTree.size > 0 && max
+    ? [max, messagesTree.get(max) || null]
+    : [bigInt(), null];
 }
 
 export function useChatSearch(whom: string, query: string) {

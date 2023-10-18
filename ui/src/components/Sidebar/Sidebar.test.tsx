@@ -42,6 +42,9 @@ vi.mock('@/logic/utils', () => ({
   storageVersion: () => 0,
   clearStorageMigration: () => ({}),
   isTalk: () => false,
+  createDevLogger: () => ({
+    log: () => ({}),
+  }),
 }));
 
 describe('Sidebar', () => {

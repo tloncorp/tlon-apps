@@ -1,4 +1,10 @@
-import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -12,7 +18,9 @@ import {
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { useChatInfo, useChatStore } from '../chat/useChatStore';
 import ChatScrollerPlaceholder from '../chat/ChatScroller/ChatScrollerPlaceholder';
-import DmScroller from './DmScroller';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import { useIsScrolling } from '@/logic/scroll';
+import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 
 interface DmWindowProps {
   whom: string;
@@ -24,16 +32,50 @@ function getScrollTo(msg: string | null) {
 }
 
 export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
+  const [fetchState, setFetchState] = useState<'initial' | 'bottom' | 'top'>(
+    'initial'
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollTo = getScrollTo(searchParams.get('msg'));
   const loading = useChatLoading(whom);
   const messages = useMessagesForChat(whom, scrollTo?.toString());
-  console.log({
-    messages,
-  });
   const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
+  const pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE.toString();
+
+  const onAtTop = useCallback(async () => {
+    const store = useChatStore.getState();
+    const oldest = messages.minKey();
+    const seenOldest = oldest && window && window.loadedOldest;
+    if (seenOldest) {
+      return;
+    }
+    setFetchState('top');
+    await useChatState
+      .getState()
+      .fetchMessages(whom, pageSize, 'older', scrollTo?.toString());
+    setFetchState('initial');
+    store.bottom(false);
+  }, [whom, scrollTo, pageSize, messages, window]);
+
+  const onAtBottom = useCallback(async () => {
+    const store = useChatStore.getState();
+    const newest = messages.maxKey();
+    const seenNewest = newest && window && window.loadedNewest;
+    if (seenNewest) {
+      return;
+    }
+    setFetchState('bottom');
+    await useChatState
+      .getState()
+      .fetchMessages(whom, pageSize, 'newer', scrollTo?.toString());
+    setFetchState('initial');
+    store.bottom(true);
+    store.delayedRead(whom, () => useChatState.getState().markDmRead(whom));
+  }, [whom, scrollTo, pageSize, messages, window]);
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
@@ -73,7 +115,7 @@ export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
     <div className="relative h-full">
       <DMUnreadAlerts whom={whom} scrollerRef={scrollerRef} />
       <div className="flex h-full w-full flex-col overflow-hidden">
-        <DmScroller
+        <ChatScroller
           /**
            * key=whom forces a remount for each channel switch
            * This resets the scroll position when switching channels;
@@ -84,10 +126,15 @@ export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
            */
           key={whom}
           messages={messages}
+          fetchState={fetchState}
           whom={whom}
-          prefixedElement={prefixedElement}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}
+          scrollElementRef={scrollElementRef}
+          isScrolling={isScrolling}
+          topLoadEndMarker={prefixedElement}
+          onAtTop={onAtTop}
+          onAtBottom={onAtBottom}
         />
       </div>
       {scrollTo && !window?.latest ? (

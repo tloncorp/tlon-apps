@@ -93,6 +93,14 @@
         [%add-react =ship =react]
         [%del-react =ship]
     ==
+  +$  response  [=id response=response-delta]
+  +$  response-delta
+    $%  [%add =memo:d =time]
+        [%del ~]
+        [%reply =id meta=(unit reply-meta) delta=response-delta:replies]
+        [%add-react =ship =react]
+        [%del-react =ship]
+    ==
   --
 ::
 ::  $replies: a set of time ordered chat replies
@@ -106,6 +114,12 @@
     ((^on time reply) lte)
   +$  delta
     $%  [%add =memo:d time=(unit time)]
+        [%del ~]
+        [%add-react =ship =react]
+        [%del-react =ship]
+    ==
+  +$  response-delta
+    $%  [%add =memo:d =time]
         [%del ~]
         [%add-react =ship =react]
         [%del-react =ship]
@@ -192,11 +206,11 @@
         =net
         pin=_|
     ==
-  +$  net     ?(%inviting %invited %archive %done)
-  +$  id      (pair ship time)
-  +$  diff    diff:writs
-  +$  action  (pair ship diff)
-  +$  rsvp    [=ship ok=?]
+  +$  net       ?(%inviting %invited %archive %done)
+  +$  id        (pair ship time)
+  +$  diff      diff:writs
+  +$  action    (pair ship diff)
+  +$  rsvp      [=ship ok=?]
   --
 ::
 ::  $whom: a polymorphic identifier for chats

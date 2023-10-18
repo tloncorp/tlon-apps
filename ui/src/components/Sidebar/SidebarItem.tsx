@@ -153,8 +153,8 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           <div
             title={typeof children === 'string' ? children : undefined}
             className={cn(
-              'max-w-full flex-1 text-left sm:text-base',
-              isMobile ? 'font-system-sans line-clamp-1' : 'truncate',
+              'max-w-full flex-1 text-left font-sans sm:text-base',
+              isMobile ? 'line-clamp-1' : 'truncate',
               actions && 'pr-4',
               !fontWeight ? 'sm:font-semibold' : fontWeight,
               !color ? 'text-gray-800 sm:text-gray-600' : color,
@@ -168,7 +168,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           )}
         </Action>
         {actions ? (
-          <div className={cn('absolute right-2 sm:right-1')}>
+          <div className={cn('absolute right-2')}>
             {typeof actions === 'function' ? actions({ hover }) : actions}
           </div>
         ) : null}

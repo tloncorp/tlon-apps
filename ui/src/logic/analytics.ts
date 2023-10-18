@@ -17,7 +17,8 @@ export type AnalyticsEventName =
   | 'react_item'
   | 'comment_item'
   | 'post_item'
-  | 'view_item';
+  | 'view_item'
+  | 'error';
 
 export type AnalyticsChannelType = 'chat' | 'diary' | 'heap';
 
@@ -44,6 +45,7 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
   // this is to prevent accidentally capturing data. all opting is managed
   // in the activity checker in ActivityModal.
   opt_out_capturing_by_default: true,
+  advanced_disable_decide: true,
 });
 
 export const analyticsClient = posthog;
@@ -125,3 +127,13 @@ export const captureGroupsAnalyticsEvent = ({
 
   captureAnalyticsEvent(name, properties);
 };
+
+export function captureError(source: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  captureAnalyticsEvent('error', {
+    source,
+    message,
+    stack,
+  });
+}

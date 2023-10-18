@@ -1,6 +1,6 @@
 import cn from 'classnames';
-import React, { useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import React, { useRef, useMemo } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { Route, Routes, useMatch, useParams } from 'react-router';
 import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
@@ -21,9 +21,14 @@ import {
   useReplyPost,
 } from '@/state/channel/channel';
 import ChannelSearch from '@/channels/ChannelSearch';
+import { useIsScrolling } from '@/logic/scroll';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import ChatThread from './ChatThread/ChatThread';
 
 function ChatChannel({ title }: ViewProps) {
+  const { isChatInputFocused } = useChatInputFocus();
+  // TODO: We need to reroute users who can't read the channel
+  // const navigate = useNavigate();
   const { chShip, chName, idTime, idShip } = useParams<{
     name: string;
     chShip: string;
@@ -46,6 +51,12 @@ function ChatChannel({ title }: ViewProps) {
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const chatReplyId = useMemo(() => searchParams.get('reply'), [searchParams]);
   const replyingWrit = useReplyPost(nest, chatReplyId);
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
+  // We only inset the bottom for groups, since DMs display the navbar
+  // underneath this view
+  const root = `/groups/${groupFlag}/channels/${nest}`;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const {
     group,
@@ -60,32 +71,37 @@ function ChatChannel({ title }: ViewProps) {
   return (
     <>
       <Layout
-        className="flex-1 bg-white"
+        style={{
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        }}
+        className="padding-bottom-transition flex-1 bg-white"
         header={
           <Routes>
-            <Route
-              path="search/:query?"
-              element={
-                <>
-                  <ChannelSearch
-                    whom={nest}
-                    root={`/groups/${groupFlag}/channels/${nest}`}
-                    placeholder={
-                      channel ? `Search in ${channel.meta.title}` : 'Search'
-                    }
-                  >
-                    <ChannelTitleButton flag={groupFlag} nest={nest} />
-                  </ChannelSearch>
-                  <Helmet>
-                    <title>
-                      {channel && group
-                        ? `${channel.meta.title} in ${group.meta.title} Search`
-                        : 'Search'}
-                    </title>
-                  </Helmet>
-                </>
-              }
-            />
+            {!isMobile && (
+              <Route
+                path="search/:query?"
+                element={
+                  <>
+                    <ChannelSearch
+                      whom={nest}
+                      root={root}
+                      placeholder={
+                        channel ? `Search in ${channel.meta.title}` : 'Search'
+                      }
+                    >
+                      <ChannelTitleButton flag={groupFlag} nest={nest} />
+                    </ChannelSearch>
+                    <Helmet>
+                      <title>
+                        {channel && group
+                          ? `${channel.meta.title} in ${group.meta.title} Search`
+                          : 'Search'}
+                      </title>
+                    </Helmet>
+                  </>
+                }
+              />
+            )}
             <Route
               path="*"
               element={
@@ -118,7 +134,7 @@ function ChatChannel({ title }: ViewProps) {
         footer={
           <div
             className={cn(
-              !canWrite || ((isDragging || isOver) && !inThread)
+              (isDragging || isOver) && !inThread
                 ? ''
                 : 'border-t-2 border-gray-50 p-3 sm:p-4'
             )}
@@ -132,6 +148,7 @@ function ChatChannel({ title }: ViewProps) {
                 autoFocus={!inThread && !inSearch}
                 dropZoneId={dropZoneId}
                 replyingWrit={replyingWrit || undefined}
+                isScrolling={isScrolling}
               />
             ) : !canWrite ? null : (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
@@ -148,7 +165,12 @@ function ChatChannel({ title }: ViewProps) {
               : title}
           </title>
         </Helmet>
-        <ChatWindow whom={chFlag} />
+        <ChatWindow
+          scrollElementRef={scrollElementRef}
+          isScrolling={isScrolling}
+          whom={chFlag}
+          root={root}
+        />
       </Layout>
       <Routes>
         {isSmall ? null : (

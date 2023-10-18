@@ -156,13 +156,13 @@ export default function Notifications({
           }
         />
       )}
-      <section className="flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50 sm:p-6">
+      <section className="relative flex h-full w-full flex-col space-y-6 overflow-y-scroll bg-white p-2 sm:bg-gray-50 sm:p-6">
         <Helmet>
           <title>{group ? `${group?.meta?.title} ${title}` : title}</title>
         </Helmet>
 
         {isMobile && (
-          <div className="fixed inset-x-0 top-11 z-10 w-full bg-white py-2">
+          <div className="absolute inset-x-0 top-0 z-10 w-full py-2">
             <ToggleGroup
               value={notificationFilter}
               // @ts-expect-error NotificationFilterType is a string
@@ -233,7 +233,7 @@ export default function Notifications({
             ) : (
               notifications.map((grouping) => (
                 <div key={grouping.date}>
-                  <h2 className="mb-4 font-system-sans text-[17px] font-normal leading-[22px] text-gray-400">
+                  <h2 className="mb-4 font-sans text-[17px] font-normal leading-[22px] text-gray-400">
                     {grouping.date}
                   </h2>
                   <ul className="mb-4 space-y-2">

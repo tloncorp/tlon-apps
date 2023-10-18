@@ -82,6 +82,30 @@
         ok/b/ok.r
     ==
   ::
+  ++  blocked-by-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  blocked-by/s/(scot %p s)
+    ==
+  ::
+  ++  unblocked-by-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  unblocked-by/s/(scot %p s)
+    ==
+  ::
+  ++  block-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  ship/s/(scot %p s)
+    ==
+  ::
+  ++  unblock-ship
+    |=  s=ship:c
+    %-  pairs
+    :~  ship/s/(scot %p s)
+    ==
+  ::
   ++  toggle-message
     |=  m=message-toggle:c
     %+  frond  -.m
@@ -129,6 +153,12 @@
     :~  pins/a/(turn ps (cork whom (lead %s)))
     ==
   ::
+  ++  blocked
+    |=  bs=(set @p)
+    %-  pairs
+    :~  blocked/a/(turn ~(tap in bs) ship)
+    ==
+  ::
   ++  ship
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)
@@ -159,6 +189,27 @@
           time+?~(time.delta ~ (time-id u.time.delta))
       ==
     ==
+  ++  writs-response
+    |=  =response:writs:c
+    %-  pairs
+    :~  id/(id id.response)
+        response/(response-delta response.response)
+    ==
+  ::
+  ++  response-delta
+    |=  delta=response-delta:writs:c
+    %+  frond  -.delta
+    ?-  -.delta
+        %del       ~
+        %add-react  (add-react [ship react]:delta)
+        %del-react  (ship ship.delta)
+        %reply     (reply-response-delta +.delta)
+        %add
+      %-  pairs
+      :~  memo+(memo:enjs:dj memo.delta)
+          time+(time-id time.delta)
+      ==
+    ==
   ::
   ++  reply-delta
     |=  [i=id:c meta=(unit reply-meta:c) =delta:replies:c]
@@ -176,7 +227,27 @@
             %add
           %-  pairs
           :~  memo+(memo:enjs:dj memo.delta)
-              time+?~(time.delta ~ (time u.time.delta))
+              time+?~(time.delta ~ (time-id u.time.delta))
+          ==
+        ==
+    ==
+  ++  reply-response-delta
+    |=  [i=id:c meta=(unit reply-meta:c) delta=response-delta:replies:c]
+    ^-  json
+    %-  pairs
+    :~  id+(id i)
+        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
+        :-  %delta
+        %+  frond  -.delta
+        ?-  -.delta
+          %del       ~
+          %add-react  (add-react +.delta)
+          %del-react  (ship ship.delta)
+        ::
+            %add
+          %-  pairs
+          :~  memo+(memo:enjs:dj memo.delta)
+              time+(time-id time.delta)
           ==
         ==
     ==
@@ -296,6 +367,16 @@
         ok/bo
     ==
   ::
+  ++  block-ship
+    %-  ot
+    :~  ship/(se %p)
+    ==
+  ::
+  ++  unblock-ship
+    %-  ot
+    :~  ship/(se %p)
+    ==
+  ::
   ++  club-rsvp
     %-  ot
     :~  id/(se %uv)
@@ -308,6 +389,10 @@
     :~  pins/(ar whom)
     ==
   ::
+  ++  blocked
+    %-  ot
+    :~  blocked/(as ship)
+    ==
   ++  whom
     ^-  $-(json whom:c)
     %-  su
@@ -457,6 +542,13 @@
     %-  ot
     :~  ship/ship
         react/so
+    ==
+  ::
+  ++  toggle-message
+    ^-  $-(json message-toggle:c)
+    %-  of
+    :~  hide/id
+        show/id
     ==
   --
 --

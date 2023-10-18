@@ -3,7 +3,7 @@ import { Outlet, useParams } from 'react-router';
 import * as Toast from '@radix-ui/react-toast';
 import { Helmet } from 'react-helmet';
 import bigInt from 'big-integer';
-import { VirtuosoGrid } from 'react-virtuoso';
+import { GridStateSnapshot, VirtuosoGrid } from 'react-virtuoso';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
@@ -22,6 +22,8 @@ import getKindDataFromEssay from '@/logic/getKindData';
 import { Post, PageTuple } from '@/types/channel';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
+
+const virtuosoStateByFlag: Record<string, GridStateSnapshot> = {};
 
 function HeapChannel({ title }: ViewProps) {
   const isMobile = useIsMobile();
@@ -211,6 +213,10 @@ function HeapChannel({ title }: ViewProps) {
                 ? 'heap-grid-mobile'
                 : 'heap-grid'
             }
+            stateChanged={(state) => {
+              virtuosoStateByFlag[chFlag] = state;
+            }}
+            restoreStateFrom={virtuosoStateByFlag[chFlag]}
             {...thresholds}
           />
         )}

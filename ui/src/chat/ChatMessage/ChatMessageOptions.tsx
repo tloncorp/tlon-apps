@@ -1,11 +1,33 @@
+<<<<<<< HEAD
 import React, { useCallback, useEffect, useMemo } from 'react';
+||||||| 0c006213
+import cn from 'classnames';
+import React, { useCallback, useEffect } from 'react';
+=======
+import cn from 'classnames';
+import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+>>>>>>> develop
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+<<<<<<< HEAD
 import { useChatState, useMessageToggler } from '@/state/chat';
+||||||| 0c006213
+import { useChatPerms, useChatState } from '@/state/chat';
+import { ChatWrit } from '@/types/chat';
+=======
+import {
+  useChatPerms,
+  useChatState,
+  useHiddenMessages,
+  useMessageToggler,
+  useToggleMessageMutation,
+} from '@/state/chat';
+import { ChatWrit } from '@/types/chat';
+>>>>>>> develop
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -23,6 +45,7 @@ import { useIsMobile } from '@/logic/useMedia';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
+<<<<<<< HEAD
 import {
   useAddPostReactMutation,
   useDeletePostMutation,
@@ -32,8 +55,14 @@ import {
 import { emptyPost, Post } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
+||||||| 0c006213
+=======
+import { inlineToString } from '@/logic/tiptap';
+import VisibleIcon from '@/components/icons/VisibleIcon';
+import HiddenIcon from '@/components/icons/HiddenIcon';
+>>>>>>> develop
 
-export default function ChatMessageOptions(props: {
+function ChatMessageOptions(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   whom: string;
@@ -54,7 +83,22 @@ export default function ChatMessageOptions(props: {
   const { seal, essay } = writ;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
+<<<<<<< HEAD
   const { didCopy, doCopy } = useCopy(`/1/chan/chat/${whom}/msg/${seal.id}`);
+||||||| 0c006213
+  const { didCopy, doCopy } = useCopy(
+    `/1/chan/chat/${whom}/msg/${writ.seal.id}`
+  );
+=======
+  const { didCopy, doCopy } = useCopy(
+    `/1/chan/chat/${whom}/msg/${writ.seal.id}`
+  );
+  const messageText =
+    'story' in writ.memo.content && 'inline' in writ.memo.content.story
+      ? writ.memo.content.story.inline.map((i) => inlineToString(i)).join('')
+      : '';
+  const { didCopy: didCopyText, doCopy: doCopyText } = useCopy(messageText);
+>>>>>>> develop
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,
     seal.id,
@@ -83,6 +127,7 @@ export default function ChatMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
+<<<<<<< HEAD
   const threadParentId = useThreadParentId(whom);
   const { mutate: deleteChatMessage } = useDeletePostMutation();
   const { mutate: addFeelToChat } = useAddPostReactMutation();
@@ -101,6 +146,11 @@ export default function ChatMessageOptions(props: {
     () => isMessageHidden || isPostHidden,
     [isMessageHidden, isPostHidden]
   );
+||||||| 0c006213
+=======
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { show, hide, isHidden } = useMessageToggler(writ.seal.id);
+>>>>>>> develop
 
   const onDelete = async () => {
     if (isMobile) {
@@ -133,6 +183,16 @@ export default function ChatMessageOptions(props: {
       }, 2000);
     }
   }, [doCopy, isMobile, onOpenChange]);
+
+  const onCopyText = useCallback(() => {
+    doCopyText();
+
+    if (isMobile) {
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 2000);
+    }
+  }, [doCopyText, isMobile, onOpenChange]);
 
   const reply = useCallback(() => {
     setSearchParams({ reply: seal.id }, { replace: true });
@@ -182,6 +242,11 @@ export default function ChatMessageOptions(props: {
   const togglePost = useCallback(
     () => (isPostHidden ? showPost() : hidePost()),
     [isPostHidden, showPost, hidePost]
+  );
+
+  const toggleMsg = useCallback(
+    () => (isHidden ? show() : hide()),
+    [isHidden, show, hide]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
@@ -265,7 +330,7 @@ export default function ChatMessageOptions(props: {
           ) : (
             <CopyIcon className="mr-2 h-6 w-6" />
           )}
-          {didCopy ? 'Copied!' : 'Copy'}
+          {didCopy ? 'Copied!' : 'Copy Link'}
         </div>
       ),
       onClick: onCopy,
@@ -273,6 +338,7 @@ export default function ChatMessageOptions(props: {
     });
   }
 
+<<<<<<< HEAD
   actions.push({
     key: 'hide',
     onClick: isDMorMultiDM ? toggleMsg : togglePost,
@@ -293,6 +359,45 @@ export default function ChatMessageOptions(props: {
     ),
   });
 
+||||||| 0c006213
+=======
+  actions.push({
+    key: 'copyText',
+    content: (
+      <div className="flex items-center">
+        {didCopyText ? (
+          <CheckIcon className="mr-2 h-6 w-6" />
+        ) : (
+          <CopyIcon className="mr-2 h-6 w-6" />
+        )}
+        {didCopyText ? 'Copied!' : 'Copy Text'}
+      </div>
+    ),
+    onClick: onCopyText,
+    keepOpenOnClick: true,
+  });
+
+  actions.push({
+    key: 'hide',
+    onClick: toggleMsg,
+    content: (
+      <div className="flex items-center">
+        {isHidden ? (
+          <>
+            <VisibleIcon className="mr-2 h-6 w-6" />
+            Show Message
+          </>
+        ) : (
+          <>
+            <HiddenIcon className="mr-2 h-6 w-6" />
+            Hide Message
+          </>
+        )}
+      </div>
+    ),
+  });
+
+>>>>>>> develop
   if (showDeleteAction) {
     actions.push({
       key: 'delete',
@@ -308,6 +413,18 @@ export default function ChatMessageOptions(props: {
     });
   }
 
+  // Ensure options menu is visible even if the top of the message has scrolled
+  // off the page.
+  useLayoutEffect(() => {
+    if (open && !isMobile && containerRef.current) {
+      // This also accounts for the height of the header.
+      const minTopOffset = 65;
+      const rect = containerRef.current.getBoundingClientRect();
+      const offset = Math.max(minTopOffset - rect.top, 0);
+      containerRef.current.style.transform = `translateY(${`${offset}px`})`;
+    }
+  }, [open, isMobile]);
+
   if (!open && !isMobile) {
     return null;
   }
@@ -317,10 +434,13 @@ export default function ChatMessageOptions(props: {
       {isMobile ? (
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
-        <div className="absolute right-2 -top-5 z-10 h-full">
+        <div
+          className="absolute right-2 -top-5 z-10 min-h-fit"
+          ref={containerRef}
+        >
           <div
             data-testid="chat-message-options"
-            className="sticky top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
+            className="relative top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
           >
             {showReactAction && (
               <EmojiPicker
@@ -379,6 +499,7 @@ export default function ChatMessageOptions(props: {
                 action={openReactionDetails}
               />
             )}
+<<<<<<< HEAD
             <IconButton
               icon={
                 isHidden ? (
@@ -391,6 +512,21 @@ export default function ChatMessageOptions(props: {
               showTooltip
               action={isDMorMultiDM ? toggleMsg : togglePost}
             />
+||||||| 0c006213
+=======
+            <IconButton
+              icon={
+                isHidden ? (
+                  <VisibleIcon className="h-6 w-6 text-gray-400" />
+                ) : (
+                  <HiddenIcon className="h-6 w-6 text-gray-400" />
+                )
+              }
+              label={isHidden ? 'Show Message' : 'Hide Message'}
+              showTooltip
+              action={toggleMsg}
+            />
+>>>>>>> develop
             {showDeleteAction && (
               <IconButton
                 icon={<XIcon className="h-6 w-6 text-red" />}
@@ -414,3 +550,5 @@ export default function ChatMessageOptions(props: {
     </>
   );
 }
+
+export default React.memo(ChatMessageOptions);

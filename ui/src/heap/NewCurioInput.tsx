@@ -2,7 +2,6 @@ import { useCallback, useMemo } from 'react';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
 import Document from '@tiptap/extension-document';
 import Blockquote from '@tiptap/extension-blockquote';
-import Placeholder from '@tiptap/extension-placeholder';
 import Bold from '@tiptap/extension-bold';
 import Code from '@tiptap/extension-code';
 import CodeBlock from '@tiptap/extension-code-block';
@@ -17,9 +16,9 @@ import { Shortcuts } from '@/logic/tiptap';
 import { useCalm } from '@/state/settings';
 import { EditorView } from '@tiptap/pm/view';
 import { Slice } from '@tiptap/pm/model';
+import Placeholder from '@tiptap/extension-placeholder';
 
 interface NewCurioInput {
-  // draft: JSONContent | undefined;
   placeholder: string;
   onChange: (editorUpdate: EditorUpdate) => void;
   onPastedFiles: (files: FileList) => void;
@@ -50,6 +49,7 @@ export default function NewCurioInput({
         onPastedFiles(event.clipboardData.files);
         return false;
       }
+
       return true;
     },
     [onPastedFiles]
@@ -96,9 +96,7 @@ export default function NewCurioInput({
       exitable: true,
     }),
     Paragraph,
-    Placeholder.configure({
-      placeholder,
-    }),
+    Placeholder.configure({ placeholder }),
     Strike,
     Text,
   ];
@@ -123,7 +121,7 @@ export default function NewCurioInput({
         ed.chain().focus().run();
       },
     },
-    [keyMapExt, placeholder]
+    [keyMapExt]
   );
 
   if (!editor) {

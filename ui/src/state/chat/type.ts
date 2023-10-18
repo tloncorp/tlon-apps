@@ -45,13 +45,13 @@ export interface ChatState {
   start: (init: TalkInit) => Promise<void>;
   dmRsvp: (ship: string, ok: boolean) => Promise<void>;
   fetchMessages: (
-    ship: string,
+    whom: string,
     count: string,
     dir: 'newer' | 'older',
     time?: string
   ) => Promise<boolean>;
   fetchMessagesAround: (
-    ship: string,
+    whom: string,
     count: string,
     time: string
   ) => Promise<void>;

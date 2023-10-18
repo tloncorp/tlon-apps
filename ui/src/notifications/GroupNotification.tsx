@@ -11,6 +11,7 @@ import Person16Icon from '@/components/icons/Person16Icon';
 import X16Icon from '@/components/icons/X16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import Notification from './Notification';
+import { isDm } from './useNotifications';
 
 interface GroupNotificationProps {
   bin: Skein;
@@ -38,6 +39,9 @@ function GroupSubIcon({ rope }: GroupOrChannelIconProps) {
     case 'heap':
       return <ShapesIcon className="mr-1 h-4 w-4" />;
     default:
+      if (isDm(rope)) {
+        return <ChatSmallIcon className="mr-1 h-4 w-4" />;
+      }
       if (isAdd) {
         return <AddIcon16 className="mr-1 h-4 w-4" />;
       }
@@ -80,7 +84,7 @@ export default function GroupNotification({ bin }: GroupNotificationProps) {
       }
       topLine={
         <div className="flex flex-row items-center space-x-1 text-sm font-semibold text-gray-400">
-          {!groupFlag ? (
+          {!groupFlag && !isDm(rope) ? (
             <GroupAvatar
               image={group?.meta.image || gang.preview?.meta.image}
               title={group?.meta.title || gang.preview?.meta.title}

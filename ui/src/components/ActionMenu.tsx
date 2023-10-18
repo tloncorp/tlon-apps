@@ -73,7 +73,7 @@ const ActionMenu = React.memo(
                 disabled={disabled}
                 asChild={asChild}
                 aria-label={ariaLabel}
-                className={cn('appearance-none', triggerClassName)}
+                className={cn('select-none appearance-none', triggerClassName)}
               >
                 {children}
               </Drawer.Trigger>
@@ -92,7 +92,10 @@ const ActionMenu = React.memo(
                             action.onClick?.(event);
                           }
                     }
-                    className={cn(classNameForType(action.type), 'py-[16px]')}
+                    className={cn(
+                      classNameForType(action.type),
+                      'select-none py-[16px]'
+                    )}
                   >
                     {typeof action.content === 'string' ? (
                       <span>{action.content}</span>

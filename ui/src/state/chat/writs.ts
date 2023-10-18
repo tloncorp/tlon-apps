@@ -11,8 +11,8 @@ import {
   WritSeal,
   Writ,
   Writs,
-  WritDelta,
   WritInCache,
+  WritResponse
 } from '@/types/dms';
 import { newReplyMap, Reply } from '@/types/channel';
 import queryClient from '@/queryClient';
@@ -27,15 +27,15 @@ interface WritsStore {
 }
 
 export function writsReducer(whom: string, optimistic = false) {
-  return (json: DmAction | WritDiff, draft: BasedChatState): BasedChatState => {
+  return (json: DmAction | WritResponse, draft: BasedChatState): BasedChatState => {
     let id: string | undefined;
-    let delta: WritDelta;
+    let delta;
     if ('diff' in json) {
       id = json.diff.id;
       delta = json.diff.delta;
     } else {
       id = json.id;
-      delta = json.delta;
+      delta = json.response;
     }
 
     if (!delta || !id) {
@@ -77,7 +77,7 @@ export function writsReducer(whom: string, optimistic = false) {
         {
           oldest: time,
           newest: time,
-          loadedNewest: false,
+          loadedNewest: true,
           loadedOldest: false,
         },
         draft.writWindows[whom]
@@ -112,13 +112,9 @@ export function writsReducer(whom: string, optimistic = false) {
       const time = pact.index[id];
       const msg = pact.writs.get(time);
       const { reply } = delta;
-      console.log({ delta });
 
       if (msg) {
-        console.log({ msg });
         const replyDelta = reply.delta;
-
-        console.log({ replyDelta });
 
         if ('add' in replyDelta) {
           const currentPost = queryClient.getQueryData<WritInCache>([
@@ -262,7 +258,12 @@ export default function makeWritsStore(
         {
           oldest,
           newest,
-          loadedNewest: dir === 'newer' ? !updates : window.loadedNewest,
+          loadedNewest:
+            dir === 'newer'
+              ? updates
+                ? newest.eq(window.newest)
+                : true
+              : window.loadedNewest,
           loadedOldest: dir === 'older' ? !updates : window.loadedOldest,
         },
         draft.writWindows[whom],
@@ -272,6 +273,29 @@ export default function makeWritsStore(
 
     const newMessageSize = get().pacts[whom].writs.size;
     return newMessageSize !== oldMessagesSize;
+  };
+
+  const updateAround = async (writs: Writs, time: string) => {
+    get().batchSet((draft) => {
+      const keys = Object.keys(writs).sort();
+      if (keys.length === 0) {
+        return;
+      }
+
+      updatePact(whom, writs, draft);
+      const oldest = bigInt(udToDec(keys[0]));
+      const newest = bigInt(udToDec(keys[keys.length - 1]));
+      draft.writWindows[whom] = extendCurrentWindow(
+        {
+          oldest,
+          newest,
+          loadedNewest: false,
+          loadedOldest: false,
+        },
+        draft.writWindows[whom],
+        time
+      );
+    });
   };
 
   return {
@@ -296,7 +320,7 @@ export default function makeWritsStore(
             oldest,
             newest,
             loadedNewest: true,
-            loadedOldest: false,
+            loadedOldest: keys.length === 0,
             latest: true,
           },
           draft.writWindows[whom]
@@ -306,9 +330,13 @@ export default function makeWritsStore(
       api.subscribe({
         app: 'chat',
         path: subPath,
-        event: (data: WritDiff) => {
+        event: (data: WritDiff | WritResponse, mark: string) => {
+          if (mark !== 'writ-response') {
+            return;
+          }
+
           set((draft) => {
-            writsReducer(whom)(data, draft);
+            writsReducer(whom)(data as WritResponse, draft);
             return {
               pacts: { ...draft.pacts },
               writWindows: { ...draft.writWindows },
@@ -331,27 +359,7 @@ export default function makeWritsStore(
         app: 'chat',
         path: `${scryPath}/around/${decToUd(time.toString())}/${count}/light`,
       });
-
-      get().batchSet((draft) => {
-        const keys = Object.keys(writs).sort();
-        if (keys.length === 0) {
-          return;
-        }
-
-        updatePact(whom, writs, draft);
-        const oldest = bigInt(udToDec(keys[0]));
-        const newest = bigInt(udToDec(keys[keys.length - 1]));
-        draft.writWindows[whom] = extendCurrentWindow(
-          {
-            oldest,
-            newest,
-            loadedNewest: false,
-            loadedOldest: false,
-          },
-          draft.writWindows[whom],
-          time
-        );
-      });
+      updateAround(writs, time);
     },
   };
 }

@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import {
   Inline,
   InlineKey,
@@ -89,7 +90,7 @@ export function tipTapToString(json: JSONContent): string {
   }
 
   if (json.marks && json.marks.length > 0) {
-    const first = json.marks.pop();
+    const first = _.first(json.marks);
 
     if (!first) {
       throw new Error('Unsure what this is');

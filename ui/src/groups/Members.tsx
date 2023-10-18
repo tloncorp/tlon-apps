@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Virtuoso } from 'react-virtuoso';
 import { deSig } from '@urbit/api';
 import { useLocation, useNavigate } from 'react-router';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -20,7 +19,6 @@ import MobileHeader from '@/components/MobileHeader';
 import ShipName from '@/components/ShipName';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { isNativeApp } from '@/logic/native';
-import { useModalNavigate } from '@/logic/routing';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import { getSectTitle } from '@/logic/utils';
 import { useContact } from '@/state/contact';
@@ -42,9 +40,10 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import RoleBadges from '@/components/RoleBadges';
+import ShipScroller from '@/components/ShipScroller';
 
 interface GroupMemberItemProps {
-  member: string;
+  ship: string;
 }
 
 function Role({ role, member }: { role: string; member: string }) {
@@ -109,7 +108,7 @@ function Role({ role, member }: { role: string; member: string }) {
   );
 }
 
-const Member = React.memo(({ member }: GroupMemberItemProps) => {
+const Member = React.memo(({ ship: member }: GroupMemberItemProps) => {
   const navigate = useNavigate();
   const flag = useGroupFlag();
   const group = useGroup(flag);
@@ -124,13 +123,12 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const contact = useContact(member);
   const location = useLocation();
-  const modalNavigate = useModalNavigate();
   const navigateByApp = useNavigateByApp();
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
 
   const onViewProfile = (ship: string) => {
-    modalNavigate(`/profile/${ship}`, {
+    navigate(`/profile/${ship}`, {
       state: { backgroundLocation: location },
     });
   };
@@ -259,32 +257,6 @@ const Member = React.memo(({ member }: GroupMemberItemProps) => {
   );
 });
 
-function MemberScroller({ members }: { members: string[] }) {
-  const thresholds = {
-    atBottomThreshold: 125,
-    atTopThreshold: 125,
-    overscan: { main: 200, reverse: 200 },
-  };
-
-  if (members.length === 0) {
-    return <p>No members</p>;
-  }
-
-  return (
-    <Virtuoso
-      {...thresholds}
-      data={members}
-      computeItemKey={(i, member: string) => member}
-      itemContent={(i, member: string) => (
-        <Member key={member} member={member} />
-      )}
-      style={{
-        minHeight: '100%',
-      }}
-    />
-  );
-}
-
 export default function Members() {
   const [toggleSearch, setToggleSearch] = useState(false);
   const [search, setSearch] = useState('');
@@ -383,7 +355,7 @@ export default function Members() {
       <div className="h-full overflow-auto px-4">
         <Divider isMobile={true}>Admin</Divider>
         {admins.map((admin) => (
-          <Member key={admin} member={admin} />
+          <Member key={admin} ship={admin} />
         ))}
         <Divider isMobile={true}>Everyone else</Divider>
         {results.length === 0 ? (
@@ -391,7 +363,7 @@ export default function Members() {
             No members match your search
           </p>
         ) : null}
-        <MemberScroller members={results} />
+        <ShipScroller shipLabel="member" shipItem={Member} ships={results} />
       </div>
     </div>
   );

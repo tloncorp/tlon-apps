@@ -1,6 +1,8 @@
 import cn from 'classnames';
-import React, { AnchorHTMLAttributes, PropsWithChildren } from 'react';
+import { useState, AnchorHTMLAttributes, PropsWithChildren } from 'react';
 import { NavLink, NavLinkProps } from 'react-router-dom';
+
+const DOUBLE_CLICK_WINDOW = 300;
 
 type NavTabProps = PropsWithChildren<
   (
@@ -23,13 +25,13 @@ export default function NavTab({
   ...props
 }: NavTabProps) {
   return (
-    <li className={cn('flex-1 text-xs font-semibold', className)}>
+    <li className={cn('flex-1', className)}>
       {isNavLinkProps(props) ? (
         <NavLink
           {...props}
           to={props.to}
           className={cn(
-            'flex h-full w-full flex-col items-center justify-center bg-white py-2 text-black',
+            'flex h-full w-full items-center justify-center',
             linkClass
           )}
         >
@@ -39,7 +41,7 @@ export default function NavTab({
         <a
           {...props}
           className={cn(
-            'flex h-full w-full flex-col items-center justify-center bg-white p-2 text-black',
+            'flex h-full flex-col items-center justify-end pb-0.5',
             linkClass
           )}
         >
@@ -47,5 +49,47 @@ export default function NavTab({
         </a>
       )}
     </li>
+  );
+}
+
+type DoubleClickableNavTab = PropsWithChildren<
+  (
+    | Omit<NavLinkProps, 'className' | 'style'>
+    | AnchorHTMLAttributes<HTMLAnchorElement>
+  ) & {
+    className?: string;
+    linkClass?: string;
+    onSingleClick: () => void;
+    onDoubleClick: () => void;
+  }
+>;
+
+export function DoubleClickableNavTab({
+  onSingleClick,
+  onDoubleClick,
+  ...props
+}: DoubleClickableNavTab) {
+  const [clickTimeout, setClickTimeout] = useState<number | null>(null);
+
+  const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+
+    if (clickTimeout !== null) {
+      window.clearTimeout(clickTimeout);
+      setClickTimeout(null);
+      onDoubleClick();
+    } else {
+      const timeout = window.setTimeout(() => {
+        setClickTimeout(null);
+      }, DOUBLE_CLICK_WINDOW);
+      setClickTimeout(timeout);
+    }
+    onSingleClick();
+  };
+
+  return (
+    <NavTab onClick={onClick} {...props}>
+      {props.children}
+    </NavTab>
   );
 }

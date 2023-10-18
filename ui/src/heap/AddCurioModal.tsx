@@ -6,10 +6,15 @@ import { JSONContent } from '@tiptap/react';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { createCurioHeart } from '@/logic/heap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
-import { useIsMobile } from '@/logic/useMedia';
+import { tipTapToString } from '@/logic/tiptap';
 import { useFileStore, useUploader } from '@/state/storage';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+<<<<<<< HEAD
 import { useAddPostMutation } from '@/state/channel/channel';
+||||||| 0c006213
+=======
+import { useIsMobile } from '@/logic/useMedia';
+>>>>>>> develop
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';
 import CurioPreview, { canPreview } from './CurioPreview';
 
@@ -32,7 +37,12 @@ export default function AddCurioModal({
   clearDragState,
   dragErrorMessage,
 }: AddCurioModalProps) {
+<<<<<<< HEAD
   const nest = `heap/${chFlag}`;
+||||||| 0c006213
+=======
+  const isMobile = useIsMobile();
+>>>>>>> develop
   const [status, setStatus] = useState<'initial' | 'loading' | 'error'>(
     'initial'
   );
@@ -40,16 +50,23 @@ export default function AddCurioModal({
   const uploadKey = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const [mode, setMode] = useState<'preview' | 'input'>('input');
   const [errorMessage, setErrorMessage] = useState('');
-  const isMobile = useIsMobile();
   const [content, setContent] = useState<JSONContent>();
   const [pastedFile, setPastedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
+<<<<<<< HEAD
   const { mutate } = useAddPostMutation(nest);
+||||||| 0c006213
+  const { mutate } = useAddCurioMutation();
+=======
+  const loading = !!(mostRecentFile && mostRecentFile.status === 'loading');
+  const { mutate } = useAddCurioMutation();
+>>>>>>> develop
   const { privacy } = useGroupPrivacy(flag);
 
-  const isEmpty = !content && !draggedFile && !pastedFile;
+  const isEmpty =
+    !(content && tipTapToString(content)) && !draggedFile && !pastedFile;
   const errorForDisplay = errorMessage || dragErrorMessage;
 
   const reset = useCallback(() => {
@@ -224,17 +241,15 @@ export default function AddCurioModal({
 
       <section className="align-center align-center mt-6 mb-6 flex w-full flex-col justify-center">
         {mode === 'input' ? (
-          <div className="flex w-full">
-            <NewCurioInput
-              onChange={onChange}
-              onPastedFiles={onPastedFiles}
-              placeholder={
-                isMobile
-                  ? 'Paste a link or type to post text'
-                  : 'Drag media to upload, or start typing to post text'
-              }
-            />
-          </div>
+          <NewCurioInput
+            onChange={onChange}
+            onPastedFiles={onPastedFiles}
+            placeholder={
+              isMobile
+                ? 'Paste a link or type to post text'
+                : 'Drag media to upload, or start typing to post text'
+            }
+          />
         ) : (
           <CurioPreview url={previewUrl} />
         )}
@@ -247,6 +262,24 @@ export default function AddCurioModal({
       </section>
 
       <footer className="mt-4 flex items-center justify-between space-x-2">
+        {uploader && (
+          <button
+            className="button"
+            disabled={loading || !isEmpty}
+            onClick={() => {
+              uploader.prompt();
+            }}
+          >
+            {loading ? (
+              <>
+                <LoadingSpinner className="mr-2 h-4 w-4" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              'Upload'
+            )}
+          </button>
+        )}
         <div className="ml-auto flex items-center space-x-2">
           <button
             className="secondary-button"

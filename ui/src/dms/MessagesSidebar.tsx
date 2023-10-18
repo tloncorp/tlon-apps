@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 import React, { useState, useRef, useCallback, useMemo } from 'react';
+||||||| 0c006213
+import React, { useState, useRef, useCallback } from 'react';
+=======
+import React, { useState, useRef, useCallback, useContext } from 'react';
+>>>>>>> develop
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
@@ -23,7 +29,14 @@ import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+<<<<<<< HEAD
 import { usePins } from '@/state/channel/channel';
+||||||| 0c006213
+=======
+import { useLocalState } from '@/state/local';
+import { DesktopUpdateButton } from '@/components/UpdateNotices';
+import { AppUpdateContext } from '@/logic/useAppUpdates';
+>>>>>>> develop
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -107,7 +120,7 @@ export function TalkAppMenu() {
           <a
             title="Back to Landscape"
             aria-label="Back to Landscape"
-            href="/apps/grid"
+            href="/apps/landscape"
             target="_blank"
             rel="noreferrer"
             className={cn(
@@ -129,6 +142,7 @@ export function TalkAppMenu() {
 }
 
 export default function MessagesSidebar() {
+  const { needsUpdate } = useContext(AppUpdateContext);
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -194,7 +208,7 @@ export default function MessagesSidebar() {
       <div
         className={cn('flex w-full flex-col p-2', !atTop && 'bottom-shadow')}
       >
-        <TalkAppMenu />
+        {needsUpdate ? <DesktopUpdateButton /> : <TalkAppMenu />}
         <SystemChrome />
         <SidebarItem
           icon={<Avatar size="xs" ship={window.our} />}

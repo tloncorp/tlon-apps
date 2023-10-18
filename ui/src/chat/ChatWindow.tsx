@@ -1,25 +1,40 @@
-import React, { ReactNode, useCallback, useEffect, useRef } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
-import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { log } from '@/logic/utils';
 import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 
 interface ChatWindowProps {
   whom: string;
+  root: string;
   prefixedElement?: ReactNode;
+  scrollElementRef: React.RefObject<HTMLDivElement>;
+  isScrolling: boolean;
 }
 
 function getScrollTo(msg: string | null) {
   return msg ? bigInt(msg) : undefined;
 }
 
-export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
+export default function ChatWindow({
+  whom,
+  root,
+  prefixedElement,
+  scrollElementRef,
+  isScrolling,
+}: ChatWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollTo = getScrollTo(searchParams.get('msg'));
   const nest = `chat/${whom}`;
@@ -36,6 +51,15 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(nest).unread?.readTimeout;
+  const fetchState = useMemo(
+    () =>
+      isFetchingNextPage
+        ? 'bottom'
+        : isFetchingPreviousPage
+        ? 'top'
+        : 'initial',
+    [isFetchingNextPage, isFetchingPreviousPage]
+  );
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
@@ -55,26 +79,19 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
     [readTimeout, markRead, nest]
   );
 
-  const loadNewerMessages = useCallback(
-    (atBottom: boolean) => {
-      log('loadNewerMessages', { atBottom, hasNextPage, isFetchingNextPage });
-      if (atBottom && hasNextPage && !isFetchingNextPage) {
-        log('fetching next page');
-        fetchNextPage();
-      }
-    },
-    [fetchNextPage, hasNextPage, isFetchingNextPage]
-  );
+  const onAtBottom = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      log('fetching next page');
+      fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-  const loadOlderMessages = useCallback(
-    (atTop: boolean) => {
-      if (atTop && hasPreviousPage && !isFetchingPreviousPage) {
-        log('fetching previous page');
-        fetchPreviousPage();
-      }
-    },
-    [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]
-  );
+  const onAtTop = useCallback(() => {
+    if (hasPreviousPage && !isFetchingPreviousPage) {
+      log('fetching previous page');
+      fetchPreviousPage();
+    }
+  }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
   useEffect(
     () => () => {
@@ -95,7 +112,7 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
 
   return (
     <div className="relative h-full">
-      <ChatUnreadAlerts whom={whom} scrollerRef={scrollerRef} />
+      <ChatUnreadAlerts whom={whom} root={root} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           /**
@@ -108,12 +125,15 @@ export default function ChatWindow({ whom, prefixedElement }: ChatWindowProps) {
            */
           key={whom}
           messages={messages}
+          fetchState={fetchState}
           whom={whom}
-          prefixedElement={prefixedElement}
+          topLoadEndMarker={prefixedElement}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}
-          atBottomStateChange={loadNewerMessages}
-          atTopStateChange={loadOlderMessages}
+          onAtTop={onAtTop}
+          onAtBottom={onAtBottom}
+          scrollElementRef={scrollElementRef}
+          isScrolling={isScrolling}
         />
       </div>
       {scrollTo ? (

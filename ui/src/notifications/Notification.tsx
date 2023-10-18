@@ -344,9 +344,7 @@ export default function Notification({
       )}
       <div className="absolute right-5 flex-none p-1">
         <div className="flex items-center space-x-1">
-          {bin.unread ? (
-            <Bullet16Icon className="h-4 w-4 text-red sm:text-blue" />
-          ) : null}
+          {bin.unread ? <Bullet16Icon className="h-4 w-4 text-blue" /> : null}
           <span className="text-sm font-semibold">
             {makePrettyTime(new Date(bin.time))}
           </span>

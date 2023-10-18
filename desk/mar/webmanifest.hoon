@@ -8,13 +8,12 @@
 =,  eyre
 =,  format
 =,  html
-~!  json=^json
 |_  jon=^json
 ::
 ++  grow                                                ::  convert to
   |%
-  ++  mime  [/application/'manifest+json' (as-octs:mimes:html -:txt)]   ::  convert to %mime
-  ++  txt   [(crip (en-json jon))]~
+  ++  mime  [/application/'manifest+json' (as-octs:mimes -:txt)]   ::  convert to %mime
+  ++  txt   [(en:json jon)]~
   --
 ++  grab
   |%                                                    ::  convert from

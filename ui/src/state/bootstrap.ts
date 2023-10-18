@@ -104,20 +104,8 @@ async function startTalk() {
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
 
-export default async function bootstrap(reset = 'initial' as Bootstrap) {
+function auxiliaryData() {
   const { wait } = useSchedulerStore.getState();
-  if (reset === 'full-reset') {
-    api.reset();
-  }
-
-  if (isTalk) {
-    startTalk();
-    wait(() => startGroups(), 5);
-  } else {
-    startGroups();
-    wait(async () => startTalk(), 5);
-  }
-
   wait(() => {
     useContactState.getState().start();
     useStorage.getState().initialize(api as unknown as Urbit);
@@ -133,12 +121,43 @@ export default async function bootstrap(reset = 'initial' as Bootstrap) {
     if (!import.meta.env.DEV) {
       usePalsState.getState().initializePals();
     }
-    api.poke({
-      app: isTalk ? 'talk-ui' : 'groups-ui',
-      mark: 'ui-vita',
-      json: null,
-    });
   }, 5);
+
+  api.poke({
+    app: isTalk ? 'talk-ui' : 'groups-ui',
+    mark: 'ui-vita',
+    json: null,
+  });
+}
+
+let auxiliaryTimer = 0;
+export default async function bootstrap(
+  reset = 'initial' as Bootstrap,
+  sendVita = true
+) {
+  const { wait } = useSchedulerStore.getState();
+
+  if (reset === 'full-reset') {
+    api.reset();
+  }
+
+  if (isTalk) {
+    startTalk();
+    wait(() => startGroups(), 5);
+  } else {
+    startGroups();
+    wait(async () => startTalk(), 5);
+  }
+
+  if (reset === 'initial') {
+    auxiliaryData();
+  } else {
+    clearTimeout(auxiliaryTimer);
+    auxiliaryTimer = setTimeout(
+      () => auxiliaryData(),
+      30 * 1000
+    ) as unknown as number;
+  }
 }
 
 useLocalState.setState({
@@ -147,6 +166,9 @@ useLocalState.setState({
     reset();
     bootstrap('reset');
 
-    useLocalState.setState({ lastReconnect: Date.now() });
+    useLocalState.setState({
+      lastReconnect: Date.now(),
+      subscription: 'connected',
+    });
   },
 });

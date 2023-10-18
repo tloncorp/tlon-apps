@@ -11,6 +11,12 @@ import React, {
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
+import {
+  useIsShipBlocked,
+  useShipHasBlockedUs,
+  useUnblockShipMutation,
+} from '@/state/chat';
+import { ChatImage } from '@/types/chat';
 import MessageEditor, {
   HandlerParams,
   useMessageEditor,
@@ -19,6 +25,7 @@ import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import {
+  chatStoreLogger,
   fetchChatBlocks,
   useChatInfo,
   useChatStore,
@@ -53,6 +60,7 @@ import {
 import { CacheId } from '@/state/channel/channel';
 import { WritTuple } from '@/types/dms';
 import messageSender from '@/logic/messageSender';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
 interface ChatInputProps {
   whom: string;
@@ -80,6 +88,7 @@ interface ChatInputProps {
   }) => void;
   dropZoneId: string;
   replyingWrit?: PageTuple | WritTuple | ReplyTuple;
+  isScrolling: boolean;
 }
 
 export function UploadErrorPopover({
@@ -124,15 +133,18 @@ export default function ChatInput({
   sendReply,
   dropZoneId,
   replyingWrit,
+  isScrolling,
 }: ChatInputProps) {
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
     useDragAndDrop(dropZoneId);
+  const { handleFocus, handleBlur, isChatInputFocused } = useChatInputFocus();
   const [didDrop, setDidDrop] = useState(false);
   const isTargetId = useMemo(
     () => targetId === dropZoneId,
     [targetId, dropZoneId]
   );
   const id = replying ? `${whom}-${replying}` : whom;
+  chatStoreLogger.log('InputRender', id);
   const [draft, setDraft] = useLocalStorage(
     createStorageKey(`chat-${id}`),
     inlinesToJSON([''])
@@ -157,6 +169,15 @@ export default function ChatInput({
   const files = useMemo(() => uploader?.files, [uploader]);
   const mostRecentFile = uploader?.getMostRecent();
   const { setBlocks } = useChatStore.getState();
+  const shipIsBlocked = useIsShipBlocked(whom);
+  const shipHasBlockedUs = useShipHasBlockedUs(whom);
+  const { mutate: unblockShip } = useUnblockShipMutation();
+
+  const handleUnblockClick = useCallback(() => {
+    unblockShip({
+      ship: whom,
+    });
+  }, [unblockShip, whom]);
 
   const handleDrop = useCallback(
     (fileList: FileList) => {
@@ -200,6 +221,7 @@ export default function ChatInput({
   }, [mostRecentFile]);
 
   const clearAttachments = useCallback(() => {
+    chatStoreLogger.log('clearAttachments', { id, uploadKey });
     useChatStore.getState().setBlocks(id, []);
     useFileStore.getState().getUploader(uploadKey)?.clear();
     if (replyCite) {
@@ -226,6 +248,7 @@ export default function ChatInput({
       const uploadType = useFileStore.getState().getUploadType(uploadKey);
 
       if (isTargetId && uploadType === 'drag' && didDrop) {
+        chatStoreLogger.log('DragUpload', { id, files });
         // TODO: handle existing blocks (other refs)
         useChatStore.getState().setBlocks(
           id,
@@ -242,6 +265,7 @@ export default function ChatInput({
       }
 
       if (uploadType !== 'drag') {
+        chatStoreLogger.log('Upload', { id, files });
         // TODO: handle existing blocks (other refs)
         useChatStore.getState().setBlocks(
           id,
@@ -410,6 +434,36 @@ export default function ChatInput({
     ship,
   ]);
 
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed && isScrolling) {
+      messageEditor.commands.blur();
+    }
+  }, [isScrolling, messageEditor]);
+
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed) {
+      if (!isChatInputFocused && messageEditor.isFocused) {
+        handleFocus();
+      }
+
+      if (isChatInputFocused && !messageEditor.isFocused) {
+        handleBlur();
+      }
+    }
+
+    return () => {
+      if (isChatInputFocused) {
+        handleBlur();
+      }
+    };
+  }, [
+    isChatInputFocused,
+    messageEditor,
+    messageEditor?.isFocused,
+    handleFocus,
+    handleBlur,
+  ]);
+
   const editorText = messageEditor?.getText();
   const editorHTML = messageEditor?.getHTML();
 
@@ -429,6 +483,7 @@ export default function ChatInput({
             return;
           }
           setBlocks(id, [{ cite }]);
+          chatStoreLogger.log('AndroidPaste', { id, cite });
           messageEditor.commands.deleteRange({
             from: editorText.indexOf(path),
             to: editorText.indexOf(path) + path.length + 1,
@@ -471,6 +526,7 @@ export default function ChatInput({
         // @ts-expect-error type check on previous line
         uploader.removeByURL(blocks[idx].image.src);
       }
+      chatStoreLogger.log('onRemove', { id, blocks });
       useChatStore.getState().setBlocks(
         id,
         blocks.filter((_b, k) => k !== idx)
@@ -479,12 +535,36 @@ export default function ChatInput({
     [id, uploader]
   );
 
-  if (!messageEditor) {
-    return null;
-  }
-
   // @ts-expect-error tsc is not tracking the type narrowing in the filter
   const imageBlocks: ChatImage[] = chatInfo.blocks.filter((b) => 'image' in b);
+  // chatStoreLogger.log('ChatInputRender', id, chatInfo);
+
+  if (shipHasBlockedUs) {
+    return (
+      <div className="flex w-full items-end space-x-2">
+        <div className="flex-1">
+          <div className="flex items-center justify-center space-x-2">
+            <span>This user has blocked you.</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (shipIsBlocked) {
+    return (
+      <div className="flex w-full items-end space-x-2">
+        <div className="flex-1">
+          <div className="flex items-center justify-center space-x-2">
+            <span>You have blocked this user.</span>
+            <button className="small-button" onClick={handleUnblockClick}>
+              Unblock
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // only allow dropping if this component is the target
   if ((isDragging || isOver) && isTargetId) {
@@ -561,15 +641,17 @@ export default function ChatInput({
           {!isMobile && (
             <Avatar size="xs" ship={window.our} className="mr-2 mb-1" />
           )}
-          <MessageEditor
-            editor={messageEditor}
-            className={cn(
-              'w-full break-words',
-              uploader && !uploadError && mostRecentFile?.status !== 'loading'
-                ? 'pr-8'
-                : ''
-            )}
-          />
+          {messageEditor && (
+            <MessageEditor
+              editor={messageEditor}
+              className={cn(
+                'w-full break-words',
+                uploader && !uploadError && mostRecentFile?.status !== 'loading'
+                  ? 'pr-8'
+                  : ''
+              )}
+            />
+          )}
           {uploader && !uploadError && mostRecentFile?.status !== 'loading' ? (
             <button
               title={'Upload an image'}
@@ -600,7 +682,8 @@ export default function ChatInput({
           mostRecentFile?.status === 'loading' ||
           mostRecentFile?.status === 'error' ||
           mostRecentFile?.url === '' ||
-          (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
+          !messageEditor ||
+          (messageEditor?.getText() === '' && chatInfo.blocks.length === 0)
         }
         onMouseDown={(e) => {
           e.preventDefault();

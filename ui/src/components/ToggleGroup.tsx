@@ -21,7 +21,7 @@ export default function ToggleGroup({
   return (
     <ToggleGroupPrimitive.Root
       className={cn(
-        `mx-4 grid grid-cols-${options.length} gap-[2px] rounded-[10px] bg-white font-system-sans`
+        `mx-4 grid grid-cols-${options.length} gap-[2px] rounded-[10px] bg-white font-sans`
       )}
       type="single"
       value={value}

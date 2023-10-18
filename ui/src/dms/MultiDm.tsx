@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import cn from 'classnames';
 import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -15,7 +15,13 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import useAppName from '@/logic/useAppName';
 import MobileHeader from '@/components/MobileHeader';
+<<<<<<< HEAD
 import DmWindow from '@/dms/DmWindow';
+||||||| 0c006213
+=======
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+import { useIsScrolling } from '@/logic/scroll';
+>>>>>>> develop
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -64,6 +70,7 @@ function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
 export default function MultiDm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const clubId = useParams<{ ship: string }>().ship!;
+  const { isChatInputFocused } = useChatInputFocus();
   const dropZoneId = `chat-dm-input-dropzone-${clubId}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const isMobile = useIsMobile();
@@ -72,6 +79,10 @@ export default function MultiDm() {
   const club = useMultiDm(clubId);
   const appName = useAppName();
   const groupName = club?.meta.title || club?.team.concat(club.hive).join(', ');
+  const root = `/dm/${clubId}`;
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const {
     isSelectingMessage,
@@ -96,7 +107,10 @@ export default function MultiDm() {
   return (
     <>
       <Layout
-        className="flex-1"
+        style={{
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        }}
+        className="padding-bottom-transition flex-1"
         header={
           isSelecting ? (
             <MessageSelector />
@@ -107,7 +121,7 @@ export default function MultiDm() {
                 element={
                   <DmSearch
                     whom={clubId}
-                    root={`/dm/${clubId}`}
+                    root={root}
                     placeholder="Search Messages"
                   >
                     <TitleButton club={club} isMobile={isMobile} />
@@ -187,6 +201,7 @@ export default function MultiDm() {
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}
+                isScrolling={isScrolling}
               />
             </div>
           ) : null
@@ -195,6 +210,9 @@ export default function MultiDm() {
         {isAccepted ? (
           <DmWindow
             whom={clubId}
+            root={root}
+            scrollElementRef={scrollElementRef}
+            isScrolling={isScrolling}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <MultiDmHero club={club} />

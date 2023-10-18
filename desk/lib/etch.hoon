@@ -3,7 +3,7 @@
 ::
 ++  show-json
   |=  =vase
-  (en-json:html (en-vase vase))
+  (en:json:html (en-vase vase))
 ::
 ++  en-vase
   |=  [typ=type arg=*]

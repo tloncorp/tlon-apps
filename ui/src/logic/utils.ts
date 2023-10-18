@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import ob from 'urbit-ob';
 import bigInt, { BigInteger } from 'big-integer';
 import isURL from 'validator/es/lib/isURL';
@@ -52,12 +52,42 @@ export const isGroups = import.meta.env.VITE_APP === 'groups';
 export const isHosted =
   import.meta.env.DEV || window.location.hostname.endsWith('.tlon.network');
 
+export function createDevLogger(tag: string, enabled: boolean) {
+  return new Proxy(console, {
+    get(target: Console, prop, receiver) {
+      return (...args: unknown[]) => {
+        if (enabled && import.meta.env.DEV) {
+          const val = Reflect.get(target, prop, receiver);
+          val(`[${tag}]`, ...args);
+        }
+      };
+    },
+  });
+}
+
 export function log(...args: any[]) {
   if (import.meta.env.DEV) {
     const { stack } = new Error();
     const line = stack?.split('\n')[2].trim();
     console.log(`${line}:`, ...args);
   }
+}
+
+/**
+ * Logs a message when any property of an object changes. Uses shallow equality
+ * check to determine whether a change has occurred.
+ */
+export function useObjectChangeLogging(
+  o: Record<string, unknown>,
+  logger: Console = window.console
+) {
+  const lastValues = useRef(o);
+  Object.entries(o).forEach(([k, v]) => {
+    if (v !== lastValues.current[k]) {
+      logger.log('[change]', k);
+      lastValues.current[k] = v;
+    }
+  });
 }
 
 export function logTime(...args: any[]) {

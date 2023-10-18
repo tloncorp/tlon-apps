@@ -167,6 +167,17 @@
   %+  turn  writs
   |=  [=time =writ:c]
   [time writ(replies *replies:c)]
+++  get-around
+  |=  [mode=?(%light %heavy) =time count=@ud]
+  ^-  (unit (unit cage))
+  =/  older  (bat:mope wit.pac `time count)
+  =/  newer  (tab:on:writs:c wit.pac `time count)
+  =/  writ   (get:on:writs:c wit.pac time)
+  =-  ``chat-writs+!>(-)
+  %+  give-writs  mode
+  ?~  writ
+    (welp older newer)
+  (welp (snoc older [time u.writ]) newer)
 ++  peek
   |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
@@ -191,15 +202,17 @@
     ``chat-writs+!>((give-writs mode.pole writs))
   ::
       [%around time=@ count=@ mode=?(%light %heavy) ~]
-    =/  count  (slav %ud count.pole)
-    =/  time   (slav %ud time.pole)
-    =/  older  (bat:mope wit.pac `time count)
-    =/  newer  (tab:on:writs:c wit.pac `time count)
-    =/  writ   (get:on:writs:c wit.pac time)
-    =/  writs
-        ?~  writ  (welp older newer)
-        (welp (snoc older [time u.writ]) newer)
-    ``chat-writs+!>((give-writs mode.pole writs))
+    =/  time    (slav %ud time.pole)
+    =/  count   (slav %ud count.pole)
+    (get-around mode.pole time count)
+  ::
+      [%around ship=@ time=@ count=@ mode=?(%light %heavy) ~]
+    =/  ship    (slav %p ship.pole)
+    =/  time    (slav %ud time.pole)
+    =/  count   (slav %ud count.pole)
+    =/  entry   (get ship `@da`time)
+    ?~  entry  ``chat-writs+!>(*writs:c)
+    (get-around mode.pole time.u.entry count)
   ::
       [%writ %id ship=@ time=@ ~]
     =/  ship  (slav %p ship.pole)

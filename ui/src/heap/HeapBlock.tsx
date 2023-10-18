@@ -160,7 +160,6 @@ function TopBar({
             />
           )}
         </div>
-        <div>
           <ActionMenu
             open={menuOpen}
             onOpenChange={setMenuOpen}
@@ -184,7 +183,6 @@ function TopBar({
               />
             )}
           </ActionMenu>
-        </div>
       </div>
       <ConfirmationModal
         open={deleteOpen}

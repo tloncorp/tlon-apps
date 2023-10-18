@@ -89,7 +89,7 @@ function themeAdjustColor(color: string, theme: 'light' | 'dark'): string {
   return color;
 }
 
-export default function Avatar({
+function Avatar({
   ship,
   size = 'default',
   className,
@@ -183,6 +183,8 @@ export default function Avatar({
     </div>
   );
 }
+
+export default React.memo(Avatar);
 
 export function useProfileColor(
   ship: string,

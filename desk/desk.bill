@@ -1,9 +1,7 @@
 :~  %groups
     %chat
-    %contacts
     %heap
     %diary
-    %hark
     %notify
     %grouper
     %groups-ui

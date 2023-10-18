@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
 import { usePinnedGroups } from '@/state/chat';
-import { useGangList, useGroups } from '@/state/groups';
+import {
+  useGangList,
+  useGroupsWithQuery,
+  usePendingGangsWithoutClaim,
+} from '@/state/groups';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
@@ -13,6 +17,8 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import Layout from '@/components/Layout/Layout';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import GroupJoinList from '@/groups/GroupJoinList';
 
 export default function MobileRoot() {
   const [isScrolling, setIsScrolling] = useState(false);
@@ -20,8 +26,9 @@ export default function MobileRoot() {
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
-  const groups = useGroups();
+  const { data: groups, isLoading } = useGroupsWithQuery();
   const gangs = useGangList();
+  const pendingGangs = usePendingGangsWithoutClaim();
   const pinnedGroups = usePinnedGroups();
   const sortedGroups = sortGroups(groups);
   const pinnedGroupsOptions = useMemo(
@@ -32,12 +39,15 @@ export default function MobileRoot() {
     [pinnedGroups]
   );
 
+  const hasPinnedGroups = !!pinnedGroupsOptions.length;
+  const hasPendingGangs = !!pendingGangs.length;
+
   return (
     <Layout
       className="flex-1 bg-white"
       header={
         <MobileHeader
-          title="All Groups"
+          title="Groups"
           action={
             <div className="flex h-12 items-center justify-end space-x-2">
               <ReconnectingSpinner />
@@ -59,33 +69,50 @@ export default function MobileRoot() {
     >
       <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
         <div className="flex-1">
-          <GroupsScrollingContext.Provider value={isScrolling}>
-            <GroupList
-              groups={sortedGroups}
-              pinnedGroups={Object.entries(pinnedGroups)}
-              isScrolling={scroll.current}
-            >
-              {Object.entries(pinnedGroups).length > 0 && (
-                <>
-                  <div className="px-4">
-                    <h2 className="mb-0.5 p-2 font-system-sans  text-gray-900">
-                      Pinned Groups
-                    </h2>
-                    {pinnedGroupsOptions}
-                  </div>
-                  <h2 className="my-2 ml-2 p-2 pl-4 font-system-sans  text-gray-900">
-                    All Groups
-                  </h2>
-                </>
-              )}
+          {sortedGroups.length === 0 && !isLoading ? (
+            <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
+              Tap the <span className="sr-only">find icon</span>
+              <MagnifyingGlass16Icon className="inline-flex h-4 w-4" /> below to
+              find new groups in your network or view group invites.
+            </div>
+          ) : (
+            <GroupsScrollingContext.Provider value={isScrolling}>
+              <GroupList
+                groups={sortedGroups}
+                pinnedGroups={Object.entries(pinnedGroups)}
+                isScrolling={scroll.current}
+              >
+                {hasPinnedGroups || hasPendingGangs ? (
+                  <>
+                    {hasPinnedGroups ? (
+                      <div className="px-4">
+                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
+                          Pinned
+                        </h2>
+                        {pinnedGroupsOptions}
+                      </div>
+                    ) : null}
 
-              <div className="px-4">
-                {gangs.map((flag) => (
-                  <GangItem key={flag} flag={flag} />
-                ))}
-              </div>
-            </GroupList>
-          </GroupsScrollingContext.Provider>
+                    {hasPendingGangs ? (
+                      <div className="px-4">
+                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
+                          Invites
+                        </h2>
+                        <GroupJoinList highlightAll gangs={pendingGangs} />
+                      </div>
+                    ) : null}
+
+                    <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
+                      All Groups
+                    </h2>
+                    {gangs.length
+                      ? gangs.map((flag) => <GangItem key={flag} flag={flag} />)
+                      : null}
+                  </>
+                ) : null}
+              </GroupList>
+            </GroupsScrollingContext.Provider>
+          )}
         </div>
       </nav>
     </Layout>

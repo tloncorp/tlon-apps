@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import cn from 'classnames';
 import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
@@ -23,7 +23,13 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+<<<<<<< HEAD
 import DmWindow from '@/dms/DmWindow';
+||||||| 0c006213
+=======
+import { useIsScrolling } from '@/logic/scroll';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+>>>>>>> develop
 import MessageSelector from './MessageSelector';
 import DmSearch from './DmSearch';
 
@@ -94,6 +100,7 @@ function TitleButton({
 export default function Dm() {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const ship = useParams<{ ship: string }>().ship!;
+  const { isChatInputFocused } = useChatInputFocus();
   const dropZoneId = `chat-dm-input-dropzone-${ship}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { sendMessage } = useChatState.getState();
@@ -103,10 +110,18 @@ export default function Dm() {
   const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
+<<<<<<< HEAD
   const unread = useDmUnread(ship);
+||||||| 0c006213
+=======
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
+>>>>>>> develop
   const canStart = useChatState(
     useCallback(() => ship && !!unread, [ship, unread])
   );
+  const root = `/dm/${ship}`;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const {
     isSelectingMessage,
@@ -122,10 +137,22 @@ export default function Dm() {
     }
   }, [ship, canStart]);
 
+  const conversationHeader = useMemo(
+    () => (
+      <div className="pt-4 pb-12">
+        <DMHero ship={ship} contact={contact} />
+      </div>
+    ),
+    [ship, contact]
+  );
+
   return (
     <>
       <Layout
-        className="flex-1"
+        style={{
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        }}
+        className="padding-bottom-transition flex-1"
         header={
           isSelecting ? (
             <MessageSelector />
@@ -136,7 +163,7 @@ export default function Dm() {
                 element={
                   <DmSearch
                     whom={ship}
-                    root={`/dm/${ship}`}
+                    root={root}
                     placeholder="Search Messages"
                   >
                     <TitleButton
@@ -237,6 +264,7 @@ export default function Dm() {
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}
+                isScrolling={isScrolling}
               />
             </div>
           ) : null
@@ -245,11 +273,10 @@ export default function Dm() {
         {isAccepted ? (
           <DmWindow
             whom={ship}
-            prefixedElement={
-              <div className="pt-4 pb-12">
-                <DMHero ship={ship} contact={contact} />
-              </div>
-            }
+            root={root}
+            scrollElementRef={scrollElementRef}
+            isScrolling={isScrolling}
+            prefixedElement={conversationHeader}
           />
         ) : (
           <DmInvite ship={ship} />

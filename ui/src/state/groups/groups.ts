@@ -92,8 +92,9 @@ export function useGroupConnection(flag: string) {
   return useGroupConnectionState((state) => state.groups[flag] ?? true);
 }
 
-export function useGroups() {
-  const { data, ...rest } = useReactQuerySubscription({
+const emptyGroups: Groups = {};
+export function useGroupsWithQuery() {
+  const { data, ...rest } = useReactQuerySubscription<Groups>({
     queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
@@ -103,11 +104,32 @@ export function useGroups() {
     },
   });
 
-  if (rest.isLoading || rest.isError) {
-    return {} as Groups;
+  if (rest.isLoading || rest.isError || !data) {
+    return { data: emptyGroups, ...rest };
   }
 
-  return data as Groups;
+  return {
+    data,
+    ...rest,
+  };
+}
+
+export function useGroups() {
+  const { data, ...rest } = useReactQuerySubscription<Groups>({
+    queryKey: [GROUPS_KEY],
+    app: 'groups',
+    path: `/groups/ui`,
+    scry: `/groups/light/v0`,
+    options: {
+      refetchOnReconnect: false, // handled in bootstrap reconnect flow
+    },
+  });
+
+  if (!data || rest.isLoading || rest.isError) {
+    return emptyGroups;
+  }
+
+  return data;
 }
 
 export function useGroup(flag: string, updating = false): Group | undefined {
@@ -258,14 +280,16 @@ export function useGangs() {
     [queryClient]
   );
 
-  if (rest.isLoading || rest.isError) {
-    return {} as Gangs;
-  }
+  return useMemo(() => {
+    if (rest.isLoading || rest.isError) {
+      return {} as Gangs;
+    }
 
-  return {
-    ...groupIndexDataAsGangs,
-    ...(data as Gangs),
-  };
+    return {
+      ...groupIndexDataAsGangs,
+      ...(data as Gangs),
+    };
+  }, [data, groupIndexDataAsGangs, rest.isLoading, rest.isError]);
 }
 
 export function useGang(flag: string) {
@@ -299,7 +323,7 @@ export const useGangPreview = (
 
 export function useGangList() {
   const data = useGangs();
-  return Object.keys(data || {});
+  return useMemo(() => Object.keys(data || {}), [data]);
 }
 
 export function useGroupChannel(

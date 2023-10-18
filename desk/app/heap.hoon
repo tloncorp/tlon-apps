@@ -11,11 +11,12 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %0
+    $:  %1
         =stash:h
         voc=(map [flag:h time] (unit said:h))
         ::  true represents imported, false pending import
         imp=(map flag:h ?)
+        hidden-curios=(set time)
     ==
   ::
   --
@@ -108,6 +109,11 @@
     ?<  =(our.bowl p.leave)  :: cannot leave chat we host
     he-abet:he-leave:(he-abed:he-core leave)
   ::
+      %post-toggle
+    =+  !<(toggle=post-toggle:c vase)
+    ?>  from-self
+    (toggle-curio toggle)
+  ::
       %leave-old-channels
     =/  groups-path  /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/noun
     =/  groups  .^(groups:g %gx groups-path)
@@ -160,6 +166,16 @@
     ?<  (~(has by stash) chan.join)
     he-abet:(he-join:he-core join)
   ::
+  ++  toggle-curio
+    |=  toggle=post-toggle:c
+    ^+  cor
+    =.  hidden-curios
+      ?-  -.toggle
+        %hide  (~(put in hidden-curios) id-post.toggle)
+        %show  (~(del in hidden-curios) id-post.toggle)
+      ==
+    (give %fact ~[/ui] toggle-curio+!>(toggle))
+  ::
   ++  create
     |=  req=create:h
     |^  ^+  cor
@@ -190,22 +206,47 @@
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
-  =.  state  old
-  =.  cor  restore-missing-subs
-  =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-  =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
-  ?:  =(okay:h cool)  cor
-  ::  speak the good news
-  =.  cor  (emil (drop load:epos))
-  =/  heaps  ~(tap in ~(key by stash))
   |-
-  ?~  heaps
-    cor
-  =.  cor
-    he-abet:he-upgrade:(he-abed:he-core i.heaps)
-  $(heaps t.heaps)
+  ?-  -.old
+    %0  $(old (state-0-to-1 old))
+    ::
+      %1
+    =.  state  old
+    =.  cor  restore-missing-subs
+    =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
+    ?:  =(okay:h cool)  cor
+    ::  speak the good news
+    =.  cor  (emil (drop load:epos))
+    =/  heaps  ~(tap in ~(key by stash))
+    |-
+    ?~  heaps
+      cor
+    =.  cor
+      he-abet:he-upgrade:(he-abed:he-core i.heaps)
+    $(heaps t.heaps)
+  ==
   ::
-  +$  versioned-state  $%(current-state)
+  +$  versioned-state  $%(current-state state-0)
+  ::
+  +$  state-0
+    $:  %0
+        =stash:h
+        voc=(map [flag:h time] (unit said:h))
+        ::  true represents imported, false pending import
+        imp=(map flag:h ?)
+    ==
+  ::
+  +$  state-1  current-state
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  state-1
+    %*  .  *state-1
+      stash  stash.s
+      voc  voc.s
+      imp  imp.s
+      hidden-curios  ~
+    ==
   ::
   ++  restore-missing-subs
     %+  roll
@@ -410,6 +451,7 @@
     [%x %stash ~]  ``stash+!>(stash)
     [%x %init ~]  ``noun+!>([briefs stash])
     [%x %briefs ~]  ``heap-briefs+!>(briefs)
+    [%x %hidden-curios ~]  ``hidden-posts+!>(hidden-curios)
   ::
       [%x %heap ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -1022,6 +1064,7 @@
           ?(%edit %del %add-feel %del-feel)  he-core
           %add
         =/  =heart:h  p.q.p.d
+        =/  from-me  =(our.bowl author.heart)
         ?~  replying.heart
           =/  content  (trip (flatten q.content.heart))
           =/  loud-yarn
@@ -1033,7 +1076,7 @@
                 ==
                 ~
                 /curio/(rsh 4 (scot %ui time))
-          =?  cor  want-loud-notify
+          =?  cor  &(want-loud-notify !from-me)
             (emit (pass-hark loud-yarn))
           he-core
         =/  op  (~(get cur curios.heap) u.replying.heart)

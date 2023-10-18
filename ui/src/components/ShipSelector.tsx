@@ -293,7 +293,7 @@ export default function ShipSelector({
   const validShips = ships
     ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
     : false;
-  const mobilePlaceholder = 'Search by @p or nickname';
+  const mobilePlaceholder = 'Search for Urbit ID';
 
   const handleEnter = () => {
     const isInputting = !!(

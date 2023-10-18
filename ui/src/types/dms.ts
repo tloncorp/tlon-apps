@@ -31,6 +31,8 @@ export interface WritReply extends Reply {
   seal: WritReplySeal;
 }
 
+export type WritMemo = Omit<PostEssay, 'kind-data'>;
+
 export interface WritReplyReferenceResponse {
   reply: {
     'id-post': string;
@@ -46,7 +48,7 @@ export interface WritSeal extends PostSeal {
 
 interface WritDeltaAdd {
   add: {
-    memo: Omit<PostEssay, 'kind-data'>;
+    memo: WritMemo;
     kind: null;
     time: string | null;
   };
@@ -69,7 +71,7 @@ interface WritDeltaDelReact {
 
 interface ReplyDeltaAdd {
   add: {
-    memo: Omit<PostEssay, 'kind-data'>;
+    memo: WritMemo;
     time: string | null;
   };
 }
@@ -111,6 +113,25 @@ export type WritDelta =
 export interface WritDiff {
   id: string;
   delta: WritDelta;
+}
+
+export interface WritResponseAdd {
+  add: {
+    memo: WritMemo;
+    time: string;
+    kind: null;
+  };
+}
+
+export type WritResponseDelta =
+  | WritResponseAdd
+  | WritDeltaDel
+  | WritDeltaAddReact
+  | WritDeltaDelReact;
+
+export interface WritResponse {
+  id: string;
+  response: WritResponseDelta;
 }
 
 /**

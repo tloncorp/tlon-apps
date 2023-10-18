@@ -1,8 +1,7 @@
 import React from 'react';
 import cn from 'classnames';
 import { makePrettyDayAndDateAndTime, useCopy } from '@/logic/utils';
-import { useLocation } from 'react-router';
-import { useModalNavigate } from '@/logic/routing';
+import { useLocation, useNavigate } from 'react-router';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import RoleBadges from '@/components/RoleBadges';
@@ -18,7 +17,7 @@ interface AuthorProps {
   isRef?: boolean;
   className?: string;
 }
-export default function Author({
+function Author({
   ship,
   date,
   timeOnly,
@@ -30,11 +29,11 @@ export default function Author({
 }: AuthorProps) {
   const location = useLocation();
   const { didCopy, doCopy } = useCopy(ship);
-  const modalNavigate = useModalNavigate();
+  const navigate = useNavigate();
   const timeDisplay = date ? makePrettyDayAndDateAndTime(date) : undefined;
 
   const handleProfileClick = () => {
-    modalNavigate(`/profile/${ship}`, {
+    navigate(`/profile/${ship}`, {
       state: { backgroundLocation: location },
     });
   };
@@ -141,3 +140,5 @@ export default function Author({
     </div>
   );
 }
+
+export default React.memo(Author);
