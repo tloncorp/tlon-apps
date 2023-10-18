@@ -21,6 +21,8 @@ const configuration = (json: S3Update, state: StorageState): StorageState => {
       buckets: new Set(data.buckets),
       currentBucket: data.currentBucket,
       region: data.region,
+      presignedUrl: data.presignedUrl,
+      service: data.service,
     };
   }
   return state;
