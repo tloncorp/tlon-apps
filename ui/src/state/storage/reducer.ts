@@ -1,12 +1,14 @@
 /* eslint-disable no-param-reassign */
-import { S3Update } from '@urbit/api';
 import _ from 'lodash';
-import { BaseStorageState } from './type';
+import { StorageUpdate, BaseStorageState } from './type';
 import { BaseState } from '../base';
 
 export type StorageState = BaseStorageState & BaseState<BaseStorageState>;
 
-const credentials = (json: S3Update, state: StorageState): StorageState => {
+const credentials = (
+  json: StorageUpdate,
+  state: StorageState
+): StorageState => {
   const data = _.get(json, 'credentials', false);
   if (data) {
     state.s3.credentials = data;
@@ -14,7 +16,10 @@ const credentials = (json: S3Update, state: StorageState): StorageState => {
   return state;
 };
 
-const configuration = (json: S3Update, state: StorageState): StorageState => {
+const configuration = (
+  json: StorageUpdate,
+  state: StorageState
+): StorageState => {
   const data = _.get(json, 'configuration', false);
   if (data) {
     state.s3.configuration = {
@@ -28,7 +33,10 @@ const configuration = (json: S3Update, state: StorageState): StorageState => {
   return state;
 };
 
-const currentBucket = (json: S3Update, state: StorageState): StorageState => {
+const currentBucket = (
+  json: StorageUpdate,
+  state: StorageState
+): StorageState => {
   const data = _.get(json, 'setCurrentBucket', false);
   if (data && state.s3) {
     state.s3.configuration.currentBucket = data;
@@ -36,7 +44,7 @@ const currentBucket = (json: S3Update, state: StorageState): StorageState => {
   return state;
 };
 
-const addBucket = (json: S3Update, state: StorageState): StorageState => {
+const addBucket = (json: StorageUpdate, state: StorageState): StorageState => {
   const data = _.get(json, 'addBucket', false);
   if (data) {
     state.s3.configuration.buckets = state.s3.configuration.buckets.add(data);
@@ -44,7 +52,10 @@ const addBucket = (json: S3Update, state: StorageState): StorageState => {
   return state;
 };
 
-const removeBucket = (json: S3Update, state: StorageState): StorageState => {
+const removeBucket = (
+  json: StorageUpdate,
+  state: StorageState
+): StorageState => {
   const data = _.get(json, 'removeBucket', false);
   if (data) {
     state.s3.configuration.buckets.delete(data);
@@ -52,7 +63,7 @@ const removeBucket = (json: S3Update, state: StorageState): StorageState => {
   return state;
 };
 
-const endpoint = (json: S3Update, state: StorageState): StorageState => {
+const endpoint = (json: StorageUpdate, state: StorageState): StorageState => {
   const data = _.get(json, 'setEndpoint', false);
   if (data && state.s3.credentials) {
     state.s3.credentials.endpoint = data;
@@ -60,7 +71,10 @@ const endpoint = (json: S3Update, state: StorageState): StorageState => {
   return state;
 };
 
-const accessKeyId = (json: S3Update, state: StorageState): StorageState => {
+const accessKeyId = (
+  json: StorageUpdate,
+  state: StorageState
+): StorageState => {
   const data = _.get(json, 'setAccessKeyId', false);
   if (data && state.s3.credentials) {
     state.s3.credentials.accessKeyId = data;
@@ -68,10 +82,43 @@ const accessKeyId = (json: S3Update, state: StorageState): StorageState => {
   return state;
 };
 
-const secretAccessKey = (json: S3Update, state: StorageState): StorageState => {
+const secretAccessKey = (
+  json: StorageUpdate,
+  state: StorageState
+): StorageState => {
   const data = _.get(json, 'setSecretAccessKey', false);
   if (data && state.s3.credentials) {
     state.s3.credentials.secretAccessKey = data;
+  }
+  return state;
+};
+
+const region = (json: StorageUpdate, state: StorageState): StorageState => {
+  const data = _.get(json, 'setRegion', false);
+  if (data && state.s3.configuration) {
+    state.s3.configuration.region = data;
+  }
+  return state;
+};
+
+const presignedUrl = (
+  json: StorageUpdate,
+  state: StorageState
+): StorageState => {
+  const data = _.get(json, 'setPresignedUrl', false);
+  if (data && state.s3.configuration) {
+    state.s3.configuration.presignedUrl = data;
+  }
+  return state;
+};
+
+const toggleService = (
+  json: StorageUpdate,
+  state: StorageState
+): StorageState => {
+  const data = _.get(json, 'toggleService', false);
+  if (data && state.s3.configuration) {
+    state.s3.configuration.service = data;
   }
   return state;
 };
@@ -85,6 +132,9 @@ const reduce = [
   endpoint,
   accessKeyId,
   secretAccessKey,
+  region,
+  presignedUrl,
+  toggleService,
 ];
 
 export default reduce;
