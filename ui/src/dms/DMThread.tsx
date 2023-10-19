@@ -20,6 +20,8 @@ import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder
 import ReplyScroller from '@/replies/ReplyScroller/ReplyScroller';
 import { newReplyMap } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
 export default function DMThread() {
   const { chShip, ship, chName, idTime, idShip } = useParams<{
@@ -49,6 +51,9 @@ export default function DMThread() {
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
+  const scrollElementRef = useRef<HTMLDivElement>(null);
+  const { isChatInputFocused } = useChatInputFocus();
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
@@ -93,6 +98,9 @@ export default function DMThread() {
     <div
       className="relative flex h-full w-full flex-col overflow-y-auto bg-white lg:w-96 lg:border-l-2 lg:border-gray-50"
       ref={threadRef}
+      style={{
+        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+      }}
     >
       {isMobile ? (
         <MobileHeader
@@ -152,14 +160,14 @@ export default function DMThread() {
         {loading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
-          <ReplyScroller
-            parentPost={writ}
+          <ChatScroller
             key={idTime}
-            messages={replies}
+            messages={replies.toArray()}
             whom={whom}
+            fetchState="initial"
             scrollerRef={scrollerRef}
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
-            setIsScrolling={setIsScrolling}
+            scrollElementRef={scrollElementRef}
             isScrolling={isScrolling}
           />
         )}

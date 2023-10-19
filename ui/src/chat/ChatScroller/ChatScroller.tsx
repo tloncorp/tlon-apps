@@ -51,7 +51,7 @@ const ChatScrollerItem = React.memo(
     isScrolling: boolean;
   }) => {
     if (item.type === 'custom') {
-      return <>item.component</>;
+      return item.component;
     }
 
     const { writ, time, ...rest } = item;

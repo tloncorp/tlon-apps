@@ -119,7 +119,6 @@ export interface WritResponseAdd {
   add: {
     memo: WritMemo;
     time: string;
-    kind: null;
   };
 }
 

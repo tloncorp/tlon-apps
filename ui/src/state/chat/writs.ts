@@ -12,7 +12,9 @@ import {
   Writ,
   Writs,
   WritInCache,
-  WritResponse
+  WritResponse,
+  WritDelta,
+  WritResponseDelta,
 } from '@/types/dms';
 import { newReplyMap, Reply } from '@/types/channel';
 import queryClient from '@/queryClient';
@@ -27,9 +29,12 @@ interface WritsStore {
 }
 
 export function writsReducer(whom: string, optimistic = false) {
-  return (json: WritDiff | WritResponse, draft: BasedChatState): BasedChatState => {
+  return (
+    json: WritDiff | WritResponse,
+    draft: BasedChatState
+  ): BasedChatState => {
     let id: string | undefined;
-    let delta;
+    let delta: WritDelta | WritResponseDelta;
     if ('response' in json) {
       id = json.id;
       delta = json.response;
@@ -68,7 +73,7 @@ export function writsReducer(whom: string, optimistic = false) {
         essay: {
           ...delta.add.memo,
           'kind-data': {
-            chat: delta.add.kind,
+            chat: 'kind' in delta.add ? delta.add.kind : null,
           },
         },
       };

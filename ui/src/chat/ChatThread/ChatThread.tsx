@@ -30,8 +30,8 @@ import {
 import { newReplyMap, ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
-import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
