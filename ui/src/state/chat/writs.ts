@@ -27,15 +27,15 @@ interface WritsStore {
 }
 
 export function writsReducer(whom: string, optimistic = false) {
-  return (json: DmAction | WritResponse, draft: BasedChatState): BasedChatState => {
+  return (json: WritDiff | WritResponse, draft: BasedChatState): BasedChatState => {
     let id: string | undefined;
     let delta;
-    if ('diff' in json) {
-      id = json.diff.id;
-      delta = json.diff.delta;
-    } else {
+    if ('response' in json) {
       id = json.id;
       delta = json.response;
+    } else {
+      id = json.id;
+      delta = json.delta;
     }
 
     if (!delta || !id) {

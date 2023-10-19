@@ -1,7 +1,8 @@
 import api from '@/api';
+import { decToUd } from '@urbit/api';
 import { createStorageKey, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { ChatMap, ReplyTuple, newChatMap } from '@/types/channel';
-import { ChatScan, Writ, WritTuple, newWritMap } from '@/types/dms';
+import { ChatScan, ChatScanItem, Writ, WritTuple, newWritMap } from '@/types/dms';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
@@ -113,7 +114,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
     queryFn: async ({ pageParam = 0 }) => {
       const res = await api.scry<ChatScan>({
         app: 'chat',
-        path: `/${type}/${whom}/search/text/${pageParam}/20/${query}`,
+        path: `/${type}/${whom}/search/text/${decToUd(pageParam)}/20/${query}`,
       });
       return res;
     },
@@ -128,7 +129,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
       newChatMap(
         (data?.pages || [])
           .flat()
-          .map((scItem) =>
+          .map((scItem: ChatScanItem) =>
             scItem && 'writ' in scItem
               ? ([bigInt(scItem.writ.seal.time), scItem.writ] as WritTuple)
               : ([

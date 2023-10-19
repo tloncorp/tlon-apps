@@ -29,6 +29,7 @@ import {
   BlockedByShips,
   BlockedShips,
   WritResponse,
+  WritDiff,
 } from '@/types/dms';
 import {
   newReplyMap,
@@ -101,9 +102,29 @@ function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   };
 }
 
+function getActionAndEvent(
+  whom: string,
+  id: string,
+  delta: WritDelta
+): OptimisticAction {
+  if (whomIsDm(whom)) {
+    const action = dmAction(whom, delta, id);
+    return {
+      action,
+      event: action.json.diff,
+    };
+  }
+
+  const diff: WritDiff = { id, delta };
+  return {
+    action: multiDmAction(whom, { writ: diff }),
+    event: diff,
+  };
+}
+
 interface OptimisticAction {
   action: Poke<DmAction | ClubAction>;
-  event: DmAction | WritResponse;
+  event: WritDiff | WritResponse;
 }
 
 async function optimisticAction(
@@ -112,17 +133,9 @@ async function optimisticAction(
   delta: WritDelta,
   set: SetState<BasedChatState>
 ) {
-  const action: Poke<DmAction | ClubAction> = whomIsDm(whom)
-    ? dmAction(whom, delta as WritDelta, id)
-    : multiDmAction(whom, { writ: { id, delta: delta as WritDelta } });
+  const { action, event } = getActionAndEvent(whom, id, delta);
   set((draft) => {
-    const potentialEvent =
-      action.mark === 'club-action-0' &&
-      'id' in action.json &&
-      'writ' in action.json.diff.delta
-        ? action.json.diff.delta.writ
-        : (action.json as DmAction);
-    const reduced = writsReducer(whom, true)(potentialEvent, draft);
+    const reduced = writsReducer(whom, true)(event, draft);
 
     return {
       pacts: { ...reduced.pacts },

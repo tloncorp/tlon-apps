@@ -36,6 +36,7 @@ import {
   PostInCache,
   Pins,
   ChannelScan,
+  ChannelScanItem,
   ReferenceResponse,
   ReplyTuple,
   newChatMap,
@@ -2040,26 +2041,34 @@ export function useDeleteReplyReactMutation() {
 }
 
 export function useChannelSearch(nest: string, query: string) {
-  const { data, ...rest } = useReactQueryScry<ChannelScan>({
+  const { data, ...rest } = useInfiniteQuery({
     queryKey: ['channel', 'search', nest, query],
-    app: 'channels',
-    path: `/${nest}/search/text/0/1.000/${query}`,
-    options: {
-      enabled: query !== '',
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await api.scry<ChannelScan>({
+        app: 'channels',
+        path: `/${nest}/search/text/${decToUd(pageParam)}/20/${query}`,
+      });
+      return res;
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length === 0) return undefined;
+      return allPages.length * 20;
     },
   });
 
   const scan = useMemo(
     () =>
       newChatMap(
-        (data || []).map((scItem) =>
-          scItem && 'post' in scItem
-            ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
-            : ([
+        (data?.pages || [])
+          .flat()
+          .map((scItem: ChannelScanItem) =>
+            'post' in scItem
+              ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
+              : ([
                 bigInt(scItem.reply.reply.seal.id),
                 scItem.reply.reply,
               ] as ReplyTuple)
-        ),
+          ),
         true
       ),
     [data]

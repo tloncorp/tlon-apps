@@ -6,10 +6,15 @@ export default function ChannelSearch(
   props: Omit<ChatSearchProps, 'scan' | 'query' | 'isLoading' | 'endReached'>
 ) {
   const { query } = useParams<{ query: string }>();
-  // TODO: convert channel search to infinite query like DMs
-  const { scan, isLoading } = useChannelSearch(props.whom, query || '');
+  const { scan, isLoading, fetchNextPage } = useChannelSearch(props.whom, query || '');
   return (
-    <ChatSearch {...props} query={query} scan={scan} isLoading={isLoading}>
+    <ChatSearch
+      {...props}
+      query={query}
+      scan={scan}
+      isLoading={isLoading}
+      endReached={fetchNextPage}
+    >
       {props.children}
     </ChatSearch>
   );
