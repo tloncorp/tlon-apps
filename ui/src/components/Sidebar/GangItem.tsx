@@ -5,9 +5,12 @@ import GroupAvatar from '@/groups/GroupAvatar';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
 import {
+  groupIsInitializing,
   useGang,
   useGangPreview,
+  useGroup,
   useGroupCancelMutation,
+  useGroupLeaveMutation,
   useGroupRescindMutation,
 } from '@/state/groups';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
@@ -20,6 +23,7 @@ import X16Icon from '../icons/X16Icon';
 export default function GangItem(props: { flag: string; isJoining?: boolean }) {
   const { flag, isJoining = false } = props;
   const gang = useGang(flag);
+  const group = useGroup(flag);
   const gangPreview = useGangPreview(flag);
   const isMobile = useIsMobile();
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -40,6 +44,8 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
     useGroupRescindMutation();
   const { mutate: cancelMutation, status: cancelStatus } =
     useGroupCancelMutation();
+  const { mutate: leaveGroupMutation, status: leaveStatus } =
+    useGroupLeaveMutation();
 
   const requested = gang && gang.claim && gang.claim.progress === 'knocking';
   const errored = gang && gang.claim && gang.claim.progress === 'error';
@@ -50,6 +56,8 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
     e.stopPropagation();
     if (requested) {
       rescindMutation({ flag });
+    } else if (group && groupIsInitializing(group)) {
+      leaveGroupMutation({ flag });
     } else {
       cancelMutation({ flag });
     }
@@ -163,7 +171,9 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
                 className="small-button bg-gray-50 text-gray-800"
                 onClick={handleCancel}
               >
-                {rescindStatus === 'loading' || cancelStatus === 'loading' ? (
+                {rescindStatus === 'loading' ||
+                cancelStatus === 'loading' ||
+                leaveStatus === 'loading' ? (
                   <LoadingSpinner className="h-5 w-4" />
                 ) : (
                   'Cancel'
