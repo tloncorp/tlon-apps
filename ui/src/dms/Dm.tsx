@@ -150,22 +150,24 @@ export default function Dm() {
             <MessageSelector />
           ) : (
             <Routes>
-              <Route
-                path="search/:query?"
-                element={
-                  <ChatSearch
-                    whom={ship}
-                    root={root}
-                    placeholder="Search Messages"
-                  >
-                    <TitleButton
-                      ship={ship}
-                      contact={contact}
-                      isMobile={isMobile}
-                    />
-                  </ChatSearch>
-                }
-              />
+              {!isMobile && (
+                <Route
+                  path="search/:query?"
+                  element={
+                    <ChatSearch
+                      whom={ship}
+                      root={root}
+                      placeholder="Search Messages"
+                    >
+                      <TitleButton
+                        ship={ship}
+                        contact={contact}
+                        isMobile={isMobile}
+                      />
+                    </ChatSearch>
+                  }
+                />
+              )}
               <Route
                 path="*"
                 element={
