@@ -1,10 +1,4 @@
-<<<<<<< HEAD
-||||||| 0c006213
-import { ChatBlock, ChatBrief, ChatBriefs } from '@/types/chat';
-=======
 import { createDevLogger } from '@/logic/utils';
-import { ChatBlock, ChatBrief, ChatBriefs } from '@/types/chat';
->>>>>>> develop
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
@@ -71,14 +65,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       produce((draft: ChatStore) => {
         Object.entries(unreads).forEach(([whom, unread]) => {
           const chat = draft.chats[whom];
-<<<<<<< HEAD
+          chatStoreLogger.log('update', whom, chat, unread, draft.chats);
           if (unread.count > 0 && unread['read-id']) {
-||||||| 0c006213
-          if (brief.count > 0 && brief['read-id']) {
-=======
-          chatStoreLogger.log('update', whom, chat, brief, draft.chats);
-          if (brief.count > 0 && brief['read-id']) {
->>>>>>> develop
             draft.chats[whom] = {
               ...(chat || emptyInfo()),
               unread: {
@@ -226,7 +214,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set(
       produce((draft: ChatStore) => {
         const chat = draft.chats[whom] || emptyInfo();
-        chatStoreLogger.log('unread', whom, chat, brief);
+        chatStoreLogger.log('unread', whom, chat, unread);
         draft.chats[whom] = {
           ...chat,
           unread: {

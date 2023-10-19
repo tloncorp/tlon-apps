@@ -12,9 +12,9 @@ import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { log } from '@/logic/utils';
 import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
-import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 
 interface ChatWindowProps {
   whom: string;

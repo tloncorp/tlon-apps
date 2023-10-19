@@ -42,10 +42,9 @@ export function useChatSearchInput({
   }, 500);
 
   const onChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const input = e.target as HTMLInputElement;
-      setRawInput(input.value);
-      debouncedSearch(input.value);
+    (newValue: string) => {
+      setRawInput(newValue);
+      debouncedSearch(newValue);
     },
     [debouncedSearch]
   );

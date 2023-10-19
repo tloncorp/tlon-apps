@@ -1236,39 +1236,6 @@ export function useLatestMessage(chFlag: string): [BigInteger, Writ | null] {
     : [bigInt(), null];
 }
 
-export function useChatSearch(whom: string, query: string) {
-  const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
-  const { data, ...rest } = useReactQueryScry<ChatScan>({
-    queryKey: ['chat', 'search', whom, query],
-    app: 'chat',
-    path: `/${type}/${whom}/search/text/0/1.000/${query}`,
-    options: {
-      enabled: query !== '',
-    },
-  });
-
-  const scan = useMemo(
-    () =>
-      newChatMap(
-        (data || []).map((scItem) =>
-          scItem && 'writ' in scItem
-            ? ([bigInt(scItem.writ.seal.time), scItem.writ] as WritTuple)
-            : ([
-                bigInt(scItem.reply.reply.seal.time),
-                scItem.reply.reply,
-              ] as ReplyTuple)
-        ),
-        true
-      ),
-    [data]
-  );
-
-  return {
-    scan,
-    ...rest,
-  };
-}
-
 export function useBlockedShips() {
   const { data, ...rest } = useReactQueryScry<BlockedShips>({
     queryKey: ['chat', 'blocked'],

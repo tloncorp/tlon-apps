@@ -1,53 +1,17 @@
 import cn from 'classnames';
 import React, { PropsWithChildren, useCallback } from 'react';
 import { VirtuosoHandle } from 'react-virtuoso';
-<<<<<<< HEAD
+import useMedia, { useIsMobile } from '@/logic/useMedia';
+import { isTalk } from '@/logic/utils';
 import { useNavigate } from 'react-router';
-||||||| 0c006213
-import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
-import X16Icon from '@/components/icons/X16Icon';
-import useDebounce from '@/logic/useDebounce';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { isTalk } from '@/logic/utils';
-import React, {
-  ChangeEvent,
-  KeyboardEvent,
-  PropsWithChildren,
-  useCallback,
-} from 'react';
-import { useNavigate, useParams } from 'react-router';
-=======
-import useDebounce from '@/logic/useDebounce';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { isTalk } from '@/logic/utils';
-import React, { KeyboardEvent, PropsWithChildren, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router';
->>>>>>> develop
 import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
-<<<<<<< HEAD
-import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
-import X16Icon from '@/components/icons/X16Icon';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { disableDefault, isTalk } from '@/logic/utils';
-import { ChatMap } from '@/types/channel';
-||||||| 0c006213
 import { disableDefault } from '@/logic/utils';
-import { useChatSearch } from '@/state/chat';
-import bigInt from 'big-integer';
-=======
-import { disableDefault } from '@/logic/utils';
-import { useInfiniteChatSearch } from '@/state/chat/search';
-import bigInt from 'big-integer';
 import { useSafeAreaInsets } from '@/logic/native';
->>>>>>> develop
+import { ChatMap } from '@/types/channel';
 import ChatSearchResults from './ChatSearchResults';
-<<<<<<< HEAD
 import { useChatSearchInput } from './useChatSearchInput';
-||||||| 0c006213
-=======
 import SearchBar from './SearchBar';
->>>>>>> develop
 
 export type ChatSearchProps = PropsWithChildren<{
   whom: string;
@@ -56,6 +20,7 @@ export type ChatSearchProps = PropsWithChildren<{
   scan: ChatMap;
   isLoading: boolean;
   placeholder: string;
+  endReached: () => void;
 }>;
 
 export default function ChatSearch({
@@ -65,6 +30,7 @@ export default function ChatSearch({
   scan,
   isLoading,
   placeholder,
+  endReached,
   children,
 }: ChatSearchProps) {
   const navigate = useNavigate();
@@ -72,99 +38,11 @@ export default function ChatSearch({
   const isSmall = useMedia('(min-width: 768px) and (max-width: 1099px)');
   const safeAreaInsets = useSafeAreaInsets();
   const scrollerRef = React.useRef<VirtuosoHandle>(null);
-<<<<<<< HEAD
   const { selected, rawInput, onChange, onKeyDown } = useChatSearchInput({
     root,
     query,
     scan,
     onNavigate: useCallback(({ index, time, setSelected }) => {
-||||||| 0c006213
-  const [rawInput, setRawInput] = React.useState(query || '');
-  const [selected, setSelected] = React.useState<{
-    index: number;
-    time: bigInt.BigInteger;
-  }>({ index: -1, time: bigInt.zero });
-  const { scan, isLoading } = useChatSearch(whom, query || '');
-  const debouncedSearch = useDebounce((input: string) => {
-    if (!input) {
-      navigate(`${root}/search`);
-      return;
-    }
-
-    navigate(`${root}/search/${input}`);
-  }, 500);
-
-  const onChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const input = e.target as HTMLInputElement;
-      setRawInput(input.value);
-      debouncedSearch(input.value);
-    },
-    [debouncedSearch]
-  );
-
-  const onKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLLabelElement>) => {
-      if (event.key === 'Escape') {
-        navigate(root);
-      }
-
-      if (event.key === 'Enter' && selected.index >= 0) {
-        const { time } = selected;
-        const writ = scan.get(time);
-        const scrollTo = `?msg=${time.toString()}`;
-        const to = writ?.memo.replying
-          ? `${root}/message/${writ.memo.replying}${scrollTo}`
-          : `${root}${scrollTo}`;
-        navigate(to);
-      }
-
-      const arrow = event.key === 'ArrowDown' || event.key === 'ArrowUp';
-=======
-  const [rawInput, setRawInput] = React.useState(query || '');
-  const [selected, setSelected] = React.useState<{
-    index: number;
-    time: bigInt.BigInteger;
-  }>({ index: -1, time: bigInt.zero });
-  const { scan, isLoading, fetchNextPage } = useInfiniteChatSearch(
-    whom,
-    query || ''
-  );
-  const debouncedSearch = useDebounce((input: string) => {
-    if (!input) {
-      navigate(`${root}/search`);
-      return;
-    }
-
-    navigate(`${root}/search/${input}`);
-  }, 500);
-
-  const onChange = useCallback(
-    (newValue: string) => {
-      setRawInput(newValue);
-      debouncedSearch(newValue);
-    },
-    [debouncedSearch]
-  );
-
-  const onKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLLabelElement>) => {
-      if (event.key === 'Escape') {
-        navigate(root);
-      }
-
-      if (event.key === 'Enter' && selected.index >= 0) {
-        const { time } = selected;
-        const writ = scan.get(time);
-        const scrollTo = `?msg=${time.toString()}`;
-        const to = writ?.memo.replying
-          ? `${root}/message/${writ.memo.replying}${scrollTo}`
-          : `${root}${scrollTo}`;
-        navigate(to);
-      }
-
-      const arrow = event.key === 'ArrowDown' || event.key === 'ArrowUp';
->>>>>>> develop
       const scroller = scrollerRef.current;
       if (!scroller) {
         return;
@@ -250,7 +128,7 @@ export default function ChatSearch({
                   isLoading={isLoading}
                   query={query}
                   selected={selected.index}
-                  endReached={() => fetchNextPage()}
+                  endReached={endReached}
                 />
               </section>
             </Dialog.Content>

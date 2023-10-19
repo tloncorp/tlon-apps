@@ -13,13 +13,7 @@ import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-<<<<<<< HEAD
 import { DMUnread } from '@/types/dms';
-||||||| 0c006213
-import { ChatBrief, ChatWrit } from '@/types/chat';
-=======
-import { ChatBrief, ChatStory, ChatWrit } from '@/types/chat';
->>>>>>> develop
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -28,19 +22,8 @@ import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
 import {
   useChatState,
-<<<<<<< HEAD
   useMessageToggler,
   useTrackedMessageStatus,
-||||||| 0c006213
-  useIsMessageDelivered,
-  useIsMessagePosted,
-  useWrit,
-=======
-  useIsMessageDelivered,
-  useIsMessagePosted,
-  useWrit,
-  useMessageToggler,
->>>>>>> develop
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
@@ -96,7 +79,6 @@ const mergeRefs =
     });
   };
 
-<<<<<<< HEAD
 const hiddenMessage: Story = [
   {
     inline: [
@@ -109,20 +91,6 @@ const hiddenMessage: Story = [
   },
 ];
 
-||||||| 0c006213
-=======
-const hiddenMessage: ChatStory = {
-  block: [],
-  inline: [
-    {
-      italics: [
-        'You have hidden this message. You can unhide it from the options menu.',
-      ],
-    },
-  ],
-};
-
->>>>>>> develop
 const ChatMessage = React.memo<
   ChatMessageProps & React.RefAttributes<HTMLDivElement>
 >(
@@ -157,7 +125,6 @@ const ChatMessage = React.memo<
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
       const unread = chatInfo?.unread;
-<<<<<<< HEAD
       const unreadId = unread?.unread['read-id'];
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
@@ -168,16 +135,6 @@ const ChatMessage = React.memo<
         () => isMessageHidden || isPostHidden,
         [isMessageHidden, isPostHidden]
       );
-||||||| 0c006213
-      const unreadId = unread?.brief['read-id'];
-      const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
-      const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
-=======
-      const unreadId = unread?.brief['read-id'];
-      const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
-      const { isHidden } = useMessageToggler(writ.seal.id);
-      const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
->>>>>>> develop
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -242,74 +199,10 @@ const ChatMessage = React.memo<
 
       const unix = new Date(daToUnix(time));
 
-<<<<<<< HEAD
       const replyAuthors = seal.meta.lastRepliers;
       const lastReplyTime = seal.meta.lastReply
         ? new Date(seal.meta.lastReply)
         : null;
-||||||| 0c006213
-      const pact = usePact(whom);
-
-      const numReplies = seal.replied.length;
-      const repliesContainsUnreadId = unreadId
-        ? seal.replied.includes(unreadId)
-        : false;
-      const replyAuthors = _.flow(
-        f.map((k: string) => {
-          const t = pact?.index[k];
-          const mess = t ? pact.writs.get(t) : undefined;
-          if (!mess) {
-            return undefined;
-          }
-          return mess.memo.author;
-        }),
-        f.compact,
-        f.uniq,
-        f.take(3)
-      )(seal.replied);
-      const repliesSortedByTime = seal.replied.sort((a, b) => {
-        const aTime = useChatState.getState().getTime(whom, a);
-        const bTime = useChatState.getState().getTime(whom, b);
-
-        return aTime.compare(bTime);
-      });
-      const lastReply = _.last(repliesSortedByTime);
-      const lastReplyWrit = useWrit(whom, lastReply ?? '')!;
-      const lastReplyTime = lastReplyWrit
-        ? new Date(daToUnix(lastReplyWrit[0]))
-        : new Date();
-=======
-      const pact = usePact(whom);
-
-      const numReplies = seal.replied.length;
-      const repliesContainsUnreadId = unreadId
-        ? seal.replied.includes(unreadId)
-        : false;
-      const replyAuthors = _.flow(
-        f.map((k: string) => {
-          const t = pact?.index[k];
-          const mess = t ? pact.writs.get(t) : undefined;
-          if (!mess) {
-            return undefined;
-          }
-          return mess.memo.author;
-        }),
-        f.compact,
-        f.uniq,
-        f.take(3)
-      )(seal.replied);
-      const repliesSortedByTime = seal.replied.sort((a, b) => {
-        const aTime = useChatState.getState().getTime(whom, a);
-        const bTime = useChatState.getState().getTime(whom, b);
-
-        return aTime.compare(bTime);
-      });
-      const lastReply = _.last(repliesSortedByTime);
-      const { entry: lastReplyWrit } = useWrit(whom, lastReply ?? '');
-      const lastReplyTime = lastReplyWrit
-        ? new Date(daToUnix(lastReplyWrit[0]))
-        : new Date();
->>>>>>> develop
 
       const hover = useRef(false);
       const setHover = useRef(
@@ -434,19 +327,7 @@ const ChatMessage = React.memo<
                   isLinked && 'bg-blue-softer'
                 )}
               >
-<<<<<<< HEAD
                 {isHidden ? (
-||||||| 0c006213
-                {'story' in memo.content ? (
-=======
-                {isHidden ? (
-                  <ChatContent
-                    story={hiddenMessage}
-                    isScrolling={isScrolling}
-                    writId={seal.id}
-                  />
-                ) : 'story' in memo.content ? (
->>>>>>> develop
                   <ChatContent
                     story={hiddenMessage}
                     isScrolling={isScrolling}

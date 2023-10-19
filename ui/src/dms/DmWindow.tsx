@@ -16,14 +16,15 @@ import {
   useWritWindow,
 } from '@/state/chat';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
-import { useChatInfo, useChatStore } from '../chat/useChatStore';
-import ChatScrollerPlaceholder from '../chat/ChatScroller/ChatScrollerPlaceholder';
+import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useIsScrolling } from '@/logic/scroll';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 
 interface DmWindowProps {
   whom: string;
+  root: string;
   prefixedElement?: ReactNode;
 }
 
@@ -31,7 +32,11 @@ function getScrollTo(msg: string | null) {
   return msg ? bigInt(msg) : undefined;
 }
 
-export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
+export default function DmWindow({
+  whom,
+  root,
+  prefixedElement,
+}: DmWindowProps) {
   const [fetchState, setFetchState] = useState<'initial' | 'bottom' | 'top'>(
     'initial'
   );
@@ -113,7 +118,7 @@ export default function DmWindow({ whom, prefixedElement }: DmWindowProps) {
 
   return (
     <div className="relative h-full">
-      <DMUnreadAlerts whom={whom} scrollerRef={scrollerRef} />
+      <DMUnreadAlerts whom={whom} root={root} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           /**

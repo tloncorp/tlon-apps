@@ -15,13 +15,9 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import useAppName from '@/logic/useAppName';
 import MobileHeader from '@/components/MobileHeader';
-<<<<<<< HEAD
 import DmWindow from '@/dms/DmWindow';
-||||||| 0c006213
-=======
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useIsScrolling } from '@/logic/scroll';
->>>>>>> develop
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -211,8 +207,6 @@ export default function MultiDm() {
           <DmWindow
             whom={clubId}
             root={root}
-            scrollElementRef={scrollElementRef}
-            isScrolling={isScrolling}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <MultiDmHero club={club} />

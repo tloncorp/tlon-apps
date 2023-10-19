@@ -2,13 +2,7 @@ import React, { PropsWithChildren, useState } from 'react';
 import classNames from 'classnames';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
-<<<<<<< HEAD
 import { useArrangedPosts, usePostToggler } from '@/state/channel/channel';
-||||||| 0c006213
-import { useArrangedNotes } from '@/state/diary';
-=======
-import { useArrangedNotes, usePostToggler } from '@/state/diary';
->>>>>>> develop
 import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -28,7 +22,6 @@ export default function DiaryNoteOptionsDropdown({
   time,
   author,
   triggerClassName,
-  author,
   canEdit,
 }: DiaryNoteOptionsDropdownProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);

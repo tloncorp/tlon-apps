@@ -1,17 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
-<<<<<<< HEAD
-import { Virtuoso } from 'react-virtuoso';
-||||||| 0c006213
-import bigInt from 'big-integer';
-import { Virtuoso } from 'react-virtuoso';
-import { unixToDa } from '@urbit/api';
-=======
-import bigInt from 'big-integer';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { unixToDa } from '@urbit/api';
->>>>>>> develop
 import * as Toast from '@radix-ui/react-toast';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups/groups';
@@ -159,29 +149,6 @@ function DiaryChannel({ title }: ViewProps) {
     </div>
   );
 
-<<<<<<< HEAD
-||||||| 0c006213
-  const loadOlderNotes = useCallback(
-    (load: boolean) => {
-      if (!loadingOlderNotes && load) {
-        setShouldLoadOlderNotes(true);
-      }
-      setShouldLoadOlderNotes(false);
-    },
-    [loadingOlderNotes]
-  );
-
-=======
-  const loadOlderNotes = useCallback(
-    (load: boolean) => {
-      if (!loadingOlderNotes && load) {
-        setShouldLoadOlderNotes(true);
-      }
-      setShouldLoadOlderNotes(false);
-    },
-    [loadingOlderNotes]
-  );
-
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   useEffect(() => {
@@ -193,7 +160,6 @@ function DiaryChannel({ title }: ViewProps) {
     };
   }, [chFlag]);
 
->>>>>>> develop
   return (
     <Layout
       stickyHeader

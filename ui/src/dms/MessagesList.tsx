@@ -3,33 +3,17 @@ import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import useMessageSort from '@/logic/useMessageSort';
 import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
-<<<<<<< HEAD
 import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { DMUnread } from '@/types/dms';
 import { useUnreads, useChats } from '@/state/channel/channel';
 import { useGroups } from '@/state/groups';
 import { canReadChannel } from '@/logic/channel';
-||||||| 0c006213
-import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { ChatBrief } from '@/types/chat';
-=======
-import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { ChatBrief } from '@/types/chat';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
->>>>>>> develop
 import {
   usePendingDms,
   usePendingMultiDms,
   usePinned,
-<<<<<<< HEAD
   useDmUnreads,
-||||||| 0c006213
-  useChats,
-=======
-  useChats,
-  useDms,
-  useMultiDms,
->>>>>>> develop
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
@@ -72,8 +56,6 @@ export default function MessagesList({
     [channelUnreads, dmUnreads]
   );
   const chats = useChats();
-  const dms = useDms();
-  const multiDms = useMultiDms();
   const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
   const isMobile = useIsMobile();
@@ -92,27 +74,7 @@ export default function MessagesList({
         const groupFlag = chat?.perms.group;
         const group = groups[groupFlag || ''];
         const vessel = group?.fleet[window.our];
-<<<<<<< HEAD
         const channel = group?.channels[b];
-||||||| 0c006213
-        const channel = group?.channels[`chat/${b}`];
-=======
-        const channel = group?.channels[`chat/${b}`];
-        const club = multiDms[b];
-        const dm = dms.filter((d) => d === b)[0];
-
-        if (whomIsMultiDm(b) && !club) {
-          return false;
-        }
-
-        if (whomIsMultiDm(b) && !club.team.includes(window.our)) {
-          return false;
-        }
-
-        if (whomIsDm(b) && !dm) {
-          return false;
-        }
->>>>>>> develop
 
         if (
           chat &&
@@ -145,39 +107,11 @@ export default function MessagesList({
 
         return true; // is all
       }),
-<<<<<<< HEAD
     [allPending, unreads, filter, pinned, sortMessages, chats, groups]
-||||||| 0c006213
-    [allPending, briefs, chats, filter, groups, pinned, sortMessages]
-=======
-    [
-      allPending,
-      briefs,
-      chats,
-      filter,
-      groups,
-      pinned,
-      sortMessages,
-      dms,
-      multiDms,
-    ]
->>>>>>> develop
   );
 
-<<<<<<< HEAD
-  console.log({
-    unreads,
-    chats,
-    organizedUnreads,
-  });
-
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);
-||||||| 0c006213
-=======
-  const headerHeightRef = useRef<number>(0);
-  const headerRef = useRef<HTMLDivElement>(null);
->>>>>>> develop
   const head = useMemo(
     () => (
       <div ref={headerRef}>
@@ -243,15 +177,8 @@ export default function MessagesList({
   return (
     <Virtuoso
       {...thresholds}
-<<<<<<< HEAD
       ref={virtuosoRef}
       data={organizedUnreads}
-||||||| 0c006213
-      data={organizedBriefs}
-=======
-      ref={virtuosoRef}
-      data={organizedBriefs}
->>>>>>> develop
       computeItemKey={computeItemKey}
       itemContent={itemContent}
       components={components}

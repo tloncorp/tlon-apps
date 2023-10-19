@@ -23,13 +23,9 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-<<<<<<< HEAD
 import DmWindow from '@/dms/DmWindow';
-||||||| 0c006213
-=======
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
->>>>>>> develop
 import MessageSelector from './MessageSelector';
 import DmSearch from './DmSearch';
 
@@ -110,13 +106,9 @@ export default function Dm() {
   const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
-<<<<<<< HEAD
   const unread = useDmUnread(ship);
-||||||| 0c006213
-=======
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
->>>>>>> develop
   const canStart = useChatState(
     useCallback(() => ship && !!unread, [ship, unread])
   );
@@ -274,8 +266,6 @@ export default function Dm() {
           <DmWindow
             whom={ship}
             root={root}
-            scrollElementRef={scrollElementRef}
-            isScrolling={isScrolling}
             prefixedElement={conversationHeader}
           />
         ) : (

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { unixToDa } from '@urbit/api';
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { JSONContent } from '@tiptap/react';
@@ -9,12 +8,8 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { tipTapToString } from '@/logic/tiptap';
 import { useFileStore, useUploader } from '@/state/storage';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
-<<<<<<< HEAD
 import { useAddPostMutation } from '@/state/channel/channel';
-||||||| 0c006213
-=======
 import { useIsMobile } from '@/logic/useMedia';
->>>>>>> develop
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';
 import CurioPreview, { canPreview } from './CurioPreview';
 
@@ -37,12 +32,8 @@ export default function AddCurioModal({
   clearDragState,
   dragErrorMessage,
 }: AddCurioModalProps) {
-<<<<<<< HEAD
   const nest = `heap/${chFlag}`;
-||||||| 0c006213
-=======
   const isMobile = useIsMobile();
->>>>>>> develop
   const [status, setStatus] = useState<'initial' | 'loading' | 'error'>(
     'initial'
   );
@@ -55,14 +46,8 @@ export default function AddCurioModal({
   const [previewUrl, setPreviewUrl] = useState('');
   const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
-<<<<<<< HEAD
   const { mutate } = useAddPostMutation(nest);
-||||||| 0c006213
-  const { mutate } = useAddCurioMutation();
-=======
   const loading = !!(mostRecentFile && mostRecentFile.status === 'loading');
-  const { mutate } = useAddCurioMutation();
->>>>>>> develop
   const { privacy } = useGroupPrivacy(flag);
 
   const isEmpty =

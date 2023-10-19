@@ -143,33 +143,16 @@ export default function DiaryNote({ title }: ViewProps) {
   const { replies } = note.seal;
   const replyArray = replies ? replies.toArray().reverse() : []; // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-<<<<<<< HEAD
   const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
   const groupedReplies = setNewDaysForReplies(
     groupReplies(noteId, replyArray, unread).sort(([a], [b]) => {
       if (sort === 'asc') {
         return a.localeCompare(b);
       }
-||||||| 0c006213
-  const groupedQuips = setNewDays(
-    groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
-      if (sort === 'asc') {
-        return a.localeCompare(b);
-      }
-=======
-  const groupedQuips =
-    noteId !== ''
-      ? setNewDays(
-          groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
-            if (sort === 'asc') {
-              return a.localeCompare(b);
-            }
->>>>>>> develop
 
-            return b.localeCompare(a);
-          })
-        )
-      : [];
+      return b.localeCompare(a);
+    })
+  );
 
   return (
     <Layout

@@ -1,14 +1,13 @@
-<<<<<<< HEAD
-import React, { useState, useRef, useCallback, useMemo } from 'react';
-||||||| 0c006213
-import React, { useState, useRef, useCallback } from 'react';
-=======
-import React, { useState, useRef, useCallback, useContext } from 'react';
->>>>>>> develop
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useContext,
+  useMemo,
+} from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
 import Filter16Icon from '@/components/icons/Filter16Icon';
 import { usePinned } from '@/state/chat';
@@ -29,14 +28,9 @@ import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-<<<<<<< HEAD
 import { usePins } from '@/state/channel/channel';
-||||||| 0c006213
-=======
-import { useLocalState } from '@/state/local';
 import { DesktopUpdateButton } from '@/components/UpdateNotices';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
->>>>>>> develop
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
