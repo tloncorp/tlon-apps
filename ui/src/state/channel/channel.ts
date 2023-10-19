@@ -2065,9 +2065,9 @@ export function useChannelSearch(nest: string, query: string) {
             'post' in scItem
               ? ([bigInt(scItem.post.seal.id), scItem.post] as PageTuple)
               : ([
-                bigInt(scItem.reply.reply.seal.id),
-                scItem.reply.reply,
-              ] as ReplyTuple)
+                  bigInt(scItem.reply.reply.seal.id),
+                  scItem.reply.reply,
+                ] as ReplyTuple)
           ),
         true
       ),

@@ -2,7 +2,13 @@ import api from '@/api';
 import { decToUd } from '@urbit/api';
 import { createStorageKey, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { ChatMap, ReplyTuple, newChatMap } from '@/types/channel';
-import { ChatScan, ChatScanItem, Writ, WritTuple, newWritMap } from '@/types/dms';
+import {
+  ChatScan,
+  ChatScanItem,
+  Writ,
+  WritTuple,
+  newWritMap,
+} from '@/types/dms';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
