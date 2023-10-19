@@ -48,8 +48,6 @@ export default function MobileRoot() {
   const hasGangsWithClaims = !!gangsWithClaims.length;
   const hasPendingGangs = Object.keys(pendingGangs).length;
 
-  console.log(`loading groups`, loadingGroups);
-
   return (
     <Layout
       className="flex-1 bg-white"
