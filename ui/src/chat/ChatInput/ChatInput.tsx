@@ -16,7 +16,6 @@ import {
   useShipHasBlockedUs,
   useUnblockShipMutation,
 } from '@/state/chat';
-import { ChatImage } from '@/types/chat';
 import MessageEditor, {
   HandlerParams,
   useMessageEditor,

@@ -19,6 +19,7 @@ import useAppName from '@/logic/useAppName';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import ReplyScroller from '@/replies/ReplyScroller/ReplyScroller';
 import { newReplyMap } from '@/types/channel';
+import { useIsScrolling } from '@/logic/scroll';
 
 export default function DMThread() {
   const { chShip, ship, chName, idTime, idShip } = useParams<{
@@ -33,6 +34,7 @@ export default function DMThread() {
   const isMobile = useIsMobile();
   const appName = useAppName();
   const [loading, setLoading] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const whom = ship || '';
   const id = `${idShip!}/${idTime!}`;
@@ -157,6 +159,8 @@ export default function DMThread() {
             whom={whom}
             scrollerRef={scrollerRef}
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
+            setIsScrolling={setIsScrolling}
+            isScrolling={isScrolling}
           />
         )}
       </div>
@@ -175,6 +179,7 @@ export default function DMThread() {
             showReply={false}
             autoFocus
             dropZoneId={dropZoneId}
+            isScrolling={isScrolling}
           />
         </div>
       </div>

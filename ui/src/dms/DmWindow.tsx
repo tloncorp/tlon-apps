@@ -21,6 +21,7 @@ import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useIsScrolling } from '@/logic/scroll';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import { newWritMap } from '@/types/dms';
 
 interface DmWindowProps {
   whom: string;
@@ -44,6 +45,7 @@ export default function DmWindow({
   const scrollTo = getScrollTo(searchParams.get('msg'));
   const loading = useChatLoading(whom);
   const messages = useMessagesForChat(whom, scrollTo?.toString());
+  const messageMap = newWritMap(messages);
   const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
@@ -53,7 +55,7 @@ export default function DmWindow({
 
   const onAtTop = useCallback(async () => {
     const store = useChatStore.getState();
-    const oldest = messages.minKey();
+    const oldest = messageMap.minKey();
     const seenOldest = oldest && window && window.loadedOldest;
     if (seenOldest) {
       return;
@@ -64,11 +66,11 @@ export default function DmWindow({
       .fetchMessages(whom, pageSize, 'older', scrollTo?.toString());
     setFetchState('initial');
     store.bottom(false);
-  }, [whom, scrollTo, pageSize, messages, window]);
+  }, [whom, scrollTo, pageSize, messageMap, window]);
 
   const onAtBottom = useCallback(async () => {
     const store = useChatStore.getState();
-    const newest = messages.maxKey();
+    const newest = messageMap.maxKey();
     const seenNewest = newest && window && window.loadedNewest;
     if (seenNewest) {
       return;
@@ -80,7 +82,7 @@ export default function DmWindow({
     setFetchState('initial');
     store.bottom(true);
     store.delayedRead(whom, () => useChatState.getState().markDmRead(whom));
-  }, [whom, scrollTo, pageSize, messages, window]);
+  }, [whom, scrollTo, pageSize, messageMap, window]);
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
@@ -88,12 +90,12 @@ export default function DmWindow({
   }, [setSearchParams]);
 
   useEffect(() => {
-    if (scrollTo && !messages.has(scrollTo)) {
+    if (scrollTo && !messageMap.has(scrollTo)) {
       useChatState
         .getState()
         .fetchMessagesAround(whom, '25', scrollTo.toString());
     }
-  }, [scrollTo, messages, whom]);
+  }, [scrollTo, messageMap, whom]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);

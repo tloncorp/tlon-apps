@@ -11,7 +11,6 @@ import { useMutation } from '@tanstack/react-query';
 import { Groups } from '@/types/groups';
 import {
   DMUnreadUpdate,
-  ChatScan,
   Club,
   ClubAction,
   ClubDelta,
@@ -24,7 +23,6 @@ import {
   WritDelta,
   Writ,
   WritInCache,
-  WritTuple,
   ChatUIEvent,
   ToggleMessage,
   HiddenMessages,
@@ -39,8 +37,6 @@ import {
   Reply,
   Replies,
   ChannelsAction,
-  newChatMap,
-  ReplyTuple,
 } from '@/types/channel';
 import api from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
@@ -654,7 +650,6 @@ export function useWritWindow(whom: string, time?: string) {
   return getWindow(window, time);
 }
 
-const emptyWrits = newWritMap();
 export function useMessagesForChat(whom: string, near?: string) {
   const window = useWritWindow(whom, near);
   const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
@@ -662,7 +657,7 @@ export function useMessagesForChat(whom: string, near?: string) {
   return useMemo(() => {
     return window && writs
       ? writs.getRange(window.oldest, window.newest, true)
-      : writs.toArray() || [];
+      : [];
   }, [writs, window]);
 }
 

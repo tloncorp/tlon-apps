@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import BTree from 'sorted-btree';
 import { isSameDay } from 'date-fns';
-import _, { debounce } from 'lodash';
+import { debounce } from 'lodash';
 import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
@@ -92,6 +92,8 @@ export interface ReplyScrollerProps {
   prefixedElement?: ReactNode;
   scrollTo?: BigInteger;
   scrollerRef: React.RefObject<VirtuosoHandle>;
+  setIsScrolling: (e: boolean) => void;
+  isScrolling: boolean;
 }
 
 export default function ReplyScroller({
@@ -100,11 +102,12 @@ export default function ReplyScroller({
   prefixedElement,
   scrollTo = undefined,
   scrollerRef,
+  setIsScrolling,
+  isScrolling,
 }: ReplyScrollerProps) {
   const isMobile = useIsMobile();
   const writWindow = useWritWindow(whom, scrollTo?.toString());
   const [fetching, setFetching] = useState<FetchingState>('initial');
-  const [isScrolling, setIsScrolling] = useState(false);
   const firstPass = useRef(true);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: markChatRead } = useMarkReadMutation();
@@ -282,7 +285,7 @@ export default function ReplyScroller({
         updateScroll.current(scrolling);
       }
     },
-    [isScrolling]
+    [isScrolling, setIsScrolling]
   );
 
   const components = useMemo(

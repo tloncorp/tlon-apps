@@ -11,7 +11,8 @@ describe('ChatScroller', () => {
     const scrollRef = React.createRef<HTMLDivElement>();
     const result = render(
       <ChatScroller
-        messages={new BTree()}
+        messages={[]}
+        fetchState={'initial'}
         whom={'test'}
         scrollerRef={ref}
         scrollElementRef={scrollRef}
