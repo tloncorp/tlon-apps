@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { BigInteger } from 'big-integer';
 import BTree from 'sorted-btree';
-import { Inline, isLink, Link } from './content';
+import { Inline } from './content';
 import { Flag } from './hark';
 import { Saga } from './groups';
 
@@ -451,22 +451,6 @@ export function imageUrlFromContent(content: Story) {
     return (
       (content.filter((c) => 'block' in c)[0] as VerseBlock).block as Image
     ).image.src;
-  }
-  return undefined;
-}
-
-export function inlineContentIsLink(content: Story) {
-  return (
-    content.length > 0 &&
-    isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline[0])
-  );
-}
-
-export function linkUrlFromContent(content: Story) {
-  if (inlineContentIsLink(content)) {
-    return (
-      (content.filter((c) => 'inline' in c)[0] as VerseInline).inline[0] as Link
-    ).link.href;
   }
   return undefined;
 }

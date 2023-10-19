@@ -1,7 +1,7 @@
-import { URL_REGEX, makePrettyDay } from '@/logic/utils';
-import { inlineToString } from '@/logic/tiptap';
+import { URL_REGEX, getFirstInline, makePrettyDay } from '@/logic/utils';
+import { firstInlineSummary } from '@/logic/tiptap';
 import Author from '@/chat/ChatMessage/Author';
-import { PostEssay, VerseInline } from '@/types/channel';
+import { PostEssay } from '@/types/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
 
 interface HeapDetailSidebarProps {
@@ -16,13 +16,9 @@ export default function HeapDetailSidebarInfo({
 
   const { title } = getKindDataFromEssay(essay);
   const unixDate = new Date(sent);
-  const inlineContent =
-    (content.filter((c) => 'inline' in c)[0] as VerseInline).inline || '';
+  const inlineContent = getFirstInline(content) || '';
   const stringContent = inlineContent.toString();
-  const textPreview = inlineContent
-    .map((inline) => inlineToString(inline))
-    .join(' ')
-    .toString();
+  const textPreview = firstInlineSummary(content);
   const isURL = URL_REGEX.test(stringContent);
 
   return (

@@ -10,13 +10,12 @@ import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
 import ContentReference from '@/components/References/ContentReference';
 import { useCalm } from '@/state/settings';
 import {
-  Cite,
   isCite,
   VerseBlock,
-  linkUrlFromContent,
   imageUrlFromContent,
   PostEssay,
 } from '@/types/channel';
+import { linkUrlFromContent } from '@/logic/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import HeapYoutubePlayer from '../HeapYoutubePlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';

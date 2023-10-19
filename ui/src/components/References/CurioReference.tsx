@@ -9,13 +9,10 @@ import HeapContent from '@/heap/HeapContent';
 import { useChannelPreview, useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { inlineToString } from '@/logic/tiptap';
+import { firstInlineSummary } from '@/logic/tiptap';
 import { useRemotePost } from '@/state/channel/channel';
-import {
-  imageUrlFromContent,
-  linkUrlFromContent,
-  VerseInline,
-} from '@/types/channel';
+import { imageUrlFromContent } from '@/types/channel';
+import { linkUrlFromContent } from '@/logic/channel';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import ShipName from '@/components/ShipName';
 import getHeapContentType from '@/logic/useHeapContentType';
@@ -72,12 +69,7 @@ function CurioReference({
     return <HeapLoadingBlock reference />;
   }
 
-  const textFallbackTitle = (
-    content.filter((c) => 'inline' in c)[0] as VerseInline
-  ).inline
-    .map((inline) => inlineToString(inline))
-    .join(' ')
-    .toString();
+  const textFallbackTitle = firstInlineSummary(content);
   const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { isImage } = getHeapContentType(url);
 

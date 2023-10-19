@@ -39,7 +39,7 @@ import {
 import { emptyPost, Post } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
-import { inlineToString } from '@/logic/tiptap';
+import { inlineSummary, inlineToString } from '@/logic/tiptap';
 import { Inline } from '@/types/content';
 
 function ChatMessageOptions(props: {
@@ -64,12 +64,7 @@ function ChatMessageOptions(props: {
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const { didCopy, doCopy } = useCopy(`/1/chan/chat/${whom}/msg/${seal.id}`);
-  const messageText = (
-    writ.essay.content.filter((v) => 'block' in v) as { inline: Inline[] }[]
-  )
-    .map((v) => v.inline.map((i) => inlineToString(i)).join(''))
-    .flat()
-    .join('');
+  const messageText = inlineSummary(writ.essay.content);
   const { didCopy: didCopyText, doCopy: doCopyText } = useCopy(messageText);
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,

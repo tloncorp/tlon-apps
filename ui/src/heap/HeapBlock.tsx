@@ -23,14 +23,8 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 import useLongPress from '@/logic/useLongPress';
 import Avatar from '@/components/Avatar';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { useChannelFlag } from '@/logic/channel';
-import {
-  imageUrlFromContent,
-  isCite,
-  linkUrlFromContent,
-  Post,
-  Story,
-} from '@/types/channel';
+import { useChannelFlag, linkUrlFromContent } from '@/logic/channel';
+import { imageUrlFromContent, isCite, Post, Story } from '@/types/channel';
 import { usePostToggler } from '@/state/channel/channel';
 import useCurioActions from './useCurioActions';
 
@@ -160,29 +154,29 @@ function TopBar({
             />
           )}
         </div>
-          <ActionMenu
-            open={menuOpen}
-            onOpenChange={setMenuOpen}
-            asChild={false}
-            actions={actions}
-          >
-            {asRef ? (
-              <IconButton
-                icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                action={() => setMenuOpen(true)}
-                label="expand"
-                className="rounded border border-gray-100 bg-white"
-                small
-              />
-            ) : (
-              <IconButton
-                icon={<ElipsisSmallIcon className="h-4 w-4" />}
-                label="options"
-                className="rounded bg-white"
-                action={() => setMenuOpen(!menuOpen)}
-              />
-            )}
-          </ActionMenu>
+        <ActionMenu
+          open={menuOpen}
+          onOpenChange={setMenuOpen}
+          asChild={false}
+          actions={actions}
+        >
+          {asRef ? (
+            <IconButton
+              icon={<ElipsisSmallIcon className="h-4 w-4" />}
+              action={() => setMenuOpen(true)}
+              label="expand"
+              className="rounded border border-gray-100 bg-white"
+              small
+            />
+          ) : (
+            <IconButton
+              icon={<ElipsisSmallIcon className="h-4 w-4" />}
+              label="options"
+              className="rounded bg-white"
+              action={() => setMenuOpen(!menuOpen)}
+            />
+          )}
+        </ActionMenu>
       </div>
       <ConfirmationModal
         open={deleteOpen}

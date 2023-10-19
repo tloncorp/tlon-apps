@@ -9,9 +9,10 @@ import {
   useJoinMutation,
   usePerms,
 } from '@/state/channel/channel';
-import { Unreads, Channel, Perm } from '@/types/channel';
+import { Unreads, Perm, Story } from '@/types/channel';
 import { Zone, Channels, GroupChannel, Vessel, Group } from '@/types/groups';
 import { useLastReconnect } from '@/state/local';
+import { isLink } from '@/types/content';
 import {
   getCompatibilityText,
   getFlagParts,
@@ -19,6 +20,7 @@ import {
   getNestShip,
   nestToFlag,
   sagaCompatible,
+  getFirstInline,
 } from './utils';
 import useSidebarSort, {
   useRecentSort,
@@ -357,4 +359,26 @@ export function useFullChannel({
     compat,
     joined,
   };
+}
+
+export function inlineContentIsLink(content: Story) {
+  const firstInline = getFirstInline(content);
+  if (!firstInline) {
+    return false;
+  }
+
+  return isLink(firstInline[0]);
+}
+
+export function linkUrlFromContent(content: Story) {
+  const firstInline = getFirstInline(content);
+  if (!firstInline) {
+    return undefined;
+  }
+
+  if (isLink(firstInline[0])) {
+    return firstInline[0].link.href;
+  }
+
+  return undefined;
 }

@@ -17,7 +17,6 @@ import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
 import { useParams } from 'react-router';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { DMWhom } from '@/types/dms';
 import {
   Cabals,
   GroupChannel,
@@ -218,26 +217,26 @@ export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
   };
 }
 
-export function whomIsDm(whom: DMWhom): boolean {
+export function whomIsDm(whom: string): boolean {
   return whom.startsWith('~') && !whom.match('/');
 }
 
 // ship + term, term being a @tas: lower-case letters, numbers, and hyphens
-export function whomIsFlag(whom: DMWhom): boolean {
+export function whomIsFlag(whom: string): boolean {
   return (
     /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
     ob.isValidPatp(whom.split('/')[0])
   );
 }
 
-export function whomIsNest(whom: DMWhom): boolean {
+export function whomIsNest(whom: string): boolean {
   return (
     /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
     ob.isValidPatp(whom.split('/')[0])
   );
 }
 
-export function whomIsMultiDm(whom: DMWhom): boolean {
+export function whomIsMultiDm(whom: string): boolean {
   return whom.startsWith(`0v`);
 }
 
@@ -521,6 +520,15 @@ export function linkFromCurioContent(content: ChatStory) {
   }
 
   return '';
+}
+
+export function getFirstInline(content: Story) {
+  const inlines = content.filter((v) => 'inline' in v) as VerseInline[];
+  if (inlines.length === 0) {
+    return null;
+  }
+
+  return inlines[0].inline;
 }
 
 export function citeToPath(cite: Cite) {

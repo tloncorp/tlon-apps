@@ -28,7 +28,7 @@ import {
   isCite,
   Cite,
 } from '@/types/channel';
-import { citeToPath, pathToCite, preSig } from './utils';
+import { citeToPath, getFirstInline, pathToCite, preSig } from './utils';
 
 export interface EditorOnUpdateProps {
   editor: Editor;
@@ -144,6 +144,26 @@ export function inlineToString(inline: Inline): any {
   }
 
   return '';
+}
+
+export function flattenInline(content: Inline[]): string {
+  return content.map((inline) => inlineToString(inline)).join(' ');
+}
+
+export function firstInlineSummary(content: Story): string {
+  const inlines = getFirstInline(content);
+  if (!inlines) {
+    return '';
+  }
+
+  return flattenInline(inlines);
+}
+
+export function inlineSummary(content: Story): string {
+  return (content.filter((v) => 'inline' in v) as { inline: Inline[] }[])
+    .map((v) => v.inline.map((i) => inlineToString(i)).join(' '))
+    .flat()
+    .join(' ');
 }
 
 // Limits the amount of consecutive breaks to 2 or less

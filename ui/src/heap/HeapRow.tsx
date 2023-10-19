@@ -20,16 +20,16 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import useNest from '@/logic/useNest';
 import getHeapContentType from '@/logic/useHeapContentType';
 import CheckIcon from '@/components/icons/CheckIcon';
-import { inlineToString } from '@/logic/tiptap';
+import { firstInlineSummary } from '@/logic/tiptap';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
-import { Post, Story, VerseBlock, VerseInline } from '@/types/channel';
-import { Link, isLink } from '@/types/content';
+import { Post, Story, VerseBlock } from '@/types/channel';
 import { usePostToggler } from '@/state/channel/channel';
+import { linkUrlFromContent } from '@/logic/channel';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -205,23 +205,11 @@ export default function HeapRow({
   const { content } = post?.essay || { content: [] };
   const navigate = useNavigate();
   const { isHidden } = usePostToggler(time);
-  const url =
-    content.length > 0 &&
-    isLink((content.filter((c) => 'inline' in c)[0] as VerseInline).inline)
-      ? (
-          (content.filter((c) => 'inline' in c)[0] as VerseInline)
-            .inline[0] as Link
-        ).link.href
-      : '';
+  const url = linkUrlFromContent(content) || '';
   const { embed, isLoading, isError, error } = useEmbed(url);
   const calm = useCalm();
   const { isImage, isAudio, isText } = getHeapContentType(url);
-  const textFallbackTitle = (
-    content.filter((c) => 'inline' in c)[0] as VerseInline
-  ).inline
-    .map((inline) => inlineToString(inline))
-    .join(' ')
-    .toString();
+  const textFallbackTitle = firstInlineSummary(content);
 
   const navigateToDetail = useCallback(() => {
     navigate(`curio/${bigInt(time)}`);
