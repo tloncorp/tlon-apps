@@ -1,4 +1,5 @@
 import React, {
+  ReactElement,
   ReactNode,
   useCallback,
   useEffect,
@@ -19,7 +20,7 @@ import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 interface ChatWindowProps {
   whom: string;
   root: string;
-  prefixedElement?: ReactNode;
+  prefixedElement?: ReactElement;
   scrollElementRef: React.RefObject<HTMLDivElement>;
   isScrolling: boolean;
 }

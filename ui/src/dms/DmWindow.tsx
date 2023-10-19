@@ -1,4 +1,5 @@
 import React, {
+  ReactElement,
   ReactNode,
   useCallback,
   useEffect,
@@ -26,7 +27,7 @@ import { newWritMap } from '@/types/dms';
 interface DmWindowProps {
   whom: string;
   root: string;
-  prefixedElement?: ReactNode;
+  prefixedElement?: ReactElement;
 }
 
 function getScrollTo(msg: string | null) {

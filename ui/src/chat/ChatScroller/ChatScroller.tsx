@@ -1,5 +1,6 @@
 import React, {
   PropsWithChildren,
+  ReactElement,
   ReactNode,
   useCallback,
   useEffect,
@@ -39,7 +40,7 @@ const logger = createDevLogger('ChatScroller', false);
 interface CustomScrollItemData {
   type: 'custom';
   key: string;
-  component: ReactNode;
+  component: ReactElement;
 }
 
 const ChatScrollerItem = React.memo(
@@ -167,7 +168,7 @@ export interface DmScrollerProps {
    * Element to be inserted at the top of the list scroll after we've loaded the
    * entire history.
    */
-  topLoadEndMarker?: ReactNode;
+  topLoadEndMarker?: ReactElement;
   scrollTo?: BigInteger;
   scrollerRef: React.RefObject<VirtuosoHandle>;
   scrollElementRef: React.RefObject<HTMLDivElement>;
