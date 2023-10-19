@@ -8,8 +8,11 @@ import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
 import {
   useGangList,
+  useLoadingGroups,
+  useGangsWithClaim,
   useGroupsWithQuery,
   usePendingInvites,
+  usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
@@ -23,6 +26,7 @@ import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useLocalState } from '@/state/local';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
+import GroupJoinList from '@/groups/GroupJoinList';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import GroupsSidebarItem from './GroupsSidebarItem';
@@ -152,6 +156,9 @@ export default function Sidebar() {
   const { data: groups, isLoading } = useGroupsWithQuery();
   const gangs = useGangList();
   const pinnedGroups = usePinnedGroups();
+  const loadingGroups = useLoadingGroups();
+  const gangsWithClaims = useGangsWithClaim();
+  const pendingGangs = usePendingGangsWithoutClaim();
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
   const ref = useRef<HTMLDivElement>(null);
@@ -162,6 +169,11 @@ export default function Sidebar() {
       )),
     [pinnedGroups]
   );
+
+  const hasPinnedGroups = !!pinnedGroupsOptions.length;
+  const hasLoadingGroups = !!loadingGroups.length;
+  const hasGangsWithClaims = !!gangsWithClaims.length;
+  const hasPendingGangs = Object.keys(pendingGangs).length;
 
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
   const scroll = useRef(
@@ -221,15 +233,32 @@ export default function Sidebar() {
           <GroupList
             groups={sortedGroups}
             pinnedGroups={Object.entries(pinnedGroups)}
+            loadingGroups={loadingGroups}
             isScrolling={scroll.current}
             atTopChange={atTopChange}
           >
-            {Object.entries(pinnedGroups).length > 0 && (
+            {hasPinnedGroups && (
               <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
                 <h2 className="p-2 text-sm font-semibold text-gray-400">
                   Pinned Groups
                 </h2>
                 {pinnedGroupsOptions}
+              </div>
+            )}
+
+            {(hasLoadingGroups || hasGangsWithClaims) && (
+              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
+                <h2 className="p-2 text-sm font-semibold text-gray-400">
+                  Pending
+                </h2>
+                {hasLoadingGroups &&
+                  loadingGroups.map(([flag, _]) => (
+                    <GangItem key={flag} flag={flag} isJoining />
+                  ))}
+                {hasGangsWithClaims &&
+                  gangsWithClaims.map((flag) => (
+                    <GangItem key={flag} flag={flag} />
+                  ))}
               </div>
             )}
             <div ref={ref} className="flex-initial">
@@ -253,9 +282,6 @@ export default function Sidebar() {
                 </div>
               )}
             </div>
-            {gangs.map((flag) => (
-              <GangItem key={flag} flag={flag} />
-            ))}
           </GroupList>
         </GroupsScrollingContext.Provider>
       </div>
