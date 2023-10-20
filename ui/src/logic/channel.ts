@@ -13,13 +13,12 @@ import { Unreads, Perm, Story } from '@/types/channel';
 import { Zone, Channels, GroupChannel, Vessel, Group } from '@/types/groups';
 import { useLastReconnect } from '@/state/local';
 import { isLink } from '@/types/content';
+import useNegotiation from '@/state/negotiation';
 import {
-  getCompatibilityText,
   getFlagParts,
   isTalk,
   getNestShip,
   nestToFlag,
-  sagaCompatible,
   getFirstInline,
 } from './utils';
 import useSidebarSort, {
@@ -251,13 +250,14 @@ export function useCheckChannelJoined() {
 }
 
 export function useChannelCompatibility(nest: string) {
-  const channel = useChannel(nest);
-  const saga = channel?.saga || null;
+  const { ship } = getFlagParts(nest);
+  const match = useNegotiation(ship, 'channels', 'channels-server');
 
   return {
-    saga,
-    compatible: sagaCompatible(saga),
-    text: getCompatibilityText(saga),
+    compatible: match,
+    text: match
+      ? "You're synced with the host."
+      : 'Your version of groups does not match the host.',
   };
 }
 

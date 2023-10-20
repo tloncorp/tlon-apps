@@ -35,7 +35,7 @@ export function getText(
   }
 
   if (negotiationMatch === false) {
-    return "Your version of groups does not match the host's";
+    return 'Your version of groups does not match the host.';
   }
 
   return !status
