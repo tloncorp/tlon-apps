@@ -32,6 +32,7 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
+import { isGroups } from '@/logic/utils';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { dmListPath } from '@/logic/utils';
@@ -121,7 +122,7 @@ export default function Dm() {
     useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
   );
   const root = `/dm/${ship}`;
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
 
   const {
     isSelectingMessage,
@@ -167,22 +168,24 @@ export default function Dm() {
             </>
           ) : (
             <Routes>
-              <Route
-                path="search/:query?"
-                element={
-                  <ChatSearch
-                    whom={ship}
-                    root={root}
-                    placeholder="Search Messages"
-                  >
-                    <TitleButton
-                      ship={ship}
-                      contact={contact}
-                      isMobile={isMobile}
-                    />
-                  </ChatSearch>
-                }
-              />
+              {!isMobile && (
+                <Route
+                  path="search/:query?"
+                  element={
+                    <ChatSearch
+                      whom={ship}
+                      root={root}
+                      placeholder="Search Messages"
+                    >
+                      <TitleButton
+                        ship={ship}
+                        contact={contact}
+                        isMobile={isMobile}
+                      />
+                    </ChatSearch>
+                  }
+                />
+              )}
               <Route
                 path="*"
                 element={
