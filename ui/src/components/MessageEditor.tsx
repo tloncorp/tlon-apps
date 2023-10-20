@@ -29,7 +29,7 @@ import { useFileStore } from '@/state/storage';
 import { Cite } from '@/types/chat';
 import { EditorView } from '@tiptap/pm/view';
 import { Slice } from '@tiptap/pm/model';
-import MentionPopup from './Mention/MentionPopup';
+import getMentionPopup from './Mention/MentionPopup';
 
 export interface HandlerParams {
   editor: Editor;
@@ -161,7 +161,17 @@ export function useMessageEditor({
         HTMLAttributes: {
           class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
         },
-        suggestion: MentionPopup,
+        renderLabel: (props) => `~${props.node.attrs.id}`,
+        suggestion: getMentionPopup('~'),
+      })
+    );
+    extensions.unshift(
+      Mention.extend({ priority: 999 }).configure({
+        HTMLAttributes: {
+          class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
+        },
+        renderLabel: (props) => `~${props.node.attrs.id}`,
+        suggestion: getMentionPopup('@'),
       })
     );
   }
