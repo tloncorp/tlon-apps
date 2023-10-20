@@ -124,7 +124,7 @@ export default function MultiDm() {
           isSelecting ? (
             <>
               {isMobile && (
-                <MobileHeader title="New Message" pathBack="/messages" />
+                <MobileHeader title="New Message" pathBack={dmListPath} />
               )}
               <MessageSelector />
             </>

@@ -161,7 +161,7 @@ export default function Dm() {
           isSelecting ? (
             <>
               {isMobile && (
-                <MobileHeader title="New Message" pathBack="/messages" />
+                <MobileHeader title="New Message" pathBack={dmListPath} />
               )}
               <MessageSelector />
             </>

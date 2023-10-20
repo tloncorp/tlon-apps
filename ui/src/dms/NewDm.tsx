@@ -8,6 +8,7 @@ import MobileHeader from '@/components/MobileHeader';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+import { dmListPath } from '@/logic/utils';
 import MessageSelector from './MessageSelector';
 
 export default function NewDM() {
@@ -27,7 +28,7 @@ export default function NewDM() {
         paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
       }}
       header={
-        isMobile && <MobileHeader title="New Message" pathBack="/messages" />
+        isMobile && <MobileHeader title="New Message" pathBack={dmListPath} />
       }
       footer={
         <div
