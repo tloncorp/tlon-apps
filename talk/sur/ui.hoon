@@ -9,7 +9,7 @@
 +$  talk
   $:  clubs=(map id:club:c crew:club:c)
       dms=(set ship)
-      =briefs:c
+      =unreads:c
       invited=(set ship)
       pins=(list whom:c)
   ==
