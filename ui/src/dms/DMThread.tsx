@@ -17,8 +17,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
-import ReplyScroller from '@/replies/ReplyScroller/ReplyScroller';
-import { newReplyMap } from '@/types/channel';
+import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
@@ -36,7 +35,6 @@ export default function DMThread() {
   const isMobile = useIsMobile();
   const appName = useAppName();
   const [loading, setLoading] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
   const scrollTo = new URLSearchParams(location.search).get('msg');
   const whom = ship || '';
   const id = `${idShip!}/${idTime!}`;
@@ -52,6 +50,7 @@ export default function DMThread() {
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const threadRef = useRef<HTMLDivElement | null>(null);
   const scrollElementRef = useRef<HTMLDivElement>(null);
+  const isScrolling = useIsScrolling(scrollElementRef);
   const { isChatInputFocused } = useChatInputFocus();
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
@@ -60,17 +59,24 @@ export default function DMThread() {
   const threadTitle = isClub ? club?.meta.title || ship : ship;
   const replies = useMemo(() => {
     if (!writ || writ.seal.replies === null) {
-      return newReplyMap();
+      return [] as ReplyTuple[];
     }
 
-    return writ.seal.replies.with(bigInt(time), {
-      memo: writ.essay,
-      seal: {
-        id: writ.seal.id,
-        'parent-id': writ.seal.id,
-        reacts: writ.seal.reacts,
+    const newReplies = writ.seal.replies;
+
+    newReplies.unshift([
+      bigInt(time),
+      {
+        memo: writ.essay,
+        seal: {
+          id: writ.seal.id,
+          'parent-id': writ.seal.id,
+          reacts: writ.seal.reacts,
+        },
       },
-    });
+    ]);
+
+    return newReplies;
   }, [writ, time]);
 
   const returnURL = useCallback(() => {
@@ -162,7 +168,7 @@ export default function DMThread() {
         ) : (
           <ChatScroller
             key={idTime}
-            messages={replies.toArray()}
+            messages={replies}
             whom={whom}
             fetchState="initial"
             scrollerRef={scrollerRef}

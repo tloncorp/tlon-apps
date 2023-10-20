@@ -21,7 +21,7 @@ import ActionMenu, { Action } from '@/components/ActionMenu';
 interface DiaryHeaderProps {
   groupFlag: string;
   nest: string;
-  canWrite: boolean;
+  canWrite?: boolean;
   sort: DiarySetting['sortMode'];
   display: DisplayMode;
 }

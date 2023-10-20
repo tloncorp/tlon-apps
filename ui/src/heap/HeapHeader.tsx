@@ -26,7 +26,7 @@ interface HeapHeaderProps {
   nest: string;
   display: DisplayMode;
   sort: SortMode;
-  canWrite: boolean;
+  canWrite?: boolean;
   draggedFile: File | null;
   clearDragState: () => void;
   addCurioOpen: boolean;

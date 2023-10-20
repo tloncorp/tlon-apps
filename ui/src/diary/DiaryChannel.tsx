@@ -16,7 +16,6 @@ import {
   useUserDiarySortMode,
   useUserDiaryDisplayMode,
 } from '@/state/settings';
-import { useConnectivityCheck } from '@/state/vitals';
 import { PageTuple } from '@/types/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
@@ -35,7 +34,6 @@ function DiaryChannel({ title }: ViewProps) {
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
-  const { data } = useConnectivityCheck(chShip ?? '');
   const groupFlag = useRouteGroup();
   const {
     posts: notes,

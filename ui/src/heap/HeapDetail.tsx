@@ -136,7 +136,7 @@ export default function HeapDetail({ title }: ViewProps) {
           {idTime && (
             <HeapDetailComments
               time={idTime}
-              comments={note.seal.replies ?? newReplyMap()}
+              comments={note.seal.replies}
               loading={isLoading}
             />
           )}

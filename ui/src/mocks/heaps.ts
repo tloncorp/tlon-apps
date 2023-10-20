@@ -28,7 +28,7 @@ const mockCurios: Posts = {
   '170141184505776467152677676749638598656': {
     seal: {
       id: '170141184505776467152677676749638598656',
-      replies: newReplyMap(),
+      replies: [],
       meta: {
         lastReply: null,
         replyCount: 0,
@@ -54,7 +54,7 @@ const mockCurios: Posts = {
   '170141184505776467152677676749638598657': {
     seal: {
       id: '170141184505776467152677676749638598657',
-      replies: newReplyMap(),
+      replies: [],
       meta: {
         lastReply: null,
         replyCount: 0,
@@ -80,7 +80,7 @@ const mockCurios: Posts = {
   '170141184505776467152677676749638598658': {
     seal: {
       id: '170141184505776467152677676749638598658',
-      replies: newReplyMap(),
+      replies: [],
       meta: {
         lastReply: null,
         replyCount: 0,
@@ -106,7 +106,7 @@ const mockCurios: Posts = {
   '170141184505776467152677676749638598659': {
     seal: {
       id: '170141184505776467152677676749638598659',
-      replies: newReplyMap(),
+      replies: [],
       meta: {
         lastReply: null,
         replyCount: 0,
@@ -132,7 +132,7 @@ const mockCurios: Posts = {
   '170141184505776467152677676749638598660': {
     seal: {
       id: '170141184505776467152677676749638598660',
-      replies: newReplyMap(),
+      replies: [],
       meta: {
         lastReply: null,
         replyCount: 0,

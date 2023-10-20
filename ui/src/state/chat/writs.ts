@@ -185,14 +185,6 @@ export function updatePact(whom: string, writs: Writs, draft: BasedChatState) {
         return newWrit;
       }
 
-      const replies = writ.seal.replies as unknown;
-
-      if (replies && typeof replies === 'object' && 'with' in replies) {
-        return newWrit;
-      }
-
-      newWrit.seal.replies = newReplyMap(replies as [BigInteger, Reply][]);
-
       return newWrit;
     }
 

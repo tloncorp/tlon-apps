@@ -141,7 +141,9 @@ export default function DiaryNote({ title }: ViewProps) {
   }
 
   const { replies } = note.seal;
-  const replyArray = replies ? replies.toArray().reverse() : []; // natural reading order
+  const replyArray = replies
+    ? replies.filter(([k, v]) => v !== null).reverse()
+    : []; // natural reading order
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
   const groupedReplies = setNewDaysForReplies(
@@ -178,7 +180,7 @@ export default function DiaryNote({ title }: ViewProps) {
       <div className="h-full overflow-y-scroll p-6">
         <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
           <DiaryNoteHeadline
-            replyCount={note.seal.replies ? note.seal.replies.size : 0}
+            replyCount={note.seal.replies ? note.seal.replies.length : 0}
             lastRepliers={note.seal.meta.lastRepliers}
             essay={note.essay}
             time={bigInt(noteId)}
@@ -197,8 +199,11 @@ export default function DiaryNote({ title }: ViewProps) {
             <div className="mb-3 flex items-center py-3">
               <Divider className="flex-1">
                 <h2 className="font-semibold text-gray-400">
-                  {replies && replies.size > 0
-                    ? `${replies.size} ${pluralize('comment', replies.size)}`
+                  {replies && replies.length > 0
+                    ? `${replies.length} ${pluralize(
+                        'comment',
+                        replies.length
+                      )}`
                     : 'No comments'}
                 </h2>
               </Divider>

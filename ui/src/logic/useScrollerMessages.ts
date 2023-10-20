@@ -19,11 +19,51 @@ const getMessageAuthor = (writ: Writ | Post | Reply) => {
   return writ.essay.author;
 };
 
-const emptyWrit: Writ = {
+function getDay(
+  id: string,
+  time: bigInt.BigInteger,
+  messageDays: Map<string, number>
+) {
+  let day = messageDays.get(id);
+  if (!day) {
+    day = new Date(daToUnix(time)).setHours(0, 0, 0, 0);
+    messageDays.set(id, day);
+  }
+  return day;
+}
+
+const getNewDayAndNewAuthorFromLastWrit = (
+  messages: WritArray,
+  writ: Writ | Post | Reply,
+  key: bigInt.BigInteger,
+  messageDays: Map<string, number>,
+  index: number
+) => {
+  const lastWrit = index === 0 ? undefined : messages[index - 1];
+  const newAuthor =
+    lastWrit && lastWrit[1]
+      ? getMessageAuthor(writ) !== getMessageAuthor(lastWrit[1])
+      : true;
+  const newDay =
+    !lastWrit ||
+    !(
+      lastWrit[1] &&
+      getDay(lastWrit[1]?.seal.id, lastWrit[0], messageDays) ===
+        getDay(writ.seal.id, key, messageDays)
+    );
+  return {
+    writ,
+    time: key,
+    newAuthor,
+    newDay,
+  };
+};
+
+const emptyWrit = {
   seal: {
     id: '',
     time: '',
-    replies: newReplyMap(),
+    replies: [],
     reacts: {},
     meta: {
       replyCount: 0,
@@ -70,19 +110,10 @@ function useMessageItems({
 ] {
   const messageDays = useRef(new Map<string, number>());
 
-  function getDay(id: string, time: bigInt.BigInteger) {
-    let day = messageDays.current.get(id);
-    if (!day) {
-      day = new Date(daToUnix(time)).setHours(0, 0, 0, 0);
-      messageDays.current.set(id, day);
-    }
-    return day;
-  }
-
   const [keys, entries] = useMemo(() => {
     const nonNullMessages = messages.filter(([_k, v]) => v !== null);
     const ks: bigInt.BigInteger[] = nonNullMessages.map(([k]) => k);
-    const es = nonNullMessages.map(([key, writ]) => {
+    const es = nonNullMessages.map(([key, writ], index) => {
       if (!writ) {
         return {
           writ: emptyWrit,
@@ -95,18 +126,15 @@ function useMessageItems({
         };
       }
 
-      const lastWrit = nonNullMessages[nonNullMessages.length - 1];
+      const { newAuthor, newDay } = getNewDayAndNewAuthorFromLastWrit(
+        nonNullMessages,
+        writ,
+        key,
+        messageDays.current,
+        index
+      );
+
       if ('memo' in writ) {
-        const newAuthor =
-          lastWrit && lastWrit[1]
-            ? getMessageAuthor(writ) !== getMessageAuthor(lastWrit[1])
-            : true;
-        const newDay =
-          !lastWrit[1] ||
-          !(
-            getDay(lastWrit[1]?.seal.id, lastWrit[0]) ===
-            getDay(writ.seal.id, key)
-          );
         return {
           writ,
           time: key,
@@ -115,23 +143,17 @@ function useMessageItems({
         };
       }
 
-      const han = writ.essay['kind-data'];
-      const newAuthor =
-        lastWrit && lastWrit[1]
-          ? getMessageAuthor(writ) !== getMessageAuthor(lastWrit[1]) ||
-            !!('chat' in han && han.chat && 'notice' in han.chat)
-          : true;
-      const newDay =
-        !lastWrit[1] ||
-        !(
-          getDay(lastWrit[1]?.seal.id, lastWrit[0]) ===
-          getDay(writ.seal.id, key)
-        );
+      const isNotice =
+        'chat' in writ.essay['kind-data'] &&
+        writ.essay['kind-data'].chat &&
+        'notice' in writ.essay['kind-data'].chat;
+
       return {
         writ,
         time: key,
-        newAuthor,
+        newAuthor: isNotice ? false : newAuthor,
         newDay,
+        replyCount: writ.seal.meta.replyCount,
       };
     }, []);
     return [ks, es];

@@ -61,15 +61,20 @@ export default function ChatThread() {
   const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { post: note, isLoading } = usePost(nest, idTime!);
-  const replies = note.seal.replies ?? newReplyMap();
-  replies.set(bigInt(idTime!), {
-    memo: note.essay,
-    seal: {
-      id: note.seal.id,
-      'parent-id': note.seal.id,
-      reacts: note.seal.reacts,
-    },
-  });
+  const { replies } = note.seal;
+  if (replies !== null) {
+    replies.unshift([
+      bigInt(idTime!),
+      {
+        memo: note.essay,
+        seal: {
+          id: note.seal.id,
+          'parent-id': note.seal.id,
+          reacts: note.seal.reacts,
+        },
+      },
+    ]);
+  }
   const navigate = useNavigate();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const perms = usePerms(nest);
@@ -169,7 +174,7 @@ export default function ChatThread() {
         ) : (
           <ChatScroller
             key={idTime}
-            messages={replies.toArray()}
+            messages={replies ?? []}
             fetchState={'initial'}
             whom={nest}
             scrollerRef={scrollerRef}

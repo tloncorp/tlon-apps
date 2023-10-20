@@ -38,6 +38,7 @@ import {
   Reply,
   Replies,
   ChannelsAction,
+  ReplyTuple,
 } from '@/types/channel';
 import api from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
@@ -806,17 +807,18 @@ export function useWrit(whom: string, writId: string, disabled = false) {
     const writ = data;
     const replies = (writ.seal.replies || {}) as Replies;
 
-    const diff: [BigInteger, Reply][] = Object.entries(replies).map(
-      ([k, v]) => [bigInt(udToDec(k)), v as Reply]
-    );
+    const diff: ReplyTuple[] = Object.entries(replies).map(([k, v]) => [
+      bigInt(udToDec(k)),
+      v as Reply,
+    ]);
 
-    const replyMap = newReplyMap(diff);
+    // const replyMap = newReplyMap(diff);
 
-    const writWithReplies: Writ = {
+    const writWithReplies = {
       ...writ,
       seal: {
         ...writ.seal,
-        replies: replyMap,
+        replies: diff,
       },
     };
 

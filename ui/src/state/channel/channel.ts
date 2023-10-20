@@ -32,8 +32,7 @@ import {
   PageTuple,
   UnreadUpdate,
   PagedPosts,
-  PagedPostsMap,
-  PostInCache,
+  PostDataResponse,
   Pins,
   ChannelScan,
   ChannelScanItem,
@@ -60,7 +59,7 @@ import { useChatStore } from '@/chat/useChatStore';
 
 async function updatePostInCache(
   variables: { nest: Nest; postId: string },
-  updater: (post: PostInCache | undefined) => PostInCache | undefined
+  updater: (post: PostDataResponse | undefined) => PostDataResponse | undefined
 ) {
   const [han, flag] = nestToFlag(variables.nest);
   await queryClient.cancelQueries({
@@ -332,23 +331,34 @@ const infinitePostUpdater = (
     const post = postResponse.set;
 
     if (post === null) {
-      queryClient.setQueryData(
+      queryClient.setQueryData<{
+        pages: PagedPosts[];
+        pageParams: PageParam[];
+      }>(
         queryKey,
-        (
-          d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined
-        ) => {
+        (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
           if (d === undefined) {
             return undefined;
           }
 
           const newPages = d.pages.map((page) => {
-            const inPage = page.posts.has(time);
+            const newPage = {
+              ...page,
+            };
+
+            const inPage =
+              Object.keys(newPage.posts).some((k) => k === time.toString()) ??
+              false;
 
             if (inPage) {
-              page.posts.set(bigInt(id), null);
+              const pagePosts = { ...newPage.posts };
+
+              pagePosts[time.toString()] = null;
+
+              newPage.posts = pagePosts;
             }
 
-            return page;
+            return newPage;
           });
 
           return {
@@ -358,16 +368,19 @@ const infinitePostUpdater = (
         }
       );
     } else {
-      queryClient.setQueryData(
+      queryClient.setQueryData<{
+        pages: PagedPosts[];
+        pageParams: PageParam[];
+      }>(
         queryKey,
-        (
-          d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined
-        ) => {
+        (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
           if (d === undefined) {
             return {
               pages: [
                 {
-                  posts: newPostMap([[time, post]]),
+                  posts: {
+                    [time.toString()]: post,
+                  },
                   newer: null,
                   older: null,
                   total: 1,
@@ -383,16 +396,22 @@ const infinitePostUpdater = (
             return undefined;
           }
 
-          const newLastPage = {
-            ...lastPage,
-            posts: lastPage.posts.with(time, post),
+          const newPosts = {
+            ...lastPage.posts,
+            [time.toString()]: post,
           };
 
-          const cachedPost = lastPage.posts.get(unixToDa(post.essay.sent));
+          const newLastPage = {
+            ...lastPage,
+            posts: newPosts,
+          };
+
+          const cachedPost =
+            lastPage.posts[unixToDa(post.essay.sent).toString()];
 
           if (cachedPost && id !== unixToDa(post.essay.sent).toString()) {
             // remove cached post if it exists
-            newLastPage.posts.delete(unixToDa(post.essay.sent));
+            delete newLastPage.posts[unixToDa(post.essay.sent).toString()];
 
             // set delivered now that we have the real post
             usePostsStore
@@ -411,9 +430,12 @@ const infinitePostUpdater = (
       );
     }
   } else if ('reacts' in postResponse) {
-    queryClient.setQueryData(
+    queryClient.setQueryData<{
+      pages: PagedPosts[];
+      pageParams: PageParam[];
+    }>(
       queryKey,
-      (d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
@@ -421,25 +443,31 @@ const infinitePostUpdater = (
         const { reacts } = postResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.posts.has(time);
+          const newPage = {
+            ...page,
+          };
+
+          const inPage =
+            Object.keys(newPage.posts).some((k) => k === time.toString()) ??
+            false;
 
           if (inPage) {
-            const post = page.posts.get(time);
+            const post = newPage.posts[time.toString()];
             if (!post) {
-              return page;
+              return newPage;
             }
-            page.posts.set(time, {
+            newPage.posts[time.toString()] = {
               ...post,
               seal: {
                 ...post.seal,
                 reacts,
               },
-            });
+            };
 
-            return page;
+            return newPage;
           }
 
-          return page;
+          return newPage;
         });
 
         return {
@@ -449,9 +477,12 @@ const infinitePostUpdater = (
       }
     );
   } else if ('essay' in postResponse) {
-    queryClient.setQueryData(
+    queryClient.setQueryData<{
+      pages: PagedPosts[];
+      pageParams: PageParam[];
+    }>(
       queryKey,
-      (d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
@@ -459,22 +490,28 @@ const infinitePostUpdater = (
         const { essay } = postResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.posts.has(time);
+          const newPage = {
+            ...page,
+          };
+
+          const inPage =
+            Object.keys(newPage.posts).some((k) => k === time.toString()) ??
+            false;
 
           if (inPage) {
-            const post = page.posts.get(time);
+            const post = newPage.posts[time.toString()];
             if (!post) {
               return page;
             }
-            page.posts.set(time, {
+            newPage.posts[time.toString()] = {
               ...post,
               essay,
-            });
+            };
 
-            return page;
+            return newPage;
           }
 
-          return page;
+          return newPage;
         });
 
         return {
@@ -484,9 +521,12 @@ const infinitePostUpdater = (
       }
     );
   } else if ('reply' in postResponse) {
-    queryClient.setQueryData(
+    queryClient.setQueryData<{
+      pages: PagedPosts[];
+      pageParams: PageParam[];
+    }>(
       queryKey,
-      (d: { pages: PagedPostsMap[]; pageParams: PageParam[] } | undefined) => {
+      (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
         if (d === undefined) {
           return undefined;
         }
@@ -498,29 +538,36 @@ const infinitePostUpdater = (
         } = postResponse;
 
         const newPages = d.pages.map((page) => {
-          const inPage = page.posts.has(time);
+          const newPage = {
+            ...page,
+          };
+
+          const inPage =
+            Object.keys(newPage.posts).some((k) => k === time.toString()) ??
+            false;
 
           if (inPage) {
-            const post = page.posts.get(time);
+            const post = newPage.posts[time.toString()];
             if (!post) {
-              return page;
+              return newPage;
             }
-            page.posts.set(time, {
+            newPage.posts[time.toString()] = {
               ...post,
               seal: {
                 ...post.seal,
                 meta: {
+                  ...post.seal.meta,
                   replyCount,
                   lastReply,
                   lastRepliers,
                 },
               },
-            });
+            };
 
-            return page;
+            return newPage;
           }
 
-          return page;
+          return newPage;
         });
 
         return {
@@ -565,7 +612,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
     });
   }, [nest, invalidate, queryKey, initialTime]);
 
-  const { data, ...rest } = useInfiniteQuery<PagedPostsMap>({
+  const { data, ...rest } = useInfiniteQuery<PagedPosts>({
     queryKey,
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
@@ -587,13 +634,8 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
         path,
       });
 
-      const posts = newPostMap(
-        Object.entries(response.posts).map(([k, v]) => [bigInt(udToDec(k)), v])
-      );
-
       return {
         ...response,
-        posts,
       };
     },
     getNextPageParam: (lastPage): PageParam | undefined => {
@@ -633,13 +675,24 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
     };
   }
 
+  // const posts: PageTuple[] = data.pages
+  // .map((page) => page.posts.toArray())
+  // .flat();
+
   const posts: PageTuple[] = data.pages
-    .map((page) => page.posts.toArray())
-    .flat();
+    .map((page) => {
+      const pagePosts = Object.entries(page.posts).map(
+        ([k, v]) => [bigInt(udToDec(k)), v] as PageTuple
+      );
+
+      return pagePosts;
+    })
+    .flat()
+    .sort(([a], [b]) => a.compare(b));
 
   return {
-    posts,
     data,
+    posts,
     ...rest,
   };
 }
@@ -817,7 +870,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     },
   });
 
-  const post = data as PostInCache;
+  const post = data as PostDataResponse;
 
   const replies = post?.seal?.replies;
 
@@ -827,7 +880,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
         ...post,
         seal: {
           ...post?.seal,
-          replies: newReplyMap(),
+          replies: [] as ReplyTuple[],
           lastReply: null,
         },
       },
@@ -835,18 +888,16 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     };
   }
 
-  const diff: [BigInteger, Reply][] = Object.entries(replies).map(([k, v]) => [
+  const diff: ReplyTuple[] = Object.entries(replies).map(([k, v]) => [
     bigInt(udToDec(k)),
     v as Reply,
   ]);
-
-  const replyMap = newReplyMap(diff);
 
   const postWithReplies: Post = {
     ...post,
     seal: {
       ...post?.seal,
-      replies: replyMap,
+      replies: diff,
     },
   };
 
@@ -869,10 +920,12 @@ export function useReply(
     if (post === undefined) {
       return undefined;
     }
-    if (post.seal.replies === null || post.seal.replies.size === undefined) {
+    if (post.seal.replies === null || post.seal.replies.length === undefined) {
       return undefined;
     }
-    const reply = post.seal.replies.get(bigInt(replyId));
+    const reply = post.seal.replies.find(
+      ([k]) => k.toString() === replyId
+    )?.[1];
     return reply;
   }, [post, replyId]);
 }
@@ -1306,7 +1359,7 @@ export function useAddPostMutation(nest: string) {
       const post = {
         seal: {
           id: sent,
-          replies: newReplyMap(),
+          replies: {},
           reacts: {},
           meta: {
             replyCount: 0,
@@ -1317,7 +1370,10 @@ export function useAddPostMutation(nest: string) {
         essay: variables.essay,
       };
 
-      queryClient.setQueryData<Post>(queryKey(variables.cacheId), post);
+      queryClient.setQueryData<PostDataResponse>(
+        queryKey(variables.cacheId),
+        post
+      );
 
       infinitePostUpdater(queryKey('infinite'), {
         nest,
@@ -1325,7 +1381,13 @@ export function useAddPostMutation(nest: string) {
           post: {
             id: sent,
             'r-post': {
-              set: post,
+              set: {
+                ...post,
+                seal: {
+                  ...post.seal,
+                  replies: null,
+                },
+              },
             },
           },
         },
@@ -1365,7 +1427,7 @@ export function useEditPostMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: PostInCache | undefined) => {
+      const updater = (prev: PostDataResponse | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1651,7 +1713,7 @@ export function useAddReplyMutation() {
         return prev;
       };
 
-      const updater = (prevPost: PostInCache | undefined) => {
+      const updater = (prevPost: PostDataResponse | undefined) => {
         if (prevPost === undefined) {
           return prevPost;
         }
@@ -1673,7 +1735,7 @@ export function useAddReplyMutation() {
           },
         };
 
-        const updatedPost: PostInCache = {
+        const updatedPost: PostDataResponse = {
           ...prevPost,
           seal: {
             ...prevPost.seal,
@@ -1751,7 +1813,7 @@ export function useDeleteReplyMutation() {
         return prev;
       };
 
-      const updater = (prevPost: PostInCache | undefined) => {
+      const updater = (prevPost: PostDataResponse | undefined) => {
         if (prevPost === undefined) {
           return prevPost;
         }
@@ -1760,7 +1822,7 @@ export function useDeleteReplyMutation() {
         const newReplies = { ...prevReplies };
         delete newReplies[variables.replyId];
 
-        const updatedPost: PostInCache = {
+        const updatedPost: PostDataResponse = {
           ...prevPost,
           seal: {
             ...prevPost.seal,
@@ -1806,7 +1868,7 @@ export function useAddPostReactMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prevPost: PostInCache | undefined) => {
+      const updater = (prevPost: PostDataResponse | undefined) => {
         if (prevPost === undefined) {
           return prevPost;
         }
@@ -1816,7 +1878,7 @@ export function useAddPostReactMutation() {
           [unixToDa(Date.now()).toString()]: variables.react,
         };
 
-        const updatedPost: PostInCache = {
+        const updatedPost: PostDataResponse = {
           ...prevPost,
           seal: {
             ...prevPost.seal,
@@ -1861,7 +1923,7 @@ export function useDeletePostReactMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: PostInCache | undefined) => {
+      const updater = (prev: PostDataResponse | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1928,7 +1990,7 @@ export function useAddReplyReactMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: PostInCache | undefined) => {
+      const updater = (prev: PostDataResponse | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -1993,7 +2055,7 @@ export function useDeleteReplyReactMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: PostInCache | undefined) => {
+      const updater = (prev: PostDataResponse | undefined) => {
         if (prev === undefined) {
           return prev;
         }

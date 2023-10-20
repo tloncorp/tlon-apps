@@ -4,7 +4,7 @@ import {
   KindDataChat,
   PostEssay,
   PostSeal,
-  PostSealInCache,
+  PostSealDataResponse,
   Reply,
   ReplySeal,
   ReplyMeta,
@@ -288,7 +288,7 @@ export type ChatScanItem = { writ: Writ } | WritReplyReferenceResponse;
 
 export type ChatScan = ChatScanItem[];
 
-interface WritSealInCache extends PostSealInCache {
+interface WritSealInCache extends PostSealDataResponse {
   time: number;
 }
 

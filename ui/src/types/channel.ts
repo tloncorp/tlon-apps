@@ -30,7 +30,7 @@ export interface ReplyMeta {
 export interface PostSeal {
   id: string;
   reacts: { [ship: Ship]: string };
-  replies: ReplyMap | null;
+  replies: ReplyTuple[] | null;
   meta: ReplyMeta;
 }
 
@@ -407,7 +407,7 @@ export type PostResponse =
 export type ReplyResponse = { set: Reply } | { reacts: Record<string, string> };
 
 export type Response =
-  | { posts: PageMap }
+  | { posts: Posts }
   | {
       post: {
         id: string;
@@ -607,7 +607,7 @@ export function newChatMap(
   );
 }
 
-export interface PostSealInCache {
+export interface PostSealDataResponse {
   id: string;
   replies: Replies;
   reacts: {
@@ -620,8 +620,8 @@ export interface PostSealInCache {
   };
 }
 
-export interface PostInCache {
-  seal: PostSealInCache;
+export interface PostDataResponse {
+  seal: PostSealDataResponse;
   essay: PostEssay;
 }
 

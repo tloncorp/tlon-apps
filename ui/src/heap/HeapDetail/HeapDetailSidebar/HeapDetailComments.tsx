@@ -1,6 +1,6 @@
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useUnread, usePerms } from '@/state/channel/channel';
-import { ReplyMap } from '@/types/channel';
+import { ReplyTuple } from '@/types/channel';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
@@ -11,7 +11,7 @@ import HeapDetailCommentField from './HeapDetailCommentField';
 
 interface HeapDetailCommentsProps {
   time: string;
-  comments: ReplyMap;
+  comments: ReplyTuple[] | null;
   loading: boolean;
 }
 
@@ -32,7 +32,7 @@ export default function HeapDetailComments({
   const groupedReplies = !comments
     ? []
     : setNewDaysForReplies(
-        groupReplies(time, comments.toArray(), unread).sort(([a], [b]) => {
+        groupReplies(time, comments, unread).sort(([a], [b]) => {
           if (sort === 'asc') {
             return a.localeCompare(b);
           }
