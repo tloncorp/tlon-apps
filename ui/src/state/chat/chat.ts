@@ -879,8 +879,10 @@ export function useChatIsJoined(whom: string) {
   );
 }
 
-export function useChatInitialized(whom: string) {
-  return useChatState(useCallback((s) => !!s.pacts[whom], [whom]));
+export function useChatLoading(whom: string) {
+  return useChatState(
+    useCallback((s) => !s.pacts[whom] && s.briefs[whom], [whom])
+  );
 }
 
 const selDmList = (s: ChatState) =>

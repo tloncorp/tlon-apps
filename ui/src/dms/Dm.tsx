@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import cn from 'classnames';
-import { Outlet, Route, Routes, useMatch, useParams } from 'react-router';
+import {
+  Outlet,
+  Route,
+  Routes,
+  useMatch,
+  useNavigate,
+  useParams,
+} from 'react-router';
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
@@ -28,6 +35,7 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import { isGroups } from '@/logic/utils';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+import { dmListPath } from '@/logic/utils';
 import MessageSelector from './MessageSelector';
 
 function TitleButton({
@@ -103,6 +111,7 @@ export default function Dm() {
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
   const { data, showConnection } = useConnectivityCheck(ship || '');
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
@@ -122,6 +131,10 @@ export default function Dm() {
   } = useMessageSelector();
 
   const isSelecting = isSelectingMessage && existingDm === ship;
+
+  const handleLeave = useCallback(() => {
+    navigate(dmListPath);
+  }, [navigate]);
 
   useEffect(() => {
     if (ship && canStart) {
@@ -147,7 +160,12 @@ export default function Dm() {
         className="padding-bottom-transition flex-1"
         header={
           isSelecting ? (
-            <MessageSelector />
+            <>
+              {isMobile && (
+                <MobileHeader title="New Message" pathBack={dmListPath} />
+              )}
+              <MessageSelector />
+            </>
           ) : (
             <Routes>
               {!isMobile && (
@@ -178,6 +196,7 @@ export default function Dm() {
                           className="w-full"
                           whom={ship}
                           pending={!isAccepted}
+                          onLeave={handleLeave}
                         >
                           <button className="flex w-full items-center justify-center">
                             <div className="flex h-6 w-6 flex-none items-center justify-center rounded text-center">
@@ -231,6 +250,7 @@ export default function Dm() {
                         </Link>
                         {canStart ? (
                           <DmOptions
+                            onLeave={handleLeave}
                             whom={ship}
                             pending={!isAccepted}
                             alwaysShowEllipsis
