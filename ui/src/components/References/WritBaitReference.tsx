@@ -16,7 +16,7 @@ export default function WritBaitReference(props: {
   children?: React.ReactNode;
 }) {
   const { chFlag, nest, index, isScrolling, contextApp, children } = props;
-  const note = useRemotePost(chFlag, index, isScrolling);
+  const note = useRemotePost(nest, index, isScrolling);
   const [, udId] = index.split('/');
   if (note === undefined) {
     const time = bigInt(udToDec(udId));

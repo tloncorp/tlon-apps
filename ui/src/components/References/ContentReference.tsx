@@ -46,17 +46,20 @@ function ContentReference({
     return flag ? <AppReference flag={flag} isScrolling={isScrolling} /> : null;
   }
 
-  if ('bait' in cite) {
-    return (
-      <BaitReference
-        bait={cite.bait}
-        contextApp={contextApp}
-        isScrolling={isScrolling}
-      >
-        {children}
-      </BaitReference>
-    );
-  }
+  // We no longer support references for graph content (and we never truly did? :()
+
+  // if ('bait' in cite) {
+  // return (
+  // <BaitReference
+  // bait={cite.bait}
+  // contextApp={contextApp}
+  // isScrolling={isScrolling}
+  // >
+  // {children}
+  // </BaitReference>
+  // );
+  // }
+
   if ('chan' in cite) {
     const { nest, where } = cite.chan;
     const [app, chFlag] = nestToFlag(cite.chan.nest);
