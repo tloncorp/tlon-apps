@@ -1912,7 +1912,7 @@
             =/  =new-yarn:ha
             %^  ca-spin  memo  `ti
             :~  [%ship author.memo]
-                ' mentioned you :'
+                ' mentioned you: '
                 (flatten q.p.content.memo)
             ==
             =.  cor  (emit (pass-hark new-yarn))
