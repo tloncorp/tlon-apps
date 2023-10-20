@@ -14,6 +14,7 @@ import useGroupJoin from '@/groups/useGroupJoin';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import {
   getFlagParts,
+  getPrivacyFromPreview,
   matchesBans,
   pluralRank,
   toTitleCase,
@@ -22,7 +23,6 @@ import { useConnectivityCheck } from '@/state/vitals';
 import WidgetDrawer from '@/components/WidgetDrawer';
 import { useIsMobile } from '@/logic/useMedia';
 import ShipName from '@/components/ShipName';
-import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import ShipConnection from '@/components/ShipConnection';
 import Private16Icon from '@/components/icons/Private16Icon';
 import Lock16Icon from '@/components/icons/Lock16Icon';
@@ -55,7 +55,7 @@ export default function JoinGroupModal() {
     nest && id && type ? { nest, id, type } : undefined
   );
   const preview = useGangPreview(flag);
-  const { privacy } = useGroupPrivacy(flag);
+  const privacy = preview ? getPrivacyFromPreview(preview) : null;
   const cordon = preview?.cordon || group?.cordon;
   const banned = cordon ? matchesBans(cordon, window.our) : null;
 
