@@ -1,6 +1,7 @@
 import cn from 'classnames';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Route, Routes, useMatch, useNavigate, useParams } from 'react-router';
+import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatWindow from '@/chat/ChatWindow';
@@ -15,9 +16,13 @@ import {
 } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, canWriteChannel, isTalk } from '@/logic/utils';
+import {
+  canReadChannel,
+  canWriteChannel,
+  isGroups,
+  isTalk,
+} from '@/logic/utils';
 import { useLastReconnect } from '@/state/local';
-import { Link } from 'react-router-dom';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
@@ -66,10 +71,10 @@ function ChatChannel({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
+  const root = `/groups/${groupFlag}/channels/${nest}`;
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
-  const root = `/groups/${groupFlag}/channels/${nest}`;
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
 
   const joinChannel = useCallback(async () => {
     setJoining(true);

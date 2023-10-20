@@ -211,6 +211,12 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<ChatThread />}
               />
             )}
+            {isMobile && (
+              <Route
+                path=":ship/search/:query?"
+                element={<MobileChatSearch />}
+              />
+            )}
           </Route>
 
           <Route path="/groups/:ship/:name/*" element={<Groups />}>
@@ -228,6 +234,9 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   element={<ChatThread />}
                 />
               ) : null}
+              {isMobile && (
+                <Route path="search/:query?" element={<MobileChatSearch />} />
+              )}
             </Route>
           </Route>
 

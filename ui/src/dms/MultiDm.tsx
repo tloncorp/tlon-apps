@@ -7,7 +7,7 @@ import Layout from '@/components/Layout/Layout';
 import { useChatState, useMultiDm, useMultiDmIsPending } from '@/state/chat';
 import ChatWindow from '@/chat/ChatWindow';
 import { useIsMobile } from '@/logic/useMedia';
-import { pluralize } from '@/logic/utils';
+import { isGroups, pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
@@ -79,7 +79,7 @@ export default function MultiDm() {
   const root = `/dm/${clubId}`;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
 
   const {
     isSelectingMessage,
