@@ -255,6 +255,11 @@ export function useGangs() {
     scry: `/gangs`,
     options: {
       refetchOnMount: false,
+      onSuccess: () => {
+        // TEMPORARY: right now for long group joins, the gang is initially removed but no fact about the corresponding created
+        // group is emitted until the join completes. This is a blunt hack to ensure our view of existing groups remains up to date
+        queryClient.invalidateQueries(['groups']);
+      },
     },
   });
 
