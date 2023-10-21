@@ -46,7 +46,7 @@ export default function MobileRoot() {
   const hasPinnedGroups = !!pinnedGroupsOptions.length;
   const hasLoadingGroups = !!loadingGroups.length;
   const hasGangsWithClaims = !!gangsWithClaims.length;
-  const hasPendingGangs = Object.keys(pendingGangs).length;
+  const hasPendingGangs = Object.keys(pendingGangs).length > 0;
 
   return (
     <Layout
