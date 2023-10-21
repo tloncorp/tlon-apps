@@ -20,27 +20,48 @@ Regardless of what you run to develop, Vite will hot-reload code changes as you 
 
 ## Fakezod Development
 
-Follow these instructions or use Tlon's own
+To get started, make sure your %groups desk is mounted: 
+
+```
+|mount %groups
+```
+
+Sync the latest %groups files:
+
+```
+rsync -avL --delete desk/* ~/urbit/zod/groups/
+```
+
+And commit:
+
+```
+|commit %groups
+```
+
+Since %groups and %talk have already been released and are now in the pill. It is very unlikely that you would have to create those desks from scratch, but if you do you can follow these instructions or use Tlon's
 [Bouncer](https://github.com/tloncorp/bouncer) utility (requires Ruby 3+).
 
-0. Clone or pull latest versions of this repo and `urbit/urbit`.
-1. Boot a fake ship. Use local networking with `-F` like so:
+1. Clone or pull latest versions of this repo, `tloncorp/landscape` and `urbit/urbit`.
+2. Boot a fake ship. Use local networking with `-F` like so:
    `urbit -F zod`
-2. Mount or create the appropriate desks on local `~zod`:
-   1. `|mount %garden`
-   2. `|merge %groups our %base`
-   3. `|mount %groups`
-3. From the `urbit/urbit` repo:
-   1. `rsync -avL --delete pkg/garden/* ~/urbit/zod/garden/`
+3. Create and mount the appropriate desks on local `~zod`:
+   1. `|new-desk %landscape`
+   2. `|mount %landscape`
+   3. `|new-desk %groups`
+   4. `|mount %groups`
+4. From the `urbit/urbit` repo:
+   1. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
    2. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/groups/`
-   3. `rsync -avL pkg/garden-dev/* ~/urbit/zod/groups/`
-4. From this repo:
+5. From the `tloncorp/landscape` repo:
+   1. `rsync -avL desk/* ~/urbit/zod/landscape/`
+   2. `rsync -avL desk-dev/* ~/urbit/zod/groups/`
+6. From this repo:
    1. `rsync -avL desk/* ~/urbit/zod/groups/`
    2. `rsync -avL landscape-dev/* ~/urbit/zod/groups/`
-5. Commit and install garden on local `~zod`:
-   1. `|commit %garden`
-   2. `|install our %garden`
-6. Similarly commit and install Groups:
+7. Commit and install landscape on local `~zod`:
+   1. `|commit %landscape`
+   2. `|install our %landscape`
+8. Similarly commit and install Groups:
    1. `|commit %groups`
    2. `|install our %groups`
 
@@ -52,9 +73,9 @@ Groups and Talk are distributed via the Urbit network by way of a [glob](https:/
 1. Create or launch an urbit using the -F flag.
 2. On that urbit, if you don't already have a desk to run from, run `|merge %work our %base` to create a new desk and mount it with `|mount %work`.
 3. Now the `%work` desk is accessible through the host OS's filesystem as a directory of that urbit's pier ie `~/zod/work`.
-4. From the `ui` directory you can run `rsync -avL --delete dist/ ~/zod/work/groups` where `~/zod` is your fake urbit's pier.
+4. From the repo you can run `rsync -avL --delete ui/dist/ ~/zod/work/groups` and `rsync -avL desk/mar/webmanifest.hoon ~/zod/work/mar/webmanifest.hoon` where `~/zod` is your fake urbit's pier.
 5. Once completed, run `|commit %work` on your urbit and you should see your files logged back out from the dojo.
-6. Run `=dir /=garden` to switch to the garden desk directory.
+6. Run `=dir /=landscape` to switch to the landscape desk directory.
 7. Run `-make-glob %work /groups`. This will create a glob from the folder where you just added files. It will output to `~/zod/.urb/put`.
 8. Navigate to `~/zod/.urb/put` you should see a file that looks something like: `glob-0v5.fdf99.nph65.qecq3.ncpjn.q13mb.glob`. The characters between `glob-` and `.glob` are a hash of the glob's contents.
 9. Upload the glob to any publicly available HTTP endpoint that can serve files. This allows the application to be distributed over HTTP.
