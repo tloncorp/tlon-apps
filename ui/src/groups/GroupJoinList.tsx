@@ -58,7 +58,11 @@ export function GroupJoinItem({
             )}
             onClick={open}
           >
-            {status === 'error' ? 'Errored' : button.text}
+            {status === 'error'
+              ? 'Errored'
+              : highlight
+              ? 'Invited'
+              : button.text}
           </button>
         )
       }
@@ -88,7 +92,9 @@ export default function GroupJoinList({
   return (
     <>
       {gangEntries.map(([flag]) => (
-        <GroupJoinItem highlight={highlightAll} key={flag} flag={flag} />
+        <div className="mx-4">
+          <GroupJoinItem highlight={highlightAll} key={flag} flag={flag} />
+        </div>
       ))}
     </>
   );
