@@ -108,7 +108,8 @@ export default function DiaryAddNote() {
 
   useEffect(() => {
     if (editor && !loadingNote && note?.essay && editor.isEmpty && !loaded) {
-      editor.commands.setContent(diaryMixedToJSON(note?.essay?.content || []));
+      const content = diaryMixedToJSON(note?.essay?.content || []);
+      editor.commands.setContent(content);
       setLoaded(true);
     }
   }, [editor, loadingNote, note, loaded]);
