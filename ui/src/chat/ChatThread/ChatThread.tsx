@@ -14,6 +14,7 @@ import {
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
+import { isGroups } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
@@ -27,7 +28,7 @@ import {
   usePerms,
   useReply,
 } from '@/state/channel/channel';
-import { newReplyMap, ReplyTuple } from '@/types/channel';
+import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
@@ -86,7 +87,7 @@ export default function ChatThread() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
 
   const returnURL = useCallback(
     () =>

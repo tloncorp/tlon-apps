@@ -9,6 +9,7 @@ import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
 import { useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
+import { isGroups } from '@/logic/utils';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
@@ -53,10 +54,10 @@ function ChatChannel({ title }: ViewProps) {
   const replyingWrit = useReplyPost(nest, chatReplyId);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
+  const root = `/groups/${groupFlag}/channels/${nest}`;
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
-  const root = `/groups/${groupFlag}/channels/${nest}`;
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
 
   const {
     group,

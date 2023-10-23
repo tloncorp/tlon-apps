@@ -26,6 +26,7 @@ import DmInviteDialog from './DmInviteDialog';
 type DMOptionsProps = PropsWithChildren<{
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onLeave?: () => void;
   whom: string;
   pending: boolean;
   isHovered?: boolean;
@@ -38,6 +39,7 @@ type DMOptionsProps = PropsWithChildren<{
 export default function DmOptions({
   open = false,
   onOpenChange,
+  onLeave,
   whom,
   pending,
   isHovered = true,
@@ -77,7 +79,7 @@ export default function DmOptions({
 
   const [inviteIsOpen, setInviteIsOpen] = useState(false);
   const onArchive = () => {
-    navigate('/');
+    onLeave?.();
     useChatState.getState().archiveDm(whom);
   };
 
@@ -89,11 +91,11 @@ export default function DmOptions({
   const [dialog, setDialog] = useState(false);
 
   const leaveMessage = async () => {
-    navigate('/');
-    if (whomIsDm(whom)) {
-      await useChatState.getState().dmRsvp(whom, false);
-    } else if (whomIsMultiDm(whom)) {
+    onLeave?.();
+    if (whomIsMultiDm(whom)) {
       await useChatState.getState().multiDmRsvp(whom, false);
+    } else if (whomIsDm(whom)) {
+      await useChatState.getState().dmRsvp(whom, false);
     } else {
       leaveChat({ nest: whom });
     }

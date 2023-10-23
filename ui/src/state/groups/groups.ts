@@ -25,6 +25,7 @@ import {
   GroupJoin,
   PrivacyType,
   Vessel,
+  Gang,
 } from '@/types/groups';
 import api from '@/api';
 import { BaitCite } from '@/types/channel';
@@ -254,6 +255,11 @@ export function useGangs() {
     scry: `/gangs`,
     options: {
       refetchOnMount: false,
+      onSuccess: () => {
+        // TEMPORARY: right now for long group joins, the gang is initially removed but no fact about the corresponding created
+        // group is emitted until the join completes. This is a blunt hack to ensure our view of existing groups remains up to date
+        queryClient.invalidateQueries(['groups']);
+      },
     },
   });
 
@@ -391,6 +397,43 @@ export function usePendingGangsWithoutClaim() {
     });
 
   return pendingGangs;
+}
+
+export function useGangsWithClaim() {
+  const data = useGangs();
+  const withClaim = useMemo(
+    () => Object.entries(data).filter(([flag, group]) => !!group.claim),
+    [data]
+  );
+  return useMemo(() => withClaim.map(([flag, gang]) => flag), [withClaim]);
+}
+
+// this state occurs when the group has successfully joined on the
+// host, but has not yet received initial metadata & channel info
+export function groupIsInitializing(group: Group) {
+  return !group.meta || group.meta.title === '';
+}
+
+export function gangIsJoining(gang: Gang) {
+  return gang.claim && gang.claim.progress === 'adding';
+}
+
+export function useGroupJoinInProgress(flag: string) {
+  const group = useGroup(flag);
+  const gang = useGang(flag);
+
+  return (group && groupIsInitializing(group)) || (gang && gangIsJoining(gang));
+}
+
+export function useLoadingGroups() {
+  const groups = useGroups();
+  const gangs = useGangs();
+  return Object.entries(groups).filter(([flag, group]) => {
+    return (
+      (group && groupIsInitializing(group)) ||
+      (gangs[flag] && gangs[flag].preview && gangIsJoining(gangs[flag]))
+    );
+  });
 }
 
 export function useSects(flag: string) {

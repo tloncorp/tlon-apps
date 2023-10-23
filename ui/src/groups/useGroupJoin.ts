@@ -3,13 +3,14 @@ import { useLocation, useNavigate } from 'react-router';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
 import {
+  groupIsInitializing,
   useGroup,
   useGroupJoinMutation,
   useGroupKnockMutation,
   useGroupRejectMutation,
   useGroupRescindMutation,
 } from '@/state/groups';
-import { Gang, PrivacyType } from '@/types/groups';
+import { Gang, Group, PrivacyType } from '@/types/groups';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import { useSawRopeMutation } from '@/state/hark';
 
@@ -17,10 +18,10 @@ function getButtonText(
   privacy: PrivacyType,
   requested: boolean,
   invited: boolean,
-  group: boolean
+  group?: Group
 ) {
   switch (true) {
-    case group:
+    case group && !!group.meta?.title:
       return 'Go';
     case requested && !invited:
       return 'Requested';
@@ -61,7 +62,7 @@ export default function useGroupJoin(
   const { mutate: sawRopeMutation } = useSawRopeMutation();
 
   const open = useCallback(() => {
-    if (group) {
+    if (group && !groupIsInitializing(group)) {
       return navigateByApp(`/groups/${flag}`);
     }
 
@@ -179,7 +180,7 @@ export default function useGroupJoin(
     reject,
     button: {
       disabled: requested && !invited,
-      text: getButtonText(privacy, requested, !!invited, !!group),
+      text: getButtonText(privacy, requested, !!invited, group),
       action: group ? open : join,
     },
   };

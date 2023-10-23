@@ -18,6 +18,7 @@ import { useGroup, useGroupFlag } from '@/state/groups';
 import { useMultiDms } from '@/state/chat';
 import { preSig } from '@/logic/utils';
 import keyMap from '@/keyMap';
+import { PluginKey } from '@tiptap/pm/state';
 import Avatar from '../Avatar';
 import ShipName from '../ShipName';
 import useLeap from '../Leap/useLeap';
@@ -184,114 +185,117 @@ function scoreEntry(filter: string, entry: fuzzy.FilterResult<string>): number {
   return score;
 }
 
-const MentionPopup: Partial<SuggestionOptions> = {
-  char: '~',
-  items: ({ query }) => {
-    const { contacts } = useContactState.getState();
-    const sigged = preSig(query);
-    const valid = isValidPatp(sigged);
+export default function getMentionPopup(
+  triggerChar: string
+): Partial<SuggestionOptions> {
+  return {
+    char: triggerChar,
+    pluginKey: new PluginKey(`${triggerChar}-mention-popup`),
+    items: ({ query }) => {
+      const { contacts } = useContactState.getState();
+      const sigged = preSig(query);
+      const valid = isValidPatp(sigged);
 
-    const contactNames = Object.keys(contacts);
+      const contactNames = Object.keys(contacts);
 
-    // fuzzy search both nicknames and patps; fuzzy#filter only supports
-    // string comparision, so concat nickname + patp
-    const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
-      `${normalizeText(contact?.nickname || '')}${patp}`.toLocaleLowerCase()
-    );
+      // fuzzy search both nicknames and patps; fuzzy#filter only supports
+      // string comparision, so concat nickname + patp
+      const searchSpace = Object.entries(contacts).map(([patp, contact]) =>
+        `${normalizeText(contact?.nickname || '')}${patp}`.toLocaleLowerCase()
+      );
 
-    if (valid && !contactNames.includes(sigged)) {
-      contactNames.push(sigged);
-      searchSpace.push(sigged);
-    }
+      if (valid && !contactNames.includes(sigged)) {
+        contactNames.push(sigged);
+        searchSpace.push(sigged);
+      }
 
-    const normQuery = normalizeText(query).toLocaleLowerCase();
-    const fuzzyNames = fuzzy.filter(normQuery, searchSpace).sort((a, b) => {
-      const filter = deSig(query) || '';
-      const right = scoreEntry(filter, b);
-      const left = scoreEntry(filter, a);
-      return right - left;
-    });
+      const normQuery = normalizeText(query).toLocaleLowerCase();
+      const fuzzyNames = fuzzy.filter(normQuery, searchSpace).sort((a, b) => {
+        const filter = deSig(query) || '';
+        const right = scoreEntry(filter, b);
+        const left = scoreEntry(filter, a);
+        return right - left;
+      });
 
-    const items = fuzzyNames
-      .slice(0, 5)
-      .map((entry) => ({ id: contactNames[entry.index] }));
+      const items = fuzzyNames
+        .slice(0, 5)
+        .map((entry) => ({ id: contactNames[entry.index] }));
 
-    if (isNativeApp()) {
-      items.reverse();
-    }
+      if (isNativeApp()) {
+        items.reverse();
+      }
 
-    return items;
-  },
+      return items;
+    },
 
-  render: () => {
-    let component: ReactRenderer<
-      MentionListHandle,
-      SuggestionProps<{ id: string }>
-    >;
-    let popup: any;
-    return {
-      onStart: (props) => {
-        component = new ReactRenderer<
-          MentionListHandle,
-          SuggestionProps<{ id: string }>
-        >(MentionList, { props, editor: props.editor });
+    render: () => {
+      let component: ReactRenderer<
+        MentionListHandle,
+        SuggestionProps<{ id: string }>
+      >;
+      let popup: any;
+      return {
+        onStart: (props) => {
+          component = new ReactRenderer<
+            MentionListHandle,
+            SuggestionProps<{ id: string }>
+          >(MentionList, { props, editor: props.editor });
 
-        if (!props.clientRect) {
-          return;
-        }
+          if (!props.clientRect) {
+            return;
+          }
 
-        popup = tippy('body', {
-          getReferenceClientRect: props.clientRect as any,
-          appendTo: () => document.body,
-          content: component.element,
-          showOnCreate: true,
-          interactive: true,
-          trigger: 'manual',
-          placement: isNativeApp() ? 'top' : 'top-start',
-          onMount: ({ popperInstance }) => {
-            popperInstance?.setOptions({
-              placement: isNativeApp() ? 'top' : 'top-start',
-              modifiers: [{ name: 'flip', enabled: false }],
-            });
-          },
-          onAfterUpdate: ({ popperInstance }) => {
-            popperInstance?.setOptions({
-              placement: isNativeApp() ? 'top' : 'top-start',
-              modifiers: [{ name: 'flip', enabled: false }],
-            });
-          },
-        });
-      },
-      onUpdate: (props) => {
-        component.updateProps(props);
+          popup = tippy('body', {
+            getReferenceClientRect: props.clientRect as any,
+            appendTo: () => document.body,
+            content: component.element,
+            showOnCreate: true,
+            interactive: true,
+            trigger: 'manual',
+            placement: isNativeApp() ? 'top' : 'top-start',
+            onMount: ({ popperInstance }) => {
+              popperInstance?.setOptions({
+                placement: isNativeApp() ? 'top' : 'top-start',
+                modifiers: [{ name: 'flip', enabled: false }],
+              });
+            },
+            onAfterUpdate: ({ popperInstance }) => {
+              popperInstance?.setOptions({
+                placement: isNativeApp() ? 'top' : 'top-start',
+                modifiers: [{ name: 'flip', enabled: false }],
+              });
+            },
+          });
+        },
+        onUpdate: (props) => {
+          component.updateProps(props);
 
-        if (DISALLOWED_MENTION_CHARS.test(props.query)) {
+          if (DISALLOWED_MENTION_CHARS.test(props.query)) {
+            popup?.[0]?.destroy();
+            component?.destroy();
+            return;
+          }
+
+          if (!props.clientRect) {
+            return;
+          }
+
+          popup?.[0]?.setProps({
+            getBoundingClientRect: props.clientRect,
+          });
+        },
+        onKeyDown: (props) => {
+          if (props.event.key === keyMap.mentionPopup.close) {
+            popup?.[0]?.hide();
+            return true;
+          }
+          return component?.ref?.onKeyDown(props.event) || false;
+        },
+        onExit: () => {
           popup?.[0]?.destroy();
           component?.destroy();
-          return;
-        }
-
-        if (!props.clientRect) {
-          return;
-        }
-
-        popup?.[0]?.setProps({
-          getBoundingClientRect: props.clientRect,
-        });
-      },
-      onKeyDown: (props) => {
-        if (props.event.key === keyMap.mentionPopup.close) {
-          popup?.[0]?.hide();
-          return true;
-        }
-        return component?.ref?.onKeyDown(props.event) || false;
-      },
-      onExit: () => {
-        popup?.[0]?.destroy();
-        component?.destroy();
-      },
-    };
-  },
-};
-
-export default MentionPopup;
+        },
+      };
+    },
+  };
+}

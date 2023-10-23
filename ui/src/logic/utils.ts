@@ -51,6 +51,8 @@ export const isGroups = import.meta.env.VITE_APP === 'groups';
 export const isHosted =
   import.meta.env.DEV || window.location.hostname.endsWith('.tlon.network');
 
+export const dmListPath = isTalk ? '/' : '/messages';
+
 export function createDevLogger(tag: string, enabled: boolean) {
   return new Proxy(console, {
     get(target: Console, prop, receiver) {

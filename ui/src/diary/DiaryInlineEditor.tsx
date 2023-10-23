@@ -35,7 +35,7 @@ import ListItem from '@tiptap/extension-list-item';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Heading from '@tiptap/extension-heading';
 import Mention from '@tiptap/extension-mention';
-import MentionPopup from '@/components/Mention/MentionPopup';
+import getMentionPopup from '@/components/Mention/MentionPopup';
 import AddIcon16 from '@/components/icons/Add16Icon';
 import IconButton from '@/components/IconButton';
 import ActionMenu, {
@@ -99,7 +99,15 @@ export function useDiaryInlineEditor({
           HTMLAttributes: {
             class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
           },
-          suggestion: MentionPopup,
+          renderLabel: (props) => `~${props.node.attrs.id}`,
+          suggestion: getMentionPopup('~'),
+        }),
+        Mention.extend({ priority: 1000 }).configure({
+          HTMLAttributes: {
+            class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
+          },
+          renderLabel: (props) => `~${props.node.attrs.id}`,
+          suggestion: getMentionPopup('@'),
         }),
         OrderedList,
         Paragraph,
