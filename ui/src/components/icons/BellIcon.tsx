@@ -11,7 +11,7 @@ export default function BellIcon({
     return (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        className={cn(className, 'pb-1')}
+        className={className}
         viewBox="0 0 21 22"
         fill="none"
       >
@@ -35,7 +35,7 @@ export default function BellIcon({
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      className={cn(className, 'pb-1')}
+      className={className}
       viewBox="0 0 21 22"
       fill="none"
     >
