@@ -29,6 +29,18 @@ function imageSize(url: string) {
   return size;
 }
 
+function isImageFile(file: File) {
+  const acceptedImageTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/tiff',
+    'image/bmp',
+  ];
+  return acceptedImageTypes.includes(file.type);
+}
+
 export const useFileStore = create<FileStore>((set, get) => ({
   client: null,
   uploaders: {},
@@ -100,10 +112,12 @@ export const useFileStore = create<FileStore>((set, get) => ({
     };
 
     // if compression fails for some reason, we'll just use the original file.
-    let compressedFile: File | Blob = file;
+    let compressedFile: File = file;
 
     try {
-      compressedFile = await imageCompression(file, compressionOptions);
+      if (isImageFile(file)) {
+        compressedFile = await imageCompression(file, compressionOptions);
+      }
     } catch (error) {
       console.log({ error });
     }
