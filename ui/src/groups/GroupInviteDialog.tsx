@@ -18,6 +18,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import HostConnection from '@/channels/HostConnection';
 import { useConnectivityCheck } from '@/state/vitals';
+import WidgetDrawer from '@/components/WidgetDrawer';
 import LureInviteBlock from './LureInviteBlock';
 
 export function GroupInviteBlock() {
@@ -160,16 +161,18 @@ export default function GroupInviteDialog() {
   }
 
   return isMobile ? (
-    <Sheet open={true} onOpenChange={(o) => !o && dismiss()}>
-      <SheetContent className="flex flex-col overflow-y-auto" showClose={false}>
-        {renderContent()}
-      </SheetContent>
-    </Sheet>
+    <WidgetDrawer
+      open={true}
+      onOpenChange={(o) => !o && dismiss()}
+      className="h-[70vh] px-10 py-6"
+    >
+      {renderContent()}
+    </WidgetDrawer>
   ) : (
     <Dialog
       open={true}
       onOpenChange={(isOpen) => !isOpen && dismiss()}
-      containerClass="w-full max-w-xl card"
+      containerClass="w-[400px] max-w-xl card"
       className="bg-transparent p-0"
       close="none"
     >
