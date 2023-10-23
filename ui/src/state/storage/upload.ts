@@ -5,6 +5,7 @@ import { formatDa, unixToDa, deSig } from '@urbit/aura';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getImageSize } from 'react-image-size';
+import imageCompression from 'browser-image-compression';
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/api';
 import { Status } from '@/logic/status';
@@ -26,6 +27,18 @@ function imageSize(url: string) {
     height,
   ]);
   return size;
+}
+
+function isImageFile(file: File) {
+  const acceptedImageTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/tiff',
+    'image/bmp',
+  ];
+  return acceptedImageTypes.includes(file.type);
 }
 
 export const useFileStore = create<FileStore>((set, get) => ({
@@ -92,6 +105,22 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const { key, file } = upload;
     updateStatus(uploader, key, 'loading');
 
+    const compressionOptions = {
+      maxSizeMB: 1,
+      useWebWorker: true,
+    };
+
+    // if compression fails for some reason, we'll just use the original file.
+    let compressedFile: File = file;
+
+    try {
+      if (isImageFile(file)) {
+        compressedFile = await imageCompression(file, compressionOptions);
+      }
+    } catch (error) {
+      console.log({ error });
+    }
+
     // Logic for uploading with Tlon Hosting storage.
     if (config.service === 'presigned-url' && config.presignedUrl) {
       // The first step is to send the PUT request to the proxy, which will
@@ -101,9 +130,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const requestOptions = {
         method: 'PUT',
         headers: {
-          'Content-Type': file.type,
+          'Content-Type': compressedFile.type,
         },
-        body: file,
+        body: compressedFile,
       };
       const { presignedUrl } = config;
       const url = `${presignedUrl}/${key}`;
@@ -148,9 +177,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const command = new PutObjectCommand({
         Bucket: config.currentBucket,
         Key: key,
-        Body: file,
-        ContentType: file.type,
-        ContentLength: file.size,
+        Body: compressedFile,
+        ContentType: compressedFile.type,
+        ContentLength: compressedFile.size,
         ACL: 'public-read',
       });
 

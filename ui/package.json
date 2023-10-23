@@ -111,6 +111,7 @@
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.51",
     "browser-cookies": "^1.2.0",
+    "browser-image-compression": "^2.0.2",
     "classnames": "^2.3.1",
     "clipboard-copy": "^4.0.1",
     "color2k": "^2.0.0",
