@@ -12,8 +12,6 @@ import GroupReference from './GroupReference';
 import NoteReference from './NoteReference';
 // eslint-disable-next-line import/no-cycle
 import AppReference from './AppReference';
-// eslint-disable-next-line import/no-cycle
-import BaitReference from './BaitReference';
 
 function ContentReference({
   cite,
@@ -45,20 +43,6 @@ function ContentReference({
     const { flag } = cite.desk;
     return flag ? <AppReference flag={flag} isScrolling={isScrolling} /> : null;
   }
-
-  // We no longer support references for graph content (and we never truly did? :()
-
-  // if ('bait' in cite) {
-  // return (
-  // <BaitReference
-  // bait={cite.bait}
-  // contextApp={contextApp}
-  // isScrolling={isScrolling}
-  // >
-  // {children}
-  // </BaitReference>
-  // );
-  // }
 
   if ('chan' in cite) {
     const { nest, where } = cite.chan;
