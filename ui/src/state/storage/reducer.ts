@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign */
 import _ from 'lodash';
+import { hostingUploadURL } from '@/logic/utils';
 import { StorageUpdate, BaseStorageState } from './type';
 import { BaseState } from '../base';
 
@@ -28,7 +29,7 @@ const configuration = (
       region: data.region,
       // if landscape is not up to date we need to default these so the
       // client init logic still works
-      presignedUrl: data.presignedUrl || '',
+      presignedUrl: data.presignedUrl || hostingUploadURL,
       service: data.service || 'credentials',
     };
   }

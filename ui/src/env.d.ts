@@ -7,6 +7,7 @@ interface ImportMetaEnv
   readonly VITE_POSTHOG_KEY: string;
   readonly VITE_BRANCH_KEY: string;
   readonly VITE_BRANCH_DOMAIN: string;
+  readonly VITE_SHIP_URL: string;
 }
 
 interface ImportMeta {
