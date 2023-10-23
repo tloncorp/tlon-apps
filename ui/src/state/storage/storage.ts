@@ -30,7 +30,9 @@ export const useStorage = createState<BaseStorageState>(
       credentials: null,
     },
   }),
-  {},
+  {
+    partialize: () => ({}),
+  },
   [
     (set, get) =>
       createSubscription('storage', '/all', (e) => {
