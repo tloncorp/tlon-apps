@@ -22,13 +22,14 @@ import { useIsMobile } from '@/logic/useMedia';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
-import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import Setting from '@/components/Settings/Setting';
 import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
 import MobileHeader from '@/components/MobileHeader';
 import getKindDataFromEssay from '@/logic/getKindData';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
+import { isFirstDayOfMonth } from 'date-fns';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
@@ -51,11 +52,16 @@ export default function DiaryAddNote() {
     fetchStatus,
   } = usePost(nest, id || '0', !id);
   const { title, image } = getKindDataFromEssay(note.essay);
-  const { mutateAsync: editNote, status: editStatus } = useEditPostMutation();
+  const {
+    mutateAsync: editNote,
+    status: editStatus,
+    reset: resetEdit,
+  } = useEditPostMutation();
   const {
     data: returnTime,
     mutateAsync: addNote,
     status: addStatus,
+    reset: resetAdd,
   } = useAddPostMutation(nest);
   const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
     usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
@@ -86,6 +92,15 @@ export default function DiaryAddNote() {
     content: '',
     placeholder: '',
     onEnter: () => false,
+    onUpdate: useCallback(() => {
+      if (addStatus === 'error') {
+        resetAdd();
+      }
+
+      if (editStatus === 'error') {
+        resetEdit();
+      }
+    }, [addStatus, editStatus, resetAdd, resetEdit]),
   });
 
   const setEditorContent = useCallback(
@@ -100,9 +115,8 @@ export default function DiaryAddNote() {
 
   useEffect(() => {
     if (editor && !loadingNote && note?.essay && editor.isEmpty && !loaded) {
-      setValue('title', title || '');
-      setValue('image', image || '');
-      editor.commands.setContent(diaryMixedToJSON(note?.essay?.content || []));
+      const content = diaryMixedToJSON(note?.essay?.content || []);
+      editor.commands.setContent(content);
       setLoaded(true);
     }
   }, [editor, loadingNote, note, loaded, image, setValue, title]);
@@ -158,10 +172,7 @@ export default function DiaryAddNote() {
           privacy,
         });
       }
-
-      reset();
     } catch (error) {
-      navigate(`/groups/${flag}/channels/diary/${chFlag}`);
       console.error(error);
     }
   }, [
@@ -172,10 +183,8 @@ export default function DiaryAddNote() {
     getValues,
     id,
     note,
-    reset,
     addNote,
     editNote,
-    navigate,
     watchedTitle,
   ]);
 
@@ -186,6 +195,9 @@ export default function DiaryAddNote() {
       navigate(`/groups/${flag}/channels/diary/${chFlag}?new=${returnTime}`);
     }
   }, [addStatus, chFlag, editStatus, flag, navigate, returnTime]);
+
+  const isLoading = addStatus === 'loading' || editStatus === 'loading';
+  const isError = addStatus === 'error' || editStatus === 'error';
 
   return (
     <Layout
@@ -208,8 +220,7 @@ export default function DiaryAddNote() {
                     disabled={
                       !compatible ||
                       !editor?.getText() ||
-                      editStatus === 'loading' ||
-                      addStatus === 'loading' ||
+                      isLoading ||
                       watchedTitle === ''
                     }
                     className={cn(
@@ -217,9 +228,9 @@ export default function DiaryAddNote() {
                     )}
                     onClick={publish}
                   >
-                    {editStatus === 'loading' || addStatus === 'loading' ? (
+                    {isLoading ? (
                       <LoadingSpinner className="h-4 w-4" />
-                    ) : editStatus === 'error' || addStatus === 'error' ? (
+                    ) : isError ? (
                       'Error'
                     ) : (
                       'Save'
@@ -256,23 +267,29 @@ export default function DiaryAddNote() {
             </Link>
 
             <div className="flex shrink-0 flex-row items-center space-x-3">
-              <Tooltip content={text} open={compatible ? false : undefined}>
+              <Tooltip
+                content={isError ? 'Your note was unable to be saved' : text}
+                open={compatible ? (isError ? undefined : false) : undefined}
+              >
                 <button
                   disabled={
                     !compatible ||
                     !editor?.getText() ||
-                    editStatus === 'loading' ||
-                    addStatus === 'loading' ||
+                    isLoading ||
                     watchedTitle === ''
                   }
                   className={cn(
-                    'small-button bg-blue text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400'
+                    'small-button min-w-16 text-white disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:text-gray-400',
+                    {
+                      'bg-blue': !isError,
+                      'bg-red': isError,
+                    }
                   )}
                   onClick={publish}
                 >
-                  {editStatus === 'loading' || addStatus === 'loading' ? (
+                  {isLoading ? (
                     <LoadingSpinner className="h-4 w-4" />
-                  ) : editStatus === 'error' || addStatus === 'error' ? (
+                  ) : isError ? (
                     'Error'
                   ) : (
                     'Save'

@@ -56,6 +56,7 @@ import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 
 async function updatePostInCache(
   variables: { nest: Nest; postId: string },
@@ -1314,39 +1315,42 @@ export function useAddPostMutation(nest: string) {
     cacheId: CacheId;
     essay: PostEssay;
   }) =>
-    new Promise<string>((resolve) => {
-      try {
-        api
-          .trackedPoke<ChannelsAction, ChannelsResponse>(
-            channelPostAction(nest, {
-              add: variables.essay,
-            }),
-            { app: 'channels', path: `/${nest}` },
-            ({ response }) => {
-              if ('post' in response) {
-                const { id, 'r-post': postResponse } = response.post;
-                if (
-                  'set' in postResponse &&
-                  postResponse.set !== null &&
-                  postResponse.set.essay.author === variables.essay.author &&
-                  postResponse.set.essay.sent === variables.essay.sent
-                ) {
-                  timePosted = id;
+    asyncCallWithTimeout(
+      new Promise<string>((resolve) => {
+        try {
+          api
+            .trackedPoke<ChannelsAction, ChannelsResponse>(
+              channelPostAction(nest, {
+                add: variables.essay,
+              }),
+              { app: 'channels', path: `/${nest}` },
+              ({ response }) => {
+                if ('post' in response) {
+                  const { id, 'r-post': postResponse } = response.post;
+                  if (
+                    'set' in postResponse &&
+                    postResponse.set !== null &&
+                    postResponse.set.essay.author === variables.essay.author &&
+                    postResponse.set.essay.sent === variables.essay.sent
+                  ) {
+                    timePosted = id;
+                    return true;
+                  }
                   return true;
                 }
-                return true;
-              }
 
-              return false;
-            }
-          )
-          .then(() => {
-            resolve(timePosted);
-          });
-      } catch (e) {
-        console.error(e);
-      }
-    });
+                return false;
+              }
+            )
+            .then(() => {
+              resolve(timePosted);
+            });
+        } catch (e) {
+          console.error(e);
+        }
+      }),
+      15000
+    );
 
   return useMutation({
     mutationFn,
@@ -1397,6 +1401,16 @@ export function useAddPostMutation(nest: string) {
       usePostsStore.getState().updateStatus(variables.cacheId, 'sent');
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
+    onError: async (_error, variables, context) => {
+      usePostsStore.setState((state) => ({
+        ...state,
+        trackedPosts: state.trackedPosts.filter(
+          (p) => p.cacheId !== variables.cacheId
+        ),
+      }));
+
+      queryClient.setQueryData(queryKey(variables.cacheId), undefined);
+    },
     onSettled: async (_data, _error) => {
       await queryClient.invalidateQueries({
         queryKey: queryKey('infinite'),
@@ -1414,13 +1428,16 @@ export function useEditPostMutation() {
   }) => {
     checkNest(variables.nest);
 
-    await api.poke(
-      channelPostAction(variables.nest, {
-        edit: {
-          id: decToUd(variables.time),
-          essay: variables.essay,
-        },
-      })
+    asyncCallWithTimeout(
+      api.poke(
+        channelPostAction(variables.nest, {
+          edit: {
+            id: decToUd(variables.time),
+            essay: variables.essay,
+          },
+        })
+      ),
+      15000
     );
   };
 

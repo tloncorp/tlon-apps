@@ -23,8 +23,7 @@ export default function NewChannelForm() {
   const groupFlag = useRouteGroup();
   const { compatible, text } = useGroupCompatibility(groupFlag);
   const channels = useChannels();
-  const { mutate: mutateAddChannel, status: addChannelStatus } =
-    useAddChannelMutation();
+  const { mutate: mutateAddChannel } = useAddChannelMutation();
   const { mutateAsync: createChannel } = useCreateMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
@@ -176,16 +175,12 @@ export default function NewChannelForm() {
                   !compatible ||
                   !form.formState.isValid ||
                   !form.formState.isDirty ||
-                  addChannelStatus === 'loading' ||
-                  addChannelStatus === 'success' ||
-                  addChannelStatus === 'error'
+                  form.formState.isSubmitting
                 }
               >
-                {addChannelStatus === 'loading' ? (
+                {form.formState.isSubmitting ? (
                   <LoadingSpinner className="h-4 w-4" />
-                ) : addChannelStatus === 'error' ? (
-                  'Error'
-                ) : addChannelStatus === 'success' ? (
+                ) : form.formState.isSubmitted ? (
                   'Saved'
                 ) : (
                   'Add Channel'

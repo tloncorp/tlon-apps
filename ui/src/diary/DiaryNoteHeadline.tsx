@@ -75,6 +75,7 @@ export default function DiaryNoteHeadline({
           >
             <DiaryNoteOptionsDropdown
               time={time.toString()}
+              sent={essay.sent}
               author={essay.author}
               flag={chFlag || ''}
               canEdit={isAdmin || window.our === essay.author}
@@ -143,6 +144,7 @@ export default function DiaryNoteHeadline({
                 <DiaryNoteOptionsDropdown
                   time={time.toString()}
                   author={essay.author}
+                  sent={essay.sent}
                   flag={chFlag || ''}
                   canEdit={isAdmin || window.our === essay.author}
                 >

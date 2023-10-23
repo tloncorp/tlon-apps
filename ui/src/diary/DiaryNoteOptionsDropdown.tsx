@@ -2,7 +2,11 @@ import React, { PropsWithChildren, useState } from 'react';
 import classNames from 'classnames';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import { useArrangedPosts, usePostToggler } from '@/state/channel/channel';
+import {
+  useArrangedPosts,
+  usePostToggler,
+  useIsPostPending,
+} from '@/state/channel/channel';
 import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -10,6 +14,7 @@ import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
   time: string;
+  sent: number;
   flag: string;
   canEdit: boolean;
   author: string;
@@ -20,6 +25,7 @@ export default function DiaryNoteOptionsDropdown({
   children,
   flag,
   time,
+  sent,
   author,
   triggerClassName,
   canEdit,
@@ -29,6 +35,10 @@ export default function DiaryNoteOptionsDropdown({
   const arrangedNotes = useArrangedPosts(nest);
   const { ship } = getFlagParts(flag);
   const { compatible } = useChannelCompatibility(nest);
+  const isPending = useIsPostPending({
+    author,
+    sent,
+  });
   const {
     isOpen,
     didCopy,
@@ -54,7 +64,7 @@ export default function DiaryNoteOptionsDropdown({
     },
   ];
 
-  if ((canEdit && ship === window.our) || (canEdit && compatible)) {
+  if (!isPending && canEdit && (ship === window.our || compatible)) {
     if (arrangedNotes.includes(time)) {
       actions.push(
         {

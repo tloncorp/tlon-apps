@@ -10,6 +10,7 @@ import {
   isShip,
   isStrikethrough,
   Link,
+  Task,
 } from '@/types/content';
 import { reduce, isEqual } from 'lodash';
 import { JSONContent } from '@tiptap/react';
@@ -599,6 +600,18 @@ export const inlineToContent = (
     };
   }
 
+  if ('task' in inline) {
+    return {
+      type: 'taskItem',
+      attrs: {
+        checked: inline.task.checked,
+      },
+      content: wrapParagraphs(
+        inline.task.content.map((i) => inlineToContent(i))
+      ),
+    };
+  }
+
   if ('break' in inline) {
     return makeParagraph();
   }
@@ -632,16 +645,43 @@ export const inlineToContent = (
   return makeParagraph();
 };
 
+export function makeTask(inline: Task): JSONContent {
+  return {
+    type: 'taskItem',
+    attrs: {
+      checked: inline.task.checked,
+    },
+    content: wrapParagraphs(inline.task.content.map((i) => inlineToContent(i))),
+  };
+}
+
 export function makeListing(listing: Listing): JSONContent {
   if ('list' in listing) {
     const { list } = listing;
 
     const returnList = {
-      type: list.type === 'ordered' ? 'orderedList' : 'bulletList',
+      type:
+        list.type === 'ordered'
+          ? 'orderedList'
+          : list.type === 'unordered'
+          ? 'bulletList'
+          : 'taskList',
       content: list.items.map((item) => makeListing(item)),
     };
 
     if (list.contents.length > 0) {
+      const task = list.contents.find(
+        (i) => typeof i === 'object' && 'task' in i
+      ) as Task | undefined;
+      if (task) {
+        const item = makeTask(task);
+
+        return {
+          ...item,
+          content: [...(item.content || []), returnList],
+        };
+      }
+
       return {
         type: 'listItem',
         content: [
@@ -652,10 +692,16 @@ export function makeListing(listing: Listing): JSONContent {
     }
     return returnList;
   }
-  return {
-    type: 'listItem',
-    content: wrapParagraphs(listing.item.map((i) => inlineToContent(i))),
-  };
+
+  const task = listing.item.find(
+    (i) => typeof i === 'object' && 'task' in i
+  ) as Task | undefined;
+  return task
+    ? makeTask(task)
+    : {
+        type: 'listItem',
+        content: wrapParagraphs(listing.item.map((i) => inlineToContent(i))),
+      };
 }
 
 export const blockToContent = (content: Block): JSONContent => {
