@@ -19,9 +19,18 @@ import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import HostConnection from '@/channels/HostConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import WidgetDrawer from '@/components/WidgetDrawer';
+import { motion } from 'framer-motion';
 import LureInviteBlock from './LureInviteBlock';
 
-export function GroupInviteBlock() {
+export function GroupInviteBlock({
+  onFocusChange,
+  menuPlacement,
+  maxMenuHeight,
+}: {
+  onFocusChange?: (b: boolean) => void;
+  menuPlacement?: 'top' | 'bottom';
+  maxMenuHeight?: number;
+}) {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const host = getFlagParts(flag).ship;
@@ -100,6 +109,9 @@ export function GroupInviteBlock() {
           onEnter={onInvite}
           placeholder="Search for Urbit ID"
           autoFocus={false}
+          onFocusChange={onFocusChange}
+          menuPlacement={menuPlacement}
+          maxMenuHeight={maxMenuHeight}
         />
       </div>
       <div className="flex items-center justify-end space-x-2">
@@ -138,13 +150,51 @@ export function GroupInviteBlock() {
 }
 
 export default function GroupInviteDialog() {
+  const [inputFocused, setInputFocused] = useState(false);
   const dismiss = useDismissNavigate();
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const isMobile = useIsMobile();
 
-  function renderContent() {
-    return (
+  return isMobile ? (
+    <WidgetDrawer
+      open={true}
+      onOpenChange={(o) => !o && dismiss()}
+      className="!h-[70vh] px-10 py-6"
+    >
+      <div className="space-y-6">
+        {group ? (
+          <>
+            {!inputFocused && (
+              <>
+                <div>
+                  <h2 className="text-xl">Share Group</h2>
+                  <h3 className="text-[17px] text-gray-500">
+                    {group.meta.title}
+                  </h3>
+                </div>
+                <LureInviteBlock flag={flag} group={group} />
+              </>
+            )}
+            <motion.div layout transition={{ duration: 0.1 }}>
+              <GroupInviteBlock
+                onFocusChange={setInputFocused}
+                menuPlacement="bottom"
+                maxMenuHeight={200}
+              />
+            </motion.div>
+          </>
+        ) : null}
+      </div>
+    </WidgetDrawer>
+  ) : (
+    <Dialog
+      open={true}
+      onOpenChange={(isOpen) => !isOpen && dismiss()}
+      containerClass="w-[400px] max-w-xl card"
+      className="bg-transparent p-0"
+      close="none"
+    >
       <div className="space-y-6">
         {group ? (
           <>
@@ -157,26 +207,6 @@ export default function GroupInviteDialog() {
           </>
         ) : null}
       </div>
-    );
-  }
-
-  return isMobile ? (
-    <WidgetDrawer
-      open={true}
-      onOpenChange={(o) => !o && dismiss()}
-      className="h-[70vh] px-10 py-6"
-    >
-      {renderContent()}
-    </WidgetDrawer>
-  ) : (
-    <Dialog
-      open={true}
-      onOpenChange={(isOpen) => !isOpen && dismiss()}
-      containerClass="w-[400px] max-w-xl card"
-      className="bg-transparent p-0"
-      close="none"
-    >
-      {renderContent()}
     </Dialog>
   );
 }
