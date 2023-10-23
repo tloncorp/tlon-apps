@@ -204,7 +204,7 @@ export default function MobileSidebar() {
               >
                 <div className="flex-1" />
                 <div className="flex h-8 w-8 items-center justify-center">
-                  <div className="flex h-[20px] w-[20px] items-center justify-center rounded-[3px] bg-yellow">
+                  <div className="flex h-[20px] w-[20px] items-center justify-center rounded-sm bg-yellow">
                     <Asterisk16Icon className="h-4 w-4 text-black dark:text-white" />
                   </div>
                 </div>
@@ -218,8 +218,9 @@ export default function MobileSidebar() {
                 <div className="flex-1" />
                 <div className="flex h-8 w-8 items-center justify-center">
                   <Avatar
-                    className="h-[20px] w-[20px] rounded-[3px]"
+                    className="h-[20px] w-[20px] rounded-sm"
                     ship={window.our}
+                    size="xs"
                   />
                 </div>
                 <div className="flex-1" />
