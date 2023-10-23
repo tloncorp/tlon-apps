@@ -51,6 +51,9 @@ interface ShipSelectorProps {
   placeholder?: string;
   isValidNewOption?: (value: string) => boolean;
   autoFocus?: boolean;
+  onFocusChange?: (f: boolean) => void;
+  menuPlacement?: 'top' | 'bottom';
+  maxMenuHeight?: number;
   containerClassName?: string;
 }
 
@@ -276,6 +279,9 @@ export default function ShipSelector({
   placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
   autoFocus = true,
+  onFocusChange,
+  menuPlacement,
+  maxMenuHeight,
   containerClassName,
 }: ShipSelectorProps) {
   const selectRef = useRef<Select<
@@ -355,6 +361,18 @@ export default function ShipSelector({
     () => filteredOptions.slice(0, MAX_DISPLAYED_OPTIONS),
     [filteredOptions]
   );
+
+  const onBlur = () => {
+    if (onFocusChange) {
+      onFocusChange(false);
+    }
+  };
+
+  const onFocus = () => {
+    if (onFocusChange) {
+      onFocusChange(true);
+    }
+  };
 
   const onKeyDown = async (event: React.KeyboardEvent<HTMLDivElement>) => {
     const isInputting = !!(
@@ -453,12 +471,16 @@ export default function ShipSelector({
   if (!isMulti) {
     return (
       <CreatableSelect
-        menuPlacement="auto"
+        menuPlacement={menuPlacement || 'auto'}
+        maxMenuHeight={maxMenuHeight}
         handleEnter={handleEnter}
         ref={selectRef}
         formatCreateLabel={AddNewOption}
         autoFocus={autoFocus}
         className={containerClassName}
+        blurInputOnSelect={!onFocusChange}
+        onBlur={onBlur}
+        onFocus={onFocus}
         styles={{
           control: (base) => ({}),
           menu: ({ width, borderRadius, ...base }) => ({
@@ -545,10 +567,14 @@ export default function ShipSelector({
   return (
     <CreatableSelect
       ref={selectRef}
-      menuPlacement="auto"
+      menuPlacement={menuPlacement || 'auto'}
+      maxMenuHeight={maxMenuHeight}
       formatCreateLabel={AddNewOption}
       autoFocus={autoFocus}
       isMulti
+      blurInputOnSelect={!onFocusChange}
+      onBlur={onBlur}
+      onFocus={onFocus}
       className={containerClassName}
       styles={{
         control: (base) => ({}),
