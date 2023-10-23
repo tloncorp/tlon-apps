@@ -26,8 +26,10 @@ const configuration = (
       buckets: new Set(data.buckets),
       currentBucket: data.currentBucket,
       region: data.region,
-      presignedUrl: data.presignedUrl,
-      service: data.service,
+      // if landscape is not up to date we need to default these so the
+      // client init logic still works
+      presignedUrl: data.presignedUrl || '',
+      service: data.service || 'credentials',
     };
   }
   return state;
