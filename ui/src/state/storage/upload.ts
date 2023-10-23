@@ -107,7 +107,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
     const compressionOptions = {
       maxSizeMB: 1,
-      maxWidthOrHeight: 1920,
       useWebWorker: true,
     };
 
