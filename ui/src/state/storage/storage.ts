@@ -19,12 +19,13 @@ export const useStorage = createState<BaseStorageState>(
   'Storage',
   () => ({
     loaded: false,
-    hasCredentials: false,
     s3: {
       configuration: {
         buckets: new Set(),
         currentBucket: '',
         region: '',
+        presignedUrl: '',
+        service: 'credentials',
       },
       credentials: null,
     },
