@@ -18,16 +18,19 @@ export const getDeepLink = async (alias: string) => {
   return url;
 };
 
+export type DeeepLinkType = 'lure' | 'wer';
+
 export const createDeepLink = async (
-  canonicalUrl: string | undefined,
-  lure: string
+  fallbackUrl: string | undefined,
+  type: DeeepLinkType,
+  path: string
 ) => {
-  if (!canonicalUrl) {
+  if (!fallbackUrl) {
     return undefined;
   }
 
-  const alias = lure.replace('~', '').replace('/', '-');
-  let url = await getDeepLink(alias).catch(() => canonicalUrl);
+  const alias = path.replace('~', '').replace('/', '-');
+  let url = await getDeepLink(alias).catch(() => fallbackUrl);
   if (!url) {
     const response = await fetchBranchApi('/v1/url', {
       method: 'POST',
@@ -35,15 +38,15 @@ export const createDeepLink = async (
         branch_key: import.meta.env.VITE_BRANCH_KEY,
         alias,
         data: {
-          $desktop_url: canonicalUrl,
-          $canonical_url: canonicalUrl,
-          lure,
+          $desktop_url: fallbackUrl,
+          $canonical_url: fallbackUrl,
+          [type]: path,
         },
       }),
     });
 
     if (!response.ok) {
-      return canonicalUrl;
+      return fallbackUrl;
     }
 
     ({ url } = (await response.json()) as { url: string });
