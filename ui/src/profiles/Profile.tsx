@@ -33,11 +33,9 @@ export default function Profile({ title }: ViewProps) {
 
   useEffect(() => {
     async function getLink() {
-      const dmPath = `dm/${window.our}`;
-      const canonicalUrl = `https://${
-        import.meta.env.VITE_BRANCH_DOMAIN
-      }/${dmPath}`;
-      const link = await createDeepLink(canonicalUrl, dmPath);
+      const dmPath = `dm/${'~bolden-latter'}`;
+      const fallbackUrl = `https://tlon.network/lure/~loshut-lonreg/tlon`; // for now, send to generic signup page on desktop
+      const link = await createDeepLink(fallbackUrl, 'wer', dmPath);
       setDmLink(link || '');
     }
     getLink();
