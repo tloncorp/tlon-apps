@@ -33,7 +33,7 @@ export default function Profile({ title }: ViewProps) {
 
   useEffect(() => {
     async function getLink() {
-      const dmPath = `dm/${'~bolden-latter'}`;
+      const dmPath = `dm/${window.our}`;
       const fallbackUrl = `https://tlon.network/lure/~loshut-lonreg/tlon`; // for now, send to generic signup page on desktop
       const link = await createDeepLink(fallbackUrl, 'wer', dmPath);
       setDmLink(link || '');
