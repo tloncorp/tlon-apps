@@ -83,7 +83,9 @@
     =/  group=cord  i.t.t.path
     ?:  (~(has in outstanding-pokes) [target group])  `this
     :_  this(outstanding-pokes (~(put in outstanding-pokes) [target group]))
-    ~[[%pass path %agent [target %grouper] %poke %grouper-ask-enabled !>(group)]]
+    :~  [%pass path %agent [target %grouper] %poke %grouper-ask-enabled !>(group)]
+        [%pass /expire/(scot %p our.bowl)/[group] %arvo %b [%wait (add ~h1 now.bowl)]]
+    ==
       [%check-link @ @ ~]
     :_  this
     ~[[%pass path %agent [our.bowl %grouper] %poke %grouper-check-link !>(path)]]
@@ -142,6 +144,7 @@
   `this
 ::
 ++  on-save  !>(state)
+::
 ++  on-load
   |=  old-state=vase
   ^-  (quip card _this)
@@ -154,7 +157,22 @@
       %0
     `this(state *state-1)
   ==
-++  on-arvo   on-arvo:def
+::
+++  on-arvo
+  |=  [=wire =sign-arvo]
+  ^-  (quip card _this)
+  ?+  wire  (on-arvo:def wire sign-arvo)
+      [%expire @ @ ~]
+    ?+  sign-arvo  (on-arvo:def wire sign-arvo)
+        [%behn %wake *]
+      =/  target  (slav %p i.t.wire)
+      =/  group   i.t.t.wire
+      ?~  error.sign-arvo
+        `this(outstanding-pokes (~(del in outstanding-pokes) [target group]))
+      (on-arvo:def wire sign-arvo)
+    ==
+  ==
+::
 ++  on-peek
   |=  =path
   ^-  (unit (unit cage))
@@ -162,5 +180,4 @@
       [%x %enabled @ ~]
     ``json+!>([%b (~(has in enabled-groups) i.t.t.path)])
   ==
-::
 --
