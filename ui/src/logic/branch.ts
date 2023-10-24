@@ -38,9 +38,6 @@ export const createDeepLink = async (
     return undefined;
   }
 
-  console.log(fallbackUrl);
-  console.log(path);
-
   if (type === 'lure' && !whomIsFlag(path)) {
     return undefined;
   }
