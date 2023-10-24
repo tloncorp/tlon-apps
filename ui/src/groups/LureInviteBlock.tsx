@@ -5,6 +5,7 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import { Group } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import QRWidget from '@/components/QRWidget';
+import { useEffect } from 'react';
 
 interface LureInviteBlock {
   flag: string;
@@ -26,9 +27,11 @@ export default function LureInviteBlock({
 }: LureInviteBlock) {
   const { status, shareUrl, toggle } = useLureLinkStatus(flag);
 
-  console.log(`Invite block:`);
-  console.log(`status: ${status}`);
-  console.log(`shareUrl: ${shareUrl}`);
+  useEffect(() => {
+    console.log(`Invite block for ${flag}`);
+    console.log(`status: ${status}`);
+    console.log(`shareUrl: ${shareUrl}`);
+  }, [flag, status, shareUrl]);
 
   if (status === 'unsupported') {
     return null;
