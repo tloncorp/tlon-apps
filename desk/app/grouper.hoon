@@ -10,14 +10,16 @@
   [%pass /bite-wire %agent [our.bowl %reel] %watch /bites]
 +$  card  card:agent:gall
 +$  versioned-state
-  $%  state-1
+  $%  state-2
+      state-1
       state-0
   ==
++$  state-2  [%2 =enabled-groups =outstanding-pokes]
 +$  state-1  [%1 =enabled-groups =outstanding-pokes]
 +$  state-0  [%0 =enabled-groups]
 --
 ::
-=|  state-1
+=|  state-2
 =*  state  -
 %-  agent:dbug
 %+  verb  |
@@ -150,12 +152,14 @@
   ^-  (quip card _this)
   =/  old  !<(versioned-state old-state)
   ?-  -.old
-      %1
+      %2
     :_  this(state old)
     ?:  (~(has by wex.bowl) [/bite-wire our.bowl %reel])  ~
     ~[(bite-subscribe bowl)]
+      %1
+    `this(state [%2 enabled-groups.old ~])
       %0
-    `this(state *state-1)
+    `this(state *state-2)
   ==
 ::
 ++  on-arvo
