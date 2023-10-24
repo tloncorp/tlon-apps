@@ -275,7 +275,7 @@ export function useLureLinkStatus(flag: string) {
       return 'loading';
     }
 
-    if (!good) {
+    if (checked && !good) {
       return 'error';
     }
 
