@@ -100,7 +100,7 @@ export function QRWidgetPlaceholder({
         )}
       </div>
       <div className="flex items-center justify-between rounded-b-xl bg-gray-200 py-4 px-6 text-blue-100">
-        <span className="w-4/5 truncate text-lg uppercase text-gray-500">
+        <span className="w-4/5 truncate text-lg text-gray-500">
           {value}
         </span>
         {type === 'loading' && (
