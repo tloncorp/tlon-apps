@@ -38,8 +38,8 @@ export default function QRWidget({
       )}
       onClick={handleCopy}
     >
-      <div className="flex flex-1 items-center items-center justify-center py-8">
-        <QRCode value={link} size={200} fgColor="#bfdbfe" bgColor="#3b82f6" />
+      <div className="flex flex-1 items-center justify-center py-8">
+        <QRCode value={link} size={200} fgColor="#3b82f6" bgColor="#bfdbfe" />
       </div>
       <div className="flex items-center justify-between rounded-b-xl bg-blue-500 py-4 px-6 text-blue-100">
         <span className="w-4/5 truncate text-lg">{displayURL}</span>
