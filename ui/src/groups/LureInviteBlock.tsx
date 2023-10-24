@@ -26,6 +26,10 @@ export default function LureInviteBlock({
 }: LureInviteBlock) {
   const { status, shareUrl, toggle } = useLureLinkStatus(flag);
 
+  console.log(`Invite block:`);
+  console.log(`status: ${status}`);
+  console.log(`shareUrl: ${shareUrl}`);
+
   if (status === 'unsupported') {
     return null;
   }

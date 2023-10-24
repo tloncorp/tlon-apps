@@ -46,6 +46,8 @@ interface LureState {
   start: () => Promise<void>;
 }
 
+const LURE_REQUEST_TIMEOUT = 30 * 1000;
+
 function groupsDescribe(meta: GroupMeta) {
   return {
     tag: 'groups-0',
@@ -126,14 +128,18 @@ export const useLureState = create<LureState>(
               api.subscribeOnce<boolean>(
                 'grouper',
                 `/group-enabled/${flag}`,
-                12500
+                LURE_REQUEST_TIMEOUT
               ),
             prevLure?.enabled
           ),
           // url
           asyncWithDefault(
             () =>
-              api.subscribeOnce<string>('reel', `/token-link/${flag}`, 12500),
+              api.subscribeOnce<string>(
+                'reel',
+                `/token-link/${flag}`,
+                LURE_REQUEST_TIMEOUT
+              ),
             prevLure?.url
           ),
           // metadata
@@ -182,7 +188,8 @@ const selLure = (flag: string) => (s: LureState) => ({
   lure: s.lures[flag] || { fetched: false, url: '' },
   bait: s.bait,
 });
-const { shouldLoad, newAttempt, finished } = getPreviewTracker(30 * 1000);
+const { shouldLoad, newAttempt, finished } =
+  getPreviewTracker(LURE_REQUEST_TIMEOUT);
 export function useLure(flag: string, disableLoading = false) {
   const { bait, lure } = useLureState(selLure(flag));
 
