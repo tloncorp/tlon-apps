@@ -267,7 +267,7 @@ export function useLureLinkStatus(flag: string) {
       return 'unsupported';
     }
 
-    if (!enabled) {
+    if (fetched && checked && !enabled) {
       return 'disabled';
     }
 
