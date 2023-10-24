@@ -3,8 +3,7 @@ import { useLureLinkStatus } from '@/state/lure/lure';
 import { isGroupHost } from '@/logic/utils';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { Group } from '@/types/groups';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import QRWidget from '@/components/QRWidget';
+import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
 import { useEffect } from 'react';
 
 interface LureInviteBlock {
@@ -26,7 +25,6 @@ export default function LureInviteBlock({
   className,
 }: LureInviteBlock) {
   const { status, shareUrl, toggle } = useLureLinkStatus(flag);
-
   useEffect(() => {
     console.log(`Invite block for ${flag}`);
     console.log(`status: ${status}`);
@@ -39,16 +37,34 @@ export default function LureInviteBlock({
 
   return (
     <div className={cn('space-y-3', className)}>
-      {status === 'ready' ? (
+      {status === 'ready' && (
         <QRWidget
           link={shareUrl}
           navigatorTitle={`Join ${group?.meta.title ?? flag}`}
         />
-      ) : status !== 'disabled' ? (
-        <div className="flex min-h-[128px] w-full items-center justify-center">
-          <LoadingSpinner className="h-4 w-4" />
+      )}
+
+      {status === 'disabled' && !isGroupHost(flag) && (
+        <div className="w-full rounded-xl border border-gray-200 bg-gray-100 py-4 text-center uppercase text-gray-500">
+          Invite Links Disabled for this Group
         </div>
-      ) : null}
+      )}
+
+      {status === 'error' && (
+        <QRWidgetPlaceholder
+          type="error"
+          errorMessage="There seems to be an issue with our invite link service."
+        />
+      )}
+
+      {status === 'unsupported' && (
+        <QRWidgetPlaceholder
+          type="error"
+          errorMessage="Invite links are unsupported for this group."
+        />
+      )}
+
+      {status === 'loading' && <QRWidgetPlaceholder />}
 
       {isGroupHost(flag) ? (
         <button

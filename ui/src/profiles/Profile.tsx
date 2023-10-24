@@ -17,7 +17,7 @@ import PersonIcon from '@/components/icons/PersonIcon';
 import { isHosted } from '@/logic/utils';
 import WidgetDrawer from '@/components/WidgetDrawer';
 import { useEffect, useState } from 'react';
-import QRWidget from '@/components/QRWidget';
+import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
 import XIcon from '@/components/icons/XIcon';
 import MessagesIcon from '@/components/icons/MessagesIcon';
 import { Drawer } from 'vaul';
@@ -259,9 +259,7 @@ export default function Profile({ title }: ViewProps) {
               navigatorTitle={`Connect with ${window.our}`}
             />
           ) : (
-            <div className="flex w-full justify-center pt-12">
-              <LoadingSpinner className="h-4 w-4" />
-            </div>
+            <QRWidgetPlaceholder />
           )}
         </div>
       </WidgetDrawer>

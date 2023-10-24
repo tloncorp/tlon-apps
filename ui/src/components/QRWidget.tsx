@@ -3,8 +3,12 @@ import cn from 'classnames';
 import QRCode from 'react-qr-code';
 import { useCopy } from '@/logic/utils';
 import CopyIcon from '@/components/icons/CopyIcon';
+import { useIsDark } from '@/logic/useMedia';
+import { useTheme } from '@/state/settings';
+import { useCurrentTheme } from '@/state/local';
 import CheckIcon from './icons/CheckIcon';
 import ShareIcon from './icons/ShareIcon';
+import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 export default function QRWidget({
   link,
@@ -38,8 +42,8 @@ export default function QRWidget({
       )}
       onClick={handleCopy}
     >
-      <div className="flex flex-1 items-center justify-center py-8">
-        <QRCode value={link} size={200} fgColor="#3b82f6" bgColor="#bfdbfe" />
+      <div className="flex flex-1 items-center items-center justify-center py-8">
+        <QRCode value={link} size={200} fgColor="#bfdbfe" bgColor="#3b82f6" />
       </div>
       <div className="flex items-center justify-between rounded-b-xl bg-blue-500 py-4 px-6 text-blue-100">
         <span className="w-4/5 truncate text-lg">{displayURL}</span>
@@ -49,6 +53,64 @@ export default function QRWidget({
           <CheckIcon className="w-6" />
         ) : (
           <CopyIcon className="w-6" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function QRWidgetPlaceholder({
+  link,
+  className,
+  type = 'loading',
+  errorMessage,
+}: {
+  link?: string;
+  className?: string;
+  type?: 'loading' | 'error';
+  errorMessage?: string;
+}) {
+  const theme = useCurrentTheme();
+  const value =
+    link || (type === 'loading' ? 'Invite loading...' : 'Invite Link Error');
+  const junkQR = 'https://tlon.io?noise=placeholdeplaceholderplaceholderpla';
+  const message = errorMessage || 'Something appears to have gone wrong';
+
+  const fgColor = theme === 'light' ? '#E5E5E5' : '#333333';
+  const bgColor = theme === 'light' ? '#808080' : '#999999';
+
+  return (
+    <div
+      className={cn(
+        'flex h-full w-full flex-col rounded-xl bg-gray-100',
+        className
+      )}
+    >
+      <div className="flex flex-1 items-center justify-center py-8">
+        {type === 'loading' && (
+          <QRCode
+            value={junkQR}
+            size={200}
+            fgColor={fgColor}
+            bgColor={bgColor}
+          />
+        )}
+        {type === 'error' && (
+          <div className="flex h-[200px] items-center justify-center px-4 text-lg text-black">
+            <p className="text-center">{message}</p>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center justify-between rounded-b-xl bg-gray-200 py-4 px-6 text-blue-100">
+        <span className="w-4/5 truncate text-lg uppercase text-gray-500">
+          {value}
+        </span>
+        {type === 'loading' && (
+          <LoadingSpinner
+            className="w-6"
+            primary="fill-gray-400"
+            secondary="fill-gray-700"
+          />
         )}
       </div>
     </div>
