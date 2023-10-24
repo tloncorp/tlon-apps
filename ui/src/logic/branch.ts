@@ -1,3 +1,6 @@
+import { isValidPatp } from 'urbit-ob';
+import { whomIsFlag } from './utils';
+
 const fetchBranchApi = async (path: string, init?: RequestInit) =>
   fetch(`https://api2.branch.io${path}`, init);
 
@@ -18,30 +21,57 @@ export const getDeepLink = async (alias: string) => {
   return url;
 };
 
-export type DeeepLinkType = 'lure' | 'wer';
+export type DeepLinkType = 'lure' | 'wer';
+interface DeepLinkData {
+  $desktop_url: string;
+  $canonical_url: string;
+  lure?: string;
+  wer?: string;
+}
 
 export const createDeepLink = async (
   fallbackUrl: string | undefined,
-  type: DeeepLinkType,
+  type: DeepLinkType,
   path: string
 ) => {
-  if (!fallbackUrl) {
+  if (!fallbackUrl || !path) {
     return undefined;
   }
 
+  if (type === 'lure' && !whomIsFlag(path)) {
+    return undefined;
+  }
+
+  if (type === 'wer') {
+    const [location, ship] = path.split('/');
+    const locationInvalid = !location || location !== 'dm';
+    const shipInvalid = !ship || !isValidPatp(ship);
+
+    if (locationInvalid || shipInvalid) {
+      return undefined;
+    }
+  }
+
   const alias = path.replace('~', '').replace('/', '-');
+  const data: DeepLinkData = {
+    $desktop_url: fallbackUrl,
+    $canonical_url: fallbackUrl,
+  };
+  if (type === 'lure') {
+    data.lure = path;
+  } else {
+    data.wer = path;
+  }
+
   let url = await getDeepLink(alias).catch(() => fallbackUrl);
   if (!url) {
+    console.log(`No existing deeplink for ${alias}, creating new one`);
     const response = await fetchBranchApi('/v1/url', {
       method: 'POST',
       body: JSON.stringify({
         branch_key: import.meta.env.VITE_BRANCH_KEY,
         alias,
-        data: {
-          $desktop_url: fallbackUrl,
-          $canonical_url: fallbackUrl,
-          [type]: path,
-        },
+        data,
       }),
     });
 

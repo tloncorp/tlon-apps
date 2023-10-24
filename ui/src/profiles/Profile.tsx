@@ -259,7 +259,9 @@ export default function Profile({ title }: ViewProps) {
               navigatorTitle={`Connect with ${window.our}`}
             />
           ) : (
-            <LoadingSpinner className="h-4 w-4" />
+            <div className="flex w-full justify-center pt-12">
+              <LoadingSpinner className="h-4 w-4" />
+            </div>
           )}
         </div>
       </WidgetDrawer>
