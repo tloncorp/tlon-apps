@@ -10,11 +10,13 @@ import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import {
   asyncWithDefault,
   clearStorageMigration,
+  createDevLogger,
   createStorageKey,
   getFlagParts,
   storageVersion,
 } from '@/logic/utils';
 import { GroupMeta } from '@/types/groups';
+import { useLocalState } from '../local';
 
 interface LureMetadata {
   tag: string;
@@ -46,7 +48,12 @@ interface LureState {
   start: () => Promise<void>;
 }
 
-const LURE_REQUEST_TIMEOUT = 30 * 1000;
+const lureLogger = createDevLogger(
+  'lure',
+  useLocalState.getState().showDevTools
+);
+
+const LURE_REQUEST_TIMEOUT = 10 * 1000;
 
 function groupsDescribe(meta: GroupMeta) {
   return {
@@ -123,25 +130,34 @@ export const useLureState = create<LureState>(
         const prevLure = get().lures[flag];
         const [enabled, url, metadata, outstandingPoke] = await Promise.all([
           // enabled
-          asyncWithDefault(
-            () =>
-              api.subscribeOnce<boolean>(
+          asyncWithDefault(() => {
+            lureLogger.log(performance.now(), 'fetching enabled', flag);
+            return api
+              .subscribeOnce<boolean>(
                 'grouper',
                 `/group-enabled/${flag}`,
                 LURE_REQUEST_TIMEOUT
-              ),
-            prevLure?.enabled
-          ),
+              )
+              .then((en) => {
+                lureLogger.log(performance.now(), 'enabled fetched', flag);
+
+                return en;
+              });
+          }, prevLure?.enabled),
           // url
-          asyncWithDefault(
-            () =>
-              api.subscribeOnce<string>(
+          asyncWithDefault(() => {
+            lureLogger.log(performance.now(), 'fetching url', flag);
+            return api
+              .subscribeOnce<string>(
                 'reel',
                 `/token-link/${flag}`,
                 LURE_REQUEST_TIMEOUT
-              ),
-            prevLure?.url
-          ),
+              )
+              .then((u) => {
+                lureLogger.log(performance.now(), 'url fetched', flag);
+                return u;
+              });
+          }, prevLure?.url),
           // metadata
           asyncWithDefault(
             () =>
