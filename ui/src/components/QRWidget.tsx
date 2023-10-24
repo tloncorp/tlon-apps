@@ -3,8 +3,6 @@ import cn from 'classnames';
 import QRCode from 'react-qr-code';
 import { useCopy } from '@/logic/utils';
 import CopyIcon from '@/components/icons/CopyIcon';
-import { useIsDark } from '@/logic/useMedia';
-import { useTheme } from '@/state/settings';
 import { useCurrentTheme } from '@/state/local';
 import CheckIcon from './icons/CheckIcon';
 import ShareIcon from './icons/ShareIcon';
