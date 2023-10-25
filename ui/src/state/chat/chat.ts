@@ -529,6 +529,7 @@ export const useChatState = createState<ChatState>(
 
             return;
           }
+          return;
         }
 
         draft.trackedMessages.push({ id, status: 'pending' });
@@ -783,7 +784,7 @@ export function useWrit(whom: string, writId: string, disabled = false) {
   }, [writId, whom]);
 
   const enabled = useMemo(
-    () => writId !== '0' && !disabled,
+    () => writId !== '' && writId !== '0' && !disabled,
     [writId, disabled]
   );
   const { data, ...rest } = useReactQueryScry<Writ>({
