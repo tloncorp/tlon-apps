@@ -541,6 +541,12 @@
         tag/so
         break/ul
     ::
+      :-  %task
+      %-  ot
+      :~  checked/bo
+          content/(ar inline)
+      ==
+    ::
       :-  %block
       %-  ot
       :~  index/ni

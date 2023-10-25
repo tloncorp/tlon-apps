@@ -39,6 +39,7 @@ import { restoreMap } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { DiaryState } from './type';
 import { createState } from '../base';
@@ -510,8 +511,8 @@ export function useLeaveDiaryMutation() {
       queryClient.removeQueries(['diary', 'notes', variables.flag]);
     },
     onSettled: async (_data, _error) => {
-      await queryClient.refetchQueries(['diary', 'shelf']);
-      await queryClient.refetchQueries(['diary', 'briefs']);
+      await queryClient.invalidateQueries(['diary', 'shelf']);
+      await queryClient.invalidateQueries(['diary', 'briefs']);
     },
   });
 }
@@ -643,32 +644,36 @@ export function useAddNoteMutation() {
     flag: DiaryFlag;
     essay: NoteEssay;
   }) =>
-    new Promise<string>((resolve) => {
-      timePosted = variables.initialTime;
-      api
-        .trackedPoke<DiaryAction, DiaryUpdate>(
-          diaryNoteDiff(variables.flag, decToUd(variables.initialTime), {
-            add: variables.essay,
-          }),
-          { app: 'diary', path: `/diary/${variables.flag}/ui` },
-          (event) => {
-            const { time, diff } = event;
-            if ('notes' in diff) {
-              const { delta } = diff.notes;
-              if ('add' in delta && delta.add.sent === variables.essay.sent) {
-                timePosted = time;
-                return true;
+    asyncCallWithTimeout(
+      new Promise<string>((resolve, reject) => {
+        timePosted = variables.initialTime;
+        api
+          .trackedPoke<DiaryAction, DiaryUpdate>(
+            diaryNoteDiff(variables.flag, decToUd(variables.initialTime), {
+              add: variables.essay,
+            }),
+            { app: 'diary', path: `/diary/${variables.flag}/ui` },
+            (event) => {
+              const { time, diff } = event;
+              if ('notes' in diff) {
+                const { delta } = diff.notes;
+                if ('add' in delta && delta.add.sent === variables.essay.sent) {
+                  timePosted = time;
+                  return true;
+                }
+                return false;
               }
+
               return false;
             }
-
-            return false;
-          }
-        )
-        .then(() => {
-          resolve(timePosted);
-        });
-    });
+          )
+          .then(() => {
+            resolve(timePosted);
+          })
+          .catch(reject);
+      }),
+      15000
+    );
 
   return useMutation({
     mutationFn,
@@ -731,11 +736,23 @@ export function useAddNoteMutation() {
         ),
       }));
     },
+    onError: async (_error, variables, context) => {
+      useDiaryState.setState((state) => ({
+        pendingNotes: state.pendingNotes.filter(
+          (n) => n !== variables.initialTime
+        ),
+      }));
+
+      queryClient.setQueryData(
+        ['diary', 'notes', variables.flag, variables.initialTime],
+        undefined
+      );
+    },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['diary', 'notes', variables.flag], {
+      await queryClient.invalidateQueries(['diary', 'notes', variables.flag], {
         exact: true,
       });
-      await queryClient.refetchQueries(['diary', 'briefs']);
+      await queryClient.invalidateQueries(['diary', 'briefs']);
     },
   });
 }
@@ -746,13 +763,15 @@ export function useEditNoteMutation() {
     flag: DiaryFlag;
     time: string;
     essay: NoteEssay;
-  }) => {
-    await api.poke(
-      diaryNoteDiff(variables.flag, decToUd(variables.time), {
-        edit: variables.essay,
-      })
+  }) =>
+    asyncCallWithTimeout(
+      api.poke(
+        diaryNoteDiff(variables.flag, decToUd(variables.time), {
+          edit: variables.essay,
+        })
+      ),
+      15000
     );
-  };
 
   return useMutation({
     mutationFn,
@@ -827,7 +846,7 @@ export function useDeleteNoteMutation() {
       ]);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['diary', 'notes', variables.flag], {
+      await queryClient.invalidateQueries(['diary', 'notes', variables.flag], {
         exact: true,
       });
     },
@@ -881,8 +900,8 @@ export function useCreateDiaryMutation() {
       }
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['diary', 'shelf']);
-      await queryClient.refetchQueries([
+      await queryClient.invalidateQueries(['diary', 'shelf']);
+      await queryClient.invalidateQueries([
         'diary',
         'notes',
         variables.name,
@@ -1167,7 +1186,7 @@ export function useAddNoteFeelMutation() {
       },
     };
 
-    await api.poke(diaryAction(variables.flag, diff));
+    const id = await api.poke(diaryAction(variables.flag, diff));
   };
 
   return useMutation({
@@ -1197,8 +1216,8 @@ export function useAddNoteFeelMutation() {
       await updateNoteInCache(variables, updater, queryClient);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['diary', 'notes', variables.flag]);
-      await queryClient.refetchQueries([
+      await queryClient.invalidateQueries(['diary', 'notes', variables.flag]);
+      await queryClient.invalidateQueries([
         'diary',
         'notes',
         variables.flag,
@@ -1251,8 +1270,8 @@ export function useDeleteNoteFeelMutation() {
       await updateNoteInCache(variables, updater, queryClient);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries(['diary', 'notes', variables.flag]);
-      await queryClient.refetchQueries([
+      await queryClient.invalidateQueries(['diary', 'notes', variables.flag]);
+      await queryClient.invalidateQueries([
         'diary',
         'notes',
         variables.flag,
@@ -1393,7 +1412,7 @@ export function useDeleteQuipFeelMutation() {
       await updateNoteInCache(variables, updater, queryClient);
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.refetchQueries([
+      await queryClient.invalidateQueries([
         'diary',
         'notes',
         variables.flag,

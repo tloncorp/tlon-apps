@@ -112,6 +112,7 @@ export function InlineContent({ story }: InlineContentProps) {
       <a
         target="_blank"
         rel="noreferrer"
+        className="break-all"
         href={containsProtocol ? story.link.href : `//${story.link.href}`}
       >
         {story.link.content || story.link.href}

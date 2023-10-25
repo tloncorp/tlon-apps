@@ -1,24 +1,35 @@
-import { S3Credentials } from '@urbit/api';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Status } from '@/logic/status';
 
-export interface GcpToken {
-  accessKey: string;
-  expiresIn: number;
+export type StorageService = 'presigned-url' | 'credentials';
+
+export interface StorageConfiguration {
+  buckets: Set<string>;
+  currentBucket: string;
+  region: string;
+  presignedUrl: string;
+  service: StorageService;
+}
+
+export interface StorageCredentials {
+  endpoint: string;
+  accessKeyId: string;
+  secretAccessKey: string;
 }
 
 export interface BaseStorageState {
   loaded?: boolean;
   hasCredentials?: boolean;
   s3: {
-    configuration: {
-      buckets: Set<string>;
-      currentBucket: string;
-      region: string;
-    };
-    credentials: S3Credentials | null;
+    configuration: StorageConfiguration;
+    credentials: StorageCredentials | null;
   };
   [ref: string]: unknown;
+}
+
+export interface GcpToken {
+  accessKey: string;
+  expiresIn: number;
 }
 
 export interface FileStoreFile {
@@ -57,14 +68,18 @@ export interface FileStore {
   client: S3Client | null;
   uploaders: Record<string, Uploader>;
   getUploader: (key: string) => Uploader;
-  createClient: (s3: S3Credentials, region: string) => void;
+  createClient: (s3: StorageCredentials, region: string) => void;
   update: (key: string, updateFn: (uploader: Uploader) => void) => void;
   uploadFiles: (
     uploader: string,
     files: FileList | File[] | null,
-    bucket: string
+    config: StorageConfiguration
   ) => Promise<void>;
-  upload: (uploader: string, upload: Upload, bucket: string) => Promise<void>;
+  upload: (
+    uploader: string,
+    upload: Upload,
+    config: StorageConfiguration
+  ) => Promise<void>;
   clear: (uploader: string) => void;
   setUploadType: (uploaderKey: string, type: Uploader['uploadType']) => void;
   getUploadType: (uploaderKey: string) => Uploader['uploadType'];
@@ -82,3 +97,63 @@ export interface UploadInputProps {
   multiple?: boolean;
   id: string;
 }
+
+export interface StorageUpdateCredentials {
+  credentials: StorageCredentials;
+}
+
+export interface StorageUpdateConfiguration {
+  configuration: {
+    buckets: string[];
+    currentBucket: string;
+  };
+}
+
+export interface StorageUpdateCurrentBucket {
+  setCurrentBucket: string;
+}
+
+export interface StorageUpdateAddBucket {
+  addBucket: string;
+}
+
+export interface StorageUpdateRemoveBucket {
+  removeBucket: string;
+}
+
+export interface StorageUpdateEndpoint {
+  setEndpoint: string;
+}
+
+export interface StorageUpdateAccessKeyId {
+  setAccessKeyId: string;
+}
+
+export interface StorageUpdateSecretAccessKey {
+  setSecretAccessKey: string;
+}
+
+export interface StorageUpdateRegion {
+  setRegion: string;
+}
+
+export interface StorageUpdateToggleService {
+  toggleService: string;
+}
+
+export interface StorageUpdateSetPresignedUrl {
+  setPresignedUrl: string;
+}
+
+export declare type StorageUpdate =
+  | StorageUpdateCredentials
+  | StorageUpdateConfiguration
+  | StorageUpdateCurrentBucket
+  | StorageUpdateAddBucket
+  | StorageUpdateRemoveBucket
+  | StorageUpdateEndpoint
+  | StorageUpdateAccessKeyId
+  | StorageUpdateSecretAccessKey
+  | StorageUpdateRegion
+  | StorageUpdateToggleService
+  | StorageUpdateSetPresignedUrl;

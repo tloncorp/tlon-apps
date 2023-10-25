@@ -10,14 +10,16 @@
   [%pass /bite-wire %agent [our.bowl %reel] %watch /bites]
 +$  card  card:agent:gall
 +$  versioned-state
-  $%  state-1
+  $%  state-2
+      state-1
       state-0
   ==
++$  state-2  [%2 =enabled-groups =outstanding-pokes]
 +$  state-1  [%1 =enabled-groups =outstanding-pokes]
 +$  state-0  [%0 =enabled-groups]
 --
 ::
-=|  state-1
+=|  state-2
 =*  state  -
 %-  agent:dbug
 %+  verb  |
@@ -83,7 +85,9 @@
     =/  group=cord  i.t.t.path
     ?:  (~(has in outstanding-pokes) [target group])  `this
     :_  this(outstanding-pokes (~(put in outstanding-pokes) [target group]))
-    ~[[%pass path %agent [target %grouper] %poke %grouper-ask-enabled !>(group)]]
+    :~  [%pass path %agent [target %grouper] %poke %grouper-ask-enabled !>(group)]
+        [%pass /expire/(scot %p our.bowl)/[group] %arvo %b [%wait (add ~h1 now.bowl)]]
+    ==
       [%check-link @ @ ~]
     :_  this
     ~[[%pass path %agent [our.bowl %grouper] %poke %grouper-check-link !>(path)]]
@@ -142,19 +146,37 @@
   `this
 ::
 ++  on-save  !>(state)
+::
 ++  on-load
   |=  old-state=vase
   ^-  (quip card _this)
   =/  old  !<(versioned-state old-state)
   ?-  -.old
-      %1
+      %2
     :_  this(state old)
     ?:  (~(has by wex.bowl) [/bite-wire our.bowl %reel])  ~
     ~[(bite-subscribe bowl)]
+      %1
+    `this(state [%2 enabled-groups.old ~])
       %0
-    `this(state *state-1)
+    `this(state *state-2)
   ==
-++  on-arvo   on-arvo:def
+::
+++  on-arvo
+  |=  [=wire =sign-arvo]
+  ^-  (quip card _this)
+  ?+  wire  (on-arvo:def wire sign-arvo)
+      [%expire @ @ ~]
+    ?+  sign-arvo  (on-arvo:def wire sign-arvo)
+        [%behn %wake *]
+      =/  target  (slav %p i.t.wire)
+      =/  group   i.t.t.wire
+      ?~  error.sign-arvo
+        `this(outstanding-pokes (~(del in outstanding-pokes) [target group]))
+      (on-arvo:def wire sign-arvo)
+    ==
+  ==
+::
 ++  on-peek
   |=  =path
   ^-  (unit (unit cage))
@@ -162,5 +184,4 @@
       [%x %enabled @ ~]
     ``json+!>([%b (~(has in enabled-groups) i.t.t.path)])
   ==
-::
 --

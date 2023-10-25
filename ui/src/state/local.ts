@@ -43,9 +43,10 @@ export const useLocalState = create<LocalState>(
       name: createStorageKey('local'),
       version: storageVersion,
       migrate: clearStorageMigration,
-      partialize: ({ currentTheme, browserId }) => ({
+      partialize: ({ currentTheme, browserId, showDevTools }) => ({
         currentTheme,
         browserId,
+        showDevTools,
       }),
     }
   )

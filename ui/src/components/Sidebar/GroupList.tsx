@@ -32,6 +32,7 @@ function computeItemKey(_i: number, item: AnyListItem) {
 interface GroupListProps {
   groups: [string, Group][];
   pinnedGroups: [string, Group][];
+  loadingGroups: [string, Group][];
   children: React.ReactNode;
   isScrolling: (scrolling: boolean) => void;
   atTopChange?: (atTop: boolean) => void;
@@ -42,6 +43,7 @@ let virtuosoState: StateSnapshot | undefined;
 export default function GroupList({
   groups,
   pinnedGroups,
+  loadingGroups,
   children,
   isScrolling,
   atTopChange,
@@ -55,12 +57,16 @@ export default function GroupList({
       : { main: 400, reverse: 400 },
   };
 
-  const groupsWithoutPinned = useMemo(
-    () =>
-      groups.filter(
-        ([flag, _g]) => !pinnedGroups.map(([f, _]) => f).includes(flag)
-      ),
-    [groups, pinnedGroups]
+  const pinnedOrLoading = useMemo(() => {
+    const flags = new Set();
+    pinnedGroups.forEach(([flag]) => flags.add(flag));
+    loadingGroups.forEach(([flag]) => flags.add(flag));
+    return flags;
+  }, [pinnedGroups, loadingGroups]);
+
+  const allOtherGroups = useMemo(
+    () => groups.filter(([flag, _g]) => !pinnedOrLoading.has(flag)),
+    [groups, pinnedOrLoading]
   );
 
   const headerHeightRef = useRef<number>(0);
@@ -84,12 +90,12 @@ export default function GroupList({
       : [];
     return [
       ...top,
-      ...groupsWithoutPinned.map<GroupListItem>((g) => ({
+      ...allOtherGroups.map<GroupListItem>((g) => ({
         type: 'group',
         data: g,
       })),
     ];
-  }, [groupsWithoutPinned, header]);
+  }, [allOtherGroups, header]);
 
   useEffect(() => {
     if (!headerRef.current) {

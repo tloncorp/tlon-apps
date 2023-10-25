@@ -1,16 +1,18 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useContext } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
 import {
   useGangList,
+  useLoadingGroups,
+  useGangsWithClaim,
   useGroupsWithQuery,
   usePendingInvites,
+  usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
@@ -22,6 +24,7 @@ import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
+import { AppUpdateContext } from '@/logic/useAppUpdates';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import GroupsSidebarItem from './GroupsSidebarItem';
@@ -31,6 +34,7 @@ import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import SystemChrome from './SystemChrome';
 import ActionMenu, { Action } from '../ActionMenu';
+import { DesktopUpdateButton } from '../UpdateNotices';
 
 export function GroupsAppMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,6 +144,7 @@ export function GroupsAppMenu() {
 export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
+  const { needsUpdate } = useContext(AppUpdateContext);
   const pendingInvites = usePendingInvites();
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
@@ -149,6 +154,9 @@ export default function Sidebar() {
   const { data: groups, isLoading } = useGroupsWithQuery();
   const gangs = useGangList();
   const pinnedGroups = usePinnedGroups();
+  const loadingGroups = useLoadingGroups();
+  const gangsWithClaims = useGangsWithClaim();
+  const pendingGangs = usePendingGangsWithoutClaim();
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
   const ref = useRef<HTMLDivElement>(null);
@@ -159,6 +167,11 @@ export default function Sidebar() {
       )),
     [pinnedGroups]
   );
+
+  const hasPinnedGroups = !!pinnedGroupsOptions.length;
+  const hasLoadingGroups = !!loadingGroups.length;
+  const hasGangsWithClaims = !!gangsWithClaims.length;
+  const hasPendingGangs = Object.keys(pendingGangs).length;
 
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
   const scroll = useRef(
@@ -176,7 +189,7 @@ export default function Sidebar() {
           'bottom-shadow': !atTop,
         })}
       >
-        <GroupsAppMenu />
+        {needsUpdate ? <DesktopUpdateButton /> : <GroupsAppMenu />}
         <SystemChrome />
         <SidebarItem
           highlight={shipColor}
@@ -218,15 +231,32 @@ export default function Sidebar() {
           <GroupList
             groups={sortedGroups}
             pinnedGroups={Object.entries(pinnedGroups)}
+            loadingGroups={loadingGroups}
             isScrolling={scroll.current}
             atTopChange={atTopChange}
           >
-            {Object.entries(pinnedGroups).length > 0 && (
+            {hasPinnedGroups && (
               <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
                 <h2 className="p-2 text-sm font-semibold text-gray-400">
                   Pinned Groups
                 </h2>
                 {pinnedGroupsOptions}
+              </div>
+            )}
+
+            {(hasLoadingGroups || hasGangsWithClaims) && (
+              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
+                <h2 className="p-2 text-sm font-semibold text-gray-400">
+                  Pending
+                </h2>
+                {hasLoadingGroups &&
+                  loadingGroups.map(([flag, _]) => (
+                    <GangItem key={flag} flag={flag} isJoining />
+                  ))}
+                {hasGangsWithClaims &&
+                  gangsWithClaims.map((flag) => (
+                    <GangItem key={flag} flag={flag} />
+                  ))}
               </div>
             )}
             <div ref={ref} className="flex-initial">
@@ -250,9 +280,6 @@ export default function Sidebar() {
                 </div>
               )}
             </div>
-            {gangs.map((flag) => (
-              <GangItem key={flag} flag={flag} />
-            ))}
           </GroupList>
         </GroupsScrollingContext.Provider>
       </div>

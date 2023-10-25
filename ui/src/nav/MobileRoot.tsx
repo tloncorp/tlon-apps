@@ -1,10 +1,12 @@
-import React, { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
 import { usePinnedGroups } from '@/state/chat';
 import {
   useGangList,
+  useLoadingGroups,
+  useGangsWithClaim,
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
@@ -26,10 +28,12 @@ export default function MobileRoot() {
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
-  const { data: groups, isLoading } = useGroupsWithQuery();
   const gangs = useGangList();
-  const pendingGangs = usePendingGangsWithoutClaim();
   const pinnedGroups = usePinnedGroups();
+  const pendingGangs = usePendingGangsWithoutClaim();
+  const loadingGroups = useLoadingGroups();
+  const gangsWithClaims = useGangsWithClaim();
+  const { data: groups, isLoading } = useGroupsWithQuery();
   const sortedGroups = sortGroups(groups);
   const pinnedGroupsOptions = useMemo(
     () =>
@@ -40,7 +44,9 @@ export default function MobileRoot() {
   );
 
   const hasPinnedGroups = !!pinnedGroupsOptions.length;
-  const hasPendingGangs = !!pendingGangs.length;
+  const hasLoadingGroups = !!loadingGroups.length;
+  const hasGangsWithClaims = !!gangsWithClaims.length;
+  const hasPendingGangs = Object.keys(pendingGangs).length > 0;
 
   return (
     <Layout
@@ -80,9 +86,10 @@ export default function MobileRoot() {
               <GroupList
                 groups={sortedGroups}
                 pinnedGroups={Object.entries(pinnedGroups)}
+                loadingGroups={loadingGroups}
                 isScrolling={scroll.current}
               >
-                {hasPinnedGroups || hasPendingGangs ? (
+                {hasPinnedGroups || hasPendingGangs || hasLoadingGroups ? (
                   <>
                     {hasPinnedGroups ? (
                       <div className="px-4">
@@ -93,21 +100,28 @@ export default function MobileRoot() {
                       </div>
                     ) : null}
 
-                    {hasPendingGangs ? (
+                    {(hasLoadingGroups || hasGangsWithClaims) && (
                       <div className="px-4">
                         <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                          Invites
+                          Pending
                         </h2>
-                        <GroupJoinList highlightAll gangs={pendingGangs} />
+                        {hasLoadingGroups &&
+                          loadingGroups.map(([flag, _]) => (
+                            <GangItem key={flag} flag={flag} isJoining />
+                          ))}
+                        {hasGangsWithClaims &&
+                          gangsWithClaims.map((flag) => (
+                            <GangItem key={flag} flag={flag} />
+                          ))}
                       </div>
-                    ) : null}
+                    )}
 
                     <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
                       All Groups
                     </h2>
-                    {gangs.length
-                      ? gangs.map((flag) => <GangItem key={flag} flag={flag} />)
-                      : null}
+                    {hasPendingGangs && (
+                      <GroupJoinList highlightAll gangs={pendingGangs} />
+                    )}
                   </>
                 ) : null}
               </GroupList>

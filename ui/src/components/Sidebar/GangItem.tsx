@@ -1,24 +1,34 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
 import {
+  groupIsInitializing,
   useGang,
+  useGangPreview,
+  useGroup,
   useGroupCancelMutation,
+  useGroupLeaveMutation,
   useGroupRescindMutation,
 } from '@/state/groups';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import SidebarItem from './SidebarItem';
+import Lock16Icon from '../icons/Lock16Icon';
+import ExclamationPoint from '../icons/ExclamationPoint';
+import X16Icon from '../icons/X16Icon';
 
 // Gang is a pending group invite
-export default function GangItem(props: { flag: string }) {
-  const { flag } = props;
-  const { preview, claim } = useGang(flag);
+export default function GangItem(props: { flag: string; isJoining?: boolean }) {
+  const { flag, isJoining = false } = props;
+  const gang = useGang(flag);
+  const group = useGroup(flag);
+  const gangPreview = useGangPreview(flag);
   const isMobile = useIsMobile();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const { action, handlers } = useLongPress();
+  const preview = gang?.preview || gangPreview;
 
   useEffect(() => {
     if (!isMobile) {
@@ -34,22 +44,41 @@ export default function GangItem(props: { flag: string }) {
     useGroupRescindMutation();
   const { mutate: cancelMutation, status: cancelStatus } =
     useGroupCancelMutation();
+  const { mutate: leaveGroupMutation, status: leaveStatus } =
+    useGroupLeaveMutation();
 
-  if (!claim) {
-    return null;
-  }
+  const requested = gang && gang.claim && gang.claim.progress === 'knocking';
+  const errored = gang && gang.claim && gang.claim.progress === 'error';
+  const probablyOffline =
+    gang && !gang.preview && gang.claim && gang.claim.progress === 'adding';
 
-  const requested = claim.progress === 'knocking';
-  const errored = claim.progress === 'error';
-  const handleCancel = async () => {
+  const handleCancel = async (e: any) => {
+    e.stopPropagation();
     if (requested) {
       rescindMutation({ flag });
+    } else if (group && groupIsInitializing(group)) {
+      leaveGroupMutation({ flag });
     } else {
       cancelMutation({ flag });
     }
   };
 
-  if (!requested && !errored) {
+  let sideBarIcon;
+  if (isJoining) {
+    sideBarIcon = (
+      <LoadingSpinner
+        className={isMobile ? 'h-4 w-4 text-gray-400' : 'h-3 w-3 text-gray-400'}
+      />
+    );
+  }
+  if (requested) {
+    sideBarIcon = <Lock16Icon className="h-4 w-4 text-gray-400" />;
+  }
+  if (errored || probablyOffline) {
+    sideBarIcon = <ExclamationPoint className="h-4 w-4 text-gray-400" />;
+  }
+
+  if (!requested && !errored && !isJoining && !probablyOffline) {
     return (
       <SidebarItem
         icon={
@@ -67,7 +96,6 @@ export default function GangItem(props: { flag: string }) {
             triggerDisabled={isMobile}
           />
         }
-        className="px-4"
         to={`/groups/${flag}`}
         {...handlers}
       >
@@ -90,20 +118,25 @@ export default function GangItem(props: { flag: string }) {
                 className="opacity-60"
               />
             }
-            className="px-4"
+            actions={sideBarIcon}
           >
-            <span className="inline-block w-full truncate opacity-60">
+            <span className="w-full text-gray-300">
               {preview ? preview.meta.title : flag}
             </span>
           </SidebarItem>
         </Popover.Trigger>
       </Popover.Anchor>
       <Popover.Content
-        side={isMobile ? 'top' : 'right'}
+        side={isMobile ? 'bottom' : 'right'}
         sideOffset={isMobile ? 0 : 16}
         className="z-10"
       >
         <div className="flex w-[200px] flex-col space-y-4 rounded-lg bg-white p-4 leading-5 shadow-xl">
+          <div className="absolute left-[172px] top-2.5">
+            <Popover.Close>
+              <X16Icon className="h-4 w-4 text-gray-400" />
+            </Popover.Close>
+          </div>
           {requested ? (
             <>
               <span>You've requested to join this group.</span>
@@ -120,6 +153,13 @@ export default function GangItem(props: { flag: string }) {
                 version.
               </span>
             </>
+          ) : probablyOffline ? (
+            <>
+              <span>Attempting to Join</span>
+              <span>
+                You're trying to join this group, but it can't be reached.
+              </span>
+            </>
           ) : (
             <>
               <span>You are currently joining this group.</span>
@@ -131,7 +171,9 @@ export default function GangItem(props: { flag: string }) {
                 className="small-button bg-gray-50 text-gray-800"
                 onClick={handleCancel}
               >
-                {rescindStatus === 'loading' || cancelStatus === 'loading' ? (
+                {rescindStatus === 'loading' ||
+                cancelStatus === 'loading' ||
+                leaveStatus === 'loading' ? (
                   <LoadingSpinner className="h-5 w-4" />
                 ) : (
                   'Cancel'
@@ -139,7 +181,7 @@ export default function GangItem(props: { flag: string }) {
               </button>
             </>
           )}
-          {(errored || requested) && (
+          {(errored || requested || probablyOffline) && (
             <div className="flex">
               <Popover.Close>
                 <button

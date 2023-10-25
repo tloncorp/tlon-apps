@@ -191,20 +191,22 @@ class API {
     return this.withErrorHandling(
       (client) =>
         new Promise<void>((resolve, reject) => {
-          client.poke<T>({
-            ...params,
-            onError: (e) => {
-              params.onError?.(e);
-              reject();
-            },
-            onSuccess: async () => {
-              params.onSuccess?.();
-              const defaultValidator = (event: any) =>
-                _.isEqual(params.json, event);
-              await this.track(subscription, validator || defaultValidator);
-              resolve();
-            },
-          });
+          client
+            .poke<T>({
+              ...params,
+              onError: (e) => {
+                params.onError?.(e);
+                reject();
+              },
+              onSuccess: async () => {
+                params.onSuccess?.();
+                const defaultValidator = (event: any) =>
+                  _.isEqual(params.json, event);
+                await this.track(subscription, validator || defaultValidator);
+                resolve();
+              },
+            })
+            .catch(reject);
         })
     );
   }

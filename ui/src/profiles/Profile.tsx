@@ -15,11 +15,31 @@ import MobileHeader from '@/components/MobileHeader';
 import { isNativeApp, postActionToNativeApp } from '@/logic/native';
 import PersonIcon from '@/components/icons/PersonIcon';
 import { isHosted } from '@/logic/utils';
+import WidgetDrawer from '@/components/WidgetDrawer';
+import { useEffect, useState } from 'react';
+import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
+import XIcon from '@/components/icons/XIcon';
+import MessagesIcon from '@/components/icons/MessagesIcon';
+import { Drawer } from 'vaul';
+import { createDeepLink } from '@/logic/branch';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ProfileCoverImage from './ProfileCoverImage';
 
 export default function Profile({ title }: ViewProps) {
+  const [dmLink, setDmLink] = useState('');
   const isMobile = useIsMobile();
   const contact = useOurContact();
+  const [qrOpen, setQrOpen] = useState(false);
+
+  useEffect(() => {
+    async function getLink() {
+      const dmPath = `dm/${window.our}`;
+      const fallbackUrl = `https://tlon.network/lure/~loshut-lonreg/tlon`; // for now, send to generic signup page on desktop
+      const link = await createDeepLink(fallbackUrl, 'wer', dmPath);
+      setDmLink(link || '');
+    }
+    getLink();
+  }, []);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -76,6 +96,20 @@ export default function Profile({ title }: ViewProps) {
         </div>
         <nav className="flex grow flex-col justify-between gap-1 p-4">
           <div className="space-y-1">
+            <SidebarItem
+              onClick={() => setQrOpen(true)}
+              color="text-gray-900"
+              fontWeight="font-normal"
+              fontSize="text-[17px]"
+              className="leading-5"
+              icon={
+                <div className="flex h-12 w-12 items-center justify-center">
+                  <MessagesIcon className="h-5 w-5 text-gray-400" />
+                </div>
+              }
+            >
+              Connect with Others
+            </SidebarItem>
             <Link to="/profile/settings" className="no-underline">
               <SidebarItem
                 color="text-gray-900"
@@ -202,6 +236,33 @@ export default function Profile({ title }: ViewProps) {
           ) : null}
         </nav>
       </div>
+      <WidgetDrawer
+        open={qrOpen}
+        onOpenChange={setQrOpen}
+        className="h-[60vh] px-10 py-8"
+      >
+        <div className="flex-shrink">
+          <div className="flex w-full justify-between">
+            <h3 className="text-lg">Connect with Others</h3>
+            <Drawer.Close>
+              <XIcon className="h-5 w-5" />
+            </Drawer.Close>
+          </div>
+          <p className="pt-1.5 pr-10 text-gray-400">
+            Anybody on Tlon can use this link to send you a direct message.
+          </p>
+        </div>
+        <div className="mt-8 flex-1">
+          {dmLink ? (
+            <QRWidget
+              link={dmLink}
+              navigatorTitle={`Connect with ${window.our}`}
+            />
+          ) : (
+            <QRWidgetPlaceholder />
+          )}
+        </div>
+      </WidgetDrawer>
     </div>
   );
 }

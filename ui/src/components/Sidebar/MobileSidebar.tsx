@@ -3,18 +3,20 @@ import { Outlet, useLocation, useNavigate } from 'react-router';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
 import { useIsAnyGroupUnread } from '@/logic/useIsGroupUnread';
-import { useChannelUnreadCounts } from '@/logic/channel';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useLocalState } from '@/state/local';
 import { useHasUnreadMessages } from '@/state/chat';
+import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
+import { useContext, useEffect, useState } from 'react';
+import { useCharge } from '@/state/docket';
+import { AppUpdateContext } from '@/logic/useAppUpdates';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
 import BellIcon from '../icons/BellIcon';
-import MenuIcon from '../icons/MenuIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
-import MagnifyingGlassMobileNavIcon from '../icons/MagnifyingGlassMobileNavIcon';
 import MessagesIcon from '../icons/MessagesIcon';
 import Avatar from '../Avatar';
+import NavigateIcon from '../icons/NavigateIcon';
 
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
@@ -35,21 +37,24 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
     <DoubleClickableNavTab
       onSingleClick={onSingleClick}
       onDoubleClick={() => navigate('/')}
-      linkClass="h-12"
+      linkClass="h-full !pb-0 flex flex-col items-start justify-start"
     >
-      <div className="flex h-8 w-8 items-center justify-center ">
+      <div className="flex-1" />
+      <div className="flex h-8 w-8 items-center justify-center">
         <HomeIconMobileNav
           isInactive={props.isInactive}
           isDarkMode={props.isDarkMode}
           className="h-[20px] w-[18px]"
         />
       </div>
-      <div
-        className={cn(
-          'mt-0.5 h-1.5 w-1.5 rounded-full',
-          groupsUnread && 'bg-blue'
-        )}
-      />
+      <div className="flex flex-1 items-end">
+        <div
+          className={cn(
+            'mb-0.5 h-1.5 w-1.5 rounded-full',
+            groupsUnread && 'bg-blue'
+          )}
+        />
+      </div>
     </DoubleClickableNavTab>
   );
 }
@@ -73,21 +78,24 @@ function MessagesTab(props: { isInactive: boolean; isDarkMode: boolean }) {
     <DoubleClickableNavTab
       onSingleClick={onSingleClick}
       onDoubleClick={() => navigate('/messages')}
-      linkClass="h-12"
+      linkClass="h-full !pb-0 flex flex-col items-start justify-start"
     >
-      <div className="flex h-8 w-8 items-center justify-center ">
+      <div className="flex-1" />
+      <div className="flex h-8 w-8 items-center justify-center">
         <MessagesIcon
           isInactive={props.isInactive}
           isDarkMode={props.isDarkMode}
           className="h-[20px] w-[18px]"
         />
       </div>
-      <div
-        className={cn(
-          'mt-[2px] h-1.5 w-1.5 rounded-full',
-          hasUnreads && 'bg-blue'
-        )}
-      />
+      <div className="flex flex-1 items-end">
+        <div
+          className={cn(
+            'mb-0.5 h-1.5 w-1.5 rounded-full',
+            hasUnreads && 'bg-blue'
+          )}
+        />
+      </div>
     </DoubleClickableNavTab>
   );
 }
@@ -100,26 +108,52 @@ function ActivityTab(props: { isInactive: boolean; isDarkMode: boolean }) {
     <DoubleClickableNavTab
       onSingleClick={() => navigate('/notifications')}
       onDoubleClick={() => navigate('/notifications')}
-      linkClass="h-12"
+      linkClass="h-full !pb-0 flex flex-col items-start justify-start"
     >
-      <div className="flex h-8 w-8 items-center justify-center ">
+      <div className="flex-1" />
+      <div className="flex h-8 w-8 items-center justify-center">
         <BellIcon
           isInactive={props.isInactive}
-          className="h-6 w-[18px]"
+          className="h-[20px] w-[18px]"
           isDarkMode={props.isDarkMode}
         />
       </div>
-      <div className={cn('h-1.5 w-1.5 rounded-full', count > 0 && 'bg-blue')} />
+      <div className="flex flex-1 items-end">
+        <div
+          className={cn(
+            'mb-0.5 h-1.5 w-1.5 rounded-full',
+            count > 0 && 'bg-blue'
+          )}
+        />
+      </div>
     </DoubleClickableNavTab>
   );
 }
 
 export default function MobileSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [informedOfUpdate, setInformedOfUpdate] = useState(false);
   const isInactive = (path: string) => !location.pathname.startsWith(path);
   const isDarkMode = useIsDark();
+  const { needsUpdate } = useContext(AppUpdateContext);
   const safeAreaInsets = useSafeAreaInsets();
   const { isChatInputFocused } = useChatInputFocus();
+  const groupsCharge = useCharge('groups');
+
+  useEffect(() => {
+    if (groupsCharge && needsUpdate && !informedOfUpdate) {
+      navigate('/update-needed', { state: { backgroundLocation: location } });
+      setInformedOfUpdate(true);
+    }
+  }, [
+    needsUpdate,
+    navigate,
+    location,
+    informedOfUpdate,
+    setInformedOfUpdate,
+    groupsCharge,
+  ]);
 
   return (
     <section
@@ -130,7 +164,8 @@ export default function MobileSidebar() {
       <footer
         className={cn(
           'navbar-transition z-50 flex-none border-t-2 border-gray-50 bg-white',
-          isChatInputFocused && 'translate-y-[200%] opacity-0'
+          isChatInputFocused && 'translate-y-[200%] opacity-0',
+          !isNativeApp() && 'pb-1'
         )}
       >
         <nav>
@@ -147,18 +182,50 @@ export default function MobileSidebar() {
               isInactive={isInactive('/notifications')}
               isDarkMode={isDarkMode}
             />
-            <NavTab to="/find">
+            <NavTab
+              to="/find"
+              linkClass="h-full !pb-0 flex flex-col items-start justify-start"
+            >
+              <div className="flex-1" />
               <div className="flex h-8 w-8 items-center justify-center">
-                <MagnifyingGlassMobileNavIcon
+                <NavigateIcon
                   isInactive={isInactive('/find')}
                   isDarkMode={isDarkMode}
-                  className="h-6 w-[18px]"
+                  className="h-[20px] w-[18px]"
                 />
               </div>
+              <div className="flex-1" />
             </NavTab>
-            <NavTab to="/profile">
-              <Avatar size="xs" className="" ship={window.our} />
-            </NavTab>
+            {needsUpdate ? (
+              <NavTab
+                to="/update-needed"
+                state={{ backgroundLocation: location }}
+                linkClass="h-full !pb-0 flex flex-col items-start justify-start"
+              >
+                <div className="flex-1" />
+                <div className="flex h-8 w-8 items-center justify-center">
+                  <div className="flex h-[20px] w-[20px] items-center justify-center rounded-sm bg-yellow">
+                    <Asterisk16Icon className="h-4 w-4 text-black dark:text-white" />
+                  </div>
+                </div>
+                <div className="flex-1" />
+              </NavTab>
+            ) : (
+              <NavTab
+                to="/profile"
+                linkClass="h-full !pb-0 flex flex-col items-start justify-start"
+              >
+                <div className="flex-1" />
+                <div className="flex h-8 w-8 items-center justify-center">
+                  <Avatar
+                    className="h-[20px] w-[20px] rounded-sm"
+                    ship={window.our}
+                    size="xs"
+                  />
+                </div>
+                <div className="flex-1" />
+              </NavTab>
+            )}
           </ul>
         </nav>
       </footer>

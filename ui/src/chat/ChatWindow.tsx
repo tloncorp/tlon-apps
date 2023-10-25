@@ -5,7 +5,7 @@ import { useMatch, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import {
-  useChatInitialized,
+  useChatLoading,
   useChatState,
   useMessagesForChat,
   useWritWindow,
@@ -51,7 +51,7 @@ export default function ChatWindow({
   const [searchParams, setSearchParams] = useSearchParams();
   const msg = searchParams.get('msg');
   const scrollTo = getScrollTo(whom, thread, msg);
-  const initialized = useChatInitialized(whom);
+  const isLoading = useChatLoading(whom);
   const messages = useMessagesForChat(whom, scrollTo);
   const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
@@ -83,7 +83,7 @@ export default function ChatWindow({
     [readTimeout, whom]
   );
 
-  if (!initialized) {
+  if (isLoading) {
     return (
       <div className="h-full overflow-hidden">
         <ChatScrollerPlaceholder count={30} />

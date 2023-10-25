@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import { enableMapSet } from 'immer';
+import { hostingUploadURL, isHosted } from '@/logic/utils';
 import { BaseStorageState } from './type';
 import reduce from './reducer';
 import {
@@ -19,17 +20,20 @@ export const useStorage = createState<BaseStorageState>(
   'Storage',
   () => ({
     loaded: false,
-    hasCredentials: false,
     s3: {
       configuration: {
         buckets: new Set(),
         currentBucket: '',
         region: '',
+        presignedUrl: hostingUploadURL,
+        service: 'credentials',
       },
       credentials: null,
     },
   }),
-  {},
+  {
+    partialize: () => ({}),
+  },
   [
     (set, get) =>
       createSubscription('storage', '/all', (e) => {
@@ -39,7 +43,25 @@ export const useStorage = createState<BaseStorageState>(
         }
         numLoads += 1;
         if (numLoads === 2) {
-          set({ loaded: true });
+          const {
+            s3: { credentials, configuration },
+          } = get();
+
+          if (!credentials?.endpoint && isHosted) {
+            set({
+              loaded: true,
+              s3: {
+                credentials,
+                configuration: {
+                  ...configuration,
+                  presignedUrl: configuration.presignedUrl || hostingUploadURL,
+                  service: 'presigned-url',
+                },
+              },
+            });
+          } else {
+            set({ loaded: true });
+          }
         }
       }),
   ]

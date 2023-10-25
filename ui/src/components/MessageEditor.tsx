@@ -17,7 +17,11 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { useIsMobile } from '@/logic/useMedia';
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { refPasteRule, Shortcuts } from '@/logic/tiptap';
-import { useChatBlocks, useChatStore } from '@/chat/useChatStore';
+import {
+  chatStoreLogger,
+  useChatBlocks,
+  useChatStore,
+} from '@/chat/useChatStore';
 import { useCalm } from '@/state/settings';
 import Mention from '@tiptap/extension-mention';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
@@ -25,7 +29,7 @@ import { useFileStore } from '@/state/storage';
 import { Cite } from '@/types/chat';
 import { EditorView } from '@tiptap/pm/view';
 import { Slice } from '@tiptap/pm/model';
-import MentionPopup from './Mention/MentionPopup';
+import getMentionPopup from './Mention/MentionPopup';
 
 export interface HandlerParams {
   editor: Editor;
@@ -70,6 +74,7 @@ export function useMessageEditor({
         return;
       }
       setBlocks(whom, [...chatBlocks, { cite: r }]);
+      chatStoreLogger.log('onReference', { whom, r, chatBlocks });
     },
     [chatBlocks, setBlocks, whom]
   );
@@ -156,7 +161,17 @@ export function useMessageEditor({
         HTMLAttributes: {
           class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
         },
-        suggestion: MentionPopup,
+        renderLabel: (props) => `~${props.node.attrs.id}`,
+        suggestion: getMentionPopup('~'),
+      })
+    );
+    extensions.unshift(
+      Mention.extend({ priority: 999 }).configure({
+        HTMLAttributes: {
+          class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
+        },
+        renderLabel: (props) => `~${props.node.attrs.id}`,
+        suggestion: getMentionPopup('@'),
       })
     );
   }
