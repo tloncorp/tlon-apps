@@ -3,7 +3,7 @@ import { PostEssay } from '@/types/channel';
 export default function getKindDataFromEssay(essay: PostEssay | undefined): {
   title: string;
   image: string;
-  notice?: null;
+  notice?: boolean;
 } {
   if (essay === undefined) {
     return { title: '', image: '' };
@@ -28,7 +28,11 @@ export default function getKindDataFromEssay(essay: PostEssay | undefined): {
   }
 
   const notice =
-    'chat' in kindData && kindData.chat !== null ? kindData.chat.notice : null;
+    'chat' in kindData && kindData.chat !== null
+      ? 'notice' in kindData.chat
+        ? true
+        : false
+      : false;
 
   return { title, image: image ?? '', notice };
 }
