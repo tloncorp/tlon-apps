@@ -127,49 +127,73 @@ export const useFileStore = create<FileStore>((set, get) => ({
       // respond with a redirect to a pre-signed url to the actual bucket. The
       // token is in the url, not a header, so that it disappears after the
       // redirect.
-      const requestOptions = {
-        method: 'PUT',
-        headers: {
-          'Content-Type': compressedFile.type,
-        },
-        body: compressedFile,
-      };
-      const { presignedUrl } = config;
-      const url = `${presignedUrl}/${key}`;
-      const token = await api.scry<string>({
-        app: 'genuine',
-        path: '/secret',
-      });
-      const urlWithToken = `${url}?token=${token}`;
-      fetch(urlWithToken, requestOptions)
-        .then(async (response) => {
-          if (response.status !== 200) {
-            const body = await response.text();
-            throw new Error(body || 'Incorrect response status');
-          }
-          // When the PUT succeeded, we fetch the actual URL of the file. We do
-          // this to avoid having to proxy every single GET request, and to
-          // avoid remembering which file corresponds to which bucket, when
-          // using multiple buckets internally.
-          const fileUrlResponse = await fetch(url);
-          const fileUrl = await fileUrlResponse.json();
-          updateStatus(uploader, key, 'success');
-          imageSize(fileUrl).then((s) =>
-            updateFile(uploader, key, {
-              size: s,
-              url: fileUrl,
-            })
-          );
-        })
-        .catch((error: any) => {
-          updateStatus(
-            uploader,
-            key,
-            'error',
-            `Tlon Hosting upload error: ${error.message}, contact support if it persists.`
-          );
-          console.log({ error });
-        });
+
+      try {
+        const requestOptions = {
+          method: 'PUT',
+          headers: {
+            'Content-Type': compressedFile.type,
+          },
+          body: compressedFile,
+        };
+        const { presignedUrl } = config;
+        const url = `${presignedUrl}/${key}`;
+        const token = await api
+          .scry<string>({
+            app: 'genuine',
+            path: '/secret',
+          })
+          .catch((e) => {
+            console.log('failed to get secret', { e });
+            return '';
+          });
+        const urlWithToken = `${url}?token=${token}`;
+        fetch(urlWithToken, requestOptions)
+          .then(async (response) => {
+            if (response.status !== 200) {
+              const body = await response.text().catch(() => {
+                console.log(
+                  'Error parsing response body, body, response status not 200'
+                );
+                return '';
+              });
+              throw new Error(body || 'Incorrect response status');
+            }
+            // When the PUT succeeded, we fetch the actual URL of the file. We do
+            // this to avoid having to proxy every single GET request, and to
+            // avoid remembering which file corresponds to which bucket, when
+            // using multiple buckets internally.
+            const fileUrlResponse = await fetch(url);
+            const fileUrl = await fileUrlResponse.json().catch(() => {
+              console.log('Error parsing response body, fileUrlResponse');
+              return '';
+            });
+            updateStatus(uploader, key, 'success');
+            imageSize(fileUrl).then((s) =>
+              updateFile(uploader, key, {
+                size: s,
+                url: fileUrl,
+              })
+            );
+          })
+          .catch((error: any) => {
+            updateStatus(
+              uploader,
+              key,
+              'error',
+              `Tlon Hosting upload error: ${error.message}, contact support if it persists.`
+            );
+            console.log({ error });
+          });
+      } catch (error: any) {
+        updateStatus(
+          uploader,
+          key,
+          'error',
+          `Tlon Hosting upload error: ${error.message}, contact support if it persists.`
+        );
+        console.log({ error });
+      }
     }
 
     // Logic for uploading with S3.
@@ -183,7 +207,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
         ACL: 'public-read',
       });
 
-      const url = await getSignedUrl(client, command);
+      const url = await getSignedUrl(client, command).catch((e) => {
+        console.log('failed to get signed url', { e });
+        return '';
+      });
 
       client
         .send(command)
