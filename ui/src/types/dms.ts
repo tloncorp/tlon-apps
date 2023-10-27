@@ -126,7 +126,8 @@ export type WritResponseDelta =
   | WritResponseAdd
   | WritDeltaDel
   | WritDeltaAddReact
-  | WritDeltaDelReact;
+  | WritDeltaDelReact
+  | ReplyDelta;
 
 export interface WritResponse {
   id: string;

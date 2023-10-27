@@ -1292,6 +1292,11 @@
     =.  cor
       =/  =cage  writ-diff+!>(diff)
       (emit %give %fact ~[di-area] cage)
+    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
+    ?~  response  di-core
+    =.  cor
+      =/  =cage  writ-response+!>(u.response)
+      (emit %give %fact ~[di-area] cage)
     di-core
   ::
   ++  di-ingest-diff

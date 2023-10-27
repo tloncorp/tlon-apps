@@ -172,7 +172,7 @@ function getStore(
     get,
     set,
     `/${type}/${whom}/writs`,
-    `/${type}/${whom}/ui${isDM ? '' : '/writs'}`
+    `/${type}/${whom}${isDM ? '' : '/writs'}`
   );
 }
 
@@ -811,8 +811,6 @@ export function useWrit(whom: string, writId: string, disabled = false) {
       bigInt(udToDec(k)),
       v as Reply,
     ]);
-
-    // const replyMap = newReplyMap(diff);
 
     const writWithReplies = {
       ...writ,

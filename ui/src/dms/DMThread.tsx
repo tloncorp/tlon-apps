@@ -76,7 +76,7 @@ export default function DMThread() {
       },
     ]);
 
-    return newReplies;
+    return newReplies.sort((a, b) => a[0].compare(b[0]));
   }, [writ, time]);
 
   const returnURL = useCallback(() => {
