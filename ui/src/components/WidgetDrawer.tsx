@@ -1,5 +1,6 @@
 import { Drawer } from 'vaul';
 import cn from 'classnames';
+import { useSafeAreaInsets } from '@/logic/native';
 
 interface WidgetSheetProps {
   open: boolean;
@@ -16,6 +17,8 @@ export default function WidgetDrawer({
   children,
   className,
 }: WidgetSheetProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
@@ -25,6 +28,10 @@ export default function WidgetDrawer({
             'fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-[32px] bg-white',
             className
           )}
+          style={{
+            marginBottom: open ? insets.bottom : undefined,
+            marginTop: open ? insets.top : undefined,
+          }}
         >
           <div hidden={!title}>
             <h3 className="pl-3 text-lg leading-6">{title}</h3>

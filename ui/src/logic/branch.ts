@@ -1,3 +1,6 @@
+import { isValidPatp } from 'urbit-ob';
+import { whomIsFlag } from './utils';
+
 const fetchBranchApi = async (path: string, init?: RequestInit) =>
   fetch(`https://api2.branch.io${path}`, init);
 
@@ -18,32 +21,62 @@ export const getDeepLink = async (alias: string) => {
   return url;
 };
 
+export type DeepLinkType = 'lure' | 'wer';
+interface DeepLinkData {
+  $desktop_url: string;
+  $canonical_url: string;
+  lure?: string;
+  wer?: string;
+}
+
 export const createDeepLink = async (
-  canonicalUrl: string | undefined,
-  lure: string
+  fallbackUrl: string | undefined,
+  type: DeepLinkType,
+  path: string
 ) => {
-  if (!canonicalUrl) {
+  if (!fallbackUrl || !path) {
     return undefined;
   }
 
-  const alias = lure.replace('~', '').replace('/', '-');
-  let url = await getDeepLink(alias).catch(() => canonicalUrl);
+  if (type === 'lure' && !whomIsFlag(path)) {
+    return undefined;
+  }
+
+  if (type === 'wer') {
+    const [location, ship] = path.split('/');
+    const locationInvalid = !location || location !== 'dm';
+    const shipInvalid = !ship || !isValidPatp(ship);
+
+    if (locationInvalid || shipInvalid) {
+      return undefined;
+    }
+  }
+
+  const alias = path.replace('~', '').replace('/', '-');
+  const data: DeepLinkData = {
+    $desktop_url: fallbackUrl,
+    $canonical_url: fallbackUrl,
+  };
+  if (type === 'lure') {
+    data.lure = path;
+  } else {
+    data.wer = path;
+  }
+
+  let url = await getDeepLink(alias).catch(() => fallbackUrl);
   if (!url) {
+    console.log(`No existing deeplink for ${alias}, creating new one`);
     const response = await fetchBranchApi('/v1/url', {
       method: 'POST',
       body: JSON.stringify({
         branch_key: import.meta.env.VITE_BRANCH_KEY,
         alias,
-        data: {
-          $desktop_url: canonicalUrl,
-          $canonical_url: canonicalUrl,
-          lure,
-        },
+        data,
       }),
     });
 
     if (!response.ok) {
-      return canonicalUrl;
+      return fallbackUrl;
     }
 
     ({ url } = (await response.json()) as { url: string });

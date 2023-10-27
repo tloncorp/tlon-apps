@@ -119,7 +119,7 @@ export default function GroupSidebar() {
   const isDark = useIsDark();
   const location = useLocation();
   const isAdmin = useAmAdmin(flag);
-  const privacy = group ? getPrivacyFromGroup(group) : 'public';
+  const privacy = group ? getPrivacyFromGroup(group) : undefined;
 
   return (
     <nav className="flex h-full min-w-64 flex-none flex-col bg-white">

@@ -48,8 +48,20 @@ import type {
 
 export const isTalk = import.meta.env.VITE_APP === 'chat';
 export const isGroups = import.meta.env.VITE_APP === 'groups';
+export const isStagingHosted =
+  import.meta.env.DEV ||
+  (import.meta.env.VITE_SHIP_URL || '').endsWith('.test.tlon.systems') ||
+  window.location.hostname.endsWith('.test.tlon.systems');
 export const isHosted =
-  import.meta.env.DEV || window.location.hostname.endsWith('.tlon.network');
+  isStagingHosted ||
+  (import.meta.env.VITE_SHIP_URL || '').endsWith('.tlon.network') ||
+  window.location.hostname.endsWith('.tlon.network');
+
+export const hostingUploadURL = isStagingHosted
+  ? 'https://memex.test.tlon.systems'
+  : isHosted
+  ? 'https://memex.tlon.network'
+  : '';
 
 export const dmListPath = isTalk ? '/' : '/messages';
 
