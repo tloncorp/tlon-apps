@@ -25,6 +25,7 @@ import MobileHeader from '@/components/MobileHeader';
 import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useIsScrolling } from '@/logic/scroll';
+import { useNegotiateMulti } from '@/state/negotiation';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -87,6 +88,8 @@ export default function MultiDm() {
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
+  const negotiationMatch = useNegotiateMulti(dmParticipants, 'chat', 'chat');
 
   const {
     isSelectingMessage,
@@ -203,7 +206,7 @@ export default function MultiDm() {
           )
         }
         footer={
-          isAccepted ? (
+          isAccepted && negotiationMatch ? (
             <div
               className={cn(
                 isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
@@ -218,6 +221,11 @@ export default function MultiDm() {
                 dropZoneId={dropZoneId}
                 isScrolling={isScrolling}
               />
+            </div>
+          ) : !negotiationMatch ? (
+            <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+              Your version of the app does not match some of the members of this
+              chat.
             </div>
           ) : null
         }
