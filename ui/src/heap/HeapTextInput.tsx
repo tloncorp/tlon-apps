@@ -4,7 +4,6 @@ import React, { useCallback, useEffect } from 'react';
 import { reduce } from 'lodash';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
-import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useAddPostMutation,
@@ -25,6 +24,7 @@ import Tooltip from '@/components/Tooltip';
 import { useChannelCompatibility } from '@/logic/channel';
 import { constructStory, PostEssay } from '@/types/channel';
 import { Inline, InlineKey } from '@/types/content';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
 interface HeapTextInputProps {
   flag: string;
@@ -97,6 +97,7 @@ export default function HeapTextInput({
   const { compatible, text } = useChannelCompatibility(nest);
   const { mutate } = useAddPostMutation(nest);
   const { mutate: addReply } = useAddReplyMutation();
+  const { handleFocus, handleBlur, isChatInputFocused } = useChatInputFocus();
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -227,6 +228,31 @@ export default function HeapTextInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messageEditor]);
 
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed) {
+      if (!isChatInputFocused && messageEditor.isFocused && comment) {
+        handleFocus();
+      }
+
+      if (isChatInputFocused && !messageEditor.isFocused && comment) {
+        handleBlur();
+      }
+    }
+
+    return () => {
+      if (isChatInputFocused) {
+        handleBlur();
+      }
+    };
+  }, [
+    comment,
+    isChatInputFocused,
+    messageEditor,
+    messageEditor?.isFocused,
+    handleFocus,
+    handleBlur,
+  ]);
+
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
     [messageEditor, onSubmit]
@@ -238,67 +264,61 @@ export default function HeapTextInput({
 
   // TODO: Set a sane length limit for comments
   return (
-    <>
-      <div
-        className={cn('items-end', className)}
-        onClick={() => messageEditor.commands.focus()}
-      >
-        {chatInfo.blocks.length > 0 ? (
-          <div className="my-2 flex w-full items-center justify-start font-semibold">
-            <span className="mr-2 text-gray-600">Attached: </span>
-            {chatInfo.blocks.length} reference
-            {chatInfo.blocks.length === 1 ? '' : 's'}
-            <button
-              className="icon-button ml-auto"
-              onClick={() => useChatStore.getState().setBlocks(flag, [])}
-            >
-              <X16Icon className="h-4 w-4" />
-            </button>
-          </div>
-        ) : null}
-        <div
-          className={cn(
-            'w-full',
-            comment ? 'flex flex-row items-end' : 'relative flex h-full'
-          )}
-        >
-          <MessageEditor
-            editor={messageEditor}
-            className={cn('w-full rounded-lg', inputClass)}
-            inputClassName={cn(
-              // Since TipTap simulates an input using a <p> tag, only style
-              // the fake placeholder when the field is empty
-              messageEditor.getText() === '' ? 'text-gray-400' : ''
-            )}
-          />
-          {!sendDisabled ? (
-            <Tooltip content={text} open={compatible ? false : undefined}>
-              <button
-                className={cn(
-                  'button rounded-md px-2 py-1',
-                  comment ? 'ml-2 shrink-0' : 'absolute bottom-3 right-3'
-                )}
-                disabled={
-                  isPending ||
-                  !compatible ||
-                  (messageEditor.getText() === '' &&
-                    chatInfo.blocks.length === 0)
-                }
-                onClick={onClick}
-              >
-                {isPending ? (
-                  <LoadingSpinner secondary="black" />
-                ) : (
-                  <SubmitLabel comment={comment} />
-                )}
-              </button>
-            </Tooltip>
-          ) : null}
+    <div
+      className={cn('items-end', className)}
+      onClick={() => messageEditor.commands.focus()}
+    >
+      {chatInfo.blocks.length > 0 ? (
+        <div className="my-2 flex w-full items-center justify-start font-semibold">
+          <span className="mr-2 text-gray-600">Attached: </span>
+          {chatInfo.blocks.length} reference
+          {chatInfo.blocks.length === 1 ? '' : 's'}
+          <button
+            className="icon-button ml-auto"
+            onClick={() => useChatStore.getState().setBlocks(flag, [])}
+          >
+            <X16Icon className="h-4 w-4" />
+          </button>
         </div>
-      </div>
-      {isMobile && messageEditor.isFocused ? (
-        <ChatInputMenu editor={messageEditor} />
       ) : null}
-    </>
+      <div
+        className={cn(
+          'w-full',
+          comment ? 'flex flex-row items-end' : 'relative flex h-full'
+        )}
+      >
+        <MessageEditor
+          editor={messageEditor}
+          className={cn('w-full rounded-lg', inputClass)}
+          inputClassName={cn(
+            // Since TipTap simulates an input using a <p> tag, only style
+            // the fake placeholder when the field is empty
+            messageEditor.getText() === '' ? 'text-gray-400' : ''
+          )}
+        />
+        {!sendDisabled ? (
+          <Tooltip content={text} open={compatible ? false : undefined}>
+            <button
+              className={cn(
+                'button rounded-md px-2 py-1',
+                comment ? 'ml-2 shrink-0' : 'absolute bottom-3 right-3'
+              )}
+              disabled={
+                isPending ||
+                !compatible ||
+                (messageEditor.getText() === '' && chatInfo.blocks.length === 0)
+              }
+              onClick={onClick}
+            >
+              {isPending ? (
+                <LoadingSpinner secondary="black" />
+              ) : (
+                <SubmitLabel comment={comment} />
+              )}
+            </button>
+          </Tooltip>
+        ) : null}
+      </div>
+    </div>
   );
 }

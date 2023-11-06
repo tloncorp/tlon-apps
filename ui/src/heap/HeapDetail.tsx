@@ -15,6 +15,7 @@ import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import getKindDataFromEssay from '@/logic/getKindData';
 import { newReplyMap, Post } from '@/types/channel';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -37,6 +38,8 @@ export default function HeapDetail({ title }: ViewProps) {
   const isMobile = useIsMobile();
   const { post: note, isLoading } = usePost(nest, idTime || '');
   const { title: curioTitle } = getKindDataFromEssay(note.essay);
+  const { isChatInputFocused } = useChatInputFocus();
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const {
     hasNext,
     hasPrev,
@@ -74,7 +77,7 @@ export default function HeapDetail({ title }: ViewProps) {
   return (
     <Layout
       style={{
-        paddingBottom: isMobile ? 50 : 0,
+        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
       }}
       className="padding-bottom-transition flex-1 bg-white"
       header={

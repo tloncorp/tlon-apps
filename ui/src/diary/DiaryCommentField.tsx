@@ -17,6 +17,7 @@ import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
 import { Story, Cite, Kind } from '@/types/channel';
 import WritChanReference from '@/components/References/WritChanReference';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
 interface DiaryCommentFieldProps {
   flag: string;
@@ -45,6 +46,7 @@ export default function DiaryCommentField({
   const { mutateAsync: addReply } = useAddReplyMutation();
   const { privacy } = useGroupPrivacy(groupFlag);
   const { compatible, text } = useChannelCompatibility(nest);
+  const { handleFocus, handleBlur, isChatInputFocused } = useChatInputFocus();
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -149,6 +151,30 @@ export default function DiaryCommentField({
       }
     }
   }, [replyId, replyTo, setReplyCite, replyCite, flag, messageEditor, reply]);
+
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed) {
+      if (!isChatInputFocused && messageEditor.isFocused) {
+        handleFocus();
+      }
+
+      if (isChatInputFocused && !messageEditor.isFocused) {
+        handleBlur();
+      }
+    }
+
+    return () => {
+      if (isChatInputFocused) {
+        handleBlur();
+      }
+    };
+  }, [
+    isChatInputFocused,
+    messageEditor,
+    messageEditor?.isFocused,
+    handleFocus,
+    handleBlur,
+  ]);
 
   const onClick = useCallback(
     () => messageEditor && onSubmit(messageEditor),
