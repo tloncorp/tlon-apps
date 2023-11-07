@@ -2,8 +2,6 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-::  TODO: import state from diary
-::
 /-  c=channel, g=groups
 /+  utils=channel-utils
 /+  default-agent, verb, dbug, neg=negotiate
@@ -100,6 +98,12 @@
     :~  [%agent [our.bowl %diary] %poke %diary-migrate-server !>(~)]
         [%agent [our.bowl %heap] %poke %heap-migrate-server !>(~)]
         [%agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
+        ::NOTE  we do these here and not in /app/channels, because it's
+        ::      important that the server migration happens first, so that
+        ::      the client migration may successfully establish subscriptions.
+        [%agent [our.bowl %diary] %poke %diary-migrate !>(~)]
+        [%agent [our.bowl %heap] %poke %heap-migrate !>(~)]
+        [%agent [our.bowl %chat] %poke %chat-migrate !>(~)]
     ==
   inflate-io
 ::

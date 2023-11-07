@@ -538,6 +538,12 @@
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
   ::
+      [%migrate ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog 'Failed to do chat data migration' u.p.sign)
+    cor
+  ::
       [%contacts ship=@ ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor

@@ -110,12 +110,9 @@
 ::
 ++  init
   ^+  cor
-  =.  cor
-    %-  emil
-    :~  [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
-        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
-        [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
-    ==
+  ::NOTE  poking diary/heap/chat with %*-migrate is done by channels-server,
+  ::      because it is important the server migration happens before those
+  ::      happen. that way, local subs get established without issue.
   inflate-io
 ::
 ++  inflate-io
@@ -192,13 +189,13 @@
       (toggle-post toggle.a-channels)
     ?:  ?=(%join -.a-channel.a-channels)
       ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
-    ca-abet:(ca-a-diary:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
+    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
   ::
       %channel-migration
     ?>  =(our src):bowl
     =+  !<(new-channels=v-channels:c vase)
     =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
-    cor
+    inflate-io
   ::
       %channel-migration-pins
     ?>  =(our src):bowl
@@ -435,7 +432,7 @@
   ::    things like marking channels read) or proxy the request to the
   ::    host (for global things like posting a post).
   ::
-  ++  ca-a-diary
+  ++  ca-a-channel
     |=  =a-channel:c
     ?>  from-self
     ?+  -.a-channel  (ca-send-command [%channel nest a-channel])
