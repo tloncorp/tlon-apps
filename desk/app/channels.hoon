@@ -110,12 +110,9 @@
 ::
 ++  init
   ^+  cor
-  =.  cor
-    %-  emil
-    :~  [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
-        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
-        [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
-    ==
+  ::NOTE  poking diary/heap/chat with %*-migrate is done by channels-server,
+  ::      because it is important the server migration happens before those
+  ::      happen. that way, local subs get established without issue.
   inflate-io
 ::
 ++  inflate-io
@@ -198,7 +195,7 @@
     ?>  =(our src):bowl
     =+  !<(new-channels=v-channels:c vase)
     =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
-    cor
+    inflate-io
   ::
       %channel-migration-pins
     ?>  =(our src):bowl
