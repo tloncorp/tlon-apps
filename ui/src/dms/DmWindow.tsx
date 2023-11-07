@@ -13,6 +13,7 @@ import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
 import {
   useChatLoading,
   useChatState,
+  useInfiniteDMs,
   useMessagesForChat,
   useWritWindow,
 } from '@/state/chat';
@@ -53,6 +54,16 @@ export default function DmWindow({
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE.toString();
+
+  const {
+    writs,
+    hasNextPage,
+    hasPreviousPage,
+    fetchNextPage,
+    fetchPreviousPage,
+    isFetchingNextPage,
+    isFetchingPreviousPage,
+  } = useInfiniteDMs(whom, scrollTo?.toString());
 
   const onAtTop = useCallback(async () => {
     const store = useChatStore.getState();
