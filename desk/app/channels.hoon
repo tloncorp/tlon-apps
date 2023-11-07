@@ -588,7 +588,7 @@
     |=  =sign:agent:gall
     ^+  ca-core
     ?+    -.sign  ca-core
-        :: only if kicked prematurely
+        ::  only hit if kicked prematurely (we %leave after the first %fact)
         %kick  ca-sync-backlog
         %watch-ack
       ?~  p.sign  ca-core
@@ -611,7 +611,7 @@
     =.  ca-core  ca-start-updates
     =.  ca-core  ca-sync-backlog
     =/  wire  (weld ca-area /checkpoint)
-    (emit %pass wire %agent [ship.nest dap.bowl] %leave ~)
+    (emit %pass wire %agent [ship.nest server] %leave ~)
   ::
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]
@@ -644,7 +644,7 @@
     ?~  checkpoint-start  ca-core
     %^  safe-watch  (weld ca-area /backlog)  [ship.nest server]
     %+  welp
-    /[kind.nest]/[name.nest]/checkpoint/time-range
+      /[kind.nest]/[name.nest]/checkpoint/time-range
     ~|  `*`key.u.checkpoint-start
     /(scot %da *@da)/(scot %da key.u.checkpoint-start)
   ::
@@ -652,7 +652,7 @@
     |=  chk=u-checkpoint:c
     =.  ca-core  (ca-apply-checkpoint chk |)
     =/  wire  (weld ca-area /backlog)
-    (emit %pass wire %agent [ship.nest dap.bowl] %leave ~)
+    (emit %pass wire %agent [ship.nest server] %leave ~)
   ::
   ++  ca-apply-logs
     |=  =log:c
