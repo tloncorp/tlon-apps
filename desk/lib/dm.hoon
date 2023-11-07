@@ -159,25 +159,39 @@
     (put:on:replies:c replies time.u.v (fun reply.u.v))
   --
 ::
-++  give-writs
-  |=  [mode=?(%light %heavy) writs=(list [time writ:c])]
-  ^-  writs:c
-  %+  gas:on:writs:c  *writs:c
-  ?:  =(%heavy mode)  writs
-  %+  turn  writs
-  |=  [=time =writ:c]
-  [time writ(replies *replies:c)]
+++  give-paged-writs
+  |=  [mode=?(%light %heavy) ls=(list [time writ:c])]
+  ^-  (unit (unit cage))
+  =;  p=paged-writs:c  ``chat-paged-writs+!>(p)
+  =/  =writs:c
+    %+  gas:on:writs:c  *writs:c
+    ?:  =(%heavy mode)  ls
+    %+  turn  ls
+    |=  [=time =writ:c]
+    [time writ(replies *replies:c)]
+  =/  newer=(unit id:c)
+    =/  more  (tab:on:writs:c writs `-:(rear ls) 1)
+    ?~(more ~ `id.val:(head more))
+  =/  older=(unit id:c)
+    =/  more  (bat:mope writs `-:(head ls) 1)
+    ?~(more ~ `id.val:(head more))
+  :*  writs
+      newer
+      older
+      (wyt:on:writs:c writs)
+  ==
+::
 ++  get-around
   |=  [mode=?(%light %heavy) =time count=@ud]
   ^-  (unit (unit cage))
   =/  older  (bat:mope wit.pac `time count)
   =/  newer  (tab:on:writs:c wit.pac `time count)
   =/  writ   (get:on:writs:c wit.pac time)
-  =-  ``chat-writs+!>(-)
-  %+  give-writs  mode
-  ?~  writ
-    (welp older newer)
-  (welp (snoc older [time u.writ]) newer)
+  =/  writs
+    ?~  writ
+      (welp older newer)
+    (welp (snoc older [time u.writ]) newer)
+  (give-paged-writs mode writs)
 ++  peek
   |=  [care=@tas =(pole knot)]
   ^-  (unit (unit cage))
@@ -187,19 +201,19 @@
       [%newest count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
     =/  writs  (top:mope wit.pac count)
-    ``chat-writs+!>((give-writs mode.pole writs))
+    (give-paged-writs mode.pole writs)
   ::
       [%older start=@ count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
     =/  writs  (bat:mope wit.pac `start count)
-    ``chat-writs+!>((give-writs mode.pole writs))
+    (give-paged-writs mode.pole writs)
   ::
       [%newer start=@ count=@ mode=?(%light %heavy) ~]
     =/  count  (slav %ud count.pole)
     =/  start  (slav %ud start.pole)
     =/  writs  (tab:on wit.pac `start count)
-    ``chat-writs+!>((give-writs mode.pole writs))
+    (give-paged-writs mode.pole writs)
   ::
       [%around time=@ count=@ mode=?(%light %heavy) ~]
     =/  time    (slav %ud time.pole)
@@ -211,7 +225,7 @@
     =/  time    (slav %ud time.pole)
     =/  count   (slav %ud count.pole)
     =/  entry   (get ship `@da`time)
-    ?~  entry  ``chat-writs+!>(*writs:c)
+    ?~  entry  ``chat-paged-writs+!>(*paged-writs:c)
     (get-around mode.pole time.u.entry count)
   ::
       [%writ %id ship=@ time=@ ~]
