@@ -189,7 +189,7 @@
       (toggle-post toggle.a-channels)
     ?:  ?=(%join -.a-channel.a-channels)
       ca-abet:(ca-join:ca-core [nest group.a-channel]:a-channels)
-    ca-abet:(ca-a-diary:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
+    ca-abet:(ca-a-channel:(ca-abed:ca-core nest.a-channels) a-channel.a-channels)
   ::
       %channel-migration
     ?>  =(our src):bowl
@@ -432,7 +432,7 @@
   ::    things like marking channels read) or proxy the request to the
   ::    host (for global things like posting a post).
   ::
-  ++  ca-a-diary
+  ++  ca-a-channel
     |=  =a-channel:c
     ?>  from-self
     ?+  -.a-channel  (ca-send-command [%channel nest a-channel])
