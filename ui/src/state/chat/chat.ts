@@ -706,13 +706,13 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
       if (pageParam) {
         const { time, direction } = pageParam;
         const ud = decToUd(time.toString());
-        path = `/${type}/${whom}/writs/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`;
+        path = `/${type}/${whom}/writs/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`;
       } else if (initialTime) {
         path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
           INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
-        }`;
+        }/light`;
       } else {
-        path = `/${type}/${whom}/writs/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`;
+        path = `/${type}/${whom}/writs/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`;
       }
 
       const response = await api.scry<PagedWrits>({
@@ -763,7 +763,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
 
   const writs: WritTuple[] = data.pages
     .map((page) => {
-      const writPages = Object.entries(page).map(
+      const writPages = Object.entries(page.writs).map(
         ([k, v]) => [bigInt(udToDec(k)), v] as WritTuple
       );
       return writPages;
