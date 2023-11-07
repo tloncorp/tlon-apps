@@ -34,6 +34,7 @@ import {
 } from '@/logic/scroll';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { PageTuple, ReplyTuple } from '@/types/channel';
+import ChatScrollerPlaceholder from './ChatScrollerPlaceholder';
 
 const logger = createDevLogger('ChatScroller', false);
 
@@ -461,6 +462,13 @@ export default function ChatScroller({
           There are no messages in this channel
         </EmptyPlaceholder>
       )}
+
+      {fetchState !== 'initial' && count === 0 && (
+        <div className="h-full overflow-hidden">
+          <ChatScrollerPlaceholder count={30} />
+        </div>
+      )}
+
       <div
         className="l-0 absolute top-0 w-full"
         ref={contentElementRef}

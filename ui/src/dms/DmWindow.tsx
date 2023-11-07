@@ -3,6 +3,7 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -18,6 +19,7 @@ import {
   useWritWindow,
 } from '@/state/chat';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
+import { log } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
@@ -40,12 +42,12 @@ export default function DmWindow({
   root,
   prefixedElement,
 }: DmWindowProps) {
-  const [fetchState, setFetchState] = useState<'initial' | 'bottom' | 'top'>(
-    'initial'
-  );
+  // const [fetchState, setFetchState] = useState<'initial' | 'bottom' | 'top'>(
+  //   'initial'
+  // );
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollTo = getScrollTo(searchParams.get('msg'));
-  const loading = useChatLoading(whom);
+  // const loading = useChatLoading(whom);
   const messages = useMessagesForChat(whom, scrollTo?.toString());
   const messageMap = newWritMap(messages);
   const window = useWritWindow(whom);
@@ -59,60 +61,86 @@ export default function DmWindow({
     writs,
     hasNextPage,
     hasPreviousPage,
+    isLoading,
     fetchNextPage,
     fetchPreviousPage,
     isFetchingNextPage,
     isFetchingPreviousPage,
   } = useInfiniteDMs(whom, scrollTo?.toString());
 
-  const onAtTop = useCallback(async () => {
-    const store = useChatStore.getState();
-    const oldest = messageMap.minKey();
-    const seenOldest = oldest && window && window.loadedOldest;
-    if (seenOldest) {
-      return;
-    }
-    setFetchState('top');
-    await useChatState
-      .getState()
-      .fetchMessages(whom, pageSize, 'older', scrollTo?.toString());
-    setFetchState('initial');
-    store.bottom(false);
-  }, [whom, scrollTo, pageSize, messageMap, window]);
+  const fetchState = useMemo(
+    () =>
+      isFetchingNextPage
+        ? 'bottom'
+        : isFetchingPreviousPage
+        ? 'top'
+        : 'initial',
+    [isFetchingNextPage, isFetchingPreviousPage]
+  );
 
-  const onAtBottom = useCallback(async () => {
-    const store = useChatStore.getState();
-    const newest = messageMap.maxKey();
-    const seenNewest = newest && window && window.loadedNewest;
-    if (seenNewest) {
-      return;
+  // const onAtTop = useCallback(async () => {
+  //   const store = useChatStore.getState();
+  //   const oldest = messageMap.minKey();
+  //   const seenOldest = oldest && window && window.loadedOldest;
+  //   if (seenOldest) {
+  //     return;
+  //   }
+  //   setFetchState('top');
+  //   await useChatState
+  //     .getState()
+  //     .fetchMessages(whom, pageSize, 'older', scrollTo?.toString());
+  //   setFetchState('initial');
+  //   store.bottom(false);
+  // }, [whom, scrollTo, pageSize, messageMap, window]);
+
+  // const onAtBottom = useCallback(async () => {
+  //   const store = useChatStore.getState();
+  //   const newest = messageMap.maxKey();
+  //   const seenNewest = newest && window && window.loadedNewest;
+  //   if (seenNewest) {
+  //     return;
+  //   }
+  //   setFetchState('bottom');
+  //   await useChatState
+  //     .getState()
+  //     .fetchMessages(whom, pageSize, 'newer', scrollTo?.toString());
+  //   setFetchState('initial');
+  //   store.bottom(true);
+  //   store.delayedRead(whom, () => useChatState.getState().markDmRead(whom));
+  // }, [whom, scrollTo, pageSize, messageMap, window]);
+
+  const onAtBottom = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      log('fetching next page');
+      fetchNextPage();
     }
-    setFetchState('bottom');
-    await useChatState
-      .getState()
-      .fetchMessages(whom, pageSize, 'newer', scrollTo?.toString());
-    setFetchState('initial');
-    store.bottom(true);
-    store.delayedRead(whom, () => useChatState.getState().markDmRead(whom));
-  }, [whom, scrollTo, pageSize, messageMap, window]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  const onAtTop = useCallback(() => {
+    if (hasPreviousPage && !isFetchingPreviousPage) {
+      log('fetching previous page');
+      fetchPreviousPage();
+    }
+  }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
     scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
   }, [setSearchParams]);
 
-  useEffect(() => {
-    if (scrollTo && !messageMap.has(scrollTo)) {
-      useChatState
-        .getState()
-        .fetchMessagesAround(whom, '25', scrollTo.toString());
-    }
-  }, [scrollTo, messageMap, whom]);
+  // useEffect(() => {
+  //   if (scrollTo && !messageMap.has(scrollTo)) {
+  //     useChatState
+  //       .getState()
+  //       .fetchMessagesAround(whom, '25', scrollTo.toString());
+  //   }
+  // }, [scrollTo, messageMap, whom]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
   }, [whom]);
 
+  // clear read when navigating away
   useEffect(
     () => () => {
       if (readTimeout !== undefined && readTimeout !== 0) {
@@ -122,13 +150,13 @@ export default function DmWindow({
     [readTimeout, whom]
   );
 
-  if (loading) {
-    return (
-      <div className="h-full overflow-hidden">
-        <ChatScrollerPlaceholder count={30} />
-      </div>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <div className="h-full overflow-hidden">
+  //       <ChatScrollerPlaceholder count={30} />
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="relative h-full">
@@ -144,7 +172,8 @@ export default function DmWindow({
            * the channel would be scrolled to the top.
            */
           key={whom}
-          messages={messages}
+          // messages={messages}
+          messages={writs}
           fetchState={fetchState}
           whom={whom}
           scrollTo={scrollTo}
