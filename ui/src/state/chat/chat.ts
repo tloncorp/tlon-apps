@@ -4,10 +4,10 @@ import produce, { setAutoFreeze } from 'immer';
 import { SetState } from 'zustand';
 import { Poke } from '@urbit/http-api';
 import { formatUd, unixToDa } from '@urbit/aura';
-import { udToDec } from '@urbit/api';
+import { decToUd, udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
-import { useCallback, useEffect, useMemo } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { Groups } from '@/types/groups';
 import {
   DMUnreadUpdate,
@@ -30,6 +30,8 @@ import {
   BlockedShips,
   WritResponse,
   WritDiff,
+  PagedWrits,
+  WritTuple,
 } from '@/types/dms';
 import {
   Post,
@@ -47,6 +49,7 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { getWindow } from '@/logic/windows';
 import queryClient from '@/queryClient';
+import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { createState } from '../base';
 import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
@@ -657,6 +660,123 @@ export const useChatState = createState<ChatState>(
   },
   []
 );
+
+interface PageParam {
+  time: BigInteger;
+  direction: string;
+}
+
+export function useInfiniteDMs(whom: string, initialTime?: string) {
+  const isDM = useMemo(() => whomIsDm(whom), [whom]);
+  const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
+  const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
+
+  const invalidate = useRef(
+    _.debounce(
+      () => {
+        queryClient.invalidateQueries({ queryKey, refetchType: 'none' });
+      },
+      300,
+      {
+        leading: true,
+        trailing: true,
+      }
+    )
+  );
+
+  useEffect(() => {
+    api.subscribe({
+      app: 'chat',
+      path: `/${type}/${whom}${isDM ? '' : '/writs'}`,
+      event: (data: WritResponse) => {
+        // TODO: infinite DM updater
+        // invalidate.current();
+
+        // until we have the updater written, always invalidate
+        queryClient.invalidateQueries(queryKey);
+      },
+    });
+  }, [whom, type, isDM, queryKey]);
+
+  const { data, ...rest } = useInfiniteQuery<PagedWrits>({
+    queryKey,
+    queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
+      let path = '';
+
+      if (pageParam) {
+        const { time, direction } = pageParam;
+        const ud = decToUd(time.toString());
+        path = `/${type}/${whom}/writs/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`;
+      } else if (initialTime) {
+        path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
+          INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
+        }`;
+      } else {
+        path = `/${type}/${whom}/writs/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}`;
+      }
+
+      const response = await api.scry<PagedWrits>({
+        app: 'chat',
+        path,
+      });
+
+      return {
+        ...response,
+      };
+    },
+    getNextPageParam: (lastPage): PageParam | undefined => {
+      const { newer } = lastPage;
+
+      if (!newer) {
+        return undefined;
+      }
+
+      return {
+        time: bigInt(newer),
+        direction: 'newer',
+      };
+    },
+    getPreviousPageParam: (firstPage): PageParam | undefined => {
+      const { older } = firstPage;
+
+      if (!older) {
+        return undefined;
+      }
+
+      return {
+        time: bigInt(older),
+        direction: 'older',
+      };
+    },
+    refetchOnMount: false,
+    retryOnMount: false,
+    retry: false,
+  });
+
+  if (data === undefined || data.pages.length === 0) {
+    return {
+      writs: [] as WritTuple[],
+      data,
+      ...rest,
+    };
+  }
+
+  const writs: WritTuple[] = data.pages
+    .map((page) => {
+      const writPages = Object.entries(page).map(
+        ([k, v]) => [bigInt(udToDec(k)), v] as WritTuple
+      );
+      return writPages;
+    })
+    .flat()
+    .sort(([a], [b]) => a.compare(b));
+
+  return {
+    data,
+    writs,
+    ...rest,
+  };
+}
 
 export function useWritWindow(whom: string, time?: string) {
   const window = useChatState(useCallback((s) => s.writWindows[whom], [whom]));
