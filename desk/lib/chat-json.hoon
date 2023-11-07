@@ -301,6 +301,15 @@
         essay+(essay:enjs:dj +.writ)
     ==
   ::
+  ++  paged-writs
+    |=  pw=paged-writs:c
+    %-  pairs
+    :~  writs+(writs writs.pw)
+        newer+?~(newer.pw ~ (id u.newer.pw))
+        older+?~(older.pw ~ (id u.older.pw))
+        total+(numb total.pw)
+    ==
+  ::
   ++  time-id
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))

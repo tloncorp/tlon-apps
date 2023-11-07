@@ -73,6 +73,15 @@
       dex=index
   ==
 ::
+::  $paged-writs: a set of time ordered chat messages, with page cursors
+::
++$  paged-writs
+  $:  =writs
+      newer=(unit id)
+      older=(unit id)
+      total=@ud
+  ==
+::
 ::  $writs: a set of time ordered chat messages
 ::
 ++  writs

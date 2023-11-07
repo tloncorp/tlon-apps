@@ -356,6 +356,7 @@ export default function makeWritsStore(
         app: 'chat',
         path: `${scryPath}/around/${decToUd(time.toString())}/${count}/light`,
       });
+      console.log({ writs });
       updateAround(writs, time);
     },
   };

@@ -188,6 +188,19 @@ export interface Writs {
   [time: Patda]: Writ;
 }
 
+export interface PagedWrits {
+  writs: Writs;
+  newer: string | null;
+  older: string | null;
+  total: number;
+}
+
+export type WritPageMap = BTree<BigInteger, Writ | null>;
+
+export interface PagedWritsMap extends Omit<PagedWrits, 'writs'> {
+  posts: WritPageMap;
+}
+
 export interface DMUnread {
   last: number;
   count: number;
