@@ -198,7 +198,7 @@ export interface PagedWrits {
 export type WritPageMap = BTree<BigInteger, Writ | null>;
 
 export interface PagedWritsMap extends Omit<PagedWrits, 'writs'> {
-  posts: WritPageMap;
+  writs: WritPageMap;
 }
 
 export interface DMUnread {
