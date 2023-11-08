@@ -544,6 +544,11 @@
     %-  (slog 'Failed to do chat data migration' u.p.sign)
     cor
   ::
+      [%groups ~]
+    ::  old chat used to watch groups. we no longer want/need to.
+    ::
+    (emit %pass /groups %agent [our.bowl %groups] %leave ~)
+  ::
       [%contacts ship=@ ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
