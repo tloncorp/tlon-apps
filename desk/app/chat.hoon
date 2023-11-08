@@ -788,14 +788,14 @@
       =/  reply-time  (~(get by dex.old) u.replying.writ)
       ?~  reply-time  reply-index
       %+  ~(put by reply-index)  u.reply-time
-      (put:on-v-replies:d old-replies time `(convert-quip time writ))
+      (put:on-v-replies:d old-replies q.id.writ `(convert-quip q.id.writ writ))
     %+  gas:on-v-posts:d  *v-posts:d
     %+  murn  writs
     |=  [=time =writ:t]
     ^-  (unit [id-post:d (unit v-post:d)])
     ?^  replying.writ  ~
     =/  replies=v-replies:d  (~(gut by reply-index) time *v-replies:d)
-    (some time `(convert-post time writ replies))
+    (some q.id.writ `(convert-post q.id.writ writ replies))
   ::
   ++  convert-post
     |=  [id=@da old=writ:t replies=v-replies:d]
@@ -830,9 +830,18 @@
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
         %story
-      %+  welp
-        (turn p.p.old |=(=block:t [%block block]))
-      [%inline q.p.old]~
+      =-  (snoc - [%inline q.p.old])
+      %+  turn  p.p.old
+      |=  =block:t
+      ^-  verse:d
+      :-  %block
+      ?.  ?=([%cite %chan *] block)  block
+      =;  new=(unit path)
+        ?~  new  block
+        block(wer.cite u.new)
+      ?.  ?=([%msg @ @ ~] wer.cite.block)  ~
+      ?~  id=(slaw %ud i.t.t.wer.cite.block)  ~
+      `/msg/(crip (a-co:co u.id))
     ==
   ::
   ++  convert-log
