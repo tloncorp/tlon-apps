@@ -1,6 +1,6 @@
 ::  negotiate: hands-off version negotiation
 ::
-::      v1.0.0: greenhorn ambassador
+::      v1.0.1: greenhorn ambassador
 ::
 ::    automates negotiating poke & watch interface versions, letting the
 ::    underlying agent focus on talking to the outside world instead of
@@ -89,8 +89,8 @@
   ^-  $-(agent:gall agent:gall)
   |^  agent
   ::
-  +$  state-0
-    $:  %0
+  +$  state-1
+    $:  %1
         ours=(map protocol version)
         know=config
         heed=(map [gill:gall protocol] (unit version))
@@ -100,7 +100,7 @@
   +$  card  card:agent:gall
   ::
   ++  helper
-    |_  [=bowl:gall state-0]
+    |_  [=bowl:gall state-1]
     +*  state  +<+
     ++  match
       |=  =gill:gall
@@ -157,24 +157,19 @@
         (some %pass wire %agent gill %watch path)
       ::  manage subs for new or non-matching gills
       ::
-      =^  [init=(set [gill:gall protocol]) kill=(set [=wire =gill:gall])]  want
+      =/  [init=(set [gill:gall protocol]) kill=(set [=wire =gill:gall])]
         %+  roll  ~(tap by boat)
         |=  $:  [[=wire =gill:gall] [? =path]]
                 [init=(set [gill:gall protocol]) kill=(set [=wire =gill:gall])]
-                =_want
             ==
-        ^+  [[init kill] want]
-        ::  for library-managed subs, ignore all but the wrapped-watch ones
+        ^+  [init kill]
+        ::  all subscriptions should be fully library-managed
+        ::
+        ?>  ?=([%~.~ %negotiate *] wire)
+        ::  ignore library-internal subscriptions
         ::
         ?:  &(?=([%~.~ %negotiate @ *] wire) !=(%inner-watch i.t.t.wire))
-          [[init kill] want]
-        ::  always track the subscriptions we (want to) have,
-        ::  but don't track subs already managed by the library
-        ::
-        :_  ?:  ?=([%~.~ %negotiate *] wire)  want
-            =/  wan  (~(gut by want) gill ~)
-            %+  ~(put by want)  gill
-            (~(put by wan) wire path)
+          [init kill]
         ::  if we don't need a specific version, leave the sub as-is
         ::
         ?:  =([our dap]:bowl gill)  [init kill]
@@ -455,7 +450,7 @@
   ::
   ++  agent
     |=  inner=agent:gall
-    =|  state-0
+    =|  state-1
     =*  state  -
     %+  verb  |
     %-  agent:dbug
@@ -480,13 +475,60 @@
       ?.  ?=([[%negotiate *] *] q.ole)
         =.  ours   our-versions
         =.  know   our-config
-        =^  caz    state  (inflate:up ~)
+        ::  upgrade the inner agent as normal, handling any new subscriptions
+        ::  it creates like we normally do
+        ::
         =^  cards  inner  (on-load:og ole)
         =^  cards  state  (play-cards:up cards)
-        [(weld caz cards) this]
+        ::  but then, for every subscription that was established prior to
+        ::  using this library, simulate a kick, forcing the inner agent to
+        ::  re-establish those subscriptions, letting us wrap them like we
+        ::  will do for all its subs going forward.
+        ::  this way, after this +on-load call finishes, we should never again
+        ::  see %watch-ack, %kick or %fact signs with non-wrapped wires.
+        ::
+        =/  suz=(list [[=wire =gill:gall] [ack=? =path]])
+          ~(tap by wex.bowl)
+        |-
+        ?~  suz         [cards this]
+        =*  sub         i.suz
+        =.  cards       (snoc cards [%pass wire.sub %agent gill.sub %leave ~])
+        =.  wex.bowl    (~(del by wex.bowl) -.sub)
+        =^  caz  inner  (on-agent:og wire.sub %kick ~)
+        =^  caz  state  (play-cards:up caz)
+        $(cards (weld cards caz), suz t.suz)
       ::
       |^  =+  !<([[%negotiate old=state-any] ile=vase] ole)
-          ?>  ?=(%0 -.old)
+          ?:  ?=(%0 -.old)
+            ::  version 0 didn't wrap all subscriptions, so we must simulate
+            ::  kicks for those that weren't wrapped.
+            ::NOTE  at the time of writing, we know the very bounded set of
+            ::      ships running version %0 of this library, and we know no
+            ::      version numbers are changing during this upgrade, so we
+            ::      simply don't worry about calling +inflate, similar to the
+            ::      "initial +on-load" case.
+            ::TODO  that means we should probably obliterate the %0 type &
+            ::      code branch once this has been deployed to the known ships.
+            ::
+            =.  state  old(- %1)
+            ?>  =(ours our-versions)
+            ?>  =(know our-config)
+            =^  cards  inner  (on-load:og ile)
+            =^  cards  state  (play-cards:up cards)
+            =/  suz=(list [[=wire =gill:gall] [ack=? =path]])
+              ~(tap by wex.bowl)
+            |-
+            ?~  suz  [cards this]
+            =*  sub  i.suz
+            ?:  ?=([%~.~ %negotiate *] wire.sub)
+              $(suz t.suz)
+            ~&  [%negotiate dap.bowl %re-doing-sub sub]
+            =.  cards       (snoc cards [%pass wire.sub %agent gill.sub %leave ~])
+            =.  wex.bowl    (~(del by wex.bowl) -.sub)
+            =^  caz  inner  (on-agent:og wire.sub %kick ~)
+            =^  caz  state  (play-cards:up caz)
+            $(cards (weld cards caz), suz t.suz)
+          ?>  ?=(%1 -.old)
           =.  state  old
           =/  caz1
             ?:  =(ours our-versions)  ~
@@ -499,7 +541,14 @@
           =^  cards  state  (play-cards:up cards)
           [:(weld caz1 caz2 cards) this]
       ::
-      +$  state-any  state-0
+      +$  state-any  $%(state-0 state-1)
+      +$  state-0
+        $:  %0
+            ours=(map protocol version)
+            know=config
+            heed=(map [gill:gall protocol] (unit version))
+            want=(map gill:gall (map wire path))  ::  unpacked wires
+        ==
       --
     ::
     ++  on-watch
@@ -527,6 +576,7 @@
         (trim-wire:up wire)
       ?.  ?=([%~.~ %negotiate *] wire)
         =?  want  ?=(?([%kick ~] [%watch-ack ~ *]) sign)
+          ~|  wire
           =/  gill  (need gill)
           =/  wan  (~(gut by want) gill ~)
           =.  wan  (~(del by wan) wire)

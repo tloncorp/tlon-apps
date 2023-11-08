@@ -11,7 +11,7 @@
   ==
 ::
 +$  libstate
-  $:  %0
+  $:  %1
       ours=(map protocol:libn version:libn)
       know=config:libn
       heed=(map [gill:gall protocol:libn] (unit version:libn))
@@ -45,9 +45,13 @@
     ==
   ::
   ++  on-agent
-    |~  [=wire sign:agent:gall]
+    |~  [=wire =sign:agent:gall]
     ?<  ?=([%~.~ %negotiate *] wire)
-    [~ this]
+    ?.  ?=(%kick -.sign)  [~ this]
+    ::  on-kick, try to resubscribe. important for some tests.
+    ::
+    ?.  ?=([@ *] wire)  [~ this]
+    [[%pass wire %agent [src.bowl i.wire] %watch wire]~ this]
   ::
   ++  on-watch  |~(path !!)
   ++  on-leave  |~(path !!)
@@ -151,29 +155,41 @@
   ;<  *  bind:m  (do-init %negotiate-test dummy-agent)
   ;<  *  bind:m
     %-  perform-cards
-    :~  [%pass /keep %agent [~zod %easy] %watch /path]
-        [%pass /kill %agent [~zod %hard] %watch /path]
+    :~  [%pass /easy %agent [~zod %easy] %watch /easy]
+        [%pass /hard %agent [~zod %hard] %watch /hard]
     ==
   ::  library gets initialized with versioning requirements,
   ::  while to-be-versioned subs are already live
   ::
   ;<  caz=(list card)  bind:m
     (perform-upgrade | ~ [[%hard [%prot^%vers ~ ~]] ~ ~])
-  ::  must start negotiation and kill the affected sub
+  ::  library will kick subs, which will cause the inner agent to re-subscribe.
+  ::  the easy sub will go through, wrapped. the hard sub will trigger a
+  ::  negotiation.
   ::
+  =/  easy-outer=wire
+    /~/negotiate/inner-watch/~zod/easy/easy
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-negotiate [~zod %hard] %prot)
-        (ex-task /kill [~zod %hard] %leave ~)
+    :~  (ex-task /easy [~zod %easy] %leave ~)
+        (ex-task easy-outer [~zod %easy] %watch /easy)
+        (ex-task /hard [~zod %hard] %leave ~)
+        (ex-negotiate [~zod %hard] %prot)
     ==
   ::  must track our already-desired subscriptions
   ::
   ;<  state=libstate  bind:m  get-lib-state
-  %+  ex-equal  !>(want.state)
-  !>  %-  ~(gas by *(map gill:gall (map wire path)))
-  :~  [[~zod %easy] [/keep^/path ~ ~]]
-      [[~zod %hard] [/kill^/path ~ ~]]
-  ==
+  ;<  ~  bind:m
+    %+  ex-equal  !>(want.state)
+    !>  %-  ~(gas by *(map gill:gall (map wire path)))
+    :~  [[~zod %easy] [/easy^/easy ~ ~]]
+        [[~zod %hard] [/hard^/hard ~ ~]]
+    ==
+  ::  must process a kick for the re-established sub correctly
+  ::
+  ;<  *  bind:m
+    (do-agent easy-outer [~zod %easy] %kick ~)
+  (pure:m ~)
 ::
 ++  test-hold-watch
   %-  eval-mare
@@ -256,9 +272,10 @@
 ++  test-handle-inner-kick-and-nack
   %-  eval-mare
   =/  m  (mare ,~)
+  ::NOTE  that we use the empty wire here, so the inner agent doesn't re-sub
   ;<  *  bind:m  (perform-init-clean | ~ ~)
-  ;<  *  bind:m  (perform-cards [%pass /wire %agent [~zod %easy] %watch /path] ~)
-  =/  outer-wire=wire  /~/negotiate/inner-watch/~zod/easy/wire
+  ;<  *  bind:m  (perform-cards [%pass / %agent [~zod %easy] %watch /path] ~)
+  =/  outer-wire=wire  /~/negotiate/inner-watch/~zod/easy
   ::  if kicked, we must "lose" the sub
   ::
   ;<  *  bind:m
@@ -270,7 +287,7 @@
   ::  if nacked, we must "lose" the sub
   ::
   ;<  *  bind:m
-    (perform-cards [%pass /wire %agent [~zod %easy] %watch /path] ~)
+    (perform-cards [%pass / %agent [~zod %easy] %watch /path] ~)
   ;<  *  bind:m
     (do-agent outer-wire [~zod %easy] %watch-ack `['err']~)
   ;<  state=libstate  bind:m
