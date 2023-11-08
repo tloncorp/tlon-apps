@@ -1480,9 +1480,9 @@ export function useEditPostMutation() {
         queryKey: [han, 'posts', flag, variables.time],
         refetchType: 'none',
       });
-      // await queryClient.invalidateQueries({
-      // queryKey: [han, 'posts', flag, 'infinite'],
-      // });
+      await queryClient.invalidateQueries({
+        queryKey: [han, 'posts', flag, 'infinite'],
+      });
     },
   });
 }
