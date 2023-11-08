@@ -28,7 +28,6 @@ import {
   Nest,
   PageMap,
   newPostMap,
-  newReplyMap,
   PageTuple,
   UnreadUpdate,
   PagedPosts,
@@ -42,12 +41,6 @@ import {
   HiddenPosts,
   TogglePost,
 } from '@/types/channel';
-import {
-  extendCurrentWindow,
-  getWindow,
-  Window,
-  WindowSet,
-} from '@/logic/windows';
 import api from '@/api';
 import { checkNest, log, nestToFlag, restoreMap } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
@@ -63,22 +56,26 @@ async function updatePostInCache(
   updater: (post: PostDataResponse | undefined) => PostDataResponse | undefined
 ) {
   const [han, flag] = nestToFlag(variables.nest);
-  await queryClient.cancelQueries({
-    queryKey: [han, 'posts', flag, variables.postId],
-    exact: true,
-  });
+  await queryClient.cancelQueries([han, 'posts', flag, variables.postId]);
 
   queryClient.setQueryData([han, 'posts', flag, variables.postId], updater);
 }
 
+interface PostsInCachePrev {
+  pages: PagedPosts[];
+  pageParams: PageParam[];
+}
+
 async function updatePostsInCache(
   variables: { nest: Nest },
-  updater: (posts: Posts | undefined) => Posts | undefined
+  updater: (
+    prev: PostsInCachePrev | undefined
+  ) => { pageParams: PageParam[]; pages: PagedPosts[] } | undefined
 ) {
   const [han, flag] = nestToFlag(variables.nest);
-  await queryClient.cancelQueries([han, 'posts', flag]);
+  await queryClient.cancelQueries([han, 'posts', flag, 'infinite']);
 
-  queryClient.setQueryData([han, 'posts', flag], updater);
+  queryClient.setQueryData([han, 'posts', flag, 'infinite'], updater);
 }
 
 export function channelAction(
@@ -106,10 +103,6 @@ export function channelPostAction(nest: Nest, action: PostAction) {
   });
 }
 
-export interface PostWindows {
-  [nest: string]: WindowSet;
-}
-
 export type PostStatus = 'pending' | 'sent' | 'delivered';
 
 export interface TrackedPost {
@@ -124,17 +117,13 @@ export interface CacheId {
 
 export interface State {
   trackedPosts: TrackedPost[];
-  postWindows: PostWindows;
   addTracked: (id: CacheId) => void;
   updateStatus: (id: CacheId, status: PostStatus) => void;
-  getCurrentWindow: (nest: string, time?: string) => Window | undefined;
-  extendCurrentWindow: (nest: Nest, newWindow: Window, time?: string) => void;
   [key: string]: unknown;
 }
 
 export const usePostsStore = create<State>((set, get) => ({
   trackedPosts: [],
-  postWindows: {},
   addTracked: (id) => {
     set((state) => ({
       trackedPosts: [{ status: 'pending', cacheId: id }, ...state.trackedPosts],
@@ -152,32 +141,7 @@ export const usePostsStore = create<State>((set, get) => ({
       }),
     }));
   },
-  getCurrentWindow: (nest, time) => {
-    const currentSet = get().postWindows[nest];
-    return getWindow(currentSet, time);
-  },
-  extendCurrentWindow: (nest, newWindow, time) => {
-    set((state) => {
-      const currentSet = state.postWindows[nest];
-
-      return {
-        postWindows: {
-          ...state.postWindows,
-          [nest]: extendCurrentWindow(newWindow, currentSet, time),
-        },
-      };
-    });
-  },
 }));
-
-export function useCurrentWindow(nest: Nest, time?: string) {
-  const getCurrentWindow = useCallback(
-    () => usePostsStore.getState().getCurrentWindow(nest, time),
-    [time, nest]
-  );
-
-  return getCurrentWindow();
-}
 
 export function useTrackedPosts() {
   return usePostsStore((s) => s.trackedPosts);
@@ -326,7 +290,7 @@ const infinitePostUpdater = (
 
   const postResponse = response.post['r-post'];
   const { id } = response.post;
-  const time = bigInt(udToDec(id));
+  const time = decToUd(id);
 
   if ('set' in postResponse) {
     const post = postResponse.set;
@@ -335,100 +299,98 @@ const infinitePostUpdater = (
       queryClient.setQueryData<{
         pages: PagedPosts[];
         pageParams: PageParam[];
-      }>(
-        queryKey,
-        (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
-          if (d === undefined) {
-            return undefined;
+      }>(queryKey, (d: PostsInCachePrev | undefined) => {
+        if (d === undefined) {
+          return undefined;
+        }
+
+        const newPages = d.pages.map((page) => {
+          const newPage = {
+            ...page,
+          };
+
+          const inPage =
+            Object.keys(newPage.posts).some((k) => k === time) ?? false;
+
+          if (inPage) {
+            const pagePosts = { ...newPage.posts };
+
+            pagePosts[time] = null;
+
+            newPage.posts = pagePosts;
           }
 
-          const newPages = d.pages.map((page) => {
-            const newPage = {
-              ...page,
-            };
+          return newPage;
+        });
 
-            const inPage =
-              Object.keys(newPage.posts).some((k) => k === time.toString()) ??
-              false;
-
-            if (inPage) {
-              const pagePosts = { ...newPage.posts };
-
-              pagePosts[time.toString()] = null;
-
-              newPage.posts = pagePosts;
-            }
-
-            return newPage;
-          });
-
-          return {
-            pages: newPages,
-            pageParams: d.pageParams,
-          };
-        }
-      );
+        return {
+          pages: newPages,
+          pageParams: d.pageParams,
+        };
+      });
     } else {
       queryClient.setQueryData<{
         pages: PagedPosts[];
         pageParams: PageParam[];
-      }>(
-        queryKey,
-        (d: { pages: PagedPosts[]; pageParams: PageParam[] } | undefined) => {
-          if (d === undefined) {
-            return {
-              pages: [
-                {
-                  posts: {
-                    [time.toString()]: post,
-                  },
-                  newer: null,
-                  older: null,
-                  total: 1,
-                },
-              ],
-              pageParams: [],
-            };
-          }
-
-          const lastPage = _.last(d.pages);
-
-          if (lastPage === undefined) {
-            return undefined;
-          }
-
-          const newPosts = {
-            ...lastPage.posts,
-            [time.toString()]: post,
-          };
-
-          const newLastPage = {
-            ...lastPage,
-            posts: newPosts,
-          };
-
-          const cachedPost =
-            lastPage.posts[unixToDa(post.essay.sent).toString()];
-
-          if (cachedPost && id !== unixToDa(post.essay.sent).toString()) {
-            // remove cached post if it exists
-            delete newLastPage.posts[unixToDa(post.essay.sent).toString()];
-
-            // set delivered now that we have the real post
-            usePostsStore
-              .getState()
-              .updateStatus(
-                { author: post.essay.author, sent: post.essay.sent },
-                'delivered'
-              );
-          }
-
+      }>(queryKey, (d: PostsInCachePrev | undefined) => {
+        if (d === undefined) {
           return {
-            pages: [...d.pages.slice(0, -1), newLastPage],
-            pageParams: d.pageParams,
+            pages: [
+              {
+                posts: {
+                  [time]: post,
+                },
+                newer: null,
+                older: null,
+                total: 1,
+              },
+            ],
+            pageParams: [],
           };
         }
-      );
+
+        const lastPage = _.last(d.pages);
+
+        if (lastPage === undefined) {
+          return undefined;
+        }
+
+        const newPosts = {
+          ...lastPage.posts,
+          [time]: post,
+        };
+
+        const newLastPage = {
+          ...lastPage,
+          posts: newPosts,
+        };
+
+        const cachedPost =
+          lastPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
+
+        if (
+          cachedPost &&
+          id !== decToUd(unixToDa(post.essay.sent).toString())
+        ) {
+          // remove cached post if it exists
+          delete newLastPage.posts[
+            decToUd(unixToDa(post.essay.sent).toString())
+          ];
+
+          // set delivered now that we have the real post
+          usePostsStore
+            .getState()
+            .updateStatus(
+              { author: post.essay.author, sent: post.essay.sent },
+              'delivered'
+            );
+        }
+
+        return {
+          pages: [...d.pages.slice(0, -1), newLastPage],
+          pageParams: d.pageParams,
+        };
+      });
     }
   } else if ('reacts' in postResponse) {
     queryClient.setQueryData<{
@@ -449,15 +411,14 @@ const infinitePostUpdater = (
           };
 
           const inPage =
-            Object.keys(newPage.posts).some((k) => k === time.toString()) ??
-            false;
+            Object.keys(newPage.posts).some((k) => k === time) ?? false;
 
           if (inPage) {
-            const post = newPage.posts[time.toString()];
+            const post = newPage.posts[time];
             if (!post) {
               return newPage;
             }
-            newPage.posts[time.toString()] = {
+            newPage.posts[time] = {
               ...post,
               seal: {
                 ...post.seal,
@@ -496,15 +457,14 @@ const infinitePostUpdater = (
           };
 
           const inPage =
-            Object.keys(newPage.posts).some((k) => k === time.toString()) ??
-            false;
+            Object.keys(newPage.posts).some((k) => k === time) ?? false;
 
           if (inPage) {
-            const post = newPage.posts[time.toString()];
+            const post = newPage.posts[time];
             if (!post) {
               return page;
             }
-            newPage.posts[time.toString()] = {
+            newPage.posts[time] = {
               ...post,
               essay,
             };
@@ -675,10 +635,6 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
       ...rest,
     };
   }
-
-  // const posts: PageTuple[] = data.pages
-  // .map((page) => page.posts.toArray())
-  // .flat();
 
   const posts: PageTuple[] = data.pages
     .map((page) => {
@@ -1455,23 +1411,56 @@ export function useEditPostMutation() {
         };
       };
 
-      const postsUpdater = (prev: Posts | undefined) => {
+      const postsUpdater = (prev: PostsInCachePrev | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
-        const prevPost = prev[decToUd(variables.time)];
+        if (prev.pages === undefined) {
+          return prev;
+        }
 
-        if (prevPost === null) {
+        const allPostsInCache = prev.pages.flatMap((page) =>
+          Object.entries(page.posts)
+        );
+
+        const prevPost = allPostsInCache.find(
+          ([k]) => k === decToUd(variables.time)
+        )?.[1];
+
+        if (prevPost === null || prevPost === undefined) {
+          return prev;
+        }
+
+        const pageInCache = prev.pages.find((page) =>
+          Object.keys(page.posts).some((k) => k === decToUd(variables.time))
+        );
+
+        const pageInCacheIdx = prev.pages.findIndex((page) =>
+          Object.keys(page.posts).some((k) => k === decToUd(variables.time))
+        );
+
+        if (pageInCache === undefined) {
           return prev;
         }
 
         return {
           ...prev,
-          [variables.time]: {
-            seal: prevPost.seal,
-            essay: variables.essay,
-          },
+          pages: [
+            ...prev.pages.slice(0, pageInCacheIdx),
+            {
+              ...pageInCache,
+              posts: {
+                ...pageInCache?.posts,
+                [decToUd(variables.time)]: {
+                  ...prevPost,
+                  essay: variables.essay,
+                  seal: prevPost.seal,
+                },
+              },
+            },
+            ...prev.pages.slice(pageInCacheIdx + 1),
+          ],
         };
       };
 
@@ -1484,6 +1473,16 @@ export function useEditPostMutation() {
       );
 
       await updatePostsInCache(variables, postsUpdater);
+    },
+    onSettled: async (_data, _error, variables) => {
+      const [han, flag] = nestToFlag(variables.nest);
+      await queryClient.invalidateQueries({
+        queryKey: [han, 'posts', flag, variables.time],
+        refetchType: 'none',
+      });
+      // await queryClient.invalidateQueries({
+      // queryKey: [han, 'posts', flag, 'infinite'],
+      // });
     },
   });
 }
@@ -1515,29 +1514,67 @@ export function useDeletePostMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-
-      const updater = (prev: Posts | undefined) => {
+      const updater = (prev: PostsInCachePrev | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
-        const { [decToUd(variables.time)]: _n, ...rest } = prev;
+        if (prev.pages === undefined) {
+          return prev;
+        }
 
-        return rest;
+        const allPostsInCache = prev.pages.flatMap((page) =>
+          Object.entries(page.posts)
+        );
+
+        const prevPost = allPostsInCache.find(
+          ([k]) => k === decToUd(variables.time)
+        )?.[1];
+
+        if (prevPost === null || prevPost === undefined) {
+          return prev;
+        }
+
+        const pageInCache = prev.pages.find((page) =>
+          Object.keys(page.posts).some((k) => k === decToUd(variables.time))
+        );
+
+        const pageInCacheIdx = prev.pages.findIndex((page) =>
+          Object.keys(page.posts).some((k) => k === decToUd(variables.time))
+        );
+
+        if (pageInCache === undefined) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          pages: [
+            ...prev.pages.slice(0, pageInCacheIdx),
+            {
+              ...pageInCache,
+              posts: Object.fromEntries(
+                Object.entries(pageInCache.posts).filter(
+                  ([k]) => k !== decToUd(variables.time)
+                )
+              ),
+            },
+            ...prev.pages.slice(pageInCacheIdx + 1),
+          ],
+        };
       };
 
       await updatePostsInCache(variables, updater);
-
-      await queryClient.cancelQueries([han, 'posts', flag, variables.time]);
     },
     onSuccess: async (_data, variables) => {
       removePostFromInfiniteQuery(variables.nest, variables.time);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'posts', flag]);
-      await queryClient.invalidateQueries([han, 'posts', flag, 'infinite']);
+      setTimeout(async () => {
+        await queryClient.invalidateQueries([han, 'posts', flag]);
+        await queryClient.invalidateQueries([han, 'posts', flag, 'infinite']);
+      }, 3000);
     },
   });
 }
@@ -1701,15 +1738,22 @@ export function useAddReplyMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const postsUpdater = (prev: Record<string, Post | null> | undefined) => {
+      const postsUpdater = (prev: PostsInCachePrev | undefined) => {
         if (prev === undefined) {
           return prev;
         }
 
         const replying = decToUd(variables.postId);
-        if (replying in prev) {
-          const replyingPost = prev[replying] as Post;
-          if (replyingPost === null) {
+
+        const allPostsInCache = prev.pages.flatMap((page) =>
+          Object.entries(page.posts)
+        );
+
+        if (replying in allPostsInCache) {
+          const replyingPost = allPostsInCache.find(
+            ([k]) => k === replying
+          )?.[1];
+          if (replyingPost === null || replyingPost === undefined) {
             return prev;
           }
 
@@ -1722,9 +1766,31 @@ export function useAddReplyMutation() {
             },
           };
 
+          const pageInCache = prev.pages.find((page) =>
+            Object.keys(page.posts).some((k) => k === decToUd(replying))
+          );
+
+          const pageInCacheIdx = prev.pages.findIndex((page) =>
+            Object.keys(page.posts).some((k) => k === decToUd(replying))
+          );
+
+          if (pageInCache === undefined) {
+            return prev;
+          }
+
           return {
             ...prev,
-            [replying]: updatedPost,
+            pages: [
+              ...prev.pages.slice(0, pageInCacheIdx),
+              {
+                ...pageInCache,
+                posts: {
+                  ...pageInCache?.posts,
+                  [decToUd(replying)]: updatedPost,
+                },
+              },
+              ...prev.pages.slice(pageInCacheIdx + 1),
+            ],
           };
         }
         return prev;
@@ -1741,7 +1807,7 @@ export function useAddReplyMutation() {
           [decToUd(unixToDa(dateTime).toString())]: {
             seal: {
               id: unixToDa(dateTime).toString(),
-              'parent-id': decToUd(variables.postId),
+              'parent-id': variables.postId,
               reacts: {},
             },
             memo: {
@@ -1768,8 +1834,16 @@ export function useAddReplyMutation() {
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.refetchQueries([han, 'posts', flag]);
-      await queryClient.refetchQueries([han, 'posts', flag, variables.postId]);
+      setTimeout(async () => {
+        // TODO: this is a hack to make sure the post is updated before refetching
+        // the queries. We need to figure out why the post is not updated immediately.
+        await queryClient.refetchQueries([
+          han,
+          'posts',
+          flag,
+          variables.postId,
+        ]);
+      }, 300);
     },
   });
 }
@@ -1799,15 +1873,22 @@ export function useDeleteReplyMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const postsUpdater = (prev: Record<string, Post | null> | undefined) => {
+      const postsUpdater = (prev: PostsInCachePrev | undefined) => {
         if (prev === undefined) {
           return prev;
         }
         const replying = decToUd(variables.postId);
-        if (replying in prev) {
-          const replyingPost = prev[replying] as Post;
 
-          if (replyingPost === null) {
+        const allPostsInCache = prev.pages.flatMap((page) =>
+          Object.entries(page.posts)
+        );
+
+        if (replying in allPostsInCache) {
+          const replyingPost = allPostsInCache.find(
+            ([k]) => k === replying
+          )?.[1];
+
+          if (replyingPost === null || replyingPost === undefined) {
             return prev;
           }
 
@@ -1822,9 +1903,31 @@ export function useDeleteReplyMutation() {
             },
           };
 
+          const pageInCache = prev.pages.find((page) =>
+            Object.keys(page.posts).some((k) => k === decToUd(replying))
+          );
+
+          const pageInCacheIdx = prev.pages.findIndex((page) =>
+            Object.keys(page.posts).some((k) => k === decToUd(replying))
+          );
+
+          if (pageInCache === undefined) {
+            return prev;
+          }
+
           return {
             ...prev,
-            [replying]: updatedPost,
+            pages: [
+              ...prev.pages.slice(0, pageInCacheIdx),
+              {
+                ...pageInCache,
+                posts: {
+                  ...pageInCache?.posts,
+                  [decToUd(replying)]: updatedPost,
+                },
+              },
+              ...prev.pages.slice(pageInCacheIdx + 1),
+            ],
           };
         }
         return prev;
@@ -1855,8 +1958,16 @@ export function useDeleteReplyMutation() {
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.refetchQueries([han, 'posts', flag]);
-      await queryClient.refetchQueries([han, 'posts', flag, variables.postId]);
+      setTimeout(async () => {
+        // TODO: this is a hack to make sure the post is updated before refetching
+        // the queries. We need to figure out why the post is not updated immediately.
+        await queryClient.refetchQueries([
+          han,
+          'posts',
+          flag,
+          variables.postId,
+        ]);
+      }, 300);
     },
   });
 }

@@ -217,22 +217,22 @@ export interface Replies {
   [id: string]: Reply;
 }
 
-interface PageActionAdd {
+interface PostActionAdd {
   add: PostEssay;
 }
 
-interface PageActionEdit {
+interface PostActionEdit {
   edit: {
     id: string;
     essay: PostEssay;
   };
 }
 
-interface PageActionDel {
+interface PostActionDel {
   del: string;
 }
 
-interface PageActionAddReact {
+interface PostActionAddReact {
   'add-react': {
     id: string;
     react: string;
@@ -240,7 +240,7 @@ interface PageActionAddReact {
   };
 }
 
-interface PageActionDelReact {
+interface PostActionDelReact {
   'del-react': {
     id: string;
     ship: string;
@@ -271,11 +271,11 @@ interface PostActionReply {
 }
 
 export type PostAction =
-  | PageActionAdd
-  | PageActionEdit
-  | PageActionDel
-  | PageActionAddReact
-  | PageActionDelReact
+  | PostActionAdd
+  | PostActionEdit
+  | PostActionDel
+  | PostActionAddReact
+  | PostActionDelReact
   | PostActionReply;
 
 export interface DiffView {
@@ -300,8 +300,8 @@ export interface ReplyActionDel {
 export type ReplyAction =
   | ReplyActionAdd
   | ReplyActionDel
-  | PageActionAddReact
-  | PageActionDelReact;
+  | PostActionAddReact
+  | PostActionDelReact;
 
 export type DisplayMode = 'list' | 'grid';
 

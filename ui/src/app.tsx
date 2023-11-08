@@ -569,7 +569,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             element={<RejectConfirmModal />}
           />
           <Route
-            path="/groups/:ship/:name/channels/heap/:chShip/:chName/curio/:idCurio/edit"
+            path="/groups/:ship/:name/channels/heap/:chShip/:chName/curio/:idTime/edit"
             element={<EditCurioModal />}
           />
           <Route

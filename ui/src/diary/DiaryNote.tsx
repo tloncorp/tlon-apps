@@ -150,8 +150,16 @@ export default function DiaryNote({ title }: ViewProps) {
 
   const { replies } = note.seal;
   const replyArray = replies
-    ? replies.filter(([k, v]) => v !== null).reverse()
-    : []; // natural reading order
+    ? replies
+        .filter(([k, v]) => v !== null)
+        .sort(([a], [b]) => {
+          if (sort === 'asc') {
+            return a.toString().localeCompare(b.toString());
+          }
+
+          return b.toString().localeCompare(a.toString());
+        })
+    : [];
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
   const groupedReplies = setNewDaysForReplies(
