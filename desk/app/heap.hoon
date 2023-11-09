@@ -213,8 +213,8 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-    =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
+    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     ?:  =(okay:h cool)  cor
     ::  speak the good news
     =.  cor  (emil (drop load:epos))

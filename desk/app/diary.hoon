@@ -97,8 +97,8 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
+    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
