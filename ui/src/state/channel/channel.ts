@@ -168,36 +168,6 @@ export function useTrackedPostStatus(cacheId: CacheId) {
   );
 }
 
-export function usePosts(nest: Nest) {
-  const [han, flag] = nestToFlag(nest);
-  const { data, ...rest } = useReactQuerySubscription<Posts>({
-    queryKey: [han, 'posts', flag],
-    app: 'channels',
-    path: `/${nest}`,
-    scry: `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
-    priority: 2,
-  });
-
-  if (data === undefined || Object.entries(data).length === 0) {
-    return {
-      posts: newPostMap(),
-      ...rest,
-    };
-  }
-
-  const diff: [BigInteger, Post][] = Object.entries(data).map(([k, v]) => [
-    bigInt(udToDec(k)),
-    v as Post,
-  ]);
-
-  const postsMap = newPostMap(diff);
-
-  return {
-    posts: postsMap as PageMap,
-    ...rest,
-  };
-}
-
 export function usePostsOnHost(
   nest: Nest,
   enabled: boolean
@@ -224,57 +194,6 @@ export function usePostsOnHost(
   }
 
   return data as Posts;
-}
-
-export function useOlderPosts(nest: Nest, count: number, enabled = false) {
-  checkNest(nest);
-  const { posts } = usePosts(nest);
-
-  let postMap = restoreMap<Post>(posts);
-
-  const index = postMap.peekSmallest()?.[0];
-  const oldPostsSize = postMap.size ?? 0;
-
-  const fetchStart = index ? decToUd(index.toString()) : decToUd('0');
-
-  const [han, flag] = nestToFlag(nest);
-
-  const { data, ...rest } = useReactQueryScry({
-    queryKey: [han, 'posts', flag, 'older', fetchStart],
-    app: 'channels',
-    path: `/${nest}/posts/older/${fetchStart}/${count}/outline`,
-    priority: 2,
-    options: {
-      enabled:
-        enabled &&
-        index !== undefined &&
-        oldPostsSize !== 0 &&
-        !!fetchStart &&
-        fetchStart !== decToUd('0'),
-    },
-  });
-
-  if (
-    rest.isError ||
-    data === undefined ||
-    Object.entries(data as object).length === 0 ||
-    !enabled
-  ) {
-    return false;
-  }
-
-  const diff = Object.entries(data as object).map(([k, v]) => ({
-    tim: bigInt(udToDec(k)),
-    post: v as Post,
-  }));
-
-  diff.forEach(({ tim, post }) => {
-    postMap = postMap.set(tim, post);
-  });
-
-  queryClient.setQueryData([han, 'posts', flag], postMap.root);
-
-  return rest.isLoading;
 }
 
 const infinitePostUpdater = (
@@ -815,7 +734,7 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
   );
 
   const enabled = useMemo(
-    () => postId !== '0' && nest !== '' && !disabled,
+    () => postId !== '0' && postId !== '' && nest !== '' && !disabled,
     [postId, nest, disabled]
   );
   const { data, ...rest } = useReactQueryScry({
