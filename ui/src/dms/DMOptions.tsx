@@ -9,7 +9,12 @@ import { useLocation, useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import Dialog from '@/components/Dialog';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { useChatState, useIsDmUnread, usePinned } from '@/state/chat';
+import {
+  useChatState,
+  useIsDmUnread,
+  usePinned,
+  useTogglePinMutation,
+} from '@/state/chat';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
@@ -63,6 +68,7 @@ export default function DmOptions({
   const { mutate: leaveChat } = useLeaveMutation();
   const { mutate: addPin } = useAddPinMutation();
   const { mutate: deletePin } = useDeletePinMutation();
+  const { mutateAsync: toggleDmPin } = useTogglePinMutation();
 
   const [isOpen, setIsOpen] = useState(open);
   const handleOpenChange = (innerOpen: boolean) => {
@@ -109,14 +115,15 @@ export default function DmOptions({
       e.stopPropagation();
       const isPinned = pins.includes(whom);
       if (isDMorMultiDm) {
-        await useChatState.getState().togglePin(whom, !isPinned);
+        // await useChatState.getState().togglePin(whom, !isPinned);
+        await toggleDmPin({ whom, pin: !isPinned });
       } else if (isPinned) {
         deletePin({ nest: whom });
       } else {
         addPin({ nest: whom });
       }
     },
-    [whom, pins, addPin, deletePin, isDMorMultiDm]
+    [whom, pins, addPin, deletePin, toggleDmPin, isDMorMultiDm]
   );
 
   const handleInvite = () => {

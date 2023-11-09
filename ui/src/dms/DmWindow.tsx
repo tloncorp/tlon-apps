@@ -42,20 +42,14 @@ export default function DmWindow({
   root,
   prefixedElement,
 }: DmWindowProps) {
-  // const [fetchState, setFetchState] = useState<'initial' | 'bottom' | 'top'>(
-  //   'initial'
-  // );
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollTo = getScrollTo(searchParams.get('msg'));
-  // const loading = useChatLoading(whom);
   const messages = useMessagesForChat(whom, scrollTo?.toString());
-  const messageMap = newWritMap(messages);
   const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE.toString();
 
   const {
     writs,
@@ -78,37 +72,6 @@ export default function DmWindow({
     [isFetchingNextPage, isFetchingPreviousPage]
   );
 
-  // const onAtTop = useCallback(async () => {
-  //   const store = useChatStore.getState();
-  //   const oldest = messageMap.minKey();
-  //   const seenOldest = oldest && window && window.loadedOldest;
-  //   if (seenOldest) {
-  //     return;
-  //   }
-  //   setFetchState('top');
-  //   await useChatState
-  //     .getState()
-  //     .fetchMessages(whom, pageSize, 'older', scrollTo?.toString());
-  //   setFetchState('initial');
-  //   store.bottom(false);
-  // }, [whom, scrollTo, pageSize, messageMap, window]);
-
-  // const onAtBottom = useCallback(async () => {
-  //   const store = useChatStore.getState();
-  //   const newest = messageMap.maxKey();
-  //   const seenNewest = newest && window && window.loadedNewest;
-  //   if (seenNewest) {
-  //     return;
-  //   }
-  //   setFetchState('bottom');
-  //   await useChatState
-  //     .getState()
-  //     .fetchMessages(whom, pageSize, 'newer', scrollTo?.toString());
-  //   setFetchState('initial');
-  //   store.bottom(true);
-  //   store.delayedRead(whom, () => useChatState.getState().markDmRead(whom));
-  // }, [whom, scrollTo, pageSize, messageMap, window]);
-
   const onAtBottom = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
       log('fetching next page');
@@ -128,19 +91,11 @@ export default function DmWindow({
     scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
   }, [setSearchParams]);
 
-  // useEffect(() => {
-  //   if (scrollTo && !messageMap.has(scrollTo)) {
-  //     useChatState
-  //       .getState()
-  //       .fetchMessagesAround(whom, '25', scrollTo.toString());
-  //   }
-  // }, [scrollTo, messageMap, whom]);
-
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
   }, [whom]);
 
-  // clear read when navigating away
+  // read the messages once navigated away
   useEffect(
     () => () => {
       if (readTimeout !== undefined && readTimeout !== 0) {
@@ -150,6 +105,7 @@ export default function DmWindow({
     [readTimeout, whom]
   );
 
+  // TODO: confirm the new placeholder works
   // if (isLoading) {
   //   return (
   //     <div className="h-full overflow-hidden">

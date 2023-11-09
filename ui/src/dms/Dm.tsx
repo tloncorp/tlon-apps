@@ -35,6 +35,7 @@ import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { dmListPath, isGroups } from '@/logic/utils';
 import useNegotiation from '@/state/negotiation';
+import { sendMessage } from '@/state/chat';
 import MessageSelector from './MessageSelector';
 import DmSearch from './DmSearch';
 
@@ -108,7 +109,7 @@ export default function Dm() {
   const { isChatInputFocused } = useChatInputFocus();
   const dropZoneId = `chat-dm-input-dropzone-${ship}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const { sendMessage } = useChatState.getState();
+  // const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
   const { data } = useConnectivityCheck(ship || '');
   const navigate = useNavigate();
