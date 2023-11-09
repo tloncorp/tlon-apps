@@ -1036,65 +1036,51 @@ export async function optimisticDMAction(
   await api.poke<ClubAction | DmAction>(action);
 }
 
-export async function sendMessage(
-  whom: string,
-  mem: PostEssay,
-  replying: string | undefined
-) {
-  const isDM = whomIsDm(whom);
-  const { id, time } = makeId();
-  const memo: Omit<PostEssay, 'kind-data'> = {
-    content: mem.content,
-    author: mem.author,
-    sent: time,
+export interface SendMessageVariables {
+  whom: string;
+  message: {
+    id: string;
+    delta: WritDelta;
+  };
+  replying?: string;
+}
+
+export function useSendMessage() {
+  const mutationFn = async ({
+    whom,
+    message,
+    replying,
+  }: SendMessageVariables) => {
+    const { action } = getActionAndEvent(
+      whom,
+      replying || message.id,
+      message.delta
+    );
+    await api.poke<ClubAction | DmAction>(action);
   };
 
-  let diff: WritDelta;
-  if (!replying) {
-    diff = {
-      add: {
-        memo,
-        kind: null,
-        time: null,
-      },
-    };
-  } else {
-    diff = {
-      reply: {
-        id,
-        meta: null,
-        delta: {
-          add: {
-            memo,
-            time: null,
-          },
-        },
-      },
-    };
-  }
+  return useMutation({
+    mutationFn,
+    onMutate: (variables) => {
+      const { whom, message, replying } = variables;
+      const queryKey = ['dms', whom, 'infinite'];
+      infiniteDMsUpdater(queryKey, {
+        id: replying || message.id,
+        delta: message.delta,
+      });
+    },
+    onSettled: (_data, _error, variables) => {
+      const { whom } = variables;
+      const queryKey = ['dms', whom, 'infinite'];
+      queryClient.invalidateQueries(queryKey);
+    },
+  });
 
-  if (replying) {
-    await optimisticDMAction(whom, replying, diff);
-  } else {
-    await optimisticDMAction(whom, id, diff);
-  }
-
-  // TODO: tracking message for sending/sent status
-
-  // return useMutation(async () => {
-  //   if (replying) {
-  //     await optimisticDMAction(whom, replying, diff);
-  //   } else {
-  //     await optimisticDMAction(whom, id, diff);
-  //   }
-  // });
+  // TODO: tracking message for sending/sent arrows
 }
 
 export async function delDm(whom: string, id: string) {
-  // const dif = { del: null };
-  // if (whomIsDm(whom)) {
-  // } else {
-  // }
+  //
 }
 
 export function useAddDmReactMutation() {

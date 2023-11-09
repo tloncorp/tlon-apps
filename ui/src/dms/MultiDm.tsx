@@ -11,7 +11,12 @@ import {
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import { useChatState, useMultiDm, useMultiDmIsPending } from '@/state/chat';
+import {
+  useChatState,
+  useMultiDm,
+  useMultiDmIsPending,
+  useSendMessage,
+} from '@/state/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { dmListPath, isGroups, pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
@@ -90,6 +95,7 @@ export default function MultiDm() {
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
   const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
   const negotiationMatch = useNegotiateMulti(dmParticipants, 'chat', 'chat');
+  const { mutate: sendMessage } = useSendMessage();
 
   const {
     isSelectingMessage,
@@ -105,7 +111,7 @@ export default function MultiDm() {
     }
   }, [clubId, club]);
 
-  const { sendMessage } = useChatState.getState();
+  // const { sendMessage } = useChatState.getState();
 
   const handleLeave = useCallback(() => {
     navigate(dmListPath);

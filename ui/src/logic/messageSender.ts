@@ -8,8 +8,11 @@ import {
   Nest,
   PostEssay,
 } from '@/types/channel';
-import { JSONToInlines } from './tiptap';
+import { createMessage } from '@/state/chat/utils';
+import { WritDelta } from '@/types/dms';
+import { SendMessageVariables } from '@/state/chat';
 import { isImageUrl } from './utils';
+import { JSONToInlines } from './tiptap';
 
 interface MessageSender {
   whom: string;
@@ -19,7 +22,7 @@ interface MessageSender {
   blocks: Block[];
   text: string;
   now: number;
-  sendDm?: (whom: string, essay: PostEssay, replying?: string) => void;
+  sendDm?: (variables: SendMessageVariables) => void;
   sendChatMessage?: ({
     cacheId,
     essay,
@@ -115,16 +118,14 @@ export default function messageSender({
           },
         },
       ];
+      const message = createMessage(whom, { ...essay, content }, replying);
 
       if (sendDm) {
-        sendDm(
+        sendDm({
           whom,
-          {
-            ...essay,
-            content,
-          },
-          replying
-        );
+          message,
+          replying,
+        });
       } else if (sendChatMessage) {
         sendChatMessage({
           cacheId,
@@ -147,7 +148,7 @@ export default function messageSender({
 
       img.onerror = () => {
         if (sendDm) {
-          sendDm(whom, essay, replying);
+          sendDm({ whom, message, replying });
         } else if (sendChatMessage) {
           sendChatMessage({
             cacheId,
@@ -164,7 +165,8 @@ export default function messageSender({
       };
     };
   } else if (sendDm) {
-    sendDm(whom, essay, replying);
+    const message = createMessage(whom, essay, replying);
+    sendDm({ whom, message, replying });
   } else if (sendChatMessage) {
     sendChatMessage({
       cacheId,

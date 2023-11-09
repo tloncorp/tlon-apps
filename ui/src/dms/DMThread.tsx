@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import { useChatState, useWrit } from '@/state/chat';
+import { useChatState, useWrit, useSendMessage } from '@/state/chat';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
@@ -43,7 +43,8 @@ export default function DMThread() {
     if (!writ) return '0';
     return writ.seal.time;
   }, [writ]);
-  const { sendMessage } = useChatState.getState();
+  // const { sendMessage } = useChatState.getState();
+  const { mutate: sendMessage } = useSendMessage();
   const { isOpen: leapIsOpen } = useLeap();
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
