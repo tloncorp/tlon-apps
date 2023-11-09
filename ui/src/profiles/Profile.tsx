@@ -139,7 +139,7 @@ export default function Profile({ title }: ViewProps) {
                   </div>
                 }
               >
-                About Groups
+                About
               </SidebarItem>
             </Link>
             {!isNativeApp() && isHosted && (
@@ -241,7 +241,7 @@ export default function Profile({ title }: ViewProps) {
         onOpenChange={setQrOpen}
         className="h-[60vh] px-10 py-8"
       >
-        <div className="flex-shrink">
+        <div className="shrink">
           <div className="flex w-full justify-between">
             <h3 className="text-lg">Connect with Others</h3>
             <Drawer.Close>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useSafeAreaInsets } from '@/logic/native';
+import cn from 'classnames';
 import CaretLeftIconMobileNav from './icons/CaretLeftIconMobileNav';
 
 export default function MobileHeader({
@@ -11,6 +12,7 @@ export default function MobileHeader({
   goBackText,
   action,
   secondaryAction,
+  className,
 }: {
   title: string | React.ReactNode;
   secondaryTitle?: string | React.ReactNode;
@@ -20,12 +22,16 @@ export default function MobileHeader({
   pathBackText?: string;
   action?: React.ReactNode;
   secondaryAction?: React.ReactNode;
+  className?: string;
 }) {
   const safeAreaInsets = useSafeAreaInsets();
   return (
     <div
       id="mobile-header"
-      className="grid w-full grid-cols-5 justify-between bg-white font-sans"
+      className={cn(
+        'grid w-full grid-cols-5 justify-between bg-white font-sans',
+        className
+      )}
       style={{ paddingTop: safeAreaInsets.top }}
     >
       {goBack ? (

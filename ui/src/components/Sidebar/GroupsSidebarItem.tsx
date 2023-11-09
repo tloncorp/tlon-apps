@@ -6,6 +6,7 @@ import { getFlagParts } from '@/logic/utils';
 import { useGroups } from '@/state/groups';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
+import { act } from 'react-test-renderer';
 import Bullet16Icon from '../icons/Bullet16Icon';
 import MigrationTooltip from '../MigrationTooltip';
 import { useGroupsScrolling } from './GroupsScrollingContext';

@@ -39,8 +39,6 @@ import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import HashIcon from '@/components/icons/HashIcon';
 import MigrationTooltip from '@/components/MigrationTooltip';
-import InviteIcon from '@/components/icons/InviteIcon';
-import PeopleIcon from '@/components/icons/PeopleIcon';
 import {
   usePendingImports,
   useStartedMigration,
@@ -50,6 +48,10 @@ import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
+import CaretRightIcon from '@/components/icons/CaretRightIcon';
+import ElipsisIcon from '@/components/icons/EllipsisIcon';
+import SmileIcon from '@/components/icons/SmileIcon';
+import PlaneIcon from '@/components/icons/PlaneIcon';
 
 const UNZONED = 'default';
 
@@ -155,7 +157,7 @@ type ListItem =
 
 const virtuosoStateByFlag: Record<string, StateSnapshot> = {};
 
-export default function ChannelList() {
+export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const connected = useGroupConnection(flag);
@@ -235,43 +237,46 @@ export default function ChannelList() {
     }
 
     return (
-      <div className="mx-4 sm:mx-2">
+      <div className={cn('mx-4 sm:mx-2', paddingTop && `pt-${paddingTop}`)}>
         <SidebarItem
           icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full">
-              <PeopleIcon className="m-1 h-6 w-6 text-gray-400" />
-            </div>
-          }
-          to="./members"
-        >
-          Members
-        </SidebarItem>
-        <SidebarItem
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full">
-              <HashIcon className="m-1 h-6 w-6 text-gray-400" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
+              <HashIcon className="m-1 h-6 w-6 text-gray-800" />
             </div>
           }
           to={`/groups/${flag}/channels`}
+          actions={<CaretRightIcon className="h-6 w-6 text-gray-800" />}
         >
-          All Channels
+          Channels
+        </SidebarItem>
+        <SidebarItem
+          icon={
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
+              <SmileIcon className="m-1 h-6 w-6 text-gray-800" />
+            </div>
+          }
+          to="./members"
+          actions={<CaretRightIcon className="h-6 w-6 text-gray-800" />}
+        >
+          Members
         </SidebarItem>
         <SidebarItem
           color="text-blue"
           highlight="bg-blue-soft"
           icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full">
-              <InviteIcon className="h-6 w-6" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-soft">
+              <PlaneIcon className="h-6 w-6" />
             </div>
           }
           to={`/groups/${flag}/invite`}
           state={{ backgroundLocation: location }}
+          actions={<ElipsisIcon className="h-6 w-6 text-blue" />}
         >
           Invite People
         </SidebarItem>
       </div>
     );
-  }, [isMobile, flag, location]);
+  }, [isMobile, flag, location, paddingTop]);
 
   const renderSectionHeader = useCallback(
     (section: string) => <Divider isMobile={isMobile}>{section}</Divider>,
@@ -288,12 +293,12 @@ export default function ChannelList() {
         isMobile ? (
           <span
             className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-md',
+              'flex h-12 w-12 items-center justify-center rounded-md bg-gray-50',
               !imported && 'opacity-60',
               active && 'bg-white'
             )}
           >
-            <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
+            <ChannelIcon nest={nest} className="h-6 w-6 text-gray-800" />
           </span>
         ) : (
           <ChannelIcon
@@ -338,7 +343,7 @@ export default function ChannelList() {
           return renderStaticTop();
         case 'section-header':
           return (
-            <div className="mx-4 sm:mx-2">
+            <div className="mx-4 text-gray-100 sm:mx-2">
               {renderSectionHeader(item.section)}
             </div>
           );

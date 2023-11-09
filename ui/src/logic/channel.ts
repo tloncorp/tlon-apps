@@ -250,12 +250,7 @@ export function useChannelIsJoined(nest: string) {
 export function useCheckChannelJoined() {
   const briefs = useAllBriefs();
 
-  return useCallback(
-    (nest: string) => {
-      return channelIsJoined(nest, briefs);
-    },
-    [briefs]
-  );
+  return useCallback((nest: string) => channelIsJoined(nest, briefs), [briefs]);
 }
 
 export function useChannelCompatibility(nest: string) {
