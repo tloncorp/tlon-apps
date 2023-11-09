@@ -799,19 +799,19 @@
       =/  reply-time  (~(get by dex.old) u.replying.writ)
       ?~  reply-time  reply-index
       %+  ~(put by reply-index)  u.reply-time
-      (put:on-v-replies:d old-replies q.id.writ `(convert-quip q.id.writ writ))
+      (put:on-v-replies:d old-replies time `(convert-quip old time writ))
     %+  gas:on-v-posts:d  *v-posts:d
     %+  murn  writs
     |=  [=time =writ:t]
     ^-  (unit [id-post:d (unit v-post:d)])
     ?^  replying.writ  ~
     =/  replies=v-replies:d  (~(gut by reply-index) time *v-replies:d)
-    (some q.id.writ `(convert-post q.id.writ writ replies))
+    (some time `(convert-post old time writ replies))
   ::
   ++  convert-post
-    |=  [id=@da old=writ:t replies=v-replies:d]
+    |=  [=pact:t id=@da old=writ:t replies=v-replies:d]
     ^-  v-post:d
-    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
+    [[id replies (convert-feels feels.old)] %0 (convert-essay pact +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:t)
@@ -821,22 +821,22 @@
     [%0 `react]
   ::
   ++  convert-quip
-    |=  [id=@da old=writ:t]
+    |=  [=pact:t id=@da old=writ:t]
     ^-  v-reply:d
-    [[id (convert-feels feels.old)] (convert-memo +.old)]
+    [[id (convert-feels feels.old)] (convert-memo pact +.old)]
   ::
   ++  convert-memo
-    |=  old=memo:t
+    |=  [=pact:t old=memo:t]
     ^-  memo:d
-    [(convert-story author.old content.old) author.old sent.old]
+    [(convert-story pact author.old content.old) author.old sent.old]
   ::
   ++  convert-essay
-    |=  old=memo:t
+    |=  [=pact:t old=memo:t]
     ^-  essay:d
-    [(convert-memo old) %chat ?-(-.content.old %story ~, %notice [%notice ~])]
+    [(convert-memo pact old) %chat ?-(-.content.old %story ~, %notice [%notice ~])]
   ::
   ++  convert-story
-    |=  [=ship old=content:t]
+    |=  [pact:t =ship old=content:t]
     ^-  story:d
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
@@ -850,9 +850,15 @@
       =;  new=(unit path)
         ?~  new  block
         block(wer.cite u.new)
-      ?.  ?=([%msg @ @ ~] wer.cite.block)  ~
-      ?~  id=(slaw %ud i.t.t.wer.cite.block)  ~
-      `/msg/(crip (a-co:co u.id))
+      ?.  ?=([%msg @ @ ~] wer.cite.block)      ~
+      ?~  who=(slaw %p i.t.wer.cite.block)     ~
+      ?~  tim=(slaw %ud i.t.t.wer.cite.block)  ~
+      ?~  id=(~(get by dex) [u.who u.tim])     ~
+      =*  single  `/msg/(crip (a-co:co u.id))
+      ?~  ret=(get:on:writs:t wit u.id)        single
+      ?~  replying.u.ret                       single
+      ?~  td=(~(get by dex) u.replying.u.ret)  single
+      `/msg/(crip (a-co:co u.td))/(crip (a-co:co u.id))
     ==
   ::
   ++  convert-log
