@@ -12,7 +12,11 @@ import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useChatState, useMessageToggler } from '@/state/chat';
+import {
+  useChatState,
+  useMessageToggler,
+  useAddDmReactMutation,
+} from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -95,7 +99,8 @@ function ChatMessageOptions(props: {
   const navigate = useNavigate();
   const location = useLocation();
   const { mutate: deleteChatMessage } = useDeletePostMutation();
-  const { mutate: addFeelToChat } = useAddPostReactMutation();
+  const { mutate: addReactToChat } = useAddPostReactMutation();
+  const { mutate: addReactToDm } = useAddDmReactMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
   const {
     show: showPost,
@@ -166,9 +171,14 @@ function ChatMessageOptions(props: {
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
+        // useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
+        addReactToDm({
+          whom,
+          id: seal.id,
+          react: emoji.shortcodes,
+        });
       } else {
-        addFeelToChat({
+        addReactToChat({
           nest,
           postId: seal.id,
           react: emoji.shortcodes,
@@ -189,7 +199,8 @@ function ChatMessageOptions(props: {
       privacy,
       seal,
       setPickerOpen,
-      addFeelToChat,
+      addReactToDm,
+      addReactToChat,
       nest,
       isDMorMultiDM,
     ]
