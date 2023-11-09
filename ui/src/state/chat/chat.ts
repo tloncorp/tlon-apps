@@ -41,6 +41,8 @@ import {
   WritResponseDelta,
   WritSeal,
   DMWhom,
+  WritDeltaAdd,
+  ReplyDelta,
 } from '@/types/dms';
 import {
   Post,
@@ -705,7 +707,9 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
 
   if ('add' in delta) {
     console.log('handling add delta');
-    const time = delta.add.time ? bigInt(delta.add.time) : unixToDa(Date.now());
+    const time = delta.add.time
+      ? bigInt(delta.add.time)
+      : unixToDa(delta.add.memo.sent);
 
     const seal: WritSeal = {
       id,
@@ -766,7 +770,12 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
 
       const cachedWrit = lastPage.writs[unixToDa(writ.essay.sent).toString()];
 
-      if (cachedWrit && id !== unixToDa(writ.essay.sent).toString()) {
+      console.log({ cachedWrit, lastPageWrits: lastPage.writs });
+
+      if (
+        cachedWrit &&
+        time.toString() !== unixToDa(writ.essay.sent).toString()
+      ) {
         // remove cached post if it exists
         delete newLastPage.writs[unixToDa(writ.essay.sent).toString()];
 
@@ -1040,7 +1049,7 @@ export interface SendMessageVariables {
   whom: string;
   message: {
     id: string;
-    delta: WritDelta;
+    delta: WritDeltaAdd | ReplyDelta;
   };
   replying?: string;
 }
@@ -1064,8 +1073,12 @@ export function useSendMessage() {
     onMutate: (variables) => {
       const { whom, message, replying } = variables;
       const queryKey = ['dms', whom, 'infinite'];
+      const sentAsId =
+        'add' in message.delta
+          ? unixToDa(message.delta.add.memo.sent).toString()
+          : '';
       infiniteDMsUpdater(queryKey, {
-        id: replying || message.id,
+        id: replying || sentAsId,
         delta: message.delta,
       });
     },

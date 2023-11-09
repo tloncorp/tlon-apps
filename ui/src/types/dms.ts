@@ -46,7 +46,7 @@ export interface WritSeal extends PostSeal {
   time: string;
 }
 
-interface WritDeltaAdd {
+export interface WritDeltaAdd {
   add: {
     memo: WritMemo;
     kind: null;
@@ -91,7 +91,7 @@ interface ReplyDeltaDelReact {
   'del-react': string;
 }
 
-interface ReplyDelta {
+export interface ReplyDelta {
   reply: {
     id: Patda;
     meta: ReplyMeta | null;

@@ -1,5 +1,5 @@
 import { PostEssay } from '@/types/channel';
-import { Club, WritDelta } from '@/types/dms';
+import { Club, ReplyDelta, WritDeltaAdd } from '@/types/dms';
 import { formatUd, unixToDa } from '@urbit/aura';
 
 export default function emptyMultiDm(): Club {
@@ -27,7 +27,7 @@ export function createMessage(
   whom: string,
   mem: PostEssay,
   replying?: string
-): { id: string; delta: WritDelta } {
+): { id: string; delta: WritDeltaAdd | ReplyDelta } {
   const { id, time } = makeId();
   const memo: Omit<PostEssay, 'kind-data'> = {
     content: mem.content,
@@ -35,7 +35,7 @@ export function createMessage(
     sent: time,
   };
 
-  let delta: WritDelta;
+  let delta: WritDeltaAdd | ReplyDelta;
   if (!replying) {
     delta = {
       add: {
