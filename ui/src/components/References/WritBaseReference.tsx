@@ -58,6 +58,10 @@ function WritBaseReference({
   }
 
   const handleOpenReferenceClick = () => {
+    // We have nowhere to navigate to if we haven't yet loaded group information
+    if (!preview?.group?.flag) {
+      return;
+    }
     if (!group) {
       navigate(`/gangs/${groupFlag}?type=chat&nest=${nest}&id=${time}`, {
         state: { backgroundLocation: location },
