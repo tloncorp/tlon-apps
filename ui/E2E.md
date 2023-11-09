@@ -7,7 +7,7 @@ The main test script is located in `rube/index.ts` and uses [Playwright](https:/
 The script:
 
 1. fetches fake ships piers from GCS
-2. downlaods the urbit binaries for the local architecture
+2. downloads the urbit binaries for the local architecture
 3. boots the ships
 4. executes the tests against the current ui code version
 5. kills spawned processes
@@ -19,19 +19,13 @@ Test specs are in the `e2e/` directory.
 After installing  this project's dependencies with `npm install`,
 
 ```
-npx playwright install
-```
-
-Then, to run all the tests:
-
-```
-npm run rube
+npm run e2e
 ```
 
 ### Debugging tests
 
 ```
-npm run rube:debug
+npm run e2e:debug
 ```
 
 Currently, tests utilize two fake ships, `~zod` and `~bus`.
