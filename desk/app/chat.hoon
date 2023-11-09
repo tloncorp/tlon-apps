@@ -549,10 +549,16 @@
     ::
     (emit %pass /groups %agent [our.bowl %groups] %leave ~)
   ::
+      [%chat ship=@ *]
+    ::  old chat used to have chat subscriptions. we no longer care about these
+    ::
+    ?~  who=(slaw %p ship.pole)  cor
+    (emit %pass pole %agent [u.who dap.bowl] %leave ~)
+  ::
       [%contacts ship=@ ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
-    %-  (slog leaf/"Failed to heed contact {<ship>}" u.p.sign)
+    %-  (slog leaf/"Failed to heed contact {(trip ship.pole)}" u.p.sign)
     cor
   ::
       [%dm ship=@ rest=*]
