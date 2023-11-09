@@ -29,10 +29,17 @@ export default function HeapDetailComments({
   const vessel = useVessel(groupFlag, window.our);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const unread = useUnread(nest);
+  const sortedComments =
+    comments?.sort(([a], [b]) => {
+      if (sort === 'asc') {
+        return a.toString().localeCompare(b.toString());
+      }
+      return b.toString().localeCompare(a.toString());
+    }) ?? [];
   const groupedReplies = !comments
     ? []
     : setNewDaysForReplies(
-        groupReplies(time, comments, unread).sort(([a], [b]) => {
+        groupReplies(time, sortedComments, unread).sort(([a], [b]) => {
           if (sort === 'asc') {
             return a.localeCompare(b);
           }

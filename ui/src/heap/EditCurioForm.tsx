@@ -18,6 +18,7 @@ import { useChannelFlag } from '@/logic/channel';
 import { useRouteGroup } from '@/state/groups';
 import { chatStoryFromStory, storyFromChatStory } from '@/types/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import HeapTextInput from './HeapTextInput';
 
 type EditCurioFormSchema = {
@@ -176,6 +177,14 @@ export default function EditCurioForm() {
       setDraftText(parsed);
     }
   }, [isLoading, isLinkMode, contentAsChatStory.inline, draftText]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <>

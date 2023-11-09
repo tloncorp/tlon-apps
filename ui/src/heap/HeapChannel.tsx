@@ -85,7 +85,7 @@ function HeapChannel({ title }: ViewProps) {
 
   const empty = useMemo(() => posts.length === 0, [posts]);
   const sortedPosts = posts
-    .filter((k, v) => v !== null)
+    .filter(([k, v]) => v !== null)
     .sort(([a], [b]) => {
       if (sortMode === 'time') {
         return b.compare(a);

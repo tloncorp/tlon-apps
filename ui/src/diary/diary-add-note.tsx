@@ -143,7 +143,11 @@ export default function DiaryAddNote() {
           time: id,
           essay: {
             ...note.essay,
-            ...values,
+            'kind-data': {
+              diary: {
+                ...values,
+              },
+            },
             content: noteContent,
           },
         });
