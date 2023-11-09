@@ -1,6 +1,4 @@
 /$  init        %ui-init              %json
-/$  rolo        %contact-rolodex      %json
-/$  contact     %contact              %json
 /$  shelf       %shelf                %json
 /$  briefs      %diary-briefs         %json
 /$  perm        %diary-perm           %json
