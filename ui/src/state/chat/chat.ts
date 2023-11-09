@@ -781,37 +781,40 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
   } else if ('del' in delta) {
     // TODO
   } else if ('add-react' in delta) {
-    console.log('handling add react');
     const { ship, react } = delta['add-react'];
     queryClient.setQueryData<InfiniteDMsData>(queryKey, (queryData) => {
       if (queryData === undefined) {
         return undefined;
       }
 
-      console.log(`checking pages for ${id}`);
       const newPages = queryData.pages.map((page) => {
+        let writId: string | undefined;
         const inPage =
-          Object.keys(page.writs).some((k) => {
-            console.log(k);
-            return k === id;
+          Object.entries(page.writs).some(([k, w]) => {
+            if (w.seal.id === id) {
+              writId = k;
+              return true;
+            }
+            return false;
           }) ?? false;
         if (inPage) {
-          const writ = page.writs[id!];
+          const writ = page.writs[writId!];
           if (!writ) {
             return page;
           }
 
-          console.log('found the writ');
-
           const newPage = {
             ...page,
-            [id!]: {
-              ...writ,
-              seal: {
-                ...writ.seal,
-                reacts: {
-                  ...writ.seal.reacts,
-                  [ship]: react,
+            writs: {
+              ...page.writs,
+              [writId!]: {
+                ...writ,
+                seal: {
+                  ...writ.seal,
+                  reacts: {
+                    ...writ.seal.reacts,
+                    [ship]: react,
+                  },
                 },
               },
             },
@@ -834,22 +837,34 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
       }
 
       const newPages = queryData.pages.map((page) => {
-        const inPage = Object.keys(page.writs).some((k) => k === id) ?? false;
+        let writId: string | undefined;
+        const inPage =
+          Object.entries(page.writs).some(([k, w]) => {
+            if (w.seal.id === id) {
+              writId = k;
+              return true;
+            }
+            return false;
+          }) ?? false;
         if (inPage) {
-          const post = page.writs[id!];
-          if (!post) {
+          const writ = page.writs[writId!];
+          if (!writ) {
             return page;
           }
 
+          delete writ.seal.reacts[ship];
+
           const newPage = {
             ...page,
-            [id!]: {
-              ...post,
-              seal: {
-                ...post.seal,
-                reacts: {
-                  ...post.seal.reacts,
-                  [ship]: undefined,
+            writs: {
+              ...page.writs,
+              [writId!]: {
+                ...writ,
+                seal: {
+                  ...writ.seal,
+                  reacts: {
+                    ...writ.seal.reacts,
+                  },
                 },
               },
             },
@@ -1093,11 +1108,24 @@ export function useAddDmReactMutation() {
       'add-react': { react, ship: window.our },
     };
 
-    await optimisticDMAction(whom, id, delta);
+    const { action } = getActionAndEvent(whom, id, delta);
+    await api.poke<ClubAction | DmAction>(action);
   };
 
   return useMutation({
     mutationFn,
+    onMutate: (variables) => {
+      const { whom, id, react } = variables;
+      const delta: WritDelta = {
+        'add-react': { react, ship: window.our },
+      };
+      const queryKey = ['dms', whom, 'infinite'];
+      infiniteDMsUpdater(queryKey, { id, delta });
+    },
+    onSettled: (_data, _error, variables) => {
+      const { whom } = variables;
+      queryClient.invalidateQueries(['dms', whom, 'infinite']);
+    },
   });
 }
 
@@ -1105,11 +1133,22 @@ export function useDelDmReactMutation() {
   const mutationFn = async (variables: { whom: string; id: string }) => {
     const { whom, id } = variables;
     const delta: WritDelta = { 'del-react': window.our };
-    await optimisticDMAction(whom, id, delta);
+    const { action } = getActionAndEvent(whom, id, delta);
+    await api.poke<ClubAction | DmAction>(action);
   };
 
   return useMutation({
     mutationFn,
+    onMutate: (variables) => {
+      const { whom, id } = variables;
+      const delta: WritDelta = { 'del-react': window.our };
+      const queryKey = ['dms', whom, 'infinite'];
+      infiniteDMsUpdater(queryKey, { id, delta });
+    },
+    onSettled: (_data, _error, variables) => {
+      const { whom } = variables;
+      queryClient.invalidateQueries(['dms', whom, 'infinite']);
+    },
   });
 }
 
