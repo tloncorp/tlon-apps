@@ -1,4 +1,3 @@
-import React from 'react';
 import cn from 'classnames';
 import { Link, useLocation } from 'react-router-dom';
 import { useGroupFlag, useGroup, useAmAdmin } from '@/state/groups';
@@ -11,8 +10,7 @@ import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import { useCalm } from '@/state/settings';
-import { useIsDark } from '@/logic/useMedia';
-import { foregroundFromBackground } from '@/components/Avatar';
+import { useTextColor } from '@/logic/useTextColor';
 import GroupActions from './GroupActions';
 
 export default function MobileGroupChannelList() {
@@ -25,7 +23,7 @@ export default function MobileGroupChannelList() {
   const saga = group?.saga || null;
   const defaultImportCover = group?.meta.cover === '0x0';
   const calm = useCalm();
-  const isDark = useIsDark();
+  const textColor = useTextColor(group?.meta.cover || '');
 
   const bgStyle = () => {
     if (
@@ -44,26 +42,13 @@ export default function MobileGroupChannelList() {
     return {};
   };
 
-  const fgStyle = () => {
-    if (group && !isColor(group?.meta.cover) && !defaultImportCover)
-      return {
-        color: 'white',
-        textShadow: '0 1px 4px rgba(0,0,0,0.8)',
-      };
-
-    if (group && isColor(group?.meta.cover) && !defaultImportCover) {
-      const fg = foregroundFromBackground(group?.meta.cover);
-      if (fg === 'white' && isDark) return { color: 'black' };
-      if (fg === 'black' && isDark) return { color: 'white' };
-      return { color: fg };
-    }
-    return { color: '#333' };
-  };
-
   return (
     <>
       <MobileHeader
-        className="!bg-transparent"
+        style={{
+          color: textColor,
+          backgroundColor: 'transparent',
+        }}
         title={
           <GroupActions flag={flag} saga={saga} status={data?.status}>
             <button className="flex w-full flex-col items-center">
@@ -71,7 +56,11 @@ export default function MobileGroupChannelList() {
               <div className="relative my-1 flex w-max items-center justify-center space-x-1">
                 <h1
                   className={cn('max-w-xs truncate text-base')}
-                  style={fgStyle()}
+                  style={
+                    textColor === 'white'
+                      ? { textShadow: '0 1px 2px rgba(0,0,0,0.4)' }
+                      : {}
+                  }
                 >
                   {group?.meta.title}
                 </h1>
@@ -95,7 +84,7 @@ export default function MobileGroupChannelList() {
                 to={`/groups/${flag}/channels/new`}
                 state={{ backgroundLocation: location }}
               >
-                <AddIconMobileNav className="h-8 w-8 text-black" />
+                <AddIconMobileNav className="h-8 w-8 " />
               </Link>
             )}
           </div>

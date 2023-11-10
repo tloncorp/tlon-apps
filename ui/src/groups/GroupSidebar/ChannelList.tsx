@@ -107,12 +107,15 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
         onOpenChange={setOpen}
         actions={actions}
         asChild={false}
-        triggerClassName="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
+        triggerClassName={cn(
+          'default-focus flex items-center rounded-lg text-base font-semibold  sm:p-1',
+          isMobile ? 'bg-none' : 'dark:mix-blend-screen hover:bg-gray-50'
+        )}
         contentClassName="w-56"
         ariaLabel="Groups Sort Options"
       >
         {isMobile ? (
-          <FilterIconMobileNav className="h-8 w-8 text-gray-900" />
+          <FilterIconMobileNav className="h-8 w-8" />
         ) : (
           <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
         )}
