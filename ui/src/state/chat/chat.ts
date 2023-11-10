@@ -14,7 +14,7 @@ import {
   useMutation,
   useQuery,
 } from '@tanstack/react-query';
-import { Groups } from '@/types/groups';
+import { GroupMeta, Groups } from '@/types/groups';
 import {
   DMUnreadUpdate,
   Club,
@@ -43,6 +43,7 @@ import {
   DMWhom,
   WritDeltaAdd,
   ReplyDelta,
+  Hive,
 } from '@/types/dms';
 import {
   Post,
@@ -1045,6 +1046,236 @@ export async function optimisticDMAction(
   await api.poke<ClubAction | DmAction>(action);
 }
 
+export function useArchiveDm() {
+  const mutationFn = async ({ ship }: { ship: string }) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'dm-archive',
+      json: ship,
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: (variables) => {
+      const { ship } = variables;
+      queryClient.setQueryData(
+        ['dm', 'unreads'],
+        (unreads: DMUnreads | undefined) => {
+          if (!unreads) {
+            return unreads;
+          }
+
+          const newUnreads = { ...unreads };
+
+          delete newUnreads[ship];
+
+          return newUnreads;
+        }
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['dm', 'unreads']); // TODO: why unreads?
+    },
+  });
+}
+
+export function useUnarchiveDm() {
+  const mutationFn = async ({ ship }: { ship: string }) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'dm-unarchive',
+      json: ship,
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onSettled: () => {
+      queryClient.invalidateQueries(['dm', 'unreads']); // TODO: why unreads?
+    },
+  });
+}
+
+export function useDmRsvp() {
+  const mutationFn = async ({ ship, ok }: { ship: string; ok: boolean }) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'dm-rsvp',
+      json: {
+        ship,
+        ok,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: (variables) => {
+      const { ship, ok } = variables;
+      queryClient.setQueryData(
+        ['dm', 'unreads'],
+        (unreads: DMUnreads | undefined) => {
+          if (!unreads) {
+            return unreads;
+          }
+
+          const newUnreads = { ...unreads };
+
+          if (!ok) {
+            delete newUnreads[ship];
+          }
+
+          return newUnreads;
+        }
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['dm', 'unreads']);
+    },
+  });
+}
+
+export function useCreateMultiDm() {
+  const mutationFn = async ({ id, hive }: { id: string; hive: string[] }) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'club-create',
+      json: {
+        id,
+        hive,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: (variables) => {
+      const { id, hive } = variables;
+      queryClient.setQueryData<Clubs>(
+        ['dms', 'multi'],
+        (prev: Clubs | undefined) => {
+          if (!prev) {
+            return prev;
+          }
+
+          const newMultiDms = { ...prev };
+
+          newMultiDms[id] = {
+            hive,
+            team: [window.our],
+            meta: {
+              title: '',
+              description: '',
+              image: '',
+              cover: '',
+            },
+          };
+
+          return newMultiDms;
+        }
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['dms', 'multi']);
+    },
+  });
+}
+
+export function useEditMultiDm() {
+  const mutationFn = async ({ id, meta }: { id: string; meta: GroupMeta }) => {
+    await api.poke({
+      app: 'chat',
+      mark: 'club-edit',
+      json: {
+        id,
+        meta,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: (variables) => {
+      const { id, meta } = variables;
+      queryClient.setQueryData<Clubs>(
+        ['dms', 'multi'],
+        (prev: Clubs | undefined) => {
+          if (!prev) {
+            return prev;
+          }
+
+          const newMultiDms = { ...prev };
+
+          newMultiDms[id] = {
+            ...newMultiDms[id],
+            meta,
+          };
+
+          return newMultiDms;
+        }
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(['dms', 'multi']);
+    },
+  });
+}
+
+export function useInviteToMultiDm() {
+  const mutationFn = async ({
+    id,
+    hive,
+  }: {
+    id: string;
+    hive: Omit<Hive, 'add'>;
+  }) => {
+    const action = multiDmAction(id, { hive: { ...hive, add: true } });
+    await api.poke(action);
+  };
+
+  return useMutation({
+    mutationFn,
+    onSettled: () => {
+      queryClient.invalidateQueries(['dms', 'multi']);
+    },
+  });
+}
+
+export function useRemoveFromMultiDm() {
+  const mutationFn = async ({
+    id,
+    hive,
+  }: {
+    id: string;
+    hive: Omit<Hive, 'add'>;
+  }) => {
+    const action = multiDmAction(id, { hive: { ...hive, add: false } });
+    await api.poke(action);
+  };
+
+  return useMutation({
+    mutationFn,
+    onSettled: () => {
+      queryClient.invalidateQueries(['dms', 'multi']);
+    },
+  });
+}
+
+export function useMutliDmRsvp() {
+  const mutationFn = async ({ id, ok }: { id: string; ok: boolean }) => {
+    const action = multiDmAction(id, { team: { ship: window.our, ok } });
+    await api.poke(action);
+  };
+
+  return useMutation({
+    mutationFn,
+    onSettled: () => {
+      queryClient.invalidateQueries(['dms', 'multi']);
+    },
+  });
+}
+
 export interface SendMessageVariables {
   whom: string;
   message: {
@@ -1092,8 +1323,37 @@ export function useSendMessage() {
   // TODO: tracking message for sending/sent arrows
 }
 
-export async function delDm(whom: string, id: string) {
-  //
+export async function useDeleteDm() {
+  const mutationFn = async ({ whom, id }: { whom: string; id: string }) => {
+    const delta = { del: null };
+    if (whomIsDm(whom)) {
+      await api.trackedPoke<DmAction, DmAction>(
+        dmAction(whom, delta, id),
+        { app: 'chat', path: whom },
+        (event) => event.ship === id && 'del' in event.diff
+      );
+    } else {
+      await api.trackedPoke<ClubAction>(
+        multiDmAction(whom, { writ: { id, delta } }),
+        { app: 'chat', path: whom }
+      );
+    }
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: (variables) => {
+      const { whom } = variables;
+      const delta = { del: null };
+      const queryKey = ['dms', whom, 'infinite'];
+      infiniteDMsUpdater(queryKey, { id: whom, delta });
+    },
+    onSettled: (_data, _error, variables) => {
+      const { whom } = variables;
+      const queryKey = ['dms', whom, 'infinite'];
+      queryClient.invalidateQueries(queryKey);
+    },
+  });
 }
 
 export function useAddDmReactMutation() {
