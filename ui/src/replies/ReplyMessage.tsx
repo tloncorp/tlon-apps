@@ -14,6 +14,7 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
   useChatState,
+  useTrackedMessageStatus,
   // useIsMessageDelivered,
   // useIsMessagePosted,
 } from '@/state/chat';
@@ -149,13 +150,15 @@ const ReplyMessage = React.memo<
           [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
+
+      const msgStatus = useTrackedMessageStatus(seal.id);
       const status = useTrackedPostStatus({
         author: window.our,
         sent: memo.sent,
       });
-      const isDelivered = status === 'delivered';
-      const isSent = status === 'sent';
-      const isPending = status === 'pending';
+      const isDelivered = msgStatus === 'delivered' && status === 'delivered';
+      const isSent = msgStatus === 'sent' || status === 'sent';
+      const isPending = msgStatus === 'pending' || status === 'pending';
 
       const isReplyOp = chatInfo?.replying === seal.id;
 
@@ -275,7 +278,7 @@ const ReplyMessage = React.memo<
                 className={cn(
                   'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  // !isMessageDelivered && !isMessagePosted && 'text-gray-400',
+                  isPending && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
                 )}
               >
