@@ -1219,6 +1219,7 @@ export function useAddPostMutation(nest: string) {
     tracked?: boolean;
   }) => {
     if (variables.tracked) {
+      // for diary notes, we want to wait for the post to be delivered (and an ID assigned)
       return asyncCallWithTimeout(
         new Promise<string>((resolve) => {
           try {
