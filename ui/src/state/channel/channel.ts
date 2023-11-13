@@ -1717,7 +1717,6 @@ export function useAddReplyMutation() {
           return prevPost;
         }
         const prevReplies = prevPost.seal.replies;
-        // const dateTime = Date.now();
         const newReplies: Record<string, Reply> = {
           ...prevReplies,
           [decToUd(unixToDa(variables.memo.sent).toString())]: {
