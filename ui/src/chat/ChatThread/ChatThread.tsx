@@ -76,6 +76,17 @@ export default function ChatThread() {
       },
     ]);
   }
+  const orderedReplies = replies?.sort((a, b) => {
+    const aTime = a[0];
+    const bTime = b[0];
+    if (aTime.greater(bTime)) {
+      return 1;
+    }
+    if (aTime.lesser(bTime)) {
+      return -1;
+    }
+    return 0;
+  });
   const navigate = useNavigate();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const perms = usePerms(nest);
@@ -175,7 +186,7 @@ export default function ChatThread() {
         ) : (
           <ChatScroller
             key={idTime}
-            messages={replies ?? []}
+            messages={orderedReplies || []}
             fetchState={'initial'}
             whom={nest}
             scrollerRef={scrollerRef}

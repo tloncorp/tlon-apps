@@ -191,7 +191,7 @@ const ChatMessage = React.memo<
         author: window.our,
         sent: essay.sent,
       });
-      const isDelivered = msgStatus === 'delivered' || status === 'delivered';
+      const isDelivered = msgStatus === 'delivered' && status === 'delivered';
       const isSent = msgStatus === 'sent' || status === 'sent';
       const isPending = msgStatus === 'pending' || status === 'pending';
 

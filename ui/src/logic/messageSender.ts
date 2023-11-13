@@ -4,9 +4,9 @@ import {
   Block,
   Cite,
   constructStory,
+  Memo,
   Nest,
   PostEssay,
-  Story,
 } from '@/types/channel';
 import { JSONToInlines } from './tiptap';
 import { isImageUrl } from './utils';
@@ -30,11 +30,13 @@ interface MessageSender {
   sendReply?: ({
     nest,
     postId,
-    content,
+    memo,
+    cacheId,
   }: {
     nest: Nest;
     postId: string;
-    content: Story;
+    memo: Memo;
+    cacheId: CacheId;
   }) => void;
 }
 
@@ -76,6 +78,12 @@ export default function messageSender({
     author: `~${window.ship || 'zod'}`,
     sent: now,
     content: noteContent,
+  };
+
+  const memo: Memo = {
+    content: noteContent,
+    author: `~${window.ship || 'zod'}`,
+    sent: now,
   };
 
   const textIsImageUrl = isImageUrl(text);
@@ -129,7 +137,11 @@ export default function messageSender({
         sendReply({
           nest: `chat/${whom}`,
           postId: replying,
-          content,
+          memo: {
+            ...memo,
+            content,
+          },
+          cacheId,
         });
       }
 
@@ -145,7 +157,8 @@ export default function messageSender({
           sendReply({
             nest: `chat/${whom}`,
             postId: replying,
-            content: essay.content,
+            memo,
+            cacheId,
           });
         }
       };
@@ -161,7 +174,8 @@ export default function messageSender({
     sendReply({
       nest: `chat/${whom}`,
       postId: replying,
-      content: essay.content,
+      memo,
+      cacheId,
     });
   }
 }

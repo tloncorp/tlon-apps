@@ -400,7 +400,7 @@ export type Command =
 
 export type PostResponse =
   | { set: Post | null }
-  | { reply: { id: string; response: ReplyResponse; meta: ReplyMeta } }
+  | { reply: { id: string; 'r-reply': ReplyResponse; meta: ReplyMeta } }
   | { essay: PostEssay }
   | { reacts: Record<string, string> };
 

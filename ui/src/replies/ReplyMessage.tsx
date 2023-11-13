@@ -21,7 +21,10 @@ import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
-import { useMarkReadMutation } from '@/state/channel/channel';
+import {
+  useMarkReadMutation,
+  useTrackedPostStatus,
+} from '@/state/channel/channel';
 import { emptyReply, Reply } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 import {
@@ -146,8 +149,14 @@ const ReplyMessage = React.memo<
           [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
-      // const isMessageDelivered = useIsMessageDelivered(cork.id);
-      // const isMessagePosted = useIsMessagePosted(cork.id);
+      const status = useTrackedPostStatus({
+        author: window.our,
+        sent: memo.sent,
+      });
+      const isDelivered = status === 'delivered';
+      const isSent = status === 'sent';
+      const isPending = status === 'pending';
+
       const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
@@ -294,13 +303,13 @@ const ReplyMessage = React.memo<
                 )}
               </div>
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {/* {!isMessageDelivered && (
+                {!isDelivered && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
-                    primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
+                    primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
-                )} */}
+                )}
               </div>
             </div>
           </div>
