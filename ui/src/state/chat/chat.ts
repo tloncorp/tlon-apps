@@ -1053,6 +1053,24 @@ export function useDmUnread(whom: string) {
   return unreads.data[whom];
 }
 
+export function useMarkDmReadMutation() {
+  const mutationFn = async (variables: { whom: string }) => {
+    const { whom } = variables;
+    await api.poke({
+      app: 'chat',
+      mark: 'chat-remark-action',
+      json: {
+        whom,
+        diff: { read: null },
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+  });
+}
+
 export async function optimisticDMAction(
   whom: string,
   id: string,

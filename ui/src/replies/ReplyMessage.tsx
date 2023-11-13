@@ -13,8 +13,8 @@ import Author from '@/chat/ChatMessage/Author';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
-  useChatState,
   useTrackedMessageStatus,
+  useMarkDmReadMutation,
   // useIsMessageDelivered,
   // useIsMessagePosted,
 } from '@/state/chat';
@@ -99,6 +99,7 @@ const ReplyMessage = React.memo<
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const { mutate: markChatRead } = useMarkReadMutation();
+      const { mutate: markDmRead } = useMarkDmReadMutation();
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -120,7 +121,6 @@ const ReplyMessage = React.memo<
               read,
               delayedRead,
             } = useChatStore.getState();
-            const { markDmRead } = useChatState.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -132,7 +132,7 @@ const ReplyMessage = React.memo<
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
-                  markDmRead(whom);
+                  markDmRead({ whom });
                 } else {
                   markChatRead({ nest: whom });
                 }
@@ -144,10 +144,10 @@ const ReplyMessage = React.memo<
               we can assume the user is done and clear the unread. */
             if (!inView && unread && seen) {
               read(whom);
-              markDmRead(whom);
+              markDmRead({ whom });
             }
           },
-          [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
+          [unread, whom, seal.id, isDMOrMultiDM, markChatRead, markDmRead]
         ),
       });
 

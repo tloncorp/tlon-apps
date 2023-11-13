@@ -3,7 +3,7 @@ import React, { useCallback, useEffect } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import {
   useAddDmReactMutation,
-  useChatState,
+  // useChatState,
   useDelDmReactMutation,
 } from '@/state/chat';
 import useEmoji from '@/state/emoji';

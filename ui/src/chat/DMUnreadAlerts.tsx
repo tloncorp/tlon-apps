@@ -4,8 +4,9 @@ import { format, isToday } from 'date-fns';
 import { daToUnix } from '@urbit/api';
 import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
-import { pluralize } from '@/logic/utils';
-import { useChatState, useWrit } from '@/state/chat';
+import { pluralize, useIsDmOrMultiDm, whomIsNest } from '@/logic/utils';
+import { useWrit, useMarkDmReadMutation } from '@/state/chat';
+import { useMarkReadMutation } from '@/state/channel/channel';
 import { useChatInfo, useChatStore } from './useChatStore';
 
 interface DMUnreadAlertsProps {
@@ -17,10 +18,17 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
   const id = chatInfo?.unread?.unread['read-id'] || '';
   const { writ } = useWrit(whom, id);
+  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+  const { mutate: markDmRead } = useMarkDmReadMutation();
+  const { mutate: markChatRead } = useMarkReadMutation();
   const markRead = useCallback(() => {
-    useChatState.getState().markDmRead(whom);
+    if (isDMOrMultiDM) {
+      markDmRead({ whom });
+    } else {
+      markChatRead({ nest: whom });
+    }
     useChatStore.getState().read(whom);
-  }, [whom]);
+  }, [whom, markDmRead, markChatRead, isDMOrMultiDM]);
 
   if (!writ || !chatInfo.unread || chatInfo.unread.seen) {
     return null;
