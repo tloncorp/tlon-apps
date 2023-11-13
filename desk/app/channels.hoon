@@ -194,7 +194,17 @@
       %channel-migration
     ?>  =(our src):bowl
     =+  !<(new-channels=v-channels:c vase)
-    =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
+    =.  v-channels
+      %+  roll  ~(tap by new-channels)
+      |=  [[n=nest:c c=v-channel:c] =_v-channels]
+      ?~  hav=(~(get by v-channels) n)
+        (~(put by v-channels) n c)
+      ::  if we already have the channel, only replace it with the import if
+      ::  the one we have right now is empty. otherwise, keep what we already
+      ::  have, lest we lose newer data.
+      ::
+      ?.  =(~ posts.u.hav)  v-channels
+      (~(put by v-channels) n c)
     inflate-io
   ::
       %channel-migration-pins
