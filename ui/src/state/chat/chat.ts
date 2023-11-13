@@ -966,6 +966,25 @@ export function usePinnedDms() {
   return useMemo(() => pinned.filter(whomIsDm), [pinned]);
 }
 
+export function usePinnedGroups() {
+  const groups = useGroups();
+  const pinned = usePinned();
+  return useMemo(
+    () =>
+      pinned.filter(whomIsFlag).reduce(
+        (memo, flag) =>
+          groups && flag in groups
+            ? {
+                ...memo,
+                [flag]: groups[flag],
+              }
+            : memo,
+        {} as Groups
+      ),
+    [groups, pinned]
+  );
+}
+
 export function usePinnedClubs() {
   const pinned = usePinned();
   return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
@@ -1973,33 +1992,14 @@ export function useMultiDmIsPending(id: string): boolean {
   );
 }
 
-const selDmArchive = (s: ChatState) => s.dmArchive;
-export function useDmArchive() {
-  return useChatState(selDmArchive);
-}
+// const selDmArchive = (s: ChatState) => s.dmArchive;
+// export function useDmArchive() {
+//   return useChatState(selDmArchive);
+// }
 
 // export function usePinned() {
 //   return useChatState(useCallback((s: ChatState) => s.pins, []));
 // }
-
-export function usePinnedGroups() {
-  const groups = useGroups();
-  const pinned = usePinned();
-  return useMemo(
-    () =>
-      pinned.filter(whomIsFlag).reduce(
-        (memo, flag) =>
-          groups && flag in groups
-            ? {
-                ...memo,
-                [flag]: groups[flag],
-              }
-            : memo,
-        {} as Groups
-      ),
-    [groups, pinned]
-  );
-}
 
 // export function usePinnedDms() {
 //   const pinned = usePinned();
@@ -2011,70 +2011,70 @@ export function usePinnedGroups() {
 //   return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
 // }
 
-type UnsubbedWrit = {
-  flag: string;
-  writ: Post;
-};
+// type UnsubbedWrit = {
+//   flag: string;
+//   writ: Post;
+// };
 
-const { shouldLoad, newAttempt, finished } = getPreviewTracker();
+// const { shouldLoad, newAttempt, finished } = getPreviewTracker();
 
-const selLoadedRefs = (s: ChatState) => s.loadedRefs;
-export function useWritByFlagAndWritId(
-  chFlag: string,
-  idWrit: string,
-  isScrolling: boolean
-) {
-  const refs = useChatState(selLoadedRefs);
-  const path = `/said/${chFlag}/msg/${idWrit}`;
-  const cached = refs[path];
-  const pact = usePact(chFlag);
-  const writIndex = pact && pact.index[idWrit];
-  const writInPact = writIndex && pact && pact.writs.get(writIndex);
+// const selLoadedRefs = (s: ChatState) => s.loadedRefs;
+// export function useWritByFlagAndWritId(
+//   chFlag: string,
+//   idWrit: string,
+//   isScrolling: boolean
+// ) {
+//   const refs = useChatState(selLoadedRefs);
+//   const path = `/said/${chFlag}/msg/${idWrit}`;
+//   const cached = refs[path];
+//   const pact = usePact(chFlag);
+//   const writIndex = pact && pact.index[idWrit];
+//   const writInPact = writIndex && pact && pact.writs.get(writIndex);
 
-  useEffect(() => {
-    if (!isScrolling && !writInPact && shouldLoad(path)) {
-      newAttempt(path);
-      subscribeOnce<UnsubbedWrit>('chat', path)
-        .then(({ writ }) => {
-          useChatState.getState().batchSet((draft) => {
-            draft.loadedRefs[path] = writ;
-          });
-        })
-        .finally(() => finished(path));
-    }
-  }, [path, isScrolling, writInPact]);
+//   useEffect(() => {
+//     if (!isScrolling && !writInPact && shouldLoad(path)) {
+//       newAttempt(path);
+//       subscribeOnce<UnsubbedWrit>('chat', path)
+//         .then(({ writ }) => {
+//           useChatState.getState().batchSet((draft) => {
+//             draft.loadedRefs[path] = writ;
+//           });
+//         })
+//         .finally(() => finished(path));
+//     }
+//   }, [path, isScrolling, writInPact]);
 
-  if (writInPact) {
-    return writInPact;
-  }
+//   if (writInPact) {
+//     return writInPact;
+//   }
 
-  return cached;
-}
+//   return cached;
+// }
 
-export function useGetFirstDMUnreadID(whom: string) {
-  const keys = useChatKeys({ replying: false, whom });
-  const unread = useDmUnread(whom);
-  if (!unread) {
-    return null;
-  }
-  const { 'read-id': lastRead } = unread;
-  if (!lastRead) {
-    return null;
-  }
-  // lastRead is formatted like: ~zod/123.456.789...
-  const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
-  const firstUnread = keys.find((key) => key.gt(lastReadBN));
-  return firstUnread ?? null;
-}
+// export function useGetFirstDMUnreadID(whom: string) {
+//   const keys = useChatKeys({ replying: false, whom });
+//   const unread = useDmUnread(whom);
+//   if (!unread) {
+//     return null;
+//   }
+//   const { 'read-id': lastRead } = unread;
+//   if (!lastRead) {
+//     return null;
+//   }
+//   // lastRead is formatted like: ~zod/123.456.789...
+//   const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
+//   const firstUnread = keys.find((key) => key.gt(lastReadBN));
+//   return firstUnread ?? null;
+// }
 
-export function useLatestMessage(chFlag: string): [BigInteger, Writ | null] {
-  const messages = useMessagesForChat(chFlag);
-  const messagesTree = newWritMap(messages);
-  const max = messagesTree.maxKey();
-  return messagesTree.size > 0 && max
-    ? [max, messagesTree.get(max) || null]
-    : [bigInt(), null];
-}
+// export function useLatestMessage(chFlag: string): [BigInteger, Writ | null] {
+//   const messages = useMessagesForChat(chFlag);
+//   const messagesTree = newWritMap(messages);
+//   const max = messagesTree.maxKey();
+//   return messagesTree.size > 0 && max
+//     ? [max, messagesTree.get(max) || null]
+//     : [bigInt(), null];
+// }
 
 export function useBlockedShips() {
   const { data, ...rest } = useReactQueryScry<BlockedShips>({
