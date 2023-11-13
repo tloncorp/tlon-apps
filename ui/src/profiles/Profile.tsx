@@ -27,26 +27,20 @@ import XIcon from '@/components/icons/XIcon';
 import MessagesIcon from '@/components/icons/MessagesIcon';
 import { Drawer } from 'vaul';
 import { createDeepLink } from '@/logic/branch';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ProfileCoverImage from './ProfileCoverImage';
 
 export function ShareApp() {
-  const [link, setLink] = useState('https://tlon.io/');
-
+  let link = 'https://tlon.io/';
   if (isAndroidWebView()) {
-    setLink(
-      'https://play.google.com/store/apps/details?id=io.tlon.groups&hl=en&gl=US'
-    );
+    link =
+      'https://play.google.com/store/apps/details?id=io.tlon.groups&hl=en&gl=US';
   }
-
   if (isIOSWebView()) {
-    setLink('https://apps.apple.com/us/app/tlon-the-urbit-app/id6451392109');
+    link = 'https://apps.apple.com/us/app/tlon-the-urbit-app/id6451392109';
   }
-
   const { didCopy, doCopy } = useCopy(link);
-
   const handleCopy = () => {
     if (navigator.share !== undefined) {
       navigator.share({
