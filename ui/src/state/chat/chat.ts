@@ -743,7 +743,13 @@ export const useChatState = createState<ChatState>(
         });
 
         get().batchSet((draft) => {
-          const chat = { perms, saga: null };
+          let chat = draft.chats[whom];
+          if (chat) {
+            chat.perms = perms;
+          } else {
+            chat = { perms, saga: null };
+          }
+
           draft.chats[whom] = chat;
         });
       }, 1);
