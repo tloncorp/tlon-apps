@@ -12,9 +12,14 @@ import InfoIcon from '@/components/icons/InfoIcon';
 import AsteriskIcon from '@/components/icons/AsteriskIcon';
 import LogOutIcon from '@/components/icons/LogOutIcon';
 import MobileHeader from '@/components/MobileHeader';
-import { isNativeApp, postActionToNativeApp } from '@/logic/native';
+import {
+  isNativeApp,
+  postActionToNativeApp,
+  isAndroidWebView,
+  isIOSWebView,
+} from '@/logic/native';
 import PersonIcon from '@/components/icons/PersonIcon';
-import { isHosted } from '@/logic/utils';
+import { isHosted, useCopy, useIsHttps } from '@/logic/utils';
 import WidgetDrawer from '@/components/WidgetDrawer';
 import { useEffect, useState } from 'react';
 import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
@@ -23,12 +28,65 @@ import MessagesIcon from '@/components/icons/MessagesIcon';
 import { Drawer } from 'vaul';
 import { createDeepLink } from '@/logic/branch';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import CopyIcon from '@/components/icons/CopyIcon';
+import CheckIcon from '@/components/icons/CheckIcon';
 import ProfileCoverImage from './ProfileCoverImage';
+
+export function ShareApp() {
+  const [link, setLink] = useState('https://tlon.io/');
+
+  if (isAndroidWebView()) {
+    setLink(
+      'https://play.google.com/store/apps/details?id=io.tlon.groups&hl=en&gl=US'
+    );
+  }
+
+  if (isIOSWebView()) {
+    setLink('https://apps.apple.com/us/app/tlon-the-urbit-app/id6451392109');
+  }
+
+  const { didCopy, doCopy } = useCopy(link);
+
+  const handleCopy = () => {
+    if (navigator.share !== undefined) {
+      navigator.share({
+        title: 'Join me on Tlon',
+        url: link,
+      });
+    } else {
+      doCopy();
+    }
+  };
+
+  return (
+    <SidebarItem
+      color="text-gray-900"
+      fontWeight="font-normal"
+      fontSize="text-[17px]"
+      className="leading-5"
+      onClick={handleCopy}
+      icon={
+        <div className="flex h-12 w-12 items-center justify-center">
+          {navigator.share !== undefined ? (
+            <GiftIcon className="h-6 w-6 -rotate-12 text-gray-400" />
+          ) : didCopy ? (
+            <CheckIcon className="w-6 text-gray-400" />
+          ) : (
+            <CopyIcon className="w-6 text-gray-400" />
+          )}
+        </div>
+      }
+    >
+      {didCopy ? 'Copied!' : 'Share with Friends'}
+    </SidebarItem>
+  );
+}
 
 export default function Profile({ title }: ViewProps) {
   const [dmLink, setDmLink] = useState('');
   const isMobile = useIsMobile();
   const contact = useOurContact();
+  const isHttps = useIsHttps();
   const [qrOpen, setQrOpen] = useState(false);
 
   useEffect(() => {
@@ -182,27 +240,7 @@ export default function Profile({ title }: ViewProps) {
                 </SidebarItem>
               </button>
             )}
-            <a
-              className="no-underline"
-              href="https://tlon.network/lure/~nibset-napwyn/tlon?id=186c283508814a3-073b187e44f6fa-1f525634-384000-186c28350892a15"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Share with Friends"
-            >
-              <SidebarItem
-                color="text-gray-900"
-                fontWeight="font-normal"
-                fontSize="text-[17px]"
-                className="leading-5"
-                icon={
-                  <div className="flex h-12 w-12 items-center justify-center">
-                    <GiftIcon className="h-6 w-6 -rotate-12 text-gray-400" />
-                  </div>
-                }
-              >
-                Share with Friends
-              </SidebarItem>
-            </a>
+            {isNativeApp() && isHttps && <ShareApp />}
             <a
               className="no-underline"
               href="https://airtable.com/shrflFkf5UyDFKhmW"

@@ -19,4 +19,9 @@ export const isIOSWebView = () => {
   );
 };
 
+export const isAndroidWebView = () => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return isNativeApp() && /android/.test(userAgent);
+};
+
 export const useSafeAreaInsets = () => useSafeAreaContext().safeAreaInsets;

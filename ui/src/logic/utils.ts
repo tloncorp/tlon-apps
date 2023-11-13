@@ -1152,3 +1152,7 @@ export function sagaCompatible(saga: Saga | null) {
   // either host or synced with host
   return saga === null || 'synced' in saga;
 }
+
+export function useIsHttps() {
+  return window.location.protocol === 'https:';
+}
