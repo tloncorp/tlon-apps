@@ -122,7 +122,6 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
         }}
         style={
           {
-            WebkitTapHighlightColor: 'red',
             ...(hasHoverColor() && hover && !active && !transparent
               ? customHoverHiglightStyles()
               : null),
