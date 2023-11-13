@@ -426,9 +426,9 @@
   ::
   ++  ca-join
     |=  [n=nest:c group=flag:g]
+    =.  nest  n
     ?<  (~(has by v-channels) nest)
     ?>  |(=(p.group src.bowl) from-self)
-    =.  nest  n
     =.  channel  *v-channel:c
     =.  group.perm.perm.channel  group
     =.  last-read.remark.channel  now.bowl
