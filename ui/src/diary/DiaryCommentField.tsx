@@ -79,10 +79,20 @@ export default function DiaryCommentField({
         ];
       }
 
+      const now = Date.now();
+
       await addReply({
         nest,
         postId: replyTo,
-        content,
+        memo: {
+          content,
+          author: window.our,
+          sent: now,
+        },
+        cacheId: {
+          sent: now,
+          author: window.our,
+        },
       });
       captureGroupsAnalyticsEvent({
         name: 'comment_item',

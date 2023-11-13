@@ -1212,11 +1212,53 @@ export function useAddPostMutation(nest: string) {
     [han, flag]
   );
 
+  let timePosted: string;
   const mutationFn = async (variables: {
     cacheId: CacheId;
     essay: PostEssay;
+    tracked?: boolean;
   }) => {
-    await api.poke(
+    if (variables.tracked) {
+      return asyncCallWithTimeout(
+        new Promise<string>((resolve) => {
+          try {
+            api
+              .trackedPoke<ChannelsAction, ChannelsResponse>(
+                channelPostAction(nest, {
+                  add: variables.essay,
+                }),
+                { app: 'channels', path: `/${nest}` },
+                ({ response }) => {
+                  if ('post' in response) {
+                    const { id, 'r-post': postResponse } = response.post;
+                    if (
+                      'set' in postResponse &&
+                      postResponse.set !== null &&
+                      postResponse.set.essay.author ===
+                        variables.essay.author &&
+                      postResponse.set.essay.sent === variables.essay.sent
+                    ) {
+                      timePosted = id;
+                      return true;
+                    }
+                    return true;
+                  }
+
+                  return false;
+                }
+              )
+              .then(() => {
+                resolve(timePosted);
+              });
+          } catch (e) {
+            console.error(e);
+          }
+        }),
+        15000
+      );
+    }
+
+    return api.poke(
       channelPostAction(nest, {
         add: variables.essay,
       })

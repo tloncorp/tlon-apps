@@ -155,6 +155,7 @@ export default function DiaryAddNote() {
         await asyncCallWithTimeout(
           addNote({
             cacheId,
+            tracked: true,
             essay: {
               content: noteContent,
               author: window.our,

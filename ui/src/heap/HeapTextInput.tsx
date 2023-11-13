@@ -139,8 +139,13 @@ export default function HeapTextInput({
         addReply(
           {
             nest: `heap/${flag}`,
-            content: heart.content,
             postId: replyTo,
+            memo: {
+              content,
+              sent: now,
+              author: window.our,
+            },
+            cacheId,
           },
           {
             onSuccess: () => {
