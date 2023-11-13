@@ -51,7 +51,7 @@ function ContentReference({
 
     if (app === 'heap') {
       const idCurio = udToDec(segments[2]);
-      const idReply = segments[3];
+      const idReply = segments[4];
 
       if (idReply) {
         return (

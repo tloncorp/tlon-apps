@@ -18,6 +18,8 @@ import Tooltip from '@/components/Tooltip';
 import { Story, Cite, Kind } from '@/types/channel';
 import WritChanReference from '@/components/References/WritChanReference';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 
 interface DiaryCommentFieldProps {
   flag: string;
@@ -26,6 +28,13 @@ interface DiaryCommentFieldProps {
   replyTo: string;
   className?: string;
   sendDisabled?: boolean;
+}
+
+function SubmitLabel({ isHeap }: { isHeap?: boolean }) {
+  if (isHeap) {
+    return <ArrowNWIcon16 className="h-4 w-4" />;
+  }
+  return <span>Post</span>;
 }
 
 export default function DiaryCommentField({
@@ -129,9 +138,10 @@ export default function DiaryCommentField({
   const messageEditor = useMessageEditor({
     whom: replyTo,
     content: '',
-    uploadKey: `diary-comment-field-${flag}`,
+    uploadKey: `${han}-comment-field-${flag}`,
     placeholder: 'Add a comment',
-    editorClass: 'p-0 !min-h-[72px]',
+    editorClass:
+      han === 'heap' ? '!max-h-[108px] overflow-y-auto' : 'p-0 !min-h-[72px]',
     allowMentions: true,
     onEnter: useCallback(
       ({ editor }) => {
@@ -154,13 +164,24 @@ export default function DiaryCommentField({
       const mention = makeMention(reply?.memo.author.slice(1));
       messageEditor?.commands.setContent(mention);
       messageEditor?.commands.insertContent(': ');
-      const path = `/1/chan/diary/${flag}/note/${replyTo}/msg/${replyId}`;
+      const path = `/1/chan/${han}/${flag}/${
+        han === 'diary' ? 'note' : 'curio'
+      }/${replyTo}/msg/${replyId}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
         setReplyCite({ cite });
       }
     }
-  }, [replyId, replyTo, setReplyCite, replyCite, flag, messageEditor, reply]);
+  }, [
+    replyId,
+    replyTo,
+    setReplyCite,
+    replyCite,
+    flag,
+    messageEditor,
+    reply,
+    han,
+  ]);
 
   useEffect(() => {
     if (messageEditor && !messageEditor.isDestroyed) {
@@ -197,32 +218,43 @@ export default function DiaryCommentField({
 
   // TODO: Set a sane length limit for comments
   return (
-    <>
-      <div className={cn('flex flex-col items-end', className)}>
-        {replyCite && (
-          <div className="mb-2 flex w-full flex-col items-center">
-            <div className="mb-4 flex w-full items-center justify-between font-semibold">
-              <span className="mr-2 text-gray-600">Replying to:</span>
-              <button
-                className="icon-button ml-auto"
-                onClick={clearAttachments}
-              >
-                <X16Icon className="h-4 w-4" />
-              </button>
-            </div>
-            <WritChanReference
-              nest={nest}
-              idWrit={replyTo}
-              idReply={replyId || ''}
-              isScrolling={false}
-            />
+    <div
+      className={cn(
+        han === 'heap' ? 'items-end' : 'flex flex-col items-end',
+        className
+      )}
+    >
+      {replyCite && (
+        <div className="mb-2 flex w-full flex-col items-center">
+          <div className="mb-4 flex w-full items-center justify-between font-semibold">
+            <span className="mr-2 text-gray-600">Replying to:</span>
+            <button className="icon-button ml-auto" onClick={clearAttachments}>
+              <X16Icon className="h-4 w-4" />
+            </button>
           </div>
+          <WritChanReference
+            nest={nest}
+            idWrit={replyTo}
+            idReply={replyId || ''}
+            isScrolling={false}
+          />
+        </div>
+      )}
+      <div
+        className={cn(
+          'w-full',
+          han === 'heap'
+            ? 'flex flex-row items-center'
+            : 'relative flex h-full flex-col'
         )}
+      >
         <MessageEditor
           editor={messageEditor}
-          className="h-full w-full rounded-lg"
+          className={
+            han === 'heap' ? 'w-full rounded-lg' : 'h-full w-full rounded-lg'
+          }
           inputClassName={cn(
-            'p-4 leading-5',
+            han === 'heap' ? '' : 'p-4 leading-5',
             // Since TipTap simulates an input using a <p> tag, only style
             // the fake placeholder when the field is empty
             messageEditor.getText() === '' ? 'text-gray-400' : ''
@@ -230,23 +262,33 @@ export default function DiaryCommentField({
         />
         {!sendDisabled ? (
           <Tooltip content={text} open={compatible ? false : undefined}>
-            <button
-              className="button mt-2"
-              disabled={
-                !compatible ||
-                isPending ||
-                (messageEditor.getText() === '' && !replyCite)
-              }
-              onClick={onClick}
-            >
-              {isPending ? 'Posting...' : 'Post'}
-            </button>
+            <div className="flex flex-row justify-end">
+              <button
+                className={
+                  han === 'heap'
+                    ? 'button ml-2 shrink-0 rounded-md px-2 py-1'
+                    : 'button mt-2'
+                }
+                disabled={
+                  !compatible ||
+                  isPending ||
+                  (messageEditor.getText() === '' && !replyCite)
+                }
+                onClick={onClick}
+              >
+                {isPending ? (
+                  <LoadingSpinner secondary="black" />
+                ) : (
+                  <SubmitLabel isHeap={han === 'heap'} />
+                )}
+              </button>
+            </div>
           </Tooltip>
         ) : null}
       </div>
       {isMobile && messageEditor.isFocused ? (
         <ChatInputMenu editor={messageEditor} />
       ) : null}
-    </>
+    </div>
   );
 }
