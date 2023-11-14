@@ -1,19 +1,9 @@
-import React, {
-  ReactElement,
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
 import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
 import {
-  useChatLoading,
-  useChatState,
   useInfiniteDMs,
   useMessagesForChat,
   useWritWindow,
@@ -21,11 +11,8 @@ import {
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { log } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
-import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useIsScrolling } from '@/logic/scroll';
-import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { newWritMap } from '@/types/dms';
 
 interface DmWindowProps {
   whom: string;

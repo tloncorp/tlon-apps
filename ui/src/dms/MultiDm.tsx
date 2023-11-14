@@ -11,12 +11,7 @@ import {
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import {
-  useChatState,
-  useMultiDm,
-  useMultiDmIsPending,
-  useSendMessage,
-} from '@/state/chat';
+import { useMultiDm, useMultiDmIsPending, useSendMessage } from '@/state/chat';
 import { useIsMobile } from '@/logic/useMedia';
 import { dmListPath, isGroups, pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
@@ -104,14 +99,6 @@ export default function MultiDm() {
   } = useMessageSelector();
 
   const isSelecting = isSelectingMessage && existingMultiDm === clubId;
-
-  useEffect(() => {
-    if (clubId && club) {
-      useChatState.getState().initializeMultiDm(clubId);
-    }
-  }, [clubId, club]);
-
-  // const { sendMessage } = useChatState.getState();
 
   const handleLeave = useCallback(() => {
     navigate(dmListPath);
