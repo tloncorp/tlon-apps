@@ -48,7 +48,6 @@ export default function ChatReaction({
   const editReact = useCallback(() => {
     if (isMine) {
       if (isDMOrMultiDM) {
-        // useChatState.getState().delReactToDm(whom, seal.id);
         delDmReact({ whom, id: seal.id });
       } else {
         delChatReact({
@@ -58,7 +57,6 @@ export default function ChatReaction({
       }
     } else {
       if (isDMOrMultiDM) {
-        // useChatState.getState().addReactToDm(whom, seal.id, react);
         addDmReact({ whom, id: seal.id, react });
       } else {
         addChatReact({
