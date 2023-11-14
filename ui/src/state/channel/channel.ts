@@ -1218,51 +1218,52 @@ export function useAddPostMutation(nest: string) {
     essay: PostEssay;
     tracked?: boolean;
   }) => {
-    if (variables.tracked) {
-      // for diary notes, we want to wait for the post to be delivered (and an ID assigned)
-      return asyncCallWithTimeout(
-        new Promise<string>((resolve) => {
-          try {
-            api
-              .trackedPoke<ChannelsAction, ChannelsResponse>(
-                channelPostAction(nest, {
-                  add: variables.essay,
-                }),
-                { app: 'channels', path: `/${nest}` },
-                ({ response }) => {
-                  if ('post' in response) {
-                    const { id, 'r-post': postResponse } = response.post;
-                    if (
-                      'set' in postResponse &&
-                      postResponse.set !== null &&
-                      postResponse.set.essay.author ===
-                        variables.essay.author &&
-                      postResponse.set.essay.sent === variables.essay.sent
-                    ) {
-                      timePosted = id;
-                      return true;
-                    }
-                    return true;
-                  }
-
-                  return false;
-                }
-              )
-              .then(() => {
-                resolve(timePosted);
-              });
-          } catch (e) {
-            console.error(e);
-          }
-        }),
-        15000
+    if (!variables.tracked) {
+      // If we use a trackedPoke here then the trackedPost status will be updated
+      // out of order. So we use a normal poke.
+      return api.poke(
+        channelPostAction(nest, {
+          add: variables.essay,
+        })
       );
     }
 
-    return api.poke(
-      channelPostAction(nest, {
-        add: variables.essay,
-      })
+    // for diary notes, we want to wait for the post to get an ID back from the backend.
+    return asyncCallWithTimeout(
+      new Promise<string>((resolve) => {
+        try {
+          api
+            .trackedPoke<ChannelsAction, ChannelsResponse>(
+              channelPostAction(nest, {
+                add: variables.essay,
+              }),
+              { app: 'channels', path: `/${nest}` },
+              ({ response }) => {
+                if ('post' in response) {
+                  const { id, 'r-post': postResponse } = response.post;
+                  if (
+                    'set' in postResponse &&
+                    postResponse.set !== null &&
+                    postResponse.set.essay.author === variables.essay.author &&
+                    postResponse.set.essay.sent === variables.essay.sent
+                  ) {
+                    timePosted = id;
+                    return true;
+                  }
+                  return true;
+                }
+
+                return false;
+              }
+            )
+            .then(() => {
+              resolve(timePosted);
+            });
+        } catch (e) {
+          console.error(e);
+        }
+      }),
+      15000
     );
   };
 
