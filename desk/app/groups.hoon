@@ -467,6 +467,7 @@
       ~   cor
       [%epic ~]  (take-epic sign)
       [%helm *]  cor
+      [%contacts *]  cor
       [%groups %role ~]  cor
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
@@ -1485,6 +1486,24 @@
               ==
           ==
       =?  cor  &(!user-join am-host)  (give-invites flag ships)
+      =/  recent-authors=(list ship)
+        %~  tap  in  %-  sy
+        ^-  (list ship)
+        %-  zing
+        =-  ~(tap in -)
+        ^-  (set (list ship))
+        %-  ~(run in ~(key by channels.group))
+        |=  =nest:g
+        =/  writs=(list writ:c)
+          ?+  p.nest  ~
+              %chat
+            ~(val by .^(writs:c %gx (welp (channel-scry nest) /writs/newest/100/noun)))
+          ==
+        %+  turn  writs
+        |=  =writ:c
+        author.+.writ
+      =.  cor
+        (emit [%pass /contacts/join-heed %agent [src.bowl %contacts] %poke contact-action-0+!>([%heed recent-authors])])
       =.  fleet.group
         %-  ~(uni by fleet.group)
           %-  malt
