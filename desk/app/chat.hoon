@@ -795,16 +795,22 @@
       %+  roll  writs
       |=  [[=time =writ:t] reply-index=(map @da v-replies:d)]
       ?~  replying.writ  reply-index
-      =/  old-replies=v-replies:d  (~(gut by reply-index) time *v-replies:d)
-      =/  reply-time  (~(get by dex.old) u.replying.writ)
-      ?~  reply-time  reply-index
-      %+  ~(put by reply-index)  u.reply-time
+      ::  this writ is replying to something, so temporarily put it into the
+      ::  reply index. below, we will incorporate it into the parent writ.
+      ::
+      =/  parent-time  (~(get by dex.old) u.replying.writ)
+      ?~  parent-time  reply-index
+      =/  old-replies=v-replies:d  (~(gut by reply-index) u.parent-time *v-replies:d)
+      %+  ~(put by reply-index)  u.parent-time
       (put:on-v-replies:d old-replies time `(convert-quip old time writ))
     %+  gas:on-v-posts:d  *v-posts:d
     %+  murn  writs
     |=  [=time =writ:t]
     ^-  (unit [id-post:d (unit v-post:d)])
     ?^  replying.writ  ~
+    ::  this writ is a top-level message. incorporate the replies to it found
+    ::  by the above code.
+    ::
     =/  replies=v-replies:d  (~(gut by reply-index) time *v-replies:d)
     (some time `(convert-post old time writ replies))
   ::
