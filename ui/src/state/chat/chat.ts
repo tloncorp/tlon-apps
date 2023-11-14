@@ -173,7 +173,7 @@ export function initializeChat({
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(['dms', 'pending'], () => invited || []);
-  queryClient.setQueryData(['dms', 'pins'], () => pins || []);
+  queryClient.setQueryData(['dms', 'pins'], () => ({ pins: pins || [] }));
   queryClient.setQueryData(['dms', 'unreads'], () => unreads || {});
 }
 
@@ -571,9 +571,9 @@ export function useTogglePinMutation() {
   return useMutation({
     mutationFn,
     onMutate: (variables) => {
-      queryClient.setQueryData<DMWhom[]>(['dms', 'pins'], (prev) => {
+      queryClient.setQueryData<DMWhom[]>(['dms', 'pins'], () => {
         const { whom, pin } = variables;
-        const currentPins = prev || [];
+        const currentPins = pins || [];
         const newPins = pin
           ? [...currentPins, whom]
           : currentPins.filter((w) => w !== whom);
