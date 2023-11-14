@@ -675,6 +675,86 @@ export const useChatState = createState<ChatState>(
   []
 );
 
+// TODO: handle bootstrap initialization
+
+// start: async ({ dms, clubs, unreads, pins, invited }) => {
+//   get().batchSet((draft) => {
+//     draft.pins = pins;
+//     draft.multiDms = clubs;
+//     draft.dms = dms;
+//     draft.pendingDms = invited;
+//     draft.pins = pins;
+//   });
+
+//   useChatStore.getState().update(unreads);
+
+//   api.subscribe(
+//     {
+//       app: 'chat',
+//       path: '/',
+//       event: (event: ChatUIEvent, mark) => {
+//         if (mark === 'chat-toggle-message') {
+//           const toggle = event as ToggleMessage;
+//           queryClient.setQueryData<HiddenMessages>(
+//             ['chat', 'hidden'],
+//             resolveHiddenMessages(toggle)
+//           );
+//         }
+
+//         if ('blocked-by' in event) {
+//           queryClient.setQueryData<BlockedByShips>(
+//             ['chat', 'blocked-by'],
+//             (prev) => {
+//               if (!prev) {
+//                 return [event['blocked-by']];
+//               }
+
+//               return [...prev, event['blocked-by']];
+//             }
+//           );
+//         }
+
+//         if ('unblocked-by' in event) {
+//           queryClient.setQueryData<BlockedByShips>(
+//             ['chat', 'blocked-by'],
+//             (prev) => {
+//               if (!prev) {
+//                 return [];
+//               }
+
+//               return prev.filter((s) => s !== event['unblocked-by']);
+//             }
+//           );
+//         }
+//       },
+//     },
+//     3
+//   );
+
+//   api.subscribe(
+//     {
+//       app: 'chat',
+//       path: '/dm/invited',
+//       event: (event: unknown) => {
+//         get().batchSet((draft) => {
+//           draft.pendingDms = event as string[];
+//         });
+//       },
+//     },
+//     3
+//   );
+//   api.subscribe(
+//     {
+//       app: 'chat',
+//       path: '/clubs',
+//       event: (event: ClubAction) => {
+//         get().batchSet(clubReducer(event));
+//       },
+//     },
+//     3
+//   );
+// },
+
 interface PageParam {
   time: BigInteger;
   direction: string;

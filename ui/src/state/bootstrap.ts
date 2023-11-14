@@ -5,7 +5,6 @@ import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
 import { useChatStore } from '@/chat/useChatStore';
-import { useChatState } from './chat';
 import useContactState from './contact';
 import useDocketState from './docket';
 import useKilnState from './kiln';
@@ -99,7 +98,8 @@ async function startTalk() {
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  useChatState.getState().start(chat);
+  // TODO: dms, handle start data?
+  // useChatState.getState().start(chat);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
