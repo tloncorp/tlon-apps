@@ -42,7 +42,7 @@ export default function MessagesList({
   isScrolling,
   children,
 }: MessagesListProps) {
-  const pending = usePendingDms();
+  const { pending } = usePendingDms();
   const pendingMultis = usePendingMultiDms();
   const pinned = usePinned();
   const { sortMessages } = useMessageSort();

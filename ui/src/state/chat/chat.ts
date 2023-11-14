@@ -926,8 +926,17 @@ export function useMultiDmsQuery() {
   });
 }
 
+export function useMultiDmsSubscription() {
+  return useReactQuerySubscription<Clubs, ClubAction>({
+    queryKey: ['dms', 'multi'],
+    app: 'chat',
+    scry: '/clubs',
+    path: '/club/new',
+  });
+}
+
 export function useMultiDms(): Clubs {
-  const { data } = useMultiDmsQuery();
+  const { data } = useMultiDmsSubscription();
 
   if (!data) {
     return {};
@@ -971,6 +980,32 @@ export function useDms(): string[] {
   }
 
   return data;
+}
+
+export function usePendingDms() {
+  const { data, ...rest } = useReactQuerySubscription<string[]>({
+    queryKey: ['dms', 'pending'],
+    app: 'chat',
+    path: '/dm/invited',
+    scry: '/dm/invited',
+  });
+
+  if (!data) {
+    return {
+      ...rest,
+      pending: [],
+    };
+  }
+
+  return {
+    ...rest,
+    pending: data,
+  };
+}
+
+export function useDmIsPending(ship: string) {
+  const { pending } = usePendingDms();
+  return pending.includes(ship);
 }
 
 export function usePinned() {
@@ -1110,18 +1145,18 @@ export async function optimisticDMAction(
 }
 
 export function useArchiveDm() {
-  const mutationFn = async ({ ship }: { ship: string }) => {
+  const mutationFn = async ({ whom }: { whom: string }) => {
     await api.poke({
       app: 'chat',
       mark: 'dm-archive',
-      json: ship,
+      json: whom,
     });
   };
 
   return useMutation({
     mutationFn,
     onMutate: (variables) => {
-      const { ship } = variables;
+      const { whom } = variables;
       queryClient.setQueryData(
         ['dm', 'unreads'],
         (unreads: DMUnreads | undefined) => {
@@ -1131,7 +1166,7 @@ export function useArchiveDm() {
 
           const newUnreads = { ...unreads };
 
-          delete newUnreads[ship];
+          delete newUnreads[whom];
 
           return newUnreads;
         }
@@ -1160,14 +1195,20 @@ export function useUnarchiveDm() {
   });
 }
 
-export function useDmRsvp() {
-  const mutationFn = async ({ ship, ok }: { ship: string; ok: boolean }) => {
+export function useDmRsvpMutation() {
+  const mutationFn = async ({
+    ship,
+    accept,
+  }: {
+    ship: string;
+    accept: boolean;
+  }) => {
     await api.poke({
       app: 'chat',
       mark: 'dm-rsvp',
       json: {
         ship,
-        ok,
+        ok: accept,
       },
     });
   };
@@ -1175,7 +1216,7 @@ export function useDmRsvp() {
   return useMutation({
     mutationFn,
     onMutate: (variables) => {
-      const { ship, ok } = variables;
+      const { ship, accept } = variables;
       queryClient.setQueryData(
         ['dm', 'unreads'],
         (unreads: DMUnreads | undefined) => {
@@ -1185,7 +1226,7 @@ export function useDmRsvp() {
 
           const newUnreads = { ...unreads };
 
-          if (!ok) {
+          if (!accept) {
             delete newUnreads[ship];
           }
 
@@ -1325,9 +1366,17 @@ export function useRemoveFromMultiDm() {
   });
 }
 
-export function useMutliDmRsvp() {
-  const mutationFn = async ({ id, ok }: { id: string; ok: boolean }) => {
-    const action = multiDmAction(id, { team: { ship: window.our, ok } });
+export function useMutliDmRsvpMutation() {
+  const mutationFn = async ({
+    id,
+    accept,
+  }: {
+    id: string;
+    accept: boolean;
+  }) => {
+    const action = multiDmAction(id, {
+      team: { ship: window.our, ok: accept },
+    });
     await api.poke(action);
   };
 
@@ -1978,14 +2027,14 @@ export function useIsDmUnread(whom: string) {
   return Boolean(unread?.count > 0 && unread['read-id']);
 }
 
-const selPendingDms = (s: ChatState) => s.pendingDms;
-export function usePendingDms() {
-  return useChatState(selPendingDms);
-}
+// const selPendingDms = (s: ChatState) => s.pendingDms;
+// export function usePendingDms() {
+//   return useChatState(selPendingDms);
+// }
 
-export function useDmIsPending(ship: string) {
-  return useChatState(useCallback((s) => s.pendingDms.includes(ship), [ship]));
-}
+// export function useDmIsPending(ship: string) {
+//   return useChatState(useCallback((s) => s.pendingDms.includes(ship), [ship]));
+// }
 
 // const selMultiDms = (s: ChatState) => s.multiDms;
 // export function useMultiDms() {
