@@ -86,6 +86,10 @@ function WritBaseReference({
   }
 
   const handleOpenReferenceClick = () => {
+    // We have nowhere to navigate to if we haven't yet loaded group information
+    if (!preview?.group?.flag) {
+      return;
+    }
     if (!group) {
       if ('post' in reference) {
         navigate(
