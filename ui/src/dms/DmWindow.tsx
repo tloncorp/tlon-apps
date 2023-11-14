@@ -3,11 +3,7 @@ import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
-import {
-  useInfiniteDMs,
-  useMessagesForChat,
-  useWritWindow,
-} from '@/state/chat';
+import { useInfiniteDMs } from '@/state/chat';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { log } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
@@ -31,8 +27,6 @@ export default function DmWindow({
 }: DmWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const scrollTo = getScrollTo(searchParams.get('msg'));
-  const messages = useMessagesForChat(whom, scrollTo?.toString());
-  const window = useWritWindow(whom);
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const scrollElementRef = useRef<HTMLDivElement>(null);
@@ -128,7 +122,7 @@ export default function DmWindow({
           onAtBottom={onAtBottom}
         />
       </div>
-      {scrollTo && !window?.latest ? (
+      {scrollTo ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"

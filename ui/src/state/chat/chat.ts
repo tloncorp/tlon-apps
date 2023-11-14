@@ -1631,61 +1631,24 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
   };
 }
 
-export function useWritWindow(whom: string, time?: string) {
-  const window = useChatState(useCallback((s) => s.writWindows[whom], [whom]));
-
-  return getWindow(window, time);
-}
-
-export function useMessagesForChat(whom: string, near?: string) {
-  const window = useWritWindow(whom, near);
-  const writs = useChatState(useCallback((s) => s.pacts[whom]?.writs, [whom]));
-
-  return useMemo(() => {
-    return window && writs
-      ? writs.getRange(window.oldest, window.newest, true)
-      : [];
-  }, [writs, window]);
-}
-
-export function useHasMessages(whom: string) {
-  const messages = useMessagesForChat(whom);
-  return messages.length > 0;
-}
-
-/**
- * @param replying: if set, we're replying to a message
- * @param whom (optional) if provided, overrides the default behavior of using the current channel flag
- * @returns bigInt.BigInteger[] of the ids of the messages for the flag / whom
- */
-export function useChatKeys({ whom }: { replying: boolean; whom: string }) {
-  const messages = useMessagesForChat(whom ?? '');
-  return useMemo(() => messages.map(([k]) => k), [messages]);
-}
-
+// TODO: handle message tracking
+// export function useTrackedMessageStatus(id: string) {
+//   return useChatState(
+//     useCallback(
+//       (s) => s.trackedMessages.find((m) => m.id === id)?.status || 'delivered',
+//       [id]
+//     )
+//   );
+// }
 export function useTrackedMessageStatus(id: string) {
-  return useChatState(
-    useCallback(
-      (s) => s.trackedMessages.find((m) => m.id === id)?.status || 'delivered',
-      [id]
-    )
-  );
-}
-
-export function useChatLoading(whom: string) {
-  const unread = useDmUnread(whom);
-
-  return useChatState(
-    useCallback((s) => !s.pacts[whom] && !!unread, [whom, unread])
-  );
+  // placeholder
+  return 'delivered';
 }
 
 export function useHasUnreadMessages() {
   const chats = useChatStore((s) => s.chats);
-  const { dms, clubs } = useChatState((s) => ({
-    dms: s.dms,
-    clubs: s.multiDms,
-  }));
+  const dms = useDms();
+  const clubs = useMultiDms();
 
   return dms.concat(Object.keys(clubs)).some((k) => {
     const chat = chats[k];
@@ -1696,22 +1659,6 @@ export function useHasUnreadMessages() {
     const { unread } = chat;
     return Boolean(unread && !unread.seen);
   });
-}
-
-const emptyPact = { index: {}, writs: newWritMap() };
-export function usePact(whom: string): Pact {
-  return useChatState(useCallback((s) => s.pacts[whom] || emptyPact, [whom]));
-}
-
-const selPacts = (s: ChatState) => s.pacts;
-export function usePacts() {
-  return useChatState(selPacts);
-}
-
-export function useCurrentPactSize(whom: string) {
-  return useChatState(
-    useCallback((s) => s.pacts[whom]?.writs.size ?? 0, [whom])
-  );
 }
 
 export function useWrit(whom: string, writId: string, disabled = false) {
@@ -2027,146 +1974,19 @@ export function useIsDmUnread(whom: string) {
   return Boolean(unread?.count > 0 && unread['read-id']);
 }
 
-// const selPendingDms = (s: ChatState) => s.pendingDms;
-// export function usePendingDms() {
-//   return useChatState(selPendingDms);
-// }
-
-// export function useDmIsPending(ship: string) {
-//   return useChatState(useCallback((s) => s.pendingDms.includes(ship), [ship]));
-// }
-
-// const selMultiDms = (s: ChatState) => s.multiDms;
-// export function useMultiDms() {
-//   return useChatState(selMultiDms);
-// }
-
-// const selDms = (s: ChatState) => s.dms;
-// export function useDms() {
-//   return useChatState(selDms);
-// }
-
-// export function useMultiDm(id: string): Club | undefined {
-//   const multiDm = useChatState(useCallback((s) => s.multiDms[id], [id]));
-
-//   useEffect(() => {
-//     useChatState.getState().fetchMultiDm(id);
-//   }, [id]);
-
-//   return multiDm;
-// }
-
-// export function usePendingMultiDms() {
-//   const multiDms = useChatState(selMultiDms);
-
-//   return Object.entries(multiDms)
-//     .filter(([, value]) => value.hive.includes(window.our))
-//     .map(([key]) => key);
-// }
-
 export function useMultiDmIsPending(id: string): boolean {
   const unread = useDmUnread(id);
-  return useChatState(
-    useCallback(
-      (s) => {
-        const chat = s.multiDms[id];
-        const isPending = chat && chat.hive.includes(window.our);
-        const inTeam = chat && chat.team.includes(window.our);
+  const chat = useMultiDm(id);
 
-        if (isPending) {
-          return true;
-        }
+  const isPending = chat && chat.hive.includes(window.our);
+  const inTeam = chat && chat.team.includes(window.our);
 
-        return !unread && !inTeam;
-      },
-      [id, unread]
-    )
-  );
+  if (isPending) {
+    return true;
+  }
+
+  return !unread && !inTeam;
 }
-
-// const selDmArchive = (s: ChatState) => s.dmArchive;
-// export function useDmArchive() {
-//   return useChatState(selDmArchive);
-// }
-
-// export function usePinned() {
-//   return useChatState(useCallback((s: ChatState) => s.pins, []));
-// }
-
-// export function usePinnedDms() {
-//   const pinned = usePinned();
-//   return useMemo(() => pinned.filter(whomIsDm), [pinned]);
-// }
-
-// export function usePinnedClubs() {
-//   const pinned = usePinned();
-//   return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
-// }
-
-// type UnsubbedWrit = {
-//   flag: string;
-//   writ: Post;
-// };
-
-// const { shouldLoad, newAttempt, finished } = getPreviewTracker();
-
-// const selLoadedRefs = (s: ChatState) => s.loadedRefs;
-// export function useWritByFlagAndWritId(
-//   chFlag: string,
-//   idWrit: string,
-//   isScrolling: boolean
-// ) {
-//   const refs = useChatState(selLoadedRefs);
-//   const path = `/said/${chFlag}/msg/${idWrit}`;
-//   const cached = refs[path];
-//   const pact = usePact(chFlag);
-//   const writIndex = pact && pact.index[idWrit];
-//   const writInPact = writIndex && pact && pact.writs.get(writIndex);
-
-//   useEffect(() => {
-//     if (!isScrolling && !writInPact && shouldLoad(path)) {
-//       newAttempt(path);
-//       subscribeOnce<UnsubbedWrit>('chat', path)
-//         .then(({ writ }) => {
-//           useChatState.getState().batchSet((draft) => {
-//             draft.loadedRefs[path] = writ;
-//           });
-//         })
-//         .finally(() => finished(path));
-//     }
-//   }, [path, isScrolling, writInPact]);
-
-//   if (writInPact) {
-//     return writInPact;
-//   }
-
-//   return cached;
-// }
-
-// export function useGetFirstDMUnreadID(whom: string) {
-//   const keys = useChatKeys({ replying: false, whom });
-//   const unread = useDmUnread(whom);
-//   if (!unread) {
-//     return null;
-//   }
-//   const { 'read-id': lastRead } = unread;
-//   if (!lastRead) {
-//     return null;
-//   }
-//   // lastRead is formatted like: ~zod/123.456.789...
-//   const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
-//   const firstUnread = keys.find((key) => key.gt(lastReadBN));
-//   return firstUnread ?? null;
-// }
-
-// export function useLatestMessage(chFlag: string): [BigInteger, Writ | null] {
-//   const messages = useMessagesForChat(chFlag);
-//   const messagesTree = newWritMap(messages);
-//   const max = messagesTree.maxKey();
-//   return messagesTree.size > 0 && max
-//     ? [max, messagesTree.get(max) || null]
-//     : [bigInt(), null];
-// }
 
 export function useBlockedShips() {
   const { data, ...rest } = useReactQueryScry<BlockedShips>({
@@ -2315,5 +2135,3 @@ export function useMessageToggler(id: string) {
     isHidden,
   };
 }
-
-(window as any).chat = useChatState.getState;
