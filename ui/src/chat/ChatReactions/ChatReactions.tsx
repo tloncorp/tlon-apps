@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router';
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState } from '@/state/chat';
+import { useAddDmReactMutation } from '@/state/chat';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
@@ -29,12 +29,13 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
   const { privacy } = useGroupPrivacy(groupFlag);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: addChatReact } = useAddPostReactMutation();
+  const { mutate: addDmReact } = useAddDmReactMutation();
   const nest = `chat/${whom}`;
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMOrMultiDM) {
-        useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
+        addDmReact({ whom, id: seal.id, react: emoji.shortcodes });
       } else {
         addChatReact({
           nest,
@@ -51,7 +52,16 @@ export default function ChatReactions({ whom, seal, id }: ChatReactionsProps) {
       });
       setPickerOpen(false);
     },
-    [whom, groupFlag, privacy, seal, isDMOrMultiDM, addChatReact, nest]
+    [
+      whom,
+      groupFlag,
+      privacy,
+      seal,
+      isDMOrMultiDM,
+      addChatReact,
+      addDmReact,
+      nest,
+    ]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);

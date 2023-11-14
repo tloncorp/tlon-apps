@@ -5,7 +5,10 @@ import { useParams } from 'react-router';
 import useEmoji from '@/state/emoji';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useAddDMReplyReactMutation, useChatState } from '@/state/chat';
+import {
+  useAddDMReplyReactMutation,
+  useAddDmReactMutation,
+} from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
@@ -56,6 +59,7 @@ export default function EmojiPicker({
   const { mutate: addFeelToChat } = useAddPostReactMutation();
   const { mutate: addFeelToReply } = useAddReplyReactMutation();
   const { mutate: addFeelToDmReply } = useAddDMReplyReactMutation();
+  const { mutate: addFeelToDm } = useAddDmReactMutation();
   const width = window.innerWidth;
   const dismss = useDismissNavigate();
   const mobilePerLineCount = Math.floor((width - 10) / 36);
@@ -73,9 +77,7 @@ export default function EmojiPicker({
   const onEmojiSelect = useCallback(
     async (emoji: { shortcodes: string }) => {
       if (isDMOrMultiDM && !inThread) {
-        await useChatState
-          .getState()
-          .addReactToDm(whom!, writId, emoji.shortcodes);
+        addFeelToDm({ whom: whom!, id: writId, react: emoji.shortcodes });
       } else if (isDMOrMultiDM && inThread) {
         addFeelToDmReply({
           whom: whom!,
@@ -112,6 +114,7 @@ export default function EmojiPicker({
       nest,
       isDMOrMultiDM,
       addFeelToChat,
+      addFeelToDm,
       addFeelToReply,
       addFeelToDmReply,
       inThread,
