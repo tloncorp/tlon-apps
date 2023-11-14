@@ -55,6 +55,7 @@ import {
   Story,
   PageTuple,
   ReplyTuple,
+  Memo,
 } from '@/types/channel';
 import { CacheId } from '@/state/channel/channel';
 import { WritTuple } from '@/types/dms';
@@ -79,11 +80,13 @@ interface ChatInputProps {
   sendReply?: ({
     nest,
     postId,
-    content,
+    memo,
+    cacheId,
   }: {
     nest: Nest;
     postId: string;
-    content: Story;
+    memo: Memo;
+    cacheId: CacheId;
   }) => void;
   dropZoneId: string;
   replyingWrit?: PageTuple | WritTuple | ReplyTuple;

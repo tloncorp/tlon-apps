@@ -56,7 +56,7 @@ export default function HeapDetailComments({
             {groupedReplies.map(([_t, g]) =>
               g.map((props) => (
                 <li key={props.time.toString()}>
-                  <ReplyMessage whom={nest} {...props} />
+                  <ReplyMessage whom={nest} {...props} showReply />
                 </li>
               ))
             )}

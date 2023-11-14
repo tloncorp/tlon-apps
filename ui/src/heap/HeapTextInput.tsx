@@ -36,7 +36,6 @@ interface HeapTextInputProps {
   replyTo?: string | null;
   className?: string;
   inputClass?: string;
-  comment?: boolean;
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
@@ -70,13 +69,6 @@ function normalizeHeapInline(inline: Inline[]): Inline[] {
   );
 }
 
-function SubmitLabel({ comment }: { comment?: boolean }) {
-  if (comment) {
-    return <ArrowNIcon16 className="h-4 w-4" />;
-  }
-  return <span>Post</span>;
-}
-
 export default function HeapTextInput({
   flag,
   groupFlag,
@@ -87,7 +79,6 @@ export default function HeapTextInput({
   placeholder,
   className,
   inputClass,
-  comment = false,
 }: HeapTextInputProps) {
   const nest = `heap/${flag}`;
   const isMobile = useIsMobile();
@@ -139,13 +130,18 @@ export default function HeapTextInput({
         addReply(
           {
             nest: `heap/${flag}`,
-            content: heart.content,
             postId: replyTo,
+            memo: {
+              content,
+              sent: now,
+              author: window.our,
+            },
+            cacheId,
           },
           {
             onSuccess: () => {
               captureGroupsAnalyticsEvent({
-                name: comment ? 'comment_item' : 'post_item',
+                name: 'post_item',
                 groupFlag,
                 chFlag: flag,
                 channelType: 'heap',
@@ -163,7 +159,7 @@ export default function HeapTextInput({
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({
-              name: comment ? 'comment_item' : 'post_item',
+              name: 'post_item',
               groupFlag,
               chFlag: flag,
               channelType: 'heap',
@@ -182,7 +178,6 @@ export default function HeapTextInput({
       flag,
       groupFlag,
       privacy,
-      comment,
       setDraft,
       setReady,
       mutate,
@@ -230,11 +225,11 @@ export default function HeapTextInput({
 
   useEffect(() => {
     if (messageEditor && !messageEditor.isDestroyed) {
-      if (!isChatInputFocused && messageEditor.isFocused && comment) {
+      if (!isChatInputFocused && messageEditor.isFocused) {
         handleFocus();
       }
 
-      if (isChatInputFocused && !messageEditor.isFocused && comment) {
+      if (isChatInputFocused && !messageEditor.isFocused) {
         handleBlur();
       }
     }
@@ -245,7 +240,6 @@ export default function HeapTextInput({
       }
     };
   }, [
-    comment,
     isChatInputFocused,
     messageEditor,
     messageEditor?.isFocused,
@@ -281,12 +275,7 @@ export default function HeapTextInput({
           </button>
         </div>
       ) : null}
-      <div
-        className={cn(
-          'w-full',
-          comment ? 'flex flex-row items-end' : 'relative flex h-full'
-        )}
-      >
+      <div className={cn('w-full', 'relative flex h-full')}>
         <MessageEditor
           editor={messageEditor}
           className={cn('w-full rounded-lg', inputClass)}
@@ -301,7 +290,7 @@ export default function HeapTextInput({
             <button
               className={cn(
                 'button rounded-md px-2 py-1',
-                comment ? 'ml-2 shrink-0' : 'absolute bottom-3 right-3'
+                'absolute bottom-3 right-3'
               )}
               disabled={
                 isPending ||
@@ -313,7 +302,7 @@ export default function HeapTextInput({
               {isPending ? (
                 <LoadingSpinner secondary="black" />
               ) : (
-                <SubmitLabel comment={comment} />
+                <span>Post</span>
               )}
             </button>
           </Tooltip>

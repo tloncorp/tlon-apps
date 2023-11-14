@@ -119,6 +119,7 @@ export interface State {
   trackedPosts: TrackedPost[];
   addTracked: (id: CacheId) => void;
   updateStatus: (id: CacheId, status: PostStatus) => void;
+  getStatus: (id: CacheId) => PostStatus;
   [key: string]: unknown;
 }
 
@@ -140,6 +141,15 @@ export const usePostsStore = create<State>((set, get) => ({
         return { status, cacheId };
       }),
     }));
+  },
+  getStatus: (id) => {
+    const { trackedPosts } = get();
+
+    const post = trackedPosts.find(
+      ({ cacheId }) => cacheId.author === id.author && cacheId.sent === id.sent
+    );
+
+    return post?.status ?? 'delivered';
   },
 }));
 
@@ -289,7 +299,7 @@ const infinitePostUpdater = (
 
         if (
           cachedPost &&
-          id !== decToUd(unixToDa(post.essay.sent).toString())
+          id !== udToDec(unixToDa(post.essay.sent).toString())
         ) {
           // remove cached post if it exists
           delete newLastPage.posts[
@@ -401,6 +411,27 @@ const infinitePostUpdater = (
       }
     );
   } else if ('reply' in postResponse) {
+    const {
+      reply: {
+        meta: { replyCount, lastReply, lastRepliers },
+        'r-reply': reply,
+      },
+    } = postResponse;
+
+    const [han, flag] = nestToFlag(nest);
+
+    const replyQueryKey = [han, 'posts', flag, udToDec(time.toString())];
+
+    if ('set' in reply && 'memo' in reply.set) {
+      usePostsStore.getState().updateStatus(
+        {
+          author: reply.set.memo.author,
+          sent: reply.set.memo.sent,
+        },
+        'delivered'
+      );
+    }
+
     queryClient.setQueryData<{
       pages: PagedPosts[];
       pageParams: PageParam[];
@@ -410,12 +441,6 @@ const infinitePostUpdater = (
         if (d === undefined) {
           return undefined;
         }
-
-        const {
-          reply: {
-            meta: { replyCount, lastReply, lastRepliers },
-          },
-        } = postResponse;
 
         const newPages = d.pages.map((page) => {
           const newPage = {
@@ -449,6 +474,8 @@ const infinitePostUpdater = (
 
           return newPage;
         });
+
+        queryClient.invalidateQueries(replyQueryKey);
 
         return {
           pages: newPages,
@@ -1189,8 +1216,20 @@ export function useAddPostMutation(nest: string) {
   const mutationFn = async (variables: {
     cacheId: CacheId;
     essay: PostEssay;
-  }) =>
-    asyncCallWithTimeout(
+    tracked?: boolean;
+  }) => {
+    if (!variables.tracked) {
+      // If we use a trackedPoke here then the trackedPost status will be updated
+      // out of order. So we use a normal poke.
+      return api.poke(
+        channelPostAction(nest, {
+          add: variables.essay,
+        })
+      );
+    }
+
+    // for diary notes, we want to wait for the post to get an ID back from the backend.
+    return asyncCallWithTimeout(
       new Promise<string>((resolve) => {
         try {
           api
@@ -1226,6 +1265,7 @@ export function useAddPostMutation(nest: string) {
       }),
       15000
     );
+  };
 
   return useMutation({
     mutationFn,
@@ -1273,7 +1313,10 @@ export function useAddPostMutation(nest: string) {
       });
     },
     onSuccess: async (_data, variables) => {
-      usePostsStore.getState().updateStatus(variables.cacheId, 'sent');
+      const status = usePostsStore.getState().getStatus(variables.cacheId);
+      if (status === 'pending') {
+        usePostsStore.getState().updateStatus(variables.cacheId, 'sent');
+      }
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
     onError: async (_error, variables, context) => {
@@ -1630,22 +1673,18 @@ export function useAddReplyMutation() {
   const mutationFn = async (variables: {
     nest: Nest;
     postId: string;
-    content: Story;
+    memo: Memo;
+    cacheId: CacheId;
   }) => {
     checkNest(variables.nest);
 
     const replying = decToUd(variables.postId);
-    const memo: Memo = {
-      content: variables.content,
-      author: window.our,
-      sent: Date.now(),
-    };
     const action: Action = {
       post: {
         reply: {
           id: replying,
           action: {
-            add: memo,
+            add: variables.memo,
           },
         },
       },
@@ -1657,6 +1696,8 @@ export function useAddReplyMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
+      usePostsStore.getState().addTracked(variables.cacheId);
+
       const postsUpdater = (prev: PostsInCachePrev | undefined) => {
         if (prev === undefined) {
           return prev;
@@ -1720,20 +1761,15 @@ export function useAddReplyMutation() {
           return prevPost;
         }
         const prevReplies = prevPost.seal.replies;
-        const dateTime = Date.now();
         const newReplies: Record<string, Reply> = {
           ...prevReplies,
-          [decToUd(unixToDa(dateTime).toString())]: {
+          [decToUd(unixToDa(variables.memo.sent).toString())]: {
             seal: {
-              id: unixToDa(dateTime).toString(),
+              id: unixToDa(variables.memo.sent).toString(),
               'parent-id': variables.postId,
               reacts: {},
             },
-            memo: {
-              content: variables.content,
-              author: window.our,
-              sent: dateTime,
-            },
+            memo: variables.memo,
           },
         };
 
@@ -1750,6 +1786,12 @@ export function useAddReplyMutation() {
 
       await updatePostsInCache(variables, postsUpdater);
       await updatePostInCache(variables, updater);
+    },
+    onSuccess: async (_data, variables) => {
+      const status = usePostsStore.getState().getStatus(variables.cacheId);
+      if (status === 'pending') {
+        usePostsStore.getState().updateStatus(variables.cacheId, 'sent');
+      }
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);

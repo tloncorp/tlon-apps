@@ -14,6 +14,7 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
   useChatState,
+  useTrackedMessageStatus,
   // useIsMessageDelivered,
   // useIsMessagePosted,
 } from '@/state/chat';
@@ -21,7 +22,10 @@ import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
-import { useMarkReadMutation } from '@/state/channel/channel';
+import {
+  useMarkReadMutation,
+  useTrackedPostStatus,
+} from '@/state/channel/channel';
 import { emptyReply, Reply } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 import {
@@ -146,8 +150,16 @@ const ReplyMessage = React.memo<
           [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
         ),
       });
-      // const isMessageDelivered = useIsMessageDelivered(cork.id);
-      // const isMessagePosted = useIsMessagePosted(cork.id);
+
+      const msgStatus = useTrackedMessageStatus(seal.id);
+      const status = useTrackedPostStatus({
+        author: window.our,
+        sent: memo.sent,
+      });
+      const isDelivered = msgStatus === 'delivered' && status === 'delivered';
+      const isSent = msgStatus === 'sent' || status === 'sent';
+      const isPending = msgStatus === 'pending' || status === 'pending';
+
       const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
@@ -266,7 +278,7 @@ const ReplyMessage = React.memo<
                 className={cn(
                   'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  // !isMessageDelivered && !isMessagePosted && 'text-gray-400',
+                  isPending && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
                 )}
               >
@@ -294,13 +306,13 @@ const ReplyMessage = React.memo<
                 )}
               </div>
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {/* {!isMessageDelivered && (
+                {!isDelivered && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
-                    primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
+                    primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
-                )} */}
+                )}
               </div>
             </div>
           </div>
