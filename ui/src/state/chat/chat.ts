@@ -144,25 +144,6 @@ interface OptimisticAction {
   event: WritDiff | WritResponse;
 }
 
-async function optimisticAction(
-  whom: string,
-  id: string,
-  delta: WritDelta,
-  set: SetState<BasedChatState>
-) {
-  const { action, event } = getActionAndEvent(whom, id, delta);
-  set((draft) => {
-    const reduced = writsReducer(whom, true)(event, draft);
-
-    return {
-      pacts: { ...reduced.pacts },
-      writWindows: { ...reduced.writWindows },
-    };
-  });
-
-  await api.poke<ClubAction | DmAction | ChannelsAction>(action);
-}
-
 function resolveHiddenMessages(toggle: ToggleMessage) {
   const hiding = 'hide' in toggle;
   return (prev: HiddenMessages | undefined) => {
@@ -174,23 +155,6 @@ function resolveHiddenMessages(toggle: ToggleMessage) {
       ? [...prev, toggle.hide]
       : prev.filter((id) => id !== toggle.show);
   };
-}
-
-function getStore(
-  whom: string,
-  get: () => BasedChatState,
-  set: SetState<BasedChatState>
-) {
-  const isDM = whomIsDm(whom);
-  const type = isDM ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
-
-  return makeWritsStore(
-    whom,
-    get,
-    set,
-    `/${type}/${whom}/writs`,
-    `/${type}/${whom}${isDM ? '' : '/writs'}`
-  );
 }
 
 // TODO: handle bootstrap initialization
@@ -272,6 +236,26 @@ function getStore(
 //     3
 //   );
 // },
+
+export function initializeChat({
+  dms,
+  clubs,
+  pins,
+  invited,
+  unreads,
+}: {
+  dms: string[];
+  clubs: Clubs;
+  pins: string[];
+  invited: string[];
+  unreads: DMUnreads;
+}) {
+  queryClient.setQueryData(['dms', 'dms'], () => dms || []);
+  queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
+  queryClient.setQueryData(['dms', 'pending'], () => invited || []);
+  queryClient.setQueryData(['dms', 'pins'], () => pins || []);
+  queryClient.setQueryData(['dms', 'unreads'], () => unreads || {});
+}
 
 interface PageParam {
   time: BigInteger;
@@ -688,7 +672,7 @@ export function useDmUnreads() {
     DMUnreads,
     DMUnreadUpdate
   >({
-    queryKey: ['dm', 'unreads'],
+    queryKey: ['dms', 'unreads'],
     app: 'chat',
     path: '/unreads',
     scry: '/unreads',
@@ -756,7 +740,7 @@ export function useArchiveDm() {
     onMutate: (variables) => {
       const { whom } = variables;
       queryClient.setQueryData(
-        ['dm', 'unreads'],
+        ['dms', 'unreads'],
         (unreads: DMUnreads | undefined) => {
           if (!unreads) {
             return unreads;
@@ -771,7 +755,7 @@ export function useArchiveDm() {
       );
     },
     onSettled: () => {
-      queryClient.invalidateQueries(['dm', 'unreads']); // TODO: why unreads?
+      queryClient.invalidateQueries(['dms', 'unreads']); // TODO: why unreads?
     },
   });
 }
@@ -788,7 +772,7 @@ export function useUnarchiveDm() {
   return useMutation({
     mutationFn,
     onSettled: () => {
-      queryClient.invalidateQueries(['dm', 'unreads']); // TODO: why unreads?
+      queryClient.invalidateQueries(['dms', 'unreads']); // TODO: why unreads?
     },
   });
 }
@@ -816,7 +800,7 @@ export function useDmRsvpMutation() {
     onMutate: (variables) => {
       const { ship, accept } = variables;
       queryClient.setQueryData(
-        ['dm', 'unreads'],
+        ['dms', 'unreads'],
         (unreads: DMUnreads | undefined) => {
           if (!unreads) {
             return unreads;
@@ -833,7 +817,7 @@ export function useDmRsvpMutation() {
       );
     },
     onSettled: () => {
-      queryClient.invalidateQueries(['dm', 'unreads']);
+      queryClient.invalidateQueries(['dms', 'unreads']);
     },
   });
 }
@@ -1122,7 +1106,7 @@ export function useDelDmReactMutation() {
 
 export function useInfiniteDMs(whom: string, initialTime?: string) {
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
-  const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
+  const type = useMemo(() => (isDM ? 'dms' : 'club'), [isDM]);
   const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
 
   const invalidate = useRef(

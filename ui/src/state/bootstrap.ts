@@ -13,6 +13,7 @@ import { useLureState } from './lure/lure';
 import usePalsState from './pals';
 import useSchedulerStore from './scheduler';
 import { useStorage } from './storage';
+import { initializeChat } from './chat';
 
 const emptyGroupsInit: GroupsInit = {
   groups: {},
@@ -53,7 +54,7 @@ async function startGroups() {
 
 async function startTalk() {
   // since talk is a separate desk we need to offer a fallback
-  const { groups, gangs, ...chat } = await asyncWithFallback(
+  const { groups, gangs, ...chatData } = await asyncWithFallback(
     () =>
       api.scry<TalkInit>({
         app: 'talk-ui',
@@ -98,8 +99,7 @@ async function startTalk() {
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  // TODO: dms, handle start data?
-  // useChatState.getState().start(chat);
+  initializeChat(chatData);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
