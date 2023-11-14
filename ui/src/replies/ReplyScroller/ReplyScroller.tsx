@@ -15,7 +15,7 @@ import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChatState, useWritWindow } from '@/state/chat/chat';
+import { useMarkDmReadMutation, useWritWindow } from '@/state/chat/chat';
 import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { useIsMobile } from '@/logic/useMedia';
 import { useMarkReadMutation } from '@/state/channel/channel';
@@ -111,6 +111,7 @@ export default function ReplyScroller({
   const firstPass = useRef(true);
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: markChatRead } = useMarkReadMutation();
+  const { mutate: markDmRead } = useMarkDmReadMutation();
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
@@ -210,25 +211,27 @@ export default function ReplyScroller({
       try {
         setFetching(newer ? 'bottom' : 'top');
 
-        if (newer) {
-          await useChatState
-            .getState()
-            .fetchMessages(
-              whom,
-              pageSize.toString(),
-              'newer',
-              scrollTo?.toString()
-            );
-        } else {
-          await useChatState
-            .getState()
-            .fetchMessages(
-              whom,
-              pageSize.toString(),
-              'older',
-              scrollTo?.toString()
-            );
-        }
+        // TODO: confirm this component isn't in use
+
+        // if (newer) {
+        //   await useChatState
+        //     .getState()
+        //     .fetchMessages(
+        //       whom,
+        //       pageSize.toString(),
+        //       'newer',
+        //       scrollTo?.toString()
+        //     );
+        // } else {
+        //   await useChatState
+        //     .getState()
+        //     .fetchMessages(
+        //       whom,
+        //       pageSize.toString(),
+        //       'older',
+        //       scrollTo?.toString()
+        //     );
+        // }
 
         setFetching('initial');
       } catch (e) {
@@ -236,7 +239,7 @@ export default function ReplyScroller({
         setFetching('initial');
       }
     },
-    [whom, messages, scrollTo, writWindow]
+    [messages, writWindow]
   );
 
   /**
@@ -307,7 +310,7 @@ export default function ReplyScroller({
       if (!firstPass.current) {
         delayedRead(whom, () => {
           if (isDMOrMultiDM) {
-            useChatState.getState().markDmRead(whom);
+            markDmRead({ whom });
           } else {
             markChatRead({
               nest: `chat/${whom}`,
