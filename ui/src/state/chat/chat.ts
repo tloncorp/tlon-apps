@@ -64,7 +64,6 @@ import { getWindow } from '@/logic/windows';
 import queryClient from '@/queryClient';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { createState } from '../base';
-import makeWritsStore, { writsReducer } from './writs';
 import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
