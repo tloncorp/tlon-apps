@@ -1,11 +1,7 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import {
-  useAddDmReactMutation,
-  // useChatState,
-  useDelDmReactMutation,
-} from '@/state/chat';
+import { useAddDmReactMutation, useDelDmReactMutation } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';

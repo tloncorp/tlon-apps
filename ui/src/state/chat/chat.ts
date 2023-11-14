@@ -789,7 +789,33 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
       };
     });
   } else if ('del' in delta) {
-    // TODO
+    queryClient.setQueryData<{
+      pages: PagedWrits[];
+      pageParams: PageParam[];
+    }>(queryKey, (queryData) => {
+      if (queryData === undefined) {
+        return undefined;
+      }
+
+      const newPages = queryData.pages.map((page) => {
+        const newWrits = { ...page.writs };
+        Object.entries(page.writs).forEach(([k, w]) => {
+          if (w.seal.id === id) {
+            delete newWrits[k];
+          }
+        });
+
+        return {
+          ...page,
+          writs: newWrits,
+        };
+      });
+
+      return {
+        pages: newPages,
+        pageParams: queryData.pageParams,
+      };
+    });
   } else if ('add-react' in delta) {
     const { ship, react } = delta['add-react'];
     queryClient.setQueryData<InfiniteDMsData>(queryKey, (queryData) => {
@@ -1360,7 +1386,7 @@ export function useSendMessage() {
   // TODO: tracking message for sending/sent arrows
 }
 
-export async function useDeleteDm() {
+export function useDeleteDm() {
   const mutationFn = async ({ whom, id }: { whom: string; id: string }) => {
     const delta = { del: null };
     if (whomIsDm(whom)) {
@@ -1387,8 +1413,7 @@ export async function useDeleteDm() {
     },
     onSettled: (_data, _error, variables) => {
       const { whom } = variables;
-      const queryKey = ['dms', whom, 'infinite'];
-      queryClient.invalidateQueries(queryKey);
+      queryClient.invalidateQueries(['dms', whom, 'infinite']);
     },
   });
 }

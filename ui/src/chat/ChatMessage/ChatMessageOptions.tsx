@@ -13,9 +13,9 @@ import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import {
-  useChatState,
   useMessageToggler,
   useAddDmReactMutation,
+  useDeleteDm,
 } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
@@ -101,6 +101,7 @@ function ChatMessageOptions(props: {
   const { mutate: deleteChatMessage } = useDeletePostMutation();
   const { mutate: addReactToChat } = useAddPostReactMutation();
   const { mutate: addReactToDm } = useAddDmReactMutation();
+  const { mutate: deleteDm } = useDeleteDm();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
   const {
     show: showPost,
@@ -127,7 +128,7 @@ function ChatMessageOptions(props: {
 
     try {
       if (isDMorMultiDM) {
-        useChatState.getState().delDm(whom, seal.id);
+        deleteDm({ whom, id: seal.id });
       } else {
         deleteChatMessage({
           nest,
@@ -171,7 +172,6 @@ function ChatMessageOptions(props: {
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        // useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
         addReactToDm({
           whom,
           id: seal.id,
