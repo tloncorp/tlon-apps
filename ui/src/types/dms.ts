@@ -202,9 +202,10 @@ export interface PagedWritsMap extends Omit<PagedWrits, 'writs'> {
 }
 
 export interface DMUnread {
-  last: number;
+  recency: number;
   count: number;
-  'read-id': string | null;
+  'unread-id': string | null;
+  threads: Record<string, string>;
 }
 
 export interface DMUnreads {

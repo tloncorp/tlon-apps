@@ -6,7 +6,7 @@ import { Poke } from '@urbit/http-api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import { udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Groups } from '@/types/groups';
 import {
@@ -700,27 +700,53 @@ export function useTrackedMessageStatus(id: string) {
 }
 
 const emptyUnreads: DMUnreads = {};
+const dmUnreadsKey = ['dm', 'unreads'];
 export function useDmUnreads() {
+  const invalidate = useRef(
+    _.debounce(
+      () => {
+        queryClient.invalidateQueries({
+          queryKey: dmUnreadsKey,
+          refetchType: 'none',
+        });
+      },
+      300,
+      { leading: true, trailing: true }
+    )
+  );
+
+  const eventHandler = (event: DMUnreadUpdate) => {
+    invalidate.current();
+    const { unread } = event;
+
+    if (unread !== null) {
+      queryClient.setQueryData(dmUnreadsKey, (d: DMUnreads | undefined) => {
+        if (d === undefined) {
+          return undefined;
+        }
+        const newUnreads = { ...d };
+        newUnreads[event.whom] = unread;
+
+        useChatStore.getState().update(newUnreads);
+        return newUnreads;
+      });
+    }
+  };
+
   const { data, ...query } = useReactQuerySubscription<
     DMUnreads,
     DMUnreadUpdate
   >({
-    queryKey: ['dm', 'unreads'],
+    queryKey: dmUnreadsKey,
     app: 'chat',
     path: '/unreads',
     scry: '/unreads',
+    onEvent: eventHandler,
   });
 
-  if (!data) {
-    return {
-      ...query,
-      data: emptyUnreads,
-    };
-  }
-
   return {
+    data: data || emptyUnreads,
     ...query,
-    data,
   };
 }
 
@@ -1081,7 +1107,7 @@ export function useDeleteDMReplyReactMutation() {
 export function useIsDmUnread(whom: string) {
   const { data: unreads } = useDmUnreads();
   const unread = unreads[whom];
-  return Boolean(unread?.count > 0 && unread['read-id']);
+  return Boolean(unread?.count > 0 && unread['unread-id']);
 }
 
 const selPendingDms = (s: ChatState) => s.pendingDms;
@@ -1225,7 +1251,7 @@ export function useGetFirstDMUnreadID(whom: string) {
   if (!unread) {
     return null;
   }
-  const { 'read-id': lastRead } = unread;
+  const { 'unread-id': lastRead } = unread;
   if (!lastRead) {
     return null;
   }

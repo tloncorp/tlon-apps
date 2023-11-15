@@ -28,12 +28,19 @@ export default function ChatUnreadAlerts({
   }
 
   const { unread } = chatInfo.unread;
-  if (unread.count === 0 || !unread['read-id']) {
+  if (unread.count === 0 || !unread['unread-id']) {
     return null;
   }
 
-  const id = unread['read-id'];
-  const to = `${root}?msg=${id}`;
+  const id = unread['unread-id'];
+  const { threads } = unread;
+  const threadKeys = Object.keys(threads).sort();
+
+  const topId = threadKeys[0];
+  const to =
+    threadKeys.length === 0
+      ? `${root}?msg=${id}`
+      : `${root}/message/${topId}?msg=${threads[topId]}`;
 
   const date = new Date(daToUnix(bigInt(id)));
   const since = isToday(date)

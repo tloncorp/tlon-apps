@@ -66,7 +66,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         Object.entries(unreads).forEach(([whom, unread]) => {
           const chat = draft.chats[whom];
           chatStoreLogger.log('update', whom, chat, unread, draft.chats);
-          if (unread.count > 0 && unread['read-id']) {
+          const hasThreads = Object.keys(unread.threads || {}).length > 0;
+          if (unread.count > 0 && (unread['unread-id'] || hasThreads)) {
             draft.chats[whom] = {
               ...(chat || emptyInfo()),
               unread: {
@@ -159,7 +160,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         const chat = draft.chats[whom];
         const unread = chat.unread || {
-          unread: { last: 0, count: 0, 'read-id': '' },
+          unread: {
+            recency: 0,
+            count: 0,
+            'unread-id': '',
+            threads: {},
+          },
           readTimeout: 0,
         };
 

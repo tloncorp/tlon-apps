@@ -15,7 +15,7 @@ interface DMUnreadAlertsProps {
 
 export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
-  const id = chatInfo?.unread?.unread['read-id'] || '';
+  const id = chatInfo?.unread?.unread['unread-id'] || '';
   const { writ } = useWrit(whom, id);
   const markRead = useCallback(() => {
     useChatState.getState().markDmRead(whom);

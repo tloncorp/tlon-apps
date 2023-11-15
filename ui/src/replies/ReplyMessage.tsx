@@ -60,7 +60,7 @@ export interface ReplyMessageProps {
 }
 
 function unreadMatches(unread: DMUnread, id: string): boolean {
-  return unread['read-id'] === id;
+  return unread['unread-id'] === id;
 }
 
 const mergeRefs =
@@ -113,7 +113,7 @@ const ReplyMessage = React.memo<
       const isThreadOnMobile = isMobile;
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.unread['read-id'];
+      const isUnread = unread?.unread.threads[seal['parent-id']] === seal.id;
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
@@ -153,7 +153,7 @@ const ReplyMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && unreadMatches(brief, seal.id) && !seen) {
+            if (inView && isUnread && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -172,7 +172,7 @@ const ReplyMessage = React.memo<
               markDmRead(whom);
             }
           },
-          [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
+          [unread, whom, isUnread, isDMOrMultiDM, markChatRead]
         ),
       });
 
@@ -275,7 +275,7 @@ const ReplyMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && unreadMatches(unread.unread, seal.id) ? (
+          {unread && isUnread ? (
             <DateDivider
               date={unix}
               unreadCount={unread.unread.count}

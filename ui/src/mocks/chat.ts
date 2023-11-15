@@ -132,44 +132,52 @@ export const chatKeys = ['~zod/test'];
 
 export const dmList: DMUnreads = {
   '~fabled-faster': {
-    last: 0,
+    recency: 0,
     count: 0,
-    'read-id': null,
+    'unread-id': null,
+    threads: {},
   },
   '~nocsyx-lassul': {
-    last: 1652302200000,
+    recency: 1652302200000,
     count: 3,
-    'read-id': null,
+    'unread-id': null,
+    threads: {},
   },
   '~fallyn-balfus': {
-    last: 0,
+    recency: 0,
     count: 0,
-    'read-id': null,
+    'unread-id': null,
+    threads: {},
   },
   '~finned-palmer': {
-    last: 1652302200000,
+    recency: 1652302200000,
     count: 2,
-    'read-id': null,
+    'unread-id': null,
+    threads: {},
   },
   '~datder-sonnet': {
-    last: 1652302200000,
+    recency: 1652302200000,
     count: 1,
-    'read-id': null,
+    'unread-id': null,
+    threads: {},
   },
   '~hastuc-dibtux': {
-    last: 0,
+    recency: 0,
     count: 0,
-    'read-id': null,
+    'unread-id': null,
+    threads: {},
   },
   '~rilfun-lidlen': {
-    last: 0,
+    recency: 0,
     count: 0,
-    'read-id': 'null',
+    'unread-id': 'null',
+    threads: {},
   },
   '~mister-dister-dozzod-dozzod': {
-    last: 0,
+    recency: 0,
     count: 0,
-    'read-id': null,
+    'unread-id': null,
+    threads: {},
   },
 };
 

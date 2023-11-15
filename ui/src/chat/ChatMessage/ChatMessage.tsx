@@ -62,8 +62,28 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function unreadMatches(unread: DMUnread, id: string): boolean {
-  return unread['read-id'] === id;
+function unreadStatus(
+  unread: DMUnread | undefined,
+  id: string
+): 'none' | 'top' | 'thread' {
+  if (!unread) {
+    return 'none';
+  }
+
+  const unreadId = unread['unread-id'];
+  const threads = unread.threads || {};
+  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
+  const topId = threadKeys[0];
+
+  if (topId && topId === id && (!unreadId || topId < unreadId)) {
+    return 'thread';
+  }
+
+  if (unreadId === id) {
+    return 'top';
+  }
+
+  return 'none';
 }
 
 const mergeRefs =
@@ -125,7 +145,7 @@ const ChatMessage = React.memo<
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.unread['read-id'];
+      const unreadDisplay = unreadStatus(unread?.unread, seal.id);
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
@@ -164,7 +184,7 @@ const ChatMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && unreadMatches(brief, seal.id) && !seen) {
+            if (inView && unreadDisplay === 'top' && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -183,7 +203,7 @@ const ChatMessage = React.memo<
               markDmRead(whom);
             }
           },
-          [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
+          [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead]
         ),
       });
       const msgStatus = useTrackedMessageStatus(seal.id);
@@ -294,7 +314,7 @@ const ChatMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && unreadMatches(unread.unread, seal.id) ? (
+          {unread && unreadDisplay === 'top' ? (
             <DateDivider
               date={unix}
               unreadCount={unread.unread.count}
@@ -386,20 +406,17 @@ const ChatMessage = React.memo<
 
                       <span
                         className={cn(
-                          // repliesContainsUnreadId ? 'text-blue' : 'mr-2'
-                          'mr-2'
+                          unreadDisplay === 'thread' ? 'text-blue' : 'mr-2'
                         )}
                       >
                         {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
                       </span>
-                      {/*
-                      TODO: update when we have reply briefs
-                      repliesContainsUnreadId ? (
+                      {unreadDisplay === 'thread' ? (
                         <UnreadIndicator
                           className="h-6 w-6 text-blue transition-opacity"
                           aria-label="Unread replies in this thread"
                         />
-                      ) : null */}
+                      ) : null}
                       <span className="text-gray-400">
                         <span className="hidden sm:inline-block">
                           Last reply&nbsp;

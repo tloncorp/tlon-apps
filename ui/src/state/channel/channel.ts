@@ -849,7 +849,6 @@ export function useUnreads(): Unreads {
   );
 
   const eventHandler = (event: UnreadUpdate) => {
-    invalidate.current();
     const { unread } = event;
 
     if (unread !== null) {
@@ -864,6 +863,8 @@ export function useUnreads(): Unreads {
         return newUnreads;
       });
     }
+
+    invalidate.current();
   };
 
   const { data, ...rest } = useReactQuerySubscription<Unreads, UnreadUpdate>({
@@ -1035,7 +1036,7 @@ export function useGetFirstUnreadID(nest: Nest) {
   const keys = usePostKeys(nest);
   const unread = useUnread(nest);
 
-  const { 'read-id': lastRead } = unread;
+  const { 'unread-id': lastRead } = unread;
 
   if (!lastRead) {
     return null;
