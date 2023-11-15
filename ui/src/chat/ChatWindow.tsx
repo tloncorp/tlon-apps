@@ -13,6 +13,8 @@ import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { log } from '@/logic/utils';
 import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import { useChannelCompatibility } from '@/logic/channel';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 
@@ -60,6 +62,7 @@ export default function ChatWindow({
         : 'initial',
     [isFetchingNextPage, isFetchingPreviousPage]
   );
+  const { compatible } = useChannelCompatibility(nest);
 
   const goToLatest = useCallback(() => {
     setSearchParams({});
@@ -106,6 +109,20 @@ export default function ChatWindow({
     return (
       <div className="h-full overflow-hidden">
         <ChatScrollerPlaceholder count={30} />
+      </div>
+    );
+  }
+
+  if (!compatible && messages.length === 0) {
+    return (
+      <div className="h-full w-full overflow-hidden">
+        <EmptyPlaceholder>
+          <p>
+            There may be content in this channel, but it is inaccessible because
+            the host is using an older, incompatible version of the app.
+          </p>
+          <p>Please try again later.</p>
+        </EmptyPlaceholder>
       </div>
     );
   }
