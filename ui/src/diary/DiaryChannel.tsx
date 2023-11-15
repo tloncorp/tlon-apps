@@ -21,6 +21,7 @@ import useDismissChannelNotifications from '@/logic/useDismissChannelNotificatio
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
 import { useFullChannel } from '@/logic/channel';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
@@ -55,6 +56,7 @@ function DiaryChannel({ title }: ViewProps) {
     group,
     groupChannel: channel,
     canWrite,
+    compat: { compatible },
   } = useFullChannel({
     groupFlag,
     nest,
@@ -201,6 +203,15 @@ function DiaryChannel({ title }: ViewProps) {
       <div className="h-full bg-gray-50">
         {isLoading ? (
           <DiaryChannelListPlaceholder count={4} />
+        ) : !compatible && sortedNotes.length === 0 ? (
+          <EmptyPlaceholder>
+            <p>
+              There may be content in this channel, but it is inaccessible
+              because the host is using an older, incompatible version of the
+              app.
+            </p>
+            <p>Please try again later.</p>
+          </EmptyPlaceholder>
         ) : (displayMode === 'grid' && userDisplayMode === undefined) ||
           userDisplayMode === 'grid' ? (
           <DiaryGridView
