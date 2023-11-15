@@ -142,10 +142,18 @@
   ++  unread
     |=  b=unread:unreads:c
     %-  pairs
-    :~  last/(time last.b)
+    :~  recency/(time recency.b)
         count/(numb count.b)
-        read-id/?~(read-id.b ~ (id u.read-id.b))
+        unread-id/?~(unread-id.b ~ (id u.unread-id.b))
+        threads/(unread-threads threads.b)
     ==
+  ::
+  ++  unread-threads
+    |=  u=(map id:c id:c)
+    %-  pairs
+    %+  turn  ~(tap by u)
+    |=  [p=id:c r=id:c]
+    [+:(id p) (id r)]
   ::
   ++  pins
     |=  ps=(list whom:c)

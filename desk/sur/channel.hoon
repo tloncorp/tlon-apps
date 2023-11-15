@@ -217,16 +217,26 @@
 ::
 +$  net  [p=ship load=_|]
 ::
-::  $unreads: a map of channel unread information
-::
-::    unread: the last time a channel was read, how many posts since,
-::    and the id of the last read post
+::  $unreads: a map of channel unread information, for clients
+::  $unread: unread data for a specific channel, for clients
+::    recency:   time of most recent message
+::    count:     how many posts are unread
+::    unread-id: the id of the first unread top-level post
+::    threads:   for each unread thread, the id of the first unread reply
 ::
 +$  unreads  (map nest unread)
-+$  unread   [last=time count=@ud read-id=(unit time)]
-::  $remark: a marker representing the last post I've read
++$  unread
+  $:  recency=time
+      count=@ud
+      unread-id=(unit id-post)
+      threads=(map id-post id-reply)
+  ==
+::  $remark: markers representing unread state
+::    last-read:      time at which the user last read this channel
+::    watching:       unused, intended for disabling unread accumulation
+::    unread-threads: threads that contain unread messages
 ::
-+$  remark  [last-read=time watching=_| ~]
++$  remark  [last-read=time watching=_| unread-threads=(set id-post)]
 ::
 ::  $perm: represents the permissions for a channel and gives a
 ::  pointer back to the group it belongs to.

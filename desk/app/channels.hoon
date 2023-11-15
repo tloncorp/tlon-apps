@@ -458,7 +458,7 @@
       ?-    -.a-remark
           %watch    remark.channel(watching &)
           %unwatch  remark.channel(watching |)
-          %read-at  !!
+          %read-at  !!  ::TODO
           %read
         =/  [=time post=(unit v-post:c)]  (need (ram:on-v-posts:c posts.channel))
         remark.channel(last-read `@da`(add time (div ~s1 100)))
@@ -803,6 +803,12 @@
       =/  post  (get:on-v-posts:c posts.channel id-post)
       ?~  post  ca-core
       ?~  u.post  ca-core
+      =?  unread-threads.remark.channel
+          ?&  ?=(^ reply)
+              !=(our.bowl author.u.reply)
+              (gth id-reply last-read.remark.channel)
+          ==
+        (~(put in unread-threads.remark.channel) id-post)
       =.  replies.u.u.post  (put:on-v-replies:c replies.u.u.post id-reply reply)
       =.  posts.channel  (put:on-v-posts:c posts.channel id-post `u.u.post)
       =/  meta=reply-meta:c  (get-reply-meta:utils u.u.post)
@@ -1000,9 +1006,11 @@
       key.u.tim
     =/  unreads
       (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
-    =/  read-id=(unit ^time)
+    =/  unread-id=(unit id-post:c)
       =/  pried  (pry:on-v-posts:c unreads)
       ?~  pried  ~
+      ::TODO  in the ~ case, we could traverse further up, to better handle
+      ::      cases where the most recent message was deleted.
       ?~  val.u.pried  ~
       `id.u.val.u.pried
     =/  count
@@ -1012,7 +1020,27 @@
       ?&  ?=(^ post)
           !=(author.u.post our.bowl)
       ==
-    [time count read-id]
+    ::  now do the same for all unread threads
+    ::
+    =/  [sum=@ud threads=(map id-post:c id-reply:c)]
+      %+  roll  ~(tap in unread-threads.remark.channel)
+      |=  [id=id-post:c sum=@ud threads=(map id-post:c id-reply:c)]
+      =/  parent    (get:on-v-posts:c posts.channel id)
+      ?~  parent    [sum threads]
+      ?~  u.parent  [sum threads]
+      =/  unreads   (lot:on-v-replies:c replies.u.u.parent `last-read.remark.channel ~)
+      :-  %+  add  sum
+          %-  lent
+          %+  skim  ~(tap by unreads)
+          |=  [tim=^time reply=(unit v-reply:c)]
+          ?&  ?=(^ reply)
+              !=(author.u.reply our.bowl)
+          ==
+      =/  pried  (pry:on-v-replies:c unreads)
+      ?~  pried  threads
+      ?~  val.u.pried  threads
+      (~(put by threads) id id.u.val.u.pried)
+    [time (add count sum) unread-id threads]
   ::
   ::  handle scries
   ::

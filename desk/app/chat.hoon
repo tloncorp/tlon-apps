@@ -654,7 +654,7 @@
     =/  loyal  (~(has in team.crew.club) our.bowl)
     =/  invited  (~(has in hive.crew.club) our.bowl)
     ?:  &(!loyal !invited)
-      [club/id *time 0 ~]
+      [club/id *time 0 ~ ~]
     =/  cu  (cu-abed id)
     [club/id cu-unread:cu]
   %+  murn  ~(tap in ~(key by dms))
@@ -1002,7 +1002,9 @@
       [*heard:club:c *remark:c *pact:c (silt our.bowl ~) hive.create *data:meta net |]
     cu-core(id id.create, club clab)
   ::
-  ++  cu-unread  (unread:cu-pact our.bowl last-read.remark.club)
+  ++  cu-unread
+    %+  unread:cu-pact  our.bowl
+    [last-read unread-threads]:remark.club
   ::
   ++  cu-create
     |=  =create:club:c
@@ -1126,8 +1128,10 @@
             ?(%del %add-react %del-react)  (cu-give-writs-diff diff.delta)
             %add
           =*  memo  memo.delt
-          =?  remark.club  =(author.memo our.bowl)
-            remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
+          =?  last-read.remark.club  =(author.memo our.bowl)
+            (add now.bowl (div ~s1 100))
+          =?  unread-threads.remark.club  !=(our.bowl author.memo)
+            (~(put in unread-threads.remark.club) p.diff.delta)
           =.  cor  (give-unread club/id cu-unread)
           ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
           ?~  entry  (cu-give-writs-diff diff.delta)
@@ -1505,7 +1509,9 @@
       (slav %p nedl.pole)
     ==
   ::
-  ++  di-unread  (unread:di-pact our.bowl last-read.remark.dm)
+  ++  di-unread
+    %+  unread:di-pact  our.bowl
+    [last-read unread-threads]:remark.dm
   ++  di-remark-diff
     |=  diff=remark-diff:c
     ^+  di-core

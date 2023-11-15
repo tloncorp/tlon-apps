@@ -240,13 +240,17 @@
   +$  unreads
     (map whom unread)
   +$  unread
-    [last=time count=@ud read-id=(unit id)]
+    $:  recency=time
+        count=@ud
+        unread-id=(unit id)
+        threads=(map id id)
+    ==
   +$  update
     (pair whom unread)
   --
 ::
 +$  remark
-  [last-read=time watching=_| ~]
+  [last-read=time watching=_| unread-threads=(set id)]
 ::
 +$  remark-action
   (pair whom remark-diff)
