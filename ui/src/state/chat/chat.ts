@@ -1025,7 +1025,7 @@ export function useDelDmReactMutation() {
 
 export function useInfiniteDMs(whom: string, initialTime?: string) {
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
-  const type = useMemo(() => (isDM ? 'dms' : 'club'), [isDM]);
+  const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
   const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
 
   const invalidate = useRef(
