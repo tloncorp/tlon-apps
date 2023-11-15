@@ -169,11 +169,6 @@ function HeapChannel({ title }: ViewProps) {
     [dropZoneId]
   );
 
-  console.log({
-    compatible,
-    posts,
-  });
-
   return (
     <Layout
       className="flex-1 bg-white sm:pt-0"
