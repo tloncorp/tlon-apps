@@ -1,5 +1,11 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import cn from 'classnames';
 import debounce from 'lodash/debounce';
 import { BigInteger } from 'big-integer';
@@ -14,6 +20,7 @@ import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
   useChatState,
+  useMessageToggler,
   useTrackedMessageStatus,
   // useIsMessageDelivered,
   // useIsMessagePosted,
@@ -24,9 +31,10 @@ import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import {
   useMarkReadMutation,
+  usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import { emptyReply, Reply } from '@/types/channel';
+import { emptyReply, Reply, Story } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 import {
   useChatDialog,
@@ -68,6 +76,17 @@ const mergeRefs =
     });
   };
 
+const hiddenMessage: Story = [
+  {
+    inline: [
+      {
+        italics: [
+          'You have hidden this message. You can unhide it from the options menu.',
+        ],
+      },
+    ],
+  },
+];
 const ReplyMessage = React.memo<
   ReplyMessageProps & React.RefAttributes<HTMLDivElement>
 >(
@@ -99,6 +118,12 @@ const ReplyMessage = React.memo<
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const { mutate: markChatRead } = useMarkReadMutation();
+      const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
+      const { isHidden: isPostHidden } = usePostToggler(seal.id);
+      const isHidden = useMemo(
+        () => isMessageHidden || isPostHidden,
+        [isMessageHidden, isPostHidden]
+      );
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -282,7 +307,13 @@ const ReplyMessage = React.memo<
                   isLinked && 'bg-blue-softer'
                 )}
               >
-                {memo.content ? (
+                {isHidden ? (
+                  <ChatContent
+                    story={hiddenMessage}
+                    isScrolling={isScrolling}
+                    writId={seal.id}
+                  />
+                ) : memo.content ? (
                   <ChatContent
                     story={memo.content}
                     isScrolling={isScrolling}

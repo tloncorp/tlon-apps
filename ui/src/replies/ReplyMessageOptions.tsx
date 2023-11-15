@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
@@ -8,6 +8,7 @@ import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import {
   useAddDMReplyReactMutation,
   useDeleteDMReplyMutation,
+  useMessageToggler,
 } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
@@ -31,8 +32,11 @@ import {
   useDeletePostMutation,
   useDeleteReplyMutation,
   usePerms,
+  usePostToggler,
 } from '@/state/channel/channel';
 import { emptyReply, Reply } from '@/types/channel';
+import VisibleIcon from '@/components/icons/VisibleIcon';
+import HiddenIcon from '@/components/icons/HiddenIcon';
 
 export default function ReplyMessageOptions(props: {
   open: boolean;
@@ -85,6 +89,20 @@ export default function ReplyMessageOptions(props: {
   const { mutate: addFeelToChat } = useAddPostReactMutation();
   const { mutate: addFeelToReply } = useAddReplyReactMutation();
   const { mutate: addDMReplyFeel } = useAddDMReplyReactMutation();
+  const {
+    show: showPost,
+    hide: hidePost,
+    isHidden: isPostHidden,
+  } = usePostToggler(seal.id);
+  const {
+    show: showChatMessage,
+    hide: hideChatMessage,
+    isHidden: isMessageHidden,
+  } = useMessageToggler(seal.id);
+  const isHidden = useMemo(
+    () => isMessageHidden || isPostHidden,
+    [isMessageHidden, isPostHidden]
+  );
 
   const onDelete = async () => {
     if (isMobile) {
@@ -188,6 +206,16 @@ export default function ReplyMessageOptions(props: {
     }
   }, [isMobile, loadEmoji]);
 
+  const toggleMsg = useCallback(
+    () => (isMessageHidden ? showChatMessage() : hideChatMessage()),
+    [isMessageHidden, showChatMessage, hideChatMessage]
+  );
+
+  const togglePost = useCallback(
+    () => (isPostHidden ? showPost() : hidePost()),
+    [isPostHidden, showPost, hidePost]
+  );
+
   const showReactAction = canWrite;
   // TODO handle reply replies
   const showCopyAction = !!groupFlag;
@@ -257,6 +285,26 @@ export default function ReplyMessageOptions(props: {
       keepOpenOnClick: true,
     });
   }
+
+  actions.push({
+    key: 'hide',
+    onClick: isDMorMultiDM ? toggleMsg : togglePost,
+    content: (
+      <div className="flex items-center">
+        {isHidden ? (
+          <>
+            <VisibleIcon className="mr-2 h-6 w-6" />
+            Show Message
+          </>
+        ) : (
+          <>
+            <HiddenIcon className="mr-2 h-6 w-6" />
+            Hide Message
+          </>
+        )}
+      </div>
+    ),
+  });
 
   if (showDeleteAction) {
     actions.push({
