@@ -47,11 +47,16 @@
   ++  on-agent
     |~  [=wire =sign:agent:gall]
     ?<  ?=([%~.~ %negotiate *] wire)
-    ?.  ?=(%kick -.sign)  [~ this]
+    :_  this
+    ?.  ?=(%kick -.sign)  ~
     ::  on-kick, try to resubscribe. important for some tests.
+    ::  if an extended wire was provided, change it, so we can recognize the
+    ::  inner-agent re-established a subscription.
     ::
-    ?.  ?=([@ *] wire)  [~ this]
-    [[%pass wire %agent [src.bowl i.wire] %watch wire]~ this]
+    ?.  ?=([@ *] wire)  ~
+    =?  wire  ?=([@ *] t.wire)
+      wire(i.t +(i.t.wire))
+    [%pass wire %agent [src.bowl i.wire] %watch wire]~
   ::
   ++  on-watch  |~(path !!)
   ++  on-leave  |~(path !!)
@@ -155,8 +160,8 @@
   ;<  *  bind:m  (do-init %negotiate-test dummy-agent)
   ;<  *  bind:m
     %-  perform-cards
-    :~  [%pass /easy %agent [~zod %easy] %watch /easy]
-        [%pass /hard %agent [~zod %hard] %watch /hard]
+    :~  [%pass /easy/1 %agent [~zod %easy] %watch /easy/1]
+        [%pass /hard/1 %agent [~zod %hard] %watch /hard/1]
     ==
   ::  library gets initialized with versioning requirements,
   ::  while to-be-versioned subs are already live
@@ -168,12 +173,12 @@
   ::  negotiation.
   ::
   =/  easy-outer=wire
-    /~/negotiate/inner-watch/~zod/easy/easy
+    /~/negotiate/inner-watch/~zod/easy/easy/2
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-task /easy [~zod %easy] %leave ~)
-        (ex-task easy-outer [~zod %easy] %watch /easy)
-        (ex-task /hard [~zod %hard] %leave ~)
+    :~  (ex-task /easy/1 [~zod %easy] %leave ~)
+        (ex-task easy-outer [~zod %easy] %watch /easy/2)
+        (ex-task /hard/1 [~zod %hard] %leave ~)
         (ex-negotiate [~zod %hard] %prot)
     ==
   ::  must track our already-desired subscriptions
@@ -182,10 +187,10 @@
   ;<  ~  bind:m
     %+  ex-equal  !>(want.state)
     !>  %-  ~(gas by *(map gill:gall (map wire path)))
-    :~  [[~zod %easy] [/easy^/easy ~ ~]]
-        [[~zod %hard] [/hard^/hard ~ ~]]
+    :~  [[~zod %easy] [/easy/2^/easy/2 ~ ~]]
+        [[~zod %hard] [/hard/2^/hard/2 ~ ~]]
     ==
-  ::  must process a kick for the re-established sub correctly
+  ::  must be able to process a kick for the re-established sub
   ::
   ;<  *  bind:m
     (do-agent easy-outer [~zod %easy] %kick ~)
@@ -336,7 +341,7 @@
   ;<  *  bind:m
     %-  perform-cards
     :~  (initiate:libn ~zod %hard)
-        [%pass /wire %agent [~zod %hard] %watch /path]
+        [%pass /hard %agent [~zod %hard] %watch /hard]
     ==
   ;<  *  bind:m
     (perform-hear-version [~zod %hard] %prot %vers)
@@ -362,7 +367,7 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     :*  (ex-card wait(time (add *@da ~m30)))
-        (ex-inner-leave /wire ~zod %hard)
+        (ex-inner-leave /hard ~zod %hard)
         ((ex-notifications &) [~zod %hard] |)
     ==
   ::  after the long timeout, try again
@@ -383,21 +388,23 @@
     ==
   ;<  *  bind:m
     (perform-init-clean | ~ config)
+  ::  holds the subscription, as tested in +test-hold-watch
+  ::
   ;<  caz=(list card)  bind:m
-    (perform-cards [%pass /wire %agent [~zod %hard] %watch /path] ~)
+    (perform-cards [%pass /hard/1 %agent [~zod %hard] %watch /hard/1] ~)
   ::  when only one version matches, nothing changes
   ::
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot1 %vers1)
   ;<  ~  bind:m
     (ex-cards caz ~)
-  ::  once both versions match, should re-establish subs
+  ::  once both versions match, should establish desired subs
   ::
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %vers2)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :-  (ex-inner-watch /wire [~zod %hard] /path)
+    :-  (ex-inner-watch /hard/1 [~zod %hard] /hard/1)
     ((ex-notifications |) [~zod %hard] &)
   ::  when versions stop matching, should rescind subs
   ::
@@ -405,8 +412,16 @@
     (perform-hear-version [~zod %hard] %prot2 %miss)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :-  (ex-inner-leave /wire ~zod %hard)
+    :-  (ex-inner-leave /hard/1 ~zod %hard)
     ((ex-notifications |) [~zod %hard] |)
+  ::  inner agent will have tried re-subscribing in response to the kick
+  ::
+  ;<  state=libstate  bind:m
+    get-lib-state
+  ;<  ~  bind:m
+    %+  ex-equal  !>(want.state)
+    !>  ^-  (map gill:gall (map wire path))
+    [[[~zod %hard] [[/hard/2 /hard/2] ~ ~]] ~ ~]
   ::  with notify flag set, these changes must additionally send a poke
   ::
   ;<  caz=(list card)  bind:m
@@ -416,14 +431,14 @@
     (perform-hear-version [~zod %hard] %prot2 %vers2)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :*  (ex-inner-watch /wire [~zod %hard] /path)
+    :*  (ex-inner-watch /hard/2 [~zod %hard] /hard/2)
         ((ex-notifications &) [~zod %hard] &)
     ==
   ::
   ;<  caz=(list card)  bind:m
     (perform-hear-version [~zod %hard] %prot2 %miss)
   %+  ex-cards  caz
-  :*  (ex-inner-leave /wire ~zod %hard)
+  :*  (ex-inner-leave /hard/2 ~zod %hard)
       ((ex-notifications &) [~zod %hard] |)
   ==
 ::
@@ -442,7 +457,7 @@
     ==
   ::
   ;<  caz=(list card)  bind:m
-    (perform-cards [%pass /wire %agent [~zod %hard] %watch /path] ~)
+    (perform-cards [%pass /hard/1 %agent [~zod %hard] %watch /hard/1] ~)
   ::  when we impose version requirements, existing subs must be rescinded,
   ::  and we must start negotiation for them
   ::
@@ -451,10 +466,10 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     %+  welp
+      :-  (ex-inner-leave /hard/1 ~zod %hard)
       ((ex-notifications |) [~zod %hard] |)
     :~  (ex-negotiate [~zod %hard] %prot1)
         (ex-negotiate [~zod %hard] %prot2)
-        (ex-inner-leave /wire ~zod %hard)
     ==
   ::  when we relax requirements, subs must be re-established
   ::
@@ -464,23 +479,22 @@
     %+  ex-cards  caz
     %+  snoc
       ((ex-notifications |) [~zod %hard] &)
-    (ex-inner-watch /wire [~zod %hard] /path)
+    (ex-inner-watch /hard/2 [~zod %hard] /hard/2)
   ::  with notify flag set, these changes must additionally send a poke
   ::
   ;<  caz=(list card)  bind:m
     (perform-upgrade & ~ config)
   ;<  ~  bind:m
     %+  ex-cards  caz
-    %+  snoc
-      ((ex-notifications &) [~zod %hard] |)
-    (ex-inner-leave /wire ~zod %hard)
+    :-  (ex-inner-leave /hard/2 ~zod %hard)
+    ((ex-notifications &) [~zod %hard] |)
   ::
   ;<  caz=(list card)  bind:m
     (perform-upgrade & ~ ~)
   %+  ex-cards  caz
   %+  snoc
     ((ex-notifications &) [~zod %hard] &)
-  (ex-inner-watch /wire [~zod %hard] /path)
+  (ex-inner-watch /hard/3 [~zod %hard] /hard/3)
 ::
 ++  test-version-watch-fact
   %-  eval-mare
@@ -516,7 +530,7 @@
     (perform-init-clean | ~ ~)
   ::
   ;<  caz=(list card)  bind:m
-    (perform-cards [%pass /wire %agent [~zod %hard] %watch /path] ~)
+    (perform-cards [%pass /hard %agent [~zod %hard] %watch /hard] ~)
   ::  when we impose version requirements, existing subs must be rescinded,
   ::  and we must start negotiation for them, notifying about any gills
   ::  that were affected
@@ -524,11 +538,11 @@
   ;<  caz=(list card)  bind:m
     (perform-upgrade & ~ [[%hard %prot^%vers ~ ~] ~ ~])
   %+  ex-cards  caz
-  %+  welp
+  %+  snoc
+    ^-  (list $-(card tang))
+    :-  (ex-inner-leave /hard ~zod %hard)
     ((ex-notifications &) [~zod %hard] |)
-  :~  (ex-negotiate [~zod %hard] %prot)
-      (ex-inner-leave /wire ~zod %hard)
-  ==
+  (ex-negotiate [~zod %hard] %prot)
 ::
 ++  test-status-scry
   %-  eval-mare

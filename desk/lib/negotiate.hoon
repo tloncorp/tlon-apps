@@ -94,7 +94,7 @@
         ours=(map protocol version)
         know=config
         heed=(map [gill:gall protocol] (unit version))
-        want=(map gill:gall (map wire path))  ::  unpacked wires
+        want=(map gill:gall (map wire path))  ::  un-packed wires
     ==
   ::
   +$  card  card:agent:gall
@@ -141,7 +141,7 @@
     ::
     ++  inflate
       |=  knew=(unit config)
-      ^-  (quip card _state)
+      ^-  [[caz=(list card) kik=(list [wire gill:gall])] _state]
       =*  boat=boat:gall  wex.bowl
       ::  establish subs from .want where versions match
       ::
@@ -212,15 +212,25 @@
         ?.  notify  ~
         [(notify-inner now gill)]~
       ::
-      :_  state
-      %+  weld  notes
-      %+  weld  open
-      %+  weld  inis
-      %+  turn  ~(tap in kill)
-      |=  [=wire =gill:gall]
-      ^-  card
-      ::NOTE  kill wires come straight from the boat, don't modify them
-      [%pass wire %agent gill %leave ~]
+      =^  leaves=(list card)  want
+        %^  spin  ~(tap in kill)  want
+        |=  [[=wire =gill:gall] =_want]
+        ^-  [card _want]
+        ::  kill wires come straight from the boat, so we don't modify them
+        ::  for leaves, but _must_ trim them for .want
+        ::
+        :-  [%pass wire %agent gill %leave ~]
+        =/  wan  (~(gut by want) gill ~)
+        =.  wan  (~(del by wan) +:(trim-wire wire))
+        ?~  wan  (~(del by want) gill)
+        (~(put by want) gill wan)
+      ::
+      =/  kik=(list [wire gill:gall])
+        %+  turn  ~(tap in kill)
+        |=  [w=wire g=gill:gall]
+        [+:(trim-wire w) g]
+      ::
+      [[:(weld leaves notes open inis) kik] state]
     ::  +play-card: handle watches, leaves and pokes specially
     ::
     ++  play-card
@@ -343,11 +353,11 @@
     ::
     ++  heed-changed
       |=  [for=[=gill:gall protocol] new=(unit version)]
-      ^-  (quip card _state)
+      ^-  [[caz=(list card) kik=(list [wire gill:gall])] _state]
       =/  hav=(unit version)
         ~|  %unrequested-heed
         (~(got by heed) for)
-      ?:  =(new hav)  [~ state]
+      ?:  =(new hav)  [[~ ~] state]
       =/  did=?  (match gill.for)
       =.  heed   (~(put by heed) for new)
       =/  now=?  (match gill.for)
@@ -359,8 +369,8 @@
         %+  weld  (notify-outer now gill.for)
         ?.  notify  ~
         [(notify-inner now gill.for)]~
-      =^  caz  state  (inflate ~)
-      [(weld caz nos) state]
+      =^  a  state  (inflate ~)
+      [[(weld caz.a nos) kik.a] state]
     ::
     ++  pack-wire
       |=  [=gill:gall =wire]
@@ -373,6 +383,20 @@
       ?.  ?=([%~.~ %negotiate %inner-watch @ @ *] wire)  [~ wire]
       =,  t.t.t.wire
       [`[(slav %p i) i.t] t.t]
+    ::
+    ++  simulate-kicks
+      |=  [kik=(list [=wire gill:gall]) inner=agent:gall]
+      ^-  [[(list card) _inner] _state]
+      =|  cards=(list card)
+      |-
+      ?~  kik  [[cards inner] state]
+      =.  wex.bowl  (~(del by wex.bowl) i.kik)
+      =^  caz  inner
+        %.  [wire.i.kik %kick ~]
+        %~  on-agent  inner
+        inner-bowl(src.bowl p.i.kik)
+      =^  caz  state  (play-cards caz)
+      $(kik t.kik, cards (weld cards caz))
     ::
     ++  notify-outer
       |=  event=[match=? =gill:gall]
@@ -536,10 +560,13 @@
           =.  ours   our-versions
           =/  knew   know
           =.  know   our-config
-          =^  caz2   state  (inflate:up `knew)
-          =^  cards  inner  (on-load:og ile)
-          =^  cards  state  (play-cards:up cards)
-          [:(weld caz1 caz2 cards) this]
+          =^  a      state  (inflate:up `knew)
+          =^  caz2   inner  (on-load:og ile)
+          =^  caz2   state  (play-cards:up caz2)
+          =^  [caz3=(list card) nin=_inner]  state
+            (simulate-kicks:up kik.a inner)
+          =.  inner  nin
+          [:(weld caz1 caz.a caz2 caz3) this]
       ::
       +$  state-any  $%(state-0 state-1)
       +$  state-0
@@ -557,7 +584,7 @@
       ?.  ?=([%~.~ %negotiate *] path)
         =^  cards  inner  (on-watch:og path)
         =^  cards  state  (play-cards:up cards)
-      [cards this]
+        [cards this]
       ?+  t.t.path  !!
           [%version @ ~]  ::  /~/negotiate/version/[protocol]
         ::  it is important that we nack if we don't expose this protocol
@@ -602,8 +629,11 @@
             ~&  [negotiate+dap.bowl %ignoring-unexpected-fact mark=mark]
             [~ this]
           =+  !<(=version vase)
-          =^  cards  state  (heed-changed:up for `version)
-          [cards this]
+          =^  a  state  (heed-changed:up for `version)
+          =^  [caz=(list card) nin=_inner]  state
+            (simulate-kicks:up kik.a inner)
+          =.  inner  nin
+          [(weld caz.a caz) this]
         ::
             %watch-ack
           ?~  p.sign  [~ this]
@@ -615,11 +645,14 @@
           ::  if we still care, consider the version "unknown" for now,
           ::  and try re-subscribing later
           ::
-          =^  caz  state  (heed-changed:up for ~)
+          =^  a  state  (heed-changed:up for ~)
+          =^  [caz=(list card) nin=_inner]  state
+            (simulate-kicks:up kik.a inner)
+          =.  inner  nin
           ::  30 minutes might cost us some responsiveness but in return we
           ::  save both ourselves and others from a lot of needless retries.
           ::
-          [[(retry-timer:up ~m30 [%watch t.t.wire]) caz] this]
+          [[(retry-timer:up ~m30 [%watch t.t.wire]) (weld caz.a caz)] this]
         ::
             %kick
           :_  this
