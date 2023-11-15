@@ -31,22 +31,16 @@ export default function useCurioActions({
   const { isHidden, show, hide } = usePostToggler(time);
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [deleteStatus, setDeleteStatus] = useState<Status>('idle');
 
   const delMutation = useDeletePostMutation();
 
   const onDelete = useCallback(async () => {
     setMenuOpen(false);
-    setDeleteStatus('loading');
     delMutation.mutate(
       { nest, time: decToUd(time) },
       {
         onSuccess: () => {
-          setDeleteStatus('success');
           navigate(`/groups/${flag}/channels/heap/${chFlag}`);
-        },
-        onError: () => {
-          setDeleteStatus('error');
         },
       }
     );
@@ -83,7 +77,7 @@ export default function useCurioActions({
     menuOpen,
     setMenuOpen,
     onDelete,
-    deleteStatus,
+    isDeleteLoading: delMutation.isLoading,
     onEdit,
     onCopy,
     navigateToCurio,
