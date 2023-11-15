@@ -491,7 +491,11 @@ interface PageParam {
   direction: string;
 }
 
-export function useInfinitePosts(nest: Nest, initialTime?: string) {
+export function useInfinitePosts(
+  nest: Nest,
+  initialTime?: string,
+  latest = false
+) {
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
 
@@ -524,11 +528,11 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
 
-      if (pageParam) {
+      if (pageParam && !latest) {
         const { time, direction } = pageParam;
         const ud = decToUd(time.toString());
         path = `/${nest}/posts/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
-      } else if (initialTime) {
+      } else if (initialTime && !latest) {
         path = `/${nest}/posts/around/${decToUd(initialTime)}/${
           INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
         }/outline`;
