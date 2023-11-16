@@ -236,7 +236,7 @@
 ::    watching:       unused, intended for disabling unread accumulation
 ::    unread-threads: threads that contain unread messages
 ::
-+$  remark  [last-read=time watching=_| unread-threads=(set id-post)]
++$  remark  [recency=time last-read=time watching=_| unread-threads=(set id-post)]
 ::
 ::  $perm: represents the permissions for a channel and gives a
 ::  pointer back to the group it belongs to.
