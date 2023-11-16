@@ -66,12 +66,30 @@ export default function ChatWindow({
     [isFetchingNextPage, isFetchingPreviousPage]
   );
   const { compatible } = useChannelCompatibility(nest);
+  const latestMessageIndex = messages.length - 1;
+  const scrollToIndex = useMemo(
+    () =>
+      scrollTo
+        ? messages.findIndex((m) => m[0].eq(scrollTo))
+        : latestMessageIndex,
+    [scrollTo, messages, latestMessageIndex]
+  );
+  const latestIsMoreThan30NewerThanScrollTo = useMemo(
+    () =>
+      scrollToIndex !== latestMessageIndex &&
+      latestMessageIndex - scrollToIndex > 30,
+    [scrollToIndex, latestMessageIndex]
+  );
 
   const goToLatest = useCallback(async () => {
     setSearchParams({});
-    await refetch();
-    setShouldGetLatest(false);
-  }, [setSearchParams, refetch]);
+    if (hasNextPage) {
+      await refetch();
+      setShouldGetLatest(false);
+    } else {
+      scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+    }
+  }, [setSearchParams, refetch, hasNextPage, scrollerRef]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -110,10 +128,10 @@ export default function ChatWindow({
   );
 
   useEffect(() => {
-    if (scrollTo) {
+    if (scrollTo && hasNextPage) {
       setShouldGetLatest(true);
     }
-  }, [scrollTo]);
+  }, [scrollTo, hasNextPage]);
 
   if (isLoading) {
     return (
@@ -163,7 +181,7 @@ export default function ChatWindow({
           isScrolling={isScrolling}
         />
       </div>
-      {scrollTo && hasNextPage ? (
+      {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"
