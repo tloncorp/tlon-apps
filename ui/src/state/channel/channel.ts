@@ -1721,8 +1721,11 @@ export function useAddReplyMutation() {
             ...replyingPost,
             seal: {
               ...replyingPost.seal,
-              replyCount: replyingPost.seal.meta.replyCount + 1,
-              repliers: [...replyingPost.seal.meta.lastRepliers, window.our],
+              meta: {
+                ...replyingPost.seal.meta,
+                replyCount: replyingPost.seal.meta.replyCount + 1,
+                repliers: [...replyingPost.seal.meta.lastRepliers, window.our],
+              },
             },
           };
 
