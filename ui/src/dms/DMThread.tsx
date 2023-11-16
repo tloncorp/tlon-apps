@@ -63,7 +63,6 @@ export default function DMThread() {
   const club = useMultiDm(ship || '');
   const threadTitle = isClub ? club?.meta.title || ship : ship;
   const replies = useMemo(() => {
-    console.log('recalc replies');
     if (!writ || writ.seal.replies === null) {
       return [] as ReplyTuple[];
     }
@@ -83,7 +82,6 @@ export default function DMThread() {
     ]);
 
     const sortedReplies = newReplies.sort((a, b) => a[0].compare(b[0]));
-    console.log(sortedReplies);
     return sortedReplies;
   }, [writ, time]);
 

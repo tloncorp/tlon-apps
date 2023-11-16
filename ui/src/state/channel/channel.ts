@@ -759,19 +759,22 @@ export function usePost(nest: Nest, postId: string, disabled = false) {
     [han, flag, postId]
   );
 
-  const path = useMemo(
+  const scryPath = useMemo(
     () => `/${nest}/posts/post/${decToUd(postId)}`,
     [nest, postId]
   );
+
+  const subPath = useMemo(() => `/${nest}`, [nest]);
 
   const enabled = useMemo(
     () => postId !== '0' && postId !== '' && nest !== '' && !disabled,
     [postId, nest, disabled]
   );
-  const { data, ...rest } = useReactQueryScry({
+  const { data, ...rest } = useReactQuerySubscription({
     queryKey,
     app: 'channels',
-    path,
+    scry: scryPath,
+    path: subPath,
     options: {
       enabled,
     },

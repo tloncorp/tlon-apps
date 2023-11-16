@@ -1327,9 +1327,6 @@
   ::
   ++  di-give-writs-diff
     |=  =diff:writs:c
-    =.  cor
-      =/  =cage  writ-diff+!>(diff)
-      (emit %give %fact ~[di-area] cage)
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
     ?~  response  di-core
     =.  cor
@@ -1344,11 +1341,6 @@
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-unread  di-unread
     =.  pact.dm  (reduce:di-pact now.bowl diff)
-    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
-    =.  cor
-      ?~  response   cor
-      :: TODO: figure out why this was `path` and not `di-area`
-      (give %fact ~[di-area] writ-response+!>(u.response))
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     ?-  -.q.diff

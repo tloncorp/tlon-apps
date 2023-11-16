@@ -1429,7 +1429,7 @@ export function useHasUnreadMessages() {
 export function useWrit(whom: string, writId: string, disabled = false) {
   const queryKey = useMemo(() => ['dms', whom, writId], [whom, writId]);
 
-  const path = useMemo(() => {
+  const scryPath = useMemo(() => {
     const suffix = `/writs/writ/id/${writId}`;
     if (whomIsDm(whom)) {
       return `/dm/${whom}${suffix}`;
@@ -1438,14 +1438,23 @@ export function useWrit(whom: string, writId: string, disabled = false) {
     return `/club/${whom}${suffix}`;
   }, [writId, whom]);
 
+  const subPath = useMemo(() => {
+    if (whomIsDm(whom)) {
+      return `/dm/${whom}`;
+    }
+
+    return `/club/${whom}`;
+  }, [whom]);
+
   const enabled = useMemo(
     () => writId !== '' && writId !== '0' && !disabled,
     [writId, disabled]
   );
-  const { data, ...rest } = useReactQueryScry<Writ>({
+  const { data, ...rest } = useReactQuerySubscription<Writ>({
     queryKey,
     app: 'chat',
-    path,
+    scry: scryPath,
+    path: subPath,
     options: {
       enabled,
     },
