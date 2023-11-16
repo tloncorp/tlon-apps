@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
@@ -13,6 +14,8 @@ import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { log } from '@/logic/utils';
 import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import { useChannelCompatibility } from '@/logic/channel';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 
@@ -36,6 +39,7 @@ export default function ChatWindow({
   isScrolling,
 }: ChatWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [shouldGetLatest, setShouldGetLatest] = useState(false);
   const scrollTo = getScrollTo(searchParams.get('msg'));
   const nest = `chat/${whom}`;
   const {
@@ -43,11 +47,12 @@ export default function ChatWindow({
     hasNextPage,
     hasPreviousPage,
     fetchPreviousPage,
+    refetch,
     fetchNextPage,
     isLoading,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = useInfinitePosts(nest, scrollTo?.toString());
+  } = useInfinitePosts(nest, scrollTo?.toString(), shouldGetLatest);
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(nest).unread?.readTimeout;
@@ -60,11 +65,31 @@ export default function ChatWindow({
         : 'initial',
     [isFetchingNextPage, isFetchingPreviousPage]
   );
+  const { compatible } = useChannelCompatibility(nest);
+  const latestMessageIndex = messages.length - 1;
+  const scrollToIndex = useMemo(
+    () =>
+      scrollTo
+        ? messages.findIndex((m) => m[0].eq(scrollTo))
+        : latestMessageIndex,
+    [scrollTo, messages, latestMessageIndex]
+  );
+  const latestIsMoreThan30NewerThanScrollTo = useMemo(
+    () =>
+      scrollToIndex !== latestMessageIndex &&
+      latestMessageIndex - scrollToIndex > 30,
+    [scrollToIndex, latestMessageIndex]
+  );
 
-  const goToLatest = useCallback(() => {
+  const goToLatest = useCallback(async () => {
     setSearchParams({});
-    scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
-  }, [setSearchParams]);
+    if (hasNextPage) {
+      await refetch();
+      setShouldGetLatest(false);
+    } else {
+      scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+    }
+  }, [setSearchParams, refetch, hasNextPage, scrollerRef]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -102,10 +127,30 @@ export default function ChatWindow({
     [readTimeout, whom]
   );
 
+  useEffect(() => {
+    if (scrollTo && hasNextPage) {
+      setShouldGetLatest(true);
+    }
+  }, [scrollTo, hasNextPage]);
+
   if (isLoading) {
     return (
       <div className="h-full overflow-hidden">
         <ChatScrollerPlaceholder count={30} />
+      </div>
+    );
+  }
+
+  if (!compatible && messages.length === 0) {
+    return (
+      <div className="h-full w-full overflow-hidden">
+        <EmptyPlaceholder>
+          <p>
+            There may be content in this channel, but it is inaccessible because
+            the host is using an older, incompatible version of the app.
+          </p>
+          <p>Please try again later.</p>
+        </EmptyPlaceholder>
       </div>
     );
   }
@@ -136,7 +181,7 @@ export default function ChatWindow({
           isScrolling={isScrolling}
         />
       </div>
-      {scrollTo ? (
+      {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"

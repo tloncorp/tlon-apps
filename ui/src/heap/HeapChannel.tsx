@@ -20,6 +20,7 @@ import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
 import getKindDataFromEssay from '@/logic/getKindData';
 import { Post, PageTuple } from '@/types/channel';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
@@ -199,6 +200,15 @@ function HeapChannel({ title }: ViewProps) {
           <div className="h-full w-full">
             <HeapPlaceholder count={30} />
           </div>
+        ) : empty && !compatible ? (
+          <EmptyPlaceholder>
+            <p>
+              There may be content in this channel, but it is inaccessible
+              because the host is using an older, incompatible version of the
+              app.
+            </p>
+            <p>Please try again later.</p>
+          </EmptyPlaceholder>
         ) : (
           <VirtuosoGrid
             data={sortedPosts}
