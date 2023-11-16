@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
@@ -38,6 +39,7 @@ export default function ChatWindow({
   isScrolling,
 }: ChatWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [shouldGetLatest, setShouldGetLatest] = useState(false);
   const scrollTo = getScrollTo(searchParams.get('msg'));
   const nest = `chat/${whom}`;
   const {
@@ -45,11 +47,12 @@ export default function ChatWindow({
     hasNextPage,
     hasPreviousPage,
     fetchPreviousPage,
+    refetch,
     fetchNextPage,
     isLoading,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = useInfinitePosts(nest, scrollTo?.toString());
+  } = useInfinitePosts(nest, scrollTo?.toString(), shouldGetLatest);
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(nest).unread?.readTimeout;
@@ -63,11 +66,30 @@ export default function ChatWindow({
     [isFetchingNextPage, isFetchingPreviousPage]
   );
   const { compatible } = useChannelCompatibility(nest);
+  const latestMessageIndex = messages.length - 1;
+  const scrollToIndex = useMemo(
+    () =>
+      scrollTo
+        ? messages.findIndex((m) => m[0].eq(scrollTo))
+        : latestMessageIndex,
+    [scrollTo, messages, latestMessageIndex]
+  );
+  const latestIsMoreThan30NewerThanScrollTo = useMemo(
+    () =>
+      scrollToIndex !== latestMessageIndex &&
+      latestMessageIndex - scrollToIndex > 30,
+    [scrollToIndex, latestMessageIndex]
+  );
 
-  const goToLatest = useCallback(() => {
+  const goToLatest = useCallback(async () => {
     setSearchParams({});
-    scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
-  }, [setSearchParams]);
+    if (hasNextPage) {
+      await refetch();
+      setShouldGetLatest(false);
+    } else {
+      scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+    }
+  }, [setSearchParams, refetch, hasNextPage, scrollerRef]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -104,6 +126,12 @@ export default function ChatWindow({
     },
     [readTimeout, whom]
   );
+
+  useEffect(() => {
+    if (scrollTo && hasNextPage) {
+      setShouldGetLatest(true);
+    }
+  }, [scrollTo, hasNextPage]);
 
   if (isLoading) {
     return (
@@ -153,7 +181,7 @@ export default function ChatWindow({
           isScrolling={isScrolling}
         />
       </div>
-      {scrollTo ? (
+      {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"
