@@ -11,9 +11,7 @@ import debounce from 'lodash/debounce';
 import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format } from 'date-fns';
-import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { DMUnread } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -22,8 +20,6 @@ import {
   useChatState,
   useMessageToggler,
   useTrackedMessageStatus,
-  // useIsMessageDelivered,
-  // useIsMessagePosted,
 } from '@/state/chat';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
@@ -57,10 +53,6 @@ export interface ReplyMessageProps {
   isLinked?: boolean;
   isScrolling?: boolean;
   showReply?: boolean;
-}
-
-function unreadMatches(unread: DMUnread, id: string): boolean {
-  return unread['unread-id'] === id;
 }
 
 const mergeRefs =

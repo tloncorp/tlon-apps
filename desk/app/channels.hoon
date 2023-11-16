@@ -460,8 +460,12 @@
           %unwatch  remark.channel(watching |)
           %read-at  !!  ::TODO
           %read
-        =/  [=time post=(unit v-post:c)]  (need (ram:on-v-posts:c posts.channel))
-        remark.channel(last-read `@da`(add time (div ~s1 100)))
+        =/  [=time post=(unit v-post:c)]  
+          (need (ram:on-v-posts:c posts.channel))
+        %=  remark.channel
+          last-read       `@da`(add time (div ~s1 100))
+          unread-threads  *(set id-post:c)
+        ==
       ==
     =.  ca-core  ca-give-unread
     (ca-response a-remark)

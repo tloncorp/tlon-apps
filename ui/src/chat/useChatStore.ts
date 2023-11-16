@@ -2,7 +2,7 @@ import { createDevLogger } from '@/logic/utils';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
-import { Block } from '@/types/channel';
+import { Block, Unread } from '@/types/channel';
 import { DMUnread, DMUnreads } from '@/types/dms';
 
 export interface ChatInfo {
@@ -41,7 +41,11 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  unread: (whom: string, unread: DMUnread) => void;
+  unread: (
+    whom: string,
+    unread: DMUnread,
+    markRead: (whm: string) => void
+  ) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
   update: (unreads: DMUnreads) => void;
@@ -58,16 +62,23 @@ const emptyInfo: () => ChatInfo = () => ({
 
 export const chatStoreLogger = createDevLogger('ChatStore', false);
 
+export function isUnread(unread: Unread): boolean {
+  const hasThreads = Object.keys(unread.threads || {}).length > 0;
+  return unread.count > 0 && (!!unread['unread-id'] || hasThreads);
+}
+
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
+  current: '',
+  atBottom: false,
   update: (unreads) => {
     set(
       produce((draft: ChatStore) => {
         Object.entries(unreads).forEach(([whom, unread]) => {
           const chat = draft.chats[whom];
           chatStoreLogger.log('update', whom, chat, unread, draft.chats);
-          const hasThreads = Object.keys(unread.threads || {}).length > 0;
-          if (unread.count > 0 && (unread['unread-id'] || hasThreads)) {
+
+          if (isUnread(unread)) {
             draft.chats[whom] = {
               ...(chat || emptyInfo()),
               unread: {
@@ -88,8 +99,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  atBottom: false,
-  current: '',
   setBlocks: (whom, blocks) => {
     set(
       produce((draft) => {
@@ -216,19 +225,33 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  unread: (whom, unread) => {
+  unread: (whom, unread, markRead) => {
     set(
       produce((draft: ChatStore) => {
+        const { atBottom, current, read } = draft;
         const chat = draft.chats[whom] || emptyInfo();
-        chatStoreLogger.log('unread', whom, chat, unread);
-        draft.chats[whom] = {
-          ...chat,
-          unread: {
-            seen: false,
-            readTimeout: 0,
-            unread,
-          },
-        };
+        const hasUnreads = isUnread(unread);
+
+        if (
+          hasUnreads &&
+          current === whom &&
+          atBottom &&
+          document.visibilityState === 'visible'
+        ) {
+          markRead(whom);
+        } else if (hasUnreads) {
+          chatStoreLogger.log('unread', whom, chat, unread);
+          draft.chats[whom] = {
+            ...chat,
+            unread: {
+              seen: false,
+              readTimeout: 0,
+              unread,
+            },
+          };
+        } else if (!hasUnreads && chat?.unread?.readTimeout === 0) {
+          read(whom);
+        }
       })
     );
   },
