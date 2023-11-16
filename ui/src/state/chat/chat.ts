@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
 import produce, { setAutoFreeze } from 'immer';
-import { SetState } from 'zustand';
+import create, { SetState } from 'zustand';
 import { Poke } from '@urbit/http-api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import { decToUd, udToDec } from '@urbit/api';
@@ -67,28 +67,53 @@ import { createState } from '../base';
 import { BasedChatState, ChatState } from './type';
 import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
-import { channelAction } from '../channel/channel';
+import {
+  CacheId,
+  PostStatus,
+  TrackedPost,
+  channelAction,
+} from '../channel/channel';
 import emptyMultiDm from './utils';
 
 setAutoFreeze(false);
 
-function subscribeOnce<T>(app: string, path: string) {
-  return new Promise<T>((resolve) => {
-    api.subscribe({
-      app,
-      path,
-      event: resolve,
-    });
-  });
+export interface State {
+  trackedWrits: TrackedPost[];
+  addTracked: (id: CacheId) => void;
+  updateStatus: (id: CacheId, status: PostStatus) => void;
+  getStatus: (id: CacheId) => PostStatus;
+  [key: string]: unknown;
 }
 
-function makeId() {
-  const time = Date.now();
-  return {
-    id: `${window.our}/${formatUd(unixToDa(time))}`,
-    time,
-  };
-}
+export const useWritsStore = create<State>((set, get) => ({
+  trackedWrits: [],
+  addTracked: (id) => {
+    set((state) => ({
+      trackedPosts: [{ status: 'pending', cacheId: id }, ...state.trackedWrits],
+    }));
+  },
+  updateStatus: (id, s) => {
+    console.log(`updating ${id} to status: ${s}`);
+    set((state) => ({
+      trackedPosts: state.trackedWrits.map(({ cacheId, status }) => {
+        if (_.isEqual(cacheId, id)) {
+          return { status: s, cacheId };
+        }
+
+        return { status, cacheId };
+      }),
+    }));
+  },
+  getStatus: (id) => {
+    const { trackedWrits } = get();
+
+    const post = trackedWrits.find(
+      ({ cacheId }) => cacheId.author === id.author && cacheId.sent === id.sent
+    );
+
+    return post?.status ?? 'delivered';
+  },
+}));
 
 function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
   return {
@@ -281,7 +306,13 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
         // remove cached post if it exists
         delete newLastPage.writs[unixToDa(writ.essay.sent).toString()];
 
-        // TODO: mimic delivery in writ store? does it exist?
+        // set delivered now that we have the real writ
+        useWritsStore
+          .getState()
+          .updateStatus(
+            { author: writ.essay.author, sent: writ.essay.sent },
+            'delivered'
+          );
       }
 
       return {
@@ -416,6 +447,81 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
         pageParams: queryData.pageParams,
       };
     });
+  } else if ('reply' in delta) {
+    console.log(`reply delta found`);
+    // const reply = delta.reply;
+    // if ('add' in reply.delta) {
+    //   queryClient.setQueriesData<InfiniteDMsData>(queryKey, (queryData) => {
+    //     if (queryData === undefined) {
+    //       return undefined;
+    //     }
+
+    //     const allWritsInPages = queryData.pages.flatMap((page) =>
+    //       Object.entries(page.writs)
+    //     );
+
+    //     const writFind = allWritsInPages.find(([k, w]) => w.seal.id === id);
+
+    //     if (writFind) {
+    //       console.log('looks like we have it')
+
+    //       const replyId = writFind[0];
+    //       const replyingWrit = writFind[1];
+    //       console.log(`reply id`, replyId);
+    //       console.log(`replying writ`, replyingWrit);
+
+    //       if (replyingWrit === undefined || replyingWrit === null) {
+    //         return queryData;
+    //       }
+
+    //       const updatedWrit = {
+    //         ...replyingWrit,
+    //         seal: {
+    //           ...replyingWrit.seal,
+    //           replyCount: replyingWrit.seal.meta.replyCount + 1,
+    //           repliers: [...replyingWrit.seal.meta.lastRepliers, window.our],
+    //         },
+    //       };
+
+    //       const pageInCache = queryData.pages.find((page) =>
+    //         Object.keys(page.writs).some((k) => k === replyId)
+    //       );
+
+    //       const pageInCacheIdx = queryData.pages.findIndex((page) =>
+    //         Object.keys(page.writs).some((k) => k === replyId)
+    //       );
+
+    //       console.log(`cached page index: ${pageInCacheIdx}`)
+
+    //       if (pageInCache === undefined) {
+    //         return queryData;
+    //       }
+
+    //       console.log('returning updated data')
+    //       return {
+    //         pages: [
+    //           ...queryData.pages.slice(0, pageInCacheIdx),
+    //           {
+    //             ...pageInCache,
+    //             writs: {
+    //               ...pageInCache.writs,
+    //               [replyId]: updatedWrit,
+    //             },
+    //           },
+    //           ...queryData.pages.slice(pageInCacheIdx + 1),
+    //         ],
+    //         pageParams: queryData.pageParams,
+    //       }
+    //     }
+
+    //     console.log('no luck, returning existing data')
+
+    //     return {
+    //       pages: queryData.pages,
+    //       pageParams: queryData.pageParams,
+    //     };
+    //   });
+    // }
   }
 }
 
@@ -674,7 +780,7 @@ export function useArchiveDm() {
       );
     },
     onSettled: () => {
-      queryClient.invalidateQueries(['dms', 'unreads']); // TODO: why unreads?
+      queryClient.invalidateQueries(['dms', 'unreads']);
     },
   });
 }
@@ -691,7 +797,7 @@ export function useUnarchiveDm() {
   return useMutation({
     mutationFn,
     onSettled: () => {
-      queryClient.invalidateQueries(['dms', 'unreads']); // TODO: why unreads?
+      queryClient.invalidateQueries(['dms', 'unreads']);
     },
   });
 }
@@ -894,6 +1000,10 @@ export interface SendMessageVariables {
   message: {
     id: string;
     delta: WritDeltaAdd | ReplyDelta;
+    cacheId: {
+      author: string;
+      sent: number;
+    };
   };
   replying?: string;
 }
@@ -921,10 +1031,40 @@ export function useSendMessage() {
         'add' in message.delta
           ? unixToDa(message.delta.add.memo.sent).toString()
           : '';
+
+      console.log(
+        `tracking cache id ${message.cacheId.author} ${message.cacheId.sent}`
+      );
+      useWritsStore.getState().addTracked(message.cacheId);
+
       infiniteDMsUpdater(queryKey, {
         id: replying || sentAsId,
         delta: message.delta,
       });
+    },
+    onSuccess: async (_data, variables) => {
+      const { cacheId } = variables.message;
+      const status = useWritsStore.getState().getStatus(cacheId);
+      if (status === 'pending') {
+        useWritsStore.getState().updateStatus(cacheId, 'sent');
+      }
+      queryClient.removeQueries([
+        'dms',
+        variables.whom,
+        cacheId.author,
+        cacheId.sent,
+      ]);
+    },
+    onError: async (_error, variables) => {
+      const { cacheId } = variables.message;
+      useWritsStore.setState((state) => ({
+        ...state,
+        trackedPosts: state.trackedWrits.filter((p) => p.cacheId !== cacheId),
+      }));
+      queryClient.setQueryData(
+        ['dms', variables.whom, cacheId.author, cacheId.sent],
+        undefined
+      );
     },
     onSettled: (_data, _error, variables) => {
       const { whom } = variables;
@@ -932,8 +1072,6 @@ export function useSendMessage() {
       queryClient.invalidateQueries(queryKey);
     },
   });
-
-  // TODO: tracking message for sending/sent arrows
 }
 
 export function useDeleteDm() {
@@ -1132,18 +1270,14 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
   };
 }
 
-// TODO: handle message tracking
-// export function useTrackedMessageStatus(id: string) {
-//   return useChatState(
-//     useCallback(
-//       (s) => s.trackedMessages.find((m) => m.id === id)?.status || 'delivered',
-//       [id]
-//     )
-//   );
-// }
-export function useTrackedMessageStatus(id: string) {
-  // placeholder
-  return 'delivered';
+export function useTrackedMessageStatus(cacheId: CacheId) {
+  return useWritsStore(
+    (s) =>
+      s.trackedWrits.find(
+        ({ cacheId: nId }) =>
+          nId.author === cacheId.author && nId.sent === cacheId.sent
+      )?.status || 'delivered'
+  );
 }
 
 export function useHasUnreadMessages() {

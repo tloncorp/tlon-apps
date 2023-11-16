@@ -16,10 +16,10 @@ export default function emptyMultiDm(): Club {
 }
 
 function makeId() {
-  const time = Date.now();
+  const sent = Date.now();
   return {
-    id: `${window.our}/${formatUd(unixToDa(time))}`,
-    time,
+    id: `${window.our}/${formatUd(unixToDa(sent))}`,
+    sent,
   };
 }
 
@@ -27,12 +27,17 @@ export function createMessage(
   whom: string,
   mem: PostEssay,
   replying?: string
-): { id: string; delta: WritDeltaAdd | ReplyDelta } {
-  const { id, time } = makeId();
+): {
+  id: string;
+  cacheId: { author: string; sent: number };
+  delta: WritDeltaAdd | ReplyDelta;
+} {
+  const { id, sent } = makeId();
+  const cacheId = { author: mem.author, sent };
   const memo: Omit<PostEssay, 'kind-data'> = {
     content: mem.content,
     author: mem.author,
-    sent: time,
+    sent,
   };
 
   let delta: WritDeltaAdd | ReplyDelta;
@@ -59,5 +64,5 @@ export function createMessage(
     };
   }
 
-  return { id, delta };
+  return { id, cacheId, delta };
 }

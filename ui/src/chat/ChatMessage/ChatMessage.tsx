@@ -186,14 +186,26 @@ const ChatMessage = React.memo<
           [unread, whom, seal.id, isDMOrMultiDM, markChatRead, markDmRead]
         ),
       });
-      const msgStatus = useTrackedMessageStatus(seal.id);
-      const status = useTrackedPostStatus({
+
+      const msgStatus = useTrackedMessageStatus({
         author: window.our,
         sent: essay.sent,
       });
-      const isDelivered = msgStatus === 'delivered' && status === 'delivered';
-      const isSent = msgStatus === 'sent' || status === 'sent';
-      const isPending = msgStatus === 'pending' || status === 'pending';
+      const trackedPostStatus = useTrackedPostStatus({
+        author: window.our,
+        sent: essay.sent,
+      });
+      // const msgStatus = useTrackedMessageStatus(seal.id);
+      // const status = useTrackedPostStatus({
+      //   author: window.our,
+      //   sent: essay.sent,
+      // });
+
+      const isDelivered =
+        msgStatus === 'delivered' && trackedPostStatus === 'delivered';
+      const isSent = msgStatus === 'sent' || trackedPostStatus === 'sent';
+      const isPending =
+        msgStatus === 'pending' || trackedPostStatus === 'pending';
 
       const isReplyOp = chatInfo?.replying === seal.id;
 
