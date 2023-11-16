@@ -10,7 +10,7 @@ import {
 } from '@/types/channel';
 import { createMessage } from '@/state/chat/utils';
 import { WritDelta } from '@/types/dms';
-import { SendMessageVariables } from '@/state/chat';
+import { SendMessageVariables, SendReplyVariables } from '@/state/chat';
 import { isImageUrl } from './utils';
 import { JSONToInlines } from './tiptap';
 
@@ -23,6 +23,7 @@ interface MessageSender {
   text: string;
   now: number;
   sendDm?: (variables: SendMessageVariables) => void;
+  sendDmReply?: (variables: SendReplyVariables) => void;
   sendChatMessage?: ({
     cacheId,
     essay,
@@ -52,6 +53,7 @@ export default function messageSender({
   text,
   now,
   sendDm,
+  sendDmReply,
   sendChatMessage,
   sendReply,
 }: MessageSender) {
@@ -126,6 +128,12 @@ export default function messageSender({
           message,
           replying,
         });
+      } else if (sendDmReply && replying) {
+        sendDmReply({
+          whom,
+          message,
+          parentId: replying,
+        });
       } else if (sendChatMessage) {
         sendChatMessage({
           cacheId,
@@ -149,6 +157,12 @@ export default function messageSender({
       img.onerror = () => {
         if (sendDm) {
           sendDm({ whom, message, replying });
+        } else if (sendDmReply && replying) {
+          sendDmReply({
+            whom,
+            message,
+            parentId: replying,
+          });
         } else if (sendChatMessage) {
           sendChatMessage({
             cacheId,
@@ -167,6 +181,13 @@ export default function messageSender({
   } else if (sendDm) {
     const message = createMessage(whom, essay, replying);
     sendDm({ whom, message, replying });
+  } else if (sendDmReply && replying) {
+    const message = createMessage(whom, essay, replying);
+    sendDmReply({
+      whom,
+      message,
+      parentId: replying,
+    });
   } else if (sendChatMessage) {
     sendChatMessage({
       cacheId,

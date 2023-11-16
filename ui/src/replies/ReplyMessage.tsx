@@ -151,7 +151,11 @@ const ReplyMessage = React.memo<
         ),
       });
 
-      const msgStatus = useTrackedMessageStatus(seal.id);
+      const msgStatus = useTrackedMessageStatus({
+        author: window.our,
+        sent: memo.sent,
+      });
+
       const status = useTrackedPostStatus({
         author: window.our,
         sent: memo.sent,

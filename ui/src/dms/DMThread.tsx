@@ -6,7 +6,12 @@ import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import { useWrit, useSendMessage, useMultiDm } from '@/state/chat';
+import {
+  useWrit,
+  useSendMessage,
+  useMultiDm,
+  useSendReplyMutation,
+} from '@/state/chat';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
@@ -43,7 +48,7 @@ export default function DMThread() {
     if (!writ) return '0';
     return writ.seal.time;
   }, [writ]);
-  const { mutate: sendMessage } = useSendMessage();
+  const { mutate: sendDmReply } = useSendReplyMutation();
   const { isOpen: leapIsOpen } = useLeap();
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
@@ -58,6 +63,7 @@ export default function DMThread() {
   const club = useMultiDm(ship || '');
   const threadTitle = isClub ? club?.meta.title || ship : ship;
   const replies = useMemo(() => {
+    console.log('recalc replies');
     if (!writ || writ.seal.replies === null) {
       return [] as ReplyTuple[];
     }
@@ -76,7 +82,9 @@ export default function DMThread() {
       },
     ]);
 
-    return newReplies.sort((a, b) => a[0].compare(b[0]));
+    const sortedReplies = newReplies.sort((a, b) => a[0].compare(b[0]));
+    console.log(sortedReplies);
+    return sortedReplies;
   }, [writ, time]);
 
   const returnURL = useCallback(() => {
@@ -189,7 +197,7 @@ export default function DMThread() {
           <ChatInput
             whom={whom}
             replying={id}
-            sendDm={sendMessage}
+            sendDmReply={sendDmReply}
             showReply={false}
             autoFocus
             dropZoneId={dropZoneId}

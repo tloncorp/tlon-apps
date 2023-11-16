@@ -214,6 +214,7 @@ interface InfiniteDMsData {
 function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
   console.log('infinite updater');
 
+  const whom = queryKey[1] as string;
   let id: string | undefined;
   let delta: WritDelta | WritResponseDelta;
   if ('response' in data) {
@@ -449,81 +450,148 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
     });
   } else if ('reply' in delta) {
     console.log(`reply delta found`);
-    // const reply = delta.reply;
-    // if ('add' in reply.delta) {
-    //   queryClient.setQueriesData<InfiniteDMsData>(queryKey, (queryData) => {
-    //     if (queryData === undefined) {
-    //       return undefined;
-    //     }
+    const replyParentQueryKey = ['dms', whom, id];
+    const { reply } = delta;
+    if ('add' in reply.delta) {
+      queryClient.setQueriesData<InfiniteDMsData>(queryKey, (queryData) => {
+        if (queryData === undefined) {
+          return undefined;
+        }
 
-    //     const allWritsInPages = queryData.pages.flatMap((page) =>
-    //       Object.entries(page.writs)
-    //     );
+        const allWritsInPages = queryData.pages.flatMap((page) =>
+          Object.entries(page.writs)
+        );
 
-    //     const writFind = allWritsInPages.find(([k, w]) => w.seal.id === id);
+        const writFind = allWritsInPages.find(([k, w]) => w.seal.id === id);
 
-    //     if (writFind) {
-    //       console.log('looks like we have it')
+        if (writFind) {
+          console.log('looks like we have it');
 
-    //       const replyId = writFind[0];
-    //       const replyingWrit = writFind[1];
-    //       console.log(`reply id`, replyId);
-    //       console.log(`replying writ`, replyingWrit);
+          const replyId = writFind[0];
+          const replyingWrit = writFind[1];
+          console.log(`reply id`, replyId);
+          console.log(`replying writ`, replyingWrit);
 
-    //       if (replyingWrit === undefined || replyingWrit === null) {
-    //         return queryData;
-    //       }
+          if (replyingWrit === undefined || replyingWrit === null) {
+            return queryData;
+          }
 
-    //       const updatedWrit = {
-    //         ...replyingWrit,
-    //         seal: {
-    //           ...replyingWrit.seal,
-    //           replyCount: replyingWrit.seal.meta.replyCount + 1,
-    //           repliers: [...replyingWrit.seal.meta.lastRepliers, window.our],
-    //         },
-    //       };
+          const replyAuthor =
+            'add' in reply.delta ? reply.delta.add.memo.author : ''; // should never happen
 
-    //       const pageInCache = queryData.pages.find((page) =>
-    //         Object.keys(page.writs).some((k) => k === replyId)
-    //       );
+          const updatedWrit = {
+            ...replyingWrit,
+            seal: {
+              ...replyingWrit.seal,
+              meta: {
+                ...replyingWrit.seal.meta,
+                replyCount: replyingWrit.seal.meta.replyCount + 1,
+                repliers: [...replyingWrit.seal.meta.lastRepliers, replyAuthor],
+              },
+            },
+          };
 
-    //       const pageInCacheIdx = queryData.pages.findIndex((page) =>
-    //         Object.keys(page.writs).some((k) => k === replyId)
-    //       );
+          const pageInCache = queryData.pages.find((page) =>
+            Object.keys(page.writs).some((k) => k === replyId)
+          );
 
-    //       console.log(`cached page index: ${pageInCacheIdx}`)
+          const pageInCacheIdx = queryData.pages.findIndex((page) =>
+            Object.keys(page.writs).some((k) => k === replyId)
+          );
 
-    //       if (pageInCache === undefined) {
-    //         return queryData;
-    //       }
+          console.log(`cached page index: ${pageInCacheIdx}`);
 
-    //       console.log('returning updated data')
-    //       return {
-    //         pages: [
-    //           ...queryData.pages.slice(0, pageInCacheIdx),
-    //           {
-    //             ...pageInCache,
-    //             writs: {
-    //               ...pageInCache.writs,
-    //               [replyId]: updatedWrit,
-    //             },
-    //           },
-    //           ...queryData.pages.slice(pageInCacheIdx + 1),
-    //         ],
-    //         pageParams: queryData.pageParams,
-    //       }
-    //     }
+          if (pageInCache === undefined) {
+            return queryData;
+          }
 
-    //     console.log('no luck, returning existing data')
+          console.log('returning updated data');
+          return {
+            pages: [
+              ...queryData.pages.slice(0, pageInCacheIdx),
+              {
+                ...pageInCache,
+                writs: {
+                  ...pageInCache.writs,
+                  [replyId]: updatedWrit,
+                },
+              },
+              ...queryData.pages.slice(pageInCacheIdx + 1),
+            ],
+            pageParams: queryData.pageParams,
+          };
+        }
 
-    //     return {
-    //       pages: queryData.pages,
-    //       pageParams: queryData.pageParams,
-    //     };
-    //   });
-    // }
+        console.log('no luck, returning existing data');
+
+        return {
+          pages: queryData.pages,
+          pageParams: queryData.pageParams,
+        };
+      });
+
+      queryClient.setQueryData(
+        replyParentQueryKey,
+        (queryData: WritInCache | undefined) => {
+          if (queryData === undefined) {
+            return undefined;
+          }
+
+          if (!('add' in reply.delta)) {
+            return queryData;
+          }
+          const { memo } = reply.delta.add;
+
+          const prevWrit = queryData as WritInCache;
+          const prevReplies = prevWrit.seal.replies;
+
+          const hasInCache = Object.entries(prevReplies).find(([k, r]) => {
+            return r.memo.sent === memo.sent && r.memo.author === memo.author;
+          });
+
+          if (hasInCache) {
+            return queryData;
+          }
+
+          console.log('got a reply, not in cache. Adding');
+
+          const replyId = unixToDa(memo.sent).toString();
+          const newReply: Reply = {
+            seal: {
+              id: replyId,
+              'parent-id': id!,
+              reacts: {},
+            },
+            memo,
+          };
+
+          const newReplies = {
+            ...prevReplies,
+            [replyId]: newReply,
+          };
+
+          return {
+            ...prevWrit,
+            seal: {
+              ...prevWrit.seal,
+              replies: newReplies,
+            },
+          };
+        }
+      );
+    }
   }
 }
+
+// async function updateWritInCache(
+//   variables: { whom: string; postId: string },
+//   updater: (post: PostDataResponse | undefined) => PostDataResponse | undefined
+// ) {
+//   const [han, flag] = nestToFlag(variables.nest);
+//   await queryClient.cancelQueries([han, 'posts', flag, variables.postId]);
+
+//   queryClient.setQueryData([han, 'posts', flag, variables.postId], updater);
+// }
 
 export function useMultiDmsQuery() {
   return useReactQueryScry<Clubs>({
@@ -1006,6 +1074,68 @@ export interface SendMessageVariables {
     };
   };
   replying?: string;
+}
+
+export interface SendReplyVariables {
+  whom: string;
+  message: {
+    id: string;
+    delta: WritDeltaAdd | ReplyDelta;
+    cacheId: {
+      author: string;
+      sent: number;
+    };
+  };
+  parentId: string;
+}
+export function useSendReplyMutation() {
+  const mutationFn = async ({
+    whom,
+    message,
+    parentId,
+  }: SendReplyVariables) => {
+    const { action } = getActionAndEvent(whom, parentId, message.delta);
+
+    await api.poke<ClubAction | DmAction>(action);
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: (variables) => {
+      const { whom, message, parentId } = variables;
+      const infiniteQueryKey = ['dms', whom, 'infinite'];
+
+      useWritsStore.getState().addTracked(message.cacheId);
+
+      infiniteDMsUpdater(infiniteQueryKey, {
+        id: parentId,
+        delta: message.delta,
+      });
+    },
+    onSuccess: async (_data, variables) => {
+      const { cacheId } = variables.message;
+
+      const status = useWritsStore.getState().getStatus(cacheId);
+      if (status === 'pending') {
+        useWritsStore.getState().updateStatus(cacheId, 'sent');
+      }
+    },
+    onError: async (_error, variables) => {
+      const { cacheId } = variables.message;
+      useWritsStore.setState((state) => ({
+        ...state,
+        trackedPosts: state.trackedWrits.filter((p) => p.cacheId !== cacheId),
+      }));
+    },
+    onSettled: (_data, _error, variables) => {
+      const { whom, parentId } = variables;
+      const infiniteQueryKey = ['dms', whom, 'infinite'];
+      const parentWritQueryKey = ['dms', whom, parentId];
+
+      queryClient.refetchQueries(parentWritQueryKey);
+      queryClient.invalidateQueries(infiniteQueryKey);
+    },
+  });
 }
 
 export function useSendMessage() {

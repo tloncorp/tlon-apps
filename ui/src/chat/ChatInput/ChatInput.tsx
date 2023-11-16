@@ -13,6 +13,7 @@ import { useSearchParams } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
 import {
   SendMessageVariables,
+  SendReplyVariables,
   useIsShipBlocked,
   useShipHasBlockedUs,
   useUnblockShipMutation,
@@ -71,6 +72,7 @@ interface ChatInputProps {
   className?: string;
   sendDisabled?: boolean;
   sendDm?: (variables: SendMessageVariables) => void;
+  sendDmReply?: (variables: SendReplyVariables) => void;
   sendChatMessage?: ({
     cacheId,
     essay,
@@ -132,6 +134,7 @@ export default function ChatInput({
   showReply = false,
   sendDisabled = false,
   sendDm,
+  sendDmReply,
   sendChatMessage,
   sendReply,
   dropZoneId,
@@ -330,6 +333,7 @@ export default function ChatInput({
         replyCite,
         now,
         sendDm,
+        sendDmReply,
         sendChatMessage,
         sendReply,
       });
@@ -358,6 +362,7 @@ export default function ChatInput({
       setDraft,
       clearAttachments,
       sendDm,
+      sendDmReply,
       sendChatMessage,
       sendReply,
       sendDisabled,
