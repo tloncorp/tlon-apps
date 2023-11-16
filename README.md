@@ -22,11 +22,6 @@ Gallery is a versatile repository for collective knowledge and references you
 want to share or remember. Within Groups, you can use Gallery to collect links,
 images, media, and even random musings.
 
-## Learn more about Landscape, Tlon, and Urbit
-
-- [Learn more about Tlon →](https://tlon.io)
-- [Learn more about Urbit →](https://urbit.org)
-
 ---
 
 ## Developer documentation
