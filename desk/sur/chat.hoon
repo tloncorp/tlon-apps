@@ -250,7 +250,7 @@
   --
 ::
 +$  remark
-  [last-read=time watching=_| unread-threads=(set id)]
+  [recency=time last-read=time watching=_| unread-threads=(set id)]
 ::
 +$  remark-action
   (pair whom remark-diff)

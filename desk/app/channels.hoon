@@ -20,7 +20,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %0
+    $:  %1
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)
@@ -101,11 +101,38 @@
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state] vase)
-  ?>  ?=(%0 -.old)
+  =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+  ?>  ?=(%1 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(current-state)
+  +$  versioned-state  $%(current-state state-0)
+  ::
+  +$  state-0
+    $:  %0
+        v-channels=(map nest:c v-channel-0)
+        voc=(map [nest:c plan:c] (unit said:c))
+        pins=(list nest:c)
+        hidden-posts=(set id-post:c)
+    ==
+  ++  v-channel-0
+    |^  ,[global:v-channel:c local]
+    +$  window    (list [from=time to=time])
+    +$  future    [=window diffs=(jug id-post:c u-post:c)]
+    +$  local     [=net:c =log:c remark=remark-0 =window =future]
+    --
+  +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
+  ::
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  current-state
+    s(- %1, v-channels (~(run by v-channels.s) v-channel-0-to-1))
+  ++  v-channel-0-to-1
+    |=  v=v-channel-0
+    ^-  v-channel:c
+    =/  recency=time
+      ?~(tim=(ram:on-v-posts:c posts.v) *time key.u.tim)
+    v(remark [recency remark.v])
   --
 ::
 ++  init
@@ -724,6 +751,8 @@
     =/  post  (get:on-v-posts:c posts.channel id-post)
     ?:  ?=([~ ~] post)  ca-core
     ?:  ?=(%set -.u-post)
+      =?  recency.remark.channel  ?=(^ post.u-post)
+        (max recency.remark.channel id-post)
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post:utils)
         =?  ca-core  ?=(^ post.u-post)
@@ -807,6 +836,8 @@
       =/  post  (get:on-v-posts:c posts.channel id-post)
       ?~  post  ca-core
       ?~  u.post  ca-core
+      =?  recency.remark.channel  ?=(^ reply)
+        (max recency.remark.channel id-reply)
       =?  unread-threads.remark.channel
           ?&  ?=(^ reply)
               !=(our.bowl author.u.reply)
@@ -1005,9 +1036,7 @@
   ::
   ++  ca-unread
     ^-  unread:c
-    =/  =time
-      ?~  tim=(ram:on-v-posts:c posts.channel)  *time
-      key.u.tim
+    :-  recency.remark.channel
     =/  unreads
       (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
     =/  unread-id=(unit id-post:c)
@@ -1020,7 +1049,7 @@
     =/  count
       %-  lent
       %+  skim  ~(tap by unreads)
-      |=  [tim=^time post=(unit v-post:c)]
+      |=  [tim=time post=(unit v-post:c)]
       ?&  ?=(^ post)
           !=(author.u.post our.bowl)
       ==
@@ -1036,7 +1065,7 @@
       :-  %+  add  sum
           %-  lent
           %+  skim  ~(tap by unreads)
-          |=  [tim=^time reply=(unit v-reply:c)]
+          |=  [tim=time reply=(unit v-reply:c)]
           ?&  ?=(^ reply)
               !=(author.u.reply our.bowl)
           ==
@@ -1044,7 +1073,7 @@
       ?~  pried  threads
       ?~  val.u.pried  threads
       (~(put by threads) id id.u.val.u.pried)
-    [time (add count sum) unread-id threads]
+    [(add count sum) unread-id threads]
   ::
   ::  handle scries
   ::
@@ -1073,7 +1102,8 @@
     |=  [mode=?(%outline %post) ls=(list [time (unit v-post:c)])]
     ^-  (unit (unit cage))
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c ls)
-    =-  ``channel-posts+!>(-)
+    =;  =paged-posts:c
+      ``channel-posts+!>(paged-posts)
     ?:  =(0 (lent ls))  [*posts:c ~ ~ 0]
     =/  =posts:c
       ?:  =(%post mode)  (uv-posts:utils posts)
