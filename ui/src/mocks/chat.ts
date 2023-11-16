@@ -170,7 +170,7 @@ export const dmList: DMUnreads = {
   '~rilfun-lidlen': {
     recency: 0,
     count: 0,
-    'unread-id': 'null',
+    'unread-id': null,
     threads: {},
   },
   '~mister-dister-dozzod-dozzod': {

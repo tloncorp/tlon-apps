@@ -717,17 +717,20 @@ export function useDmUnreads() {
 
   const eventHandler = (event: DMUnreadUpdate) => {
     invalidate.current();
-    const { unread } = event;
+    const { whom, unread } = event;
 
     if (unread !== null) {
+      useChatStore
+        .getState()
+        .unread(whom, unread, useChatState.getState().markDmRead);
       queryClient.setQueryData(dmUnreadsKey, (d: DMUnreads | undefined) => {
         if (d === undefined) {
           return undefined;
         }
+
         const newUnreads = { ...d };
         newUnreads[event.whom] = unread;
 
-        useChatStore.getState().update(newUnreads);
         return newUnreads;
       });
     }
@@ -798,7 +801,10 @@ export function useCurrentPactSize(whom: string) {
 }
 
 export function useWrit(whom: string, writId: string, disabled = false) {
-  const queryKey = useMemo(() => ['dms', whom, writId], [whom, writId]);
+  const queryKey = useMemo(
+    () => ['dms', whom, 'writs', writId],
+    [whom, writId]
+  );
 
   const path = useMemo(() => {
     const suffix = `/writs/writ/id/${writId}`;
@@ -1243,22 +1249,6 @@ export function useWritByFlagAndWritId(
   }
 
   return cached;
-}
-
-export function useGetFirstDMUnreadID(whom: string) {
-  const keys = useChatKeys({ replying: false, whom });
-  const unread = useDmUnread(whom);
-  if (!unread) {
-    return null;
-  }
-  const { 'unread-id': lastRead } = unread;
-  if (!lastRead) {
-    return null;
-  }
-  // lastRead is formatted like: ~zod/123.456.789...
-  const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
-  const firstUnread = keys.find((key) => key.gt(lastReadBN));
-  return firstUnread ?? null;
 }
 
 export function useLatestMessage(chFlag: string): [BigInteger, Writ | null] {

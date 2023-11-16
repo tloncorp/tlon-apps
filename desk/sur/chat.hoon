@@ -229,10 +229,12 @@
       [%club p=id:club]
   ==
 ::
++$  message-key  [=id =time]
+::
 ::  $unreads: a map of club/dm unread information
 ::
-::    unread: the last time a message was read, how many messages since,
-::    and the id of the last read message
+::    unread: the time of the most recent message, how many messages since,
+::    the id of the last read message, and the set of unread threads
 ::
 ++  unreads
   =<  unreads
@@ -242,8 +244,8 @@
   +$  unread
     $:  recency=time
         count=@ud
-        unread-id=(unit id)
-        threads=(map id id)
+        unread-id=(unit message-key)
+        threads=(map message-key message-key)
     ==
   +$  update
     (pair whom unread)

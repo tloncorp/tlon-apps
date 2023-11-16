@@ -201,11 +201,20 @@ export interface PagedWritsMap extends Omit<PagedWrits, 'writs'> {
   writs: WritPageMap;
 }
 
+export interface MessageKey {
+  id: string;
+  time: string;
+}
+
+export interface UnreadThread extends MessageKey {
+  'parent-time': string;
+}
+
 export interface DMUnread {
   recency: number;
   count: number;
-  'unread-id': string | null;
-  threads: Record<string, string>;
+  'unread-id': MessageKey | null;
+  threads: Record<string, UnreadThread>;
 }
 
 export interface DMUnreads {

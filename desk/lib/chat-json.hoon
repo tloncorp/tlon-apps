@@ -144,16 +144,27 @@
     %-  pairs
     :~  recency/(time recency.b)
         count/(numb count.b)
-        unread-id/?~(unread-id.b ~ (id u.unread-id.b))
         threads/(unread-threads threads.b)
+    ::
+      :-  %unread-id
+      ?~  unread-id.b  ~
+      %-  pairs
+      :~  id/(id id.u.unread-id.b)
+          time/(time-id time.u.unread-id.b)
+      ==
     ==
   ::
   ++  unread-threads
-    |=  u=(map id:c id:c)
+    |=  u=(map message-key:c message-key:c)
     %-  pairs
     %+  turn  ~(tap by u)
-    |=  [p=id:c r=id:c]
-    [+:(id p) (id r)]
+    |=  [top=message-key:c unread=message-key:c]
+    :-  (rap 3 (scot %p p.id.top) '/' (scot %ud q.id.top) ~)
+    %-  pairs
+    :~  parent-time/(time-id time.top)
+        id/(id id.unread)
+        time/(time-id time.unread)
+    ==
   ::
   ++  pins
     |=  ps=(list whom:c)

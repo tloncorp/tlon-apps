@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import cn from 'classnames';
 import debounce from 'lodash/debounce';
-import bigInt, { BigInteger } from 'big-integer';
+import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
@@ -32,12 +32,11 @@ import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import {
-  useIsPostPending,
   useMarkReadMutation,
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import { Post, Story } from '@/types/channel';
+import { Post, Story, Unread } from '@/types/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -63,7 +62,7 @@ export interface ChatMessageProps {
 }
 
 function unreadStatus(
-  unread: DMUnread | undefined,
+  unread: Unread | undefined,
   id: string
 ): 'none' | 'top' | 'thread' {
   if (!unread) {
@@ -80,6 +79,34 @@ function unreadStatus(
   }
 
   if (unreadId === id) {
+    return 'top';
+  }
+
+  return 'none';
+}
+
+function dmUnreadStatus(unread: DMUnread | undefined, id: string) {
+  if (!unread) {
+    return 'none';
+  }
+
+  const unreadId = unread['unread-id'];
+  const threads = unread.threads || {};
+  const threadKeys = Object.entries(threads).sort(([, a], [, b]) =>
+    a['parent-time'].localeCompare(b['parent-time'])
+  );
+  const topId = threadKeys[0]?.[0];
+  const topTime = threadKeys[0]?.[1]['parent-time'];
+
+  if (
+    topId &&
+    topId === id &&
+    (!unreadId || (topTime && topTime < unreadId.time))
+  ) {
+    return 'thread';
+  }
+
+  if (unreadId?.id === id) {
     return 'top';
   }
 
@@ -145,7 +172,9 @@ const ChatMessage = React.memo<
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
       const unread = chatInfo?.unread;
-      const unreadDisplay = unreadStatus(unread?.unread, seal.id);
+      const unreadDisplay = isDMOrMultiDM
+        ? dmUnreadStatus(unread?.unread as DMUnread, seal.id)
+        : unreadStatus(unread?.unread as Unread, seal.id);
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
@@ -200,7 +229,11 @@ const ChatMessage = React.memo<
               we can assume the user is done and clear the unread. */
             if (!inView && unread && seen) {
               read(whom);
-              markDmRead(whom);
+              if (isDMOrMultiDM) {
+                markDmRead(whom);
+              } else {
+                markChatRead({ nest: `chat/${whom}` });
+              }
             }
           },
           [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead]

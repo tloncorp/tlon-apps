@@ -28,11 +28,11 @@ export default function ChatUnreadAlerts({
   }
 
   const { unread } = chatInfo.unread;
-  if (unread.count === 0 || !unread['unread-id']) {
+  const id = unread['unread-id'];
+  if (unread.count === 0 || !id || typeof id === 'object') {
     return null;
   }
 
-  const id = unread['unread-id'];
   const { threads } = unread;
   const threadKeys = Object.keys(threads).sort();
 

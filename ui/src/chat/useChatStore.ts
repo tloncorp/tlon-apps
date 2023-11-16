@@ -2,7 +2,7 @@ import { createDevLogger } from '@/logic/utils';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
-import { Block, Unread } from '@/types/channel';
+import { Block, Unread, Unreads } from '@/types/channel';
 import { DMUnread, DMUnreads } from '@/types/dms';
 
 export interface ChatInfo {
@@ -11,7 +11,7 @@ export interface ChatInfo {
   unread?: {
     readTimeout: number;
     seen: boolean;
-    unread: DMUnread; // lags behind actual unread, only gets update if unread
+    unread: DMUnread | Unread; // lags behind actual unread, only gets update if unread
   };
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
@@ -43,12 +43,12 @@ export interface ChatStore {
   delayedRead: (whom: string, callback: () => void) => void;
   unread: (
     whom: string,
-    unread: DMUnread,
+    unread: Unread | DMUnread,
     markRead: (whm: string) => void
   ) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (unreads: DMUnreads) => void;
+  update: (unreads: Unreads | DMUnreads) => void;
 }
 
 const emptyInfo: () => ChatInfo = () => ({
@@ -62,7 +62,7 @@ const emptyInfo: () => ChatInfo = () => ({
 
 export const chatStoreLogger = createDevLogger('ChatStore', false);
 
-export function isUnread(unread: Unread): boolean {
+export function isUnread(unread: Unread | DMUnread): boolean {
   const hasThreads = Object.keys(unread.threads || {}).length > 0;
   return unread.count > 0 && (!!unread['unread-id'] || hasThreads);
 }

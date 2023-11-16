@@ -1397,6 +1397,8 @@
           ?(%del %add-react %del-react)  (di-give-writs-diff diff)
           %add
         =*  memo  memo.delt
+        =?  unread-threads.remark.dm  !=(our.bowl author.memo)
+            (~(put in unread-threads.remark.dm) p.diff)
         =?  remark.dm  =(author.memo our.bowl)
           remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
         =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
@@ -1521,7 +1523,11 @@
         %unwatch  remark.dm(watching |)
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
-          %read   remark.dm(last-read now.bowl)
+          %read   
+        %=  remark.dm
+          last-read  now.bowl
+          unread-threads  *(set id:c)
+        ==
   ::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
   ::    =.  last-read.remark.chat  time
   ::    ca-core
