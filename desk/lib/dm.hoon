@@ -1,4 +1,4 @@
-/-  c=chat, d=channel
+/-  c=chat, d=channels
 /+  mp=mop-extensions
 |_  pac=pact:c
 ++  mope  ((mp time writ:c) lte)

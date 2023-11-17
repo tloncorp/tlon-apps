@@ -2,7 +2,7 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channel, g=groups
+/-  c=channels, g=groups
 /+  utils=channel-utils
 /+  default-agent, verb, dbug, neg=negotiate
 ::

@@ -1,4 +1,4 @@
-/-  h=heap, c=channel, g=groups, ha=hark, e=epic
+/-  h=heap, c=channels, g=groups, ha=hark, e=epic
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios

@@ -1,4 +1,4 @@
-/-  c=chat, d=channel
+/-  c=chat, d=channels
 /-  meta
 /+  cite=cite-json, gj=groups-json, dj=channel-json
 |%

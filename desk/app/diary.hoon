@@ -1,4 +1,4 @@
-/-  d=diary, g=groups, ha=hark, channel
+/-  d=diary, g=groups, ha=hark, channels
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
@@ -527,7 +527,7 @@
 ::
 ++  migrate
   |%
-  ++  d  channel
+  ++  d  channels
   ++  a  ^d
   ++  server
     =/  server-channels=v-channels:d

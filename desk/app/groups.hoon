@@ -1,4 +1,4 @@
-/-  g=groups, ha=hark, h=heap, d=channel, c=chat
+/-  g=groups, ha=hark, h=heap, d=channels, c=chat
 /-  g-one=group
 /-  m-one=metadata-store
 /-  meta
