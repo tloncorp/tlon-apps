@@ -1,7 +1,7 @@
 import bigInt from 'big-integer';
 import { useCallback } from 'react';
 import { format, isToday } from 'date-fns';
-import { daToUnix } from '@urbit/api';
+import { daToUnix, unixToDa } from '@urbit/api';
 import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
@@ -26,22 +26,27 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
     return null;
   }
   const { unread } = chatInfo.unread;
-  if (typeof unread['unread-id'] !== 'object' || !unread['unread-id']) {
+  const threadVals = Object.values(unread.threads);
+  if (
+    typeof unread['unread-id'] !== 'object' ||
+    (!unread['unread-id'] && threadVals.length === 0)
+  ) {
     return null;
   }
 
-  const { time } = unread['unread-id'];
-
-  if (!Object.values(unread.threads).some((t) => typeof t === 'object')) {
+  if (threadVals.length > 0 && !threadVals.some((t) => typeof t === 'object')) {
     return null;
   }
 
+  const time = unread['unread-id']?.time || unixToDa(Date.now()).toString();
   const threads = unread.threads as DMUnread['threads'];
   const entries = Object.entries(threads).sort(([, a], [, b]) =>
     a['parent-time'].localeCompare(b['parent-time'])
   );
 
-  const [topId, { 'parent-time': parent, time: replyTime }] = entries[0];
+  const topId = entries[0]?.[0];
+  const parent = entries[0]?.[1]['parent-time'];
+  const replyTime = entries[0]?.[1].time;
   const to =
     entries.length === 0 || parent > time
       ? `${root}?msg=${time}`

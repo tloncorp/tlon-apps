@@ -156,7 +156,7 @@ export default function ChatWindow({
 
   return (
     <div className="relative h-full">
-      <ChatUnreadAlerts whom={whom} root={root} />
+      <ChatUnreadAlerts nest={nest} root={root} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           /**
