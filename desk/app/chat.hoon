@@ -126,6 +126,11 @@
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
     =.  cor  (emit %pass ca-area:ca-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
+    =.  cor
+      %+  roll  ~(tap in `(set @p)`(~(run in ~(key by chats)) head))
+      |=  [=ship cr=_cor]
+      ?:  =(ship our.bowl)  cr
+      (watch-epic:cr ship &)
     ?:  =(okay:c cool)  cor
     :: =?  cor  bad  (emit (keep !>(old)))
     %-  (note:wood %ver leaf/"New Epic" ~)
@@ -303,10 +308,15 @@
   (emit %pass /groups %agent [our.bowl %groups] %watch /groups)
 ::
 ++  watch-epic
-  |=  her=ship
+  |=  [her=ship leave=?]
   ^+  cor
   =/  =wire  /epic
   =/  =dock  [her dap.bowl]
+  ?:  leave
+    %-  emil
+    :~  [%pass wire %agent [her dap.bowl] %leave ~]
+        [%pass wire %agent [her dap.bowl] %watch /epic]
+    ==
   ?:  (~(has by wex.bowl) [wire dock])
     cor
   (emit %pass wire %agent [her dap.bowl] %watch /epic)
@@ -837,15 +847,13 @@
   ^+  cor
   ?+    -.sign  cor
       %kick
-    (watch-epic src.bowl)
+    (watch-epic src.bowl |)
   ::
       %fact
     ?.  =(%epic p.cage.sign)
       %-  (note:wood %odd leaf/"!!! weird fact on /epic" ~)
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay:c)  :: is now our guy
-      cor
     %+  roll  ~(tap by chats)
     |=  [[=flag:g =chat:c] out=_cor]
     ?.  =(src.bowl p.flag)
@@ -1628,7 +1636,7 @@
       ca-core
     ::
         %watch-ack
-      =.  net.chat  [%sub src.bowl & %chi ~]
+      =?  net.chat  ?=(%sub -.net.chat)  net.chat(load ?=(~ p.sign))
       ?~  p.sign  ca-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       ::  =.  gone  &
@@ -1656,7 +1664,7 @@
        ca-core
     %-  (note:wood %ver leaf/"took lev epic: {<flag>}" ~)
     =.  saga.net.chat  lev/~
-    =.  cor  (watch-epic p.flag)
+    =.  cor  (watch-epic p.flag |)
     ca-core
   ::
   ++  ca-make-chi
@@ -1754,12 +1762,17 @@
     |=  j=join:c
     ^+  ca-core
     ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
-    =.  chats  (~(put by chats) chan.j *chat:c)
+    =|  =chat:c
+    =.  net.chat
+      ?:  =(our.bowl p.chan.j)  [%pub ~]
+      [%sub p.chan.j | %chi ~]
+    =.  chats  (~(put by chats) chan.j chat)
     =.  ca-core  (ca-abed chan.j)
     =.  last-read.remark.chat  now.bowl
     =.  group.perm.chat  group.j
     =.  cor  (give-brief flag/flag ca-brief)
-    ca-sub
+    =.  cor  (watch-epic p.flag &)
+    ca-core
   ::
   ++  ca-leave
     =/  =dock  [p.flag dap.bowl]
