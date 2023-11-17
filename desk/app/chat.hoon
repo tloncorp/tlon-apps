@@ -958,6 +958,7 @@
     (~(uni in team.crew.club) hive.crew.club)
   ::
   ++  cu-area  `wire`/club/(scot %uv id)
+  ++  cu-area-writs  `wire`/club/(scot %uv id)/writs
   ::
   ++  cu-uid
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
@@ -1044,7 +1045,10 @@
     ?~  response  cu-core
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[(welp cu-area /writs)] cage)
+      (emit %give %fact ~[cu-area] cage)
+    =.  cor
+      =/  =cage  writ-response+!>(u.response)
+      (emit %give %fact ~[cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1296,6 +1300,7 @@
     di-core(ship s, dm d)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
+  ++  di-area-writs  `path`/dm/(scot %p ship)/writs
   ::
   ++  di-spin-groups
     |=  [con=(list content:ha) but=(unit button:ha)]
@@ -1329,6 +1334,9 @@
     =.  cor
       =/  =cage  writ-response+!>(u.response)
       (emit %give %fact ~[di-area] cage)
+    =.  cor
+      =/  =cage  writ-response+!>(u.response)
+      (emit %give %fact ~[di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff

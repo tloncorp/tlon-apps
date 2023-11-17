@@ -1463,10 +1463,10 @@ export function useWrit(whom: string, writId: string, disabled = false) {
 
   const subPath = useMemo(() => {
     if (whomIsDm(whom)) {
-      return `/dm/${whom}`;
+      return `/dm/${whom}/writs`;
     }
 
-    return `/club/${whom}`;
+    return `/club/${whom}/writs`;
   }, [whom]);
 
   const enabled = useMemo(
