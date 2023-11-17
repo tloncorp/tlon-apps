@@ -167,6 +167,12 @@
       %heap-remark-action
     =+  !<(act=remark-action:h vase)
     he-abet:(he-remark-diff:(he-abed:he-core p.act) q.act)
+      %import-channel
+    ?>  from-self
+    =+  !<([* =flag:h cr=create:h =log:h] vase)
+    =.  cor  (create cr)
+    =/  core  (he-abed:he-core flag)
+    he-abet:(he-apply-logs:core log)
   ==
   ++  join
     |=  =join:h

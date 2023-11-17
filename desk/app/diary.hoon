@@ -283,6 +283,12 @@
       %diary-remark-action
     =+  !<(act=remark-action:d vase)
     di-abet:(di-remark-diff:(di-abed:di-core p.act) q.act)
+      %import-channel
+    ?>  from-self
+    =+  !<([* =flag:d cr=create:d =log:d] vase)
+    =.  cor  (create cr)
+    =/  core  (di-abed:di-core flag)
+    di-abet:(di-apply-logs:core log)
   ==
   ++  join
     |=  =join:d
