@@ -77,6 +77,10 @@ export default function DmWindow({
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
+
+    return () => {
+      useChatStore.getState().setCurrent('');
+    };
   }, [whom]);
 
   // read the messages once navigated away
