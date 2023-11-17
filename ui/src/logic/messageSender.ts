@@ -8,7 +8,7 @@ import {
   Nest,
   PostEssay,
 } from '@/types/channel';
-import { createMessage } from '@/state/chat/utils';
+import { buildAddDelta, createMessage } from '@/state/chat/utils';
 import { WritDelta } from '@/types/dms';
 import { SendMessageVariables, SendReplyVariables } from '@/state/chat';
 import { isImageUrl } from './utils';
@@ -125,8 +125,7 @@ export default function messageSender({
       if (sendDm) {
         sendDm({
           whom,
-          message,
-          replying,
+          delta: buildAddDelta(essay),
         });
       } else if (sendDmReply && replying) {
         sendDmReply({
@@ -156,7 +155,7 @@ export default function messageSender({
 
       img.onerror = () => {
         if (sendDm) {
-          sendDm({ whom, message, replying });
+          sendDm({ whom, delta: buildAddDelta(essay) });
         } else if (sendDmReply && replying) {
           sendDmReply({
             whom,
@@ -179,8 +178,7 @@ export default function messageSender({
       };
     };
   } else if (sendDm) {
-    const message = createMessage(whom, essay, replying);
-    sendDm({ whom, message, replying });
+    sendDm({ whom, delta: buildAddDelta(essay) });
   } else if (sendDmReply && replying) {
     const message = createMessage(whom, essay, replying);
     sendDmReply({
