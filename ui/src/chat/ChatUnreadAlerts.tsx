@@ -38,7 +38,7 @@ export default function ChatUnreadAlerts({
 
   const topId = threadKeys[0];
   const to =
-    threadKeys.length === 0
+    threadKeys.length === 0 || topId > id
       ? `${root}?msg=${id}`
       : `${root}/message/${topId}?msg=${threads[topId]}`;
 

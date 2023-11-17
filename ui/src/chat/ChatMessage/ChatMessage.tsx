@@ -354,7 +354,9 @@ const ChatMessage = React.memo<
               ref={viewRef}
             />
           ) : null}
-          {newDay ? <DateDivider date={unix} /> : null}
+          {newDay && unreadDisplay === 'none' ? (
+            <DateDivider date={unix} />
+          ) : null}
           {newAuthor ? (
             <Author ship={essay.author} date={unix} hideRoles={isThread} />
           ) : null}

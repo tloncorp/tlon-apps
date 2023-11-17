@@ -41,7 +41,7 @@ import {
 } from '@/types/channel';
 import api from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
-import { useChatStore } from '@/chat/useChatStore';
+import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
@@ -1111,9 +1111,9 @@ export function useDeleteDMReplyReactMutation() {
 }
 
 export function useIsDmUnread(whom: string) {
-  const { data: unreads } = useDmUnreads();
-  const unread = unreads[whom];
-  return Boolean(unread?.count > 0 && unread['unread-id']);
+  const chatInfo = useChatInfo(whom);
+  const unread = chatInfo?.unread;
+  return Boolean(unread && !unread.seen);
 }
 
 const selPendingDms = (s: ChatState) => s.pendingDms;

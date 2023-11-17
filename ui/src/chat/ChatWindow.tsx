@@ -93,10 +93,11 @@ export default function ChatWindow({
   useEffect(
     () => () => {
       if (readTimeout !== undefined && readTimeout !== 0) {
-        useChatStore.getState().read(whom);
+        useChatStore.getState().read(nest);
+        markRead({ nest });
       }
     },
-    [readTimeout, whom]
+    [readTimeout, nest, markRead]
   );
 
   if (isLoading) {
