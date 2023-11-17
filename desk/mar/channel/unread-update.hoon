@@ -1,4 +1,4 @@
-/-  d=channel
+/-  d=channels
 /+  j=channel-json
 |_  update=[=nest:d =unread:d]
 ++  grad  %noun
