@@ -1,1 +1,1 @@
-../../desk/sur/channel.hoon
+../../desk/sur/channels.hoon
