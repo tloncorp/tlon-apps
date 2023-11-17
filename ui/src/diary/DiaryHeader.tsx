@@ -133,6 +133,7 @@ export default function DiaryHeader({
                 ? ''
                 : 'small-button shrink-0 bg-blue px-1 text-white sm:px-2'
             )}
+            data-testid="add-note-button"
           >
             {isMobile ? (
               <AddIconMobileNav className="h-8 w-8 text-black" />

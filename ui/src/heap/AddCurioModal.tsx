@@ -267,6 +267,7 @@ export default function AddCurioModal({
             onClick={() => postBlock()}
             className="button"
             disabled={['loading', 'error'].includes(status) || isEmpty}
+            data-testid="block-post-button"
           >
             {status === 'loading' ? (
               <LoadingSpinner className="h-4 w-4" />

@@ -29,8 +29,8 @@ const ships: Record<
   }
 > = {
   zod: {
-    url: 'https://bootstrap.urbit.org/rube-zod5.tgz',
-    savePath: path.join(__dirname, 'rube-zod5.tgz'),
+    url: 'https://bootstrap.urbit.org/rube-zod6.tgz',
+    savePath: path.join(__dirname, 'rube-zod6.tgz'),
     extractPath: path.join(__dirname, 'zod'),
     ship: 'zod',
     code: 'lidlut-tabwed-pillex-ridrup',
@@ -38,8 +38,8 @@ const ships: Record<
     loopbackPort: '',
   },
   bus: {
-    url: 'https://bootstrap.urbit.org/rube-bus5.tgz',
-    savePath: path.join(__dirname, 'rube-bus5.tgz'),
+    url: 'https://bootstrap.urbit.org/rube-bus6.tgz',
+    savePath: path.join(__dirname, 'rube-bus6.tgz'),
     extractPath: path.join(__dirname, 'bus'),
     ship: 'bus',
     code: 'riddec-bicrym-ridlev-pocsef',
@@ -542,7 +542,7 @@ const runPlaywrightTests = async () => {
   const runTestForShip = (ship: string) =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests for ${ship}`);
-      const playwrightArgs = ['playwright', 'test', '--workers=1'];
+      const playwrightArgs = ['playwright', 'test', '--workers=2', ''];
 
       if (process.env.DEBUG_PLAYWRIGHT) {
         playwrightArgs.push('--debug');
