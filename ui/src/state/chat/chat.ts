@@ -1128,8 +1128,10 @@ export function useSendReplyMutation() {
       const infiniteQueryKey = ['dms', whom, 'infinite'];
       const parentWritQueryKey = ['dms', whom, parentId];
 
-      queryClient.refetchQueries(parentWritQueryKey);
-      queryClient.invalidateQueries(infiniteQueryKey);
+      queryClient.invalidateQueries(parentWritQueryKey, {
+        refetchType: 'none',
+      });
+      queryClient.invalidateQueries(infiniteQueryKey, { refetchType: 'none' });
     },
   });
 }
@@ -1448,10 +1450,7 @@ export function useHasUnreadMessages() {
 }
 
 export function useWrit(whom: string, writId: string, disabled = false) {
-  const queryKey = useMemo(
-    () => ['dms', whom, 'writs', writId],
-    [whom, writId]
-  );
+  const queryKey = useMemo(() => ['dms', whom, writId], [whom, writId]);
 
   const scryPath = useMemo(() => {
     const suffix = `/writs/writ/id/${writId}`;
