@@ -152,7 +152,7 @@
         ?.  (match gill)  ~
         %+  murn  ~(tap by m)
         |=  [=wire =path]
-        =.  wire  (pack-wire gill wire)
+        =.  wire  (pack-wire wire gill)
         ?:  (~(has by boat) [wire gill])  ~  ::  already established
         (some %pass wire %agent gill %watch path)
       ::  manage subs for new or non-matching gills
@@ -270,7 +270,7 @@
       ::  so we can retrieve it later if needed
       ::
       =?  p.card  ?=(?(%watch %leave) -.task.q.card)
-        (pack-wire gill p.card)
+        (pack-wire p.card gill)
       ::  if the target agent is ourselves, always let the card go
       ::
       ?:  =([our dap]:bowl [ship name]:q.card)
@@ -373,7 +373,7 @@
       [[(weld caz.a nos) kik.a] state]
     ::
     ++  pack-wire
-      |=  [=gill:gall =wire]
+      |=  [=wire =gill:gall]
       ^+  wire
       [%~.~ %negotiate %inner-watch (scot %p p.gill) q.gill wire]
     ::
@@ -390,7 +390,7 @@
       =|  cards=(list card)
       |-
       ?~  kik  [[cards inner] state]
-      =.  wex.bowl  (~(del by wex.bowl) i.kik)
+      =.  wex.bowl  (~(del by wex.bowl) (pack-wire i.kik) +.i.kik)
       =^  caz  inner
         %.  [wire.i.kik %kick ~]
         %~  on-agent  inner
