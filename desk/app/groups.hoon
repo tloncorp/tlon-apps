@@ -1105,6 +1105,7 @@
     ^+  go-core
     ?+  wire  !!
         [%updates ~]  (go-take-update sign)
+        [%clone ~]    (go-take-clone sign)
     ::
         [%join-channels ~]
       ?>  ?=(%poke-ack -.sign)
@@ -1171,33 +1172,37 @@
         %group-log-2     (go-apply-log !<(log:g q.cage))
         %group-update-2  (go-update !<(update:g q.cage))
         %group-init-2    (go-fact-init !<(init:g q.cage))
-        %group-clone     (go-take-clone !<(clone:cl q.cage))
       ==
     ==
   ::
   ++  go-take-clone
-    |=  =clone:cl
+    |=  =sign:agent:gall
     ^+  go-core
-    =/  create
-      :*  group.clone
-          name.clone
-          ::  TODO placeholder title & description
-          (crip "{<name.clone>} title")
-          (crip "{<name.clone>} description")
-          ::  TODO get these if necessary
-          readers=~
-          writers=~
-      ==
-    =.  cor
-      ?-  +>-.clone
-          %chat
-        (emit [%pass /clone %agent [our.bowl %chat] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
-          %heap
-        (emit [%pass /clone %agent [our.bowl %heap] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
-          %diary
-        (emit [%pass /clone %agent [our.bowl %diary] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
-      ==
-    go-core
+    ?+  -.sign  go-core
+        %fact
+      =*  cage  cage.sign
+      =+  !<(=clone:cl q.cage)
+      =/  create
+        :*  group.clone
+            name.clone
+            ::  TODO placeholder title & description
+            (crip "{<name.clone>} title")
+            (crip "{<name.clone>} description")
+            ::  TODO get these if necessary
+            readers=~
+            writers=~
+        ==
+      =.  cor
+        ?-  +>-.clone
+            %chat
+          (emit [%pass /groups/(scot %p our.bowl)/[group.clone]/clone %agent [our.bowl %chat] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
+            %heap
+          (emit [%pass /groups/(scot %p our.bowl)/[group.clone]/clone %agent [our.bowl %heap] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
+            %diary
+          (emit [%pass /groups/(scot %p our.bowl)/[group.clone]/clone %agent [our.bowl %diary] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
+        ==
+      go-core
+    ==
   ::
   ++  go-odd-update
     |=  =mark
@@ -1872,7 +1877,7 @@
   ++  ga-clone
     ^+  ga-core
     =.  cor
-    (emit %pass /group/(scot %p p.flag)/[q.flag]/clone %agent [p.flag %groups] %watch /clone/(scot %p p.flag)/[q.flag])
+    (emit %pass /groups/(scot %p p.flag)/[q.flag]/clone %agent [p.flag %groups] %watch /groups/(scot %p p.flag)/[q.flag]/clone)
     ga-core
   ::
   ++  ga-knock
