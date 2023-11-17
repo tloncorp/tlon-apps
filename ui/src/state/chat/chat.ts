@@ -1334,6 +1334,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
       app: 'chat',
       path: `/${type}/${whom}`,
       event: (data: WritResponse) => {
+        console.log('infinite dms got a fact...');
         // for now, let's avoid updating data in place and always refetch
         // when we hear a fact
         // infiniteDMsUpdater(queryKey, data);
@@ -1393,7 +1394,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
       };
     },
     refetchOnMount: true,
-    retryOnMount: false,
+    retryOnMount: true,
     retry: false,
   });
 

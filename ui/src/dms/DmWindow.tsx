@@ -54,6 +54,7 @@ export default function DmWindow({
   );
 
   const onAtBottom = useCallback(() => {
+    console.log('onAtBottom, hasNextPage?', hasNextPage);
     if (hasNextPage && !isFetchingNextPage) {
       log('fetching next page');
       fetchNextPage();
@@ -61,6 +62,7 @@ export default function DmWindow({
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const onAtTop = useCallback(() => {
+    console.log('onAtTop, hasPrevPage?', hasPreviousPage);
     if (hasPreviousPage && !isFetchingPreviousPage) {
       log('fetching previous page');
       fetchPreviousPage();
