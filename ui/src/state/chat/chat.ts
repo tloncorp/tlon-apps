@@ -1319,7 +1319,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
   const invalidate = useRef(
     _.debounce(
       () => {
-        queryClient.invalidateQueries({ queryKey, refetchType: 'none' });
+        queryClient.invalidateQueries({ queryKey });
       },
       300,
       {
@@ -1334,7 +1334,9 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
       app: 'chat',
       path: `/${type}/${whom}`,
       event: (data: WritResponse) => {
-        infiniteDMsUpdater(queryKey, data);
+        // for now, let's avoid updating data in place and always refetch
+        // when we hear a fact
+        // infiniteDMsUpdater(queryKey, data);
         invalidate.current();
       },
     });
@@ -1390,7 +1392,7 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
         direction: 'older',
       };
     },
-    refetchOnMount: false,
+    refetchOnMount: true,
     retryOnMount: false,
     retry: false,
   });
