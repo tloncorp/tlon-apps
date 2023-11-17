@@ -93,6 +93,10 @@ export default function ChatWindow({
 
   useEffect(() => {
     useChatStore.getState().setCurrent(nest);
+
+    return () => {
+      useChatStore.getState().setCurrent('');
+    };
   }, [nest]);
 
   const onAtBottom = useCallback(() => {
