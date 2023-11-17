@@ -17,7 +17,8 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const [isOpen, setIsOpen] = useState(false);
   const arrangedNotes = useArrangedPosts(`diary/${flag}`);
   const navigate = useNavigate();
-  const { mutate: deleteNote } = useDeletePostMutation();
+  const { mutate: deleteNote, isLoading: isDeleteLoading } =
+    useDeletePostMutation();
   const { mutate: arrangedNotesMutation } = useArrangedPostsMutation();
   const nest = `diary/${flag}`;
   const { doCopy, didCopy } = useCopy(
@@ -93,6 +94,7 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
     setIsOpen,
     onCopy,
     delNote,
+    isDeleteLoading,
     addToArrangedNotes,
     removeFromArrangedNotes,
     moveUpInArrangedNotes,

@@ -1,10 +1,10 @@
-import cn from 'classnames';
 import React, {
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useMemo,
+  useState,
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
@@ -29,7 +29,6 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import useRequestState from '@/logic/useRequestState';
 import { useIsMobile } from '@/logic/useMedia';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
@@ -43,8 +42,7 @@ import {
 import { emptyPost, Post } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
-import { inlineSummary, inlineToString } from '@/logic/tiptap';
-import { Inline } from '@/types/content';
+import { inlineSummary } from '@/logic/tiptap';
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -80,11 +78,8 @@ function ChatMessageOptions(props: {
     seal.id,
     'delete'
   );
-  const {
-    isPending: isDeletePending,
-    setPending: setDeletePending,
-    setReady,
-  } = useRequestState();
+  // TODO: replace this with isLoading from useMutation for deleting a DM later
+  const [isDeletePending, setIsDeletePending] = useState(false);
   const { chShip, chName } = useParams();
   const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
@@ -98,10 +93,11 @@ function ChatMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
-  const { mutate: deleteChatMessage } = useDeletePostMutation();
   const { mutate: addReactToChat } = useAddPostReactMutation();
   const { mutate: addReactToDm } = useAddDmReactMutation();
   const { mutate: deleteDm } = useDeleteDmMutation();
+  const { mutate: deleteChatMessage, isLoading: isDeleteLoading } =
+    useDeletePostMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
   const {
     show: showPost,
@@ -124,7 +120,7 @@ function ChatMessageOptions(props: {
       onOpenChange(false);
     }
 
-    setDeletePending();
+    setIsDeletePending(true);
 
     try {
       if (isDMorMultiDM) {
@@ -138,7 +134,7 @@ function ChatMessageOptions(props: {
     } catch (e) {
       console.log('Failed to delete message', e);
     }
-    setReady();
+    setIsDeletePending(false);
   };
 
   const onCopy = useCallback(() => {
@@ -472,7 +468,7 @@ function ChatMessageOptions(props: {
         open={deleteOpen}
         setOpen={setDeleteOpen}
         confirmText="Delete"
-        loading={isDeletePending}
+        loading={isDeletePending || isDeleteLoading}
       />
     </>
   );
