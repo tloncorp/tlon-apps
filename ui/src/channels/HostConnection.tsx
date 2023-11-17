@@ -10,6 +10,7 @@ import {
 import { Saga } from '@/types/groups';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import Tooltip from '@/components/Tooltip';
+import useNegotiation from '@/state/negotiation';
 
 interface HostConnectionProps {
   ship: string;
@@ -22,7 +23,8 @@ interface HostConnectionProps {
 export function getText(
   saga: Saga | null,
   ship: string,
-  status?: ConnectionStatus
+  status?: ConnectionStatus,
+  negotiationMatch?: boolean
 ) {
   if (ship === window.our) {
     return 'You are the host';
@@ -32,6 +34,10 @@ export function getText(
     return getCompatibilityText(saga);
   }
 
+  if (negotiationMatch === false) {
+    return 'Your version of groups does not match the host.';
+  }
+
   return !status
     ? 'No connection data'
     : 'pending' in status
@@ -39,8 +45,16 @@ export function getText(
     : getCompletedText(status, ship);
 }
 
-function getHostConnectionColor(saga: Saga | null, status?: ConnectionStatus) {
+function getHostConnectionColor(
+  saga: Saga | null,
+  status?: ConnectionStatus,
+  negotiationMatch?: boolean
+) {
   if (saga && !('synced' in saga)) {
+    return 'text-red-400';
+  }
+
+  if (negotiationMatch === false) {
     return 'text-red-400';
   }
 
@@ -55,15 +69,17 @@ export default function HostConnection({
   saga,
   className,
 }: HostConnectionProps) {
+  const negotiationMatch = useNegotiation(ship, 'channels', 'channels-server');
+
   return (
     <span className={cn('flex items-center space-x-1', className)}>
       {type === 'default' && (
-        <Tooltip content={getText(saga, ship, status)}>
+        <Tooltip content={getText(saga, ship, status, negotiationMatch)}>
           <span tabIndex={0} className="default-focus rounded-md">
             <Bullet16Icon
               className={cn(
                 'h-4 w-4 flex-none',
-                getHostConnectionColor(saga, status)
+                getHostConnectionColor(saga, status, negotiationMatch)
               )}
             />
           </span>
@@ -73,12 +89,12 @@ export default function HostConnection({
         <Bullet16Icon
           className={cn(
             'h-4 w-4 flex-none',
-            getHostConnectionColor(saga, status)
+            getHostConnectionColor(saga, status, negotiationMatch)
           )}
         />
       )}
       {(type === 'combo' || type === 'text') && (
-        <span>{getText(saga, ship, status)}</span>
+        <span>{getText(saga, ship, status, negotiationMatch)}</span>
       )}
     </span>
   );

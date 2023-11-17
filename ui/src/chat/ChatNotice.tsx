@@ -1,21 +1,30 @@
 import React from 'react';
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
-import ShipName from '@/components/ShipName';
-import { ChatWrit } from '@/types/chat';
+import { Post } from '@/types/channel';
 import DateDivider from './ChatMessage/DateDivider';
+import ChatContent from './ChatContent/ChatContent';
 
 interface ChatNoticeProps {
-  writ: ChatWrit;
+  writ: Post;
   newDay?: Date;
 }
 
-const sp = '\u0020';
 export default function ChatNotice({ writ, newDay }: ChatNoticeProps) {
-  if (!('notice' in writ.memo.content)) {
+  if (!writ) {
     return null;
   }
 
-  const { notice } = writ.memo.content;
+  if (!('chat' in writ.essay['kind-data'])) {
+    return null;
+  }
+
+  if (!writ.essay['kind-data'].chat) {
+    return null;
+  }
+
+  if (!('notice' in writ.essay['kind-data'].chat)) {
+    return null;
+  }
 
   return (
     <div>
@@ -25,19 +34,7 @@ export default function ChatNotice({ writ, newDay }: ChatNoticeProps) {
           <AddPersonIcon className="h-6 w-6 text-gray-600" />
         </div>
         <p className="font-semibold text-gray-400">
-          {notice.pfix.length > 0 ? (
-            <>
-              {notice.pfix}
-              {sp}
-            </>
-          ) : null}
-          <ShipName name={writ.memo.author} showAlias />
-          {notice.sfix.length > 0 ? (
-            <>
-              {sp}
-              {notice.sfix}
-            </>
-          ) : null}
+          <ChatContent story={writ.essay.content} />
         </p>
       </div>
     </div>

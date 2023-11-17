@@ -1,17 +1,18 @@
 import cn from 'classnames';
-import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+} from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
-import { useCopy, canWriteChannel } from '@/logic/utils';
+import { decToUd } from '@urbit/api';
+import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
+import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import {
-  useChatPerms,
-  useChatState,
-  useHiddenMessages,
-  useMessageToggler,
-  useToggleMessageMutation,
-} from '@/state/chat';
-import { ChatWrit } from '@/types/chat';
+import { useChatState, useMessageToggler } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -29,15 +30,23 @@ import { useIsMobile } from '@/logic/useMedia';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import AddReactIcon from '@/components/icons/AddReactIcon';
-import { inlineToString } from '@/logic/tiptap';
+import {
+  useAddPostReactMutation,
+  useDeletePostMutation,
+  usePerms,
+  usePostToggler,
+} from '@/state/channel/channel';
+import { emptyPost, Post } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
+import { inlineSummary, inlineToString } from '@/logic/tiptap';
+import { Inline } from '@/types/content';
 
 function ChatMessageOptions(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   whom: string;
-  writ: ChatWrit;
+  writ: Post;
   hideThreadReply?: boolean;
   hideReply?: boolean;
   openReactionDetails: () => void;
@@ -46,29 +55,25 @@ function ChatMessageOptions(props: {
     open,
     onOpenChange,
     whom,
-    writ,
+    writ = emptyPost,
     hideThreadReply,
     hideReply,
     openReactionDetails,
   } = props;
+  const { seal, essay } = writ;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
-  const { didCopy, doCopy } = useCopy(
-    `/1/chan/chat/${whom}/msg/${writ.seal.id}`
-  );
-  const messageText =
-    'story' in writ.memo.content && 'inline' in writ.memo.content.story
-      ? writ.memo.content.story.inline.map((i) => inlineToString(i)).join('')
-      : '';
+  const { didCopy, doCopy } = useCopy(`/1/chan/chat/${whom}/msg/${seal.id}`);
+  const messageText = inlineSummary(writ.essay.content);
   const { didCopy: didCopyText, doCopy: doCopyText } = useCopy(messageText);
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,
-    writ.seal.id,
+    seal.id,
     'picker'
   );
   const { open: deleteOpen, setOpen: setDeleteOpen } = useChatDialog(
     whom,
-    writ.seal.id,
+    seal.id,
     'delete'
   );
   const {
@@ -81,15 +86,32 @@ function ChatMessageOptions(props: {
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
   const chFlag = `${chShip}/${chName}`;
-  const perms = useChatPerms(chFlag);
+  const nest = `chat/${chFlag}`;
+  const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
+  const { mutate: deleteChatMessage } = useDeletePostMutation();
+  const { mutate: addFeelToChat } = useAddPostReactMutation();
+  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+  const {
+    show: showPost,
+    hide: hidePost,
+    isHidden: isPostHidden,
+  } = usePostToggler(seal.id);
+  const {
+    show: showChatMessage,
+    hide: hideChatMessage,
+    isHidden: isMessageHidden,
+  } = useMessageToggler(seal.id);
+  const isHidden = useMemo(
+    () => isMessageHidden || isPostHidden,
+    [isMessageHidden, isPostHidden]
+  );
   const containerRef = useRef<HTMLDivElement>(null);
-  const { show, hide, isHidden } = useMessageToggler(writ.seal.id);
 
   const onDelete = async () => {
     if (isMobile) {
@@ -99,7 +121,14 @@ function ChatMessageOptions(props: {
     setDeletePending();
 
     try {
-      await useChatState.getState().delMessage(whom, writ.seal.id);
+      if (isDMorMultiDM) {
+        useChatState.getState().delDm(whom, seal.id);
+      } else {
+        deleteChatMessage({
+          nest,
+          time: decToUd(seal.id),
+        });
+      }
     } catch (e) {
       console.log('Failed to delete message', e);
     }
@@ -127,12 +156,24 @@ function ChatMessageOptions(props: {
   }, [doCopyText, isMobile, onOpenChange]);
 
   const reply = useCallback(() => {
-    setSearchParams({ chat_reply: writ.seal.id }, { replace: true });
-  }, [writ, setSearchParams]);
+    setSearchParams({ reply: seal.id }, { replace: true });
+  }, [seal, setSearchParams]);
+
+  const startThread = () => {
+    navigate(`message/${seal.id}`);
+  };
 
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
-      useChatState.getState().addFeel(whom, writ.seal.id, emoji.shortcodes);
+      if (isDMorMultiDM) {
+        useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
+      } else {
+        addFeelToChat({
+          nest,
+          postId: seal.id,
+          react: emoji.shortcodes,
+        });
+      }
       captureGroupsAnalyticsEvent({
         name: 'react_item',
         groupFlag,
@@ -142,12 +183,26 @@ function ChatMessageOptions(props: {
       });
       setPickerOpen(false);
     },
-    [whom, groupFlag, privacy, writ, setPickerOpen]
+    [
+      whom,
+      groupFlag,
+      privacy,
+      seal,
+      setPickerOpen,
+      addFeelToChat,
+      nest,
+      isDMorMultiDM,
+    ]
   );
 
   const toggleMsg = useCallback(
-    () => (isHidden ? show() : hide()),
-    [isHidden, show, hide]
+    () => (isMessageHidden ? showChatMessage() : hideChatMessage()),
+    [isMessageHidden, showChatMessage, hideChatMessage]
+  );
+
+  const togglePost = useCallback(
+    () => (isPostHidden ? showPost() : hidePost()),
+    [isPostHidden, showPost, hidePost]
   );
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
@@ -160,11 +215,9 @@ function ChatMessageOptions(props: {
 
   const showReactAction = canWrite;
   const showReplyAction = !hideReply;
-  const showThreadAction =
-    !writ.memo.replying && writ.memo.replying?.length !== 0 && !hideThreadReply;
   const showCopyAction = !!groupFlag;
-  const showDeleteAction = isAdmin || window.our === writ.memo.author;
-  const reactionsCount = Object.keys(writ.seal.feels).length;
+  const showDeleteAction = isAdmin || window.our === essay.author;
+  const reactionsCount = Object.keys(seal.reacts).length;
 
   const actions: Action[] = [];
 
@@ -178,7 +231,7 @@ function ChatMessageOptions(props: {
         </div>
       ),
       onClick: () => {
-        navigate(`picker/${writ.seal.id}`, {
+        navigate(`picker/${seal.id}`, {
           state: { backgroundLocation: location },
         });
       },
@@ -212,18 +265,16 @@ function ChatMessageOptions(props: {
     });
   }
 
-  if (showThreadAction) {
-    actions.push({
-      key: 'thread',
-      content: (
-        <div className="flex items-center">
-          <HashIcon className="mr-2 h-6 w-6" />
-          Start Thread
-        </div>
-      ),
-      onClick: () => navigate(`message/${writ.seal.id}`),
-    });
-  }
+  actions.push({
+    key: 'thread',
+    content: (
+      <div className="flex items-center">
+        <HashIcon className="mr-2 h-6 w-6" />
+        Start Thread
+      </div>
+    ),
+    onClick: () => navigate(`message/${seal.id}`),
+  });
 
   if (showCopyAction) {
     actions.push({
@@ -261,7 +312,7 @@ function ChatMessageOptions(props: {
 
   actions.push({
     key: 'hide',
-    onClick: toggleMsg,
+    onClick: isDMorMultiDM ? toggleMsg : togglePost,
     content: (
       <div className="flex items-center">
         {isHidden ? (
@@ -347,12 +398,12 @@ function ChatMessageOptions(props: {
                 action={reply}
               />
             )}
-            {showThreadAction && (
+            {!hideThreadReply && (
               <IconButton
                 icon={<HashIcon className="h-6 w-6 text-gray-400" />}
                 label="Start Thread"
                 showTooltip
-                action={() => navigate(`message/${writ.seal.id}`)}
+                action={startThread}
               />
             )}
             {showCopyAction && (
@@ -390,7 +441,7 @@ function ChatMessageOptions(props: {
               }
               label={isHidden ? 'Show Message' : 'Hide Message'}
               showTooltip
-              action={toggleMsg}
+              action={isDMorMultiDM ? toggleMsg : togglePost}
             />
             {showDeleteAction && (
               <IconButton

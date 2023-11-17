@@ -1,4 +1,4 @@
-/-  g=groups, ha=hark, h=heap, d=diary, c=chat
+/-  g=groups, ha=hark, h=heap, d=channel, c=chat
 /-  g-one=group
 /-  m-one=metadata-store
 /-  meta
@@ -226,6 +226,7 @@
 ++  reset-channel-perms
   |=  [=flag:g cr=_cor]
   |=  [[=nest:g =channel:g] core=_cr]
+  ?.  ?=(?(%diary %heap %chat) p.nest)  core
   =.  cards.core
     :_
     :_  cards.core
@@ -237,31 +238,12 @@
       [%pass wire %agent dock %poke cage]
     ^-  card
     =/  =path  (welp (channel-scry nest) /perm/noun)
-    ?+  -.nest  *card
-        %chat
-      =/  perms  .^(perm:c %gx path)
-      =/  =action:c  [+.nest [now.bowl [%del-sects writers.perms]]]
-      =/  =wire  /chat
-      =/  =dock  [our.bowl %chat]
-      =/  =cage  [act:mar:c !>(action)]
-      [%pass wire %agent dock %poke cage]
-    ::
-        %diary
-      =/  perms  .^(perm:d %gx path)
-      =/  =action:d  [+.nest [now.bowl [%del-sects writers.perms]]]
-      =/  =wire  /diary
-      =/  =dock  [our.bowl %diary]
-      =/  =cage  [act:mar:d !>(action)]
-      [%pass wire %agent dock %poke cage]
-    ::
-        %heap
-      =/  perms  .^(perm:h %gx path)
-      =/  =action:h  [+.nest [now.bowl [%del-sects writers.perms]]]
-      =/  =wire  /heap
-      =/  =dock  [our.bowl %heap]
-      =/  =cage  [act:mar:h !>(action)]
-      [%pass wire %agent dock %poke cage]
-    ==
+    =/  perms  .^(perm:d %gx path)
+    =/  =c-channels:d  [%channel nest %del-writers writers.perms]
+    =/  =wire  /diary
+    =/  =dock  [our.bowl %channels-server]
+    =/  =cage  [%channel-command !>(c-channels)]
+    [%pass wire %agent dock %poke cage]
   core
 ::
 ++  verify-cabals  (roll ~(tap by groups) verify-group-cabals)
@@ -290,12 +272,8 @@
   ?.  (gth ~(wyt in diff) 0)  cr
   ?.  =(p.nest ?(%chat %heap %diary))  cr
   =/  update  [q.nest [now.bowl [%del-sects diff]]]
-  =-  cr(cards [[%pass /groups/role %agent [p.q.nest p.nest] %poke -] cards.cr])
-  ?+  p.nest  *cage
-    %chat   [act:mar:c !>(update)]
-    %heap   [act:mar:h !>(update)]
-    %diary  [act:mar:d !>(update)]
-  ==
+  =/  cage  [%channels-action !>(update)]
+  cr(cards [[%pass /groups/role %agent [p.q.nest p.nest] %poke cage] cards.cr])
 ::
 ::  +load: load next state
 ++  load
@@ -394,11 +372,12 @@
   ::
       [%x %groups ship=@ name=@ rest=*]
     =/  ship  (slav %p ship.pole)
-    =/  group  (~(got by groups) [ship name.pole])
+    =/  group  (~(get by groups) [ship name.pole])
+    ?~  group  [~ ~]
     ?~  rest.pole
-      ``group+!>(+.group)
+      ``group+!>(+.u.group)
     ?:  =(/v0 rest.pole)
-      ``group-ui+!>(`group-ui:g`(to-group-ui group))
+      ``group-ui+!>(`group-ui:g`(to-group-ui u.group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
       [%x %exists ship=@ name=@ rest=*]
@@ -463,6 +442,7 @@
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
   ^+  cor
+  ~|  `wire`pole
   ?+    pole  ~|(bad-agent-take/pole !!)
       ~   cor
       [%epic ~]  (take-epic sign)
@@ -474,6 +454,18 @@
       [%hi ship=@ ~]
     =/  =ship  (slav %p ship.pole)
     (take-hi ship sign)
+  ::
+      [%groups ship=@ name=@ rest=?(%proxy %leave-channels) ~]
+    ?>  ?=(%poke-ack -.sign)
+    ::  whether it's an ack or nack, nothing to do on our end
+    ?~  p.sign  cor
+    %.  cor
+    ?-  rest.pole
+        %proxy
+      (slog leaf/"Error forwarding poke" u.p.sign)
+        %leave-channels
+      (slog leaf/"Failed to leave channel" u.p.sign)
+    ==
   ::
       [%groups ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -887,8 +879,11 @@
           nests
       |=  nes=nest:g
       ^-  card
-      =/  =dock  [our.bowl p.nes]
-      =/  =cage  channel-leave+!>(q.nes)
+      =/  =dock  [our.bowl %channels]
+      =/  action=a-channels:d
+        ?>  ?=(?(%chat %diary %heap) p.nes)
+        [%channel nes %leave ~]
+      =/  =cage  channel-action+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
       [%pass wire %agent dock %poke cage]
     ::
@@ -899,8 +894,11 @@
           nests
       |=  nes=nest:g
       ^-  card
-      =/  =dock  [our.bowl p.nes] :: TODO: generally remove chat hard-coding j
-      =/  =cage  channel-join+!>([flag q.nes])
+      =/  =dock  [our.bowl %channels]
+      =/  action=a-channels:d
+        ?>  ?=(?(%chat %diary %heap) p.nes)
+        [%channel nes %join flag]
+      =/  =cage  ['channel-action' !>(action)]
       =/  =wire  (snoc go-area %join-channels)
       [%pass wire %agent dock %poke cage]
     --
@@ -1077,19 +1075,6 @@
       ?~  p.sign
         go-core
       %-  (slog leaf/"Failed to autojoin channel" u.p.sign)
-      go-core
-    ::
-        [%leave-channels ~]
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign
-        go-core
-      %-  (slog leaf/"Failed to leave channel" u.p.sign)
-      go-core
-    ::
-        [%proxy ~]
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  go-core
-      %-  (slog leaf/"Error forwarding poke" u.p.sign)
       go-core
     ==
   ::

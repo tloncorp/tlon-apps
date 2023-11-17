@@ -1,16 +1,22 @@
 import api from '@/api';
+import { decToUd } from '@urbit/api';
 import { createStorageKey, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { ChatScan, ChatWrit, newWritMap } from '@/types/chat';
+import { ChatMap, ReplyTuple, newChatMap } from '@/types/channel';
+import {
+  ChatScan,
+  ChatScanItem,
+  Writ,
+  WritTuple,
+  newWritMap,
+} from '@/types/dms';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import { useMemo } from 'react';
-import BTree from 'sorted-btree';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
 type Whom = string;
-type SearchResult = BTree<bigInt.BigInteger, ChatWrit>;
+type SearchResult = ChatMap;
 
 interface QueryHistory {
   queries: string[];
@@ -48,7 +54,7 @@ export function deserializeHistory(serialized: string) {
   Object.entries(parsed).forEach(([whom, queryHistory]) => {
     const { queries, lastQuery } = queryHistory as {
       queries: string[];
-      lastQuery: { query: string; result: [string, ChatWrit][] };
+      lastQuery: { query: string; result: [string, Writ][] };
     };
     history[whom] = {
       queries,
@@ -114,7 +120,7 @@ export function useInfiniteChatSearch(whom: string, query: string) {
     queryFn: async ({ pageParam = 0 }) => {
       const res = await api.scry<ChatScan>({
         app: 'chat',
-        path: `/${type}/${whom}/search/text/${pageParam}/20/${query}`,
+        path: `/${type}/${whom}/search/text/${decToUd(pageParam)}/20/${query}`,
       });
       return res;
     },
@@ -124,14 +130,23 @@ export function useInfiniteChatSearch(whom: string, query: string) {
     },
   });
 
-  const scan = useMemo(() => {
-    return newWritMap(
-      (data?.pages || [])
-        .flat()
-        .map(({ time, writ }) => [bigInt(udToDec(time)), writ]),
-      true
-    );
-  }, [data]);
+  const scan = useMemo(
+    () =>
+      newChatMap(
+        (data?.pages || [])
+          .flat()
+          .map((scItem: ChatScanItem) =>
+            scItem && 'writ' in scItem
+              ? ([bigInt(scItem.writ.seal.time), scItem.writ] as WritTuple)
+              : ([
+                  bigInt(scItem.reply.reply.seal.time),
+                  scItem.reply.reply,
+                ] as ReplyTuple)
+          ),
+        true
+      ),
+    [data]
+  );
 
   if (query !== '' && data?.pages?.length === 1) {
     updateSearchHistory(whom, query, scan);

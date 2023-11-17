@@ -1,21 +1,8 @@
 import cn from 'classnames';
 import { useLocation } from 'react-router';
-import React, {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { channelHref, canReadChannel } from '@/logic/channel';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import {
-  channelHref,
-  canReadChannel,
-  nestToFlag,
-  getFlagParts,
-  isChannelImported,
-} from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGroup,
@@ -36,13 +23,7 @@ import {
   useCheckChannelUnread,
 } from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import HashIcon from '@/components/icons/HashIcon';
-import MigrationTooltip from '@/components/MigrationTooltip';
-import {
-  usePendingImports,
-  useStartedMigration,
-} from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -124,27 +105,6 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
   );
 }
 
-interface UnmigratedChannelProps {
-  icon: ReactNode | ((active: boolean) => React.ReactNode);
-  title: string;
-  host: string;
-}
-
-function UnmigratedChannel({ icon, host, title }: UnmigratedChannelProps) {
-  return (
-    <MigrationTooltip ship={host} side="right">
-      <SidebarItem
-        icon={icon}
-        actions={
-          <Bullet16Icon className="m-2 h-4 w-4 text-orange opacity-60" />
-        }
-      >
-        <span className="opacity-60">{title}</span>
-      </SidebarItem>
-    </MigrationTooltip>
-  );
-}
-
 type ListItem =
   | {
       type: 'static-top';
@@ -164,8 +124,6 @@ export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const connected = useGroupConnection(flag);
-  const pendingImports = usePendingImports();
-  const { hasStarted } = useStartedMigration(flag);
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels } = useChannelSections(flag);
@@ -195,8 +153,7 @@ export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
     const arr: ListItem[] = [{ type: 'static-top' }];
 
     const shouldShowChannel = ([nest, channel]: [string, GroupChannel]) =>
-      (isChannelJoined(nest) && canReadChannel(channel, vessel, group.bloc)) ||
-      nest in pendingImports;
+      isChannelJoined(nest) && canReadChannel(channel, vessel, group.bloc);
 
     if (isDefaultSort) {
       filteredSections.forEach((s) => {
@@ -228,7 +185,6 @@ export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
     isDefaultSort,
     isChannelJoined,
     vessel,
-    pendingImports,
     filteredSections,
     sectionedChannels,
     sortChannels,
@@ -288,37 +244,19 @@ export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
 
   const renderChannel = useCallback(
     ([nest, channel]: [string, GroupChannel]) => {
-      const [, chFlag] = nestToFlag(nest);
-      const { ship } = getFlagParts(chFlag);
-      const imported =
-        isChannelImported(nest, pendingImports) && hasStarted(ship);
       const icon = (active: boolean) =>
         isMobile ? (
           <span
             className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-md bg-gray-50',
-              !imported && 'opacity-60',
+              'flex h-12 w-12 items-center justify-center rounded-md',
               active && 'bg-white'
             )}
           >
             <ChannelIcon nest={nest} className="h-6 w-6 text-gray-800" />
           </span>
         ) : (
-          <ChannelIcon
-            nest={nest}
-            className={cn('h-6 w-6', !imported && 'opacity-60')}
-          />
+          <ChannelIcon nest={nest} className="h-6 w-6" />
         );
-
-      if (!imported) {
-        return (
-          <UnmigratedChannel
-            icon={icon}
-            title={channel.meta.title || nest}
-            host={ship}
-          />
-        );
-      }
 
       return (
         <SidebarItem
@@ -336,7 +274,7 @@ export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
         </SidebarItem>
       );
     },
-    [pendingImports, hasStarted, flag, isChannelUnread, isMobile]
+    [flag, isChannelUnread, isMobile]
   );
 
   const renderItem = useCallback(

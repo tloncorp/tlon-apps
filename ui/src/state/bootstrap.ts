@@ -4,6 +4,7 @@ import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
+import { useChatStore } from '@/chat/useChatStore';
 import { useChatState } from './chat';
 import useContactState from './contact';
 import useDocketState from './docket';
@@ -17,9 +18,9 @@ import { useStorage } from './storage';
 const emptyGroupsInit: GroupsInit = {
   groups: {},
   gangs: {},
-  chat: { briefs: {}, chats: {}, pins: [] },
-  heap: { briefs: {}, stash: {} },
-  diary: { briefs: {}, shelf: {} },
+  channels: {},
+  unreads: {},
+  pins: [],
 };
 
 async function chatScry<T>(path: string, def: T) {
@@ -33,87 +34,72 @@ async function chatScry<T>(path: string, def: T) {
   );
 }
 
-async function startGroups(talkStarted: boolean) {
+async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { chat, heap, diary, groups, gangs } = await asyncWithDefault(
+  const { channels, unreads, groups, gangs } = await asyncWithDefault(
     () =>
       api.scry<GroupsInit>({
         app: 'groups-ui',
-        path: '/init/v0',
+        path: '/init',
       }),
     emptyGroupsInit
   );
 
-  if (!talkStarted) {
-    useChatState.getState().start(chat);
-  }
-
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  queryClient.setQueryData(['diary', 'shelf'], diary.shelf);
-  queryClient.setQueryData(['diary', 'briefs'], diary.briefs);
-  queryClient.setQueryData(['heap', 'stash'], heap.stash);
-  queryClient.setQueriesData(['heap', 'briefs'], heap.briefs);
+  queryClient.setQueryData(['channels'], channels);
+  queryClient.setQueryData(['unreads'], unreads);
+  useChatStore.getState().update(unreads);
 }
 
-async function startTalk(groupsStarted: boolean) {
+async function startTalk() {
   // since talk is a separate desk we need to offer a fallback
   const { groups, gangs, ...chat } = await asyncWithFallback(
     () =>
       api.scry<TalkInit>({
         app: 'talk-ui',
-        path: '/init/v0',
+        path: '/init',
       }),
     async () => {
-      const [
-        groupsRes,
-        gangsRes,
-        briefs,
-        chats,
-        dms,
-        clubs,
-        invited,
-        pinsResp,
-      ] = await Promise.all([
-        asyncWithDefault(
-          () =>
-            api.scry<Groups>({
-              app: 'groups',
-              path: '/groups/light/v0',
-            }),
-          {}
-        ),
-        asyncWithDefault(
-          () =>
-            api.scry<Gangs>({
-              app: 'groups',
-              path: '/gangs',
-            }),
-          {}
-        ),
-        chatScry('/briefs', {}),
-        chatScry('/chats', {}),
-        chatScry('/dm', []),
-        chatScry('/clubs', {}),
-        chatScry('/dm/invited', []),
-        chatScry('/pins', { pins: [] }),
-      ]);
+      const [groupsRes, gangsRes, dms, clubs, invited, pinsResp, unreads] =
+        await Promise.all([
+          asyncWithDefault(
+            () =>
+              api.scry<Groups>({
+                app: 'groups',
+                path: '/groups/light/v0',
+              }),
+            {}
+          ),
+          asyncWithDefault(
+            () =>
+              api.scry<Gangs>({
+                app: 'groups',
+                path: '/gangs',
+              }),
+            {}
+          ),
+          chatScry('/dm', []),
+          chatScry('/clubs', {}),
+          chatScry('/dm/invited', []),
+          chatScry('/pins', { pins: [] }),
+          chatScry('/unreads', {}),
+        ]);
       return {
         groups: groupsRes,
         gangs: gangsRes,
-        briefs,
-        chats,
         dms,
         clubs,
         invited,
         pins: pinsResp.pins,
+        unreads,
       };
     }
   );
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
-  useChatState.getState().startTalk(chat, !groupsStarted);
+  useChatState.getState().start(chat);
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
@@ -156,11 +142,11 @@ export default async function bootstrap(
   }
 
   if (isTalk) {
-    startTalk(false);
-    wait(() => startGroups(true), 5);
+    startTalk();
+    wait(() => startGroups(), 5);
   } else {
-    startGroups(false);
-    wait(async () => startTalk(true), 5);
+    startGroups();
+    wait(async () => startTalk(), 5);
   }
 
   if (reset === 'initial') {

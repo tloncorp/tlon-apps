@@ -11,8 +11,7 @@ import {
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import { useChatState, useDmIsPending } from '@/state/chat';
-import ChatWindow from '@/chat/ChatWindow';
+import { useChatState, useDmUnread, useDmIsPending } from '@/state/chat';
 import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';
@@ -23,7 +22,6 @@ import useMessageSelector from '@/logic/useMessageSelector';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import ShipName from '@/components/ShipName';
-import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { Contact } from '@/types/contact';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
@@ -32,11 +30,13 @@ import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import { isGroups } from '@/logic/utils';
+import DmWindow from '@/dms/DmWindow';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
-import { dmListPath } from '@/logic/utils';
+import { dmListPath, isGroups } from '@/logic/utils';
+import useNegotiation from '@/state/negotiation';
 import MessageSelector from './MessageSelector';
+import DmSearch from './DmSearch';
 
 function TitleButton({
   ship,
@@ -49,7 +49,7 @@ function TitleButton({
 }) {
   const appName = useAppName();
   const BackButton = isMobile ? Link : 'div';
-  const { data, showConnection } = useConnectivityCheck(ship || '');
+  const { data } = useConnectivityCheck(ship || '');
 
   return (
     <BackButton
@@ -110,19 +110,21 @@ export default function Dm() {
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
   const { sendMessage } = useChatState.getState();
   const contact = useContact(ship);
-  const { data, showConnection } = useConnectivityCheck(ship || '');
+  const { data } = useConnectivityCheck(ship || '');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
+  const unread = useDmUnread(ship);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const canStart = useChatState(
-    useCallback((s) => ship && Object.keys(s.briefs).includes(ship), [ship])
+    useCallback(() => ship && !!unread, [ship, unread])
   );
   const root = `/dm/${ship}`;
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const negotiationMatch = useNegotiation(ship, 'chat', 'chat');
 
   const {
     isSelectingMessage,
@@ -172,7 +174,7 @@ export default function Dm() {
                 <Route
                   path="search/:query?"
                   element={
-                    <ChatSearch
+                    <DmSearch
                       whom={ship}
                       root={root}
                       placeholder="Search Messages"
@@ -182,7 +184,7 @@ export default function Dm() {
                         contact={contact}
                         isMobile={isMobile}
                       />
-                    </ChatSearch>
+                    </DmSearch>
                   }
                 />
               )}
@@ -265,7 +267,7 @@ export default function Dm() {
           )
         }
         footer={
-          isAccepted ? (
+          isAccepted && negotiationMatch ? (
             <div
               className={cn(
                 isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
@@ -274,24 +276,24 @@ export default function Dm() {
               <ChatInput
                 key={ship}
                 whom={ship}
-                sendMessage={
-                  isSelecting ? sendDmFromMessageSelector : sendMessage
-                }
+                sendDm={isSelecting ? sendDmFromMessageSelector : sendMessage}
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}
                 isScrolling={isScrolling}
               />
             </div>
+          ) : !negotiationMatch ? (
+            <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+              Your version does not match the other party's version.
+            </div>
           ) : null
         }
       >
         {isAccepted ? (
-          <ChatWindow
+          <DmWindow
             whom={ship}
             root={root}
-            scrollElementRef={scrollElementRef}
-            isScrolling={isScrolling}
             prefixedElement={conversationHeader}
           />
         ) : (

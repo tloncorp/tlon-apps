@@ -13,11 +13,9 @@ import { useSearchParams } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
 import {
   useIsShipBlocked,
-  usePact,
   useShipHasBlockedUs,
   useUnblockShipMutation,
 } from '@/state/chat';
-import { ChatBlock, ChatImage, ChatMemo, Cite } from '@/types/chat';
 import MessageEditor, {
   HandlerParams,
   useMessageEditor,
@@ -31,25 +29,18 @@ import {
   useChatInfo,
   useChatStore,
 } from '@/chat/useChatStore';
-import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import { useIsMobile } from '@/logic/useMedia';
-import {
-  normalizeInline,
-  JSONToInlines,
-  makeMention,
-  inlinesToJSON,
-} from '@/logic/tiptap';
-import { Inline } from '@/types/content';
+import { makeMention, inlinesToJSON } from '@/logic/tiptap';
 import AddIcon from '@/components/icons/AddIcon';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
 import { useFileStore, useUploader } from '@/state/storage';
 import {
   IMAGE_REGEX,
   REF_REGEX,
-  isImageUrl,
   pathToCite,
   URL_REGEX,
   createStorageKey,
+  useThreadParentId,
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useGroupFlag } from '@/state/groups';
@@ -57,6 +48,18 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import {
+  Nest,
+  PostEssay,
+  Cite,
+  Story,
+  PageTuple,
+  ReplyTuple,
+  Memo,
+} from '@/types/channel';
+import { CacheId } from '@/state/channel/channel';
+import { WritTuple } from '@/types/dms';
+import messageSender from '@/logic/messageSender';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
 interface ChatInputProps {
@@ -66,9 +69,27 @@ interface ChatInputProps {
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
-  sendMessage: (whom: string, memo: ChatMemo) => void;
-  inThread?: boolean;
+  sendDm?: (whom: string, essay: PostEssay, replying?: string) => void;
+  sendChatMessage?: ({
+    cacheId,
+    essay,
+  }: {
+    cacheId: CacheId;
+    essay: PostEssay;
+  }) => void;
+  sendReply?: ({
+    nest,
+    postId,
+    memo,
+    cacheId,
+  }: {
+    nest: Nest;
+    postId: string;
+    memo: Memo;
+    cacheId: CacheId;
+  }) => void;
   dropZoneId: string;
+  replyingWrit?: PageTuple | WritTuple | ReplyTuple;
   isScrolling: boolean;
 }
 
@@ -109,9 +130,11 @@ export default function ChatInput({
   className = '',
   showReply = false,
   sendDisabled = false,
-  sendMessage,
-  inThread = false,
+  sendDm,
+  sendChatMessage,
+  sendReply,
   dropZoneId,
+  replyingWrit,
   isScrolling,
 }: ChatInputProps) {
   const { isDragging, isOver, droppedFiles, setDroppedFiles, targetId } =
@@ -128,21 +151,20 @@ export default function ChatInput({
     createStorageKey(`chat-${id}`),
     inlinesToJSON([''])
   );
+  const threadParentId = useThreadParentId(whom);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const chatReplyId = useMemo(
-    () => searchParams.get('chat_reply'),
-    [searchParams]
-  );
-  const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
+  const [replyCite, setReplyCite] = useState<Cite>();
   const groupFlag = useGroupFlag();
   const { privacy } = useGroupPrivacy(groupFlag);
-  const pact = usePact(whom);
   const chatInfo = useChatInfo(id);
   const reply = replying || null;
-  // const replyingWrit = reply && pact.writs.get(pact.index[reply]);
-  const replyingWrit = chatReplyId && pact.writs.get(pact.index[chatReplyId]);
-  const ship = replyingWrit && replyingWrit.memo.author;
+  const ship =
+    replyingWrit && replyingWrit[1] && 'essay' in replyingWrit[1]
+      ? replyingWrit[1].essay.author
+      : replyingWrit && replyingWrit[1] && 'memo' in replyingWrit[1]
+      ? replyingWrit[1].memo.author
+      : null;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
@@ -296,72 +318,21 @@ export default function ChatInput({
         return;
       }
 
-      const data = normalizeInline(
-        JSONToInlines(editor?.getJSON()) as Inline[]
-      );
-      // Checking for this prevents an extra <br>
-      // from being added to the end of the message
-      const dataIsJustBreak =
-        data.length === 1 && typeof data[0] === 'object' && 'break' in data[0];
+      const now = Date.now();
 
-      const memo: ChatMemo = {
-        replying: reply,
-        author: `~${window.ship || 'zod'}`,
-        sent: 0, // wait until ID is created so we can share time
-        content: {
-          story: {
-            inline: !dataIsJustBreak
-              ? Array.isArray(data)
-                ? data
-                : [data]
-              : [],
-            block: [...blocks, ...(replyCite ? [replyCite] : [])],
-          },
-        },
-      };
+      messageSender({
+        whom,
+        replying,
+        editorJson: editor.getJSON(),
+        text: editor.getText(),
+        blocks,
+        replyCite,
+        now,
+        sendDm,
+        sendChatMessage,
+        sendReply,
+      });
 
-      const text = editor.getText();
-      const textIsImageUrl = isImageUrl(text);
-      const dataIsJustLink =
-        data.length > 0 && typeof data[0] === 'object' && 'link' in data[0];
-
-      if (textIsImageUrl && dataIsJustLink) {
-        const url = text;
-        const name = 'chat-image';
-
-        const img = new Image();
-        img.src = url;
-
-        img.onload = () => {
-          const { width, height } = img;
-
-          sendMessage(whom, {
-            ...memo,
-            sent: Date.now(),
-            content: {
-              story: {
-                inline: [],
-                block: [
-                  {
-                    image: {
-                      src: url,
-                      alt: name,
-                      width,
-                      height,
-                    },
-                  },
-                ],
-              },
-            },
-          });
-        };
-
-        img.onerror = () => {
-          sendMessage(whom, memo);
-        };
-      } else {
-        sendMessage(whom, memo);
-      }
       captureGroupsAnalyticsEvent({
         name: reply ? 'comment_item' : 'post_item',
         groupFlag,
@@ -382,9 +353,12 @@ export default function ChatInput({
       groupFlag,
       privacy,
       id,
+      replying,
       setDraft,
       clearAttachments,
-      sendMessage,
+      sendDm,
+      sendChatMessage,
+      sendReply,
       sendDisabled,
       replyCite,
       reply,
@@ -437,31 +411,29 @@ export default function ChatInput({
   }, [messageEditor]);
 
   useEffect(() => {
-    if (
-      chatReplyId &&
-      messageEditor &&
-      !messageEditor.isDestroyed &&
-      !inThread
-    ) {
+    if (replyingWrit && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.focus();
       const mention = ship ? makeMention(ship.slice(1)) : null;
       messageEditor?.commands.setContent(mention);
       messageEditor?.commands.insertContent(': ');
-      const path = `/1/chan/chat/${id}/msg/${chatReplyId}`;
+      const path =
+        replyingWrit[1] && 'memo' in replyingWrit[1]
+          ? `/1/chan/chat/${whom}/msg/${threadParentId}/${replyingWrit[0].toString()}`
+          : `/1/chan/chat/${whom}/msg/${replyingWrit[0].toString()}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
-        setReplyCite({ cite });
+        setReplyCite(cite);
       }
     }
   }, [
-    chatReplyId,
-    id,
+    replyingWrit,
+    threadParentId,
+    whom,
     setReplyCite,
     replyCite,
     groupFlag,
     messageEditor,
     ship,
-    inThread,
   ]);
 
   useEffect(() => {
@@ -657,8 +629,7 @@ export default function ChatInput({
             </button>
           </div>
         ) : null}
-
-        {showReply && ship && chatReplyId ? (
+        {showReply && ship && replyingWrit ? (
           <div className="mb-4 flex items-center justify-start font-semibold">
             <span className="text-gray-600">Replying to</span>
             <Avatar size="xs" ship={ship} className="ml-2" />

@@ -5,13 +5,8 @@ import { subDays, subMinutes } from 'date-fns';
 import faker from '@faker-js/faker';
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
-import {
-  ChatWrit,
-  ChatWrits,
-  ChatBriefs,
-  ChatStory,
-  ChatNotice,
-} from '../types/chat';
+import { Post, Posts, Story, storyFromChatStory } from '@/types/channel';
+import { DMUnreads } from '../types/dms';
 
 const getUnix = (count: number, setTime?: Date) =>
   count > 1
@@ -23,24 +18,31 @@ const getUnix = (count: number, setTime?: Date) =>
 export const makeFakeChatWrit = (
   count: number,
   author: string,
-  story: ChatStory,
-  feels?: Record<string, string>,
+  story: Story,
+  reacts?: Record<string, string>,
   setTime?: Date
-): ChatWrit => {
+): Post => {
   const unix = getUnix(count, setTime);
   const time = unixToDa(unix);
   const da = decToUd(time.toString());
   return {
     seal: {
       id: `${author}/${da}`,
-      feels: feels ?? {},
-      replied: [],
+      reacts: reacts ?? {},
+      replies: null,
+      meta: {
+        replyCount: 0,
+        lastRepliers: [],
+        lastReply: null,
+      },
     },
-    memo: {
-      replying: null,
+    essay: {
+      'kind-data': {
+        chat: null,
+      },
       author,
       sent: unix,
-      content: { story },
+      content: story,
     },
   };
 };
@@ -50,23 +52,31 @@ export const unixToDaStr = (unix: number) => decToUd(unixToDa(unix).toString());
 export const makeFakeChatNotice = (
   count: number,
   author: string,
-  notice: ChatNotice,
   setTime?: Date
-): ChatWrit => {
+): Post => {
   const unix = getUnix(count, setTime);
   const time = unixToDa(unix);
   const da = decToUd(time.toString());
   return {
     seal: {
       id: `${author}/${da}`,
-      feels: {},
-      replied: [],
+      reacts: {},
+      replies: null,
+      meta: {
+        replyCount: 0,
+        lastRepliers: [],
+        lastReply: null,
+      },
     },
-    memo: {
-      replying: null,
+    essay: {
+      'kind-data': {
+        chat: {
+          notice: null,
+        },
+      },
       author,
       sent: unix,
-      content: { notice },
+      content: [],
     },
   };
 };
@@ -78,10 +88,12 @@ const generateMessage = (time: Date) => {
   const body = faker.lorem.sentences(randInt(5));
   const author = randomElement(AUTHORS);
 
-  const story = {
+  const chatStory = {
     block: [],
     inline: [body],
   };
+
+  const story = storyFromChatStory(chatStory);
 
   return makeFakeChatWrit(0, author, story, undefined, time);
 };
@@ -92,9 +104,9 @@ export const messageSequence = ({
 }: {
   start?: Date;
   count: number;
-}): ChatWrit[] => {
+}): Post[] => {
   const times = [];
-  const messages: ChatWrit[] = [];
+  const messages: Post[] = [];
   // eslint-disable-next-line no-plusplus
   for (let i = 0; i < count; i++) {
     times.push(subMinutes(start, i + randInt(30)));
@@ -108,9 +120,9 @@ export const messageSequence = ({
 };
 
 export const makeFakeChatWrits = (offset: number) => {
-  const fakeChatWrits: ChatWrits = _.keyBy(
+  const fakeChatWrits: Posts = _.keyBy(
     messageSequence({ start: subDays(new Date(), offset), count: 100 }),
-    (val) => decToUd(unixToDa(val.memo.sent).toString())
+    (val) => decToUd(unixToDa(val.essay.sent).toString())
   );
 
   return fakeChatWrits;
@@ -118,7 +130,7 @@ export const makeFakeChatWrits = (offset: number) => {
 
 export const chatKeys = ['~zod/test'];
 
-export const dmList: ChatBriefs = {
+export const dmList: DMUnreads = {
   '~fabled-faster': {
     last: 0,
     count: 0,

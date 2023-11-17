@@ -1,18 +1,21 @@
-import React, { ReactElement, useCallback, useEffect, useRef } from 'react';
-import _ from 'lodash';
+import React, {
+  ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import bigInt from 'big-integer';
-import { useMatch, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
-import {
-  useChatLoading,
-  useChatState,
-  useMessagesForChat,
-  useWritWindow,
-} from '@/state/chat';
-import { useRouteGroup } from '@/state/groups';
-import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
+import { log } from '@/logic/utils';
+import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import { useChannelCompatibility } from '@/logic/channel';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { useChatInfo, useChatStore } from './useChatStore';
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 
@@ -24,16 +27,7 @@ interface ChatWindowProps {
   isScrolling: boolean;
 }
 
-function getScrollTo(
-  whom: string,
-  thread: ReturnType<typeof useMatch>,
-  msg: string | null
-) {
-  if (thread) {
-    const { idShip, idTime } = thread.params;
-    return useChatState.getState().getTime(whom, `${idShip}/${idTime}`);
-  }
-
+function getScrollTo(msg: string | null) {
   return msg ? bigInt(msg) : undefined;
 }
 
@@ -44,35 +38,85 @@ export default function ChatWindow({
   scrollElementRef,
   isScrolling,
 }: ChatWindowProps) {
-  const flag = useRouteGroup();
-  const thread = useMatch(
-    `/groups/${flag}/channels/chat/${whom}/message/:idShip/:idTime`
-  );
   const [searchParams, setSearchParams] = useSearchParams();
-  const msg = searchParams.get('msg');
-  const scrollTo = getScrollTo(whom, thread, msg);
-  const isLoading = useChatLoading(whom);
-  const messages = useMessagesForChat(whom, scrollTo);
-  const window = useWritWindow(whom);
+  const [shouldGetLatest, setShouldGetLatest] = useState(false);
+  const scrollTo = getScrollTo(searchParams.get('msg'));
+  const nest = `chat/${whom}`;
+  const {
+    posts: messages,
+    hasNextPage,
+    hasPreviousPage,
+    fetchPreviousPage,
+    refetch,
+    fetchNextPage,
+    isLoading,
+    isFetchingNextPage,
+    isFetchingPreviousPage,
+  } = useInfinitePosts(nest, scrollTo?.toString(), shouldGetLatest);
+  const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
-  const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const readTimeout = useChatInfo(nest).unread?.readTimeout;
+  const fetchState = useMemo(
+    () =>
+      isFetchingNextPage
+        ? 'bottom'
+        : isFetchingPreviousPage
+        ? 'top'
+        : 'initial',
+    [isFetchingNextPage, isFetchingPreviousPage]
+  );
+  const { compatible } = useChannelCompatibility(nest);
+  const latestMessageIndex = messages.length - 1;
+  const scrollToIndex = useMemo(
+    () =>
+      scrollTo
+        ? messages.findIndex((m) => m[0].eq(scrollTo))
+        : latestMessageIndex,
+    [scrollTo, messages, latestMessageIndex]
+  );
+  const latestIsMoreThan30NewerThanScrollTo = useMemo(
+    () =>
+      scrollToIndex !== latestMessageIndex &&
+      latestMessageIndex - scrollToIndex > 30,
+    [scrollToIndex, latestMessageIndex]
+  );
 
-  const goToLatest = useCallback(() => {
+  const goToLatest = useCallback(async () => {
     setSearchParams({});
-    scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
-  }, [setSearchParams]);
-
-  useEffect(() => {
-    if (scrollTo && !thread) {
-      useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
+    if (hasNextPage) {
+      await refetch();
+      setShouldGetLatest(false);
+    } else {
+      scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), thread]);
+  }, [setSearchParams, refetch, hasNextPage, scrollerRef]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
   }, [whom]);
+
+  useEffect(
+    () => () => {
+      if (readTimeout !== undefined && readTimeout !== 0) {
+        markRead({ nest });
+      }
+    },
+    [readTimeout, markRead, nest]
+  );
+
+  const onAtBottom = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      log('fetching next page');
+      fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  const onAtTop = useCallback(() => {
+    if (hasPreviousPage && !isFetchingPreviousPage) {
+      log('fetching previous page');
+      fetchPreviousPage();
+    }
+  }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
   useEffect(
     () => () => {
@@ -83,10 +127,30 @@ export default function ChatWindow({
     [readTimeout, whom]
   );
 
+  useEffect(() => {
+    if (scrollTo && hasNextPage) {
+      setShouldGetLatest(true);
+    }
+  }, [scrollTo, hasNextPage]);
+
   if (isLoading) {
     return (
       <div className="h-full overflow-hidden">
         <ChatScrollerPlaceholder count={30} />
+      </div>
+    );
+  }
+
+  if (!compatible && messages.length === 0) {
+    return (
+      <div className="h-full w-full overflow-hidden">
+        <EmptyPlaceholder>
+          <p>
+            There may be content in this channel, but it is inaccessible because
+            the host is using an older, incompatible version of the app.
+          </p>
+          <p>Please try again later.</p>
+        </EmptyPlaceholder>
       </div>
     );
   }
@@ -106,15 +170,18 @@ export default function ChatWindow({
            */
           key={whom}
           messages={messages}
+          fetchState={fetchState}
           whom={whom}
           topLoadEndMarker={prefixedElement}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}
+          onAtTop={onAtTop}
+          onAtBottom={onAtBottom}
           scrollElementRef={scrollElementRef}
           isScrolling={isScrolling}
         />
       </div>
-      {scrollTo && !window?.latest ? (
+      {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"

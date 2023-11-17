@@ -12,27 +12,27 @@ import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import { useChatState, useMultiDm, useMultiDmIsPending } from '@/state/chat';
-import ChatWindow from '@/chat/ChatWindow';
 import { useIsMobile } from '@/logic/useMedia';
 import { dmListPath, isGroups, pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import { Club } from '@/types/chat';
+import { Club } from '@/types/dms';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
-import ChatSearch from '@/chat/ChatSearch/ChatSearch';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import useAppName from '@/logic/useAppName';
 import MobileHeader from '@/components/MobileHeader';
+import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useIsScrolling } from '@/logic/scroll';
+import { useNegotiateMulti } from '@/state/negotiation';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
 import DmOptions from './DMOptions';
 import MessageSelector from './MessageSelector';
 import PendingIndicator from './MultiDMPendingIndicator';
+import DmSearch from './DmSearch';
 
 function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
   const count = club.team.length;
@@ -88,6 +88,8 @@ export default function MultiDm() {
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
+  const negotiationMatch = useNegotiateMulti(dmParticipants, 'chat', 'chat');
 
   const {
     isSelectingMessage,
@@ -133,13 +135,13 @@ export default function MultiDm() {
               <Route
                 path="search/:query?"
                 element={
-                  <ChatSearch
+                  <DmSearch
                     whom={clubId}
                     root={root}
                     placeholder="Search Messages"
                   >
                     <TitleButton club={club} isMobile={isMobile} />
-                  </ChatSearch>
+                  </DmSearch>
                 }
               />
               <Route
@@ -204,7 +206,7 @@ export default function MultiDm() {
           )
         }
         footer={
-          isAccepted ? (
+          isAccepted && negotiationMatch ? (
             <div
               className={cn(
                 isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
@@ -213,24 +215,25 @@ export default function MultiDm() {
               <ChatInput
                 key={clubId}
                 whom={clubId}
-                sendMessage={
-                  isSelecting ? sendDmFromMessageSelector : sendMessage
-                }
+                sendDm={isSelecting ? sendDmFromMessageSelector : sendMessage}
                 showReply
                 autoFocus={!isSelecting && !inSearch}
                 dropZoneId={dropZoneId}
                 isScrolling={isScrolling}
               />
             </div>
+          ) : !negotiationMatch ? (
+            <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+              Your version of the app does not match some of the members of this
+              chat.
+            </div>
           ) : null
         }
       >
         {isAccepted ? (
-          <ChatWindow
+          <DmWindow
             whom={clubId}
             root={root}
-            scrollElementRef={scrollElementRef}
-            isScrolling={isScrolling}
             prefixedElement={
               <div className="pt-4 pb-12">
                 <MultiDmHero club={club} />

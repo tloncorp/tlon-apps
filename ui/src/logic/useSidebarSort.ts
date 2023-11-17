@@ -4,8 +4,7 @@ import {
   usePutEntryMutation,
   useSideBarSortMode,
 } from '@/state/settings';
-import useAllBriefs from './useAllBriefs';
-import { nestToFlag } from './utils';
+import { useUnreads } from '@/state/channel/channel';
 
 export const ALPHABETICAL = 'A → Z';
 export const DEFAULT = 'Arranged';
@@ -25,13 +24,11 @@ export const sortAlphabetical = (aNest: string, bNest: string) =>
   aNest.localeCompare(bNest);
 
 export function useRecentSort() {
-  const briefs = useAllBriefs();
+  const unreads = useUnreads();
   const sortRecent = useCallback(
     (aNest: string, bNest: string) => {
-      const [aApp, aFlag] = nestToFlag(aNest);
-      const aLast = briefs[aApp]?.[aFlag]?.last ?? Number.NEGATIVE_INFINITY;
-      const [bApp, bFlag] = nestToFlag(bNest);
-      const bLast = briefs[bApp]?.[bFlag]?.last ?? Number.NEGATIVE_INFINITY;
+      const aLast = unreads[aNest]?.last ?? Number.NEGATIVE_INFINITY;
+      const bLast = unreads[bNest]?.last ?? Number.NEGATIVE_INFINITY;
       if (aLast < bLast) {
         return -1;
       }
@@ -40,7 +37,7 @@ export function useRecentSort() {
       }
       return 0;
     },
-    [briefs]
+    [unreads]
   );
 
   return sortRecent;

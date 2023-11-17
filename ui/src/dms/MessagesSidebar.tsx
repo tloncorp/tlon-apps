@@ -1,8 +1,13 @@
-import React, { useState, useRef, useCallback, useContext } from 'react';
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useContext,
+  useMemo,
+} from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
 import Filter16Icon from '@/components/icons/Filter16Icon';
 import { usePinned } from '@/state/chat';
@@ -23,7 +28,7 @@ import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { useLocalState } from '@/state/local';
+import { usePins } from '@/state/channel/channel';
 import { DesktopUpdateButton } from '@/components/UpdateNotices';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
 import MessagesList from './MessagesList';
@@ -141,13 +146,14 @@ export default function MessagesSidebar() {
     key: 'messagesFilter',
   });
   const pinned = usePinned();
+  const chatPins = usePins();
   const groups = useGroups();
-  const filteredPins = pinned.filter((p) => {
-    const nest = `chat/${p}`;
+  const pins = useMemo(() => pinned.concat(chatPins), [pinned, chatPins]);
+  const filteredPins = pins.filter((p) => {
     const groupFlag = Object.entries(groups).find(
-      ([, v]) => nest in v.channels
+      ([, v]) => p in v.channels
     )?.[0];
-    const channel = groups[groupFlag || '']?.channels[nest];
+    const channel = groups[groupFlag || '']?.channels[p];
     return !!channel || whomIsDm(p) || whomIsMultiDm(p);
   });
 

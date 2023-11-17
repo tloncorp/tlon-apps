@@ -1,7 +1,8 @@
 import React from 'react';
 import { findLastIndex } from 'lodash';
 import cn from 'classnames';
-import { ChatBlock, isChatImage, ChatStory } from '@/types/chat';
+import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import {
   isBlockquote,
   isBold,
@@ -17,14 +18,19 @@ import {
 import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
-import { useLocation } from 'react-router';
 import ShipName from '@/components/ShipName';
-import { Link } from 'react-router-dom';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
 import { isSingleEmoji } from '@/logic/utils';
+import {
+  Story,
+  Block,
+  VerseBlock,
+  VerseInline,
+  isImage,
+} from '@/types/channel';
 
 interface ChatContentProps {
-  story: ChatStory;
+  story: Story;
   isScrolling?: boolean;
   className?: string;
   writId?: string;
@@ -36,7 +42,7 @@ interface InlineContentProps {
 }
 
 interface BlockContentProps {
-  story: ChatBlock;
+  story: Block;
   isScrolling: boolean;
   writId: string;
   blockIndex: number;
@@ -160,7 +166,7 @@ export function BlockContent({
   writId,
   blockIndex,
 }: BlockContentProps) {
-  if (isChatImage(story)) {
+  if (isImage(story)) {
     return (
       <ChatContentImage
         src={story.image.src}
@@ -185,16 +191,20 @@ function ChatContent({
   className = '',
   writId = 'not-writ',
 }: ChatContentProps) {
-  const inlineLength = story.inline.length;
-  const blockLength = story.block.length;
-  const firstBlockCode = story.inline.findIndex(isBlockCode);
-  const lastBlockCode = findLastIndex(story.inline, isBlockCode);
-  const blockContent = story.block.sort((a, b) => {
+  const storyInlines = (
+    story.filter((s) => 'inline' in s) as VerseInline[]
+  ).flatMap((i) => i.inline);
+  const storyBlocks = story.filter((s) => 'block' in s) as VerseBlock[];
+  const inlineLength = storyInlines.length;
+  const blockLength = storyBlocks.length;
+  const firstBlockCode = storyInlines.findIndex(isBlockCode);
+  const lastBlockCode = findLastIndex(storyInlines, isBlockCode);
+  const blockContent = storyBlocks.sort((a, b) => {
     // Sort images to the end
-    if (isChatImage(a) && !isChatImage(b)) {
+    if (isImage(a) && !isImage(b)) {
       return 1;
     }
-    if (!isChatImage(a) && isChatImage(b)) {
+    if (!isImage(a) && isImage(b)) {
       return -1;
     }
     return 0;
@@ -212,7 +222,7 @@ function ChatContent({
                 className="flex flex-col"
               >
                 <BlockContent
-                  story={storyItem}
+                  story={storyItem.block}
                   isScrolling={isScrolling}
                   writId={writId}
                   blockIndex={index}
@@ -223,7 +233,7 @@ function ChatContent({
       ) : null}
       {inlineLength > 0 ? (
         <>
-          {story.inline.map((storyItem, index) => {
+          {storyInlines.map((storyItem, index) => {
             // we need to add top and bottom padding to first/last lines of code blocks.
 
             if (firstBlockCode === 0 && firstBlockCode === lastBlockCode) {

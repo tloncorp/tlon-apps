@@ -1,8 +1,7 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { formatDistanceToNow } from 'date-fns';
-import { HeapCurio, isLink, CurioContent } from '@/types/heap';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
@@ -16,18 +15,17 @@ import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
-import useNest from '@/logic/useNest';
-import useHeapContentType from '@/logic/useHeapContentType';
+import getHeapContentType from '@/logic/useHeapContentType';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 import CheckIcon from '@/components/icons/CheckIcon';
-import { inlineToString } from '@/logic/tiptap';
 import ConfirmationModal from '@/components/ConfirmationModal';
 // eslint-disable-next-line import/no-cycle
-import ChatContent from '@/chat/ChatContent/ChatContent';
 import useLongPress from '@/logic/useLongPress';
 import Avatar from '@/components/Avatar';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { useCurioToggler } from '@/state/heap/heap';
+import { useChannelFlag, linkUrlFromContent } from '@/logic/channel';
+import { imageUrlFromContent, isCite, Post, Story } from '@/types/channel';
+import { usePostToggler } from '@/state/channel/channel';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -59,7 +57,8 @@ function TopBar({
   author,
 }: TopBarProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const nest = useNest();
+  const chFlag = useChannelFlag();
+  const nest = `heap/${chFlag}`;
   const {
     didCopy,
     menuOpen,
@@ -195,19 +194,23 @@ function TopBar({
 }
 
 interface BottomBarProps {
-  curio: HeapCurio;
+  post: Post;
   asRef?: boolean;
   asMobileNotification?: boolean;
 }
 
-function BottomBar({ curio, asRef, asMobileNotification }: BottomBarProps) {
-  const { sent } = curio.heart;
-  const replyCount = curio.seal.replied.length;
-  const prettySent = formatDistanceToNow(sent);
-
+function BottomBar({ post, asRef, asMobileNotification }: BottomBarProps) {
   if (asRef || asMobileNotification) {
     return <div />;
   }
+
+  if (!post) {
+    return null;
+  }
+
+  const { sent } = post.essay;
+  const { replyCount } = post.seal.meta;
+  const prettySent = formatDistanceToNow(sent);
 
   return (
     <div
@@ -215,7 +218,7 @@ function BottomBar({ curio, asRef, asMobileNotification }: BottomBarProps) {
         'absolute bottom-2 left-2 flex w-[calc(100%-16px)] select-none items-center space-x-2 overflow-hidden rounded p-2 group-hover:bg-white/50 group-hover:backdrop-blur'
       )}
     >
-      <Avatar ship={curio?.heart.author} size="xs" />
+      <Avatar ship={post.essay.author} size="xs" />
       <div className="hidden w-full justify-between align-middle group-hover:flex">
         <span className="truncate font-semibold">{prettySent} ago</span>
         {replyCount > 0 ? (
@@ -233,13 +236,13 @@ function HeapBlockWrapper({
   time,
   setLongPress,
   children,
-  curio,
+  post,
   linkFromNotification,
   isHidden,
 }: React.PropsWithChildren<{
   time: string;
   setLongPress: (b: boolean) => void;
-  curio: HeapCurio;
+  post: Post;
   linkFromNotification?: string;
   isHidden?: boolean;
 }>) {
@@ -250,13 +253,14 @@ function HeapBlockWrapper({
       if (isHidden) {
         return;
       }
+
       if (linkFromNotification) {
         navigate(linkFromNotification);
         return;
       }
-      navigate(`curio/${blockTime}`, { state: { initialCurio: curio } });
+      navigate(`curio/${blockTime}`, { state: { initialCurio: post } });
     },
-    [navigate, curio, linkFromNotification, isHidden]
+    [navigate, post, linkFromNotification, isHidden]
   );
 
   useEffect(() => {
@@ -277,36 +281,32 @@ function HeapBlockWrapper({
 }
 
 interface HeapBlockProps extends CurioDisplayProps {
-  curio: HeapCurio;
-  isComment?: boolean;
+  post: Post;
   linkFromNotification?: string;
 }
 
-const hiddenPostContent: CurioContent = {
-  block: [],
-  inline: [
-    {
-      italics: ['You have hidden this post.'],
-    },
-  ],
-};
+const hiddenPostContent: Story = [
+  {
+    inline: [
+      {
+        italics: ['You have hidden this post.'],
+      },
+    ],
+  },
+];
 
 export default function HeapBlock({
-  curio,
+  post,
   time,
   asRef = false,
   asMobileNotification = false,
-  isComment = false,
   refToken = undefined,
   linkFromNotification,
 }: HeapBlockProps) {
   const [longPress, setLongPress] = useState(false);
-  const { isHidden } = useCurioToggler(time);
-  const { content } = curio.heart;
-  const url =
-    content.inline.length > 0 && isLink(content.inline[0])
-      ? content.inline[0].link.href
-      : '';
+  const { isHidden } = usePostToggler(time);
+  const { content } = post ? post.essay : { content: [] };
+  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const {
     embed,
     isLoading: embedLoading,
@@ -314,19 +314,14 @@ export default function HeapBlock({
     error: embedError,
   } = useEmbed(url);
   const calm = useCalm();
-  const { isImage, isAudio, isText } = useHeapContentType(url);
-  const textFallbackTitle = content.inline
-    .map((inline) => inlineToString(inline))
-    .join(' ')
-    .toString();
-
+  const { isImage, isAudio, isText } = getHeapContentType(url);
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit =
     asRef || asMobileNotification
       ? false
-      : isAdmin || window.our === curio.heart.author;
-  const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
+      : isAdmin || window.our === (post ? post.essay.author : '');
+  const maybeEmbed = !isImage && !isAudio && !isText;
 
   useEffect(() => {
     if (embedErrored) {
@@ -352,15 +347,15 @@ export default function HeapBlock({
     linkFromNotification,
     refToken,
     longPress,
-    author: curio.heart.author,
+    author: post.essay.author,
   };
-  const botBar = { curio, asRef, asMobileNotification, longPress };
+  const botBar = { post, asRef, asMobileNotification, longPress };
 
   if (isHidden) {
     return (
       <HeapBlockWrapper
         time={time}
-        curio={curio}
+        post={post}
         setLongPress={setLongPress}
         isHidden={isHidden}
       >
@@ -380,33 +375,12 @@ export default function HeapBlock({
     );
   }
 
-  if (isComment) {
+  if (content.filter((c) => 'block' in c && isCite(c.block)).length > 0) {
     return (
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        curio={curio}
-        setLongPress={setLongPress}
-      >
-        <div className={cnm()}>
-          <TopBar hasIcon canEdit={canEdit} {...topBar} />
-          <div className="flex grow flex-col">
-            <ChatContent
-              story={{ block: content.block, inline: content.inline }}
-            />
-          </div>
-          <BottomBar {...botBar} />
-        </div>
-      </HeapBlockWrapper>
-    );
-  }
-
-  if (content.block.length > 0 && 'cite' in content.block[0]) {
-    return (
-      <HeapBlockWrapper
-        linkFromNotification={linkFromNotification}
-        time={time}
-        curio={curio}
+        post={post}
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
@@ -428,7 +402,7 @@ export default function HeapBlock({
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        curio={curio}
+        post={post}
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
@@ -452,7 +426,7 @@ export default function HeapBlock({
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        curio={curio}
+        post={post}
         setLongPress={setLongPress}
       >
         <div
@@ -476,7 +450,7 @@ export default function HeapBlock({
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        curio={curio}
+        post={post}
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
@@ -500,7 +474,7 @@ export default function HeapBlock({
         <HeapBlockWrapper
           linkFromNotification={linkFromNotification}
           time={time}
-          curio={curio}
+          post={post}
           setLongPress={setLongPress}
         >
           <div
@@ -523,7 +497,7 @@ export default function HeapBlock({
         <HeapBlockWrapper
           linkFromNotification={linkFromNotification}
           time={time}
-          curio={curio}
+          post={post}
           setLongPress={setLongPress}
         >
           <div className={cnm()}>
@@ -546,7 +520,7 @@ export default function HeapBlock({
       <HeapBlockWrapper
         linkFromNotification={linkFromNotification}
         time={time}
-        curio={curio}
+        post={post}
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
@@ -564,7 +538,7 @@ export default function HeapBlock({
     <HeapBlockWrapper
       linkFromNotification={linkFromNotification}
       time={time}
-      curio={curio}
+      post={post}
       setLongPress={setLongPress}
     >
       <div className={cnm()}>

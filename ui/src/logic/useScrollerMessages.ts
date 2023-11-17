@@ -1,16 +1,88 @@
 import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import BTree from 'sorted-btree';
+import bigInt, { BigInteger } from 'big-integer';
+import { useMemo, useRef } from 'react';
+import { Writ, WritTuple } from '@/types/dms';
+import {
+  newReplyMap,
+  PageTuple,
+  Post,
+  Reply,
+  ReplyTuple,
+} from '@/types/channel';
 
-import { STANDARD_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { useChatState, useWritWindow } from '@/state/chat/chat';
-import { ChatWrit } from '@/types/chat';
+export type WritArray = [BigInteger, Writ | Post | Reply | null][];
 
-export type ChatWritTree = BTree<bigInt.BigInteger, ChatWrit>;
+const getMessageAuthor = (writ: Writ | Post | Reply) => {
+  if ('memo' in writ) {
+    return writ.memo.author;
+  }
+  return writ.essay.author;
+};
+
+function getDay(
+  id: string,
+  time: bigInt.BigInteger,
+  messageDays: Map<string, number>
+) {
+  let day = messageDays.get(id);
+  if (!day) {
+    day = new Date(daToUnix(time)).setHours(0, 0, 0, 0);
+    messageDays.set(id, day);
+  }
+  return day;
+}
+
+const getNewDayAndNewAuthorFromLastWrit = (
+  messages: WritArray,
+  writ: Writ | Post | Reply,
+  key: bigInt.BigInteger,
+  messageDays: Map<string, number>,
+  index: number
+) => {
+  const lastWrit = index === 0 ? undefined : messages[index - 1];
+  const newAuthor =
+    lastWrit && lastWrit[1]
+      ? getMessageAuthor(writ) !== getMessageAuthor(lastWrit[1])
+      : true;
+  const newDay =
+    !lastWrit ||
+    !(
+      lastWrit[1] &&
+      getDay(lastWrit[1]?.seal.id, lastWrit[0], messageDays) ===
+        getDay(writ.seal.id, key, messageDays)
+    );
+  return {
+    writ,
+    time: key,
+    newAuthor,
+    newDay,
+  };
+};
+
+const emptyWrit = {
+  seal: {
+    id: '',
+    time: '',
+    replies: [],
+    reacts: {},
+    meta: {
+      replyCount: 0,
+      lastRepliers: [],
+      lastReply: null,
+    },
+  },
+  essay: {
+    content: [],
+    author: window.our,
+    sent: Date.now(),
+    'kind-data': {
+      chat: null,
+    },
+  },
+};
 
 export type ChatMessageListItemData = {
-  writ: ChatWrit;
+  writ: Writ | Post | Reply;
   type: 'message';
   time: bigInt.BigInteger;
   newAuthor: boolean;
@@ -23,155 +95,74 @@ export type ChatMessageListItemData = {
 
 function useMessageItems({
   messages,
-  filterReplies,
 }: {
   scrollTo?: bigInt.BigInteger;
-  messages: ChatWritTree;
-  filterReplies: boolean;
+  messages: WritArray;
 }): [
   bigInt.BigInteger[],
   {
     time: bigInt.BigInteger;
     newAuthor: boolean;
     newDay: boolean;
-    writ: ChatWrit;
+    writ: Writ | Post | Reply;
   }[],
-  ChatWritTree
+  WritArray
 ] {
-  const filteredMessages = useMemo(
-    () =>
-      messages.filter((k) => {
-        if (!filterReplies) {
-          return true;
-        }
-        return messages.get(k)?.memo.replying === null;
-      }),
-    [messages, filterReplies]
-  );
-
   const messageDays = useRef(new Map<string, number>());
 
-  function getDay(id: string, time: bigInt.BigInteger) {
-    let day = messageDays.current.get(id);
-    if (!day) {
-      day = new Date(daToUnix(time)).setHours(0, 0, 0, 0);
-      messageDays.current.set(id, day);
-    }
-    return day;
-  }
-
   const [keys, entries] = useMemo(() => {
-    const ks: bigInt.BigInteger[] = Array.from(filteredMessages.keys());
-    const es = filteredMessages.toArray().map(([key, writ]) => {
-      const lastWritKey = filteredMessages.nextLowerKey(key);
-      const lastWrit = lastWritKey
-        ? filteredMessages.get(lastWritKey)
-        : undefined;
-      const newAuthor = lastWrit
-        ? writ.memo.author !== lastWrit.memo.author ||
-          'notice' in lastWrit.memo.content
-        : true;
-      const newDay =
-        !lastWritKey ||
-        !lastWrit ||
-        !(getDay(lastWrit?.seal.id, lastWritKey) === getDay(writ.seal.id, key));
+    const nonNullMessages = messages.filter(([_k, v]) => v !== null);
+    const ks: bigInt.BigInteger[] = nonNullMessages.map(([k]) => k);
+    const es = nonNullMessages.map(([key, writ], index) => {
+      if (!writ) {
+        return {
+          writ: emptyWrit,
+          hideReplies: true,
+          time: key,
+          newAuthor: false,
+          newDay: false,
+          isLast: false,
+          isLinked: false,
+        };
+      }
+
+      const { newAuthor, newDay } = getNewDayAndNewAuthorFromLastWrit(
+        nonNullMessages,
+        writ,
+        key,
+        messageDays.current,
+        index
+      );
+
+      if ('memo' in writ) {
+        return {
+          writ,
+          time: key,
+          newAuthor,
+          newDay,
+        };
+      }
+
+      const isNotice =
+        'chat' in writ.essay['kind-data'] &&
+        writ.essay['kind-data'].chat &&
+        'notice' in writ.essay['kind-data'].chat;
+
       return {
         writ,
         time: key,
-        newAuthor,
+        newAuthor: isNotice ? false : newAuthor,
         newDay,
+        replyCount: writ.seal.meta.replyCount,
       };
     }, []);
     return [ks, es];
-  }, [filteredMessages]);
+  }, [messages]);
 
-  return useMemo(
-    () => [keys, entries, filteredMessages],
-    [keys, entries, filteredMessages]
-  );
+  return useMemo(() => [keys, entries, messages], [keys, entries, messages]);
 }
 
 export type MessageFetchState = 'top' | 'bottom' | 'initial';
-
-const DEBUG_FETCH = true;
-
-function fetchDebugMessage(...args: unknown[]) {
-  if (DEBUG_FETCH) {
-    console.log('[useFetchMessages]', ...args);
-  }
-}
-
-export default function useFetchMessages({
-  whom,
-  messages,
-  scrollTo,
-}: {
-  whom: string;
-  messages: ChatWritTree;
-  scrollTo?: bigInt.BigInteger;
-}) {
-  const writWindow = useWritWindow(whom, scrollTo);
-  const [fetchState, setFetchState] = useState<MessageFetchState>('initial');
-
-  const fetchMessages = useCallback(
-    async (newer: boolean, pageSize = STANDARD_MESSAGE_FETCH_PAGE_SIZE) => {
-      fetchDebugMessage(
-        'fetchMessages',
-        newer ? 'newer' : 'older',
-        'whom',
-        whom,
-        'scrolTo',
-        scrollTo,
-        pageSize
-      );
-
-      const newest = messages.maxKey();
-      const seenNewest =
-        newer && newest && writWindow && writWindow.loadedNewest;
-      const oldest = messages.minKey();
-      const seenOldest =
-        !newer && oldest && writWindow && writWindow.loadedOldest;
-
-      if (seenNewest || seenOldest) {
-        fetchDebugMessage('skipping fetch, seen', newer ? 'newest' : 'oldest');
-        return;
-      }
-
-      try {
-        setFetchState(newer ? 'bottom' : 'top');
-        if (newer) {
-          fetchDebugMessage('load newer');
-          const result = await useChatState
-            .getState()
-            .fetchMessages(whom, pageSize.toString(), 'newer', scrollTo);
-          fetchDebugMessage('load result', result);
-        } else {
-          fetchDebugMessage('load older');
-          const result = await useChatState
-            .getState()
-            .fetchMessages(whom, pageSize.toString(), 'older', scrollTo);
-          fetchDebugMessage('load result', result);
-        }
-
-        setFetchState('initial');
-      } catch (e) {
-        setFetchState('initial');
-      }
-    },
-    [whom, messages, scrollTo, writWindow]
-  );
-
-  return useMemo(
-    () => ({
-      fetchMessages,
-      fetchState,
-      // If there's no writWindow, we've loaded the newest we can load
-      hasLoadedNewest: writWindow?.loadedNewest ?? true,
-      hasLoadedOldest: writWindow?.loadedOldest ?? true,
-    }),
-    [fetchMessages, fetchState, writWindow]
-  );
-}
 
 export function useMessageData({
   whom,
@@ -181,12 +172,11 @@ export function useMessageData({
 }: {
   whom: string;
   scrollTo?: bigInt.BigInteger;
-  messages: ChatWritTree;
+  messages: WritArray;
   replying: boolean;
 }) {
   const [activeMessageKeys, messageEntries, activeMessages] = useMessageItems({
     messages,
-    filterReplies: !replying,
   });
 
   const activeMessageEntries: ChatMessageListItemData[] = useMemo(
@@ -202,20 +192,9 @@ export function useMessageData({
     [whom, scrollTo, messageEntries, replying]
   );
 
-  const { fetchMessages, fetchState, hasLoadedNewest, hasLoadedOldest } =
-    useFetchMessages({
-      whom,
-      messages,
-      scrollTo,
-    });
-
   return {
     activeMessages,
     activeMessageKeys,
     activeMessageEntries,
-    fetchMessages,
-    fetchState,
-    hasLoadedNewest,
-    hasLoadedOldest: replying ? true : hasLoadedOldest,
   };
 }

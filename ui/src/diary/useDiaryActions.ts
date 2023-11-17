@@ -1,12 +1,12 @@
-import { citeToPath, useCopy } from '@/logic/utils';
-import {
-  useArrangedNotes,
-  useArrangedNotesDiaryMutation,
-  useDeleteNoteMutation,
-} from '@/state/diary';
 import { decToUd } from '@urbit/api';
 import { useState, useCallback, MouseEvent } from 'react';
 import { useNavigate } from 'react-router';
+import { citeToPath, useCopy } from '@/logic/utils';
+import {
+  useArrangedPosts,
+  useArrangedPostsMutation,
+  useDeletePostMutation,
+} from '@/state/channel/channel';
 
 interface useDiaryActionsParams {
   flag: string;
@@ -15,14 +15,15 @@ interface useDiaryActionsParams {
 
 export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const [isOpen, setIsOpen] = useState(false);
-  const arrangedNotes = useArrangedNotes(flag);
+  const arrangedNotes = useArrangedPosts(`diary/${flag}`);
   const navigate = useNavigate();
-  const { mutate: deleteNote } = useDeleteNoteMutation();
-  const { mutate: arrangedNotesMutation } = useArrangedNotesDiaryMutation();
+  const { mutate: deleteNote } = useDeletePostMutation();
+  const { mutate: arrangedNotesMutation } = useArrangedPostsMutation();
+  const nest = `diary/${flag}`;
   const { doCopy, didCopy } = useCopy(
     citeToPath({
       chan: {
-        nest: `diary/${flag}`,
+        nest,
         where: `/note/${time}`,
       },
     })
@@ -31,20 +32,20 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
   const addToArrangedNotes = useCallback(() => {
     const newArranagedNotes = [...arrangedNotes, time.toString()];
     arrangedNotesMutation({
-      arrangedNotes: newArranagedNotes,
-      flag,
+      arrangedPosts: newArranagedNotes,
+      nest,
     });
-  }, [arrangedNotesMutation, flag, time, arrangedNotes]);
+  }, [arrangedNotesMutation, nest, time, arrangedNotes]);
 
   const removeFromArrangedNotes = useCallback(() => {
     const newArranagedNotes = arrangedNotes.filter(
       (note) => note !== time.toString()
     );
     arrangedNotesMutation({
-      arrangedNotes: newArranagedNotes,
-      flag,
+      arrangedPosts: newArranagedNotes,
+      nest,
     });
-  }, [arrangedNotesMutation, flag, time, arrangedNotes]);
+  }, [arrangedNotesMutation, nest, time, arrangedNotes]);
 
   const moveUpInArrangedNotes = useCallback(() => {
     const newArranagedNotes = arrangedNotes.filter(
@@ -53,10 +54,10 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
     const index = arrangedNotes.indexOf(time.toString());
     newArranagedNotes.splice(index - 1, 0, time.toString());
     arrangedNotesMutation({
-      arrangedNotes: newArranagedNotes,
-      flag,
+      arrangedPosts: newArranagedNotes,
+      nest,
     });
-  }, [arrangedNotesMutation, flag, time, arrangedNotes]);
+  }, [arrangedNotesMutation, nest, time, arrangedNotes]);
 
   const moveDownInArrangedNotes = useCallback(() => {
     const newArranagedNotes = arrangedNotes.filter(
@@ -65,15 +66,15 @@ export default function useDiaryActions({ flag, time }: useDiaryActionsParams) {
     const index = arrangedNotes.indexOf(time.toString());
     newArranagedNotes.splice(index + 1, 0, time.toString());
     arrangedNotesMutation({
-      arrangedNotes: newArranagedNotes,
-      flag,
+      arrangedPosts: newArranagedNotes,
+      nest,
     });
-  }, [arrangedNotesMutation, flag, time, arrangedNotes]);
+  }, [arrangedNotesMutation, nest, time, arrangedNotes]);
 
   const delNote = useCallback(async () => {
-    deleteNote({ flag, time: decToUd(time) });
+    deleteNote({ nest, time: decToUd(time) });
     navigate('../');
-  }, [flag, time, deleteNote, navigate]);
+  }, [nest, time, deleteNote, navigate]);
 
   const onCopy = useCallback(
     (e: Event | MouseEvent<any>) => {

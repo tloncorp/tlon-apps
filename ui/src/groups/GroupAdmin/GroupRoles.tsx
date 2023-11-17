@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
-import { getPrivacyFromGroup, nestToFlag } from '@/logic/utils';
+import { getPrivacyFromGroup } from '@/logic/utils';
 import {
   useAmAdmin,
   useGroup,
@@ -19,9 +19,7 @@ import {
   useGroupEditRoleMutation,
   useRouteGroup,
 } from '@/state/groups';
-import { useChatState } from '@/state/chat';
-import { useDiaries } from '@/state/diary';
-import { useHeapState, useStash } from '@/state/heap/heap';
+import { useChannels } from '@/state/channel/channel';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import GlobeIcon from '@/components/icons/GlobeIcon';
@@ -55,8 +53,7 @@ export default function GroupRoles({ title }: { title: string }) {
     useGroupDelRoleMutation();
   const roles = group?.cabals;
   const fleet = group?.fleet;
-  const shelf = useDiaries();
-  const stash = useStash();
+  const channels = useChannels();
   const { state } = useLocation();
 
   // TODO: is this needed?
@@ -70,16 +67,7 @@ export default function GroupRoles({ title }: { title: string }) {
           .flat(),
         ...Object.entries(group.channels)
           .map((c) => {
-            const [app, channelFlag] = nestToFlag(c[0]);
-
-            const chState =
-              app === 'chat'
-                ? useChatState.getState().chats
-                : app === 'heap'
-                ? stash
-                : shelf;
-
-            const channel = chState[channelFlag];
+            const channel = channels[c[0]];
 
             return channel?.perms.writers || [];
           })

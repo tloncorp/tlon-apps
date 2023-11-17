@@ -1,4 +1,4 @@
-/+  j=diary-json
+/+  j=channel-json
 |_  hp=(set time)
 ++  grad  %noun
 ++  grow

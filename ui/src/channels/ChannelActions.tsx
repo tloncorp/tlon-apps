@@ -22,7 +22,7 @@ export type ChannelActionsProps = PropsWithChildren<{
   isAdmin: boolean | undefined;
   status?: ConnectionStatus;
   saga: Saga | null;
-  leave: (flag: string) => Promise<void>;
+  leave: ({ nest }: { nest: string }) => Promise<void>;
   className?: string;
 }>;
 
@@ -55,7 +55,7 @@ const ChannelActions = React.memo(
 
     const leaveChannel = useCallback(async () => {
       try {
-        leave(flag);
+        leave({ nest });
         navigate(
           isMobile
             ? `/groups/${ship}/${name}`
@@ -67,7 +67,7 @@ const ChannelActions = React.memo(
           console.error(`[ChannelHeader:LeaveError] ${error}`);
         }
       }
-    }, [flag, ship, name, navigate, leave, isMobile]);
+    }, [nest, ship, name, navigate, leave, isMobile]);
 
     const onDeleteChannelConfirm = useCallback(async () => {
       setDeleteStatus('loading');

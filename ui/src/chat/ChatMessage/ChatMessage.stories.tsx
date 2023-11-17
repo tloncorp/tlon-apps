@@ -8,11 +8,12 @@ export default {
   title: 'ChatMessage',
 };
 
-const writ = makeFakeChatWrit(1, '~finned-palmer', {
-  block: [],
-  inline: [{ bold: ['A bold test message'] }, 'with some more text'],
-});
-const time = unixToDa(writ.memo.sent);
+const writ = makeFakeChatWrit(1, '~finned-palmer', [
+  {
+    inline: [{ bold: ['A bold test message'] }, 'with some more text'],
+  },
+]);
+const time = unixToDa(writ.essay.sent);
 
 export function Text() {
   return (

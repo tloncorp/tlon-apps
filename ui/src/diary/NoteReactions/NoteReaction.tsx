@@ -5,40 +5,40 @@ import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
 import {
-  useAddNoteFeelMutation,
-  useDeleteNoteFeelMutation,
-} from '@/state/diary';
+  useAddPostReactMutation,
+  useDeletePostReactMutation,
+} from '@/state/channel/channel';
 
 interface NotReactionProps {
   whom: string;
-  feel: string;
+  react: string;
   ships: string[];
   time: string;
 }
 
 export default function NoteReaction({
   whom,
-  feel,
+  react,
   ships,
   time,
 }: NotReactionProps) {
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
   const count = ships.length;
-  const { mutateAsync: addFeel } = useAddNoteFeelMutation();
-  const { mutateAsync: delFeel } = useDeleteNoteFeelMutation();
+  const { mutateAsync: addReact } = useAddPostReactMutation();
+  const { mutateAsync: delReact } = useDeletePostReactMutation();
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const editFeel = useCallback(async () => {
+  const editReact = useCallback(async () => {
     if (isMine) {
-      await delFeel({ flag: whom, noteId: time });
+      await delReact({ nest: `diary/${whom}`, postId: time });
     } else {
-      await addFeel({ flag: whom, feel, noteId: time });
+      await addReact({ nest: `diary/${whom}`, react, postId: time });
     }
-  }, [isMine, whom, feel, time, addFeel, delFeel]);
+  }, [isMine, whom, react, time, addReact, delReact]);
 
   return (
     <div>
@@ -46,16 +46,16 @@ export default function NoteReaction({
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
             <button
-              onClick={editFeel}
+              onClick={editReact}
               className={cn(
                 'group relative flex items-center space-x-2 rounded border border-solid border-transparent bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-600 group-one-hover:border-gray-100',
                 isMine && 'bg-blue-softer group-one-hover:border-blue-soft'
               )}
               aria-label={
-                isMine ? 'Remove reaction' : `Add ${feel.replaceAll(':', '')}`
+                isMine ? 'Remove reaction' : `Add ${react.replaceAll(':', '')}`
               }
             >
-              <em-emoji shortcodes={feel} />
+              <em-emoji shortcodes={react} />
               <span className={cn(isMine && 'group-hover:opacity-0')}>
                 {count}
               </span>

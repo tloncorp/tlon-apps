@@ -1,6 +1,6 @@
-import React from 'react';
-import { Inline, isBlockCode } from '@/types/content';
 import {
+  Inline,
+  isBlockCode,
   isBlockquote,
   isBold,
   isBreak,
@@ -8,14 +8,13 @@ import {
   isItalics,
   isLink,
   isStrikethrough,
-  CurioContent,
-} from '@/types/heap';
-
+} from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
+import { Story, VerseBlock, VerseInline } from '@/types/channel';
 
 interface HeapContentProps {
-  content: CurioContent;
+  content: Story;
   className?: string;
   isComment?: boolean;
 }
@@ -117,11 +116,20 @@ export default function HeapContent({
   className,
   isComment,
 }: HeapContentProps) {
-  const inlineLength = content.inline.length;
+  const inlines = content
+    .filter((c) => 'inline' in c)
+    .map((c) => (c as VerseInline).inline)
+    .flat();
+  const blocks = content
+    .filter((c) => 'block' in c)
+    .map((c) => (c as VerseBlock).block)
+    .flat();
+
+  const inlineLength = inlines.length;
 
   return (
     <div className={className}>
-      {content.block.map((b, idx) => {
+      {blocks.map((b, idx) => {
         if ('cite' in b) {
           return (
             <ContentReference
@@ -135,7 +143,7 @@ export default function HeapContent({
       })}
       {inlineLength > 0 ? (
         <>
-          {content.inline.map((inlineItem, index) => (
+          {inlines.map((inlineItem, index) => (
             <InlineContent
               key={`${inlineItem.toString()}-${index}`}
               inline={inlineItem}

@@ -1,14 +1,14 @@
 /-  c=chat
 /+  j=chat-json
-|_  [=time =writ:c]
+|_  =writ:c
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  [time writ]
-  ++  json  (writ-entry:enjs:j time writ)
+  ++  noun  writ
+  ++  json  (writ:enjs:j writ)
   --
 ++  grab
   |%
-  ++  noun  [time writ:c]
+  ++  noun  writ:c
   --
 --
