@@ -15,7 +15,7 @@ import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
 import {
   useMessageToggler,
   useAddDmReactMutation,
-  useDeleteDm,
+  useDeleteDmMutation,
 } from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
@@ -101,7 +101,7 @@ function ChatMessageOptions(props: {
   const { mutate: deleteChatMessage } = useDeletePostMutation();
   const { mutate: addReactToChat } = useAddPostReactMutation();
   const { mutate: addReactToDm } = useAddDmReactMutation();
-  const { mutate: deleteDm } = useDeleteDm();
+  const { mutate: deleteDm } = useDeleteDmMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
   const {
     show: showPost,

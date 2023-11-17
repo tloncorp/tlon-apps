@@ -6,12 +6,7 @@ import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import {
-  useWrit,
-  useSendMessage,
-  useMultiDm,
-  useSendReplyMutation,
-} from '@/state/chat';
+import { useWrit, useMultiDm, useSendReplyMutation } from '@/state/chat';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
