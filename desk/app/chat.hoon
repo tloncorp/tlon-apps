@@ -17,7 +17,7 @@
       [~.chat-dms^%0 ~ ~]
     [%chat^[~.chat-dms^%0 ~ ~] ~ ~]
 %-  agent:dbug
-%+  verb  |
+%+  verb-lib  |
 ::
 ^-  agent:gall
 =>
