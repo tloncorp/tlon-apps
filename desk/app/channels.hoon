@@ -5,7 +5,7 @@
 ::  XX  chat thread entries can no longer be edited.  maybe fix before
 ::      release?
 ::
-/-  c=channel, g=groups, ha=hark
+/-  c=channels, g=groups, ha=hark
 /-  meta
 /+  default-agent, verb, dbug, sparse, neg=negotiate
 /+  utils=channel-utils, volume
@@ -489,7 +489,7 @@
           %unwatch  remark.channel(watching |)
           %read-at  !!  ::TODO
           %read
-        =/  [=time post=(unit v-post:c)]  
+        =/  [=time post=(unit v-post:c)]
           (need (ram:on-v-posts:c posts.channel))
         %=  remark.channel
           last-read       `@da`(add time (div ~s1 100))

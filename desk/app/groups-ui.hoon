@@ -1,4 +1,4 @@
-/-  u=ui, g=groups, c=chat, d=channel
+/-  u=ui, g=groups, c=chat, d=channels
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 /+  mark-warmer

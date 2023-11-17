@@ -1,4 +1,4 @@
-/-  g=groups, d=channel, dos=chat-2, uno=chat-1, zer=chat-0
+/-  g=groups, d=channels, dos=chat-2, uno=chat-1, zer=chat-0
 /-  meta
 |%
 ++  old

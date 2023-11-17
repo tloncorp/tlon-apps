@@ -1,4 +1,4 @@
-/-  c=chat, d=channel, g=groups, e=epic
+/-  c=chat, d=channels, g=groups, e=epic
 /-  meta
 /-  ha=hark
 /-  contacts
@@ -17,7 +17,7 @@
       [~.chat-dms^%0 ~ ~]
     [%chat^[~.chat-dms^%0 ~ ~] ~ ~]
 %-  agent:dbug
-%+  verb  |
+%+  verb-lib  |
 ::
 ^-  agent:gall
 =>
@@ -1573,7 +1573,7 @@
         %unwatch  remark.dm(watching |)
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
-          %read   
+          %read
         %=  remark.dm
           last-read  now.bowl
           unread-threads  *(set id:c)

@@ -1,4 +1,4 @@
-/-  c=channel, g=groups
+/-  c=channels, g=groups
 ::  convert a post to a preview for a "said" response
 ::
 |%
