@@ -11,9 +11,7 @@ import debounce from 'lodash/debounce';
 import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format } from 'date-fns';
-import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { DMUnread } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -22,11 +20,8 @@ import {
   useChatState,
   useMessageToggler,
   useTrackedMessageStatus,
-  // useIsMessageDelivered,
-  // useIsMessagePosted,
 } from '@/state/chat';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
-import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import {
@@ -34,7 +29,7 @@ import {
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import { emptyReply, Reply, Story } from '@/types/channel';
+import { emptyReply, Reply, Story, Unread } from '@/types/channel';
 import { useIsDmOrMultiDm } from '@/logic/utils';
 import {
   useChatDialog,
@@ -43,6 +38,7 @@ import {
   useChatStore,
 } from '@/chat/useChatStore';
 import ReactionDetails from '@/chat/ChatReactions/ReactionDetails';
+import { DMUnread } from '@/types/dms';
 import ReplyReactions from './ReplyReactions/ReplyReactions';
 import ReplyMessageOptions from './ReplyMessageOptions';
 
@@ -59,8 +55,17 @@ export interface ReplyMessageProps {
   showReply?: boolean;
 }
 
-function unreadMatches(unread: DMUnread, id: string): boolean {
-  return unread['read-id'] === id;
+function amUnread(unread?: Unread | DMUnread, parent?: string, id?: string) {
+  if (!unread || !parent || !id) {
+    return false;
+  }
+
+  const thread = unread.threads[parent];
+  if (typeof thread === 'object') {
+    return thread.id === id;
+  }
+
+  return thread === id;
 }
 
 const mergeRefs =
@@ -112,11 +117,11 @@ const ReplyMessage = React.memo<
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
       const chatInfo = useChatInfo(whom);
+      const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.unread['read-id'];
+      const isUnread = amUnread(unread?.unread, seal['parent-id'], seal.id);
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
-      const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const { mutate: markChatRead } = useMarkReadMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
@@ -153,7 +158,7 @@ const ReplyMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && unreadMatches(brief, seal.id) && !seen) {
+            if (inView && isUnread && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -172,7 +177,7 @@ const ReplyMessage = React.memo<
               markDmRead(whom);
             }
           },
-          [unread, whom, seal.id, isDMOrMultiDM, markChatRead]
+          [unread, whom, isUnread, isDMOrMultiDM, markChatRead]
         ),
       });
 
@@ -275,7 +280,7 @@ const ReplyMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && unreadMatches(unread.unread, seal.id) ? (
+          {unread && isUnread ? (
             <DateDivider
               date={unix}
               unreadCount={unread.unread.count}

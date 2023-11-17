@@ -99,7 +99,7 @@ function channelUnread(
   unreads: Unreads,
   chats: ChatStore['chats']
 ) {
-  const [app, chFlag] = nestToFlag(nest);
+  const [app] = nestToFlag(nest);
   const unread = chats[nest]?.unread;
 
   if (app === 'chat') {

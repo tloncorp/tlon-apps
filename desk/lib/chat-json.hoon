@@ -142,9 +142,28 @@
   ++  unread
     |=  b=unread:unreads:c
     %-  pairs
-    :~  last/(time last.b)
+    :~  recency/(time recency.b)
         count/(numb count.b)
-        read-id/?~(read-id.b ~ (id u.read-id.b))
+        threads/(unread-threads threads.b)
+    ::
+      :-  %unread-id
+      ?~  unread-id.b  ~
+      %-  pairs
+      :~  id/(id id.u.unread-id.b)
+          time/(time-id time.u.unread-id.b)
+      ==
+    ==
+  ::
+  ++  unread-threads
+    |=  u=(map message-key:c message-key:c)
+    %-  pairs
+    %+  turn  ~(tap by u)
+    |=  [top=message-key:c unread=message-key:c]
+    :-  (rap 3 (scot %p p.id.top) '/' (scot %ud q.id.top) ~)
+    %-  pairs
+    :~  parent-time/(time-id time.top)
+        id/(id id.unread)
+        time/(time-id time.unread)
     ==
   ::
   ++  pins

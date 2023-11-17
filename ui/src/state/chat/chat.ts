@@ -6,7 +6,7 @@ import { Poke } from '@urbit/http-api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import { udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Groups } from '@/types/groups';
 import {
@@ -41,7 +41,7 @@ import {
 } from '@/types/channel';
 import api from '@/api';
 import { whomIsDm, whomIsMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
-import { useChatStore } from '@/chat/useChatStore';
+import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
@@ -700,27 +700,56 @@ export function useTrackedMessageStatus(id: string) {
 }
 
 const emptyUnreads: DMUnreads = {};
+const dmUnreadsKey = ['dm', 'unreads'];
 export function useDmUnreads() {
+  const invalidate = useRef(
+    _.debounce(
+      () => {
+        queryClient.invalidateQueries({
+          queryKey: dmUnreadsKey,
+          refetchType: 'none',
+        });
+      },
+      300,
+      { leading: true, trailing: true }
+    )
+  );
+
+  const eventHandler = (event: DMUnreadUpdate) => {
+    invalidate.current();
+    const { whom, unread } = event;
+
+    if (unread !== null) {
+      useChatStore
+        .getState()
+        .unread(whom, unread, useChatState.getState().markDmRead);
+      queryClient.setQueryData(dmUnreadsKey, (d: DMUnreads | undefined) => {
+        if (d === undefined) {
+          return undefined;
+        }
+
+        const newUnreads = { ...d };
+        newUnreads[event.whom] = unread;
+
+        return newUnreads;
+      });
+    }
+  };
+
   const { data, ...query } = useReactQuerySubscription<
     DMUnreads,
     DMUnreadUpdate
   >({
-    queryKey: ['dm', 'unreads'],
+    queryKey: dmUnreadsKey,
     app: 'chat',
     path: '/unreads',
     scry: '/unreads',
+    onEvent: eventHandler,
   });
 
-  if (!data) {
-    return {
-      ...query,
-      data: emptyUnreads,
-    };
-  }
-
   return {
+    data: data || emptyUnreads,
     ...query,
-    data,
   };
 }
 
@@ -772,7 +801,10 @@ export function useCurrentPactSize(whom: string) {
 }
 
 export function useWrit(whom: string, writId: string, disabled = false) {
-  const queryKey = useMemo(() => ['dms', whom, writId], [whom, writId]);
+  const queryKey = useMemo(
+    () => ['dms', whom, 'writs', writId],
+    [whom, writId]
+  );
 
   const path = useMemo(() => {
     const suffix = `/writs/writ/id/${writId}`;
@@ -1079,9 +1111,9 @@ export function useDeleteDMReplyReactMutation() {
 }
 
 export function useIsDmUnread(whom: string) {
-  const { data: unreads } = useDmUnreads();
-  const unread = unreads[whom];
-  return Boolean(unread?.count > 0 && unread['read-id']);
+  const chatInfo = useChatInfo(whom);
+  const unread = chatInfo?.unread;
+  return Boolean(unread && !unread.seen);
 }
 
 const selPendingDms = (s: ChatState) => s.pendingDms;
@@ -1217,22 +1249,6 @@ export function useWritByFlagAndWritId(
   }
 
   return cached;
-}
-
-export function useGetFirstDMUnreadID(whom: string) {
-  const keys = useChatKeys({ replying: false, whom });
-  const unread = useDmUnread(whom);
-  if (!unread) {
-    return null;
-  }
-  const { 'read-id': lastRead } = unread;
-  if (!lastRead) {
-    return null;
-  }
-  // lastRead is formatted like: ~zod/123.456.789...
-  const lastReadBN = bigInt(lastRead.split('/')[1].replaceAll('.', ''));
-  const firstUnread = keys.find((key) => key.gt(lastReadBN));
-  return firstUnread ?? null;
 }
 
 export function useLatestMessage(chFlag: string): [BigInteger, Writ | null] {

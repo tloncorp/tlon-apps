@@ -17,18 +17,36 @@
   ==
 ::
 ++  unread
-  |=  [our=ship last-read=time]
+  |=  [our=ship last-read=time unread-threads=(set id:c)]
   ^-  unread:unreads:c
   =/  =time
     ?~  tim=(ram:on:writs:c wit.pac)  *time
     key.u.tim
   =/  unreads
     (lot:on:writs:c wit.pac `last-read ~)
-  =/  read-id=(unit id:c)
-    (bind (pry:on:writs:c unreads) |=([key=@da val=writ:c] id.val))
+  =/  unread-id=(unit message-key:c)
+    ::TODO  in the ~ case, we could traverse further up, to better handle
+    ::      cases where the most recent message was deleted.
+    (bind (pry:on:writs:c unreads) |=([key=@da val=writ:c] [id time]:val))
   =/  count
     (lent (skim ~(tap by unreads) |=([tim=^time =writ:c] !=(author.writ our))))
-  [time count read-id]
+  ::  now do the same for all unread threads
+  ::
+  =/  [sum=@ud threads=(map message-key:c message-key:c)]
+    %+  roll  ~(tap in unread-threads)
+    |=  [=id:c sum=@ud threads=(map message-key:c message-key:c)]
+    =/  parent   (get id)
+    ?~  parent   [sum threads]
+    =/  unreads  (lot:on:replies:c replies.writ.u.parent `last-read ~)
+    :-  %+  add  sum
+        %-  lent
+        %+  skim  ~(tap by unreads)
+        |=([* =reply:c] !=(author.reply our))
+    =/  reply-id=(unit message-key:c)
+      (bind (pry:on:replies:c unreads) |=([* reply:c] [id time]))
+    ?~  reply-id  threads
+    (~(put by threads) [id time]:writ.u.parent u.reply-id)
+  [time (add count sum) unread-id threads]
 ::
 ++  get
   |=  =id:c

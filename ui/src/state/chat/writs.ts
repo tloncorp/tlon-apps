@@ -332,6 +332,8 @@ export default function makeWritsStore(
             return;
           }
 
+          queryClient.invalidateQueries(['dms', whom, 'writs', data.id]);
+
           set((draft) => {
             writsReducer(whom)(data as WritResponse, draft);
             return {

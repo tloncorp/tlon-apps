@@ -53,7 +53,7 @@ export default function useMessageSelector() {
       const unread = unreads[key];
       const newUnread = unreads[k];
       const newer =
-        !unread || (unread && newUnread && newUnread.last > unread.last);
+        !unread || (unread && newUnread && newUnread.recency > unread.recency);
       if (sameDM && newer) {
         return k;
       }

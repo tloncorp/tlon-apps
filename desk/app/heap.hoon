@@ -543,7 +543,8 @@
         log     ?.(log ~ (convert-log curios.heap posts perm.heap log.heap))
         view    [0 view.heap]
         perm    [0 perm.heap]
-        remark  remark.heap
+        remark  :_  remark.heap
+                ?~(tim=(ram:on-v-posts:c posts) *time key.u.tim)
         net
       ?-  -.net.heap
         %pub  [*ship &]

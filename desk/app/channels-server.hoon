@@ -16,7 +16,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %0
+    $:  %1
         =v-channels:c
     ==
   --
@@ -84,11 +84,34 @@
   |=  =vase
   |^  ^+  cor
   =+  !<(old=versioned-state vase)
-  ?>  ?=(%0 -.old)
+  =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+  ?>  ?=(%1 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(current-state)
+  +$  versioned-state  $%(current-state state-0)
+  +$  state-0
+    $:  %0
+        v-channels=(map nest:c v-channel-0)
+    ==
+  ++  v-channel-0
+    |^  ,[global:v-channel:c local]
+    +$  window    (list [from=time to=time])
+    +$  future    [=window diffs=(jug id-post:c u-post:c)]
+    +$  local     [=net:c =log:c remark=remark-0 =window =future]
+    --
+  +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
+  ::
+  ++  state-0-to-1
+    |=  s=state-0
+    ^-  current-state
+    s(- %1, v-channels (~(run by v-channels.s) v-channel-0-to-1))
+  ++  v-channel-0-to-1
+    |=  v=v-channel-0
+    ^-  v-channel:c
+    =/  recency=time
+      ?~(tim=(ram:on-v-posts:c posts.v) *time key.u.tim)
+    v(remark [recency remark.v])
   --
 ::
 ++  init

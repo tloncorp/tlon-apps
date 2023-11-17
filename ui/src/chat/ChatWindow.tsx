@@ -92,24 +92,18 @@ export default function ChatWindow({
   }, [setSearchParams, refetch, hasNextPage, scrollerRef]);
 
   useEffect(() => {
-    useChatStore.getState().setCurrent(whom);
-  }, [whom]);
-
-  useEffect(
-    () => () => {
-      if (readTimeout !== undefined && readTimeout !== 0) {
-        markRead({ nest });
-      }
-    },
-    [readTimeout, markRead, nest]
-  );
+    useChatStore.getState().setCurrent(nest);
+  }, [nest]);
 
   const onAtBottom = useCallback(() => {
+    const { bottom, delayedRead } = useChatStore.getState();
+    bottom(true);
+    delayedRead(nest, () => markRead({ nest }));
     if (hasNextPage && !isFetchingNextPage) {
       log('fetching next page');
       fetchNextPage();
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [nest, markRead, fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const onAtTop = useCallback(() => {
     if (hasPreviousPage && !isFetchingPreviousPage) {
@@ -121,10 +115,11 @@ export default function ChatWindow({
   useEffect(
     () => () => {
       if (readTimeout !== undefined && readTimeout !== 0) {
-        useChatStore.getState().read(whom);
+        useChatStore.getState().read(nest);
+        markRead({ nest });
       }
     },
-    [readTimeout, whom]
+    [readTimeout, nest, markRead]
   );
 
   useEffect(() => {

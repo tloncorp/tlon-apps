@@ -32,7 +32,7 @@ export default function TalkHead() {
     }
 
     return true;
-  });
+  }) as [string, { count: number }][]; // so the types below merge cleanly
 
   const unreads = useMemo(() => {
     switch (messagesFilter) {

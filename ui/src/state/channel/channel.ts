@@ -837,8 +837,24 @@ export function useReply(
   }, [post, replyId]);
 }
 
+export function useMarkReadMutation() {
+  const mutationFn = async (variables: { nest: Nest }) => {
+    checkNest(variables.nest);
+
+    await api.poke(channelAction(variables.nest, { read: null }));
+  };
+
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries(['unreads']);
+    },
+  });
+}
+
 const emptyUnreads: Unreads = {};
 export function useUnreads(): Unreads {
+  const { mutate: markRead } = useMarkReadMutation();
   const invalidate = useRef(
     _.debounce(
       () => {
@@ -853,10 +869,14 @@ export function useUnreads(): Unreads {
   );
 
   const eventHandler = (event: UnreadUpdate) => {
-    invalidate.current();
-    const { unread } = event;
+    const { nest, unread } = event;
 
     if (unread !== null) {
+      const [app] = nestToFlag(nest);
+      if (app === 'chat') {
+        useChatStore.getState().unread(nest, unread, () => markRead({ nest }));
+      }
+
       queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
         if (d === undefined) {
           return undefined;
@@ -864,10 +884,11 @@ export function useUnreads(): Unreads {
         const newUnreads = { ...d };
         newUnreads[event.nest] = unread;
 
-        useChatStore.getState().update(newUnreads);
         return newUnreads;
       });
     }
+
+    invalidate.current();
   };
 
   const { data, ...rest } = useReactQuerySubscription<Unreads, UnreadUpdate>({
@@ -1039,7 +1060,7 @@ export function useGetFirstUnreadID(nest: Nest) {
   const keys = usePostKeys(nest);
   const unread = useUnread(nest);
 
-  const { 'read-id': lastRead } = unread;
+  const { 'unread-id': lastRead } = unread;
 
   if (!lastRead) {
     return null;
@@ -1048,21 +1069,6 @@ export function useGetFirstUnreadID(nest: Nest) {
   const lastReadBN = bigInt(lastRead);
   const firstUnread = keys.find((key) => key.gt(lastReadBN));
   return firstUnread ?? null;
-}
-
-export function useMarkReadMutation() {
-  const mutationFn = async (variables: { nest: Nest }) => {
-    checkNest(variables.nest);
-
-    await api.poke(channelAction(variables.nest, { read: null }));
-  };
-
-  return useMutation({
-    mutationFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['unreads']);
-    },
-  });
 }
 
 export function useJoinMutation() {

@@ -27,8 +27,8 @@ export function useRecentSort() {
   const unreads = useUnreads();
   const sortRecent = useCallback(
     (aNest: string, bNest: string) => {
-      const aLast = unreads[aNest]?.last ?? Number.NEGATIVE_INFINITY;
-      const bLast = unreads[bNest]?.last ?? Number.NEGATIVE_INFINITY;
+      const aLast = unreads[aNest]?.recency ?? Number.NEGATIVE_INFINITY;
+      const bLast = unreads[bNest]?.recency ?? Number.NEGATIVE_INFINITY;
       if (aLast < bLast) {
         return -1;
       }

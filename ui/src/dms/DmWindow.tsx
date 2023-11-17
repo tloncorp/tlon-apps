@@ -106,6 +106,7 @@ export default function DmWindow({
     () => () => {
       if (readTimeout !== undefined && readTimeout !== 0) {
         useChatStore.getState().read(whom);
+        useChatState.getState().markDmRead(whom);
       }
     },
     [readTimeout, whom]
