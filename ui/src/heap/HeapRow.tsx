@@ -63,7 +63,7 @@ function Actions({
     menuOpen,
     setMenuOpen,
     onDelete,
-    deleteStatus,
+    isDeleteLoading,
     onEdit,
     onCopy,
     navigateToCurio,
@@ -171,7 +171,7 @@ function Actions({
         open={deleteOpen}
         setOpen={setDeleteOpen}
         onConfirm={onDelete}
-        loading={deleteStatus === 'loading'}
+        loading={isDeleteLoading}
         confirmText="Delete"
         title="Delete Gallery Item"
         message="Are you sure you want to delete this gallery item?"

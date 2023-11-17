@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
@@ -65,11 +65,7 @@ export default function ReplyMessageOptions(props: {
     seal.id,
     'delete'
   );
-  const {
-    isPending: isDeletePending,
-    setPending: setDeletePending,
-    setReady,
-  } = useRequestState();
+  // TODO: add delete mutation for parent DMs
   const { chShip, chName } = useParams();
   const isParent = threadParentId === seal.id;
   const [, setSearchParams] = useSearchParams();
@@ -83,12 +79,20 @@ export default function ReplyMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
-  const { mutate: deleteReply } = useDeleteReplyMutation();
-  const { mutate: deleteChatMessage } = useDeletePostMutation();
-  const { mutate: deleteDMReply } = useDeleteDMReplyMutation();
+  const { mutate: deleteReply, isLoading: isDeleteReplyLoading } =
+    useDeleteReplyMutation();
+  const { mutate: deleteChatMessage, isLoading: isDeleteChatMessageLoading } =
+    useDeletePostMutation();
+  const { mutate: deleteDMReply, isLoading: isDeleteDMReplyLoading } =
+    useDeleteDMReplyMutation();
   const { mutate: addFeelToChat } = useAddPostReactMutation();
   const { mutate: addFeelToReply } = useAddReplyReactMutation();
   const { mutate: addDMReplyFeel } = useAddDMReplyReactMutation();
+  const deleteLoading =
+    isDeleteReplyLoading ||
+    isDeleteChatMessageLoading ||
+    isDeleteDMReplyLoading;
+
   const {
     show: showPost,
     hide: hidePost,
@@ -108,8 +112,6 @@ export default function ReplyMessageOptions(props: {
     if (isMobile) {
       onOpenChange(false);
     }
-
-    setDeletePending();
 
     try {
       if (isDMorMultiDM) {
@@ -134,7 +136,6 @@ export default function ReplyMessageOptions(props: {
     } catch (e) {
       console.log('Failed to delete message', e);
     }
-    setReady();
   };
 
   const onCopy = useCallback(() => {
@@ -402,7 +403,7 @@ export default function ReplyMessageOptions(props: {
         open={deleteOpen}
         setOpen={setDeleteOpen}
         confirmText="Delete"
-        loading={isDeletePending}
+        loading={deleteLoading}
       />
     </>
   );

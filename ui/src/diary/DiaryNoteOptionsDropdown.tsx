@@ -44,6 +44,7 @@ export default function DiaryNoteOptionsDropdown({
     didCopy,
     onCopy,
     delNote,
+    isDeleteLoading,
     setIsOpen,
     addToArrangedNotes,
     removeFromArrangedNotes,
@@ -132,6 +133,7 @@ export default function DiaryNoteOptionsDropdown({
         onConfirm={delNote}
         open={deleteOpen}
         setOpen={setDeleteOpen}
+        loading={isDeleteLoading}
         confirmText="Delete"
       />
     </>
