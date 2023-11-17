@@ -122,6 +122,8 @@ export default function DmWindow({
           topLoadEndMarker={prefixedElement}
           onAtTop={onAtTop}
           onAtBottom={onAtBottom}
+          hasLoadedOldest={!hasPreviousPage}
+          hasLoadedNewest={!hasNextPage}
         />
       </div>
       {scrollTo ? (

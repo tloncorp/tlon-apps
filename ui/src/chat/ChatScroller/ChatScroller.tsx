@@ -1,7 +1,6 @@
 import React, {
   PropsWithChildren,
   ReactElement,
-  ReactNode,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -174,6 +173,8 @@ export interface DmScrollerProps {
   scrollerRef: React.RefObject<VirtuosoHandle>;
   scrollElementRef: React.RefObject<HTMLDivElement>;
   isScrolling: boolean;
+  hasLoadedNewest: boolean;
+  hasLoadedOldest: boolean;
 }
 
 export default function ChatScroller({
@@ -188,6 +189,8 @@ export default function ChatScroller({
   scrollerRef,
   scrollElementRef,
   isScrolling,
+  hasLoadedNewest,
+  hasLoadedOldest,
 }: DmScrollerProps) {
   const isMobile = useIsMobile();
   const scrollTo = useBigInt(rawScrollTo);
@@ -207,18 +210,16 @@ export default function ChatScroller({
     replying,
   });
 
-  useObjectChangeLogging({ isAtTop, isAtBottom }, logger);
-
   const topItem: CustomScrollItemData | null = useMemo(
     () =>
-      topLoadEndMarker && fetchState === 'initial'
+      topLoadEndMarker && hasLoadedOldest
         ? {
             type: 'custom',
             key: 'top-marker',
             component: topLoadEndMarker,
           }
         : null,
-    [topLoadEndMarker, fetchState]
+    [topLoadEndMarker, hasLoadedOldest]
   );
 
   const [messageKeys, messageEntries] = useMemo(() => {
@@ -248,6 +249,11 @@ export default function ChatScroller({
     return count - 1;
   }, [messageKeys, count, scrollTo]);
 
+  useObjectChangeLogging(
+    { isAtTop, isAtBottom, hasLoadedNewest, hasLoadedOldest, anchorIndex },
+    logger
+  );
+
   const virtualizerRef = useRef<DivVirtualizer>();
 
   /**
@@ -260,7 +266,7 @@ export default function ChatScroller({
     virt.scrollElement?.scrollTo?.({ top: offset });
   }, []);
 
-  const isEmpty = count === 0 && fetchState === 'initial';
+  const isEmpty = count === 0 && hasLoadedNewest && hasLoadedOldest;
   const contentHeight = virtualizerRef.current?.getTotalSize() ?? 0;
   const scrollElementHeight = scrollElementRef.current?.clientHeight ?? 0;
   const isScrollable = contentHeight > scrollElementHeight;
@@ -418,11 +424,26 @@ export default function ChatScroller({
   // Load more items when list reaches the top or bottom.
   useEffect(() => {
     if (fetchState !== 'initial' || !userHasScrolled) return;
-    if (isAtTop) {
+
+    if (isAtTop && !hasLoadedOldest) {
       setLoadDirection('older');
+      logger.log('load older');
       onAtTop?.();
+    } else if (isAtBottom && !hasLoadedNewest) {
+      setLoadDirection('newer');
+      logger.log('load newer');
+      onAtBottom?.();
     }
-  }, [fetchState, isAtTop, onAtTop, isAtBottom, userHasScrolled]);
+  }, [
+    fetchState,
+    hasLoadedNewest,
+    hasLoadedOldest,
+    isAtTop,
+    isAtBottom,
+    onAtTop,
+    onAtBottom,
+    userHasScrolled,
+  ]);
 
   useEffect(() => {
     if (fetchState !== 'initial' || !userHasScrolled) return;
@@ -457,7 +478,7 @@ export default function ChatScroller({
       // TODO: This now gets outlined when scrolling with keys. Should it?
       tabIndex={-1}
     >
-      {fetchState === 'initial' && count === 0 && (
+      {hasLoadedNewest && hasLoadedOldest && count === 0 && (
         <EmptyPlaceholder>
           There are no messages in this channel
         </EmptyPlaceholder>

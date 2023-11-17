@@ -1398,23 +1398,20 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
     retry: false,
   });
 
-  if (data === undefined || data.pages.length === 0) {
-    return {
-      writs: [] as WritTuple[],
-      data,
-      ...rest,
-    };
-  }
+  const writs: WritTuple[] = useMemo(
+    () =>
+      data?.pages
+        ?.map((page) => {
+          const writPages = Object.entries(page.writs).map(
+            ([k, v]) => [bigInt(udToDec(k)), v] as WritTuple
+          );
+          return writPages;
+        })
+        .flat()
+        .sort(([a], [b]) => a.compare(b)) ?? [],
 
-  const writs: WritTuple[] = data.pages
-    .map((page) => {
-      const writPages = Object.entries(page.writs).map(
-        ([k, v]) => [bigInt(udToDec(k)), v] as WritTuple
-      );
-      return writPages;
-    })
-    .flat()
-    .sort(([a], [b]) => a.compare(b));
+    [data]
+  );
 
   return {
     data,
