@@ -1,4 +1,4 @@
-/-  g=groups, d=channel, c=chat
+/-  g=groups, d=channels, c=chat
 |%
 +$  init
   $:  groups=groups-ui:g
