@@ -34,7 +34,7 @@ export default function ChatUnreadAlerts({
   }
 
   const { threads } = unread;
-  const threadKeys = Object.keys(threads).sort();
+  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
 
   const topId = threadKeys[0];
   const to =
