@@ -1,19 +1,11 @@
-import _, { last } from 'lodash';
-import { unstable_batchedUpdates as batchUpdates } from 'react-dom';
-import produce, { setAutoFreeze } from 'immer';
-import create, { SetState } from 'zustand';
+import _ from 'lodash';
+import create from 'zustand';
 import { Poke } from '@urbit/http-api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import { decToUd, udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  QueryKey,
-  Updater,
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-} from '@tanstack/react-query';
+import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { GroupMeta, Groups } from '@/types/groups';
 import {
   DMUnreadUpdate,
@@ -23,13 +15,10 @@ import {
   Clubs,
   DmAction,
   DMUnreads,
-  newWritMap,
-  Pact,
   Pins,
   WritDelta,
   Writ,
   WritInCache,
-  ChatUIEvent,
   ToggleMessage,
   HiddenMessages,
   BlockedByShips,
@@ -44,49 +33,22 @@ import {
   WritDeltaAdd,
   ReplyDelta,
   Hive,
-  WritResponseAdd,
-  WritMemo,
 } from '@/types/dms';
-import {
-  Post,
-  PostEssay,
-  Reply,
-  Replies,
-  ChannelsAction,
-  ReplyTuple,
-  WritEssay,
-} from '@/types/channel';
+import { Reply, Replies, ChannelsAction, ReplyTuple } from '@/types/channel';
 import api from '@/api';
-import { whomIsDm, whomIsMultiDm, whomIsFlag, whomIsNest } from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm, whomIsFlag } from '@/logic/utils';
 import { useChatStore } from '@/chat/useChatStore';
-import { getPreviewTracker } from '@/logic/subscriptionTracking';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { getWindow } from '@/logic/windows';
 import queryClient from '@/queryClient';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { createState } from '../base';
-import { BasedChatState, ChatState } from './type';
-import clubReducer from './clubReducer';
 import { useGroups } from '../groups';
-import {
-  CacheId,
-  PostStatus,
-  TrackedPost,
-  channelAction,
-} from '../channel/channel';
+import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
 import emptyMultiDm, {
-  addReplyToWrit,
   appendWritToLastPage,
   buildCachedWrit,
-  buildReplyDelta,
-  buildReplyFromMemo,
   buildWritPage,
-  updateWritInPages,
-  updateWritMeta,
 } from './utils';
-
-setAutoFreeze(false);
 
 export interface State {
   trackedWrits: TrackedPost[];
@@ -100,13 +62,13 @@ export const useWritsStore = create<State>((set, get) => ({
   trackedWrits: [],
   addTracked: (id) => {
     set((state) => ({
-      trackedPosts: [{ status: 'pending', cacheId: id }, ...state.trackedWrits],
+      trackedWrits: [{ status: 'pending', cacheId: id }, ...state.trackedWrits],
     }));
   },
   updateStatus: (id, s) => {
-    console.log(`updating ${id} to status: ${s}`);
+    console.log(`updating ${id.author}/${id.sent} to status: ${s}`);
     set((state) => ({
-      trackedPosts: state.trackedWrits.map(({ cacheId, status }) => {
+      trackedWrits: state.trackedWrits.map(({ cacheId, status }) => {
         if (_.isEqual(cacheId, id)) {
           return { status: s, cacheId };
         }
@@ -127,7 +89,6 @@ export const useWritsStore = create<State>((set, get) => ({
 }));
 
 function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
-  // ASK PAT: does the id here just get thrown away by the agent if it's an add delta?
   return {
     app: 'chat',
     mark: 'dm-action',
@@ -251,8 +212,6 @@ async function updateWritInCache({
 }
 
 function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
-  console.log('infinite updater');
-
   const whom = queryKey[1] as string;
   let id: string | undefined;
   let delta: WritDelta | WritResponseDelta;
@@ -265,15 +224,10 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
   }
 
   if (!delta || !id) {
-    console.log('invalid args, bailing');
     return;
   }
 
-  console.log(`id: ${id}`);
-  console.log('delta:', delta);
-
   if ('add' in delta) {
-    console.log('handling add delta');
     const time = delta.add.time
       ? bigInt(delta.add.time)
       : unixToDa(delta.add.memo.sent);
@@ -1138,7 +1092,7 @@ export function useSendReplyMutation() {
       const { cacheId } = variables.message;
       useWritsStore.setState((state) => ({
         ...state,
-        trackedPosts: state.trackedWrits.filter((p) => p.cacheId !== cacheId),
+        trackedWrits: state.trackedWrits.filter((p) => p.cacheId !== cacheId),
       }));
     },
     onSettled: (_data, _error, variables) => {
@@ -1209,7 +1163,7 @@ export function useSendMessage() {
 
       useWritsStore.setState((state) => ({
         ...state,
-        trackedPosts: state.trackedWrits.filter(
+        trackedWrits: state.trackedWrits.filter(
           (p) => p.cacheId !== trackingId
         ),
       }));
@@ -1242,13 +1196,6 @@ export function useDeleteDmMutation() {
 
   return useMutation({
     mutationFn,
-    onMutate: (variables) => {
-      // maybe we shouldn't optimistically update on delete?
-      // const { whom } = variables;
-      // const delta = { del: null };
-      // const queryKey = ['dms', whom, 'infinite'];
-      // infiniteDMsUpdater(queryKey, { id: whom, delta });
-    },
     onSettled: (_data, _error, variables) => {
       const { whom } = variables;
       queryClient.invalidateQueries(['dms', whom, 'infinite']);
@@ -1334,7 +1281,33 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
       app: 'chat',
       path: `/${type}/${whom}`,
       event: (data: WritResponse) => {
-        console.log('infinite dms got a fact...');
+        const { response } = data;
+
+        if ('add' in response) {
+          const { memo } = response.add;
+
+          useWritsStore
+            .getState()
+            .updateStatus(
+              { author: memo.author, sent: memo.sent },
+              'delivered'
+            );
+        } else if ('reply' in response) {
+          const { reply } = response;
+
+          if ('add' in reply.delta) {
+            const { memo } = reply.delta.add;
+
+            useWritsStore.getState().updateStatus(
+              {
+                author: memo.author,
+                sent: memo.sent,
+              },
+              'delivered'
+            );
+          }
+        }
+
         // for now, let's avoid updating data in place and always refetch
         // when we hear a fact
         // infiniteDMsUpdater(queryKey, data);
@@ -1527,60 +1500,33 @@ export function useDeleteDMReplyMutation() {
       },
     };
 
-    const action: Poke<DmAction | ClubAction> = whomIsDm(variables.whom)
-      ? dmAction(variables.whom, delta as WritDelta, variables.writId)
-      : multiDmAction(variables.whom, {
-          writ: { id: variables.writId, delta: delta as WritDelta },
-        });
-
-    await api.poke<ClubAction | DmAction | ChannelsAction>(action);
+    if (whomIsDm(variables.whom)) {
+      await api.trackedPoke<DmAction, WritResponse>(
+        dmAction(variables.whom, delta, variables.writId),
+        { app: 'chat', path: `/dm/${variables.whom}` },
+        (event) =>
+          event.id === variables.writId &&
+          'reply' in event.response &&
+          variables.replyId === event.response.reply.id &&
+          'del' in event.response.reply.delta
+      );
+    } else {
+      await api.trackedPoke<ClubAction, WritResponse>(
+        multiDmAction(variables.whom, {
+          writ: { id: variables.writId, delta },
+        }),
+        { app: 'chat', path: `/club/${variables.whom}` },
+        (event) =>
+          event.id === variables.writId &&
+          'reply' in event.response &&
+          variables.replyId === event.response.reply.id &&
+          'del' in event.response.reply.delta
+      );
+    }
   };
 
   return useMutation(mutationFn, {
-    onMutate: async (variables) => {
-      queryClient.setQueryData(
-        ['dms', variables.whom, variables.writId],
-        (writ: WritInCache | undefined) => {
-          if (!writ) {
-            return writ;
-          }
-
-          const prevReplies = writ.seal.replies || {};
-          const replies: Replies = {};
-
-          Object.entries(prevReplies).forEach(([k, v]) => {
-            replies[k] = v;
-          });
-
-          const reply = Object.values(replies).find(
-            (q) => q.seal.id === variables.replyId
-          );
-
-          if (!reply) {
-            return writ;
-          }
-
-          let time = '';
-
-          Object.entries(replies).forEach(([k, v]) => {
-            if (v.seal.id === variables.replyId) {
-              time = k;
-            }
-          });
-
-          delete replies[time];
-
-          return {
-            ...writ,
-            seal: {
-              ...writ.seal,
-              replies: replies as Replies,
-            },
-          };
-        }
-      );
-    },
-    onSuccess: async (data, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries(['dms', variables.whom, variables.writId]);
     },
   });
