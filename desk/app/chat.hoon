@@ -1040,9 +1040,6 @@
   ::
   ++  cu-give-writs-diff
     |=  =diff:writs:c
-    =.  cor
-      =/  =cage  writ-diff+!>(diff)
-      (emit %give %fact ~[(welp cu-area /writs)] cage)
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
     ?~  response  cu-core
     =.  cor
