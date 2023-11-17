@@ -1,6 +1,6 @@
 /-  h=heap, c=channel, g=groups, ha=hark, e=epic
 /-  meta
-/+  default-agent, verb, dbug, neg=negotiate
+/+  default-agent, verb, dbug
 /+  cur=curios
 /+  volume
 /+  epos-lib=saga
@@ -543,7 +543,8 @@
         log     ?.(log ~ (convert-log curios.heap posts perm.heap log.heap))
         view    [0 view.heap]
         perm    [0 perm.heap]
-        remark  remark.heap
+        remark  :_  remark.heap
+                ?~(tim=(ram:on-v-posts:c posts) *time key.u.tim)
         net
       ?-  -.net.heap
         %pub  [*ship &]

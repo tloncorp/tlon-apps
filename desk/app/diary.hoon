@@ -560,7 +560,8 @@
         sort    [0 sort.diary]
         perm    [0 perm.diary]
         log     ?.(log ~ (convert-log notes.diary posts perm.diary log.diary))
-        remark  remark.diary
+        remark  :_  remark.diary
+                ?~(tim=(ram:on-v-posts:d posts) *time key.u.tim)
         net
       ?-  -.net.diary
         %pub  [*ship &]

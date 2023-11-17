@@ -320,9 +320,10 @@ export interface Channels {
 }
 
 export interface Unread {
-  last: number;
+  recency: number;
   count: number;
-  'read-id': string | null;
+  'unread-id': string | null;
+  threads: Record<string, string>;
 }
 
 export interface Unreads {

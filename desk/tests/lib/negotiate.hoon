@@ -56,6 +56,9 @@
     ?.  ?=([@ *] wire)  ~
     =?  wire  ?=([@ *] t.wire)
       wire(i.t +(i.t.wire))
+    ::  we were kicked, so the subscription must not be in the bowl anymore
+    ::
+    ?<  (~(has by wex.bowl) wire [src.bowl i.wire])
     [%pass wire %agent [src.bowl i.wire] %watch wire]~
   ::
   ++  on-watch  |~(path !!)
@@ -595,9 +598,8 @@
   ::
   ;<  caz=(list card)  bind:m
     (do-poke %emit-bowl !>(~))
-  :: =.  caz  (remove-verb-cards caz)
-  ?>  ?=([* [%give %fact ~ %bowl *] ~] caz)
-  =+  !<(=bowl:gall q.cage.p.i.t.caz)
+  ?>  ?=([[%give %fact ~ %bowl *] ~] caz)
+  =+  !<(=bowl:gall q.cage.p.i.caz)
   %+  ex-equal  !>(wex.bowl)
   !>  %-  ~(gas by *boat:gall)
   :~  [/wire ~zod %hard]^[| /path]

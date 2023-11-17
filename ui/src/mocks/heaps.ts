@@ -178,7 +178,7 @@ export const heapUnreadsScry: ScryHandler = {
     '~zod/testHeap': {
       last: unixTime,
       count: 1,
-      'read-id': null,
+      'unread-id': null,
     },
   }),
 };

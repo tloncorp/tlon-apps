@@ -157,7 +157,7 @@ const loaderPadding = {
   bottom: 0,
 };
 
-export interface DmScrollerProps {
+export interface ChatScrollerProps {
   whom: string;
   messages: PageTuple[] | WritTuple[] | ReplyTuple[];
   onAtTop?: () => void;
@@ -191,7 +191,7 @@ export default function ChatScroller({
   isScrolling,
   hasLoadedNewest,
   hasLoadedOldest,
-}: DmScrollerProps) {
+}: ChatScrollerProps) {
   const isMobile = useIsMobile();
   const scrollTo = useBigInt(rawScrollTo);
   const [loadDirection, setLoadDirection] = useState<'newer' | 'older'>(

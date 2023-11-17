@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import cn from 'classnames';
 import debounce from 'lodash/debounce';
-import bigInt, { BigInteger } from 'big-integer';
+import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
@@ -32,12 +32,11 @@ import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
 import {
-  useIsPostPending,
   useMarkReadMutation,
   usePostToggler,
   useTrackedPostStatus,
 } from '@/state/channel/channel';
-import { Post, Story } from '@/types/channel';
+import { Post, Story, Unread } from '@/types/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -62,8 +61,56 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function unreadMatches(unread: DMUnread, id: string): boolean {
-  return unread['read-id'] === id;
+function unreadStatus(
+  unread: Unread | undefined,
+  id: string
+): 'none' | 'top' | 'thread' {
+  if (!unread) {
+    return 'none';
+  }
+
+  const unreadId = unread['unread-id'];
+  const threads = unread.threads || {};
+  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
+  const topId = threadKeys[0];
+
+  if (topId && topId === id && (!unreadId || topId < unreadId)) {
+    return 'thread';
+  }
+
+  if (unreadId === id) {
+    return 'top';
+  }
+
+  return 'none';
+}
+
+function dmUnreadStatus(unread: DMUnread | undefined, id: string) {
+  if (!unread) {
+    return 'none';
+  }
+
+  const unreadId = unread['unread-id'];
+  const threads = unread.threads || {};
+  const threadKeys = Object.entries(threads).sort(([, a], [, b]) =>
+    a['parent-time'].localeCompare(b['parent-time'])
+  );
+  const topId = threadKeys[0]?.[0];
+  const topTime = threadKeys[0]?.[1]['parent-time'];
+
+  if (
+    topId &&
+    topId === id &&
+    (!unreadId || (topTime && topTime < unreadId.time))
+  ) {
+    return 'thread';
+  }
+
+  if (unreadId?.id === id) {
+    return 'top';
+  }
+
+  return 'none';
 }
 
 const mergeRefs =
@@ -125,7 +172,9 @@ const ChatMessage = React.memo<
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.unread['read-id'];
+      const unreadDisplay = isDMOrMultiDM
+        ? dmUnreadStatus(unread?.unread as DMUnread, seal.id)
+        : unreadStatus(unread?.unread as Unread, seal.id);
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
@@ -164,7 +213,7 @@ const ChatMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && unreadMatches(brief, seal.id) && !seen) {
+            if (inView && unreadDisplay === 'top' && !seen) {
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
@@ -180,10 +229,14 @@ const ChatMessage = React.memo<
               we can assume the user is done and clear the unread. */
             if (!inView && unread && seen) {
               read(whom);
-              markDmRead({ whom });
+              if (isDMOrMultiDM) {
+                markDmRead({ whom });
+              } else {
+                markChatRead({ nest: `chat/${whom}` });
+              }
             }
           },
-          [unread, whom, seal.id, isDMOrMultiDM, markChatRead, markDmRead]
+          [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead, markDmRead]
         ),
       });
 
@@ -306,14 +359,16 @@ const ChatMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && unreadMatches(unread.unread, seal.id) ? (
+          {unread && unreadDisplay === 'top' ? (
             <DateDivider
               date={unix}
               unreadCount={unread.unread.count}
               ref={viewRef}
             />
           ) : null}
-          {newDay ? <DateDivider date={unix} /> : null}
+          {newDay && unreadDisplay === 'none' ? (
+            <DateDivider date={unix} />
+          ) : null}
           {newAuthor ? (
             <Author ship={essay.author} date={unix} hideRoles={isThread} />
           ) : null}
@@ -398,20 +453,17 @@ const ChatMessage = React.memo<
 
                       <span
                         className={cn(
-                          // repliesContainsUnreadId ? 'text-blue' : 'mr-2'
-                          'mr-2'
+                          unreadDisplay === 'thread' ? 'text-blue' : 'mr-2'
                         )}
                       >
                         {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
                       </span>
-                      {/*
-                      TODO: update when we have reply briefs
-                      repliesContainsUnreadId ? (
+                      {unreadDisplay === 'thread' ? (
                         <UnreadIndicator
                           className="h-6 w-6 text-blue transition-opacity"
                           aria-label="Unread replies in this thread"
                         />
-                      ) : null */}
+                      ) : null}
                       <span className="text-gray-400">
                         <span className="hidden sm:inline-block">
                           Last reply&nbsp;

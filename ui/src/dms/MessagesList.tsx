@@ -9,6 +9,7 @@ import { useUnreads, useChats } from '@/state/channel/channel';
 import { useGroups } from '@/state/groups';
 import { canReadChannel } from '@/logic/channel';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
+import { Unread } from '@/types/channel';
 import {
   usePendingDms,
   usePendingMultiDms,
@@ -23,7 +24,7 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _unread]: [string, DMUnread]) {
+function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread]) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -31,8 +32,10 @@ function itemContent(_i: number, [whom, _unread]: [string, DMUnread]) {
   );
 }
 
-const computeItemKey = (_i: number, [whom, _unread]: [string, DMUnread]) =>
-  whom;
+const computeItemKey = (
+  _i: number,
+  [whom, _unread]: [string, Unread | DMUnread]
+) => whom;
 
 let virtuosoState: StateSnapshot | undefined;
 

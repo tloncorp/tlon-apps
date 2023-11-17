@@ -11,10 +11,14 @@
 ::  performance, keep warm
 /+  chat-json
 /*  desk-bill  %bill  /desk/bill
+::
 %-  %-  agent:neg
     :+  |
       [~.chat-dms^%0 ~ ~]
     [%chat^[~.chat-dms^%0 ~ ~] ~ ~]
+%-  agent:dbug
+%+  verb  |
+::
 ^-  agent:gall
 =>
   |%
@@ -28,7 +32,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %5
+    $:  %6
         dms=(map ship dm:c)
         clubs=(map id:club:c club:c)
         pins=(list whom:c)
@@ -117,10 +121,11 @@
     %2  $(old (state-2-to-3 old))
     %3  $(old (state-3-to-4 old))
     %4  $(old (state-4-to-5 old))
-    %5  (emil(state old) (drop load:epos))
+    %5  $(old (state-5-to-6 old))
+    %6  (emil(state old) (drop load:epos))
   ==
   ::
-  +$  versioned-state  $%(current-state state-4 state-3 state-2 state-1 state-0)
+  +$  versioned-state  $%(current-state state-5 state-4 state-3 state-2 state-1 state-0)
   +$  state-0
     $:  %0
         chats=(map flag:zero chat:zero)
@@ -196,11 +201,54 @@
         ::  true represents imported, false pending import
         imp=(map flag:two ?)
     ==
-  +$  state-5  current-state
+  +$  state-5
+    $:  %5
+        dms=(map ship dm-5)
+        clubs=(map id:club:c club-5)
+        pins=(list whom:c)
+        bad=(set ship)
+        inv=(set ship)
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:c)
+        old-chats=(map flag:two:old:c chat:two:old:c)  :: for migration
+        old-pins=(list whom:two:old:c)
+    ==
+  +$  club-5    [heard:club:c remark=remark-5 =pact:c crew:club:c]
+  +$  dm-5      [=pact:c remark=remark-5 net:dm:c pin=_|]
+  +$  remark-5  [last-read=time watching=_| unread-threads=(set id:c)]
+  +$  state-6  current-state
   ++  zero     zero:old:c
   ++  one      one:old:c
   ++  two      two:old:c
   ++  three    c
+  ++  state-5-to-6
+    |=  s=state-5
+    ^-  state-6
+    s(- %6, dms (dms-5-to-6 dms.s), clubs (clubs-5-to-6 clubs.s))
+  ::
+  ++  dms-5-to-6
+    |=  dms=(map ship dm-5)
+    ^-  (map ship dm:c)
+    %-  ~(run by dms)
+    |=  dm=dm-5
+    ^-  dm:c
+    dm(remark (remark-5-to-6 wit.pact.dm remark.dm))
+  ::
+  ++  clubs-5-to-6
+    |=  clubs=(map id:club:c club-5)
+    ^-  (map id:club:c club:c)
+    %-  ~(run by clubs)
+    |=  club=club-5
+    ^-  club:c
+    club(remark (remark-5-to-6 wit.pact.club remark.club))
+  ::
+  ++  remark-5-to-6
+    |=  [=writs:c remark=remark-5]
+    ^-  remark:c
+    :_  remark
+    ?~(tim=(ram:on:writs:c writs) *time key.u.tim)
+  ::
   ++  state-4-to-5
     |=  state-4
     ^-  state-5
@@ -217,15 +265,15 @@
   ::
   ++  dms-4-to-5
     |=  dms=(map ship dm:two)
-    ^-  (map ship dm:c)
+    ^-  (map ship dm-5)
     %-  ~(run by dms)
     |=  dm:two
-    ^-  dm:c
+    ^-  dm-5
     [(pact-4-to-5 pact) remark net pin]
   ::
   ++  clubs-4-to-5
     |=  clubs=(map id:club:two club:two)
-    ^-  (map id:club:c club:c)
+    ^-  (map id:club:c club-5)
     %-  ~(run by clubs)
     |=  club:two
     [heard remark (pact-4-to-5 pact) crew]
@@ -515,7 +563,7 @@
 ++  watch
   |=  =(pole knot)
   ^+  cor
-  ?+    pole  ~|(bad-watch-path/path !!)
+  ?+    pole  ~|(bad-watch-path+`path`pole !!)
       [%clubs ~]  ?>(from-self cor)
       [%unreads ~]  ?>(from-self cor)
       ~  ?>(from-self cor)
@@ -654,7 +702,7 @@
     =/  loyal  (~(has in team.crew.club) our.bowl)
     =/  invited  (~(has in hive.crew.club) our.bowl)
     ?:  &(!loyal !invited)
-      [club/id *time 0 ~]
+      [club/id *time 0 ~ ~]
     =/  cu  (cu-abed id)
     [club/id cu-unread:cu]
   %+  murn  ~(tap in ~(key by dms))
@@ -779,7 +827,8 @@
         posts   posts
         log     ?.(log ~ (convert-log pact.chat posts perm.chat log.chat))
         perm    [0 perm.chat]
-        remark  remark.chat
+        remark  :_  remark.chat
+                ?~(tim=(ram:on-v-posts:d posts) *time key.u.tim)
         net
       ?-  -.net.chat
         %pub  [*ship &]
@@ -1003,7 +1052,9 @@
       [*heard:club:c *remark:c *pact:c (silt our.bowl ~) hive.create *data:meta net |]
     cu-core(id id.create, club clab)
   ::
-  ++  cu-unread  (unread:cu-pact our.bowl last-read.remark.club)
+  ++  cu-unread
+    %+  unread:cu-pact  our.bowl
+    [last-read unread-threads]:remark.club
   ::
   ++  cu-create
     |=  =create:club:c
@@ -1092,8 +1143,9 @@
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         =*  memo  memo.q.diff.delta
-        =?  remark.club  =(author.memo our.bowl)
-          remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
+        =?  last-read.remark.club  =(author.memo our.bowl)
+          (add now.bowl (div ~s1 100))
+        =.  recency.remark.club  now.bowl
         =.  cor  (give-unread club/id cu-unread)
         ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
         ?^  kind.q.diff.delta  (cu-give-writs-diff diff.delta)
@@ -1127,8 +1179,11 @@
             ?(%del %add-react %del-react)  (cu-give-writs-diff diff.delta)
             %add
           =*  memo  memo.delt
-          =?  remark.club  =(author.memo our.bowl)
-            remark.club(last-read `@da`(add now.bowl (div ~s1 100)))
+          =?  last-read.remark.club  =(author.memo our.bowl)
+            (add now.bowl (div ~s1 100))
+          =?  unread-threads.remark.club  !=(our.bowl author.memo)
+            (~(put in unread-threads.remark.club) p.diff.delta)
+          =.  recency.remark.club  now.bowl
           =.  cor  (give-unread club/id cu-unread)
           ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
           ?~  entry  (cu-give-writs-diff diff.delta)
@@ -1354,8 +1409,9 @@
         %add
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
       =*  memo  memo.q.diff
-      =?  remark.dm  =(author.memo our.bowl)
-        remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
+      =?  last-read.remark.dm  =(author.memo our.bowl)
+        (add now.bowl (div ~s1 100))
+      =.  recency.remark.dm  now.bowl
       =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
         (give-unread ship/ship di-unread)
       ?:  from-self    (di-give-writs-diff diff)
@@ -1390,8 +1446,11 @@
           ?(%del %add-react %del-react)  (di-give-writs-diff diff)
           %add
         =*  memo  memo.delt
-        =?  remark.dm  =(author.memo our.bowl)
-          remark.dm(last-read `@da`(add now.bowl (div ~s1 100)))
+        =?  unread-threads.remark.dm  !=(our.bowl author.memo)
+            (~(put in unread-threads.remark.dm) p.diff)
+        =?  last-read.remark.dm  =(author.memo our.bowl)
+          (add now.bowl (div ~s1 100))
+        =.  recency.remark.dm  now.bowl
         =?  cor  &(!=(old-unread di-unread) !=(net.dm %invited))
           (give-unread ship/ship di-unread)
         ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
@@ -1502,7 +1561,9 @@
       (slav %p nedl.pole)
     ==
   ::
-  ++  di-unread  (unread:di-pact our.bowl last-read.remark.dm)
+  ++  di-unread
+    %+  unread:di-pact  our.bowl
+    [last-read unread-threads]:remark.dm
   ++  di-remark-diff
     |=  diff=remark-diff:c
     ^+  di-core
@@ -1512,7 +1573,11 @@
         %unwatch  remark.dm(watching |)
         %read-at  !! ::  ca-core(last-read.remark.chat p.diff)
       ::
-          %read   remark.dm(last-read now.bowl)
+          %read   
+        %=  remark.dm
+          last-read  now.bowl
+          unread-threads  *(set id:c)
+        ==
   ::    =/  [=time =writ:c]  (need (ram:on:writs:c writs.chat))
   ::    =.  last-read.remark.chat  time
   ::    ca-core

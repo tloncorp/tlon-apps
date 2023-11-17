@@ -4,9 +4,9 @@ import { format, isToday } from 'date-fns';
 import { daToUnix } from '@urbit/api';
 import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
-import { pluralize, useIsDmOrMultiDm, whomIsNest } from '@/logic/utils';
-import { useWrit, useMarkDmReadMutation } from '@/state/chat';
-import { useMarkReadMutation } from '@/state/channel/channel';
+import { pluralize } from '@/logic/utils';
+import { useMarkDmReadMutation } from '@/state/chat';
+import { DMUnread } from '@/types/dms';
 import { useChatInfo, useChatStore } from './useChatStore';
 
 interface DMUnreadAlertsProps {
@@ -16,35 +16,42 @@ interface DMUnreadAlertsProps {
 
 export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
   const chatInfo = useChatInfo(whom);
-  const id = chatInfo?.unread?.unread['read-id'] || '';
-  const { writ } = useWrit(whom, id);
-  const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: markDmRead } = useMarkDmReadMutation();
-  const { mutate: markChatRead } = useMarkReadMutation();
   const markRead = useCallback(() => {
-    if (isDMOrMultiDM) {
-      markDmRead({ whom });
-    } else {
-      markChatRead({ nest: whom });
-    }
+    markDmRead({ whom });
     useChatStore.getState().read(whom);
-  }, [whom, markDmRead, markChatRead, isDMOrMultiDM]);
+  }, [whom, markDmRead]);
 
-  if (!writ || !chatInfo.unread || chatInfo.unread.seen) {
+  if (!chatInfo?.unread || chatInfo.unread.seen) {
+    return null;
+  }
+  const { unread } = chatInfo.unread;
+  if (typeof unread['unread-id'] !== 'object' || !unread['unread-id']) {
     return null;
   }
 
-  const { time } = writ.seal;
-  const scrollTo = `?msg=${time}`;
-  // TODO: what do we do about threads/replies now?
-  const to = `${root}${scrollTo}`;
+  const { time } = unread['unread-id'];
+
+  if (!Object.values(unread.threads).some((t) => typeof t === 'object')) {
+    return null;
+  }
+
+  const threads = unread.threads as DMUnread['threads'];
+  const entries = Object.entries(threads).sort(([, a], [, b]) =>
+    a['parent-time'].localeCompare(b['parent-time'])
+  );
+
+  const [topId, { 'parent-time': parent, time: replyTime }] = entries[0];
+  const to =
+    entries.length === 0 || parent > time
+      ? `${root}?msg=${time}`
+      : `${root}/message/${topId}?msg=${replyTime}`;
 
   const date = new Date(daToUnix(bigInt(time)));
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`
     : format(date, 'LLLL d');
 
-  const { unread } = chatInfo.unread;
   const unreadMessage =
     unread &&
     `${unread.count} new ${pluralize('message', unread.count)} since ${since}`;

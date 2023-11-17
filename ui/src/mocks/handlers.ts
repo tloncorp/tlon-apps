@@ -227,9 +227,10 @@ const chat: Handler[] = [
       Object.values(mockGroups).forEach((group) =>
         Object.entries(group.channels).forEach(([k]) => {
           unreads[k] = {
-            last: 1652302200000,
+            recency: 1652302200000,
             count: 1,
-            'read-id': null,
+            'unread-id': null,
+            threads: {},
           };
         })
       );
@@ -238,14 +239,16 @@ const chat: Handler[] = [
         ...unarchived,
         ...unreads,
         '0v4.00000.qcas9.qndoa.7loa7.loa7l': {
-          last: 1652302200000,
+          recency: 1652302200000,
           count: 1,
-          'read-id': null,
+          'unread-id': null,
+          threads: {},
         },
         '~zod/test': {
-          last: 1652302200000,
+          recency: 1652302200000,
           count: 1,
-          'read-id': null,
+          'unread-id': null,
+          threads: {},
         },
       };
     },
@@ -282,7 +285,12 @@ const chat: Handler[] = [
     ) =>
       createResponse(req, 'diff', {
         whom: req.json.whom,
-        unread: { last: 0, count: 0, 'read-id': null },
+        unread: {
+          recency: 0,
+          count: 0,
+          'unread-id': null,
+          threads: {},
+        },
       }),
   },
 ];
@@ -439,9 +447,10 @@ const dms: Handler[] = [
     ) => {
       if (!Object.keys(dmList).includes(req.json.ship)) {
         const unread = {
-          last: 1652302200000,
+          recency: 1652302200000,
           count: 1,
-          'read-id': null,
+          'unread-id': null,
+          threads: {},
         };
         dmList[req.json.ship] = unread;
 

@@ -3,7 +3,7 @@ import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
-import { useInfiniteDMs } from '@/state/chat';
+import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
 import { log } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
@@ -31,6 +31,7 @@ export default function DmWindow({
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
+  const { mutate: markDmRead } = useMarkDmReadMutation();
 
   const {
     writs,
@@ -83,9 +84,10 @@ export default function DmWindow({
     () => () => {
       if (readTimeout !== undefined && readTimeout !== 0) {
         useChatStore.getState().read(whom);
+        markDmRead({ whom });
       }
     },
-    [readTimeout, whom]
+    [readTimeout, whom, markDmRead]
   );
 
   // TODO: confirm the new placeholder works
