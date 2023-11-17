@@ -11,10 +11,14 @@
 /+  utils=channel-utils, volume
 ::  performance, keep warm
 /+  channel-json
+::
 %-  %-  agent:neg
     :+  |
       [~.channels^%0 ~ ~]
     [%channels-server^[~.channels^%0 ~ ~] ~ ~]
+%-  agent:dbug
+%+  verb  |
+::
 ^-  agent:gall
 =>
   |%
@@ -30,8 +34,6 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  |
-  %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)

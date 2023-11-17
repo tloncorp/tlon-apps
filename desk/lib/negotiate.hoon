@@ -60,8 +60,6 @@
 ::    - remove all other epic-related negotiation logic
 ::    - use this library as normal
 ::
-/+  dbug, verb
-::
 |%
 +$  protocol  @ta
 +$  version   *
@@ -476,12 +474,9 @@
     |=  inner=agent:gall
     =|  state-1
     =*  state  -
-    %+  verb  |
-    %-  agent:dbug
     ^-  agent:gall
     |_  =bowl:gall
     +*  this    .
-        def   ~(. (default-agent this %|) bowl)
         up    ~(. helper bowl state)
         og    ~(. inner inner-bowl:up)
     ++  on-init

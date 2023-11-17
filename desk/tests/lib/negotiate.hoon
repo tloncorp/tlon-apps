@@ -598,9 +598,8 @@
   ::
   ;<  caz=(list card)  bind:m
     (do-poke %emit-bowl !>(~))
-  :: =.  caz  (remove-verb-cards caz)
-  ?>  ?=([* [%give %fact ~ %bowl *] ~] caz)
-  =+  !<(=bowl:gall q.cage.p.i.t.caz)
+  ?>  ?=([[%give %fact ~ %bowl *] ~] caz)
+  =+  !<(=bowl:gall q.cage.p.i.caz)
   %+  ex-equal  !>(wex.bowl)
   !>  %-  ~(gas by *boat:gall)
   :~  [/wire ~zod %hard]^[| /path]

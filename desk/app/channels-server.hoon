@@ -5,8 +5,12 @@
 /-  c=channel, g=groups
 /+  utils=channel-utils
 /+  default-agent, verb, dbug, neg=negotiate
+::
 %-  %-  agent:neg
     [| [~.channels^%0 ~ ~] ~]
+%-  agent:dbug
+%+  verb  |
+::
 ^-  agent:gall
 =>
   |%
@@ -19,8 +23,6 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb  |
-  %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)

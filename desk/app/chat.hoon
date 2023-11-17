@@ -11,10 +11,14 @@
 ::  performance, keep warm
 /+  chat-json
 /*  desk-bill  %bill  /desk/bill
+::
 %-  %-  agent:neg
     :+  |
       [~.chat-dms^%0 ~ ~]
     [%chat^[~.chat-dms^%0 ~ ~] ~ ~]
+%-  agent:dbug
+%+  verb  |
+::
 ^-  agent:gall
 =>
   |%
