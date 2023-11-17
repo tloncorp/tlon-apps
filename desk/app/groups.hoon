@@ -184,7 +184,8 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-cancel:(ga-abed:gang-core flag)
   ::
-      %group-clone
+      %group-do-clone
+    ?>  from-self
     =+  !<(=flag:g vase)
     ga-abet:ga-clone:(ga-abed:gang-core flag)
   ::
@@ -1031,16 +1032,18 @@
           %chat
         =/  =log:c  .^(log:c %gx (welp (channel-scry nest) /logs/noun))
         =/  =clone:cl  [q.flag q.q.nest [%chat log]]
-        [%give %fact ~[/clone/(scot %p p.q.nest)/[q.q.nest]] group-clone+!>(clone)]
+        [%give %fact ~ group-clone+!>(clone)]
           %heap
         =/  =log:h  .^(log:h %gx (welp (channel-scry nest) /logs/noun))
         =/  =clone:cl  [q.flag q.q.nest [%heap log]]
-        [%give %fact ~[/clone/(scot %p p.q.nest)/[q.q.nest]] group-clone+!>(clone)]
+        [%give %fact ~ group-clone+!>(clone)]
           %diary
         =/  =log:d  .^(log:d %gx (welp (channel-scry nest) /logs/noun))
         =/  =clone:cl  [q.flag q.q.nest [%diary log]]
-        [%give %fact ~[/clone/(scot %p p.q.nest)/[q.q.nest]] group-clone+!>(clone)]
+        [%give %fact ~ group-clone+!>(clone)]
       ==
+    =.  cor
+      (emit %give %kick ~ ~)
     go-core
   ::
   ++  go-peek
@@ -1190,10 +1193,8 @@
           %chat
         (emit [%pass /clone %agent [our.bowl %chat] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
           %heap
-        ::  TODO implement this poke
         (emit [%pass /clone %agent [our.bowl %heap] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
           %diary
-        ::  TODO implement this poke
         (emit [%pass /clone %agent [our.bowl %diary] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
       ==
     go-core
