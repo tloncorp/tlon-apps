@@ -475,6 +475,7 @@
     =|  state-1
     =*  state  -
     ^-  agent:gall
+    !.  ::  we hide all the "straight into the inner agent" paths from traces
     |_  =bowl:gall
     +*  this    .
         up    ~(. helper bowl state)
@@ -483,7 +484,7 @@
       ^-  (quip card _this)
       =.  ours   our-versions
       =.  know   our-config
-      =^  cards  inner  on-init:og
+      =^  cards  inner  on-init:og  !:
       =^  cards  state  (play-cards:up cards)
       [cards this]
     ::
@@ -497,7 +498,7 @@
         ::  upgrade the inner agent as normal, handling any new subscriptions
         ::  it creates like we normally do
         ::
-        =^  cards  inner  (on-load:og ole)
+        =^  cards  inner  (on-load:og ole)  !:
         =^  cards  state  (play-cards:up cards)
         ::  but then, for every subscription that was established prior to
         ::  using this library, simulate a kick, forcing the inner agent to
@@ -530,6 +531,7 @@
             ::      code branch once this has been deployed to the known ships.
             ::
             =.  state  old(- %1)
+            !:
             ?>  =(ours our-versions)
             ?>  =(know our-config)
             =^  cards  inner  (on-load:og ile)
@@ -556,7 +558,7 @@
           =/  knew   know
           =.  know   our-config
           =^  a      state  (inflate:up `knew)
-          =^  caz2   inner  (on-load:og ile)
+          =^  caz2   inner  (on-load:og ile)  !:
           =^  caz2   state  (play-cards:up caz2)
           =^  [caz3=(list card) nin=_inner]  state
             (simulate-kicks:up kik.a inner)
@@ -577,9 +579,10 @@
       |=  =path
       ^-  (quip card _this)
       ?.  ?=([%~.~ %negotiate *] path)
-        =^  cards  inner  (on-watch:og path)
+        =^  cards  inner  (on-watch:og path)  !:
         =^  cards  state  (play-cards:up cards)
         [cards this]
+      !:
       ?+  t.t.path  !!
           [%version @ ~]  ::  /~/negotiate/version/[protocol]
         ::  it is important that we nack if we don't expose this protocol
@@ -598,16 +601,16 @@
         (trim-wire:up wire)
       ?.  ?=([%~.~ %negotiate *] wire)
         =?  want  ?=(?([%kick ~] [%watch-ack ~ *]) sign)
-          ~|  wire
+          !:  ~|  wire
           =/  gill  (need gill)
           =/  wan  (~(gut by want) gill ~)
           =.  wan  (~(del by wan) wire)
           ?~  wan  (~(del by want) gill)
           (~(put by want) gill wan)
-        =^  cards  inner  (on-agent:og wire sign)
+        =^  cards  inner  (on-agent:og wire sign)  !:
         =^  cards  state  (play-cards:up cards)
         [cards this]
-      ::
+      !:
       ~|  wire=t.t.wire
       ?+  t.t.wire  ~|([%negotiate %unexpected-wire] !!)
         [%notify ~]  [~ this]
@@ -680,6 +683,7 @@
         ``noun+(slop on-save:og !>(negotiate=state))
       ?.  ?=([@ %~.~ %negotiate *] path)
         (on-peek:og path)
+      !:
       ?.  ?=(%x i.path)  [~ ~]
       ?+  t.t.t.path  [~ ~]
         [%version ~]  ``noun+!>(ours)
@@ -738,9 +742,9 @@
     ++  on-leave
       |=  =path
       ^-  (quip card _this)
-      ?:  ?=([%~.~ %negotiate *] path)
+      ?:  ?=([%~.~ %negotiate *] path)  !:
         [~ this]
-      =^  cards  inner  (on-leave:og path)
+      =^  cards  inner  (on-leave:og path)  !:
       =^  cards  state  (play-cards:up cards)
       [cards this]
     ::
@@ -748,9 +752,10 @@
       |=  [=wire sign=sign-arvo:agent:gall]
       ^-  (quip card _this)
       ?.  ?=([%~.~ %negotiate *] wire)
-        =^  cards  inner  (on-arvo:og wire sign)
+        =^  cards  inner  (on-arvo:og wire sign)  !:
         =^  cards  state  (play-cards:up cards)
         [cards this]
+      !:
       ~|  wire=t.t.wire
       ?+  t.t.wire  !!
           [%retry *]
@@ -767,14 +772,14 @@
     ++  on-poke
       |=  [=mark =vase]
       ^-  (quip card _this)
-      =^  cards  inner  (on-poke:og +<)
+      =^  cards  inner  (on-poke:og +<)  !:
       =^  cards  state  (play-cards:up cards)
       [cards this]
     ::
     ++  on-fail
       |=  [term tang]
       ^-  (quip card _this)
-      =^  cards  inner  (on-fail:og +<)
+      =^  cards  inner  (on-fail:og +<)  !:
       =^  cards  state  (play-cards:up cards)
       [cards this]
     --
