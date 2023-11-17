@@ -1,4 +1,4 @@
-/-  g=groups, ha=hark, h=heap, d=diary, c=chat
+/-  g=groups, ha=hark, h=heap, d=diary, c=chat, cl=clone
 /-  g-one=group
 /-  m-one=metadata-store
 /-  meta
@@ -183,6 +183,10 @@
       %group-cancel
     =+  !<(=flag:g vase)
     ga-abet:ga-cancel:(ga-abed:gang-core flag)
+  ::
+      %group-clone
+    =+  !<(=flag:g vase)
+    ga-abet:ga-clone:(ga-abed:gang-core flag)
   ::
       %invite-decline
     =+  !<(=flag:g vase)
@@ -977,6 +981,7 @@
         [%updates rest=*]  (go-pub rest.pole)
         [%ui ~]            go-core
         [%preview ~]       go-preview
+        [%clone ~]         go-clone
     ::
         [%bait host=@ name=@ ~]
       ?>  ?=(%open -.cordon.group)
@@ -1010,6 +1015,32 @@
       (emit %give %fact ~ group-preview+!>(preview))
     =.  cor
       (emit %give %kick ~ ~)
+    go-core
+  ::
+  ++  go-clone
+    =.  cor
+      %-  emil
+      ^-  (list card)
+      %~  tap  in
+      ^-  (set card)
+      %-  %~  run  in
+      ^-  (set nest:g)
+      %~  key  by  channels.group
+      |=  =nest:g
+      ?+  p.nest  !!
+          %chat
+        =/  =log:c  .^(log:c %gx (welp (channel-scry nest) /logs/noun))
+        =/  =clone:cl  [q.flag q.q.nest [%chat log]]
+        [%give %fact ~[/clone/(scot %p p.q.nest)/[q.q.nest]] group-clone+!>(clone)]
+          %heap
+        =/  =log:h  .^(log:h %gx (welp (channel-scry nest) /logs/noun))
+        =/  =clone:cl  [q.flag q.q.nest [%heap log]]
+        [%give %fact ~[/clone/(scot %p p.q.nest)/[q.q.nest]] group-clone+!>(clone)]
+          %diary
+        =/  =log:d  .^(log:d %gx (welp (channel-scry nest) /logs/noun))
+        =/  =clone:cl  [q.flag q.q.nest [%diary log]]
+        [%give %fact ~[/clone/(scot %p p.q.nest)/[q.q.nest]] group-clone+!>(clone)]
+      ==
     go-core
   ::
   ++  go-peek
@@ -1137,8 +1168,35 @@
         %group-log-2     (go-apply-log !<(log:g q.cage))
         %group-update-2  (go-update !<(update:g q.cage))
         %group-init-2    (go-fact-init !<(init:g q.cage))
+        %group-clone     (go-take-clone !<(clone:cl q.cage))
       ==
     ==
+  ::
+  ++  go-take-clone
+    |=  =clone:cl
+    ^+  go-core
+    =/  create
+      :*  group.clone
+          name.clone
+          ::  TODO placeholder title & description
+          (crip "{<name.clone>} title")
+          (crip "{<name.clone>} description")
+          ::  TODO get these if necessary
+          readers=~
+          writers=~
+      ==
+    =.  cor
+      ?-  +>-.clone
+          %chat
+        (emit [%pass /clone %agent [our.bowl %chat] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
+          %heap
+        ::  TODO implement this poke
+        (emit [%pass /clone %agent [our.bowl %heap] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
+          %diary
+        ::  TODO implement this poke
+        (emit [%pass /clone %agent [our.bowl %diary] %poke %import-channel !>([[our.bowl group.clone] create log.clone])])
+      ==
+    go-core
   ::
   ++  go-odd-update
     |=  =mark
@@ -1808,6 +1866,12 @@
     ^+  ga-core
     =.  cam.gang  ~
     =.  cor  ga-give-update
+    ga-core
+  ::
+  ++  ga-clone
+    ^+  ga-core
+    =.  cor
+    (emit %pass /group/(scot %p p.flag)/[q.flag]/clone %agent [p.flag %groups] %watch /clone/(scot %p p.flag)/[q.flag])
     ga-core
   ::
   ++  ga-knock

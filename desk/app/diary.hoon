@@ -836,6 +836,7 @@
     ?+  pole  [~ ~]
         [%notes rest=*]  (peek:di-notes rest.pole)
         [%perm ~]        ``diary-perm+!>(perm.diary)
+        [%logs ~]        ``diary-logs+!>(log.diary)
     ==
   ::
   ++  di-revoke

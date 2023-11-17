@@ -1569,6 +1569,9 @@
         [%perm ~]
       ``chat-perm+!>(perm.chat)
     ::
+        [%logs ~]
+      ``chat-logs+!>(log.chat)
+    ::
         [%search %text skip=@ count=@ nedl=@ ~]
       %-  some
       %-  some

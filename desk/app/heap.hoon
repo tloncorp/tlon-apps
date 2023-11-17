@@ -777,7 +777,8 @@
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
       [%curios rest=*]  (peek:he-curios rest.pole)
-      [%perm ~]        ``heap-perm+!>(perm.heap)
+      [%perm ~]         ``heap-perm+!>(perm.heap)
+      [%logs ~]         ``heap-logs+!>(log.heap)
     ==
   ::
   ++  he-revoke
