@@ -16,9 +16,19 @@ import * as childProcess from 'child_process';
 const spawnedProcesses: childProcess.ChildProcess[] = [];
 const startHashes: { [ship: string]: { [desk: string]: string } } = {};
 
+const manifestPath = path.join(
+  __dirname,
+  '..',
+  '..',
+  'e2e',
+  'shipManifest.json'
+);
+const shipManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
 const ships: Record<
   string,
   {
+    downloadUrl: string;
     url: string;
     savePath: string;
     extractPath: string;
@@ -29,22 +39,20 @@ const ships: Record<
   }
 > = {
   zod: {
-    url: 'https://bootstrap.urbit.org/rube-zod6.tgz',
-    savePath: path.join(__dirname, 'rube-zod6.tgz'),
+    ...shipManifest['~zod'],
+    savePath: path.join(
+      __dirname,
+      shipManifest['~zod'].downloadUrl.split('/').pop()!
+    ), // eslint-disable-line
     extractPath: path.join(__dirname, 'zod'),
-    ship: 'zod',
-    code: 'lidlut-tabwed-pillex-ridrup',
-    httpPort: '35453',
-    loopbackPort: '',
   },
   bus: {
-    url: 'https://bootstrap.urbit.org/rube-bus6.tgz',
-    savePath: path.join(__dirname, 'rube-bus6.tgz'),
+    ...shipManifest['~bus'],
+    savePath: path.join(
+      __dirname,
+      shipManifest['~bus'].downloadUrl.split('/').pop()!
+    ), // eslint-disable-line
     extractPath: path.join(__dirname, 'bus'),
-    ship: 'bus',
-    code: 'riddec-bicrym-ridlev-pocsef',
-    httpPort: '36963',
-    loopbackPort: '',
   },
 };
 
@@ -113,13 +121,15 @@ const extractFile = async (filePath: string, extractPath: string) =>
   });
 
 const getPiers = async () => {
-  for (const { url, savePath, extractPath, ship } of Object.values(ships)) {
+  for (const { downloadUrl, savePath, extractPath, ship } of Object.values(
+    ships
+  )) {
     if (targetShip && targetShip !== ship) {
       continue;
     }
 
     if (!fs.existsSync(savePath)) {
-      await downloadFile(url, savePath);
+      await downloadFile(downloadUrl, savePath);
       console.log(`Downloaded ${ship} to ${savePath}`);
     } else {
       console.log(`Skipping download of ${ship} as it already exists`);
