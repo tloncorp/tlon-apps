@@ -285,8 +285,9 @@
     di-abet:(di-remark-diff:(di-abed:di-core p.act) q.act)
       %import-channel
     ?>  from-self
-    =+  !<([* =flag:d cr=create:d =log:d] vase)
+    =+  !<([=flag:d cr=create:d =log:d] vase)
     =.  cor  (create cr)
+    ~&  "importing {<(wyt:log-on:d log)>} logs to {<flag>}"
     =/  core  (di-abed:di-core flag)
     di-abet:(di-apply-logs:core log)
   ==

@@ -169,8 +169,9 @@
     he-abet:(he-remark-diff:(he-abed:he-core p.act) q.act)
       %import-channel
     ?>  from-self
-    =+  !<([* =flag:h cr=create:h =log:h] vase)
+    =+  !<([=flag:h cr=create:h =log:h] vase)
     =.  cor  (create cr)
+    ~&  "importing {<(wyt:log-on:h log)>} logs to {<flag>}"
     =/  core  (he-abed:he-core flag)
     he-abet:(he-apply-logs:core log)
   ==
