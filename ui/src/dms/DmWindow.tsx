@@ -1,4 +1,11 @@
-import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import bigInt from 'big-integer';
 import { useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
@@ -26,6 +33,7 @@ export default function DmWindow({
   prefixedElement,
 }: DmWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [shouldGetLatest, setShouldGetLatest] = useState(false);
   const scrollTo = getScrollTo(searchParams.get('msg'));
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
@@ -37,12 +45,26 @@ export default function DmWindow({
     writs,
     hasNextPage,
     hasPreviousPage,
+    refetch,
     isLoading,
     fetchNextPage,
     fetchPreviousPage,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = useInfiniteDMs(whom, scrollTo?.toString());
+  } = useInfiniteDMs(whom, scrollTo?.toString(), shouldGetLatest);
+
+  const latestMessageIndex = writs.length - 1;
+  const scrollToIndex = useMemo(
+    () =>
+      scrollTo ? writs.findIndex((m) => m[0].eq(scrollTo)) : latestMessageIndex,
+    [scrollTo, writs, latestMessageIndex]
+  );
+  const latestIsMoreThan30NewerThanScrollTo = useMemo(
+    () =>
+      scrollToIndex !== latestMessageIndex &&
+      latestMessageIndex - scrollToIndex > 30,
+    [scrollToIndex, latestMessageIndex]
+  );
 
   const fetchState = useMemo(
     () =>
@@ -55,7 +77,6 @@ export default function DmWindow({
   );
 
   const onAtBottom = useCallback(() => {
-    console.log('onAtBottom, hasNextPage?', hasNextPage);
     if (hasNextPage && !isFetchingNextPage) {
       log('fetching next page');
       fetchNextPage();
@@ -63,17 +84,21 @@ export default function DmWindow({
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const onAtTop = useCallback(() => {
-    console.log('onAtTop, hasPrevPage?', hasPreviousPage);
     if (hasPreviousPage && !isFetchingPreviousPage) {
       log('fetching previous page');
       fetchPreviousPage();
     }
   }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
 
-  const goToLatest = useCallback(() => {
+  const goToLatest = useCallback(async () => {
     setSearchParams({});
-    scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
-  }, [setSearchParams]);
+    if (hasNextPage) {
+      await refetch();
+      setShouldGetLatest(false);
+    } else {
+      scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
+    }
+  }, [setSearchParams, refetch, hasNextPage, scrollerRef]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -94,6 +119,12 @@ export default function DmWindow({
     [readTimeout, whom, markDmRead]
   );
 
+  useEffect(() => {
+    if (scrollTo && hasNextPage) {
+      setShouldGetLatest(true);
+    }
+  }, [scrollTo, hasNextPage]);
+
   return (
     <div className="relative h-full">
       <DMUnreadAlerts whom={whom} root={root} />
@@ -108,7 +139,6 @@ export default function DmWindow({
            * the channel would be scrolled to the top.
            */
           key={whom}
-          // messages={messages}
           messages={writs}
           fetchState={fetchState}
           whom={whom}
@@ -123,7 +153,7 @@ export default function DmWindow({
           hasLoadedNewest={!hasNextPage}
         />
       </div>
-      {scrollTo ? (
+      {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"

@@ -1262,7 +1262,11 @@ export function useDelDmReactMutation() {
   });
 }
 
-export function useInfiniteDMs(whom: string, initialTime?: string) {
+export function useInfiniteDMs(
+  whom: string,
+  initialTime?: string,
+  latest = false
+) {
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
   const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
   const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
@@ -1324,11 +1328,11 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
 
-      if (pageParam) {
+      if (pageParam && !latest) {
         const { time, direction } = pageParam;
         const ud = decToUd(time.toString());
         path = `/${type}/${whom}/writs/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`;
-      } else if (initialTime) {
+      } else if (initialTime && !latest) {
         path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
           INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
         }/light`;
