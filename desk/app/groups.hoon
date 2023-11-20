@@ -1183,6 +1183,7 @@
         %fact
       =*  cage  cage.sign
       =+  !<(=clone:cl q.cage)
+      ~&  >>>  clone
       =/  create
         :*  [our.bowl group.clone]
             name.clone
@@ -1892,7 +1893,7 @@
     =.  cor
       (emit %pass /groups/(scot %p our.bowl)/[q.flag]/create %agent [our.bowl %groups] %poke %group-create !>(create))
     =.  cor
-      (emit %pass /groups/(scot %p p.flag)/[q.flag]/clone %agent [p.flag %groups] %watch /groups/(scot %p p.flag)/[q.flag]/clone)
+      (emit %pass /groups/(scot %p p.flag)/[q.flag]/clone %agent [our.bowl %groups] %watch /groups/(scot %p p.flag)/[q.flag]/clone)
     ga-core
   ::
   ++  ga-knock
