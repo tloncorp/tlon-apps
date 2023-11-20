@@ -574,7 +574,7 @@ export function useMultiDmsSubscription() {
     queryKey: ['dms', 'multi'],
     app: 'chat',
     scry: '/clubs',
-    path: '/club/new',
+    path: '/clubs',
   });
 }
 
@@ -895,6 +895,7 @@ export function useDmRsvpMutation() {
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries(['dms', 'unreads']);
+      queryClient.invalidateQueries(['dms', 'dms']);
       queryClient.invalidateQueries(['dms', variables.ship]);
     },
   });
@@ -1037,8 +1038,10 @@ export function useMutliDmRsvpMutation() {
 
   return useMutation({
     mutationFn,
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries(['dms', 'unreads']);
       queryClient.invalidateQueries(['dms', 'multi']);
+      queryClient.invalidateQueries(['dms', variables.id]);
     },
   });
 }
