@@ -66,7 +66,6 @@ export const useWritsStore = create<State>((set, get) => ({
     }));
   },
   updateStatus: (id, s) => {
-    console.log(`updating ${id.author}/${id.sent} to status: ${s}`);
     set((state) => ({
       trackedWrits: state.trackedWrits.map(({ cacheId, status }) => {
         if (_.isEqual(cacheId, id)) {
@@ -291,8 +290,6 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
 
       const cachedWrit = lastPage.writs[unixToDa(writ.essay.sent).toString()];
 
-      console.log({ cachedWrit, lastPageWrits: lastPage.writs });
-
       if (
         cachedWrit &&
         time.toString() !== unixToDa(writ.essay.sent).toString()
@@ -442,7 +439,6 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
       };
     });
   } else if ('reply' in delta) {
-    console.log(`reply delta found`);
     const replyParentQueryKey = ['dms', whom, id];
     const { reply } = delta;
     if ('add' in reply.delta) {
@@ -458,12 +454,8 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
         const writFind = allWritsInPages.find(([k, w]) => w.seal.id === id);
 
         if (writFind) {
-          console.log('looks like we have it');
-
           const replyId = writFind[0];
           const replyingWrit = writFind[1];
-          console.log(`reply id`, replyId);
-          console.log(`replying writ`, replyingWrit);
 
           if (replyingWrit === undefined || replyingWrit === null) {
             return queryData;
@@ -492,13 +484,10 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
             Object.keys(page.writs).some((k) => k === replyId)
           );
 
-          console.log(`cached page index: ${pageInCacheIdx}`);
-
           if (pageInCache === undefined) {
             return queryData;
           }
 
-          console.log('returning updated data');
           return {
             pages: [
               ...queryData.pages.slice(0, pageInCacheIdx),
@@ -514,8 +503,6 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
             pageParams: queryData.pageParams,
           };
         }
-
-        console.log('no luck, returning existing data');
 
         return {
           pages: queryData.pages,
@@ -546,8 +533,6 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
             return queryData;
           }
 
-          console.log('got a reply, not in cache. Adding');
-
           const replyId = unixToDa(memo.sent).toString();
           const newReply: Reply = {
             seal: {
@@ -575,16 +560,6 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
     }
   }
 }
-
-// async function updateWritInCache(
-//   variables: { whom: string; postId: string },
-//   updater: (post: PostDataResponse | undefined) => PostDataResponse | undefined
-// ) {
-//   const [han, flag] = nestToFlag(variables.nest);
-//   await queryClient.cancelQueries([han, 'posts', flag, variables.postId]);
-
-//   queryClient.setQueryData([han, 'posts', flag, variables.postId], updater);
-// }
 
 export function useMultiDmsQuery() {
   return useReactQueryScry<Clubs>({
@@ -1336,7 +1311,6 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
 
         // for now, let's avoid updating data in place and always refetch
         // when we hear a fact
-        // infiniteDMsUpdater(queryKey, data);
         invalidate.current();
       },
     });

@@ -94,15 +94,6 @@ export default function DmWindow({
     [readTimeout, whom, markDmRead]
   );
 
-  // TODO: confirm the new placeholder works
-  // if (isLoading) {
-  //   return (
-  //     <div className="h-full overflow-hidden">
-  //       <ChatScrollerPlaceholder count={30} />
-  //     </div>
-  //   );
-  // }
-
   return (
     <div className="relative h-full">
       <DMUnreadAlerts whom={whom} root={root} />
