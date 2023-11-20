@@ -918,8 +918,9 @@ export function useDmRsvpMutation() {
         }
       );
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries(['dms', 'unreads']);
+      queryClient.invalidateQueries(['dms', variables.ship]);
     },
   });
 }
@@ -964,22 +965,17 @@ export function useCreateMultiDm() {
         }
       );
     },
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries(['dms', 'multi']);
+      queryClient.invalidateQueries(['dms', variables.id]);
     },
   });
 }
 
 export function useEditMultiDm() {
   const mutationFn = async ({ id, meta }: { id: string; meta: GroupMeta }) => {
-    await api.poke({
-      app: 'chat',
-      mark: 'club-edit',
-      json: {
-        id,
-        meta,
-      },
-    });
+    const action = multiDmAction(id, { meta });
+    await api.poke(action);
   };
 
   return useMutation({
