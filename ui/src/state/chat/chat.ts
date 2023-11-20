@@ -48,6 +48,8 @@ import emptyMultiDm, {
   appendWritToLastPage,
   buildCachedWrit,
   buildWritPage,
+  removePendingFromCache,
+  removeUnreadFromCache,
 } from './utils';
 
 export interface State {
@@ -745,9 +747,8 @@ export function useMarkDmReadMutation() {
   });
 }
 
-const emptyUnreads: DMUnreads = {};
-const dmUnreadsKey = ['dm', 'unreads'];
 export function useDmUnreads() {
+  const dmUnreadsKey = ['dms', 'unreads'];
   const { mutate: markDmRead } = useMarkDmReadMutation();
   const invalidate = useRef(
     _.debounce(
@@ -790,10 +791,14 @@ export function useDmUnreads() {
     path: '/unreads',
     scry: '/unreads',
     onEvent: eventHandler,
+    options: {
+      retryOnMount: true,
+      refetchOnMount: true,
+    },
   });
 
   return {
-    data: data || emptyUnreads,
+    data: data || {},
     ...query,
   };
 }
@@ -876,25 +881,17 @@ export function useDmRsvpMutation() {
     mutationFn,
     onMutate: (variables) => {
       const { ship, accept } = variables;
-      queryClient.setQueryData(
-        ['dms', 'unreads'],
-        (unreads: DMUnreads | undefined) => {
-          if (!unreads) {
-            return unreads;
-          }
 
-          const newUnreads = { ...unreads };
-
-          if (!accept) {
-            delete newUnreads[ship];
-          }
-
-          return newUnreads;
-        }
-      );
+      // optimistic updates
+      if (accept) {
+        removePendingFromCache(queryClient, ship);
+      } else {
+        removeUnreadFromCache(queryClient, ship);
+      }
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries(['dms', 'unreads']);
+      queryClient.invalidateQueries(['dms', 'pending']);
       queryClient.invalidateQueries(['dms', 'dms']);
       queryClient.invalidateQueries(['dms', variables.ship]);
     },
@@ -1038,8 +1035,19 @@ export function useMutliDmRsvpMutation() {
 
   return useMutation({
     mutationFn,
+    onMutate: (variables) => {
+      const { id, accept } = variables;
+
+      // optimistic updates
+      if (accept) {
+        removePendingFromCache(queryClient, id);
+      } else {
+        removeUnreadFromCache(queryClient, id);
+      }
+    },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries(['dms', 'unreads']);
+      queryClient.invalidateQueries(['dms', 'pending']);
       queryClient.invalidateQueries(['dms', 'multi']);
       queryClient.invalidateQueries(['dms', variables.id]);
     },
