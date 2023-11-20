@@ -7,6 +7,7 @@ import {
 } from '@/types/channel';
 import {
   Club,
+  DMUnreads,
   PagedWrits,
   ReplyDelta,
   Writ,
@@ -15,6 +16,7 @@ import {
   WritMemo,
   WritSeal,
 } from '@/types/dms';
+import { QueryClient } from '@tanstack/react-query';
 import { udToDec } from '@urbit/api';
 import { formatUd, unixToDa } from '@urbit/aura';
 import bigInt from 'big-integer';
@@ -31,6 +33,34 @@ export default function emptyMultiDm(): Club {
       cover: '',
     },
   };
+}
+
+export function removePendingFromCache(queryClient: QueryClient, id: string) {
+  queryClient.setQueryData(
+    ['dms', 'pending'],
+    (pending: string[] | undefined) => {
+      if (!pending) {
+        return pending;
+      }
+      return pending.filter((p) => p !== id);
+    }
+  );
+}
+
+export function removeUnreadFromCache(queryClient: QueryClient, id: string) {
+  queryClient.setQueryData(
+    ['dms', 'unreads'],
+    (unreads: DMUnreads | undefined) => {
+      if (!unreads) {
+        return unreads;
+      }
+
+      const newUnreads = { ...unreads };
+      delete newUnreads[id];
+
+      return newUnreads;
+    }
+  );
 }
 
 interface PageParam {
