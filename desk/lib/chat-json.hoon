@@ -324,8 +324,8 @@
     |=  pw=paged-writs:c
     %-  pairs
     :~  writs+(writs writs.pw)
-        newer+?~(newer.pw ~ (id u.newer.pw))
-        older+?~(older.pw ~ (id u.older.pw))
+        newer+?~(newer.pw ~ (time-id u.newer.pw))
+        older+?~(older.pw ~ (time-id u.older.pw))
         total+(numb total.pw)
     ==
   ::

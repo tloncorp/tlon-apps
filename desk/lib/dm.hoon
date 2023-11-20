@@ -187,12 +187,12 @@
     %+  turn  ls
     |=  [=time =writ:c]
     [time writ(replies *replies:c)]
-  =/  newer=(unit id:c)
-    =/  more  (tab:on:writs:c writs `-:(rear ls) 1)
-    ?~(more ~ `id.val:(head more))
-  =/  older=(unit id:c)
-    =/  more  (bat:mope writs `-:(head ls) 1)
-    ?~(more ~ `id.val:(head more))
+  =/  newer=(unit time)
+    =/  more  (tab:on:writs:c wit.pac `-:(rear ls) 1)
+    ?~(more ~ `key:(head more))
+  =/  older=(unit time)
+    =/  more  (bat:mope wit.pac `-:(head ls) 1)
+    ?~(more ~ `key:(head more))
   :*  writs
       newer
       older
