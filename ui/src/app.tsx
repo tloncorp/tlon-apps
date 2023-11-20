@@ -581,6 +581,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             element={<NewChannelModal />}
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
+          <Route path="dm/:id/edit-info" element={<MultiDMEditModal />} />
           {isMobile ? (
             <>
               <Route

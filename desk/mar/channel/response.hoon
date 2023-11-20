@@ -1,4 +1,4 @@
-/-  d=channel
+/-  d=channels
 /+  j=channel-json
 |_  =r-channels:d
 ++  grad  %noun

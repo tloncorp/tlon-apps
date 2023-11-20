@@ -193,6 +193,8 @@ export default function ChatThread() {
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
             scrollElementRef={scrollElementRef}
             isScrolling={isScrolling}
+            hasLoadedNewest={false}
+            hasLoadedOldest={false}
           />
         )}
       </div>

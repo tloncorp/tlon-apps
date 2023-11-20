@@ -21,7 +21,7 @@ export default function useMessageSort() {
       string,
       (k: string, v: Unread | DMUnread) => string
     > = {
-      [RECENT]: (flag: string, _unread: Unread | DMUnread) => `chat/${flag}`,
+      [RECENT]: (flag: string, _unread: Unread | DMUnread) => flag,
     };
 
     return sortRecordsBy(unreads, accessors[sortFn], true);

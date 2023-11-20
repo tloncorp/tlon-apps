@@ -77,8 +77,8 @@
 ::
 +$  paged-writs
   $:  =writs
-      newer=(unit id)
-      older=(unit id)
+      newer=(unit time)
+      older=(unit time)
       total=@ud
   ==
 ::

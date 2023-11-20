@@ -8,8 +8,11 @@ import {
   Nest,
   PostEssay,
 } from '@/types/channel';
-import { JSONToInlines } from './tiptap';
+import { buildAddDelta, createMessage } from '@/state/chat/utils';
+import { WritDelta } from '@/types/dms';
+import { SendMessageVariables, SendReplyVariables } from '@/state/chat';
 import { isImageUrl } from './utils';
+import { JSONToInlines } from './tiptap';
 
 interface MessageSender {
   whom: string;
@@ -19,7 +22,8 @@ interface MessageSender {
   blocks: Block[];
   text: string;
   now: number;
-  sendDm?: (whom: string, essay: PostEssay, replying?: string) => void;
+  sendDm?: (variables: SendMessageVariables) => void;
+  sendDmReply?: (variables: SendReplyVariables) => void;
   sendChatMessage?: ({
     cacheId,
     essay,
@@ -49,6 +53,7 @@ export default function messageSender({
   text,
   now,
   sendDm,
+  sendDmReply,
   sendChatMessage,
   sendReply,
 }: MessageSender) {
@@ -115,16 +120,19 @@ export default function messageSender({
           },
         },
       ];
+      const message = createMessage(whom, { ...essay, content }, replying);
 
       if (sendDm) {
-        sendDm(
+        sendDm({
           whom,
-          {
-            ...essay,
-            content,
-          },
-          replying
-        );
+          delta: buildAddDelta(essay),
+        });
+      } else if (sendDmReply && replying) {
+        sendDmReply({
+          whom,
+          message,
+          parentId: replying,
+        });
       } else if (sendChatMessage) {
         sendChatMessage({
           cacheId,
@@ -147,7 +155,13 @@ export default function messageSender({
 
       img.onerror = () => {
         if (sendDm) {
-          sendDm(whom, essay, replying);
+          sendDm({ whom, delta: buildAddDelta(essay) });
+        } else if (sendDmReply && replying) {
+          sendDmReply({
+            whom,
+            message,
+            parentId: replying,
+          });
         } else if (sendChatMessage) {
           sendChatMessage({
             cacheId,
@@ -164,7 +178,14 @@ export default function messageSender({
       };
     };
   } else if (sendDm) {
-    sendDm(whom, essay, replying);
+    sendDm({ whom, delta: buildAddDelta(essay) });
+  } else if (sendDmReply && replying) {
+    const message = createMessage(whom, essay, replying);
+    sendDmReply({
+      whom,
+      message,
+      parentId: replying,
+    });
   } else if (sendChatMessage) {
     sendChatMessage({
       cacheId,

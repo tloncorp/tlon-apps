@@ -1,4 +1,4 @@
-/-  c=channel
+/-  c=channels
 /+  j=channel-json
 |_  toggle=post-toggle:c
 ++  grad  %noun

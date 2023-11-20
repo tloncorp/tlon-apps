@@ -39,6 +39,7 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   }
 
   const allShipsMatch = ships
+    .filter((ship) => ship !== window.our)
     .map((ship) => `${ship}/${agent}`)
     .every((ship) => ship in data && data[ship] === true);
 

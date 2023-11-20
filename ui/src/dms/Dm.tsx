@@ -11,7 +11,7 @@ import {
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import { useChatState, useDmUnread, useDmIsPending } from '@/state/chat';
+import { useDmUnread, useDmIsPending } from '@/state/chat';
 import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';
@@ -35,6 +35,7 @@ import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { dmListPath, isGroups } from '@/logic/utils';
 import useNegotiation from '@/state/negotiation';
+import { useSendMessage } from '@/state/chat';
 import MessageSelector from './MessageSelector';
 import DmSearch from './DmSearch';
 
@@ -108,7 +109,7 @@ export default function Dm() {
   const { isChatInputFocused } = useChatInputFocus();
   const dropZoneId = `chat-dm-input-dropzone-${ship}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const { sendMessage } = useChatState.getState();
+  const { mutate: sendMessage } = useSendMessage();
   const contact = useContact(ship);
   const { data } = useConnectivityCheck(ship || '');
   const navigate = useNavigate();
@@ -119,9 +120,7 @@ export default function Dm() {
   const unread = useDmUnread(ship);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const canStart = useChatState(
-    useCallback(() => ship && !!unread, [ship, unread])
-  );
+  const canStart = ship && !!unread;
   const root = `/dm/${ship}`;
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
   const negotiationMatch = useNegotiation(ship, 'chat', 'chat');
@@ -137,12 +136,6 @@ export default function Dm() {
   const handleLeave = useCallback(() => {
     navigate(dmListPath);
   }, [navigate]);
-
-  useEffect(() => {
-    if (ship && canStart) {
-      useChatState.getState().initializeDm(ship);
-    }
-  }, [ship, canStart]);
 
   const conversationHeader = useMemo(
     () => (

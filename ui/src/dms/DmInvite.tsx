@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useDmRsvpMutation } from '@/state/chat';
 import X16Icon from '../components/icons/X16Icon';
 import DMHero from './DMHero';
-import { useChatState } from '../state/chat';
 import { useContact } from '../state/contact';
 
 interface DmInviteProps {
@@ -13,12 +13,13 @@ export default function DmInvite({ ship }: DmInviteProps) {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const navigate = useNavigate();
   const contact = useContact(ship);
+  const { mutateAsync: dmRsvp } = useDmRsvpMutation();
   const onAccept = async () => {
-    await useChatState.getState().dmRsvp(ship, true);
+    await dmRsvp({ ship, accept: true });
   };
   const onDecline = async () => {
     navigate(-1);
-    await useChatState.getState().dmRsvp(ship, false);
+    await dmRsvp({ ship, accept: false });
   };
   return (
     <div className="relative flex h-full w-full">

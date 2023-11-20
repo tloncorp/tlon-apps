@@ -12,7 +12,11 @@ import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
 import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { useChatState, useMessageToggler } from '@/state/chat';
+import {
+  useMessageToggler,
+  useAddDmReactMutation,
+  useDeleteDmMutation,
+} from '@/state/chat';
 import IconButton from '@/components/IconButton';
 import useEmoji from '@/state/emoji';
 import BubbleIcon from '@/components/icons/BubbleIcon';
@@ -89,9 +93,11 @@ function ChatMessageOptions(props: {
   const canWrite = canWriteChannel(perms, vessel, group?.bloc);
   const navigate = useNavigate();
   const location = useLocation();
+  const { mutate: addReactToChat } = useAddPostReactMutation();
+  const { mutate: addReactToDm } = useAddDmReactMutation();
+  const { mutate: deleteDm } = useDeleteDmMutation();
   const { mutate: deleteChatMessage, isLoading: isDeleteLoading } =
     useDeletePostMutation();
-  const { mutate: addFeelToChat } = useAddPostReactMutation();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
   const {
     show: showPost,
@@ -118,7 +124,7 @@ function ChatMessageOptions(props: {
 
     try {
       if (isDMorMultiDM) {
-        useChatState.getState().delDm(whom, seal.id);
+        deleteDm({ whom, id: seal.id });
       } else {
         deleteChatMessage({
           nest,
@@ -162,9 +168,13 @@ function ChatMessageOptions(props: {
   const onEmoji = useCallback(
     (emoji: { shortcodes: string }) => {
       if (isDMorMultiDM) {
-        useChatState.getState().addReactToDm(whom, seal.id, emoji.shortcodes);
+        addReactToDm({
+          whom,
+          id: seal.id,
+          react: emoji.shortcodes,
+        });
       } else {
-        addFeelToChat({
+        addReactToChat({
           nest,
           postId: seal.id,
           react: emoji.shortcodes,
@@ -185,7 +195,8 @@ function ChatMessageOptions(props: {
       privacy,
       seal,
       setPickerOpen,
-      addFeelToChat,
+      addReactToDm,
+      addReactToChat,
       nest,
       isDMorMultiDM,
     ]

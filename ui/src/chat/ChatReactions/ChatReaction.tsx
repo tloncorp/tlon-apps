@@ -1,7 +1,7 @@
 import cn from 'classnames';
 import React, { useCallback, useEffect } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { useChatState } from '@/state/chat';
+import { useAddDmReactMutation, useDelDmReactMutation } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import X16Icon from '@/components/icons/X16Icon';
 import ShipName from '@/components/ShipName';
@@ -33,6 +33,8 @@ export default function ChatReaction({
   const isDMOrMultiDM = useIsDmOrMultiDm(whom);
   const { mutate: addChatReact } = useAddPostReactMutation();
   const { mutate: delChatReact } = useDeletePostReactMutation();
+  const { mutate: addDmReact } = useAddDmReactMutation();
+  const { mutate: delDmReact } = useDelDmReactMutation();
   const nest = `chat/${whom}`;
   const { load } = useEmoji();
   const isMine = ships.includes(window.our);
@@ -46,7 +48,7 @@ export default function ChatReaction({
   const editReact = useCallback(() => {
     if (isMine) {
       if (isDMOrMultiDM) {
-        useChatState.getState().delReactToDm(whom, seal.id);
+        delDmReact({ whom, id: seal.id });
       } else {
         delChatReact({
           nest,
@@ -55,7 +57,7 @@ export default function ChatReaction({
       }
     } else {
       if (isDMOrMultiDM) {
-        useChatState.getState().addReactToDm(whom, seal.id, react);
+        addDmReact({ whom, id: seal.id, react });
       } else {
         addChatReact({
           nest,
@@ -79,6 +81,8 @@ export default function ChatReaction({
     seal,
     react,
     delChatReact,
+    addDmReact,
+    delDmReact,
     nest,
     isDMOrMultiDM,
     addChatReact,

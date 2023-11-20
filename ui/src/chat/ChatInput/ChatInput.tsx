@@ -12,6 +12,8 @@ import React, {
 import { useSearchParams } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
 import {
+  SendMessageVariables,
+  SendReplyVariables,
   useIsShipBlocked,
   useShipHasBlockedUs,
   useUnblockShipMutation,
@@ -58,7 +60,7 @@ import {
   Memo,
 } from '@/types/channel';
 import { CacheId } from '@/state/channel/channel';
-import { WritTuple } from '@/types/dms';
+import { WritDelta, WritTuple } from '@/types/dms';
 import messageSender from '@/logic/messageSender';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
@@ -69,7 +71,8 @@ interface ChatInputProps {
   showReply?: boolean;
   className?: string;
   sendDisabled?: boolean;
-  sendDm?: (whom: string, essay: PostEssay, replying?: string) => void;
+  sendDm?: (variables: SendMessageVariables) => void;
+  sendDmReply?: (variables: SendReplyVariables) => void;
   sendChatMessage?: ({
     cacheId,
     essay,
@@ -131,6 +134,7 @@ export default function ChatInput({
   showReply = false,
   sendDisabled = false,
   sendDm,
+  sendDmReply,
   sendChatMessage,
   sendReply,
   dropZoneId,
@@ -329,6 +333,7 @@ export default function ChatInput({
         replyCite,
         now,
         sendDm,
+        sendDmReply,
         sendChatMessage,
         sendReply,
       });
@@ -357,6 +362,7 @@ export default function ChatInput({
       setDraft,
       clearAttachments,
       sendDm,
+      sendDmReply,
       sendChatMessage,
       sendReply,
       sendDisabled,

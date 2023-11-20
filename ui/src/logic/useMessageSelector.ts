@@ -4,9 +4,13 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
-import { useChatState, useDmUnreads, useMultiDms } from '@/state/chat';
-import createClub from '@/state/chat/createClub';
-import { PostEssay } from '@/types/channel';
+import {
+  SendMessageVariables,
+  useCreateMultiDm,
+  useDmUnreads,
+  useMultiDms,
+  useSendMessage,
+} from '@/state/chat';
 import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
@@ -21,6 +25,8 @@ export default function useMessageSelector() {
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
   const { data: unreads } = useDmUnreads();
+  const { mutate: sendMessage } = useSendMessage();
+  const { mutateAsync: createMultiDm } = useCreateMultiDm();
 
   const existingDm = useMemo(() => {
     if (ships.length !== 1) {
@@ -71,10 +77,13 @@ export default function useMessageSelector() {
       } else if (existingMultiDm) {
         navigate(`/dm/${existingMultiDm}`);
       } else if (isMultiDm) {
-        await createClub(
-          newClubId,
-          invites.filter((i) => i.value !== window.our).map((s) => s.value)
-        );
+        await createMultiDm({
+          id: newClubId,
+          hive: invites
+            .filter((i) => i.value !== window.our)
+            .map((s) => s.value),
+        });
+
         navigate(`/dm/${newClubId}`);
       } else {
         navigate(`/dm/${invites[0].value}`);
@@ -82,16 +91,29 @@ export default function useMessageSelector() {
 
       setShips([]);
     },
-    [existingMultiDm, existingDm, isMultiDm, setShips, navigate, newClubId]
+    [
+      existingMultiDm,
+      existingDm,
+      isMultiDm,
+      setShips,
+      navigate,
+      newClubId,
+      createMultiDm,
+    ]
   );
 
   const sendDm = useCallback(
-    async (whom: string, essay: PostEssay) => {
+    async (variables: SendMessageVariables) => {
+      const { whom } = variables;
       if (isMultiDm && shipValues && whom !== existingMultiDm) {
-        await createClub(whom, shipValues);
+        await createMultiDm({
+          id: whom,
+          hive: shipValues,
+        });
       }
 
-      useChatState.getState().sendMessage(whom, essay);
+      sendMessage(variables);
+
       setShips([]);
       navigate(`/dm/${isMultiDm ? whom : whom}`);
     },

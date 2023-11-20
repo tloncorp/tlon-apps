@@ -1007,6 +1007,7 @@
     (~(uni in team.crew.club) hive.crew.club)
   ::
   ++  cu-area  `wire`/club/(scot %uv id)
+  ++  cu-area-writs  `wire`/club/(scot %uv id)/writs
   ::
   ++  cu-uid
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
@@ -1091,14 +1092,14 @@
   ::
   ++  cu-give-writs-diff
     |=  =diff:writs:c
-    =.  cor
-      =/  =cage  writ-diff+!>(diff)
-      (emit %give %fact ~[(welp cu-area /writs)] cage)
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.club)
     ?~  response  cu-core
     =.  cor
       =/  =cage  writ-response+!>(u.response)
-      (emit %give %fact ~[(welp cu-area /writs)] cage)
+      (emit %give %fact ~[cu-area] cage)
+    =.  cor
+      =/  =cage  writ-response+!>(u.response)
+      (emit %give %fact ~[cu-area-writs] cage)
     cu-core
   ::
   ++  cu-diff
@@ -1354,6 +1355,7 @@
     di-core(ship s, dm d)
   ::
   ++  di-area  `path`/dm/(scot %p ship)
+  ++  di-area-writs  `path`/dm/(scot %p ship)/writs
   ::
   ++  di-spin-groups
     |=  [con=(list content:ha) but=(unit button:ha)]
@@ -1382,14 +1384,14 @@
   ::
   ++  di-give-writs-diff
     |=  =diff:writs:c
-    =.  cor
-      =/  =cage  writ-diff+!>(diff)
-      (emit %give %fact ~[di-area] cage)
     =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
     ?~  response  di-core
     =.  cor
       =/  =cage  writ-response+!>(u.response)
       (emit %give %fact ~[di-area] cage)
+    =.  cor
+      =/  =cage  writ-response+!>(u.response)
+      (emit %give %fact ~[di-area-writs] cage)
     di-core
   ::
   ++  di-ingest-diff
@@ -1399,11 +1401,6 @@
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
     =/  old-unread  di-unread
     =.  pact.dm  (reduce:di-pact now.bowl diff)
-    =/  response=(unit response:writs:c)  (diff-to-response diff pact.dm)
-    =.  cor
-      ?~  response   cor
-      :: TODO: figure out why this was `path` and not `di-area`
-      (give %fact ~[di-area] writ-response+!>(u.response))
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       (give-invites ship)
     ?-  -.q.diff

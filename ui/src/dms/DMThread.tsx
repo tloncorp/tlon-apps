@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import { useChatState, useWrit } from '@/state/chat';
+import { useWrit, useMultiDm, useSendReplyMutation } from '@/state/chat';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
@@ -43,7 +43,7 @@ export default function DMThread() {
     if (!writ) return '0';
     return writ.seal.time;
   }, [writ]);
-  const { sendMessage } = useChatState.getState();
+  const { mutate: sendDmReply } = useSendReplyMutation();
   const { isOpen: leapIsOpen } = useLeap();
   const dropZoneId = `chat-thread-input-dropzone-${id}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
@@ -55,7 +55,7 @@ export default function DMThread() {
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
-  const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
+  const club = useMultiDm(ship || '');
   const threadTitle = isClub ? club?.meta.title || ship : ship;
   const replies = useMemo(() => {
     if (!writ || writ.seal.replies === null) {
@@ -76,7 +76,8 @@ export default function DMThread() {
       },
     ]);
 
-    return newReplies.sort((a, b) => a[0].compare(b[0]));
+    const sortedReplies = newReplies.sort((a, b) => a[0].compare(b[0]));
+    return sortedReplies;
   }, [writ, time]);
 
   const returnURL = useCallback(() => {
@@ -175,6 +176,8 @@ export default function DMThread() {
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
             scrollElementRef={scrollElementRef}
             isScrolling={isScrolling}
+            hasLoadedNewest={false}
+            hasLoadedOldest={false}
           />
         )}
       </div>
@@ -189,7 +192,7 @@ export default function DMThread() {
           <ChatInput
             whom={whom}
             replying={id}
-            sendDm={sendMessage}
+            sendDmReply={sendDmReply}
             showReply={false}
             autoFocus
             dropZoneId={dropZoneId}

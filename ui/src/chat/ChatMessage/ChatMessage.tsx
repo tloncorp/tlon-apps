@@ -21,7 +21,7 @@ import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
 import {
-  useChatState,
+  useMarkDmReadMutation,
   useMessageToggler,
   useTrackedMessageStatus,
 } from '@/state/chat';
@@ -178,6 +178,7 @@ const ChatMessage = React.memo<
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
+      const { mutate: markDmRead } = useMarkDmReadMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
       const isHidden = useMemo(
@@ -205,7 +206,6 @@ const ChatMessage = React.memo<
               read,
               delayedRead,
             } = useChatStore.getState();
-            const { markDmRead } = useChatState.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -217,7 +217,7 @@ const ChatMessage = React.memo<
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
-                  markDmRead(whom);
+                  markDmRead({ whom });
                 } else {
                   markChatRead({ nest: `chat/${whom}` });
                 }
@@ -230,23 +230,35 @@ const ChatMessage = React.memo<
             if (!inView && unread && seen) {
               read(whom);
               if (isDMOrMultiDM) {
-                markDmRead(whom);
+                markDmRead({ whom });
               } else {
                 markChatRead({ nest: `chat/${whom}` });
               }
             }
           },
-          [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead]
+          [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead, markDmRead]
         ),
       });
-      const msgStatus = useTrackedMessageStatus(seal.id);
-      const status = useTrackedPostStatus({
+
+      const msgStatus = useTrackedMessageStatus({
         author: window.our,
         sent: essay.sent,
       });
-      const isDelivered = msgStatus === 'delivered' && status === 'delivered';
-      const isSent = msgStatus === 'sent' || status === 'sent';
-      const isPending = msgStatus === 'pending' || status === 'pending';
+      const trackedPostStatus = useTrackedPostStatus({
+        author: window.our,
+        sent: essay.sent,
+      });
+      // const msgStatus = useTrackedMessageStatus(seal.id);
+      // const status = useTrackedPostStatus({
+      //   author: window.our,
+      //   sent: essay.sent,
+      // });
+
+      const isDelivered =
+        msgStatus === 'delivered' && trackedPostStatus === 'delivered';
+      const isSent = msgStatus === 'sent' || trackedPostStatus === 'sent';
+      const isPending =
+        msgStatus === 'pending' || trackedPostStatus === 'pending';
 
       const isReplyOp = chatInfo?.replying === seal.id;
 

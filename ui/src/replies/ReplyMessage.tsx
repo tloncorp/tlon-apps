@@ -17,9 +17,9 @@ import Author from '@/chat/ChatMessage/Author';
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import {
-  useChatState,
   useMessageToggler,
   useTrackedMessageStatus,
+  useMarkDmReadMutation,
 } from '@/state/chat';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import { useIsMobile } from '@/logic/useMedia';
@@ -123,6 +123,7 @@ const ReplyMessage = React.memo<
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
+      const { mutate: markDmRead } = useMarkDmReadMutation();
       const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
       const { isHidden: isPostHidden } = usePostToggler(seal.id);
       const isHidden = useMemo(
@@ -150,7 +151,6 @@ const ReplyMessage = React.memo<
               read,
               delayedRead,
             } = useChatStore.getState();
-            const { markDmRead } = useChatState.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -162,7 +162,7 @@ const ReplyMessage = React.memo<
               markSeen(whom);
               delayedRead(whom, () => {
                 if (isDMOrMultiDM) {
-                  markDmRead(whom);
+                  markDmRead({ whom });
                 } else {
                   markChatRead({ nest: whom });
                 }
@@ -174,14 +174,18 @@ const ReplyMessage = React.memo<
               we can assume the user is done and clear the unread. */
             if (!inView && unread && seen) {
               read(whom);
-              markDmRead(whom);
+              markDmRead({ whom });
             }
           },
-          [unread, whom, isUnread, isDMOrMultiDM, markChatRead]
+          [unread, whom, isDMOrMultiDM, markChatRead, markDmRead, isUnread]
         ),
       });
 
-      const msgStatus = useTrackedMessageStatus(seal.id);
+      const msgStatus = useTrackedMessageStatus({
+        author: window.our,
+        sent: memo.sent,
+      });
+
       const status = useTrackedPostStatus({
         author: window.our,
         sent: memo.sent,

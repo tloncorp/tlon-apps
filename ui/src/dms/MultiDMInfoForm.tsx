@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { useChatState, useMultiDm } from '@/state/chat';
+import { useEditMultiDm, useMultiDm } from '@/state/chat';
 import { GroupMeta } from '@/types/groups';
 import ImageOrColorField, {
   ImageOrColorFieldState,
@@ -27,6 +27,7 @@ export default function MultiDMInfoForm({
   const club = useMultiDm(clubId);
   const [iconType, setIconType] = useState<ImageOrColorFieldState>('color');
   const [editStatus, setEditStatus] = useState<Status>('initial');
+  const { mutateAsync: editMultiDm } = useEditMultiDm();
   const defaultValues: GroupMeta = {
     title: club?.meta.title || '',
     cover: club?.meta.cover || '',
@@ -58,14 +59,15 @@ export default function MultiDMInfoForm({
       try {
         setEditStatus('loading');
 
-        await useChatState.getState().editMultiDm(clubId, values);
+        await editMultiDm({ id: clubId, meta: values });
+
         setEditStatus('success');
         setOpen(false);
       } catch (error) {
         setEditStatus('error');
       }
     },
-    [clubId, setOpen]
+    [clubId, setOpen, editMultiDm]
   );
 
   return (

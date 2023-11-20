@@ -93,6 +93,10 @@ export default function ChatWindow({
 
   useEffect(() => {
     useChatStore.getState().setCurrent(nest);
+
+    return () => {
+      useChatStore.getState().setCurrent('');
+    };
   }, [nest]);
 
   const onAtBottom = useCallback(() => {
@@ -152,7 +156,7 @@ export default function ChatWindow({
 
   return (
     <div className="relative h-full">
-      <ChatUnreadAlerts whom={whom} root={root} />
+      <ChatUnreadAlerts nest={nest} root={root} />
       <div className="flex h-full w-full flex-col overflow-hidden">
         <ChatScroller
           /**
@@ -174,6 +178,8 @@ export default function ChatWindow({
           onAtBottom={onAtBottom}
           scrollElementRef={scrollElementRef}
           isScrolling={isScrolling}
+          hasLoadedOldest={!hasPreviousPage}
+          hasLoadedNewest={!hasNextPage}
         />
       </div>
       {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (

@@ -6,36 +6,41 @@ import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/channel/channel';
+import { unixToDa } from '@urbit/aura';
 import { useChatInfo } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
-  whom: string;
+  nest: string;
   root: string;
 }
 
 export default function ChatUnreadAlerts({
-  whom,
+  nest,
   root,
 }: ChatUnreadAlertsProps) {
   const { mutate: markChatRead } = useMarkReadMutation();
-  const chatInfo = useChatInfo(whom);
+  const chatInfo = useChatInfo(nest);
   const markRead = useCallback(() => {
-    markChatRead({ nest: `chat/${whom}` });
-  }, [whom, markChatRead]);
+    markChatRead({ nest });
+  }, [nest, markChatRead]);
 
   if (!chatInfo?.unread || chatInfo.unread.seen) {
     return null;
   }
 
   const { unread } = chatInfo.unread;
-  const id = unread['unread-id'];
-  if (unread.count === 0 || !id || typeof id === 'object') {
+  const unreadId = unread['unread-id'];
+  const { threads } = unread;
+  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
+  if (
+    unread.count === 0 ||
+    (!unreadId && threadKeys.length === 0) ||
+    (typeof unreadId === 'object' && unreadId !== null)
+  ) {
     return null;
   }
 
-  const { threads } = unread;
-  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
-
+  const id = unreadId || unixToDa(Date.now()).toString();
   const topId = threadKeys[0];
   const to =
     threadKeys.length === 0 || topId > id
