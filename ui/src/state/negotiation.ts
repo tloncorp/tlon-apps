@@ -1,17 +1,80 @@
-import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { MatchingResponse } from '@/types/negotiation';
+import api from '@/api';
+import { debounce } from 'lodash';
+import queryClient from '@/queryClient';
+import { MatchingEvent, MatchingResponse } from '@/types/negotiation';
+import { useEffect, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-export default function useNegotiation(
-  ship: string,
-  app: string,
-  agent: string
+function negotiationUpdater(
+  event: MatchingEvent | null,
+  queryKey: string[],
+  invalidate: React.MutableRefObject<() => void>
 ) {
-  const { data, ...rest } = useReactQuerySubscription<MatchingResponse>({
-    queryKey: ['negotiation', app, ship],
-    app,
-    path: `/~/negotiate/notify/json`,
-    scry: '/~/negotiate/matching/json',
+  if (event && event.match === true) {
+    queryClient.setQueryData(queryKey, (prev: MatchingResponse | undefined) => {
+      if (prev === undefined) {
+        return prev;
+      }
+
+      const newPrev = { ...prev };
+
+      newPrev[event.gill] = true;
+
+      return newPrev;
+    });
+  } else if (event && event.match === false) {
+    queryClient.setQueryData(queryKey, (prev: MatchingResponse | undefined) => {
+      if (prev === undefined) {
+        return prev;
+      }
+
+      const newPrev = { ...prev };
+
+      newPrev[event.gill] = false;
+
+      return newPrev;
+    });
+  }
+
+  invalidate.current();
+}
+
+export function useNegotiation(app: string, agent: string) {
+  const queryKey = useMemo(() => ['negotiation', app], [app]);
+
+  const invalidate = useRef(
+    debounce(
+      () => {
+        queryClient.invalidateQueries({ queryKey, refetchType: 'none' });
+      },
+      300,
+      {
+        leading: true,
+        trailing: true,
+      }
+    )
+  );
+
+  useEffect(() => {
+    api.subscribe({
+      app,
+      path: `/~/negotiate/notify/json`,
+      event: (event) => negotiationUpdater(event, queryKey, invalidate),
+    });
+  }, [agent, app, queryKey]);
+
+  return useQuery<MatchingResponse>({
+    queryKey,
+    queryFn: () =>
+      api.scry({
+        app,
+        path: '/~/negotiate/matching/json',
+      }),
   });
+}
+
+export function useNegotiate(ship: string, app: string, agent: string) {
+  const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
     return undefined;
@@ -23,16 +86,11 @@ export default function useNegotiation(
     return data[`${ship}/${agent}`];
   }
 
-  return isInData;
+  return undefined;
 }
 
 export function useNegotiateMulti(ships: string[], app: string, agent: string) {
-  const { data, ...rest } = useReactQuerySubscription<MatchingResponse>({
-    queryKey: ['negotiation', app, ships.join('/')],
-    app,
-    path: `/~/negotiate/notify/json`,
-    scry: '/~/negotiate/matching/json',
-  });
+  const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
     return undefined;

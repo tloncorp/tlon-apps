@@ -199,12 +199,12 @@ export default function MultiDm() {
           )
         }
         footer={
-          isAccepted && negotiationMatch ? (
-            <div
-              className={cn(
-                isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
-              )}
-            >
+          <div
+            className={cn(
+              isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
+            )}
+          >
+            {isAccepted && negotiationMatch ? (
               <ChatInput
                 key={clubId}
                 whom={clubId}
@@ -214,13 +214,13 @@ export default function MultiDm() {
                 dropZoneId={dropZoneId}
                 isScrolling={isScrolling}
               />
-            </div>
-          ) : !negotiationMatch ? (
-            <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
-              Your version of the app does not match some of the members of this
-              chat.
-            </div>
-          ) : null
+            ) : !negotiationMatch ? (
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+                Your version of the app does not match some of the members of
+                this chat.
+              </div>
+            ) : null}
+          </div>
         }
       >
         {isAccepted ? (
