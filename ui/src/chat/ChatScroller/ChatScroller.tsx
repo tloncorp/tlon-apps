@@ -484,12 +484,6 @@ export default function ChatScroller({
         </EmptyPlaceholder>
       )}
 
-      {fetchState !== 'initial' && count === 0 && (
-        <div className="h-full overflow-hidden">
-          <ChatScrollerPlaceholder count={30} />
-        </div>
-      )}
-
       <div
         className="l-0 absolute top-0 w-full"
         ref={contentElementRef}

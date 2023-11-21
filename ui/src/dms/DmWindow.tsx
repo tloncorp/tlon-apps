@@ -16,6 +16,7 @@ import { log } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useIsScrolling } from '@/logic/scroll';
+import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 
 interface DmWindowProps {
   whom: string;
@@ -124,6 +125,14 @@ export default function DmWindow({
       setShouldGetLatest(true);
     }
   }, [scrollTo, hasNextPage]);
+
+  if (isLoading) {
+    return (
+      <div className="h-full overflow-hidden">
+        <ChatScrollerPlaceholder count={30} />
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-full">
