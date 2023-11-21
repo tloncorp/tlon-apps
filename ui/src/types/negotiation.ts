@@ -9,7 +9,7 @@ export type NegotiationStatus = 'match' | 'clash' | 'await' | 'unmet';
 // should be ship/agent
 export type MatchingKey = string;
 
-export type MatchingResponse = Record<MatchingKey, boolean>;
+export type MatchingResponse = Record<MatchingKey, NegotiationStatus>;
 
 export interface MatchingEvent {
   gill: MatchingKey;

@@ -27,11 +27,12 @@ export default function ShipConnection({
   app = 'chat',
   agent = 'chat',
 }: ShipConnectionProps) {
-  const { match: negotiationMatch } = useNegotiate(ship, app, agent);
+  const { matchedOrPending } = useNegotiate(ship, app, agent);
+
   const isSelf = ship === window.our;
   const color = isSelf
     ? 'text-green-400'
-    : negotiationMatch || negotiationMatch === undefined
+    : matchedOrPending
     ? getConnectionColor(status)
     : 'text-red-400';
   const text = isSelf
@@ -40,7 +41,7 @@ export default function ShipConnection({
     ? 'No connection data'
     : 'pending' in status
     ? getPendingText(status, ship)
-    : negotiationMatch || negotiationMatch === undefined
+    : matchedOrPending
     ? getCompletedText(status, ship)
     : 'Your version does not match the other party';
 

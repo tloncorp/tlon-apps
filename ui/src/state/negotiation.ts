@@ -1,9 +1,9 @@
-import api from '@/api';
-import { debounce } from 'lodash';
-import queryClient from '@/queryClient';
-import { MatchingEvent, MatchingResponse } from '@/types/negotiation';
 import { useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { debounce } from 'lodash';
+import api from '@/api';
+import queryClient from '@/queryClient';
+import { MatchingEvent, MatchingResponse } from '@/types/negotiation';
 
 function negotiationUpdater(
   event: MatchingEvent | null,
@@ -18,7 +18,7 @@ function negotiationUpdater(
 
       const newPrev = { ...prev };
 
-      newPrev[event.gill] = true;
+      newPrev[event.gill] = 'match';
 
       return newPrev;
     });
@@ -30,7 +30,7 @@ function negotiationUpdater(
 
       const newPrev = { ...prev };
 
-      newPrev[event.gill] = false;
+      newPrev[event.gill] = 'match';
 
       return newPrev;
     });
@@ -68,7 +68,7 @@ export function useNegotiation(app: string, agent: string) {
     queryFn: () =>
       api.scry({
         app,
-        path: '/~/negotiate/matching/json',
+        path: '/~/negotiate/status/json',
       }),
   });
 }
@@ -77,16 +77,22 @@ export function useNegotiate(ship: string, app: string, agent: string) {
   const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return { ...rest, match: false };
+    return { ...rest, status: 'await', matchedOrPending: true };
   }
 
   const isInData = `${ship}/${agent}` in data;
 
   if (isInData) {
-    return { ...rest, match: data[`${ship}/${agent}`] };
+    return {
+      ...rest,
+      status: data[`${ship}/${agent}`],
+      matchedOrPending:
+        data[`${ship}/${agent}`] === 'match' ||
+        data[`${ship}/${agent}`] === 'await',
+    };
   }
 
-  return { ...rest, match: false };
+  return { ...rest, status: 'await', matchedOrPending: true };
 }
 
 export function useNegotiateMulti(ships: string[], app: string, agent: string) {
@@ -99,7 +105,7 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   const allShipsMatch = ships
     .filter((ship) => ship !== window.our)
     .map((ship) => `${ship}/${agent}`)
-    .every((ship) => ship in data && data[ship] === true);
+    .every((ship) => ship in data && data[ship] === 'match');
 
   return { ...rest, match: allShipsMatch };
 }
