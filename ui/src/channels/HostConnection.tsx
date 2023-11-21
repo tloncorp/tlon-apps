@@ -69,7 +69,7 @@ export default function HostConnection({
   saga,
   className,
 }: HostConnectionProps) {
-  const { match: negotiationMatch } = useNegotiate(
+  const { matchedOrPending } = useNegotiate(
     ship,
     'channels',
     'channels-server'
@@ -78,12 +78,12 @@ export default function HostConnection({
   return (
     <span className={cn('flex items-center space-x-1', className)}>
       {type === 'default' && (
-        <Tooltip content={getText(saga, ship, status, negotiationMatch)}>
+        <Tooltip content={getText(saga, ship, status, matchedOrPending)}>
           <span tabIndex={0} className="default-focus rounded-md">
             <Bullet16Icon
               className={cn(
                 'h-4 w-4 flex-none',
-                getHostConnectionColor(saga, status, negotiationMatch)
+                getHostConnectionColor(saga, status, matchedOrPending)
               )}
             />
           </span>
@@ -93,12 +93,12 @@ export default function HostConnection({
         <Bullet16Icon
           className={cn(
             'h-4 w-4 flex-none',
-            getHostConnectionColor(saga, status, negotiationMatch)
+            getHostConnectionColor(saga, status, matchedOrPending)
           )}
         />
       )}
       {(type === 'combo' || type === 'text') && (
-        <span>{getText(saga, ship, status, negotiationMatch)}</span>
+        <span>{getText(saga, ship, status, matchedOrPending)}</span>
       )}
     </span>
   );
