@@ -586,6 +586,9 @@
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
   ::
+      [%epic ~]
+    cor
+  ::
       [%migrate ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
