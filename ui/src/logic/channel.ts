@@ -240,7 +240,6 @@ export function useChannelIsJoined(nest: string) {
 
 export function useCheckChannelJoined() {
   const unreads = useUnreads();
-
   return useCallback(
     (nest: string) => {
       return isChannelJoined(nest, unreads);

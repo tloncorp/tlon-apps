@@ -1098,6 +1098,10 @@ export function sagaCompatible(saga: Saga | null) {
   return saga === null || 'synced' in saga;
 }
 
+export function useIsHttps() {
+  return window.location.protocol === 'https:';
+}
+
 export function useIsInThread() {
   const { idShip, idTime } = useParams<{
     idShip: string;
