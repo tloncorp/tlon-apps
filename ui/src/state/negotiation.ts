@@ -77,23 +77,23 @@ export function useNegotiate(ship: string, app: string, agent: string) {
   const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return undefined;
+    return { ...rest, match: false };
   }
 
   const isInData = `${ship}/${agent}` in data;
 
   if (isInData) {
-    return data[`${ship}/${agent}`];
+    return { ...rest, match: data[`${ship}/${agent}`] };
   }
 
-  return undefined;
+  return { ...rest, match: false };
 }
 
 export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return undefined;
+    return { ...rest, match: false };
   }
 
   const allShipsMatch = ships
@@ -101,5 +101,5 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
     .map((ship) => `${ship}/${agent}`)
     .every((ship) => ship in data && data[ship] === true);
 
-  return allShipsMatch;
+  return { ...rest, match: allShipsMatch };
 }

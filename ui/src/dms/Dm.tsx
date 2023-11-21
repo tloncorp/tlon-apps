@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import cn from 'classnames';
 import {
   Outlet,
@@ -122,7 +122,9 @@ export default function Dm() {
   const canStart = ship && !!unread;
   const root = `/dm/${ship}`;
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
-  const negotiationMatch = useNegotiate(ship, 'chat', 'chat');
+  const { match: negotiationMatch, isLoading: negotiationLoading } =
+    useNegotiate(ship, 'chat', 'chat');
+  const confirmedMismatch = !negotiationLoading && !negotiationMatch;
 
   const {
     isSelectingMessage,
@@ -264,7 +266,7 @@ export default function Dm() {
               isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
             )}
           >
-            {isAccepted && negotiationMatch ? (
+            {isAccepted && !confirmedMismatch ? (
               <ChatInput
                 key={ship}
                 whom={ship}
@@ -274,7 +276,7 @@ export default function Dm() {
                 dropZoneId={dropZoneId}
                 isScrolling={isScrolling}
               />
-            ) : !negotiationMatch ? (
+            ) : confirmedMismatch ? (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
                 Your version of the app does not match the other party.
               </div>

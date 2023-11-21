@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useRef } from 'react';
 import cn from 'classnames';
 import {
   Outlet,
@@ -89,7 +89,9 @@ export default function MultiDm() {
   const isScrolling = useIsScrolling(scrollElementRef);
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
   const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
-  const negotiationMatch = useNegotiateMulti(dmParticipants, 'chat', 'chat');
+  const { match: negotiationMatch, isLoading: negotiationLoading } =
+    useNegotiateMulti(dmParticipants, 'chat', 'chat');
+  const confirmedMismatch = !negotiationLoading && !negotiationMatch;
   const { mutate: sendMessage } = useSendMessage();
 
   const {
@@ -204,7 +206,7 @@ export default function MultiDm() {
               isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
             )}
           >
-            {isAccepted && negotiationMatch ? (
+            {isAccepted && !confirmedMismatch ? (
               <ChatInput
                 key={clubId}
                 whom={clubId}
@@ -214,7 +216,7 @@ export default function MultiDm() {
                 dropZoneId={dropZoneId}
                 isScrolling={isScrolling}
               />
-            ) : !negotiationMatch ? (
+            ) : confirmedMismatch ? (
               <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
                 Your version of the app does not match some of the members of
                 this chat.

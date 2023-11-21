@@ -27,7 +27,7 @@ export default function ShipConnection({
   app = 'chat',
   agent = 'chat',
 }: ShipConnectionProps) {
-  const negotiationMatch = useNegotiate(ship, app, agent);
+  const { match: negotiationMatch } = useNegotiate(ship, app, agent);
   const isSelf = ship === window.our;
   const color = isSelf
     ? 'text-green-400'
