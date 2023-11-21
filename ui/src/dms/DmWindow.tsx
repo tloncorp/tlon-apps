@@ -127,13 +127,11 @@ export default function DmWindow({
   }, [scrollTo, hasNextPage]);
 
   if (isLoading) {
-    if (isLoading) {
-      return (
-        <div className="h-full overflow-hidden">
-          <ChatScrollerPlaceholder count={30} />
-        </div>
-      );
-    }
+    return (
+      <div className="h-full overflow-hidden">
+        <ChatScrollerPlaceholder count={30} />
+      </div>
+    );
   }
 
   return (
