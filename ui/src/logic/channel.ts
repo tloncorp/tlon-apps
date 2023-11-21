@@ -13,7 +13,7 @@ import { Unreads, Perm, Story } from '@/types/channel';
 import { Zone, Channels, GroupChannel, Vessel, Group } from '@/types/groups';
 import { useLastReconnect } from '@/state/local';
 import { isLink } from '@/types/content';
-import useNegotiation from '@/state/negotiation';
+import { useNegotiate } from '@/state/negotiation';
 import {
   getFlagParts,
   isTalk,
@@ -252,13 +252,13 @@ export function useCheckChannelJoined() {
 export function useChannelCompatibility(nest: string) {
   const [, chan] = nestToFlag(nest);
   const { ship } = getFlagParts(chan);
-  const { match } = useNegotiation(ship, 'channels', 'channels-server');
+  const { match } = useNegotiate(ship, 'channels', 'channels-server');
 
   return {
     compatible: match,
     text: match
       ? "You're synced with the host."
-      : 'Your version of groups does not match the host.',
+      : 'Your version of the app does not match the host.',
   };
 }
 

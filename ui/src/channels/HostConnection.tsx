@@ -10,7 +10,7 @@ import {
 import { Saga } from '@/types/groups';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import Tooltip from '@/components/Tooltip';
-import useNegotiation from '@/state/negotiation';
+import { useNegotiate } from '@/state/negotiation';
 
 interface HostConnectionProps {
   ship: string;
@@ -69,7 +69,7 @@ export default function HostConnection({
   saga,
   className,
 }: HostConnectionProps) {
-  const { match: negotiationMatch } = useNegotiation(
+  const { match: negotiationMatch } = useNegotiate(
     ship,
     'channels',
     'channels-server'

@@ -119,6 +119,8 @@ export default function JoinGroupModal() {
                   type="combo"
                   ship={ship}
                   status={data?.status}
+                  agent="channels-server"
+                  app="channels"
                 />
               )}
             </div>

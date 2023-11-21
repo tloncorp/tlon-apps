@@ -10,3 +10,8 @@ export type NegotiationStatus = 'match' | 'clash' | 'await' | 'unmet';
 export type MatchingKey = string;
 
 export type MatchingResponse = Record<MatchingKey, boolean>;
+
+export interface MatchingEvent {
+  gill: MatchingKey;
+  match: boolean;
+}

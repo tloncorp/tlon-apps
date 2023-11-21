@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import cn from 'classnames';
 import {
   Outlet,
@@ -11,7 +11,7 @@ import {
 import { Link } from 'react-router-dom';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
-import { useDmUnread, useDmIsPending } from '@/state/chat';
+import { useDmUnread, useDmIsPending, useSendMessage } from '@/state/chat';
 import DmInvite from '@/dms/DmInvite';
 import Avatar from '@/components/Avatar';
 import DmOptions from '@/dms/DMOptions';
@@ -34,8 +34,7 @@ import DmWindow from '@/dms/DmWindow';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { dmListPath, isGroups } from '@/logic/utils';
-import useNegotiation from '@/state/negotiation';
-import { useSendMessage } from '@/state/chat';
+import { useNegotiate } from '@/state/negotiation';
 import MessageSelector from './MessageSelector';
 import DmSearch from './DmSearch';
 
@@ -124,7 +123,7 @@ export default function Dm() {
   const root = `/dm/${ship}`;
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
   const { match: negotiationMatch, isLoading: negotiationLoading } =
-    useNegotiation(ship, 'chat', 'chat');
+    useNegotiate(ship, 'chat', 'chat');
   const confirmedMismatch = !negotiationLoading && !negotiationMatch;
 
   const {
@@ -262,12 +261,12 @@ export default function Dm() {
           )
         }
         footer={
-          isAccepted && !confirmedMismatch ? (
-            <div
-              className={cn(
-                isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
-              )}
-            >
+          <div
+            className={cn(
+              isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
+            )}
+          >
+            {isAccepted && !confirmedMismatch ? (
               <ChatInput
                 key={ship}
                 whom={ship}
@@ -277,12 +276,12 @@ export default function Dm() {
                 dropZoneId={dropZoneId}
                 isScrolling={isScrolling}
               />
-            </div>
-          ) : confirmedMismatch ? (
-            <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
-              Your version does not match the other party's version.
-            </div>
-          ) : null
+            ) : confirmedMismatch ? (
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+                Your version of the app does not match the other party.
+              </div>
+            ) : null}
+          </div>
         }
       >
         {isAccepted ? (

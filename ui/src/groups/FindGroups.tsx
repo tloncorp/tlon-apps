@@ -118,8 +118,10 @@ export default function FindGroups({ title }: ViewProps) {
           <div className="mb-3 inline-block rounded bg-gray-50 p-2">
             <ShipConnection
               type="combo"
-              ship={ship || presentedShip}
+              ship={ship || `~${presentedShip}`}
               status={data?.status}
+              app="channels"
+              agent="channels-server"
             />
           </div>
           <p>
@@ -156,8 +158,10 @@ export default function FindGroups({ title }: ViewProps) {
         <div className="mb-3 inline-block rounded bg-gray-50 p-2">
           <ShipConnection
             type="combo"
-            ship={ship || presentedShip}
+            ship={ship || `~${presentedShip}`}
             status={data?.status}
+            app="channels"
+            agent="channels-server"
           />
         </div>
         <p>
