@@ -33,6 +33,7 @@ import {
   WritDeltaAdd,
   ReplyDelta,
   Hive,
+  Writs,
 } from '@/types/dms';
 import { Reply, Replies, ChannelsAction, ReplyTuple } from '@/types/channel';
 import api from '@/api';
@@ -57,6 +58,7 @@ export interface State {
   addTracked: (id: CacheId) => void;
   updateStatus: (id: CacheId, status: PostStatus) => void;
   getStatus: (id: CacheId) => PostStatus;
+  hasSomeUndelivered: () => boolean;
   [key: string]: unknown;
 }
 
@@ -86,6 +88,9 @@ export const useWritsStore = create<State>((set, get) => ({
     );
 
     return post?.status ?? 'delivered';
+  },
+  hasSomeUndelivered: () => {
+    return get().trackedWrits.some(({ status }) => status !== 'delivered');
   },
 }));
 
@@ -1270,6 +1275,39 @@ export function useDelDmReactMutation() {
   });
 }
 
+export function checkResponseForDeliveries(response: WritResponseDelta) {
+  if ('add' in response) {
+    const { memo } = response.add;
+
+    useWritsStore
+      .getState()
+      .updateStatus({ author: memo.author, sent: memo.sent }, 'delivered');
+  } else if ('reply' in response) {
+    const { reply } = response;
+
+    if ('add' in reply.delta) {
+      const { memo } = reply.delta.add;
+
+      useWritsStore.getState().updateStatus(
+        {
+          author: memo.author,
+          sent: memo.sent,
+        },
+        'delivered'
+      );
+    }
+  }
+}
+
+export function checkWritsForDeliveries(writs: Writs) {
+  Object.entries(writs).forEach(([id, writ]) => {
+    const trackingId = { author: writ.essay.author, sent: writ.essay.sent };
+    if (useWritsStore.getState().getStatus(trackingId) !== 'delivered') {
+      useWritsStore.getState().updateStatus(trackingId, 'delivered');
+    }
+  });
+}
+
 export function useInfiniteDMs(
   whom: string,
   initialTime?: string,
@@ -1298,30 +1336,8 @@ export function useInfiniteDMs(
       path: `/${type}/${whom}`,
       event: (data: WritResponse) => {
         const { response } = data;
-
-        if ('add' in response) {
-          const { memo } = response.add;
-
-          useWritsStore
-            .getState()
-            .updateStatus(
-              { author: memo.author, sent: memo.sent },
-              'delivered'
-            );
-        } else if ('reply' in response) {
-          const { reply } = response;
-
-          if ('add' in reply.delta) {
-            const { memo } = reply.delta.add;
-
-            useWritsStore.getState().updateStatus(
-              {
-                author: memo.author,
-                sent: memo.sent,
-              },
-              'delivered'
-            );
-          }
+        if (response && useWritsStore.getState().hasSomeUndelivered()) {
+          checkResponseForDeliveries(response);
         }
 
         // for now, let's avoid updating data in place and always refetch
@@ -1352,6 +1368,10 @@ export function useInfiniteDMs(
         app: 'chat',
         path,
       });
+
+      if (response.writs && useWritsStore.getState().hasSomeUndelivered()) {
+        checkWritsForDeliveries(response.writs);
+      }
 
       return {
         ...response,
