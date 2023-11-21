@@ -125,7 +125,7 @@ export default function messageSender({
       if (sendDm) {
         sendDm({
           whom,
-          delta: buildAddDelta(essay),
+          delta: buildAddDelta({ ...essay, content }),
         });
       } else if (sendDmReply && replying) {
         sendDmReply({
