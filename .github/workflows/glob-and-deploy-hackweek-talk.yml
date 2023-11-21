@@ -5,7 +5,7 @@ on:
       tag:
         type: string
         required: false
-        default: develop
+        default: hm/hackweek
         description: Enter the tag to deploy
   push:
     branches:
@@ -62,7 +62,7 @@ jobs:
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
           sleep 10
           INPUT=${{ github.event.inputs.tag }}
-          BRANCH=${INPUT:-"develop"}
+          BRANCH=${INPUT:-"hm/hackweek"}
           git pull origin $BRANCH --rebase --autostash
           git push
   deploy:
