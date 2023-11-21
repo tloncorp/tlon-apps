@@ -30,7 +30,7 @@ function negotiationUpdater(
 
       const newPrev = { ...prev };
 
-      newPrev[event.gill] = 'match';
+      newPrev[event.gill] = 'clash';
 
       return newPrev;
     });
