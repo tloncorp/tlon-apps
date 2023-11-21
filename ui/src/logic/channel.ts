@@ -252,7 +252,7 @@ export function useCheckChannelJoined() {
 export function useChannelCompatibility(nest: string) {
   const [, chan] = nestToFlag(nest);
   const { ship } = getFlagParts(chan);
-  const match = useNegotiation(ship, 'channels', 'channels-server');
+  const { match } = useNegotiation(ship, 'channels', 'channels-server');
 
   return {
     compatible: match,

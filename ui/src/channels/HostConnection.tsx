@@ -69,7 +69,11 @@ export default function HostConnection({
   saga,
   className,
 }: HostConnectionProps) {
-  const negotiationMatch = useNegotiation(ship, 'channels', 'channels-server');
+  const { match: negotiationMatch } = useNegotiation(
+    ship,
+    'channels',
+    'channels-server'
+  );
 
   return (
     <span className={cn('flex items-center space-x-1', className)}>
