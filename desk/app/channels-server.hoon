@@ -155,6 +155,7 @@
       %channel-migration
     ?>  =(our src):bowl
     =+  !<(new-channels=v-channels:c vase)
+    ~&  new-channels
     =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
     %+  roll  ~(tap by v-channels)
     |=  [[=nest:c =v-channel:c] cr=_cor]
@@ -344,7 +345,7 @@
     ?>  ((sane %tas) name.nest)
     =.  channel
       %*  .  *v-channel:c
-        perm  [0 writers.new group.new]
+        perm  [1 writers.new group.new]
       ==
     =.  ca-core
       =/  =cage  [%channel-update !>([now.bowl %create perm.perm.channel])]

@@ -829,7 +829,7 @@
     %*    .  *v-channel:d
         posts   posts
         log     ?.(log ~ (convert-log pact.chat posts perm.chat log.chat))
-        perm    [0 perm.chat]
+        perm    [1 perm.chat]
         remark  :_  remark.chat
                 ?~(tim=(ram:on-v-posts:d posts) *time key.u.tim)
         net

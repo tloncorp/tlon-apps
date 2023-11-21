@@ -555,10 +555,10 @@
     =/  posts=v-posts:d  (convert-notes notes.diary)
     %*    .  *v-channel:d
         posts   posts
-        order   [0 arranged-notes.diary]
-        view    [0 view.diary]
-        sort    [0 sort.diary]
-        perm    [0 perm.diary]
+        order   [1 arranged-notes.diary]
+        view    [1 view.diary]
+        sort    [1 sort.diary]
+        perm    [1 perm.diary]
         log     ?.(log ~ (convert-log notes.diary posts perm.diary log.diary))
         remark  :_  remark.diary
                 ?~(tim=(ram:on-v-posts:d posts) *time key.u.tim)
