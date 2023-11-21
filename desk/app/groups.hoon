@@ -1021,26 +1021,44 @@
   ++  go-clone
     =.  cor
       %-  emil
-      ^-  (list card)
-      %~  tap  in
-      ^-  (set card)
-      %-  %~  run  in
-      ^-  (set nest:g)
-      %~  key  by  channels.group
-      |=  =nest:g
-      ?+  p.nest  !!
+      %+  murn
+        ~(tap by channels.group)
+      |=  [=nest:g =channel:g]
+      ?.  (go-can-read src.bowl channel)  ~
+      ?+  p.nest  ~
           %chat
         =/  =log:c  .^(log:c %gx (welp (channel-scry nest) /logs/noun))
-        =/  =clone:cl  [q.flag q.q.nest [%chat log]]
-        [%give %fact ~ group-clone+!>(clone)]
+        =/  new-log=log:c
+          =<  +
+          %^  (dip:log-on:c @)  log  ~
+          |=  [st=@ =time =diff:c]
+          :_  [%.n st]
+          ?:  ?=(%create -.diff)  ~
+          `diff
+        =/  =clone:cl  [q.flag q.q.nest [%chat new-log]]
+        `[%give %fact ~ group-clone+!>(clone)]
           %heap
         =/  =log:h  .^(log:h %gx (welp (channel-scry nest) /logs/noun))
-        =/  =clone:cl  [q.flag q.q.nest [%heap log]]
-        [%give %fact ~ group-clone+!>(clone)]
+        =/  new-log=log:h
+          =<  +
+          %^  (dip:log-on:h @)  log  ~
+          |=  [st=@ =time =diff:h]
+          :_  [%.n st]
+          ?:  ?=(%create -.diff)  ~
+          `diff
+        =/  =clone:cl  [q.flag q.q.nest [%heap new-log]]
+        `[%give %fact ~ group-clone+!>(clone)]
           %diary
         =/  =log:d  .^(log:d %gx (welp (channel-scry nest) /logs/noun))
-        =/  =clone:cl  [q.flag q.q.nest [%diary log]]
-        [%give %fact ~ group-clone+!>(clone)]
+        =/  new-log=log:d
+          =<  +
+          %^  (dip:log-on:d @)  log  ~
+          |=  [st=@ =time =diff:d]
+          :_  [%.n st]
+          ?:  ?=(%create -.diff)  ~
+          `diff
+        =/  =clone:cl  [q.flag q.q.nest [%diary new-log]]
+        `[%give %fact ~ group-clone+!>(clone)]
       ==
     =.  cor
       (emit %give %kick ~ ~)
