@@ -35,7 +35,7 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return undefined;
+    return { ...rest, match: false };
   }
 
   const allShipsMatch = ships
@@ -43,5 +43,5 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
     .map((ship) => `${ship}/${agent}`)
     .every((ship) => ship in data && data[ship] === true);
 
-  return allShipsMatch;
+  return { ...rest, match: allShipsMatch };
 }

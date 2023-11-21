@@ -125,6 +125,7 @@ export default function Dm() {
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
   const { match: negotiationMatch, isLoading: negotiationLoading } =
     useNegotiation(ship, 'chat', 'chat');
+  const confirmedMismatch = !negotiationLoading && !negotiationMatch;
 
   const {
     isSelectingMessage,
@@ -261,7 +262,7 @@ export default function Dm() {
           )
         }
         footer={
-          isAccepted && negotiationMatch ? (
+          isAccepted && !confirmedMismatch ? (
             <div
               className={cn(
                 isDragging || isOver ? '' : 'border-t-2 border-gray-50 p-4'
@@ -277,7 +278,7 @@ export default function Dm() {
                 isScrolling={isScrolling}
               />
             </div>
-          ) : !negotiationLoading && !negotiationMatch ? (
+          ) : confirmedMismatch ? (
             <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
               Your version does not match the other party's version.
             </div>
