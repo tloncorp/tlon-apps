@@ -17,6 +17,7 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
 interface DiaryCommentFieldProps {
   flag: string;
@@ -44,6 +45,7 @@ export default function DiaryCommentField({
   const { mutateAsync: addQuip } = useAddQuipMutation();
   const { privacy } = useGroupPrivacy(groupFlag);
   const { compatible, text } = useChannelCompatibility(`diary/${chFlag}`);
+  const { handleFocus, handleBlur, isChatInputFocused } = useChatInputFocus();
 
   /**
    * This handles submission for new Curios; for edits, see EditCurioForm
@@ -150,6 +152,30 @@ export default function DiaryCommentField({
     flag,
     messageEditor,
     quipReply,
+  ]);
+
+  useEffect(() => {
+    if (messageEditor && !messageEditor.isDestroyed) {
+      if (!isChatInputFocused && messageEditor.isFocused) {
+        handleFocus();
+      }
+
+      if (isChatInputFocused && !messageEditor.isFocused) {
+        handleBlur();
+      }
+    }
+
+    return () => {
+      if (isChatInputFocused) {
+        handleBlur();
+      }
+    };
+  }, [
+    isChatInputFocused,
+    messageEditor,
+    messageEditor?.isFocused,
+    handleFocus,
+    handleBlur,
   ]);
 
   const onClick = useCallback(

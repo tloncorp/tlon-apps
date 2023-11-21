@@ -162,9 +162,9 @@ export function useDragAndDrop(targetId: string) {
 
   const handleDropWithTarget = useCallback(
     (e: DragEvent) => {
-      handleDrop(e, targetId);
+      handleDrop(e, currentTargetId);
     },
-    [handleDrop, targetId]
+    [handleDrop, currentTargetId]
   );
 
   useEffect(() => {

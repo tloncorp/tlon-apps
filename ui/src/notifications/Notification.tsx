@@ -258,7 +258,10 @@ export default function Notification({
       {inviteBool ? (
         <div className="flex w-full min-w-0 flex-1 space-x-3">
           <div className="relative flex-none self-start">{avatar}</div>
-          <div className="min-w-0 grow-0 break-words p-1">
+          <div
+            className="min-w-0 grow-0 break-words p-1"
+            data-testid="group-invite"
+          >
             {topLine}
             <div className="my-2 leading-5">
               {bin.top && (
