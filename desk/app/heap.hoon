@@ -161,7 +161,8 @@
     =+  !<(=action:h vase)
     =/  heap-core  (he-abed:he-core p.action)
     ?:  =(p.p.action our.bowl)
-      he-abet:(he-update:heap-core q.action)
+      :: we use now on the host to enforce host ordering
+      he-abet:(he-update:heap-core now.bowl q.q.action)
     he-abet:(he-proxy:heap-core q.action)
   ::
       %heap-remark-action
@@ -1046,9 +1047,6 @@
     |=  [=time d=diff:h]
     ^+  he-core
     ?>  he-can-write
-    :: we use now on the host to enforce host ordering
-    =?  time  =(p.flag our.bowl)
-      now.bowl
     =.  log.heap
       (put:log-on:h log.heap time d)
     =.  he-core

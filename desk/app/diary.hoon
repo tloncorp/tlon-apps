@@ -277,7 +277,8 @@
     =+  !<(=action:d vase)
     =/  diary-core  (di-abed:di-core p.action)
     ?:  =(p.p.action our.bowl)
-      di-abet:(di-update:diary-core q.action)
+      :: we use now on the host to enforce host ordering
+      di-abet:(di-update:diary-core now.bowl q.q.action)
     di-abet:(di-proxy:diary-core q.action)
   ::
       %diary-remark-action
@@ -1078,9 +1079,6 @@
     |=  [=time dif=diff:d]
     ?>  di-can-write
     ^+  di-core
-    :: we use now on the host to enforce host ordering
-    =?  time  =(p.flag our.bowl)
-      now.bowl
     =.  log.diary
       (put:log-on:d log.diary time dif)
     =.  di-core
