@@ -1,4 +1,4 @@
-/-  c=chat, d=channels, g=groups, e=epic
+/-  c=chat, d=channels, g=groups, e=epic, old=chat-2
 /-  meta
 /-  ha=hark
 /-  contacts
@@ -430,7 +430,7 @@
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
-      %dm-rsvp
+      %chat-dm-rsvp
     =+  !<(=rsvp:dm:c vase)
     di-abet:(di-rsvp:(di-abed:di-core ship.rsvp) ok.rsvp)
   ::
@@ -487,7 +487,7 @@
       %club  cu-abet:(cu-remark-diff:(cu-abed:cu-core p.p.act) q.act)
     ==
   ::
-      %dm-action
+      %chat-dm-action
     =+  !<(=action:dm:c vase)
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
@@ -497,26 +497,70 @@
       ~|("%dm-action poke failed: can't dm self" !!)
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
-      %dm-diff
+      %chat-dm-diff
     =+  !<(=diff:dm:c vase)
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
-      %club-create
+      %chat-club-create
     cu-abet:(cu-create:cu-core !<(=create:club:c vase))
   ::
-      ?(%club-action %club-action-0)
+      ?(%chat-club-action %chat-club-action-0)
     =+  !<(=action:club:c vase)
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
   ::
-      %dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
+      %chat-dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
       %chat-migrate-server  ?>(from-self server:migrate)
       %chat-migrate         ?>(from-self client:migrate)
+  ::  backwards compatibility
+  ::
+      %dm-rsvp
+    =+  `rsvp:dm:c`!<(rsvp:dm:old vase)  ::NOTE  safety check
+    $(mark %chat-dm-rsvp)
+  ::
+      %dm-diff
+    =;  new=diff:dm:c
+      $(mark %chat-dm-diff, vase !>(new))
+    (new-diff !<(=diff:dm:old vase))
+  ::
+      %club-action
+    =;  new=action:club:c
+      $(mark %chat-club-action, vase !>(new))
+    =+  !<(=action:club:old vase)
+    ?.  ?=(%writ -.q.q.action)  action
+    action(diff.q.q (new-diff diff.q.q.action))
   ==
   ++  pin
     |=  ps=(list whom:c)
     =.  pins  ps
     cor
+  ::  backwards compatibility
+  ::
+  ++  new-diff
+    |=  diff=diff:writs:old
+    ^-  diff:writs:c
+    :-  p.diff
+    ?-  -.q.diff
+      %add       [%add (new-memo p.q.diff) ~ ~]
+      %del       [%del ~]
+      %add-feel  [%add-react +.q.diff]
+      %del-feel  [%del-react +.q.diff]
+    ==
+  ++  new-memo
+    |=  memo:old
+    ^-  memo:d
+    [(new-story author content) author sent]
+  ::
+  ++  new-story
+    |=  [=ship old=content:old]
+    ^-  story:d
+    ?-    -.old
+        %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
+        %story
+      %+  welp
+        (turn p.p.old (lead %block))
+      [%inline q.p.old]~
+    ==
   --
   ::
   ++  has-blocked
@@ -1036,9 +1080,15 @@
     ++  act
       |=  [=ship =diff:club:c]
       ^-  card
-      =/  =wire  (snoc cu-area %gossip)
+      =/  =wire
+        %+  weld  cu-area
+        ^-  wire
+        :-  %gossip
+        ?.  ?=(%writ -.q.diff)  ~
+        =,  p.diff.q.diff
+        /(scot %uv p.diff)/(scot %p p)/(scot %ud q)
       =/  =dock  [ship dap.bowl]
-      =/  =cage  club-action+!>(`action:club:c`[id diff])
+      =/  =cage  chat-club-action+!>(`action:club:c`[id diff])
       [%pass wire %agent dock %poke cage]
     ::
     ++  gossip
@@ -1088,7 +1138,7 @@
   ::
   ++  cu-give-action
     |=  =action:club:c
-    =/  =cage  club-action+!>(action)
+    =/  =cage  chat-club-action+!>(action)
     =.  cor
       (emit %give %fact ~[/clubs] cage)
     cu-core
@@ -1264,7 +1314,7 @@
     ^-  (unit (unit cage))
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:cu-pact care rest.pole)
-      [%crew ~]   ``club-crew+!>(crew.club)
+      [%crew ~]   ``chat-club-crew+!>(crew.club)
     ::
         [%search %text skip=@ count=@ nedl=@ ~]
       %-  some
@@ -1300,11 +1350,70 @@
     |=  [=wire =sign:agent:gall]
     ^+  cu-core
     ?+    wire  ~|(bad-club-take/wire !!)
-        [%gossip ~]
+        [%gossip *]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  cu-core
-      ::  TODO: handle?
-      %-  (slog leaf/"Failed to gossip {<src.bowl>} {<id>}" u.p.sign)
+      ::  if we already tried hard, this is the end of the road
+      ::
+      ?:  ?=([%archaic ~] t.wire)
+        %-  (slog leaf/"Failed to gossip {<src.bowl>} {<id>}" u.p.sign)
+        cu-core
+      ::  if they're know version mismatching, we should do nothing
+      ::TODO  might want to mark the local msg as (partially?) undelivered...
+      ::
+      ?.  ?=(%await (read-status:neg bowl src.bowl dap.bowl))
+        %-  (slog leaf/"Failed to gossip {<src.bowl>} {<id>}" u.p.sign)
+        cu-core
+      ::  if a poke failed, but we also don't have a negotiated version for
+      ::  them, they might still be on the old (pre-2024) chat backend. try
+      ::  sending them an old-style poke if we can, for backcompat.
+      ::  we do our best to recover the message from the wire.
+      ::
+      =.  cor
+        =;  c=(unit cage)
+          ?~  c  cor
+          %+  emit  %pass
+          [(weld cu-area /gossip/archaic) %agent [src.bowl %chat] %poke u.c]
+        ?+  t.wire  ~
+            [@ @ @ ~]
+          %-  some
+          :-  %club-action
+          !>  ^-  action:club:old
+          =/  =uid:club:c
+            (slav %uv i.t.wire)
+          =/  mid=id:c
+            [(slav %p i.t.t.wire) (slav %ud i.t.t.t.wire)]
+          =/  msg=(unit [=time =writ:c])
+            (get:cu-pact mid)
+          :^  id  uid  %writ
+          ^-  diff:writs:old
+          :-  mid
+          ?~  msg  [%del ~]
+          :-  %add
+          ^-  memo:old
+          =,  writ.u.msg
+          =;  l=(list inline:old)
+            [~ author sent [%story ~ l]]
+          %-  zing
+          %+  turn  content.writ.u.msg
+          |=  v=verse:d
+          ^-  (list inline:old)
+          ?-  -.v
+              %block   ~
+              %inline
+            %+  murn  p.v
+            |=  i=inline:d
+            ^-  (unit inline:old)
+            ?@  i    `i
+            ?+  -.i  `i
+              %task        ~
+              %italics     `[-.i ^$(p.v p.i)]
+              %bold        `[-.i ^$(p.v p.i)]
+              %strike      `[-.i ^$(p.v p.i)]
+              %blockquote  `[-.i ^$(p.v p.i)]
+            ==
+          ==
+        ==
       cu-core
     ==
   ::
@@ -1528,11 +1637,69 @@
       %-  (slog leaf/"Failed to notify about dm {<ship>}" u.p.sign)
       di-core
     ::
-        [%proxy ~]
+        [%proxy *]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
-      ::  TODO: handle?
-      %-  (slog leaf/"Failed to dm {<ship>}" u.p.sign)
+      ::  if we already tried hard, this is the end of the road.
+      ::
+      ?:  ?=([%archaic ~] t.wire)
+        %-  (slog leaf/"Failed to dm {<ship>} again" u.p.sign)
+        di-core
+      ::  if they're just known version mismatching, we should do nothing
+      ::TODO  might want to mark the local msg as undelivered though...
+      ::
+      ?.  ?=(%await (read-status:neg bowl ship dap.bowl))
+        %-  (slog leaf/"Failed to dm {<ship>}" u.p.sign)
+        di-core
+      ::  if a poke failed, but we also don't have a negotiated version for
+      ::  them, they might still be on the old (pre-2024) chat backend. try
+      ::  sending them an old-style poke if we can, for backcompat.
+      ::  we do our best to recover the message from the wire.
+      ::
+      =.  cor
+        =;  c=(unit cage)
+          ?~  c  cor
+          %+  emit  %pass
+          [(weld di-area /proxy/archaic) %agent [ship %chat] %poke u.c]
+        ?+  t.wire  ~
+            [%rsvp @ ~]
+          =/  ok=?  ;;(? (slav %f i.t.t.wire))
+          `[%dm-rsvp !>(`rsvp:dm:old`[our.bowl ok])]
+        ::
+            [@ ~]
+          %-  some
+          :-  %dm-diff
+          !>  ^-  diff:dm:old
+          =/  id=time  (slav %ud i.t.wire)
+          :-  [our.bowl id]
+          =/  msg=(unit [=time =writ:c])
+            (get:di-pact our.bowl id)
+          ?~  msg  [%del ~]
+          :-  %add
+          ^-  memo:old
+          =,  writ.u.msg
+          =;  l=(list inline:old)
+            [~ author sent [%story ~ l]]
+          %-  zing
+          %+  turn  content.writ.u.msg
+          |=  v=verse:d
+          ^-  (list inline:old)
+          ?-  -.v
+              %block   ~
+              %inline
+            %+  murn  p.v
+            |=  i=inline:d
+            ^-  (unit inline:old)
+            ?@  i    `i
+            ?+  -.i  `i
+              %task        ~
+              %italics     `[-.i ^$(p.v p.i)]
+              %bold        `[-.i ^$(p.v p.i)]
+              %strike      `[-.i ^$(p.v p.i)]
+              %blockquote  `[-.i ^$(p.v p.i)]
+            ==
+          ==
+        ==
       di-core
     ==
   ::
@@ -1594,8 +1761,8 @@
       ^-  card
       [%pass (welp di-area wire) %agent dock task]
     ++  poke-them  |=([=wire =cage] (pass wire [ship dap.bowl] %poke cage))
-    ++  proxy-rsvp  |=(ok=? (poke-them /proxy dm-rsvp+!>([our.bowl ok])))
-    ++  proxy  |=(=diff:dm:c (poke-them /proxy dm-diff+!>(diff)))
+    ++  proxy-rsvp  |=(ok=? (poke-them /proxy/rsvp/(scot %f ok) chat-dm-rsvp+!>([our.bowl ok])))
+    ++  proxy  |=(=diff:dm:c (poke-them /proxy/(scot %ud q.p.diff) chat-dm-diff+!>(diff)))
     --
   --
 --

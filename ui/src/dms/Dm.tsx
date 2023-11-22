@@ -122,9 +122,12 @@ export default function Dm() {
   const canStart = ship && !!unread;
   const root = `/dm/${ship}`;
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
-  const { match: negotiationMatch, isLoading: negotiationLoading } =
-    useNegotiate(ship, 'chat', 'chat');
-  const confirmedMismatch = !negotiationLoading && !negotiationMatch;
+  const { matchedOrPending, isLoading: negotiationLoading } = useNegotiate(
+    ship,
+    'chat',
+    'chat'
+  );
+  const confirmedMismatch = !negotiationLoading && !matchedOrPending;
 
   const {
     isSelectingMessage,

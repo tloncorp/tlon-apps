@@ -240,7 +240,6 @@ export function useChannelIsJoined(nest: string) {
 
 export function useCheckChannelJoined() {
   const unreads = useUnreads();
-
   return useCallback(
     (nest: string) => {
       return isChannelJoined(nest, unreads);
@@ -252,11 +251,15 @@ export function useCheckChannelJoined() {
 export function useChannelCompatibility(nest: string) {
   const [, chan] = nestToFlag(nest);
   const { ship } = getFlagParts(chan);
-  const { match } = useNegotiate(ship, 'channels', 'channels-server');
+  const { matchedOrPending } = useNegotiate(
+    ship,
+    'channels',
+    'channels-server'
+  );
 
   return {
-    compatible: match,
-    text: match
+    compatible: matchedOrPending,
+    text: matchedOrPending
       ? "You're synced with the host."
       : 'Your version of the app does not match the host.',
   };
