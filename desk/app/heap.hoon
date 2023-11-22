@@ -215,6 +215,11 @@
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
     =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
+    =.  cor
+      %+  roll  ~(tap in `(set @p)`(~(run in ~(key by stash)) head))
+      |=  [=ship cr=_cor]
+      ?:  =(ship our.bowl)  cr
+      (watch-epic:cr ship &)
     ?:  =(okay:h cool)  cor
     ::  speak the good news
     =.  cor  (emil (drop load:epos))
@@ -366,10 +371,15 @@
     ==
   ==
 ++  watch-epic
-  |=  her=ship
+  |=  [her=ship leave=?]
   ^+  cor
   =/  =wire  /epic
   =/  =dock  [her dap.bowl]
+  ?:  leave
+    %-  emil
+    :~  [%pass wire %agent [her dap.bowl] %leave ~]
+        [%pass wire %agent [her dap.bowl] %watch /epic]
+    ==
   ?:  (~(has by wex.bowl) [wire dock])
     cor
   (emit %pass wire %agent [her dap.bowl] %watch /epic)
@@ -379,20 +389,18 @@
   ^+  cor
   ?+    -.sign  cor
       %kick
-    (watch-epic src.bowl)
+    (watch-epic src.bowl |)
   ::
       %fact
     ?.  =(%epic p.cage.sign)
       ~&  '!!! weird fact on /epic'
       cor
     =+  !<(=epic:e q.cage.sign)
-    ?.  =(epic okay:h)
-      cor
-    ~&  >>  "good news everyone!"
     %+  roll  ~(tap by stash)
     |=  [[=flag:g =heap:h] out=_cor]
-    ?>  =(src.bowl p.flag)
+    ?.  =(src.bowl p.flag)  out
     he-abet:(he-take-epic:(he-abed:he-core:out flag) epic)
+  ::
       %watch-ack
     %.  cor
     ?~  p.sign  same
@@ -835,7 +843,7 @@
       he-core
     ~&  make-lev/flag
     =.  saga.net.heap  lev+~
-    =.  cor  (watch-epic p.flag)
+    =.  cor  (watch-epic p.flag |)
     he-core
   ::
   ++  he-make-chi
@@ -855,7 +863,7 @@
       he-core
     ::
         %watch-ack
-      =.  net.heap  [%sub src.bowl & [%chi ~]]
+      =?  net.heap  ?=(%sub -.net.heap)  net.heap(load ?=(~ p.sign))
       ?~  p.sign  he-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       ::  =.  gone  &
@@ -953,12 +961,17 @@
     |=  j=join:h
     ^+  he-core
     ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
-    =.  stash  (~(put by stash) chan.j *heap:h)
+    =|  =heap:h
+    =.  net.heap
+      ?:  =(our.bowl p.chan.j)  [%pub ~]
+      [%sub p.chan.j | %chi ~]
+    =.  stash  (~(put by stash) chan.j heap)
     =.  he-core  (he-abed chan.j)
     =.  group.perm.heap  group.j
     =.  last-read.remark.heap  now.bowl
     =.  cor  (give-brief flag he-brief)
-    he-sub
+    =.  cor  (watch-epic p.flag &)
+    he-core
   ::
   ++  he-leave
     =/  =dock  [p.flag dap.bowl]

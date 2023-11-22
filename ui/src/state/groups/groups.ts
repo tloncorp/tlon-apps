@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { useParams } from 'react-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import create from 'zustand';
 import {
   MutationFunction,
@@ -248,18 +248,41 @@ const defGang = {
 
 export function useGangs() {
   const queryClient = useQueryClient();
+  const queryKey = ['gangs'];
+
+  const invalidate = useRef(
+    _.debounce(
+      () => {
+        queryClient.invalidateQueries(queryKey);
+      },
+      300,
+      { leading: true, trailing: true }
+    )
+  );
+
   const { data, ...rest } = useReactQuerySubscription({
-    queryKey: ['gangs'],
+    queryKey,
     app: 'groups',
     path: `/gangs/updates`,
     scry: `/gangs`,
+    onEvent: (event) => {
+      // right now for long group joins, the gang is initially removed but no fact about the corresponding created
+      // group is emitted until the join completes. This is a blunt hack to ensure our view of existing groups remains up to date.
+      // Once this is fixed, we should remove this and use the default useReactQuerySubscription event handler
+      const currGangCount = Object.keys(
+        queryClient.getQueryData<Gangs>(queryKey) || {}
+      ).length;
+      const newGangCount = Object.keys(event || {}).length;
+      const gangWasRemoved =
+        currGangCount && newGangCount && newGangCount < currGangCount;
+      if (gangWasRemoved) {
+        queryClient.invalidateQueries(['groups']);
+      }
+
+      invalidate.current();
+    },
     options: {
       refetchOnMount: false,
-      onSuccess: () => {
-        // TEMPORARY: right now for long group joins, the gang is initially removed but no fact about the corresponding created
-        // group is emitted until the join completes. This is a blunt hack to ensure our view of existing groups remains up to date
-        queryClient.invalidateQueries(['groups']);
-      },
     },
   });
 

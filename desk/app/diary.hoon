@@ -883,7 +883,7 @@
       di-core
     ::
         %watch-ack
-      =.  net.diary  [%sub src.bowl & [%chi ~]]
+      =?  net.diary  ?=(%sub -.net.diary)  net.diary(load ?=(~ p.sign))
       ?~  p.sign  di-core
       %-  (slog leaf/"Failed subscription" u.p.sign)
       :: =.  gone  &
@@ -974,13 +974,17 @@
     |=  j=join:d
     ^+  di-core
     ?>  |(=(p.group.j src.bowl) =(src.bowl our.bowl))
-    =.  shelf  (~(put by shelf) chan.j *diary:d)
+    =|  diary:d
+    =.  net.diary
+      ?:  =(our.bowl p.chan.j)  [%pub ~]
+      [%sub p.chan.j | %chi ~]
+    =.  shelf  (~(put by shelf) chan.j diary)
     =.  di-core  (di-abed chan.j)
     =.  group.perm.diary  group.j
     =.  last-read.remark.diary  now.bowl
     =.  cor  (give-brief flag di-brief)
     =.  cor  (watch-epic p.flag &)
-    di-sub
+    di-core
   ::
   ++  di-leave
     =/  =dock  [p.flag dap.bowl]
