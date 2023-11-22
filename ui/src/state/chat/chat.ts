@@ -97,7 +97,7 @@ export const useWritsStore = create<State>((set, get) => ({
 function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
   return {
     app: 'chat',
-    mark: 'dm-action',
+    mark: 'chat-dm-action',
     json: {
       ship,
       diff: {
@@ -111,7 +111,7 @@ function dmAction(ship: string, delta: WritDelta, id: string): Poke<DmAction> {
 function multiDmAction(id: string, delta: ClubDelta): Poke<ClubAction> {
   return {
     app: 'chat',
-    mark: 'club-action-0',
+    mark: 'chat-club-action-0',
     json: {
       id,
       diff: {
@@ -817,7 +817,7 @@ export function useArchiveDm() {
   const mutationFn = async ({ whom }: { whom: string }) => {
     await api.poke({
       app: 'chat',
-      mark: 'dm-archive',
+      mark: 'chat-dm-archive',
       json: whom,
     });
   };
@@ -851,7 +851,7 @@ export function useUnarchiveDm() {
   const mutationFn = async ({ ship }: { ship: string }) => {
     await api.poke({
       app: 'chat',
-      mark: 'dm-unarchive',
+      mark: 'chat-dm-unarchive',
       json: ship,
     });
   };
@@ -874,7 +874,7 @@ export function useDmRsvpMutation() {
   }) => {
     await api.poke({
       app: 'chat',
-      mark: 'dm-rsvp',
+      mark: 'chat-dm-rsvp',
       json: {
         ship,
         ok: accept,
@@ -907,7 +907,7 @@ export function useCreateMultiDm() {
   const mutationFn = async ({ id, hive }: { id: string; hive: string[] }) => {
     await api.poke({
       app: 'chat',
-      mark: 'club-create',
+      mark: 'chat-club-create',
       json: {
         id,
         hive,

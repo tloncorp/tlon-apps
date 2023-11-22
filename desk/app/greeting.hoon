@@ -143,7 +143,7 @@
     =/  meet
       [%meet joiner.bite (~(put in *(set @ta)) pals-tag)]
     :_  this
-    :~  [%pass /dm %agent [our.bowl %chat] %poke %dm-action !>(action)]
+    :~  [%pass /dm %agent [our.bowl %chat] %poke %chat-dm-action !>(action)]
         [%pass /meet %agent [our.bowl %pals] %poke %pals-command !>(meet)]
     ==
   ==

@@ -439,7 +439,7 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'dm-action',
+    mark: 'chat-dm-action',
     returnSubscription: dmSub,
     initialResponder: (
       req: Message & Poke<{ ship: string; diff: WritDiff }>,
@@ -472,7 +472,7 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'dm-rsvp',
+    mark: 'chat-dm-rsvp',
     returnSubscription: {
       action: 'subscribe',
       app: 'chat',
@@ -491,7 +491,7 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'dm-archive',
+    mark: 'chat-dm-archive',
     returnSubscription: {
       action: 'subscribe',
       app: 'chat',
@@ -506,7 +506,7 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'dm-unarchive',
+    mark: 'chat-dm-unarchive',
     returnSubscription: fakeDefaultSub,
     dataResponder: (req: Message & Poke<string>) => {
       const index = archive.indexOf(req.json);
@@ -571,7 +571,7 @@ const clubHandlers: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'club-action',
+    mark: 'chat-club-action',
     returnSubscription: (req: Message & Poke<ClubAction>) =>
       'writ' in req.json.diff.delta ? clubWritsSub : clubSub,
     dataResponder: (req: Message & Poke<ClubAction>) =>
@@ -586,7 +586,7 @@ const clubHandlers: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'club-create',
+    mark: 'chat-club-create',
     returnSubscription: fakeDefaultSub,
     dataResponder: (req: Message & Poke<ClubCreate>) => {
       clubs[req.json.id] = {
