@@ -7,7 +7,7 @@ import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { unixToDa } from '@urbit/aura';
-import { useChatInfo } from './useChatStore';
+import { useChatInfo, useChatStore } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
   nest: string;
@@ -22,6 +22,7 @@ export default function ChatUnreadAlerts({
   const chatInfo = useChatInfo(nest);
   const markRead = useCallback(() => {
     markChatRead({ nest });
+    useChatStore.getState().read(nest);
   }, [nest, markChatRead]);
 
   if (!chatInfo?.unread || chatInfo.unread.seen) {
