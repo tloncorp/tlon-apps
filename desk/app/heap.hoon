@@ -636,7 +636,7 @@
       (some %post time %set u.new-post)
     ::
         %curios
-      =*  id  p.p.diff
+      =*  id  time
       =/  old-curio  (get:on:curios:h curios id)
       ?~  old-curio  [%post id %set ~]~
       ?~  replying.u.old-curio
