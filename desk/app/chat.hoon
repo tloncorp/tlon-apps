@@ -1390,27 +1390,7 @@
           :-  %add
           ^-  memo:old
           =,  writ.u.msg
-          =;  l=(list inline:old)
-            [~ author sent [%story ~ l]]
-          %-  zing
-          %+  turn  content.writ.u.msg
-          |=  v=verse:d
-          ^-  (list inline:old)
-          ?-  -.v
-              %block   ~
-              %inline
-            %+  murn  p.v
-            |=  i=inline:d
-            ^-  (unit inline:old)
-            ?@  i    `i
-            ?+  -.i  `i
-              %task        ~
-              %italics     `[-.i ^$(p.v p.i)]
-              %bold        `[-.i ^$(p.v p.i)]
-              %strike      `[-.i ^$(p.v p.i)]
-              %blockquote  `[-.i ^$(p.v p.i)]
-            ==
-          ==
+          [~ author sent [%story ~ (verses-to-inlines content)]]
         ==
       cu-core
     ==
@@ -1440,6 +1420,29 @@
   ?:  (~(has by dms) ship)   ~(key by pending-dms)
   (~(put in ~(key by pending-dms)) ship)
   (give %fact ~[/dm/invited] ships+!>(invites))
+::
+++  verses-to-inlines  ::  for backcompat
+  |=  l=(list verse:d)
+  ^-  (list inline:old)
+  %-  zing
+  %+  turn  l
+  |=  v=verse:d
+  ^-  (list inline:old)
+  ?-  -.v
+      %block   ~
+      %inline
+    %+  murn  p.v
+    |=  i=inline:d
+    ^-  (unit inline:old)
+    ?@  i    `i
+    ?+  -.i  `i
+      %task        ~
+      %italics     `[-.i ^$(p.v p.i)]
+      %bold        `[-.i ^$(p.v p.i)]
+      %strike      `[-.i ^$(p.v p.i)]
+      %blockquote  `[-.i ^$(p.v p.i)]
+    ==
+  ==
 ::
 ++  di-core
   |_  [=ship =dm:c gone=_|]
@@ -1664,39 +1667,34 @@
           =/  ok=?  ;;(? (slav %f i.t.t.wire))
           `[%dm-rsvp !>(`rsvp:dm:old`[our.bowl ok])]
         ::
-            [@ ~]
+            [@ ?(~ [@ @ ~])]
           %-  some
           :-  %dm-diff
           !>  ^-  diff:dm:old
-          =/  id=time  (slav %ud i.t.wire)
-          :-  [our.bowl id]
-          =/  msg=(unit [=time =writ:c])
-            (get:di-pact our.bowl id)
+          ?~  t.t.wire
+            =/  id=time  (slav %ud i.t.wire)
+            :-  [our.bowl id]
+            =/  msg=(unit [=time =writ:c])
+              (get:di-pact our.bowl id)
+            ?~  msg  [%del ~]
+            :-  %add
+            ^-  memo:old
+            =,  writ.u.msg
+            [~ author sent [%story ~ (verses-to-inlines content)]]
+          =/  =id:c     [(slav %p i.t.wire) (slav %ud i.t.t.wire)]
+          =/  rid=time  (slav %ud i.t.t.t.wire)
+          =/  msg=(unit memo:d)
+            %+  biff  (get:di-pact id)
+            |=  [time =writ:c]
+            ^-  (unit memo:d)
+            ?~  id=(~(get by dex.pact.dm) our.bowl rid)  ~
+            (bind (get:on:replies:c replies.writ u.id) tail)
+          :-  [our.bowl rid]
           ?~  msg  [%del ~]
           :-  %add
           ^-  memo:old
-          =,  writ.u.msg
-          =;  l=(list inline:old)
-            [~ author sent [%story ~ l]]
-          %-  zing
-          %+  turn  content.writ.u.msg
-          |=  v=verse:d
-          ^-  (list inline:old)
-          ?-  -.v
-              %block   ~
-              %inline
-            %+  murn  p.v
-            |=  i=inline:d
-            ^-  (unit inline:old)
-            ?@  i    `i
-            ?+  -.i  `i
-              %task        ~
-              %italics     `[-.i ^$(p.v p.i)]
-              %bold        `[-.i ^$(p.v p.i)]
-              %strike      `[-.i ^$(p.v p.i)]
-              %blockquote  `[-.i ^$(p.v p.i)]
-            ==
-          ==
+          =,  u.msg
+          [~ author sent [%story ~ (verses-to-inlines content)]]
         ==
       di-core
     ==
@@ -1760,7 +1758,16 @@
       [%pass (welp di-area wire) %agent dock task]
     ++  poke-them  |=([=wire =cage] (pass wire [ship dap.bowl] %poke cage))
     ++  proxy-rsvp  |=(ok=? (poke-them /proxy/rsvp/(scot %f ok) chat-dm-rsvp+!>([our.bowl ok])))
-    ++  proxy  |=(=diff:dm:c (poke-them /proxy/(scot %ud q.p.diff) chat-dm-diff+!>(diff)))
+    ++  proxy
+      |=  =diff:dm:c
+      =;  =wire
+        (poke-them wire chat-dm-diff+!>(diff))
+      ::  we put some details about the message into the wire, so that we may
+      ::  re-try a send for backwards compatibility in some cases
+      ::
+      ?.  ?=(%reply -.q.diff)
+        /proxy/(scot %ud q.p.diff)
+      /proxy/(scot %p p.p.diff)/(scot %ud q.p.diff)/(scot %ud q.id.q.diff)
     --
   --
 --
