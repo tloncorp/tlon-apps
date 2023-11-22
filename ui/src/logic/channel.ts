@@ -251,15 +251,13 @@ export function useCheckChannelJoined() {
 export function useChannelCompatibility(nest: string) {
   const [, chan] = nestToFlag(nest);
   const { ship } = getFlagParts(chan);
-  const { matchedOrPending } = useNegotiate(
-    ship,
-    'channels',
-    'channels-server'
-  );
+  const { status } = useNegotiate(ship, 'channels', 'channels-server');
+
+  const matched = status === 'matched';
 
   return {
-    compatible: matchedOrPending,
-    text: matchedOrPending
+    compatible: matched,
+    text: matched
       ? "You're synced with the host."
       : 'Your version of the app does not match the host.',
   };
