@@ -253,7 +253,7 @@ export function useChannelCompatibility(nest: string) {
   const { ship } = getFlagParts(chan);
   const { status } = useNegotiate(ship, 'channels', 'channels-server');
 
-  const matched = status === 'matched';
+  const matched = status === 'match';
 
   return {
     compatible: matched,
