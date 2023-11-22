@@ -48,8 +48,6 @@
 =|  current-state
 =*  state  -
 =<
-  %+  verb-lib  |
-  %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
