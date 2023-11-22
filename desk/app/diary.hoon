@@ -652,7 +652,7 @@
         %sort                     [%sort 0 p.diff]~
         %arranged-notes           [%order 0 p.diff]~
         %notes
-      =*  id  p.p.diff
+      =*  id  time
       =/  old-note  (get:on:notes:a old id)
       ?~  old-note  [%post id %set ~]~
       =/  new-post  (get:on-v-posts:d posts id)
