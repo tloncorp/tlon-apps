@@ -85,7 +85,11 @@ import Dialog from '@/components/Dialog';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import EmojiPicker from '@/components/EmojiPicker';
 import SettingsDialog from '@/components/Settings/SettingsDialog';
-import { captureAnalyticsEvent, captureError } from '@/logic/analytics';
+import {
+  ANALYTICS_DEFAULT_PROPERTIES,
+  captureAnalyticsEvent,
+  captureError,
+} from '@/logic/analytics';
 import GroupChannel from '@/groups/GroupChannel';
 import PrivacyNotice from '@/groups/PrivacyNotice';
 import ActivityModal, { ActivityChecker } from '@/components/ActivityModal';
@@ -804,7 +808,7 @@ function RoutedApp() {
 
   useEffect(() => {
     if (posthog && analyticsId !== '' && logActivity) {
-      posthog.identify(analyticsId);
+      posthog.identify(analyticsId, ANALYTICS_DEFAULT_PROPERTIES);
     }
   }, [posthog, analyticsId, logActivity]);
 

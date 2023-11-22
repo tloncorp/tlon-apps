@@ -29,8 +29,8 @@ const ships: Record<
   }
 > = {
   zod: {
-    url: 'https://bootstrap.urbit.org/rube-zod4.tgz',
-    savePath: path.join(__dirname, 'rube-zod4.tgz'),
+    url: 'https://bootstrap.urbit.org/rube-zod5.tgz',
+    savePath: path.join(__dirname, 'rube-zod5.tgz'),
     extractPath: path.join(__dirname, 'zod'),
     ship: 'zod',
     code: 'lidlut-tabwed-pillex-ridrup',
@@ -38,8 +38,8 @@ const ships: Record<
     loopbackPort: '',
   },
   bus: {
-    url: 'https://bootstrap.urbit.org/rube-bus4.tgz',
-    savePath: path.join(__dirname, 'rube-bus4.tgz'),
+    url: 'https://bootstrap.urbit.org/rube-bus5.tgz',
+    savePath: path.join(__dirname, 'rube-bus5.tgz'),
     extractPath: path.join(__dirname, 'bus'),
     ship: 'bus',
     code: 'riddec-bicrym-ridlev-pocsef',
@@ -502,7 +502,10 @@ const shipsAreReadyForTests = async () => {
         return true;
       }
 
-      console.log(`~${ship.ship} is not ready`);
+      console.log(`~${ship.ship} is not ready`, {
+        groups: json.groups.hash,
+        talk: json.talk.hash,
+      });
 
       return false;
     })

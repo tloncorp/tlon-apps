@@ -22,10 +22,12 @@ function prefixEndpoint(endpoint: string) {
 }
 
 function imageSize(url: string) {
-  const size = getImageSize(url).then<[number, number]>(({ width, height }) => [
-    width,
-    height,
-  ]);
+  const size = getImageSize(url)
+    .then<[number, number]>(({ width, height }) => [width, height])
+    .catch((e) => {
+      console.log('failed to get image size', { e });
+      return undefined;
+    });
   return size;
 }
 
@@ -169,12 +171,17 @@ export const useFileStore = create<FileStore>((set, get) => ({
               return '';
             });
             updateStatus(uploader, key, 'success');
-            imageSize(fileUrl).then((s) =>
-              updateFile(uploader, key, {
-                size: s,
-                url: fileUrl,
-              })
-            );
+            imageSize(fileUrl)
+              .then((s) =>
+                updateFile(uploader, key, {
+                  size: s,
+                  url: fileUrl,
+                })
+              )
+              .catch((e) => {
+                console.log('failed to get image size', { e });
+                return '';
+              });
           })
           .catch((error: any) => {
             updateStatus(
@@ -217,12 +224,17 @@ export const useFileStore = create<FileStore>((set, get) => ({
         .then(() => {
           const fileUrl = url.split('?')[0];
           updateStatus(uploader, key, 'success');
-          imageSize(fileUrl).then((s) =>
-            updateFile(uploader, key, {
-              size: s,
-              url: fileUrl,
-            })
-          );
+          imageSize(fileUrl)
+            .then((s) =>
+              updateFile(uploader, key, {
+                size: s,
+                url: fileUrl,
+              })
+            )
+            .catch((e) => {
+              console.log('failed to get image size', { e });
+              return '';
+            });
         })
         .catch((error: any) => {
           updateStatus(

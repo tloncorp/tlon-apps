@@ -38,6 +38,8 @@ import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
+import { useIsMobile } from '@/logic/useMedia';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
@@ -117,6 +119,9 @@ export default function DiaryNote({ title }: ViewProps) {
   const brief = useDiaryBrief(chFlag);
   const sort = useDiaryCommentSortMode(chFlag);
   const perms = useDiaryPerms(chFlag);
+  const isMobile = useIsMobile();
+  const { isChatInputFocused } = useChatInputFocus();
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const { compatible } = useChannelCompatibility(nest);
   const { mutateAsync: joinDiary } = useJoinDiaryMutation();
   const joinChannel = useCallback(async () => {
@@ -180,6 +185,9 @@ export default function DiaryNote({ title }: ViewProps) {
   if (!note.essay || status === 'loading') {
     return (
       <Layout
+        style={{
+          paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
+        }}
         className="h-full flex-1 bg-white"
         header={
           <DiaryNoteHeader

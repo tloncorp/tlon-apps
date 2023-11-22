@@ -20,6 +20,7 @@ import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import { HeapCurio } from '@/types/heap';
+import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
@@ -43,6 +44,8 @@ export default function HeapDetail({ title }: ViewProps) {
     ? canReadChannel(channel, vessel, group?.bloc)
     : false;
   const isMobile = useIsMobile();
+  const { isChatInputFocused } = useChatInputFocus();
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const joined = useChannelIsJoined(nest);
   const { mutateAsync: joinHeap } = useJoinHeapMutation();
   const {
@@ -97,7 +100,7 @@ export default function HeapDetail({ title }: ViewProps) {
   return (
     <Layout
       style={{
-        paddingBottom: isMobile ? 50 : 0,
+        paddingBottom: shouldApplyPaddingBottom ? 50 : 0,
       }}
       className="padding-bottom-transition flex-1 bg-white"
       header={

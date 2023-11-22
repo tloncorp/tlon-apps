@@ -4,7 +4,7 @@ test('Create a group', async ({ page }) => {
   test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
   test.skip(process.env.APP === 'chat', 'skip on talk');
   await page.goto('');
-  await page.getByText('Some Good Groups').waitFor();
+  await page.getByRole('link', { name: 'Create Group' }).waitFor();
   await page.getByRole('link', { name: 'Create Group' }).click();
   await page.getByPlaceholder('e.g. Urbit Fan Club').click();
   await page.getByPlaceholder('e.g. Urbit Fan Club').fill('Bus Club');

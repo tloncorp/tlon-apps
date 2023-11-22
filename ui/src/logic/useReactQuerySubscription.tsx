@@ -16,6 +16,7 @@ export default function useReactQuerySubscription<T>({
   scry,
   scryApp = app,
   priority = 3,
+  onEvent,
   options,
 }: {
   queryKey: QueryKey;
@@ -24,6 +25,7 @@ export default function useReactQuerySubscription<T>({
   scry: string;
   scryApp?: string;
   priority?: number;
+  onEvent?: (data: Event) => void;
   options?: UseQueryOptions<T>;
 }) {
   const queryClient = useQueryClient();
@@ -50,9 +52,9 @@ export default function useReactQuerySubscription<T>({
     api.subscribe({
       app,
       path,
-      event: invalidate.current,
+      event: onEvent ? onEvent : invalidate.current,
     });
-  }, [app, path, queryClient, queryKey]);
+  }, [app, path, queryClient, queryKey, onEvent]);
 
   return useQuery(queryKey, fetchData, {
     staleTime: 60 * 1000,

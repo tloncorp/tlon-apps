@@ -10,7 +10,10 @@ import {
 import { useGroups } from '@/state/groups';
 import React, { useEffect } from 'react';
 import { isHosted } from '@/logic/utils';
-import { analyticsClient } from '@/logic/analytics';
+import {
+  ANALYTICS_DEFAULT_PROPERTIES,
+  analyticsClient,
+} from '@/logic/analytics';
 import { PrivacyContents } from '@/groups/PrivacyNotice';
 import Dialog from './Dialog';
 
@@ -24,7 +27,9 @@ export function ActivityChecker() {
   useEffect(() => {
     // manage analytics opt-in/out based on settings
     if (analyticsClient.has_opted_out_capturing() && logActivity) {
-      analyticsClient.opt_in_capturing();
+      analyticsClient.opt_in_capturing({
+        capture_properties: ANALYTICS_DEFAULT_PROPERTIES,
+      });
     } else if (analyticsClient.has_opted_in_capturing() && !logActivity) {
       analyticsClient.opt_out_capturing();
     }

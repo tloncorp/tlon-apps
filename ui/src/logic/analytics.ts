@@ -50,6 +50,30 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
 
 export const analyticsClient = posthog;
 
+export const ANALYTICS_DEFAULT_PROPERTIES: Properties = {
+  // The following default properties stop PostHog from auto-logging the URL,
+  // which can inadvertently reveal private info on Urbit
+  $current_url: null,
+  $pathname: null,
+  $set_once: null,
+  $host: null,
+  $referrer: null,
+  $initial_current_url: null,
+  $initial_referrer_url: null,
+  $referring_domain: null,
+  $initial_referring_domain: null,
+  $unset: [
+    'initial_referrer_url',
+    'initial_referring_domain',
+    'initial_current_url',
+    'current_url',
+    'pathname',
+    'host',
+    'referrer',
+    'referring_domain',
+  ],
+};
+
 // Once someone is opted in this will fire no matter what so we need
 // additional guarding here to prevent accidentally capturing data.
 export const captureAnalyticsEvent = (
@@ -64,27 +88,7 @@ export const captureAnalyticsEvent = (
   log('Attempting to capture analytics event', name);
   const captureProperties: Properties = {
     ...(properties || {}),
-    // The following default properties stop PostHog from auto-logging the URL,
-    // which can inadvertently reveal private info on Urbit
-    $current_url: null,
-    $pathname: null,
-    $set_once: null,
-    $host: null,
-    $referrer: null,
-    $initial_current_url: null,
-    $initial_referrer_url: null,
-    $referring_domain: null,
-    $initial_referring_domain: null,
-    $unset: [
-      'initial_referrer_url',
-      'initial_referring_domain',
-      'initial_current_url',
-      'current_url',
-      'pathname',
-      'host',
-      'referrer',
-      'referring_domain',
-    ],
+    ...ANALYTICS_DEFAULT_PROPERTIES,
   };
 
   posthog.capture(name, captureProperties, {
