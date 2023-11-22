@@ -11,6 +11,7 @@ import {
   useMultiDms,
   useSendMessage,
 } from '@/state/chat';
+import { useNegotiateMulti } from '@/state/negotiation';
 import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
@@ -27,6 +28,13 @@ export default function useMessageSelector() {
   const { data: unreads } = useDmUnreads();
   const { mutate: sendMessage } = useSendMessage();
   const { mutateAsync: createMultiDm } = useCreateMultiDm();
+  const { match: negotiationMatch, isLoading: negotiationLoading } =
+    useNegotiateMulti(
+      ships.map((option) => option.value),
+      'chat',
+      'chat'
+    );
+  const confirmedMultiDmMismatch = !negotiationLoading && !negotiationMatch;
 
   const existingDm = useMemo(() => {
     if (ships.length !== 1) {
@@ -160,6 +168,8 @@ export default function useMessageSelector() {
   }, [existingDm, existingMultiDm, navigate, location.pathname]);
 
   return {
+    isMultiDm,
+    confirmedMultiDmMismatch,
     action,
     existingDm,
     existingMultiDm,
