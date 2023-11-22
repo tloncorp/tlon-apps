@@ -1,9 +1,18 @@
 import { test, expect } from '@playwright/test';
+import shipManifest from './shipManifest.json';
 
-test('Create a group', async ({ page }) => {
-  test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
+const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
+const zodUrl = `${shipManifest['~zod'].webUrl}/apps/groups/`;
+
+test('Create a group', async ({ browser }) => {
   test.skip(process.env.APP === 'chat', 'skip on talk');
-  await page.goto('');
+
+  // Authenticate as bus
+  const busContext = await browser.newContext({
+    storageState: shipManifest['~bus'].authFile,
+  });
+  const page = await busContext.newPage();
+  await page.goto(busUrl);
   await page.getByRole('link', { name: 'Create Group' }).waitFor();
   await page.getByRole('link', { name: 'Create Group' }).click();
   await page.getByPlaceholder('e.g. Urbit Fan Club').click();
@@ -16,10 +25,15 @@ test('Create a group', async ({ page }) => {
   await page.getByRole('heading', { name: 'or drag a Channel here' }).waitFor();
 });
 
-test('Create a chat channel', async ({ page }) => {
-  test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
+test('Create a chat channel', async ({ browser }) => {
   test.skip(process.env.APP === 'chat', 'skip on talk');
-  await page.goto('');
+
+  // Authenticate as bus
+  const busContext = await browser.newContext({
+    storageState: shipManifest['~bus'].authFile,
+  });
+  const page = await busContext.newPage();
+  await page.goto(busUrl);
   await page.getByRole('link', { name: 'B Bus Club' }).waitFor();
   await page.getByRole('link', { name: 'B Bus Club' }).click();
   await page.getByRole('heading', { name: 'or drag a Channel here' }).waitFor();
@@ -44,10 +58,15 @@ test('Create a chat channel', async ({ page }) => {
   await expect(page.getByText("hi, it's me, ~bus")).toBeVisible();
 });
 
-test('Create a notebook channel and post to it.', async ({ page }) => {
-  test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
+test('Create a notebook channel and post to it.', async ({ browser }) => {
   test.skip(process.env.APP === 'chat', 'skip on talk');
-  await page.goto('');
+
+  // Authenticate as bus
+  const busContext = await browser.newContext({
+    storageState: shipManifest['~bus'].authFile,
+  });
+  const page = await busContext.newPage();
+  await page.goto(busUrl);
   await page.getByRole('link', { name: 'B Bus Club' }).waitFor();
   await page.getByRole('link', { name: 'B Bus Club' }).click();
   await page.getByRole('link', { name: 'All Channels' }).click();
@@ -75,10 +94,15 @@ test('Create a notebook channel and post to it.', async ({ page }) => {
   ).toBeVisible();
 });
 
-test('Invite to a group', async ({ page }) => {
-  test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
+test('Invite to a group', async ({ browser }) => {
   test.skip(process.env.APP === 'chat', 'skip on talk');
-  await page.goto('');
+
+  // Authenticate as bus
+  const busContext = await browser.newContext({
+    storageState: shipManifest['~bus'].authFile,
+  });
+  const page = await busContext.newPage();
+  await page.goto(busUrl);
   await page.getByRole('link', { name: 'B Bus Club' }).waitFor();
   await page.getByRole('link', { name: 'B Bus Club' }).click();
   await page.getByRole('link', { name: 'Invite People' }).waitFor();
@@ -97,10 +121,15 @@ test('Invite to a group', async ({ page }) => {
     .waitFor();
 });
 
-test('accept group invite', async ({ page }) => {
-  test.skip(process.env.SHIP === '~bus', 'skip on ~bus');
+test('Accept group invite', async ({ browser }) => {
   test.skip(process.env.APP === 'chat', 'skip on talk');
-  await page.goto('');
+
+  // Authenticate as zod
+  const zodContext = await browser.newContext({
+    storageState: shipManifest['~zod'].authFile,
+  });
+  const page = await zodContext.newPage();
+  await page.goto(zodUrl);
   await page
     .getByTestId('group-invite')
     .filter({ hasText: 'Bus Club' })

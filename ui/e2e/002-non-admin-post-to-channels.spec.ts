@@ -1,9 +1,14 @@
 import { test, expect } from '@playwright/test';
+import shipManifest from './shipManifest.json';
+
+const busUrl = `${shipManifest['~bus'].webUrl}/apps/groups/`;
+
+// Authenticate as bus
+test.use({ storageState: 'e2e/.auth/bus.json' });
 
 test('Navigate to group chat', async ({ page }) => {
-  test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
   test.skip(process.env.APP === 'chat', 'skip on talk');
-  await page.goto('');
+  await page.goto(busUrl);
   await page.getByRole('link', { name: 'Zod test group' }).waitFor();
   await page.getByRole('link', { name: 'Zod test group' }).click();
   await page.getByTestId('sidebar-item-text-Zod chat').waitFor();
@@ -15,9 +20,8 @@ test('Navigate to group chat', async ({ page }) => {
 });
 
 test('Add Block to existing gallery channel', async ({ page }) => {
-  test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
   test.skip(process.env.APP === 'chat', 'skip on talk');
-  await page.goto('');
+  await page.goto(busUrl);
   await page.getByRole('link', { name: 'Zod test group' }).waitFor();
   await page.getByRole('link', { name: 'Zod test group' }).click();
   await page.getByTestId('sidebar-item-text-Zod gallery').waitFor();
@@ -33,9 +37,8 @@ test('Add Block to existing gallery channel', async ({ page }) => {
 });
 
 test('Add Note to existing notebook channel', async ({ page }) => {
-  test.skip(process.env.SHIP === '~zod', 'skip on ~zod');
   test.skip(process.env.APP === 'chat', 'skip on talk');
-  await page.goto('');
+  await page.goto(busUrl);
   await page.getByRole('link', { name: 'Zod test group' }).waitFor();
   await page.getByRole('link', { name: 'Zod test group' }).click();
   await page.getByTestId('sidebar-item-text-Zod notebook').waitFor();

@@ -28,6 +28,7 @@ const shipManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 const ships: Record<
   string,
   {
+    authFile: string;
     downloadUrl: string;
     url: string;
     savePath: string;
@@ -36,6 +37,7 @@ const ships: Record<
     code: string;
     httpPort: string;
     loopbackPort: string;
+    webUrl: string;
   }
 > = {
   zod: {
@@ -549,6 +551,10 @@ const checkShipReadinessForTests = async () =>
 const runPlaywrightTests = async () => {
   await checkShipReadinessForTests();
 
+  // to do:
+  // refactor this to be able to target specs individually
+  // both ships will always be running and available for all tests/specs
+  // so this function is no longer needed as it is here
   const runTestForShip = (ship: string) =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests for ${ship}`);
@@ -581,6 +587,33 @@ const runPlaywrightTests = async () => {
       });
     });
 
+  const runTests = () =>
+    new Promise<void>((resolve, reject) => {
+      console.log(`Running tests`);
+      const playwrightArgs = ['playwright', 'test', '--workers=2', ''];
+
+      if (process.env.DEBUG_PLAYWRIGHT) {
+        playwrightArgs.push('--debug');
+      }
+
+      const testProcess = childProcess.spawn('npx', playwrightArgs, {
+        env: {
+          ...process.env,
+        },
+        stdio: 'inherit',
+      });
+
+      spawnedProcesses.push(testProcess);
+
+      testProcess.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Playwright tests failed with exit code ${code}`));
+        } else {
+          resolve();
+        }
+      });
+    });
+
   try {
     if (targetShip) {
       await runTestForShip(`~${targetShip}`);
@@ -588,8 +621,7 @@ const runPlaywrightTests = async () => {
       process.exit(0);
       return;
     }
-    await runTestForShip('~bus');
-    await runTestForShip('~zod');
+    await runTests();
     console.log('All tests passed successfully!');
   } catch (err) {
     console.error('Error running tests:', err);
