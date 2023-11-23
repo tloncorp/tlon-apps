@@ -11,6 +11,7 @@ type SettingProps = {
   toggle: (open: boolean) => void;
   status: 'loading' | 'error' | 'success' | 'idle';
   labelClassName?: string;
+  dataTestid?: string;
 } & HTMLAttributes<HTMLDivElement>;
 
 export default function Setting({
@@ -22,11 +23,12 @@ export default function Setting({
   labelClassName,
   toggle,
   status,
+  dataTestid,
 }: SettingProps) {
   const id = slugify(name);
 
   return (
-    <section className={className}>
+    <section className={className} data-testid={dataTestid || undefined}>
       <div className="flex space-x-2">
         <Toggle
           aria-labelledby={id}

@@ -360,6 +360,7 @@ export default function DiaryAddNote() {
                   name="Edit with Markdown"
                   status={toggleMarkdownStatus}
                   className="mb-4"
+                  dataTestid="edit-with-markdown-toggle"
                 />
                 {editWithMarkdown && editor ? (
                   <DiaryMarkdownEditor

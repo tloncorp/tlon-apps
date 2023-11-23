@@ -83,7 +83,11 @@ export default function DiaryNoteHeader({
       <div className="flex shrink-0 flex-row items-center space-x-3">
         {isMobile && <ReconnectingSpinner />}
         {showEditButton ? (
-          <Link to={`../edit/${time}`} className="small-button">
+          <Link
+            to={`../edit/${time}`}
+            className="small-button"
+            data-testid="button-edit-note"
+          >
             Edit
           </Link>
         ) : null}
