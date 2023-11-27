@@ -96,15 +96,7 @@ function ContentReference({
     }
     if (app === 'diary') {
       const idNote = udToDec(segments[2]);
-      const idReply =
-        // we have to do this because the paths for migrated note comments
-        // are different than the paths for new/post-migration note comments
-        // this is just papering over the issue.
-        segments[3] && segments[3] !== 'msg'
-          ? udToDec(segments[3])
-          : segments[4]
-          ? udToDec(segments[4])
-          : null;
+      const idReply = segments[3] ? udToDec(segments[3]) : null;
 
       if (idReply) {
         return (
