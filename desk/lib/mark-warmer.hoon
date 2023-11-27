@@ -18,5 +18,6 @@
 /$  flags       %flags                %json
 /$  unreads     %chat-unreads         %json
 /$  pins        %chat-pins            %json
-/$  writs       %chat-writs           %json
+/$  writs       %chat-paged-writs     %json
+/$  posts       %channel-posts        %json
 ~
