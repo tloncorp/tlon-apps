@@ -575,7 +575,7 @@
       %+  roll  curios
       |=  [[=time =curio:h] index=(map @da v-replies:c)]
       ?~  replying.curio  index
-      =/  old-replies=v-replies:c  (~(gut by index) time *v-replies:c)
+      =/  old-replies=v-replies:c  (~(gut by index) u.replying.curio *v-replies:c)
       %+  ~(put by index)  u.replying.curio
       (put:on-v-replies:c old-replies time `(convert-reply time curio))
     %+  gas:on-v-posts:c  *v-posts:c
