@@ -155,7 +155,6 @@
       %channel-migration
     ?>  =(our src):bowl
     =+  !<(new-channels=v-channels:c vase)
-    ~&  new-channels
     =.  v-channels  (~(uni by new-channels) v-channels)  ::  existing overrides migration
     %+  roll  ~(tap by v-channels)
     |=  [[=nest:c =v-channel:c] cr=_cor]
