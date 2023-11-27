@@ -637,6 +637,11 @@
     %-  (slog 'Failed to do chat data migration' u.p.sign)
     cor
   ::
+      [%said *]
+    ::  old chat used to fetch previews, we don't do those here anymore
+    ::
+    cor
+  ::
       [%groups ~]
     ::  old chat used to watch groups. we no longer want/need to.
     ::
