@@ -1,7 +1,7 @@
+import { JSONContent } from '@tiptap/react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { JSONContent } from '@tiptap/react';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { createCurioHeart } from '@/logic/heap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';

@@ -225,6 +225,7 @@ const infinitePostUpdater = (
     const post = postResponse.set;
 
     if (post === null) {
+      console.log('post is null');
       queryClient.setQueryData<{
         pages: PagedPosts[];
         pageParams: PageParam[];
@@ -258,11 +259,13 @@ const infinitePostUpdater = (
         };
       });
     } else {
+      console.log('post is not null');
       queryClient.setQueryData<{
         pages: PagedPosts[];
         pageParams: PageParam[];
       }>(queryKey, (d: PostsInCachePrev | undefined) => {
         if (d === undefined) {
+          console.log('no posts in cache previously');
           return {
             pages: [
               {
@@ -280,18 +283,26 @@ const infinitePostUpdater = (
 
         const lastPage = _.last(d.pages);
 
+        console.log({
+          lastPage,
+          pages: d.pages,
+        });
+
         if (lastPage === undefined) {
           return undefined;
         }
 
         const newPosts = {
-          ...lastPage.posts,
           [time]: post,
         };
 
-        const newLastPage = {
-          ...lastPage,
+        const newestPost = _.last(Object.entries(lastPage.posts));
+
+        const newLastPage: PagedPosts = {
+          older: udToDec(newestPost?.[0] ?? ''),
+          newer: null,
           posts: newPosts,
+          total: lastPage.total + 1,
         };
 
         const cachedPost =
@@ -302,9 +313,9 @@ const infinitePostUpdater = (
           id !== udToDec(unixToDa(post.essay.sent).toString())
         ) {
           // remove cached post if it exists
-          delete newLastPage.posts[
-            decToUd(unixToDa(post.essay.sent).toString())
-          ];
+          delete lastPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
+
+          lastPage.posts[time] = post;
 
           // set delivered now that we have the real post
           usePostsStore
@@ -313,11 +324,37 @@ const infinitePostUpdater = (
               { author: post.essay.author, sent: post.essay.sent },
               'delivered'
             );
+
+          console.log({
+            pages: [...d.pages.slice(0, -1), lastPage],
+            pageParams: d.pageParams,
+          });
+
+          return {
+            pages: [...d.pages.slice(0, -1), lastPage],
+            pageParams: d.pageParams,
+          };
         }
 
+        const newLastPageParams = {
+          time: bigInt(udToDec(time)),
+          direction: 'older',
+        };
+
+        const newPageParams = [
+          ...d.pageParams.slice(0, -1),
+          newLastPageParams,
+          null,
+        ];
+
+        console.log({
+          pages: [...d.pages, newLastPage],
+          pageParams: newPageParams,
+        });
+
         return {
-          pages: [...d.pages.slice(0, -1), newLastPage],
-          pageParams: d.pageParams,
+          pages: [...d.pages, newLastPage],
+          pageParams: newPageParams,
         };
       });
     }
@@ -486,10 +523,10 @@ const infinitePostUpdater = (
   }
 };
 
-interface PageParam {
+type PageParam = null | {
   time: BigInteger;
   direction: string;
-}
+};
 
 export function useInfinitePosts(
   nest: Nest,
@@ -526,6 +563,11 @@ export function useInfinitePosts(
   const { data, ...rest } = useInfiniteQuery<PagedPosts>({
     queryKey,
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
+      console.log('queryFn', {
+        pageParam,
+        latest,
+      });
+
       let path = '';
 
       if (pageParam && !latest) {
@@ -550,6 +592,9 @@ export function useInfinitePosts(
       };
     },
     getNextPageParam: (lastPage): PageParam | undefined => {
+      console.log('getNextPageParam', {
+        lastPage,
+      });
       const { newer } = lastPage;
 
       if (!newer) {
@@ -562,6 +607,9 @@ export function useInfinitePosts(
       };
     },
     getPreviousPageParam: (firstPage): PageParam | undefined => {
+      console.log('getPreviousPageParam', {
+        firstPage,
+      });
       const { older } = firstPage;
 
       if (!older) {
@@ -596,6 +644,10 @@ export function useInfinitePosts(
     })
     .flat()
     .sort(([a], [b]) => a.compare(b));
+
+  console.log('pageParams before return', {
+    pageParams: data.pageParams,
+  });
 
   return {
     data,

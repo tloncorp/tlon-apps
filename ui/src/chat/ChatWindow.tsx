@@ -104,6 +104,7 @@ export default function ChatWindow({
     bottom(true);
     delayedRead(nest, () => markRead({ nest }));
     if (hasNextPage && !isFetchingNextPage) {
+      console.log('fetching next page');
       log('fetching next page');
       fetchNextPage();
     }
@@ -111,6 +112,7 @@ export default function ChatWindow({
 
   const onAtTop = useCallback(() => {
     if (hasPreviousPage && !isFetchingPreviousPage) {
+      console.log('fetching previous page');
       log('fetching previous page');
       fetchPreviousPage();
     }
