@@ -3,10 +3,10 @@ import classNames from 'classnames';
 import { Link } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import {
-  useArrangedNotes,
-  useIsNotePending,
+  useArrangedPosts,
   usePostToggler,
-} from '@/state/diary';
+  useIsPostPending,
+} from '@/state/channel/channel';
 import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -14,6 +14,7 @@ import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
   time: string;
+  sent: number;
   flag: string;
   canEdit: boolean;
   author: string;
@@ -24,21 +25,26 @@ export default function DiaryNoteOptionsDropdown({
   children,
   flag,
   time,
+  sent,
   author,
   triggerClassName,
   canEdit,
 }: DiaryNoteOptionsDropdownProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const arrangedNotes = useArrangedNotes(flag);
-  const { ship } = getFlagParts(flag);
   const nest = `diary/${flag}`;
+  const arrangedNotes = useArrangedPosts(nest);
+  const { ship } = getFlagParts(flag);
   const { compatible } = useChannelCompatibility(nest);
-  const isPending = useIsNotePending(time);
+  const isPending = useIsPostPending({
+    author,
+    sent,
+  });
   const {
     isOpen,
     didCopy,
     onCopy,
     delNote,
+    isDeleteLoading,
     setIsOpen,
     addToArrangedNotes,
     removeFromArrangedNotes,
@@ -127,6 +133,7 @@ export default function DiaryNoteOptionsDropdown({
         onConfirm={delNote}
         open={deleteOpen}
         setOpen={setDeleteOpen}
+        loading={isDeleteLoading}
         confirmText="Delete"
       />
     </>

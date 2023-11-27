@@ -1,21 +1,8 @@
 import cn from 'classnames';
 import { useLocation } from 'react-router';
-import React, {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { channelHref, canReadChannel } from '@/logic/channel';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import {
-  channelHref,
-  canReadChannel,
-  nestToFlag,
-  getFlagParts,
-  isChannelImported,
-} from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import {
   useGroup,
@@ -36,20 +23,16 @@ import {
   useCheckChannelUnread,
 } from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import HashIcon from '@/components/icons/HashIcon';
-import MigrationTooltip from '@/components/MigrationTooltip';
-import InviteIcon from '@/components/icons/InviteIcon';
-import PeopleIcon from '@/components/icons/PeopleIcon';
-import {
-  usePendingImports,
-  useStartedMigration,
-} from '@/logic/useMigrationInfo';
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
+import CaretRightIcon from '@/components/icons/CaretRightIcon';
+import ElipsisIcon from '@/components/icons/EllipsisIcon';
+import SmileIcon from '@/components/icons/SmileIcon';
+import PlaneIcon from '@/components/icons/PlaneIcon';
 
 const UNZONED = 'default';
 
@@ -105,38 +88,20 @@ export function ChannelSorter({ isMobile }: ChannelSorterProps) {
         onOpenChange={setOpen}
         actions={actions}
         asChild={false}
-        triggerClassName="default-focus flex items-center rounded-lg text-base font-semibold hover:bg-gray-50 dark:mix-blend-screen sm:p-1"
+        triggerClassName={cn(
+          'default-focus flex items-center rounded-lg text-base font-semibold  sm:p-1',
+          isMobile ? 'bg-none' : 'dark:mix-blend-screen hover:bg-gray-50'
+        )}
         contentClassName="w-56"
         ariaLabel="Groups Sort Options"
       >
         {isMobile ? (
-          <FilterIconMobileNav className="h-8 w-8 text-gray-900" />
+          <FilterIconMobileNav className="h-8 w-8" />
         ) : (
           <SortIcon className="h-6 w-6 text-gray-400 sm:h-4 sm:w-4" />
         )}
       </ActionMenu>
     </div>
-  );
-}
-
-interface UnmigratedChannelProps {
-  icon: ReactNode | ((active: boolean) => React.ReactNode);
-  title: string;
-  host: string;
-}
-
-function UnmigratedChannel({ icon, host, title }: UnmigratedChannelProps) {
-  return (
-    <MigrationTooltip ship={host} side="right">
-      <SidebarItem
-        icon={icon}
-        actions={
-          <Bullet16Icon className="m-2 h-4 w-4 text-orange opacity-60" />
-        }
-      >
-        <span className="opacity-60">{title}</span>
-      </SidebarItem>
-    </MigrationTooltip>
   );
 }
 
@@ -155,12 +120,10 @@ type ListItem =
 
 const virtuosoStateByFlag: Record<string, StateSnapshot> = {};
 
-export default function ChannelList() {
+export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const connected = useGroupConnection(flag);
-  const pendingImports = usePendingImports();
-  const { hasStarted } = useStartedMigration(flag);
   const { sortFn, sortChannels } = useChannelSort();
   const isDefaultSort = sortFn === DEFAULT;
   const { sectionedChannels } = useChannelSections(flag);
@@ -190,8 +153,7 @@ export default function ChannelList() {
     const arr: ListItem[] = [{ type: 'static-top' }];
 
     const shouldShowChannel = ([nest, channel]: [string, GroupChannel]) =>
-      (isChannelJoined(nest) && canReadChannel(channel, vessel, group.bloc)) ||
-      nest in pendingImports;
+      isChannelJoined(nest) && canReadChannel(channel, vessel, group.bloc);
 
     if (isDefaultSort) {
       filteredSections.forEach((s) => {
@@ -223,7 +185,6 @@ export default function ChannelList() {
     isDefaultSort,
     isChannelJoined,
     vessel,
-    pendingImports,
     filteredSections,
     sectionedChannels,
     sortChannels,
@@ -235,43 +196,46 @@ export default function ChannelList() {
     }
 
     return (
-      <div className="mx-4 sm:mx-2">
+      <div className={cn('mx-4 sm:mx-2', paddingTop && `pt-${paddingTop}`)}>
         <SidebarItem
           icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full">
-              <PeopleIcon className="m-1 h-6 w-6 text-gray-400" />
-            </div>
-          }
-          to="./members"
-        >
-          Members
-        </SidebarItem>
-        <SidebarItem
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full">
-              <HashIcon className="m-1 h-6 w-6 text-gray-400" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
+              <HashIcon className="m-1 h-6 w-6 text-gray-800" />
             </div>
           }
           to={`/groups/${flag}/channels`}
+          actions={<CaretRightIcon className="h-6 w-6 text-gray-800" />}
         >
-          All Channels
+          Channels
+        </SidebarItem>
+        <SidebarItem
+          icon={
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
+              <SmileIcon className="m-1 h-6 w-6 text-gray-800" />
+            </div>
+          }
+          to="./members"
+          actions={<CaretRightIcon className="h-6 w-6 text-gray-800" />}
+        >
+          Members
         </SidebarItem>
         <SidebarItem
           color="text-blue"
           highlight="bg-blue-soft"
           icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full">
-              <InviteIcon className="h-6 w-6" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-soft">
+              <PlaneIcon className="h-6 w-6" />
             </div>
           }
           to={`/groups/${flag}/invite`}
           state={{ backgroundLocation: location }}
+          actions={<ElipsisIcon className="h-6 w-6 text-blue" />}
         >
           Invite People
         </SidebarItem>
       </div>
     );
-  }, [isMobile, flag, location]);
+  }, [isMobile, flag, location, paddingTop]);
 
   const renderSectionHeader = useCallback(
     (section: string) => <Divider isMobile={isMobile}>{section}</Divider>,
@@ -280,37 +244,19 @@ export default function ChannelList() {
 
   const renderChannel = useCallback(
     ([nest, channel]: [string, GroupChannel]) => {
-      const [, chFlag] = nestToFlag(nest);
-      const { ship } = getFlagParts(chFlag);
-      const imported =
-        isChannelImported(nest, pendingImports) && hasStarted(ship);
       const icon = (active: boolean) =>
         isMobile ? (
           <span
             className={cn(
               'flex h-12 w-12 items-center justify-center rounded-md',
-              !imported && 'opacity-60',
               active && 'bg-white'
             )}
           >
-            <ChannelIcon nest={nest} className="h-6 w-6 text-gray-400" />
+            <ChannelIcon nest={nest} className="h-6 w-6 text-gray-800" />
           </span>
         ) : (
-          <ChannelIcon
-            nest={nest}
-            className={cn('h-6 w-6', !imported && 'opacity-60')}
-          />
+          <ChannelIcon nest={nest} className="h-6 w-6" />
         );
-
-      if (!imported) {
-        return (
-          <UnmigratedChannel
-            icon={icon}
-            title={channel.meta.title || nest}
-            host={ship}
-          />
-        );
-      }
 
       return (
         <SidebarItem
@@ -328,7 +274,7 @@ export default function ChannelList() {
         </SidebarItem>
       );
     },
-    [pendingImports, hasStarted, flag, isChannelUnread, isMobile]
+    [flag, isChannelUnread, isMobile]
   );
 
   const renderItem = useCallback(
@@ -338,7 +284,7 @@ export default function ChannelList() {
           return renderStaticTop();
         case 'section-header':
           return (
-            <div className="mx-4 sm:mx-2">
+            <div className="mx-4 text-gray-100 sm:mx-2">
               {renderSectionHeader(item.section)}
             </div>
           );

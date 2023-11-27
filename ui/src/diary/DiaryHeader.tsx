@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import cn from 'classnames';
+import { Link } from 'react-router-dom';
 import ChannelHeader from '@/channels/ChannelHeader';
 import SortIcon from '@/components/icons/SortIcon';
-import { useLeaveDiaryMutation } from '@/state/diary';
+import { useLeaveMutation } from '@/state/channel/channel';
 import { useChannelCompatibility } from '@/logic/channel';
 import {
   setChannelSetting,
@@ -10,9 +11,8 @@ import {
   useDiarySettings,
   usePutEntryMutation,
 } from '@/state/settings';
-import { DiaryDisplayMode } from '@/types/diary';
+import { DisplayMode } from '@/types/channel';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
-import { Link } from 'react-router-dom';
 import { useIsMobile } from '@/logic/useMedia';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
@@ -21,9 +21,9 @@ import ActionMenu, { Action } from '@/components/ActionMenu';
 interface DiaryHeaderProps {
   groupFlag: string;
   nest: string;
-  canWrite: boolean;
+  canWrite?: boolean;
   sort: DiarySetting['sortMode'];
-  display: DiaryDisplayMode;
+  display: DisplayMode;
 }
 
 export default function DiaryHeader({
@@ -39,13 +39,13 @@ export default function DiaryHeader({
   const isMobile = useIsMobile();
   const { compatible } = useChannelCompatibility(nest);
   const settings = useDiarySettings();
-  const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
+  const { mutateAsync: leaveDiary } = useLeaveMutation();
   const { mutate } = usePutEntryMutation({
     bucket: 'diary',
     key: 'settings',
   });
 
-  const setDisplayMode = async (view: DiaryDisplayMode) => {
+  const setDisplayMode = async (view: DisplayMode) => {
     const newSettings = setChannelSetting<DiarySetting>(
       settings,
       { displayMode: view },
@@ -113,7 +113,7 @@ export default function DiaryHeader({
       groupFlag={groupFlag}
       nest={nest}
       prettyAppName="Notebook"
-      leave={(ch) => leaveDiary({ flag: ch })}
+      leave={(ch) => leaveDiary({ nest: `diary/${ch}` })}
     >
       <div className="flex h-12 items-center justify-end space-x-2 sm:h-auto">
         <ActionMenu open={isOpen} onOpenChange={setIsOpen} actions={actions}>

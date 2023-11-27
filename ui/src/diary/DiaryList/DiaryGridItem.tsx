@@ -1,22 +1,23 @@
 import cn from 'classnames';
 import { useNavigate } from 'react-router';
-import { DiaryOutline, NoteEssay } from '@/types/diary';
+import { Post } from '@/types/channel';
 import { useCalm } from '@/state/settings';
-import { usePostToggler } from '@/state/diary';
+import getKindDataFromEssay from '@/logic/getKindData';
+import { usePostToggler } from '@/state/channel/channel';
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
-  outline: DiaryOutline;
+  note: Post;
   time: bigInt.BigInteger;
 }
 
-export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
-  const essay: NoteEssay = outline;
+export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const navigate = useNavigate();
-  const hasImage = outline.image?.length !== 0;
   const calm = useCalm();
-  const commenters = outline.quippers;
-  const { quipCount } = outline;
+  const { essay } = note;
+  const { image } = getKindDataFromEssay(essay);
+  const hasImage = image?.length !== 0;
+  const { replyCount, lastRepliers } = note.seal.meta;
   const { isHidden } = usePostToggler(time.toString());
 
   return (
@@ -32,7 +33,7 @@ export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
       style={
         hasImage && !calm?.disableRemoteContent
           ? {
-              backgroundImage: `linear-gradient(0deg, rgba(0, 0, 0, 0.33), rgba(0, 0, 0, 0.33)), url(${essay.image})`,
+              backgroundImage: `linear-gradient(0deg, rgba(0, 0, 0, 0.33), rgba(0, 0, 0, 0.33)), url(${image})`,
               color: '#ffffff',
             }
           : undefined
@@ -40,8 +41,8 @@ export default function DiaryGridItem({ outline, time }: DiaryGridItemProps) {
       onClick={() => navigate(`note/${time.toString()}`)}
     >
       <DiaryNoteHeadline
-        quippers={commenters}
-        quipCount={quipCount}
+        lastRepliers={lastRepliers}
+        replyCount={replyCount}
         essay={essay}
         time={time}
         isInGrid

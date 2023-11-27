@@ -1,21 +1,19 @@
-import { ChatBriefs, ChatInit, Chats, Clubs } from './chat';
-import { DiaryInit } from './diary';
+import { Unreads, Channels } from './channel';
+import { DMUnreads, Clubs } from './dms';
 import { Groups, Gangs } from './groups';
-import { HeapInit } from './heap';
 
 export interface GroupsInit {
   groups: Groups;
   gangs: Gangs;
-  chat: ChatInit;
-  heap: HeapInit;
-  diary: DiaryInit;
+  channels: Channels;
+  unreads: Unreads;
+  pins: string[];
 }
 
 export interface TalkInit {
   groups: Groups;
   gangs: Gangs;
-  briefs: ChatBriefs;
-  chats: Chats;
+  unreads: DMUnreads;
   clubs: Clubs;
   dms: string[];
   invited: string[];

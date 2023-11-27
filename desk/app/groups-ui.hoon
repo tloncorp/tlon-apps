@@ -1,4 +1,4 @@
-/-  u=ui, g=groups, c=chat, d=diary, h=heap
+/-  u=ui, g=groups, c=chat, d=channels
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 /+  mark-warmer
@@ -92,35 +92,17 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
-    =+  .^([=groups:g =gangs:g] (scry %gx %groups /init/noun))
-    =/  =init:u
-      :*  groups
-          gangs
-          .^(chat:u (scry %gx %chat /init/noun))
-          .^(heap:u (scry %gx %heap /init/noun))
-          .^(diary:u (scry %gx %diary /init/noun))
-      ==
-    ``ui-init+!>(init)
-  ::
-      [%x %init %v0 ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v0/noun))
-    =/  =init-0:u
+    =+  .^([=unreads:d =channels:d] (scry %gx %channels /init/noun))
+    =+  .^(pins=(list whom:c) (scry %gx %chat /pins/noun))
+    =/  =init:u
       :*  groups-ui
           gangs
-          .^(chat:u (scry %gx %chat /init/noun))
-          .^(heap:u (scry %gx %heap /init/noun))
-          .^(diary:u (scry %gx %diary /init/noun))
+          channels
+          unreads
+          pins
       ==
-    ``ui-init-0+!>(init-0)
-  ::
-      [%x %migration ~]
-    =/  =migration:u
-      :*  .^(imported:u (scry %gx %chat /imp/noun))
-          .^(imported:u (scry %gx %heap /imp/noun))
-          .^(imported:u (scry %gx %diary /imp/noun))
-          .^((list ship) (scry %gx %group-store /wait/noun))
-      ==
-    ``ui-migration+!>(migration)
+    ``ui-init+!>(init)
   ==
 ::
 ++  poke

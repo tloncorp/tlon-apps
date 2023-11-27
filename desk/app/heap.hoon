@@ -1,9 +1,8 @@
-/-  h=heap, d=diary, g=groups, ha=hark, e=epic
+/-  h=heap, c=channels, g=groups, ha=hark, e=epic, c2=chat-2
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
 /+  volume
-/+  chat-migrate=chat-graph
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  heap-json
@@ -95,16 +94,6 @@
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
-      %graph-imports  (import-graphs !<(imports:h vase))
-      %import-flags
-    =+  !<(flags=(set flag:h) vase)
-    =.  imp  %-  ~(gas by *(map flag:h ?))
-      ^-  (list [flag:h ?])
-      %+  turn
-        ~(tap in flags)
-      |=(=flag:h [flag |])
-    cor
-  ::
       %flag
     =+  !<(f=flag:h vase)
     ?<  =(our.bowl p.f)
@@ -121,7 +110,7 @@
     he-abet:he-leave:(he-abed:he-core leave)
   ::
       %post-toggle
-    =+  !<(toggle=post-toggle:d vase)
+    =+  !<(toggle=post-toggle:c vase)
     ?>  from-self
     (toggle-curio toggle)
   ::
@@ -167,6 +156,9 @@
       %heap-remark-action
     =+  !<(act=remark-action:h vase)
     he-abet:(he-remark-diff:(he-abed:he-core p.act) q.act)
+  ::
+      %heap-migrate-server  ?>(from-self server:migrate)
+      %heap-migrate         ?>(from-self client:migrate)
   ==
   ++  join
     |=  =join:h
@@ -175,12 +167,12 @@
     he-abet:(he-join:he-core join)
   ::
   ++  toggle-curio
-    |=  toggle=post-toggle:d
+    |=  toggle=post-toggle:c
     ^+  cor
     =.  hidden-curios
       ?-  -.toggle
-        %hide  (~(put in hidden-curios) time.toggle)
-        %show  (~(del in hidden-curios) time.toggle)
+        %hide  (~(put in hidden-curios) id-post.toggle)
+        %show  (~(del in hidden-curios) id-post.toggle)
       ==
     (give %fact ~[/ui] toggle-curio+!>(toggle))
   ::
@@ -221,8 +213,8 @@
       %1
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-    =.  cor  (emit %pass he-area:he-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
+    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       %+  roll  ~(tap in `(set @p)`(~(run in ~(key by stash)) head))
       |=  [=ship cr=_cor]
@@ -275,7 +267,6 @@
   ?+    pole  ~|(bad-watch-path/pole !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
-      [%imp ~]     ?>(from-self cor)
     ::
       [%epic ~]    (give %fact ~ epic+!>(okay:h))
     ::
@@ -345,6 +336,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
+      [%migrate ~]  cor
       [%epic ~]  (take-epic sign)
       [%hark ~]
     ?>  ?=(%poke-ack -.sign)
@@ -465,7 +457,6 @@
   ?+  pole  [~ ~]
   ::
     [%x %stash ~]  ``stash+!>(stash)
-    [%x %imp ~]    ``migrate-map+!>(imp)
     [%x %init ~]  ``noun+!>([briefs stash])
     [%x %briefs ~]  ``heap-briefs+!>(briefs)
     [%x %hidden-curios ~]  ``hidden-posts+!>(hidden-curios)
@@ -498,117 +489,6 @@
     %msg    %loud
   ==
 ::
-++  import-graphs
-  |=  =imports:h
-  ^+  cor
-  =/  imports  ~(tap by imports)
-  |-  =*  loop  $
-  ?~  imports  cor
-  =/  [=flag:h writers=(set ship) =association:met:h =update-log:gra:h =graph:gra:h]
-    i.imports
-  |^
-  =/  =perm:h
-    :_  group.association
-    ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
-  =/  =curios:h  graph-to-curios
-  =.  stash
-    %+  ~(put by stash)  flag
-    :*  net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | chi/~])
-      log=(import-log perm curios)
-      perm
-      %grid :: XX: check defaults with design
-      curios
-      [now.bowl | ~]
-    ==
-  =.  imp    (~(put by imp) flag &)
-  =.  cor
-    (give %fact ~[/imp] migrate-map+!>(imp))
-  =.  cor
-    he-abet:(he-import:(he-abed:he-core flag) writers association)
-  loop(imports t.imports)
-  ::
-  ++  import-log
-    |=  [=perm:h =curios:h]
-    ^-  log:h
-    =/  =time  (fall (bind (ram:orm-log-gra:h update-log) head) *time)
-    %+  gas:log-on:h  *log:h
-    :~  [time %create perm curios]
-    ==
-  ::
-  ++  orm  orm-gra:h
-  ::
-  ++  graph-to-curios
-    %+  roll  (tap:orm graph)
-    |=  [[=time =node:gra:h] out=curios:h]
-    ^+  out
-    =/  curs  (node-to-curio time node)
-    (uni:on:curios:h out curs)
-  ::
-  ++  node-to-curio
-    |=  [=time =node:gra:h]
-    ^-  curios:h
-    =/  =curios:h  (node-to-quips time node)
-    =/  replies   ~(key by curios)
-    =/  =seal:h  [time ~ replies]
-    ?~  pos=(node-to-post node)
-     :: discard comments on deleted
-     :: XX: review
-      *curios:h
-    =*  con  contents.u.pos
-    ?.  ?=([[%text @] $%([%url @] [%reference *]) ~] con)
-      :: invariant
-      *curios:h
-    =;  =content:h
-      %^  put:on:curios:h  curios  time
-      [seal `text.i.con content author.u.pos time-sent.u.pos ~]
-    ?-  -.i.t.con
-      %reference  :_(~ (ref:nert:chat-migrate reference.i.t.con)^~)
-      %url        [~ [%link url.i.t.con '']~]
-    ==
-  ::
-  ++  node-to-quips
-    |=  [id=time =node:gra:h]
-    ^-  curios:h
-    =/  coms=(unit graph:gra:h)
-      ;<  =graph:gra:h      _biff  (node-to-children node)
-      ;<  coms=node:gra:h   _biff  (get:orm graph 2)
-      (node-to-children coms)
-    %+  gas:on:curios:h  *curios:h
-    %+  murn  ?~(coms ~ (tap:orm u.coms))
-    |=  [=time =node:gra:h]
-    ?~  qup=(node-to-quip id time node)
-      ~
-    `[time u.qup]
-  ::
-  ++  node-to-quip
-    |=  [reply=time =time =node:gra:h]
-    ^-  (unit curio:h)
-    ;<  =graph:gra:h           _biff  (node-to-children node)
-    ;<  [@ latest=node:gra:h]  _biff  (pry:orm graph)
-    ;<  =post:gra:h            _biff  (node-to-post latest)
-    =/  =seal:h  [time ~ ~]
-    =/  =content:h  (con:nert:chat-migrate contents.post)
-    =/  =heart:h
-      =,(post [~ content author time-sent `reply])
-    `[seal heart]
-  ::
-  ++  node-to-children
-    |=  =node:gra:h
-    ^-  (unit graph:gra:h)
-    ?.  ?=(%graph -.children.node)
-      ~
-    `p.children.node
-  ::
-  ++  node-to-post
-    |=  =node:gra:h
-    ^-  (unit post:gra:h)
-    ?.  ?=(%& -.post.node)
-      ~
-    `p.post.node
-  --
-
-
-::
 ++  give-brief
   |=  [=flag:h =brief:briefs:h]
   (give %fact ~[/briefs] heap-brief-update+!>([flag brief]))
@@ -639,6 +519,188 @@
       ?(%italics %bold %strike %blockquote)  (trip (flatten p.c))
   ==
 ++  from-self  =(our src):bowl
+::
+++  migrate
+  |%
+  ++  server
+    =/  server-channels=v-channels:c
+      %+  convert-channels  &
+      %-  ~(gas by *stash:h)
+      %+  skim  ~(tap by stash)
+      |=  [=flag:h =heap:h]
+      =(our.bowl p.flag)
+    =/  =cage  [%channel-migration !>(server-channels)]
+    (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
+  ::
+  ++  client
+    =/  =v-channels:c  (convert-channels | stash)
+    =/  =cage  [%channel-migration !>(v-channels)]
+    (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+  ::
+  ++  old-chats
+    =>  [c2=c2 bowl=bowl ..zuse]  ~+
+    .^  (map flag:c2 chat:c2)
+      %gx
+      /(scot %p our.bowl)/chat/(scot %da now.bowl)/old/noun
+    ==
+  ::
+  ++  convert-channels
+    |=  [log=? =stash:h]
+    ^-  v-channels:c
+    %-  ~(gas by *v-channels:c)
+    %+  turn  ~(tap by stash)
+    |=  [=flag:h =heap:h]
+    ^-  [nest:c v-channel:c]
+    :-  [%heap flag]
+    =/  posts=v-posts:c  (convert-posts curios.heap)
+    %*    .  *v-channel:c
+        posts   posts
+        log     ?.(log ~ (convert-log curios.heap posts perm.heap log.heap))
+        view    [1 view.heap]
+        perm    [1 perm.heap]
+        remark  :_  remark.heap
+                ?~(tim=(ram:on-v-posts:c posts) *time key.u.tim)
+        net
+      ?-  -.net.heap
+        %pub  [*ship &]
+        %sub  [p load]:net.heap
+      ==
+    ==
+  ::
+  ++  convert-posts
+    |=  old=curios:h
+    ^-  v-posts:c
+    =/  curios  (tap:on:curios:h old)
+    =/  index=(map @da v-replies:c)
+      %+  roll  curios
+      |=  [[=time =curio:h] index=(map @da v-replies:c)]
+      ?~  replying.curio  index
+      =/  old-replies=v-replies:c  (~(gut by index) u.replying.curio *v-replies:c)
+      %+  ~(put by index)  u.replying.curio
+      (put:on-v-replies:c old-replies time `(convert-reply time curio))
+    %+  gas:on-v-posts:c  *v-posts:c
+    %+  murn  curios
+    |=  [=time =curio:h]
+    ^-  (unit [id-post:c (unit v-post:c)])
+    ?^  replying.curio  ~
+    =/  replies=v-replies:c  (~(gut by index) time *v-replies:c)
+    (some time `(convert-post time curio replies))
+  ::
+  ++  convert-post
+    |=  [id=@da old=curio:h replies=v-replies:c]
+    ^-  v-post:c
+    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
+  ::
+  ++  convert-feels
+    |=  old=(map ship feel:h)
+    ^-  v-reacts:c
+    %-  ~(run by old)
+    |=  =feel:h
+    [%0 `feel]
+  ::
+  ++  convert-reply
+    |=  [id=@da old=curio:h]
+    ^-  v-reply:c
+    [[id (convert-feels feels.old)] (convert-memo +.old)]
+  ::
+  ++  convert-memo
+    |=  old=heart:h
+    ^-  memo:c
+    [(convert-story content.old) author.old sent.old]
+  ::
+  ++  convert-essay
+    |=  old=heart:h
+    ^-  essay:c
+    [(convert-memo old) %heap title.old]
+  ::
+  ++  convert-story
+    |=  old=content:h
+    ^-  story:c
+    =-  (snoc - [%inline q.old])
+    %+  turn  p.old
+    |=  =block:h
+    ^-  verse:c
+    :-  %block
+    ?.  ?=([%cite %chan *] block)  block
+    =;  new=(unit path)
+      ?~  new  block
+      block(wer.cite u.new)
+    =,  cite.block
+    ?.  ?=(%chat p.nest)                     ~
+    ?~  old=(~(get by old-chats) q.nest)     ~
+    =*  dex  dex.pact.u.old
+    =*  wit  wit.pact.u.old
+    ?.  ?=([%msg @ @ ~] wer.cite.block)      ~
+    ?~  who=(slaw %p i.t.wer)                ~
+    ?~  tim=(slaw %ud i.t.t.wer)             ~
+    ?~  id=(~(get by dex) [u.who u.tim])     ~
+    =*  single  `/msg/(crip (a-co:co u.id))
+    ?~  ret=(get:on:writs:c2 wit u.id)       single
+    ?~  replying.u.ret                       single
+    ?~  td=(~(get by dex) u.replying.u.ret)  single
+    `/msg/(crip (a-co:co u.td))/(crip (a-co:co u.id))
+  ::
+  ++  convert-log
+    |=  [=curios:h posts=v-posts:c =perm:c =log:h]
+    ^-  log:c
+    %+  gas:log-on:c  *log:c
+    %-  zing
+    %+  turn  (tap:log-on:h log)
+    |=  [=time =diff:h]
+    ^-  (list [id-post:c u-channel:c])
+    =;  new=(list u-channel:c)
+      ?~  new  ~
+      ?~  t.new  [time i.new]~
+      =.  time  (sub time ~s1)
+      =>  .(new `(list u-channel:c)`new)
+      |-
+      ?~  new  ~
+      [[time i.new] $(time +(time), new t.new)]
+    ?-    -.diff
+        ?(%add-sects %del-sects)  [%perm 0 perm]~
+        ::  XX  here and in the other apps, we need to preserve the
+        ::  posts in the %create log.  they show up there from the
+        ::  december migration
+        %view                     [%view 0 p.diff]~
+        %create
+      :-  [%create p.diff]
+      %+  murn  (tap:on:curios:h q.diff)
+      |=  [=^time =curio:h]
+      =/  new-post  (get:on-v-posts:c posts time)
+      ?~  new-post  ~
+      (some %post time %set u.new-post)
+    ::
+        %curios
+      =*  id  time
+      =/  old-curio  (get:on:curios:h curios id)
+      ?~  old-curio  [%post id %set ~]~
+      ?~  replying.u.old-curio
+        =/  new-post  (get:on-v-posts:c posts id)
+        ?~  new-post  ~
+        :_  ~
+        :+  %post  id
+        ?-  -.q.p.diff
+          %del                    [%set ~]
+          ?(%add %edit)           [%set u.new-post]
+          ?(%add-feel %del-feel)  [%reacts ?~(u.new-post ~ reacts.u.u.new-post)]
+        ==
+      =/  new-post  (get:on-v-posts:c posts u.replying.u.old-curio)
+      ?~  new-post  ~
+      ?~  u.new-post  ~
+      =/  new-reply  (get:on-v-replies:c replies.u.u.new-post id)
+      ?~  new-reply  ~
+      :_  ~
+      :+  %post   u.replying.u.old-curio
+      :+  %reply  id
+      ^-  u-reply:c
+      ?-  -.q.p.diff
+        %del                    [%set ~]
+        ?(%add %edit)           [%set u.new-reply]
+        ?(%add-feel %del-feel)  [%reacts ?~(u.new-reply ~ reacts.u.u.new-reply)]
+      ==
+    ==
+  --
+::
 ++  he-core
   |_  [=flag:h =heap:h gone=_|]
   +*  he-curios  ~(. cur curios.heap)
@@ -726,24 +788,11 @@
       =/  =nest:g  [dap.bowl flag]
       (poke-group term group now.bowl %channel nest %add channel)
     ::
-    ++  import-channel
-      |=  =association:met:h
-      =/  meta=data:meta:g
-        [title description '' '']:metadatum.association
-      (create-channel %import group.association meta now.bowl zone=%default %| ~)
-    ::
     ++  add-channel
       |=  req=create:h
       %+  create-channel  %create
       [group.req =,(req [[title description '' ''] now.bowl %default | readers])]
     --
-  ::
-  ++  he-import
-    |=  [writers=(set ship) =association:met:h]
-    ^+  he-core
-    =?  he-core  ?=(%sub -.net.heap)
-      he-sub
-    he-core
   ::
   ++  he-init
     |=  req=create:h
@@ -758,14 +807,6 @@
     ^+  he-core
     ?+  wire  !!
         ~  :: noop wire, should only send pokes
-      he-core
-    ::
-        [%import ~]
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign
-        he-core
-      %-  (slog u.p.sign)
-      ::  =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
       he-core
     ::
         [%updates ~]
@@ -875,12 +916,7 @@
   ++  he-proxy
     |=  =update:h
     ^+  he-core
-    ::  don't allow anyone else to proxy through us
-    ?.  =(src.bowl our.bowl)
-      ~|("%heap-action poke failed: only allowed from self" !!)
-    ::  must have permission to write
-    ?.  he-can-write
-      ~|("%heap-action poke failed: can't write to host" !!)
+    ?>  he-can-write
     =/  =dock  [p.flag dap.bowl]
     =/  =cage  [act:mar:h !>([flag update])]
     =.  cor
@@ -891,12 +927,13 @@
     =*  group  group.perm.heap
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p p.group)/[q.group]
   ::
+  ++  he-is-host  |(=(p.flag src.bowl) =(p.group.perm.heap src.bowl))
   ++  he-am-host  =(our.bowl p.flag)
   ++  he-from-host  |(=(p.flag src.bowl) =(p.group.perm.heap src.bowl))
   ++  he-is-admin
     .^(? %gx (welp he-groups-scry /fleet/(scot %p src.bowl)/is-bloc/loob))
   ++  he-can-write
-    ?:  he-from-host  &
+    ?:  he-is-host  &
     =/  =path
       %+  welp  he-groups-scry
       /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-write/(scot %p src.bowl)/noun
@@ -1060,11 +1097,6 @@
       (he-give-updates time d)
     ?-    -.d
         %curios
-      ::  accept the fact from host unconditionally, otherwise make
-      ::  sure that it's coming from the right person
-      ?>  ?|  he-from-host
-              &(he-am-host (he-check-ownership p.d))
-          ==
       =.  curios.heap  (reduce:he-curios time p.d)
       =.  cor  (give-brief flag he-brief)
       =/  want-soft-notify  (want-hark flag %to-us)
@@ -1124,19 +1156,19 @@
       ==
     ::
         %add-sects
-      ?>  he-from-host
+      ?>  he-is-host
       =*  p  perm.heap
       =.  writers.p  (~(uni in writers.p) p.d)
       he-core
     ::
         %del-sects
-      ?>  he-from-host
+      ?>  he-is-host
       =*  p  perm.heap
       =.  writers.p  (~(dif in writers.p) p.d)
       he-core
     ::
         %create
-      ?>  he-from-host
+      ?>  he-is-host
       =:  perm.heap  p.d
           curios.heap  q.d
         ==

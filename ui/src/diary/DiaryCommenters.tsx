@@ -6,14 +6,14 @@ import BubbleIcon from '@/components/icons/BubbleIcon';
 import { pluralize } from '@/logic/utils';
 
 interface DiaryCommentersProps {
-  quipCount: number;
+  replyCount: number;
   commenters: string[];
   fullSize?: boolean;
   gridItemHasImage?: boolean;
 }
 
 export default function DiaryCommenters({
-  quipCount,
+  replyCount,
   commenters,
   fullSize = true,
   gridItemHasImage = false,
@@ -57,7 +57,7 @@ export default function DiaryCommenters({
             />
           ))}
           <span className="ml-2 text-gray-600">
-            {quipCount} {fullSize && pluralize('comment', quipCount)}
+            {replyCount} {fullSize && pluralize('comment', replyCount)}
           </span>
         </>
       ) : (

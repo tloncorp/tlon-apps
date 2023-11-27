@@ -23,7 +23,7 @@ import {
 } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/channel';
-import { Club } from '@/types/chat';
+import { Club } from '@/types/dms';
 import { useMutuals } from '@/state/pals';
 import { Contact } from '@/types/contact';
 import { ChargeWithDesk, useCharges } from '@/state/docket';

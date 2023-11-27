@@ -1,26 +1,10 @@
-/-  c=chat
+/-  c=chat, d=channels
 /-  meta
-/+  cite=cite-json, gj=groups-json
+/+  cite=cite-json, gj=groups-json, dj=channel-json
 |%
 ++  enjs
   =,  enjs:format
   |%
-  ++  flag
-    |=  f=flag:c
-    ^-  json
-    s/(rap 3 (scot %p p.f) '/' q.f ~)
-  ::
-  ++  time-id
-    |=  =@da
-    s+`@t`(rsh 4 (scot %ui da))
-  ++  said
-    |=  s=said:c
-    ^-  json
-    %-  pairs
-    :~  flag/(flag p.s)
-        writ/(writ q.s)
-    ==
-  ::
   ++  club-action
     |=  a=action:club:c
     ^-  json
@@ -82,13 +66,6 @@
         image/s/image.m
         cover/s/cover.m
     ==
-
-  ++  draft
-    |=  d=draft:c
-    %-  pairs
-    :~  whom/s/(whom p.d)
-        story/(story q.d)
-    ==
   ::
   ++  club-rsvp
     |=  r=rsvp:club:c
@@ -144,31 +121,49 @@
   ++  whom
     |=  w=whom:c
     ?-  -.w
-      %flag  (crip "{(scow %p p.p.w)}/{(trip q.p.w)}")
       %ship  (scot %p p.w)
       %club  (scot %uv p.w)
     ==
   ::
-  ++  briefs
-    |=  bs=briefs:c
+  ++  unreads
+    |=  bs=unreads:c
     %-  pairs
     %+  turn  ~(tap by bs)
-    |=  [w=whom:c b=brief:briefs:c]
-    [(whom w) (brief b)]
+    |=  [w=whom:c b=unread:unreads:c]
+    [(whom w) (unread b)]
   ::
-  ++  brief-update
-    |=  u=update:briefs:c
+  ++  unread-update
+    |=  u=update:unreads:c
     %-  pairs
     :~  whom/s/(whom p.u)
-        brief/(brief q.u)
+        unread/(unread q.u)
     ==
   ::
-  ++  brief
-    |=  b=brief:briefs:c
+  ++  unread
+    |=  b=unread:unreads:c
     %-  pairs
-    :~  last/(time last.b)
+    :~  recency/(time recency.b)
         count/(numb count.b)
-        read-id/?~(read-id.b ~ (id u.read-id.b))
+        threads/(unread-threads threads.b)
+    ::
+      :-  %unread-id
+      ?~  unread-id.b  ~
+      %-  pairs
+      :~  id/(id id.u.unread-id.b)
+          time/(time-id time.u.unread-id.b)
+      ==
+    ==
+  ::
+  ++  unread-threads
+    |=  u=(map message-key:c message-key:c)
+    %-  pairs
+    %+  turn  ~(tap by u)
+    |=  [top=message-key:c unread=message-key:c]
+    :-  (rap 3 (scot %p p.id.top) '/' (scot %ud q.id.top) ~)
+    %-  pairs
+    :~  parent-time/(time-id time.top)
+        id/(id id.unread)
+        time/(time-id time.unread)
     ==
   ::
   ++  pins
@@ -183,30 +178,6 @@
     :~  blocked/a/(turn ~(tap in bs) ship)
     ==
   ::
-  ++  chats
-    |=  cs=(map flag:c chat:c)
-    %-  pairs
-    %+  turn  ~(tap by cs)
-    |=  [f=flag:c ch=chat:c]
-    [(rap 3 (scot %p p.f) '/' q.f ~) (chat ch)]
-  ++  chat
-    |=  ch=chat:c
-    %-  pairs
-    :~  perms/(perm perm.ch)
-        saga/(saga net.ch)
-    ==
-  ++  perm
-    |=  p=perm:c
-    %-  pairs
-    :~  writers/a/(turn ~(tap in writers.p) (lead %s))
-        group/(flag group.p)
-    ==
-  ++  saga
-    |=  n=net:c
-    ?-  -.n
-      %pub  ~
-      %sub  (saga:enjs:gj saga.n)
-    ==
   ++  ship
     |=  her=@p
     n+(rap 3 '"' (scot %p her) '"' ~)
@@ -214,36 +185,6 @@
     |=  =id:c
     n+(rap 3 '"' (scot %p p.id) '/' (scot %ud q.id) '"' ~)
   ::
-  ++  action
-    |=  =action:c
-    %-  pairs
-    :~  flag/(flag p.action)
-        update/(update q.action)
-    ==
-  ::
-  ++  update
-    |=  =update:c
-    %-  pairs
-    :~  time+s+(scot %ud p.update)
-        diff+(diff q.update)
-    ==
-  ::
-  ++  diff
-    |=  =diff:c
-    %+  frond  -.diff
-    ?-  -.diff
-      %create     (pairs ~[perms/(perm p.diff)])
-      %writs      (writs-diff p.diff)
-      %add-sects  a/(turn ~(tap in p.diff) (lead %s))
-      %del-sects  a/(turn ~(tap in p.diff) (lead %s))
-    ==
-  ::
-  ++  writ-entry
-    |=  [tim=^time w=writ:c]
-    %-  pairs
-    :~  time/(time-id tim)
-        writ/(writ w)
-    ==
   ++  writs-diff
     |=  =diff:writs:c
     %-  pairs
@@ -255,10 +196,17 @@
     |=  =delta:writs:c
     %+  frond  -.delta
     ?-  -.delta
-      %add       (memo p.delta)
       %del       ~
-      %add-feel  (add-feel +.delta)
-      %del-feel  (ship p.delta)
+      %add-react  (add-react +.delta)
+      %del-react  (ship ship.delta)
+      %reply      (reply-delta +.delta)
+    ::
+        %add
+      %-  pairs
+      :~  memo+(memo:enjs:dj memo.delta)
+          kind+?~(kind.delta ~ (pairs notice/~ ~))
+          time+?~(time.delta ~ (time-id u.time.delta))
+      ==
     ==
   ++  writs-response
     |=  =response:writs:c
@@ -272,18 +220,60 @@
     %+  frond  -.delta
     ?-  -.delta
         %del       ~
-        %add-feel  (add-feel [ship feel]:delta)
-        %del-feel  (ship ship.delta)
+        %add-react  (add-react [ship react]:delta)
+        %del-react  (ship ship.delta)
+        %reply     (reply-response-delta +.delta)
         %add
       %-  pairs
-      :~  memo+(memo memo.delta)
+      :~  memo+(memo:enjs:dj memo.delta)
           time+(time-id time.delta)
       ==
     ==
-  ++  add-feel
-    |=  [her=@p =feel:c]
+  ::
+  ++  reply-delta
+    |=  [i=id:c meta=(unit reply-meta:c) =delta:replies:c]
+    ^-  json
     %-  pairs
-    :~  feel+s+feel
+    :~  id+(id i)
+        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
+        :-  %delta
+        %+  frond  -.delta
+        ?-  -.delta
+          %del       ~
+          %add-react  (add-react +.delta)
+          %del-react  (ship ship.delta)
+        ::
+            %add
+          %-  pairs
+          :~  memo+(memo:enjs:dj memo.delta)
+              time+?~(time.delta ~ (time-id u.time.delta))
+          ==
+        ==
+    ==
+  ++  reply-response-delta
+    |=  [i=id:c meta=(unit reply-meta:c) delta=response-delta:replies:c]
+    ^-  json
+    %-  pairs
+    :~  id+(id i)
+        meta+?~(meta ~ (reply-meta:enjs:dj u.meta))
+        :-  %delta
+        %+  frond  -.delta
+        ?-  -.delta
+          %del       ~
+          %add-react  (add-react +.delta)
+          %del-react  (ship ship.delta)
+        ::
+            %add
+          %-  pairs
+          :~  memo+(memo:enjs:dj memo.delta)
+              time+(time-id time.delta)
+          ==
+        ==
+    ==
+  ++  add-react
+    |=  [her=@p =react:c]
+    %-  pairs
+    :~  react+s+react
         ship+(ship her)
     ==
   ::
@@ -292,31 +282,6 @@
     %-  pairs
     :~  ship+(ship p.action)
         diff+(writs-diff q.action)
-    ==
-  ::
-  ++  memo
-    |=  =memo:c
-    %-  pairs
-    :~  replying+?~(replying.memo ~ (id u.replying.memo))
-        author+(ship author.memo)
-        sent+(time sent.memo)
-        content+(content content.memo)
-    ==
-  ::
-  ++  block
-    |=  b=block:c
-    ^-  json
-    %+  frond  -.b
-    ?-  -.b
-        %cite  (enjs:cite cite.b)
-        %image
-      %-  pairs
-      :~  src+s+src.b
-          height+(numb height.b)
-          width+(numb width.b)
-          alt+s+alt.b
-      ==
-
     ==
   ::
   ++  clubs
@@ -335,81 +300,6 @@
         net/s/net.cr
     ==
   ::
-  ++  notice
-    |=  n=notice:c
-    %-  pairs
-    :~  pfix/s/pfix.n
-        sfix/s/sfix.n
-    ==
-  ::
-  ++  content
-    |=  c=content:c
-    %+  frond  -.c
-    ?-  -.c
-      %story   (story p.c)
-      %notice  (notice p.c)
-    ==
-  ::
-  ++  story
-    |=  s=story:c
-    %-  pairs
-    :~  block/a/(turn p.s block)
-        inline/a/(turn q.s inline)
-    ==
-  ::
-  ++  inline
-    |=  i=inline:c
-    ^-  json
-    ?@  i  s+i
-    %+  frond  -.i
-    ?-  -.i
-        %break
-      ~
-    ::
-        %ship  s/(scot %p p.i)
-    ::
-        ?(%code %tag %inline-code)
-      s+p.i
-    ::
-        ?(%italics %bold %strike %blockquote)
-      :-  %a
-      (turn p.i inline)
-    ::
-        %block
-      %-  pairs
-      :~  index+(numb p.i)
-          text+s+q.i
-      ==
-    ::
-        %link
-      %-  pairs
-      :~  href+s+p.i
-          content+s+q.i
-      ==
-    ==
-  ::
-  ++  seal
-    |=  =seal:c
-    %-  pairs
-    :~  id+(id id.seal)
-    ::
-        :-  %feels
-        %-  pairs
-        %+  turn  ~(tap by feels.seal)
-        |=  [her=@p =feel:c]
-        [(scot %p her) s+feel]
-    ::
-        :-  %replied
-        :-  %a
-        (turn ~(tap in replied.seal) |=(i=id:c (id i)))
-    ==
-  ++  writ
-    |=  =writ:c
-    %-  pairs
-    :~  seal+(seal -.writ)
-        memo+(memo +.writ)
-    ==
-  ::
   ++  writ-list
     |=  w=(list writ:c)
     ^-  json
@@ -422,16 +312,83 @@
     %+  turn  (tap:on:writs:c writs)
     |=  [key=@da w=writ:c]
     [(scot %ud key) (writ w)]
-
+  ::
+  ++  writ
+    |=  =writ:c
+    %-  pairs
+    :~  seal+(seal -.writ)
+        essay+(essay:enjs:dj +.writ)
+    ==
+  ::
+  ++  paged-writs
+    |=  pw=paged-writs:c
+    %-  pairs
+    :~  writs+(writs writs.pw)
+        newer+?~(newer.pw ~ (time-id u.newer.pw))
+        older+?~(older.pw ~ (time-id u.older.pw))
+        total+(numb total.pw)
+    ==
+  ::
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
+  ::
+  ++  seal
+    |=  =seal:c
+    %-  pairs
+    :~  id+(id id.seal)
+        time+(time-id time.seal)
+        reacts+(reacts reacts.seal)
+        replies+(replies replies.seal)
+        meta+(reply-meta:enjs:dj meta.seal)
+    ==
+  ::
+  ++  reacts
+    |=  =reacts:c
+    %-  pairs
+    %+  turn  ~(tap by reacts)
+    |=  [her=@p =react:c]
+    [(scot %p her) s+react]
+  ::
+  ++  replies
+    |=  =replies:c
+    %-  pairs
+    %+  turn  (tap:on:replies:c replies)
+    |=  [key=@da q=reply:c]
+    [(scot %ud key) (reply q)]
+  ::
+  ++  reply
+    |=  =reply:c
+    %-  pairs
+    :~  seal+(reply-seal -.reply)
+        memo+(memo:enjs:dj +.reply)
+    ==
+  ::
+  ++  reply-seal
+    |=  =reply-seal:c
+    %-  pairs
+    :~  id+(id id.reply-seal)
+        parent-id+(id parent-id.reply-seal)
+        time+(time-id time.reply-seal)
+        reacts+(reacts reacts.reply-seal)
+    ==
+  ::
+  ++  reference
+    |=  =reference:c
+    %+  frond  -.reference
+    ?-    -.reference
+        %writ  (writ writ.reference)
+        %reply
+      %-  pairs
+      :~  id-note+(id id.reference)
+          reply+(reply reply.reference)
+      ==
+    ==
+  ::
   --
 ++  dejs
   =,  dejs:format
   |%
-  ++  draft
-    %-  ot
-    :~  whom/whom
-        story/story
-    ==
   ++  rsvp
     %-  ot
     :~  ship/(se %p)
@@ -468,7 +425,6 @@
     ^-  $-(json whom:c)
     %-  su
     ;~  pose
-      (stag %flag flag-rule)
       (stag %ship ;~(pfix sig fed:ag))
       (stag %club club-id-rule)
     ==
@@ -484,29 +440,10 @@
         watch/ul
         unwatch/ul
     ==
-  ++  create
-    ^-  $-(json create:c)
-    %-  ot
-    :~  group+flag
-        name+(se %tas)
-        title+so
-        description+so
-        readers+(as (se %tas))
-        writers+(as (se %tas))
-    ==
   ++  ship  (su ;~(pfix sig fed:ag))
-  ++  flag  `$-(json flag:c)`(su flag-rule)
-  ++  flag-rule  ;~((glue fas) ;~(pfix sig fed:ag) sym)
   ++  club-id-rule
     (cook |=(@ `@uv`+<) ;~(pfix (jest '0v') viz:ag))
   ++  club-id  (su club-id-rule)
-  ++  action
-    ^-  $-(json action:c)
-    %-  ot
-    :~  flag+flag
-        update+update
-    ==
-  ::
   ++  club-create
     ^-  $-(json create:club:c)
     %-  ot
@@ -577,20 +514,6 @@
         diff/writs-diff
     ==
   ::
-  ++  update
-    |=  j=json
-    ^-  update:c
-    ?>  ?=(%o -.j)
-    [*time (diff (~(got by p.j) %diff))]
-  ::
-  ++  diff
-    ^-  $-(json diff:c)
-    %-  of
-    :~  writs/writs-diff
-        add-sects/add-sects
-        del-sects/del-sects
-    ==
-  ::
   ++  id
     ^-  $-(json id:c)
     %-  su
@@ -606,94 +529,47 @@
   ++  writs-delta
     ^-  $-(json delta:writs:c)
     %-  of
-    :~  add/memo
-        del/ul
-        add-feel/add-feel
-        del-feel/ship
+    :~  del/ul
+        add-react/add-react
+        del-react/ship
+        reply/reply-delta
+    ::
+      :-  %add
+      ^-  $-(json [=memo:d =kind:c time=(unit time)])
+      %-  ot
+      :~  memo/memo:dejs:dj
+          kind/chat-kind:dejs:dj
+          time/(mu (se %ud))
+      ==
     ==
   ::
+  ++  reply-delta
+    ^-  $-(json [id:c (unit reply-meta:c) delta:replies:c])
+    %-  ot
+    :~  id/id
+        meta/ul
+        :-  %delta
+        %-  of
+        :~  del/ul
+            add-react/add-react
+            del-react/ship
+        ::
+          :-  %add
+          ^-  $-(json [=memo:d time=(unit time)])
+          %-  ot
+          :~  memo/memo:dejs:dj
+              time/(mu (se %ud))
+          ==
+        ==
+    ==
   ++  add-sects  (as (se %tas))
   ::
   ++  del-sects  (as so)
   ::
-  ++  add-feel
+  ++  add-react
     %-  ot
     :~  ship/ship
-        feel/so
-    ==
-  ::
-  ++  memo
-    ^-  $-(json memo:c)
-    %-  ot
-    :~  replying/(mu id)
-        author/ship
-        sent/di
-        content/content
-    ==
-  ::
-  ++  content
-    %-  of
-    :~  story/story
-        notice/notice
-    ==
-  ::
-  ++  notice
-    %-  ot
-    :~  pfix/so
-        sfix/so
-    ==
-  ::
-  ++  story
-    ^-  $-(json story:c)
-    %-  ot
-    :~  block/(ar block)
-        inline/(ar inline)
-    ==
-  ::
-  ++  block
-    |=  j=json
-    ^-  block:c
-    %.  j
-    %-  of
-    :~  cite/dejs:cite
-    ::
-      :-  %image
-      %-  ot
-      :~  src/so
-          height/ni
-          width/ni
-          alt/so
-      ==
-    ==
-  ::
-  ++  inline
-    |=  j=json
-    ^-  inline:c
-    ?:  ?=([%s *] j)  p.j
-    =>  .(j `json`j)
-    %.  j
-    %-  of
-    :~  italics/(ar inline)
-        bold/(ar inline)
-        strike/(ar inline)
-        ship/(se %p)
-        blockquote/(ar inline)
-        inline-code/so
-        code/so
-        tag/so
-        break/ul
-    ::
-      :-  %block
-      %-  ot
-      :~  index/ni
-          text/so
-      ==
-    ::
-      :-  %link
-      %-  ot
-      :~  href/so
-          content/so
-      ==
+        react/so
     ==
   ::
   ++  toggle-message

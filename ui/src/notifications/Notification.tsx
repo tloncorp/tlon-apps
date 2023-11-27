@@ -8,13 +8,12 @@ import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import { useSawRopeMutation } from '@/state/hark';
 import { Skein, YarnContent } from '@/types/hark';
-import { useChatState } from '@/state/chat';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { useGang, useGroup } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useCurio } from '@/state/heap/heap';
 import HeapBlock from '@/heap/HeapBlock';
 import { useIsMobile } from '@/logic/useMedia';
+import { usePost } from '@/state/channel/channel';
 import {
   isComment,
   isGroupMeta,
@@ -169,16 +168,19 @@ function NotificationContent({
 function mentionPath(bin: Skein): string {
   const { wer } = bin.top;
   const parts = wer.split('/');
-  const index = parts.indexOf('op');
-  const ship = parts[index + 1];
-  const id = parts[index + 2];
+  const han = parts[4];
+  const index = parts.indexOf('note');
+  const id = parts[index + 1];
 
-  if (index < 0 || !ship || !id) {
+  if (index < 0 || !id) {
     return wer;
   }
 
-  const time = useChatState.getState().getTime(ship, `${ship}/${id}`);
-  return `${parts.slice(0, index).join('/')}?msg=${time}`;
+  if (han === 'diary' || han === 'heap') {
+    return wer;
+  }
+
+  return `${parts.slice(0, index).join('/')}?msg=${id}`;
 }
 
 export default function Notification({
@@ -209,10 +211,10 @@ export default function Notification({
   const curioId = isBlockBool ? bin.top.wer.split('/')[9] : '';
   const heapFlag = isBlockBool
     ? `${bin.top.wer.split('/')[6]}/${bin.top.wer.split('/')[7]}`
-    : '';
-  const { curio, isLoading } = useCurio(heapFlag, curioId);
+    : '/';
+  const { post: note, isLoading } = usePost(`heap/${heapFlag}`, curioId);
 
-  if (isBlockBool && curio && !isLoading) {
+  if (isBlockBool && note && !isLoading) {
     return (
       <div className="flex flex-col">
         <div className="relative flex space-x-3 rounded-xl bg-white p-2 text-gray-400">
@@ -234,7 +236,7 @@ export default function Notification({
               <div className="max-w-[36px] sm:max-w-[190px]">
                 <div className="aspect-h-1 aspect-w-1 cursor-pointer">
                   <HeapBlock
-                    curio={curio}
+                    post={note}
                     time={curioId}
                     asMobileNotification={isMobile}
                     linkFromNotification={bin.top.wer}

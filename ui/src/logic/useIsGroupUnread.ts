@@ -8,7 +8,7 @@ export default function useIsGroupUnread() {
 
   /**
    * A Group is unread if
-   * - any of it's Channels have new items in their corresponding briefs
+   * - any of it's Channels have new items in their corresponding unreads
    * - any of its Channels are unread (bin is unread, rope channel matches
    *   chFlag)
    */

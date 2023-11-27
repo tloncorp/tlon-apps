@@ -1,6 +1,7 @@
 import cn from 'classnames';
-import { NoteEssay } from '@/types/diary';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { PostEssay } from '@/types/channel';
 import DiaryCommenters from '@/diary/DiaryCommenters';
 import IconButton from '@/components/IconButton';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -9,16 +10,16 @@ import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import DiaryNoteOptionsDropdown from '@/diary/DiaryNoteOptionsDropdown';
 import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
-import { useNavigate } from 'react-router-dom';
 import Author from '@/chat/ChatMessage/Author';
 import { useChannelFlag } from '@/logic/channel';
-import { usePostToggler } from '@/state/diary';
+import getKindDataFromEssay from '@/logic/getKindData';
+import { usePostToggler } from '@/state/channel/channel';
 import useDiaryActions from './useDiaryActions';
 
 interface DiaryListItemProps {
-  essay: NoteEssay;
-  quipCount: number;
-  quippers: string[];
+  essay: PostEssay;
+  replyCount: number;
+  lastRepliers: string[];
   time: bigInt.BigInteger;
   isInList?: boolean;
   isInGrid?: boolean;
@@ -26,12 +27,13 @@ interface DiaryListItemProps {
 
 export default function DiaryNoteHeadline({
   essay,
-  quipCount,
-  quippers,
+  replyCount,
+  lastRepliers,
   time,
   isInList,
   isInGrid,
 }: DiaryListItemProps) {
+  const { title, image } = getKindDataFromEssay(essay);
   const chFlag = useChannelFlag();
   const flag = useRouteGroup();
   const navigate = useNavigate();
@@ -41,11 +43,11 @@ export default function DiaryNoteHeadline({
   });
   const { isHidden } = usePostToggler(time.toString());
 
-  const commenters = quippers;
+  const commenters = lastRepliers;
   const calm = useCalm();
 
   const isAdmin = useAmAdmin(flag);
-  const showImage = essay.image && !calm.disableRemoteContent;
+  const showImage = image && !calm.disableRemoteContent;
 
   if (isHidden) {
     return (
@@ -73,6 +75,7 @@ export default function DiaryNoteHeadline({
           >
             <DiaryNoteOptionsDropdown
               time={time.toString()}
+              sent={essay.sent}
               author={essay.author}
               flag={chFlag || ''}
               canEdit={isAdmin || window.our === essay.author}
@@ -92,16 +95,10 @@ export default function DiaryNoteHeadline({
   return (
     <>
       {showImage && !isInGrid ? (
-        <img
-          src={essay.image}
-          alt=""
-          className="mb-4 h-auto w-full rounded-xl"
-        />
+        <img src={image} alt="" className="mb-4 h-auto w-full rounded-xl" />
       ) : null}
       <header className="space-y-4">
-        <h1 className="break-words text-3xl font-medium leading-10">
-          {isHidden ? "You've hidden this post" : essay.title}
-        </h1>
+        <h1 className="break-words text-3xl font-medium leading-10">{title}</h1>
         <p className={cn((isInList || !showImage) && 'text-gray-400')}>
           {format(essay.sent, 'LLLL do, yyyy')}
         </p>
@@ -128,7 +125,7 @@ export default function DiaryNoteHeadline({
                 >
                   <DiaryCommenters
                     commenters={commenters}
-                    quipCount={quipCount}
+                    replyCount={replyCount}
                     fullSize={false}
                   />
                 </span>
@@ -147,6 +144,7 @@ export default function DiaryNoteHeadline({
                 <DiaryNoteOptionsDropdown
                   time={time.toString()}
                   author={essay.author}
+                  sent={essay.sent}
                   flag={chFlag || ''}
                   canEdit={isAdmin || window.our === essay.author}
                 >
@@ -161,7 +159,7 @@ export default function DiaryNoteHeadline({
               <a href="#comments" className="no-underline">
                 <DiaryCommenters
                   commenters={commenters}
-                  quipCount={quipCount}
+                  replyCount={replyCount}
                   fullSize={true}
                 />
               </a>

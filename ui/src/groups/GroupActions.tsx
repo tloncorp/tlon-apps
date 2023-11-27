@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { useChatState, usePinnedGroups } from '@/state/chat';
+import { usePinnedGroups, useTogglePinMutation } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
@@ -35,6 +35,7 @@ export function useGroupActions({
   open?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
 }) {
+  const { mutateAsync: toggleDmPin } = useTogglePinMutation();
   const [isOpen, setIsOpen] = useState(false);
   const handleOpenChange = useCallback(
     (innerOpen: boolean) => {
@@ -68,9 +69,9 @@ export function useGroupActions({
   const onPinClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      useChatState.getState().togglePin(flag, !isPinned);
+      toggleDmPin({ whom: flag, pin: !isPinned });
     },
-    [flag, isPinned]
+    [flag, isPinned, toggleDmPin]
   );
 
   return {

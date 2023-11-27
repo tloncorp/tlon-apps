@@ -1,7 +1,7 @@
 import Dialog from '@/components/Dialog';
 import VolumeSetting from '@/components/VolumeSetting';
 import { useDismissNavigate } from '@/logic/routing';
-import { useChannel, useGroup, useRouteGroup } from '@/state/groups';
+import { useGroupChannel, useRouteGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
 import { Helmet } from 'react-helmet';
 import { useParams } from 'react-router';
@@ -15,7 +15,7 @@ export default function ChannelVolumeDialog({ title }: ViewProps) {
   const flag = useRouteGroup();
   const dismiss = useDismissNavigate();
   const nest = `${chType}/${chShip}/${chName}`;
-  const channel = useChannel(flag, nest);
+  const channel = useGroupChannel(flag, nest);
 
   const onOpenChange = (open: boolean) => {
     if (!open) {

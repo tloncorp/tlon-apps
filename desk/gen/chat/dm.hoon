@@ -12,6 +12,6 @@
   [~ p.beak now content]
 =/  =diff:dm:c
   [[p.beak now] %add memo]
-:-  %dm-action
+:-  %chat-dm-action
 ^-  action:dm:c
 [her diff]

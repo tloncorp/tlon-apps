@@ -1,5 +1,4 @@
-/-  c=chat
-/+  j=chat-json
+/-  c=chat-2
 |_  =rsvp:club:c
 ++  grad  %noun
 ++  grow
@@ -9,6 +8,5 @@
 ++  grab
   |%
   ++  noun  rsvp:club:c
-  ++  json  club-rsvp:dejs:j
   --
 --

@@ -6,9 +6,8 @@ import _ from 'lodash';
 import produce from 'immer';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lsDesk } from '@/constants';
-import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
+import { DisplayMode, SortMode } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { DiaryDisplayMode } from '@/types/diary';
 import { isHosted, isTalk } from '@/logic/utils';
 import { isNativeApp } from '@/logic/native';
 import api from '@/api';
@@ -18,14 +17,14 @@ interface ChannelSetting {
 }
 
 export interface HeapSetting extends ChannelSetting {
-  sortMode: HeapSortMode;
-  displayMode: HeapDisplayMode;
+  sortMode: SortMode;
+  displayMode: DisplayMode;
 }
 
 export interface DiarySetting extends ChannelSetting {
   sortMode: 'arranged' | 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
   commentSortMode: 'asc' | 'dsc';
-  displayMode: DiaryDisplayMode;
+  displayMode: DisplayMode;
 }
 
 interface GroupSideBarSort {
@@ -421,13 +420,13 @@ export function useHeapSettings(): HeapSetting[] {
   }, [isLoading, data]);
 }
 
-export function useHeapSortMode(flag: string): HeapSortMode {
+export function useHeapSortMode(flag: string): SortMode {
   const settings = useHeapSettings();
   const heapSetting = getChannelSetting(settings, flag);
   return heapSetting?.sortMode ?? 'time';
 }
 
-export function useHeapDisplayMode(flag: string): HeapDisplayMode {
+export function useHeapDisplayMode(flag: string): DisplayMode {
   const settings = useHeapSettings();
   const heapSetting = getChannelSetting(settings, flag);
   return heapSetting?.displayMode ?? 'grid';
@@ -460,9 +459,7 @@ export function useUserDiarySortMode(
   return diarySetting?.sortMode;
 }
 
-export function useUserDiaryDisplayMode(
-  flag: string
-): DiaryDisplayMode | undefined {
+export function useUserDiaryDisplayMode(flag: string): DisplayMode | undefined {
   const settings = useDiarySettings();
   const diarySetting = getChannelSetting(settings, flag);
   return diarySetting?.displayMode;

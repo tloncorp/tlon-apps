@@ -1,6 +1,4 @@
 /$  init        %ui-init              %json
-/$  init-0      %ui-init-0            %json
-/$  migration   %ui-migration         %json
 /$  shelf       %shelf                %json
 /$  briefs      %diary-briefs         %json
 /$  perm        %diary-perm           %json
@@ -18,9 +16,7 @@
 /$  curio       %curio                %json
 /$  curios      %heap-curios          %json
 /$  flags       %flags                %json
-/$  chats       %chats                %json
-/$  briefs      %chat-briefs          %json
+/$  unreads     %chat-unreads         %json
 /$  pins        %chat-pins            %json
 /$  writs       %chat-writs           %json
-/$  perm        %chat-perm            %json
 ~

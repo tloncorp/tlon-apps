@@ -8,7 +8,7 @@ import HostConnection from '@/channels/HostConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import { getFlagParts } from '@/logic/utils';
 import ChannelsList from './ChannelsList';
-import { ChannelSearchProvider } from './useChannelSearch';
+import { ChannelSearchProvider } from './useChannelListSearch';
 import GroupAvatar from '../GroupAvatar';
 import GroupActions from '../GroupActions';
 

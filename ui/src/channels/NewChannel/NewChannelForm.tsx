@@ -9,10 +9,8 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
-import { useChatState } from '@/state/chat';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
-import { useCreateHeapMutation, useStash } from '@/state/heap/heap';
-import { useCreateDiaryMutation, useDiaries } from '@/state/diary';
+import { useCreateMutation, useChannels } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -24,11 +22,9 @@ export default function NewChannelForm() {
   const isMobile = useIsMobile();
   const groupFlag = useRouteGroup();
   const { compatible, text } = useGroupCompatibility(groupFlag);
-  const shelf = useDiaries();
-  const stash = useStash();
+  const channels = useChannels();
   const { mutate: mutateAddChannel } = useAddChannelMutation();
-  const { mutateAsync: createDiary } = useCreateDiaryMutation();
-  const { mutateAsync: createHeap } = useCreateHeapMutation();
+  const { mutateAsync: createChannel } = useCreateMutation();
   const defaultValues: NewChannelFormSchema = {
     type: 'chat',
     zone: 'default',
@@ -70,15 +66,15 @@ export default function NewChannelForm() {
       const tempNewChannelFlag = `${window.our}/${tempChannelName}`;
       const existingChannel = () => {
         if (type === 'chat') {
-          return useChatState.getState().chats[tempNewChannelFlag];
+          return channels[`chat/${tempNewChannelFlag}`];
         }
 
         if (type === 'diary') {
-          return shelf[tempNewChannelFlag];
+          return channels[`diary/${tempNewChannelFlag}`];
         }
 
         if (type === 'heap') {
-          return stash[tempNewChannelFlag];
+          return channels[`heap/ ${tempNewChannelFlag}`];
         }
 
         return false;
@@ -95,15 +91,9 @@ export default function NewChannelForm() {
         nextChannel.zone = section;
       }
 
-      const creator =
-        type === 'chat'
-          ? useChatState.getState().create
-          : type === 'heap'
-          ? createHeap
-          : createDiary;
-
       try {
-        await creator({
+        await createChannel({
+          kind: type,
           group: groupFlag,
           name: channelName,
           title: values.meta.title,
@@ -137,10 +127,8 @@ export default function NewChannelForm() {
       navigate,
       isMobile,
       mutateAddChannel,
-      shelf,
-      createDiary,
-      createHeap,
-      stash,
+      channels,
+      createChannel,
     ]
   );
 

@@ -13,7 +13,6 @@ vi.mock('@/state/chat', () => ({
   useBriefs: () => ({}),
   usePinnedGroups: () => ({}),
   usePinned: () => [],
-  useGetLatestChat: () => () => 0,
   useGetLatestCurio: () => () => 0,
   useMultiDms: () => [],
   usePinnedClubs: () => [],
@@ -32,10 +31,6 @@ vi.mock('@/state/groups', () => ({
 
 vi.mock('@/state/hark', () => ({
   useSkeins: () => ({}),
-}));
-
-vi.mock('@/logic/useMigrationInfo', () => ({
-  useHasMigratedChannels: () => true,
 }));
 
 vi.mock('@/logic/utils', () => ({

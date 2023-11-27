@@ -1,9 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import cn from 'classnames';
 import { useLocation } from 'react-router';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from '@/components/ShipName';
-import { getChannelHosts } from '@/logic/utils';
 import {
   useGroup,
   useGroupFlag,
@@ -14,6 +13,7 @@ import { useModalNavigate } from '@/logic/routing';
 import Avatar from '@/components/Avatar';
 import { useContact } from '@/state/contact';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import { getChannelHosts } from '@/logic/channel';
 
 interface PendingMemberItemProps {
   member: string;

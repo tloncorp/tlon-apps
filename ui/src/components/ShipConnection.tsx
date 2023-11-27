@@ -1,5 +1,6 @@
 import cn from 'classnames';
 import React from 'react';
+import { useNegotiate } from '@/state/negotiation';
 import { ConnectionStatus } from '../state/vitals';
 import {
   getConnectionColor,
@@ -14,6 +15,8 @@ interface ShipConnectionProps {
   status?: ConnectionStatus;
   type?: 'default' | 'combo' | 'text' | 'bullet';
   className?: string;
+  app?: 'chat' | 'channels';
+  agent?: 'chat' | 'channels-server';
 }
 
 export default function ShipConnection({
@@ -21,16 +24,26 @@ export default function ShipConnection({
   ship,
   type = 'default',
   className,
+  app = 'chat',
+  agent = 'chat',
 }: ShipConnectionProps) {
+  const { matchedOrPending } = useNegotiate(ship, app, agent);
+
   const isSelf = ship === window.our;
-  const color = isSelf ? 'text-green-400' : getConnectionColor(status);
+  const color = isSelf
+    ? 'text-green-400'
+    : matchedOrPending
+    ? getConnectionColor(status)
+    : 'text-red-400';
   const text = isSelf
     ? 'This is you'
     : !status
     ? 'No connection data'
     : 'pending' in status
     ? getPendingText(status, ship)
-    : getCompletedText(status, ship);
+    : matchedOrPending
+    ? getCompletedText(status, ship)
+    : 'Your version does not match the other party';
 
   return (
     <span

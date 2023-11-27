@@ -58,20 +58,20 @@ Each poke is organized by mark
 - `%channel-leave` leaves a channel if we aren't the host
 - `%chat-pins` pins a chat channel, dm or multi-dm
 - `%chat-remark-action` marks our last read message
-- `%club-action` the main mark for acting on a `club`
+- `%chat-club-action` the main mark for acting on a `club`
   - `%writ` an update to a club messages
   - `%meta` modify the metadata for a club
   - `%team` modifications to the accepted members of a club
   - `%hive` modifications to the pending members of the club
   - `%init` the initial action to create the club on everyone's ships
-- `%club-create` creates a multi-dm
-- `%dm-action` the main mark for acting on a dm, only concerns sending
+- `%chat-club-create` creates a multi-dm
+- `%chat-dm-action` the main mark for acting on a dm, only concerns sending
   sending messages since dms hold no other metadata
-- `%dm-diff` is used specifically for dms to send updates to the other
-  party, generally initiated by a `%dm-action` poke on the sender side
-- `%dm-archive` currently unused, but marks a DM for archival removing
+- `%chat-dm-diff` is used specifically for dms to send updates to the other
+  party, generally initiated by a `%chat-dm-action` poke on the sender side
+- `%chat-dm-archive` currently unused, but marks a DM for archival removing
   from the UI but preserving history
-- `%dm-rsvp` accepts or rejects a dm
+- `%chat-dm-rsvp` accepts or rejects a dm
 - `%graph-import` imports a graph from old Groups and turns it into the
   appropriate channel/dm/multi-dm
 

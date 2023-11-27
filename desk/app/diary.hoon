@@ -1,12 +1,10 @@
-/-  d=diary, g=groups, ha=hark
+/-  d=diary, g=groups, ha=hark, channels, c2=chat-2
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
 /+  volume
-/+  migrate=diary-graph
-/+  chat-migrate=chat-graph
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  diary-json
@@ -99,8 +97,8 @@
       %2
     =.  state  old
     =.  cor  restore-missing-subs
-    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
-    =.  cor  (emit %pass di-area:di-core:cor %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
+    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %recheck-all-perms !>(0))
+    =.  cor  (emit %pass / %agent [our.bowl dap.bowl] %poke %leave-old-channels !>(0))
     =.  cor
       (emil (drop load:epos))
     =/  diaries  ~(tap in ~(key by shelf))
@@ -211,16 +209,6 @@
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
   ::
-      %graph-imports  (import !<(imports:d vase))
-      %import-flags
-    =+  !<(flags=(set flag:d) vase)
-    =.  imp  %-  ~(gas by *(map flag:d ?))
-      ^-  (list [flag:d ?])
-      %+  turn
-        ~(tap in flags)
-      |=(=flag:d [flag |])
-    cor
-  ::
       %flag
     =+  !<(f=flag:d vase)
     ?<  =(our.bowl p.f)
@@ -283,6 +271,9 @@
       %diary-remark-action
     =+  !<(act=remark-action:d vase)
     di-abet:(di-remark-diff:(di-abed:di-core p.act) q.act)
+  ::
+      %diary-migrate-server  ?>(from-self server:migrate)
+      %diary-migrate         ?>(from-self client:migrate)
   ==
   ++  join
     |=  =join:d
@@ -335,124 +326,12 @@
     --
   --
 ::
-++  import
-  |=  =imports:d
-  ^+  cor
-  =/  imports  ~(tap by imports)
-  |-  =*  loop  $
-  ?~  imports  cor
-  =/  [=flag:d writers=(set ship) =association:met:d =update-log:gra:d =graph:gra:d]
-    i.imports
-  |^
-  =/  =perm:d
-    :_  group.association
-    ?:(=(~ writers) ~ (silt (rap 3 'import/' (scot %p p.flag) '/' q.flag ~) ~))
-  =/  =remark:d
-    [now.bowl | ~]
-  =/  =notes:d  graph-to-notes
-  =/  =diary:d
-    :*  arranged-notes=~
-        net=?:(=(our.bowl p.flag) pub/~ sub/[p.flag | %chi ~])
-        log=(import-log notes perm)
-        perm
-        %grid  :: TODO: check defaults with design
-        %time
-        notes
-        remark
-    ==
-  =.  shelf  (~(put by shelf) flag diary)
-  =.  imp    (~(put by imp) flag &)
-  =.  cor
-    (give %fact ~[/imp] migrate-map+!>(imp))
-  =.  cor    di-abet:(di-import:(di-abed:di-core flag) writers association)
-  loop(imports t.imports)
-  ::
-  ++  import-log
-    |=  [=notes:d =perm:d]
-    ^-  log:d
-    =/  =time  (fall (bind (ram:orm-log-gra:d update-log) head) *time)
-    %+  gas:log-on:d  *log:d
-    :~  [time %create perm notes]
-    ==
-  ::
-  ++  graph-to-notes
-    %+  gas:on:notes:d  *notes:d
-    %+  murn  (tap:orm-gra:d graph)
-    |=  [=time =node:gra:d]
-    ^-  (unit [_time note:d])
-    ?~  not=(node-to-note time node)
-      ~
-    `[time u.not]
-  ++  orm  orm-gra:d
-  ++  node-to-children
-    |=  =node:gra:d
-    ^-  (unit graph:gra:d)
-    ?.  ?=(%graph -.children.node)
-      ~
-    `p.children.node
-  ::
-  ++  node-to-post
-    |=  =node:gra:d
-    ^-  (unit post:gra:d)
-    ?.  ?=(%& -.post.node)
-      ~
-    `p.post.node
-  ::
-  ++  get-latest-post
-    |=  =node:gra:d
-    ^-  (unit post:gra:d)
-    ;<  =graph:gra:d           _biff   (node-to-children node)
-    ;<  nod=node:gra:d         _biff   (get:orm graph 1)
-    ;<  revs=graph:gra:d       _biff   (node-to-children nod)
-    ;<  [@ recent=node:gra:d]  _biff   (pry:orm revs)
-    (node-to-post recent)
-  ::  TODO: review crashing semantics
-  ::        check graph ordering (backwards iirc)
-  ++  node-to-note
-    |=  [=time =node:gra:d]
-    ^-  (unit note:d)
-    ?~  pos=(get-latest-post node)
-      ~
-    =/  =seal:d  [time (node-to-quips node) ~]
-    ?.  ?=([[%text *] *] contents.u.pos)
-      ~  :: XX: should be invariant, don't want to risk it
-    =/  con=(list verse:d)  (migrate flag `@ud`time t.contents.u.pos)
-    =/  =essay:d
-      =,(u.pos [text.i.contents '' con author time-sent])
-    `[seal essay]
-  ::
-  ++  node-to-quips
-    |=  =node:gra:d
-    ^-  quips:d
-    =/  coms=(unit graph:gra:d)
-      ;<  =graph:gra:d      _biff  (node-to-children node)
-      ;<  coms=node:gra:d   _biff  (get:orm graph 2)
-      (node-to-children coms)
-    %+  gas:on:quips:d  *quips:d
-    %+  murn  ?~(coms ~ (tap:orm u.coms))
-    |=  [=time =node:gra:d]
-    ?~  qup=(node-to-quip time node)
-      ~
-    `[time u.qup]
-  ::
-  ++  node-to-quip
-    |=  [=time =node:gra:d]
-    ^-  (unit quip:d)
-    ;<  =graph:gra:d           _biff  (node-to-children node)
-    ;<  [@ latest=node:gra:d]  _biff  (pry:orm graph)
-    ;<  =post:gra:d            _biff  (node-to-post latest)
-    =/  =cork:d  [time ~]
-    =/  =memo:d  =,(post [(con:nert:chat-migrate contents) author time-sent])
-    `[cork memo]
-  --
-::
 ++  watch
   |=  =(pole knot)
   ^+  cor
   ?+    pole  ~|(bad-watch-path/pole !!)
       [%briefs ~]  ?>(from-self cor)
       [%ui ~]      ?>(from-self cor)
-      [%imp ~]      ?>(from-self cor)
     ::
       [%epic ~]    (give %fact ~ epic+!>(okay:d))
     ::
@@ -524,6 +403,7 @@
   ^+  cor
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
+      [%migrate ~]  cor
   ::
       [%epic ~]  (take-epic sign)
   ::
@@ -608,7 +488,6 @@
   ^-  (unit (unit cage))
   ?+  pole  [~ ~]
   ::
-    [%x %imp ~]    ``migrate-map+!>(imp)
     [%x %shelf ~]  ``shelf+!>(shelf)
     [%x %init ~]   ``noun+!>([briefs shelf])
     [%x %briefs ~]  ``diary-briefs+!>(briefs)
@@ -645,6 +524,197 @@
   [%pass wire %agent dock %poke cage]
 ::
 ++  from-self  =(our src):bowl
+::
+++  migrate
+  |%
+  ++  d  channels
+  ++  a  ^d
+  ++  server
+    =/  server-channels=v-channels:d
+      %+  convert-channels  &
+      %-  ~(gas by *shelf:a)
+      %+  skim  ~(tap by shelf)
+      |=  [=flag:a =diary:a]
+      =(our.bowl p.flag)
+    =/  =cage  [%channel-migration !>(server-channels)]
+    (emit %pass /migrate %agent [our.bowl %channels-server] %poke cage)
+  ::
+  ++  client
+    =/  =v-channels:d  (convert-channels | shelf)
+    =/  =cage  [%channel-migration !>(v-channels)]
+    (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+  ::
+  ++  old-chats
+    =>  [c2=c2 bowl=bowl ..zuse]  ~+
+    .^  (map flag:c2 chat:c2)
+      %gx
+      /(scot %p our.bowl)/chat/(scot %da now.bowl)/old/noun
+    ==
+  ::
+  ++  convert-channels
+    |=  [log=? =shelf:a]
+    ^-  v-channels:d
+    %-  ~(gas by *v-channels:d)
+    %+  turn  ~(tap by shelf)
+    |=  [=flag:a =diary:a]
+    ^-  [nest:d v-channel:d]
+    :-  [%diary flag]
+    =/  posts=v-posts:d  (convert-notes notes.diary)
+    %*    .  *v-channel:d
+        posts   posts
+        order   [1 arranged-notes.diary]
+        view    [1 view.diary]
+        sort    [1 sort.diary]
+        perm    [1 perm.diary]
+        log     ?.(log ~ (convert-log notes.diary posts perm.diary log.diary))
+        remark  :_  remark.diary
+                ?~(tim=(ram:on-v-posts:d posts) *time key.u.tim)
+        net
+      ?-  -.net.diary
+        %pub  [*ship &]
+        %sub  [p load]:net.diary
+      ==
+    ==
+  ::
+  ++  convert-notes
+    |=  old=notes:a
+    ^-  v-posts:d
+    %+  gas:on-v-posts:d  *v-posts:d
+    %+  turn  (tap:on:notes:a old)
+    |=  [=time =note:a]
+    ^-  [id-post:d (unit v-post:d)]
+    [time `(convert-note time note)]
+  ::
+  ++  convert-note
+    |=  [id=@da old=note:a]
+    ^-  v-post:d
+    :-  [id (convert-quips quips.old) (convert-feels feels.old)]
+    [%0 (convert-essay +.old)]
+  ::
+  ++  convert-quips
+    |=  old=quips:a
+    ^-  v-replies:d
+    %+  gas:on-v-replies:d  *v-replies:d
+    %+  turn  (tap:on:quips:a old)
+    |=  [=time =quip:a]
+    ^-  [id-reply:d (unit v-reply:d)]
+    [time `(convert-quip time quip)]
+  ::
+  ++  convert-quip
+    |=  [id=@da old=quip:a]
+    ^-  v-reply:d
+    [[id (convert-feels feels.old)] (convert-memo +.old)]
+  ::
+  ++  convert-essay
+    |=  old=essay:a
+    ^-  essay:d
+    =-  [[- author.old sent.old] %diary title.old image.old]
+    %+  turn  content.old
+    |=  v=verse:a
+    ^-  verse:d
+    ?-  -.v
+      %block   (convert-block +.v)
+      %inline  v
+    ==
+  ::
+  ++  convert-memo
+    |=  old=memo:a
+    ^-  memo:d
+    [(convert-story content.old) author.old sent.old]
+  ::
+  ++  convert-story
+    |=  old=story:a
+    ^-  story:d
+    (snoc (turn p.old convert-block) [%inline q.old])
+  ::
+  ++  convert-block
+    |=  =block:a
+    ^-  verse:d
+    :-  %block
+    ?.  ?=([%cite %chan *] block)  block
+    =;  new=(unit path)
+      ?~  new  block
+      block(wer.cite u.new)
+    =,  cite.block
+    ?.  ?=(%chat p.nest)                     ~
+    ?~  old=(~(get by old-chats) q.nest)     ~
+    =*  dex  dex.pact.u.old
+    =*  wit  wit.pact.u.old
+    ?.  ?=([%msg @ @ ~] wer.cite.block)      ~
+    ?~  who=(slaw %p i.t.wer)                ~
+    ?~  tim=(slaw %ud i.t.t.wer)             ~
+    ?~  id=(~(get by dex) [u.who u.tim])     ~
+    =*  single  `/msg/(crip (a-co:co u.id))
+    ?~  ret=(get:on:writs:c2 wit u.id)       single
+    ?~  replying.u.ret                       single
+    ?~  td=(~(get by dex) u.replying.u.ret)  single
+    `/msg/(crip (a-co:co u.td))/(crip (a-co:co u.id))
+  ::
+  ++  convert-feels
+    |=  old=(map ship feel:a)
+    ^-  v-reacts:d
+    %-  ~(run by old)
+    |=  =feel:a
+    [%0 `feel]
+  ::
+  ++  convert-log
+    |=  [old=notes:a posts=v-posts:d =perm:d =log:a]
+    ^-  log:d
+    %+  gas:log-on:d  *log:d
+    %-  zing
+    %+  turn  (tap:log-on:a log)
+    |=  [=time =diff:a]
+    ^-  (list [id-post:d u-channel:d])
+    =;  new=(list u-channel:d)
+      ?~  new  ~
+      ?~  t.new  [time i.new]~
+      =.  time  (sub time ~s1)
+      =>  .(new `(list u-channel:d)`new)
+      |-
+      ?~  new  ~
+      [[time i.new] $(time +(time), new t.new)]
+    ?-    -.diff
+        ?(%add-sects %del-sects)  [%perm 0 perm]~
+        %create
+      :-  [%create p.diff]
+      %+  murn  (tap:on:notes:a q.diff)
+      |=  [=^time =note:a]
+      =/  new-post  (get:on-v-posts:d posts time)
+      ?~  new-post  ~
+      (some %post time %set u.new-post)
+    ::
+        %view                     [%view 0 p.diff]~
+        %sort                     [%sort 0 p.diff]~
+        %arranged-notes           [%order 0 p.diff]~
+        %notes
+      =*  id  time
+      =/  old-note  (get:on:notes:a old id)
+      ?~  old-note  [%post id %set ~]~
+      =/  new-post  (get:on-v-posts:d posts id)
+      ?~  new-post  ~
+      ?-  -.q.p.diff
+          %del                    [%post id %set ~]~
+          ?(%add %edit)           [%post id %set u.new-post]~
+          ?(%add-feel %del-feel)
+        [%post id %reacts ?~(u.new-post ~ reacts.u.u.new-post)]~
+      ::
+          %quips
+        ?~  u.new-post  ~
+        =*  id-reply  p.p.q.p.diff
+        =/  new-reply  (get:on-v-replies:d replies.u.u.new-post id-reply)
+        ?~  new-reply  ~
+        :_  ~
+        :+  %post   id
+        :+  %reply  id-reply
+        ?-  -.q.p.q.p.diff
+          %del                    [%set ~]
+          %add                    [%set u.new-reply]
+          ?(%add-feel %del-feel)  [%reacts ?~(u.new-reply ~ reacts.u.u.new-reply)]
+        ==
+      ==
+    ==
+  --
+::
 ++  di-core
   |_  [=flag:d =diary:d gone=_|]
   +*  di-notes  ~(. not notes.diary)
@@ -668,13 +738,6 @@
     =/  link
       (welp /groups/(scot %p p.group)/[q.group]/channels/diary/(scot %p p.flag)/[q.flag] ?~(lnk rest lnk))
     [& & rope con link but]
-  ++  di-import
-    |=  [writers=(set ship) =association:met:d]
-    ^+  di-core
-    =?  di-core  ?=(%sub -.net.diary)
-      di-sub
-    di-core
-  ::
   ++  di-said
     |=  =plan:d
     |^  ^+  di-core
@@ -755,18 +818,6 @@
     ==
   ++  di-pass
     |%
-    ++  writer-sect
-      |=  [ships=(set ship) =association:met:d]
-      =/  =sect:g
-        (rap 3 %diary '-' (scot %p p.flag) '-' q.flag ~)
-      =/  title=@t
-        (rap 3 'Writers: ' title.metadatum.association ~)
-      =/  desc=@t
-        (rap 3 'The writers role for the ' title.metadatum.association ' notebook' ~)
-      %+  poke-group  %import-writers
-      :+  group.association   now.bowl
-      [%cabal sect %add title desc '' '']
-    ::
     ++  poke-group
       |=  [=term =action:g]
       ^+  di-core
@@ -783,12 +834,6 @@
       ^-  action:g
       :+  group  now.bowl
       [%channel [dap.bowl flag] %add channel]
-    ::
-    ++  import-channel
-      |=  =association:met:d
-      =/  meta=data:meta:g
-        [title description '' '']:metadatum.association
-      (create-channel %import group.association meta now.bowl zone=%default %| ~)
     ::
     ++  add-channel
       |=  req=create:d
@@ -819,13 +864,6 @@
       %.  di-core  :: TODO rollback creation if poke fails?
       ?~  p.sign  same
       (slog leaf/"poke failed" u.p.sign)
-    ::
-        [%import ~]
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  di-core
-      %-  (slog u.p.sign)
-      ::  =.  cor  (emit %pass /pyre %pyre leaf/"Failed group import" u.p.sign)
-      di-core
     ==
   ::
   ++  di-brief  (brief:di-notes our.bowl last-read.remark.diary)

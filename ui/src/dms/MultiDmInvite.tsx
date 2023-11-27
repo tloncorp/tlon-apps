@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import X16Icon from '../components/icons/X16Icon';
-import { useChatState, useMultiDm } from '../state/chat';
+import { useMultiDm, useMutliDmRsvpMutation } from '../state/chat';
 import MultiDMHero from './MultiDmHero';
 
 interface MultiDmInviteProps {
@@ -12,14 +12,15 @@ export default function MultiDmInvite({ id }: MultiDmInviteProps) {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const navigate = useNavigate();
   const multiDm = useMultiDm(id);
+  const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
   const groupName = multiDm?.meta.title || multiDm?.team.join(', ');
 
   const onAccept = () => {
-    useChatState.getState().multiDmRsvp(id, true);
+    multiDmRsvp({ id, accept: true });
   };
   const onDecline = () => {
     navigate(-1);
-    useChatState.getState().multiDmRsvp(id, false);
+    multiDmRsvp({ id, accept: false });
   };
 
   if (!multiDm) {

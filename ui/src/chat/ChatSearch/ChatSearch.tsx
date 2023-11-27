@@ -1,108 +1,62 @@
 import cn from 'classnames';
+import React, { PropsWithChildren, useCallback } from 'react';
 import { VirtuosoHandle } from 'react-virtuoso';
-import useDebounce from '@/logic/useDebounce';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import { isTalk } from '@/logic/utils';
-import React, { KeyboardEvent, PropsWithChildren, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
 import { disableDefault } from '@/logic/utils';
-import { useInfiniteChatSearch } from '@/state/chat/search';
-import bigInt from 'big-integer';
 import { useSafeAreaInsets } from '@/logic/native';
+import { ChatMap } from '@/types/channel';
 import ChatSearchResults from './ChatSearchResults';
+import { useChatSearchInput } from './useChatSearchInput';
 import SearchBar from './SearchBar';
 
-interface RouteParams {
-  chShip: string;
-  chName: string;
-  query: string;
-  [key: string]: string;
-}
-
-type ChatSearchProps = PropsWithChildren<{
+export type ChatSearchProps = PropsWithChildren<{
   whom: string;
   root: string;
+  query?: string;
+  scan: ChatMap;
+  isLoading: boolean;
   placeholder: string;
+  endReached: () => void;
 }>;
 
 export default function ChatSearch({
   whom,
   root,
+  query,
+  scan,
+  isLoading,
   placeholder,
+  endReached,
   children,
 }: ChatSearchProps) {
   const navigate = useNavigate();
-  const { query } = useParams<RouteParams>();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(min-width: 768px) and (max-width: 1099px)');
   const safeAreaInsets = useSafeAreaInsets();
   const scrollerRef = React.useRef<VirtuosoHandle>(null);
-  const [rawInput, setRawInput] = React.useState(query || '');
-  const [selected, setSelected] = React.useState<{
-    index: number;
-    time: bigInt.BigInteger;
-  }>({ index: -1, time: bigInt.zero });
-  const { scan, isLoading, fetchNextPage } = useInfiniteChatSearch(
-    whom,
-    query || ''
-  );
-  const debouncedSearch = useDebounce((input: string) => {
-    if (!input) {
-      navigate(`${root}/search`);
-      return;
-    }
-
-    navigate(`${root}/search/${input}`);
-  }, 500);
-
-  const onChange = useCallback(
-    (newValue: string) => {
-      setRawInput(newValue);
-      debouncedSearch(newValue);
-    },
-    [debouncedSearch]
-  );
-
-  const onKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLLabelElement>) => {
-      if (event.key === 'Escape') {
-        navigate(root);
-      }
-
-      if (event.key === 'Enter' && selected.index >= 0) {
-        const { time } = selected;
-        const writ = scan.get(time);
-        const scrollTo = `?msg=${time.toString()}`;
-        const to = writ?.memo.replying
-          ? `${root}/message/${writ.memo.replying}${scrollTo}`
-          : `${root}${scrollTo}`;
-        navigate(to);
-      }
-
-      const arrow = event.key === 'ArrowDown' || event.key === 'ArrowUp';
+  const { selected, rawInput, onChange, onKeyDown } = useChatSearchInput({
+    root,
+    query,
+    scan,
+    onNavigate: useCallback(({ index, time, setSelected }) => {
       const scroller = scrollerRef.current;
-      if (!arrow || !scroller || scan.size === 0) {
+      if (!scroller) {
         return;
       }
 
-      event.preventDefault();
-      const next = event.key === 'ArrowDown' ? 1 : -1;
-      const index =
-        selected === undefined
-          ? 0
-          : (selected.index + next + scan.size) % scan.size;
       scroller.scrollIntoView({
         index,
         behavior: 'auto',
         done: () => {
-          setSelected({ index, time: [...scan.keys()][index] });
+          setSelected({ index, time });
         },
       });
-    },
-    [root, selected, scan, navigate]
-  );
+    }, []),
+  });
 
   const preventClose = useCallback((e: Event) => {
     const target = e.target as HTMLElement;
@@ -174,7 +128,7 @@ export default function ChatSearch({
                   isLoading={isLoading}
                   query={query}
                   selected={selected.index}
-                  endReached={() => fetchNextPage()}
+                  endReached={endReached}
                 />
               </section>
             </Dialog.Content>

@@ -12,13 +12,7 @@ import {
 } from '@/types/content';
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
-import {
-  DiaryBlock,
-  DiaryInline,
-  DiaryListing,
-  isDiaryImage,
-  NoteContent,
-} from '@/types/diary';
+import { Block, Listing, isImage, Story, Cite, isCite } from '@/types/channel';
 import _ from 'lodash';
 import { refractor } from 'refractor/lib/common.js';
 import { toH } from 'hast-to-hyperscript';
@@ -30,7 +24,7 @@ import DiaryContentImage from './DiaryContentImage';
 refractor.register(hoon);
 
 interface DiaryContentProps {
-  content: NoteContent;
+  content: Story;
   isPreview?: boolean;
 }
 
@@ -39,10 +33,10 @@ interface InlineContentProps {
 }
 
 interface BlockContentProps {
-  story: DiaryBlock;
+  story: Block;
 }
 
-export function groupByParagraph(inlines: DiaryInline[]): DiaryInline[][] {
+export function groupByParagraph(inlines: Inline[]): Inline[][] {
   let index = 0;
   const final = [];
 
@@ -186,7 +180,7 @@ export function InlineContent({ story }: InlineContentProps) {
   throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
 }
 
-export function ListingContent({ content }: { content: DiaryListing }) {
+export function ListingContent({ content }: { content: Listing }) {
   if ('item' in content) {
     return (
       <>
@@ -235,7 +229,7 @@ export function ListingContent({ content }: { content: DiaryListing }) {
 export const BlockContent = React.memo(({ story }: BlockContentProps) => {
   const dark = useIsDark();
 
-  if (isDiaryImage(story)) {
+  if (isImage(story)) {
     return (
       <DiaryContentImage
         src={story.image.src}
@@ -273,10 +267,9 @@ export const BlockContent = React.memo(({ story }: BlockContentProps) => {
     return <hr />;
   }
 
-  const tree = refractor.highlight(story.code.code, story.code.lang);
-  const element = toH(React.createElement, tree);
-
   if ('code' in story) {
+    const tree = refractor.highlight(story.code.code, story.code.lang);
+    const element = toH(React.createElement, tree);
     return (
       <pre
         className={cn('max-w-xs sm:max-w-md  lg:max-w-none xl:max-w-none', {

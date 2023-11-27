@@ -1,21 +1,20 @@
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import useMessageSort from '@/logic/useMessageSort';
-import { useGroups } from '@/state/groups';
 import { filters, SidebarFilter } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
-import { canReadChannel, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { ChatBrief } from '@/types/chat';
+import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { DMUnread } from '@/types/dms';
+import { useUnreads, useChats } from '@/state/channel/channel';
+import { useGroups } from '@/state/groups';
+import { canReadChannel } from '@/logic/channel';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
+import { Unread } from '@/types/channel';
 import {
   usePendingDms,
-  useBriefs,
-  isGroupBrief,
   usePendingMultiDms,
   usePinned,
-  useChats,
-  useDms,
-  useMultiDms,
+  useDmUnreads,
 } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
@@ -25,7 +24,7 @@ type MessagesListProps = PropsWithChildren<{
   isScrolling?: (scrolling: boolean) => void;
 }>;
 
-function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
+function itemContent(_i: number, [whom, _unread]: [string, Unread | DMUnread]) {
   return (
     <div className="px-4 sm:px-2">
       <MessagesSidebarItem key={whom} whom={whom} />
@@ -33,8 +32,10 @@ function itemContent(_i: number, [whom, _brief]: [string, ChatBrief]) {
   );
 }
 
-const computeItemKey = (_i: number, [whom, _brief]: [string, ChatBrief]) =>
-  whom;
+const computeItemKey = (
+  _i: number,
+  [whom, _unread]: [string, Unread | DMUnread]
+) => whom;
 
 let virtuosoState: StateSnapshot | undefined;
 
@@ -44,14 +45,20 @@ export default function MessagesList({
   isScrolling,
   children,
 }: MessagesListProps) {
-  const pending = usePendingDms();
+  const { pending } = usePendingDms();
   const pendingMultis = usePendingMultiDms();
   const pinned = usePinned();
   const { sortMessages } = useMessageSort();
-  const briefs = useBriefs();
+  const { data: dmUnreads } = useDmUnreads();
+  const channelUnreads = useUnreads();
+  const unreads = useMemo(
+    () => ({
+      ...channelUnreads,
+      ...dmUnreads,
+    }),
+    [channelUnreads, dmUnreads]
+  );
   const chats = useChats();
-  const dms = useDms();
-  const multiDms = useMultiDms();
   const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
   const isMobile = useIsMobile();
@@ -63,30 +70,17 @@ export default function MessagesList({
       : { main: 400, reverse: 400 },
   };
 
-  const organizedBriefs = useMemo(
+  const organizedUnreads = useMemo(
     () =>
-      sortMessages(briefs).filter(([b]) => {
+      sortMessages(unreads).filter(([b]) => {
         const chat = chats[b];
         const groupFlag = chat?.perms.group;
         const group = groups[groupFlag || ''];
         const vessel = group?.fleet[window.our];
-        const channel = group?.channels[`chat/${b}`];
-        const club = multiDms[b];
-        const dm = dms.filter((d) => d === b)[0];
-
-        if (whomIsMultiDm(b) && !club) {
-          return false;
-        }
-
-        if (whomIsMultiDm(b) && !club.team.includes(window.our)) {
-          return false;
-        }
-
-        if (whomIsDm(b) && !dm) {
-          return false;
-        }
+        const channel = group?.channels[b];
 
         if (
+          chat &&
           channel &&
           vessel &&
           !canReadChannel(channel, vessel, group?.bloc)
@@ -106,27 +100,17 @@ export default function MessagesList({
           return false;
         }
 
-        if (filter === filters.dms && isGroupBrief(b)) {
+        if (filter === filters.dms && b.includes('/')) {
           return false;
         }
 
-        if (isGroupBrief(b) && !group) {
+        if (b.includes('/') && !group) {
           return false;
         }
 
         return true; // is all
       }),
-    [
-      allPending,
-      briefs,
-      chats,
-      filter,
-      groups,
-      pinned,
-      sortMessages,
-      dms,
-      multiDms,
-    ]
+    [allPending, unreads, filter, pinned, sortMessages, chats, groups]
   );
 
   const headerHeightRef = useRef<number>(0);
@@ -197,7 +181,7 @@ export default function MessagesList({
     <Virtuoso
       {...thresholds}
       ref={virtuosoRef}
-      data={organizedBriefs}
+      data={organizedUnreads}
       computeItemKey={computeItemKey}
       itemContent={itemContent}
       components={components}

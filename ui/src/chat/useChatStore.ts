@@ -1,16 +1,17 @@
 import { createDevLogger } from '@/logic/utils';
-import { ChatBlock, ChatBrief, ChatBriefs } from '@/types/chat';
 import produce from 'immer';
 import { useCallback } from 'react';
 import create from 'zustand';
+import { Block, Unread, Unreads } from '@/types/channel';
+import { DMUnread, DMUnreads } from '@/types/dms';
 
 export interface ChatInfo {
   replying: string | null;
-  blocks: ChatBlock[];
+  blocks: Block[];
   unread?: {
     readTimeout: number;
     seen: boolean;
-    brief: ChatBrief; // lags behind actual brief, only gets update if unread
+    unread: DMUnread | Unread; // lags behind actual unread, only gets update if unread
   };
   dialogs: Record<string, Record<string, boolean>>;
   hovering: string;
@@ -24,7 +25,7 @@ export interface ChatStore {
   atBottom: boolean;
   current: string;
   reply: (flag: string, msgId: string | null) => void;
-  setBlocks: (whom: string, blocks: ChatBlock[]) => void;
+  setBlocks: (whom: string, blocks: Block[]) => void;
   setDialogs: (
     whom: string,
     writId: string,
@@ -40,10 +41,14 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  unread: (whom: string, brief: ChatBrief) => void;
+  unread: (
+    whom: string,
+    unread: Unread | DMUnread,
+    markRead: (whm: string) => void
+  ) => void;
   bottom: (atBottom: boolean) => void;
   setCurrent: (whom: string) => void;
-  update: (briefs: ChatBriefs) => void;
+  update: (unreads: Unreads | DMUnreads) => void;
 }
 
 const emptyInfo: () => ChatInfo = () => ({
@@ -57,21 +62,29 @@ const emptyInfo: () => ChatInfo = () => ({
 
 export const chatStoreLogger = createDevLogger('ChatStore', false);
 
+export function isUnread(unread: Unread | DMUnread): boolean {
+  const hasThreads = Object.keys(unread.threads || {}).length > 0;
+  return unread.count > 0 && (!!unread['unread-id'] || hasThreads);
+}
+
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
-  update: (briefs) => {
+  current: '',
+  atBottom: false,
+  update: (unreads) => {
     set(
       produce((draft: ChatStore) => {
-        Object.entries(briefs).forEach(([whom, brief]) => {
+        Object.entries(unreads).forEach(([whom, unread]) => {
           const chat = draft.chats[whom];
-          chatStoreLogger.log('update', whom, chat, brief, draft.chats);
-          if (brief.count > 0 && brief['read-id']) {
+          chatStoreLogger.log('update', whom, chat, unread, draft.chats);
+
+          if (isUnread(unread)) {
             draft.chats[whom] = {
               ...(chat || emptyInfo()),
               unread: {
                 seen: false,
                 readTimeout: 0,
-                brief,
+                unread,
               },
             };
             return;
@@ -86,8 +99,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  atBottom: false,
-  current: '',
   setBlocks: (whom, blocks) => {
     set(
       produce((draft) => {
@@ -158,7 +169,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         const chat = draft.chats[whom];
         const unread = chat.unread || {
-          brief: { last: 0, count: 0, 'read-id': '' },
+          unread: {
+            recency: 0,
+            count: 0,
+            'unread-id': '',
+            threads: {},
+          },
           readTimeout: 0,
         };
 
@@ -209,19 +225,33 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  unread: (whom, brief) => {
+  unread: (whom, unread, markRead) => {
     set(
       produce((draft: ChatStore) => {
+        const { atBottom, current, read } = draft;
         const chat = draft.chats[whom] || emptyInfo();
-        chatStoreLogger.log('unread', whom, chat, brief);
-        draft.chats[whom] = {
-          ...chat,
-          unread: {
-            seen: false,
-            readTimeout: 0,
-            brief,
-          },
-        };
+        const hasUnreads = isUnread(unread);
+
+        if (
+          hasUnreads &&
+          current === whom &&
+          atBottom &&
+          document.visibilityState === 'visible'
+        ) {
+          markRead(whom);
+        } else if (hasUnreads) {
+          chatStoreLogger.log('unread', whom, chat, unread);
+          draft.chats[whom] = {
+            ...chat,
+            unread: {
+              seen: false,
+              readTimeout: 0,
+              unread,
+            },
+          };
+        } else if (!hasUnreads && chat?.unread?.readTimeout === 0) {
+          read(whom);
+        }
       })
     );
   },
@@ -246,11 +276,11 @@ export function useChatInfo(flag: string): ChatInfo {
   return useChatStore(useCallback((s) => s.chats[flag] || defaultInfo, [flag]));
 }
 
-export function fetchChatBlocks(whom: string): ChatBlock[] {
+export function fetchChatBlocks(whom: string): Block[] {
   return useChatStore.getState().chats[whom]?.blocks || [];
 }
 
-export function useChatBlocks(whom?: string): ChatBlock[] {
+export function useChatBlocks(whom?: string): Block[] {
   return useChatStore(
     useCallback((s) => (whom ? s.chats[whom]?.blocks || [] : []), [whom])
   );

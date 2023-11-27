@@ -3,6 +3,8 @@
     %heap
     %diary
     %notify
-    %groups-ui
     %grouper
+    %groups-ui
+    %channels
+    %channels-server
 ==

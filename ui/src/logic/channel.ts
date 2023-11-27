@@ -1,22 +1,25 @@
 import _, { get, groupBy } from 'lodash';
-import { useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
-import useAllBriefs from '@/logic/useAllBriefs';
-import { useBriefs, useChat, useChats, useMultiDms } from '@/state/chat';
-import { useGroup, useGroups, useRouteGroup } from '@/state/groups';
-import { useCallback, useMemo } from 'react';
-import { useDiary } from '@/state/diary';
-import { useHeap } from '@/state/heap/heap';
-import { Chat } from '@/types/chat';
-import { Diary } from '@/types/diary';
-import { Heap } from '@/types/heap';
-import { Zone, Channels, GroupChannel } from '@/types/groups';
+import { useGroup, useRouteGroup } from '@/state/groups';
 import {
-  canReadChannel,
-  getCompatibilityText,
-  isChannelJoined,
+  useUnreads,
+  useChannel,
+  useJoinMutation,
+  usePerms,
+} from '@/state/channel/channel';
+import { Unreads, Perm, Story } from '@/types/channel';
+import { Zone, Channels, GroupChannel, Vessel, Group } from '@/types/groups';
+import { useLastReconnect } from '@/state/local';
+import { isLink } from '@/types/content';
+import { useNegotiate } from '@/state/negotiation';
+import {
+  getFlagParts,
+  isTalk,
+  getNestShip,
   nestToFlag,
-  sagaCompatible,
+  getFirstInline,
 } from './utils';
 import useSidebarSort, {
   useRecentSort,
@@ -26,6 +29,60 @@ import useSidebarSort, {
   DEFAULT,
   RECENT,
 } from './useSidebarSort';
+import useRecentChannel from './useRecentChannel';
+
+export function isChannelJoined(nest: string, unreads: Unreads) {
+  const [flag] = nestToFlag(nest);
+  const { ship } = getFlagParts(flag);
+
+  const isChannelHost = window.our === ship;
+  return isChannelHost || (nest && nest in unreads);
+}
+
+export function canReadChannel(
+  channel: GroupChannel,
+  vessel: Vessel,
+  bloc: string[] = []
+) {
+  if (channel.readers.length === 0) {
+    return true;
+  }
+
+  return _.intersection([...channel.readers, ...bloc], vessel.sects).length > 0;
+}
+
+export function canWriteChannel(
+  perms: Perm,
+  vessel: Vessel,
+  bloc: string[] = []
+) {
+  if (perms.writers.length === 0) {
+    return true;
+  }
+
+  return _.intersection([...perms.writers, ...bloc], vessel.sects).length > 0;
+}
+
+export function getChannelHosts(group: Group): string[] {
+  return Object.keys(group.channels).map(getNestShip);
+}
+
+export function prettyChannelTypeName(app: string) {
+  switch (app) {
+    case 'chat':
+      return 'Chat';
+    case 'heap':
+      return 'Collection';
+    case 'diary':
+      return 'Notebook';
+    default:
+      return 'Unknown';
+  }
+}
+
+export function channelHref(flag: string, ch: string) {
+  return `/groups/${flag}/channels/${ch}`;
+}
 
 export function useChannelFlag() {
   const { chShip, chName } = useParams();
@@ -39,98 +96,44 @@ const selChats = (s: ChatStore) => s.chats;
 
 function channelUnread(
   nest: string,
-  briefs: ReturnType<typeof useAllBriefs>,
+  unreads: Unreads,
   chats: ChatStore['chats']
 ) {
-  const [app, chFlag] = nestToFlag(nest);
-  const unread = chats[chFlag]?.unread;
+  const [app] = nestToFlag(nest);
+  const unread = chats[nest]?.unread;
 
   if (app === 'chat') {
     return Boolean(unread && !unread.seen);
   }
 
-  return (briefs[app]?.[chFlag]?.count ?? 0) > 0;
-}
-
-interface ChannelUnreadCount {
-  scope: 'Group Channels' | 'Direct Messages' | 'All Messages';
-}
-
-export function useChannelUnreadCounts(args: ChannelUnreadCount) {
-  const briefs = useBriefs();
-  const chats = useChats();
-  const multiDms = useMultiDms();
-  const groups = useGroups();
-  const chatKeys = Object.keys(chats);
-
-  const filteredBriefs = _.fromPairs(
-    Object.entries(briefs).filter(([k, v]) => {
-      const chat = chats[k];
-      if (chat) {
-        const group = groups[chat.perms.group];
-        const channel = group?.channels[`chat/${k}`];
-        const vessel = group?.fleet[window.our];
-        return channel && vessel && canReadChannel(channel, vessel, group.bloc);
-      }
-
-      const club = multiDms[k];
-      if (club) {
-        return club.team.concat(club.hive).includes(window.our);
-      }
-
-      return true;
-    })
-  );
-
-  switch (args.scope) {
-    case 'All Messages':
-      return _.sumBy(Object.values(filteredBriefs), 'count');
-    case 'Group Channels':
-      return _.sumBy(Object.values(_.pick(filteredBriefs, chatKeys)), 'count');
-    case 'Direct Messages':
-      return _.sumBy(Object.values(_.omit(briefs, chatKeys)), 'count');
-    default:
-      return _.sumBy(Object.values(filteredBriefs), 'count');
-  }
+  return (unreads[nest]?.count ?? 0) > 0;
 }
 
 export function useCheckChannelUnread() {
-  const briefs = useAllBriefs();
+  const unreads = useUnreads();
   const chats = useChatStore(selChats);
 
   return useCallback(
-    (nest: string) => channelUnread(nest, briefs, chats),
-    [briefs, chats]
+    (nest: string) => {
+      if (!unreads || !chats) {
+        return false;
+      }
+
+      return channelUnread(nest, unreads, chats);
+    },
+    [unreads, chats]
   );
 }
 
 export function useIsChannelUnread(nest: string) {
-  const briefs = useAllBriefs();
+  const unreads = useUnreads();
   const chats = useChatStore(selChats);
 
-  return channelUnread(nest, briefs, chats);
+  return channelUnread(nest, unreads, chats);
 }
 
 export const useIsChannelHost = (flag: string) =>
   window.our === flag?.split('/')[0];
-
-export function useChannel(nest: string): Chat | Heap | Diary | undefined {
-  const [app, flag] = nestToFlag(nest);
-  const chat = useChat(flag);
-  const heap = useHeap(flag);
-  const diary = useDiary(flag);
-
-  switch (app) {
-    case 'chat':
-      return chat;
-    case 'heap':
-      return heap;
-    case 'diary':
-      return diary;
-    default:
-      return undefined;
-  }
-}
 
 const UNZONED = 'default';
 
@@ -230,41 +233,154 @@ export function useChannelSections(groupFlag: string) {
   };
 }
 
-function channelIsJoined(
-  nest: string,
-  briefs: ReturnType<typeof useAllBriefs>
-) {
-  const [app, flag] = nestToFlag(nest);
-
-  return briefs[app] && Object.keys(briefs[app]).length > 0
-    ? isChannelJoined(flag, briefs[app])
-    : true;
-}
-
 export function useChannelIsJoined(nest: string) {
-  const briefs = useAllBriefs();
-
-  return channelIsJoined(nest, briefs);
+  const unreads = useUnreads();
+  return isChannelJoined(nest, unreads);
 }
 
 export function useCheckChannelJoined() {
-  const briefs = useAllBriefs();
-
+  const unreads = useUnreads();
   return useCallback(
     (nest: string) => {
-      return channelIsJoined(nest, briefs);
+      return isChannelJoined(nest, unreads);
     },
-    [briefs]
+    [unreads]
   );
 }
 
 export function useChannelCompatibility(nest: string) {
-  const channel = useChannel(nest);
-  const saga = channel?.saga || null;
+  const [, chan] = nestToFlag(nest);
+  const { ship } = getFlagParts(chan);
+  const { status } = useNegotiate(ship, 'channels', 'channels-server');
+
+  const matched = status === 'match';
 
   return {
-    saga,
-    compatible: sagaCompatible(saga),
-    text: getCompatibilityText(saga),
+    compatible: matched,
+    text: matched
+      ? "You're synced with the host."
+      : 'Your version of the app does not match the host.',
   };
+}
+
+interface FullChannelParams {
+  groupFlag: string;
+  nest: string;
+  initialize?: () => void;
+}
+
+const emptyVessel = {
+  sects: [],
+  joined: 0,
+};
+
+export function useFullChannel({
+  groupFlag,
+  nest,
+  initialize,
+}: FullChannelParams) {
+  const navigate = useNavigate();
+  const group = useGroup(groupFlag);
+  const [, chan] = nestToFlag(nest);
+  const { ship } = getFlagParts(chan);
+  const vessel = useMemo(
+    () => group?.fleet?.[window.our] || emptyVessel,
+    [group]
+  );
+  const { writers } = usePerms(nest);
+  const groupChannel = group?.channels?.[nest];
+  const channel = useChannel(nest);
+  const compat = useChannelCompatibility(nest);
+  const canWrite =
+    ship === window.our ||
+    (canWriteChannel({ writers, group: groupFlag }, vessel, group?.bloc) &&
+      compat.compatible);
+  const canRead = groupChannel
+    ? canReadChannel(groupChannel, vessel, group?.bloc)
+    : false;
+  const [joining, setJoining] = useState(false);
+  const joined = useChannelIsJoined(nest);
+  const { setRecentChannel } = useRecentChannel(groupFlag);
+  const lastReconnect = useLastReconnect();
+  const { mutateAsync: join } = useJoinMutation();
+
+  const joinChannel = useCallback(async () => {
+    setJoining(true);
+    try {
+      await join({ group: groupFlag, chan: nest });
+    } catch (e) {
+      console.log("Couldn't join chat (maybe already joined)", e);
+    }
+    setJoining(false);
+  }, [groupFlag, nest, join]);
+
+  useEffect(() => {
+    if (!joined) {
+      joinChannel();
+    }
+  }, [joined, joinChannel, channel]);
+
+  useEffect(() => {
+    if (joined && !joining && channel && canRead) {
+      if (initialize) {
+        initialize();
+      }
+      setRecentChannel(nest);
+    }
+  }, [
+    nest,
+    setRecentChannel,
+    joined,
+    joining,
+    channel,
+    canRead,
+    lastReconnect,
+    initialize,
+  ]);
+
+  useEffect(() => {
+    if (channel && !canRead) {
+      if (isTalk) {
+        navigate('/');
+      } else {
+        navigate(`/groups/${groupFlag}`);
+      }
+      setRecentChannel('');
+    }
+  }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);
+
+  return {
+    groupFlag,
+    nest,
+    flag: chan,
+    group,
+    channel,
+    groupChannel,
+    canRead,
+    canWrite,
+    compat,
+    joined,
+  };
+}
+
+export function inlineContentIsLink(content: Story) {
+  const firstInline = getFirstInline(content);
+  if (!firstInline) {
+    return false;
+  }
+
+  return isLink(firstInline[0]);
+}
+
+export function linkUrlFromContent(content: Story) {
+  const firstInline = getFirstInline(content);
+  if (!firstInline) {
+    return undefined;
+  }
+
+  if (isLink(firstInline[0])) {
+    return firstInline[0].link.href;
+  }
+
+  return undefined;
 }

@@ -6,6 +6,25 @@
 |=  compare=$-([key key] ?)
 ~%  %mope-core  ..zuse  ~
 |%
+::  +uno: merge with conflict resolution function
+::
+++  uno
+  ~/  %uno
+  |=  [a=(tree item) b=(tree item)]
+  |=  [meg=$-([key val val] val)]
+  ^-  (tree item)
+  ?~  b  a
+  ?~  a  b
+  ?:  =(key.n.a key.n.b)
+    :-  n=[key.n.a (meg key.n.a val.n.a val.n.b)]
+    [l=$(a l.a, b l.b) r=$(a r.a, b r.b)]
+  ?:  (mor key.n.a key.n.b)
+    ?:  (compare key.n.b key.n.a)
+      $(l.a $(a l.a, r.b ~), b r.b)
+    $(r.a $(a r.a, l.b ~), b l.b)
+  ?:  (compare key.n.a key.n.b)
+    $(l.b $(b l.b, r.a ~), a r.a)
+  $(r.b $(b r.b, l.a ~), a l.a)
 ::  +bat: tabulate a subset excluding start element with a max count (backwards)
 ::
 ++  bat

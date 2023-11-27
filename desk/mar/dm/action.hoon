@@ -1,15 +1,12 @@
-/-  c=chat
-/+  j=chat-json
+/-  c=chat-2
 |_  =action:dm:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  action
-  ++  json  (dm-action:enjs:j action)
   --
 ++  grab
   |%
   ++  noun  action:dm:c
-  ++  json  dm-action:dejs:j
   --
 --

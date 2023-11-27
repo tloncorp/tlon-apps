@@ -1,11 +1,9 @@
-/-  c=chat
-/+  j=chat-json
+/-  c=chat-2
 |_  =crew:club:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  crew
-  ++  json  (crew:enjs:j crew)
   --
 ++  grab
   |%

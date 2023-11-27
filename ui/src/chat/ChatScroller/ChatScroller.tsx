@@ -1,5 +1,3 @@
-import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
-import { daToUnix } from '@urbit/api';
 import React, {
   PropsWithChildren,
   ReactElement,
@@ -10,31 +8,32 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useVirtualizer, Virtualizer } from '@tanstack/react-virtual';
+import { BigInteger } from 'big-integer';
 import {
   FlatIndexLocationWithAlign,
   FlatScrollIntoViewLocation,
   VirtuosoHandle,
 } from 'react-virtuoso';
-import { BigInteger } from 'big-integer';
-import BTree from 'sorted-btree';
-
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import {
-  useUserHasScrolled,
-  useInvertedScrollInteraction,
-} from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
+import ChatMessage from '@/chat/ChatMessage/ChatMessage';
+import ChatNotice from '@/chat/ChatNotice';
+import { WritTuple } from '@/types/dms';
 import {
   ChatMessageListItemData,
   useMessageData,
 } from '@/logic/useScrollerMessages';
 import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
+import ReplyMessage from '@/replies/ReplyMessage';
+import getKindDataFromEssay from '@/logic/getKindData';
+import {
+  useInvertedScrollInteraction,
+  useUserHasScrolled,
+} from '@/logic/scroll';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
-import { ChatWrit } from '@/types/chat';
-import { useChatState } from '@/state/chat';
-import ChatMessage from '../ChatMessage/ChatMessage';
-import ChatNotice from '../ChatNotice';
-import { useChatStore } from '../useChatStore';
+import { PageTuple, ReplyTuple } from '@/types/channel';
+import ChatScrollerPlaceholder from './ChatScrollerPlaceholder';
 
 const logger = createDevLogger('ChatScroller', false);
 
@@ -56,20 +55,27 @@ const ChatScrollerItem = React.memo(
       return item.component;
     }
 
-    const { writ, time } = item;
-    const content = writ?.memo?.content ?? {};
-    if ('notice' in content) {
+    const { writ, time, ...rest } = item;
+
+    if ('memo' in writ) {
       return (
-        <ChatNotice
-          key={writ.seal.id}
-          writ={writ}
-          newDay={new Date(daToUnix(time))}
-        />
+        <ReplyMessage key={writ.seal.id} reply={writ} time={time} {...rest} />
       );
     }
 
+    const { notice } = getKindDataFromEssay(writ.essay);
+    if (notice) {
+      return <ChatNotice key={writ.seal.id} writ={writ} />;
+    }
+
     return (
-      <ChatMessage key={writ.seal.id} isScrolling={isScrolling} {...item} />
+      <ChatMessage
+        key={writ.seal.id}
+        isScrolling={isScrolling}
+        writ={writ}
+        time={time}
+        {...rest}
+      />
     );
   }
 );
@@ -153,7 +159,10 @@ const loaderPadding = {
 
 export interface ChatScrollerProps {
   whom: string;
-  messages: BTree<BigInteger, ChatWrit>;
+  messages: PageTuple[] | WritTuple[] | ReplyTuple[];
+  onAtTop?: () => void;
+  onAtBottom?: () => void;
+  fetchState: 'initial' | 'top' | 'bottom';
   replying?: boolean;
   /**
    * Element to be inserted at the top of the list scroll after we've loaded the
@@ -164,17 +173,24 @@ export interface ChatScrollerProps {
   scrollerRef: React.RefObject<VirtuosoHandle>;
   scrollElementRef: React.RefObject<HTMLDivElement>;
   isScrolling: boolean;
+  hasLoadedNewest: boolean;
+  hasLoadedOldest: boolean;
 }
 
 export default function ChatScroller({
   whom,
   messages,
+  onAtTop,
+  onAtBottom,
+  fetchState,
   replying = false,
   topLoadEndMarker,
   scrollTo: rawScrollTo = undefined,
   scrollerRef,
   scrollElementRef,
   isScrolling,
+  hasLoadedNewest,
+  hasLoadedOldest,
 }: ChatScrollerProps) {
   const isMobile = useIsMobile();
   const scrollTo = useBigInt(rawScrollTo);
@@ -187,24 +203,12 @@ export default function ChatScroller({
   const { userHasScrolled, resetUserHasScrolled } =
     useUserHasScrolled(scrollElementRef);
 
-  const {
-    activeMessageKeys,
-    activeMessageEntries,
-    fetchMessages,
-    fetchState,
-    hasLoadedNewest,
-    hasLoadedOldest,
-  } = useMessageData({
+  const { activeMessageKeys, activeMessageEntries } = useMessageData({
     whom,
     scrollTo,
     messages,
     replying,
   });
-
-  useObjectChangeLogging(
-    { hasLoadedNewest, hasLoadedOldest, isAtTop, isAtBottom },
-    logger
-  );
 
   const topItem: CustomScrollItemData | null = useMemo(
     () =>
@@ -244,6 +248,11 @@ export default function ChatScroller({
     }
     return count - 1;
   }, [messageKeys, count, scrollTo]);
+
+  useObjectChangeLogging(
+    { isAtTop, isAtBottom, hasLoadedNewest, hasLoadedOldest, anchorIndex },
+    logger
+  );
 
   const virtualizerRef = useRef<DivVirtualizer>();
 
@@ -412,61 +421,37 @@ export default function ChatScroller({
   useFakeVirtuosoHandle(scrollerRef, virtualizer);
   useInvertedScrollInteraction(scrollElementRef, isInverted);
 
-  // Load more content if there's not enough to fill the scroller + there's more to load.
-  // The main place this happens is when there are a bunch of replies in the recent chat history.
-  const contentIsShort = contentHeight < scrollElementHeight;
-  useEffect(() => {
-    if (
-      contentIsShort &&
-      fetchState === 'initial' &&
-      // don't try to load more in threads, because their content is already fetched by main window
-      !replying
-    ) {
-      const loadingNewer = loadDirection === 'newer';
-      if (
-        (loadingNewer && !hasLoadedNewest) ||
-        (!loadingNewer && !hasLoadedOldest)
-      ) {
-        logger.log('not enough content, loading more');
-        fetchMessages(loadingNewer);
-      }
-    }
-  }, [
-    replying,
-    contentIsShort,
-    fetchMessages,
-    fetchState,
-    loadDirection,
-    hasLoadedNewest,
-    hasLoadedOldest,
-  ]);
-
   // Load more items when list reaches the top or bottom.
   useEffect(() => {
     if (fetchState !== 'initial' || !userHasScrolled) return;
-    const chatStore = useChatStore.getState();
+
     if (isAtTop && !hasLoadedOldest) {
-      logger.log('loading older messages');
       setLoadDirection('older');
-      chatStore.bottom(false);
-      fetchMessages(false);
+      logger.log('load older');
+      onAtTop?.();
     } else if (isAtBottom && !hasLoadedNewest) {
-      logger.log('loading newer messages');
       setLoadDirection('newer');
-      fetchMessages(true);
-      chatStore.bottom(true);
-      chatStore.delayedRead(whom, () => useChatState.getState().markRead(whom));
+      logger.log('load newer');
+      onAtBottom?.();
     }
   }, [
     fetchState,
+    hasLoadedNewest,
+    hasLoadedOldest,
     isAtTop,
     isAtBottom,
-    fetchMessages,
-    whom,
-    hasLoadedOldest,
-    hasLoadedNewest,
+    onAtTop,
+    onAtBottom,
     userHasScrolled,
   ]);
+
+  useEffect(() => {
+    if (fetchState !== 'initial' || !userHasScrolled) return;
+    if (isAtBottom) {
+      setLoadDirection('newer');
+      onAtBottom?.();
+    }
+  }, [fetchState, isAtBottom, onAtBottom, userHasScrolled]);
 
   // When the list inverts, we need to flip the scroll position in order to appear to stay in the same place.
   // We do this here as opposed to in an effect so that virtualItems is correct in time for this render.
@@ -498,6 +483,7 @@ export default function ChatScroller({
           There are no messages in this channel
         </EmptyPlaceholder>
       )}
+
       <div
         className="l-0 absolute top-0 w-full"
         ref={contentElementRef}

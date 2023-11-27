@@ -1,7 +1,7 @@
 import React, { PropsWithChildren } from 'react';
 import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChannel, useAmAdmin, useGroup } from '@/state/groups';
+import { useGroupChannel, useAmAdmin, useGroup } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import { getFlagParts, isTalk } from '@/logic/utils';
@@ -15,7 +15,7 @@ export type ChannelHeaderProps = PropsWithChildren<{
   groupFlag: string;
   nest: string;
   prettyAppName: string;
-  leave: (flag: string) => Promise<void>;
+  leave: ({ nest }: { nest: string }) => Promise<void>;
 }>;
 
 export default function ChannelHeader({
@@ -26,7 +26,7 @@ export default function ChannelHeader({
   children,
 }: ChannelHeaderProps) {
   const isMobile = useIsMobile();
-  const channel = useChannel(groupFlag, nest);
+  const channel = useGroupChannel(groupFlag, nest);
   const isAdmin = useAmAdmin(groupFlag);
   const group = useGroup(groupFlag);
   const host = getFlagParts(groupFlag).ship;

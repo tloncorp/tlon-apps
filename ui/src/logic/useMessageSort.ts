@@ -1,4 +1,5 @@
-import { ChatBrief, ChatBriefs } from '@/types/chat';
+import { DMUnread } from '@/types/dms';
+import { Unread } from '@/types/channel';
 import useSidebarSort, {
   RECENT,
   Sorter,
@@ -15,12 +16,15 @@ export default function useMessageSort() {
     sortOptions,
   });
 
-  function sortMessages(briefs: ChatBriefs) {
-    const accessors: Record<string, (k: string, v: ChatBrief) => string> = {
-      [RECENT]: (flag: string, _brief: ChatBrief) => `chat/${flag}`,
+  function sortMessages(unreads: Record<string, Unread | DMUnread>) {
+    const accessors: Record<
+      string,
+      (k: string, v: Unread | DMUnread) => string
+    > = {
+      [RECENT]: (flag: string, _unread: Unread | DMUnread) => flag,
     };
 
-    return sortRecordsBy(briefs, accessors[sortFn], true);
+    return sortRecordsBy(unreads, accessors[sortFn], true);
   }
 
   return {

@@ -1,11 +1,9 @@
-/-  c=chat
-/+  j=chat-json
+/-  c=chat-2
 |_  =invite:club:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  invite
-  ++  json  (club-invite:enjs:j invite)
   --
 ++  grab
   |%

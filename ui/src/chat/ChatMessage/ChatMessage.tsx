@@ -1,15 +1,19 @@
 /* eslint-disable react/no-unused-prop-types */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import cn from 'classnames';
-import _ from 'lodash';
 import debounce from 'lodash/debounce';
-import f from 'lodash/fp';
 import { BigInteger } from 'big-integer';
 import { daToUnix } from '@urbit/api';
 import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
 import { NavLink, useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
-import { ChatBrief, ChatStory, ChatWrit } from '@/types/chat';
+import { DMUnread } from '@/types/dms';
 import Author from '@/chat/ChatMessage/Author';
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
@@ -17,19 +21,22 @@ import ChatReactions from '@/chat/ChatReactions/ChatReactions';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
 import {
-  usePact,
-  useChatState,
-  useIsMessageDelivered,
-  useIsMessagePosted,
-  useWrit,
+  useMarkDmReadMutation,
   useMessageToggler,
+  useTrackedMessageStatus,
 } from '@/state/chat';
 import Avatar from '@/components/Avatar';
 import DoubleCaretRightIcon from '@/components/icons/DoubleCaretRightIcon';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import useLongPress from '@/logic/useLongPress';
+import {
+  useMarkReadMutation,
+  usePostToggler,
+  useTrackedPostStatus,
+} from '@/state/channel/channel';
+import { Post, Story, Unread } from '@/types/channel';
 import {
   useChatDialog,
   useChatHovering,
@@ -41,7 +48,10 @@ import ReactionDetails from '../ChatReactions/ReactionDetails';
 export interface ChatMessageProps {
   whom: string;
   time: BigInteger;
-  writ: ChatWrit;
+  writ: Post;
+  // it's necessary to pass in the replyCount because if it's nested
+  // it won't trigger a re-render
+  replyCount?: number;
   newAuthor?: boolean;
   newDay?: boolean;
   hideReplies?: boolean;
@@ -51,8 +61,56 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function briefMatches(brief: ChatBrief, id: string): boolean {
-  return brief['read-id'] === id;
+function unreadStatus(
+  unread: Unread | undefined,
+  id: string
+): 'none' | 'top' | 'thread' {
+  if (!unread) {
+    return 'none';
+  }
+
+  const unreadId = unread['unread-id'];
+  const threads = unread.threads || {};
+  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
+  const topId = threadKeys[0];
+
+  if (topId && topId === id && (!unreadId || topId < unreadId)) {
+    return 'thread';
+  }
+
+  if (unreadId === id) {
+    return 'top';
+  }
+
+  return 'none';
+}
+
+function dmUnreadStatus(unread: DMUnread | undefined, id: string) {
+  if (!unread) {
+    return 'none';
+  }
+
+  const unreadId = unread['unread-id'];
+  const threads = unread.threads || {};
+  const threadKeys = Object.entries(threads).sort(([, a], [, b]) =>
+    a['parent-time'].localeCompare(b['parent-time'])
+  );
+  const topId = threadKeys[0]?.[0];
+  const topTime = threadKeys[0]?.[1]['parent-time'];
+
+  if (
+    topId &&
+    topId === id &&
+    (!unreadId || (topTime && topTime < unreadId.time))
+  ) {
+    return 'thread';
+  }
+
+  if (unreadId?.id === id) {
+    return 'top';
+  }
+
+  return 'none';
 }
 
 const mergeRefs =
@@ -68,16 +126,17 @@ const mergeRefs =
     });
   };
 
-const hiddenMessage: ChatStory = {
-  block: [],
-  inline: [
-    {
-      italics: [
-        'You have hidden this message. You can unhide it from the options menu.',
-      ],
-    },
-  ],
-};
+const hiddenMessage: Story = [
+  {
+    inline: [
+      {
+        italics: [
+          'You have hidden this message. You can unhide it from the options menu.',
+        ],
+      },
+    ],
+  },
+];
 
 const ChatMessage = React.memo<
   ChatMessageProps & React.RefAttributes<HTMLDivElement>
@@ -88,6 +147,7 @@ const ChatMessage = React.memo<
         whom,
         time,
         writ,
+        replyCount = 0,
         newAuthor = false,
         newDay = false,
         hideReplies = false,
@@ -98,7 +158,7 @@ const ChatMessage = React.memo<
       }: ChatMessageProps,
       ref
     ) => {
-      const { seal, memo } = writ;
+      const { seal, essay } = writ;
       const container = useRef<HTMLDivElement>(null);
       const { idShip, idTime } = useParams<{
         idShip: string;
@@ -109,12 +169,22 @@ const ChatMessage = React.memo<
       const isThreadOp = threadOpId === seal.id && hideReplies;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isThread && isMobile;
-      const chatInfo = useChatInfo(whom);
+      const isDMOrMultiDM = useIsDmOrMultiDm(whom);
+      const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
       const unread = chatInfo?.unread;
-      const unreadId = unread?.brief['read-id'];
-      const { hovering, setHovering } = useChatHovering(whom, writ.seal.id);
-      const { isHidden } = useMessageToggler(writ.seal.id);
-      const { open: pickerOpen } = useChatDialog(whom, writ.seal.id, 'picker');
+      const unreadDisplay = isDMOrMultiDM
+        ? dmUnreadStatus(unread?.unread as DMUnread, seal.id)
+        : unreadStatus(unread?.unread as Unread, seal.id);
+      const { hovering, setHovering } = useChatHovering(whom, seal.id);
+      const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
+      const { mutate: markChatRead } = useMarkReadMutation();
+      const { mutate: markDmRead } = useMarkDmReadMutation();
+      const { isHidden: isMessageHidden } = useMessageToggler(seal.id);
+      const { isHidden: isPostHidden } = usePostToggler(seal.id);
+      const isHidden = useMemo(
+        () => isMessageHidden || isPostHidden,
+        [isMessageHidden, isPostHidden]
+      );
       const { ref: viewRef } = useInView({
         threshold: 1,
         onChange: useCallback(
@@ -124,7 +194,7 @@ const ChatMessage = React.memo<
               return;
             }
 
-            const { brief, seen } = unread;
+            const { unread: brief, seen } = unread;
             /* the first fire of this function
                which we don't to do anything with. */
             if (!inView && !seen) {
@@ -136,7 +206,6 @@ const ChatMessage = React.memo<
               read,
               delayedRead,
             } = useChatStore.getState();
-            const { markRead } = useChatState.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -144,9 +213,15 @@ const ChatMessage = React.memo<
                doing so. we don't want to accidentally clear unreads when
                the state has changed
             */
-            if (inView && briefMatches(brief, writ.seal.id) && !seen) {
+            if (inView && unreadDisplay === 'top' && !seen) {
               markSeen(whom);
-              delayedRead(whom, () => markRead(whom));
+              delayedRead(whom, () => {
+                if (isDMOrMultiDM) {
+                  markDmRead({ whom });
+                } else {
+                  markChatRead({ nest: `chat/${whom}` });
+                }
+              });
               return;
             }
 
@@ -154,48 +229,45 @@ const ChatMessage = React.memo<
               we can assume the user is done and clear the unread. */
             if (!inView && unread && seen) {
               read(whom);
-              markRead(whom);
+              if (isDMOrMultiDM) {
+                markDmRead({ whom });
+              } else {
+                markChatRead({ nest: `chat/${whom}` });
+              }
             }
           },
-          [unread, whom, writ.seal.id]
+          [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead, markDmRead]
         ),
       });
-      const isMessageDelivered = useIsMessageDelivered(seal.id);
-      const isMessagePosted = useIsMessagePosted(seal.id);
-      const isReplyOp = chatInfo?.replying === writ.seal.id;
+
+      const msgStatus = useTrackedMessageStatus({
+        author: window.our,
+        sent: essay.sent,
+      });
+      const trackedPostStatus = useTrackedPostStatus({
+        author: window.our,
+        sent: essay.sent,
+      });
+      // const msgStatus = useTrackedMessageStatus(seal.id);
+      // const status = useTrackedPostStatus({
+      //   author: window.our,
+      //   sent: essay.sent,
+      // });
+
+      const isDelivered =
+        msgStatus === 'delivered' && trackedPostStatus === 'delivered';
+      const isSent = msgStatus === 'sent' || trackedPostStatus === 'sent';
+      const isPending =
+        msgStatus === 'pending' || trackedPostStatus === 'pending';
+
+      const isReplyOp = chatInfo?.replying === seal.id;
 
       const unix = new Date(daToUnix(time));
 
-      const pact = usePact(whom);
-
-      const numReplies = seal.replied.length;
-      const repliesContainsUnreadId = unreadId
-        ? seal.replied.includes(unreadId)
-        : false;
-      const replyAuthors = _.flow(
-        f.map((k: string) => {
-          const t = pact?.index[k];
-          const mess = t ? pact.writs.get(t) : undefined;
-          if (!mess) {
-            return undefined;
-          }
-          return mess.memo.author;
-        }),
-        f.compact,
-        f.uniq,
-        f.take(3)
-      )(seal.replied);
-      const repliesSortedByTime = seal.replied.sort((a, b) => {
-        const aTime = useChatState.getState().getTime(whom, a);
-        const bTime = useChatState.getState().getTime(whom, b);
-
-        return aTime.compare(bTime);
-      });
-      const lastReply = _.last(repliesSortedByTime);
-      const { entry: lastReplyWrit } = useWrit(whom, lastReply ?? '');
-      const lastReplyTime = lastReplyWrit
-        ? new Date(daToUnix(lastReplyWrit[0]))
-        : new Date();
+      const replyAuthors = seal.meta.lastRepliers;
+      const lastReplyTime = seal.meta.lastReply
+        ? new Date(seal.meta.lastReply)
+        : null;
 
       const hover = useRef(false);
       const setHover = useRef(
@@ -270,6 +342,10 @@ const ChatMessage = React.memo<
         isThreadOp,
       ]);
 
+      if (!writ) {
+        return null;
+      }
+
       return (
         <div
           ref={mergeRefs(ref, container)}
@@ -283,16 +359,18 @@ const ChatMessage = React.memo<
           id="chat-message-target"
           {...handlers}
         >
-          {unread && briefMatches(unread.brief, writ.seal.id) ? (
+          {unread && unreadDisplay === 'top' ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.brief.count}
+              unreadCount={unread.unread.count}
               ref={viewRef}
             />
           ) : null}
-          {newDay ? <DateDivider date={unix} /> : null}
+          {newDay && unreadDisplay === 'none' ? (
+            <DateDivider date={unix} />
+          ) : null}
           {newAuthor ? (
-            <Author ship={memo.author} date={unix} hideRoles={isThread} />
+            <Author ship={essay.author} date={unix} hideRoles={isThread} />
           ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             <ChatMessageOptions
@@ -312,7 +390,7 @@ const ChatMessage = React.memo<
                 className={cn(
                   'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-3 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
-                  !isMessageDelivered && !isMessagePosted && 'text-gray-400',
+                  isPending && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
                 )}
               >
@@ -322,14 +400,14 @@ const ChatMessage = React.memo<
                     isScrolling={isScrolling}
                     writId={seal.id}
                   />
-                ) : 'story' in memo.content ? (
+                ) : essay.content ? (
                   <ChatContent
-                    story={memo.content.story}
+                    story={essay.content}
                     isScrolling={isScrolling}
                     writId={seal.id}
                   />
                 ) : null}
-                {Object.keys(seal.feels).length > 0 && (
+                {Object.keys(seal.reacts).length > 0 && (
                   <>
                     <ChatReactions
                       id="reactions-target"
@@ -339,11 +417,11 @@ const ChatMessage = React.memo<
                     <ReactionDetails
                       open={reactionDetailsOpen}
                       onOpenChange={setReactionDetailsOpen}
-                      feels={seal.feels}
+                      reactions={seal.reacts}
                     />
                   </>
                 )}
-                {numReplies > 0 && !hideReplies ? (
+                {replyCount > 0 && !hideReplies ? (
                   <NavLink
                     to={`message/${seal.id}`}
                     className={({ isActive }) =>
@@ -362,7 +440,7 @@ const ChatMessage = React.memo<
                       <div className="mr-2 flex flex-row-reverse">
                         {replyAuthors.map((ship, i) => (
                           <div
-                            key={ship}
+                            key={ship + i}
                             className={cn(
                               'reply-avatar relative h-6 w-6 rounded bg-white outline outline-2 outline-white sm:group-one-focus-within:outline-gray-50 sm:group-one-hover:outline-gray-50',
                               i !== 0 && '-mr-3'
@@ -375,12 +453,12 @@ const ChatMessage = React.memo<
 
                       <span
                         className={cn(
-                          repliesContainsUnreadId ? 'text-blue' : 'mr-2'
+                          unreadDisplay === 'thread' ? 'text-blue' : 'mr-2'
                         )}
                       >
-                        {numReplies} {numReplies > 1 ? 'replies' : 'reply'}{' '}
+                        {replyCount} {replyCount > 1 ? 'replies' : 'reply'}{' '}
                       </span>
-                      {repliesContainsUnreadId ? (
+                      {unreadDisplay === 'thread' ? (
                         <UnreadIndicator
                           className="h-6 w-6 text-blue transition-opacity"
                           aria-label="Unread replies in this thread"
@@ -391,9 +469,10 @@ const ChatMessage = React.memo<
                           Last reply&nbsp;
                         </span>
                         <span className="inline-block first-letter:capitalize sm:first-letter:normal-case">
-                          {isToday(lastReplyTime)
-                            ? `${formatDistanceToNow(lastReplyTime)} ago`
-                            : formatRelative(lastReplyTime, new Date())}
+                          {lastReplyTime &&
+                            (isToday(lastReplyTime)
+                              ? `${formatDistanceToNow(lastReplyTime)} ago`
+                              : formatRelative(lastReplyTime, new Date()))}
                         </span>
                       </span>
                     </div>
@@ -401,10 +480,10 @@ const ChatMessage = React.memo<
                 ) : null}
               </div>
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
-                {!isMessageDelivered && (
+                {!isDelivered && (
                   <DoubleCaretRightIcon
                     className="absolute left-0 bottom-2 h-5 w-5"
-                    primary={isMessagePosted ? 'text-black' : 'text-gray-200'}
+                    primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />
                 )}
