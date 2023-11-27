@@ -296,10 +296,14 @@ const infinitePostUpdater = (
           [time]: post,
         };
 
-        const newestPost = _.last(Object.entries(lastPage.posts));
+        const newestPost = _.last(
+          Object.entries(lastPage.posts).sort(([a], [b]) => a.localeCompare(b))
+        );
 
+        const newOlder = newestPost ? udToDec(newestPost[0]) : null;
+        lastPage.newer = newOlder;
         const newLastPage: PagedPosts = {
-          older: udToDec(newestPost?.[0] ?? ''),
+          older: newOlder,
           newer: null,
           posts: newPosts,
           total: lastPage.total + 1,
@@ -336,10 +340,12 @@ const infinitePostUpdater = (
           };
         }
 
-        const newLastPageParams = {
-          time: bigInt(udToDec(time)),
-          direction: 'older',
-        };
+        const newLastPageParams = newOlder
+          ? {
+              time: newOlder,
+              direction: 'older',
+            }
+          : null;
 
         const newPageParams = [
           ...d.pageParams.slice(0, -1),
@@ -347,15 +353,13 @@ const infinitePostUpdater = (
           null,
         ];
 
-        console.log({
-          pages: [...d.pages, newLastPage],
-          pageParams: newPageParams,
-        });
-
-        return {
-          pages: [...d.pages, newLastPage],
+        const newData = {
+          pages: [...d.pages.slice(0, -1), lastPage, newLastPage],
           pageParams: newPageParams,
         };
+        console.log(newData);
+
+        return newData;
       });
     }
   } else if ('reacts' in postResponse) {
@@ -524,7 +528,7 @@ const infinitePostUpdater = (
 };
 
 type PageParam = null | {
-  time: BigInteger;
+  time: string;
   direction: string;
 };
 
@@ -572,7 +576,7 @@ export function useInfinitePosts(
 
       if (pageParam && !latest) {
         const { time, direction } = pageParam;
-        const ud = decToUd(time.toString());
+        const ud = decToUd(time);
         path = `/${nest}/posts/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       } else if (initialTime && !latest) {
         path = `/${nest}/posts/around/${decToUd(initialTime)}/${
@@ -602,7 +606,7 @@ export function useInfinitePosts(
       }
 
       return {
-        time: bigInt(newer),
+        time: newer,
         direction: 'newer',
       };
     },
@@ -617,7 +621,7 @@ export function useInfinitePosts(
       }
 
       return {
-        time: bigInt(older),
+        time: older,
         direction: 'older',
       };
     },
@@ -645,9 +649,7 @@ export function useInfinitePosts(
     .flat()
     .sort(([a], [b]) => a.compare(b));
 
-  console.log('pageParams before return', {
-    pageParams: data.pageParams,
-  });
+  console.log('page data before return', data);
 
   return {
     data,
