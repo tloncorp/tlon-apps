@@ -1,4 +1,4 @@
-/-  h=heap, c=channels, g=groups, ha=hark, e=epic
+/-  h=heap, c=channels, g=groups, ha=hark, e=epic, c2=chat-2
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
@@ -537,6 +537,13 @@
     =/  =cage  [%channel-migration !>(v-channels)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
   ::
+  ++  old-chats
+    =>  [c2=c2 bowl=bowl ..zuse]  ~+
+    .^  (map flag:c2 chat:c2)
+      %gx
+      /(scot %p our.bowl)/chat/(scot %da now.bowl)/old/noun
+    ==
+  ::
   ++  convert-channels
     |=  [log=? =stash:h]
     ^-  v-channels:c
@@ -609,9 +616,29 @@
   ++  convert-story
     |=  old=content:h
     ^-  story:c
-    %+  welp
-      (turn p.old |=(=block:h [%block block]))
-    [%inline q.old]~
+    =-  (snoc - [%inline q.old])
+    %+  turn  p.old
+    |=  =block:h
+    ^-  verse:c
+    :-  %block
+    ?.  ?=([%cite %chan *] block)  block
+    =;  new=(unit path)
+      ?~  new  block
+      block(wer.cite u.new)
+    =,  cite.block
+    ?.  ?=(%chat p.nest)                     ~
+    ?~  old=(~(get by old-chats) q.nest)     ~
+    =*  dex  dex.pact.u.old
+    =*  wit  wit.pact.u.old
+    ?.  ?=([%msg @ @ ~] wer.cite.block)      ~
+    ?~  who=(slaw %p i.t.wer)                ~
+    ?~  tim=(slaw %ud i.t.t.wer)             ~
+    ?~  id=(~(get by dex) [u.who u.tim])     ~
+    =*  single  `/msg/(crip (a-co:co u.id))
+    ?~  ret=(get:on:writs:c2 wit u.id)       single
+    ?~  replying.u.ret                       single
+    ?~  td=(~(get by dex) u.replying.u.ret)  single
+    `/msg/(crip (a-co:co u.td))/(crip (a-co:co u.id))
   ::
   ++  convert-log
     |=  [=curios:h posts=v-posts:c =perm:c =log:h]

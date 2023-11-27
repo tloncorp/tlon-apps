@@ -682,6 +682,7 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+    [%x %old ~]  ``noun+!>(old-chats)  ::  legacy data, for migration use
   ::
     [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
   ::
@@ -896,7 +897,7 @@
       ?~  parent-time  reply-index
       =/  old-replies=v-replies:d  (~(gut by reply-index) u.parent-time *v-replies:d)
       %+  ~(put by reply-index)  u.parent-time
-      (put:on-v-replies:d old-replies time `(convert-quip old time writ))
+      (put:on-v-replies:d old-replies time `(convert-quip time writ))
     %+  gas:on-v-posts:d  *v-posts:d
     %+  murn  writs
     |=  [=time =writ:t]
@@ -906,12 +907,12 @@
     ::  by the above code.
     ::
     =/  replies=v-replies:d  (~(gut by reply-index) time *v-replies:d)
-    (some time `(convert-post old time writ replies))
+    (some time `(convert-post time writ replies))
   ::
   ++  convert-post
-    |=  [=pact:t id=@da old=writ:t replies=v-replies:d]
+    |=  [id=@da old=writ:t replies=v-replies:d]
     ^-  v-post:d
-    [[id replies (convert-feels feels.old)] %0 (convert-essay pact +.old)]
+    [[id replies (convert-feels feels.old)] %0 (convert-essay +.old)]
   ::
   ++  convert-feels
     |=  old=(map ship feel:t)
@@ -921,22 +922,22 @@
     [%0 `react]
   ::
   ++  convert-quip
-    |=  [=pact:t id=@da old=writ:t]
+    |=  [id=@da old=writ:t]
     ^-  v-reply:d
-    [[id (convert-feels feels.old)] (convert-memo pact +.old)]
+    [[id (convert-feels feels.old)] (convert-memo +.old)]
   ::
   ++  convert-memo
-    |=  [=pact:t old=memo:t]
+    |=  old=memo:t
     ^-  memo:d
-    [(convert-story pact author.old content.old) author.old sent.old]
+    [(convert-story author.old content.old) author.old sent.old]
   ::
   ++  convert-essay
-    |=  [=pact:t old=memo:t]
+    |=  old=memo:t
     ^-  essay:d
-    [(convert-memo pact old) %chat ?-(-.content.old %story ~, %notice [%notice ~])]
+    [(convert-memo old) %chat ?-(-.content.old %story ~, %notice [%notice ~])]
   ::
   ++  convert-story
-    |=  [pact:t =ship old=content:t]
+    |=  [=ship old=content:t]
     ^-  story:d
     ?-    -.old
         %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
@@ -950,9 +951,14 @@
       =;  new=(unit path)
         ?~  new  block
         block(wer.cite u.new)
+      =,  cite.block
+      ?.  ?=(%chat p.nest)                     ~
+      ?~  old=(~(get by old-chats) q.nest)     ~
+      =*  dex  dex.pact.u.old
+      =*  wit  wit.pact.u.old
       ?.  ?=([%msg @ @ ~] wer.cite.block)      ~
-      ?~  who=(slaw %p i.t.wer.cite.block)     ~
-      ?~  tim=(slaw %ud i.t.t.wer.cite.block)  ~
+      ?~  who=(slaw %p i.t.wer)                ~
+      ?~  tim=(slaw %ud i.t.t.wer)             ~
       ?~  id=(~(get by dex) [u.who u.tim])     ~
       =*  single  `/msg/(crip (a-co:co u.id))
       ?~  ret=(get:on:writs:t wit u.id)        single
