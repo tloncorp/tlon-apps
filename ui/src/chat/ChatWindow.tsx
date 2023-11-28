@@ -50,6 +50,7 @@ export default function ChatWindow({
     refetch,
     fetchNextPage,
     isLoading,
+    isFetching,
     isFetchingNextPage,
     isFetchingPreviousPage,
   } = useInfinitePosts(nest, scrollTo?.toString(), shouldGetLatest);
@@ -83,13 +84,13 @@ export default function ChatWindow({
 
   const goToLatest = useCallback(async () => {
     setSearchParams({});
-    if (hasNextPage) {
+    if (hasPreviousPage) {
       await refetch();
       setShouldGetLatest(false);
     } else {
       scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
     }
-  }, [setSearchParams, refetch, hasNextPage, scrollerRef]);
+  }, [setSearchParams, refetch, hasPreviousPage, scrollerRef]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(nest);
@@ -103,24 +104,18 @@ export default function ChatWindow({
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
     delayedRead(nest, () => markRead({ nest }));
-    if (hasPreviousPage && !isFetchingPreviousPage) {
+    if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [
-    nest,
-    markRead,
-    fetchPreviousPage,
-    hasPreviousPage,
-    isFetchingPreviousPage,
-  ]);
+  }, [nest, markRead, fetchPreviousPage, hasPreviousPage, isFetching]);
 
   const onAtTop = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
+    if (hasNextPage && !isFetching) {
       log('fetching next page');
       fetchNextPage();
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetching]);
 
   useEffect(
     () => () => {
@@ -133,10 +128,10 @@ export default function ChatWindow({
   );
 
   useEffect(() => {
-    if (scrollTo && hasNextPage) {
+    if (scrollTo && hasPreviousPage) {
       setShouldGetLatest(true);
     }
-  }, [scrollTo, hasNextPage]);
+  }, [scrollTo, hasPreviousPage]);
 
   if (isLoading) {
     return (
@@ -188,7 +183,7 @@ export default function ChatWindow({
           hasLoadedNewest={!hasPreviousPage}
         />
       </div>
-      {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (
+      {scrollTo && (hasPreviousPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"

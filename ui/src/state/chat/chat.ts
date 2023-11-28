@@ -1408,15 +1408,17 @@ export function useInfiniteDMs(
 
   const writs: WritTuple[] = useMemo(
     () =>
-      data?.pages
-        ?.map((page) => {
-          const writPages = Object.entries(page.writs).map(
-            ([k, v]) => [bigInt(udToDec(k)), v] as WritTuple
-          );
-          return writPages;
-        })
-        .flat()
-        .sort(([a], [b]) => a.compare(b)) ?? [],
+      _.uniqBy(
+        data?.pages
+          ?.map((page) => {
+            const writPages = Object.entries(page.writs).map(
+              ([k, v]) => [bigInt(udToDec(k)), v] as WritTuple
+            );
+            return writPages;
+          })
+          .flat() || [],
+        ([k]) => k.toString()
+      ).sort(([a], [b]) => a.compare(b)),
 
     [data]
   );

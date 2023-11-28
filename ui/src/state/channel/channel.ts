@@ -579,24 +579,24 @@ export function useInfinitePosts(
     retry: false,
   });
 
-  if (data === undefined || data.pages.length === 0) {
-    return {
-      posts: [] as PageTuple[],
-      data,
-      ...rest,
-    };
-  }
+  const posts: PageTuple[] = useMemo(() => {
+    if (data === undefined || data.pages.length === 0) {
+      return [];
+    }
 
-  const posts: PageTuple[] = data.pages
-    .map((page) => {
-      const pagePosts = Object.entries(page.posts).map(
-        ([k, v]) => [bigInt(udToDec(k)), v] as PageTuple
-      );
+    return _.uniqBy(
+      data.pages
+        .map((page) => {
+          const pagePosts = Object.entries(page.posts).map(
+            ([k, v]) => [bigInt(udToDec(k)), v] as PageTuple
+          );
 
-      return pagePosts;
-    })
-    .flat()
-    .sort(([a], [b]) => a.compare(b));
+          return pagePosts;
+        })
+        .flat(),
+      ([k]) => k.toString()
+    ).sort(([a], [b]) => a.compare(b));
+  }, [data]);
 
   return {
     data,
