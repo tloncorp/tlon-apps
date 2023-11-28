@@ -373,7 +373,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               {isSmall && (
                 <Route
                   path=":ship/search/:query?"
-                  element={<MobileChatSearch />}
+                  element={<MobileDmSearch />}
                 />
               )}
               {isSmall && (
