@@ -78,18 +78,18 @@ export default function DmWindow({
   );
 
   const onAtBottom = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      log('fetching next page');
-      fetchNextPage();
-    }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
-
-  const onAtTop = useCallback(() => {
     if (hasPreviousPage && !isFetchingPreviousPage) {
       log('fetching previous page');
       fetchPreviousPage();
     }
   }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
+
+  const onAtTop = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      log('fetching next page');
+      fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const goToLatest = useCallback(async () => {
     setSearchParams({});
@@ -158,8 +158,8 @@ export default function DmWindow({
           topLoadEndMarker={prefixedElement}
           onAtTop={onAtTop}
           onAtBottom={onAtBottom}
-          hasLoadedOldest={!hasPreviousPage}
-          hasLoadedNewest={!hasNextPage}
+          hasLoadedOldest={!hasNextPage}
+          hasLoadedNewest={!hasPreviousPage}
         />
       </div>
       {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (

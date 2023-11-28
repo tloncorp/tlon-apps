@@ -1378,19 +1378,7 @@ export function useInfiniteDMs(
       };
     },
     getNextPageParam: (lastPage): PageParam | undefined => {
-      const { newer } = lastPage;
-
-      if (!newer) {
-        return undefined;
-      }
-
-      return {
-        time: bigInt(newer),
-        direction: 'newer',
-      };
-    },
-    getPreviousPageParam: (firstPage): PageParam | undefined => {
-      const { older } = firstPage;
+      const { older } = lastPage;
 
       if (!older) {
         return undefined;
@@ -1399,6 +1387,18 @@ export function useInfiniteDMs(
       return {
         time: bigInt(older),
         direction: 'older',
+      };
+    },
+    getPreviousPageParam: (firstPage): PageParam | undefined => {
+      const { newer } = firstPage;
+
+      if (!newer) {
+        return undefined;
+      }
+
+      return {
+        time: bigInt(newer),
+        direction: 'newer',
       };
     },
     refetchOnMount: true,
