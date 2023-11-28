@@ -76,17 +76,21 @@ export default function ChatThread() {
       },
     ]);
   }
-  const orderedReplies = replies?.sort((a, b) => {
-    const aTime = a[0];
-    const bTime = b[0];
-    if (aTime.greater(bTime)) {
-      return 1;
-    }
-    if (aTime.lesser(bTime)) {
-      return -1;
-    }
-    return 0;
-  });
+  const orderedReplies = useMemo(
+    () =>
+      replies?.sort((a, b) => {
+        const aTime = a[0];
+        const bTime = b[0];
+        if (aTime.greater(bTime)) {
+          return 1;
+        }
+        if (aTime.lesser(bTime)) {
+          return -1;
+        }
+        return 0;
+      }),
+    [replies]
+  );
   const navigate = useNavigate();
   const threadRef = useRef<HTMLDivElement | null>(null);
   const perms = usePerms(nest);

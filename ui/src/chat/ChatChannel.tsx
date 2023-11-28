@@ -44,7 +44,7 @@ function ChatChannel({ title }: ViewProps) {
   const nest = `chat/${chFlag}`;
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
-  const inThread = idShip && idTime;
+  const inThread = !!idTime;
   const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
   const { mutateAsync: leaveChat } = useLeaveMutation();
   const { mutate: sendMessage } = useAddPostMutation(nest);
@@ -57,7 +57,10 @@ function ChatChannel({ title }: ViewProps) {
   const root = `/groups/${groupFlag}/channels/${nest}`;
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
-  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = useMemo(
+    () => isGroups && isMobile && !isChatInputFocused,
+    [isMobile, isChatInputFocused]
+  );
 
   const {
     group,

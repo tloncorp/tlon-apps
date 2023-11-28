@@ -1,3 +1,4 @@
+import { throttle } from 'lodash';
 import React, { createContext, useMemo, useState } from 'react';
 
 export const ChatInputFocusContext = createContext<{
@@ -20,7 +21,7 @@ export function ChatInputFocusProvider({
       isChatInputFocused,
       setIsChatInputFocused,
     }),
-    [isChatInputFocused, setIsChatInputFocused]
+    [isChatInputFocused]
   );
 
   return (
@@ -35,13 +36,18 @@ export function useChatInputFocus() {
     ChatInputFocusContext
   );
 
+  const throttledSetIsChatInputFocused = useMemo(
+    () => throttle(setIsChatInputFocused, 100),
+    [setIsChatInputFocused]
+  );
+
   const handleFocus = React.useCallback(() => {
-    setIsChatInputFocused(true);
-  }, [setIsChatInputFocused]);
+    throttledSetIsChatInputFocused(true);
+  }, [throttledSetIsChatInputFocused]);
 
   const handleBlur = React.useCallback(() => {
-    setIsChatInputFocused(false);
-  }, [setIsChatInputFocused]);
+    throttledSetIsChatInputFocused(false);
+  }, [throttledSetIsChatInputFocused]);
 
   return {
     isChatInputFocused,
