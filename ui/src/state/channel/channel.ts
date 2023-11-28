@@ -50,6 +50,7 @@ import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
+import channelKey from './keys';
 
 async function updatePostInCache(
   variables: { nest: Nest; postId: string },
@@ -502,8 +503,11 @@ export function useInfinitePosts(
 
   const invalidate = useRef(
     _.debounce(
-      () => {
-        queryClient.invalidateQueries({ queryKey, refetchType: 'none' });
+      (event: ChannelsResponse) => {
+        queryClient.invalidateQueries({
+          queryKey,
+          refetchType: 'posts' in event.response ? 'active' : 'none',
+        });
       },
       300,
       {
@@ -519,7 +523,7 @@ export function useInfinitePosts(
       path: `/${nest}`,
       event: (data: ChannelsResponse) => {
         infinitePostUpdater(queryKey, data, initialTime);
-        invalidate.current();
+        invalidate.current(data);
       },
     });
   }, [nest, invalidate, queryKey, initialTime]);
@@ -698,14 +702,36 @@ export function useOrderedPosts(
 
 const emptyChannels: Channels = {};
 export function useChannels(): Channels {
-  const { data, ...rest } = useReactQuerySubscription<Channels>({
-    queryKey: ['channels'],
+  const invalidate = useRef(
+    _.debounce(
+      (event: ChannelsResponse) => {
+        const postEvent = 'post' in event.response || 'posts' in event.response;
+        queryClient.invalidateQueries({
+          queryKey: channelKey(),
+          refetchType: postEvent ? 'none' : 'active',
+        });
+      },
+      300,
+      { leading: true, trailing: true }
+    )
+  );
+
+  const eventHandler = useCallback((event: ChannelsResponse) => {
+    invalidate.current(event);
+  }, []);
+
+  const { data, ...rest } = useReactQuerySubscription<
+    Channels,
+    ChannelsResponse
+  >({
+    queryKey: channelKey(),
     app: 'channels',
     path: '/',
     scry: '/channels',
     options: {
       refetchOnMount: false,
     },
+    onEvent: eventHandler,
   });
 
   if (rest.isLoading || rest.isError || data === undefined) {
@@ -1103,7 +1129,7 @@ export function useLeaveMutation() {
     mutationFn,
     onMutate: async (variables) => {
       const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.cancelQueries(['channels']);
+      await queryClient.cancelQueries(channelKey());
       await queryClient.cancelQueries(['unreads']);
       await queryClient.cancelQueries([han, 'perms', flag]);
       await queryClient.cancelQueries([han, 'posts', flag]);
@@ -1111,7 +1137,7 @@ export function useLeaveMutation() {
       queryClient.removeQueries([han, 'posts', flag]);
     },
     onSettled: async (_data, _error) => {
-      await queryClient.invalidateQueries(['channels']);
+      await queryClient.invalidateQueries(channelKey());
       await queryClient.invalidateQueries(['unreads']);
     },
   });
@@ -1126,14 +1152,14 @@ export function useViewMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['channels']);
+      await queryClient.cancelQueries(channelKey());
 
       const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
         'channels',
       ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(channelKey(), {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1155,14 +1181,14 @@ export function useSortMutation() {
     onMutate: async (variables) => {
       checkNest(variables.nest);
 
-      await queryClient.cancelQueries(['channels']);
+      await queryClient.cancelQueries(channelKey());
 
       const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
         'channels',
       ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(channelKey(), {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1200,14 +1226,14 @@ export function useArrangedPostsMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['channels']);
+      await queryClient.cancelQueries(channelKey());
 
       const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
         'channels',
       ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(channelKey(), {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1579,14 +1605,14 @@ export function useCreateMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['channels']);
+      await queryClient.cancelQueries(channelKey());
 
       const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
         'channels',
       ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(channelKey(), {
           ...prev,
           [`${variables.kind}/${window.our}/${variables.name}`]: {
             perms: { writers: [], group: variables.group },
@@ -1599,7 +1625,7 @@ export function useCreateMutation() {
       }
     },
     onSettled: async (_data, _error, variables) => {
-      await queryClient.invalidateQueries(['channels']);
+      await queryClient.invalidateQueries(channelKey());
       await queryClient.invalidateQueries([
         variables.kind,
         'posts',
@@ -1622,14 +1648,14 @@ export function useAddSectsMutation() {
     onMutate: async (variables) => {
       checkNest(variables.nest);
 
-      await queryClient.cancelQueries(['channels']);
+      await queryClient.cancelQueries(channelKey());
 
       const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
         'channels',
       ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(channelKey(), {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
@@ -1659,14 +1685,14 @@ export function useDeleteSectsMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['channels']);
+      await queryClient.cancelQueries(channelKey());
 
       const prev = queryClient.getQueryData<{ [nest: Nest]: Channel }>([
         'channels',
       ]);
 
       if (prev !== undefined) {
-        queryClient.setQueryData<{ [nest: Nest]: Channel }>(['channels'], {
+        queryClient.setQueryData<{ [nest: Nest]: Channel }>(channelKey(), {
           ...prev,
           [variables.nest]: {
             ...prev[variables.nest],
