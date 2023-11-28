@@ -932,8 +932,8 @@ export function useGroupLeaveMutation() {
         queryClient.removeQueries(['gangs', variables.flag]);
         queryClient.removeQueries(['gang-preview', variables.flag]);
         queryClient.removeQueries([GROUPS_KEY, variables.flag]);
-        await queryClient.refetchQueries(['gangs']);
-        await queryClient.refetchQueries([GROUPS_KEY]);
+        await queryClient.invalidateQueries(['gangs']);
+        await queryClient.invalidateQueries([GROUPS_KEY]);
       },
     }
   );
