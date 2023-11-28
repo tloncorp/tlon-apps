@@ -39,10 +39,11 @@ export default function EmojiPicker({
   ...props
 }: EmojiPickerProps) {
   const { data, load } = useEmoji();
-  const { ship, chName, chShip, writTime } = useParams<{
+  const { ship, chName, chShip, writShip, writTime } = useParams<{
     ship: string;
     chName: string;
     chShip: string;
+    writShip?: string;
     writTime: string;
   }>();
   const currentTheme = useCurrentTheme();
@@ -50,7 +51,7 @@ export default function EmojiPicker({
   const nest = `chat/${whom}`;
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
-  const writId = `${writTime}`;
+  const writId = writShip ? `${writShip}/${writTime}` : `${writTime}`;
   const isMobile = useIsMobile();
   const isDMOrMultiDM = useIsDmOrMultiDm(whom!);
   const inThread = useIsInThread();
