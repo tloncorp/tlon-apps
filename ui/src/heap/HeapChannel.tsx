@@ -44,7 +44,7 @@ function HeapChannel({ title }: ViewProps) {
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  const { posts, fetchPreviousPage, hasPreviousPage, isLoading } =
+  const { posts, fetchNextPage, hasNextPage, isLoading } =
     useInfinitePosts(nest);
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
 
@@ -104,11 +104,11 @@ function HeapChannel({ title }: ViewProps) {
 
   const loadOlderCurios = useCallback(
     (atBottom: boolean) => {
-      if (atBottom && hasPreviousPage) {
-        fetchPreviousPage();
+      if (atBottom && hasNextPage) {
+        fetchNextPage();
       }
     },
-    [fetchPreviousPage, hasPreviousPage]
+    [hasNextPage, fetchNextPage]
   );
 
   const computeItemKey = (_i: number, [time, _curio]: PageTuple) =>
