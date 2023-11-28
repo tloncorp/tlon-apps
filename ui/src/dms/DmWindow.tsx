@@ -50,6 +50,7 @@ export default function DmWindow({
     isLoading,
     fetchNextPage,
     fetchPreviousPage,
+    isFetching,
     isFetchingNextPage,
     isFetchingPreviousPage,
   } = useInfiniteDMs(whom, scrollTo?.toString(), shouldGetLatest);
@@ -78,28 +79,28 @@ export default function DmWindow({
   );
 
   const onAtBottom = useCallback(() => {
-    if (hasPreviousPage && !isFetchingPreviousPage) {
+    if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
+  }, [fetchPreviousPage, hasPreviousPage, isFetching]);
 
   const onAtTop = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage) {
+    if (hasNextPage && !isFetching) {
       log('fetching next page');
       fetchNextPage();
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetching]);
 
   const goToLatest = useCallback(async () => {
     setSearchParams({});
-    if (hasNextPage) {
+    if (hasPreviousPage) {
       await refetch();
       setShouldGetLatest(false);
     } else {
       scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
     }
-  }, [setSearchParams, refetch, hasNextPage, scrollerRef]);
+  }, [setSearchParams, refetch, hasPreviousPage, scrollerRef]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -121,10 +122,10 @@ export default function DmWindow({
   );
 
   useEffect(() => {
-    if (scrollTo && hasNextPage) {
+    if (scrollTo && hasPreviousPage) {
       setShouldGetLatest(true);
     }
-  }, [scrollTo, hasNextPage]);
+  }, [scrollTo, hasPreviousPage]);
 
   if (isLoading) {
     return (
@@ -162,7 +163,7 @@ export default function DmWindow({
           hasLoadedNewest={!hasPreviousPage}
         />
       </div>
-      {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (
+      {scrollTo && (hasPreviousPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"
