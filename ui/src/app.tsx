@@ -289,19 +289,19 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           {isMobile ? (
             <>
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
-                path="/dm/:ship/picker/:writShip/:writTime"
+                path="/dm/:ship/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
-                path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
+                path="/dm/:ship/message/:idShip/:idTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
             </>
@@ -589,19 +589,19 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           {isMobile ? (
             <>
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
-                path="/dm/:ship/picker/:writShip/:writTime"
+                path="/dm/:ship/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
-                path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
+                path="/dm/:ship/message/:idShip/:idTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
             </>
