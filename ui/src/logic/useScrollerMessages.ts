@@ -1,14 +1,9 @@
 import { daToUnix } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useMemo, useRef } from 'react';
-import { Writ, WritTuple } from '@/types/dms';
-import {
-  newReplyMap,
-  PageTuple,
-  Post,
-  Reply,
-  ReplyTuple,
-} from '@/types/channel';
+import { Writ } from '@/types/dms';
+import { Post, Reply } from '@/types/channel';
+import getKindDataFromEssay from './getKindData';
 
 export type WritArray = [BigInteger, Writ | Post | Reply | null][];
 
@@ -42,7 +37,9 @@ const getNewDayAndNewAuthorFromLastWrit = (
   const lastWrit = index === 0 ? undefined : messages[index - 1];
   const newAuthor =
     lastWrit && lastWrit[1]
-      ? getMessageAuthor(writ) !== getMessageAuthor(lastWrit[1])
+      ? getMessageAuthor(writ) !== getMessageAuthor(lastWrit[1]) ||
+        ('essay' in lastWrit[1] &&
+          !!getKindDataFromEssay(lastWrit[1].essay).notice)
       : true;
   const newDay =
     !lastWrit ||
