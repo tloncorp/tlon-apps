@@ -2210,10 +2210,13 @@ export function useDeleteReplyReactMutation() {
 export function useChannelSearch(nest: string, query: string) {
   const { data, ...rest } = useInfiniteQuery({
     queryKey: ['channel', 'search', nest, query],
+    enabled: query !== '',
     queryFn: async ({ pageParam = 0 }) => {
       const res = await api.scry<ChannelScan>({
         app: 'channels',
-        path: `/${nest}/search/text/${decToUd(pageParam)}/20/${query}`,
+        path: `/${nest}/search/text/${
+          decToUd(pageParam.toString()) || '0'
+        }/20/${query}`,
       });
       return res;
     },
