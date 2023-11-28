@@ -39,17 +39,17 @@ function DiaryChannel({ title }: ViewProps) {
   const {
     posts: notes,
     isLoading,
-    hasPreviousPage,
-    fetchPreviousPage,
+    hasNextPage,
+    fetchNextPage,
   } = useInfinitePosts(nest);
   const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
   const loadOlderNotes = useCallback(
     (atBottom: boolean) => {
-      if (atBottom && hasPreviousPage) {
-        fetchPreviousPage();
+      if (atBottom && hasNextPage) {
+        fetchNextPage();
       }
     },
-    [hasPreviousPage, fetchPreviousPage]
+    [hasNextPage, fetchNextPage]
   );
 
   const {

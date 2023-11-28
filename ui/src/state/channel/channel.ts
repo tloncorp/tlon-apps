@@ -278,31 +278,32 @@ const infinitePostUpdater = (
           };
         }
 
-        const lastPage = _.last(d.pages);
+        const firstPage = _.first(d.pages);
 
-        if (lastPage === undefined) {
+        if (firstPage === undefined) {
           return undefined;
         }
 
         const newPosts = {
-          ...lastPage.posts,
+          ...firstPage.posts,
           [time]: post,
         };
 
-        const newLastPage = {
-          ...lastPage,
+        const newFirstpage: PagedPosts = {
+          ...firstPage,
           posts: newPosts,
+          total: firstPage.total + 1,
         };
 
         const cachedPost =
-          lastPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
+          firstPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
 
         if (
           cachedPost &&
           id !== udToDec(unixToDa(post.essay.sent).toString())
         ) {
           // remove cached post if it exists
-          delete newLastPage.posts[
+          delete newFirstpage.posts[
             decToUd(unixToDa(post.essay.sent).toString())
           ];
 
@@ -316,7 +317,7 @@ const infinitePostUpdater = (
         }
 
         return {
-          pages: [...d.pages.slice(0, -1), newLastPage],
+          pages: [newFirstpage, ...d.pages.slice(1, d.pages.length)],
           pageParams: d.pageParams,
         };
       });
@@ -486,10 +487,10 @@ const infinitePostUpdater = (
   }
 };
 
-interface PageParam {
-  time: BigInteger;
+type PageParam = null | {
+  time: string;
   direction: string;
-}
+};
 
 export function useInfinitePosts(
   nest: Nest,
@@ -530,7 +531,7 @@ export function useInfinitePosts(
 
       if (pageParam && !latest) {
         const { time, direction } = pageParam;
-        const ud = decToUd(time.toString());
+        const ud = decToUd(time);
         path = `/${nest}/posts/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
       } else if (initialTime && !latest) {
         path = `/${nest}/posts/around/${decToUd(initialTime)}/${
@@ -550,27 +551,27 @@ export function useInfinitePosts(
       };
     },
     getNextPageParam: (lastPage): PageParam | undefined => {
-      const { newer } = lastPage;
-
-      if (!newer) {
-        return undefined;
-      }
-
-      return {
-        time: bigInt(newer),
-        direction: 'newer',
-      };
-    },
-    getPreviousPageParam: (firstPage): PageParam | undefined => {
-      const { older } = firstPage;
+      const { older } = lastPage;
 
       if (!older) {
         return undefined;
       }
 
       return {
-        time: bigInt(older),
+        time: older,
         direction: 'older',
+      };
+    },
+    getPreviousPageParam: (firstPage): PageParam | undefined => {
+      const { newer } = firstPage;
+
+      if (!newer) {
+        return undefined;
+      }
+
+      return {
+        time: newer,
+        direction: 'newer',
       };
     },
     refetchOnMount: true,
