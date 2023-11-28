@@ -1,5 +1,5 @@
-import { throttle } from 'lodash';
 import React, { createContext, useMemo, useState } from 'react';
+import { useIsMobile } from './useMedia';
 
 export const ChatInputFocusContext = createContext<{
   isChatInputFocused: boolean;
@@ -35,19 +35,19 @@ export function useChatInputFocus() {
   const { isChatInputFocused, setIsChatInputFocused } = React.useContext(
     ChatInputFocusContext
   );
-
-  const throttledSetIsChatInputFocused = useMemo(
-    () => throttle(setIsChatInputFocused, 100),
-    [setIsChatInputFocused]
-  );
+  const isMobile = useIsMobile();
 
   const handleFocus = React.useCallback(() => {
-    throttledSetIsChatInputFocused(true);
-  }, [throttledSetIsChatInputFocused]);
+    if (isMobile) {
+      setIsChatInputFocused(true);
+    }
+  }, [setIsChatInputFocused, isMobile]);
 
   const handleBlur = React.useCallback(() => {
-    throttledSetIsChatInputFocused(false);
-  }, [throttledSetIsChatInputFocused]);
+    if (isMobile) {
+      setIsChatInputFocused(false);
+    }
+  }, [setIsChatInputFocused, isMobile]);
 
   return {
     isChatInputFocused,
