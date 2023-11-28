@@ -1103,12 +1103,11 @@ export function useIsHttps() {
 }
 
 export function useIsInThread() {
-  const { idShip, idTime } = useParams<{
-    idShip: string;
+  const { idTime } = useParams<{
     idTime: string;
   }>();
 
-  return !!idShip && !!idTime;
+  return !!idTime;
 }
 
 export function useIsDmOrMultiDm(whom: string) {
