@@ -225,7 +225,6 @@ const infinitePostUpdater = (
     const post = postResponse.set;
 
     if (post === null) {
-      console.log('post is null');
       queryClient.setQueryData<{
         pages: PagedPosts[];
         pageParams: PageParam[];
@@ -259,13 +258,11 @@ const infinitePostUpdater = (
         };
       });
     } else {
-      console.log('post is not null');
       queryClient.setQueryData<{
         pages: PagedPosts[];
         pageParams: PageParam[];
       }>(queryKey, (d: PostsInCachePrev | undefined) => {
         if (d === undefined) {
-          console.log('no posts in cache previously');
           return {
             pages: [
               {
@@ -281,45 +278,34 @@ const infinitePostUpdater = (
           };
         }
 
-        const lastPage = _.last(d.pages);
+        const firstPage = _.first(d.pages);
 
-        console.log({
-          lastPage,
-          pages: d.pages,
-        });
-
-        if (lastPage === undefined) {
+        if (firstPage === undefined) {
           return undefined;
         }
 
         const newPosts = {
+          ...firstPage.posts,
           [time]: post,
         };
 
-        const newestPost = _.last(
-          Object.entries(lastPage.posts).sort(([a], [b]) => a.localeCompare(b))
-        );
-
-        const newOlder = newestPost ? udToDec(newestPost[0]) : null;
-        lastPage.newer = newOlder;
-        const newLastPage: PagedPosts = {
-          older: newOlder,
-          newer: null,
+        const newFirstpage: PagedPosts = {
+          ...firstPage,
           posts: newPosts,
-          total: lastPage.total + 1,
+          total: firstPage.total + 1,
         };
 
         const cachedPost =
-          lastPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
+          firstPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
 
         if (
           cachedPost &&
           id !== udToDec(unixToDa(post.essay.sent).toString())
         ) {
           // remove cached post if it exists
-          delete lastPage.posts[decToUd(unixToDa(post.essay.sent).toString())];
-
-          lastPage.posts[time] = post;
+          delete newFirstpage.posts[
+            decToUd(unixToDa(post.essay.sent).toString())
+          ];
 
           // set delivered now that we have the real post
           usePostsStore
@@ -328,38 +314,12 @@ const infinitePostUpdater = (
               { author: post.essay.author, sent: post.essay.sent },
               'delivered'
             );
-
-          console.log({
-            pages: [...d.pages.slice(0, -1), lastPage],
-            pageParams: d.pageParams,
-          });
-
-          return {
-            pages: [...d.pages.slice(0, -1), lastPage],
-            pageParams: d.pageParams,
-          };
         }
 
-        const newLastPageParams = newOlder
-          ? {
-              time: newOlder,
-              direction: 'older',
-            }
-          : null;
-
-        const newPageParams = [
-          ...d.pageParams.slice(0, -1),
-          newLastPageParams,
-          null,
-        ];
-
-        const newData = {
-          pages: [...d.pages.slice(0, -1), lastPage, newLastPage],
-          pageParams: newPageParams,
+        return {
+          pages: [newFirstpage, ...d.pages.slice(1, d.pages.length)],
+          pageParams: d.pageParams,
         };
-        console.log(newData);
-
-        return newData;
       });
     }
   } else if ('reacts' in postResponse) {
@@ -567,11 +527,6 @@ export function useInfinitePosts(
   const { data, ...rest } = useInfiniteQuery<PagedPosts>({
     queryKey,
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
-      console.log('queryFn', {
-        pageParam,
-        latest,
-      });
-
       let path = '';
 
       if (pageParam && !latest) {
@@ -596,25 +551,7 @@ export function useInfinitePosts(
       };
     },
     getNextPageParam: (lastPage): PageParam | undefined => {
-      console.log('getNextPageParam', {
-        lastPage,
-      });
-      const { newer } = lastPage;
-
-      if (!newer) {
-        return undefined;
-      }
-
-      return {
-        time: newer,
-        direction: 'newer',
-      };
-    },
-    getPreviousPageParam: (firstPage): PageParam | undefined => {
-      console.log('getPreviousPageParam', {
-        firstPage,
-      });
-      const { older } = firstPage;
+      const { older } = lastPage;
 
       if (!older) {
         return undefined;
@@ -623,6 +560,18 @@ export function useInfinitePosts(
       return {
         time: older,
         direction: 'older',
+      };
+    },
+    getPreviousPageParam: (firstPage): PageParam | undefined => {
+      const { newer } = firstPage;
+
+      if (!newer) {
+        return undefined;
+      }
+
+      return {
+        time: newer,
+        direction: 'newer',
       };
     },
     refetchOnMount: true,
@@ -648,8 +597,6 @@ export function useInfinitePosts(
     })
     .flat()
     .sort(([a], [b]) => a.compare(b));
-
-  console.log('page data before return', data);
 
   return {
     data,

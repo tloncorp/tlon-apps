@@ -103,20 +103,26 @@ export default function ChatWindow({
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
     delayedRead(nest, () => markRead({ nest }));
-    if (hasNextPage && !isFetchingNextPage) {
+    if (hasPreviousPage && !isFetchingPreviousPage) {
       console.log('fetching next page');
       log('fetching next page');
-      fetchNextPage();
-    }
-  }, [nest, markRead, fetchNextPage, hasNextPage, isFetchingNextPage]);
-
-  const onAtTop = useCallback(() => {
-    if (hasPreviousPage && !isFetchingPreviousPage) {
-      console.log('fetching previous page');
-      log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage]);
+  }, [
+    nest,
+    markRead,
+    fetchPreviousPage,
+    hasPreviousPage,
+    isFetchingPreviousPage,
+  ]);
+
+  const onAtTop = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      console.log('fetching previous page');
+      log('fetching previous page');
+      fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   useEffect(
     () => () => {
@@ -180,8 +186,8 @@ export default function ChatWindow({
           onAtBottom={onAtBottom}
           scrollElementRef={scrollElementRef}
           isScrolling={isScrolling}
-          hasLoadedOldest={!hasPreviousPage}
-          hasLoadedNewest={!hasNextPage}
+          hasLoadedOldest={!hasNextPage}
+          hasLoadedNewest={!hasPreviousPage}
         />
       </div>
       {scrollTo && (hasNextPage || latestIsMoreThan30NewerThanScrollTo) ? (
