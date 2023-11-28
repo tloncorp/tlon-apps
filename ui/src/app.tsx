@@ -106,6 +106,7 @@ import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import DMThread from './dms/DMThread';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
+import MobileDmSearch from './dms/MobileDmSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
@@ -217,10 +218,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
             )}
             {isMobile && (
-              <Route
-                path=":ship/search/:query?"
-                element={<MobileChatSearch />}
-              />
+              <Route path=":ship/search/:query?" element={<MobileDmSearch />} />
             )}
           </Route>
 
@@ -375,7 +373,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               {isSmall && (
                 <Route
                   path=":ship/search/:query?"
-                  element={<MobileChatSearch />}
+                  element={<MobileDmSearch />}
                 />
               )}
               {isSmall && (

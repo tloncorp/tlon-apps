@@ -116,11 +116,14 @@ export function updateSearchHistory(
 export function useInfiniteChatSearch(whom: string, query: string) {
   const type = whomIsDm(whom) ? 'dm' : whomIsMultiDm(whom) ? 'club' : 'chat';
   const { data, ...rest } = useInfiniteQuery({
+    enabled: query !== '',
     queryKey: ['chat', 'search', whom, query],
     queryFn: async ({ pageParam = 0 }) => {
       const res = await api.scry<ChatScan>({
         app: 'chat',
-        path: `/${type}/${whom}/search/text/${decToUd(pageParam)}/20/${query}`,
+        path: `/${type}/${whom}/search/text/${
+          decToUd(pageParam.toString()) || '0'
+        }/20/${query}`,
       });
       return res;
     },
