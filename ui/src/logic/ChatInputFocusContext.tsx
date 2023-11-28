@@ -1,4 +1,5 @@
 import React, { createContext, useMemo, useState } from 'react';
+import { useIsMobile } from './useMedia';
 
 export const ChatInputFocusContext = createContext<{
   isChatInputFocused: boolean;
@@ -20,7 +21,7 @@ export function ChatInputFocusProvider({
       isChatInputFocused,
       setIsChatInputFocused,
     }),
-    [isChatInputFocused, setIsChatInputFocused]
+    [isChatInputFocused]
   );
 
   return (
@@ -34,14 +35,19 @@ export function useChatInputFocus() {
   const { isChatInputFocused, setIsChatInputFocused } = React.useContext(
     ChatInputFocusContext
   );
+  const isMobile = useIsMobile();
 
   const handleFocus = React.useCallback(() => {
-    setIsChatInputFocused(true);
-  }, [setIsChatInputFocused]);
+    if (isMobile) {
+      setIsChatInputFocused(true);
+    }
+  }, [setIsChatInputFocused, isMobile]);
 
   const handleBlur = React.useCallback(() => {
-    setIsChatInputFocused(false);
-  }, [setIsChatInputFocused]);
+    if (isMobile) {
+      setIsChatInputFocused(false);
+    }
+  }, [setIsChatInputFocused, isMobile]);
 
   return {
     isChatInputFocused,
