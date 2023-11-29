@@ -52,6 +52,7 @@ import emptyMultiDm, {
   removePendingFromCache,
   removeUnreadFromCache,
 } from './utils';
+import { pinsKey } from './keys';
 
 export interface State {
   trackedWrits: TrackedPost[];
@@ -176,7 +177,7 @@ export function initializeChat({
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(['dms', 'pending'], () => invited || []);
-  queryClient.setQueryData(['dms', 'pins'], () => ({ pins: pins || [] }));
+  queryClient.setQueryData(pinsKey(), () => ({ pins: pins || [] }));
   queryClient.setQueryData(['dms', 'unreads'], () => unreads || {});
 }
 
@@ -659,14 +660,17 @@ export function useDmIsPending(ship: string) {
 }
 
 export function usePinned() {
-  const { data } = useReactQueryScry<Pins>({
-    queryKey: ['dms', 'pins'],
+  const { data, ...rest } = useReactQueryScry<Pins>({
+    queryKey: pinsKey(),
     app: 'chat',
     path: '/pins',
   });
 
-  if (!data || !data.pins) {
-    return [];
+  if (data === undefined || !data.pins) {
+    const existingData = queryClient.getQueryData(pinsKey()) as
+      | string[]
+      | undefined;
+    return existingData || [];
   }
 
   return data.pins;
@@ -705,7 +709,10 @@ export function useTogglePinMutation() {
   const pins = usePinned();
 
   const mutationFn = async ({ whom, pin }: { whom: string; pin: boolean }) => {
-    const newPins = pin ? [...pins, whom] : pins.filter((w) => w !== whom);
+    await queryClient.cancelQueries(pinsKey());
+    const newPins = pin
+      ? _.uniq([...pins, whom])
+      : pins.filter((w) => w !== whom);
 
     await api.poke<Pins>({
       app: 'chat',
@@ -719,17 +726,17 @@ export function useTogglePinMutation() {
   return useMutation({
     mutationFn,
     onMutate: (variables) => {
-      queryClient.setQueryData<DMWhom[]>(['dms', 'pins'], () => {
+      queryClient.setQueryData<DMWhom[]>(pinsKey(), () => {
         const { whom, pin } = variables;
         const currentPins = pins || [];
         const newPins = pin
-          ? [...currentPins, whom]
+          ? _.uniq([...currentPins, whom])
           : currentPins.filter((w) => w !== whom);
         return newPins;
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries(['dms', 'pins']);
+      queryClient.invalidateQueries(pinsKey());
     },
   });
 }
