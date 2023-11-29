@@ -2000,10 +2000,67 @@ export function useAddPostReactMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prevPost: PostDataResponse | undefined) => {
+      const postsUpdater = (prev: PostsInCachePrev | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
+
+        const allPostsInCache = prev.pages.flatMap((page) =>
+          Object.entries(page.posts)
+        );
+
+        const prevPost = allPostsInCache.find(
+          ([k]) => k === decToUd(variables.postId)
+        )?.[1];
+
+        if (prevPost === null || prevPost === undefined) {
+          return prev;
+        }
+
+        const updatedPost = {
+          ...prevPost,
+          seal: {
+            ...prevPost.seal,
+            reacts: {
+              ...prevPost.seal.reacts,
+              [window.our]: variables.react,
+            },
+          },
+        };
+
+        const pageInCache = prev.pages.find((page) =>
+          Object.keys(page.posts).some((k) => k === decToUd(variables.postId))
+        );
+
+        const pageInCacheIdx = prev.pages.findIndex((page) =>
+          Object.keys(page.posts).some((k) => k === decToUd(variables.postId))
+        );
+
+        if (pageInCache === undefined) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          pages: [
+            ...prev.pages.slice(0, pageInCacheIdx),
+            {
+              ...pageInCache,
+              posts: {
+                ...pageInCache?.posts,
+                [decToUd(variables.postId)]: updatedPost,
+              },
+            },
+            ...prev.pages.slice(pageInCacheIdx + 1),
+          ],
+        };
+      };
+
+      const postUpdater = (prevPost: PostDataResponse | undefined) => {
         if (prevPost === undefined) {
           return prevPost;
         }
+
         const prevReacts = prevPost.seal.reacts;
         const newReacts = {
           ...prevReacts,
@@ -2021,7 +2078,9 @@ export function useAddPostReactMutation() {
         return updatedPost;
       };
 
-      await updatePostInCache(variables, updater);
+      await updatePostInCache(variables, postUpdater);
+
+      await updatePostsInCache(variables, postsUpdater);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
@@ -2055,7 +2114,66 @@ export function useDeletePostReactMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      const updater = (prev: PostDataResponse | undefined) => {
+      const postsUpdater = (prev: PostsInCachePrev | undefined) => {
+        if (prev === undefined) {
+          return prev;
+        }
+
+        const allPostsInCache = prev.pages.flatMap((page) =>
+          Object.entries(page.posts)
+        );
+
+        const prevPost = allPostsInCache.find(
+          ([k]) => k === decToUd(variables.postId)
+        )?.[1];
+
+        if (prevPost === null || prevPost === undefined) {
+          return prev;
+        }
+
+        const newReacts = {
+          ...prevPost.seal.reacts,
+        };
+
+        delete newReacts[window.our];
+
+        const updatedPost = {
+          ...prevPost,
+          seal: {
+            ...prevPost.seal,
+            reacts: newReacts,
+          },
+        };
+
+        const pageInCache = prev.pages.find((page) =>
+          Object.keys(page.posts).some((k) => k === decToUd(variables.postId))
+        );
+
+        const pageInCacheIdx = prev.pages.findIndex((page) =>
+          Object.keys(page.posts).some((k) => k === decToUd(variables.postId))
+        );
+
+        if (pageInCache === undefined) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          pages: [
+            ...prev.pages.slice(0, pageInCacheIdx),
+            {
+              ...pageInCache,
+              posts: {
+                ...pageInCache?.posts,
+                [decToUd(variables.postId)]: updatedPost,
+              },
+            },
+            ...prev.pages.slice(pageInCacheIdx + 1),
+          ],
+        };
+      };
+
+      const postUpdater = (prev: PostDataResponse | undefined) => {
         if (prev === undefined) {
           return prev;
         }
@@ -2077,7 +2195,8 @@ export function useDeletePostReactMutation() {
         return updatedPost;
       };
 
-      await updatePostInCache(variables, updater);
+      await updatePostInCache(variables, postUpdater);
+      await updatePostsInCache(variables, postsUpdater);
     },
     onSettled: async (_data, _error, variables) => {
       const [han, flag] = nestToFlag(variables.nest);
