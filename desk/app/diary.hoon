@@ -582,7 +582,7 @@
       ?~  command  ~
       =/  =cage
         :-  %channel-action
-        !>(`a-channels:d`[%channel [%chat flag] %post u.command])
+        !>(`a-channels:d`[%channel [%diary flag] %post u.command])
       [%pass /migrate %agent [our.bowl %channels] %poke cage]~
     ::  then, repeat for the quips on the post
     ::
@@ -606,7 +606,7 @@
     ?~  command  ~
     =/  =cage
       :-  %channel-action
-      !>(`a-channels:d`[%channel [%chat flag] %post u.command])
+      !>(`a-channels:d`[%channel [%diary flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
   ++  old-chats

@@ -572,7 +572,7 @@
     ?~  command  ~
     =/  =cage
       :-  %channel-action
-      !>(`a-channels:c`[%channel [%chat flag] %post u.command])
+      !>(`a-channels:c`[%channel [%heap flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
   ++  old-chats
