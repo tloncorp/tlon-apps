@@ -50,7 +50,7 @@ import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import channelKey from './keys';
+import channelKey, { ChannnelKeys } from './keys';
 
 async function updatePostInCache(
   variables: { nest: Nest; postId: string },
@@ -966,14 +966,17 @@ export function useChats(): Channels {
 }
 
 export function usePins(): Pins {
-  const { data, ...rest } = useReactQueryScry<{ pins: Pins }>({
-    queryKey: ['pins'],
+  const { data } = useReactQueryScry<{ pins: Pins }>({
+    queryKey: ChannnelKeys.pins(),
     app: 'channels',
     path: '/pins',
   });
 
-  if (rest.isLoading || rest.isError || data === undefined || !data.pins) {
-    return [];
+  if (data === undefined || !data.pins) {
+    const existingData = queryClient.getQueryData(ChannnelKeys.pins()) as
+      | string[]
+      | undefined;
+    return existingData || [];
   }
 
   const { pins } = data;
@@ -984,7 +987,7 @@ export function usePins(): Pins {
 export function useAddPinMutation() {
   const pins = usePins();
   const mutationFn = async (variables: { nest: Nest }) => {
-    const newPins = pins.concat(variables.nest);
+    const newPins = _.uniq([...pins, variables.nest]);
 
     await api.poke({
       app: 'channels',
@@ -998,12 +1001,14 @@ export function useAddPinMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['pins']);
-      const prev = queryClient.getQueryData<{ pins: Pins }>(['pins']);
+      await queryClient.cancelQueries(ChannnelKeys.pins());
 
-      if (prev !== undefined) {
-        queryClient.setQueryData(['pins'], prev.pins.concat(variables.nest));
-      }
+      // optimistic update
+      const newPins = _.uniq([...pins, variables.nest]);
+      queryClient.setQueryData(ChannnelKeys.pins(), newPins);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(ChannnelKeys.pins());
     },
   });
 }
@@ -1025,15 +1030,14 @@ export function useDeletePinMutation() {
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      await queryClient.cancelQueries(['pins']);
-      const prev = queryClient.getQueryData<{ pins: Pins }>(['pins']);
+      await queryClient.cancelQueries(ChannnelKeys.pins());
 
-      if (prev !== undefined) {
-        queryClient.setQueryData(
-          ['pins'],
-          prev.pins.filter((p) => p !== variables.nest)
-        );
-      }
+      // optimistic update
+      const newPins = pins.filter((p) => p !== variables.nest);
+      queryClient.setQueryData(ChannnelKeys.pins(), newPins);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(ChannnelKeys.pins());
     },
   });
 }
