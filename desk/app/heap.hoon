@@ -601,7 +601,7 @@
   ++  convert-reply
     |=  [id=@da old=curio:h]
     ^-  v-reply:c
-    [[id (convert-feels feels.old)] (convert-memo +.old)]
+    [[id (convert-feels feels.old)] %0 (convert-memo +.old)]
   ::
   ++  convert-memo
     |=  old=heart:h

@@ -7,7 +7,7 @@
 /+  default-agent, verb, dbug, neg=negotiate
 ::
 %-  %-  agent:neg
-    [| [~.channels^%0 ~ ~] ~]
+    [| [~.channels^%1 ~ ~] ~]
 %-  agent:dbug
 %+  verb  |
 ::
@@ -16,7 +16,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %2
         =v-channels:c
     ==
   --
@@ -85,17 +85,64 @@
   |^  ^+  cor
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-  ?>  ?=(%1 -.old)
+  =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+  ?>  ?=(%2 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(current-state state-0)
+  +$  versioned-state  $%(state-2 state-1 state-0)
+  +$  state-2  current-state
+  ::
+  ::  %1 to %2
+  ::
+  +$  state-1
+    $:  %1
+        v-channels=(map nest:c v-channel-1)
+    ==
+  ++  v-channel-1
+    |^  ,[global local:v-channel:c]
+    +$  global
+      $:  posts=v-posts-1
+          order=(rev:c order=arranged-posts:c)
+          view=(rev:c =view:c)
+          sort=(rev:c =sort:c)
+          perm=(rev:c =perm:c)
+      ==
+    --
+  +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
+  ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
+  +$  v-post-1        [v-seal-1 (rev:c essay:c)]
+  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:c]
+  +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
+  ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
+  +$  v-reply-1       [v-reply-seal:c memo:c]
+  ++  state-1-to-2
+    |=  s=state-1
+    ^-  state-2
+    s(- %2, v-channels (~(run by v-channels.s) v-channel-1-to-2))
+  ++  v-channel-1-to-2
+    |=(v=v-channel-1 v(posts (v-posts-1-to-2 posts.v)))
+  ++  v-posts-1-to-2
+    |=  p=v-posts-1
+    %+  run:on-v-posts-1  p
+    |=(p=(unit v-post-1) ?~(p ~ `(v-post-1-to-2 u.p)))
+  ++  v-post-1-to-2
+    |=(p=v-post-1 p(replies (v-replies-1-to-2 replies.p)))
+  ++  v-replies-1-to-2
+    |=  r=v-replies-1
+    %+  run:on-v-replies-1  r
+    |=(r=(unit v-reply-1) ?~(r ~ `(v-reply-1-to-2 u.r)))
+  ++  v-reply-1-to-2
+    |=(r=v-reply-1 `v-reply:c`[-.r 0 +.r])
+  ::
+  ::  %0 to %1
+  ::
   +$  state-0
     $:  %0
         v-channels=(map nest:c v-channel-0)
     ==
   ++  v-channel-0
-    |^  ,[global:v-channel:c local]
+    |^  ,[global:v-channel-1 local]
     +$  window    (list [from=time to=time])
     +$  future    [=window diffs=(jug id-post:c u-post:c)]
     +$  local     [=net:c =log:c remark=remark-0 =window =future]
@@ -104,13 +151,13 @@
   ::
   ++  state-0-to-1
     |=  s=state-0
-    ^-  current-state
+    ^-  state-1
     s(- %1, v-channels (~(run by v-channels.s) v-channel-0-to-1))
   ++  v-channel-0-to-1
     |=  v=v-channel-0
-    ^-  v-channel:c
+    ^-  v-channel-1
     =/  recency=time
-      ?~(tim=(ram:on-v-posts:c posts.v) *time key.u.tim)
+      ?~(tim=(ram:on-v-posts-1 posts.v) *time key.u.tim)
     v(remark [recency remark.v])
   --
 ::
@@ -444,6 +491,7 @@
       ?~  post  `posts.channel
       ?~  u.post  `posts.channel
       ?>  =(src.bowl author.u.u.post)
+      ::TODO  could optimize and no-op if the edit is identical to current
       =/  new=v-post:c  [-.u.u.post +(rev.u.u.post) essay.c-post]
       :-  `[%post id.c-post %set ~ new]
       (put:on-v-posts:c posts.channel id.c-post ~ new)
@@ -488,8 +536,19 @@
         ?~  reply  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  reply-seal=v-reply-seal:c  [id ~]
-      :-  `[%reply id %set ~ reply-seal memo.c-reply]
-      (put:on-v-replies:c replies id ~ reply-seal memo.c-reply)
+      =/  new=v-reply:c  [reply-seal 0 memo.c-reply]
+      :-  `[%reply id %set ~ new]
+      (put:on-v-replies:c replies id ~ new)
+    ::
+        %edit
+      =/  reply  (get:on-v-replies:c replies id.c-reply)
+      ?~  reply    `replies
+      ?~  u.reply  `replies
+      ?>  =(src.bowl author.u.u.reply)
+      ::TODO  could optimize and no-op if the edit is identical to current
+      =/  new=v-reply:c  [-.u.u.reply +(rev.u.u.reply) memo.c-reply]
+      :-  `[%reply id.c-reply %set ~ new]
+      (put:on-v-replies:c replies id.c-reply ~ new)
     ::
         %del
       =/  reply  (get:on-v-replies:c replies id.c-reply)

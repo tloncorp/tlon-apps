@@ -603,7 +603,7 @@
   ++  convert-quip
     |=  [id=@da old=quip:a]
     ^-  v-reply:d
-    [[id (convert-feels feels.old)] (convert-memo +.old)]
+    [[id (convert-feels feels.old)] %0 (convert-memo +.old)]
   ::
   ++  convert-essay
     |=  old=essay:a
