@@ -406,10 +406,15 @@ export default function ChatScroller({
         (scrollHeight - clientHeight) / 2,
         thresholds.atEndThreshold
       );
-      const isAtBeginning = scrollTop === 0;
-      const isAtEnd = scrollTop + clientHeight >= scrollHeight - atEndThreshold;
-      setIsAtTop((isInverted && isAtEnd) || (!isInverted && isAtBeginning));
-      setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
+      const isAtScrollBeginning = scrollTop === 0;
+      const isAtScrollEnd =
+        scrollTop + clientHeight >= scrollHeight - atEndThreshold;
+      const nextAtTop =
+        (isInverted && isAtScrollEnd) || (!isInverted && isAtScrollBeginning);
+      const nextAtBottom =
+        (isInverted && isAtScrollBeginning) || (!isInverted && isAtScrollEnd);
+      setIsAtTop(nextAtTop);
+      setIsAtBottom(nextAtBottom);
     }, [
       isInverted,
       anchorIndex,
@@ -446,14 +451,6 @@ export default function ChatScroller({
     onAtBottom,
     userHasScrolled,
   ]);
-
-  useEffect(() => {
-    if (fetchState !== 'initial' || !userHasScrolled) return;
-    if (isAtBottom) {
-      setLoadDirection('newer');
-      onAtBottom?.();
-    }
-  }, [fetchState, isAtBottom, onAtBottom, userHasScrolled]);
 
   // When the list inverts, we need to flip the scroll position in order to appear to stay in the same place.
   // We do this here as opposed to in an effect so that virtualItems is correct in time for this render.

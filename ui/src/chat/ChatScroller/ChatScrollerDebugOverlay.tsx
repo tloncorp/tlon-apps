@@ -56,6 +56,7 @@ export default function ChatScrollerDebugOverlay({
       <label>
         {Math.round(scrollOffset)}/{scrollHeight}
       </label>
+      <label>Load direction: {loadDirection}</label>
       <label> {count} items</label>
       <DebugBoolean label="User scrolled" value={userHasScrolled} />
       <DebugBoolean label="At bottom" value={isAtBottom} />
