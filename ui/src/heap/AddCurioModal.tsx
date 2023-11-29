@@ -93,9 +93,8 @@ export default function AddCurioModal({
   const addCurio = useCallback(
     async (input: JSONContent | string) => {
       const heart = await createCurioHeart(input);
-      const now = Date.now();
       const cacheId = {
-        sent: now,
+        sent: heart.sent,
         author: window.our,
       };
 

@@ -179,6 +179,16 @@ export function useTrackedPostStatus(cacheId: CacheId) {
   );
 }
 
+export function useIsPostUndelivered(post: Post | undefined) {
+  const stubbedCacheId = { author: '~zod', sent: 0 };
+  const cacheId =
+    post && post.essay
+      ? { author: post.essay.author, sent: post.essay.sent }
+      : stubbedCacheId;
+  const status = useTrackedPostStatus(cacheId);
+  return status !== 'delivered';
+}
+
 export function usePostsOnHost(
   nest: Nest,
   enabled: boolean
