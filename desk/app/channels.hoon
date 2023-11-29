@@ -374,13 +374,14 @@
   ?.  (~(has by v-channels) nest)
     =/  wire  (said-wire nest plan)
     (safe-watch wire [ship.nest server] wire)
+  ::TODO  not guaranteed to resolve, we might have partial backlog
   ca-abet:(ca-said:(ca-abed:ca-core nest) plan)
 ::
 ++  said-wire
   |=  [=nest:c =plan:c]
   ^-  wire
   %+  welp
-    /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/(scot %ud p.plan)
+    /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/post/(scot %ud p.plan)
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
