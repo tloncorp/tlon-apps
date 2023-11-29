@@ -16,7 +16,7 @@
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %1
+    $:  %2
         groups=net-groups:g
       ::
         $=  volume
@@ -28,6 +28,7 @@
         xeno=gangs:g
         ::  graph -> agent
         shoal=(map flag:g dude:gall)
+        pins=(list flag:g)  ::  pinned groups
     ==
   ::
   --
@@ -188,6 +189,11 @@
     =+  !<(=flag:g vase)
     ga-abet:ga-invite-reject:(ga-abed:gang-core flag)
   ::
+     %group-pins
+    =+  !<(ps=(list flag:g) vase)
+    ?>  from-self
+    (pin ps)
+  ::
       %volume-set
     ?>  =(our src):bowl
     =+  !<([=scope:v =value:v] vase)
@@ -209,6 +215,12 @@
       (~(put by chan.volume) +.scope value)
     ==
   ==
+  ::
+  ++  pin
+    |=  ps=(list flag:g)
+    =.  pins  ps
+    cor
+  ::
 ++  channel-scry
   |=  =nest:g
   ^-  path
@@ -281,7 +293,8 @@
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-  ?>  ?=(%1 -.old)
+  =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+  ?>  ?=(%2 -.old)
   =.  state  old
   =.  cor  restore-missing-subs
   =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
@@ -295,7 +308,7 @@
     go-abet:go-upgrade:(go-abed:group-core i.groups)
   $(groups t.groups)
   ::
-  +$  versioned-state  $%(current-state state-0)
+  +$  versioned-state  $%(current-state state-1 state-0)
   +$  state-0
     $:  %0
         groups=net-groups:g
@@ -303,10 +316,30 @@
         shoal=(map flag:g dude:gall)
     ==
   ::
+  +$  state-1
+    $:  %1
+        groups=net-groups:g
+      ::
+        $=  volume
+        $:  base=level:v
+            area=(map flag:g level:v)  ::  override per group
+            chan=(map nest:g level:v)  ::  override per channel
+        ==
+      ::
+        xeno=gangs:g
+        ::  graph -> agent
+        shoal=(map flag:g dude:gall)
+    ==
+  ::
   ++  state-0-to-1
     |=  state-0
-    ^-  current-state
+    ^-  state-1
     [%1 groups [*level:v ~ ~] xeno shoal]
+  ::
+  ++  state-1-to-2
+    |=  state-1
+    ^-  current-state
+    [%2 groups volume xeno shoal ~]
   ::
   ++  restore-missing-subs
     %+  roll
@@ -363,6 +396,7 @@
       [%x %init %v0 ~]  ``noun+!>([groups-light-ui xeno])
       [%x %groups %light ~]  ``groups+!>(groups-light)
       [%x %groups %light %v0 ~]  ``groups-ui+!>(groups-light-ui)
+      [%x %pins ~]    ``group-pins+!>(pins)
   ::
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
