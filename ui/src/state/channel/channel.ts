@@ -902,9 +902,11 @@ export function useUnreads(): Unreads {
     const { nest, unread } = event;
 
     if (unread !== null) {
-      const [app] = nestToFlag(nest);
+      const [app, flag] = nestToFlag(nest);
       if (app === 'chat') {
-        useChatStore.getState().unread(nest, unread, () => markRead({ nest }));
+        useChatStore
+          .getState()
+          .unread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
       }
 
       queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {

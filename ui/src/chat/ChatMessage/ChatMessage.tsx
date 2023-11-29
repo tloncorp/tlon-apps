@@ -170,7 +170,7 @@ const ChatMessage = React.memo<
       const isMobile = useIsMobile();
       const isThreadOnMobile = isThread && isMobile;
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-      const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
+      const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadDisplay = isDMOrMultiDM
         ? dmUnreadStatus(unread?.unread as DMUnread, seal.id)
