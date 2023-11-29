@@ -274,6 +274,11 @@
   ::
       %diary-migrate-server  ?>(from-self server:migrate)
       %diary-migrate         ?>(from-self client:migrate)
+  ::
+      %diary-migrate-refs
+    ?>  from-self
+    =+  !<(flag=[ship term] vase)
+    (refs:migrate flag)
   ==
   ++  join
     |=  =join:d
@@ -543,6 +548,66 @@
     =/  =v-channels:d  (convert-channels | shelf)
     =/  =cage  [%channel-migration !>(v-channels)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+  ::
+  ++  refs
+    |=  =flag:a
+    ?~  old-heap=(~(get by shelf) flag)  cor
+    %-  emil
+    ::  iterate over all notebooks and, for every post/comment authored by us,
+    ::  containing a chat reference that we have (almost certainly) converted,
+    ::  send the new version of the post/comment as an edit to the host.
+    ::
+    %-  zing
+    %+  turn  (tap:on:notes:a notes.u.old-heap)
+    |=  [=time =note:a]
+    ^-  (list card)
+    %+  weld
+      ::  first, for the post itself
+      ::
+      ^-  (list card)
+      ?.  =(our.bowl author.note)  ~
+      =/  edit=(unit essay:d)
+        =;  contains-chat-ref=?
+          ?.  contains-chat-ref  ~
+          `(convert-essay +.note)
+        %+  lien  content.note
+        |=  =verse:a
+        ?&  ?=([%block %cite %chan [%chat *] *] verse)
+            ::NOTE  optimization, host should've ran the edit locally already
+            !=(p.flag p.q.nest.cite.p.verse)
+        ==
+      =/  command=(unit c-post:d)
+        ?~  edit  ~
+        `[%edit time u.edit]
+      ?~  command  ~
+      =/  =cage
+        :-  %channel-action
+        !>(`a-channels:d`[%channel [%chat flag] %post u.command])
+      [%pass /migrate %agent [our.bowl %channels] %poke cage]~
+    ::  then, repeat for the quips on the post
+    ::
+    %+  murn  (tap:on:quips:a quips.note)
+    |=  [rtime=^time =quip:a]
+    ^-  (unit card)
+    ?.  =(our.bowl author.quip)  ~
+    =/  edit=(unit memo:d)
+      =;  contains-chat-ref=?
+        ?.  contains-chat-ref  ~
+        `(convert-memo +.quip)
+      %+  lien  p.content.quip
+      |=  =block:a
+      ?&  ?=([%cite %chan [%chat *] *] block)
+          ::NOTE  optimization, host should've ran the edit locally already
+          !=(p.flag p.q.nest.cite.block)
+      ==
+    =/  command=(unit c-post:d)
+      ?~  edit  ~
+      `[%reply time %edit rtime u.edit]
+    ?~  command  ~
+    =/  =cage
+      :-  %channel-action
+      !>(`a-channels:d`[%channel [%chat flag] %post u.command])
+    `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
   ++  old-chats
     =>  [c2=c2 bowl=bowl ..zuse]  ~+

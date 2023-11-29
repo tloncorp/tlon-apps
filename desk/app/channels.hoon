@@ -13,7 +13,7 @@
 /+  channel-json
 ::
 %-  %-  agent:neg
-    :+  |
+    :+  notify=&
       [~.channels^%1 ~ ~]
     [%channels-server^[~.channels^%1 ~ ~] ~ ~]
 %-  agent:dbug
@@ -29,6 +29,10 @@
         voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:c name=term])
     ==
   --
 =|  current-state
@@ -139,9 +143,14 @@
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
+    =/  pend=(jug ship [=kind:c name=term])
+      %-  ~(gas ju *(jug ship [kind:c term]))
+      %+  turn  ~(tap in ~(key by v-channels.s))
+      |=(nest:c [ship kind name])
     %=  s
       -  %2
       v-channels    (~(run by v-channels.s) v-channel-1-to-2)
+      hidden-posts  [hidden-posts.s pend]
     ==
   ++  v-channel-1-to-2
     |=(v=v-channel-1 v(posts (v-posts-1-to-2 posts.v)))
@@ -284,6 +293,16 @@
       ::
       ?.  =(~ posts.u.hav)  v-channels
       (~(put by v-channels) n c)
+    ::  after migration, references to chat msgs have changed. we want to
+    ::  notify the host about these edits, but not right now: we aren't sure
+    ::  they have migrated yet. store affected channels in state, we will send
+    ::  edits on a per-host basis when handling %negotiate-notification below.
+    ::
+    =.  pending-ref-edits
+      %-  ~(gas ju pending-ref-edits)
+      ^-  (list [ship kind:c term])
+      %+  turn  ~(tap in ~(key by new-channels))
+      |=(nest:c [ship kind name])
     inflate-io
   ::
       %channel-migration-pins
@@ -291,6 +310,39 @@
     =+  !<(new-pins=(list nest:c) vase)
     =.  pins  (weld pins new-pins)
     cor
+  ::
+      %negotiate-notification
+    ::  during migration, references to chat msgs were changed. we want to
+    ::  notify channel hosts about these edits, but not before they themselves
+    ::  have migrated (lest we risk front-running their internal migration
+    ::  pokes, causing our edits to fail).
+    ::  a version negotiation notification guarantees that they have migrated,
+    ::  so based off that we trigger the editing of our messages that changed.
+    ::  (see also %*-migrate-refs poke handling in the old agents.)
+    ::
+    ::TODO  figure out whether we want/need to distribute the load over time:
+    ::  (emit /migrate-refs %b %wait (add now.bowl (~(rand og our.bowl) ~h2)))
+    ?>  =(our src):bowl
+    =+  !<([match=? =gill:gall] vase)
+    ?.  match
+      cor
+    ?.  =(%channels-server q.gill)
+      cor
+    =*  host  p.gill
+    ?~  pend=(~(get by pending-ref-edits) host)
+      cor
+    =.  pending-ref-edits
+      (~(del by pending-ref-edits) host)
+    %-  emil
+    %+  turn  ~(tap by u.pend)
+    |=  [=kind:c name=term]
+    ^-  card
+    :+  %pass   /migrate
+    :+  %agent  [our.bowl kind]
+    :+  %poke
+      ::NOTE  %chat-migrate-refs, etc
+      (cat 3 kind '-migrate-refs')
+    !>([host name])
   ==
   ++  toggle-post
     |=  toggle=post-toggle:c
