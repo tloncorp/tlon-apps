@@ -2,7 +2,11 @@ import cn from 'classnames';
 import { useNavigate } from 'react-router';
 import { Post } from '@/types/channel';
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
-import { useIsPostPending, usePostToggler } from '@/state/channel/channel';
+import {
+  useIsPostPending,
+  useIsPostUndelivered,
+  usePostToggler,
+} from '@/state/channel/channel';
 
 interface DiaryListItemProps {
   note: Post;
@@ -19,6 +23,7 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
   const { essay } = note;
   const { lastRepliers, replyCount } = note.seal.meta;
   const { isHidden } = usePostToggler(time.toString());
+  const isUndelivered = useIsPostUndelivered(note);
 
   return (
     <div
@@ -36,6 +41,7 @@ export default function DiaryListItem({ note, time }: DiaryListItemProps) {
         essay={essay}
         time={time}
         isInList
+        isUndelivered={isUndelivered}
       />
     </div>
   );
