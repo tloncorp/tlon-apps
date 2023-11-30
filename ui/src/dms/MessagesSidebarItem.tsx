@@ -58,7 +58,7 @@ function ChannelSidebarItem({
         <DmOptions
           open={optionsOpen}
           onOpenChange={onOptionsOpenChange}
-          whom={whom}
+          whom={nest}
           pending={!!pending}
           isHovered={hover}
           triggerDisabled={isMobile}

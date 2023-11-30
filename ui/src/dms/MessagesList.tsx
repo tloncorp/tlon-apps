@@ -10,12 +10,8 @@ import { useGroups } from '@/state/groups';
 import { canReadChannel } from '@/logic/channel';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { Unread } from '@/types/channel';
-import {
-  usePendingDms,
-  usePendingMultiDms,
-  usePinned,
-  useDmUnreads,
-} from '../state/chat';
+import { usePinnedChats } from '@/state/pins';
+import { usePendingDms, usePendingMultiDms, useDmUnreads } from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
 type MessagesListProps = PropsWithChildren<{
@@ -47,7 +43,7 @@ export default function MessagesList({
 }: MessagesListProps) {
   const { pending } = usePendingDms();
   const pendingMultis = usePendingMultiDms();
-  const pinned = usePinned();
+  const pinned = usePinnedChats();
   const { sortMessages } = useMessageSort();
   const { data: dmUnreads } = useDmUnreads();
   const channelUnreads = useUnreads();

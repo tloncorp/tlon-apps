@@ -15,9 +15,12 @@ import {
   useMarkDmReadMutation,
   useMutliDmRsvpMutation,
   useDmRsvpMutation,
-  usePinned,
-  useTogglePinMutation,
 } from '@/state/chat';
+import {
+  useAddPinMutation,
+  useDeletePinMutation,
+  usePinnedChats,
+} from '@/state/pins';
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
@@ -55,14 +58,15 @@ export default function DmOptions({
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const pinned = usePinned();
+  const pinned = usePinnedChats();
   const isUnread = useIsDmUnread(whom);
   const isChannelUnread = useCheckChannelUnread();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const hasActivity =
     isUnread || pending || (!isDMorMultiDm && isChannelUnread(whom));
   const { mutate: leaveChat } = useLeaveMutation();
-  const { mutateAsync: toggleDmPin } = useTogglePinMutation();
+  const { mutateAsync: addPin } = useAddPinMutation();
+  const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
   const { mutate: markDmRead } = useMarkDmReadMutation();
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
@@ -112,9 +116,13 @@ export default function DmOptions({
     async (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
       const isPinned = pinned.includes(whom);
-      await toggleDmPin({ whom, pin: !isPinned });
+      if (isPinned) {
+        await delPin({ pin: whom });
+      } else {
+        await addPin({ pin: whom });
+      }
     },
-    [whom, pinned, toggleDmPin]
+    [whom, pinned, addPin, delPin]
   );
 
   const handleInvite = () => {
