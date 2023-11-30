@@ -25,7 +25,11 @@ import Avatar from '@/components/Avatar';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useChannelFlag, linkUrlFromContent } from '@/logic/channel';
 import { imageUrlFromContent, isCite, Post, Story } from '@/types/channel';
-import { usePostToggler } from '@/state/channel/channel';
+import {
+  useIsPostUndelivered,
+  usePostToggler,
+  useTrackedPostStatus,
+} from '@/state/channel/channel';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -40,6 +44,7 @@ interface TopBarProps extends CurioDisplayProps {
   hasIcon?: boolean;
   canEdit: boolean;
   longPress: boolean;
+  isUndelivered?: boolean;
   linkFromNotification?: string;
   author: string;
 }
@@ -52,6 +57,7 @@ function TopBar({
   asMobileNotification = false,
   linkFromNotification,
   longPress = false,
+  isUndelivered = false,
   time,
   canEdit,
   author,
@@ -80,17 +86,19 @@ function TopBar({
     return null;
   }
 
-  const actions: Action[] = asRef
-    ? [
+  let actions: Action[] = [];
+  if (!isUndelivered) {
+    if (asRef) {
+      actions = [
         {
           key: 'copy',
           content: didCopy ? 'Copied' : 'Share',
           onClick: onCopy,
           keepOpenOnClick: true,
         },
-      ]
-    : canEdit
-    ? [
+      ];
+    } else if (canEdit) {
+      actions = [
         {
           key: 'edit',
           content: 'Edit',
@@ -102,15 +110,16 @@ function TopBar({
           content: 'Delete',
           onClick: () => setDeleteOpen(true),
         },
-      ]
-    : [];
+      ];
+    }
 
-  if (window.our !== author) {
-    actions.push({
-      key: 'hide',
-      content: isHidden ? 'Show Post' : 'Hide Post for Me',
-      onClick: toggleHidden,
-    });
+    if (window.our !== author) {
+      actions.push({
+        key: 'hide',
+        content: isHidden ? 'Show Post' : 'Hide Post for Me',
+        onClick: toggleHidden,
+      });
+    }
   }
 
   return (
@@ -132,14 +141,15 @@ function TopBar({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div>
-          {asRef ? (
+          {asRef && (
             <button
               onClick={navigateToCurio}
               className="small-menu-button border border-gray-100 bg-white px-2 py-1"
             >
               View
             </button>
-          ) : (
+          )}
+          {!asRef && !isUndelivered && (
             <IconButton
               icon={
                 didCopy ? (
@@ -154,29 +164,31 @@ function TopBar({
             />
           )}
         </div>
-        <ActionMenu
-          open={menuOpen}
-          onOpenChange={setMenuOpen}
-          asChild={false}
-          actions={actions}
-        >
-          {asRef ? (
-            <IconButton
-              icon={<ElipsisSmallIcon className="h-4 w-4" />}
-              action={() => setMenuOpen(true)}
-              label="expand"
-              className="rounded border border-gray-100 bg-white"
-              small
-            />
-          ) : (
-            <IconButton
-              icon={<ElipsisSmallIcon className="h-4 w-4" />}
-              label="options"
-              className="rounded bg-white"
-              action={() => setMenuOpen(!menuOpen)}
-            />
-          )}
-        </ActionMenu>
+        {!isUndelivered && (
+          <ActionMenu
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            asChild={false}
+            actions={actions}
+          >
+            {asRef ? (
+              <IconButton
+                icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                action={() => setMenuOpen(true)}
+                label="expand"
+                className="rounded border border-gray-100 bg-white"
+                small
+              />
+            ) : (
+              <IconButton
+                icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                label="options"
+                className="rounded bg-white"
+                action={() => setMenuOpen(!menuOpen)}
+              />
+            )}
+          </ActionMenu>
+        )}
       </div>
       <ConfirmationModal
         open={deleteOpen}
@@ -321,6 +333,7 @@ export default function HeapBlock({
       ? false
       : isAdmin || window.our === (post ? post.essay.author : '');
   const maybeEmbed = !isImage && !isAudio && !isText;
+  const isUndelivered = useIsPostUndelivered(post);
 
   useEffect(() => {
     if (embedErrored) {
@@ -359,7 +372,12 @@ export default function HeapBlock({
         isHidden={isHidden}
       >
         <div className={cnm()}>
-          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <TopBar
+            hasIcon
+            canEdit={canEdit}
+            isUndelivered={isUndelivered}
+            {...topBar}
+          />
           <HeapContent
             className={cn('mx-3 my-2 leading-6', asRef ? 'line-clamp-9' : '')}
             leading-6
@@ -383,7 +401,12 @@ export default function HeapBlock({
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
-          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <TopBar
+            hasIcon
+            canEdit={canEdit}
+            isUndelivered={isUndelivered}
+            {...topBar}
+          />
           <div className="flex grow flex-col items-center justify-center">
             <HeapContent
               className={cn('leading-6', asRef ? 'mx-3 my-2 line-clamp-9' : '')}
@@ -405,7 +428,12 @@ export default function HeapBlock({
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
-          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <TopBar
+            hasIcon
+            canEdit={canEdit}
+            isUndelivered={isUndelivered}
+            {...topBar}
+          />
           <HeapContent
             className={cn('mx-3 my-2 leading-6', asRef ? 'line-clamp-9' : '')}
             leading-6
@@ -437,7 +465,7 @@ export default function HeapBlock({
             borderRadius: asMobileNotification ? '6px' : undefined,
           }}
         >
-          <TopBar canEdit={canEdit} {...topBar} />
+          <TopBar canEdit={canEdit} isUndelivered={isUndelivered} {...topBar} />
           <BottomBar {...botBar} />
         </div>
       </HeapBlockWrapper>
@@ -453,7 +481,12 @@ export default function HeapBlock({
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
-          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <TopBar
+            hasIcon
+            canEdit={canEdit}
+            isUndelivered={isUndelivered}
+            {...topBar}
+          />
           <div className="flex grow flex-col items-center justify-center">
             <MusicLargeIcon className="h-16 w-16 text-gray-300" />
           </div>
@@ -482,7 +515,11 @@ export default function HeapBlock({
               backgroundImage: `url(${thumbnail})`,
             }}
           >
-            <TopBar canEdit={canEdit} {...topBar} />
+            <TopBar
+              canEdit={canEdit}
+              isUndelivered={isUndelivered}
+              {...topBar}
+            />
             <BottomBar {...botBar} />
           </div>
         </HeapBlockWrapper>
@@ -500,7 +537,12 @@ export default function HeapBlock({
           setLongPress={setLongPress}
         >
           <div className={cnm()}>
-            <TopBar isTwitter canEdit={canEdit} {...topBar} />
+            <TopBar
+              isTwitter
+              canEdit={canEdit}
+              isUndelivered={isUndelivered}
+              {...topBar}
+            />
             <div className="flex grow flex-col items-center justify-center space-y-2">
               <img
                 className="h-[46px] w-[46px] rounded-full"
@@ -523,7 +565,12 @@ export default function HeapBlock({
         setLongPress={setLongPress}
       >
         <div className={cnm()}>
-          <TopBar hasIcon canEdit={canEdit} {...topBar} />
+          <TopBar
+            hasIcon
+            canEdit={canEdit}
+            isUndelivered={isUndelivered}
+            {...topBar}
+          />
           <div className="flex grow flex-col items-center justify-center">
             <LinkIcon className="h-16 w-16 text-gray-300" />
           </div>
@@ -541,7 +588,12 @@ export default function HeapBlock({
       setLongPress={setLongPress}
     >
       <div className={cnm()}>
-        <TopBar hasIcon canEdit={canEdit} {...topBar} />
+        <TopBar
+          hasIcon
+          canEdit={canEdit}
+          isUndelivered={isUndelivered}
+          {...topBar}
+        />
         <div className="flex grow flex-col items-center justify-center">
           <LinkIcon className="h-16 w-16 text-gray-300" />
           <div className="text-underline m-3 block break-all rounded bg-gray-50 p-2 text-center font-semibold">

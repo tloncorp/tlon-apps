@@ -23,6 +23,7 @@ interface DiaryListItemProps {
   time: bigInt.BigInteger;
   isInList?: boolean;
   isInGrid?: boolean;
+  isUndelivered?: boolean;
 }
 
 export default function DiaryNoteHeadline({
@@ -32,6 +33,7 @@ export default function DiaryNoteHeadline({
   time,
   isInList,
   isInGrid,
+  isUndelivered,
 }: DiaryListItemProps) {
   const { title, image } = getKindDataFromEssay(essay);
   const chFlag = useChannelFlag();
@@ -117,7 +119,7 @@ export default function DiaryNoteHeadline({
             )}
             onClick={(e) => e.stopPropagation()}
           >
-            {isInList || isInGrid ? (
+            {isInList || isInGrid || isUndelivered ? (
               <>
                 <span
                   role="link"

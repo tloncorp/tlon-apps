@@ -19,12 +19,14 @@ export interface HeapDetailHeaderProps {
   nest: string;
   idCurio: string;
   essay: PostEssay;
+  isUndelivered?: boolean;
   groupFlag: string;
 }
 
 export default function HeapDetailHeader({
   nest,
   idCurio,
+  isUndelivered = false,
   essay,
   groupFlag,
 }: HeapDetailHeaderProps) {
@@ -78,19 +80,23 @@ export default function HeapDetailHeader({
         action={
           <div className="flex h-12 items-center justify-end space-x-2">
             <ReconnectingSpinner />
-            <button
-              className="h-6 w-6 rounded text-gray-800"
-              aria-controls="copy"
-              onClick={onCopy}
-              aria-label="Copy Link"
-            >
-              {didCopy ? (
-                <CheckIcon className="h-6 w-6" />
-              ) : (
-                <CopyIcon className="h-6 w-6" />
-              )}
-            </button>
-            {canEdit ? <button onClick={onEdit}>Edit</button> : null}
+            {!isUndelivered && (
+              <>
+                <button
+                  className="h-6 w-6 rounded text-gray-800"
+                  aria-controls="copy"
+                  onClick={onCopy}
+                  aria-label="Copy Link"
+                >
+                  {didCopy ? (
+                    <CheckIcon className="h-6 w-6" />
+                  ) : (
+                    <CopyIcon className="h-6 w-6" />
+                  )}
+                </button>
+                {canEdit ? <button onClick={onEdit}>Edit</button> : null}
+              </>
+            )}
           </div>
         }
       />
@@ -132,26 +138,28 @@ export default function HeapDetailHeader({
           </span>
         </div>
       </Link>
-      <div className="shink-0 flex items-center space-x-3">
-        {canEdit ? (
-          <button onClick={onEdit} className="small-button">
-            Edit
-          </button>
-        ) : null}
+      {!isUndelivered && (
+        <div className="shink-0 flex items-center space-x-3">
+          {canEdit ? (
+            <button onClick={onEdit} className="small-button">
+              Edit
+            </button>
+          ) : null}
 
-        <button
-          className="h-6 w-6 rounded text-gray-400 hover:bg-gray-50"
-          aria-controls="copy"
-          onClick={onCopy}
-          aria-label="Copy Link"
-        >
-          {didCopy ? (
-            <CheckIcon className="h-6 w-6" />
-          ) : (
-            <CopyIcon className="h-6 w-6" />
-          )}
-        </button>
-      </div>
+          <button
+            className="h-6 w-6 rounded text-gray-400 hover:bg-gray-50"
+            aria-controls="copy"
+            onClick={onCopy}
+            aria-label="Copy Link"
+          >
+            {didCopy ? (
+              <CheckIcon className="h-6 w-6" />
+            ) : (
+              <CopyIcon className="h-6 w-6" />
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

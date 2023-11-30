@@ -186,14 +186,8 @@ function DiaryChannel({ title }: ViewProps) {
         <div className="relative flex flex-col items-center">
           <Toast.Root duration={3000} defaultOpen={false} open={showToast}>
             <Toast.Description asChild>
-              <div className="absolute z-10 flex w-[415px] -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-black shadow-xl dark:bg-gray-200">
+              <div className="absolute z-10 flex -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-black shadow-xl dark:bg-gray-200">
                 <span className="py-2 px-4">Note successfully published</span>
-                <button
-                  onClick={onCopy}
-                  className="-mx-4 -my-2 w-[135px] rounded-r-lg bg-blue py-2 px-4 text-white dark:text-black"
-                >
-                  {didCopy ? 'Copied' : 'Copy Note Link'}
-                </button>
               </div>
             </Toast.Description>
           </Toast.Root>

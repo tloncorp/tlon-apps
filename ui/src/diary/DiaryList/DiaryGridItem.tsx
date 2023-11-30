@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { Post } from '@/types/channel';
 import { useCalm } from '@/state/settings';
 import getKindDataFromEssay from '@/logic/getKindData';
-import { usePostToggler } from '@/state/channel/channel';
+import { useIsPostUndelivered, usePostToggler } from '@/state/channel/channel';
 import DiaryNoteHeadline from '../DiaryNoteHeadline';
 
 interface DiaryGridItemProps {
@@ -19,6 +19,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
   const hasImage = image?.length !== 0;
   const { replyCount, lastRepliers } = note.seal.meta;
   const { isHidden } = usePostToggler(time.toString());
+  const isUndelivered = useIsPostUndelivered(note);
 
   return (
     <div
@@ -44,6 +45,7 @@ export default function DiaryGridItem({ note, time }: DiaryGridItemProps) {
         lastRepliers={lastRepliers}
         replyCount={replyCount}
         essay={essay}
+        isUndelivered={isUndelivered}
         time={time}
         isInGrid
       />
