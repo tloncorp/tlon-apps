@@ -421,48 +421,85 @@ const infinitePostUpdater = (
 
     const replyQueryKey = [han, 'posts', flag, udToDec(time.toString())];
 
-    if (reply && 'set' in reply && 'memo' in reply.set) {
-      const newReply = reply.set;
+    if (reply && 'set' in reply) {
+      if (reply.set === null) {
+        queryClient.setQueryData<PostDataResponse | undefined>(
+          replyQueryKey,
+          (post: PostDataResponse | undefined) => {
+            if (post === undefined) {
+              return undefined;
+            }
 
-      updatePostInCache(
-        { nest, postId: udToDec(time.toString()) },
-        (post: PostDataResponse | undefined) => {
-          if (post === undefined) {
-            return undefined;
-          }
+            const existingReplies = post.seal.replies ?? {};
 
-          const existingReplies = post.seal.replies ?? {};
+            const newReplies = Object.keys(existingReplies)
+              .filter((k) => k !== reply.set?.seal.id)
+              .reduce((acc, k) => {
+                // eslint-disable-next-line no-param-reassign
+                acc[k] = existingReplies[k];
+                return acc;
+              }, {} as { [key: string]: Reply });
 
-          const newReplies = {
-            ...existingReplies,
-            [newReply.seal.id]: newReply,
-          };
-
-          const newPost = {
-            ...post,
-            seal: {
-              ...post.seal,
-              replies: newReplies,
-              meta: {
-                ...post.seal.meta,
-                replyCount,
-                lastReply,
-                lastRepliers,
+            const newPost = {
+              ...post,
+              seal: {
+                ...post.seal,
+                replies: newReplies,
+                meta: {
+                  ...post.seal.meta,
+                  replyCount,
+                  lastReply,
+                  lastRepliers,
+                },
               },
-            },
-          };
+            };
 
-          return newPost;
-        }
-      );
+            return newPost;
+          }
+        );
+      } else if ('memo' in reply.set) {
+        const newReply = reply.set;
 
-      usePostsStore.getState().updateStatus(
-        {
-          author: newReply.memo.author,
-          sent: newReply.memo.sent,
-        },
-        'delivered'
-      );
+        queryClient.setQueryData<PostDataResponse | undefined>(
+          replyQueryKey,
+          (post: PostDataResponse | undefined) => {
+            if (post === undefined) {
+              return undefined;
+            }
+
+            const existingReplies = post.seal.replies ?? {};
+
+            const newReplies = {
+              ...existingReplies,
+              [newReply.seal.id]: newReply,
+            };
+
+            const newPost = {
+              ...post,
+              seal: {
+                ...post.seal,
+                replies: newReplies,
+                meta: {
+                  ...post.seal.meta,
+                  replyCount,
+                  lastReply,
+                  lastRepliers,
+                },
+              },
+            };
+
+            return newPost;
+          }
+        );
+
+        usePostsStore.getState().updateStatus(
+          {
+            author: newReply.memo.author,
+            sent: newReply.memo.sent,
+          },
+          'delivered'
+        );
+      }
     }
 
     queryClient.setQueryData<{
