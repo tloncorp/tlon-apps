@@ -13,26 +13,28 @@ export default function ChatScrollerDebugOverlay({
   anchorIndex,
   scrollHeight,
   scrollOffset,
+  isLoadingOlder,
+  isLoadingNewer,
   hasLoadedNewest,
   hasLoadedOldest,
   isInverted,
   loadDirection,
   isAtBottom,
   isAtTop,
-  fetchState,
   userHasScrolled,
 }: {
   count: number;
   anchorIndex?: number | null;
   scrollOffset: number;
   scrollHeight: number;
+  isLoadingOlder: boolean;
+  isLoadingNewer: boolean;
   hasLoadedNewest: boolean;
   hasLoadedOldest: boolean;
   isInverted: boolean;
   loadDirection: 'newer' | 'older';
   isAtBottom: boolean;
   isAtTop: boolean;
-  fetchState: 'initial' | 'top' | 'bottom';
   userHasScrolled: boolean;
 }) {
   return (
@@ -64,11 +66,11 @@ export default function ChatScrollerDebugOverlay({
       <label className="mt-2">Top loader</label>
       <DebugBoolean label="Selected" value={loadDirection === 'older'} />
       <DebugBoolean label="Has loaded oldest" value={hasLoadedOldest} />
-      <DebugBoolean label="Fetching" value={fetchState === 'top'} />
+      <DebugBoolean label="Fetching" value={isLoadingOlder} />
       <label className="mt-2">Bottom loader</label>
       <DebugBoolean label="Selected" value={loadDirection === 'newer'} />
       <DebugBoolean label="Has loaded newest" value={hasLoadedNewest} />
-      <DebugBoolean label="Fetching" value={fetchState === 'top'} />
+      <DebugBoolean label="Fetching" value={isLoadingNewer} />
     </div>
   );
 }
