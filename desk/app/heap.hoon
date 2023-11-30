@@ -159,6 +159,11 @@
   ::
       %heap-migrate-server  ?>(from-self server:migrate)
       %heap-migrate         ?>(from-self client:migrate)
+  ::
+      %heap-migrate-refs
+    ?>  from-self
+    =+  !<(flag=[ship term] vase)
+    (refs:migrate flag)
   ==
   ++  join
     |=  =join:h
@@ -537,6 +542,36 @@
     =/  =cage  [%channel-migration !>(v-channels)]
     (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
   ::
+  ++  refs
+    |=  =flag:h
+    ?~  old-heap=(~(get by stash) flag)  cor
+    %-  emil
+    ::  iterate over all heaps and, for every item/comment authored by us,
+    ::  containing a chat reference that we have (almost certainly) converted,
+    ::  send the new version of the item/comment as an edit to the host.
+    ::
+    %+  murn  (tap:on:curios:h curios.u.old-heap)
+    |=  [=time =curio:h]
+    ^-  (unit card)
+    ?.  =(our.bowl author.curio)  ~
+    =/  edit=(unit essay:c)
+      =;  contains-chat-ref=?
+        ?.  contains-chat-ref  ~
+        `(convert-essay +.curio)
+      %+  lien  p.content.curio
+      |=  =block:h
+      ?=([%cite %chan [%chat *] *] block)
+    =/  command=(unit c-post:c)
+      ?~  edit  ~
+      ?~  replying.curio
+        `[%edit time u.edit]
+      `[%reply u.replying.curio %edit time -.u.edit]
+    ?~  command  ~
+    =/  =cage
+      :-  %channel-action
+      !>(`a-channels:c`[%channel [%heap flag] %post u.command])
+    `[%pass /migrate %agent [our.bowl %channels] %poke cage]
+  ::
   ++  old-chats
     =>  [c2=c2 bowl=bowl ..zuse]  ~+
     .^  (map flag:c2 chat:c2)
@@ -601,7 +636,7 @@
   ++  convert-reply
     |=  [id=@da old=curio:h]
     ^-  v-reply:c
-    [[id (convert-feels feels.old)] (convert-memo +.old)]
+    [[id (convert-feels feels.old)] %0 (convert-memo +.old)]
   ::
   ++  convert-memo
     |=  old=heart:h

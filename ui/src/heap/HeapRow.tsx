@@ -28,7 +28,12 @@ import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
 import { Post, Story, VerseBlock } from '@/types/channel';
-import { usePostToggler } from '@/state/channel/channel';
+import {
+  useIsPostUndelivered,
+  usePostToggler,
+  useTrackedPostStatus,
+  useTrackedPosts,
+} from '@/state/channel/channel';
 import { linkUrlFromContent } from '@/logic/channel';
 import useCurioActions from './useCurioActions';
 
@@ -41,6 +46,7 @@ interface CurioDisplayProps {
 interface TopBarProps extends CurioDisplayProps {
   isTwitter?: boolean;
   hasIcon?: boolean;
+  isUndelivered?: boolean;
   canEdit: boolean;
   longPress: boolean;
   author: string;
@@ -52,6 +58,7 @@ function Actions({
   refToken = undefined,
   asRef = false,
   longPress = false,
+  isUndelivered = false,
   time,
   canEdit,
   author,
@@ -91,14 +98,15 @@ function Actions({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className={longPress ? 'block' : 'group-hover:block'}>
-          {asRef ? (
+          {asRef && (
             <button
               onClick={navigateToCurio}
               className="small-menu-button border border-gray-100 bg-white px-2 py-1"
             >
               View
             </button>
-          ) : (
+          )}
+          {!asRef && !isUndelivered && (
             <IconButton
               icon={
                 didCopy ? (
@@ -113,59 +121,63 @@ function Actions({
             />
           )}
         </div>
-        <div className={longPress ? 'relative' : 'relative group-hover:block'}>
-          {asRef ? (
-            <IconButton
-              icon={<ElipsisSmallIcon className="h-4 w-4" />}
-              action={() => setMenuOpen(true)}
-              label="expand"
-              className="rounded border border-gray-100 bg-white"
-              small
-            />
-          ) : (
-            <IconButton
-              icon={<ElipsisSmallIcon className="h-4 w-4" />}
-              label="options"
-              className="rounded bg-white"
-              action={() => setMenuOpen(!menuOpen)}
-            />
-          )}
+        {!isUndelivered && (
           <div
-            className={cn(
-              'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
-              { hidden: !menuOpen }
-            )}
-            onMouseLeave={() => setMenuOpen(false)}
+            className={longPress ? 'relative' : 'relative group-hover:block'}
           >
             {asRef ? (
-              <button
-                className="small-menu-button"
-                onClick={onCopy}
-                disabled={didCopy}
-              >
-                {didCopy ? 'Copied' : 'Share'}
-              </button>
-            ) : null}
-            {!asRef && canEdit ? (
-              <>
-                <button onClick={onEdit} className="small-menu-button">
-                  Edit
-                </button>
+              <IconButton
+                icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                action={() => setMenuOpen(true)}
+                label="expand"
+                className="rounded border border-gray-100 bg-white"
+                small
+              />
+            ) : (
+              <IconButton
+                icon={<ElipsisSmallIcon className="h-4 w-4" />}
+                label="options"
+                className="rounded bg-white"
+                action={() => setMenuOpen(!menuOpen)}
+              />
+            )}
+            <div
+              className={cn(
+                'absolute right-0 flex w-[101px] flex-col items-start rounded bg-white text-sm font-semibold text-gray-800 shadow',
+                { hidden: !menuOpen }
+              )}
+              onMouseLeave={() => setMenuOpen(false)}
+            >
+              {asRef ? (
                 <button
-                  className="small-menu-button text-red"
-                  onClick={() => setDeleteOpen(true)}
+                  className="small-menu-button"
+                  onClick={onCopy}
+                  disabled={didCopy}
                 >
-                  Delete
+                  {didCopy ? 'Copied' : 'Share'}
                 </button>
-              </>
-            ) : null}
-            {!asRef && author !== window.our ? (
-              <button onClick={toggleHidden} className="small-menu-button">
-                {isHidden ? 'Show Post' : 'Hide Post for Me'}
-              </button>
-            ) : null}
+              ) : null}
+              {!asRef && canEdit ? (
+                <>
+                  <button onClick={onEdit} className="small-menu-button">
+                    Edit
+                  </button>
+                  <button
+                    className="small-menu-button text-red"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : null}
+              {!asRef && author !== window.our ? (
+                <button onClick={toggleHidden} className="small-menu-button">
+                  {isHidden ? 'Show Post' : 'Hide Post for Me'}
+                </button>
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
       </div>
       <ConfirmationModal
         open={deleteOpen}
@@ -212,13 +224,18 @@ export default function HeapRow({
   const textFallbackTitle = firstInlineSummary(content);
 
   const navigateToDetail = useCallback(() => {
-    navigate(`curio/${bigInt(time)}`);
-  }, [navigate, time]);
+    if (isHidden) {
+      return;
+    }
+
+    navigate(`curio/${bigInt(time)}`, { state: { initialCurio: post } });
+  }, [navigate, post, isHidden, time]);
 
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const canEdit = asRef ? false : isAdmin || window.our === post?.essay.author;
   const maybeEmbed = !isImage && !isAudio && !isText && !isComment;
+  const isUndelivered = useIsPostUndelivered(post);
 
   useEffect(() => {
     if (isError) {
@@ -302,6 +319,7 @@ export default function HeapRow({
             canEdit={canEdit}
             time={time}
             author={post.essay.author}
+            isUndelivered={isUndelivered}
           />
         </div>
       </div>
@@ -333,6 +351,7 @@ export default function HeapRow({
             canEdit={canEdit}
             time={post.seal.id}
             author={post.essay.author}
+            isUndelivered={isUndelivered}
           />
         </div>
       </div>
@@ -374,6 +393,7 @@ export default function HeapRow({
             canEdit={canEdit}
             time={post.seal.id}
             author={post.essay.author}
+            isUndelivered={isUndelivered}
           />
         </div>
       </div>
@@ -427,6 +447,7 @@ export default function HeapRow({
             canEdit={canEdit}
             time={post.seal.id}
             author={post.essay.author}
+            isUndelivered={isUndelivered}
           />
         </div>
       </div>
@@ -471,6 +492,7 @@ export default function HeapRow({
             canEdit={canEdit}
             time={post.seal.id}
             author={post.essay.author}
+            isUndelivered={isUndelivered}
           />
         </div>
       </div>
@@ -527,6 +549,7 @@ export default function HeapRow({
               canEdit={canEdit}
               time={post.seal.id}
               author={post.essay.author}
+              isUndelivered={isUndelivered}
             />
           </div>
         </div>
@@ -579,6 +602,7 @@ export default function HeapRow({
             canEdit={canEdit}
             time={post.seal.id}
             author={post.essay.author}
+            isUndelivered={isUndelivered}
           />
         </div>
       </div>
@@ -622,6 +646,7 @@ export default function HeapRow({
           canEdit={canEdit}
           time={post.seal.id}
           author={post.essay.author}
+          isUndelivered={isUndelivered}
         />
       </div>
     </div>

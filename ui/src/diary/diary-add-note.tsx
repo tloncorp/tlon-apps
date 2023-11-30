@@ -291,6 +291,7 @@ export default function DiaryAddNote() {
                     }
                   )}
                   onClick={publish}
+                  data-testid="save-note-button"
                 >
                   {isLoading ? (
                     <LoadingSpinner className="h-4 w-4" />
@@ -333,6 +334,7 @@ export default function DiaryAddNote() {
                     ref(e);
                     titleRef.current = e;
                   }}
+                  data-testid="note-title-input"
                   {...titleRegisterRest}
                 />
               </form>

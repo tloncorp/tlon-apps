@@ -1,12 +1,22 @@
 {
   "~zod": {
-    "code": "lidlut-tabwed-pillex-ridrup",
+    "authFile": "e2e/.auth/zod.json",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-zod6.tgz",
     "url": "http://localhost:35453",
-    "type": "A"
+    "ship": "zod",
+    "code": "lidlut-tabwed-pillex-ridrup",
+    "httpPort": "35453",
+    "loopbackPort": "",
+    "webUrl": "http://localhost:3000"
   },
   "~bus": {
-    "code": "riddec-bicrym-ridlev-pocsef",
+    "authFile": "e2e/.auth/bus.json",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-bus6.tgz",
     "url": "http://localhost:36963",
-    "type": "B"
+    "ship": "bus",
+    "code": "riddec-bicrym-ridlev-pocsef",
+    "httpPort": "36963",
+    "loopbackPort": "",
+    "webUrl": "http://localhost:3001"
   }
 }

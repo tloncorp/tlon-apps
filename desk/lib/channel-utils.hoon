@@ -70,7 +70,7 @@
 ++  uv-reply
   |=  [parent-id=id-reply:c =v-reply:c]
   ^-  reply:c
-  :_  +.v-reply
+  :_  +>.v-reply
   [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
 ++  uv-reacts
@@ -172,10 +172,22 @@
 ++  get-reply-meta
   |=  post=v-post:c
   ^-  reply-meta:c
-  :*  (wyt:on-v-replies:c replies.post)
+  :*  (get-non-null-reply-count replies.post)
       (get-last-repliers post)
       (biff (ram:on-v-replies:c replies.post) |=([=time *] `time))
   ==
+::
+++  get-non-null-reply-count
+  |=  replies=v-replies:c
+  ^-  @ud
+  =/  entries=(list [time (unit v-reply:c)])  (bap:on-v-replies:c replies)
+  =/  count  0
+  |-  ^-  @ud
+  ?:  =(~ entries)
+    count
+  =/  [* reply=(unit v-reply:c)]  -.entries
+  ?~  reply  $(entries +.entries)
+  $(entries +.entries, count +(count))
 ::
 ++  get-last-repliers
   |=  post=v-post:c  ::TODO  could just take =v-replies
@@ -189,7 +201,8 @@
   ?~  reply  $(entries +.entries)
   ?:  (~(has in replyers) author.u.reply)
     $(entries +.entries)
-  (~(put in replyers) author.u.reply)
+  =.  replyers  (~(put in replyers) author.u.reply)
+  $(entries +.entries)
 ++  perms
   |_  [our=@p now=@da =nest:c group=flag:g]
   ++  am-host  =(our ship.nest)

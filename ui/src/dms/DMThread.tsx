@@ -171,7 +171,8 @@ export default function DMThread() {
             key={idTime}
             messages={replies}
             whom={whom}
-            fetchState="initial"
+            isLoadingOlder={false}
+            isLoadingNewer={false}
             scrollerRef={scrollerRef}
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
             scrollElementRef={scrollElementRef}

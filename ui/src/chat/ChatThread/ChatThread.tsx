@@ -191,8 +191,9 @@ export default function ChatThread() {
           <ChatScroller
             key={idTime}
             messages={orderedReplies || []}
-            fetchState={'initial'}
             whom={flag}
+            isLoadingOlder={false}
+            isLoadingNewer={false}
             scrollerRef={scrollerRef}
             scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
             scrollElementRef={scrollElementRef}

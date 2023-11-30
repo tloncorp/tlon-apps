@@ -12,7 +12,8 @@ describe('ChatScroller', () => {
     const result = render(
       <ChatScroller
         messages={[]}
-        fetchState={'initial'}
+        isLoadingOlder={false}
+        isLoadingNewer={false}
         whom={'test'}
         scrollerRef={ref}
         scrollElementRef={scrollRef}

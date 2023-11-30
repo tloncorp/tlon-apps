@@ -159,8 +159,6 @@ function useMessageItems({
   return useMemo(() => [keys, entries, messages], [keys, entries, messages]);
 }
 
-export type MessageFetchState = 'top' | 'bottom' | 'initial';
-
 export function useMessageData({
   whom,
   scrollTo,

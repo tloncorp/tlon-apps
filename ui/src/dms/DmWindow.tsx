@@ -68,16 +68,6 @@ export default function DmWindow({
     [scrollToIndex, latestMessageIndex]
   );
 
-  const fetchState = useMemo(
-    () =>
-      isFetchingNextPage
-        ? 'bottom'
-        : isFetchingPreviousPage
-        ? 'top'
-        : 'initial',
-    [isFetchingNextPage, isFetchingPreviousPage]
-  );
-
   const onAtBottom = useCallback(() => {
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
@@ -150,7 +140,8 @@ export default function DmWindow({
            */
           key={whom}
           messages={writs}
-          fetchState={fetchState}
+          isLoadingOlder={isFetchingNextPage}
+          isLoadingNewer={isFetchingPreviousPage}
           whom={whom}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}

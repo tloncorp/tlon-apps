@@ -71,7 +71,7 @@
 ++  mo-v-posts  ((mp id-post (unit v-post)) lte)
 ::  $v-reply: a post comment
 ::
-+$  v-reply       [v-reply-seal memo]
++$  v-reply       [v-reply-seal (rev memo)]
 +$  id-reply      time
 +$  v-replies     ((mop id-reply (unit v-reply)) lte)
 ++  on-v-replies  ((on id-reply (unit v-reply)) lte)
@@ -355,6 +355,7 @@
 ::
 +$  c-reply
   $%  [%add =memo]
+      [%edit id=id-reply =memo]
       [%del id=id-reply]
       c-react
   ==

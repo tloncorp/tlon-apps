@@ -11,4 +11,4 @@ stats.html
 /playwright-report/
 /playwright/.cache/
 
-/e2e/.auth/user.json
+/e2e/.auth/
