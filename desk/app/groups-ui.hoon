@@ -135,8 +135,15 @@
     ?>  ?=(%pins -.action)
     =.  pins
       ?-  -.a-pins.action
-        %add  (snoc pins whom.a-pins.action)
         %del  (skip pins (cury test whom.a-pins.action))
+      ::
+          %add
+        ::  be careful not to insert duplicates
+        ::
+        |-
+        ?~  pins  [whom.a-pins.action]~
+        ?:  =(i.pins whom.a-pins.action)  pins
+        [i.pins $(pins t.pins)]
       ==
     ::TODO  eventually, give %fact if that changed anything
     cor
