@@ -57,15 +57,6 @@ export default function ChatWindow({
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(nest).unread?.readTimeout;
-  const fetchState = useMemo(
-    () =>
-      isFetchingNextPage
-        ? 'bottom'
-        : isFetchingPreviousPage
-        ? 'top'
-        : 'initial',
-    [isFetchingNextPage, isFetchingPreviousPage]
-  );
   const { compatible } = useChannelCompatibility(nest);
   const latestMessageIndex = messages.length - 1;
   const scrollToIndex = useMemo(
@@ -170,7 +161,8 @@ export default function ChatWindow({
            */
           key={whom}
           messages={messages}
-          fetchState={fetchState}
+          isLoadingOlder={isFetchingNextPage}
+          isLoadingNewer={isFetchingPreviousPage}
           whom={whom}
           topLoadEndMarker={prefixedElement}
           scrollTo={scrollTo}
