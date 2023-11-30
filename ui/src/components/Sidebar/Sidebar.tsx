@@ -19,7 +19,7 @@ import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
-import { usePinnedGroups } from '@/state/chat';
+import { usePinnedGroups } from '@/state/groups';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
@@ -230,7 +230,7 @@ export default function Sidebar() {
         <GroupsScrollingContext.Provider value={isScrolling}>
           <GroupList
             groups={sortedGroups}
-            pinnedGroups={Object.entries(pinnedGroups)}
+            pinnedGroups={pinnedGroups}
             loadingGroups={loadingGroups}
             isScrolling={scroll.current}
             atTopChange={atTopChange}

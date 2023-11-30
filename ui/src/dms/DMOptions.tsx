@@ -21,12 +21,12 @@ import {
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useLeaveMutation } from '@/state/channel/channel';
 import {
+  usePins,
   useAddPinMutation,
   useDeletePinMutation,
-  useLeaveMutation,
-  usePins,
-} from '@/state/channel/channel';
+} from '@/state/groups';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useCheckChannelUnread } from '@/logic/channel';
 import DmInviteDialog from './DmInviteDialog';
@@ -61,8 +61,8 @@ export default function DmOptions({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const pinned = usePinned();
-  const chatPins = usePins();
-  const pins = pinned.concat(chatPins);
+  const groupPins = usePins();
+  const pins = pinned.concat(groupPins);
   const isUnread = useIsDmUnread(whom);
   const isChannelUnread = useCheckChannelUnread();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
@@ -124,9 +124,9 @@ export default function DmOptions({
       if (isDMorMultiDm) {
         await toggleDmPin({ whom, pin: !isPinned });
       } else if (isPinned) {
-        deletePin({ nest: whom });
+        deletePin({ flag: whom });
       } else {
-        addPin({ nest: whom });
+        addPin({ flag: whom });
       }
     },
     [whom, pins, addPin, deletePin, toggleDmPin, isDMorMultiDm]

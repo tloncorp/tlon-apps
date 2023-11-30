@@ -32,7 +32,6 @@ import {
   UnreadUpdate,
   PagedPosts,
   PostDataResponse,
-  Pins,
   ChannelScan,
   ChannelScanItem,
   ReferenceResponse,
@@ -963,83 +962,6 @@ export function useChats(): Channels {
   });
 
   return chats;
-}
-
-export function usePins(): Pins {
-  const { data } = useReactQueryScry<{ pins: Pins }>({
-    queryKey: ChannnelKeys.pins(),
-    app: 'channels',
-    path: '/pins',
-  });
-
-  if (data === undefined || !data.pins) {
-    const existingData = queryClient.getQueryData(ChannnelKeys.pins()) as
-      | string[]
-      | undefined;
-    return existingData || [];
-  }
-
-  const { pins } = data;
-
-  return pins;
-}
-
-export function useAddPinMutation() {
-  const pins = usePins();
-  const mutationFn = async (variables: { nest: Nest }) => {
-    const newPins = _.uniq([...pins, variables.nest]);
-
-    await api.poke({
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        pin: newPins,
-      },
-    });
-  };
-
-  return useMutation({
-    mutationFn,
-    onMutate: async (variables) => {
-      await queryClient.cancelQueries(ChannnelKeys.pins());
-
-      // optimistic update
-      const newPins = _.uniq([...pins, variables.nest]);
-      queryClient.setQueryData(ChannnelKeys.pins(), newPins);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries(ChannnelKeys.pins());
-    },
-  });
-}
-
-export function useDeletePinMutation() {
-  const pins = usePins();
-  const mutationFn = async (variables: { nest: Nest }) => {
-    const newPins = pins.filter((p) => p !== variables.nest);
-
-    await api.poke({
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        pin: newPins,
-      },
-    });
-  };
-
-  return useMutation({
-    mutationFn,
-    onMutate: async (variables) => {
-      await queryClient.cancelQueries(ChannnelKeys.pins());
-
-      // optimistic update
-      const newPins = pins.filter((p) => p !== variables.nest);
-      queryClient.setQueryData(ChannnelKeys.pins(), newPins);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries(ChannnelKeys.pins());
-    },
-  });
 }
 
 export function useDisplayMode(nest: string): DisplayMode {

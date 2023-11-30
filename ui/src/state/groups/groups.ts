@@ -26,6 +26,8 @@ import {
   PrivacyType,
   Vessel,
   Gang,
+  Pins,
+  Flag,
 } from '@/types/groups';
 import api from '@/api';
 import { BaitCite } from '@/types/channel';
@@ -40,6 +42,7 @@ import {
 } from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { Scope, VolumeValue } from '@/types/volume';
+import GroupsKeys from './keys';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -349,6 +352,95 @@ export const useGangPreview = (
 
   return data as GroupPreview;
 };
+
+export function usePins(): Pins {
+  const queryClient = useQueryClient();
+  const { data } = useReactQueryScry<{ pins: Pins }>({
+    queryKey: GroupsKeys.pins(),
+    app: 'groups',
+    path: '/pins',
+  });
+
+  if (data === undefined || !data.pins) {
+    const existingData = queryClient.getQueryData(GroupsKeys.pins()) as
+      | string[]
+      | undefined;
+    return existingData || [];
+  }
+
+  const { pins } = data;
+
+  return pins;
+}
+
+export function usePinnedGroups() {
+  const groups = useGroups();
+  const pins = usePins();
+
+  return pins.map((pin) => [pin, groups[pin]] as [string, Group]);
+}
+
+export function useAddPinMutation() {
+  const queryClient = useQueryClient();
+  const pins = usePins();
+  const mutationFn = async (variables: { flag: Flag }) => {
+    const newPins = _.uniq([...pins, variables.flag]);
+    console.log(`add pins`, newPins);
+
+    await api.poke({
+      app: 'groups',
+      mark: 'group-pins',
+      json: {
+        pins: newPins,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(GroupsKeys.pins());
+
+      // optimistic update
+      const newPins = _.uniq([...pins, variables.flag]);
+      queryClient.setQueryData(GroupsKeys.pins(), newPins);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(GroupsKeys.pins());
+    },
+  });
+}
+
+export function useDeletePinMutation() {
+  const queryClient = useQueryClient();
+  const pins = usePins();
+  const mutationFn = async (variables: { flag: Flag }) => {
+    const newPins = pins.filter((p) => p !== variables.flag);
+    console.log(`del pins`, newPins);
+
+    await api.poke({
+      app: 'groups',
+      mark: 'group-pins',
+      json: {
+        pins: newPins,
+      },
+    });
+  };
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries(GroupsKeys.pins());
+
+      // optimistic update
+      const newPins = pins.filter((p) => p !== variables.flag);
+      queryClient.setQueryData(GroupsKeys.pins(), newPins);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries(GroupsKeys.pins());
+    },
+  });
+}
 
 export function useGangList() {
   const data = useGangs();

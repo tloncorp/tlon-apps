@@ -23,10 +23,7 @@ import { ConnectionStatus } from '@/state/vitals';
 import HostConnection from '@/channels/HostConnection';
 import { useIsMobile } from '@/logic/useMedia';
 import VolumeSetting from '@/components/VolumeSetting';
-import {
-  useAddPinMutation,
-  useDeletePinMutation,
-} from '@/state/channel/channel';
+import { useAddPinMutation, useDeletePinMutation } from '@/state/groups';
 
 const { ship } = window;
 
@@ -75,9 +72,9 @@ export function useGroupActions({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (isPinned) {
-        deletePin({ nest: flag });
+        deletePin({ flag });
       } else {
-        addPin({ nest: flag });
+        addPin({ flag });
       }
     },
     [flag, isPinned, addPin, deletePin]

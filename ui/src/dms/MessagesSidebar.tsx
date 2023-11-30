@@ -28,7 +28,7 @@ import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { usePins } from '@/state/channel/channel';
+import { usePins } from '@/state/groups';
 import { DesktopUpdateButton } from '@/components/UpdateNotices';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
 import MessagesList from './MessagesList';
@@ -146,9 +146,9 @@ export default function MessagesSidebar() {
     key: 'messagesFilter',
   });
   const pinned = usePinned();
-  const chatPins = usePins();
+  const groupPins = usePins();
   const groups = useGroups();
-  const pins = useMemo(() => pinned.concat(chatPins), [pinned, chatPins]);
+  const pins = useMemo(() => pinned.concat(groupPins), [pinned, groupPins]);
   const filteredPins = pins.filter((p) => {
     const groupFlag = Object.entries(groups).find(
       ([, v]) => p in v.channels

@@ -375,8 +375,6 @@ export interface Init {
 
 export type Diff = CreateDiff | Command;
 
-export type Pins = Nest[];
-
 export type Action =
   | { join: Flag } // group flag
   | { leave: null }
@@ -388,8 +386,7 @@ export type Action =
 
 export type ChannelsAction =
   | { channel: { nest: Nest; action: Action } }
-  | { create: Create }
-  | { pin: Pins };
+  | { create: Create };
 
 export type Command =
   | { post: PostAction }
