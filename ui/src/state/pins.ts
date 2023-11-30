@@ -2,7 +2,7 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import { useMutation } from '@tanstack/react-query';
 import queryClient from '@/queryClient';
 import { whomIsDm, whomIsFlag, whomIsMultiDm, whomIsNest } from '@/logic/utils';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import api from '@/api';
 import _ from 'lodash';
 import { Groups } from '@/types/groups';
@@ -33,16 +33,21 @@ export function usePins(): Pins {
 }
 
 export function usePinnedChats(removeChannels?: boolean): Pins {
-  const allPins = usePins();
+  const pins = usePins();
+
+  useEffect(() => {
+    console.log(`group pins changed:`, pins);
+  }, [pins]);
+
   return useMemo(
     () =>
-      allPins.filter(
+      pins.filter(
         (pin) =>
           whomIsDm(pin) ||
           whomIsMultiDm(pin) ||
           (whomIsNest(pin) && !removeChannels)
       ),
-    [allPins, removeChannels]
+    [pins, removeChannels]
   );
 }
 
@@ -65,6 +70,10 @@ export function usePinnedGroups(): Groups {
   const pins = useGroupPins();
   const groups = useGroups();
 
+  useEffect(() => {
+    console.log(`group pins changed:`, pins);
+  }, [pins]);
+
   return pins.reduce(
     (acc, pin) => ({ ...acc, [pin]: groups[pin] }),
     {} as Groups
@@ -75,6 +84,7 @@ export function useAddPinMutation() {
   const pins = usePins();
 
   const mutationFn = async (variables: { pin: Pin }) => {
+    console.log(`addding new pin: ${variables.pin}`);
     await api.poke({
       app: 'groups-ui',
       mark: 'pin-add',
@@ -99,6 +109,7 @@ export function useDeletePinMutation() {
   const pins = usePins();
 
   const mutationFn = async (variables: { pin: Pin }) => {
+    console.log(`removing existing pin: ${variables.pin}`);
     await api.poke({
       app: 'groups-ui',
       mark: 'pin-del',
