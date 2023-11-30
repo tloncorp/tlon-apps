@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { usePinnedGroups } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
@@ -23,7 +22,11 @@ import { ConnectionStatus } from '@/state/vitals';
 import HostConnection from '@/channels/HostConnection';
 import { useIsMobile } from '@/logic/useMedia';
 import VolumeSetting from '@/components/VolumeSetting';
-import { useAddPinMutation, useDeletePinMutation } from '@/state/groups';
+import {
+  useAddPinMutation,
+  useDeletePinMutation,
+  usePinnedGroups,
+} from '@/state/groups';
 
 const { ship } = window;
 

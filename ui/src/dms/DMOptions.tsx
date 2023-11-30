@@ -22,11 +22,6 @@ import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { useLeaveMutation } from '@/state/channel/channel';
-import {
-  usePins,
-  useAddPinMutation,
-  useDeletePinMutation,
-} from '@/state/groups';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useCheckChannelUnread } from '@/logic/channel';
 import DmInviteDialog from './DmInviteDialog';
@@ -61,16 +56,12 @@ export default function DmOptions({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const pinned = usePinned();
-  const groupPins = usePins();
-  const pins = pinned.concat(groupPins);
   const isUnread = useIsDmUnread(whom);
   const isChannelUnread = useCheckChannelUnread();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const hasActivity =
     isUnread || pending || (!isDMorMultiDm && isChannelUnread(whom));
   const { mutate: leaveChat } = useLeaveMutation();
-  const { mutate: addPin } = useAddPinMutation();
-  const { mutate: deletePin } = useDeletePinMutation();
   const { mutateAsync: toggleDmPin } = useTogglePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
   const { mutate: markDmRead } = useMarkDmReadMutation();
@@ -120,16 +111,10 @@ export default function DmOptions({
   const handlePin = useCallback(
     async (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
-      const isPinned = pins.includes(whom);
-      if (isDMorMultiDm) {
-        await toggleDmPin({ whom, pin: !isPinned });
-      } else if (isPinned) {
-        deletePin({ flag: whom });
-      } else {
-        addPin({ flag: whom });
-      }
+      const isPinned = pinned.includes(whom);
+      await toggleDmPin({ whom, pin: !isPinned });
     },
-    [whom, pins, addPin, deletePin, toggleDmPin, isDMorMultiDm]
+    [whom, pinned, toggleDmPin]
   );
 
   const handleInvite = () => {

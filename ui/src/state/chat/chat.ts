@@ -681,25 +681,6 @@ export function usePinnedDms() {
   return useMemo(() => pinned.filter(whomIsDm), [pinned]);
 }
 
-export function usePinnedGroups() {
-  const groups = useGroups();
-  const pinned = usePinned();
-  return useMemo(
-    () =>
-      pinned.filter(whomIsFlag).reduce(
-        (memo, flag) =>
-          groups && flag in groups
-            ? {
-                ...memo,
-                [flag]: groups[flag],
-              }
-            : memo,
-        {} as Groups
-      ),
-    [groups, pinned]
-  );
-}
-
 export function usePinnedClubs() {
   const pinned = usePinned();
   return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);

@@ -373,11 +373,14 @@ export function usePins(): Pins {
   return pins;
 }
 
-export function usePinnedGroups() {
+export function usePinnedGroups(): Groups {
   const groups = useGroups();
   const pins = usePins();
 
-  return pins.map((pin) => [pin, groups[pin]] as [string, Group]);
+  return pins.reduce(
+    (acc, pin) => ({ ...acc, [pin]: groups[pin] }),
+    {} as Groups
+  );
 }
 
 export function useAddPinMutation() {

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
-import { useGroupFlag, useGroups } from '@/state/groups';
+import { useGroupFlag, useGroups, usePinnedGroups } from '@/state/groups';
 import { Group, GroupChannel } from '@/types/groups';
 import {
   LEAP_DESCRIPTION_TRUNCATE_LENGTH,
@@ -14,13 +14,7 @@ import {
 import { emptyContact, useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
-import {
-  useDms,
-  useMultiDms,
-  usePinned,
-  usePinnedClubs,
-  usePinnedGroups,
-} from '@/state/chat';
+import { useDms, useMultiDms, usePinned, usePinnedClubs } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/channel';
 import { Club } from '@/types/dms';
