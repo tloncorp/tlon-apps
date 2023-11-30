@@ -8,8 +8,8 @@ import {
   useGangsWithClaim,
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
-  usePinnedGroups,
 } from '@/state/groups';
+import { usePinnedGroups } from '@/state/pins';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';

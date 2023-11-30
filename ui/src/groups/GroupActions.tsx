@@ -26,7 +26,7 @@ import {
   useAddPinMutation,
   useDeletePinMutation,
   usePinnedGroups,
-} from '@/state/groups';
+} from '@/state/pins';
 
 const { ship } = window;
 
@@ -75,9 +75,9 @@ export function useGroupActions({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (isPinned) {
-        deletePin({ flag });
+        deletePin({ pin: flag });
       } else {
-        addPin({ flag });
+        addPin({ pin: flag });
       }
     },
     [flag, isPinned, addPin, deletePin]

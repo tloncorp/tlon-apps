@@ -4,7 +4,12 @@ import { useLocation, useNavigate } from 'react-router';
 import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
-import { useGroupFlag, useGroups, usePinnedGroups } from '@/state/groups';
+import { useGroupFlag, useGroups } from '@/state/groups';
+import {
+  usePinnedGroups,
+  usePinnedChannels,
+  usePinnedClubs,
+} from '@/state/pins';
 import { Group, GroupChannel } from '@/types/groups';
 import {
   LEAP_DESCRIPTION_TRUNCATE_LENGTH,
@@ -14,7 +19,7 @@ import {
 import { emptyContact, useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
-import { useDms, useMultiDms, usePinned, usePinnedClubs } from '@/state/chat';
+import { useDms, useMultiDms } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/channel';
 import { Club } from '@/types/dms';
@@ -96,7 +101,7 @@ export default function useLeap() {
   const pinnedGroups = usePinnedGroups();
   const multiDms = useMultiDms();
   const pinnedMultiDms = usePinnedClubs();
-  const pinnedChats = usePinned();
+  const pinnedChannels = usePinnedChannels();
   const contacts = useContacts();
   const dms = useDms();
   const charges = useCharges();
@@ -298,7 +303,7 @@ export default function useLeap() {
       let newScore = score;
 
       // pinned channels are strong signals
-      const isPinned = pinnedChats.includes(nest);
+      const isPinned = pinnedChannels.includes(nest);
       if (isPinned) {
         newScore += 8;
       }
@@ -391,7 +396,7 @@ export default function useLeap() {
     isChannelUnread,
     isGroupUnread,
     navigate,
-    pinnedChats,
+    pinnedChannels,
     pinnedGroups,
     shipResults.length,
     setSelectedIndex,

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
 import CmdSmallIcon from '@/components/icons/CmdSmallIcon';
-import { usePinned } from '@/state/chat';
+import { usePinnedChats } from '@/state/pins';
 import {
   filters,
   SidebarFilter,
@@ -13,7 +13,7 @@ import {
   usePutEntryMutation,
 } from '@/state/settings';
 import { useGroups } from '@/state/groups';
-import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { whomIsDm, whomIsMultiDm, whomIsNest } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
@@ -33,18 +33,7 @@ export default function MobileMessagesSidebar() {
     bucket: 'talk',
     key: 'messagesFilter',
   });
-  const pinned = usePinned();
-  const groups = useGroups();
-  const filteredPins = pinned.filter((p) => {
-    const nest = `chat/${p}`;
-    const groupFlag = Object.entries(groups).find(
-      ([, v]) => nest in v.channels
-    )?.[0];
-    const channel = groups[groupFlag || '']?.channels[nest];
-    return (
-      (!!channel && appName !== 'Groups') || whomIsDm(p) || whomIsMultiDm(p)
-    );
-  });
+  const pinned = usePinnedChats(appName === 'Groups');
 
   const setFilterMode = (mode: SidebarFilter) => {
     mutate({ val: mode });
@@ -125,11 +114,11 @@ export default function MobileMessagesSidebar() {
             filter={appName === 'Groups' ? filters.dms : messagesFilter}
             isScrolling={scroll.current}
           >
-            {filteredPins && filteredPins.length > 0 ? (
+            {pinned && pinned.length > 0 ? (
               <>
                 <div className="px-4">
                   <h2 className="mb-0.5 p-2 font-sans text-gray-400">Pinned</h2>
-                  {filteredPins.map((ship: string) => (
+                  {pinned.map((ship: string) => (
                     <MessagesSidebarItem key={ship} whom={ship} />
                   ))}
                 </div>

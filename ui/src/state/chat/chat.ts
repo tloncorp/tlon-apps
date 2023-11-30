@@ -659,69 +659,6 @@ export function useDmIsPending(ship: string) {
   return pending.includes(ship);
 }
 
-export function usePinned() {
-  const { data, ...rest } = useReactQueryScry<Pins>({
-    queryKey: pinsKey(),
-    app: 'chat',
-    path: '/pins',
-  });
-
-  if (data === undefined || !data.pins) {
-    const existingData = queryClient.getQueryData(pinsKey()) as
-      | string[]
-      | undefined;
-    return existingData || [];
-  }
-
-  return data.pins;
-}
-
-export function usePinnedDms() {
-  const pinned = usePinned();
-  return useMemo(() => pinned.filter(whomIsDm), [pinned]);
-}
-
-export function usePinnedClubs() {
-  const pinned = usePinned();
-  return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
-}
-
-export function useTogglePinMutation() {
-  const pins = usePinned();
-
-  const mutationFn = async ({ whom, pin }: { whom: string; pin: boolean }) => {
-    await queryClient.cancelQueries(pinsKey());
-    const newPins = pin
-      ? _.uniq([...pins, whom])
-      : pins.filter((w) => w !== whom);
-
-    await api.poke<Pins>({
-      app: 'chat',
-      mark: 'chat-pins',
-      json: {
-        pins: newPins,
-      },
-    });
-  };
-
-  return useMutation({
-    mutationFn,
-    onMutate: (variables) => {
-      queryClient.setQueryData<DMWhom[]>(pinsKey(), () => {
-        const { whom, pin } = variables;
-        const currentPins = pins || [];
-        const newPins = pin
-          ? _.uniq([...currentPins, whom])
-          : currentPins.filter((w) => w !== whom);
-        return newPins;
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries(pinsKey());
-    },
-  });
-}
-
 export function useMarkDmReadMutation() {
   const mutationFn = async (variables: { whom: string }) => {
     const { whom } = variables;
