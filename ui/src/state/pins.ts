@@ -2,14 +2,14 @@ import useReactQueryScry from '@/logic/useReactQueryScry';
 import { useMutation } from '@tanstack/react-query';
 import queryClient from '@/queryClient';
 import { whomIsDm, whomIsFlag, whomIsMultiDm, whomIsNest } from '@/logic/utils';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import api from '@/api';
 import _ from 'lodash';
 import { Groups } from '@/types/groups';
 import { Nest } from '@/types/channel';
 import { useGroups } from './groups';
 
-const pinsKey = () => ['pins'];
+const pinsKey = () => ['groups-ui', 'pins'];
 
 type Pin = string; // whom or nest or flag
 type Pins = Pin[];
@@ -29,15 +29,11 @@ export function usePins(): Pins {
     return queryClient.getQueryData(pinsKey()) || [];
   }
 
-  return data.pins;
+  return _.uniq(data.pins);
 }
 
 export function usePinnedChats(removeChannels?: boolean): Pins {
   const pins = usePins();
-
-  useEffect(() => {
-    console.log(`group pins changed:`, pins);
-  }, [pins]);
 
   return useMemo(
     () =>
@@ -70,10 +66,6 @@ export function usePinnedGroups(): Groups {
   const pins = useGroupPins();
   const groups = useGroups();
 
-  useEffect(() => {
-    console.log(`group pins changed:`, pins);
-  }, [pins]);
-
   return pins.reduce(
     (acc, pin) => ({ ...acc, [pin]: groups[pin] }),
     {} as Groups
@@ -84,11 +76,14 @@ export function useAddPinMutation() {
   const pins = usePins();
 
   const mutationFn = async (variables: { pin: Pin }) => {
-    console.log(`addding new pin: ${variables.pin}`);
     await api.poke({
       app: 'groups-ui',
-      mark: 'pin-add',
-      json: variables.pin,
+      mark: 'ui-action',
+      json: {
+        pins: {
+          add: variables.pin,
+        },
+      },
     });
   };
 
@@ -109,11 +104,14 @@ export function useDeletePinMutation() {
   const pins = usePins();
 
   const mutationFn = async (variables: { pin: Pin }) => {
-    console.log(`removing existing pin: ${variables.pin}`);
     await api.poke({
       app: 'groups-ui',
-      mark: 'pin-del',
-      json: variables.pin,
+      mark: 'ui-action',
+      json: {
+        pins: {
+          del: variables.pin,
+        },
+      },
     });
   };
 
