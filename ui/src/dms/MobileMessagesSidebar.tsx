@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import cn from 'classnames';
-import { debounce, filter } from 'lodash';
+import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import ChatSmallIcon from '@/components/icons/ChatSmallIcon';
 import PersonSmallIcon from '@/components/icons/Person16Icon';
@@ -12,8 +12,6 @@ import {
   useMessagesFilter,
   usePutEntryMutation,
 } from '@/state/settings';
-import { useGroups } from '@/state/groups';
-import { whomIsDm, whomIsMultiDm, whomIsNest } from '@/logic/utils';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
