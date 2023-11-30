@@ -586,16 +586,12 @@ export function useInfinitePosts(
   const stringifiedData = data ? JSON.stringify(data) : JSON.stringify({});
 
   const posts: PageTuple[] = useMemo(() => {
-    const parsedData: {
-      pages: PagedPosts[];
-    } = JSON.parse(stringifiedData);
-
-    if (parsedData.pages === undefined || parsedData.pages.length === 0) {
+    if (data === undefined || data.pages.length === 0) {
       return [];
     }
 
     return _.uniqBy(
-      parsedData.pages
+      data.pages
         .map((page) => {
           const pagePosts = Object.entries(page.posts).map(
             ([k, v]) => [bigInt(udToDec(k)), v] as PageTuple
@@ -606,7 +602,10 @@ export function useInfinitePosts(
         .flat(),
       ([k]) => k.toString()
     ).sort(([a], [b]) => a.compare(b));
-  }, [stringifiedData]);
+    // we disable exhaustive deps here because we add stringifiedData
+    // to the dependency array to force a re-render when the data changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stringifiedData, data]);
 
   return {
     data,
