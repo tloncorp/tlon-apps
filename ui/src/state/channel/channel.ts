@@ -421,11 +421,45 @@ const infinitePostUpdater = (
 
     const replyQueryKey = [han, 'posts', flag, udToDec(time.toString())];
 
-    if ('set' in reply && 'memo' in reply.set) {
+    if (reply && 'set' in reply && 'memo' in reply.set) {
+      const newReply = reply.set;
+
+      updatePostInCache(
+        { nest, postId: udToDec(time.toString()) },
+        (post: PostDataResponse | undefined) => {
+          if (post === undefined) {
+            return undefined;
+          }
+
+          const existingReplies = post.seal.replies ?? {};
+
+          const newReplies = {
+            ...existingReplies,
+            [newReply.seal.id]: newReply,
+          };
+
+          const newPost = {
+            ...post,
+            seal: {
+              ...post.seal,
+              replies: newReplies,
+              meta: {
+                ...post.seal.meta,
+                replyCount,
+                lastReply,
+                lastRepliers,
+              },
+            },
+          };
+
+          return newPost;
+        }
+      );
+
       usePostsStore.getState().updateStatus(
         {
-          author: reply.set.memo.author,
-          sent: reply.set.memo.sent,
+          author: newReply.memo.author,
+          sent: newReply.memo.sent,
         },
         'delivered'
       );
