@@ -1,4 +1,4 @@
-import bigInt, { BigInteger } from 'big-integer';
+import bigInt from 'big-integer';
 import _ from 'lodash';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -20,14 +20,11 @@ import {
   Create,
   Unreads,
   PostEssay,
-  Story,
   Posts,
   ChannelsResponse,
   ChannelsAction,
   Post,
   Nest,
-  PageMap,
-  newPostMap,
   PageTuple,
   UnreadUpdate,
   PagedPosts,
@@ -42,7 +39,7 @@ import {
   TogglePost,
 } from '@/types/channel';
 import api from '@/api';
-import { checkNest, log, nestToFlag, restoreMap } from '@/logic/utils';
+import { checkNest, log, nestToFlag } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
@@ -583,13 +580,22 @@ export function useInfinitePosts(
     retry: false,
   });
 
+  // we stringify the data here so that we can use it in useMemo's dependency array.
+  // this is because the data object is a reference and react will not
+  // do a deep comparison on it.
+  const stringifiedData = data ? JSON.stringify(data) : JSON.stringify({});
+
   const posts: PageTuple[] = useMemo(() => {
-    if (data === undefined || data.pages.length === 0) {
+    const parsedData: {
+      pages: PagedPosts[];
+    } = JSON.parse(stringifiedData);
+
+    if (parsedData.pages === undefined || parsedData.pages.length === 0) {
       return [];
     }
 
     return _.uniqBy(
-      data.pages
+      parsedData.pages
         .map((page) => {
           const pagePosts = Object.entries(page.posts).map(
             ([k, v]) => [bigInt(udToDec(k)), v] as PageTuple
@@ -600,7 +606,7 @@ export function useInfinitePosts(
         .flat(),
       ([k]) => k.toString()
     ).sort(([a], [b]) => a.compare(b));
-  }, [data]);
+  }, [stringifiedData]);
 
   return {
     data,
