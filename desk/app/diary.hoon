@@ -572,10 +572,7 @@
           `(convert-essay +.note)
         %+  lien  content.note
         |=  =verse:a
-        ?&  ?=([%block %cite %chan [%chat *] *] verse)
-            ::NOTE  optimization, host should've ran the edit locally already
-            !=(p.flag p.q.nest.cite.p.verse)
-        ==
+        ?=([%block %cite %chan [%chat *] *] verse)
       =/  command=(unit c-post:d)
         ?~  edit  ~
         `[%edit time u.edit]
