@@ -246,7 +246,7 @@ export function whomIsFlag(whom: string): boolean {
 export function whomIsNest(whom: string): boolean {
   return (
     /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
-    ob.isValidPatp(whom.split('/')[0])
+    ob.isValidPatp(whom.split('/')[1])
   );
 }
 
