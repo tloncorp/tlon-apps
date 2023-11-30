@@ -497,7 +497,7 @@
   ::
   ++  pins
     %-  ot
-    :~  pins/(ar flag:g)
+    :~  pins/(ar flag)
     ==
   ::
   ::
