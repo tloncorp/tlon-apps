@@ -1,4 +1,4 @@
-/-  g=groups, e=epic
+/-  g=groups, u=ui, e=epic
 /-  meta
 |%
 ++  enjs
@@ -336,16 +336,42 @@
       %chi  synced/~
       %lev  behind/~
     ==
+  ::
+  ++  whom
+    |=  w=whom:u
+    :-  %s
+    ?-  w
+      [%group *]       (flag flag.w)
+      [%channel *]     (nest nest.w)
+      [%chat %ship *]  (scot %p p.whom.w)
+      [%chat %club *]  (scot %uv p.whom.w)
+    ==
   --
 ::
 ++  dejs
   =,  dejs:format
   |%
+  ++  p
+    |%
+    ++  rank  (perk %czar %king %duke %earl %pawn ~)
+    ++  ship  ;~(pfix sig fed:ag)
+    ++  flag  ;~((glue fas) ship ^sym)
+    ++  nest  ;~((glue fas) ^sym flag)
+    --
   ++  sym  (se %tas)
   ++  ship  (se %p)
-  ++  rank  (su (perk %czar %king %duke %earl %pawn ~))
-  ++  flag  (su ;~((glue fas) ;~(pfix sig fed:ag) ^sym))
-  ++  nest  (su ;~((glue fas) ^sym ;~(pfix sig fed:ag) ^sym))
+  ++  rank  (su rank:p)
+  ++  flag  (su flag:p)
+  ++  nest  (su nest:p)
+  ++  whom
+    ^-  $-(json whom:u)
+    %-  su
+    ;~  pose
+      (stag %group flag:p)
+      (stag %channel nest:p)
+      (stag %chat (stag %ship ship:p))
+      (stag %chat (stag %club (cook |=(@ `@uv`+<) ;~(pfix (jest '0v') viz:ag))))
+    ==
   ++  create
     ^-  $-(json create:g)
     %-  ot
@@ -507,6 +533,18 @@
         description/so
         image/so
         cover/so
+    ==
+  ::
+  ++  ui-action
+    ^-  $-(json action:u)
+    %-  of
+    :~  pins+ui-pins-action
+    ==
+  ++  ui-pins-action
+    ^-  $-(json a-pins:u)
+    %-  of
+    :~  add+whom
+        del+whom
     ==
   --
 --
