@@ -70,7 +70,7 @@
 ++  uv-reply
   |=  [parent-id=id-reply:c =v-reply:c]
   ^-  reply:c
-  :_  +.v-reply
+  :_  +>.v-reply
   [id.v-reply parent-id (uv-reacts reacts.v-reply)]
 ::
 ++  uv-reacts

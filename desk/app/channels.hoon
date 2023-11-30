@@ -13,9 +13,9 @@
 /+  channel-json
 ::
 %-  %-  agent:neg
-    :+  |
-      [~.channels^%0 ~ ~]
-    [%channels-server^[~.channels^%0 ~ ~] ~ ~]
+    :+  notify=&
+      [~.channels^%1 ~ ~]
+    [%channels-server^[~.channels^%1 ~ ~] ~ ~]
 %-  agent:dbug
 %+  verb  |
 ::
@@ -24,11 +24,15 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %1
+    $:  %2
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
         pins=(list nest:c)
         hidden-posts=(set id-post:c)
+      ::
+        ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
+        ::
+        pending-ref-edits=(jug ship [=kind:c name=term])
     ==
   --
 =|  current-state
@@ -102,13 +106,107 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<([old=versioned-state] vase)
+  =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-  ?>  ?=(%1 -.old)
+  =?  old  ?=(%1 -.old)  (state-1-to-2 old)
+  ?>  ?=(%2 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(current-state state-0)
+  +$  versioned-state  $%(state-2 state-1 state-0)
+  +$  state-2  current-state
+  ::
+  +$  state-1
+    $:  %1
+        v-channels=(map nest:c v-channel-1)
+        voc=(map [nest:c plan:c] (unit said:c))
+        pins=(list nest:c)
+        hidden-posts=(set id-post:c)
+    ==
+  ++  v-channel-1
+    |^  ,[global local]
+    +$  global
+      $:  posts=v-posts-1
+          order=(rev:c order=arranged-posts:c)
+          view=(rev:c =view:c)
+          sort=(rev:c =sort:c)
+          perm=(rev:c =perm:c)
+      ==
+    +$  window    window:v-channel:c
+    +$  future    [=window diffs=(jug id-post:c u-post-1)]
+    +$  local     [=net:c log=log-1 =remark:c =window =future]
+    --
+  +$  log-1           ((mop time u-channel-1) lte)
+  ++  log-on-1        ((on time u-channel-1) lte)
+  +$  u-channel-1     $%  $<(%post u-channel:c)
+                          [%post id=id-post:c u-post=u-post-1]
+                      ==
+  +$  u-post-1        $%  $<(?(%set %reply) u-post:c)
+                          [%set post=(unit v-post-1)]
+                          [%reply id=id-reply:c u-reply=u-reply-1]
+                      ==
+  +$  u-reply-1       $%  $<(%set u-reply:c)
+                          [%set reply=(unit v-reply-1)]
+                      ==
+  +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
+  ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
+  +$  v-post-1        [v-seal-1 (rev:c essay:c)]
+  +$  v-seal-1        [id=id-post:c replies=v-replies-1 reacts=v-reacts:c]
+  +$  v-replies-1     ((mop id-reply:c (unit v-reply-1)) lte)
+  ++  on-v-replies-1  ((on id-reply:c (unit v-reply-1)) lte)
+  +$  v-reply-1       [v-reply-seal:c memo:c]
+  ++  state-1-to-2
+    |=  s=state-1
+    ^-  state-2
+    =/  pend=(jug ship [=kind:c name=term])
+      %-  ~(gas ju *(jug ship [kind:c term]))
+      %+  turn  ~(tap in ~(key by v-channels.s))
+      |=(nest:c [ship kind name])
+    %=  s
+      -  %2
+      v-channels    (~(run by v-channels.s) v-channel-1-to-2)
+      hidden-posts  [hidden-posts.s pend]
+    ==
+  ++  v-channel-1-to-2
+    |=  v=v-channel-1
+    %=  v
+      posts   (v-posts-1-to-2 posts.v)
+      log     (log-1-to-2 log.v)
+      future  (future-1-to-2 future.v)
+    ==
+  ++  log-1-to-2
+    |=  l=log-1
+    (run:log-on-1 l u-channel-1-to-2)
+  ++  u-channel-1-to-2
+    |=  u=u-channel-1
+    ^-  u-channel:c
+    ?.  ?=([%post *] u)  u
+    u(u-post (u-post-1-to-2 u-post.u))
+  ++  future-1-to-2
+    |=  f=future:v-channel-1
+    ^-  future:v-channel:c
+    f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
+  ++  u-post-1-to-2
+    |=  u=u-post-1
+    ^-  u-post:c
+    ?+  u  u
+      [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
+      [%reply * %set ~ *]  u(u.reply.u-reply (v-reply-1-to-2 u.reply.u-reply.u))
+    ==
+  ++  v-posts-1-to-2
+    |=  p=v-posts-1
+    %+  run:on-v-posts-1  p
+    |=(p=(unit v-post-1) ?~(p ~ `(v-post-1-to-2 u.p)))
+  ++  v-post-1-to-2
+    |=(p=v-post-1 p(replies (v-replies-1-to-2 replies.p)))
+  ++  v-replies-1-to-2
+    |=  r=v-replies-1
+    %+  run:on-v-replies-1  r
+    |=(r=(unit v-reply-1) ?~(r ~ `(v-reply-1-to-2 u.r)))
+  ++  v-reply-1-to-2
+    |=(r=v-reply-1 `v-reply:c`[-.r 0 +.r])
+  ::
+  ::  %0 to %1
   ::
   +$  state-0
     $:  %0
@@ -118,22 +216,22 @@
         hidden-posts=(set id-post:c)
     ==
   ++  v-channel-0
-    |^  ,[global:v-channel:c local]
-    +$  window    (list [from=time to=time])
-    +$  future    [=window diffs=(jug id-post:c u-post:c)]
-    +$  local     [=net:c =log:c remark=remark-0 =window =future]
+    |^  ,[global:v-channel-1 local]
+    +$  window    window:v-channel:c
+    +$  future    [=window diffs=(jug id-post:c u-post-1)]
+    +$  local     [=net:c log=log-1 remark=remark-0 =window =future]
     --
   +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
   ::
   ++  state-0-to-1
     |=  s=state-0
-    ^-  current-state
+    ^-  state-1
     s(- %1, v-channels (~(run by v-channels.s) v-channel-0-to-1))
   ++  v-channel-0-to-1
     |=  v=v-channel-0
-    ^-  v-channel:c
+    ^-  v-channel-1
     =/  recency=time
-      ?~(tim=(ram:on-v-posts:c posts.v) *time key.u.tim)
+      ?~(tim=(ram:on-v-posts-1 posts.v) *time key.u.tim)
     v(remark [recency remark.v])
   --
 ::
@@ -234,6 +332,16 @@
       ::
       ?.  =(~ posts.u.hav)  v-channels
       (~(put by v-channels) n c)
+    ::  after migration, references to chat msgs have changed. we want to
+    ::  notify the host about these edits, but not right now: we aren't sure
+    ::  they have migrated yet. store affected channels in state, we will send
+    ::  edits on a per-host basis when handling %negotiate-notification below.
+    ::
+    =.  pending-ref-edits
+      %-  ~(gas ju pending-ref-edits)
+      ^-  (list [ship kind:c term])
+      %+  turn  ~(tap in ~(key by new-channels))
+      |=(nest:c [ship kind name])
     inflate-io
   ::
       %channel-migration-pins
@@ -241,6 +349,37 @@
     =+  !<(new-pins=(list nest:c) vase)
     =.  pins  (weld pins new-pins)
     cor
+  ::
+      %negotiate-notification
+    ::  during migration, references to chat msgs were changed. we want to
+    ::  notify channel hosts about these edits, but not before they themselves
+    ::  have migrated (lest we risk front-running their internal migration
+    ::  pokes, causing our edits to fail).
+    ::  a version negotiation notification guarantees that they have migrated,
+    ::  so based off that we trigger the editing of our messages that changed.
+    ::  (see also %*-migrate-refs poke handling in the old agents.)
+    ::
+    ?>  =(our src):bowl
+    =+  !<([match=? =gill:gall] vase)
+    ?.  match
+      cor
+    ?.  =(%channels-server q.gill)
+      cor
+    =*  host  p.gill
+    ?~  pend=(~(get by pending-ref-edits) host)
+      cor
+    =.  pending-ref-edits
+      (~(del by pending-ref-edits) host)
+    %-  emil
+    %+  turn  ~(tap by u.pend)
+    |=  [=kind:c name=term]
+    ^-  card
+    :+  %pass   /migrate
+    :+  %agent  [our.bowl kind]
+    :+  %poke
+      ::NOTE  %chat-migrate-refs, etc
+      (cat 3 kind '-migrate-refs')
+    !>([host name])
   ==
   ++  toggle-post
     |=  toggle=post-toggle:c
@@ -272,13 +411,14 @@
   ?.  (~(has by v-channels) nest)
     =/  wire  (said-wire nest plan)
     (safe-watch wire [ship.nest server] wire)
+  ::TODO  not guaranteed to resolve, we might have partial backlog
   ca-abet:(ca-said:(ca-abed:ca-core nest) plan)
 ::
 ++  said-wire
   |=  [=nest:c =plan:c]
   ^-  wire
   %+  welp
-    /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/(scot %ud p.plan)
+    /said/[kind.nest]/(scot %p ship.nest)/[name.nest]/post/(scot %ud p.plan)
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
