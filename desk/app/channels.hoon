@@ -106,7 +106,7 @@
 ++  load
   |=  =vase
   |^  ^+  cor
-  =+  !<([old=versioned-state] vase)
+  =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
   ?>  ?=(%2 -.old)
@@ -124,7 +124,7 @@
         hidden-posts=(set id-post:c)
     ==
   ++  v-channel-1
-    |^  ,[global local:v-channel:c]
+    |^  ,[global local]
     +$  global
       $:  posts=v-posts-1
           order=(rev:c order=arranged-posts:c)
@@ -132,7 +132,22 @@
           sort=(rev:c =sort:c)
           perm=(rev:c =perm:c)
       ==
+    +$  window    window:v-channel:c
+    +$  future    [=window diffs=(jug id-post:c u-post-1)]
+    +$  local     [=net:c log=log-1 =remark:c =window =future]
     --
+  +$  log-1           ((mop time u-channel-1) lte)
+  ++  log-on-1        ((on time u-channel-1) lte)
+  +$  u-channel-1     $%  $<(%post u-channel:c)
+                          [%post id=id-post:c u-post=u-post-1]
+                      ==
+  +$  u-post-1        $%  $<(?(%set %reply) u-post:c)
+                          [%set post=(unit v-post-1)]
+                          [%reply id=id-reply:c u-reply=u-reply-1]
+                      ==
+  +$  u-reply-1       $%  $<(%set u-reply:c)
+                          [%set reply=(unit v-reply-1)]
+                      ==
   +$  v-posts-1       ((mop id-post:c (unit v-post-1)) lte)
   ++  on-v-posts-1    ((on id-post:c (unit v-post-1)) lte)
   +$  v-post-1        [v-seal-1 (rev:c essay:c)]
@@ -153,7 +168,31 @@
       hidden-posts  [hidden-posts.s pend]
     ==
   ++  v-channel-1-to-2
-    |=(v=v-channel-1 v(posts (v-posts-1-to-2 posts.v)))
+    |=  v=v-channel-1
+    %=  v
+      posts   (v-posts-1-to-2 posts.v)
+      log     (log-1-to-2 log.v)
+      future  (future-1-to-2 future.v)
+    ==
+  ++  log-1-to-2
+    |=  l=log-1
+    (run:log-on-1 l u-channel-1-to-2)
+  ++  u-channel-1-to-2
+    |=  u=u-channel-1
+    ^-  u-channel:c
+    ?.  ?=([%post *] u)  u
+    u(u-post (u-post-1-to-2 u-post.u))
+  ++  future-1-to-2
+    |=  f=future:v-channel-1
+    ^-  future:v-channel:c
+    f(diffs (~(run by diffs.f) |=(s=(set u-post-1) (~(run in s) u-post-1-to-2))))
+  ++  u-post-1-to-2
+    |=  u=u-post-1
+    ^-  u-post:c
+    ?+  u  u
+      [%set ~ *]           u(u.post (v-post-1-to-2 u.post.u))
+      [%reply * %set ~ *]  u(u.reply.u-reply (v-reply-1-to-2 u.reply.u-reply.u))
+    ==
   ++  v-posts-1-to-2
     |=  p=v-posts-1
     %+  run:on-v-posts-1  p
@@ -178,9 +217,9 @@
     ==
   ++  v-channel-0
     |^  ,[global:v-channel-1 local]
-    +$  window    (list [from=time to=time])
-    +$  future    [=window diffs=(jug id-post:c u-post:c)]
-    +$  local     [=net:c =log:c remark=remark-0 =window =future]
+    +$  window    window:v-channel:c
+    +$  future    [=window diffs=(jug id-post:c u-post-1)]
+    +$  local     [=net:c log=log-1 remark=remark-0 =window =future]
     --
   +$  remark-0  [last-read=time watching=_| unread-threads=(set id-post:c)]
   ::
