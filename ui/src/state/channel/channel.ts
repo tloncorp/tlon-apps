@@ -1,4 +1,4 @@
-import bigInt, { BigInteger } from 'big-integer';
+import bigInt from 'big-integer';
 import _ from 'lodash';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -20,14 +20,11 @@ import {
   Create,
   Unreads,
   PostEssay,
-  Story,
   Posts,
   ChannelsResponse,
   ChannelsAction,
   Post,
   Nest,
-  PageMap,
-  newPostMap,
   PageTuple,
   UnreadUpdate,
   PagedPosts,
@@ -42,7 +39,7 @@ import {
   TogglePost,
 } from '@/types/channel';
 import api from '@/api';
-import { checkNest, log, nestToFlag, restoreMap } from '@/logic/utils';
+import { checkNest, log, nestToFlag } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
@@ -434,14 +431,85 @@ const infinitePostUpdater = (
 
     const replyQueryKey = [han, 'posts', flag, udToDec(time.toString())];
 
-    if ('set' in reply && 'memo' in reply.set) {
-      usePostsStore.getState().updateStatus(
-        {
-          author: reply.set.memo.author,
-          sent: reply.set.memo.sent,
-        },
-        'delivered'
-      );
+    if (reply && 'set' in reply) {
+      if (reply.set === null) {
+        queryClient.setQueryData<PostDataResponse | undefined>(
+          replyQueryKey,
+          (post: PostDataResponse | undefined) => {
+            if (post === undefined) {
+              return undefined;
+            }
+
+            const existingReplies = post.seal.replies ?? {};
+
+            const newReplies = Object.keys(existingReplies)
+              .filter((k) => k !== reply.set?.seal.id)
+              .reduce((acc, k) => {
+                // eslint-disable-next-line no-param-reassign
+                acc[k] = existingReplies[k];
+                return acc;
+              }, {} as { [key: string]: Reply });
+
+            const newPost = {
+              ...post,
+              seal: {
+                ...post.seal,
+                replies: newReplies,
+                meta: {
+                  ...post.seal.meta,
+                  replyCount,
+                  lastReply,
+                  lastRepliers,
+                },
+              },
+            };
+
+            return newPost;
+          }
+        );
+      } else if ('memo' in reply.set) {
+        const newReply = reply.set;
+
+        queryClient.setQueryData<PostDataResponse | undefined>(
+          replyQueryKey,
+          (post: PostDataResponse | undefined) => {
+            if (post === undefined) {
+              return undefined;
+            }
+
+            const existingReplies = post.seal.replies ?? {};
+
+            const newReplies = {
+              ...existingReplies,
+              [newReply.seal.id]: newReply,
+            };
+
+            const newPost = {
+              ...post,
+              seal: {
+                ...post.seal,
+                replies: newReplies,
+                meta: {
+                  ...post.seal.meta,
+                  replyCount,
+                  lastReply,
+                  lastRepliers,
+                },
+              },
+            };
+
+            return newPost;
+          }
+        );
+
+        usePostsStore.getState().updateStatus(
+          {
+            author: newReply.memo.author,
+            sent: newReply.memo.sent,
+          },
+          'delivered'
+        );
+      }
     }
 
     queryClient.setQueryData<{
@@ -593,6 +661,11 @@ export function useInfinitePosts(
     retry: false,
   });
 
+  // we stringify the data here so that we can use it in useMemo's dependency array.
+  // this is because the data object is a reference and react will not
+  // do a deep comparison on it.
+  const stringifiedData = data ? JSON.stringify(data) : JSON.stringify({});
+
   const posts: PageTuple[] = useMemo(() => {
     if (data === undefined || data.pages.length === 0) {
       return [];
@@ -610,7 +683,10 @@ export function useInfinitePosts(
         .flat(),
       ([k]) => k.toString()
     ).sort(([a], [b]) => a.compare(b));
-  }, [data]);
+    // we disable exhaustive deps here because we add stringifiedData
+    // to the dependency array to force a re-render when the data changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stringifiedData, data]);
 
   return {
     data,
