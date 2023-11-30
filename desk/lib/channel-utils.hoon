@@ -189,7 +189,8 @@
   ?~  reply  $(entries +.entries)
   ?:  (~(has in replyers) author.u.reply)
     $(entries +.entries)
-  (~(put in replyers) author.u.reply)
+  =.  replyers  (~(put in replyers) author.u.reply)
+  $(entries +.entries)
 ++  perms
   |_  [our=@p now=@da =nest:c group=flag:g]
   ++  am-host  =(our ship.nest)
