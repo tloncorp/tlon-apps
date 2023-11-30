@@ -9,7 +9,7 @@ import { Groups } from '@/types/groups';
 import { Nest } from '@/types/channel';
 import { useGroups } from './groups';
 
-const pinsKey = () => ['groups-ui', 'pins'];
+export const pinsKey = () => ['groups-ui', 'pins'];
 
 type Pin = string; // whom or nest or flag
 type Pins = Pin[];

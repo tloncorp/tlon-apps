@@ -164,20 +164,17 @@ function resolveHiddenMessages(toggle: ToggleMessage) {
 export function initializeChat({
   dms,
   clubs,
-  pins,
   invited,
   unreads,
 }: {
   dms: string[];
   clubs: Clubs;
-  pins: string[];
   invited: string[];
   unreads: DMUnreads;
 }) {
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(['dms', 'pending'], () => invited || []);
-  queryClient.setQueryData(pinsKey(), () => ({ pins: pins || [] }));
   queryClient.setQueryData(['dms', 'unreads'], () => unreads || {});
 }
 
