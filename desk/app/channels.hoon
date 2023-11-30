@@ -359,8 +359,6 @@
     ::  so based off that we trigger the editing of our messages that changed.
     ::  (see also %*-migrate-refs poke handling in the old agents.)
     ::
-    ::TODO  figure out whether we want/need to distribute the load over time:
-    ::  (emit /migrate-refs %b %wait (add now.bowl (~(rand og our.bowl) ~h2)))
     ?>  =(our src):bowl
     =+  !<([match=? =gill:gall] vase)
     ?.  match
