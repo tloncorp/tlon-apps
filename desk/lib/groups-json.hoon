@@ -44,12 +44,6 @@
         secret+b+secret.p
     ==
   ::
-  ++  pins
-    |=  ps=(list flag:g)
-    %-  pairs
-    :~  pins/a/(turn ps (cork flag (lead %s)))
-    ==
-  ::
   ++  update
     |=  =update:g
     %-  pairs
@@ -520,12 +514,6 @@
     :~  zone/(se %tas)
         delta/zone-delta
     ==
-  ::
-  ++  pins
-    %-  ot
-    :~  pins/(ar flag)
-    ==
-  ::
   ::
   ++  meta
     %-  ot
