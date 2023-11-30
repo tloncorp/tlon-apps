@@ -1,14 +1,11 @@
 import useReactQueryScry from '@/logic/useReactQueryScry';
-import useQueryClient, { useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import queryClient from '@/queryClient';
-import { Flag } from '@/types/hark';
-import { isDm } from '@/notifications/useNotifications';
 import { whomIsDm, whomIsFlag, whomIsMultiDm, whomIsNest } from '@/logic/utils';
 import { useMemo } from 'react';
 import api from '@/api';
 import _ from 'lodash';
 import { Groups } from '@/types/groups';
-import { Nest } from '@/types/channel';
 import { useGroups } from './groups';
 
 const pinsKey = () => ['pins'];
