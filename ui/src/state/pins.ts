@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import api from '@/api';
 import _ from 'lodash';
 import { Groups } from '@/types/groups';
+import { Nest } from '@/types/channel';
 import { useGroups } from './groups';
 
 const pinsKey = () => ['pins'];
@@ -31,20 +32,28 @@ export function usePins(): Pins {
   return data.pins;
 }
 
-export function useTalkPins(): Pins {
+export function usePinnedChats(removeChannels?: boolean): Pins {
   const allPins = usePins();
   return useMemo(
     () =>
       allPins.filter(
-        (pin) => whomIsDm(pin) || whomIsMultiDm(pin) || whomIsNest(pin)
+        (pin) =>
+          whomIsDm(pin) ||
+          whomIsMultiDm(pin) ||
+          (whomIsNest(pin) && !removeChannels)
       ),
-    [allPins]
+    [allPins, removeChannels]
   );
 }
 
-export function useClubPins(): Pins {
-  const pins = useTalkPins();
+export function usePinnedClubs(): Pins {
+  const pins = usePinnedChats();
   return useMemo(() => pins.filter(whomIsMultiDm), [pins]);
+}
+
+export function usePinnedChannels(): Nest[] {
+  const pins = usePins();
+  return useMemo(() => pins.filter(whomIsNest), [pins]);
 }
 
 export function useGroupPins(): Pins {
