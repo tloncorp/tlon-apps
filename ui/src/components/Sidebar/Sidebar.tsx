@@ -17,7 +17,7 @@ import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
-import { usePinnedGroups } from '@/state/groups';
+import { usePinnedGroups } from '@/state/pins';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
