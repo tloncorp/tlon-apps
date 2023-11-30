@@ -596,10 +596,7 @@
         `(convert-memo +.quip)
       %+  lien  p.content.quip
       |=  =block:a
-      ?&  ?=([%cite %chan [%chat *] *] block)
-          ::NOTE  optimization, host should've ran the edit locally already
-          !=(p.flag p.q.nest.cite.block)
-      ==
+      ?=([%cite %chan [%chat *] *] block)
     =/  command=(unit c-post:d)
       ?~  edit  ~
       `[%reply time %edit rtime u.edit]

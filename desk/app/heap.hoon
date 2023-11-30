@@ -560,10 +560,7 @@
         `(convert-essay +.curio)
       %+  lien  p.content.curio
       |=  =block:h
-      ?&  ?=([%cite %chan [%chat *] *] block)
-          ::NOTE  optimization, host should've ran the edit locally already
-          !=(p.flag p.q.nest.cite.block)
-      ==
+      ?=([%cite %chan [%chat *] *] block)
     =/  command=(unit c-post:c)
       ?~  edit  ~
       ?~  replying.curio

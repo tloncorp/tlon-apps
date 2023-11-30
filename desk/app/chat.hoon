@@ -881,10 +881,7 @@
       ?.  ?=(%story -.content.writ)  |
       %+  lien  p.p.content.writ
       |=  =block:old
-      ?&  ?=([%cite %chan [%chat *] *] block)
-          ::NOTE  optimization, host should've ran the edit locally already
-          !=(p.flag p.q.nest.cite.block)
-      ==
+      ?=([%cite %chan [%chat *] *] block)
     =/  command=(unit c-post:d)
       ?~  edit  ~
       ?~  replying.writ
