@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
-import { usePinnedGroups } from '@/state/chat';
 import {
   useGangList,
   useLoadingGroups,
@@ -10,6 +9,7 @@ import {
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
+import { usePinnedGroups } from '@/state/pins';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';

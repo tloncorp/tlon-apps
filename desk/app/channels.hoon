@@ -27,7 +27,7 @@
     $:  %2
         =v-channels:c
         voc=(map [nest:c plan:c] (unit said:c))
-        pins=(list nest:c)
+        pins=(list nest:c)  ::TODO  vestigial, in groups-ui now, remove me
         hidden-posts=(set id-post:c)
       ::
         ::  .pending-ref-edits: for migration, see also +poke %negotiate-notif
@@ -309,6 +309,7 @@
     ?:  ?=(%create -.a-channels)
       ca-abet:(ca-create:ca-core create-channel.a-channels)
     ?:  ?=(%pin -.a-channels)
+      ~&  %channels-vestigial-pin-action
       ?>  from-self
       cor(pins pins.a-channels)
     ?:  ?=(%toggle-post -.a-channels)
@@ -528,7 +529,6 @@
   ?+    pole  [~ ~]
       [%x %channels ~]   ``channels+!>((uv-channels:utils v-channels))
       [%x %init ~]    ``noun+!>([unreads (uv-channels:utils v-channels)])
-      [%x %pins ~]    ``channel-pins+!>(pins)
       [%x %hidden-posts ~]  ``hidden-posts+!>(hidden-posts)
       [%x %unreads ~]  ``channel-unreads+!>(unreads)
       [%x =kind:c ship=@ name=@ rest=*]

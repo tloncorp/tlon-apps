@@ -1,4 +1,4 @@
-/-  c=chat, d=channels, g=groups, e=epic, old=chat-2
+/-  c=chat, d=channels, g=groups, u=ui, e=epic, old=chat-2
 /-  meta
 /-  ha=hark
 /-  contacts
@@ -859,8 +859,12 @@
     =/  =v-channels:d  (convert-channels | old-chats)
     =/  =cage  [%channel-migration !>(v-channels)]
     =.  cor  (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
-    =/  =^cage  [%channel-migration-pins !>((convert-pins old-pins))]
-    (emit %pass /migrate %agent [our.bowl %channels] %poke cage)
+    =+  pins=old-pins
+    |-
+    ?~  pins  cor
+    =/  =^cage  [%ui-action !>(`action:u`[%pins %add (convert-pin i.pins)])]
+    =.  cor  (emit %pass /migrate %agent [our.bowl %groups-ui] %poke cage)
+    $(pins t.pins)
   ::
   ++  refs
     |=  =flag:old
@@ -895,13 +899,14 @@
       !>(`a-channels:d`[%channel [%chat flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
-  ++  convert-pins
-    |=  pins=(list whom:t)
-    ^-  (list nest:d)
-    %+  murn  pins
+  ++  convert-pin
     |=  =whom:t
-    ?.  ?=(%flag -.whom)  ~
-    (some %chat p.whom)
+    ^-  whom:u
+    ?.  ?=(%flag -.whom)
+      [%chat whom]
+    ?.  (~(has by old-chats) p.whom)
+      [%group p.whom]
+    [%channel %chat p.whom]
   ::
   ++  convert-channels
     |=  [log=? =_old-chats]

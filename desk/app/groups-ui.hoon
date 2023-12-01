@@ -6,9 +6,11 @@
 =>
   |%
   +$  card  card:agent:gall
-  +$  state-0  [%0 first-load=?]
-  +$  current-state  state-0
-  +$  versioned-state  $?(~ current-state)
+  +$  current-state
+    $:  %1
+        pins=(list whom:u)
+        first-load=?
+    ==
   --
 =|  current-state
 =*  state  -
@@ -82,10 +84,21 @@
 ::
 ++  load
   |=  =vase
-  ^+  cor
-  =+  !<(old=versioned-state vase)
-  =.  state  ?~(old *current-state old)
-  init
+  |^  ^+  cor
+      =+  !<(old=versioned-state vase)
+      =?  old  ?=(~ old)     *current-state
+      =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+      ?>  ?=(%1 -.old)
+      =.  state  old
+      init
+  ::
+  +$  versioned-state  $@(~ $%(state-1 state-0))
+  +$  state-1  current-state
+  ::
+  +$  state-0  [%0 first-load=?]
+  ++  state-0-to-1
+    |=(state-0 [%1 ~ first-load])
+  --
 ::
 ++  peek
   |=  =(pole knot)
@@ -94,7 +107,6 @@
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v0/noun))
     =+  .^([=unreads:d =channels:d] (scry %gx %channels /init/noun))
-    =+  .^(pins=(list whom:c) (scry %gx %chat /pins/noun))
     =/  =init:u
       :*  groups-ui
           gangs
@@ -103,6 +115,9 @@
           pins
       ==
     ``ui-init+!>(init)
+  ::
+      [%x %pins ~]
+    ``ui-pins+!>(pins)
   ==
 ::
 ++  poke
@@ -114,6 +129,24 @@
       %ui-vita-toggle
     =+  !<(=vita-enabled:u vase)
     (emit %pass /vita-toggle %agent [our.bowl dap.bowl] %poke vita-client+!>([%set-enabled vita-enabled]))
+  ::
+      %ui-action
+    =+  !<(=action:u vase)
+    ?>  ?=(%pins -.action)
+    =.  pins
+      ?-  -.a-pins.action
+        %del  (skip pins (cury test whom.a-pins.action))
+      ::
+          %add
+        ::  be careful not to insert duplicates
+        ::
+        |-
+        ?~  pins  [whom.a-pins.action]~
+        ?:  =(i.pins whom.a-pins.action)  pins
+        [i.pins $(pins t.pins)]
+      ==
+    ::TODO  eventually, give %fact if that changed anything
+    cor
   ==
 ::
 ++  agent

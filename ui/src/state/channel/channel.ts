@@ -29,7 +29,6 @@ import {
   UnreadUpdate,
   PagedPosts,
   PostDataResponse,
-  Pins,
   ChannelScan,
   ChannelScanItem,
   ReferenceResponse,
@@ -47,7 +46,7 @@ import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import channelKey from './keys';
+import channelKey, { ChannnelKeys } from './keys';
 
 async function updatePostInCache(
   variables: { nest: Nest; postId: string },
@@ -1051,79 +1050,6 @@ export function useChats(): Channels {
   });
 
   return chats;
-}
-
-export function usePins(): Pins {
-  const { data, ...rest } = useReactQueryScry<{ pins: Pins }>({
-    queryKey: ['pins'],
-    app: 'channels',
-    path: '/pins',
-  });
-
-  if (rest.isLoading || rest.isError || data === undefined || !data.pins) {
-    return [];
-  }
-
-  const { pins } = data;
-
-  return pins;
-}
-
-export function useAddPinMutation() {
-  const pins = usePins();
-  const mutationFn = async (variables: { nest: Nest }) => {
-    const newPins = pins.concat(variables.nest);
-
-    await api.poke({
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        pin: newPins,
-      },
-    });
-  };
-
-  return useMutation({
-    mutationFn,
-    onMutate: async (variables) => {
-      await queryClient.cancelQueries(['pins']);
-      const prev = queryClient.getQueryData<{ pins: Pins }>(['pins']);
-
-      if (prev !== undefined) {
-        queryClient.setQueryData(['pins'], prev.pins.concat(variables.nest));
-      }
-    },
-  });
-}
-
-export function useDeletePinMutation() {
-  const pins = usePins();
-  const mutationFn = async (variables: { nest: Nest }) => {
-    const newPins = pins.filter((p) => p !== variables.nest);
-
-    await api.poke({
-      app: 'channels',
-      mark: 'channel-action',
-      json: {
-        pin: newPins,
-      },
-    });
-  };
-
-  return useMutation({
-    mutationFn,
-    onMutate: async (variables) => {
-      await queryClient.cancelQueries(['pins']);
-      const prev = queryClient.getQueryData<{ pins: Pins }>(['pins']);
-
-      if (prev !== undefined) {
-        queryClient.setQueryData(
-          ['pins'],
-          prev.pins.filter((p) => p !== variables.nest)
-        );
-      }
-    },
-  });
 }
 
 export function useDisplayMode(nest: string): DisplayMode {

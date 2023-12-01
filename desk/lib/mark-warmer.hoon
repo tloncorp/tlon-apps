@@ -1,4 +1,5 @@
 /$  init        %ui-init              %json
+/$  pins        %ui-pins              %json
 /$  shelf       %shelf                %json
 /$  briefs      %diary-briefs         %json
 /$  perm        %diary-perm           %json
@@ -17,7 +18,6 @@
 /$  curios      %heap-curios          %json
 /$  flags       %flags                %json
 /$  unreads     %chat-unreads         %json
-/$  pins        %chat-pins            %json
 /$  writs       %chat-paged-writs     %json
 /$  posts       %channel-posts        %json
 ~

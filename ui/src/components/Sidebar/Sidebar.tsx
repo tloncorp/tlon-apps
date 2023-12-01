@@ -7,19 +7,17 @@ import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
 import {
-  useGangList,
   useLoadingGroups,
   useGangsWithClaim,
   useGroupsWithQuery,
   usePendingInvites,
-  usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
 import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon16 from '@/components/icons/Add16Icon';
-import { usePinnedGroups } from '@/state/chat';
+import { usePinnedGroups } from '@/state/pins';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
@@ -152,11 +150,9 @@ export default function Sidebar() {
   const pendingInvitesCount = pendingInvites.length;
   const { count } = useNotifications();
   const { data: groups, isLoading } = useGroupsWithQuery();
-  const gangs = useGangList();
   const pinnedGroups = usePinnedGroups();
   const loadingGroups = useLoadingGroups();
   const gangsWithClaims = useGangsWithClaim();
-  const pendingGangs = usePendingGangsWithoutClaim();
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
   const ref = useRef<HTMLDivElement>(null);
@@ -171,7 +167,6 @@ export default function Sidebar() {
   const hasPinnedGroups = !!pinnedGroupsOptions.length;
   const hasLoadingGroups = !!loadingGroups.length;
   const hasGangsWithClaims = !!gangsWithClaims.length;
-  const hasPendingGangs = Object.keys(pendingGangs).length;
 
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
   const scroll = useRef(

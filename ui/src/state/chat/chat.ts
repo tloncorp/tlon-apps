@@ -6,7 +6,7 @@ import { decToUd, udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { GroupMeta, Groups } from '@/types/groups';
+import { GroupMeta } from '@/types/groups';
 import {
   DMUnreadUpdate,
   Club,
@@ -15,7 +15,6 @@ import {
   Clubs,
   DmAction,
   DMUnreads,
-  Pins,
   WritDelta,
   Writ,
   WritInCache,
@@ -29,7 +28,6 @@ import {
   WritTuple,
   WritResponseDelta,
   WritSeal,
-  DMWhom,
   WritDeltaAdd,
   ReplyDelta,
   Hive,
@@ -37,13 +35,12 @@ import {
 } from '@/types/dms';
 import { Reply, Replies, ChannelsAction, ReplyTuple } from '@/types/channel';
 import api from '@/api';
-import { whomIsDm, whomIsMultiDm, whomIsFlag } from '@/logic/utils';
+import { whomIsDm } from '@/logic/utils';
 import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import queryClient from '@/queryClient';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { useGroups } from '../groups';
 import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
 import emptyMultiDm, {
   appendWritToLastPage,
@@ -163,20 +160,17 @@ function resolveHiddenMessages(toggle: ToggleMessage) {
 export function initializeChat({
   dms,
   clubs,
-  pins,
   invited,
   unreads,
 }: {
   dms: string[];
   clubs: Clubs;
-  pins: string[];
   invited: string[];
   unreads: DMUnreads;
 }) {
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(['dms', 'pending'], () => invited || []);
-  queryClient.setQueryData(['dms', 'pins'], () => ({ pins: pins || [] }));
   queryClient.setQueryData(['dms', 'unreads'], () => unreads || {});
 }
 
@@ -656,82 +650,6 @@ export function usePendingDms() {
 export function useDmIsPending(ship: string) {
   const { pending } = usePendingDms();
   return pending.includes(ship);
-}
-
-export function usePinned() {
-  const { data } = useReactQueryScry<Pins>({
-    queryKey: ['dms', 'pins'],
-    app: 'chat',
-    path: '/pins',
-  });
-
-  if (!data || !data.pins) {
-    return [];
-  }
-
-  return data.pins;
-}
-
-export function usePinnedDms() {
-  const pinned = usePinned();
-  return useMemo(() => pinned.filter(whomIsDm), [pinned]);
-}
-
-export function usePinnedGroups() {
-  const groups = useGroups();
-  const pinned = usePinned();
-  return useMemo(
-    () =>
-      pinned.filter(whomIsFlag).reduce(
-        (memo, flag) =>
-          groups && flag in groups
-            ? {
-                ...memo,
-                [flag]: groups[flag],
-              }
-            : memo,
-        {} as Groups
-      ),
-    [groups, pinned]
-  );
-}
-
-export function usePinnedClubs() {
-  const pinned = usePinned();
-  return useMemo(() => pinned.filter(whomIsMultiDm), [pinned]);
-}
-
-export function useTogglePinMutation() {
-  const pins = usePinned();
-
-  const mutationFn = async ({ whom, pin }: { whom: string; pin: boolean }) => {
-    const newPins = pin ? [...pins, whom] : pins.filter((w) => w !== whom);
-
-    await api.poke<Pins>({
-      app: 'chat',
-      mark: 'chat-pins',
-      json: {
-        pins: newPins,
-      },
-    });
-  };
-
-  return useMutation({
-    mutationFn,
-    onMutate: (variables) => {
-      queryClient.setQueryData<DMWhom[]>(['dms', 'pins'], () => {
-        const { whom, pin } = variables;
-        const currentPins = pins || [];
-        const newPins = pin
-          ? [...currentPins, whom]
-          : currentPins.filter((w) => w !== whom);
-        return newPins;
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries(['dms', 'pins']);
-    },
-  });
 }
 
 export function useMarkDmReadMutation() {

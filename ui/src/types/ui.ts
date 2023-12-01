@@ -17,5 +17,4 @@ export interface TalkInit {
   clubs: Clubs;
   dms: string[];
   invited: string[];
-  pins: string[];
 }

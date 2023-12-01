@@ -15,18 +15,16 @@ import {
   useMarkDmReadMutation,
   useMutliDmRsvpMutation,
   useDmRsvpMutation,
-  usePinned,
-  useTogglePinMutation,
 } from '@/state/chat';
-import BulletIcon from '@/components/icons/BulletIcon';
-import { useIsMobile } from '@/logic/useMedia';
-import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import {
   useAddPinMutation,
   useDeletePinMutation,
-  useLeaveMutation,
-  usePins,
-} from '@/state/channel/channel';
+  usePinnedChats,
+} from '@/state/pins';
+import BulletIcon from '@/components/icons/BulletIcon';
+import { useIsMobile } from '@/logic/useMedia';
+import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
+import { useLeaveMutation } from '@/state/channel/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useCheckChannelUnread } from '@/logic/channel';
 import DmInviteDialog from './DmInviteDialog';
@@ -60,18 +58,15 @@ export default function DmOptions({
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const pinned = usePinned();
-  const chatPins = usePins();
-  const pins = pinned.concat(chatPins);
+  const pinned = usePinnedChats();
   const isUnread = useIsDmUnread(whom);
   const isChannelUnread = useCheckChannelUnread();
   const isDMorMultiDm = useIsDmOrMultiDm(whom);
   const hasActivity =
     isUnread || pending || (!isDMorMultiDm && isChannelUnread(whom));
   const { mutate: leaveChat } = useLeaveMutation();
-  const { mutate: addPin } = useAddPinMutation();
-  const { mutate: deletePin } = useDeletePinMutation();
-  const { mutateAsync: toggleDmPin } = useTogglePinMutation();
+  const { mutateAsync: addPin } = useAddPinMutation();
+  const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
   const { mutate: markDmRead } = useMarkDmReadMutation();
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
@@ -120,16 +115,14 @@ export default function DmOptions({
   const handlePin = useCallback(
     async (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
       e.stopPropagation();
-      const isPinned = pins.includes(whom);
-      if (isDMorMultiDm) {
-        await toggleDmPin({ whom, pin: !isPinned });
-      } else if (isPinned) {
-        deletePin({ nest: whom });
+      const isPinned = pinned.includes(whom);
+      if (isPinned) {
+        await delPin({ pin: whom });
       } else {
-        addPin({ nest: whom });
+        await addPin({ pin: whom });
       }
     },
-    [whom, pins, addPin, deletePin, toggleDmPin, isDMorMultiDm]
+    [whom, pinned, addPin, delPin]
   );
 
   const handleInvite = () => {
