@@ -866,9 +866,6 @@
     =.  cor  (emit %pass /migrate %agent [our.bowl %groups-ui] %poke cage)
     $(pins t.pins)
   ::
-<<<<<<< HEAD
-  ++  convert-pin
-=======
   ++  refs
     |=  =flag:old
     ?~  old-chat=(~(get by old-chats) flag)  cor
@@ -902,11 +899,7 @@
       !>(`a-channels:d`[%channel [%chat flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
-  ++  convert-pins
-    |=  pins=(list whom:t)
-    ^-  (list nest:d)
-    %+  murn  pins
->>>>>>> develop
+  ++  convert-pin
     |=  =whom:t
     ^-  whom:u
     ?.  ?=(%flag -.whom)
