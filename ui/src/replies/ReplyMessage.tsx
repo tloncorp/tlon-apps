@@ -30,7 +30,7 @@ import {
   useTrackedPostStatus,
 } from '@/state/channel/channel';
 import { emptyReply, Reply, Story, Unread } from '@/types/channel';
-import { useIsDmOrMultiDm } from '@/logic/utils';
+import { nestToFlag, useIsDmOrMultiDm } from '@/logic/utils';
 import {
   useChatDialog,
   useChatHovering,
@@ -164,7 +164,7 @@ const ReplyMessage = React.memo<
                 if (isDMOrMultiDM) {
                   markDmRead({ whom });
                 } else {
-                  markChatRead({ nest: whom });
+                  markChatRead({ nest: `chat/${whom}` });
                 }
               });
               return;

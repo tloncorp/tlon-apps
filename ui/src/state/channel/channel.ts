@@ -478,9 +478,19 @@ const infinitePostUpdater = (
 
             const existingReplies = post.seal.replies ?? {};
 
+            const existingCachedReply =
+              existingReplies[decToUd(unixToDa(newReply.memo.sent).toString())];
+
+            if (existingCachedReply) {
+              // remove cached reply if it exists
+              delete existingReplies[
+                decToUd(unixToDa(newReply.memo.sent).toString())
+              ];
+            }
+
             const newReplies = {
               ...existingReplies,
-              [newReply.seal.id]: newReply,
+              [decToUd(newReply.seal.id)]: newReply,
             };
 
             const newPost = {
@@ -553,8 +563,6 @@ const infinitePostUpdater = (
 
           return newPage;
         });
-
-        queryClient.invalidateQueries(replyQueryKey);
 
         return {
           pages: newPages,
@@ -1867,6 +1875,8 @@ export function useAddReplyMutation() {
           flag,
           variables.postId,
         ]);
+
+        usePostsStore.getState().updateStatus(variables.cacheId, 'delivered');
       }, 300);
     },
   });
