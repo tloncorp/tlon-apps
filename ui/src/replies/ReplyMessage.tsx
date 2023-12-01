@@ -30,7 +30,7 @@ import {
   useTrackedPostStatus,
 } from '@/state/channel/channel';
 import { emptyReply, Reply, Story, Unread } from '@/types/channel';
-import { useIsDmOrMultiDm } from '@/logic/utils';
+import { nestToFlag, useIsDmOrMultiDm } from '@/logic/utils';
 import {
   useChatDialog,
   useChatHovering,
@@ -116,7 +116,8 @@ const ReplyMessage = React.memo<
       const isThreadOp = seal['parent-id'] === seal.id;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
-      const chatInfo = useChatInfo(whom);
+      const [_, flag] = nestToFlag(whom);
+      const chatInfo = useChatInfo(flag);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const unread = chatInfo?.unread;
       const isUnread = amUnread(unread?.unread, seal['parent-id'], seal.id);

@@ -47,7 +47,7 @@ export default function ReplyMessageOptions(props: {
 }) {
   const { open, onOpenChange, whom, reply, openReactionDetails, showReply } =
     props;
-  const nest = `chat/${whom}`;
+  const nest = whom;
   const { seal, memo } = reply ?? emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);

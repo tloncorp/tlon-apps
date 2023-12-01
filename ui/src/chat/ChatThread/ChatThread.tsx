@@ -191,7 +191,7 @@ export default function ChatThread() {
           <ChatScroller
             key={idTime}
             messages={orderedReplies || []}
-            whom={flag}
+            whom={nest}
             isLoadingOlder={false}
             isLoadingNewer={false}
             scrollerRef={scrollerRef}
@@ -212,7 +212,7 @@ export default function ChatThread() {
       >
         {compatible && canWrite ? (
           <ChatInput
-            whom={flag}
+            whom={nest}
             replying={idTime}
             replyingWrit={replyingWrit}
             sendReply={sendMessage}

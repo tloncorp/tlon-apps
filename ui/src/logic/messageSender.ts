@@ -193,7 +193,7 @@ export default function messageSender({
     });
   } else if (sendReply && replying) {
     sendReply({
-      nest: `chat/${whom}`,
+      nest: whom,
       postId: replying,
       memo,
       cacheId,

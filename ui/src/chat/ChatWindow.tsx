@@ -159,11 +159,11 @@ export default function ChatWindow({
            * far back in a long channel, then switched to a less active one,
            * the channel would be scrolled to the top.
            */
-          key={whom}
+          key={nest}
           messages={messages}
           isLoadingOlder={isFetchingNextPage}
           isLoadingNewer={isFetchingPreviousPage}
-          whom={whom}
+          whom={nest}
           topLoadEndMarker={prefixedElement}
           scrollTo={scrollTo}
           scrollerRef={scrollerRef}
