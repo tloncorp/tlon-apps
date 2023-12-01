@@ -16,14 +16,14 @@ export default function WritBaitReference(props: {
   children?: React.ReactNode;
 }) {
   const { chFlag, nest, index, isScrolling, contextApp, children } = props;
-  const note = useRemotePost(nest, index, isScrolling);
+  const { reference } = useRemotePost(nest, index, isScrolling);
   const [, udId] = index.split('/');
-  if (note === undefined) {
+  if (reference === undefined) {
     const time = bigInt(udToDec(udId));
     return <UnavailableReference time={time} nest={nest} preview={null} />;
   }
   return (
-    <WritBaseReference reference={note} contextApp={contextApp} {...props}>
+    <WritBaseReference reference={reference} contextApp={contextApp} {...props}>
       {children}
     </WritBaseReference>
   );

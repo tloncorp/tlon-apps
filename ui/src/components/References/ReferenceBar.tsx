@@ -34,13 +34,13 @@ export default function ReferenceBar({
   heapComment = false,
   reply = false,
 }: ReferenceBarProps) {
-  const groupFlagOrZod = groupFlag || '~zod/test';
   const navigateByApp = useNavigateByApp();
   const unix = new Date(daToUnix(time));
 
   const navigateToChannel = useCallback(() => {
-    navigateByApp(`/groups/${groupFlagOrZod}/channels/${nest}`);
-  }, [nest, groupFlagOrZod, navigateByApp]);
+    if (!groupFlag) return;
+    navigateByApp(`/groups/${groupFlag}/channels/${nest}`);
+  }, [nest, groupFlag, navigateByApp]);
 
   return (
     <div
