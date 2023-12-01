@@ -40,7 +40,6 @@ import {
 } from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { Scope, VolumeValue } from '@/types/volume';
-import GroupsKeys from './keys';
 
 export const GROUP_ADMIN = 'admin';
 
