@@ -6,7 +6,7 @@ import { decToUd, udToDec } from '@urbit/api';
 import bigInt, { BigInteger } from 'big-integer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { QueryKey, useInfiniteQuery, useMutation } from '@tanstack/react-query';
-import { GroupMeta, Groups } from '@/types/groups';
+import { GroupMeta } from '@/types/groups';
 import {
   DMUnreadUpdate,
   Club,
@@ -15,7 +15,6 @@ import {
   Clubs,
   DmAction,
   DMUnreads,
-  Pins,
   WritDelta,
   Writ,
   WritInCache,
@@ -29,7 +28,6 @@ import {
   WritTuple,
   WritResponseDelta,
   WritSeal,
-  DMWhom,
   WritDeltaAdd,
   ReplyDelta,
   Hive,
@@ -37,13 +35,12 @@ import {
 } from '@/types/dms';
 import { Reply, Replies, ChannelsAction, ReplyTuple } from '@/types/channel';
 import api from '@/api';
-import { whomIsDm, whomIsMultiDm, whomIsFlag } from '@/logic/utils';
+import { whomIsDm } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import queryClient from '@/queryClient';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
-import { useGroups } from '../groups';
 import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
 import emptyMultiDm, {
   appendWritToLastPage,
@@ -52,7 +49,6 @@ import emptyMultiDm, {
   removePendingFromCache,
   removeUnreadFromCache,
 } from './utils';
-import { pinsKey } from './keys';
 
 export interface State {
   trackedWrits: TrackedPost[];

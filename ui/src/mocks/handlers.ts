@@ -33,7 +33,6 @@ import {
   ClubAction,
   ClubCreate,
   DmRsvp,
-  Pins,
   WritDiff,
 } from '@/types/dms';
 import { GroupAction } from '@/types/groups';
@@ -42,7 +41,7 @@ import mockContacts from '@/mocks/contacts';
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 
 const archive: string[] = [];
-let pins: string[] = [...pinnedDMs, ...pinnedGroups];
+const pins: string[] = [...pinnedDMs, ...pinnedGroups];
 const sortByUd = (aString: string, bString: string) => {
   const a = bigInt(udToDec(aString));
   const b = bigInt(udToDec(bString));
@@ -194,24 +193,6 @@ const chat: Handler[] = [
     func: () => ({
       writers: [],
     }),
-  },
-  {
-    action: 'scry',
-    app: 'chat',
-    path: '/pins',
-    func: () => ({ pins }),
-  },
-  {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-pins',
-    returnSubscription: fakeDefaultSub,
-    initialResponder: (req: Message & Poke<Pins>) => {
-      pins = req.json.pins;
-
-      return createResponse(req);
-    },
-    dataResponder: (req) => createResponse(req, 'diff'),
   },
   unreadsSub,
   {

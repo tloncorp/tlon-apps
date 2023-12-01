@@ -1,9 +1,6 @@
 export const allRanks = ['czar', 'king', 'duke', 'earl', 'pawn'] as const;
 export type Rank = (typeof allRanks)[number];
 
-export type Flag = string;
-export type Pins = Flag[];
-
 export interface ViewProps {
   title?: string;
 }

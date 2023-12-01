@@ -230,10 +230,6 @@ export interface DMUnreadUpdate {
  */
 export type DMWhom = string;
 
-export interface Pins {
-  pins: DMWhom[];
-}
-
 // Clubs, AKA MultiDMs
 
 export interface ClubCreate {
