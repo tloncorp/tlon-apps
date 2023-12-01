@@ -116,8 +116,7 @@ const ReplyMessage = React.memo<
       const isThreadOp = seal['parent-id'] === seal.id;
       const isMobile = useIsMobile();
       const isThreadOnMobile = isMobile;
-      const [_, flag] = nestToFlag(whom);
-      const chatInfo = useChatInfo(flag);
+      const chatInfo = useChatInfo(whom);
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const unread = chatInfo?.unread;
       const isUnread = amUnread(unread?.unread, seal['parent-id'], seal.id);
@@ -165,7 +164,7 @@ const ReplyMessage = React.memo<
                 if (isDMOrMultiDM) {
                   markDmRead({ whom });
                 } else {
-                  markChatRead({ nest: whom });
+                  markChatRead({ nest: `chat/${whom}` });
                 }
               });
               return;
