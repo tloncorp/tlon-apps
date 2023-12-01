@@ -26,8 +26,6 @@ import {
   PrivacyType,
   Vessel,
   Gang,
-  Pins,
-  Flag,
 } from '@/types/groups';
 import api from '@/api';
 import { BaitCite } from '@/types/channel';
@@ -352,26 +350,6 @@ export const useGangPreview = (
 
   return data as GroupPreview;
 };
-
-export function usePins(): Pins {
-  const queryClient = useQueryClient();
-  const { data } = useReactQueryScry<{ pins: Pins }>({
-    queryKey: GroupsKeys.pins(),
-    app: 'groups',
-    path: '/pins',
-  });
-
-  if (data === undefined || !data.pins) {
-    const existingData = queryClient.getQueryData(GroupsKeys.pins()) as
-      | string[]
-      | undefined;
-    return existingData || [];
-  }
-
-  const { pins } = data;
-
-  return pins;
-}
 
 export function useGangList() {
   const data = useGangs();
