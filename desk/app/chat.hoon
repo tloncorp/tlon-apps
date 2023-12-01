@@ -427,6 +427,9 @@
   |=  [=mark =vase]
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
+      %chat-negotiate
+    ::TODO  arguably should just be a /mar/negotiate
+    (emit (initiate:neg !<(@p vase) dap.bowl))
   ::
       %chat-dm-rsvp
     =+  !<(=rsvp:dm:c vase)
