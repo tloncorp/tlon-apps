@@ -33,6 +33,7 @@ import {
 } from '@/logic/scroll';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { PageTuple, ReplyTuple } from '@/types/channel';
+import { useShowDevTools } from '@/state/local';
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
 const logger = createDevLogger('ChatScroller', true);
@@ -176,7 +177,6 @@ export interface ChatScrollerProps {
   isScrolling: boolean;
   hasLoadedNewest: boolean;
   hasLoadedOldest: boolean;
-  showDebugOverlay?: boolean;
 }
 
 export default function ChatScroller({
@@ -194,10 +194,10 @@ export default function ChatScroller({
   isScrolling,
   hasLoadedNewest,
   hasLoadedOldest,
-  showDebugOverlay,
 }: ChatScrollerProps) {
   const isMobile = useIsMobile();
   const scrollTo = useBigInt(rawScrollTo);
+  const showDevTools = useShowDevTools();
   const [loadDirection, setLoadDirection] = useState<'newer' | 'older'>(
     'older'
   );
@@ -400,7 +400,14 @@ export default function ChatScroller({
           scrollToAnchor();
         } else {
           instance.scrollElement?.scrollTo?.({
-            top: offset + (adjustments ?? 0),
+            // We only want adjustments if they're greater than zero.
+            // Virtualizer will sometimes give us negative adjustments of -1, which
+            // causes scrollTo to scroll very slightly, which then causes the
+            // virtualizer to give us another positive adjustment of 1.
+            // There's no pereceptible scroll to the user, but it causes
+            // isScrolling to be true, which causes the chat input to lose focus.
+            // We should only want positive adjustments anyway afaict.
+            top: offset + (adjustments && adjustments > 1 ? adjustments : 0),
             behavior,
           });
         }
@@ -540,7 +547,7 @@ export default function ChatScroller({
           )}
         </div>
       </div>
-      {showDebugOverlay ? (
+      {showDevTools ? (
         <ChatScrollerDebugOverlay
           {...{
             count,
