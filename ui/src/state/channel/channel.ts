@@ -1085,13 +1085,19 @@ export function useRemotePost(
     },
   });
 
-  if (rest.isLoading || rest.isError || !data) {
-    return {} as ReferenceResponse;
+  if (rest.isLoading || rest.isError || data === undefined) {
+    return {
+      reference: undefined,
+      ...rest,
+    };
   }
 
   const { reference } = data as Said;
 
-  return reference as ReferenceResponse;
+  return {
+    reference,
+    ...rest,
+  };
 }
 
 export function usePostKeys(nest: Nest) {

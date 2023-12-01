@@ -21,6 +21,7 @@ import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
 import NotebookIcon from '../icons/NotebookIcon';
+import UnavailableReference from './UnavailableReference';
 
 function NoteReference({
   nest,
@@ -39,7 +40,7 @@ function NoteReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const reference = useRemotePost(nest, id, isScrolling);
+  const { reference, isError } = useRemotePost(nest, id, isScrolling);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,6 +63,10 @@ function NoteReference({
 
     return <DiaryContent content={truncatedContent} isPreview />;
   }, [note]);
+
+  if (isError) {
+    return <UnavailableReference nest={nest} time={bigInt(0)} preview={null} />;
+  }
 
   if (!note || !note.essay?.content) {
     return <HeapLoadingBlock reference />;

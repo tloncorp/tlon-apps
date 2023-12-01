@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import bigInt from 'big-integer';
 import cn from 'classnames';
-import { unixToDa } from '@urbit/api';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useChannelPreview, useGang } from '@/state/groups';
 // eslint-disable-next-line import/no-cycle
@@ -14,7 +13,6 @@ import { ReferenceResponse } from '@/types/channel';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
-import BubbleIcon from '../icons/BubbleIcon';
 
 interface WritBaseReferenceProps {
   nest: string;

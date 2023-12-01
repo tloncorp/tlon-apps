@@ -18,6 +18,7 @@ import ShipName from '@/components/ShipName';
 import getHeapContentType from '@/logic/useHeapContentType';
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';
+import UnavailableReference from './UnavailableReference';
 
 function CurioReference({
   nest,
@@ -34,7 +35,12 @@ function CurioReference({
   contextApp?: string;
   children?: React.ReactNode;
 }) {
-  const reference = useRemotePost(nest, idCurio, isScrolling, idReply);
+  const { reference, isError } = useRemotePost(
+    nest,
+    idCurio,
+    isScrolling,
+    idReply
+  );
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
@@ -64,6 +70,10 @@ function CurioReference({
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
+
+  if (isError) {
+    return <UnavailableReference time={bigInt(0)} nest={nest} preview={null} />;
+  }
 
   if (!content || !note) {
     return <HeapLoadingBlock reference />;
