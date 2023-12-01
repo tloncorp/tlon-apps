@@ -648,6 +648,12 @@
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%channel-action poke failed: only allowed from self" !!)
+    ::  if we're interacting with a channel that means we've read it
+    =?  remark.channel  ?=(%post -.c-channel.command)
+      %=  remark.channel
+        last-read       `@da`(add now.bowl (div ~s1 100))
+        unread-threads  *(set id-post:c)
+      ==
     =/  =cage  [%channel-command !>(command)]
     ::  NB: we must have already subscribed to something from this ship,
     ::  so that we have negotiated a matching version.  If we want to do

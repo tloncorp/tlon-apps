@@ -15,7 +15,9 @@ import { emptyContact, useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
 import {
+  useCheckDmUnread,
   useDms,
+  useIsDmUnread,
   useMultiDms,
   usePinned,
   usePinnedClubs,
@@ -99,6 +101,7 @@ export default function useLeap() {
   const currentGroupFlag = useGroupFlag();
   const { isGroupUnread } = useIsGroupUnread();
   const isChannelUnread = useCheckChannelUnread();
+  const isDMUnread = useCheckDmUnread();
   const pinnedGroups = usePinnedGroups();
   const multiDms = useMultiDms();
   const pinnedMultiDms = usePinnedClubs();
@@ -180,7 +183,7 @@ export default function useLeap() {
       }
 
       // boost ships that have unread DMs
-      if (isChannelUnread(preSig(ship))) {
+      if (isDMUnread(preSig(ship))) {
         newScore += 10;
       }
 
@@ -255,7 +258,7 @@ export default function useLeap() {
     app,
     contacts,
     inputValue,
-    isChannelUnread,
+    isDMUnread,
     location,
     modalNavigate,
     navigate,
@@ -520,7 +523,7 @@ export default function useLeap() {
       }
 
       // prefer unreads as well
-      const isUnread = isChannelUnread(multiDmFlag);
+      const isUnread = isDMUnread(multiDmFlag);
       if (isUnread) {
         newScore += 5;
       }
@@ -588,7 +591,7 @@ export default function useLeap() {
     pinnedMultiDms,
     shipResults.length,
     groupResults.length,
-    isChannelUnread,
+    isDMUnread,
     setSelectedIndex,
     setInputValue,
     setIsOpen,

@@ -21,7 +21,6 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import EmojiPicker from '@/components/EmojiPicker';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import useRequestState from '@/logic/useRequestState';
 import { useIsMobile } from '@/logic/useMedia';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
@@ -48,12 +47,13 @@ export default function ReplyMessageOptions(props: {
 }) {
   const { open, onOpenChange, whom, reply, openReactionDetails, showReply } =
     props;
+  const nest = `chat/${whom}`;
   const { seal, memo } = reply ?? emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const threadParentId = seal['parent-id'];
   const { didCopy, doCopy } = useCopy(
-    `/1/chan/${whom}/msg/${threadParentId}/${seal.id}`
+    `/1/chan/${nest}/msg/${threadParentId}/${seal.id}`
   );
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,
@@ -72,7 +72,7 @@ export default function ReplyMessageOptions(props: {
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
-  const perms = usePerms(isDMorMultiDM ? `fake/nest/${whom}` : whom);
+  const perms = usePerms(isDMorMultiDM ? `fake/nest/${whom}` : nest);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
@@ -122,13 +122,13 @@ export default function ReplyMessageOptions(props: {
         });
       } else if (isParent) {
         deleteChatMessage({
-          nest: whom,
+          nest,
           time: decToUd(threadParentId),
         });
         navigate(`/groups/${groupFlag}/channels/chat/${chShip}/${chName}`);
       } else {
         deleteReply({
-          nest: whom,
+          nest,
           postId: threadParentId!,
           replyId: seal.id,
         });
@@ -163,13 +163,13 @@ export default function ReplyMessageOptions(props: {
         });
       } else if (isParent) {
         addFeelToChat({
-          nest: whom,
+          nest,
           postId: seal.id,
           react: emoji.shortcodes,
         });
       } else {
         addFeelToReply({
-          nest: whom,
+          nest,
           postId: threadParentId!,
           replyId: seal.id,
           react: emoji.shortcodes,
@@ -185,6 +185,7 @@ export default function ReplyMessageOptions(props: {
       setPickerOpen(false);
     },
     [
+      nest,
       whom,
       groupFlag,
       privacy,
