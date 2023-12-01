@@ -15,6 +15,12 @@ import { useLastReconnect } from '@/state/local';
 import { isLink } from '@/types/content';
 import { useNegotiate } from '@/state/negotiation';
 import {
+  ALPHABETICAL_SORT,
+  DEFAULT_SORT,
+  RECENT_SORT,
+  SortMode,
+} from '@/constants';
+import {
   getFlagParts,
   isTalk,
   getNestShip,
@@ -24,10 +30,7 @@ import {
 import useSidebarSort, {
   useRecentSort,
   Sorter,
-  ALPHABETICAL,
   sortAlphabetical,
-  DEFAULT,
-  RECENT,
 } from './useSidebarSort';
 import useRecentChannel from './useRecentChannel';
 
@@ -137,7 +140,7 @@ export const useIsChannelHost = (flag: string) =>
 
 const UNZONED = 'default';
 
-export function useChannelSort() {
+export function useChannelSort(defaultSort: SortMode = DEFAULT_SORT) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
   const sortRecent = useRecentSort();
@@ -162,9 +165,9 @@ export function useChannelSort() {
 
   const sortOptions: Record<string, Sorter> = useMemo(
     () => ({
-      [ALPHABETICAL]: sortAlphabetical,
-      [DEFAULT]: sortDefault,
-      [RECENT]: sortRecent,
+      [ALPHABETICAL_SORT]: sortAlphabetical,
+      [DEFAULT_SORT]: sortDefault,
+      [RECENT_SORT]: sortRecent,
     }),
     [sortDefault, sortRecent]
   );
@@ -172,20 +175,21 @@ export function useChannelSort() {
   const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({
     sortOptions,
     flag: groupFlag === '' ? '~' : groupFlag,
+    defaultSort,
   });
 
   const sortChannels = useCallback(
     (channels: Channels) => {
       const accessors: Record<string, (k: string, v: GroupChannel) => string> =
         {
-          [ALPHABETICAL]: (_flag: string, channel: GroupChannel) =>
+          [ALPHABETICAL_SORT]: (_flag: string, channel: GroupChannel) =>
             get(channel, 'meta.title'),
-          [DEFAULT]: (_flag: string, channel: GroupChannel) =>
+          [DEFAULT_SORT]: (_flag: string, channel: GroupChannel) =>
             channel.zone || UNZONED,
-          [RECENT]: (flag: string, _channel: GroupChannel) => flag,
+          [RECENT_SORT]: (flag: string, _channel: GroupChannel) => flag,
         };
 
-      return sortRecordsBy(channels, accessors[sortFn], sortFn === RECENT);
+      return sortRecordsBy(channels, accessors[sortFn], sortFn === RECENT_SORT);
     },
     [sortFn, sortRecordsBy]
   );

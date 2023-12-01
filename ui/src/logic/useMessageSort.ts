@@ -1,18 +1,15 @@
 import { DMUnread } from '@/types/dms';
 import { Unread } from '@/types/channel';
-import useSidebarSort, {
-  RECENT,
-  Sorter,
-  useRecentSort,
-} from './useSidebarSort';
+import { RECENT_SORT } from '@/constants';
+import useSidebarSort, { Sorter, useRecentSort } from './useSidebarSort';
 
 export default function useMessageSort() {
   const sortRecent = useRecentSort();
   const sortOptions: Record<string, Sorter> = {
-    [RECENT]: sortRecent,
+    [RECENT_SORT]: sortRecent,
   };
   const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({
-    defaultSort: RECENT,
+    defaultSort: RECENT_SORT,
     sortOptions,
   });
 
@@ -21,7 +18,7 @@ export default function useMessageSort() {
       string,
       (k: string, v: Unread | DMUnread) => string
     > = {
-      [RECENT]: (flag: string, _unread: Unread | DMUnread) => flag,
+      [RECENT_SORT]: (flag: string, _unread: Unread | DMUnread) => flag,
     };
 
     return sortRecordsBy(unreads, accessors[sortFn], true);

@@ -6,13 +6,9 @@ import {
 } from '@/state/settings';
 import { useUnreads } from '@/state/channel/channel';
 import { useDmUnreads } from '@/state/chat';
+import { ALPHABETICAL_SORT, DEFAULT_SORT, SortMode } from '@/constants';
 import { whomIsDm, whomIsMultiDm } from './utils';
 
-export const ALPHABETICAL = 'A → Z';
-export const DEFAULT = 'Arranged';
-export const RECENT = 'Recent';
-
-type SortMode = typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
 export interface Sorter {
   (a: string, b: string): number;
 }
@@ -67,8 +63,9 @@ export default function useSidebarSort({
   const groupSideBarSort = useGroupSideBarSort();
   const sortFn = useMemo(
     () =>
-      defaultSort ||
-      (flag !== '~' ? groupSideBarSort[flag] ?? DEFAULT : sideBarSort),
+      flag !== '~'
+        ? groupSideBarSort[flag] ?? (defaultSort || DEFAULT_SORT)
+        : sideBarSort,
     [defaultSort, flag, groupSideBarSort, sideBarSort]
   );
   const { mutate: mutateSidebar } = usePutEntryMutation({
@@ -113,7 +110,7 @@ export default function useSidebarSort({
         const aVal = accessor(aKey, aObj);
         const bVal = accessor(bKey, bObj);
 
-        const sorter = sortOptions[sortFn] ?? sortOptions[ALPHABETICAL];
+        const sorter = sortOptions[sortFn] ?? sortOptions[ALPHABETICAL_SORT];
         return sorter(aVal, bVal);
       });
 

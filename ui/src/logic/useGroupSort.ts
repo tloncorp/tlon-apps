@@ -1,9 +1,8 @@
 import { get } from 'lodash';
 import { useCallback, useMemo } from 'react';
 import { Group, Groups } from '@/types/groups';
+import { ALPHABETICAL_SORT, RECENT_SORT } from '@/constants';
 import useSidebarSort, {
-  ALPHABETICAL,
-  RECENT,
   sortAlphabetical,
   Sorter,
   useRecentSort,
@@ -14,23 +13,24 @@ export default function useGroupSort() {
   const sortRecent = useRecentSort();
   const sortOptions: Record<string, Sorter> = useMemo(
     () => ({
-      [ALPHABETICAL]: sortAlphabetical,
-      [RECENT]: sortRecent,
+      [ALPHABETICAL_SORT]: sortAlphabetical,
+      [RECENT_SORT]: sortRecent,
     }),
     [sortRecent]
   );
   const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({
     sortOptions,
     flag: '~',
+    defaultSort: RECENT_SORT,
   });
-  const { sortChannels } = useChannelSort();
+  const { sortChannels } = useChannelSort(RECENT_SORT);
 
   const sortGroups = useCallback(
     (groups?: Groups) => {
       const accessors: Record<string, (k: string, v: Group) => string> = {
-        [ALPHABETICAL]: (_flag: string, group: Group) =>
+        [ALPHABETICAL_SORT]: (_flag: string, group: Group) =>
           get(group, 'meta.title'),
-        [RECENT]: (flag: string, group: Group) => {
+        [RECENT_SORT]: (flag: string, group: Group) => {
           /**
            * Use the latest channel flag associated with the Group; otherwise
            * fallback to the Group flag itself, which won't be in the briefs and
@@ -43,8 +43,8 @@ export default function useGroupSort() {
 
       return sortRecordsBy(
         groups || {},
-        accessors[sortFn] || accessors[ALPHABETICAL],
-        sortFn === RECENT
+        accessors[sortFn] || accessors[ALPHABETICAL_SORT],
+        sortFn === RECENT_SORT
       );
     },
     [sortChannels, sortFn, sortRecordsBy]

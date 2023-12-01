@@ -12,7 +12,6 @@ import {
 } from '@/state/groups';
 import SortIcon from '@/components/icons/SortIcon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import { DEFAULT } from '@/logic/useSidebarSort';
 import { GroupChannel } from '@/types/groups';
 import Divider from '@/components/Divider';
 import ChannelIcon from '@/channels/ChannelIcon';
@@ -33,6 +32,7 @@ import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import SmileIcon from '@/components/icons/SmileIcon';
 import PlaneIcon from '@/components/icons/PlaneIcon';
+import { DEFAULT_SORT } from '@/constants';
 
 const UNZONED = 'default';
 
@@ -125,7 +125,7 @@ export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
   const group = useGroup(flag);
   const connected = useGroupConnection(flag);
   const { sortFn, sortChannels } = useChannelSort();
-  const isDefaultSort = sortFn === DEFAULT;
+  const isDefaultSort = sortFn === DEFAULT_SORT;
   const { sectionedChannels } = useChannelSections(flag);
   const filteredSections = useFilteredSections(flag, true);
   const isMobile = useIsMobile();
