@@ -35,7 +35,7 @@ import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { PageTuple, ReplyTuple } from '@/types/channel';
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
-const logger = createDevLogger('ChatScroller', false);
+const logger = createDevLogger('ChatScroller', true);
 
 interface CustomScrollItemData {
   type: 'custom';
@@ -162,7 +162,8 @@ export interface ChatScrollerProps {
   messages: PageTuple[] | WritTuple[] | ReplyTuple[];
   onAtTop?: () => void;
   onAtBottom?: () => void;
-  fetchState: 'initial' | 'top' | 'bottom';
+  isLoadingOlder: boolean;
+  isLoadingNewer: boolean;
   replying?: boolean;
   /**
    * Element to be inserted at the top of the list scroll after we've loaded the
@@ -183,7 +184,8 @@ export default function ChatScroller({
   messages,
   onAtTop,
   onAtBottom,
-  fetchState,
+  isLoadingOlder,
+  isLoadingNewer,
   replying = false,
   topLoadEndMarker,
   scrollTo: rawScrollTo = undefined,
@@ -204,6 +206,15 @@ export default function ChatScroller({
   const contentElementRef = useRef<HTMLDivElement>(null);
   const { userHasScrolled, resetUserHasScrolled } =
     useUserHasScrolled(scrollElementRef);
+
+  // Update the tracked load direction when loading state changes.
+  useEffect(() => {
+    if (isLoadingOlder && loadDirection !== 'older') {
+      setLoadDirection('older');
+    } else if (isLoadingNewer && loadDirection !== 'newer') {
+      setLoadDirection('newer');
+    }
+  }, [isLoadingOlder, isLoadingNewer, loadDirection]);
 
   const { activeMessageKeys, activeMessageEntries } = useMessageData({
     whom,
@@ -252,7 +263,16 @@ export default function ChatScroller({
   }, [messageKeys, count, scrollTo]);
 
   useObjectChangeLogging(
-    { isAtTop, isAtBottom, hasLoadedNewest, hasLoadedOldest, anchorIndex },
+    {
+      isAtTop,
+      isAtBottom,
+      hasLoadedNewest,
+      hasLoadedOldest,
+      loadDirection,
+      anchorIndex,
+      isLoadingOlder,
+      isLoadingNewer,
+    },
     logger
   );
 
@@ -309,8 +329,8 @@ export default function ChatScroller({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTo]);
 
-  const isLoadingAtStart = fetchState === (isInverted ? 'bottom' : 'top');
-  const isLoadingAtEnd = fetchState === (isInverted ? 'top' : 'bottom');
+  const isLoadingAtStart = isInverted ? isLoadingOlder : isLoadingNewer;
+  const isLoadingAtEnd = isInverted ? isLoadingNewer : isLoadingOlder;
   const paddingStart = isLoadingAtStart
     ? isInverted
       ? loaderPadding.bottom
@@ -430,19 +450,18 @@ export default function ChatScroller({
 
   // Load more items when list reaches the top or bottom.
   useEffect(() => {
-    if (fetchState !== 'initial' || !userHasScrolled) return;
+    if (isLoadingOlder || isLoadingNewer || !userHasScrolled) return;
 
     if (isAtTop && !hasLoadedOldest) {
-      setLoadDirection('older');
-      logger.log('load older');
+      logger.log('triggering onAtTop');
       onAtTop?.();
     } else if (isAtBottom && !hasLoadedNewest) {
-      setLoadDirection('newer');
-      logger.log('load newer');
+      logger.log('triggering onAtBottom');
       onAtBottom?.();
     }
   }, [
-    fetchState,
+    isLoadingOlder,
+    isLoadingNewer,
     hasLoadedNewest,
     hasLoadedOldest,
     isAtTop,
@@ -534,7 +553,8 @@ export default function ChatScroller({
             loadDirection,
             isAtBottom,
             isAtTop,
-            fetchState,
+            isLoadingOlder,
+            isLoadingNewer,
             userHasScrolled,
           }}
         />

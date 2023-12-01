@@ -36,7 +36,7 @@ import {
 import { Reply, Replies, ChannelsAction, ReplyTuple } from '@/types/channel';
 import api from '@/api';
 import { whomIsDm } from '@/logic/utils';
-import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import queryClient from '@/queryClient';
@@ -1667,6 +1667,20 @@ export function useIsDmUnread(whom: string) {
   const chatInfo = useChatInfo(whom);
   const unread = chatInfo?.unread;
   return Boolean(unread && !unread.seen);
+}
+
+const selChats = (s: ChatStore) => s.chats;
+export function useCheckDmUnread() {
+  const chats = useChatStore(selChats);
+
+  return useCallback(
+    (whom: string) => {
+      const chatInfo = chats[whom];
+      const unread = chatInfo?.unread;
+      return Boolean(unread && !unread.seen);
+    },
+    [chats]
+  );
 }
 
 export function useMultiDmIsPending(id: string): boolean {

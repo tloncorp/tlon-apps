@@ -555,6 +555,7 @@ export function constructStory(data: (Inline | Block)[]): Story {
       'header',
       'rule',
       'code',
+      'cite',
     ].some((k) => typeof c !== 'string' && k in c);
   const postContent: Story = [];
   let index = 0;

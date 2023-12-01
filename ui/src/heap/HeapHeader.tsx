@@ -149,6 +149,7 @@ const HeapHeader = React.memo(
                   onClick={() => setAddCurioOpen(true)}
                   disabled={!compatible || addCurioOpen}
                   hidden={!canWrite}
+                  data-testid="add-block-button"
                 >
                   New Block
                 </button>

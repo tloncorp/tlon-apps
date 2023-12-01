@@ -93,9 +93,8 @@ export default function AddCurioModal({
   const addCurio = useCallback(
     async (input: JSONContent | string) => {
       const heart = await createCurioHeart(input);
-      const now = Date.now();
       const cacheId = {
-        sent: now,
+        sent: heart.sent,
         author: window.our,
       };
 
@@ -276,6 +275,7 @@ export default function AddCurioModal({
             onClick={() => postBlock()}
             className="button"
             disabled={['loading', 'error'].includes(status) || isEmpty}
+            data-testid="block-post-button"
           >
             {status === 'loading' ? (
               <LoadingSpinner className="h-4 w-4" />

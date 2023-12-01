@@ -3,7 +3,11 @@ import cn from 'classnames';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
-import { usePost, useOrderedPosts } from '@/state/channel/channel';
+import {
+  usePost,
+  useOrderedPosts,
+  useIsPostUndelivered,
+} from '@/state/channel/channel';
 import Layout from '@/components/Layout/Layout';
 import { useRouteGroup } from '@/state/groups';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
@@ -48,6 +52,7 @@ export default function HeapDetail({ title }: ViewProps) {
   } = useOrderedPosts(nest, idTime || '');
   const initialNote = location.state?.initialCurio as Post | undefined;
   const essay = note?.essay || initialNote?.essay;
+  const isUndelivered = useIsPostUndelivered(initialNote);
 
   const curioHref = (id?: bigInt.BigInteger) => {
     if (!id) {
@@ -83,6 +88,7 @@ export default function HeapDetail({ title }: ViewProps) {
       header={
         <HeapDetailHeader
           nest={nest}
+          isUndelivered={isUndelivered}
           idCurio={idTime || ''}
           essay={essay}
           groupFlag={groupFlag}

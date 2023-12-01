@@ -118,6 +118,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           draft.chats[whom] = emptyInfo();
         }
 
+        chatStoreLogger.log('setDialogs', whom, dialogs);
         draft.chats[whom].dialogs[writId] = dialogs;
       })
     );
@@ -135,6 +136,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
         draft.chats[whom].failedToLoadContent[writId][blockIndex] =
           failureState;
+
+        chatStoreLogger.log(
+          'setFailed',
+          whom,
+          JSON.stringify(draft.chats[whom].failedToLoadContent[writId])
+        );
       })
     );
   },
@@ -145,7 +152,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           draft.chats[whom] = emptyInfo();
         }
 
-        draft.chats[whom].hovering = hovering ? writId : '';
+        const newHovering = hovering ? writId : '';
+        chatStoreLogger.log('setHovering', whom, newHovering);
+        draft.chats[whom].hovering = newHovering;
       })
     );
   },
@@ -156,6 +165,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           draft.chats[whom] = emptyInfo();
         }
 
+        chatStoreLogger.log('reply', whom, msgId);
         draft.chats[whom].replying = msgId;
       })
     );
@@ -178,6 +188,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           readTimeout: 0,
         };
 
+        chatStoreLogger.log('seen', whom);
         draft.chats[whom].unread = {
           ...unread,
           seen: true,
@@ -187,14 +198,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
   read: (whom) => {
     set(
-      produce((draft) => {
+      produce((draft: ChatStore) => {
         const chat = draft.chats[whom];
         if (!chat) {
           return;
         }
 
-        chatStoreLogger.log('read', whom, chat);
-        delete chat.unread;
+        chatStoreLogger.log('read', whom, JSON.stringify(chat));
+        chat.unread = undefined;
+        chatStoreLogger.log('post read', JSON.stringify(draft.chats[whom]));
       })
     );
   },
@@ -258,6 +270,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   setCurrent: (current) => {
     set(
       produce((draft) => {
+        chatStoreLogger.log('current', current);
         draft.current = current;
       })
     );
@@ -265,6 +278,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   bottom: (atBottom) => {
     set(
       produce((draft) => {
+        chatStoreLogger.log('atBottom', atBottom);
         draft.atBottom = atBottom;
       })
     );

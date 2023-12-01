@@ -344,7 +344,7 @@
   ++  unread
     |=  b=unread:c
     %-  pairs
-    :~  recency/(id recency.b)
+    :~  recency/(time recency.b)
         count/(numb count.b)
         unread-id/?~(unread-id.b ~ (id u.unread-id.b))
         threads/(unread-threads threads.b)

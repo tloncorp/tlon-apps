@@ -151,6 +151,11 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
         >
           {typeof icon === 'function' ? icon(active) : icon}
           <div
+            data-testid={
+              typeof children === 'string'
+                ? `sidebar-item-text-${children}`
+                : undefined
+            }
             title={typeof children === 'string' ? children : undefined}
             className={cn(
               'max-w-full flex-1 text-left font-sans sm:text-base',

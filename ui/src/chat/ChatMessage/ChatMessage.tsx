@@ -170,7 +170,7 @@ const ChatMessage = React.memo<
       const isMobile = useIsMobile();
       const isThreadOnMobile = isThread && isMobile;
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
-      const chatInfo = useChatInfo(isDMOrMultiDM ? whom : `chat/${whom}`);
+      const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
       const unreadDisplay = isDMOrMultiDM
         ? dmUnreadStatus(unread?.unread as DMUnread, seal.id)
@@ -373,15 +373,17 @@ const ChatMessage = React.memo<
             <Author ship={essay.author} date={unix} hideRoles={isThread} />
           ) : null}
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
-            <ChatMessageOptions
-              open={optionsOpen}
-              onOpenChange={setOptionsOpen}
-              hideThreadReply={hideReplies}
-              whom={whom}
-              writ={writ}
-              hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
-              openReactionDetails={handleReactionDetailsOpened}
-            />
+            {isDelivered && (
+              <ChatMessageOptions
+                open={optionsOpen}
+                onOpenChange={setOptionsOpen}
+                hideThreadReply={hideReplies}
+                whom={whom}
+                writ={writ}
+                hideReply={whomIsDm(whom) || whomIsMultiDm(whom) || hideReplies}
+                openReactionDetails={handleReactionDetailsOpened}
+              />
+            )}
             <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
             </div>

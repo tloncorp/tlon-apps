@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import Urbit from '@urbit/http-api';
 import api from '@/api';
 import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
@@ -51,7 +52,10 @@ async function startGroups() {
   queryClient.setQueryData(['channels'], channels);
   queryClient.setQueryData(['unreads'], unreads);
   queryClient.setQueryData(pinsKey(), pins);
-  useChatStore.getState().update(unreads);
+  // make sure we remove the app part from the nest before handing it over
+  useChatStore
+    .getState()
+    .update(_.mapKeys(unreads, (v, k) => k.replace(/\w*\//, '')));
 }
 
 async function startTalk() {

@@ -56,16 +56,7 @@ export default function ChatWindow({
   } = useInfinitePosts(nest, scrollTo?.toString(), shouldGetLatest);
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
-  const readTimeout = useChatInfo(nest).unread?.readTimeout;
-  const fetchState = useMemo(
-    () =>
-      isFetchingNextPage
-        ? 'bottom'
-        : isFetchingPreviousPage
-        ? 'top'
-        : 'initial',
-    [isFetchingNextPage, isFetchingPreviousPage]
-  );
+  const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const { compatible } = useChannelCompatibility(nest);
   const latestMessageIndex = messages.length - 1;
   const scrollToIndex = useMemo(
@@ -93,22 +84,22 @@ export default function ChatWindow({
   }, [setSearchParams, refetch, hasPreviousPage, scrollerRef]);
 
   useEffect(() => {
-    useChatStore.getState().setCurrent(nest);
+    useChatStore.getState().setCurrent(whom);
 
     return () => {
       useChatStore.getState().setCurrent('');
     };
-  }, [nest]);
+  }, [whom]);
 
   const onAtBottom = useCallback(() => {
     const { bottom, delayedRead } = useChatStore.getState();
     bottom(true);
-    delayedRead(nest, () => markRead({ nest }));
+    delayedRead(whom, () => markRead({ nest }));
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [nest, markRead, fetchPreviousPage, hasPreviousPage, isFetching]);
+  }, [nest, whom, markRead, fetchPreviousPage, hasPreviousPage, isFetching]);
 
   const onAtTop = useCallback(() => {
     if (hasNextPage && !isFetching) {
@@ -120,11 +111,11 @@ export default function ChatWindow({
   useEffect(
     () => () => {
       if (readTimeout !== undefined && readTimeout !== 0) {
-        useChatStore.getState().read(nest);
+        useChatStore.getState().read(whom);
         markRead({ nest });
       }
     },
-    [readTimeout, nest, markRead]
+    [readTimeout, nest, whom, markRead]
   );
 
   useEffect(() => {
@@ -170,7 +161,8 @@ export default function ChatWindow({
            */
           key={whom}
           messages={messages}
-          fetchState={fetchState}
+          isLoadingOlder={isFetchingNextPage}
+          isLoadingNewer={isFetchingPreviousPage}
           whom={whom}
           topLoadEndMarker={prefixedElement}
           scrollTo={scrollTo}

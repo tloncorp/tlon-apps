@@ -4,7 +4,7 @@ import { daToUnix } from '@urbit/api';
 import bigInt from 'big-integer';
 import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
-import { pluralize } from '@/logic/utils';
+import { nestToFlag, pluralize } from '@/logic/utils';
 import { useMarkReadMutation } from '@/state/channel/channel';
 import { unixToDa } from '@urbit/aura';
 import { useChatInfo, useChatStore } from './useChatStore';
@@ -19,11 +19,12 @@ export default function ChatUnreadAlerts({
   root,
 }: ChatUnreadAlertsProps) {
   const { mutate: markChatRead } = useMarkReadMutation();
-  const chatInfo = useChatInfo(nest);
+  const [, flag] = nestToFlag(nest);
+  const chatInfo = useChatInfo(flag);
   const markRead = useCallback(() => {
     markChatRead({ nest });
-    useChatStore.getState().read(nest);
-  }, [nest, markChatRead]);
+    useChatStore.getState().read(flag);
+  }, [nest, flag, markChatRead]);
 
   if (!chatInfo?.unread || chatInfo.unread.seen) {
     return null;

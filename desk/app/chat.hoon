@@ -510,6 +510,11 @@
       %chat-dm-archive  di-abet:di-archive:(di-abed:di-core !<(ship vase))
       %chat-migrate-server  ?>(from-self server:migrate)
       %chat-migrate         ?>(from-self client:migrate)
+  ::
+      %chat-migrate-refs
+    ?>  from-self
+    =+  !<(flag=[ship term] vase)
+    (refs:migrate flag)
   ::  backwards compatibility
   ::
       %dm-rsvp
@@ -861,7 +866,47 @@
     =.  cor  (emit %pass /migrate %agent [our.bowl %groups-ui] %poke cage)
     $(pins t.pins)
   ::
+<<<<<<< HEAD
   ++  convert-pin
+=======
+  ++  refs
+    |=  =flag:old
+    ?~  old-chat=(~(get by old-chats) flag)  cor
+    %-  emil
+    ::  iterate over all chats and, for every message/reply authored by us,
+    ::  containing a chat reference that we have (almost certainly) converted,
+    ::  send the new version of the message/reply as an edit to the host.
+    ::
+    %+  murn  (tap:on:writs:old wit.pact.u.old-chat)
+    |=  [=time =writ:old]
+    ^-  (unit card)
+    ?.  =(our.bowl author.writ)  ~
+    =/  edit=(unit essay:d)
+      =;  contains-chat-ref=?
+        ?.  contains-chat-ref  ~
+        `(convert-essay +.writ)
+      ?.  ?=(%story -.content.writ)  |
+      %+  lien  p.p.content.writ
+      |=  =block:old
+      ?=([%cite %chan [%chat *] *] block)
+    =/  command=(unit c-post:d)
+      ?~  edit  ~
+      ?~  replying.writ
+        `[%edit time u.edit]
+      =/  parent-time  (~(get by dex.pact.u.old-chat) u.replying.writ)
+      ?~  parent-time  ~
+      `[%reply u.parent-time %edit time -.u.edit]
+    ?~  command  ~
+    =/  =cage
+      :-  %channel-action
+      !>(`a-channels:d`[%channel [%chat flag] %post u.command])
+    `[%pass /migrate %agent [our.bowl %channels] %poke cage]
+  ::
+  ++  convert-pins
+    |=  pins=(list whom:t)
+    ^-  (list nest:d)
+    %+  murn  pins
+>>>>>>> develop
     |=  =whom:t
     ^-  whom:u
     ?.  ?=(%flag -.whom)
@@ -934,7 +979,7 @@
   ++  convert-quip
     |=  [id=@da old=writ:t]
     ^-  v-reply:d
-    [[id (convert-feels feels.old)] (convert-memo +.old)]
+    [[id (convert-feels feels.old)] %0 (convert-memo +.old)]
   ::
   ++  convert-memo
     |=  old=memo:t
