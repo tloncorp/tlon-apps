@@ -1655,7 +1655,7 @@
   ::
   ++  di-post-notice
     |=  text=cord
-    =/  =delta:writs:c  (make-notice our.bowl text)
+    =/  =delta:writs:c  (make-notice ?:(from-self our.bowl ship) text)
     (di-ingest-diff [our now]:bowl delta)
   ::
   ++  di-rsvp
