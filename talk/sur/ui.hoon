@@ -14,5 +14,19 @@
       pins=(list whom:c)
   ==
 ::
++$  whom
+  $%  [%group =flag:g]
+      [%channel =nest:g]
+      [%chat =whom:c]
+  ==
+::
++$  action
+  $%  [%pins =a-pins]
+  ==
++$  a-pins
+  $%  [%add =whom]
+      [%del =whom]
+  ==
+::
 +$  vita-enabled  ?
 --
