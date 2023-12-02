@@ -1231,6 +1231,7 @@ export function useInfiniteDMs(
   initialTime?: string,
   latest = false
 ) {
+  const unread = useDmUnread(whom);
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
   const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
   const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
@@ -1249,21 +1250,23 @@ export function useInfiniteDMs(
   );
 
   useEffect(() => {
-    api.subscribe({
-      app: 'chat',
-      path: `/${type}/${whom}`,
-      event: (data: WritResponse) => {
-        const { response } = data;
-        if (response && useWritsStore.getState().hasSomeUndelivered()) {
-          checkResponseForDeliveries(response);
-        }
+    if (unread) {
+      api.subscribe({
+        app: 'chat',
+        path: `/${type}/${whom}`,
+        event: (data: WritResponse) => {
+          const { response } = data;
+          if (response && useWritsStore.getState().hasSomeUndelivered()) {
+            checkResponseForDeliveries(response);
+          }
 
-        // for now, let's avoid updating data in place and always refetch
-        // when we hear a fact
-        invalidate.current();
-      },
-    });
-  }, [whom, type, isDM, queryKey]);
+          // for now, let's avoid updating data in place and always refetch
+          // when we hear a fact
+          invalidate.current();
+        },
+      });
+    }
+  }, [whom, type, isDM, queryKey, unread]);
 
   const { data, ...rest } = useInfiniteQuery<PagedWrits>({
     queryKey,
