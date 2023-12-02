@@ -189,9 +189,13 @@ export function useChannelSort(defaultSort: SortMode = DEFAULT_SORT) {
           [RECENT_SORT]: (flag: string, _channel: GroupChannel) => flag,
         };
 
-      return sortRecordsBy(channels, accessors[sortFn], sortFn === RECENT_SORT);
+      return sortRecordsBy(
+        channels,
+        accessors[sortFn] || accessors[defaultSort],
+        sortFn === RECENT_SORT
+      );
     },
-    [sortFn, sortRecordsBy]
+    [sortFn, defaultSort, sortRecordsBy]
   );
 
   return {
