@@ -115,12 +115,16 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   return { ...rest, match: allShipsMatch, haveAllNegotiations };
 }
 
-// If we haven't already interacted with a ship, but need to know its
-// negotiation status, we have to inititate negotiation manually
-export function useInitShipNegotiation(ships: string[], app: string) {
+export function useForceNegotiationUpdate(ships: string[], app: string) {
   const { data } = useNegotiation(app, app);
   const unknownShips = useMemo(
-    () => ships.filter((ship) => `${ship}/${app}` in (data || {}) === false),
+    () =>
+      ships.filter(
+        (ship) =>
+          !data ||
+          !(`${ship}/${app}` in data) ||
+          data[`${ship}/${app}`] !== 'match'
+      ),
     [ships, app, data]
   );
   const negotiateUnknownShips = useCallback(

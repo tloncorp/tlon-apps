@@ -11,7 +11,10 @@ import {
   useMultiDms,
   useSendMessage,
 } from '@/state/chat';
-import { useInitShipNegotiation, useNegotiateMulti } from '@/state/negotiation';
+import {
+  useForceNegotiationUpdate,
+  useNegotiateMulti,
+} from '@/state/negotiation';
 import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
@@ -29,7 +32,7 @@ export default function useMessageSelector() {
   const { mutate: sendMessage } = useSendMessage();
   const { mutateAsync: createMultiDm } = useCreateMultiDm();
 
-  useInitShipNegotiation(shipValues, 'chat');
+  useForceNegotiationUpdate(shipValues, 'chat');
   const {
     match: negotiationMatch,
     isLoading: negotiationLoading,
