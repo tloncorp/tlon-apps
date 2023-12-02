@@ -48,11 +48,8 @@ export default function NewDM() {
               'Your version of the app does not match some of the members of this chat.'
             ) : (
               <>
-                {' '}
-                <LoadingSpinner />{' '}
-                <span className="ml-2">
-                  Checking version compatibility
-                </span>{' '}
+                <LoadingSpinner />
+                <span className="ml-2">Checking version compatibility</span>
               </>
             )}
           </div>
