@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { debounce } from 'lodash';
 import api from '@/api';
@@ -99,13 +99,50 @@ export function useNegotiateMulti(ships: string[], app: string, agent: string) {
   const { data, ...rest } = useNegotiation(app, agent);
 
   if (rest.isLoading || rest.isError || data === undefined) {
-    return { ...rest, match: false };
+    return { ...rest, match: false, haveAllNegotiations: false };
   }
 
-  const allShipsMatch = ships
+  const shipKeys = ships
     .filter((ship) => ship !== window.our)
-    .map((ship) => `${ship}/${agent}`)
-    .every((ship) => ship in data && data[ship] === 'match');
+    .map((ship) => `${ship}/${agent}`);
 
-  return { ...rest, match: allShipsMatch };
+  const allShipsMatch = shipKeys.every(
+    (ship) => ship in data && data[ship] === 'match'
+  );
+
+  const haveAllNegotiations = shipKeys.every((ship) => ship in data);
+
+  return { ...rest, match: allShipsMatch, haveAllNegotiations };
+}
+
+// If we haven't already interacted with a ship, but need to know its
+// negotiation status, we have to inititate negotiation manually
+export function useInitShipNegotiation(ships: string[], app: string) {
+  const { data } = useNegotiation(app, app);
+  const unknownShips = useMemo(
+    () => ships.filter((ship) => `${ship}/${app}` in (data || {}) === false),
+    [ships, app, data]
+  );
+  const negotiateUnknownShips = useCallback(
+    async (shipsToCheck: string[]) => {
+      const responses: Promise<number>[] = [];
+      shipsToCheck.forEach((ship) => {
+        responses.push(
+          api.poke({
+            app,
+            mark: 'chat-negotiate',
+            json: ship,
+          })
+        );
+      });
+      await Promise.all(responses);
+    },
+    [app]
+  );
+
+  useEffect(() => {
+    if (unknownShips.length > 0) {
+      negotiateUnknownShips(unknownShips);
+    }
+  }, [unknownShips, negotiateUnknownShips]);
 }
