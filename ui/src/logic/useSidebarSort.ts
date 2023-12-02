@@ -6,7 +6,7 @@ import {
 } from '@/state/settings';
 import { useUnreads } from '@/state/channel/channel';
 import { useDmUnreads } from '@/state/chat';
-import { ALPHABETICAL_SORT, DEFAULT_SORT, SortMode } from '@/constants';
+import { DEFAULT_SORT, RECENT_SORT, SortMode } from '@/constants';
 import { whomIsDm, whomIsMultiDm } from './utils';
 
 export interface Sorter {
@@ -110,7 +110,7 @@ export default function useSidebarSort({
         const aVal = accessor(aKey, aObj);
         const bVal = accessor(bKey, bObj);
 
-        const sorter = sortOptions[sortFn] ?? sortOptions[ALPHABETICAL_SORT];
+        const sorter = sortOptions[sortFn] ?? sortOptions[RECENT_SORT];
         return sorter(aVal, bVal);
       });
 
