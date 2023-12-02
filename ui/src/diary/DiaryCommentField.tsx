@@ -164,9 +164,7 @@ export default function DiaryCommentField({
       const mention = makeMention(reply?.memo.author.slice(1));
       messageEditor?.commands.setContent(mention);
       messageEditor?.commands.insertContent(': ');
-      const path = `/1/chan/${han}/${flag}/${
-        han === 'diary' ? 'note' : 'curio'
-      }/${replyTo}/msg/${replyId}`;
+      const path = `/1/chan/${han}/${flag}/msg/${replyTo}/${replyId}`;
       const cite = path ? pathToCite(path) : undefined;
       if (cite && !replyCite) {
         setReplyCite({ cite });
