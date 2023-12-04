@@ -1093,7 +1093,11 @@
       =;  cs=(unit (list content:ha))
         ?~  cs  ca-core
         =/  =path
-          /post/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
+          ?-    -.kind-data.post
+            %diary  /note/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
+            %heap   /curio/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
+            %chat   /message/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
+          ==
         (emit (pass-hark (ca-spin path u.cs ~)))
       ::  notify because we wrote the post the reply responds to
       ::

@@ -178,7 +178,10 @@ function ChatChannel({ title }: ViewProps) {
       </Layout>
       <Routes>
         {isSmall ? null : (
-          <Route path="message/:idTime" element={<ChatThread />} />
+          <Route
+            path="message/:idTime/:idReplyTime?"
+            element={<ChatThread />}
+          />
         )}
       </Routes>
     </>
