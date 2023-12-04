@@ -11,7 +11,7 @@
 ::
 ::    works best in a dedicated terminal session.
 ::
-/-  chat=chat-2, cite, groups
+/-  chat, cite, groups
 /+  shoe, default-agent, verb, dbug
 ::
 |%
