@@ -1186,21 +1186,19 @@
     ^-  unread:c
     :-  recency.remark.channel
     =/  unreads
-      (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
-    =/  unread-id=(unit id-post:c)
-      =/  pried  (pry:on-v-posts:c unreads)
-      ?~  pried  ~
-      ::TODO  in the ~ case, we could traverse further up, to better handle
-      ::      cases where the most recent message was deleted.
-      ?~  val.u.pried  ~
-      `id.u.val.u.pried
-    =/  count
-      %-  lent
-      %+  skim  ~(tap by unreads)
+      %+  skim
+        %~  tap  by
+        (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
       |=  [tim=time post=(unit v-post:c)]
       ?&  ?=(^ post)
           !=(author.u.post our.bowl)
       ==
+    =/  unread-id=(unit id-post:c)
+      ?~  unreads  ~
+      ::TODO  in the ~ case, we could traverse further up, to better handle
+      ::      cases where the most recent message was deleted.
+      (some -:(head unreads))
+    =/  count  (lent unreads)
     ::  now do the same for all unread threads
     ::
     =/  [sum=@ud threads=(map id-post:c id-reply:c)]
@@ -1209,18 +1207,17 @@
       =/  parent    (get:on-v-posts:c posts.channel id)
       ?~  parent    [sum threads]
       ?~  u.parent  [sum threads]
-      =/  unreads   (lot:on-v-replies:c replies.u.u.parent `last-read.remark.channel ~)
-      :-  %+  add  sum
-          %-  lent
-          %+  skim  ~(tap by unreads)
-          |=  [tim=time reply=(unit v-reply:c)]
-          ?&  ?=(^ reply)
-              !=(author.u.reply our.bowl)
-          ==
-      =/  pried  (pry:on-v-replies:c unreads)
-      ?~  pried  threads
-      ?~  val.u.pried  threads
-      (~(put by threads) id id.u.val.u.pried)
+      =/  unreads
+        %+  skim
+          %~  tap  by
+          (lot:on-v-replies:c replies.u.u.parent `last-read.remark.channel ~)
+        |=  [tim=time reply=(unit v-reply:c)]
+        ?&  ?=(^ reply)
+            !=(author.u.reply our.bowl)
+        ==
+      :-  (add sum (lent unreads))
+      ?~  unreads  threads
+      (~(put by threads) id -:(head unreads))
     [(add count sum) unread-id threads]
   ::
   ::  handle scries
