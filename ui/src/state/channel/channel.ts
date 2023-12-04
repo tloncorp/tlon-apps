@@ -1898,21 +1898,6 @@ export function useAddReplyMutation() {
         usePostsStore.getState().updateStatus(variables.cacheId, 'sent');
       }
     },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      setTimeout(async () => {
-        // TODO: this is a hack to make sure the post is updated before refetching
-        // the queries. We need to figure out why the post is not updated immediately.
-        await queryClient.refetchQueries([
-          han,
-          'posts',
-          flag,
-          variables.postId,
-        ]);
-
-        usePostsStore.getState().updateStatus(variables.cacheId, 'delivered');
-      }, 300);
-    },
   });
 }
 
