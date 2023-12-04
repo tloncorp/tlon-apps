@@ -429,6 +429,11 @@ export interface ChannelsResponse {
   response: Response;
 }
 
+export interface ChannelsSubscribeResponse extends ChannelsResponse {
+  show: string;
+  hide: string;
+}
+
 export function isCite(s: Block): boolean {
   if ('cite' in s) {
     return true;
