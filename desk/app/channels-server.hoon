@@ -539,7 +539,7 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  `(put:on-v-posts:c posts.channel id.c-post ~)
       ?~  u.post  `posts.channel
-      ?>  =(src.bowl author.u.u.post)
+      ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       :-  `[%post id.c-post %set ~]
       (put:on-v-posts:c posts.channel id.c-post ~)
     ::
