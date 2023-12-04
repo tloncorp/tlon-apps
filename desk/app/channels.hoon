@@ -1056,9 +1056,15 @@
       ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
           ca-core
+        =/  =path
+          ?-    -.kind-data.post
+            %diary  /note/(rsh 4 (scot %ui id-post))
+            %heap   /curio/(rsh 4 (scot %ui id-post))
+            %chat   /message/(rsh 4 (scot %ui id-post))
+          ==
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin /post/(rsh 4 (scot %ui id-post)) cs ~)))
+        (emit (pass-hark (ca-spin path cs ~)))
       ::
       ::TODO  if we (want-hark %any), notify
       ca-core
