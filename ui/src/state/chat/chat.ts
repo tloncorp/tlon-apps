@@ -42,6 +42,7 @@ import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import queryClient from '@/queryClient';
 import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
 import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
+import ChatKeys from './keys';
 import emptyMultiDm, {
   appendWritToLastPage,
   buildCachedWrit,
@@ -170,8 +171,8 @@ export function initializeChat({
 }) {
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
-  queryClient.setQueryData(['dms', 'pending'], () => invited || []);
-  queryClient.setQueryData(['dms', 'unreads'], () => unreads || {});
+  queryClient.setQueryData(ChatKeys.pending(), () => invited || []);
+  queryClient.setQueryData(ChatKeys.unreads(), () => unreads || {});
 }
 
 interface PageParam {
@@ -628,7 +629,7 @@ export function useDms(): string[] {
 
 export function usePendingDms() {
   const { data, ...rest } = useReactQuerySubscription<string[]>({
-    queryKey: ['dms', 'pending'],
+    queryKey: ChatKeys.pending(),
     app: 'chat',
     path: '/dm/invited',
     scry: '/dm/invited',
@@ -671,8 +672,12 @@ export function useMarkDmReadMutation() {
 }
 
 export function useDmUnreads() {
-  const dmUnreadsKey = ['dms', 'unreads'];
+  const dmUnreadsKey = ChatKeys.unreads();
   const { mutate: markDmRead } = useMarkDmReadMutation();
+  const { pending } = usePendingDms();
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+
   const invalidate = useRef(
     _.debounce(
       () => {
@@ -689,6 +694,12 @@ export function useDmUnreads() {
   const eventHandler = (event: DMUnreadUpdate) => {
     invalidate.current();
     const { whom, unread } = event;
+
+    // we don't get an update on the pending subscription when rsvps are accepted
+    // but we do get an unread notification, so we use it here for invalidation
+    if (pendingRef.current.includes(whom)) {
+      queryClient.invalidateQueries(ChatKeys.pending());
+    }
 
     if (unread !== null) {
       useChatStore.getState().unread(whom, unread, () => markDmRead({ whom }));
@@ -745,7 +756,7 @@ export function useArchiveDm() {
     onMutate: (variables) => {
       const { whom } = variables;
       queryClient.setQueryData(
-        ['dms', 'unreads'],
+        ChatKeys.unreads(),
         (unreads: DMUnreads | undefined) => {
           if (!unreads) {
             return unreads;
@@ -760,7 +771,7 @@ export function useArchiveDm() {
       );
     },
     onSettled: () => {
-      queryClient.invalidateQueries(['dms', 'unreads']);
+      queryClient.invalidateQueries(ChatKeys.unreads());
     },
   });
 }
@@ -777,7 +788,7 @@ export function useUnarchiveDm() {
   return useMutation({
     mutationFn,
     onSettled: () => {
-      queryClient.invalidateQueries(['dms', 'unreads']);
+      queryClient.invalidateQueries(ChatKeys.unreads());
     },
   });
 }
@@ -813,8 +824,8 @@ export function useDmRsvpMutation() {
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries(['dms', 'unreads']);
-      queryClient.invalidateQueries(['dms', 'pending']);
+      queryClient.invalidateQueries(ChatKeys.unreads());
+      queryClient.invalidateQueries(ChatKeys.pending());
       queryClient.invalidateQueries(['dms', 'dms']);
       queryClient.invalidateQueries(['dms', variables.ship]);
     },
@@ -969,8 +980,8 @@ export function useMutliDmRsvpMutation() {
       }
     },
     onSettled: (_data, _error, variables) => {
-      queryClient.invalidateQueries(['dms', 'unreads']);
-      queryClient.invalidateQueries(['dms', 'pending']);
+      queryClient.invalidateQueries(ChatKeys.unreads());
+      queryClient.invalidateQueries(ChatKeys.pending());
       queryClient.invalidateQueries(['dms', 'multi']);
       queryClient.invalidateQueries(['dms', variables.id]);
     },
