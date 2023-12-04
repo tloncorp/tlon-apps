@@ -819,7 +819,7 @@ export function useChannels(): Channels {
         ['channels', 'hidden'],
         (d: HiddenPosts | undefined) => {
           if (d === undefined) {
-            return undefined;
+            return [event.hide];
           }
 
           const newHidden = [...d, event.hide];
