@@ -1236,15 +1236,17 @@ export function useInfiniteDMs(
   const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
   const queryKey = useMemo(() => ['dms', whom, 'infinite'], [whom]);
 
-  const invalidate = _.debounce(
-    useCallback(() => {
-      queryClient.invalidateQueries({ queryKey });
-    }, [queryKey]),
-    300,
-    {
-      leading: true,
-      trailing: true,
-    }
+  const invalidate = useRef(
+    _.debounce(
+      (key: string[]) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      },
+      300,
+      {
+        leading: true,
+        trailing: true,
+      }
+    )
   );
 
   useEffect(() => {
@@ -1260,7 +1262,7 @@ export function useInfiniteDMs(
 
           // for now, let's avoid updating data in place and always refetch
           // when we hear a fact
-          invalidate();
+          invalidate.current(queryKey);
         },
       });
     }
