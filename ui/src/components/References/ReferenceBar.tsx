@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react';
 import cn from 'classnames';
-import Author from '@/chat/ChatMessage/Author';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
+import Author from '@/chat/ChatMessage/Author';
 import ChannelIcon from '@/channels/ChannelIcon';
 import GroupAvatar from '@/groups/GroupAvatar';
 import useNavigateByApp from '@/logic/useNavigateByApp';
@@ -34,13 +34,13 @@ export default function ReferenceBar({
   heapComment = false,
   reply = false,
 }: ReferenceBarProps) {
-  const groupFlagOrZod = groupFlag || '~zod/test';
   const navigateByApp = useNavigateByApp();
   const unix = new Date(daToUnix(time));
 
   const navigateToChannel = useCallback(() => {
-    navigateByApp(`/groups/${groupFlagOrZod}/channels/${nest}`);
-  }, [nest, groupFlagOrZod, navigateByApp]);
+    if (!groupFlag) return;
+    navigateByApp(`/groups/${groupFlag}/channels/${nest}`);
+  }, [nest, groupFlag, navigateByApp]);
 
   return (
     <div

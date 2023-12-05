@@ -4,9 +4,17 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useLocalStorage } from 'usehooks-ts';
 import { ShipOption } from '@/components/ShipSelector';
-import { useChatState, useMultiDms } from '@/state/chat';
-import createClub from '@/state/chat/createClub';
-import { ChatMemo } from '@/types/chat';
+import {
+  SendMessageVariables,
+  useCreateMultiDm,
+  useDmUnreads,
+  useMultiDms,
+  useSendMessage,
+} from '@/state/chat';
+import {
+  useForceNegotiationUpdate,
+  useNegotiateMulti,
+} from '@/state/negotiation';
 import { createStorageKey, newUv } from './utils';
 
 export default function useMessageSelector() {
@@ -20,27 +28,40 @@ export default function useMessageSelector() {
   const isMultiDm = ships.length > 1;
   const shipValues = useMemo(() => ships.map((o) => o.value), [ships]);
   const multiDms = useMultiDms();
+  const { data: unreads } = useDmUnreads();
+  const { mutate: sendMessage } = useSendMessage();
+  const { mutateAsync: createMultiDm } = useCreateMultiDm();
+
+  useForceNegotiationUpdate(shipValues, 'chat');
+  const {
+    match: negotiationMatch,
+    isLoading: negotiationLoading,
+    haveAllNegotiations,
+  } = useNegotiateMulti(
+    ships.map((option) => option.value),
+    'chat',
+    'chat'
+  );
+  const multiDmVersionMismatch = !negotiationLoading && !negotiationMatch;
 
   const existingDm = useMemo(() => {
     if (ships.length !== 1) {
       return null;
     }
 
-    const { briefs: chatBriefs } = useChatState.getState();
     return (
-      Object.entries(chatBriefs).find(([flag, _brief]) => {
+      Object.entries(unreads).find(([flag, _unread]) => {
         const theShip = ships[0].value;
         const sameDM = theShip === flag;
         return sameDM;
       })?.[0] ?? null
     );
-  }, [ships]);
+  }, [ships, unreads]);
 
   const existingMultiDm = useMemo(() => {
     if (!shipValues.length) {
       return null;
     }
-    const { briefs } = useChatState.getState();
     const clubId = Object.entries(multiDms).reduce<string>((key, [k, v]) => {
       const theShips = [...v.hive, ...v.team].filter((s) => s !== window.our);
       if (theShips.length < 2) {
@@ -51,9 +72,10 @@ export default function useMessageSelector() {
       const sameDM =
         difference(shipValues, theShips).length === 0 &&
         shipValues.length === theShips.length;
-      const brief = briefs[key];
-      const newBrief = briefs[k];
-      const newer = !brief || (brief && newBrief && newBrief.last > brief.last);
+      const unread = unreads[key];
+      const newUnread = unreads[k];
+      const newer =
+        !unread || (unread && newUnread && newUnread.recency > unread.recency);
       if (sameDM && newer) {
         return k;
       }
@@ -62,7 +84,7 @@ export default function useMessageSelector() {
     }, '');
 
     return clubId !== '' ? clubId : null;
-  }, [multiDms, shipValues]);
+  }, [multiDms, shipValues, unreads]);
 
   const onEnter = useCallback(
     async (invites: ShipOption[]) => {
@@ -71,10 +93,13 @@ export default function useMessageSelector() {
       } else if (existingMultiDm) {
         navigate(`/dm/${existingMultiDm}`);
       } else if (isMultiDm) {
-        await createClub(
-          newClubId,
-          invites.filter((i) => i.value !== window.our).map((s) => s.value)
-        );
+        await createMultiDm({
+          id: newClubId,
+          hive: invites
+            .filter((i) => i.value !== window.our)
+            .map((s) => s.value),
+        });
+
         navigate(`/dm/${newClubId}`);
       } else {
         navigate(`/dm/${invites[0].value}`);
@@ -82,16 +107,29 @@ export default function useMessageSelector() {
 
       setShips([]);
     },
-    [existingMultiDm, existingDm, isMultiDm, setShips, navigate, newClubId]
+    [
+      existingMultiDm,
+      existingDm,
+      isMultiDm,
+      setShips,
+      navigate,
+      newClubId,
+      createMultiDm,
+    ]
   );
 
   const sendDm = useCallback(
-    async (whom: string, memo: ChatMemo) => {
+    async (variables: SendMessageVariables) => {
+      const { whom } = variables;
       if (isMultiDm && shipValues && whom !== existingMultiDm) {
-        await createClub(whom, shipValues);
+        await createMultiDm({
+          id: whom,
+          hive: shipValues,
+        });
       }
 
-      await useChatState.getState().sendMessage(whom, memo);
+      sendMessage(variables);
+
       setShips([]);
       navigate(`/dm/${isMultiDm ? whom : whom}`);
     },
@@ -138,6 +176,9 @@ export default function useMessageSelector() {
   }, [existingDm, existingMultiDm, navigate, location.pathname]);
 
   return {
+    isMultiDm,
+    multiDmVersionMismatch,
+    haveAllNegotiations,
     action,
     existingDm,
     existingMultiDm,

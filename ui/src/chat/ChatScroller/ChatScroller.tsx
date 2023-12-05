@@ -1,5 +1,3 @@
-import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
-import { daToUnix } from '@urbit/api';
 import React, {
   PropsWithChildren,
   ReactElement,
@@ -10,33 +8,35 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useVirtualizer, Virtualizer } from '@tanstack/react-virtual';
+import { BigInteger } from 'big-integer';
 import {
   FlatIndexLocationWithAlign,
   FlatScrollIntoViewLocation,
   VirtuosoHandle,
 } from 'react-virtuoso';
-import { BigInteger } from 'big-integer';
-import BTree from 'sorted-btree';
-
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import {
-  useUserHasScrolled,
-  useInvertedScrollInteraction,
-} from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
+import ChatMessage from '@/chat/ChatMessage/ChatMessage';
+import ChatNotice from '@/chat/ChatNotice';
+import { WritTuple } from '@/types/dms';
 import {
   ChatMessageListItemData,
   useMessageData,
 } from '@/logic/useScrollerMessages';
 import { createDevLogger, useObjectChangeLogging } from '@/logic/utils';
+import ReplyMessage from '@/replies/ReplyMessage';
+import getKindDataFromEssay from '@/logic/getKindData';
+import {
+  useInvertedScrollInteraction,
+  useUserHasScrolled,
+} from '@/logic/scroll';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
-import { ChatWrit } from '@/types/chat';
-import { useChatState } from '@/state/chat';
-import ChatMessage from '../ChatMessage/ChatMessage';
-import ChatNotice from '../ChatNotice';
-import { useChatStore } from '../useChatStore';
+import { PageTuple, ReplyTuple } from '@/types/channel';
+import { useShowDevTools } from '@/state/local';
+import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
-const logger = createDevLogger('ChatScroller', false);
+const logger = createDevLogger('ChatScroller', true);
 
 interface CustomScrollItemData {
   type: 'custom';
@@ -56,20 +56,27 @@ const ChatScrollerItem = React.memo(
       return item.component;
     }
 
-    const { writ, time } = item;
-    const content = writ?.memo?.content ?? {};
-    if ('notice' in content) {
+    const { writ, time, ...rest } = item;
+
+    if ('memo' in writ) {
       return (
-        <ChatNotice
-          key={writ.seal.id}
-          writ={writ}
-          newDay={new Date(daToUnix(time))}
-        />
+        <ReplyMessage key={writ.seal.id} reply={writ} time={time} {...rest} />
       );
     }
 
+    const { notice } = getKindDataFromEssay(writ.essay);
+    if (notice) {
+      return <ChatNotice key={writ.seal.id} writ={writ} />;
+    }
+
     return (
-      <ChatMessage key={writ.seal.id} isScrolling={isScrolling} {...item} />
+      <ChatMessage
+        key={writ.seal.id}
+        isScrolling={isScrolling}
+        writ={writ}
+        time={time}
+        {...rest}
+      />
     );
   }
 );
@@ -153,7 +160,11 @@ const loaderPadding = {
 
 export interface ChatScrollerProps {
   whom: string;
-  messages: BTree<BigInteger, ChatWrit>;
+  messages: PageTuple[] | WritTuple[] | ReplyTuple[];
+  onAtTop?: () => void;
+  onAtBottom?: () => void;
+  isLoadingOlder: boolean;
+  isLoadingNewer: boolean;
   replying?: boolean;
   /**
    * Element to be inserted at the top of the list scroll after we've loaded the
@@ -164,20 +175,29 @@ export interface ChatScrollerProps {
   scrollerRef: React.RefObject<VirtuosoHandle>;
   scrollElementRef: React.RefObject<HTMLDivElement>;
   isScrolling: boolean;
+  hasLoadedNewest: boolean;
+  hasLoadedOldest: boolean;
 }
 
 export default function ChatScroller({
   whom,
   messages,
+  onAtTop,
+  onAtBottom,
+  isLoadingOlder,
+  isLoadingNewer,
   replying = false,
   topLoadEndMarker,
   scrollTo: rawScrollTo = undefined,
   scrollerRef,
   scrollElementRef,
   isScrolling,
+  hasLoadedNewest,
+  hasLoadedOldest,
 }: ChatScrollerProps) {
   const isMobile = useIsMobile();
   const scrollTo = useBigInt(rawScrollTo);
+  const showDevTools = useShowDevTools();
   const [loadDirection, setLoadDirection] = useState<'newer' | 'older'>(
     'older'
   );
@@ -187,24 +207,21 @@ export default function ChatScroller({
   const { userHasScrolled, resetUserHasScrolled } =
     useUserHasScrolled(scrollElementRef);
 
-  const {
-    activeMessageKeys,
-    activeMessageEntries,
-    fetchMessages,
-    fetchState,
-    hasLoadedNewest,
-    hasLoadedOldest,
-  } = useMessageData({
+  // Update the tracked load direction when loading state changes.
+  useEffect(() => {
+    if (isLoadingOlder && loadDirection !== 'older') {
+      setLoadDirection('older');
+    } else if (isLoadingNewer && loadDirection !== 'newer') {
+      setLoadDirection('newer');
+    }
+  }, [isLoadingOlder, isLoadingNewer, loadDirection]);
+
+  const { activeMessageKeys, activeMessageEntries } = useMessageData({
     whom,
     scrollTo,
     messages,
     replying,
   });
-
-  useObjectChangeLogging(
-    { hasLoadedNewest, hasLoadedOldest, isAtTop, isAtBottom },
-    logger
-  );
 
   const topItem: CustomScrollItemData | null = useMemo(
     () =>
@@ -244,6 +261,20 @@ export default function ChatScroller({
     }
     return count - 1;
   }, [messageKeys, count, scrollTo]);
+
+  useObjectChangeLogging(
+    {
+      isAtTop,
+      isAtBottom,
+      hasLoadedNewest,
+      hasLoadedOldest,
+      loadDirection,
+      anchorIndex,
+      isLoadingOlder,
+      isLoadingNewer,
+    },
+    logger
+  );
 
   const virtualizerRef = useRef<DivVirtualizer>();
 
@@ -298,8 +329,8 @@ export default function ChatScroller({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTo]);
 
-  const isLoadingAtStart = fetchState === (isInverted ? 'bottom' : 'top');
-  const isLoadingAtEnd = fetchState === (isInverted ? 'top' : 'bottom');
+  const isLoadingAtStart = isInverted ? isLoadingOlder : isLoadingNewer;
+  const isLoadingAtEnd = isInverted ? isLoadingNewer : isLoadingOlder;
   const paddingStart = isLoadingAtStart
     ? isInverted
       ? loaderPadding.bottom
@@ -369,7 +400,14 @@ export default function ChatScroller({
           scrollToAnchor();
         } else {
           instance.scrollElement?.scrollTo?.({
-            top: offset + (adjustments ?? 0),
+            // We only want adjustments if they're greater than zero.
+            // Virtualizer will sometimes give us negative adjustments of -1, which
+            // causes scrollTo to scroll very slightly, which then causes the
+            // virtualizer to give us another positive adjustment of 1.
+            // There's no pereceptible scroll to the user, but it causes
+            // isScrolling to be true, which causes the chat input to lose focus.
+            // We should only want positive adjustments anyway afaict.
+            top: offset + (adjustments && adjustments > 1 ? adjustments : 0),
             behavior,
           });
         }
@@ -395,10 +433,15 @@ export default function ChatScroller({
         (scrollHeight - clientHeight) / 2,
         thresholds.atEndThreshold
       );
-      const isAtBeginning = scrollTop === 0;
-      const isAtEnd = scrollTop + clientHeight >= scrollHeight - atEndThreshold;
-      setIsAtTop((isInverted && isAtEnd) || (!isInverted && isAtBeginning));
-      setIsAtBottom((isInverted && isAtBeginning) || (!isInverted && isAtEnd));
+      const isAtScrollBeginning = scrollTop === 0;
+      const isAtScrollEnd =
+        scrollTop + clientHeight >= scrollHeight - atEndThreshold;
+      const nextAtTop =
+        (isInverted && isAtScrollEnd) || (!isInverted && isAtScrollBeginning);
+      const nextAtBottom =
+        (isInverted && isAtScrollBeginning) || (!isInverted && isAtScrollEnd);
+      setIsAtTop(nextAtTop);
+      setIsAtBottom(nextAtBottom);
     }, [
       isInverted,
       anchorIndex,
@@ -412,59 +455,26 @@ export default function ChatScroller({
   useFakeVirtuosoHandle(scrollerRef, virtualizer);
   useInvertedScrollInteraction(scrollElementRef, isInverted);
 
-  // Load more content if there's not enough to fill the scroller + there's more to load.
-  // The main place this happens is when there are a bunch of replies in the recent chat history.
-  const contentIsShort = contentHeight < scrollElementHeight;
-  useEffect(() => {
-    if (
-      contentIsShort &&
-      fetchState === 'initial' &&
-      // don't try to load more in threads, because their content is already fetched by main window
-      !replying
-    ) {
-      const loadingNewer = loadDirection === 'newer';
-      if (
-        (loadingNewer && !hasLoadedNewest) ||
-        (!loadingNewer && !hasLoadedOldest)
-      ) {
-        logger.log('not enough content, loading more');
-        fetchMessages(loadingNewer);
-      }
-    }
-  }, [
-    replying,
-    contentIsShort,
-    fetchMessages,
-    fetchState,
-    loadDirection,
-    hasLoadedNewest,
-    hasLoadedOldest,
-  ]);
-
   // Load more items when list reaches the top or bottom.
   useEffect(() => {
-    if (fetchState !== 'initial' || !userHasScrolled) return;
-    const chatStore = useChatStore.getState();
+    if (isLoadingOlder || isLoadingNewer || !userHasScrolled) return;
+
     if (isAtTop && !hasLoadedOldest) {
-      logger.log('loading older messages');
-      setLoadDirection('older');
-      chatStore.bottom(false);
-      fetchMessages(false);
+      logger.log('triggering onAtTop');
+      onAtTop?.();
     } else if (isAtBottom && !hasLoadedNewest) {
-      logger.log('loading newer messages');
-      setLoadDirection('newer');
-      fetchMessages(true);
-      chatStore.bottom(true);
-      chatStore.delayedRead(whom, () => useChatState.getState().markRead(whom));
+      logger.log('triggering onAtBottom');
+      onAtBottom?.();
     }
   }, [
-    fetchState,
+    isLoadingOlder,
+    isLoadingNewer,
+    hasLoadedNewest,
+    hasLoadedOldest,
     isAtTop,
     isAtBottom,
-    fetchMessages,
-    whom,
-    hasLoadedOldest,
-    hasLoadedNewest,
+    onAtTop,
+    onAtBottom,
     userHasScrolled,
   ]);
 
@@ -484,56 +494,78 @@ export default function ChatScroller({
   const finalHeight = contentHeight ?? virtualizer.getTotalSize();
 
   return (
-    <div
-      ref={scrollElementRef}
-      className="h-full w-full overflow-y-auto overflow-x-clip overscroll-contain"
-      style={{ transform: `scaleY(${scaleY})` }}
-      // We need this in order to get key events on the div, which we use remap
-      // arrow and spacebar navigation when scrolling.
-      // TODO: This now gets outlined when scrolling with keys. Should it?
-      tabIndex={-1}
-    >
-      {hasLoadedNewest && hasLoadedOldest && count === 0 && (
-        <EmptyPlaceholder>
-          There are no messages in this channel
-        </EmptyPlaceholder>
-      )}
+    <>
       <div
-        className="l-0 absolute top-0 w-full"
-        ref={contentElementRef}
-        style={{
-          height: `${finalHeight}px`,
-          paddingTop: virtualItems[0]?.start ?? 0,
-          pointerEvents: isScrolling ? 'none' : 'all',
-        }}
+        ref={scrollElementRef}
+        className="h-full w-full overflow-y-auto overflow-x-clip overscroll-contain"
+        style={{ transform: `scaleY(${scaleY})` }}
+        // We need this in order to get key events on the div, which we use remap
+        // arrow and spacebar navigation when scrolling.
+        // TODO: This now gets outlined when scrolling with keys. Should it?
+        tabIndex={-1}
       >
-        {isLoadingAtStart && !isInverted && (
-          <Loader className="top-0" scaleY={scaleY}>
-            Loading {isInverted ? 'Newer' : 'Older'}
-          </Loader>
+        {hasLoadedNewest && hasLoadedOldest && count === 0 && (
+          <EmptyPlaceholder>
+            There are no messages in this channel
+          </EmptyPlaceholder>
         )}
-        {virtualItems.map((virtualItem) => {
-          const item = messageEntries[transformIndex(virtualItem.index)];
-          return (
-            <div
-              key={virtualItem.key}
-              className="relative w-full px-4 sm:hover:z-10"
-              ref={virtualizer.measureElement}
-              data-index={virtualItem.index}
-              style={{
-                transform: `scaleY(${scaleY})`,
-              }}
-            >
-              <ChatScrollerItem item={item} isScrolling={isScrolling} />
-            </div>
-          );
-        })}
-        {isLoadingAtEnd && isInverted && (
-          <Loader className="bottom-0" scaleY={scaleY}>
-            Loading {isInverted ? 'Older' : 'Newer'}
-          </Loader>
-        )}
+
+        <div
+          className="l-0 absolute top-0 w-full"
+          ref={contentElementRef}
+          style={{
+            height: `${finalHeight}px`,
+            paddingTop: virtualItems[0]?.start ?? 0,
+            pointerEvents: isScrolling ? 'none' : 'all',
+          }}
+        >
+          {isLoadingAtStart && !isInverted && (
+            <Loader className="top-0" scaleY={scaleY}>
+              Loading {isInverted ? 'Newer' : 'Older'}
+            </Loader>
+          )}
+          {virtualItems.map((virtualItem) => {
+            const item = messageEntries[transformIndex(virtualItem.index)];
+            return (
+              <div
+                key={virtualItem.key}
+                className="relative w-full px-4 sm:hover:z-10"
+                ref={virtualizer.measureElement}
+                data-index={virtualItem.index}
+                style={{
+                  transform: `scaleY(${scaleY})`,
+                }}
+              >
+                <ChatScrollerItem item={item} isScrolling={isScrolling} />
+              </div>
+            );
+          })}
+          {isLoadingAtEnd && isInverted && (
+            <Loader className="bottom-0" scaleY={scaleY}>
+              Loading {isInverted ? 'Older' : 'Newer'}
+            </Loader>
+          )}
+        </div>
       </div>
-    </div>
+      {showDevTools ? (
+        <ChatScrollerDebugOverlay
+          {...{
+            count,
+            scrollOffset: virtualizer.scrollOffset,
+            scrollHeight: finalHeight,
+            hasLoadedNewest,
+            hasLoadedOldest,
+            anchorIndex,
+            isInverted,
+            loadDirection,
+            isAtBottom,
+            isAtTop,
+            isLoadingOlder,
+            isLoadingNewer,
+            userHasScrolled,
+          }}
+        />
+      ) : null}
+    </>
   );
 }

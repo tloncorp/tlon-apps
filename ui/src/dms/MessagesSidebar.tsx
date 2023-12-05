@@ -1,11 +1,10 @@
-import React, { useState, useRef, useCallback, useContext } from 'react';
+import { useState, useRef, useCallback, useContext } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link, useLocation } from 'react-router-dom';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import AddIcon from '@/components/icons/AddIcon';
 import Filter16Icon from '@/components/icons/Filter16Icon';
-import { usePinned } from '@/state/chat';
+import { usePinnedChats } from '@/state/pins';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
@@ -18,12 +17,9 @@ import {
   useMessagesFilter,
   usePutEntryMutation,
 } from '@/state/settings';
-import { whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useGroups } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { useLocalState } from '@/state/local';
 import { DesktopUpdateButton } from '@/components/UpdateNotices';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
 import MessagesList from './MessagesList';
@@ -140,16 +136,7 @@ export default function MessagesSidebar() {
     bucket: 'talk',
     key: 'messagesFilter',
   });
-  const pinned = usePinned();
-  const groups = useGroups();
-  const filteredPins = pinned.filter((p) => {
-    const nest = `chat/${p}`;
-    const groupFlag = Object.entries(groups).find(
-      ([, v]) => nest in v.channels
-    )?.[0];
-    const channel = groups[groupFlag || '']?.channels[nest];
-    return !!channel || whomIsDm(p) || whomIsMultiDm(p);
-  });
+  const pinned = usePinnedChats();
 
   const setFilterMode = (mode: SidebarFilter) => {
     mutate({ val: mode });
@@ -219,13 +206,13 @@ export default function MessagesSidebar() {
             atTopChange={atTopChange}
             isScrolling={scroll.current}
           >
-            {filteredPins && filteredPins.length > 0 ? (
+            {pinned && pinned.length > 0 ? (
               <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 px-2 pb-1">
                 <h2 className="my-2 px-2 text-sm font-bold text-gray-400">
                   Pinned Messages
                 </h2>
 
-                {filteredPins.map((ship: string) => (
+                {pinned.map((ship: string) => (
                   <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
               </div>

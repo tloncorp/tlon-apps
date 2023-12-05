@@ -1,52 +1,62 @@
 import { useCallback } from 'react';
 import { format, isToday } from 'date-fns';
 import { daToUnix } from '@urbit/api';
+import bigInt from 'big-integer';
 import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
-import { pluralize } from '@/logic/utils';
-import { useChatState, useWrit } from '@/state/chat';
+import { nestToFlag, pluralize } from '@/logic/utils';
+import { useMarkReadMutation } from '@/state/channel/channel';
+import { unixToDa } from '@urbit/aura';
 import { useChatInfo, useChatStore } from './useChatStore';
 
 interface ChatUnreadAlertsProps {
-  whom: string;
+  nest: string;
   root: string;
 }
 
 export default function ChatUnreadAlerts({
-  whom,
+  nest,
   root,
 }: ChatUnreadAlertsProps) {
-  const chatInfo = useChatInfo(whom);
-  const id = chatInfo?.unread?.brief['read-id'] || '';
-  const { entry: maybeWrit } = useWrit(whom, id);
+  const { mutate: markChatRead } = useMarkReadMutation();
+  const [, flag] = nestToFlag(nest);
+  const chatInfo = useChatInfo(flag);
   const markRead = useCallback(() => {
-    useChatState.getState().markRead(whom);
-    useChatStore.getState().read(whom);
-  }, [whom]);
+    markChatRead({ nest });
+    useChatStore.getState().read(flag);
+  }, [nest, flag, markChatRead]);
 
-  const [time, writ] = maybeWrit ?? [null, null];
-  if (!time || !writ || !chatInfo.unread || chatInfo.unread.seen) {
+  if (!chatInfo?.unread || chatInfo.unread.seen) {
     return null;
   }
 
-  const scrollTo = `?msg=${time.toString()}`;
-  const to = writ.memo.replying
-    ? `${root}/message/${writ.memo.replying}${scrollTo}`
-    : `${root}${scrollTo}`;
+  const { unread } = chatInfo.unread;
+  const unreadId = unread['unread-id'];
+  const { threads } = unread;
+  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
+  if (
+    unread.count === 0 ||
+    (!unreadId && threadKeys.length === 0) ||
+    (typeof unreadId === 'object' && unreadId !== null)
+  ) {
+    return null;
+  }
 
-  const date = new Date(daToUnix(time));
+  const id = unreadId || unixToDa(Date.now()).toString();
+  const topId = threadKeys[0];
+  const to =
+    threadKeys.length === 0 || topId > id
+      ? `${root}?msg=${id}`
+      : `${root}/message/${topId}?msg=${threads[topId]}`;
+
+  const date = new Date(daToUnix(bigInt(id)));
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`
     : format(date, 'LLLL d');
 
-  const { brief } = chatInfo.unread;
   const unreadMessage =
-    brief &&
-    `${brief.count} new ${pluralize('message', brief.count)} since ${since}`;
-
-  if (!brief || brief?.count === 0) {
-    return null;
-  }
+    unread &&
+    `${unread.count} new ${pluralize('message', unread.count)} since ${since}`;
 
   return (
     <>

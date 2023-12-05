@@ -6,7 +6,7 @@ import {
   VIDEO_REGEX,
 } from '@/logic/utils';
 
-export default function useHeapContentType(url: string) {
+export default function getHeapContentType(url: string) {
   const isImage = IMAGE_REGEX.test(url);
   const isUrl = URL_REGEX.test(url);
   const isVideo = VIDEO_REGEX.test(url);

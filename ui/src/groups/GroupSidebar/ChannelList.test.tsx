@@ -7,8 +7,9 @@ import { render } from '../../../test/utils';
 import ChannelList from './ChannelList';
 
 const fakeFlag = '~zod/tlon';
+const fakeNest = 'chat/~zod/tlon';
 const fakeGroup: Group = createMockGroup('Fake Group');
-fakeGroup.channels[fakeFlag] = createChannel('Fake Channel');
+fakeGroup.channels[fakeNest] = createChannel('Fake Channel');
 const fakeVessel = fakeGroup.fleet['~hastuc-dibtux'];
 
 vi.mock('@/state/groups', () => ({
@@ -18,13 +19,6 @@ vi.mock('@/state/groups', () => ({
   useVessel: () => fakeVessel,
   useGroupState: () => ({}),
   useGroupConnection: () => true,
-}));
-
-vi.mock('@/logic/useMigrationInfo', () => ({
-  usePendingImports: () => ({}),
-  useStartedMigration: () => ({
-    hasStarted: (ship: string) => true,
-  }),
 }));
 
 describe('ChannelList', () => {

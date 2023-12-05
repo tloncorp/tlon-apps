@@ -8,6 +8,6 @@
 ::
 =/  =diff:dm:c
   [id %add-feel p.beak 'HAHA']
-:-  %dm-action
+:-  %chat-dm-action
 ^-  action:dm:c
 [her diff]

@@ -1,15 +1,12 @@
-/-  c=chat
-/+  j=chat-json
+/-  c=chat-2
 |_  =diff:dm:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  diff
-  ++  json  (writs-diff:enjs:j diff)
   --
 ++  grab
   |%
   ++  noun  diff:dm:c
-  ++  json  writs-diff:dejs:j
   --
 --

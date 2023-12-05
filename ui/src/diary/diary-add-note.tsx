@@ -1,30 +1,21 @@
-import React, {
-  useCallback,
-  useState,
-  useEffect,
-  useMemo,
-  useRef,
-} from 'react';
-import { daToUnix, unixToDa } from '@urbit/api';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Helmet } from 'react-helmet';
 import { FormProvider, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { Link } from 'react-router-dom';
 import cn from 'classnames';
-import _ from 'lodash';
-import bigInt from 'big-integer';
 import CoverImageInput from '@/components/CoverImageInput';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import Layout from '@/components/Layout/Layout';
 import { diaryMixedToJSON, JSONToInlines } from '@/logic/tiptap';
 import {
-  useAddNoteMutation,
-  useEditNoteMutation,
-  useNote,
-} from '@/state/diary';
-import { useChannel, useGroup, useRouteGroup } from '@/state/groups';
-import { DiaryBlock, NoteContent, NoteEssay } from '@/types/diary';
-import { Inline, JSONContent } from '@/types/content';
+  useAddPostMutation,
+  useEditPostMutation,
+  usePost,
+} from '@/state/channel/channel';
+import { useGroupChannel, useGroup, useRouteGroup } from '@/state/groups';
+import { constructStory } from '@/types/channel';
+import { JSONContent } from '@/types/content';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PencilIcon from '@/components/icons/PencilIcon';
 import { useIsMobile } from '@/logic/useMedia';
@@ -36,13 +27,14 @@ import { useMarkdownInDiaries, usePutEntryMutation } from '@/state/settings';
 import { useChannelCompatibility } from '@/logic/channel';
 import Tooltip from '@/components/Tooltip';
 import MobileHeader from '@/components/MobileHeader';
+import getKindDataFromEssay from '@/logic/getKindData';
+import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { isFirstDayOfMonth } from 'date-fns';
 import DiaryInlineEditor, { useDiaryInlineEditor } from './DiaryInlineEditor';
 import DiaryMarkdownEditor from './DiaryMarkdownEditor';
 
 export default function DiaryAddNote() {
   const { chShip, chName, id } = useParams();
-  const initialTime = useMemo(() => unixToDa(Date.now()).toString(), []);
   const [loaded, setLoaded] = useState(false);
   const [extraTitleRow, setExtraTitleRow] = useState(false);
   const titleRef = useRef<HTMLTextAreaElement | null>(null);
@@ -51,38 +43,39 @@ export default function DiaryAddNote() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const { privacy } = useGroupPrivacy(flag);
-  const channel = useChannel(flag, nest);
+  const channel = useGroupChannel(flag, nest);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const {
-    note,
+    post: note,
     isLoading: loadingNote,
     fetchStatus,
-  } = useNote(chFlag, id || '0', !id);
+  } = usePost(nest, id || '0', !id);
+  const { title, image } = getKindDataFromEssay(note.essay);
   const {
     mutateAsync: editNote,
     status: editStatus,
     reset: resetEdit,
-  } = useEditNoteMutation();
+  } = useEditPostMutation();
   const {
     data: returnTime,
     mutateAsync: addNote,
     status: addStatus,
     reset: resetAdd,
-  } = useAddNoteMutation();
+  } = useAddPostMutation(nest);
   const { mutate: toggleMarkdown, status: toggleMarkdownStatus } =
     usePutEntryMutation({ bucket: 'diary', key: 'markdown' });
   const editWithMarkdown = useMarkdownInDiaries();
   const { compatible, text } = useChannelCompatibility(`diary/${chFlag}`);
 
-  const form = useForm<Pick<NoteEssay, 'title' | 'image'>>({
+  const form = useForm<{ title: string; image: string }>({
     defaultValues: {
-      title: note?.essay?.title || '',
-      image: note?.essay?.image || '',
+      title: title || '',
+      image: image || '',
     },
   });
 
-  const { reset, register, getValues, watch } = form;
+  const { reset, register, getValues, watch, setValue } = form;
   const { ref, ...titleRegisterRest } = register('title');
   const watchedTitle = watch('title');
 
@@ -126,7 +119,7 @@ export default function DiaryAddNote() {
       editor.commands.setContent(content);
       setLoaded(true);
     }
-  }, [editor, loadingNote, note, loaded]);
+  }, [editor, loadingNote, note, loaded, image, setValue, title]);
 
   const publish = useCallback(async () => {
     if (!editor?.getText() || watchedTitle === '') {
@@ -136,59 +129,52 @@ export default function DiaryAddNote() {
     const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
 
-    const isBlock = (c: Inline | DiaryBlock) =>
-      ['image', 'cite', 'listing', 'header', 'rule', 'code'].some(
-        (k) => typeof c !== 'string' && k in c
-      );
-    const noteContent: NoteContent = [];
-    let index = 0;
-    data.forEach((c, i) => {
-      if (i < index) {
-        return;
-      }
-
-      if (isBlock(c)) {
-        noteContent.push({ block: c as DiaryBlock });
-        index += 1;
-      } else {
-        const inline = _.takeWhile(
-          _.drop(data, index),
-          (d) => !isBlock(d)
-        ) as Inline[];
-        noteContent.push({ inline });
-        index += inline.length;
-      }
-    });
+    const noteContent = constructStory(data);
+    const now = Date.now();
+    const cacheId = {
+      author: window.our,
+      sent: now,
+    };
 
     try {
       if (id) {
-        editNote({
-          flag: chFlag,
+        await editNote({
+          nest: `diary/${chFlag}`,
           time: id,
           essay: {
             ...note.essay,
-            ...values,
+            'kind-data': {
+              diary: {
+                ...values,
+              },
+            },
             content: noteContent,
           },
         });
       } else {
+        await asyncCallWithTimeout(
+          addNote({
+            cacheId,
+            tracked: true,
+            essay: {
+              content: noteContent,
+              author: window.our,
+              sent: now,
+              'kind-data': {
+                diary: {
+                  ...values,
+                },
+              },
+            },
+          }),
+          3000
+        );
         captureGroupsAnalyticsEvent({
           name: 'post_item',
           groupFlag: flag,
           chFlag,
           channelType: 'diary',
           privacy,
-        });
-
-        addNote({
-          initialTime,
-          flag: chFlag,
-          essay: {
-            ...values,
-            content: noteContent,
-            author: window.our,
-            sent: daToUnix(bigInt(initialTime)),
-          },
         });
       }
     } catch (error) {
@@ -204,7 +190,6 @@ export default function DiaryAddNote() {
     note,
     addNote,
     editNote,
-    initialTime,
     watchedTitle,
   ]);
 
@@ -306,6 +291,7 @@ export default function DiaryAddNote() {
                     }
                   )}
                   onClick={publish}
+                  data-testid="save-note-button"
                 >
                   {isLoading ? (
                     <LoadingSpinner className="h-4 w-4" />
@@ -331,7 +317,7 @@ export default function DiaryAddNote() {
             <title>
               {channel && group
                 ? id && note
-                  ? `Editing ${note.essay.title} in ${channel.meta.title} • ${group.meta.title} • Groups`
+                  ? `Editing ${title} in ${channel.meta.title} • ${group.meta.title} • Groups`
                   : `Creating Note in ${channel.meta.title} • ${group.meta.title} • Groups`
                 : 'Groups'}
             </title>
@@ -348,6 +334,7 @@ export default function DiaryAddNote() {
                     ref(e);
                     titleRef.current = e;
                   }}
+                  data-testid="note-title-input"
                   {...titleRegisterRest}
                 />
               </form>

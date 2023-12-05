@@ -7,7 +7,7 @@ import CheckIcon from '@/components/icons/CheckIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from '@/components/ShipName';
-import { toTitleCase, getSectTitle, getChannelHosts } from '@/logic/utils';
+import { toTitleCase, getSectTitle } from '@/logic/utils';
 import {
   useAmAdmin,
   useGroup,
@@ -27,6 +27,7 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import AddBadgeIcon from '@/components/icons/AddBadgeIcon';
 import useNavigateByApp from '@/logic/useNavigateByApp';
+import { getChannelHosts } from '@/logic/channel';
 
 interface GroupMemberItemProps {
   member: string;

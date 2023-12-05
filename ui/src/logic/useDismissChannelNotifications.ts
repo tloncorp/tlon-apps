@@ -32,7 +32,7 @@ export default function useDismissChannelNotifications({
   // dismiss unread notifications while viewing channel
   useEffect(() => {
     if (nest && unread && !isMarking) {
-      // dismiss brief
+      // dismiss unread
       markRead(chFlag);
       // iterate bins, saw each rope
       notifications.forEach((n) => {

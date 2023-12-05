@@ -2,11 +2,13 @@ import cn from 'classnames';
 import { Editor, JSONContent } from '@tiptap/react';
 import React, { useCallback, useEffect } from 'react';
 import { reduce } from 'lodash';
-import { HeapInline, CurioHeart, HeapInlineKey } from '@/types/heap';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import { useIsMobile } from '@/logic/useMedia';
-import { useAddCurioMutation } from '@/state/heap/heap';
+import {
+  useAddPostMutation,
+  useAddReplyMutation,
+} from '@/state/channel/channel';
 import useRequestState from '@/logic/useRequestState';
 import { JSONToInlines } from '@/logic/tiptap';
 import {
@@ -20,6 +22,8 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import Tooltip from '@/components/Tooltip';
 import { useChannelCompatibility } from '@/logic/channel';
+import { constructStory, PostEssay } from '@/types/channel';
+import { Inline, InlineKey } from '@/types/content';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 
 interface HeapTextInputProps {
@@ -32,17 +36,16 @@ interface HeapTextInputProps {
   replyTo?: string | null;
   className?: string;
   inputClass?: string;
-  comment?: boolean;
 }
 
 const MERGEABLE_KEYS = ['italics', 'bold', 'strike', 'blockquote'] as const;
-function isMergeable(x: HeapInlineKey): x is (typeof MERGEABLE_KEYS)[number] {
+function isMergeable(x: InlineKey): x is (typeof MERGEABLE_KEYS)[number] {
   return MERGEABLE_KEYS.includes(x as any);
 }
-function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
+function normalizeHeapInline(inline: Inline[]): Inline[] {
   return reduce(
     inline,
-    (acc: HeapInline[], val) => {
+    (acc: Inline[], val) => {
       if (acc.length === 0) {
         return [...acc, val];
       }
@@ -50,8 +53,8 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
       if (typeof last === 'string' && typeof val === 'string') {
         return [...acc.slice(0, -1), last + val];
       }
-      const lastKey = Object.keys(acc[acc.length - 1])[0] as HeapInlineKey;
-      const currKey = Object.keys(val)[0] as keyof HeapInlineKey;
+      const lastKey = Object.keys(acc[acc.length - 1])[0] as InlineKey;
+      const currKey = Object.keys(val)[0] as keyof InlineKey;
       if (isMergeable(lastKey) && currKey === lastKey) {
         // @ts-expect-error keying weirdness
         const end: HeapInline = {
@@ -66,13 +69,6 @@ function normalizeHeapInline(inline: HeapInline[]): HeapInline[] {
   );
 }
 
-function SubmitLabel({ comment }: { comment?: boolean }) {
-  if (comment) {
-    return <ArrowNIcon16 className="h-4 w-4" />;
-  }
-  return <span>Post</span>;
-}
-
 export default function HeapTextInput({
   flag,
   groupFlag,
@@ -83,14 +79,15 @@ export default function HeapTextInput({
   placeholder,
   className,
   inputClass,
-  comment = false,
 }: HeapTextInputProps) {
+  const nest = `heap/${flag}`;
   const isMobile = useIsMobile();
   const { isPending, setPending, setReady } = useRequestState();
   const chatInfo = useChatInfo(flag);
   const { privacy } = useGroupPrivacy(groupFlag);
-  const { compatible, text } = useChannelCompatibility(`heap/${flag}`);
-  const { mutate } = useAddCurioMutation();
+  const { compatible, text } = useChannelCompatibility(nest);
+  const { mutate } = useAddPostMutation(nest);
+  const { mutate: addReply } = useAddReplyMutation();
   const { handleFocus, handleBlur, isChatInputFocused } = useChatInputFocus();
 
   /**
@@ -101,6 +98,11 @@ export default function HeapTextInput({
       if (sendDisabled) {
         return;
       }
+      const now = Date.now();
+      const cacheId = {
+        sent: now,
+        author: window.our,
+      };
       const blocks = fetchChatBlocks(flag);
       if (!editor.getText() && !blocks.length) {
         return;
@@ -108,21 +110,15 @@ export default function HeapTextInput({
 
       setPending();
 
-      const content = {
-        inline:
-          blocks.length === 0
-            ? normalizeHeapInline(
-                JSONToInlines(editor?.getJSON()) as HeapInline[]
-              )
-            : [],
-        block: blocks,
-      };
+      const data = JSONToInlines(editor?.getJSON());
+      const content = constructStory(data);
 
-      const heart: CurioHeart = {
-        title: '', // TODO: Title input
-        replying: replyTo,
+      const heart: PostEssay = {
+        'kind-data': {
+          heap: '', // TODO: Title input
+        },
         author: window.our,
-        sent: Date.now(),
+        sent: now,
         content,
       };
 
@@ -130,12 +126,40 @@ export default function HeapTextInput({
       editor?.commands.setContent('');
       useChatStore.getState().setBlocks(flag, []);
 
+      if (replyTo) {
+        addReply(
+          {
+            nest: `heap/${flag}`,
+            postId: replyTo,
+            memo: {
+              content,
+              sent: now,
+              author: window.our,
+            },
+            cacheId,
+          },
+          {
+            onSuccess: () => {
+              captureGroupsAnalyticsEvent({
+                name: 'post_item',
+                groupFlag,
+                chFlag: flag,
+                channelType: 'heap',
+                privacy,
+              });
+              setReady();
+            },
+          }
+        );
+        return;
+      }
+
       mutate(
-        { flag, heart },
+        { essay: heart, cacheId },
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({
-              name: comment ? 'comment_item' : 'post_item',
+              name: 'post_item',
               groupFlag,
               chFlag: flag,
               channelType: 'heap',
@@ -151,14 +175,14 @@ export default function HeapTextInput({
     [
       sendDisabled,
       setPending,
-      replyTo,
       flag,
       groupFlag,
       privacy,
-      comment,
       setDraft,
       setReady,
       mutate,
+      addReply,
+      replyTo,
     ]
   );
 
@@ -201,11 +225,11 @@ export default function HeapTextInput({
 
   useEffect(() => {
     if (messageEditor && !messageEditor.isDestroyed) {
-      if (!isChatInputFocused && messageEditor.isFocused && comment) {
+      if (!isChatInputFocused && messageEditor.isFocused) {
         handleFocus();
       }
 
-      if (isChatInputFocused && !messageEditor.isFocused && comment) {
+      if (isChatInputFocused && !messageEditor.isFocused) {
         handleBlur();
       }
     }
@@ -216,7 +240,6 @@ export default function HeapTextInput({
       }
     };
   }, [
-    comment,
     isChatInputFocused,
     messageEditor,
     messageEditor?.isFocused,
@@ -252,12 +275,7 @@ export default function HeapTextInput({
           </button>
         </div>
       ) : null}
-      <div
-        className={cn(
-          'w-full',
-          comment ? 'flex flex-row items-end' : 'relative flex h-full'
-        )}
-      >
+      <div className={cn('w-full', 'relative flex h-full')}>
         <MessageEditor
           editor={messageEditor}
           className={cn('w-full rounded-lg', inputClass)}
@@ -272,7 +290,7 @@ export default function HeapTextInput({
             <button
               className={cn(
                 'button rounded-md px-2 py-1',
-                comment ? 'ml-2 shrink-0' : 'absolute bottom-3 right-3'
+                'absolute bottom-3 right-3'
               )}
               disabled={
                 isPending ||
@@ -284,7 +302,7 @@ export default function HeapTextInput({
               {isPending ? (
                 <LoadingSpinner secondary="black" />
               ) : (
-                <SubmitLabel comment={comment} />
+                <span>Post</span>
               )}
             </button>
           </Tooltip>

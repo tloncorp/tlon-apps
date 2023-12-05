@@ -4,7 +4,7 @@ import Avatar, { AvatarSizes } from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
 import { useMultiDm } from '../state/chat';
-import { useChannel, useGroup, useGroups } from '../state/groups/groups';
+import { useGroupChannel, useGroup, useGroups } from '../state/groups/groups';
 import useMedia, { useIsMobile } from '../logic/useMedia';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
@@ -31,11 +31,11 @@ function ChannelSidebarItem({
 }: MessagesSidebarItemWithOptionsProps) {
   const isMobile = useIsMobile();
   const groups = useGroups();
-  const nest = `chat/${whom}`;
+  const nest = whom;
   const groupFlag = Object.entries(groups).find(
     ([k, v]) => nest in v.channels
   )?.[0];
-  const channel = useChannel(groupFlag || '', nest);
+  const channel = useGroupChannel(groupFlag || '', nest);
   const group = useGroup(groupFlag || '');
   const isScrolling = useMessagesScrolling();
 
@@ -58,7 +58,7 @@ function ChannelSidebarItem({
         <DmOptions
           open={optionsOpen}
           onOpenChange={onOptionsOpenChange}
-          whom={whom}
+          whom={nest}
           pending={!!pending}
           isHovered={hover}
           triggerDisabled={isMobile}

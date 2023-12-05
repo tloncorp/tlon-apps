@@ -27,24 +27,21 @@ import {
   pinnedDMs,
 } from '@/mocks/chat';
 import {
-  ChatBriefs,
-  ChatDiff,
-  ChatStory,
-  ChatWhom,
+  DMUnreads,
+  DMWhom,
   Club,
   ClubAction,
   ClubCreate,
   DmRsvp,
-  Pins,
   WritDiff,
-} from '@/types/chat';
+} from '@/types/dms';
 import { GroupAction } from '@/types/groups';
 import mockContacts from '@/mocks/contacts';
 
 const getNowUd = () => decToUd(unixToDa(Date.now() * 1000).toString());
 
 const archive: string[] = [];
-let pins: string[] = [...pinnedDMs, ...pinnedGroups];
+const pins: string[] = [...pinnedDMs, ...pinnedGroups];
 const sortByUd = (aString: string, bString: string) => {
   const a = bigInt(udToDec(aString));
   const b = bigInt(udToDec(bString));
@@ -96,10 +93,10 @@ const specificGroupSub = {
   path: '/groups/:ship/:name/ui',
 } as SubscriptionHandler;
 
-const briefsSub = {
+const unreadsSub = {
   action: 'subscribe',
   app: 'chat',
-  path: `/briefs`,
+  path: `/unreads`,
 } as SubscriptionHandler;
 
 const settingsSub = {
@@ -197,76 +194,42 @@ const chat: Handler[] = [
       writers: [],
     }),
   },
-  {
-    action: 'scry',
-    app: 'chat',
-    path: '/pins',
-    func: () => ({ pins }),
-  },
-  {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-pins',
-    returnSubscription: fakeDefaultSub,
-    initialResponder: (req: Message & Poke<Pins>) => {
-      pins = req.json.pins;
-
-      return createResponse(req);
-    },
-    dataResponder: (req) => createResponse(req, 'diff'),
-  },
-  {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-action-0',
-    returnSubscription: chatSub,
-    dataResponder: (
-      req: Message &
-        Poke<{ flag: string; update: { time: string; diff: ChatDiff } }>
-    ) => {
-      if ('writs' in req.json.update.diff) {
-        return createResponse(req, 'diff', req.json.update.diff.writs);
-      }
-
-      return {
-        id: req.id,
-        ok: true,
-      };
-    },
-  } as PokeHandler,
-  briefsSub,
+  unreadsSub,
   {
     action: 'scry' as const,
     app: 'chat',
-    path: '/briefs',
+    path: '/unreads',
     func: () => {
       const unarchived = _.fromPairs(
         Object.entries(dmList).filter(([k]) => !archive.includes(k))
       );
 
-      const briefs: ChatBriefs = {};
+      const unreads: DMUnreads = {};
       Object.values(mockGroups).forEach((group) =>
         Object.entries(group.channels).forEach(([k]) => {
-          briefs[k] = {
-            last: 1652302200000,
+          unreads[k] = {
+            recency: 1652302200000,
             count: 1,
-            'read-id': null,
+            'unread-id': null,
+            threads: {},
           };
         })
       );
 
       return {
         ...unarchived,
-        ...briefs,
+        ...unreads,
         '0v4.00000.qcas9.qndoa.7loa7.loa7l': {
-          last: 1652302200000,
+          recency: 1652302200000,
           count: 1,
-          'read-id': null,
+          'unread-id': null,
+          threads: {},
         },
         '~zod/test': {
-          last: 1652302200000,
+          recency: 1652302200000,
           count: 1,
-          'read-id': null,
+          'unread-id': null,
+          threads: {},
         },
       };
     },
@@ -288,28 +251,6 @@ const chat: Handler[] = [
     },
   },
   {
-    action: 'poke',
-    app: 'chat',
-    mark: 'chat-draft',
-    returnSubscription: {
-      action: 'subscribe',
-      app: 'chat',
-      path: '/',
-    } as SubscriptionRequestInterface,
-    dataResponder: (
-      req: Message & Poke<{ whom: ChatWhom; story: ChatStory }>
-    ) => {
-      localStorage.setItem(`draft-${req.json.whom}`, JSON.stringify(req.json));
-
-      return {
-        id: req.id!,
-        ok: true,
-        response: 'diff',
-        json: req.json,
-      };
-    },
-  },
-  {
     action: 'scry',
     app: 'chat',
     path: '/chat',
@@ -319,13 +260,18 @@ const chat: Handler[] = [
     action: 'poke',
     app: 'chat',
     mark: 'chat-remark-action',
-    returnSubscription: briefsSub,
+    returnSubscription: unreadsSub,
     dataResponder: (
-      req: Message & Poke<{ whom: ChatWhom; diff: { read: null } }>
+      req: Message & Poke<{ whom: DMWhom; diff: { read: null } }>
     ) =>
       createResponse(req, 'diff', {
         whom: req.json.whom,
-        brief: { last: 0, count: 0, 'read-id': null },
+        unread: {
+          recency: 0,
+          count: 0,
+          'unread-id': null,
+          threads: {},
+        },
       }),
   },
 ];
@@ -474,25 +420,26 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'dm-action',
+    mark: 'chat-dm-action',
     returnSubscription: dmSub,
     initialResponder: (
       req: Message & Poke<{ ship: string; diff: WritDiff }>,
       api: UrbitMock
     ) => {
       if (!Object.keys(dmList).includes(req.json.ship)) {
-        const brief = {
-          last: 1652302200000,
+        const unread = {
+          recency: 1652302200000,
           count: 1,
-          'read-id': null,
+          'unread-id': null,
+          threads: {},
         };
-        dmList[req.json.ship] = brief;
+        dmList[req.json.ship] = unread;
 
         api.publishUpdate(
-          briefsSub,
+          unreadsSub,
           {
             whom: req.json.ship,
-            brief,
+            unread,
           },
           req.mark
         );
@@ -506,7 +453,7 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'dm-rsvp',
+    mark: 'chat-dm-rsvp',
     returnSubscription: {
       action: 'subscribe',
       app: 'chat',
@@ -525,7 +472,7 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'dm-archive',
+    mark: 'chat-dm-archive',
     returnSubscription: {
       action: 'subscribe',
       app: 'chat',
@@ -540,7 +487,7 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'dm-unarchive',
+    mark: 'chat-dm-unarchive',
     returnSubscription: fakeDefaultSub,
     dataResponder: (req: Message & Poke<string>) => {
       const index = archive.indexOf(req.json);
@@ -605,7 +552,7 @@ const clubHandlers: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'club-action',
+    mark: 'chat-club-action',
     returnSubscription: (req: Message & Poke<ClubAction>) =>
       'writ' in req.json.diff.delta ? clubWritsSub : clubSub,
     dataResponder: (req: Message & Poke<ClubAction>) =>
@@ -620,7 +567,7 @@ const clubHandlers: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'club-create',
+    mark: 'chat-club-create',
     returnSubscription: fakeDefaultSub,
     dataResponder: (req: Message & Poke<ClubCreate>) => {
       clubs[req.json.id] = {

@@ -1,5 +1,5 @@
 import { useGroup, useVessel } from '@/state/groups';
-import { canReadChannel } from './utils';
+import { canReadChannel } from './channel';
 import { useChannelSections, useCheckChannelJoined } from './channel';
 
 const useFilteredSections = (flag: string, filterJoined?: boolean) => {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, MouseEvent } from 'react';
 import cn from 'classnames';
 import { useFormContext } from 'react-hook-form';
-import { NoteEssay } from '@/types/diary';
 import { useCalm } from '@/state/settings';
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -18,8 +17,9 @@ export default function CoverImageInput({
   url,
   noteId,
 }: CoverImageInputProps) {
-  const { register, watch, setValue } =
-    useFormContext<Pick<NoteEssay, 'title' | 'image'>>();
+  const { register, watch, setValue } = useFormContext<{
+    image?: string;
+  }>();
   const image = watch('image');
   const calm = useCalm();
   const [uploadError, setUploadError] = useState<string | null>(null);

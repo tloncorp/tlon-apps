@@ -3,12 +3,6 @@ import cn from 'classnames';
 import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { GroupChannel } from '@/types/groups';
 import EditChannelModal from '@/groups/ChannelsList/EditChannelModal';
-import { useChatState } from '@/state/chat';
-import {
-  useStash,
-  useLeaveHeapMutation,
-  useJoinHeapMutation,
-} from '@/state/heap/heap';
 import {
   useAmAdmin,
   useDeleteChannelMutation,
@@ -21,10 +15,10 @@ import {
   WritePermissions,
 } from '@/logic/utils';
 import {
-  useDiaries,
-  useJoinDiaryMutation,
-  useLeaveDiaryMutation,
-} from '@/state/diary';
+  useChannels,
+  useJoinMutation,
+  useLeaveMutation,
+} from '@/state/channel/channel';
 import ChannelIcon from '@/channels/ChannelIcon';
 import DeleteChannelModal from '@/groups/ChannelsList/DeleteChannelModal';
 import { PRIVACY_TYPE } from '@/groups/ChannelsList/ChannelPermsSelector';
@@ -44,20 +38,9 @@ interface ChannelsListItemProps {
 }
 
 function useGetChannel(app: string, flag: string): WritePermissions {
-  const { chats } = useChatState.getState();
-  const stash = useStash();
-  const shelf = useDiaries();
+  const channels = useChannels();
 
-  switch (app) {
-    case 'chat':
-      return chats[flag];
-    case 'heap':
-      return stash[flag];
-    case 'diary':
-      return shelf[flag];
-    default:
-      return { perms: { writers: [] } };
-  }
+  return channels[flag];
 }
 
 export default function ChannelsListItem({
@@ -78,10 +61,8 @@ export default function ChannelsListItem({
   const joined = useChannelIsJoined(nest);
   const { compatible: chanCompatible, text: chanText } =
     useChannelCompatibility(nest);
-  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
-  const { mutateAsync: leaveDiary } = useLeaveDiaryMutation();
-  const { mutateAsync: joinHeap } = useJoinHeapMutation();
-  const { mutateAsync: leaveHeap } = useLeaveHeapMutation();
+  const { mutateAsync: joinChannel } = useJoinMutation();
+  const { mutateAsync: leaveChannel } = useLeaveMutation();
   const [editIsOpen, setEditIsOpen] = useState(false);
   const [deleteChannelIsOpen, setDeleteChannelIsOpen] = useState(false);
   const { isFailed, isPending, isReady, setFailed, setPending, setReady } =
@@ -116,47 +97,14 @@ export default function ChannelsListItem({
     deleteChannelMutation,
   ]);
 
-  const join = useCallback(
-    async (chFlag: string) => {
-      if (app === 'diary') {
-        await joinDiary({ group: groupFlag, chan: chFlag });
-        return;
-      }
-
-      if (app === 'heap') {
-        await joinHeap({ group: groupFlag, chan: chFlag });
-        return;
-      }
-
-      await useChatState.getState().joinChat(groupFlag, chFlag);
-    },
-    [groupFlag, app, joinDiary, joinHeap]
-  );
-  const leave = useCallback(
-    async (chFlag: string) => {
-      if (app === 'diary') {
-        await leaveDiary({ flag: chFlag });
-        return;
-      }
-
-      if (app === 'heap') {
-        await leaveHeap({ flag: chFlag });
-        return;
-      }
-
-      await useChatState.getState().leaveChat(chFlag);
-    },
-    [app, leaveDiary, leaveHeap]
-  );
-
-  const joinChannel = useCallback(async () => {
+  const channelJoinHandler = useCallback(async () => {
     try {
       if (timer) {
         clearTimeout(timer);
         setTimer(null);
       }
       setPending();
-      await join(channelFlag);
+      await joinChannel({ group: groupFlag, chan: nest });
       setReady();
     } catch (error) {
       if (error) {
@@ -170,17 +118,17 @@ export default function ChannelsListItem({
         }, 10 * 1000)
       );
     }
-  }, [channelFlag, join, setFailed, setPending, setReady, timer]);
+  }, [nest, groupFlag, joinChannel, setFailed, setPending, setReady, timer]);
 
-  const leaveChannel = useCallback(async () => {
+  const channelLeaveHandler = useCallback(async () => {
     try {
-      leave(channelFlag);
+      await leaveChannel({ nest });
     } catch (error) {
       if (error) {
         console.error(`[ChannelsListItem:LeaveError] ${error}`);
       }
     }
-  }, [channelFlag, leave]);
+  }, [leaveChannel, nest]);
 
   return (
     <>
@@ -242,7 +190,7 @@ export default function ChannelsListItem({
               <Tooltip content={text} open={compatible ? false : undefined}>
                 <button
                   disabled={isPending || !compatible}
-                  onClick={joinChannel}
+                  onClick={channelJoinHandler}
                   className={cn(
                     'small-secondary-button text-sm mix-blend-multiply dark:mix-blend-screen',
                     {
@@ -265,7 +213,7 @@ export default function ChannelsListItem({
             ) : (
               <button
                 className="small-secondary-button mix-blend-multiply disabled:bg-gray-50 dark:mix-blend-screen"
-                onClick={leaveChannel}
+                onClick={channelLeaveHandler}
                 disabled={isChannelHost}
                 title={
                   isChannelHost ? 'You cannot leave a channel you host' : ''

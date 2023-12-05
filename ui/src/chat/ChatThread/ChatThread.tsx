@@ -1,19 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import _ from 'lodash';
-import ob from 'urbit-ob';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import { useChatState, useReplies, useWrit, useChatPerms } from '@/state/chat';
-import { useChannel, useRouteGroup, useVessel } from '@/state/groups/groups';
+import {
+  useGroupChannel,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups/groups';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
-import ChatScroller from '@/chat/ChatScroller/ChatScroller';
-import { isGroups, whomIsFlag } from '@/logic/utils';
+import { isGroups } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
 import { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
@@ -21,17 +22,24 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
+import {
+  useAddReplyMutation,
+  usePost,
+  usePerms,
+  useReply,
+} from '@/state/channel/channel';
+import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 
 export default function ChatThread() {
-  const { name, chShip, ship, chName, idTime, idShip } = useParams<{
+  const { name, chShip, ship, chName, idTime } = useParams<{
     name: string;
     chShip: string;
     ship: string;
     chName: string;
-    idShip: string;
     idTime: string;
   }>();
   const isMobile = useIsMobile();
@@ -39,47 +47,68 @@ export default function ChatThread() {
   const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
-  const whom = flag || ship || '';
+  const nest = `chat/${flag}`;
   const groupFlag = useRouteGroup();
-  const { sendMessage } = useChatState.getState();
+  const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
-  const msg = new URLSearchParams(location.search).get('msg');
-  const scrollTo = msg ? bigInt(msg) : undefined;
-  const channel = useChannel(groupFlag, `chat/${flag}`)!;
+  const scrollTo = new URLSearchParams(location.search).get('msg');
+  const channel = useGroupChannel(groupFlag, nest)!;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const replyId = useMemo(() => searchParams.get('reply'), [searchParams]);
+  const reply = useReply(nest, idTime!, replyId || '');
+  const replyingWrit: ReplyTuple | undefined =
+    reply && replyId ? [bigInt(replyId), reply] : undefined;
   const { isOpen: leapIsOpen } = useLeap();
-  const id = `${idShip!}/${idTime!}`;
-  const dropZoneId = `chat-thread-input-dropzone-${id}`;
+  const dropZoneId = `chat-thread-input-dropzone-${idTime}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const { entry: maybeWrit, isLoading } = useWrit(whom, id, true);
-  const replies = useReplies(whom, id);
+  const { post: note, isLoading } = usePost(nest, idTime!);
+  const { replies } = note.seal;
+  if (replies !== null) {
+    replies.unshift([
+      bigInt(idTime!),
+      {
+        memo: note.essay,
+        seal: {
+          id: note.seal.id,
+          'parent-id': note.seal.id,
+          reacts: note.seal.reacts,
+        },
+      },
+    ]);
+  }
+  const orderedReplies = useMemo(
+    () =>
+      replies?.sort((a, b) => {
+        const aTime = a[0];
+        const bTime = b[0];
+        if (aTime.greater(bTime)) {
+          return 1;
+        }
+        if (aTime.lesser(bTime)) {
+          return -1;
+        }
+        return 0;
+      }),
+    [replies]
+  );
   const navigate = useNavigate();
-  const [time, writ] = maybeWrit ?? [null, null];
   const threadRef = useRef<HTMLDivElement | null>(null);
-  const perms = useChatPerms(flag);
+  const perms = usePerms(nest);
   const vessel = useVessel(groupFlag, window.our);
-  const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
-  const club = ship && isClub ? useChatState.getState().multiDms[ship] : null;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const threadTitle = whomIsFlag(whom)
-    ? channel?.meta?.title || ''
-    : isClub
-    ? club?.meta.title || ship
-    : ship;
+  const threadTitle = channel?.meta?.title;
   const canWrite =
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
 
-  const returnURL = useCallback(() => {
-    if (!time || !writ) return '#';
-
-    if (location.pathname.includes('groups')) {
-      return `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${time.toString()}`;
-    }
-    return `/dm/${ship}?msg=${time.toString()}`;
-  }, [chName, chShip, location, name, ship, time, writ]);
+  const returnURL = useCallback(
+    () =>
+      `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
+    [chName, chShip, name, ship, idTime]
+  );
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -90,14 +119,6 @@ export default function ChatThread() {
     [navigate, returnURL, leapIsOpen]
   );
   useEventListener('keydown', onEscape, threadRef);
-
-  useEffect(() => {
-    if (scrollTo && !replies.has(scrollTo)) {
-      useChatState.getState().fetchMessagesAround(whom, '25', scrollTo);
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollTo?.toString(), replies]);
 
   const BackButton = isMobile ? Link : 'div';
 
@@ -164,18 +185,21 @@ export default function ChatThread() {
         </header>
       )}
       <div className="flex flex-1 flex-col overflow-hidden p-0 pr-2">
-        {isLoading || !time || !writ ? (
+        {isLoading ? (
           <ChatScrollerPlaceholder count={30} />
         ) : (
           <ChatScroller
             key={idTime}
-            messages={replies.with(time, writ)}
-            whom={whom}
+            messages={orderedReplies || []}
+            whom={flag}
+            isLoadingOlder={false}
+            isLoadingNewer={false}
             scrollerRef={scrollerRef}
-            replying
-            scrollTo={scrollTo}
+            scrollTo={scrollTo ? bigInt(scrollTo) : undefined}
             scrollElementRef={scrollElementRef}
             isScrolling={isScrolling}
+            hasLoadedNewest={false}
+            hasLoadedOldest={false}
           />
         )}
       </div>
@@ -188,10 +212,11 @@ export default function ChatThread() {
       >
         {compatible && canWrite ? (
           <ChatInput
-            whom={whom}
-            replying={id}
-            sendMessage={sendMessage}
-            inThread
+            whom={flag}
+            replying={idTime}
+            replyingWrit={replyingWrit}
+            sendReply={sendMessage}
+            showReply
             autoFocus
             dropZoneId={dropZoneId}
             isScrolling={isScrolling}

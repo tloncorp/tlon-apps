@@ -2,11 +2,11 @@ import cn from 'classnames';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import GridIcon from '@/components/icons/GridIcon';
 import ListIcon from '@/components/icons/ListIcon';
-import { HeapDisplayMode } from '@/types/heap';
+import { DisplayMode } from '@/types/channel';
 
 interface DisplayDropdownProps {
-  displayMode: HeapDisplayMode;
-  setDisplayMode: (mode: HeapDisplayMode) => void;
+  displayMode: DisplayMode;
+  setDisplayMode: (mode: DisplayMode) => void;
 }
 
 export default function DisplayDropdown({

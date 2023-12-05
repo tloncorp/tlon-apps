@@ -1,15 +1,12 @@
-/-  c=chat
-/+  j=chat-json
+/-  c=chat-2
 |_  =delta:club:c
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  delta
-  ++  json  (club-delta:enjs:j delta)
   --
 ++  grab
   |%
   ++  noun  delta:club:c
-  ++  json  club-delta:dejs:j
   --
 --

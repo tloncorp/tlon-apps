@@ -5,11 +5,23 @@ import { useParams } from 'react-router';
 import useEmoji from '@/state/emoji';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState } from '@/state/chat';
+import {
+  useAddDMReplyReactMutation,
+  useAddDmReactMutation,
+} from '@/state/chat';
 import { useCurrentTheme } from '@/state/local';
 import { useRouteGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
+import {
+  useAddPostReactMutation,
+  useAddReplyReactMutation,
+} from '@/state/channel/channel';
+import {
+  useIsDmOrMultiDm,
+  useIsInThread,
+  useThreadParentId,
+} from '@/logic/utils';
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 
 interface EmojiPickerProps extends Record<string, any> {
@@ -31,15 +43,23 @@ export default function EmojiPicker({
     ship: string;
     chName: string;
     chShip: string;
-    writShip: string;
+    writShip?: string;
     writTime: string;
   }>();
   const currentTheme = useCurrentTheme();
   const whom = chShip ? `${chShip}/${chName}` : ship;
+  const nest = `chat/${whom}`;
   const groupFlag = useRouteGroup();
   const { privacy } = useGroupPrivacy(groupFlag);
-  const writId = `${writShip}/${writTime}`;
+  const writId = writShip ? `${writShip}/${writTime}` : `${writTime}`;
   const isMobile = useIsMobile();
+  const isDMOrMultiDM = useIsDmOrMultiDm(whom!);
+  const inThread = useIsInThread();
+  const threadParentId = useThreadParentId(whom!);
+  const { mutate: addFeelToChat } = useAddPostReactMutation();
+  const { mutate: addFeelToReply } = useAddReplyReactMutation();
+  const { mutate: addFeelToDmReply } = useAddDMReplyReactMutation();
+  const { mutate: addFeelToDm } = useAddDmReactMutation();
   const width = window.innerWidth;
   const dismss = useDismissNavigate();
   const mobilePerLineCount = Math.floor((width - 10) / 36);
@@ -55,8 +75,27 @@ export default function EmojiPicker({
   };
 
   const onEmojiSelect = useCallback(
-    (emoji: { shortcodes: string }) => {
-      useChatState.getState().addFeel(whom!, writId, emoji.shortcodes);
+    async (emoji: { shortcodes: string }) => {
+      if (isDMOrMultiDM && !inThread) {
+        addFeelToDm({ whom: whom!, id: writId, react: emoji.shortcodes });
+      } else if (isDMOrMultiDM && inThread) {
+        addFeelToDmReply({
+          whom: whom!,
+          writId: threadParentId!,
+          replyId: writId,
+          react: emoji.shortcodes,
+        });
+      } else if (inThread) {
+        addFeelToReply({
+          nest,
+          postId: threadParentId!,
+          replyId: writId,
+          react: emoji.shortcodes,
+        });
+      } else {
+        addFeelToChat({ nest, postId: writId, react: emoji.shortcodes });
+      }
+
       captureGroupsAnalyticsEvent({
         name: 'react_item',
         groupFlag,
@@ -66,7 +105,21 @@ export default function EmojiPicker({
       });
       dismss();
     },
-    [whom, groupFlag, privacy, writId, dismss]
+    [
+      whom,
+      groupFlag,
+      privacy,
+      writId,
+      dismss,
+      nest,
+      isDMOrMultiDM,
+      addFeelToChat,
+      addFeelToDm,
+      addFeelToReply,
+      addFeelToDmReply,
+      inThread,
+      threadParentId,
+    ]
   );
 
   return (

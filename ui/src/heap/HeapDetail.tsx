@@ -1,25 +1,24 @@
 import bigInt from 'big-integer';
 import cn from 'classnames';
-import { useCallback, useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link, useLocation } from 'react-router-dom';
 import { useParams } from 'react-router';
 import {
-  useCurioWithComments,
-  useOrderedCurios,
-  useJoinHeapMutation,
-} from '@/state/heap/heap';
+  usePost,
+  useOrderedPosts,
+  useIsPostUndelivered,
+} from '@/state/channel/channel';
 import Layout from '@/components/Layout/Layout';
-import { useChannel, useGroup, useRouteGroup, useVessel } from '@/state/groups';
-import { canReadChannel } from '@/logic/utils';
+import { useRouteGroup } from '@/state/groups';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useChannelIsJoined } from '@/logic/channel';
+import { useFullChannel } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import { HeapCurio } from '@/types/heap';
+import getKindDataFromEssay from '@/logic/getKindData';
+import { newReplyMap, Post } from '@/types/channel';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import HeapDetailSidebarInfo from './HeapDetail/HeapDetailSidebar/HeapDetailSidebarInfo';
 import HeapDetailComments from './HeapDetail/HeapDetailSidebar/HeapDetailComments';
@@ -27,39 +26,33 @@ import HeapDetailHeader from './HeapDetail/HeapDetailHeader';
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 
 export default function HeapDetail({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
   const location = useLocation();
   const groupFlag = useRouteGroup();
-  const { chShip, chName, idCurio } = useParams<{
+  const { chShip, chName, idTime } = useParams<{
     chShip: string;
     chName: string;
-    idCurio: string;
+    idTime: string;
   }>();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
-  const channel = useChannel(groupFlag, nest);
-  const vessel = useVessel(groupFlag, window.our);
-  const group = useGroup(groupFlag);
-  const canRead = channel
-    ? canReadChannel(channel, vessel, group?.bloc)
-    : false;
+  const { group, groupChannel: channel } = useFullChannel({
+    groupFlag,
+    nest,
+  });
   const isMobile = useIsMobile();
+  const { post: note, isLoading } = usePost(nest, idTime || '');
+  const { title: curioTitle } = getKindDataFromEssay(note.essay);
   const { isChatInputFocused } = useChatInputFocus();
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
-  const joined = useChannelIsJoined(nest);
-  const { mutateAsync: joinHeap } = useJoinHeapMutation();
   const {
-    time,
-    curio: fetchedCurio,
-    comments,
-    isLoading: curioLoading,
-  } = useCurioWithComments(chFlag, idCurio || '');
-  const { hasNext, hasPrev, nextCurio, prevCurio } = useOrderedCurios(
-    chFlag,
-    time || ''
-  );
-  const initialCurio = location.state?.initialCurio as HeapCurio | undefined;
-  const curio = fetchedCurio || initialCurio;
+    hasNext,
+    hasPrev,
+    nextPost: nextNote,
+    prevPost: prevNote,
+  } = useOrderedPosts(nest, idTime || '');
+  const initialNote = location.state?.initialCurio as Post | undefined;
+  const essay = note?.essay || initialNote?.essay;
+  const isUndelivered = useIsPostUndelivered(initialNote);
 
   const curioHref = (id?: bigInt.BigInteger) => {
     if (!id) {
@@ -69,18 +62,6 @@ export default function HeapDetail({ title }: ViewProps) {
     return `/groups/${groupFlag}/channels/heap/${chFlag}/curio/${id}`;
   };
 
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
-    await joinHeap({ group: groupFlag, chan: chFlag });
-    setJoining(false);
-  }, [chFlag, groupFlag, joinHeap]);
-
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel]);
-
   useGroupsAnalyticsEvent({
     name: 'view_item',
     groupFlag,
@@ -88,8 +69,8 @@ export default function HeapDetail({ title }: ViewProps) {
     channelType: 'heap',
   });
 
-  // TODO handle curio not found
-  if (!curio) {
+  // we have no data at all just show spinner
+  if (!essay && isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <LoadingSpinner />
@@ -97,6 +78,7 @@ export default function HeapDetail({ title }: ViewProps) {
     );
   }
 
+  // with at least an essay we can show content and wait for everything else
   return (
     <Layout
       style={{
@@ -105,18 +87,20 @@ export default function HeapDetail({ title }: ViewProps) {
       className="padding-bottom-transition flex-1 bg-white"
       header={
         <HeapDetailHeader
-          flag={groupFlag}
-          chFlag={chFlag}
-          idCurio={time?.toString() || ''}
+          nest={nest}
+          isUndelivered={isUndelivered}
+          idCurio={idTime || ''}
+          essay={essay}
+          groupFlag={groupFlag}
         />
       }
     >
       <Helmet>
         <title>
-          {curio && channel && group
-            ? `${curio.heart.title || 'Gallery Item'} in ${
-                channel.meta.title
-              } • ${group.meta.title || ''} ${title}`
+          {note && channel && group
+            ? `${curioTitle || 'Gallery Item'} in ${channel.meta.title} • ${
+                group.meta.title || ''
+              } ${title}`
             : title}
         </title>
       </Helmet>
@@ -125,7 +109,7 @@ export default function HeapDetail({ title }: ViewProps) {
           {hasNext ? (
             <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
               <Link
-                to={curioHref(nextCurio?.[0])}
+                to={curioHref(nextNote?.[0])}
                 className={cn(
                   ' z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent',
                   !isMobile &&
@@ -138,11 +122,11 @@ export default function HeapDetail({ title }: ViewProps) {
               </Link>
             </div>
           ) : null}
-          {curio ? <HeapDetailBody curio={curio} /> : null}
+          <HeapDetailBody essay={essay} />
           {hasPrev ? (
             <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
               <Link
-                to={curioHref(prevCurio?.[0])}
+                to={curioHref(prevNote?.[0])}
                 className={cn(
                   ' z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent',
                   !isMobile &&
@@ -157,12 +141,12 @@ export default function HeapDetail({ title }: ViewProps) {
           ) : null}
         </div>
         <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
-          {curio && <HeapDetailSidebarInfo curio={curio} />}
-          {time && (
+          <HeapDetailSidebarInfo essay={essay} />
+          {idTime && (
             <HeapDetailComments
-              time={time}
-              comments={comments}
-              loading={curioLoading}
+              time={idTime}
+              comments={note.seal.replies}
+              loading={isLoading}
             />
           )}
         </div>

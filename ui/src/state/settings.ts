@@ -5,10 +5,15 @@ import { Value, PutBucket, DelEntry, DelBucket } from '@urbit/api';
 import _ from 'lodash';
 import produce from 'immer';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lsDesk } from '@/constants';
-import { HeapDisplayMode, HeapSortMode } from '@/types/heap';
+import {
+  ALPHABETICAL_SORT,
+  DEFAULT_SORT,
+  lsDesk,
+  RECENT_SORT,
+  SortMode as SidebarSortMode,
+} from '@/constants';
+import { DisplayMode, SortMode } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { DiaryDisplayMode } from '@/types/diary';
 import { isHosted, isTalk } from '@/logic/utils';
 import { isNativeApp } from '@/logic/native';
 import api from '@/api';
@@ -18,18 +23,21 @@ interface ChannelSetting {
 }
 
 export interface HeapSetting extends ChannelSetting {
-  sortMode: HeapSortMode;
-  displayMode: HeapDisplayMode;
+  sortMode: SortMode;
+  displayMode: DisplayMode;
 }
 
 export interface DiarySetting extends ChannelSetting {
   sortMode: 'arranged' | 'time-dsc' | 'quip-dsc' | 'time-asc' | 'quip-asc';
   commentSortMode: 'asc' | 'dsc';
-  displayMode: DiaryDisplayMode;
+  displayMode: DisplayMode;
 }
 
 interface GroupSideBarSort {
-  [flag: string]: typeof ALPHABETICAL | typeof RECENT | typeof DEFAULT;
+  [flag: string]:
+    | typeof ALPHABETICAL_SORT
+    | typeof RECENT_SORT
+    | typeof DEFAULT_SORT;
 }
 
 interface PutEntry {
@@ -45,10 +53,6 @@ interface PutEntry {
 interface SettingsEvent {
   'settings-event': PutEntry | PutBucket | DelEntry | DelBucket;
 }
-
-const ALPHABETICAL = 'A → Z';
-const DEFAULT = 'Arranged';
-const RECENT = 'Recent';
 
 export type SidebarFilter =
   | 'Direct Messages'
@@ -91,7 +95,7 @@ export interface SettingsState {
   };
   groups: {
     orderedGroupPins: string[];
-    sideBarSort: typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
+    sideBarSort: SidebarSortMode;
     groupSideBarSort: Stringified<GroupSideBarSort>;
     hasBeenUsed: boolean;
     showActivityMessage?: boolean;
@@ -421,13 +425,13 @@ export function useHeapSettings(): HeapSetting[] {
   }, [isLoading, data]);
 }
 
-export function useHeapSortMode(flag: string): HeapSortMode {
+export function useHeapSortMode(flag: string): SortMode {
   const settings = useHeapSettings();
   const heapSetting = getChannelSetting(settings, flag);
   return heapSetting?.sortMode ?? 'time';
 }
 
-export function useHeapDisplayMode(flag: string): HeapDisplayMode {
+export function useHeapDisplayMode(flag: string): DisplayMode {
   const settings = useHeapSettings();
   const heapSetting = getChannelSetting(settings, flag);
   return heapSetting?.displayMode ?? 'grid';
@@ -460,9 +464,7 @@ export function useUserDiarySortMode(
   return diarySetting?.sortMode;
 }
 
-export function useUserDiaryDisplayMode(
-  flag: string
-): DiaryDisplayMode | undefined {
+export function useUserDiaryDisplayMode(flag: string): DisplayMode | undefined {
   const settings = useDiarySettings();
   const diarySetting = getChannelSetting(settings, flag);
   return diarySetting?.displayMode;
@@ -475,7 +477,7 @@ export function useDiaryCommentSortMode(flag: string): 'asc' | 'dsc' {
 }
 
 const emptyGroupSideBarSort = { '~': 'A → Z' };
-export function useGroupSideBarSort() {
+export function useGroupSideBarSort(): Record<string, SidebarSortMode> {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
@@ -489,17 +491,17 @@ export function useGroupSideBarSort() {
   }, [isLoading, data]);
 }
 
-export function useSideBarSortMode() {
+export function useSideBarSortMode(): SidebarSortMode {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
     if (isLoading || data === undefined || data.groups === undefined) {
-      return DEFAULT;
+      return RECENT_SORT;
     }
 
     const { groups } = data;
 
-    return groups.sideBarSort ?? DEFAULT;
+    return groups.sideBarSort ?? RECENT_SORT;
   }, [isLoading, data]);
 }
 

@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
-import { usePinnedGroups } from '@/state/chat';
 import {
   useGangList,
   useLoadingGroups,
@@ -10,6 +9,7 @@ import {
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
+import { usePinnedGroups } from '@/state/pins';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
@@ -19,8 +19,8 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import Layout from '@/components/Layout/Layout';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
-import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import GroupJoinList from '@/groups/GroupJoinList';
+import NavigateIcon from '@/components/icons/NavigateIcon';
 import WelcomeCard from '@/components/WelcomeCard';
 import { isNativeApp } from '@/logic/native';
 
@@ -81,8 +81,8 @@ export default function MobileRoot() {
           {sortedGroups.length === 0 && !isLoading ? (
             <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
               Tap the <span className="sr-only">find icon</span>
-              <MagnifyingGlass16Icon className="inline-flex h-4 w-4" /> below to
-              find new groups in your network or view group invites.
+              <NavigateIcon className="inline-flex h-4 w-4" /> below to find new
+              groups in your network or view group invites.
             </div>
           ) : (
             <GroupsScrollingContext.Provider value={isScrolling}>

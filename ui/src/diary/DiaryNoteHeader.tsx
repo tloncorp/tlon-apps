@@ -68,7 +68,7 @@ export default function DiaryNoteHeader({
           <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
         </div>
 
-        <ChannelIcon nest="diary" className="h-6 w-6 shrink-0 text-gray-600" />
+        <ChannelIcon nest={nest} className="h-6 w-6 shrink-0 text-gray-600" />
         <div className="flex w-full flex-col justify-center">
           <span
             className={cn(

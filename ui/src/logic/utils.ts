@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import ob from 'urbit-ob';
 import bigInt, { BigInteger } from 'big-integer';
 import isURL from 'validator/es/lib/isURL';
@@ -13,11 +13,10 @@ import { formatUv } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { format, differenceInDays, endOfToday } from 'date-fns';
 import _ from 'lodash';
-import f from 'lodash/fp';
 import emojiRegex from 'emoji-regex';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
+import { useParams } from 'react-router';
 import { useCopyToClipboard } from 'usehooks-ts';
-import { ChatWhom, ChatBrief, Cite } from '@/types/chat';
 import {
   Cabals,
   GroupChannel,
@@ -27,23 +26,19 @@ import {
   Rank,
   Group,
   GroupPreview,
-  Vessel,
   Saga,
   Gang,
 } from '@/types/groups';
-import { CurioContent, HeapBrief } from '@/types/heap';
 import {
-  DiaryBrief,
-  DiaryInline,
-  DiaryQuip,
-  DiaryQuipMap,
-  NoteContent,
+  Story,
   Verse,
   VerseInline,
   VerseBlock,
-  DiaryListing,
-} from '@/types/diary';
-import { Bold, Italics, Strikethrough } from '@/types/content';
+  Listing,
+  Cite,
+  ChatStory,
+} from '@/types/channel';
+import { Bold, Italics, Strikethrough, Inline } from '@/types/content';
 import { isNativeApp, postActionToNativeApp } from './native';
 import type {
   ConnectionCompleteStatus,
@@ -85,7 +80,9 @@ export function createDevLogger(tag: string, enabled: boolean) {
 
 export function log(...args: any[]) {
   if (import.meta.env.DEV) {
-    console.log(...args);
+    const { stack } = new Error();
+    const line = stack?.split('\n')[2].trim();
+    console.log(`${line}:`, ...args);
   }
 }
 
@@ -112,19 +109,21 @@ export function logTime(...args: any[]) {
 
 type App = 'chat' | 'heap' | 'diary';
 
+export function checkNest(nest: string) {
+  if (nest.split('/').length !== 3) {
+    if (import.meta.env.DEV) {
+      throw new Error('Invalid nest');
+    } else {
+      console.error('Invalid nest:', nest);
+    }
+  }
+}
+
 export function nestToFlag(nest: string): [App, string] {
+  checkNest(nest);
   const [app, ...rest] = nest.split('/');
 
   return [app as App, rest.join('/')];
-}
-
-export function sampleQuippers(quips: DiaryQuipMap) {
-  return _.flow(
-    f.map(([, q]: [BigInteger, DiaryQuip]) => q.memo.author),
-    f.compact,
-    f.uniq,
-    f.take(3)
-  )(quips.size ? [...quips] : []);
 }
 
 export function renderRank(rank: Rank, plural = false) {
@@ -149,10 +148,6 @@ export function renderRank(rank: Rank, plural = false) {
 export function strToSym(str: string): string {
   const ascii = anyAscii(str);
   return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
-}
-
-export function channelHref(flag: string, ch: string) {
-  return `/groups/${flag}/channels/${ch}`;
 }
 
 export function makePrettyTime(date: Date) {
@@ -236,19 +231,26 @@ export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
   };
 }
 
-export function whomIsDm(whom: ChatWhom): boolean {
+export function whomIsDm(whom: string): boolean {
   return whom.startsWith('~') && !whom.match('/');
 }
 
 // ship + term, term being a @tas: lower-case letters, numbers, and hyphens
-export function whomIsFlag(whom: ChatWhom): boolean {
+export function whomIsFlag(whom: string): boolean {
   return (
     /^~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
     ob.isValidPatp(whom.split('/')[0])
   );
 }
 
-export function whomIsMultiDm(whom: ChatWhom): boolean {
+export function whomIsNest(whom: string): boolean {
+  return (
+    /^[a-z]+\/~[a-z-]+\/[a-z]+[a-z0-9-]*$/.test(whom) &&
+    ob.isValidPatp(whom.split('/')[1])
+  );
+}
+
+export function whomIsMultiDm(whom: string): boolean {
   return whom.startsWith(`0v`);
 }
 
@@ -507,49 +509,9 @@ export async function jsonFetch<T>(
   return data as T;
 }
 
-export function isChannelJoined(
-  flag: string,
-  briefs: { [x: string]: ChatBrief | HeapBrief | DiaryBrief }
-) {
-  const isChannelHost = window.our === flag?.split('/')[0];
-  return isChannelHost || (flag && flag in briefs);
-}
-
 export function isGroupHost(flag: string) {
   const { ship } = getFlagParts(flag);
   return ship === window.our;
-}
-
-export function getChannelHosts(group: Group): string[] {
-  return Object.keys(group.channels).map((c) => {
-    const [, chFlag] = nestToFlag(c);
-    const { ship } = getFlagParts(chFlag);
-    return ship;
-  });
-}
-
-export function canReadChannel(
-  channel: GroupChannel,
-  vessel: Vessel,
-  bloc: string[] = []
-) {
-  if (channel.readers.length === 0) {
-    return true;
-  }
-
-  return _.intersection([...channel.readers, ...bloc], vessel.sects).length > 0;
-}
-
-export function canWriteChannel(
-  perms: WritePermissions['perms'],
-  vessel: Vessel,
-  bloc: string[] = []
-) {
-  if (perms.writers.length === 0) {
-    return true;
-  }
-
-  return _.intersection([...perms.writers, ...bloc], vessel.sects).length > 0;
 }
 
 /**
@@ -560,18 +522,27 @@ export function canWriteChannel(
  * @param content CurioContent
  * @returns boolean
  */
-export function isLinkCurio({ inline }: CurioContent) {
+export function isLinkCurio({ inline }: ChatStory) {
   return (
     inline.length === 1 && typeof inline[0] === 'object' && 'link' in inline[0]
   );
 }
 
-export function linkFromCurioContent(content: CurioContent) {
+export function linkFromCurioContent(content: ChatStory) {
   if (isLinkCurio(content)) {
     return content.inline[0] as string;
   }
 
   return '';
+}
+
+export function getFirstInline(content: Story) {
+  const inlines = content.filter((v) => 'inline' in v) as VerseInline[];
+  if (inlines.length === 0) {
+    return null;
+  }
+
+  return inlines[0].inline;
 }
 
 export function citeToPath(cite: Cite) {
@@ -667,29 +638,6 @@ export function getNestShip(nest: string) {
   const [, flag] = nestToFlag(nest);
   const { ship } = getFlagParts(flag);
   return ship;
-}
-
-export function isChannelImported(
-  nest: string,
-  pending: Record<string, boolean>
-) {
-  const isImport = nest in pending;
-  return (
-    !isImport || (isImport && pending[nest]) || window.our === getNestShip(nest)
-  );
-}
-
-export function prettyChannelTypeName(app: string) {
-  switch (app) {
-    case 'chat':
-      return 'Chat';
-    case 'heap':
-      return 'Collection';
-    case 'diary':
-      return 'Notebook';
-    default:
-      return 'Unknown';
-  }
 }
 
 export async function asyncWithDefault<T>(
@@ -800,7 +748,7 @@ export function sliceMap<T>(
   return empty;
 }
 
-const apps = ['writ', 'writs', 'hive', 'team', 'curios', 'notes', 'quips'];
+const apps = ['writ', 'writs', 'hive', 'team', 'channels'];
 const groups = [
   'create',
   'zone',
@@ -837,8 +785,8 @@ const general = [
   'add',
   'del',
   'edit',
-  'add-feel',
-  'del-feel',
+  'add-react',
+  'del-react',
   'meta',
   'init',
 ];
@@ -880,15 +828,12 @@ export function actionDrill(
   return keys.filter((k) => k !== '');
 }
 
-export function truncateProse(
-  content: NoteContent,
-  maxCharacters: number
-): NoteContent {
+export function truncateProse(content: Story, maxCharacters: number): Story {
   const truncate = (
-    [head, ...tail]: DiaryInline[],
+    [head, ...tail]: Inline[],
     remainingChars: number,
-    acc: DiaryInline[]
-  ): { truncatedItems: DiaryInline[]; remainingChars: number } => {
+    acc: Inline[]
+  ): { truncatedItems: Inline[]; remainingChars: number } => {
     if (!head || remainingChars <= 0) {
       return { truncatedItems: acc, remainingChars };
     }
@@ -952,7 +897,7 @@ export function truncateProse(
   let remainingChars = maxCharacters;
   let remainingImages = 1;
 
-  const truncatedContent: NoteContent = content
+  const truncatedContent: Story = content
     .map((verse: Verse): Verse => {
       if ('inline' in verse) {
         const lengthBefore = remainingChars;
@@ -1019,10 +964,10 @@ export function truncateProse(
           } = verse.block.listing.list.items.reduce(
             (
               accumulator: {
-                truncatedListItems: DiaryListing[];
+                truncatedListItems: Listing[];
                 remainingChars: number;
               },
-              listing: DiaryListing
+              listing: Listing
             ) => {
               if ('item' in listing) {
                 const lengthBeforeList = accumulator.remainingChars;
@@ -1151,4 +1096,35 @@ export function getCompatibilityText(saga: Saga | null) {
 export function sagaCompatible(saga: Saga | null) {
   // either host or synced with host
   return saga === null || 'synced' in saga;
+}
+
+export function useIsHttps() {
+  return window.location.protocol === 'https:';
+}
+
+export function useIsInThread() {
+  const { idTime } = useParams<{
+    idTime: string;
+  }>();
+
+  return !!idTime;
+}
+
+export function useIsDmOrMultiDm(whom: string) {
+  return useMemo(() => whomIsDm(whom) || whomIsMultiDm(whom), [whom]);
+}
+
+export function useThreadParentId(whom: string) {
+  const isDMorMultiDM = useIsDmOrMultiDm(whom);
+
+  const { idShip, idTime } = useParams<{
+    idShip: string;
+    idTime: string;
+  }>();
+
+  if (isDMorMultiDM) {
+    return `${idShip}/${idTime}`;
+  }
+
+  return idTime;
 }

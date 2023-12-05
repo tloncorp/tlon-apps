@@ -1,44 +1,26 @@
-/-  g=groups, c=chat, d=diary, h=heap
+/-  g=groups, d=channels, c=chat
 |%
 +$  init
-  $:  =groups:g
-      =gangs:g
-      =chat
-      =heap
-      =diary    
-  ==
-::
-+$  init-0
   $:  groups=groups-ui:g
       =gangs:g
-      =chat
-      =heap
-      =diary    
+      =channels:d
+      =unreads:d
+      pins=(list whom)
+  ==
+::  $whom: ID for an "item"
+::
++$  whom
+  $%  [%group =flag:g]
+      [%channel =nest:g]
+      [%chat =whom:c]
   ==
 ::
-+$  chat
-  $:  =briefs:c
-      chats=(map flag:c chat:c)
-      pins=(list whom:c)
++$  action
+  $%  [%pins =a-pins]
   ==
-::
-+$  heap
-  $:  =briefs:h
-      =stash:h
-  ==
-::
-+$  diary
-  $:  =briefs:d
-      =shelf:d
-  ==
-::
-+$  imported  (map flag:g ?)
-::
-+$  migration
-  $:  chat-imports=imported
-      heap-imports=imported
-      diary-imports=imported
-      wait=(list ship)
++$  a-pins
+  $%  [%add =whom]
+      [%del =whom]
   ==
 ::
 +$  vita-enabled  ?

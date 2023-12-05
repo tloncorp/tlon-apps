@@ -165,7 +165,7 @@ export default ({ mode }: { mode: string }) => {
     server: {
       https: process.env.SSL === 'true' ? true : false,
       host: 'localhost',
-      port: 3000,
+      port: process.env.E2E_PORT_3001 === 'true' ? 3001 : 3000,
     },
     build:
       mode !== 'profile'

@@ -13,13 +13,13 @@ import shipManifest from './e2e/shipManifest.json';
 export default defineConfig({
   testDir: './e2e',
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  // fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: 2,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -43,7 +43,6 @@ export default defineConfig({
     // name: 'chromium',
     // use: {
     // ...devices['Desktop Chrome'],
-    // storageState: 'e2e/.auth/user.json',
     // },
     // dependencies: ['setup'],
     // },
@@ -52,7 +51,6 @@ export default defineConfig({
     // name: 'firefox',
     // use: {
     // ...devices['Desktop Firefox'],
-    // storageState: 'e2e/.auth/user.json',
     // },
     // dependencies: ['setup'],
     // },
@@ -63,7 +61,6 @@ export default defineConfig({
       name: 'webkit',
       use: {
         ...devices['Desktop Safari'],
-        storageState: 'e2e/.auth/user.json',
       },
       dependencies: ['setup'],
     },
@@ -73,7 +70,6 @@ export default defineConfig({
     // name: 'Mobile Chrome',
     // use: {
     // ...devices['Pixel 5'],
-    // storageState: 'e2e/.auth/user.json',
     // },
     // dependencies: ['setup'],
     // },
@@ -81,7 +77,6 @@ export default defineConfig({
     // name: 'Mobile Safari',
     // use: {
     // ...devices['iPhone 12'],
-    // storageState: 'e2e/.auth/user.json',
     // },
     // dependencies: ['setup'],
     // },
@@ -98,21 +93,19 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command:
-      process.env.APP === 'chat'
-        ? `cross-env SHIP_URL=${
-            (shipManifest as Record<string, any>)[process.env.SHIP ?? '~zod']
-              .url
-          } npm run chat-no-ssl`
-        : `cross-env SHIP_URL=${
-            (shipManifest as Record<string, any>)[process.env.SHIP ?? '~zod']
-              .url
-          } npm run dev-no-ssl`,
-    url:
-      process.env.APP === 'chat'
-        ? 'http://localhost:3000/apps/talk/'
-        : 'http://localhost:3000/apps/groups/',
-    reuseExistingServer: false,
-  },
+  webServer: [
+    {
+      command: `cross-env SHIP_URL=${
+        (shipManifest as Record<string, any>)['~zod'].url
+      } npm run dev-no-ssl`,
+      url: 'http://localhost:3000/apps/groups/',
+    },
+    {
+      command: `cross-env SHIP_URL=${
+        (shipManifest as Record<string, any>)['~bus'].url
+      } E2E_PORT_3001=true npm run dev-no-ssl`,
+      url: 'http://localhost:3001/apps/groups/',
+    },
+  ],
+  timeout: 60 * 1000,
 });

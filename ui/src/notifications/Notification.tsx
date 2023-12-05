@@ -8,13 +8,12 @@ import ShipName from '@/components/ShipName';
 import { makePrettyTime, PUNCTUATION_REGEX } from '@/logic/utils';
 import { useSawRopeMutation } from '@/state/hark';
 import { Skein, YarnContent } from '@/types/hark';
-import { useChatState } from '@/state/chat';
 import useRecentChannel from '@/logic/useRecentChannel';
 import { useGang, useGroup } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useCurio } from '@/state/heap/heap';
 import HeapBlock from '@/heap/HeapBlock';
 import { useIsMobile } from '@/logic/useMedia';
+import { usePost } from '@/state/channel/channel';
 import {
   isComment,
   isGroupMeta,
@@ -169,16 +168,61 @@ function NotificationContent({
 function mentionPath(bin: Skein): string {
   const { wer } = bin.top;
   const parts = wer.split('/');
-  const index = parts.indexOf('op');
-  const ship = parts[index + 1];
-  const id = parts[index + 2];
+  const han = parts[4];
+  const index = parts.indexOf('note');
+  const id = parts[index + 1];
 
-  if (index < 0 || !ship || !id) {
+  if (index < 0 || !id) {
     return wer;
   }
 
-  const time = useChatState.getState().getTime(ship, `${ship}/${id}`);
-  return `${parts.slice(0, index).join('/')}?msg=${time}`;
+  if (han === 'diary' || han === 'heap') {
+    return wer;
+  }
+
+  return `${parts.slice(0, index).join('/')}?msg=${id}`;
+}
+
+// This is for backwards compatibility. The %channels backend used to send a
+// generic 'post' type in the path for all post replies, but now sends 'note',
+// 'curio' and 'message' for diary, heap, and chat posts, respectively. This
+// function replaces the 'post' type with the correct type.
+function postReplacer(pathParts: string[], replacer: string): string {
+  const newPath = pathParts
+    .map((word, index) => {
+      if (index === 8 && word === 'post') {
+        return replacer;
+      }
+      return word;
+    })
+    .join('/');
+  return newPath;
+}
+
+function getPath(bin: Skein): string {
+  const { wer } = bin.top;
+  const pathParts = wer.split('/');
+  const isHeapReply = pathParts.includes('heap') && pathParts.length === 11;
+  const isDiaryReply = pathParts.includes('diary') && pathParts.length === 11;
+  const isChatReply = pathParts.includes('chat') && pathParts.length === 11;
+
+  if (isMention(bin.top)) {
+    return mentionPath(bin);
+  }
+
+  if (isHeapReply) {
+    return postReplacer(pathParts, 'curio');
+  }
+
+  if (isDiaryReply) {
+    return postReplacer(pathParts, 'note');
+  }
+
+  if (isChatReply) {
+    return postReplacer(pathParts, 'message');
+  }
+
+  return wer;
 }
 
 export default function Notification({
@@ -198,7 +242,7 @@ export default function Notification({
   const isBlockBool = isBlock(bin.top);
   const groupMetaBool = isGroupMeta(bin.top);
   const replyBool = isReply(bin.top);
-  const path = mentionBool ? mentionPath(bin) : bin.top.wer;
+  const path = getPath(bin);
   const onClick = useCallback(() => {
     sawRopeMutation({ rope });
   }, [rope, sawRopeMutation]);
@@ -209,10 +253,10 @@ export default function Notification({
   const curioId = isBlockBool ? bin.top.wer.split('/')[9] : '';
   const heapFlag = isBlockBool
     ? `${bin.top.wer.split('/')[6]}/${bin.top.wer.split('/')[7]}`
-    : '';
-  const { curio, isLoading } = useCurio(heapFlag, curioId);
+    : '/';
+  const { post: note, isLoading } = usePost(`heap/${heapFlag}`, curioId);
 
-  if (isBlockBool && curio && !isLoading) {
+  if (isBlockBool && note && !isLoading) {
     return (
       <div className="flex flex-col">
         <div className="relative flex space-x-3 rounded-xl bg-white p-2 text-gray-400">
@@ -234,7 +278,7 @@ export default function Notification({
               <div className="max-w-[36px] sm:max-w-[190px]">
                 <div className="aspect-h-1 aspect-w-1 cursor-pointer">
                   <HeapBlock
-                    curio={curio}
+                    post={note}
                     time={curioId}
                     asMobileNotification={isMobile}
                     linkFromNotification={bin.top.wer}

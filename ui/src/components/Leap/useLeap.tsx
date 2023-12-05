@@ -5,6 +5,11 @@ import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useGroupFlag, useGroups } from '@/state/groups';
+import {
+  usePinnedGroups,
+  usePinnedChannels,
+  usePinnedClubs,
+} from '@/state/pins';
 import { Group, GroupChannel } from '@/types/groups';
 import {
   LEAP_DESCRIPTION_TRUNCATE_LENGTH,
@@ -14,16 +19,10 @@ import {
 import { emptyContact, useContacts } from '@/state/contact';
 import { useModalNavigate } from '@/logic/routing';
 import useAppName from '@/logic/useAppName';
-import {
-  useDms,
-  useMultiDms,
-  usePinned,
-  usePinnedClubs,
-  usePinnedGroups,
-} from '@/state/chat';
+import { useCheckDmUnread, useDms, useMultiDms } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/channel';
-import { Club } from '@/types/chat';
+import { Club } from '@/types/dms';
 import { useMutuals } from '@/state/pals';
 import { Contact } from '@/types/contact';
 import { ChargeWithDesk, useCharges } from '@/state/docket';
@@ -99,10 +98,11 @@ export default function useLeap() {
   const currentGroupFlag = useGroupFlag();
   const { isGroupUnread } = useIsGroupUnread();
   const isChannelUnread = useCheckChannelUnread();
+  const isDMUnread = useCheckDmUnread();
   const pinnedGroups = usePinnedGroups();
   const multiDms = useMultiDms();
   const pinnedMultiDms = usePinnedClubs();
-  const pinnedChats = usePinned();
+  const pinnedChannels = usePinnedChannels();
   const contacts = useContacts();
   const dms = useDms();
   const charges = useCharges();
@@ -180,7 +180,7 @@ export default function useLeap() {
       }
 
       // boost ships that have unread DMs
-      if (isChannelUnread(preSig(ship))) {
+      if (isDMUnread(preSig(ship))) {
         newScore += 10;
       }
 
@@ -255,7 +255,7 @@ export default function useLeap() {
     app,
     contacts,
     inputValue,
-    isChannelUnread,
+    isDMUnread,
     location,
     modalNavigate,
     navigate,
@@ -304,7 +304,7 @@ export default function useLeap() {
       let newScore = score;
 
       // pinned channels are strong signals
-      const isPinned = pinnedChats.includes(nest);
+      const isPinned = pinnedChannels.includes(nest);
       if (isPinned) {
         newScore += 8;
       }
@@ -397,7 +397,7 @@ export default function useLeap() {
     isChannelUnread,
     isGroupUnread,
     navigate,
-    pinnedChats,
+    pinnedChannels,
     pinnedGroups,
     shipResults.length,
     setSelectedIndex,
@@ -520,7 +520,7 @@ export default function useLeap() {
       }
 
       // prefer unreads as well
-      const isUnread = isChannelUnread(multiDmFlag);
+      const isUnread = isDMUnread(multiDmFlag);
       if (isUnread) {
         newScore += 5;
       }
@@ -588,7 +588,7 @@ export default function useLeap() {
     pinnedMultiDms,
     shipResults.length,
     groupResults.length,
-    isChannelUnread,
+    isDMUnread,
     setSelectedIndex,
     setInputValue,
     setIsOpen,

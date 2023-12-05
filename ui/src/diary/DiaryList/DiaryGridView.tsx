@@ -7,18 +7,16 @@ import {
   useResizeObserver,
 } from 'masonic';
 import DiaryGridItem from '@/diary/DiaryList/DiaryGridItem';
-import { DiaryOutline } from '@/types/diary';
+import { Post, PageTuple } from '@/types/channel';
 import { useIsMobile } from '@/logic/useMedia';
 
 interface DiaryGridProps {
-  outlines: [bigInt.BigInteger, DiaryOutline][];
-  loadOlderNotes: () => void;
+  outlines: PageTuple[];
+  loadOlderNotes: (atBottom: boolean) => void;
 }
 
-const masonryItem = ({
-  data,
-}: RenderComponentProps<[bigInt.BigInteger, DiaryOutline]>) => (
-  <DiaryGridItem time={data[0]} outline={data[1]} />
+const masonryItem = ({ data }: RenderComponentProps<PageTuple>) => (
+  <DiaryGridItem time={data[0]} note={data[1]!} />
 );
 
 export default function DiaryGridView({
@@ -30,7 +28,7 @@ export default function DiaryGridView({
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const maybeLoadMore = useInfiniteLoader(
     () => {
-      loadOlderNotes();
+      loadOlderNotes(true);
     },
     { isItemLoaded: (index, items) => !!items[index], threshold: 3 }
   );

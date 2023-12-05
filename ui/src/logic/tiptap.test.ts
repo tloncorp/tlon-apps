@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { JSONContent } from '@tiptap/react';
 import { Inline } from '@/types/content';
-import { DiaryBlock } from '@/types/diary';
+import { Block } from '@/types/channel';
 import {
   inlinesToJSON,
   inlineToContent,
@@ -592,7 +592,7 @@ describe('JSONToInlines', () => {
       ],
     };
     const output = JSONToInlines(input, true, true);
-    const expected: DiaryBlock[] = [
+    const expected: Block[] = [
       {
         code: {
           code: 'console.log',
@@ -651,7 +651,7 @@ describe('JSONToInlines', () => {
       ],
     };
     const output = JSONToInlines(input);
-    const expected: DiaryBlock[] = [
+    const expected: Block[] = [
       {
         header: {
           tag: 'h2',
@@ -667,7 +667,7 @@ describe('JSONToInlines', () => {
       type: 'horizontalRule',
     };
     const output = JSONToInlines(input);
-    const expected: DiaryBlock[] = [
+    const expected: Block[] = [
       {
         rule: null,
       },
@@ -693,7 +693,7 @@ describe('JSONToInlines', () => {
       ],
     };
     const output = JSONToInlines(input);
-    const expected: DiaryBlock[] = [
+    const expected: Block[] = [
       {
         listing: {
           list: {
@@ -742,7 +742,7 @@ describe('JSONToInlines', () => {
       ],
     };
     const output = JSONToInlines(input);
-    const expected: DiaryBlock[] = [
+    const expected: Block[] = [
       {
         listing: {
           list: {
@@ -776,7 +776,7 @@ describe('JSONToInlines', () => {
       },
     };
     const output = JSONToInlines(input);
-    const expected: DiaryBlock[] = [
+    const expected: Block[] = [
       {
         image: {
           src: 'https://example.com/test.jpg',
@@ -797,7 +797,7 @@ describe('JSONToInlines', () => {
       },
     };
     const output = JSONToInlines(input);
-    const expected: DiaryBlock[] = [
+    const expected: Block[] = [
       {
         cite: {
           group: '~zod/test',

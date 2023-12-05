@@ -36,3 +36,12 @@ export const AUTHORS = [
 ];
 
 export const lsDesk = 'garden';
+
+export const ALPHABETICAL_SORT = 'A → Z';
+export const DEFAULT_SORT = 'Arranged';
+export const RECENT_SORT = 'Recent';
+
+export type SortMode =
+  | typeof ALPHABETICAL_SORT
+  | typeof DEFAULT_SORT
+  | typeof RECENT_SORT;

@@ -1,14 +1,14 @@
+import { JSONContent } from '@tiptap/react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { useAddCurioMutation } from '@/state/heap/heap';
-import { JSONContent } from '@tiptap/react';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { createCurioHeart } from '@/logic/heap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { tipTapToString } from '@/logic/tiptap';
 import { useFileStore, useUploader } from '@/state/storage';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { useAddPostMutation } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';
 import CurioPreview, { canPreview } from './CurioPreview';
@@ -32,6 +32,7 @@ export default function AddCurioModal({
   clearDragState,
   dragErrorMessage,
 }: AddCurioModalProps) {
+  const nest = `heap/${chFlag}`;
   const isMobile = useIsMobile();
   const [status, setStatus] = useState<'initial' | 'loading' | 'error'>(
     'initial'
@@ -45,8 +46,8 @@ export default function AddCurioModal({
   const [previewUrl, setPreviewUrl] = useState('');
   const uploader = useUploader(uploadKey);
   const mostRecentFile = uploader?.getMostRecent();
+  const { mutate } = useAddPostMutation(nest);
   const loading = !!(mostRecentFile && mostRecentFile.status === 'loading');
-  const { mutate } = useAddCurioMutation();
   const { privacy } = useGroupPrivacy(flag);
 
   const isEmpty =
@@ -91,10 +92,17 @@ export default function AddCurioModal({
 
   const addCurio = useCallback(
     async (input: JSONContent | string) => {
-      const heart = createCurioHeart(input);
+      const heart = await createCurioHeart(input);
+      const cacheId = {
+        sent: heart.sent,
+        author: window.our,
+      };
 
       mutate(
-        { flag: chFlag, heart },
+        {
+          essay: heart,
+          cacheId,
+        },
         {
           onSuccess: () => {
             captureGroupsAnalyticsEvent({
@@ -267,6 +275,7 @@ export default function AddCurioModal({
             onClick={() => postBlock()}
             className="button"
             disabled={['loading', 'error'].includes(status) || isEmpty}
+            data-testid="block-post-button"
           >
             {status === 'loading' ? (
               <LoadingSpinner className="h-4 w-4" />

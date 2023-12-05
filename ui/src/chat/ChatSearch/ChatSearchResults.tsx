@@ -1,18 +1,16 @@
-import { debounce } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BigInteger } from 'big-integer';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import BTree from 'sorted-btree';
-import { ChatWrit } from '@/types/chat';
 import { useIsMobile } from '@/logic/useMedia';
-import { useChatState } from '@/state/chat';
+import { ChatMap, Post, Reply } from '@/types/channel';
+import { Writ } from '@/types/dms';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';
 
 interface ChatSearchResultsProps {
   whom: string;
   root: string;
-  scan: BTree<BigInteger, ChatWrit> | null;
+  scan: ChatMap;
   isLoading: boolean;
   query?: string;
   selected?: number;
@@ -24,9 +22,8 @@ interface ChatSearchResultEntry {
   whom: string;
   root: string;
   time: BigInteger;
-  writ: ChatWrit;
+  writ: Post | Writ | Reply;
   selected: boolean;
-  msgLoad: (time: BigInteger, type: 'click' | 'hover') => void;
 }
 
 function itemContent(_i: number, entry: ChatSearchResultEntry) {
@@ -65,41 +62,24 @@ const ChatSearchResults = React.forwardRef<
         : { main: 400, reverse: 400 },
     };
 
-    const loadMsgs = useMemo(() => {
-      return debounce(
-        (time: BigInteger) => {
-          useChatState.getState().fetchMessagesAround(whom, '25', time);
-        },
-        200,
-        { trailing: true }
-      );
-    }, [whom]);
-
-    const msgLoad = useCallback(
-      (time: BigInteger, type: 'click' | 'hover') => {
-        loadMsgs(time);
-
-        if (type === 'click') {
-          loadMsgs.flush();
-        }
-      },
-      [loadMsgs]
+    const entries = useMemo(
+      () =>
+        scan
+          ? scan
+              .toArray()
+              .filter(([_int, writ]) => writ !== null)
+              .map(
+                ([int, writ], i): ChatSearchResultEntry => ({
+                  whom,
+                  root,
+                  time: int,
+                  writ: writ as Post | Writ | Reply,
+                  selected: i === selected,
+                })
+              )
+          : [],
+      [scan, whom, root, selected]
     );
-
-    const entries = useMemo(() => {
-      return scan
-        ? scan.toArray().map(
-            ([int, writ], i): ChatSearchResultEntry => ({
-              whom,
-              root,
-              time: int,
-              writ,
-              selected: i === selected,
-              msgLoad,
-            })
-          )
-        : [];
-    }, [scan, whom, root, selected, msgLoad]);
 
     useEffect(() => {
       let timeout = 0;
@@ -153,7 +133,7 @@ const ChatSearchResults = React.forwardRef<
             data={entries}
             itemContent={itemContent}
             computeItemKey={(i, item) => item.time.toString()}
-            endReached={() => endReached()}
+            endReached={endReached}
             className="h-full w-full list-none overflow-x-hidden overflow-y-scroll"
           />
         )}

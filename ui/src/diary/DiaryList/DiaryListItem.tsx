@@ -1,21 +1,29 @@
-import React from 'react';
 import cn from 'classnames';
-import { DiaryOutline } from '@/types/diary';
-import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import { useNavigate } from 'react-router';
-import { useIsNotePending, usePostToggler } from '@/state/diary';
+import { Post } from '@/types/channel';
+import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
+import {
+  useIsPostPending,
+  useIsPostUndelivered,
+  usePostToggler,
+} from '@/state/channel/channel';
 
 interface DiaryListItemProps {
-  outline: DiaryOutline;
+  note: Post;
   time: bigInt.BigInteger;
 }
 
-export default function DiaryListItem({ outline, time }: DiaryListItemProps) {
-  const isPending = useIsNotePending(time.toString());
+export default function DiaryListItem({ note, time }: DiaryListItemProps) {
+  const isPending = useIsPostPending({
+    author: note.essay.author,
+    sent: note.essay.sent,
+  });
   const navigate = useNavigate();
-  const essay = outline;
-  const { quippers, quipCount } = outline;
+
+  const { essay } = note;
+  const { lastRepliers, replyCount } = note.seal.meta;
   const { isHidden } = usePostToggler(time.toString());
+  const isUndelivered = useIsPostUndelivered(note);
 
   return (
     <div
@@ -28,11 +36,12 @@ export default function DiaryListItem({ outline, time }: DiaryListItemProps) {
       onClick={() => !isHidden && navigate(`note/${time.toString()}`)}
     >
       <DiaryNoteHeadline
-        quippers={quippers}
-        quipCount={quipCount}
+        lastRepliers={lastRepliers}
+        replyCount={replyCount}
         essay={essay}
         time={time}
         isInList
+        isUndelivered={isUndelivered}
       />
     </div>
   );

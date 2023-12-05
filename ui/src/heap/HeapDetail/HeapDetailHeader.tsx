@@ -1,52 +1,56 @@
 import cn from 'classnames';
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAmAdmin } from '@/state/groups';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import CopyIcon from '@/components/icons/CopyIcon';
 import ChannelIcon from '@/channels/ChannelIcon';
-import { useCurioWithComments } from '@/state/heap/heap';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
-import { isLink } from '@/types/heap';
-import useHeapContentType from '@/logic/useHeapContentType';
-import useNest from '@/logic/useNest';
+import getHeapContentType from '@/logic/useHeapContentType';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
+import { PostEssay, chatStoryFromStory } from '@/types/channel';
+import getKindDataFromEssay from '@/logic/getKindData';
+import { isLink } from '@/types/content';
 import useCurioActions from '../useCurioActions';
 
-export interface ChannelHeaderProps {
-  flag: string;
-  chFlag: string;
+export interface HeapDetailHeaderProps {
+  nest: string;
   idCurio: string;
+  essay: PostEssay;
+  isUndelivered?: boolean;
+  groupFlag: string;
 }
 
 export default function HeapDetailHeader({
-  flag,
-  chFlag,
+  nest,
   idCurio,
-}: ChannelHeaderProps) {
-  // const curioObject = useCurio(chFlag, idCurio);
-  const { curio } = useCurioWithComments(chFlag, idCurio);
+  isUndelivered = false,
+  essay,
+  groupFlag,
+}: HeapDetailHeaderProps) {
   const isMobile = useIsMobile();
-  const nest = useNest();
-  const content = curio ? curio.heart.content : { block: [], inline: [] };
+  const { onEdit, onCopy, didCopy } = useCurioActions({ nest, time: idCurio });
+  const isAdmin = useAmAdmin(groupFlag);
+
+  if (!essay) {
+    return null;
+  }
+  const content = chatStoryFromStory(essay.content);
   const curioContent =
-    (isLink(curio?.heart.content.inline[0])
-      ? curio?.heart.content.inline[0].link.href
-      : (curio?.heart.content.inline[0] || '').toString()) || '';
-  const { description } = useHeapContentType(curioContent);
-  const isAdmin = useAmAdmin(flag);
-  const canEdit = isAdmin || window.our === curio?.heart.author;
+    (isLink(content.inline[0])
+      ? content.inline[0].link.href
+      : (content.inline[0] || '').toString()) || '';
+  const { description } = getHeapContentType(curioContent);
+  const canEdit = isAdmin || window.our === essay.author;
   // TODO: a better title fallback
   const prettyDayAndTime = makePrettyDayAndTime(
-    new Date(curio?.heart.sent || Date.now())
+    new Date(essay.sent || Date.now())
   );
   const isImageLink = isImageUrl(curioContent);
   const isCite = content.block.length > 0 && 'cite' in content.block[0];
-  const curioTitle = curio?.heart.title;
-  const { onEdit, onCopy, didCopy } = useCurioActions({ nest, time: idCurio });
+  const { title: curioTitle } = getKindDataFromEssay(essay);
 
   function truncate({ str, n }: { str: string; n: number }) {
     return str.length > n ? `${str.slice(0, n - 1)}…` : str;
@@ -55,7 +59,7 @@ export default function HeapDetailHeader({
   if (isMobile) {
     return (
       <MobileHeader
-        title={<ChannelIcon nest="heap" className="h-6 w-6 text-gray-600" />}
+        title={<ChannelIcon nest={nest} className="h-6 w-6 text-gray-600" />}
         secondaryTitle={
           <h1
             className={cn(
@@ -76,19 +80,23 @@ export default function HeapDetailHeader({
         action={
           <div className="flex h-12 items-center justify-end space-x-2">
             <ReconnectingSpinner />
-            <button
-              className="h-6 w-6 rounded text-gray-800"
-              aria-controls="copy"
-              onClick={onCopy}
-              aria-label="Copy Link"
-            >
-              {didCopy ? (
-                <CheckIcon className="h-6 w-6" />
-              ) : (
-                <CopyIcon className="h-6 w-6" />
-              )}
-            </button>
-            {canEdit ? <button onClick={onEdit}>Edit</button> : null}
+            {!isUndelivered && (
+              <>
+                <button
+                  className="h-6 w-6 rounded text-gray-800"
+                  aria-controls="copy"
+                  onClick={onCopy}
+                  aria-label="Copy Link"
+                >
+                  {didCopy ? (
+                    <CheckIcon className="h-6 w-6" />
+                  ) : (
+                    <CopyIcon className="h-6 w-6" />
+                  )}
+                </button>
+                {canEdit ? <button onClick={onEdit}>Edit</button> : null}
+              </>
+            )}
           </div>
         }
       />
@@ -112,7 +120,7 @@ export default function HeapDetailHeader({
           <CaretLeft16Icon className="h-5 w-5 shrink-0 text-gray-600" />
         </div>
 
-        <ChannelIcon nest="heap" className="h-6 w-6 shrink-0 text-gray-600" />
+        <ChannelIcon nest={nest} className="h-6 w-6 shrink-0 text-gray-600" />
         <div className="flex w-full flex-col justify-center">
           <span
             className={cn(
@@ -130,26 +138,28 @@ export default function HeapDetailHeader({
           </span>
         </div>
       </Link>
-      <div className="shink-0 flex items-center space-x-3">
-        {canEdit ? (
-          <button onClick={onEdit} className="small-button">
-            Edit
-          </button>
-        ) : null}
+      {!isUndelivered && (
+        <div className="shink-0 flex items-center space-x-3">
+          {canEdit ? (
+            <button onClick={onEdit} className="small-button">
+              Edit
+            </button>
+          ) : null}
 
-        <button
-          className="h-6 w-6 rounded text-gray-400 hover:bg-gray-50"
-          aria-controls="copy"
-          onClick={onCopy}
-          aria-label="Copy Link"
-        >
-          {didCopy ? (
-            <CheckIcon className="h-6 w-6" />
-          ) : (
-            <CopyIcon className="h-6 w-6" />
-          )}
-        </button>
-      </div>
+          <button
+            className="h-6 w-6 rounded text-gray-400 hover:bg-gray-50"
+            aria-controls="copy"
+            onClick={onCopy}
+            aria-label="Copy Link"
+          >
+            {didCopy ? (
+              <CheckIcon className="h-6 w-6" />
+            ) : (
+              <CopyIcon className="h-6 w-6" />
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

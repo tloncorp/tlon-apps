@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
+import bigInt from 'big-integer';
 import { useLocation, useNavigate } from 'react-router-dom';
-import cn from 'classnames';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
-import { useRemoteOutline } from '@/state/diary';
+import { useRemotePost } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 import {
   isImageUrl,
@@ -10,27 +10,26 @@ import {
   pluralize,
   truncateProse,
 } from '@/logic/utils';
-import bigInt from 'big-integer';
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
 import useGroupJoin from '@/groups/useGroupJoin';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 // eslint-disable-next-line import/no-cycle
 import DiaryContent from '@/diary/DiaryContent/DiaryContent';
+import getKindDataFromEssay from '@/logic/getKindData';
 import ReferenceBar from './ReferenceBar';
 import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
 import NotebookIcon from '../icons/NotebookIcon';
+import UnavailableReference from './UnavailableReference';
 
 function NoteReference({
-  chFlag,
   nest,
   id,
   isScrolling = false,
   contextApp,
   children,
 }: {
-  chFlag: string;
   nest: string;
   id: string;
   isScrolling?: boolean;
@@ -41,11 +40,39 @@ function NoteReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
-  const outline = useRemoteOutline(chFlag, id, isScrolling);
+  const { reference, isError } = useRemotePost(nest, id, isScrolling);
   const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
+  const note = useMemo(() => {
+    if (reference && 'post' in reference) {
+      return reference.post;
+    }
+    return undefined;
+  }, [reference]);
 
+  const contentPreview = useMemo(() => {
+    if (!note || !note.essay?.content) {
+      return '';
+    }
+
+    const truncatedContent = truncateProse(
+      note.essay.content,
+      NOTE_REF_DISPLAY_LIMIT
+    );
+
+    return <DiaryContent content={truncatedContent} isPreview />;
+  }, [note]);
+
+  if (isError) {
+    return <UnavailableReference nest={nest} time={bigInt(0)} preview={null} />;
+  }
+
+  if (!note || !note.essay?.content) {
+    return <HeapLoadingBlock reference />;
+  }
+
+  const { title, image } = getKindDataFromEssay(note.essay);
   const handleOpenReferenceClick = () => {
     if (!group) {
       navigate(`/gangs/${groupFlag}?type=note&nest=${nest}&id=${id}`, {
@@ -57,43 +84,26 @@ function NoteReference({
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
   };
 
-  const contentPreview = useMemo(() => {
-    if (!outline || !outline.content) {
-      return '';
-    }
-
-    const truncatedContent = truncateProse(
-      outline.content,
-      NOTE_REF_DISPLAY_LIMIT
-    );
-
-    return <DiaryContent content={truncatedContent} isPreview />;
-  }, [outline]);
-
-  if (!outline || !outline.content) {
-    return <HeapLoadingBlock reference />;
-  }
-
-  const prettyDate = makePrettyDate(new Date(outline.sent));
+  const prettyDate = makePrettyDate(new Date(note.essay.sent));
 
   if (contextApp === 'heap-row') {
     return (
       <ReferenceInHeap
         contextApp={contextApp}
         image={
-          isImageUrl(outline.image) ? (
+          isImageUrl(image) ? (
             <img
-              src={outline.image}
+              src={image}
               className="h-[72px] w-[72px] rounded object-cover"
             />
           ) : (
             <NotebookIcon className="h-6 w-6 text-gray-400" />
           )
         }
-        title={outline.title}
+        title={title}
         byline={
           <span>
-            Note by <ShipName name={outline.author} showAlias /> in{' '}
+            Note by <ShipName name={note.essay.author} showAlias /> in{' '}
             {preview?.meta?.title}
           </span>
         }
@@ -112,22 +122,22 @@ function NoteReference({
         <ReferenceInHeap
           contextApp={contextApp}
           image={
-            isImageUrl(outline.image) ? (
+            isImageUrl(image) ? (
               <img
-                src={outline.image}
+                src={image}
                 className="h-[72px] w-[72px] rounded object-cover"
               />
             ) : (
               <NotebookIcon className="h-6 w-6 text-gray-400" />
             )
           }
-          title={outline.title}
+          title={title}
         >
           {children}
           <ReferenceBar
             nest={nest}
             time={bigInt(id)}
-            author={outline.author}
+            author={note.essay.author}
             groupFlag={preview?.group.flag}
             groupImage={group?.meta.image}
             groupTitle={preview?.group.meta.title}
@@ -143,7 +153,7 @@ function NoteReference({
     return (
       <ReferenceInHeap
         type="text"
-        title={<h2 className="mb-2 text-lg font-semibold">{outline.title}</h2>}
+        title={<h2 className="mb-2 text-lg font-semibold">{title}</h2>}
         contextApp={contextApp}
         image={contentPreview}
       />
@@ -156,20 +166,20 @@ function NoteReference({
         onClick={handleOpenReferenceClick}
         className="flex cursor-pointer flex-col space-y-2 p-4 group-hover:bg-gray-50"
       >
-        {outline.image ? (
+        {image ? (
           <div
             className="relative h-36 w-full rounded-lg bg-gray-100 bg-cover bg-center px-4"
             style={{
-              backgroundImage: `url(${outline.image})`,
+              backgroundImage: `url(${image})`,
             }}
           />
         ) : null}
-        <span className="text-2xl font-semibold">{outline.title}</span>
+        <span className="text-2xl font-semibold">{title}</span>
         <span className="font-semibold text-gray-400">{prettyDate}</span>
-        {outline.quipCount > 0 ? (
+        {note.seal.meta.replyCount > 0 ? (
           <div className="flex space-x-2">
             <div className="relative flex items-center">
-              {outline.quippers.map((author, index) => (
+              {note.seal.meta.lastRepliers.map((author, index) => (
                 <Avatar
                   ship={author}
                   size="xs"
@@ -182,7 +192,8 @@ function NoteReference({
               ))}
             </div>
             <span className="font-semibold text-gray-600">
-              {outline.quipCount} {pluralize('comment', outline.quipCount)}
+              {note.seal.meta.replyCount}{' '}
+              {pluralize('comment', note.seal.meta.replyCount)}
             </span>
           </div>
         ) : null}
@@ -201,7 +212,7 @@ function NoteReference({
       <ReferenceBar
         nest={nest}
         time={bigInt(id)}
-        author={outline.author}
+        author={note.essay.author}
         groupFlag={preview?.group.flag}
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}

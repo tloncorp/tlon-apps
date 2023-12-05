@@ -1,6 +1,5 @@
 import Dialog from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import React from 'react';
 import EditCurioForm from './EditCurioForm';
 
 export default function EditCurioModal() {

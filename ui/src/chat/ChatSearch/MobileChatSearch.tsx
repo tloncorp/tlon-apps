@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSafeAreaInsets } from '@/logic/native';
 import SearchBar from '@/chat/ChatSearch/SearchBar';
 import ChatSearchResults from '@/chat/ChatSearch/ChatSearchResults';
-import { useInfiniteChatSearch } from '@/state/chat/search';
+import { useChannelSearch } from '@/state/channel/channel';
 import useDebounce from '@/logic/useDebounce';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useSearchState } from '@/state/chat/search';
@@ -26,8 +26,8 @@ export default function MobileChatSearch() {
     params.chShip && params.chName
       ? `${params.chShip}/${params.chName}`
       : params.ship!;
-  const { scan, isLoading, fetchNextPage } = useInfiniteChatSearch(
-    whom,
+  const { scan, isLoading, fetchNextPage } = useChannelSearch(
+    `chat/${whom}`,
     params.query || ''
   );
   const history = useSearchState.getState().history[whom];

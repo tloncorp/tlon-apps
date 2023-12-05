@@ -1,133 +1,76 @@
 import bigInt from 'big-integer';
-import { isSameDay } from 'date-fns';
-import React, { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { useNavigate, useParams } from 'react-router';
-import { daToUnix, udToDec } from '@urbit/api';
+import { udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
+import { getFlagParts, pluralize } from '@/logic/utils';
 import {
-  canWriteChannel,
-  getFlagParts,
-  pluralize,
-  sampleQuippers,
-} from '@/logic/utils';
-import {
-  useDiaryBrief,
-  useNote,
-  useDiaryPerms,
-  useJoinDiaryMutation,
-  useIsNotePending,
-  useNotesOnHost,
-} from '@/state/diary';
+  useUnread,
+  usePost,
+  usePerms,
+  useJoinMutation,
+  useIsPostPending,
+  usePostsOnHost,
+} from '@/state/channel/channel';
 import {
   useRouteGroup,
   useVessel,
   useAmAdmin,
   useGroup,
-  useChannel,
+  useGroupChannel,
 } from '@/state/groups/groups';
-import {
-  DiaryBrief,
-  DiaryOutline,
-  DiaryOutlines,
-  DiaryQuip,
-} from '@/types/diary';
+import { Post, Posts } from '@/types/channel';
 import { useDiaryCommentSortMode } from '@/state/settings';
-import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
+import {
+  canWriteChannel,
+  useChannelCompatibility,
+  useChannelIsJoined,
+} from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { ViewProps } from '@/types/groups';
 import { useConnectivityCheck } from '@/state/vitals';
+import getKindDataFromEssay from '@/logic/getKindData';
+import { groupReplies, setNewDaysForReplies } from '@/replies/replies';
+import ReplyMessage from '@/replies/ReplyMessage';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
-import DiaryComment, { DiaryCommentProps } from './DiaryComment';
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';
 import DiaryNoteHeader from './DiaryNoteHeader';
 import DiaryNoteHeadline from './DiaryNoteHeadline';
 
-function groupQuips(
-  noteId: string,
-  quips: [bigInt.BigInteger, DiaryQuip][],
-  brief: DiaryBrief
-) {
-  const grouped: Record<string, DiaryCommentProps[]> = {};
-  let currentTime: string;
-
-  quips.forEach(([t, q], i) => {
-    const prev = i > 0 ? quips[i - 1] : undefined;
-    const { author } = q.memo;
-    const time = t.toString();
-    const newAuthor = author !== prev?.[1].memo.author;
-    const unreadBrief =
-      brief && brief['read-id'] === q.cork.time.toString() ? brief : undefined;
-
-    if (newAuthor) {
-      currentTime = time;
-    }
-
-    if (!(currentTime in grouped)) {
-      grouped[currentTime] = [];
-    }
-
-    grouped[currentTime].push({
-      time: t,
-      quip: q,
-      newAuthor,
-      noteId,
-      newDay: false,
-      unreadCount: unreadBrief && brief.count,
-    });
-  });
-
-  return Object.entries(grouped);
-}
-
-function setNewDays(quips: [string, DiaryCommentProps[]][]) {
-  return quips.map(([time, comments], index) => {
-    const prev = index !== 0 ? quips[index - 1] : undefined;
-    const prevQuipTime = prev ? bigInt(prev[0]) : undefined;
-    const unix = new Date(daToUnix(bigInt(time)));
-
-    const lastQuipDay = prevQuipTime
-      ? new Date(daToUnix(prevQuipTime))
-      : undefined;
-
-    const newDay = lastQuipDay ? !isSameDay(unix, lastQuipDay) : false;
-
-    const quip = comments.shift();
-    const newComments = [{ ...quip, newDay }, ...comments];
-    return [time, newComments] as [string, DiaryCommentProps[]];
-  });
-}
-
 export default function DiaryNote({ title }: ViewProps) {
   const { chShip, chName, noteId = '' } = useParams();
-  const isPending = useIsNotePending(noteId);
   const { data } = useConnectivityCheck(chShip ?? '');
   const navigate = useNavigate();
   const chFlag = `${chShip}/${chName}`;
   const nest = `diary/${chFlag}`;
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
-  const channel = useChannel(groupFlag, nest);
+  const channel = useGroupChannel(groupFlag, nest);
   const { ship } = getFlagParts(chFlag);
-  const { note, status } = useNote(chFlag, noteId);
+  const { post: note, status } = usePost(nest, noteId);
+  const isPending = useIsPostPending({
+    author: window.our,
+    sent: note?.essay?.sent,
+  });
   const vessel = useVessel(groupFlag, window.our);
   const joined = useChannelIsJoined(nest);
   const isAdmin = useAmAdmin(groupFlag);
-  const brief = useDiaryBrief(chFlag);
+  const unread = useUnread(nest);
   const sort = useDiaryCommentSortMode(chFlag);
-  const perms = useDiaryPerms(chFlag);
+  const perms = usePerms(nest);
   const isMobile = useIsMobile();
   const { isChatInputFocused } = useChatInputFocus();
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const { compatible } = useChannelCompatibility(nest);
-  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
+  const { mutateAsync: joinDiary } = useJoinMutation();
   const joinChannel = useCallback(async () => {
-    await joinDiary({ group: groupFlag, chan: chFlag });
-  }, [chFlag, groupFlag, joinDiary]);
-  const notesOnHost = useNotesOnHost(chFlag, isPending);
+    await joinDiary({ group: groupFlag, chan: nest });
+  }, [nest, groupFlag, joinDiary]);
+  const notesOnHost = usePostsOnHost(nest, isPending);
   const checkIfPreviouslyCached = useCallback(() => {
     // If we have a note, and the host ship is online, and we have a noteId, and
     // the noteId matches the note's seal time, then we have a cached note.
@@ -141,13 +84,13 @@ export default function DiaryNote({ title }: ViewProps) {
       data.status.complete === 'yes' &&
       note &&
       noteId !== '' &&
-      (noteId === note.seal.time || note.seal.time === undefined)
+      (noteId === note.seal.id || note.seal.id === undefined)
     ) {
       if (notesOnHost && typeof notesOnHost === 'object') {
         const foundNote = Object.keys(notesOnHost).filter((n: string) => {
-          if ('sent' in (notesOnHost as DiaryOutlines)[n]) {
-            const outline: DiaryOutline = (notesOnHost as DiaryOutlines)[n];
-            return outline.sent === daToUnix(bigInt(noteId));
+          const noteOnHost: Post | null = (notesOnHost as Posts)[n];
+          if (noteOnHost) {
+            return noteOnHost.seal.id === noteId;
           }
           return false;
         });
@@ -205,28 +148,36 @@ export default function DiaryNote({ title }: ViewProps) {
     );
   }
 
-  const { quips } = note.seal;
-  const quipArray = Array.from(quips).reverse(); // natural reading order
-  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const groupedQuips =
-    noteId !== ''
-      ? setNewDays(
-          groupQuips(noteId, quipArray, brief).sort(([a], [b]) => {
-            if (sort === 'asc') {
-              return a.localeCompare(b);
-            }
+  const { replies } = note.seal;
+  const replyArray = replies
+    ? replies
+        .filter(([k, v]) => v !== null)
+        .sort(([a], [b]) => {
+          if (sort === 'asc') {
+            return a.toString().localeCompare(b.toString());
+          }
 
-            return b.localeCompare(a);
-          })
-        )
-      : [];
+          return b.toString().localeCompare(a.toString());
+        })
+    : [];
+  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
+  const { title: noteTitle, image } = getKindDataFromEssay(note.essay);
+  const groupedReplies = setNewDaysForReplies(
+    groupReplies(noteId, replyArray, unread).sort(([a], [b]) => {
+      if (sort === 'asc') {
+        return a.localeCompare(b);
+      }
+
+      return b.localeCompare(a);
+    })
+  );
 
   return (
     <Layout
       className="h-full flex-1 bg-white"
       header={
         <DiaryNoteHeader
-          title={note.essay.title}
+          title={noteTitle}
           time={noteId}
           canEdit={(isAdmin || window.our === note.essay.author) && !isPending}
           nest={nest}
@@ -236,7 +187,7 @@ export default function DiaryNote({ title }: ViewProps) {
       <Helmet>
         <title>
           {note && channel && group
-            ? `${note.essay.title} in ${channel.meta.title} • ${
+            ? `${noteTitle} in ${channel.meta.title} • ${
                 group.meta.title || ''
               } ${title}`
             : title}
@@ -245,8 +196,8 @@ export default function DiaryNote({ title }: ViewProps) {
       <div className="h-full overflow-y-scroll p-6">
         <section className="mx-auto flex  max-w-[600px] flex-col space-y-12 pb-32">
           <DiaryNoteHeadline
-            quipCount={note.seal.quips.size}
-            quippers={sampleQuippers(note.seal.quips)}
+            replyCount={note.seal.replies ? note.seal.replies.length : 0}
+            lastRepliers={note.seal.meta.lastRepliers}
             essay={note.essay}
             time={bigInt(noteId)}
           />
@@ -264,24 +215,28 @@ export default function DiaryNote({ title }: ViewProps) {
             <div className="mb-3 flex items-center py-3">
               <Divider className="flex-1">
                 <h2 className="font-semibold text-gray-400">
-                  {quips.size > 0
-                    ? `${quips.size} ${pluralize('comment', quips.size)}`
+                  {replies && replies.length > 0
+                    ? `${replies.length} ${pluralize(
+                        'comment',
+                        replies.length
+                      )}`
                     : 'No comments'}
                 </h2>
               </Divider>
             </div>
             {(canWrite && ship === window.our) || (canWrite && compatible) ? (
               <DiaryCommentField
+                han="diary"
                 flag={chFlag}
                 groupFlag={groupFlag}
                 replyTo={noteId}
               />
             ) : null}
             <ul className="mt-12">
-              {groupedQuips.map(([_t, g]) =>
+              {groupedReplies.map(([_t, g]) =>
                 g.map((props) => (
                   <li key={props.time.toString()}>
-                    <DiaryComment {...props} />
+                    <ReplyMessage whom={nest} {...props} showReply />
                   </li>
                 ))
               )}

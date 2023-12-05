@@ -1,71 +1,52 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { Outlet, useParams, useNavigate } from 'react-router';
+import { Outlet, useParams } from 'react-router';
 import * as Toast from '@radix-ui/react-toast';
 import { Helmet } from 'react-helmet';
 import bigInt from 'big-integer';
 import { GridStateSnapshot, VirtuosoGrid } from 'react-virtuoso';
 import { ViewProps } from '@/types/groups';
 import Layout from '@/components/Layout/Layout';
-import {
-  useRouteGroup,
-  useChannel,
-  useGroup,
-  useVessel,
-} from '@/state/groups/groups';
-import {
-  useHeapPerms,
-  useMarkHeapReadMutation,
-  useJoinHeapMutation,
-  useInfiniteCurioBlocks,
-} from '@/state/heap/heap';
+import { useRouteGroup } from '@/state/groups/groups';
+import { useMarkReadMutation, useInfinitePosts } from '@/state/channel/channel';
 import { useHeapSortMode, useHeapDisplayMode } from '@/state/settings';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
-import { canReadChannel, canWriteChannel } from '@/logic/utils';
-import { GRID, HeapCurio } from '@/types/heap';
-import useRecentChannel from '@/logic/useRecentChannel';
 import { useIsMobile } from '@/logic/useMedia';
-import { useLastReconnect } from '@/state/local';
-import { useChannelCompatibility, useChannelIsJoined } from '@/logic/channel';
+import { useFullChannel } from '@/logic/channel';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { PASTEABLE_IMAGE_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
+import getKindDataFromEssay from '@/logic/getKindData';
+import { Post, PageTuple } from '@/types/channel';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';
 
 const virtuosoStateByFlag: Record<string, GridStateSnapshot> = {};
 
 function HeapChannel({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
   const isMobile = useIsMobile();
-  const navigate = useNavigate();
   const { chShip, chName } = useParams();
   const chFlag = `${chShip}/${chName}`;
   const nest = `heap/${chFlag}`;
-  const flag = useRouteGroup();
-  const vessel = useVessel(flag, window.our);
-  const channel = useChannel(flag, nest);
-  const group = useGroup(flag);
-  const { setRecentChannel } = useRecentChannel(flag);
+  const groupFlag = useRouteGroup();
+  const {
+    group,
+    groupChannel: channel,
+    canWrite,
+    compat: { compatible },
+  } = useFullChannel({ groupFlag, nest });
+
   const displayMode = useHeapDisplayMode(chFlag);
   const [addCurioOpen, setAddCurioOpen] = useState(false);
   // for now sortMode is not actually doing anything.
   // need input from design/product on what we want it to actually do, it's not spelled out in figma.
   const sortMode = useHeapSortMode(chFlag);
-  const { curios, fetchNextPage, hasNextPage, isLoading } =
-    useInfiniteCurioBlocks(chFlag);
-  const { mutate: markRead, isLoading: isMarking } = useMarkHeapReadMutation();
-  const { mutateAsync: joinHeap } = useJoinHeapMutation();
-  const perms = useHeapPerms(chFlag);
-  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const canRead = channel
-    ? canReadChannel(channel, vessel, group?.bloc)
-    : false;
-  const joined = useChannelIsJoined(nest);
-  const lastReconnect = useLastReconnect();
-  const { compatible } = useChannelCompatibility(`heap/${chFlag}`);
+  const { posts, fetchNextPage, hasNextPage, isLoading } =
+    useInfinitePosts(nest);
+  const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
 
   const dropZoneId = useMemo(() => `new-curio-input-${chFlag}`, [chFlag]);
   const { isDragging, isOver, droppedFiles, setDroppedFiles } =
@@ -78,79 +59,48 @@ function HeapChannel({ title }: ViewProps) {
     dragEnabled && !isLoading && !addCurioOpen && isDragging && isOver;
   const [dragErrorMessage, setDragErrorMessage] = useState('');
 
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
-    await joinHeap({ group: flag, chan: chFlag });
-    setJoining(false);
-  }, [flag, chFlag, joinHeap]);
-
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel, channel]);
-
-  useEffect(() => {
-    if (joined && !joining && channel && canRead) {
-      setRecentChannel(nest);
-    }
-  }, [
-    chFlag,
-    nest,
-    setRecentChannel,
-    joined,
-    joining,
-    channel,
-    canRead,
-    lastReconnect,
-  ]);
-
-  useEffect(() => {
-    if (channel && !canRead) {
-      navigate(`/groups/${flag}`);
-      setRecentChannel('');
-    }
-  }, [flag, group, channel, vessel, navigate, setRecentChannel, canRead]);
   useDismissChannelNotifications({
     nest,
-    markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
+    markRead: useCallback(() => markRead({ nest }), [markRead, nest]),
     isMarking,
   });
 
   const renderCurio = useCallback(
-    (i: number, curio: HeapCurio, time: bigInt.BigInteger) => (
+    (i: number, outline: Post, time: bigInt.BigInteger) => (
       <div key={time.toString()} tabIndex={0} className="cursor-pointer">
-        {displayMode === GRID ? (
+        {displayMode === 'grid' ? (
           <div className="aspect-h-1 aspect-w-1">
-            <HeapBlock curio={curio} time={time.toString()} />
+            <HeapBlock post={outline} time={time.toString()} />
           </div>
         ) : (
-          <HeapRow key={time.toString()} curio={curio} time={time.toString()} />
+          <HeapRow
+            key={time.toString()}
+            post={outline}
+            time={time.toString()}
+          />
         )}
       </div>
     ),
     [displayMode]
   );
 
-  const getCurioTitle = (curio: HeapCurio) =>
-    curio.heart.title ||
-    curio.heart.content.toString().split(' ').slice(0, 3).join(' ');
-
-  const empty = useMemo(() => Array.from(curios).length === 0, [curios]);
-  const sortedCurios = Array.from(curios)
+  const empty = useMemo(() => posts.length === 0, [posts]);
+  const sortedPosts = posts
+    .filter(([k, v]) => v !== null)
     .sort(([a], [b]) => {
       if (sortMode === 'time') {
         return b.compare(a);
       }
       if (sortMode === 'alpha') {
-        const curioA = curios.get(a);
-        const curioB = curios.get(b);
+        const postA = posts.find(([time]) => time.eq(a))![1];
+        const postB = posts.find(([time]) => time.eq(b))![1];
+        const { title: postATitle } = getKindDataFromEssay(postA?.essay);
+        const { title: postBTitle } = getKindDataFromEssay(postB?.essay);
 
-        return getCurioTitle(curioA).localeCompare(getCurioTitle(curioB));
+        return postATitle.localeCompare(postBTitle);
       }
       return b.compare(a);
-    })
-    .filter(([, c]) => !c.heart.replying); // defensive, they should all be blocks
+    });
 
   const loadOlderCurios = useCallback(
     (atBottom: boolean) => {
@@ -158,13 +108,11 @@ function HeapChannel({ title }: ViewProps) {
         fetchNextPage();
       }
     },
-    [fetchNextPage, hasNextPage]
+    [hasNextPage, fetchNextPage]
   );
 
-  const computeItemKey = (
-    _i: number,
-    [time, _curio]: [bigInt.BigInteger, HeapCurio]
-  ) => time.toString();
+  const computeItemKey = (_i: number, [time, _curio]: PageTuple) =>
+    time.toString();
 
   const thresholds = {
     atBottomThreshold: isMobile ? 125 : 250,
@@ -227,7 +175,7 @@ function HeapChannel({ title }: ViewProps) {
       aside={<Outlet />}
       header={
         <HeapHeader
-          groupFlag={flag}
+          groupFlag={groupFlag}
           nest={nest}
           display={displayMode}
           sort={sortMode}
@@ -252,10 +200,19 @@ function HeapChannel({ title }: ViewProps) {
           <div className="h-full w-full">
             <HeapPlaceholder count={30} />
           </div>
+        ) : empty && !compatible ? (
+          <EmptyPlaceholder>
+            <p>
+              There may be content in this channel, but it is inaccessible
+              because the host is using an older, incompatible version of the
+              app.
+            </p>
+            <p>Please try again later.</p>
+          </EmptyPlaceholder>
         ) : (
           <VirtuosoGrid
-            data={sortedCurios}
-            itemContent={(i, [time, curio]) => renderCurio(i, curio, time)}
+            data={sortedPosts}
+            itemContent={(i, [time, curio]) => renderCurio(i, curio!, time)}
             computeItemKey={computeItemKey}
             style={{ height: '100%', width: '100%', paddingTop: '1rem' }}
             atBottomStateChange={loadOlderCurios}
@@ -293,7 +250,7 @@ function HeapChannel({ title }: ViewProps) {
               </div>
             </Toast.Description>
           </Toast.Root>
-          <Toast.Viewport label="Note successfully published" />
+          <Toast.Viewport label="Post successfully published" />
         </Toast.Provider>
       </div>
     </Layout>

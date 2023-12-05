@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 import Dialog from '../components/Dialog';
-import { useChatState, useMultiDm } from '../state/chat';
+import { useInviteToMultiDm, useMultiDm } from '../state/chat';
 import ShipSelector, { ShipOption } from '../components/ShipSelector';
 
 interface DmInviteDialogProps {
@@ -18,6 +18,7 @@ export default function DmInviteDialog({
   const navigate = useNavigate();
   const [ships, setShips] = useState<ShipOption[]>([]);
   const club = useMultiDm(whom);
+  const { mutateAsync: inviteToMultiDm } = useInviteToMultiDm();
   const invalidShips = ships.filter((ship) => {
     if (!club) {
       return false;
@@ -35,14 +36,17 @@ export default function DmInviteDialog({
   const submitHandler = useCallback(async () => {
     if (whom && !showError) {
       ships.map(async (ship) => {
-        await useChatState.getState().inviteToMultiDm(whom, {
-          by: window.our,
-          for: ship.value,
+        await inviteToMultiDm({
+          id: whom,
+          hive: {
+            by: window.our,
+            for: ship.value,
+          },
         });
       });
       setInviteIsOpen(false);
     }
-  }, [whom, showError, ships, setInviteIsOpen]);
+  }, [whom, showError, ships, setInviteIsOpen, inviteToMultiDm]);
 
   return (
     <Dialog

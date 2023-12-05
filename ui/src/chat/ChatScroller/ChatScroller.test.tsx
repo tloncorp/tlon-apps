@@ -11,11 +11,15 @@ describe('ChatScroller', () => {
     const scrollRef = React.createRef<HTMLDivElement>();
     const result = render(
       <ChatScroller
-        messages={new BTree()}
+        messages={[]}
+        isLoadingOlder={false}
+        isLoadingNewer={false}
         whom={'test'}
         scrollerRef={ref}
         scrollElementRef={scrollRef}
         isScrolling={false}
+        hasLoadedNewest={false}
+        hasLoadedOldest={false}
       />
     );
     expect(result.container.firstChild).toHaveClass('h-full');

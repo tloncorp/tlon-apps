@@ -78,6 +78,7 @@ export default function GroupInfoFields() {
           className="input w-full"
           type="text"
           placeholder="e.g. Urbit Fan Club"
+          tabIndex={-1}
         />
       </div>
 

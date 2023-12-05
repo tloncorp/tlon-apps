@@ -76,7 +76,13 @@ export default function GroupSummary({
               saga={group?.saga || null}
             />
           ) : (
-            <ShipConnection type="combo" ship={ship} status={data?.status} />
+            <ShipConnection
+              type="combo"
+              ship={ship}
+              status={data?.status}
+              agent="channels-server"
+              app="channels"
+            />
           )}
         </div>
       </div>

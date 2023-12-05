@@ -1,14 +1,16 @@
-import React from 'react';
+import cn from 'classnames';
 import { Link, useLocation } from 'react-router-dom';
 import { useGroupFlag, useGroup, useAmAdmin } from '@/state/groups';
 import ChannelList, { ChannelSorter } from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import HostConnection from '@/channels/HostConnection';
-import { getFlagParts } from '@/logic/utils';
+import { getFlagParts, isColor } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import { useCalm } from '@/state/settings';
+import { useTextColor } from '@/logic/useTextColor';
 import GroupActions from './GroupActions';
 
 export default function MobileGroupChannelList() {
@@ -19,16 +21,47 @@ export default function MobileGroupChannelList() {
   const host = getFlagParts(flag).ship;
   const { data } = useConnectivityCheck(host);
   const saga = group?.saga || null;
+  const defaultImportCover = group?.meta.cover === '0x0';
+  const calm = useCalm();
+  const textColor = useTextColor(group?.meta.cover || '');
+
+  const bgStyle = () => {
+    if (
+      group &&
+      !isColor(group?.meta.cover) &&
+      !defaultImportCover &&
+      !calm.disableRemoteContent
+    )
+      return {
+        backgroundImage: `url(${group?.meta.cover}`,
+      };
+    if (group && isColor(group?.meta.cover) && !defaultImportCover)
+      return {
+        backgroundColor: group?.meta.cover,
+      };
+    return {};
+  };
 
   return (
     <>
       <MobileHeader
+        style={{
+          color: textColor,
+          backgroundColor: 'transparent',
+        }}
         title={
           <GroupActions flag={flag} saga={saga} status={data?.status}>
             <button className="flex w-full flex-col items-center">
               <GroupAvatar image={group?.meta.image} className="mt-3" />
               <div className="relative my-1 flex w-max items-center justify-center space-x-1">
-                <h1 className="max-w-xs truncate text-[17px] text-gray-800">
+                <h1
+                  className={cn('max-w-xs truncate text-base')}
+                  style={
+                    textColor === 'white'
+                      ? { textShadow: '0 1px 2px rgba(0,0,0,0.4)' }
+                      : {}
+                  }
+                >
                   {group?.meta.title}
                 </h1>
                 <HostConnection
@@ -51,14 +84,20 @@ export default function MobileGroupChannelList() {
                 to={`/groups/${flag}/channels/new`}
                 state={{ backgroundLocation: location }}
               >
-                <AddIconMobileNav className="h-8 w-8 text-black" />
+                <AddIconMobileNav className="h-8 w-8 " />
               </Link>
             )}
           </div>
         }
         pathBack="/"
       />
-      <ChannelList />
+      <div className="relative z-10 mt-2 h-full rounded-t-3xl bg-white pb-4 drop-shadow-[0_-2px_4px_rgba(0,0,0,0.125)]">
+        <ChannelList paddingTop={6} />
+      </div>
+      <div
+        className="absolute top-[-5%] left-[-5%] -z-10 h-64 w-[110%] bg-cover bg-center mix-blend-multiply blur-md dark:mix-blend-screen"
+        style={bgStyle()}
+      />
     </>
   );
 }

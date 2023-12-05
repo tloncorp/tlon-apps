@@ -11,15 +11,14 @@ import {
   useRouteGroup,
   useVessel,
 } from '@/state/groups/groups';
-import { useChatState } from '@/state/chat';
-import { useHeapBriefs } from '@/state/heap/heap';
-import { useDiaryBriefs } from '@/state/diary';
+import { useUnreads } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, getFlagParts } from '@/logic/utils';
+import { getFlagParts } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { canReadChannel } from '@/logic/channel';
 
 function Groups() {
   const navigate = useNavigate();
@@ -30,8 +29,7 @@ function Groups() {
   const { privacy } = useGroupPrivacy(flag);
   const { ship } = getFlagParts(flag);
   const { isError, isSuccess, isLoading } = useGroupHostHi(flag);
-  const diaryBriefs = useDiaryBriefs();
-  const heapBriefs = useHeapBriefs();
+  const unreads = useUnreads();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
   const isMobile = useIsMobile();
@@ -67,7 +65,7 @@ function Groups() {
     // 3) If we found a channel that matches what we have for "recent channel"
     // and you can read that channel (and you're not on mobile), navigate
     // directly to that channel.
-    // 4) If we don't have a recent channel, grab a channel from our briefs for
+    // 4) If we don't have a recent channel, grab a channel from our unreads for
     // that group, check if we can read it, and if we're not on mobile, then
     // navigate to that channel.
     // 5) If we're on mobile, just navigate to the channel list for the group.
@@ -87,15 +85,9 @@ function Groups() {
         return;
       }
 
-      // done this way to prevent too many renders from useAllBriefs
-      const allBriefs = {
-        ..._.mapKeys(useChatState.getState().briefs, (v, k) => `chat/${k}`),
-        // ..._.mapKeys(useHeapState.getState().briefs, (v, k) => `heap/${k}`),
-        ..._.mapKeys(heapBriefs, (k, v) => `heap/${k}`),
-        ..._.mapKeys(diaryBriefs, (v, k) => `diary/${k}`),
-      };
+      const allUnreads = _.mapKeys(unreads, (k, v) => k);
       const channel = Object.entries(group.channels).find(
-        ([nest]) => nest in allBriefs
+        ([nest]) => nest in allUnreads
       );
 
       canRead = channel && canReadChannel(channel[1], vessel, group?.bloc);
@@ -107,14 +99,13 @@ function Groups() {
     }
   }, [
     root,
+    unreads,
     gang,
     group,
     vessel,
     isMobile,
     recentChannel,
     navigate,
-    diaryBriefs,
-    heapBriefs,
     hasUsedGroupsCount,
   ]);
 

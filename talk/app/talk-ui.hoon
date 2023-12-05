@@ -1,7 +1,6 @@
 /-  u=ui, g=groups, c=chat
 /+  default-agent, dbug, verb, vita-client
 /$  init  %ui-init  %json
-/$  init-0  %ui-init-0  %json
 ^-  agent:gall
 =>
   |%
@@ -75,7 +74,7 @@
 ::
 ++  init
   ^+  cor
-  =/  =cage  settings-event+!>([%put-entry %talk %talk %'showVitaMessage' [%b &]])  
+  =/  =cage  settings-event+!>([%put-entry %talk %talk %'showVitaMessage' [%b &]])
   =?  cor  first-load  (emit %pass /set-vita %agent [our.bowl %settings-store] %poke cage)
   =.  first-load  |
   cor
@@ -92,22 +91,13 @@
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
       [%x %init ~]
-    =+  .^([=groups:g =gangs:g] (scry %gx %groups /init/noun))
-    =/  =init:u
-      :*  groups
-          gangs
-          .^(talk:u (scry %gx %chat /init/talk/noun))
-      ==
-    ``ui-init+!>(init)
-  ::
-      [%x %init %v0 ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v0/noun))
-    =/  =init-0:u
+    =/  =init:u
       :*  groups-ui
           gangs
-          .^(talk:u (scry %gx %chat /init/talk/noun))
+          .^(talk:u (scry %gx %chat /init/noun))
       ==
-    ``ui-init-0+!>(init-0)
+    ``ui-init+!>(init)
   ==
 ::
 ++  poke

@@ -1,45 +1,45 @@
-import React from 'react';
-import cn from 'classnames';
-import { useRemoteCurio } from '@/state/heap/heap';
+import React, { useMemo } from 'react';
+import bigInt from 'big-integer';
+import { useLocation, useNavigate } from 'react-router';
 import HeapLoadingBlock from '@/heap/HeapLoadingBlock';
 // eslint-disable-next-line import/no-cycle
 import HeapBlock from '@/heap/HeapBlock';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import { useChannelPreview, useGang } from '@/state/groups';
-import bigInt from 'big-integer';
 import useGroupJoin from '@/groups/useGroupJoin';
-import { useLocation, useNavigate } from 'react-router';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { isImageUrl } from '@/logic/utils';
-import { inlineToString } from '@/logic/tiptap';
+import { firstInlineSummary } from '@/logic/tiptap';
+import { useRemotePost } from '@/state/channel/channel';
+import { imageUrlFromContent } from '@/types/channel';
+import { linkUrlFromContent } from '@/logic/channel';
+import ShapesIcon from '@/components/icons/ShapesIcon';
+import ShipName from '@/components/ShipName';
+import getHeapContentType from '@/logic/useHeapContentType';
 import ReferenceBar from './ReferenceBar';
-import ShipName from '../ShipName';
 import ReferenceInHeap from './ReferenceInHeap';
-import ShapesIcon from '../icons/ShapesIcon';
+import UnavailableReference from './UnavailableReference';
 
 function CurioReference({
-  chFlag,
   nest,
   idCurio,
-  idCurioComment,
+  idReply,
   isScrolling = false,
   contextApp,
   children,
 }: {
-  chFlag: string;
   nest: string;
   idCurio: string;
-  idCurioComment?: string;
+  idReply?: string;
   isScrolling?: boolean;
   contextApp?: string;
   children?: React.ReactNode;
 }) {
-  const curio = useRemoteCurio(chFlag, idCurio, isScrolling);
-  const curioComment = useRemoteCurio(
-    chFlag,
-    idCurioComment || '',
-    isScrolling
+  const { reference, isError } = useRemotePost(
+    nest,
+    idCurio,
+    isScrolling,
+    idReply
   );
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
@@ -48,13 +48,40 @@ function CurioReference({
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
+  const content = useMemo(() => {
+    if (reference && 'post' in reference && 'essay' in reference.post) {
+      return reference.post.essay.content;
+    }
+    return [];
+  }, [reference]);
+  const author = useMemo(() => {
+    if (reference && 'post' in reference && 'essay' in reference.post) {
+      return reference.post.essay.author;
+    }
+    return '';
+  }, [reference]);
+  const note = useMemo(() => {
+    if (reference && 'post' in reference) {
+      return reference.post;
+    }
+    return undefined;
+  }, [reference]);
+
   const refToken = preview?.group
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
-  const textFallbackTitle = curio?.heart?.content.inline
-    .map((inline) => inlineToString(inline))
-    .join(' ')
-    .toString();
+
+  if (isError) {
+    return <UnavailableReference time={bigInt(0)} nest={nest} preview={null} />;
+  }
+
+  if (!content || !note) {
+    return <HeapLoadingBlock reference />;
+  }
+
+  const textFallbackTitle = firstInlineSummary(content);
+  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
+  const { isImage } = getHeapContentType(url);
 
   const handleOpenReferenceClick = () => {
     if (!group) {
@@ -66,20 +93,13 @@ function CurioReference({
     navigateByApp(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);
   };
 
-  if (!curio) {
-    return <HeapLoadingBlock reference />;
-  }
-
   if (contextApp === 'heap-row') {
     return (
       <ReferenceInHeap
         contextApp={contextApp}
         image={
-          isImageUrl(inlineToString(curio?.heart?.content?.inline[0])) ? (
-            <img
-              src={inlineToString(curio?.heart?.content?.inline[0])}
-              className={cn('h-[72px] w-[72px] rounded object-cover')}
-            />
+          isImage ? (
+            <img src={url} className="h-[72px] w-[72px] rounded object-cover" />
           ) : (
             <ShapesIcon className="h-6 w-6 text-gray-400" />
           )
@@ -87,12 +107,8 @@ function CurioReference({
         title={textFallbackTitle}
         byline={
           <span>
-            Post by{' '}
-            <ShipName
-              name={curioComment?.heart.author || curio?.heart.author}
-              showAlias
-            />{' '}
-            in {preview?.meta?.title}
+            Post by <ShipName name={author} showAlias /> in{' '}
+            {preview?.meta?.title}
           </span>
         }
       >
@@ -102,15 +118,13 @@ function CurioReference({
   }
 
   if (contextApp === 'heap-block') {
-    const href = inlineToString(curio?.heart?.content?.inline[0]);
-
-    if (isImageUrl(href)) {
+    if (isImage) {
       return (
         <ReferenceInHeap
           contextApp={contextApp}
           image={
             <img
-              src={href}
+              src={url}
               loading="lazy"
               className="absolute top-0 left-0 h-full w-full object-cover"
             />
@@ -125,10 +139,8 @@ function CurioReference({
         contextApp={contextApp}
         image={
           <HeapContent
-            className={cn(
-              'absolute top-0 left-0 h-full w-full py-4 px-5 leading-6 line-clamp-3'
-            )}
-            content={curio?.heart.content}
+            className="absolute top-0 left-0 h-full w-full py-4 px-5 leading-6 line-clamp-3"
+            content={content}
           />
         }
       />
@@ -136,31 +148,17 @@ function CurioReference({
   }
 
   return (
-    <div
-      className={cn('heap-inline-block not-prose group', {
-        'heap-inline-block': !idCurioComment,
-        'writ-inline-block': !!idCurioComment,
-      })}
-    >
+    <div className="heap-inline-block not-prose heap-inline-block group">
       <div
         onClick={handleOpenReferenceClick}
-        className={cn(
-          'flex h-full cursor-pointer flex-col justify-between',
-          idCurioComment ? 'p-6' : 'p-2'
-        )}
+        className="flex h-full cursor-pointer flex-col justify-between p-2"
       >
-        <HeapBlock
-          curio={curioComment || curio}
-          time={idCurioComment || idCurio}
-          isComment={!!idCurioComment}
-          refToken={refToken}
-          asRef
-        />
+        <HeapBlock post={note} time={idCurio} refToken={refToken} asRef />
       </div>
       <ReferenceBar
         nest={nest}
         time={bigInt(idCurio)}
-        author={curioComment?.heart.author || curio?.heart.author}
+        author={author}
         groupFlag={preview?.group.flag}
         groupImage={group?.meta.image}
         groupTitle={preview?.group.meta.title}

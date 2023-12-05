@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import { useChatState, usePinnedGroups } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
@@ -23,6 +22,11 @@ import { ConnectionStatus } from '@/state/vitals';
 import HostConnection from '@/channels/HostConnection';
 import { useIsMobile } from '@/logic/useMedia';
 import VolumeSetting from '@/components/VolumeSetting';
+import {
+  useAddPinMutation,
+  useDeletePinMutation,
+  usePinnedGroups,
+} from '@/state/pins';
 
 const { ship } = window;
 
@@ -35,6 +39,8 @@ export function useGroupActions({
   open?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
 }) {
+  const { mutateAsync: addPin } = useAddPinMutation();
+  const { mutateAsync: deletePin } = useDeletePinMutation();
   const [isOpen, setIsOpen] = useState(false);
   const handleOpenChange = useCallback(
     (innerOpen: boolean) => {
@@ -68,9 +74,13 @@ export function useGroupActions({
   const onPinClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      useChatState.getState().togglePin(flag, !isPinned);
+      if (isPinned) {
+        deletePin({ pin: flag });
+      } else {
+        addPin({ pin: flag });
+      }
     },
-    [flag, isPinned]
+    [flag, isPinned, addPin, deletePin]
   );
 
   return {

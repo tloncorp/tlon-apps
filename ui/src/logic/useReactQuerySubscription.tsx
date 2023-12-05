@@ -9,7 +9,7 @@ import { useEffect, useRef } from 'react';
 import api from '@/api';
 import useSchedulerStore from '@/state/scheduler';
 
-export default function useReactQuerySubscription<T>({
+export default function useReactQuerySubscription<T, Event = null>({
   queryKey,
   app,
   path,

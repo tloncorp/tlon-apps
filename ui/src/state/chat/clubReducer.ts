@@ -1,4 +1,4 @@
-import { ClubAction } from '../../types/chat';
+import { ClubAction } from '../../types/dms';
 import { ChatState } from './type';
 
 export default function clubReducer(action: ClubAction) {

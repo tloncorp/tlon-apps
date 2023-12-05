@@ -4,14 +4,11 @@ import {
   usePutEntryMutation,
   useSideBarSortMode,
 } from '@/state/settings';
-import useAllBriefs from './useAllBriefs';
-import { nestToFlag } from './utils';
+import { useUnreads } from '@/state/channel/channel';
+import { useDmUnreads } from '@/state/chat';
+import { DEFAULT_SORT, RECENT_SORT, SortMode } from '@/constants';
+import { whomIsDm, whomIsMultiDm } from './utils';
 
-export const ALPHABETICAL = 'A → Z';
-export const DEFAULT = 'Arranged';
-export const RECENT = 'Recent';
-
-type SortMode = typeof ALPHABETICAL | typeof DEFAULT | typeof RECENT;
 export interface Sorter {
   (a: string, b: string): number;
 }
@@ -25,13 +22,18 @@ export const sortAlphabetical = (aNest: string, bNest: string) =>
   aNest.localeCompare(bNest);
 
 export function useRecentSort() {
-  const briefs = useAllBriefs();
+  const channelUnreads = useUnreads();
+  const { data: dmUnreads } = useDmUnreads();
   const sortRecent = useCallback(
     (aNest: string, bNest: string) => {
-      const [aApp, aFlag] = nestToFlag(aNest);
-      const aLast = briefs[aApp]?.[aFlag]?.last ?? Number.NEGATIVE_INFINITY;
-      const [bApp, bFlag] = nestToFlag(bNest);
-      const bLast = briefs[bApp]?.[bFlag]?.last ?? Number.NEGATIVE_INFINITY;
+      const aUnreads =
+        whomIsDm(aNest) || whomIsMultiDm(aNest) ? dmUnreads : channelUnreads;
+      const aLast = aUnreads[aNest]?.recency ?? Number.NEGATIVE_INFINITY;
+
+      const bUnreads =
+        whomIsDm(bNest) || whomIsMultiDm(bNest) ? dmUnreads : channelUnreads;
+      const bLast = bUnreads[bNest]?.recency ?? Number.NEGATIVE_INFINITY;
+
       if (aLast < bLast) {
         return -1;
       }
@@ -40,7 +42,7 @@ export function useRecentSort() {
       }
       return 0;
     },
-    [briefs]
+    [dmUnreads, channelUnreads]
   );
 
   return sortRecent;
@@ -61,8 +63,9 @@ export default function useSidebarSort({
   const groupSideBarSort = useGroupSideBarSort();
   const sortFn = useMemo(
     () =>
-      defaultSort ||
-      (flag !== '~' ? groupSideBarSort[flag] ?? DEFAULT : sideBarSort),
+      flag !== '~'
+        ? groupSideBarSort[flag] ?? (defaultSort || DEFAULT_SORT)
+        : sideBarSort,
     [defaultSort, flag, groupSideBarSort, sideBarSort]
   );
   const { mutate: mutateSidebar } = usePutEntryMutation({
@@ -107,7 +110,7 @@ export default function useSidebarSort({
         const aVal = accessor(aKey, aObj);
         const bVal = accessor(bKey, bObj);
 
-        const sorter = sortOptions[sortFn] ?? sortOptions[ALPHABETICAL];
+        const sorter = sortOptions[sortFn] ?? sortOptions[RECENT_SORT];
         return sorter(aVal, bVal);
       });
 

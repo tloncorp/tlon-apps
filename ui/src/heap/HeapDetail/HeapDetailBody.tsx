@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
-import useHeapContentType from '@/logic/useHeapContentType';
+import getHeapContentType from '@/logic/useHeapContentType';
 import { useEmbed } from '@/state/embed';
 import { validOembedCheck } from '@/logic/utils';
-import { HeapCurio, isLink } from '@/types/heap';
 import HeapContent from '@/heap/HeapContent';
 import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 import HeapDetailEmbed from '@/heap/HeapDetail/HeapDetailEmbed';
@@ -10,20 +9,29 @@ import { useIsMobile } from '@/logic/useMedia';
 import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
 import ContentReference from '@/components/References/ContentReference';
 import { useCalm } from '@/state/settings';
+import {
+  isCite,
+  VerseBlock,
+  imageUrlFromContent,
+  PostEssay,
+} from '@/types/channel';
+import { linkUrlFromContent } from '@/logic/channel';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import HeapYoutubePlayer from '../HeapYoutubePlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';
 import HeapVideoPlayer from '../HeapVideoPlayer';
 
-export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
+export default function HeapDetailBody({ essay }: { essay?: PostEssay }) {
   const calm = useCalm();
-  const { content } = curio.heart;
-  const url =
-    content.inline.length > 0 && isLink(content.inline[0])
-      ? content.inline[0].link.href
-      : '';
   const isMobile = useIsMobile();
+  const { content } = essay || { content: [] };
+  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { embed, isError, error } = useEmbed(url, isMobile);
-  const { isText, isImage, isAudio, isVideo } = useHeapContentType(url);
+  const { isImage, isText, isAudio, isVideo } = getHeapContentType(url);
+  const blocks = content.filter(
+    (b) => 'block' in b && isCite(b.block)
+  ) as VerseBlock[];
+  const block = blocks[0]?.block;
 
   useEffect(() => {
     if (isError) {
@@ -31,14 +39,21 @@ export default function HeapDetailBody({ curio }: { curio: HeapCurio }) {
     }
   }, [isError, error]);
 
-  if (content.block.length > 0 && 'cite' in content.block[0]) {
+  if (!essay) {
     return (
       <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
         <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
-          <ContentReference
-            contextApp="heap-detail"
-            cite={content.block[0].cite}
-          />
+          <LoadingSpinner />
+        </div>
+      </div>
+    );
+  }
+
+  if (block && 'cite' in block) {
+    return (
+      <div className="mx-auto flex h-full w-full items-center justify-center bg-gray-50 p-8 text-[17px] leading-[26px]">
+        <div className="max-h-[100%] min-w-32 max-w-prose overflow-y-auto rounded-md bg-white">
+          <ContentReference contextApp="heap-detail" cite={block.cite} />
         </div>
       </div>
     );

@@ -1,44 +1,27 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
-import bigInt from 'big-integer';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { unixToDa } from '@urbit/api';
 import * as Toast from '@radix-ui/react-toast';
-import { useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout/Layout';
+import { useRouteGroup } from '@/state/groups/groups';
 import {
-  useChannel,
-  useGroup,
-  useRouteGroup,
-  useVessel,
-} from '@/state/groups/groups';
-import {
-  useNotes,
-  useDiaryDisplayMode,
-  useDiarySortMode,
-  useDiaryPerms,
-  useOlderNotes,
-  useJoinDiaryMutation,
-  useDiaryIsJoined,
-  useMarkReadDiaryMutation,
-  usePendingNotes,
-  useDiaryState,
-  useNotesOnHost,
-  useArrangedNotes,
-} from '@/state/diary';
+  useDisplayMode,
+  useSortMode,
+  useMarkReadMutation,
+  useArrangedPosts,
+  useInfinitePosts,
+} from '@/state/channel/channel';
 import {
   useUserDiarySortMode,
   useUserDiaryDisplayMode,
 } from '@/state/settings';
-import { useConnectivityCheck } from '@/state/vitals';
+import { PageTuple } from '@/types/channel';
 import useDismissChannelNotifications from '@/logic/useDismissChannelNotifications';
 import { ViewProps } from '@/types/groups';
 import DiaryGridView from '@/diary/DiaryList/DiaryGridView';
-import useRecentChannel from '@/logic/useRecentChannel';
-import { canReadChannel, canWriteChannel } from '@/logic/utils';
-import { useLastReconnect } from '@/state/local';
-import { DiaryOutline } from '@/types/diary';
+import { useFullChannel } from '@/logic/channel';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import DiaryListItem from './DiaryList/DiaryListItem';
 import useDiaryActions from './useDiaryActions';
 import DiaryChannelListPlaceholder from './DiaryChannelListPlaceholder';
@@ -47,102 +30,37 @@ import DiaryHeader from './DiaryHeader';
 const virtuosoStateByFlag: Record<string, StateSnapshot> = {};
 
 function DiaryChannel({ title }: ViewProps) {
-  const [joining, setJoining] = useState(false);
-  const [shouldLoadOlderNotes, setShouldLoadOlderNotes] = useState(false);
-  const { chShip, chName } = useParams();
-  const chFlag = `${chShip}/${chName}`;
-  const { data } = useConnectivityCheck(chShip ?? '');
-  const nest = `diary/${chFlag}`;
-  const groupFlag = useRouteGroup();
-  const vessel = useVessel(groupFlag, window.our);
-  const { letters, isLoading } = useNotes(chFlag);
-  const pendingNotes = usePendingNotes();
-  const queryClient = useQueryClient();
-  const loadingOlderNotes = useOlderNotes(chFlag, 30, shouldLoadOlderNotes);
-  const { mutateAsync: joinDiary } = useJoinDiaryMutation();
-  const { mutate: markRead, isLoading: isMarking } = useMarkReadDiaryMutation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { setRecentChannel } = useRecentChannel(groupFlag);
-  const group = useGroup(groupFlag);
-  const channel = useChannel(groupFlag, nest);
-  const joined = useDiaryIsJoined(chFlag);
-  const lastReconnect = useLastReconnect();
-  const notesOnHost = useNotesOnHost(chFlag, pendingNotes.length > 0);
-
-  const checkForNotes = useCallback(async () => {
-    // if we have pending notes and the ship is connected
-    // we can check if the notes have been posted
-    // if they have, we can refetch the data to get the new note.
-    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
-    if (
-      data?.status &&
-      'complete' in data.status &&
-      data.status.complete === 'yes'
-    ) {
-      if (
-        pendingNotes.length > 0 &&
-        notesOnHost &&
-        !Object.entries(notesOnHost).every(([_time, n]) =>
-          Array.from(letters).find(([_t, l]) => l.sent === n.sent)
-        )
-      ) {
-        queryClient.refetchQueries({
-          queryKey: ['diary', 'notes', chFlag],
-          exact: true,
-        });
-        useDiaryState.getState().set((s) => ({
-          ...s,
-          pendingNotes: [],
-        }));
+  const { chShip, chName } = useParams();
+  const chFlag = `${chShip}/${chName}`;
+  const nest = `diary/${chFlag}`;
+  const groupFlag = useRouteGroup();
+  const {
+    posts: notes,
+    isLoading,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfinitePosts(nest);
+  const { mutateAsync: markRead, isLoading: isMarking } = useMarkReadMutation();
+  const loadOlderNotes = useCallback(
+    (atBottom: boolean) => {
+      if (atBottom && hasNextPage) {
+        fetchNextPage();
       }
-    }
-  }, [chFlag, queryClient, data, letters, notesOnHost, pendingNotes]);
+    },
+    [hasNextPage, fetchNextPage]
+  );
 
-  const clearPendingNotes = useCallback(() => {
-    // if we have pending notes and the ship is connected
-    // we can check if the notes have been posted
-    // if they have, we can clear the pending notes
-    // only called if onSuccess in useAddNoteMutation fails to clear pending notes
-    if (
-      pendingNotes.length > 0 &&
-      data?.status &&
-      'complete' in data.status &&
-      data.status.complete === 'yes'
-    ) {
-      pendingNotes.forEach((id) => {
-        if (
-          notesOnHost &&
-          Object.entries(notesOnHost).find(
-            ([_t, l]) => unixToDa(l.sent).toString() === id
-          )
-        ) {
-          useDiaryState.getState().set((s) => ({
-            ...s,
-            pendingNotes: s.pendingNotes.filter((n) => n !== id),
-          }));
-        }
-      });
-    }
-  }, [pendingNotes, notesOnHost, data]);
-
-  const joinChannel = useCallback(async () => {
-    setJoining(true);
-    await joinDiary({ group: groupFlag, chan: chFlag });
-    setJoining(false);
-  }, [groupFlag, chFlag, joinDiary]);
-
-  useEffect(() => {
-    if (channel && !canReadChannel(channel, vessel, group?.bloc)) {
-      navigate(`/groups/${groupFlag}`);
-      setRecentChannel('');
-    }
-  }, [groupFlag, group, channel, vessel, navigate, setRecentChannel]);
-
-  useEffect(() => {
-    checkForNotes();
-    clearPendingNotes();
-  }, [checkForNotes, clearPendingNotes]);
+  const {
+    group,
+    groupChannel: channel,
+    canWrite,
+    compat: { compatible },
+  } = useFullChannel({
+    groupFlag,
+    nest,
+  });
 
   const newNote = new URLSearchParams(location.search).get('new');
   const [showToast, setShowToast] = useState(false);
@@ -154,37 +72,10 @@ function DiaryChannel({ title }: ViewProps) {
   // user can override admin-set display and sort mode for this channel type
   const userDisplayMode = useUserDiaryDisplayMode(chFlag);
   const userSortMode = useUserDiarySortMode(chFlag);
-  const displayMode = useDiaryDisplayMode(chFlag);
-  const sortMode = useDiarySortMode(chFlag);
-  const arrangedNotes = useArrangedNotes(chFlag);
+  const displayMode = useDisplayMode(nest);
+  const sortMode = useSortMode(nest);
+  const arrangedNotes = useArrangedPosts(nest);
   const lastArrangedNote = arrangedNotes[arrangedNotes.length - 1];
-
-  const perms = useDiaryPerms(chFlag);
-  const canWrite = canWriteChannel(perms, vessel, group?.bloc);
-  const canRead = channel
-    ? canReadChannel(channel, vessel, group?.bloc)
-    : false;
-
-  useEffect(() => {
-    if (!joined) {
-      joinChannel();
-    }
-  }, [joined, joinChannel, channel]);
-
-  useEffect(() => {
-    if (joined && !joining && channel && canRead) {
-      setRecentChannel(nest);
-    }
-  }, [
-    chFlag,
-    nest,
-    setRecentChannel,
-    joined,
-    joining,
-    channel,
-    canRead,
-    lastReconnect,
-  ]);
 
   useEffect(() => {
     let timeout: any;
@@ -204,48 +95,50 @@ function DiaryChannel({ title }: ViewProps) {
 
   useDismissChannelNotifications({
     nest,
-    markRead: useCallback(() => markRead({ flag: chFlag }), [markRead, chFlag]),
+    markRead: useCallback(
+      () => markRead({ nest: `diary/${chFlag}` }),
+      [markRead, chFlag]
+    ),
     isMarking,
   });
 
-  const sortedNotes = Array.from(letters).sort(([a], [b]) => {
-    if (sortMode === 'arranged') {
-      // if only one note is arranged, put it first
-      if (
-        arrangedNotes.includes(a.toString()) &&
-        !arrangedNotes.includes(b.toString())
-      ) {
-        return -1;
+  const sortedNotes = notes
+    .filter(([k, v]) => v !== null)
+    .sort(([a], [b]) => {
+      if (sortMode === 'arranged') {
+        // if only one note is arranged, put it first
+        if (
+          arrangedNotes.includes(a.toString()) &&
+          !arrangedNotes.includes(b.toString())
+        ) {
+          return -1;
+        }
+
+        // if both notes are arranged, sort by their position in the arranged list
+        if (
+          arrangedNotes.includes(a.toString()) &&
+          arrangedNotes.includes(b.toString())
+        ) {
+          return arrangedNotes.indexOf(a.toString()) >
+            arrangedNotes.indexOf(b.toString())
+            ? 1
+            : -1;
+        }
       }
 
-      // if both notes are arranged, sort by their position in the arranged list
-      if (
-        arrangedNotes.includes(a.toString()) &&
-        arrangedNotes.includes(b.toString())
-      ) {
-        return arrangedNotes.indexOf(a.toString()) >
-          arrangedNotes.indexOf(b.toString())
-          ? 1
-          : -1;
+      if (userSortMode === 'time-dsc') {
+        return b.compare(a);
       }
-    }
+      if (userSortMode === 'time-asc') {
+        return a.compare(b);
+      }
 
-    if (userSortMode === 'time-dsc') {
       return b.compare(a);
-    }
-    if (userSortMode === 'time-asc') {
-      return a.compare(b);
-    }
+    });
 
-    return b.compare(a);
-  });
-
-  const itemContent = (
-    i: number,
-    [time, outline]: [bigInt.BigInteger, DiaryOutline]
-  ) => (
+  const itemContent = (i: number, [time, outline]: PageTuple) => (
     <div className="my-6 mx-auto max-w-[600px] px-6">
-      <DiaryListItem outline={outline} time={time} />
+      <DiaryListItem note={outline!} time={time} />
       {lastArrangedNote === time.toString() && (
         <div className="mt-6 flex justify-center">
           <div className="flex items-center space-x-2 text-gray-500">
@@ -254,16 +147,6 @@ function DiaryChannel({ title }: ViewProps) {
         </div>
       )}
     </div>
-  );
-
-  const loadOlderNotes = useCallback(
-    (load: boolean) => {
-      if (!loadingOlderNotes && load) {
-        setShouldLoadOlderNotes(true);
-      }
-      setShouldLoadOlderNotes(false);
-    },
-    [loadingOlderNotes]
   );
 
   const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -303,14 +186,8 @@ function DiaryChannel({ title }: ViewProps) {
         <div className="relative flex flex-col items-center">
           <Toast.Root duration={3000} defaultOpen={false} open={showToast}>
             <Toast.Description asChild>
-              <div className="absolute z-10 flex w-[415px] -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-black shadow-xl dark:bg-gray-200">
+              <div className="absolute z-10 flex -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-black shadow-xl dark:bg-gray-200">
                 <span className="py-2 px-4">Note successfully published</span>
-                <button
-                  onClick={onCopy}
-                  className="-mx-4 -my-2 w-[135px] rounded-r-lg bg-blue py-2 px-4 text-white dark:text-black"
-                >
-                  {didCopy ? 'Copied' : 'Copy Note Link'}
-                </button>
               </div>
             </Toast.Description>
           </Toast.Root>
@@ -320,16 +197,20 @@ function DiaryChannel({ title }: ViewProps) {
       <div className="h-full bg-gray-50">
         {isLoading ? (
           <DiaryChannelListPlaceholder count={4} />
+        ) : !compatible && sortedNotes.length === 0 ? (
+          <EmptyPlaceholder>
+            <p>
+              There may be content in this channel, but it is inaccessible
+              because the host is using an older, incompatible version of the
+              app.
+            </p>
+            <p>Please try again later.</p>
+          </EmptyPlaceholder>
         ) : (displayMode === 'grid' && userDisplayMode === undefined) ||
           userDisplayMode === 'grid' ? (
           <DiaryGridView
             outlines={sortedNotes}
-            loadOlderNotes={() => {
-              if (!loadingOlderNotes) {
-                setShouldLoadOlderNotes(true);
-              }
-              setShouldLoadOlderNotes(false);
-            }}
+            loadOlderNotes={loadOlderNotes}
           />
         ) : (
           <div className="h-full">
@@ -340,9 +221,7 @@ function DiaryChannel({ title }: ViewProps) {
                 data={sortedNotes}
                 itemContent={itemContent}
                 overscan={200}
-                atBottomStateChange={(atBottom) => {
-                  loadOlderNotes(atBottom);
-                }}
+                atBottomStateChange={loadOlderNotes}
                 components={{
                   Header: () => <div />,
                   Footer: () => <div className="h-4 w-full" />,

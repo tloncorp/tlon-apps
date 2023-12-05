@@ -104,7 +104,9 @@ import NewGroupView from './groups/NewGroup/NewGroupView';
 import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
+import DMThread from './dms/DMThread';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';
+import MobileDmSearch from './dms/MobileDmSearch';
 import BlockedUsersView from './components/Settings/BlockedUsersView';
 import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
@@ -204,7 +206,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 {isSmall ? null : (
                   <Route
                     path="message/:idShip/:idTime"
-                    element={<ChatThread />}
+                    element={<DMThread />}
                   />
                 )}
               </Route>
@@ -212,14 +214,11 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             {isSmall && (
               <Route
                 path=":ship/message/:idShip/:idTime"
-                element={<ChatThread />}
+                element={<DMThread />}
               />
             )}
             {isMobile && (
-              <Route
-                path=":ship/search/:query?"
-                element={<MobileChatSearch />}
-              />
+              <Route path=":ship/search/:query?" element={<MobileDmSearch />} />
             )}
           </Route>
 
@@ -233,10 +232,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 element={<ChatChannel title={` • ${appHead('').title}`} />}
               />
               {isSmall ? (
-                <Route
-                  path="message/:idShip/:idTime"
-                  element={<ChatThread />}
-                />
+                <Route path="message/:idTime" element={<ChatThread />} />
               ) : null}
               {isMobile && (
                 <Route path="search/:query?" element={<MobileChatSearch />} />
@@ -291,11 +287,11 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           {isMobile ? (
             <>
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
@@ -370,20 +366,20 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 {isSmall ? null : (
                   <Route
                     path="message/:idShip/:idTime"
-                    element={<ChatThread />}
+                    element={<DMThread />}
                   />
                 )}
               </Route>
               {isSmall && (
                 <Route
                   path=":ship/search/:query?"
-                  element={<MobileChatSearch />}
+                  element={<MobileDmSearch />}
                 />
               )}
               {isSmall && (
                 <Route
                   path=":ship/message/:idShip/:idTime"
-                  element={<ChatThread />}
+                  element={<DMThread />}
                 />
               )}
             </Route>
@@ -458,14 +454,14 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 >
                   {isSmall ? null : (
                     <Route
-                      path="message/:idShip/:idTime"
+                      path="message/:idTime/:idReplyTime?"
                       element={<ChatThread />}
                     />
                   )}
                 </Route>
                 {isSmall ? (
                   <Route
-                    path="message/:idShip/:idTime"
+                    path="message/:idTime/:idReplyTime?"
                     element={<ChatThread />}
                   />
                 ) : null}
@@ -482,7 +478,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   element={<HeapChannel title={` • ${groupsTitle}`} />}
                 />
                 <Route
-                  path="curio/:idCurio"
+                  path="curio/:idTime/:idReplyTime?"
                   element={<HeapDetail title={` • ${groupsTitle}`} />}
                 />
               </Route>
@@ -495,7 +491,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   element={<DiaryChannel title={` • ${groupsTitle}`} />}
                 />
                 <Route
-                  path="note/:noteId"
+                  path="note/:noteId/:idReplyTime?"
                   element={<DiaryNote title={` • ${groupsTitle}`} />}
                 />
                 <Route path="edit">
@@ -581,7 +577,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             element={<RejectConfirmModal />}
           />
           <Route
-            path="/groups/:ship/:name/channels/heap/:chShip/:chName/curio/:idCurio/edit"
+            path="/groups/:ship/:name/channels/heap/:chShip/:chName/curio/:idTime/edit"
             element={<EditCurioModal />}
           />
           <Route
@@ -593,14 +589,15 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             element={<NewChannelModal />}
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
+          <Route path="dm/:id/edit-info" element={<MultiDMEditModal />} />
           {isMobile ? (
             <>
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writShip/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idShip/:idTime/picker/:writShip/:writTime"
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route

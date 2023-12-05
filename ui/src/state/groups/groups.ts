@@ -28,7 +28,7 @@ import {
   Gang,
 } from '@/types/groups';
 import api from '@/api';
-import { BaitCite } from '@/types/chat';
+import { BaitCite } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
@@ -355,7 +355,7 @@ export function useGangList() {
   return useMemo(() => Object.keys(data || {}), [data]);
 }
 
-export function useChannel(
+export function useGroupChannel(
   flag: string,
   channel: string
 ): GroupChannel | undefined {
@@ -932,8 +932,8 @@ export function useGroupLeaveMutation() {
         queryClient.removeQueries(['gangs', variables.flag]);
         queryClient.removeQueries(['gang-preview', variables.flag]);
         queryClient.removeQueries([GROUPS_KEY, variables.flag]);
-        await queryClient.refetchQueries(['gangs']);
-        await queryClient.refetchQueries([GROUPS_KEY]);
+        await queryClient.invalidateQueries(['gangs']);
+        await queryClient.invalidateQueries([GROUPS_KEY]);
       },
     }
   );
