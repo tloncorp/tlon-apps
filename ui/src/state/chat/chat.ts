@@ -289,7 +289,8 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
         writs: newWrits,
       };
 
-      const cachedWrit = lastPage.writs[decToUd(unixToDa(writ.essay.sent).toString())];
+      const cachedWrit =
+        lastPage.writs[decToUd(unixToDa(writ.essay.sent).toString())];
 
       if (
         cachedWrit &&
@@ -1255,8 +1256,8 @@ export function useInfiniteDMs(
             checkResponseForDeliveries(response);
           }
 
-          // for now, let's avoid updating data in place and always refetch
-          // when we hear a fact
+          infiniteDMsUpdater(queryKey, data);
+
           invalidate.current(queryKey);
         },
       });
