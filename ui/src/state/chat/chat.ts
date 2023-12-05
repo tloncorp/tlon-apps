@@ -289,14 +289,14 @@ function infiniteDMsUpdater(queryKey: QueryKey, data: WritDiff | WritResponse) {
         writs: newWrits,
       };
 
-      const cachedWrit = lastPage.writs[unixToDa(writ.essay.sent).toString()];
+      const cachedWrit = lastPage.writs[decToUd(unixToDa(writ.essay.sent).toString())];
 
       if (
         cachedWrit &&
         time.toString() !== unixToDa(writ.essay.sent).toString()
       ) {
         // remove cached post if it exists
-        delete newLastPage.writs[unixToDa(writ.essay.sent).toString()];
+        delete newLastPage.writs[decToUd(unixToDa(writ.essay.sent).toString())];
 
         // set delivered now that we have the real writ
         useWritsStore
@@ -1102,11 +1102,6 @@ export function useSendMessage() {
           (p) => p.cacheId !== trackingId
         ),
       }));
-    },
-    onSettled: (_data, _error, variables) => {
-      const { whom } = variables;
-      const queryKey = ['dms', whom, 'infinite'];
-      queryClient.invalidateQueries(queryKey);
     },
   });
 }
