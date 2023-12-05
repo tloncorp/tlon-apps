@@ -2131,16 +2131,6 @@ export function useAddPostReactMutation() {
 
       await updatePostsInCache(variables, postsUpdater);
     },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'posts', flag]);
-      await queryClient.invalidateQueries([
-        han,
-        'posts',
-        flag,
-        variables.postId,
-      ]);
-    },
   });
 }
 
