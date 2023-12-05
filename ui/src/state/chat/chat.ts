@@ -1250,22 +1250,20 @@ export function useInfiniteDMs(
   );
 
   useEffect(() => {
-    if (unread) {
-      api.subscribe({
-        app: 'chat',
-        path: `/${type}/${whom}`,
-        event: (data: WritResponse) => {
-          const { response } = data;
-          if (response && useWritsStore.getState().hasSomeUndelivered()) {
-            checkResponseForDeliveries(response);
-          }
+    api.subscribe({
+      app: 'chat',
+      path: `/${type}/${whom}`,
+      event: (data: WritResponse) => {
+        const { response } = data;
+        if (response && useWritsStore.getState().hasSomeUndelivered()) {
+          checkResponseForDeliveries(response);
+        }
 
-          // for now, let's avoid updating data in place and always refetch
-          // when we hear a fact
-          invalidate.current();
-        },
-      });
-    }
+        // for now, let's avoid updating data in place and always refetch
+        // when we hear a fact
+        invalidate.current();
+      },
+    });
   }, [whom, type, isDM, queryKey, unread]);
 
   const { data, ...rest } = useInfiniteQuery<PagedWrits>({
