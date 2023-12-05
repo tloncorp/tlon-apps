@@ -1233,8 +1233,8 @@ export function useInfiniteDMs(
 
   const invalidate = useRef(
     _.debounce(
-      () => {
-        queryClient.invalidateQueries({ queryKey });
+      (key: string[]) => {
+        queryClient.invalidateQueries({ queryKey: key });
       },
       300,
       {
@@ -1255,15 +1255,13 @@ export function useInfiniteDMs(
             checkResponseForDeliveries(response);
           }
 
-          infiniteDMsUpdater(queryKey, data);
-
           // for now, let's avoid updating data in place and always refetch
           // when we hear a fact
-          invalidate.current();
+          invalidate.current(queryKey);
         },
       });
     }
-  }, [whom, type, isDM, queryKey, unread]);
+  }, [whom, type, isDM, queryKey, unread, invalidate]);
 
   const { data, ...rest } = useInfiniteQuery<PagedWrits>({
     queryKey,
