@@ -1260,6 +1260,8 @@ export function useInfiniteDMs(
             checkResponseForDeliveries(response);
           }
 
+          infiniteDMsUpdater(queryKey, data);
+
           // for now, let's avoid updating data in place and always refetch
           // when we hear a fact
           invalidate.current(queryKey);
