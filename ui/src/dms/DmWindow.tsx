@@ -56,6 +56,10 @@ export default function DmWindow({
   } = useInfiniteDMs(whom, scrollTo?.toString(), shouldGetLatest);
 
   const latestMessageIndex = writs.length - 1;
+  const scrollToInMessages = useMemo(
+    () => (scrollTo ? writs.findIndex((m) => m[0].eq(scrollTo)) !== -1 : false),
+    [scrollTo, writs]
+  );
   const scrollToIndex = useMemo(
     () =>
       scrollTo ? writs.findIndex((m) => m[0].eq(scrollTo)) : latestMessageIndex,
@@ -115,10 +119,29 @@ export default function DmWindow({
   );
 
   useEffect(() => {
+    // If we have a scrollTo and we have newer data that's not yet loaded, we
+    // need to make sure we get the latest data the next time we fetch (i.e.,
+    // when the user cliks the "Go to Latest" button).
     if (scrollTo && hasPreviousPage) {
       setShouldGetLatest(true);
     }
   }, [scrollTo, hasPreviousPage]);
+
+  useEffect(() => {
+    const doRefetch = async () => {
+      await refetch();
+    };
+
+    // If we have a scrollTo, we have a next page, and the scrollTo message is
+    // not in our current set of messages, that means we're scrolling to a
+    // message that's not yet cached. So, we need to refetch (which would fetch
+    // messages around the scrollTo time), then scroll to the message.
+    // We also need to make sure that shouldGetLatest is false, so that we don't
+    // get into a loop of fetching the latest data.
+    if (scrollTo && hasNextPage && !scrollToInMessages && !shouldGetLatest) {
+      doRefetch();
+    }
+  }, [scrollTo, hasNextPage, refetch, scrollToInMessages, shouldGetLatest]);
 
   if (isLoading) {
     return (
