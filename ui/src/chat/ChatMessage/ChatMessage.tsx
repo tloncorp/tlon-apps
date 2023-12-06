@@ -390,7 +390,7 @@ const ChatMessage = React.memo<
                 openReactionDetails={handleReactionDetailsOpened}
               />
             )}
-            <div className="-ml-1 mr-1 py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
+            <div className="-ml-1 mr-1 w-[29px] py-2 text-xs font-semibold text-gray-400 opacity-0 sm:group-one-hover:opacity-100">
               {format(unix, 'HH:mm')}
             </div>
             <div className="wrap-anywhere flex w-full">
