@@ -47,13 +47,11 @@ export default function ReplyMessageOptions(props: {
 }) {
   const { open, onOpenChange, whom, reply, openReactionDetails, showReply } =
     props;
+  const nest = `chat/${whom}`;
   const { seal, memo } = reply ?? emptyReply;
-  const threadParentId = seal['parent-id'];
-  const isParent = threadParentId === seal.id;
-  const isDMorMultiDM = useIsDmOrMultiDm(whom);
-  const nest = isDMorMultiDM || isParent ? `chat/${whom}` : whom;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
+  const threadParentId = seal['parent-id'];
   const { didCopy, doCopy } = useCopy(
     `/1/chan/${nest}/msg/${threadParentId}/${seal.id}`
   );
@@ -69,9 +67,11 @@ export default function ReplyMessageOptions(props: {
   );
   // TODO: add delete mutation for parent DMs
   const { chShip, chName } = useParams();
+  const isParent = threadParentId === seal.id;
   const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
   const isMobile = useIsMobile();
+  const isDMorMultiDM = useIsDmOrMultiDm(whom);
   const perms = usePerms(isDMorMultiDM ? `fake/nest/${whom}` : nest);
   const vessel = useVessel(groupFlag, window.our);
   const group = useGroup(groupFlag);
