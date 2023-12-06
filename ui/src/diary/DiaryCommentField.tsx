@@ -20,6 +20,11 @@ import WritChanReference from '@/components/References/WritChanReference';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ArrowNWIcon16 from '@/components/icons/ArrowNIcon16';
+import {
+  useChatInfo,
+  fetchChatBlocks,
+  useChatStore,
+} from '@/chat/useChatStore';
 
 interface DiaryCommentFieldProps {
   flag: string;
@@ -51,6 +56,7 @@ export default function DiaryCommentField({
   const replyId = searchParams.get('reply');
   const nest = `${han}/${flag}`;
   const reply = useReply(nest, replyTo, replyId || '');
+  const chatInfo = useChatInfo(replyTo);
   const { isPending, setPending, setReady } = useRequestState();
   const { mutateAsync: addReply } = useAddReplyMutation();
   const { privacy } = useGroupPrivacy(groupFlag);
@@ -65,7 +71,15 @@ export default function DiaryCommentField({
       if (sendDisabled) {
         return;
       }
-      if (!editor.getText() && !replyCite) {
+
+      const blocks = fetchChatBlocks(replyTo);
+
+      if (
+        !editor.getText() &&
+        !replyCite &&
+        blocks.length === 0 &&
+        chatInfo.blocks.length === 0
+      ) {
         return;
       }
 
@@ -84,6 +98,15 @@ export default function DiaryCommentField({
           {
             block: replyCite,
           },
+          ...content,
+        ];
+      }
+
+      if (blocks.length > 0) {
+        content = [
+          ...blocks.map((b) => ({
+            block: b,
+          })),
           ...content,
         ];
       }
@@ -112,6 +135,7 @@ export default function DiaryCommentField({
       });
       setReplyCite(undefined);
       setSearchParms();
+      useChatStore.getState().setBlocks(replyTo, []);
       setReady();
     },
     [
@@ -127,6 +151,7 @@ export default function DiaryCommentField({
       setReplyCite,
       setSearchParms,
       addReply,
+      chatInfo.blocks.length,
     ]
   );
 
@@ -240,6 +265,17 @@ export default function DiaryCommentField({
           />
         </div>
       )}
+      {chatInfo.blocks.length > 0 ? (
+        <div className="mb-4 flex items-center justify-start space-x-2 font-semibold">
+          <span className="mr-2 text-gray-600">Attached: </span>
+          {chatInfo.blocks.length}{' '}
+          {chatInfo.blocks.every((b) => 'image' in b) ? 'image' : 'reference'}
+          {chatInfo.blocks.length === 1 ? '' : 's'}
+          <button className="icon-button ml-auto" onClick={clearAttachments}>
+            <X16Icon className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
       <div
         className={cn(
           'w-full',
@@ -272,7 +308,9 @@ export default function DiaryCommentField({
                 disabled={
                   !compatible ||
                   isPending ||
-                  (messageEditor.getText() === '' && !replyCite)
+                  (messageEditor.getText() === '' &&
+                    !replyCite &&
+                    chatInfo.blocks.length === 0)
                 }
                 onClick={onClick}
               >
