@@ -1177,8 +1177,16 @@
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
     =*  group  group.perm.perm.channel
+    =/  path-len=@ud  (lent rest)
+    =/  is-reply=?
+      ?~  rest  %.n
+      &(=(path-len 3) =(i.rest 'message'))
+    =/  thread-rest
+      ?:  =(is-reply %.y)
+        (scag (dec path-len) rest)
+      rest
     =/  gn=nest:g  nest
-    =/  thread  (welp /[kind.nest]/(scot %p ship.nest)/[name.nest] rest)
+    =/  thread  (welp /[kind.nest]/(scot %p ship.nest)/[name.nest] thread-rest)
     =/  rope  [`group `gn q.byk.bowl thread]
     =/  link  (welp /groups/(scot %p p.group)/[q.group]/channels thread)
     [& & rope con link but]
