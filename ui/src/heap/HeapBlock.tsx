@@ -47,6 +47,7 @@ interface TopBarProps extends CurioDisplayProps {
   isUndelivered?: boolean;
   linkFromNotification?: string;
   author: string;
+  citeNest?: string;
 }
 
 function TopBar({
@@ -58,13 +59,14 @@ function TopBar({
   linkFromNotification,
   longPress = false,
   isUndelivered = false,
+  citeNest,
   time,
   canEdit,
   author,
 }: TopBarProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const chFlag = useChannelFlag();
-  const nest = `heap/${chFlag}`;
+  const nest = citeNest || `heap/${chFlag}`;
   const {
     didCopy,
     menuOpen,
@@ -293,6 +295,7 @@ function HeapBlockWrapper({
 
 interface HeapBlockProps extends CurioDisplayProps {
   post: Post;
+  citeNest?: string;
   linkFromNotification?: string;
 }
 
@@ -308,6 +311,7 @@ const hiddenPostContent: Story = [
 
 export default function HeapBlock({
   post,
+  citeNest,
   time,
   asRef = false,
   asMobileNotification = false,
@@ -359,6 +363,7 @@ export default function HeapBlock({
     linkFromNotification,
     refToken,
     longPress,
+    citeNest,
     author: post.essay.author,
   };
   const botBar = { post, asRef, asMobileNotification, longPress };
