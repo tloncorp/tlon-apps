@@ -469,6 +469,7 @@ function ChatMessageOptions(props: {
         setOpen={setDeleteOpen}
         confirmText="Delete"
         loading={isDeletePending || isDeleteLoading}
+        closeOnClickOutside={true}
       />
     </>
   );
