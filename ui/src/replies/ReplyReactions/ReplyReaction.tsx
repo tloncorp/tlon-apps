@@ -35,7 +35,12 @@ export default function ReplyReaction({
   const isMine = ships.includes(window.our);
   const count = ships.length;
   const isParent = noteId === replyId;
-  const nest = whom;
+  const whomParts = whom.split('/');
+  const alreadyHaveHan =
+    whomParts[0] === 'chat' ||
+    whomParts[0] === 'heap' ||
+    whomParts[0] === 'diary';
+  const nest = alreadyHaveHan ? whom : `chat/${whom}`;
   const { mutateAsync: addReplyFeel } = useAddReplyReactMutation();
   const { mutateAsync: addChatFeel } = useAddPostReactMutation();
   const { mutateAsync: delReplyFeel } = useDeleteReplyReactMutation();
@@ -100,8 +105,11 @@ export default function ReplyReaction({
             <button
               onClick={editReact}
               className={cn(
-                'group relative flex items-center space-x-2 rounded border border-solid border-transparent bg-gray-50 px-2 py-1 text-sm font-semibold leading-4 text-gray-600 group-one-hover:border-gray-100',
-                isMine && 'bg-blue-softer group-one-hover:border-blue-soft'
+                'group relative flex items-center space-x-2 rounded border border-solid border-transparent px-2 py-1 text-sm font-semibold leading-4 text-gray-600',
+                {
+                  'bg-gray-50 sm:group-one-hover:bg-gray-200': !isMine,
+                  'bg-blue-softer sm:group-one-hover:border-blue-soft': isMine,
+                }
               )}
               aria-label={
                 isMine ? 'Remove reaction' : `Add ${react.replaceAll(':', '')}`

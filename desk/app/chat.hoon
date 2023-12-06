@@ -427,6 +427,9 @@
   |=  [=mark =vase]
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
+      %chat-negotiate
+    ::TODO  arguably should just be a /mar/negotiate
+    (emit (initiate:neg !<(@p vase) dap.bowl))
   ::
       %chat-dm-rsvp
     =+  !<(=rsvp:dm:c vase)
@@ -633,8 +636,8 @@
   ?+    pole  ~|(bad-agent-wire/pole !!)
       ~  cor
   ::
-      [%epic ~]
-    cor
+      [%epic ~]  cor
+      [%hook *]  cor
   ::
       [%migrate ~]
     ?>  ?=(%poke-ack -.sign)
@@ -1655,7 +1658,7 @@
   ::
   ++  di-post-notice
     |=  text=cord
-    =/  =delta:writs:c  (make-notice our.bowl text)
+    =/  =delta:writs:c  (make-notice ?:(from-self our.bowl ship) text)
     (di-ingest-diff [our now]:bowl delta)
   ::
   ++  di-rsvp

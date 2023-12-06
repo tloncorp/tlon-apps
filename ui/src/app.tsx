@@ -453,11 +453,17 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   element={<ChatChannel title={` • ${groupsTitle}`} />}
                 >
                   {isSmall ? null : (
-                    <Route path="message/:idTime" element={<ChatThread />} />
+                    <Route
+                      path="message/:idTime/:idReplyTime?"
+                      element={<ChatThread />}
+                    />
                   )}
                 </Route>
                 {isSmall ? (
-                  <Route path="message/:idTime" element={<ChatThread />} />
+                  <Route
+                    path="message/:idTime/:idReplyTime?"
+                    element={<ChatThread />}
+                  />
                 ) : null}
                 {isMobile && (
                   <Route path="search/:query?" element={<MobileChatSearch />} />
@@ -472,7 +478,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   element={<HeapChannel title={` • ${groupsTitle}`} />}
                 />
                 <Route
-                  path="curio/:idTime"
+                  path="curio/:idTime/:idReplyTime?"
                   element={<HeapDetail title={` • ${groupsTitle}`} />}
                 />
               </Route>
@@ -485,7 +491,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   element={<DiaryChannel title={` • ${groupsTitle}`} />}
                 />
                 <Route
-                  path="note/:noteId"
+                  path="note/:noteId/:idReplyTime?"
                   element={<DiaryNote title={` • ${groupsTitle}`} />}
                 />
                 <Route path="edit">

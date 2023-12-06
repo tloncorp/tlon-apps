@@ -47,7 +47,12 @@ export default function ReplyMessageOptions(props: {
 }) {
   const { open, onOpenChange, whom, reply, openReactionDetails, showReply } =
     props;
-  const nest = `chat/${whom}`;
+  const whomParts = whom.split('/');
+  const alreadyHaveHan =
+    whomParts[0] === 'chat' ||
+    whomParts[0] === 'heap' ||
+    whomParts[0] === 'diary';
+  const nest = alreadyHaveHan ? whom : `chat/${whom}`;
   const { seal, memo } = reply ?? emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
@@ -405,6 +410,7 @@ export default function ReplyMessageOptions(props: {
         setOpen={setDeleteOpen}
         confirmText="Delete"
         loading={deleteLoading}
+        closeOnClickOutside={true}
       />
     </>
   );

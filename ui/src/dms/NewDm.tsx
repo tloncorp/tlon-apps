@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import cn from 'classnames';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
@@ -9,6 +9,7 @@ import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { dmListPath } from '@/logic/utils';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MessageSelector from './MessageSelector';
 
 export default function NewDM() {
@@ -17,8 +18,9 @@ export default function NewDM() {
     validShips,
     whom,
     isMultiDm,
-    confirmedMultiDmMismatch,
     existingMultiDm,
+    multiDmVersionMismatch,
+    haveAllNegotiations,
   } = useMessageSelector();
   const dropZoneId = 'chat-new-dm-input-dropzone';
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
@@ -28,7 +30,7 @@ export default function NewDM() {
   const { isChatInputFocused } = useChatInputFocus();
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const shouldBlockInput =
-    isMultiDm && !existingMultiDm && confirmedMultiDmMismatch;
+    isMultiDm && !existingMultiDm && multiDmVersionMismatch;
 
   return (
     <Layout
@@ -41,9 +43,15 @@ export default function NewDM() {
       }
       footer={
         shouldBlockInput ? (
-          <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
-            Your version of the app does not match some of the members of this
-            chat.
+          <div className="flex items-center justify-center border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+            {haveAllNegotiations ? (
+              'Your version of the app does not match some of the members of this chat.'
+            ) : (
+              <>
+                <LoadingSpinner />
+                <span className="ml-2">Checking version compatibility</span>
+              </>
+            )}
           </div>
         ) : (
           <div

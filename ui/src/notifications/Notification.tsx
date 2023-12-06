@@ -183,6 +183,48 @@ function mentionPath(bin: Skein): string {
   return `${parts.slice(0, index).join('/')}?msg=${id}`;
 }
 
+// This is for backwards compatibility. The %channels backend used to send a
+// generic 'post' type in the path for all post replies, but now sends 'note',
+// 'curio' and 'message' for diary, heap, and chat posts, respectively. This
+// function replaces the 'post' type with the correct type.
+function postReplacer(pathParts: string[], replacer: string): string {
+  const newPath = pathParts
+    .map((word, index) => {
+      if (index === 8 && word === 'post') {
+        return replacer;
+      }
+      return word;
+    })
+    .join('/');
+  return newPath;
+}
+
+function getPath(bin: Skein): string {
+  const { wer } = bin.top;
+  const pathParts = wer.split('/');
+  const isHeapReply = pathParts.includes('heap') && pathParts.length === 11;
+  const isDiaryReply = pathParts.includes('diary') && pathParts.length === 11;
+  const isChatReply = pathParts.includes('chat') && pathParts.length === 11;
+
+  if (isMention(bin.top)) {
+    return mentionPath(bin);
+  }
+
+  if (isHeapReply) {
+    return postReplacer(pathParts, 'curio');
+  }
+
+  if (isDiaryReply) {
+    return postReplacer(pathParts, 'note');
+  }
+
+  if (isChatReply) {
+    return postReplacer(pathParts, 'message');
+  }
+
+  return wer;
+}
+
 export default function Notification({
   bin,
   avatar,
@@ -200,7 +242,7 @@ export default function Notification({
   const isBlockBool = isBlock(bin.top);
   const groupMetaBool = isGroupMeta(bin.top);
   const replyBool = isReply(bin.top);
-  const path = mentionBool ? mentionPath(bin) : bin.top.wer;
+  const path = getPath(bin);
   const onClick = useCallback(() => {
     sawRopeMutation({ rope });
   }, [rope, sawRopeMutation]);

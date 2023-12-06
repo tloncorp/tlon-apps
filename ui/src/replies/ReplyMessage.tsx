@@ -174,7 +174,11 @@ const ReplyMessage = React.memo<
               we can assume the user is done and clear the unread. */
             if (!inView && unread && seen) {
               read(whom);
-              markDmRead({ whom });
+              if (isDMOrMultiDM) {
+                markDmRead({ whom });
+              } else {
+                markChatRead({ nest: `chat/${whom}` });
+              }
             }
           },
           [unread, whom, isDMOrMultiDM, markChatRead, markDmRead, isUnread]

@@ -21,7 +21,11 @@ export default function useMessageSort() {
       [RECENT_SORT]: (flag: string, _unread: Unread | DMUnread) => flag,
     };
 
-    return sortRecordsBy(unreads, accessors[sortFn], true);
+    return sortRecordsBy(
+      unreads,
+      accessors[sortFn] || accessors[RECENT_SORT],
+      true
+    );
   }
 
   return {

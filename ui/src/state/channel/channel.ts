@@ -36,6 +36,7 @@ import {
   newChatMap,
   HiddenPosts,
   TogglePost,
+  ChannelsSubscribeResponse,
 } from '@/types/channel';
 import api from '@/api';
 import { checkNest, log, nestToFlag } from '@/logic/utils';
@@ -591,7 +592,8 @@ export function useInfinitePosts(
       (event: ChannelsResponse) => {
         queryClient.invalidateQueries({
           queryKey,
-          refetchType: 'posts' in event.response ? 'active' : 'none',
+          refetchType:
+            event.response && 'posts' in event.response ? 'active' : 'none',
         });
       },
       300,
@@ -798,7 +800,9 @@ export function useChannels(): Channels {
   const invalidate = useRef(
     _.debounce(
       (event: ChannelsResponse) => {
-        const postEvent = 'post' in event.response || 'posts' in event.response;
+        const postEvent =
+          event.response &&
+          ('post' in event.response || 'posts' in event.response);
         queryClient.invalidateQueries({
           queryKey: channelKey(),
           refetchType: postEvent ? 'none' : 'active',
@@ -809,13 +813,43 @@ export function useChannels(): Channels {
     )
   );
 
-  const eventHandler = useCallback((event: ChannelsResponse) => {
+  const eventHandler = useCallback((event: ChannelsSubscribeResponse) => {
+    if ('hide' in event) {
+      queryClient.setQueryData<HiddenPosts>(
+        ['channels', 'hidden'],
+        (d: HiddenPosts | undefined) => {
+          if (d === undefined) {
+            return [event.hide];
+          }
+
+          const newHidden = [...d, event.hide];
+
+          return newHidden;
+        }
+      );
+    }
+
+    if ('show' in event) {
+      queryClient.setQueryData<HiddenPosts>(
+        ['channels', 'hidden'],
+        (d: HiddenPosts | undefined) => {
+          if (d === undefined) {
+            return undefined;
+          }
+
+          const newHidden = d.filter((h) => h !== event.show);
+
+          return newHidden;
+        }
+      );
+    }
+
     invalidate.current(event);
   }, []);
 
   const { data, ...rest } = useReactQuerySubscription<
     Channels,
-    ChannelsResponse
+    ChannelsSubscribeResponse
   >({
     queryKey: channelKey(),
     app: 'channels',
@@ -1864,21 +1898,6 @@ export function useAddReplyMutation() {
         usePostsStore.getState().updateStatus(variables.cacheId, 'sent');
       }
     },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      setTimeout(async () => {
-        // TODO: this is a hack to make sure the post is updated before refetching
-        // the queries. We need to figure out why the post is not updated immediately.
-        await queryClient.refetchQueries([
-          han,
-          'posts',
-          flag,
-          variables.postId,
-        ]);
-
-        usePostsStore.getState().updateStatus(variables.cacheId, 'delivered');
-      }, 300);
-    },
   });
 }
 
@@ -2094,7 +2113,7 @@ export function useAddPostReactMutation() {
         const prevReacts = prevPost.seal.reacts;
         const newReacts = {
           ...prevReacts,
-          [unixToDa(Date.now()).toString()]: variables.react,
+          [window.our]: variables.react,
         };
 
         const updatedPost: PostDataResponse = {
@@ -2111,16 +2130,6 @@ export function useAddPostReactMutation() {
       await updatePostInCache(variables, postUpdater);
 
       await updatePostsInCache(variables, postsUpdater);
-    },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'posts', flag]);
-      await queryClient.invalidateQueries([
-        han,
-        'posts',
-        flag,
-        variables.postId,
-      ]);
     },
   });
 }
@@ -2227,16 +2236,6 @@ export function useDeletePostReactMutation() {
 
       await updatePostInCache(variables, postUpdater);
       await updatePostsInCache(variables, postsUpdater);
-    },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'posts', flag]);
-      await queryClient.invalidateQueries([
-        han,
-        'posts',
-        flag,
-        variables.postId,
-      ]);
     },
   });
 }
