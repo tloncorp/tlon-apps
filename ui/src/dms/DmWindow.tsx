@@ -69,11 +69,14 @@ export default function DmWindow({
   );
 
   const onAtBottom = useCallback(() => {
+    const { bottom, delayedRead } = useChatStore.getState();
+    bottom(true);
+    delayedRead(whom, () => markDmRead({ whom }));
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetching]);
+  }, [fetchPreviousPage, hasPreviousPage, isFetching, whom, markDmRead]);
 
   const onAtTop = useCallback(() => {
     if (hasNextPage && !isFetching) {
