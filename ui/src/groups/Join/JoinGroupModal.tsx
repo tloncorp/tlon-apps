@@ -15,6 +15,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import {
   getFlagParts,
   getPrivacyFromPreview,
+  isTalk,
   matchesBans,
   pluralRank,
   toTitleCase,
@@ -63,7 +64,7 @@ export default function JoinGroupModal() {
   const readyToNavigate = group && !groupIsInitializing(group);
 
   useEffect(() => {
-    if (readyToNavigate) {
+    if (readyToNavigate && !isTalk) {
       navigate(`/groups/${flag}`);
     }
   }, [readyToNavigate, flag, navigate]);

@@ -39,6 +39,7 @@ import {
 import { Post, Story, Unread } from '@/types/channel';
 import {
   useChatDialog,
+  useChatDialogs,
   useChatHovering,
   useChatInfo,
   useChatStore,
@@ -299,6 +300,11 @@ const ChatMessage = React.memo<
       );
 
       const [optionsOpen, setOptionsOpen] = useState(false);
+      const dialogs = useChatDialogs(whom, writ.seal.id);
+      const hasDialogsOpen = useMemo(
+        () => Object.values(dialogs).some((open) => open),
+        [dialogs]
+      );
       const [reactionDetailsOpen, setReactionDetailsOpen] = useState(false);
       const { action, actionId, handlers } = useLongPress({ withId: true });
 
@@ -375,7 +381,7 @@ const ChatMessage = React.memo<
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             {isDelivered && (
               <ChatMessageOptions
-                open={optionsOpen}
+                open={optionsOpen || hasDialogsOpen}
                 onOpenChange={setOptionsOpen}
                 hideThreadReply={hideReplies}
                 whom={whom}

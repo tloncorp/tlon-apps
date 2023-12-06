@@ -2113,7 +2113,7 @@ export function useAddPostReactMutation() {
         const prevReacts = prevPost.seal.reacts;
         const newReacts = {
           ...prevReacts,
-          [unixToDa(Date.now()).toString()]: variables.react,
+          [window.our]: variables.react,
         };
 
         const updatedPost: PostDataResponse = {
@@ -2130,16 +2130,6 @@ export function useAddPostReactMutation() {
       await updatePostInCache(variables, postUpdater);
 
       await updatePostsInCache(variables, postsUpdater);
-    },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'posts', flag]);
-      await queryClient.invalidateQueries([
-        han,
-        'posts',
-        flag,
-        variables.postId,
-      ]);
     },
   });
 }
@@ -2246,16 +2236,6 @@ export function useDeletePostReactMutation() {
 
       await updatePostInCache(variables, postUpdater);
       await updatePostsInCache(variables, postsUpdater);
-    },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'posts', flag]);
-      await queryClient.invalidateQueries([
-        han,
-        'posts',
-        flag,
-        variables.postId,
-      ]);
     },
   });
 }

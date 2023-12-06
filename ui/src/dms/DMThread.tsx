@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import ob from 'urbit-ob';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -6,7 +12,12 @@ import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import { useEventListener } from 'usehooks-ts';
 import bigInt from 'big-integer';
-import { useWrit, useMultiDm, useSendReplyMutation } from '@/state/chat';
+import {
+  useWrit,
+  useMultiDm,
+  useSendReplyMutation,
+  useMarkDmReadMutation,
+} from '@/state/chat';
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
@@ -21,6 +32,7 @@ import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 
 export default function DMThread() {
   const { chShip, ship, chName, idTime, idShip } = useParams<{
@@ -53,6 +65,8 @@ export default function DMThread() {
   const isScrolling = useIsScrolling(scrollElementRef);
   const { isChatInputFocused } = useChatInputFocus();
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const { mutate: markDmRead } = useMarkDmReadMutation();
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = useMultiDm(ship || '');
@@ -95,7 +109,24 @@ export default function DMThread() {
     [navigate, returnURL, leapIsOpen]
   );
 
+  const onAtBottom = useCallback(() => {
+    const { bottom, delayedRead } = useChatStore.getState();
+    bottom(true);
+    delayedRead(whom, () => markDmRead({ whom }));
+  }, [whom, markDmRead]);
+
   useEventListener('keydown', onEscape, threadRef);
+
+  // read the messages once navigated away
+  useEffect(
+    () => () => {
+      if (readTimeout !== undefined && readTimeout !== 0) {
+        useChatStore.getState().read(whom);
+        markDmRead({ whom });
+      }
+    },
+    [readTimeout, whom, markDmRead]
+  );
 
   if (!writ || isLoading) return null;
 
@@ -179,6 +210,7 @@ export default function DMThread() {
             isScrolling={isScrolling}
             hasLoadedNewest={false}
             hasLoadedOldest={false}
+            onAtBottom={onAtBottom}
           />
         )}
       </div>

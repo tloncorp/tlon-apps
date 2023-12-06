@@ -410,6 +410,7 @@ export default function ReplyMessageOptions(props: {
         setOpen={setDeleteOpen}
         confirmText="Delete"
         loading={deleteLoading}
+        closeOnClickOutside={true}
       />
     </>
   );
