@@ -703,18 +703,26 @@ export function useDmUnreads() {
     }
 
     if (unread !== null) {
-      useChatStore.getState().unread(whom, unread, () => markDmRead({ whom }));
-      queryClient.setQueryData(dmUnreadsKey, (d: DMUnreads | undefined) => {
-        if (d === undefined) {
-          return undefined;
-        }
-
-        const newUnreads = { ...d };
-        newUnreads[event.whom] = unread;
-
-        return newUnreads;
-      });
+      if (unread['unread-id'] === null && unread.count === 0) {
+        // if unread is null and count is 0, we can assume that the channel
+        // has been read and we can remove it from the unreads list
+        useChatStore.getState().read(whom);
+      } else {
+        useChatStore
+          .getState()
+          .unread(whom, unread, () => markDmRead({ whom }));
+      }
     }
+    queryClient.setQueryData(dmUnreadsKey, (d: DMUnreads | undefined) => {
+      if (d === undefined) {
+        return undefined;
+      }
+
+      const newUnreads = { ...d };
+      newUnreads[event.whom] = unread;
+
+      return newUnreads;
+    });
   };
 
   const { data, ...query } = useReactQuerySubscription<
