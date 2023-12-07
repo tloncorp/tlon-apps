@@ -1127,11 +1127,19 @@ export function useRemotePost(
     },
   });
 
-  if (rest.isLoading || rest.isError || data === undefined) {
+  if (rest.isLoading) {
     return {
       reference: undefined,
       ...rest,
     };
+  }
+
+  if (rest.isError || data === undefined || data === null) {
+    rest.isError = true;
+    return {
+      reference: undefined,
+      ...rest
+    }
   }
 
   const { reference } = data as Said;
