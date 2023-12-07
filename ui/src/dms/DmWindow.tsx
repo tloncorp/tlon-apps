@@ -47,6 +47,7 @@ export default function DmWindow({
     hasNextPage,
     hasPreviousPage,
     refetch,
+    remove,
     isLoading,
     fetchNextPage,
     fetchPreviousPage,
@@ -129,6 +130,7 @@ export default function DmWindow({
 
   useEffect(() => {
     const doRefetch = async () => {
+      remove();
       await refetch();
     };
 
@@ -141,7 +143,14 @@ export default function DmWindow({
     if (scrollTo && hasNextPage && !scrollToInMessages && !shouldGetLatest) {
       doRefetch();
     }
-  }, [scrollTo, hasNextPage, refetch, scrollToInMessages, shouldGetLatest]);
+  }, [
+    scrollTo,
+    hasNextPage,
+    refetch,
+    scrollToInMessages,
+    shouldGetLatest,
+    remove,
+  ]);
 
   if (isLoading) {
     return (

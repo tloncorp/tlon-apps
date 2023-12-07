@@ -48,6 +48,7 @@ export default function ChatWindow({
     hasPreviousPage,
     fetchPreviousPage,
     refetch,
+    remove,
     fetchNextPage,
     isLoading,
     isFetching,
@@ -134,6 +135,7 @@ export default function ChatWindow({
 
   useEffect(() => {
     const doRefetch = async () => {
+      remove();
       await refetch();
     };
 
@@ -146,7 +148,14 @@ export default function ChatWindow({
     if (scrollTo && hasNextPage && !scrollToInMessages && !shouldGetLatest) {
       doRefetch();
     }
-  }, [scrollTo, hasNextPage, refetch, scrollToInMessages, shouldGetLatest]);
+  }, [
+    scrollTo,
+    hasNextPage,
+    refetch,
+    scrollToInMessages,
+    shouldGetLatest,
+    remove,
+  ]);
 
   if (isLoading) {
     return (
