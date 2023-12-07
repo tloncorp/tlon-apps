@@ -327,7 +327,7 @@ export default function ChatInput({
       messageSender({
         whom,
         replying,
-        editorJson: editor.getJSON(),
+        editorJson: editor.isEmpty ? {} : editor.getJSON(),
         text: editor.getText(),
         blocks,
         replyCite,
