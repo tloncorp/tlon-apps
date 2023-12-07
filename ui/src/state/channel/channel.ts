@@ -1134,6 +1134,13 @@ export function useRemotePost(
     };
   }
 
+  if (data === null) {
+    return {
+      reference: null,
+      ...rest,
+    };
+  }
+
   const { reference } = data as Said;
 
   return {
