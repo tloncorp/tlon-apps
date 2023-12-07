@@ -1216,7 +1216,7 @@
       ?~  unreads  ~
       ::TODO  in the ~ case, we could traverse further up, to better handle
       ::      cases where the most recent message was deleted.
-      (some -:(head unreads))
+      (some -:(rear unreads))
     =/  count  (lent unreads)
     ::  now do the same for all unread threads
     ::
@@ -1236,7 +1236,7 @@
         ==
       :-  (add sum (lent unreads))
       ?~  unreads  threads
-      (~(put by threads) id -:(head unreads))
+      (~(put by threads) id -:(rear unreads))
     [(add count sum) unread-id threads]
   ::
   ::  handle scries
