@@ -629,10 +629,8 @@
           %unwatch  remark.channel(watching |)
           %read-at  !!  ::TODO
           %read
-        =/  [=time post=(unit v-post:c)]
-          (need (ram:on-v-posts:c posts.channel))
         %=  remark.channel
-          last-read       `@da`(add time (div ~s1 100))
+          last-read       now.bowl
           unread-threads  *(set id-post:c)
         ==
       ==
