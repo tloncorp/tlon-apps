@@ -18,7 +18,7 @@ export default function WritBaitReference(props: {
   const { chFlag, nest, index, isScrolling, contextApp, children } = props;
   const { reference } = useRemotePost(nest, index, isScrolling);
   const [, udId] = index.split('/');
-  if (reference === undefined) {
+  if (!reference) {
     const time = bigInt(udToDec(udId));
     return <UnavailableReference time={time} nest={nest} preview={null} />;
   }

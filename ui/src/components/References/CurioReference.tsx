@@ -71,7 +71,7 @@ function CurioReference({
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
 
-  if (isError) {
+  if (isError || reference === null) {
     return <UnavailableReference time={bigInt(0)} nest={nest} preview={null} />;
   }
 

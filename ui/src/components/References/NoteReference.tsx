@@ -64,7 +64,7 @@ function NoteReference({
     return <DiaryContent content={truncatedContent} isPreview />;
   }, [note]);
 
-  if (isError) {
+  if (isError || reference === null) {
     return <UnavailableReference nest={nest} time={bigInt(0)} preview={null} />;
   }
 
