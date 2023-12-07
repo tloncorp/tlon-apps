@@ -844,6 +844,16 @@ export function useChannels(): Channels {
       );
     }
 
+    if ('response' in event && 'post' in event.response) {
+      // We call infinitePostUpdater here because there are situations where we
+      // are only listening to useChannels and not useInfinitePosts. This is
+      // the case in threads on mobile in particular.
+      const { nest } = event;
+      const [han, flag] = nestToFlag(nest);
+      const infinitePostQueryKey = [han, 'posts', flag, 'infinite'];
+      infinitePostUpdater(infinitePostQueryKey, event);
+    }
+
     invalidate.current(event);
   }, []);
 
