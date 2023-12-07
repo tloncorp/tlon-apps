@@ -607,11 +607,28 @@ export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
   const [, copy] = useCopyToClipboard();
 
+  const copyFallback = async (text: string) => {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return true;
+    } catch (error) {
+      console.warn('Fallback copy failed', error);
+      return false;
+    }
+  };
+
   const doCopy = useCallback(async () => {
     let success = false;
     if (isNativeApp()) {
       postActionToNativeApp('copy', copied);
       success = true;
+    } else if (!navigator.clipboard) {
+      success = await copyFallback(copied);
     } else {
       success = await copy(copied);
     }
