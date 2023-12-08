@@ -93,6 +93,7 @@ export default function ChatWindow({
       setSearchParams({});
     }
     if (hasPreviousPage) {
+      remove();
       await refetch();
       setShouldGetLatest(false);
     } else {
@@ -100,6 +101,7 @@ export default function ChatWindow({
     }
   }, [
     setSearchParams,
+    remove,
     refetch,
     hasPreviousPage,
     scrollerRef,
@@ -170,10 +172,10 @@ export default function ChatWindow({
   }, [
     scrollToId,
     hasNextPage,
+    remove,
     refetch,
     msgIdTimeInMessages,
     shouldGetLatest,
-    remove,
   ]);
 
   if (isLoading) {

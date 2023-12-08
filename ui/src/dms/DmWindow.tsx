@@ -108,6 +108,7 @@ export default function DmWindow({
       setSearchParams({});
     }
     if (hasPreviousPage) {
+      remove();
       await refetch();
       setShouldGetLatest(false);
     } else {
@@ -115,6 +116,7 @@ export default function DmWindow({
     }
   }, [
     setSearchParams,
+    remove,
     refetch,
     hasPreviousPage,
     scrollerRef,
