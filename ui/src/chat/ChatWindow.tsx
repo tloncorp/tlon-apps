@@ -133,30 +133,6 @@ export default function ChatWindow({
     }
   }, [scrollTo, hasPreviousPage]);
 
-  useEffect(() => {
-    const doRefetch = async () => {
-      remove();
-      await refetch();
-    };
-
-    // If we have a scrollTo, we have a next page, and the scrollTo message is
-    // not in our current set of messages, that means we're scrolling to a
-    // message that's not yet cached. So, we need to refetch (which would fetch
-    // messages around the scrollTo time), then scroll to the message.
-    // We also need to make sure that shouldGetLatest is false, so that we don't
-    // get into a loop of fetching the latest data.
-    if (scrollTo && hasNextPage && !scrollToInMessages && !shouldGetLatest) {
-      doRefetch();
-    }
-  }, [
-    scrollTo,
-    hasNextPage,
-    refetch,
-    scrollToInMessages,
-    shouldGetLatest,
-    remove,
-  ]);
-
   if (isLoading) {
     return (
       <div className="h-full overflow-hidden">
