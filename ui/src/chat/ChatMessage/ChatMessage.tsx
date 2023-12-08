@@ -396,7 +396,7 @@ const ChatMessage = React.memo<
             <div className="wrap-anywhere flex w-full">
               <div
                 className={cn(
-                  'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-[7px] pr-2 sm:group-one-hover:bg-gray-50',
+                  'flex w-full min-w-0 grow flex-col space-y-2 rounded py-1 pl-2 pr-2 sm:group-one-hover:bg-gray-50',
                   isReplyOp && 'bg-gray-50',
                   isPending && 'text-gray-400',
                   isLinked && 'bg-blue-softer'
