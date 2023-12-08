@@ -24,9 +24,10 @@ import {
 import BulletIcon from '@/components/icons/BulletIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useIsDmOrMultiDm, whomIsDm, whomIsMultiDm } from '@/logic/utils';
-import { useLeaveMutation } from '@/state/channel/channel';
+import { useLeaveMutation, useMarkReadMutation } from '@/state/channel/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useCheckChannelUnread } from '@/logic/channel';
+import { useChatStore } from '@/chat/useChatStore';
 import DmInviteDialog from './DmInviteDialog';
 
 type DMOptionsProps = PropsWithChildren<{
@@ -69,6 +70,7 @@ export default function DmOptions({
   const { mutateAsync: delPin } = useDeletePinMutation();
   const { mutate: archiveDm } = useArchiveDm();
   const { mutate: markDmRead } = useMarkDmReadMutation();
+  const { mutate: markChannelRead } = useMarkReadMutation();
   const { mutate: multiDmRsvp } = useMutliDmRsvpMutation();
   const { mutate: dmRsvp } = useDmRsvpMutation();
 
@@ -91,10 +93,15 @@ export default function DmOptions({
     archiveDm({ whom });
   };
 
-  const markRead = useCallback(
-    async () => markDmRead({ whom }),
-    [whom, markDmRead]
-  );
+  const markRead = useCallback(async () => {
+    if (isDMorMultiDm) {
+      markDmRead({ whom });
+    } else {
+      markChannelRead({ nest: whom });
+    }
+
+    useChatStore.getState().read(whom);
+  }, [whom, markDmRead, markChannelRead, isDMorMultiDm]);
 
   const [dialog, setDialog] = useState(false);
 
