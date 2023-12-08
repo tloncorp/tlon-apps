@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import bigInt from 'big-integer';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
 import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
@@ -17,6 +17,7 @@ import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useIsScrolling } from '@/logic/scroll';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
+import { udToDec } from '@urbit/api';
 
 interface DmWindowProps {
   whom: string;
@@ -35,7 +36,16 @@ export default function DmWindow({
 }: DmWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [shouldGetLatest, setShouldGetLatest] = useState(false);
-  const scrollTo = getScrollTo(searchParams.get('msg'));
+  const { idTime } = useParams();
+  const scrollTo = useMemo(
+    () => getScrollTo(searchParams.get('msg')),
+    [searchParams]
+  );
+  const msgIdTime = useMemo(
+    () =>
+      scrollTo ? scrollTo.toString() : idTime ? udToDec(idTime) : undefined,
+    [scrollTo, idTime]
+  );
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const scrollElementRef = useRef<HTMLDivElement>(null);
@@ -54,23 +64,29 @@ export default function DmWindow({
     isFetching,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = useInfiniteDMs(whom, scrollTo?.toString(), shouldGetLatest);
+  } = useInfiniteDMs(whom, msgIdTime, shouldGetLatest);
+  const navigate = useNavigate();
 
   const latestMessageIndex = writs.length - 1;
-  const scrollToInMessages = useMemo(
-    () => (scrollTo ? writs.findIndex((m) => m[0].eq(scrollTo)) !== -1 : false),
-    [scrollTo, writs]
-  );
-  const scrollToIndex = useMemo(
+  const msgIdTimeIndex = useMemo(
     () =>
-      scrollTo ? writs.findIndex((m) => m[0].eq(scrollTo)) : latestMessageIndex,
-    [scrollTo, writs, latestMessageIndex]
+      msgIdTime
+        ? writs.findIndex((m) => m[0].toString() === msgIdTime)
+        : latestMessageIndex,
+    [msgIdTime, writs, latestMessageIndex]
+  );
+  const msgIdTimeInMessages = useMemo(
+    () =>
+      msgIdTime
+        ? writs.findIndex((m) => m[0].toString() === msgIdTime) !== -1
+        : false,
+    [msgIdTime, writs]
   );
   const latestIsMoreThan30NewerThanScrollTo = useMemo(
     () =>
-      scrollToIndex !== latestMessageIndex &&
-      latestMessageIndex - scrollToIndex > 30,
-    [scrollToIndex, latestMessageIndex]
+      msgIdTimeIndex !== latestMessageIndex &&
+      latestMessageIndex - msgIdTimeIndex > 30,
+    [msgIdTimeIndex, latestMessageIndex]
   );
 
   const onAtBottom = useCallback(() => {
@@ -91,14 +107,26 @@ export default function DmWindow({
   }, [fetchNextPage, hasNextPage, isFetching]);
 
   const goToLatest = useCallback(async () => {
-    setSearchParams({});
+    if (idTime) {
+      navigate(`/dm/${whom}`);
+    } else {
+      setSearchParams({});
+    }
     if (hasPreviousPage) {
       await refetch();
       setShouldGetLatest(false);
     } else {
       scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
     }
-  }, [setSearchParams, refetch, hasPreviousPage, scrollerRef]);
+  }, [
+    setSearchParams,
+    refetch,
+    hasPreviousPage,
+    scrollerRef,
+    idTime,
+    navigate,
+    whom,
+  ]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -123,10 +151,34 @@ export default function DmWindow({
     // If we have a scrollTo and we have newer data that's not yet loaded, we
     // need to make sure we get the latest data the next time we fetch (i.e.,
     // when the user cliks the "Go to Latest" button).
-    if (scrollTo && hasPreviousPage) {
+    if (msgIdTime && hasPreviousPage) {
       setShouldGetLatest(true);
     }
-  }, [scrollTo, hasPreviousPage]);
+  }, [msgIdTime, hasPreviousPage]);
+
+  useEffect(() => {
+    const doRefetch = async () => {
+      remove();
+      await refetch();
+    };
+
+    // If we have a scrollTo, we have a next page, and the scrollTo message is
+    // not in our current set of messages, that means we're scrolling to a
+    // message that's not yet cached. So, we need to refetch (which would fetch
+    // messages around the scrollTo time), then scroll to the message.
+    // We also need to make sure that shouldGetLatest is false, so that we don't
+    // get into a loop of fetching the latest data.
+    if (msgIdTime && hasNextPage && !msgIdTimeInMessages && !shouldGetLatest) {
+      doRefetch();
+    }
+  }, [
+    msgIdTime,
+    hasNextPage,
+    refetch,
+    msgIdTimeInMessages,
+    shouldGetLatest,
+    remove,
+  ]);
 
   if (isLoading) {
     return (
@@ -154,7 +206,7 @@ export default function DmWindow({
           isLoadingOlder={isFetchingNextPage}
           isLoadingNewer={isFetchingPreviousPage}
           whom={whom}
-          scrollTo={scrollTo}
+          scrollTo={msgIdTime ? bigInt(msgIdTime) : undefined}
           scrollerRef={scrollerRef}
           scrollElementRef={scrollElementRef}
           isScrolling={isScrolling}
@@ -165,7 +217,7 @@ export default function DmWindow({
           hasLoadedNewest={!hasPreviousPage}
         />
       </div>
-      {scrollTo && (hasPreviousPage || latestIsMoreThan30NewerThanScrollTo) ? (
+      {msgIdTime && (hasPreviousPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"

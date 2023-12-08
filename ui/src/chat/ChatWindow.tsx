@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react';
 import bigInt from 'big-integer';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
@@ -40,7 +40,15 @@ export default function ChatWindow({
 }: ChatWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [shouldGetLatest, setShouldGetLatest] = useState(false);
-  const scrollTo = getScrollTo(searchParams.get('msg'));
+  const { idTime } = useParams();
+  const scrollTo = useMemo(
+    () => getScrollTo(searchParams.get('msg')),
+    [searchParams]
+  );
+  const msgIdTime = useMemo(
+    () => (scrollTo ? scrollTo.toString() : idTime),
+    [scrollTo, idTime]
+  );
   const nest = `chat/${whom}`;
   const {
     posts: messages,
@@ -54,40 +62,55 @@ export default function ChatWindow({
     isFetching,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = useInfinitePosts(nest, scrollTo?.toString(), shouldGetLatest);
+  } = useInfinitePosts(nest, msgIdTime, shouldGetLatest);
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const { compatible } = useChannelCompatibility(nest);
+  const navigate = useNavigate();
   const latestMessageIndex = messages.length - 1;
-  const scrollToInMessages = useMemo(
+  const msgIdTimeIndex = useMemo(
     () =>
-      scrollTo ? messages.findIndex((m) => m[0].eq(scrollTo)) !== -1 : false,
-    [scrollTo, messages]
-  );
-  const scrollToIndex = useMemo(
-    () =>
-      scrollTo
-        ? messages.findIndex((m) => m[0].eq(scrollTo))
+      msgIdTime
+        ? messages.findIndex((m) => m[0].toString() === msgIdTime)
         : latestMessageIndex,
-    [scrollTo, messages, latestMessageIndex]
+    [msgIdTime, messages, latestMessageIndex]
+  );
+  const msgIdTimeInMessages = useMemo(
+    () =>
+      msgIdTime
+        ? messages.findIndex((m) => m[0].toString() === msgIdTime) !== -1
+        : false,
+    [msgIdTime, messages]
   );
   const latestIsMoreThan30NewerThanScrollTo = useMemo(
     () =>
-      scrollToIndex !== latestMessageIndex &&
-      latestMessageIndex - scrollToIndex > 30,
-    [scrollToIndex, latestMessageIndex]
+      msgIdTimeIndex !== latestMessageIndex &&
+      latestMessageIndex - msgIdTimeIndex > 30,
+    [msgIdTimeIndex, latestMessageIndex]
   );
 
   const goToLatest = useCallback(async () => {
-    setSearchParams({});
+    if (idTime) {
+      navigate(root);
+    } else {
+      setSearchParams({});
+    }
     if (hasPreviousPage) {
       await refetch();
       setShouldGetLatest(false);
     } else {
       scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
     }
-  }, [setSearchParams, refetch, hasPreviousPage, scrollerRef]);
+  }, [
+    setSearchParams,
+    refetch,
+    hasPreviousPage,
+    scrollerRef,
+    idTime,
+    navigate,
+    root,
+  ]);
 
   useEffect(() => {
     useChatStore.getState().setCurrent(whom);
@@ -128,10 +151,34 @@ export default function ChatWindow({
     // If we have a scrollTo and we have newer data that's not yet loaded, we
     // need to make sure we get the latest data the next time we fetch (i.e.,
     // when the user cliks the "Go to Latest" button).
-    if (scrollTo && hasPreviousPage) {
+    if (msgIdTime && hasPreviousPage) {
       setShouldGetLatest(true);
     }
-  }, [scrollTo, hasPreviousPage]);
+  }, [msgIdTime, hasPreviousPage]);
+
+  useEffect(() => {
+    const doRefetch = async () => {
+      remove();
+      await refetch();
+    };
+
+    // If we have a scrollTo, we have a next page, and the scrollTo message is
+    // not in our current set of messages, that means we're scrolling to a
+    // message that's not yet cached. So, we need to refetch (which would fetch
+    // messages around the scrollTo time), then scroll to the message.
+    // We also need to make sure that shouldGetLatest is false, so that we don't
+    // get into a loop of fetching the latest data.
+    if (msgIdTime && hasNextPage && !msgIdTimeInMessages && !shouldGetLatest) {
+      doRefetch();
+    }
+  }, [
+    msgIdTime,
+    hasNextPage,
+    refetch,
+    msgIdTimeInMessages,
+    shouldGetLatest,
+    remove,
+  ]);
 
   if (isLoading) {
     return (
@@ -174,7 +221,7 @@ export default function ChatWindow({
           isLoadingNewer={isFetchingPreviousPage}
           whom={whom}
           topLoadEndMarker={prefixedElement}
-          scrollTo={scrollTo}
+          scrollTo={msgIdTime ? bigInt(msgIdTime) : undefined}
           scrollerRef={scrollerRef}
           onAtTop={onAtTop}
           onAtBottom={onAtBottom}
@@ -184,7 +231,7 @@ export default function ChatWindow({
           hasLoadedNewest={!hasPreviousPage}
         />
       </div>
-      {scrollTo && (hasPreviousPage || latestIsMoreThan30NewerThanScrollTo) ? (
+      {msgIdTime && (hasPreviousPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"
