@@ -37,14 +37,9 @@ export default function DmWindow({
   const [searchParams, setSearchParams] = useSearchParams();
   const [shouldGetLatest, setShouldGetLatest] = useState(false);
   const { idTime } = useParams();
-  const scrollTo = useMemo(
-    () => getScrollTo(searchParams.get('msg')),
-    [searchParams]
-  );
-  const msgIdTime = useMemo(
-    () =>
-      scrollTo ? scrollTo.toString() : idTime ? udToDec(idTime) : undefined,
-    [scrollTo, idTime]
+  const scrollToId = useMemo(
+    () => searchParams.get('msg') || (idTime ? udToDec(idTime) : undefined),
+    [searchParams, idTime]
   );
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
@@ -64,23 +59,23 @@ export default function DmWindow({
     isFetching,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = useInfiniteDMs(whom, msgIdTime, shouldGetLatest);
+  } = useInfiniteDMs(whom, scrollToId, shouldGetLatest);
   const navigate = useNavigate();
 
   const latestMessageIndex = writs.length - 1;
   const msgIdTimeIndex = useMemo(
     () =>
-      msgIdTime
-        ? writs.findIndex((m) => m[0].toString() === msgIdTime)
+      scrollToId
+        ? writs.findIndex((m) => m[0].toString() === scrollToId)
         : latestMessageIndex,
-    [msgIdTime, writs, latestMessageIndex]
+    [scrollToId, writs, latestMessageIndex]
   );
   const msgIdTimeInMessages = useMemo(
     () =>
-      msgIdTime
-        ? writs.findIndex((m) => m[0].toString() === msgIdTime) !== -1
+      scrollToId
+        ? writs.findIndex((m) => m[0].toString() === scrollToId) !== -1
         : false,
-    [msgIdTime, writs]
+    [scrollToId, writs]
   );
   const latestIsMoreThan30NewerThanScrollTo = useMemo(
     () =>
@@ -151,10 +146,10 @@ export default function DmWindow({
     // If we have a scrollTo and we have newer data that's not yet loaded, we
     // need to make sure we get the latest data the next time we fetch (i.e.,
     // when the user cliks the "Go to Latest" button).
-    if (msgIdTime && hasPreviousPage) {
+    if (scrollToId && hasPreviousPage) {
       setShouldGetLatest(true);
     }
-  }, [msgIdTime, hasPreviousPage]);
+  }, [scrollToId, hasPreviousPage]);
 
   useEffect(() => {
     const doRefetch = async () => {
@@ -168,11 +163,11 @@ export default function DmWindow({
     // messages around the scrollTo time), then scroll to the message.
     // We also need to make sure that shouldGetLatest is false, so that we don't
     // get into a loop of fetching the latest data.
-    if (msgIdTime && hasNextPage && !msgIdTimeInMessages && !shouldGetLatest) {
+    if (scrollToId && hasNextPage && !msgIdTimeInMessages && !shouldGetLatest) {
       doRefetch();
     }
   }, [
-    msgIdTime,
+    scrollToId,
     hasNextPage,
     refetch,
     msgIdTimeInMessages,
@@ -206,7 +201,7 @@ export default function DmWindow({
           isLoadingOlder={isFetchingNextPage}
           isLoadingNewer={isFetchingPreviousPage}
           whom={whom}
-          scrollTo={msgIdTime ? bigInt(msgIdTime) : undefined}
+          scrollTo={scrollToId ? bigInt(scrollToId) : undefined}
           scrollerRef={scrollerRef}
           scrollElementRef={scrollElementRef}
           isScrolling={isScrolling}
@@ -217,7 +212,8 @@ export default function DmWindow({
           hasLoadedNewest={!hasPreviousPage}
         />
       </div>
-      {msgIdTime && (hasPreviousPage || latestIsMoreThan30NewerThanScrollTo) ? (
+      {scrollToId &&
+      (hasPreviousPage || latestIsMoreThan30NewerThanScrollTo) ? (
         <div className="absolute bottom-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
           <button
             className="button bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"
