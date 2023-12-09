@@ -1,5 +1,6 @@
 import TwitterIcon from '@/components/icons/TwitterIcon';
 import { Tweet, useTweet } from 'react-tweet';
+import DOMPurify from 'dompurify';
 
 interface TwitterEmbedProps {
   embedHtml: string;
@@ -7,12 +8,12 @@ interface TwitterEmbedProps {
 
 export default function TwitterEmbed({ embedHtml }: TwitterEmbedProps) {
   const element = document.createElement('html');
-  element.innerHTML = embedHtml;
+  element.innerHTML = DOMPurify.sanitize(embedHtml);
   const tweetUrl =
     Array.from(element.querySelectorAll('a'))
       .filter(
         (a) =>
-          a.href.includes('https://twitter.com') &&
+          a.href.startsWith('https://twitter.com') &&
           !a.href.includes('pic.twitter.com') &&
           a.href.includes('/status/') &&
           a.href.includes('ref_src=twsrc%5Etfw')
