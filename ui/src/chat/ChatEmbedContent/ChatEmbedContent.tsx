@@ -13,7 +13,7 @@ import AudioPlayer from './AudioPlayer';
 const trustedProviders = [
   {
     name: 'YouTube',
-    regex: /^https:\/\/youtube\.com\/watch\?v=|youtu\.be\//,
+    regex: /^https:\/\/(?:www\.)?youtube\.com\/watch\?v=|youtu\.be\//,
   },
   {
     name: 'Twitter',
