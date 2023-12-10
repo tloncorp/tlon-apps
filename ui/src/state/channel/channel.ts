@@ -579,11 +579,7 @@ type PageParam = null | {
   direction: string;
 };
 
-export function useInfinitePosts(
-  nest: Nest,
-  initialTime?: string,
-  latest = false
-) {
+export function useInfinitePosts(nest: Nest, initialTime?: string) {
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
 
