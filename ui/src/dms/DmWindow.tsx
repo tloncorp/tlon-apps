@@ -25,17 +25,12 @@ interface DmWindowProps {
   prefixedElement?: ReactElement;
 }
 
-function getScrollTo(msg: string | null) {
-  return msg ? bigInt(msg) : undefined;
-}
-
 export default function DmWindow({
   whom,
   root,
   prefixedElement,
 }: DmWindowProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [shouldGetLatest, setShouldGetLatest] = useState(false);
   const { idTime } = useParams();
   const scrollToId = useMemo(
     () => searchParams.get('msg') || (idTime ? udToDec(idTime) : undefined),
@@ -59,7 +54,7 @@ export default function DmWindow({
     isFetching,
     isFetchingNextPage,
     isFetchingPreviousPage,
-  } = useInfiniteDMs(whom, scrollToId, shouldGetLatest);
+  } = useInfiniteDMs(whom, scrollToId);
   const navigate = useNavigate();
 
   const latestMessageIndex = writs.length - 1;
@@ -108,9 +103,12 @@ export default function DmWindow({
       setSearchParams({});
     }
     if (hasPreviousPage) {
-      remove();
-      await refetch();
-      setShouldGetLatest(false);
+      // wait until next tick to avoid the race condition where refetch
+      // happens before navigation completes and clears scrollToId
+      setTimeout(() => {
+        remove();
+        refetch();
+      }, 0);
     } else {
       scrollerRef.current?.scrollToIndex({ index: 'LAST', align: 'end' });
     }
@@ -145,15 +143,6 @@ export default function DmWindow({
   );
 
   useEffect(() => {
-    // If we have a scrollTo and we have newer data that's not yet loaded, we
-    // need to make sure we get the latest data the next time we fetch (i.e.,
-    // when the user cliks the "Go to Latest" button).
-    if (scrollToId && hasPreviousPage) {
-      setShouldGetLatest(true);
-    }
-  }, [scrollToId, hasPreviousPage]);
-
-  useEffect(() => {
     const doRefetch = async () => {
       remove();
       await refetch();
@@ -163,19 +152,10 @@ export default function DmWindow({
     // not in our current set of messages, that means we're scrolling to a
     // message that's not yet cached. So, we need to refetch (which would fetch
     // messages around the scrollTo time), then scroll to the message.
-    // We also need to make sure that shouldGetLatest is false, so that we don't
-    // get into a loop of fetching the latest data.
-    if (scrollToId && hasNextPage && !msgIdTimeInMessages && !shouldGetLatest) {
+    if (scrollToId && hasNextPage && !msgIdTimeInMessages) {
       doRefetch();
     }
-  }, [
-    scrollToId,
-    hasNextPage,
-    refetch,
-    msgIdTimeInMessages,
-    shouldGetLatest,
-    remove,
-  ]);
+  }, [scrollToId, hasNextPage, refetch, msgIdTimeInMessages, remove]);
 
   if (isLoading) {
     return (
