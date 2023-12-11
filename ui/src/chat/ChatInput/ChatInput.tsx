@@ -420,8 +420,12 @@ export default function ChatInput({
     if (replyingWrit && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.focus();
       const mention = ship ? makeMention(ship.slice(1)) : null;
-      messageEditor?.commands.setContent(mention);
-      messageEditor?.commands.insertContent(': ');
+      const needsMentionInsert =
+        mention && !messageEditor.getText().includes(`${ship}:`);
+      if (needsMentionInsert) {
+        messageEditor?.commands.setContent(mention);
+        messageEditor?.commands.insertContent(': ');
+      }
       const path =
         replyingWrit[1] && 'memo' in replyingWrit[1]
           ? `/1/chan/chat/${whom}/msg/${threadParentId}/${replyingWrit[0].toString()}`
