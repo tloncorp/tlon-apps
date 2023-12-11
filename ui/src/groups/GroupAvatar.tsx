@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import { isColor } from '@/logic/utils';
 import { useIsDark } from '@/logic/useMedia';
@@ -44,22 +44,24 @@ export default function GroupAvatar({
   loadImage = true,
 }: GroupAvatarProps) {
   const { hasLoaded, load } = useAvatar(image || '');
-  const imageIsColor = image && isColor(image);
+  const imageIsColor = useMemo(() => image && isColor(image), [image]);
   const calm = useCalm();
-  const showImage =
-    image &&
-    !calm.disableRemoteContent &&
-    !imageIsColor &&
-    (hasLoaded || loadImage);
+  const showImage = useMemo(
+    () =>
+      image &&
+      !calm.disableRemoteContent &&
+      !imageIsColor &&
+      (hasLoaded || loadImage),
+    [image, calm.disableRemoteContent, imageIsColor, hasLoaded, loadImage]
+  );
   const dark = useIsDark();
-  let background;
   const symbols = [...(title || '')];
-
-  if (imageIsColor) {
-    background = image;
-  } else {
-    background = dark ? '#333333' : '#E5E5E5';
-  }
+  const background = useMemo(() => {
+    if (image && imageIsColor) {
+      return image;
+    }
+    return dark ? '#333333' : '#E5E5E5';
+  }, [imageIsColor, dark, image]);
 
   return showImage ? (
     <img className={cn('rounded', size, className)} src={image} onLoad={load} />
