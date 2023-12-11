@@ -4,7 +4,6 @@ import React, {
   useLayoutEffect,
   useRef,
   useMemo,
-  useState,
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
@@ -78,8 +77,6 @@ function ChatMessageOptions(props: {
     seal.id,
     'delete'
   );
-  // TODO: replace this with isLoading from useMutation for deleting a DM later
-  const [isDeletePending, setIsDeletePending] = useState(false);
   const { chShip, chName } = useParams();
   const [, setSearchParams] = useSearchParams();
   const { load: loadEmoji } = useEmoji();
@@ -95,9 +92,11 @@ function ChatMessageOptions(props: {
   const location = useLocation();
   const { mutate: addReactToChat } = useAddPostReactMutation();
   const { mutate: addReactToDm } = useAddDmReactMutation();
-  const { mutate: deleteDm } = useDeleteDmMutation();
-  const { mutate: deleteChatMessage, isLoading: isDeleteLoading } =
+  const { mutateAsync: deleteDm, isLoading: isDeleteDmLoading } =
+    useDeleteDmMutation();
+  const { mutateAsync: deleteChatMessage, isLoading: isDeleteLoading } =
     useDeletePostMutation();
+  const isDeleting = isDeleteLoading || isDeleteDmLoading;
   const isDMorMultiDM = useIsDmOrMultiDm(whom);
   const {
     show: showPost,
@@ -120,21 +119,19 @@ function ChatMessageOptions(props: {
       onOpenChange(false);
     }
 
-    setIsDeletePending(true);
-
     try {
       if (isDMorMultiDM) {
-        deleteDm({ whom, id: seal.id });
+        await deleteDm({ whom, id: seal.id });
       } else {
-        deleteChatMessage({
+        await deleteChatMessage({
           nest,
           time: decToUd(seal.id),
         });
       }
+      setDeleteOpen(false);
     } catch (e) {
       console.log('Failed to delete message', e);
     }
-    setIsDeletePending(false);
   };
 
   const onCopy = useCallback(() => {
@@ -468,7 +465,8 @@ function ChatMessageOptions(props: {
         open={deleteOpen}
         setOpen={setDeleteOpen}
         confirmText="Delete"
-        loading={isDeletePending || isDeleteLoading}
+        loading={isDeleting}
+        closeOnClickOutside={true}
       />
     </>
   );

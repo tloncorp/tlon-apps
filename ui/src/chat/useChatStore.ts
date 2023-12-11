@@ -318,6 +318,15 @@ export function useChatDialog(
   };
 }
 
+export function useChatDialogs(
+  whom: string,
+  writId: string
+): Record<string, boolean> {
+  return useChatStore(
+    useCallback((s) => s.chats[whom]?.dialogs?.[writId] || {}, [whom, writId])
+  );
+}
+
 export function useChatHovering(
   whom: string,
   writId: string

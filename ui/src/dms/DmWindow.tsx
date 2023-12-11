@@ -47,6 +47,7 @@ export default function DmWindow({
     hasNextPage,
     hasPreviousPage,
     refetch,
+    remove,
     isLoading,
     fetchNextPage,
     fetchPreviousPage,
@@ -56,6 +57,10 @@ export default function DmWindow({
   } = useInfiniteDMs(whom, scrollTo?.toString(), shouldGetLatest);
 
   const latestMessageIndex = writs.length - 1;
+  const scrollToInMessages = useMemo(
+    () => (scrollTo ? writs.findIndex((m) => m[0].eq(scrollTo)) !== -1 : false),
+    [scrollTo, writs]
+  );
   const scrollToIndex = useMemo(
     () =>
       scrollTo ? writs.findIndex((m) => m[0].eq(scrollTo)) : latestMessageIndex,
@@ -69,11 +74,14 @@ export default function DmWindow({
   );
 
   const onAtBottom = useCallback(() => {
+    const { bottom, delayedRead } = useChatStore.getState();
+    bottom(true);
+    delayedRead(whom, () => markDmRead({ whom }));
     if (hasPreviousPage && !isFetching) {
       log('fetching previous page');
       fetchPreviousPage();
     }
-  }, [fetchPreviousPage, hasPreviousPage, isFetching]);
+  }, [fetchPreviousPage, hasPreviousPage, isFetching, whom, markDmRead]);
 
   const onAtTop = useCallback(() => {
     if (hasNextPage && !isFetching) {
@@ -112,6 +120,9 @@ export default function DmWindow({
   );
 
   useEffect(() => {
+    // If we have a scrollTo and we have newer data that's not yet loaded, we
+    // need to make sure we get the latest data the next time we fetch (i.e.,
+    // when the user cliks the "Go to Latest" button).
     if (scrollTo && hasPreviousPage) {
       setShouldGetLatest(true);
     }

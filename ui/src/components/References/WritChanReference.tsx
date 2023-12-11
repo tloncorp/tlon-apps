@@ -22,7 +22,7 @@ function WritChanReference(props: {
     idReply
   );
 
-  if (isError) {
+  if (isError || reference === null) {
     return <UnavailableReference time={bigInt(0)} nest={nest} preview={null} />;
   }
 

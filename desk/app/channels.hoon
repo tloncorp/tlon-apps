@@ -629,12 +629,19 @@
           %unwatch  remark.channel(watching |)
           %read-at  !!  ::TODO
           %read
-        =/  [=time post=(unit v-post:c)]
-          (need (ram:on-v-posts:c posts.channel))
-        %=  remark.channel
-          last-read       `@da`(add time (div ~s1 100))
-          unread-threads  *(set id-post:c)
-        ==
+        =.  unread-threads.remark.channel  *(set id-post:c)
+        =/  post  (ram:on-v-posts:c posts.channel)
+        ?~  post  remark.channel(last-read *@da)
+        ::  set read marker at time of latest content. we don't use now.bowl,
+        ::  because we may still receive content with ids before now.bowl
+        =/  latest
+          %-  ~(rep in unread-threads.remark.channel)
+          |=  [=id-post:c latest=_key.u.post]
+          ?~  post=(get:on-v-posts:c posts.channel id-post)  latest
+          ?~  u.post  latest
+          ?~  reply=(ram:on-v-replies:c replies.u.u.post)  latest
+          (max key.u.reply latest)
+        remark.channel(last-read (add latest (div ~s1 100)))
       ==
     =.  ca-core  ca-give-unread
     (ca-response a-remark)
@@ -1066,7 +1073,16 @@
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
         (emit (pass-hark (ca-spin path cs ~)))
       ::
-      ::TODO  if we (want-hark %any), notify
+      ?:  (want-hark %any)
+        =/  =path
+          ?-    -.kind-data.post
+            %diary  /note/(rsh 4 (scot %ui id-post))
+            %heap   /curio/(rsh 4 (scot %ui id-post))
+            %chat   /message/(rsh 4 (scot %ui id-post))
+          ==
+        =/  cs=(list content:ha)
+          ~[[%ship author.post] ' sent a message: ' (flatten:utils content.post)]
+        (emit (pass-hark (ca-spin path cs ~)))
       ca-core
     ::
     ++  on-reply
@@ -1196,21 +1212,19 @@
     ^-  unread:c
     :-  recency.remark.channel
     =/  unreads
-      (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
-    =/  unread-id=(unit id-post:c)
-      =/  pried  (pry:on-v-posts:c unreads)
-      ?~  pried  ~
-      ::TODO  in the ~ case, we could traverse further up, to better handle
-      ::      cases where the most recent message was deleted.
-      ?~  val.u.pried  ~
-      `id.u.val.u.pried
-    =/  count
-      %-  lent
-      %+  skim  ~(tap by unreads)
+      %+  skim
+        %~  tap  by
+        (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
       |=  [tim=time post=(unit v-post:c)]
       ?&  ?=(^ post)
           !=(author.u.post our.bowl)
       ==
+    =/  unread-id=(unit id-post:c)
+      ?~  unreads  ~
+      ::TODO  in the ~ case, we could traverse further up, to better handle
+      ::      cases where the most recent message was deleted.
+      (some -:(rear unreads))
+    =/  count  (lent unreads)
     ::  now do the same for all unread threads
     ::
     =/  [sum=@ud threads=(map id-post:c id-reply:c)]
@@ -1219,18 +1233,17 @@
       =/  parent    (get:on-v-posts:c posts.channel id)
       ?~  parent    [sum threads]
       ?~  u.parent  [sum threads]
-      =/  unreads   (lot:on-v-replies:c replies.u.u.parent `last-read.remark.channel ~)
-      :-  %+  add  sum
-          %-  lent
-          %+  skim  ~(tap by unreads)
-          |=  [tim=time reply=(unit v-reply:c)]
-          ?&  ?=(^ reply)
-              !=(author.u.reply our.bowl)
-          ==
-      =/  pried  (pry:on-v-replies:c unreads)
-      ?~  pried  threads
-      ?~  val.u.pried  threads
-      (~(put by threads) id id.u.val.u.pried)
+      =/  unreads
+        %+  skim
+          %~  tap  by
+          (lot:on-v-replies:c replies.u.u.parent `last-read.remark.channel ~)
+        |=  [tim=time reply=(unit v-reply:c)]
+        ?&  ?=(^ reply)
+            !=(author.u.reply our.bowl)
+        ==
+      :-  (add sum (lent unreads))
+      ?~  unreads  threads
+      (~(put by threads) id -:(rear unreads))
     [(add count sum) unread-id threads]
   ::
   ::  handle scries

@@ -71,7 +71,7 @@ function CurioReference({
     ? `${preview.group.flag}/channels/${nest}/curio/${idCurio}`
     : undefined;
 
-  if (isError) {
+  if (isError || reference === null) {
     return <UnavailableReference time={bigInt(0)} nest={nest} preview={null} />;
   }
 
@@ -153,7 +153,13 @@ function CurioReference({
         onClick={handleOpenReferenceClick}
         className="flex h-full cursor-pointer flex-col justify-between p-2"
       >
-        <HeapBlock post={note} time={idCurio} refToken={refToken} asRef />
+        <HeapBlock
+          post={note}
+          citeNest={nest}
+          time={idCurio}
+          refToken={refToken}
+          asRef
+        />
       </div>
       <ReferenceBar
         nest={nest}

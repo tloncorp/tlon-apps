@@ -844,6 +844,16 @@ export function useChannels(): Channels {
       );
     }
 
+    if ('response' in event && 'post' in event.response) {
+      // We call infinitePostUpdater here because there are situations where we
+      // are only listening to useChannels and not useInfinitePosts. This is
+      // the case in threads on mobile in particular.
+      const { nest } = event;
+      const [han, flag] = nestToFlag(nest);
+      const infinitePostQueryKey = [han, 'posts', flag, 'infinite'];
+      infinitePostUpdater(infinitePostQueryKey, event);
+    }
+
     invalidate.current(event);
   }, []);
 
@@ -1030,16 +1040,24 @@ export function useUnreads(): Unreads {
 
     if (unread !== null) {
       const [app, flag] = nestToFlag(nest);
+
       if (app === 'chat') {
-        useChatStore
-          .getState()
-          .unread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
+        if (unread['unread-id'] === null && unread.count === 0) {
+          // if unread is null and count is 0, we can assume that the channel
+          // has been read and we can remove it from the unreads list
+          useChatStore.getState().read(flag);
+        } else {
+          useChatStore
+            .getState()
+            .unread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
+        }
       }
 
       queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
         if (d === undefined) {
           return undefined;
         }
+
         const newUnreads = { ...d };
         newUnreads[event.nest] = unread;
 
@@ -1130,6 +1148,13 @@ export function useRemotePost(
   if (rest.isLoading || rest.isError || data === undefined) {
     return {
       reference: undefined,
+      ...rest,
+    };
+  }
+
+  if (data === null) {
+    return {
+      reference: null,
       ...rest,
     };
   }
@@ -2113,7 +2138,7 @@ export function useAddPostReactMutation() {
         const prevReacts = prevPost.seal.reacts;
         const newReacts = {
           ...prevReacts,
-          [unixToDa(Date.now()).toString()]: variables.react,
+          [window.our]: variables.react,
         };
 
         const updatedPost: PostDataResponse = {
@@ -2130,16 +2155,6 @@ export function useAddPostReactMutation() {
       await updatePostInCache(variables, postUpdater);
 
       await updatePostsInCache(variables, postsUpdater);
-    },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'posts', flag]);
-      await queryClient.invalidateQueries([
-        han,
-        'posts',
-        flag,
-        variables.postId,
-      ]);
     },
   });
 }
@@ -2246,16 +2261,6 @@ export function useDeletePostReactMutation() {
 
       await updatePostInCache(variables, postUpdater);
       await updatePostsInCache(variables, postsUpdater);
-    },
-    onSettled: async (_data, _error, variables) => {
-      const [han, flag] = nestToFlag(variables.nest);
-      await queryClient.invalidateQueries([han, 'posts', flag]);
-      await queryClient.invalidateQueries([
-        han,
-        'posts',
-        flag,
-        variables.postId,
-      ]);
     },
   });
 }

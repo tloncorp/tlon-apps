@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import _ from 'lodash';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -27,12 +27,14 @@ import {
   usePost,
   usePerms,
   useReply,
+  useMarkReadMutation,
 } from '@/state/channel/channel';
 import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
+import { useChatInfo, useChatStore } from '../useChatStore';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
@@ -52,6 +54,7 @@ export default function ChatThread() {
   const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
   const scrollTo = new URLSearchParams(location.search).get('msg');
+  const { mutate: markRead } = useMarkReadMutation();
   const channel = useGroupChannel(groupFlag, nest)!;
   const [searchParams, setSearchParams] = useSearchParams();
   const replyId = useMemo(() => searchParams.get('reply'), [searchParams]);
@@ -103,12 +106,19 @@ export default function ChatThread() {
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const readTimeout = useChatInfo(flag).unread?.readTimeout;
 
   const returnURL = useCallback(
     () =>
       `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
     [chName, chShip, name, ship, idTime]
   );
+
+  const onAtBottom = useCallback(() => {
+    const { bottom, delayedRead } = useChatStore.getState();
+    bottom(true);
+    delayedRead(flag, () => markRead({ nest }));
+  }, [nest, flag, markRead]);
 
   const onEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -119,6 +129,16 @@ export default function ChatThread() {
     [navigate, returnURL, leapIsOpen]
   );
   useEventListener('keydown', onEscape, threadRef);
+
+  useEffect(
+    () => () => {
+      if (readTimeout !== undefined && readTimeout !== 0) {
+        useChatStore.getState().read(flag);
+        markRead({ nest });
+      }
+    },
+    [readTimeout, nest, flag, markRead]
+  );
 
   const BackButton = isMobile ? Link : 'div';
 
@@ -200,6 +220,7 @@ export default function ChatThread() {
             isScrolling={isScrolling}
             hasLoadedNewest={false}
             hasLoadedOldest={false}
+            onAtBottom={onAtBottom}
           />
         )}
       </div>

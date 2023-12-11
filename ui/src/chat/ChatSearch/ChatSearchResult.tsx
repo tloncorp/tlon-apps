@@ -64,7 +64,7 @@ function ChatSearchResult({
 
     return '';
   }, [writ]);
-  const reacts = useMemo(() => writ.seal.reacts, [writ]);
+  const { reacts } = writ.seal;
 
   return (
     <Link
@@ -81,7 +81,8 @@ function ChatSearchResult({
       <Author ship={author} date={unix} />
       <div className="group-one wrap-anywhere relative z-0 flex w-full flex-col space-y-2 py-1 pl-9">
         <ChatContent story={content} isScrolling={isScrolling} />
-        {Object.keys(reacts).length > 0 &&
+        {reacts &&
+          Object.keys(reacts).length > 0 &&
           ('parent-id' in writ.seal ? (
             <ReplyReactions
               time={time.toString()}

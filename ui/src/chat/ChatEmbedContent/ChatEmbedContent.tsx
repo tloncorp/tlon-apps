@@ -49,6 +49,14 @@ function ChatEmbedContent({
   }, [isError, error]);
 
   if (url !== content) {
+    // secure URL protocol regex borrowed from dompurify:
+    // https://github.com/cure53/DOMPurify/blob/main/src/regexp.js#L9-L11
+    const IS_ALLOWED_URI =
+      /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i; // eslint-disable-line no-useless-escape
+    if (!IS_ALLOWED_URI.test(url)) {
+      // disallow javascript: urls and other risky protocols
+      return <a href="#">{content}</a>;
+    }
     return (
       <a target="_blank" rel="noreferrer" href={url}>
         {content}

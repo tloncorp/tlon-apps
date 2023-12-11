@@ -48,6 +48,7 @@ export default function ChatWindow({
     hasPreviousPage,
     fetchPreviousPage,
     refetch,
+    remove,
     fetchNextPage,
     isLoading,
     isFetching,
@@ -59,6 +60,11 @@ export default function ChatWindow({
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const { compatible } = useChannelCompatibility(nest);
   const latestMessageIndex = messages.length - 1;
+  const scrollToInMessages = useMemo(
+    () =>
+      scrollTo ? messages.findIndex((m) => m[0].eq(scrollTo)) !== -1 : false,
+    [scrollTo, messages]
+  );
   const scrollToIndex = useMemo(
     () =>
       scrollTo
@@ -119,6 +125,9 @@ export default function ChatWindow({
   );
 
   useEffect(() => {
+    // If we have a scrollTo and we have newer data that's not yet loaded, we
+    // need to make sure we get the latest data the next time we fetch (i.e.,
+    // when the user cliks the "Go to Latest" button).
     if (scrollTo && hasPreviousPage) {
       setShouldGetLatest(true);
     }
