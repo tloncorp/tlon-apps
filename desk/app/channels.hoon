@@ -1215,17 +1215,17 @@
       ?&  ?=(^ post)
           !=(author.u.post our.bowl)
       ==
-    =/  unread-id=(unit id-post:c)
+    =/  count  (lent unreads)
+    =/  unread=(unit [id-post:c @ud])
       ?~  unreads  ~
       ::TODO  in the ~ case, we could traverse further up, to better handle
       ::      cases where the most recent message was deleted.
-      (some -:(rear unreads))
-    =/  count  (lent unreads)
+      (some -:(rear unreads) count)
     ::  now do the same for all unread threads
     ::
-    =/  [sum=@ud threads=(map id-post:c id-reply:c)]
+    =/  [sum=@ud threads=(map id-post:c [id-reply:c @ud])]
       %+  roll  ~(tap in unread-threads.remark.channel)
-      |=  [id=id-post:c sum=@ud threads=(map id-post:c id-reply:c)]
+      |=  [id=id-post:c sum=@ud threads=(map id-post:c [id-reply:c @ud])]
       =/  parent    (get:on-v-posts:c posts.channel id)
       ?~  parent    [sum threads]
       ?~  u.parent  [sum threads]
@@ -1237,10 +1237,11 @@
         ?&  ?=(^ reply)
             !=(author.u.reply our.bowl)
         ==
-      :-  (add sum (lent unreads))
+      =/  count=@ud  (lent unreads)
+      :-  (add sum count)
       ?~  unreads  threads
-      (~(put by threads) id -:(rear unreads))
-    [(add count sum) unread-id threads]
+      (~(put by threads) id -:(rear unreads) count)
+    [(add count sum) unread threads]
   ::
   ::  handle scries
   ::
