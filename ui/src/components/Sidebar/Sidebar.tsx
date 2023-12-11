@@ -1,4 +1,10 @@
-import { useState, useRef, useMemo, useCallback, useContext } from 'react';
+import React, {
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+  useContext,
+} from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
@@ -34,7 +40,7 @@ import SystemChrome from './SystemChrome';
 import ActionMenu, { Action } from '../ActionMenu';
 import { DesktopUpdateButton } from '../UpdateNotices';
 
-export function GroupsAppMenu() {
+export const GroupsAppMenu = React.memo(() => {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -137,12 +143,16 @@ export function GroupsAppMenu() {
       </SidebarItem>
     </ActionMenu>
   );
-}
+});
+
+const UpdateOrAppMenu = React.memo(() => {
+  const { needsUpdate } = useContext(AppUpdateContext);
+  return needsUpdate ? <DesktopUpdateButton /> : <GroupsAppMenu />;
+});
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
   const location = useLocation();
-  const { needsUpdate } = useContext(AppUpdateContext);
   const pendingInvites = usePendingInvites();
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
@@ -184,7 +194,7 @@ export default function Sidebar() {
           'bottom-shadow': !atTop,
         })}
       >
-        {needsUpdate ? <DesktopUpdateButton /> : <GroupsAppMenu />}
+        <UpdateOrAppMenu />
         <SystemChrome />
         <SidebarItem
           highlight={shipColor}

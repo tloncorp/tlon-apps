@@ -3,6 +3,8 @@ import { mix } from 'color2k';
 import React, {
   ButtonHTMLAttributes,
   PropsWithChildren,
+  useCallback,
+  useMemo,
   useState,
 } from 'react';
 import { Link, LinkProps, useMatch } from 'react-router-dom';
@@ -32,21 +34,23 @@ type SidebarProps = PropsWithChildren<{
   ButtonHTMLAttributes<HTMLButtonElement> &
   Omit<LinkProps, 'to'>;
 
-function Action({
-  to,
-  children,
-  ...rest
-}: Pick<SidebarProps, 'children' | 'to'> & Record<string, unknown>) {
-  if (to) {
-    return (
-      <Link to={to} {...rest}>
-        {children}
-      </Link>
-    );
-  }
+const Action = React.memo(
+  ({
+    to,
+    children,
+    ...rest
+  }: Pick<SidebarProps, 'children' | 'to'> & Record<string, unknown>) => {
+    if (to) {
+      return (
+        <Link to={to} {...rest}>
+          {children}
+        </Link>
+      );
+    }
 
-  return <button {...rest}>{children}</button>;
-}
+    return <button {...rest}>{children}</button>;
+  }
+);
 
 const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
   (
@@ -68,17 +72,20 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
     },
     ref
   ) => {
-    const matchString = to && inexact ? `${to}/*` : to;
+    const matchString = useMemo(
+      () => (to && inexact ? `${to}/*` : to),
+      [to, inexact]
+    );
     const [hover, setHover] = useState(false);
     const matches = useMatch(
       (defaultRoute ? '/' : matchString) || 'DONT_MATCH'
     );
-    const active = !!matches;
+    const active = useMemo(() => !!matches, [matches]);
     const isMobile = useIsMobile();
     const Wrapper = 'div';
     const currentTheme = useCurrentTheme();
 
-    const hasHoverColor = () => {
+    const hasHoverColor = useCallback(() => {
       switch (highlight) {
         case 'bg-gray-50': {
           return false;
@@ -87,9 +94,9 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           return true;
         }
       }
-    };
+    }, [highlight]);
 
-    const customHoverHiglightStyles = () => {
+    const customHoverHiglightStyles = useCallback(() => {
       if (hasHoverColor() && isColor(highlight))
         return {
           backgroundColor:
@@ -98,9 +105,9 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
               : mix(highlight, 'white', 0.85),
         };
       return null;
-    };
+    }, [currentTheme, hasHoverColor, highlight]);
 
-    const customActiveHiglightStyles = () => {
+    const customActiveHiglightStyles = useCallback(() => {
       if (hasHoverColor() && isColor(highlight))
         return {
           backgroundColor:
@@ -109,7 +116,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
               : mix(highlight, 'white', 0.75),
         };
       return null;
-    };
+    }, [currentTheme, hasHoverColor, highlight]);
 
     return (
       <Wrapper
