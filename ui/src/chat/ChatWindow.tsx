@@ -90,6 +90,7 @@ export default function ChatWindow({
     if (hasPreviousPage) {
       // wait until next tick to avoid the race condition where refetch
       // happens before navigation completes and clears scrollToId
+      // TODO: is there a better way to handle this?
       setTimeout(() => {
         remove();
         refetch();
