@@ -629,19 +629,15 @@
           %unwatch  remark.channel(watching |)
           %read-at  !!  ::TODO
           %read
-        =.  unread-threads.remark.channel  *(set id-post:c)
-        =/  post  (ram:on-v-posts:c posts.channel)
-        ?~  post  remark.channel(last-read *@da)
-        ::  set read marker at time of latest content. we don't use now.bowl,
-        ::  because we may still receive content with ids before now.bowl
-        =/  latest
-          %-  ~(rep in unread-threads.remark.channel)
-          |=  [=id-post:c latest=_key.u.post]
-          ?~  post=(get:on-v-posts:c posts.channel id-post)  latest
-          ?~  u.post  latest
-          ?~  reply=(ram:on-v-replies:c replies.u.u.post)  latest
-          (max key.u.reply latest)
-        remark.channel(last-read (add latest (div ~s1 100)))
+        ::  set read marker at time of latest content. conveniently, we can use
+        ::  the always-up-to-date recency for that.
+        ::  we don't use now.bowl, because we may still receive content
+        ::  with ids before now.bowl
+        ::
+        %_  remark.channel
+          last-read       (add recency.remark.channel (div ~s1 100))
+          unread-threads  ~
+        ==
       ==
     =.  ca-core  ca-give-unread
     (ca-response a-remark)
