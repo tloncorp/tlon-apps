@@ -50,7 +50,7 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
   const to =
     entries.length === 0 || parent > time
       ? `${root}?msg=${time}`
-      : `${root}/message/${topId}?msg=${replyTime}`;
+      : `${root}/message/${topId}?thread-msg=${replyTime}`;
 
   const date = new Date(daToUnix(bigInt(time)));
   const since = isToday(date)

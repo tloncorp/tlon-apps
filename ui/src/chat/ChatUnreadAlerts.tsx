@@ -47,7 +47,7 @@ export default function ChatUnreadAlerts({
   const to =
     threadKeys.length === 0 || topId > id
       ? `${root}?msg=${id}`
-      : `${root}/message/${topId}?msg=${threads[topId]}`;
+      : `${root}/message/${topId}?thread-msg=${threads[topId]}`;
 
   const date = new Date(daToUnix(bigInt(id)));
   const since = isToday(date)
