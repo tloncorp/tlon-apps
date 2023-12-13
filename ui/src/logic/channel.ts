@@ -174,7 +174,7 @@ export function useChannelSort(defaultSort: SortMode = DEFAULT_SORT) {
 
   const { sortFn, setSortFn, sortRecordsBy } = useSidebarSort({
     sortOptions,
-    flag: groupFlag === '' ? '~' : groupFlag,
+    flag: groupFlag === '' && !group ? '~' : groupFlag,
     defaultSort,
   });
 

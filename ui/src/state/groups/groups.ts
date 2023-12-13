@@ -105,14 +105,19 @@ export function useGroupsWithQuery() {
     },
   });
 
-  if (rest.isLoading || rest.isError || !data) {
-    return { data: emptyGroups, ...rest };
-  }
+  const stringifiedRest = JSON.stringify(rest);
 
-  return {
-    data,
-    ...rest,
-  };
+  return useMemo(() => {
+    if (rest.isLoading || rest.isError || !data) {
+      return { data: emptyGroups, ...rest };
+    }
+
+    return {
+      data,
+      ...rest,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, stringifiedRest, rest.isLoading, rest.isError]);
 }
 
 export function useGroups() {
@@ -162,6 +167,8 @@ export function useGroup(flag: string, updating = false): Group | undefined {
       initialData: group,
       refetchOnMount: updating,
       retry: true,
+      // prevents skeleton from flashing on unmount when we have cached data
+      keepPreviousData: true,
     },
   });
 
