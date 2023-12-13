@@ -440,6 +440,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
                 <Route path="members" element={<Members />} />
               </Route>
+              <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
+                <Route
+                  index
+                  element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
+                />
+                <Route
+                  path="members"
+                  element={<GroupMembers title={`• ${groupsTitle}`} />}
+                />
+              </Route>
               <Route
                 path="channels/chat/:chShip/:chName"
                 element={<GroupChannel type="chat" />}

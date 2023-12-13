@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import cn from 'classnames';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAmAdmin, useRouteGroup, useGroup } from '@/state/groups/groups';
 import Dialog from '@/components/Dialog';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -17,7 +17,8 @@ import { useConnectivityCheck } from '@/state/vitals';
 import GroupAvatar from '../GroupAvatar';
 
 export default function GroupAdmin() {
-  const { state } = useLocation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const flag = useRouteGroup();
   const isAdmin = useAmAdmin(flag);
   const group = useGroup(flag);
@@ -25,6 +26,16 @@ export default function GroupAdmin() {
   const isMobile = useIsMobile();
   const host = getFlagParts(flag).ship;
   const { data } = useConnectivityCheck(host || '');
+
+  const backgroundLocation =
+    location.state?.backgroundLocation || `/groups/${flag}/activity`;
+  useEffect(() => {
+    if (!location.state?.backgroundLocation) {
+      navigate(location.pathname, {
+        state: { backgroundLocation: `/groups/${flag}/activity` },
+      });
+    }
+  }, [navigate, location, flag]);
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
@@ -54,35 +65,35 @@ export default function GroupAdmin() {
                 <SidebarItem
                   to={`/groups/${flag}/edit`}
                   icon={<HomeIcon className="h-6 w-6" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
+                  state={{ backgroundLocation }}
                 >
                   Group Info
                 </SidebarItem>
                 <SidebarItem
                   to={`/groups/${flag}/edit/invites-privacy`}
                   icon={<AddPersonIcon className="h-6 w-6" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
+                  state={{ backgroundLocation }}
                 >
                   Invites &amp; Privacy
                 </SidebarItem>
                 <SidebarItem
                   to={`/groups/${flag}/edit/members`}
                   icon={<PeopleIcon className="h-6 w-6" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
+                  state={{ backgroundLocation }}
                 >
                   Members
                 </SidebarItem>
                 <SidebarItem
                   to={`/groups/${flag}/edit/roles`}
                   icon={<BadgeIcon className="h-6 w-6" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
+                  state={{ backgroundLocation }}
                 >
                   Roles
                 </SidebarItem>
                 <SidebarItem
                   to={`/groups/${flag}/edit/delete`}
                   icon={<XIcon className="m-0.5 h-5 w-5" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
+                  state={{ backgroundLocation }}
                 >
                   Delete Group
                 </SidebarItem>

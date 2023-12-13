@@ -1398,7 +1398,7 @@
         =.  ask.cordon.group  (~(uni in ask.cordon) q.diff)
         =/  ships  q.diff
         ?:  from-self  go-core
-        =/  link  (go-link /info/members/pending)
+        =/  link  (go-link /edit/members)
         =/  =new-yarn:ha
           %-  spin
           :*  (go-rope /asks)
