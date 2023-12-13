@@ -1209,7 +1209,7 @@
     :-  recency.remark.channel
     =/  unreads
       %+  skim
-        %~  tap  by
+        %-  bap:on-v-posts:c
         (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
       |=  [tim=time post=(unit v-post:c)]
       ?&  ?=(^ post)
@@ -1217,9 +1217,9 @@
       ==
     =/  count  (lent unreads)
     =/  unread=(unit [id-post:c @ud])
-      ?~  unreads  ~
       ::TODO  in the ~ case, we could traverse further up, to better handle
       ::      cases where the most recent message was deleted.
+      ?~  unreads  ~
       (some -:(rear unreads) count)
     ::  now do the same for all unread threads
     ::
@@ -1231,7 +1231,7 @@
       ?~  u.parent  [sum threads]
       =/  unreads
         %+  skim
-          %~  tap  by
+          %-  bap:on-v-replies:c
           (lot:on-v-replies:c replies.u.u.parent `last-read.remark.channel ~)
         |=  [tim=time reply=(unit v-reply:c)]
         ?&  ?=(^ reply)
