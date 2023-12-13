@@ -64,7 +64,7 @@ export const chatStoreLogger = createDevLogger('ChatStore', false);
 
 export function isUnread(unread: Unread | DMUnread): boolean {
   const hasThreads = Object.keys(unread.threads || {}).length > 0;
-  return unread.count > 0 && (!!unread['unread-id'] || hasThreads);
+  return unread.count > 0 && (!!unread.unread || hasThreads);
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -182,7 +182,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           unread: {
             recency: 0,
             count: 0,
-            'unread-id': '',
+            unread: { id: '', count: 0 },
             threads: {},
           },
           readTimeout: 0,

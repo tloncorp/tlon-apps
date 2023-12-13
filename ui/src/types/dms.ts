@@ -206,14 +206,18 @@ export interface MessageKey {
   time: string;
 }
 
-export interface UnreadThread extends MessageKey {
+export interface DMUnreadPoint extends MessageKey {
+  count: number;
+}
+
+export interface UnreadThread extends DMUnreadPoint {
   'parent-time': string;
 }
 
 export interface DMUnread {
   recency: number;
   count: number;
-  'unread-id': MessageKey | null;
+  unread: DMUnreadPoint | null;
   threads: Record<string, UnreadThread>;
 }
 

@@ -1042,7 +1042,7 @@ export function useUnreads(): Unreads {
       const [app, flag] = nestToFlag(nest);
 
       if (app === 'chat') {
-        if (unread['unread-id'] === null && unread.count === 0) {
+        if (unread.unread === null && unread.count === 0) {  //TODO  just count=0?
           // if unread is null and count is 0, we can assume that the channel
           // has been read and we can remove it from the unreads list
           useChatStore.getState().read(flag);
@@ -1177,13 +1177,14 @@ export function useGetFirstUnreadID(nest: Nest) {
   const keys = usePostKeys(nest);
   const unread = useUnread(nest);
 
-  const { 'unread-id': lastRead } = unread;
+  const { unread: lastRead } = unread;
 
+  //TODO  but what if unreads in threads?
   if (!lastRead) {
     return null;
   }
 
-  const lastReadBN = bigInt(lastRead);
+  const lastReadBN = bigInt(lastRead.id);
   const firstUnread = keys.find((key) => key.gt(lastReadBN));
   return firstUnread ?? null;
 }

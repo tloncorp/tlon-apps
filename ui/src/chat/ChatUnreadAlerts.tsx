@@ -31,18 +31,18 @@ export default function ChatUnreadAlerts({
   }
 
   const { unread } = chatInfo.unread;
-  const unreadId = unread['unread-id'];
+  const unreadId = unread.unread;
   const { threads } = unread;
   const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
   if (
     unread.count === 0 ||
     (!unreadId && threadKeys.length === 0) ||
-    (typeof unreadId === 'object' && unreadId !== null)
+    (unreadId !== null && 'time' in unreadId)
   ) {
     return null;
   }
 
-  const id = unreadId || unixToDa(Date.now()).toString();
+  const id = unreadId?.id || unixToDa(Date.now()).toString();
   const topId = threadKeys[0];
   const to =
     threadKeys.length === 0 || topId > id

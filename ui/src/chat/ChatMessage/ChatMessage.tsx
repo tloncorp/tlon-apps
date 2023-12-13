@@ -70,10 +70,12 @@ function unreadStatus(
     return 'none';
   }
 
-  const unreadId = unread['unread-id'];
+  const unreadId = unread.unread?.id;
   const threads = unread.threads || {};
   const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
   const topId = threadKeys[0];
+
+  //TODO  easier heuristic: unread.unread.count vs unread.count
 
   if (topId && topId === id && (!unreadId || topId < unreadId)) {
     return 'thread';
@@ -91,7 +93,7 @@ function dmUnreadStatus(unread: DMUnread | undefined, id: string) {
     return 'none';
   }
 
-  const unreadId = unread['unread-id'];
+  const unreadId = unread.unread;
   const threads = unread.threads || {};
   const threadKeys = Object.entries(threads).sort(([, a], [, b]) =>
     a['parent-time'].localeCompare(b['parent-time'])
@@ -368,7 +370,7 @@ const ChatMessage = React.memo<
           {unread && unreadDisplay === 'top' ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.unread.count}
+              unreadCount={unread.unread.unread?.count || 0}
               ref={viewRef}
             />
           ) : null}

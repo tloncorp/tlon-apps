@@ -291,7 +291,7 @@ const ReplyMessage = React.memo<
           {unread && isUnread ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.unread.count}
+              unreadCount={unread.unread.threads[seal['parent-id']]?.count || 0}
               ref={viewRef}
             />
           ) : null}

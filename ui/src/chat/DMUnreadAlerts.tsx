@@ -27,9 +27,9 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
   }
   const { unread } = chatInfo.unread;
   const threadVals = Object.values(unread.threads);
-  if (
-    typeof unread['unread-id'] !== 'object' ||
-    (!unread['unread-id'] && threadVals.length === 0)
+  if ( unread.unread === null ||
+       !('time' in unread.unread) ||
+       (threadVals.length === 0)
   ) {
     return null;
   }
@@ -38,7 +38,7 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
     return null;
   }
 
-  const time = unread['unread-id']?.time || unixToDa(Date.now()).toString();
+  const time = unread.unread.time || unixToDa(Date.now()).toString();
   const threads = unread.threads as DMUnread['threads'];
   const entries = Object.entries(threads).sort(([, a], [, b]) =>
     a['parent-time'].localeCompare(b['parent-time'])
