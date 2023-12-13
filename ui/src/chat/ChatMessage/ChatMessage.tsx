@@ -75,8 +75,6 @@ function unreadStatus(
   const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
   const topId = threadKeys[0];
 
-  //TODO  easier heuristic: unread.unread.count vs unread.count
-
   if (topId && topId === id && (!unreadId || topId < unreadId)) {
     return 'thread';
   }

@@ -1173,22 +1173,6 @@ export function usePostKeys(nest: Nest) {
   return useMemo(() => posts.map(([k]) => k), [posts]);
 }
 
-export function useGetFirstUnreadID(nest: Nest) {
-  const keys = usePostKeys(nest);
-  const unread = useUnread(nest);
-
-  const { unread: lastRead } = unread;
-
-  //TODO  but what if unreads in threads?
-  if (!lastRead) {
-    return null;
-  }
-
-  const lastReadBN = bigInt(lastRead.id);
-  const firstUnread = keys.find((key) => key.gt(lastReadBN));
-  return firstUnread ?? null;
-}
-
 export function useJoinMutation() {
   const mutationFn = async ({ group, chan }: { group: Flag; chan: Nest }) => {
     if (chan.split('/').length !== 3) {
