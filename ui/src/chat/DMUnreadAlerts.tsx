@@ -1,13 +1,14 @@
 import bigInt from 'big-integer';
 import { useCallback } from 'react';
 import { format, isToday } from 'date-fns';
-import { daToUnix, unixToDa } from '@urbit/api';
+import { daToUnix } from '@urbit/api';
 import { Link } from 'react-router-dom';
 import XIcon from '@/components/icons/XIcon';
 import { pluralize } from '@/logic/utils';
 import { useMarkDmReadMutation } from '@/state/chat';
-import { DMUnread } from '@/types/dms';
+import { DMUnread, UnreadThread } from '@/types/dms';
 import { useChatInfo, useChatStore } from './useChatStore';
+import { getUnreadStatus, threadIsOlderThanLastRead } from './unreadUtils';
 
 interface DMUnreadAlertsProps {
   whom: string;
@@ -25,45 +26,44 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
   if (!chatInfo?.unread || chatInfo.unread.seen) {
     return null;
   }
-  const { unread } = chatInfo.unread;
-  const threadVals = Object.values(unread.threads);
-  if ( unread.unread === null ||
-       !('time' in unread.unread) ||
-       (threadVals.length === 0)
-  ) {
+
+  const unread = chatInfo.unread.unread as DMUnread;
+  const { unread: mainChat, threads } = unread;
+  const { isEmpty, hasThreadUnreads } = getUnreadStatus(unread);
+  if (isEmpty) {
     return null;
   }
 
-  if (threadVals.length > 0 && !threadVals.some((t) => typeof t === 'object')) {
-    return null;
-  }
-
-  const time = unread.unread.time || unixToDa(Date.now()).toString();
-  const threads = unread.threads as DMUnread['threads'];
-  const entries = Object.entries(threads).sort(([, a], [, b]) =>
-    a['parent-time'].localeCompare(b['parent-time'])
+  const sortedThreads = Object.entries(threads).sort(([, a], [, b]) =>
+    bigInt(a['parent-time']).compare(bigInt(b['parent-time']))
+  );
+  const oldestThread = sortedThreads[0] as [string, UnreadThread] | undefined;
+  const threadIsOlder = threadIsOlderThanLastRead(
+    unread,
+    oldestThread ? oldestThread[0] : null
   );
 
-  const topId = entries[0]?.[0];
-  const parent = entries[0]?.[1]['parent-time'];
-  const replyTime = entries[0]?.[1].time;
-  const to =
-    entries.length === 0 || parent > time
-      ? `${root}?msg=${time}`
-      : `${root}/message/${topId}?msg=${replyTime}`;
+  let to = '';
+  let count = 0;
+  let date = new Date();
+  if (hasThreadUnreads && threadIsOlder) {
+    const [id, thread] = oldestThread!;
+    to = `${root}/message/${id}?msg=${thread.time}`;
+    count = thread.count;
+    date = new Date(daToUnix(bigInt(thread.time)));
+  } else {
+    to = `${root}?msg=${mainChat!.time}`;
+    count = mainChat!.count;
+    date = new Date(daToUnix(bigInt(mainChat!.time)));
+  }
 
-  const date = new Date(daToUnix(bigInt(time)));
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`
     : format(date, 'LLLL d');
-
-  const unreadMessage =
-    unread &&
-    `${unread.count} new ${pluralize('message', unread.count)} since ${since}`;
-
-  if (!unread || unread?.count === 0) {
-    return null;
-  }
+  const unreadMessage = `${count} new ${pluralize(
+    'message',
+    count
+  )} since ${since}`;
 
   return (
     <>
