@@ -154,7 +154,7 @@ const GroupActions = React.memo(
             <div className="text-gray-800">
               {group?.meta.title || `~${flag}`}
             </div>
-            <div className="font-[17px] text-gray-400">Quick actions</div>
+            <div className="font-normal text-gray-400">Quick actions</div>
           </div>
         ),
       });
@@ -200,7 +200,7 @@ const GroupActions = React.memo(
           >
             Group settings
             {isMobile && (
-              <div className="pt-1.5 text-[14px] text-gray-400">
+              <div className="pt-1.5 text-[14px] font-normal text-gray-400">
                 Configure group details and privacy
               </div>
             )}
@@ -219,7 +219,7 @@ const GroupActions = React.memo(
           <div>
             {isPinned ? 'Unpin' : 'Pin'}
             {isMobile && (
-              <div className="pt-1.5 text-[14px] text-gray-400">
+              <div className="pt-1.5 text-[14px] font-normal text-gray-400">
                 {isPinned ? 'Unpin this group from' : 'Pin this group to'} the
                 top of your Groups list
               </div>
@@ -238,7 +238,7 @@ const GroupActions = React.memo(
           <div>
             {copyItemText}
             {isMobile && (
-              <div className="pt-1.5 text-[14px] text-gray-400">
+              <div className="pt-1.5 text-[14px] font-normal text-gray-400">
                 Copy a link to this group
               </div>
             )}
@@ -254,7 +254,7 @@ const GroupActions = React.memo(
           <Link to={`/groups/${flag}/members`}>
             Group members{' '}
             {isMobile && (
-              <div className="pt-1.5 text-[14px] text-gray-400">
+              <div className="pt-1.5 text-[14px] font-normal text-gray-400">
                 View all members and roles
               </div>
             )}
@@ -270,7 +270,7 @@ const GroupActions = React.memo(
           <Link to={`/groups/${flag}/channels`}>
             Channels{' '}
             {isMobile && (
-              <div className="pt-1.5 text-[14px] text-gray-400">
+              <div className="pt-1.5 text-[14px] font-normal text-gray-400">
                 View all channels and sections you have visibility towards
               </div>
             )}
@@ -294,7 +294,7 @@ const GroupActions = React.memo(
           <div>
             Group notification settings
             {isMobile && (
-              <div className="pt-1.5 text-[14px] text-gray-400">
+              <div className="pt-1.5 text-[14px] font-normal text-gray-400">
                 Configure your notifications for this group
               </div>
             )}
@@ -309,7 +309,7 @@ const GroupActions = React.memo(
         <div className="-mx-2 flex flex-col space-y-6">
           <div className="flex flex-col space-y-1">
             <span className="text-lg text-gray-800">Notification Settings</span>
-            <span className="font-[17px] text-gray-400">
+            <span className="font-normal text-gray-400">
               {group?.meta.title || `~${flag}`}
             </span>
           </div>
