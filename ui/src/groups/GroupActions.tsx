@@ -24,7 +24,7 @@ import {
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { Saga } from '@/types/groups';
 import { ConnectionStatus } from '@/state/vitals';
-import HostConnection from '@/channels/HostConnection';
+// import HostConnection from '@/channels/HostConnection';
 import { useIsMobile } from '@/logic/useMedia';
 import VolumeSetting from '@/components/VolumeSetting';
 import {
@@ -63,7 +63,7 @@ export function useGroupActions({
   }, [open, setIsOpen]);
 
   const { doCopy } = useCopy(citeToPath({ group: flag }));
-  const [copyItemText, setCopyItemText] = useState('Copy Group Link');
+  const [copyItemText, setCopyItemText] = useState('Copy group link');
   const pinned = usePinnedGroups();
   const isPinned = Object.keys(pinned).includes(flag);
 
@@ -144,26 +144,38 @@ const GroupActions = React.memo(
     const actions: Action[] = [];
     const notificationActions: Action[] = [];
 
-    if (saga && isMobile) {
+    if (isMobile) {
       actions.push({
-        key: 'connectivity',
+        key: 'header',
         keepOpenOnClick: true,
+        containerClassName: '!px-2 !py-0 mt-4 mb-6',
         content: (
-          <HostConnection
-            ship={getFlagParts(flag).ship}
-            status={status}
-            saga={saga}
-            type="combo"
-            className="-ml-1 text-[17px] font-medium text-gray-800"
-          />
+          <div className="leading-6">
+            <div className="text-gray-800">
+              {group?.meta.title || `~${flag}`}
+            </div>
+            <div className="font-[17px] text-gray-400">Quick actions</div>
+          </div>
         ),
       });
     }
+
+    // if (saga && isMobile) {
+    //   actions.push({
+    //     key: 'connectivity',
+    //     keepOpenOnClick: true,
+    //     content: (
+
+    //     ),
+    //   });
+    // }
 
     if (privacy === 'public' || isAdmin) {
       actions.push({
         key: 'invite',
         type: 'prominent',
+        containerClassName:
+          'border border-blue-soft mb-4 md:mb-0 md:border-none',
         content: (
           <Link
             to={`/groups/${flag}/invite`}
@@ -175,23 +187,96 @@ const GroupActions = React.memo(
       });
     }
 
-    notificationActions.push({
-      key: 'volume',
-      content: (
-        <div className="-mx-2 flex flex-col space-y-6">
-          <div className="flex flex-col space-y-1">
-            <span className="text-lg text-gray-800">Notification Settings</span>
-            <span className="font-normal font-[17px] text-gray-400">
-              {group?.meta.title || `~${flag}`}
-            </span>
-          </div>
-          <VolumeSetting scope={{ group: flag }} />
-        </div>
-      ),
-      keepOpenOnClick: true,
-    });
+    if (isAdmin) {
+      actions.push({
+        key: 'settings',
+        onClick: () => setIsOpen(false),
+        containerClassName:
+          'border border-gray-100 md:border-none mb-4 md:mb-0',
+        content: (
+          <Link
+            to={`/groups/${flag}/edit`}
+            state={{ backgroundLocation: location }}
+          >
+            Group settings
+            {isMobile && (
+              <div className="pt-1.5 text-[14px] text-gray-400">
+                Configure group details and privacy
+              </div>
+            )}
+          </Link>
+        ),
+      });
+    }
 
     actions.push(
+      {
+        key: 'pin',
+        onClick: onPinClick,
+        containerClassName:
+          'border border-gray-100 md:border-none rounded-b-none',
+        content: (
+          <div>
+            {isPinned ? 'Unpin' : 'Pin'}
+            {isMobile && (
+              <div className="pt-1.5 text-[14px] text-gray-400">
+                {isPinned ? 'Unpin this group from' : 'Pin this group to'} the
+                top of your Groups list
+              </div>
+            )}
+          </div>
+        ),
+      },
+
+      {
+        key: 'copy',
+        onClick: onCopySelect,
+        keepOpenOnClick: true,
+        containerClassName:
+          'border border-gray-100 border-t-0 md:border-none rounded-t-none rounded-b-none',
+        content: (
+          <div>
+            {copyItemText}
+            {isMobile && (
+              <div className="pt-1.5 text-[14px] text-gray-400">
+                Copy a link to this group
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'members',
+        onClick: () => setIsOpen(false),
+        containerClassName:
+          'border border-gray-100 border-t-0 md:border-none rounded-t-none rounded-b-none',
+        content: (
+          <Link to={`/groups/${flag}/members`}>
+            Group members{' '}
+            {isMobile && (
+              <div className="pt-1.5 text-[14px] text-gray-400">
+                View all members and roles
+              </div>
+            )}
+          </Link>
+        ),
+      },
+      {
+        key: 'channels',
+        onClick: () => setIsOpen(false),
+        containerClassName:
+          'border border-gray-100 border-t-0 md:border-none rounded-t-none rounded-b-none',
+        content: (
+          <Link to={`/groups/${flag}/channels`}>
+            Channels{' '}
+            {isMobile && (
+              <div className="pt-1.5 text-[14px] text-gray-400">
+                View all channels and sections you have visibility towards
+              </div>
+            )}
+          </Link>
+        ),
+      },
       {
         key: 'notifications',
         onClick: () => {
@@ -203,50 +288,48 @@ const GroupActions = React.memo(
             });
           }
         },
-        content: 'Notifications',
-      },
-      {
-        key: 'copy',
-        onClick: onCopySelect,
-        content: copyItemText,
-        keepOpenOnClick: true,
-      },
-      {
-        key: 'pin',
-        onClick: onPinClick,
-        content: isPinned ? 'Unpin' : 'Pin',
-      },
-      {
-        key: 'settings',
-        onClick: () => setIsOpen(false),
-        content: isAdmin ? (
-          <Link
-            to={`/groups/${flag}/edit`}
-            state={{ backgroundLocation: location }}
-          >
-            Group Settings
-          </Link>
-        ) : (
-          <Link
-            to={`/groups/${flag}/info`}
-            state={{ backgroundLocation: location }}
-          >
-            Group Members & Info
-          </Link>
+        containerClassName:
+          'border border-gray-100 border-t-0 md:border-none rounded-t-none',
+        content: (
+          <div>
+            Group notification settings
+            {isMobile && (
+              <div className="pt-1.5 text-[14px] text-gray-400">
+                Configure your notifications for this group
+              </div>
+            )}
+          </div>
         ),
       }
     );
+
+    notificationActions.push({
+      key: 'volume',
+      content: (
+        <div className="-mx-2 flex flex-col space-y-6">
+          <div className="flex flex-col space-y-1">
+            <span className="text-lg text-gray-800">Notification Settings</span>
+            <span className="font-[17px] text-gray-400">
+              {group?.meta.title || `~${flag}`}
+            </span>
+          </div>
+          <VolumeSetting scope={{ group: flag }} />
+        </div>
+      ),
+      keepOpenOnClick: true,
+    });
 
     if (!flag.includes(ship)) {
       actions.push({
         key: 'leave',
         type: 'destructive',
+        containerClassName: 'border border-red-soft md:border-none mt-4',
         content: (
           <Link
             to={`/groups/${flag}/leave`}
             state={{ backgroundLocation: location }}
           >
-            Leave Group
+            Leave group
           </Link>
         ),
       });
@@ -256,11 +339,12 @@ const GroupActions = React.memo(
       actions.push({
         key: 'cancel_join',
         type: 'destructive',
+        containerClassName: 'border border-red-soft md:border-none mt-4',
         onClick: () => {
           cancelJoinMutation({ flag });
           setIsOpen(false);
         },
-        content: 'Cancel Join',
+        content: 'Cancel join',
       });
     }
 
