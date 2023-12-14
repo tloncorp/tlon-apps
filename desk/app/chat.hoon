@@ -518,6 +518,9 @@
     ?>  from-self
     =+  !<(flag=[ship term] vase)
     (refs:migrate flag)
+      %chat-trim
+    ?>  from-self
+    trim:migrate
   ::  backwards compatibility
   ::
       %dm-rsvp
@@ -902,6 +905,36 @@
       !>(`a-channels:d`[%channel [%chat flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
+  ++  trim
+    =.  old-chats
+    ^-  (map flag:two:old:c chat:two:old:c)
+    =/  citey-writs=(set [ship time])
+      %-  sy  %-  zing
+      %-  ~(run by old-chats)
+      |=  old-chat
+      %-  zing
+      %+  turn  (tap:on:writs:old wit.pact.old-chat)
+      |=  [=time =writ:old]
+      ::  return citer message and cited message
+      ^-  (list writ)
+      ?.  =(our.bowl author.writ)  ~
+      =;  contains-chat-ref=?
+        ?.  contains-chat-ref  ~
+        =/  cited=^writ
+          :: see convert-story for how to do this
+          !!
+        ~[writ cited]  :: todo author/time instead
+      ?.  ?=(%story -.content.writ)  |
+        %+  lien  p.p.content.writ
+        |=  =block:old
+        ?=([%cite %chan [%chat *] *] block)
+    %-  ~(run by old-chats)
+    |=  old-chat
+    %=  old-chat  wit.pact
+      %+  murn  (tap:on:writs:old wit.pact.old-chat)
+      |=  [=time =writ:old]
+      ::  ...
+    ==
   ++  convert-pin
     |=  =whom:t
     ^-  whom:u

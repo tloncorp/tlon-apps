@@ -204,17 +204,15 @@
   ^+  cor
   =.  cor
     %-  emil
-    %-  turn  :_  |=(=note:agent:gall [%pass /migrate note])
-    ^-  (list note:agent:gall)
-    :~  [%agent [our.bowl %diary] %poke %diary-migrate-server !>(~)]
-        [%agent [our.bowl %heap] %poke %heap-migrate-server !>(~)]
-        [%agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
+    :~  [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate-server !>(~)]
+        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate-server !>(~)]
+        [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
         ::NOTE  we do these here and not in /app/channels, because it's
         ::      important that the server migration happens first, so that
         ::      the client migration may successfully establish subscriptions.
-        [%agent [our.bowl %diary] %poke %diary-migrate !>(~)]
-        [%agent [our.bowl %heap] %poke %heap-migrate !>(~)]
-        [%agent [our.bowl %chat] %poke %chat-migrate !>(~)]
+        [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
+        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
+        [%pass /migrate/final %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
     ==
   inflate-io
 ::
@@ -325,6 +323,15 @@
       %-  (slog 'channels-server: migration poke failure' >wire< u.p.sign)
       cor
     ==
+      [%migrate %final ~]
+    ?+  -.sign  !!
+        %poke-ack
+      ?~  p.sign
+      (emit %pass /trim %agent [our.bowl %chat] %poke %chat-trim !>(~))
+      %-  (slog 'channels-server: migration poke failure' >wire< u.p.sign)
+      cor
+    ==
+
   ==
 ::
 ++  watch-groups  (safe-watch /groups [our.bowl %groups] /groups)
