@@ -42,6 +42,6 @@ export function getUnreadStatus(unread: DMUnread | Unread) {
   return {
     hasMainChatUnreads,
     hasThreadUnreads,
-    isEmpty: !hasMainChatUnreads && !hasThreadUnreads,
+    isEmpty: unread.count === 0,
   };
 }
