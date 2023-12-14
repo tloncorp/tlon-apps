@@ -45,6 +45,7 @@ import {
   useChatStore,
 } from '../useChatStore';
 import ReactionDetails from '../ChatReactions/ReactionDetails';
+import { getUnreadStatus, threadIsOlderThanLastRead } from '../unreadUtils';
 
 export interface ChatMessageProps {
   whom: string;
@@ -62,52 +63,24 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function unreadStatus(
-  unread: Unread | undefined,
+function getUnreadDisplay(
+  unread: Unread | DMUnread | undefined,
   id: string
 ): 'none' | 'top' | 'thread' {
   if (!unread) {
     return 'none';
   }
 
-  const unreadId = unread.unread?.id;
-  const threads = unread.threads || {};
-  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
-  const topId = threadKeys[0];
+  const { unread: mainChat, threads } = unread;
+  const { hasMainChatUnreads } = getUnreadStatus(unread);
+  const threadIsOlder = threadIsOlderThanLastRead(unread, id);
+  const hasThread = !!threads[id];
 
-  if (topId && topId === id && (!unreadId || topId < unreadId)) {
+  if (hasThread && (!hasMainChatUnreads || threadIsOlder)) {
     return 'thread';
   }
 
-  if (unreadId === id) {
-    return 'top';
-  }
-
-  return 'none';
-}
-
-function dmUnreadStatus(unread: DMUnread | undefined, id: string) {
-  if (!unread) {
-    return 'none';
-  }
-
-  const unreadId = unread.unread;
-  const threads = unread.threads || {};
-  const threadKeys = Object.entries(threads).sort(([, a], [, b]) =>
-    a['parent-time'].localeCompare(b['parent-time'])
-  );
-  const topId = threadKeys[0]?.[0];
-  const topTime = threadKeys[0]?.[1]['parent-time'];
-
-  if (
-    topId &&
-    topId === id &&
-    (!unreadId || (topTime && topTime < unreadId.time))
-  ) {
-    return 'thread';
-  }
-
-  if (unreadId?.id === id) {
+  if (hasMainChatUnreads && mainChat!.id === id) {
     return 'top';
   }
 
@@ -173,9 +146,10 @@ const ChatMessage = React.memo<
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
-      const unreadDisplay = isDMOrMultiDM
-        ? dmUnreadStatus(unread?.unread as DMUnread, seal.id)
-        : unreadStatus(unread?.unread as Unread, seal.id);
+      const unreadDisplay = useMemo(
+        () => getUnreadDisplay(unread?.unread, seal.id),
+        [unread, seal.id]
+      );
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
