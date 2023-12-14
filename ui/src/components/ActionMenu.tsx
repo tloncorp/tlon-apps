@@ -80,7 +80,7 @@ const ActionMenu = React.memo(
             )}
             <Drawer.Portal>
               <Drawer.Overlay className="fixed inset-0 z-[49] bg-black/20" />
-              <Drawer.Content className="fixed bottom-0 z-[49] flex w-full flex-col rounded-t-[32px] bg-white px-[24px] py-[16px] pb-16 after:!bg-transparent">
+              <Drawer.Content className="fixed bottom-0 z-[49] flex w-full flex-col rounded-t-[32px] bg-white px-[24px] pt-4 pb-8 after:!bg-transparent">
                 {actions.map((action) => (
                   <div
                     key={action.key}

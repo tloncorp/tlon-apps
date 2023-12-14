@@ -319,7 +319,7 @@ const GroupActions = React.memo(
       keepOpenOnClick: true,
     });
 
-    if (!flag.includes(ship)) {
+    if (!flag.includes(ship) && !isAdmin) {
       actions.push({
         key: 'leave',
         type: 'destructive',
