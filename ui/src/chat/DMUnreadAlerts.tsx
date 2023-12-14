@@ -44,25 +44,22 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
   );
 
   let to = '';
-  let count = 0;
   let date = new Date();
   if (hasThreadUnreads && threadIsOlder) {
     const [id, thread] = oldestThread!;
     to = `${root}/message/${id}?msg=${thread.time}`;
-    count = thread.count;
     date = new Date(daToUnix(bigInt(thread.time)));
   } else {
     to = `${root}?msg=${mainChat!.time}`;
-    count = mainChat!.count;
     date = new Date(daToUnix(bigInt(mainChat!.time)));
   }
 
   const since = isToday(date)
     ? `${format(date, 'HH:mm')} today`
     : format(date, 'LLLL d');
-  const unreadMessage = `${count} new ${pluralize(
+  const unreadMessage = `${unread.count} new ${pluralize(
     'message',
-    count
+    unread.count
   )} since ${since}`;
 
   return (

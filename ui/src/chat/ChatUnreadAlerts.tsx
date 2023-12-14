@@ -48,16 +48,13 @@ export default function ChatUnreadAlerts({
   );
 
   let to = '';
-  let count = 0;
   let date = new Date();
   if (hasThreadUnreads && threadIsOlder) {
     const [id, thread] = oldestThread!;
     to = `${root}/message/${id}?msg=${thread.id}`;
-    count = thread.count;
     date = new Date(daToUnix(bigInt(thread.id)));
   } else {
     to = `${root}?msg=${mainChat!.id}`;
-    count = mainChat!.count;
     date = new Date(daToUnix(bigInt(mainChat!.id)));
   }
 
@@ -65,9 +62,10 @@ export default function ChatUnreadAlerts({
     ? `${format(date, 'HH:mm')} today`
     : format(date, 'LLLL d');
 
-  const unreadMessage =
-    unread &&
-    `${unread.count} new ${pluralize('message', unread.count)} since ${since}`;
+  const unreadMessage = `${unread.count} new ${pluralize(
+    'message',
+    unread.count
+  )} since ${since}`;
 
   return (
     <>
