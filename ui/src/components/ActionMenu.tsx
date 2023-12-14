@@ -80,7 +80,7 @@ const ActionMenu = React.memo(
             )}
             <Drawer.Portal>
               <Drawer.Overlay className="fixed inset-0 z-[49] bg-black/20" />
-              <Drawer.Content className="fixed inset-x-[32px] bottom-[32px] z-[49] flex flex-col rounded-[32px] bg-white px-[32px] py-[16px] after:!bg-transparent">
+              <Drawer.Content className="fixed bottom-0 z-[49] flex w-full flex-col rounded-t-[32px] bg-white px-[24px] py-[16px] pb-16 after:!bg-transparent">
                 {actions.map((action) => (
                   <div
                     key={action.key}
@@ -94,7 +94,8 @@ const ActionMenu = React.memo(
                     }
                     className={cn(
                       classNameForType(action.type),
-                      'select-none py-[16px]'
+                      action.containerClassName,
+                      'select-none rounded-xl py-4 px-6'
                     )}
                   >
                     {typeof action.content === 'string' ? (
