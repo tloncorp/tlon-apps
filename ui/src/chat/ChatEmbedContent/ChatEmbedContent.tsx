@@ -4,6 +4,7 @@ import { AUDIO_REGEX, validOembedCheck, VIDEO_REGEX } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
+import DOMPurify from 'dompurify';
 import YouTubeEmbed from './YouTubeEmbed';
 import TwitterEmbed from './TwitterEmbed';
 import SpotifyEmbed from './SpotifyEmbed';
@@ -12,15 +13,15 @@ import AudioPlayer from './AudioPlayer';
 const trustedProviders = [
   {
     name: 'YouTube',
-    regex: /youtube\.com\/watch\?v=|youtu\.be\//,
+    regex: /^https:\/\/(?:www\.)?youtube\.com\/watch\?v=|youtu\.be\//,
   },
   {
     name: 'Twitter',
-    regex: /(?:twitter\.com|x\.com)\/\w+\/status\//,
+    regex: /^https:\/\/(?:twitter\.com|x\.com)\/\w+\/status\//,
   },
   {
     name: 'Spotify',
-    regex: /open\.spotify\.com\//,
+    regex: /^https:\/\/open\.spotify\.com\//,
   },
 ];
 
@@ -93,8 +94,10 @@ function ChatEmbedContent({
       url: embedUrl,
       author_name: author,
       author_url: authorUrl,
-      html: embedHtml,
+      html: rawEmbedHtml,
     } = embed;
+
+    const embedHtml = DOMPurify.sanitize(rawEmbedHtml);
 
     if (provider === 'YouTube') {
       return (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { useGroups } from '@/state/groups';
@@ -14,6 +14,11 @@ const GroupsSidebarItem = React.memo(({ flag }: { flag: string }) => {
   const isScrolling = useGroupsScrolling();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const { action, handlers } = useLongPress();
+  const disableActions = useMemo(
+    () => isMobile || isScrolling,
+    [isMobile, isScrolling]
+  );
+  const enableImages = useMemo(() => !isScrolling, [isScrolling]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -31,7 +36,7 @@ const GroupsSidebarItem = React.memo(({ flag }: { flag: string }) => {
         <GroupAvatar
           size="h-12 w-12 sm:h-6 sm:w-6 rounded-lg sm:rounded"
           {...group?.meta}
-          loadImage={!isScrolling}
+          loadImage={enableImages}
         />
       }
       actions={
@@ -39,7 +44,7 @@ const GroupsSidebarItem = React.memo(({ flag }: { flag: string }) => {
           open={optionsOpen}
           onOpenChange={setOptionsOpen}
           flag={flag}
-          triggerDisabled={isMobile}
+          triggerDisabled={disableActions}
         />
       }
       to={`/groups/${flag}`}

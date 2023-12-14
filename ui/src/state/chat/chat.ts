@@ -1241,11 +1241,7 @@ export function checkWritsForDeliveries(writs: Writs) {
   });
 }
 
-export function useInfiniteDMs(
-  whom: string,
-  initialTime?: string,
-  latest = false
-) {
+export function useInfiniteDMs(whom: string, initialTime?: string) {
   const unread = useDmUnread(whom);
   const isDM = useMemo(() => whomIsDm(whom), [whom]);
   const type = useMemo(() => (isDM ? 'dm' : 'club'), [isDM]);
@@ -1288,11 +1284,11 @@ export function useInfiniteDMs(
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
 
-      if (pageParam && !latest) {
+      if (pageParam) {
         const { time, direction } = pageParam;
         const ud = decToUd(time.toString());
         path = `/${type}/${whom}/writs/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`;
-      } else if (initialTime && !latest) {
+      } else if (initialTime) {
         path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
           INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
         }/light`;

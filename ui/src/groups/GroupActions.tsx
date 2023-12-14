@@ -9,7 +9,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
+import {
+  citeToPath,
+  getFlagParts,
+  getPrivacyFromGroup,
+  useCopy,
+} from '@/logic/utils';
 import {
   useAmAdmin,
   useGang,
@@ -145,7 +150,7 @@ const GroupActions = React.memo(
         keepOpenOnClick: true,
         content: (
           <HostConnection
-            ship={flag}
+            ship={getFlagParts(flag).ship}
             status={status}
             saga={saga}
             type="combo"

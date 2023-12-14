@@ -1,7 +1,12 @@
 import cn from 'classnames';
 import { useLocation } from 'react-router';
-import { channelHref, canReadChannel } from '@/logic/channel';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useIsMobile } from '@/logic/useMedia';
 import {
@@ -20,6 +25,8 @@ import {
   useChannelSort,
   useCheckChannelJoined,
   useCheckChannelUnread,
+  channelHref,
+  canReadChannel,
 } from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import HashIcon from '@/components/icons/HashIcon';
@@ -120,7 +127,7 @@ type ListItem =
 
 const virtuosoStateByFlag: Record<string, StateSnapshot> = {};
 
-export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
+const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const connected = useGroupConnection(flag);
@@ -342,4 +349,6 @@ export default function ChannelList({ paddingTop }: { paddingTop?: number }) {
       className="h-full w-full flex-1 space-y-0.5 overflow-x-hidden"
     />
   );
-}
+});
+
+export default ChannelList;
