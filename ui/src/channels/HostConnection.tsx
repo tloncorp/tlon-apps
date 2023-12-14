@@ -16,7 +16,7 @@ interface HostConnectionProps {
   ship: string;
   saga: Saga | null;
   status?: ConnectionStatus;
-  type?: 'default' | 'combo' | 'text' | 'bullet';
+  type?: 'default' | 'combo' | 'text' | 'bullet' | 'row';
   className?: string;
 }
 
@@ -27,7 +27,7 @@ export function getText(
   negotiationMatch?: boolean
 ) {
   if (ship === window.our) {
-    return 'You are the host';
+    return 'You are the host.';
   }
 
   if (saga && !('synced' in saga)) {
@@ -35,7 +35,7 @@ export function getText(
   }
 
   if (negotiationMatch === false) {
-    return 'Your version of groups does not match the host.';
+    return 'Your version of Tlon does not match the host.';
   }
 
   return !status
@@ -101,6 +101,17 @@ export default function HostConnection({
       )}
       {(type === 'combo' || type === 'text') && (
         <span>{getText(saga, ship, status, matched)}</span>
+      )}
+
+      {type === 'row' && (
+        <div
+          className={cn(
+            'leading-6',
+            getHostConnectionColor(saga, status, matched)
+          )}
+        >
+          {getText(saga, ship, status, matched)}
+        </div>
       )}
     </span>
   );

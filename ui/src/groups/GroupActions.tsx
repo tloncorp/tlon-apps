@@ -24,7 +24,7 @@ import {
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { Saga } from '@/types/groups';
 import { ConnectionStatus } from '@/state/vitals';
-// import HostConnection from '@/channels/HostConnection';
+import HostConnection from '@/channels/HostConnection';
 import { useIsMobile } from '@/logic/useMedia';
 import VolumeSetting from '@/components/VolumeSetting';
 import {
@@ -63,7 +63,7 @@ export function useGroupActions({
   }, [open, setIsOpen]);
 
   const { doCopy } = useCopy(citeToPath({ group: flag }));
-  const [copyItemText, setCopyItemText] = useState('Copy group link');
+  const [copyItemText, setCopyItemText] = useState('Copy group reference');
   const pinned = usePinnedGroups();
   const isPinned = Object.keys(pinned).includes(flag);
 
@@ -71,7 +71,7 @@ export function useGroupActions({
     doCopy();
     setCopyItemText('Copied!');
     setTimeout(() => {
-      setCopyItemText('Copy Group Link');
+      setCopyItemText('Copy group reference');
       handleOpenChange(false);
     }, 2000);
   }, [doCopy, handleOpenChange]);
@@ -160,15 +160,22 @@ const GroupActions = React.memo(
       });
     }
 
-    // if (saga && isMobile) {
-    //   actions.push({
-    //     key: 'connectivity',
-    //     keepOpenOnClick: true,
-    //     content: (
-
-    //     ),
-    //   });
-    // }
+    if (saga && isMobile) {
+      actions.push({
+        key: 'connection',
+        keepOpenOnClick: true,
+        containerClassName: 'border border-gray-100 rounded-xl mb-4',
+        content: (
+          <HostConnection
+            ship={getFlagParts(flag).ship}
+            status={status}
+            saga={saga}
+            type="row"
+            className=""
+          />
+        ),
+      });
+    }
 
     if (privacy === 'public' || isAdmin) {
       actions.push({
@@ -239,7 +246,7 @@ const GroupActions = React.memo(
             {copyItemText}
             {isMobile && (
               <div className="pt-1.5 text-[14px] font-normal text-gray-400">
-                Copy a link to this group
+                Copy an in-Urbit link to this group
               </div>
             )}
           </div>
