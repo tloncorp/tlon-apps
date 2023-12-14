@@ -4,6 +4,7 @@ import React from 'react';
 import cn from 'classnames';
 import EmbedContainer from 'react-oembed-container';
 import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
+import DOMPurify from 'dompurify';
 
 interface HeapDetailEmbedProps {
   oembed: any;
@@ -27,7 +28,7 @@ export default function HeapDetailEmbed({ oembed, url }: HeapDetailEmbedProps) {
         })}
         markup={html}
       >
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
       </EmbedContainer>
     </div>
   );
