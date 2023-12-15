@@ -1,5 +1,4 @@
 import cn from 'classnames';
-import { useLocation } from 'react-router';
 import React, {
   useCallback,
   useEffect,
@@ -29,16 +28,11 @@ import {
   canReadChannel,
 } from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import HashIcon from '@/components/icons/HashIcon';
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
-import CaretRightIcon from '@/components/icons/CaretRightIcon';
-import ElipsisIcon from '@/components/icons/EllipsisIcon';
-import SmileIcon from '@/components/icons/SmileIcon';
-import PlaneIcon from '@/components/icons/PlaneIcon';
 import { DEFAULT_SORT } from '@/constants';
 
 const UNZONED = 'default';
@@ -139,8 +133,6 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
   const vessel = useVessel(flag, window.our);
   const isChannelJoined = useCheckChannelJoined();
   const isChannelUnread = useCheckChannelUnread();
-  const location = useLocation();
-
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   useEffect(() => {
