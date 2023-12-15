@@ -41,6 +41,7 @@ export default function DmWindow({
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
   const { mutate: markDmRead } = useMarkDmReadMutation();
+  const clearOnNavRef = useRef({ readTimeout, whom, markDmRead });
 
   const {
     writs,
@@ -133,14 +134,19 @@ export default function DmWindow({
   }, [whom]);
 
   // read the messages once navigated away
+  useEffect(() => {
+    clearOnNavRef.current = { readTimeout, whom, markDmRead };
+  }, [readTimeout, whom, markDmRead]);
+
   useEffect(
     () => () => {
-      if (readTimeout !== undefined && readTimeout !== 0) {
-        useChatStore.getState().read(whom);
-        markDmRead({ whom });
+      const curr = clearOnNavRef.current;
+      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
+        useChatStore.getState().read(curr.whom);
+        curr.markDmRead({ whom: curr.whom });
       }
     },
-    [readTimeout, whom, markDmRead]
+    []
   );
 
   useEffect(() => {
