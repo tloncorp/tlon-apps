@@ -906,34 +906,41 @@
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
   ++  trim
-    =.  old-chats
+    =-  =.  old-chats  -  cor
     ^-  (map flag:two:old:c chat:two:old:c)
-    =/  citey-writs=(set [ship time])
-      %-  sy  %-  zing
-      %-  ~(run by old-chats)
-      |=  old-chat
-      %-  zing
-      %+  turn  (tap:on:writs:old wit.pact.old-chat)
-      |=  [=time =writ:old]
-      ::  return citer message and cited message
-      ^-  (list writ)
-      ?.  =(our.bowl author.writ)  ~
-      =;  contains-chat-ref=?
-        ?.  contains-chat-ref  ~
-        =/  cited=^writ
-          :: see convert-story for how to do this
-          !!
-        ~[writ cited]  :: todo author/time instead
-      ?.  ?=(%story -.content.writ)  |
-        %+  lien  p.p.content.writ
-        |=  =block:old
-        ?=([%cite %chan [%chat *] *] block)
     %-  ~(run by old-chats)
-    |=  old-chat
-    %=  old-chat  wit.pact
+    |=  old-chat=chat:two:old:c
+    =/  citations=(set [ship time])
+      %-  sy
+      ^-  (list [ship time])
+      %-  zing
+      ^-  (list (list [ship time]))
       %+  murn  (tap:on:writs:old wit.pact.old-chat)
       |=  [=time =writ:old]
-      ::  ...
+      ^-  (unit (list [ship ^time]))
+      ::  return citer message and cited message
+      ?.  =(our.bowl author.writ)  ~
+      =/  cite-targets=(list [ship ^time])
+        ?.  ?=(%story -.content.writ)  ~
+        %+  murn  p.p.content.writ
+        |=  =block:old
+        ^-  (unit [ship ^time])
+        ?.  ?=([%cite %chan [%chat *] *] block)  ~
+        ?.  ?=([%msg @ @ ~] wer.cite.block)  ~
+        =/  who  (slaw %p i.t.wer.cite.block)
+        ?~  who  ~
+        =/  tim  (slaw %ud i.t.t.wer.cite.block)
+        ?~  tim  ~
+        `[u.who u.tim]
+      ?~  cite-targets
+        ~
+      `[[author.writ time] cite-targets]
+    %=  old-chat  wit.pact
+      %-  malt
+      %+  murn  (tap:on:writs:old wit.pact.old-chat)
+      |=  [=time =writ:old]
+      ?.  (~(has in citations) [author.writ time])  ~
+      `[time writ]
     ==
   ++  convert-pin
     |=  =whom:t
