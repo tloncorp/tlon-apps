@@ -22,7 +22,7 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
     url,
   });
   let embed;
-  const isSpotify = url.includes('open.spotify.com');
+  const isSpotify = url.startsWith('https://open.spotify.com');
   if (isSpotify) {
     // noembed doesn't support spotify
     const urlWithoutTracker = url?.split('?')[0];
