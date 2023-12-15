@@ -141,8 +141,8 @@ function ChatEmbedContent({
     }
 
     if (provider === 'SoundCloud') {
-      // SoundCloud offers an iframe we can embed, so we have to explicitly allow
-      // that via DOMPurify.
+      // SoundCloud makes their API url available in an iframe,
+      // so we need to leave that unsanitized
       const embedIframe = DOMPurify.sanitize(rawEmbedHtml, {
         ADD_TAGS: ['iframe'],
       });

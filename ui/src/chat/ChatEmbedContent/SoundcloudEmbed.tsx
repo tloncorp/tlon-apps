@@ -7,6 +7,24 @@ interface SoundcloudEmbedProps {
 export default function SoundcloudEmbed({
   iframe: rawIframe,
 }: SoundcloudEmbedProps) {
-  const iframe = DOMPurify.sanitize(rawIframe, { ADD_TAGS: ['iframe'] });
-  return <div dangerouslySetInnerHTML={{ __html: iframe }} />;
+  const element = document.createElement('html');
+  element.innerHTML = DOMPurify.sanitize(rawIframe, {
+    ALLOWED_TAGS: ['iframe'],
+  });
+  const soundcloudApiUrl =
+    Array.from(element.querySelectorAll('iframe'))
+      .filter((iframe) =>
+        iframe.src.startsWith('https://w.soundcloud.com/player/')
+      )[0]
+      .getAttribute('src') || '';
+
+  return (
+    <iframe
+      width="600"
+      height="400"
+      scrolling="no"
+      frameBorder="no"
+      src={soundcloudApiUrl}
+    />
+  );
 }
