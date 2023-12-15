@@ -1,28 +1,28 @@
-import {
-  ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
 import bigInt from 'big-integer';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
 import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
-import { log } from '@/logic/utils';
+import { getPatdaParts, log } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useIsScrolling } from '@/logic/scroll';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import { udToDec } from '@urbit/api';
+import { WritTuple } from '@/types/dms';
 
 interface DmWindowProps {
   whom: string;
   root: string;
   prefixedElement?: ReactElement;
+}
+
+function checkWritMatch(writ: WritTuple, scrollTo: string) {
+  const writServerTime = writ[0].toString();
+  const { timeDec } = getPatdaParts(writ[1].seal.id);
+  return scrollTo === writServerTime || scrollTo === timeDec;
 }
 
 export default function DmWindow({
@@ -61,14 +61,14 @@ export default function DmWindow({
   const msgIdTimeIndex = useMemo(
     () =>
       scrollToId
-        ? writs.findIndex((m) => m[0].toString() === scrollToId)
+        ? writs.findIndex((writ) => checkWritMatch(writ, scrollToId))
         : latestMessageIndex,
     [scrollToId, writs, latestMessageIndex]
   );
   const msgIdTimeInMessages = useMemo(
     () =>
       scrollToId
-        ? writs.findIndex((m) => m[0].toString() === scrollToId) !== -1
+        ? writs.findIndex((writ) => checkWritMatch(writ, scrollToId)) !== -1
         : false,
     [scrollToId, writs]
   );
