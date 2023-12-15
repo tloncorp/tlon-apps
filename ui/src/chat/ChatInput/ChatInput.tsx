@@ -349,6 +349,7 @@ export default function ChatInput({
       onUpdate.current.flush();
       setDraft(inlinesToJSON(['']));
       setTimeout(() => {
+        // TODO: chesterton's fence, but why execute a read here?
         useChatStore.getState().read(whom);
         clearAttachments();
       }, 0);

@@ -41,7 +41,7 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  unread: (
+  handleUnread: (
     whom: string,
     unread: Unread | DMUnread,
     markRead: (whm: string) => void
@@ -204,6 +204,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           return;
         }
 
+        if (chat.unread && chat.unread.readTimeout) {
+          chatStoreLogger.log('clear delayedRead', whom);
+          clearTimeout(chat.unread.readTimeout);
+        }
+
         chatStoreLogger.log('read', whom, JSON.stringify(chat));
         chat.unread = undefined;
         chatStoreLogger.log('post read', JSON.stringify(draft.chats[whom]));
@@ -214,8 +219,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const { chats, read } = get();
     const chat = chats[whom] || emptyInfo();
 
-    if (!chat.unread || chat.unread.readTimeout) {
+    if (!chat.unread) {
       return;
+    }
+
+    if (chat.unread.readTimeout) {
+      clearTimeout(chat.unread.readTimeout);
     }
 
     const readTimeout = setTimeout(() => {
@@ -237,21 +246,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  unread: (whom, unread, markRead) => {
+  handleUnread: (whom, unread, markRead) => {
     set(
       produce((draft: ChatStore) => {
-        const { atBottom, current, read } = draft;
+        const { read } = draft;
         const chat = draft.chats[whom] || emptyInfo();
         const hasUnreads = isUnread(unread);
 
-        if (
-          hasUnreads &&
-          current === whom &&
-          atBottom &&
-          document.visibilityState === 'visible'
-        ) {
-          markRead(whom);
-        } else if (hasUnreads) {
+        if (hasUnreads) {
           chatStoreLogger.log('unread', whom, chat, unread);
           draft.chats[whom] = {
             ...chat,
@@ -261,7 +263,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               unread,
             },
           };
-        } else if (!hasUnreads && chat?.unread?.readTimeout === 0) {
+        } else {
           read(whom);
         }
       })

@@ -1038,15 +1038,9 @@ export function useUnreads(): Unreads {
       const [app, flag] = nestToFlag(nest);
 
       if (app === 'chat') {
-        if (unread.count === 0) {
-          // if unread is null and count is 0, we can assume that the channel
-          // has been read and we can remove it from the unreads list
-          useChatStore.getState().read(flag);
-        } else {
-          useChatStore
-            .getState()
-            .unread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
-        }
+        useChatStore
+          .getState()
+          .handleUnread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
       }
 
       queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
