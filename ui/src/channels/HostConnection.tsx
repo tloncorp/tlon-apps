@@ -51,15 +51,15 @@ function getHostConnectionColor(
   negotiationMatch?: boolean
 ) {
   if (saga && !('synced' in saga)) {
-    return 'text-red-400';
+    return 'red';
   }
 
   if (negotiationMatch === false) {
-    return 'text-red-400';
+    return 'red';
   }
 
   const color = getConnectionColor(status);
-  return color === 'text-red-400' ? 'text-gray-400' : color;
+  return color === 'red' ? 'gray' : color;
 }
 
 export default function HostConnection({
@@ -85,7 +85,7 @@ export default function HostConnection({
             <Bullet16Icon
               className={cn(
                 'h-4 w-4 flex-none',
-                getHostConnectionColor(saga, status, matched)
+                `text-${getHostConnectionColor(saga, status, matched)}-400`
               )}
             />
           </span>
@@ -95,7 +95,7 @@ export default function HostConnection({
         <Bullet16Icon
           className={cn(
             'h-4 w-4 flex-none',
-            getHostConnectionColor(saga, status, matched)
+            `text-${getHostConnectionColor(saga, status, matched)}-400`
           )}
         />
       )}
@@ -106,8 +106,10 @@ export default function HostConnection({
       {type === 'row' && (
         <div
           className={cn(
-            'leading-6',
-            getHostConnectionColor(saga, status, matched)
+            'h-full w-full rounded-xl border px-6 py-4 leading-6',
+            `border-${getHostConnectionColor(saga, status, matched)}-100`,
+            `text-${getHostConnectionColor(saga, status, matched)}-500`,
+            `bg-${getHostConnectionColor(saga, status, matched)}-50`
           )}
         >
           {getText(saga, ship, status, matched)}

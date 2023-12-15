@@ -164,7 +164,7 @@ const GroupActions = React.memo(
       actions.push({
         key: 'connection',
         keepOpenOnClick: true,
-        containerClassName: 'border border-gray-100 rounded-xl mb-4',
+        containerClassName: '!p-0 mb-4',
         content: (
           <HostConnection
             ship={getFlagParts(flag).ship}
