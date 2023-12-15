@@ -20,8 +20,8 @@ export default function SoundcloudEmbed({
 
   return (
     <iframe
-      width="600"
-      height="400"
+      width="300"
+      height="200"
       scrolling="no"
       frameBorder="no"
       src={soundcloudApiUrl}
