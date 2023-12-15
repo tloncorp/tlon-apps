@@ -58,25 +58,23 @@ export default function DmWindow({
   const navigate = useNavigate();
 
   const latestMessageIndex = writs.length - 1;
-  const msgIdTimeIndex = useMemo(
+  const scrollToIndex = useMemo(
     () =>
       scrollToId
         ? writs.findIndex((writ) => checkWritMatch(writ, scrollToId))
-        : latestMessageIndex,
-    [scrollToId, writs, latestMessageIndex]
-  );
-  const msgIdTimeInMessages = useMemo(
-    () =>
-      scrollToId
-        ? writs.findIndex((writ) => checkWritMatch(writ, scrollToId)) !== -1
-        : false,
+        : -1,
     [scrollToId, writs]
+  );
+  const scrollToInMessages = useMemo(
+    () => scrollToIndex !== -1,
+    [scrollToIndex]
   );
   const latestIsMoreThan30NewerThanScrollTo = useMemo(
     () =>
-      msgIdTimeIndex !== latestMessageIndex &&
-      latestMessageIndex - msgIdTimeIndex > 30,
-    [msgIdTimeIndex, latestMessageIndex]
+      scrollToInMessages &&
+      scrollToIndex !== latestMessageIndex &&
+      latestMessageIndex - scrollToIndex > 30,
+    [scrollToInMessages, scrollToIndex, latestMessageIndex]
   );
 
   const onAtBottom = useCallback(() => {
@@ -153,10 +151,10 @@ export default function DmWindow({
     // not in our current set of messages, that means we're scrolling to a
     // message that's not yet cached. So, we need to refetch (which would fetch
     // messages around the scrollTo time), then scroll to the message.
-    if (scrollToId && hasNextPage && !msgIdTimeInMessages) {
+    if (scrollToId && hasNextPage && !scrollToInMessages) {
       doRefetch();
     }
-  }, [scrollToId, hasNextPage, refetch, msgIdTimeInMessages, remove]);
+  }, [scrollToId, hasNextPage, refetch, scrollToInMessages, remove]);
 
   if (isLoading) {
     return (
