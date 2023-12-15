@@ -171,7 +171,6 @@ const GroupActions = React.memo(
             status={status}
             saga={saga}
             type="row"
-            className=""
           />
         ),
       });
@@ -188,7 +187,7 @@ const GroupActions = React.memo(
             to={`/groups/${flag}/invite`}
             state={{ backgroundLocation: location }}
           >
-            Invite People
+            Invite people
           </Link>
         ),
       });
