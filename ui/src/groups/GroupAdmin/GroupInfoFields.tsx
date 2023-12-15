@@ -24,7 +24,7 @@ export default function GroupInfoFields() {
   function renderGroupIconInfo() {
     return (
       <div>
-        <label htmlFor="image" className="block pb-1.5 font-bold">
+        <label htmlFor="image" className="block pb-1.5 font-semibold">
           Group Icon
         </label>
         <ImageOrColorField
@@ -40,7 +40,7 @@ export default function GroupInfoFields() {
   function renderGroupHeaderInfo() {
     return (
       <div>
-        <label htmlFor="cover" className="block pb-1.5 font-bold">
+        <label htmlFor="cover" className="block pb-1.5 font-semibold">
           Group Header Image
         </label>
         <ImageOrColorField
@@ -70,7 +70,7 @@ export default function GroupInfoFields() {
   return (
     <div className="flex flex-col space-y-8">
       <div>
-        <label htmlFor="title" className="block pb-1.5 font-bold">
+        <label htmlFor="title" className="block pb-1.5 font-semibold">
           Group Name
         </label>
         <input
@@ -84,7 +84,6 @@ export default function GroupInfoFields() {
 
       {isMobile ? (
         <div className="flex grow flex-col space-y-6">
-          {renderGroupInfoPreview()}
           {renderGroupIconInfo()}
           {renderGroupHeaderInfo()}
         </div>
@@ -99,7 +98,7 @@ export default function GroupInfoFields() {
       )}
 
       <div>
-        <label htmlFor="description" className="block pb-1.5 font-bold">
+        <label htmlFor="description" className="block pb-1.5 font-semibold">
           Group Description
         </label>
         <textarea

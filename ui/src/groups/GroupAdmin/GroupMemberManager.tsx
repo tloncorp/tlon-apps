@@ -85,7 +85,7 @@ export default function GroupMemberManager({
 
   return (
     <section
-      className={cn('card flex flex-col', half ? 'h-1/2' : 'h-full')}
+      className={cn('flex flex-col', half ? 'h-1/2' : 'h-full')}
       role="region"
       aria-labelledby="members"
     >
@@ -96,7 +96,7 @@ export default function GroupMemberManager({
       >
         <h2
           id="members"
-          className="flex w-full items-center text-lg font-bold md:w-auto"
+          className="flex w-full items-center text-lg font-semibold md:w-auto"
         >
           Members{' '}
           <div className="ml-2 rounded border border-gray-800 px-2 py-0.5 text-xs font-medium uppercase text-gray-800">

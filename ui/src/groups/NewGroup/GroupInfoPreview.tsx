@@ -50,7 +50,7 @@ export default function GroupInfoPreview({
             {iconType === 'color' || isValidUrl(watchImage) ? (
               <GroupAvatar
                 title={watchTitle}
-                size="h-6 w-6 rounded"
+                size="h-6 w-6 rounded shrink-0"
                 image={watchImage}
               />
             ) : null}
@@ -58,7 +58,7 @@ export default function GroupInfoPreview({
               <EmptyIconBox className="h-6 w-6 rounded text-gray-300" />
             ) : null}
           </div>
-          <div className="w-full truncate text-left font-semibold text-gray-500">
+          <div className="truncate text-left font-semibold text-gray-500">
             {watchTitle}
           </div>
         </div>

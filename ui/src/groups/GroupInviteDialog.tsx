@@ -82,8 +82,13 @@ export function GroupInviteBlock() {
   ]);
 
   return (
-    <div>
-      <h2 className="text-xl">Invite via Urbit ID</h2>
+    <div className="h-full overflow-auto">
+      <div className="my-3">
+        <h2 className="mb-2 text-lg font-semibold">Invite via Urbit ID</h2>
+        <p className="leading-5 text-gray-600">
+          Invite people to your group who are already using Urbit.
+        </p>
+      </div>
       {hasIssue && (
         <HostConnection
           type="combo"
@@ -93,7 +98,7 @@ export function GroupInviteBlock() {
           saga={group?.saga || null}
         />
       )}
-      <div className="w-full py-3">
+      <div className="w-full">
         <ShipSelector
           ships={ships}
           setShips={setShips}
@@ -102,8 +107,7 @@ export function GroupInviteBlock() {
           autoFocus={false}
         />
       </div>
-      <div className="flex items-center justify-end space-x-2">
-        <DialogClose className="secondary-button">Cancel</DialogClose>
+      <div className="mt-3 flex items-center justify-end space-x-2">
         {addMembersStatus === 'success' ? (
           <button disabled className="button">
             Invites Sent
@@ -148,9 +152,11 @@ export default function GroupInviteDialog() {
       <div className="space-y-6">
         {group ? (
           <>
-            <div>
-              <h2 className="text-xl">Share Group</h2>
-              <h3 className="text-[17px] text-gray-500">{group.meta.title}</h3>
+            <div className="text-lg leading-6">
+              <div className="font-semibold text-gray-800">Share Group</div>
+              <div className="font-normal text-gray-400">
+                {group.meta.title}
+              </div>
             </div>
             <LureInviteBlock flag={flag} group={group} />
             <GroupInviteBlock />
@@ -164,7 +170,7 @@ export default function GroupInviteDialog() {
     <WidgetDrawer
       open={true}
       onOpenChange={(o) => !o && dismiss()}
-      className="h-[70vh] px-10 py-6"
+      className="px-10 py-6"
     >
       {renderContent()}
     </WidgetDrawer>

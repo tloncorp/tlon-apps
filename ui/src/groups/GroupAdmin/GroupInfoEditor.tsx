@@ -19,6 +19,8 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useLure } from '@/state/lure/lure';
 import Tooltip from '@/components/Tooltip';
+import { useIsMobile } from '@/logic/useMedia';
+import MobileHeader from '@/components/MobileHeader';
 import GroupInfoFields from './GroupInfoFields';
 
 const emptyMeta = {
@@ -31,6 +33,7 @@ const emptyMeta = {
 export default function GroupInfoEditor({ title }: ViewProps) {
   const groupFlag = useRouteGroup();
   const group = useGroup(groupFlag);
+  const isMobile = useIsMobile();
   const { compatible, text } = useGroupCompatibility(groupFlag);
   const { privacy } = useGroupPrivacy(groupFlag);
   const form = useForm<GroupFormSchema>({
@@ -117,13 +120,19 @@ export default function GroupInfoEditor({ title }: ViewProps) {
           {group?.meta ? `Info for ${group.meta.title} ${title}` : title}
         </title>
       </Helmet>
+      {isMobile && (
+        <MobileHeader
+          title="Group Info"
+          pathBack={`/groups/${groupFlag}/edit`}
+        />
+      )}
       <FormProvider {...form}>
         <form
-          className="card mb-4 space-y-8"
+          className="h-full space-y-8 overflow-auto px-6 py-4 pb-16 md:px-4"
           onSubmit={form.handleSubmit(onSubmit)}
         >
           <div>
-            <h2 className="mb-2 text-lg font-bold">Group Info</h2>
+            <h2 className="mb-2 text-lg font-semibold">Group Info</h2>
             <p className="leading-5 text-gray-600">
               Name your group, describe it to people, and give it some
               personality.

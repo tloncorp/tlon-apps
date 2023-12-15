@@ -220,12 +220,7 @@ const GroupActions = React.memo(
         key: 'settings',
         onClick: () => setIsOpen(false),
         content: isAdmin ? (
-          <Link
-            to={`/groups/${flag}/edit`}
-            state={{ backgroundLocation: location }}
-          >
-            Group Settings
-          </Link>
+          <Link to={`/groups/${flag}/edit`}>Group Settings</Link>
         ) : (
           <Link
             to={`/groups/${flag}/info`}

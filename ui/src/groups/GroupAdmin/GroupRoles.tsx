@@ -28,6 +28,8 @@ import KeyIcon from '@/components/icons/KeyIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import IconButton from '@/components/IconButton';
 import Tooltip from '@/components/Tooltip';
+import MobileHeader from '@/components/MobileHeader';
+import { useIsMobile } from '@/logic/useMedia';
 import RoleCreate from './GroupRoleCreate';
 
 function eqRoleName(a: string, b: string) {
@@ -55,6 +57,7 @@ export default function GroupRoles({ title }: { title: string }) {
   const fleet = group?.fleet;
   const channels = useChannels();
   const { state } = useLocation();
+  const isMobile = useIsMobile();
 
   // TODO: is this needed?
   const currentlyUsedRoles = group
@@ -172,20 +175,16 @@ export default function GroupRoles({ title }: { title: string }) {
           {group?.meta ? `Roles for ${group.meta.title} ${title}` : title}
         </title>
       </Helmet>
+      {isMobile && (
+        <MobileHeader title="Roles" pathBack={`/groups/${flag}/edit`} />
+      )}
       {editRole === '' && !createRole && (
-        <div className="card mb-4 flex flex-col space-y-4">
-          <h2 className="text-lg font-bold">Group Roles</h2>
+        <div className=" my-4 flex flex-col space-y-4 px-6 md:px-4">
+          <h2 className="text-lg font-semibold">Group Roles</h2>
           <p className="leading-5 text-gray-600">
             Create roles for sub-groups of members. Assign roles to group
-            members in the{' '}
-            <Link
-              state={{ backgroundLocation: state.backgroundLocation }}
-              to={`/groups/${flag}/edit/members`}
-            >
-              Members
-            </Link>{' '}
-            tab. Assign read and write permissions for roles in the Edit dialog
-            of each channel.
+            members in the Members section. Assign read and write permissions
+            for roles in the Edit dialog of each channel.
           </p>
           <div>
             {(privacy === 'public' || amAdmin) && (

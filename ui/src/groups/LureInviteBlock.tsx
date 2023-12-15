@@ -37,6 +37,13 @@ export default function LureInviteBlock({
 
   return (
     <div className={cn('space-y-3', className)}>
+      <div>
+        <h2 className="mb-2 text-lg font-semibold">Web links</h2>
+        <p className="leading-5 text-gray-600">
+          Share your group with others by sending them a link.
+        </p>
+      </div>
+
       {status === 'ready' && (
         <QRWidget
           link={shareUrl}
