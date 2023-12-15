@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          token: ${{ secrets.REPO_TOKEN }}
           ref: ${{ github.event.inputs.tag }}
       - uses: actions/setup-node@v3
         with:
@@ -34,7 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          token: ${{ secrets.REPO_TOKEN }}
           ref: ${{ github.event.inputs.tag }}
       - uses: actions/download-artifact@v3
         with:
@@ -68,7 +66,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          token: ${{ secrets.REPO_TOKEN }}
           ref: ${{ github.event.inputs.tag }}
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'

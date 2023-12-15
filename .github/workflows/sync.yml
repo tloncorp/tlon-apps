@@ -10,8 +10,6 @@ jobs:
     name: "Syncs the latest livenet deploy from develop to master"
     steps:
       - uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.REPO_TOKEN }}
       - name: Set Git config
         run: |
           git config --local user.email "actions@github.com"
