@@ -106,8 +106,7 @@ export default function HostConnection({
       {type === 'row' && (
         <div
           className={cn(
-            'h-full w-full rounded-xl border px-6 py-4 leading-6',
-            `border-${getHostConnectionColor(saga, status, matched)}-100`,
+            'h-full w-full rounded-xl px-6 py-4 leading-6',
             `text-${getHostConnectionColor(saga, status, matched)}-500`,
             `bg-${getHostConnectionColor(saga, status, matched)}-50`
           )}
