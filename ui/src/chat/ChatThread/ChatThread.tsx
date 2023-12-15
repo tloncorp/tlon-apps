@@ -53,7 +53,7 @@ export default function ChatThread() {
   const groupFlag = useRouteGroup();
   const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
-  const scrollTo = new URLSearchParams(location.search).get('msg');
+  const scrollTo = new URLSearchParams(location.search).get('thread-msg');
   const { mutate: markRead } = useMarkReadMutation();
   const channel = useGroupChannel(groupFlag, nest)!;
   const [searchParams, setSearchParams] = useSearchParams();

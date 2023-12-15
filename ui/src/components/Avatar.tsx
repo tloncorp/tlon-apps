@@ -1,6 +1,6 @@
 import { isValidPatp } from 'urbit-ob';
 import classNames from 'classnames';
-import React, { CSSProperties } from 'react';
+import React, { CSSProperties, useMemo } from 'react';
 import '@urbit/sigil-js';
 import { Contact, cite } from '@urbit/api';
 import _ from 'lodash';
@@ -102,20 +102,32 @@ function Avatar({
   const contact = useContact(ship);
   const calm = useCalm();
   const { previewColor, previewAvatar } = previewData ?? {};
-  const previewAvatarIsValid =
-    previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar);
+  const previewAvatarIsValid = useMemo(
+    () => previewAvatar && previewAvatar !== null && isValidUrl(previewAvatar),
+    [previewAvatar]
+  );
   const { color, avatar } = contact || emptyContact;
   const { hasLoaded, load } = useAvatar(
     (previewAvatarIsValid ? previewAvatar : avatar) || ''
   );
-  const showImage = loadImage || hasLoaded;
-  const { classes, size: sigilSize } = sizeMap[size];
-  const adjustedColor = themeAdjustColor(
-    normalizeUrbitColor(previewColor || color),
-    currentTheme
+  const showImage = useMemo(
+    () => loadImage || hasLoaded,
+    [loadImage, hasLoaded]
   );
-  const foregroundColor = foregroundFromBackground(adjustedColor);
-  const citedShip = cite(ship);
+  const { classes, size: sigilSize } = useMemo(() => sizeMap[size], [size]);
+  const adjustedColor = useMemo(
+    () =>
+      themeAdjustColor(
+        normalizeUrbitColor(previewColor || color),
+        currentTheme
+      ),
+    [previewColor, color, currentTheme]
+  );
+  const foregroundColor = useMemo(
+    () => foregroundFromBackground(adjustedColor),
+    [adjustedColor]
+  );
+  const citedShip = useMemo(() => cite(ship), [ship]);
   const props: SigilProps = {
     point: citedShip || '~zod',
     size: sigilSize,
@@ -124,19 +136,26 @@ function Avatar({
     background: adjustedColor,
     foreground: foregroundColor,
   };
-  const invalidShip =
-    !ship ||
-    ship === 'undefined' ||
-    !isValidPatp(ship) ||
-    citedShip.match(/[_^]/) ||
-    citedShip.length > 14;
+  const invalidShip = useMemo(
+    () =>
+      !ship ||
+      ship === 'undefined' ||
+      !isValidPatp(ship) ||
+      citedShip.match(/[_^]/) ||
+      citedShip.length > 14,
+    [ship, citedShip]
+  );
 
-  if (
-    showImage &&
-    previewAvatarIsValid &&
-    !calm.disableRemoteContent &&
-    !calm.disableAvatars
-  ) {
+  const shouldShowImage = useMemo(
+    () =>
+      showImage &&
+      previewAvatarIsValid &&
+      !calm.disableRemoteContent &&
+      !calm.disableAvatars,
+    [showImage, previewAvatarIsValid, calm]
+  );
+
+  if (shouldShowImage) {
     return (
       <img
         className={classNames(className, classes, 'object-cover')}

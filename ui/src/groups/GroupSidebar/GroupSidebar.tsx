@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import { useContext } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 import { useIsDark } from '@/logic/useMedia';
 import {
   useAmAdmin,
@@ -30,11 +30,14 @@ function GroupHeader() {
   const group = useGroup(flag);
   const { needsUpdate } = useContext(AppUpdateContext);
   const { preview, claim } = useGang(flag);
-  const defaultImportCover = group?.meta.cover === '0x0';
+  const defaultImportCover = useMemo(
+    () => group?.meta.cover === '0x0',
+    [group?.meta.cover]
+  );
   const calm = useCalm();
   const isDark = useIsDark();
 
-  const bgStyle = () => {
+  const bgStyle = useCallback(() => {
     if (
       group &&
       !isColor(group?.meta.cover) &&
@@ -50,9 +53,9 @@ function GroupHeader() {
         backgroundColor: group?.meta.cover,
       };
     return {};
-  };
+  }, [group, defaultImportCover, calm.disableRemoteContent]);
 
-  const fgStyle = () => {
+  const fgStyle = useCallback(() => {
     if (group && !isColor(group?.meta.cover) && !defaultImportCover)
       return {
         color: 'text-white dark:text-black',
@@ -65,7 +68,7 @@ function GroupHeader() {
       return { color: `text-${fg}` };
     }
     return { color: 'text-gray-800' };
-  };
+  }, [group, defaultImportCover, isDark]);
 
   return (
     <div
@@ -119,7 +122,10 @@ export default function GroupSidebar() {
   const isDark = useIsDark();
   const location = useLocation();
   const isAdmin = useAmAdmin(flag);
-  const privacy = group ? getPrivacyFromGroup(group) : undefined;
+  const privacy = useMemo(
+    () => (group ? getPrivacyFromGroup(group) : undefined),
+    [group]
+  );
 
   return (
     <nav className="flex h-full min-w-64 flex-none flex-col bg-white">
