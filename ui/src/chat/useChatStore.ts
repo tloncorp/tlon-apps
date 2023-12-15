@@ -253,6 +253,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const chat = draft.chats[whom] || emptyInfo();
         const hasUnreads = isUnread(unread);
 
+        /* TODO: there was initially logic here to mark read when we're on the chat and
+          at the bottom of the scroll. This was very rarely firing since the scroller
+          doesn't actually call that event very often and if it did, would clear thread
+          unreads before they're seen. We should revisit once we have more granular control
+          over what we mark read.
+        */
+
         if (hasUnreads) {
           chatStoreLogger.log('unread', whom, chat, unread);
           draft.chats[whom] = {

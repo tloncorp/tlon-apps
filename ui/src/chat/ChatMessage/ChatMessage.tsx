@@ -76,10 +76,14 @@ function getUnreadDisplay(
   const threadIsOlder = threadIsOlderThanLastRead(unread, id);
   const hasThread = !!threads[id];
 
+  // if we have a thread, only mark it as explicitly unread
+  // if it's not nested under main chat unreads
   if (hasThread && (!hasMainChatUnreads || threadIsOlder)) {
     return 'thread';
   }
 
+  // if this message is the oldest unread in the main chat,
+  // show the divider
   if (hasMainChatUnreads && mainChat!.id === id) {
     return 'top';
   }

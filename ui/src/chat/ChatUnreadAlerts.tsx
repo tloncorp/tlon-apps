@@ -47,6 +47,10 @@ export default function ChatUnreadAlerts({
     oldestThread ? oldestThread[0] : null
   );
 
+  /* if we have thread unreads that are older than what's unseen
+    in the main chat, we should link to them in the banner instead of
+    just scrolling up
+  */
   let to = '';
   let date = new Date();
   if (hasThreadUnreads && threadIsOlder) {
