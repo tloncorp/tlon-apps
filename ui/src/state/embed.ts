@@ -32,6 +32,12 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
     return embed;
   }
 
+  const isTumblr = /^https:\/\/[^\.]+\.tumblr\.com\/post\/[0-9]+/.test(url); // eslint-disable-line no-useless-escape
+  if (isTumblr) {
+    // noembed doesn't support tumblr
+    embed = await jsonFetch(`https://www.tumblr.com/oembed/1.0?url=${url}`);
+    return embed;
+  }
   embed = await jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);
   return embed;
 }

@@ -8,6 +8,7 @@ import DOMPurify from 'dompurify';
 import YouTubeEmbed from './YouTubeEmbed';
 import TwitterEmbed from './TwitterEmbed';
 import SpotifyEmbed from './SpotifyEmbed';
+import SoundcloudEmbed from './SoundcloudEmbed';
 import AudioPlayer from './AudioPlayer';
 
 const trustedProviders = [
@@ -22,6 +23,10 @@ const trustedProviders = [
   {
     name: 'Spotify',
     regex: /^https:\/\/open\.spotify\.com\//,
+  },
+  {
+    name: 'SoundCloud',
+    regex: /^https:\/\/soundcloud\.com\//,
   },
 ];
 
@@ -133,6 +138,15 @@ function ChatEmbedContent({
           />
         </div>
       );
+    }
+
+    if (provider === 'SoundCloud') {
+      // SoundCloud offers an iframe we can embed, so we have to explicitly allow
+      // that via DOMPurify.
+      const embedIframe = DOMPurify.sanitize(rawEmbedHtml, {
+        ADD_TAGS: ['iframe'],
+      });
+      return <SoundcloudEmbed iframe={embedIframe} />;
     }
 
     return (
