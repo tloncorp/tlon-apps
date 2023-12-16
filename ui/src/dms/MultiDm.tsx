@@ -26,6 +26,7 @@ import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useIsScrolling } from '@/logic/scroll';
 import { useNegotiateMulti } from '@/state/negotiation';
+import useClubName from '@/logic/useClubName';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -37,7 +38,7 @@ import DmSearch from './DmSearch';
 function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
   const count = club.team.length;
   const hasPending = club.hive.length > 0;
-  const groupName = club.meta.title || club.team.concat(club.hive).join(', ');
+  const clubName = useClubName({ club });
   const BackButton = isMobile ? Link : 'div';
   const appName = useAppName();
 
@@ -58,7 +59,7 @@ function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
             'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
           )}
         >
-          {groupName}
+          {clubName}
         </span>
         <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
           <span>{`${count} ${pluralize('Member', count)}${
@@ -83,7 +84,7 @@ export default function MultiDm() {
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
   const appName = useAppName();
-  const groupName = club?.meta.title || club?.team.concat(club.hive).join(', ');
+  const clubName = useClubName({ whom: clubId, club });
   const root = `/dm/${clubId}`;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
@@ -157,7 +158,7 @@ export default function MultiDm() {
                               <MultiDmAvatar {...club.meta} size="xs" />
                             </div>
                             <h1 className="ml-2 flex overflow-hidden">
-                              <span className="truncate">{groupName}</span>
+                              <span className="truncate">{clubName}</span>
                             </h1>
                           </button>
                         </DmOptions>

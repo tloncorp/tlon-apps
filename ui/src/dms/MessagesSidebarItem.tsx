@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import useLongPress from '@/logic/useLongPress';
+import useClubName from '@/logic/useClubName';
 import Avatar, { AvatarSizes } from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
@@ -133,7 +134,7 @@ export function MultiDMSidebarItem({
   const isMobile = useIsMobile();
   const club = useMultiDm(whom);
   const allMembers = club?.team.concat(club.hive);
-  const groupName = club?.meta.title || allMembers?.join(', ') || whom;
+  const clubName = useClubName({ whom, club });
   const isScrolling = useMessagesScrolling();
   const isSmall = useMedia('(max-width: 768px) and (min-width: 640px)');
 
@@ -158,7 +159,7 @@ export function MultiDMSidebarItem({
       icon={
         <MultiDmAvatar
           {...club?.meta}
-          title={groupName}
+          title={clubName}
           className="h-12 w-12 rounded-lg sm:h-6 sm:w-6 sm:rounded"
           loadImage={!isScrolling}
           {...avatarSize()}
@@ -177,7 +178,7 @@ export function MultiDMSidebarItem({
       )}
       {...props}
     >
-      {groupName}
+      {clubName}
     </SidebarItem>
   );
 }

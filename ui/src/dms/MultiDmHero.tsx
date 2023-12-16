@@ -1,9 +1,9 @@
 import cn from 'classnames';
 import React from 'react';
+import useClubName from '@/logic/useClubName';
 import { pluralize } from '../logic/utils';
 import { Club } from '../types/dms';
 import MultiDmAvatar from './MultiDmAvatar';
-import ShipName from '../components/ShipName';
 import PendingIndicator from './MultiDMPendingIndicator';
 
 interface MultiDMHeroProps {
@@ -14,20 +14,7 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
   const count = club.team.length;
   const pendingCount = club.hive.length;
   const hasPending = pendingCount > 0;
-
-  const shipList = (ships: Array<string>) =>
-    ships.map((member: string, i: number) => {
-      let sep;
-      if (i !== ships.length - 1) {
-        sep = ', ';
-      }
-      return (
-        <span key={member}>
-          <ShipName name={member} showAlias />
-          {sep ? <span>{sep}</span> : null}
-        </span>
-      );
-    });
+  const clubName = useClubName({ club });
 
   return (
     <div className="flex flex-col items-center">
@@ -41,7 +28,7 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
           club.meta.title && 'text-gray-600'
         )}
       >
-        {shipList(club.team.concat(club.hive))}
+        {clubName}
       </div>
       <div className="text-gray-600">
         <span>{`${count} ${pluralize('Member', count)}${
