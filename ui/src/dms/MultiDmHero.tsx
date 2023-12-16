@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import React from 'react';
-import useClubName from '@/logic/useClubName';
+import ClubName from '@/components/ClubName';
 import { pluralize } from '../logic/utils';
 import { Club } from '../types/dms';
 import MultiDmAvatar from './MultiDmAvatar';
@@ -14,7 +14,6 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
   const count = club.team.length;
   const pendingCount = club.hive.length;
   const hasPending = pendingCount > 0;
-  const clubName = useClubName({ club });
 
   return (
     <div className="flex flex-col items-center">
@@ -28,7 +27,7 @@ export default function MultiDmHero({ club }: MultiDMHeroProps) {
           club.meta.title && 'text-gray-600'
         )}
       >
-        {clubName}
+        <ClubName club={club} />
       </div>
       <div className="text-gray-600">
         <span>{`${count} ${pluralize('Member', count)}${
