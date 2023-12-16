@@ -7,6 +7,7 @@ import {
   Docket,
   DocketHref,
   Treaty,
+  udToDec,
   unixToDa,
 } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
@@ -313,6 +314,16 @@ export function newUv(seed = Date.now()) {
 
 export function getSectTitle(cabals: Cabals, sect: string) {
   return cabals[sect]?.meta.title || sect;
+}
+
+export function getPatdaParts(patda: string) {
+  const parts = patda.split('/');
+
+  return {
+    ship: parts[0],
+    time: parts[1],
+    timeDec: udToDec(parts[1]),
+  };
 }
 
 export function getFlagParts(flag: string) {
