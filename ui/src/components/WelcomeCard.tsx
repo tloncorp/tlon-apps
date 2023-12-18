@@ -1,10 +1,12 @@
 import { usePutEntryMutation, useSeenWelcomeCard } from '@/state/settings';
 import { useCallback, useState } from 'react';
 import { useIsMobile } from '@/logic/useMedia';
+import { Link, useLocation } from 'react-router-dom';
 import X16Icon from './icons/X16Icon';
 
 export default function WelcomeCard() {
   const isMobile = useIsMobile();
+  const location = useLocation();
   const alreadySeen = useSeenWelcomeCard();
   const { mutate } = usePutEntryMutation({
     bucket: 'groups',
@@ -16,6 +18,18 @@ export default function WelcomeCard() {
     setOptimisticallyHide(true);
     mutate({ val: true });
   }, [mutate]);
+
+  const TlonStudioLink = useCallback(() => {
+    return (
+      <Link
+        className="font-semibold no-underline dark:font-bold"
+        to="/gangs/~tommur-dostyn/tlon-studio"
+        state={{ backgroundLocation: location }}
+      >
+        Tlon Studio
+      </Link>
+    );
+  }, [location]);
 
   if (alreadySeen || optimisticallyHide) {
     return null;
@@ -30,9 +44,8 @@ export default function WelcomeCard() {
           communities.
         </p>
         <p className="leading-5">
-          Visit the{' '}
-          <span className="font-semibold dark:font-bold">Tlon Studio</span>{' '}
-          group to learn more about what we&#39;re working on now
+          Visit the <TlonStudioLink /> group to learn more about what we&#39;re
+          working on now
         </p>
         <div className="space-x-3 text-right font-medium">
           <button
@@ -59,9 +72,8 @@ export default function WelcomeCard() {
       </div>
       <p className="leading-5">
         This is Tlon: An app for messaging friends and constructing communities.
-        Visit the{' '}
-        <span className="font-semibold dark:font-bold">Tlon Studio</span> group
-        to learn more about what we&#39;re working on now.
+        Visit the <TlonStudioLink /> group to learn more about what we&#39;re
+        working on now.
       </p>
     </div>
   );
