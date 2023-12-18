@@ -273,7 +273,7 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
           to={channelHref(flag, nest)}
           actions={
             isChannelUnread(nest) ? (
-              <UnreadIndicator className="m-0.5 h-5 w-5 text-blue" />
+              <UnreadIndicator className="h-6 w-6 bg-transparent !p-0 text-blue" />
             ) : null
           }
         >

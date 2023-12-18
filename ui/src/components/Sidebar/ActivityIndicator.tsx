@@ -16,7 +16,7 @@ export default function ActivityIndicator({
   return (
     <div
       className={cn(
-        'flex h-6 w-6 items-center justify-center rounded text-sm font-semibold',
+        'flex items-center justify-center rounded-full px-3 py-1 text-sm font-semibold',
         bg,
         className
       )}
