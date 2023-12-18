@@ -1,6 +1,7 @@
-import TwitterIcon from '@/components/icons/TwitterIcon';
+/* eslint-disable react/no-danger */
 import { Tweet, useTweet } from 'react-tweet';
 import DOMPurify from 'dompurify';
+import TwitterXIcon from '@/components/icons/TwitterXIcon';
 
 interface TwitterEmbedProps {
   embedHtml: string;
@@ -22,16 +23,23 @@ export default function TwitterEmbed({ embedHtml }: TwitterEmbedProps) {
       ?.split('?')[0] || '';
 
   const tweetIdFromUrl = tweetUrl.split('/status/')[1];
-  const { data, isLoading } = useTweet(tweetIdFromUrl);
+  const { data, isLoading, error } = useTweet(tweetIdFromUrl);
 
-  if (!isLoading && data && 'tombstone' in data) {
+  if (error || (!isLoading && data && 'tombstone' in data)) {
     return (
-      <div className="embed-inline-block items-center">
-        <TwitterIcon className="h-8 w-8" />
-        <h1>Tweet not found</h1>
-        <a href={tweetUrl} target="_blank" rel="noopener noreferrer">
-          {tweetUrl}
+      <div className="embed-inline-block items-center pr-10">
+        <a
+          href={tweetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-2 right-2"
+          title="View on X"
+        >
+          <TwitterXIcon className="h-5 w-5 text-gray-500" />
         </a>
+        <div
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(embedHtml) }}
+        />
       </div>
     );
   }
