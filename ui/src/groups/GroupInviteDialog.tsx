@@ -1,5 +1,6 @@
 import ob from 'urbit-ob';
 import React, { useCallback, useState } from 'react';
+import { useMatch } from 'react-router-dom';
 import cn from 'classnames';
 import Dialog, { DialogClose } from '@/components/Dialog';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
@@ -48,6 +49,10 @@ export function GroupInviteBlock() {
       'complete' in data.status &&
       data.status.complete !== 'yes');
 
+  // Determine if we are in the "Invite People" dialog , which is different
+  // than the "Invites & Privacy" section of Group Settings
+  const isInviteDialog = useMatch('/groups/:ship/:name/invite');
+
   const onInvite = useCallback(async () => {
     const shipList = ships.map((s) => preSig(s.value));
 
@@ -81,7 +86,7 @@ export function GroupInviteBlock() {
   ]);
 
   return (
-    <div className="h-full overflow-auto">
+    <div>
       <div className="my-3">
         <h2 className="mb-2 text-lg font-semibold">Invite via Urbit ID</h2>
         <p className="leading-5 text-gray-600">
@@ -107,6 +112,10 @@ export function GroupInviteBlock() {
         />
       </div>
       <div className="mt-3 flex items-center justify-end space-x-2">
+        {isInviteDialog && (
+          <DialogClose className="secondary-button">Cancel</DialogClose>
+        )}
+
         {addMembersStatus === 'success' ? (
           <button disabled className="button">
             Invites Sent
