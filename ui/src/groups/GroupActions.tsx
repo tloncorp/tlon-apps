@@ -7,7 +7,9 @@ import React, {
 } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
-import useIsGroupUnread from '@/logic/useIsGroupUnread';
+import useIsGroupUnread, {
+  useGroupUnreadCounts,
+} from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import {
   citeToPath,
@@ -121,6 +123,8 @@ const GroupActions = React.memo(
   }: GroupActionsProps) => {
     const [showNotifications, setShowNotifications] = useState(false);
     const { isGroupUnread } = useIsGroupUnread();
+    const unreadCounts = useGroupUnreadCounts();
+    const unreads = unreadCounts[flag];
     const { claim } = useGang(flag);
     const location = useLocation();
     const navigate = useNavigate();
@@ -276,12 +280,19 @@ const GroupActions = React.memo(
         >
           {children || (
             <div className="relative h-6 w-6">
-              {(isMobile || !isOpen) && hasActivity ? (
+              {isMobile && !isOpen && hasActivity && (
                 <UnreadIndicator
-                  className="absolute h-6 w-6 text-blue transition-opacity group-focus-within:opacity-0 sm:group-hover:opacity-0"
+                  className="absolute top-[3px] !font-normal"
+                  aria-label={`${unreads} unread messages`}
+                  count={unreads}
+                />
+              )}
+              {!isMobile && !isOpen && hasActivity && (
+                <UnreadIndicator
+                  className="absolute h-6 w-6 bg-transparent !p-0 text-blue transition-opacity group-focus-within:opacity-0 sm:group-hover:opacity-0"
                   aria-label="Has Activity"
                 />
-              ) : null}
+              )}
               {!isMobile && (
                 <button
                   className={cn(
