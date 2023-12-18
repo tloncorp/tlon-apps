@@ -76,7 +76,7 @@ export default function MobileRoot() {
       }
     >
       <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
-        {isNativeApp() ? <WelcomeCard /> : null}
+        <WelcomeCard />
         <div className="flex-1">
           {sortedGroups.length === 0 && !isLoading ? (
             <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
