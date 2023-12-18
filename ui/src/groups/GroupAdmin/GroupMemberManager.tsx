@@ -9,13 +9,8 @@ import cn from 'classnames';
 import { debounce } from 'lodash';
 import { deSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
-import { Link, useLocation } from 'react-router-dom';
 import { useGroup, useRouteGroup } from '@/state/groups/groups';
 import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
-import { useAmAdmin } from '@/state/groups';
-import { getPrivacyFromGroup } from '@/logic/utils';
-import InviteIcon16 from '@/components/icons/InviteIcon16';
-import { useIsMobile } from '@/logic/useMedia';
 import MemberScroller from './MemberScroller';
 
 interface GroupManagerProps {
@@ -25,14 +20,11 @@ interface GroupManagerProps {
 export default function GroupMemberManager({
   half = false,
 }: GroupManagerProps) {
-  const location = useLocation();
   const flag = useRouteGroup();
   const group = useGroup(flag, true);
   const [rawInput, setRawInput] = useState('');
   const [search, setSearch] = useState('');
-  const amAdmin = useAmAdmin(flag);
-  const isMobile = useIsMobile();
-  const privacy = group ? getPrivacyFromGroup(group) : 'public';
+
   const members = useMemo(() => {
     if (!group) {
       return [];

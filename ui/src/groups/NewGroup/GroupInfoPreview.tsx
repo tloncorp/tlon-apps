@@ -1,6 +1,5 @@
 import React from 'react';
 import cn from 'classnames';
-import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isValidUrl } from '@/logic/utils';

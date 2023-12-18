@@ -223,7 +223,7 @@ const GroupActions = React.memo(
           <Link to={`/groups/${flag}/edit`}>Group Settings</Link>
         ) : (
           <Link
-            to={`/groups/${flag}/info`}
+            to={`/groups/${flag}/members`}
             state={{ backgroundLocation: location }}
           >
             Group Members & Info

@@ -13,7 +13,6 @@ import {
 } from '@/state/groups/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, getPrivacyFromGroup, preSig } from '@/logic/utils';
-import Sheet, { SheetContent } from '@/components/Sheet';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import HostConnection from '@/channels/HostConnection';
