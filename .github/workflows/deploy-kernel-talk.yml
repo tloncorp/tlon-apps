@@ -14,7 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          token: ${{ secrets.REPO_TOKEN }}
           ref: ${{ github.event.inputs.tag }}
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'

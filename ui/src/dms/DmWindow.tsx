@@ -1,28 +1,28 @@
-import {
-  ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
 import bigInt from 'big-integer';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
 import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
 import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
 import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
-import { log } from '@/logic/utils';
+import { getPatdaParts, log } from '@/logic/utils';
 import { useChatInfo, useChatStore } from '@/chat/useChatStore';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useIsScrolling } from '@/logic/scroll';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import { udToDec } from '@urbit/api';
+import { WritTuple } from '@/types/dms';
 
 interface DmWindowProps {
   whom: string;
   root: string;
   prefixedElement?: ReactElement;
+}
+
+function checkWritMatch(writ: WritTuple, scrollTo: string) {
+  const writServerTime = writ[0].toString();
+  const { timeDec } = getPatdaParts(writ[1].seal.id);
+  return scrollTo === writServerTime || scrollTo === timeDec;
 }
 
 export default function DmWindow({
@@ -58,25 +58,23 @@ export default function DmWindow({
   const navigate = useNavigate();
 
   const latestMessageIndex = writs.length - 1;
-  const msgIdTimeIndex = useMemo(
+  const scrollToIndex = useMemo(
     () =>
       scrollToId
-        ? writs.findIndex((m) => m[0].toString() === scrollToId)
-        : latestMessageIndex,
-    [scrollToId, writs, latestMessageIndex]
-  );
-  const msgIdTimeInMessages = useMemo(
-    () =>
-      scrollToId
-        ? writs.findIndex((m) => m[0].toString() === scrollToId) !== -1
-        : false,
+        ? writs.findIndex((writ) => checkWritMatch(writ, scrollToId))
+        : -1,
     [scrollToId, writs]
+  );
+  const scrollToInMessages = useMemo(
+    () => scrollToIndex !== -1,
+    [scrollToIndex]
   );
   const latestIsMoreThan30NewerThanScrollTo = useMemo(
     () =>
-      msgIdTimeIndex !== latestMessageIndex &&
-      latestMessageIndex - msgIdTimeIndex > 30,
-    [msgIdTimeIndex, latestMessageIndex]
+      scrollToInMessages &&
+      scrollToIndex !== latestMessageIndex &&
+      latestMessageIndex - scrollToIndex > 30,
+    [scrollToInMessages, scrollToIndex, latestMessageIndex]
   );
 
   const onAtBottom = useCallback(() => {
@@ -153,10 +151,10 @@ export default function DmWindow({
     // not in our current set of messages, that means we're scrolling to a
     // message that's not yet cached. So, we need to refetch (which would fetch
     // messages around the scrollTo time), then scroll to the message.
-    if (scrollToId && hasNextPage && !msgIdTimeInMessages) {
+    if (scrollToId && hasNextPage && !scrollToInMessages) {
       doRefetch();
     }
-  }, [scrollToId, hasNextPage, refetch, msgIdTimeInMessages, remove]);
+  }, [scrollToId, hasNextPage, refetch, scrollToInMessages, remove]);
 
   if (isLoading) {
     return (
