@@ -41,8 +41,12 @@ function ChatSearchResult({
     return writ.seal.id;
   }, [writ, time]);
   const isReply = 'parent-id' in writ.seal;
+  const replyScrollTo =
+    isReply && 'time' in writ.seal ? `?thread-msg=${writ.seal.time}` : '';
   const scrollTo = `?msg=${postId}`;
-  const to = isReply ? `${root}/message/${postId}` : `${root}${scrollTo}`;
+  const to = isReply
+    ? `${root}/message/${postId}${replyScrollTo}`
+    : `${root}${scrollTo}`;
   const content = useMemo(() => {
     if ('essay' in writ) {
       return writ.essay.content;
