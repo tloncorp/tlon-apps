@@ -41,7 +41,7 @@ export interface ChatStore {
   seen: (whom: string) => void;
   read: (whom: string) => void;
   delayedRead: (whom: string, callback: () => void) => void;
-  unread: (
+  handleUnread: (
     whom: string,
     unread: Unread | DMUnread,
     markRead: (whm: string) => void
@@ -64,7 +64,7 @@ export const chatStoreLogger = createDevLogger('ChatStore', false);
 
 export function isUnread(unread: Unread | DMUnread): boolean {
   const hasThreads = Object.keys(unread.threads || {}).length > 0;
-  return unread.count > 0 && (!!unread['unread-id'] || hasThreads);
+  return unread.count > 0 && (!!unread.unread || hasThreads);
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -182,7 +182,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           unread: {
             recency: 0,
             count: 0,
-            'unread-id': '',
+            unread: { id: '', count: 0 },
             threads: {},
           },
           readTimeout: 0,
@@ -204,6 +204,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           return;
         }
 
+        if (chat.unread && chat.unread.readTimeout) {
+          chatStoreLogger.log('clear delayedRead', whom);
+          clearTimeout(chat.unread.readTimeout);
+        }
+
         chatStoreLogger.log('read', whom, JSON.stringify(chat));
         chat.unread = undefined;
         chatStoreLogger.log('post read', JSON.stringify(draft.chats[whom]));
@@ -214,8 +219,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const { chats, read } = get();
     const chat = chats[whom] || emptyInfo();
 
-    if (!chat.unread || chat.unread.readTimeout) {
+    if (!chat.unread) {
       return;
+    }
+
+    if (chat.unread.readTimeout) {
+      clearTimeout(chat.unread.readTimeout);
     }
 
     const readTimeout = setTimeout(() => {
@@ -237,21 +246,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  unread: (whom, unread, markRead) => {
+  handleUnread: (whom, unread, markRead) => {
     set(
       produce((draft: ChatStore) => {
-        const { atBottom, current, read } = draft;
+        const { read } = draft;
         const chat = draft.chats[whom] || emptyInfo();
         const hasUnreads = isUnread(unread);
 
-        if (
-          hasUnreads &&
-          current === whom &&
-          atBottom &&
-          document.visibilityState === 'visible'
-        ) {
-          markRead(whom);
-        } else if (hasUnreads) {
+        /* TODO: there was initially logic here to mark read when we're on the chat and
+          at the bottom of the scroll. This was very rarely firing since the scroller
+          doesn't actually call that event very often and if it did, would clear thread
+          unreads before they're seen. We should revisit once we have more granular control
+          over what we mark read.
+        */
+
+        if (hasUnreads) {
           chatStoreLogger.log('unread', whom, chat, unread);
           draft.chats[whom] = {
             ...chat,
@@ -261,7 +270,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               unread,
             },
           };
-        } else if (!hasUnreads && chat?.unread?.readTimeout === 0) {
+        } else {
           read(whom);
         }
       })
