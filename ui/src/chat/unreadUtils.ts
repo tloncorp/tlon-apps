@@ -24,7 +24,7 @@ export function threadIsOlderThanLastRead(
   if (hasThread && hasMainChatUnread) {
     return 'parent-time' in thread && 'time' in mainChatUnread
       ? bigInt(thread['parent-time']).lesser(bigInt(mainChatUnread.time))
-      : bigInt(thread.id).lesser(bigInt(mainChatUnread.id));
+      : bigInt(threadId).lesser(bigInt(mainChatUnread.id));
   }
 
   return false;
