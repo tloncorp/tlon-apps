@@ -150,7 +150,6 @@ export default function ChatInput({
     [targetId, dropZoneId]
   );
   const id = replying ? `${whom}-${replying}` : whom;
-  chatStoreLogger.log('InputRender', id);
   const [draft, setDraft] = useLocalStorage(
     createStorageKey(`chat-${id}`),
     inlinesToJSON([''])

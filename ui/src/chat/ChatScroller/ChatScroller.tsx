@@ -36,7 +36,7 @@ import { PageTuple, ReplyTuple } from '@/types/channel';
 import { useShowDevTools } from '@/state/local';
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
-const logger = createDevLogger('ChatScroller', true);
+const logger = createDevLogger('ChatScroller', false);
 
 interface CustomScrollItemData {
   type: 'custom';
