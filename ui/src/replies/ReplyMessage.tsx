@@ -111,7 +111,7 @@ const ReplyMessage = React.memo<
       }: ReplyMessageProps,
       ref
     ) => {
-      const { seal, memo } = reply ?? emptyReply;
+      const { seal, memo } = reply.seal.id ? reply : emptyReply;
       const container = useRef<HTMLDivElement>(null);
       const isThreadOp = seal['parent-id'] === seal.id;
       const isMobile = useIsMobile();
