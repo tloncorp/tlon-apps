@@ -180,11 +180,7 @@ const ChatMessage = React.memo<
               return;
             }
 
-            const {
-              seen: markSeen,
-              read,
-              delayedRead,
-            } = useChatStore.getState();
+            const { seen: markSeen, delayedRead } = useChatStore.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -201,18 +197,6 @@ const ChatMessage = React.memo<
                   markChatRead({ nest: `chat/${whom}` });
                 }
               });
-              return;
-            }
-
-            /* finally, if the marker transitions back to not being visible,
-              we can assume the user is done and clear the unread. */
-            if (!inView && unread && seen) {
-              read(whom);
-              if (isDMOrMultiDM) {
-                markDmRead({ whom });
-              } else {
-                markChatRead({ nest: `chat/${whom}` });
-              }
             }
           },
           [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead, markDmRead]
