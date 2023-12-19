@@ -53,7 +53,7 @@ export default function ReplyMessageOptions(props: {
     whomParts[0] === 'heap' ||
     whomParts[0] === 'diary';
   const nest = alreadyHaveHan ? whom : `chat/${whom}`;
-  const { seal, memo } = reply ?? emptyReply;
+  const { seal, memo } = reply.seal.id ? reply : emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const threadParentId = seal['parent-id'];
