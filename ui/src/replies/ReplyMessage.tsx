@@ -279,7 +279,7 @@ const ReplyMessage = React.memo<
               ref={viewRef}
             />
           ) : null}
-          {newDay ? <DateDivider date={unix} /> : null}
+          {newDay && !isUnread ? <DateDivider date={unix} /> : null}
           {newAuthor ? (
             <Author ship={memo.author} date={unix} hideRoles />
           ) : null}
