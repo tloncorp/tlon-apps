@@ -279,10 +279,10 @@ const GroupActions = React.memo(
           className={className}
         >
           {children || (
-            <div className="relative h-6 w-6">
+            <div>
               {isMobile && !isOpen && hasActivity && (
                 <UnreadIndicator
-                  className="absolute top-[3px] !font-normal"
+                  className="!font-normal"
                   aria-label={`${unreads} unread messages`}
                   count={unreads}
                 />
