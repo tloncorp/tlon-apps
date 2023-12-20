@@ -173,6 +173,8 @@ export function initializeChat({
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(ChatKeys.pending(), () => invited || []);
   queryClient.setQueryData(ChatKeys.unreads(), () => unreads || {});
+
+  useChatStore.getState().update(unreads);
 }
 
 interface PageParam {
