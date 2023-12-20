@@ -343,7 +343,7 @@ const ChatMessage = React.memo<
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             {isDelivered && (
               <ChatMessageOptions
-                open={optionsOpen || hasDialogsOpen}
+                open={optionsOpen || (hasDialogsOpen && !isMobile)}
                 onOpenChange={setOptionsOpen}
                 hideThreadReply={hideReplies}
                 whom={whom}
