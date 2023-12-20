@@ -706,9 +706,13 @@ function removePostFromInfiniteQuery(nest: string, time: string) {
   const deletedId = decToUd(time);
   const currentData = queryClient.getQueryData(queryKey) as any;
   const newPages =
-    currentData?.pages.map((page: any) =>
-      page.filter(([id]: any) => id !== deletedId)
-    ) ?? [];
+    currentData?.pages.map((page: any) => {
+      if (Array.isArray(page)) {
+        return page.filter(([id]: any) => id !== deletedId);
+      }
+
+      return page;
+    }) ?? [];
   queryClient.setQueryData(queryKey, (data: any) => ({
     pages: newPages,
     pageParams: data.pageParams,
@@ -1565,7 +1569,7 @@ export function useDeletePostMutation() {
         if ('post' in event.response) {
           const { id, 'r-post': postResponse } = event.response.post;
           return (
-            id === variables.time &&
+            decToUd(id) === variables.time &&
             'set' in postResponse &&
             postResponse.set === null
           );
