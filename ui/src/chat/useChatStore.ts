@@ -246,21 +246,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
     );
   },
-  handleUnread: (whom, unread, markRead) => {
-    set(
-      produce((draft: ChatStore) => {
-        const { read } = draft;
-        const chat = draft.chats[whom] || emptyInfo();
-        const hasUnreads = isUnread(unread);
+  handleUnread: (whom, unread) => {
+    const hasUnreads = isUnread(unread);
+    if (hasUnreads) {
+      set(
+        produce((draft: ChatStore) => {
+          const chat = draft.chats[whom] || emptyInfo();
 
-        /* TODO: there was initially logic here to mark read when we're on the chat and
-          at the bottom of the scroll. This was very rarely firing since the scroller
-          doesn't actually call that event very often and if it did, would clear thread
-          unreads before they're seen. We should revisit once we have more granular control
-          over what we mark read.
-        */
-
-        if (hasUnreads) {
+          /* TODO: there was initially logic here to mark read when we're on the chat and
+            at the bottom of the scroll. This was very rarely firing since the scroller
+            doesn't actually call that event very often and if it did, would clear thread
+            unreads before they're seen. We should revisit once we have more granular control
+            over what we mark read.
+          */
           chatStoreLogger.log('unread', whom, chat, unread);
           draft.chats[whom] = {
             ...chat,
@@ -270,11 +268,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               unread,
             },
           };
-        } else {
-          read(whom);
-        }
-      })
-    );
+        })
+      );
+    } else {
+      get().read(whom);
+    }
   },
   setCurrent: (current) => {
     set(
