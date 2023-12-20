@@ -11,6 +11,7 @@ import { Saga } from '@/types/groups';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import Tooltip from '@/components/Tooltip';
 import { useNegotiate } from '@/state/negotiation';
+import { get } from 'lodash';
 
 interface HostConnectionProps {
   ship: string;
@@ -85,7 +86,14 @@ export default function HostConnection({
             <Bullet16Icon
               className={cn(
                 'h-4 w-4 flex-none',
-                `text-${getHostConnectionColor(saga, status, matched)}-400`
+                getHostConnectionColor(saga, status, matched) === 'red' &&
+                  'text-red-400',
+                getHostConnectionColor(saga, status, matched) === 'yellow' &&
+                  'text-yellow-400',
+                getHostConnectionColor(saga, status, matched) === 'green' &&
+                  'text-green-400',
+                getHostConnectionColor(saga, status, matched) === 'gray' &&
+                  'text-gray-400'
               )}
             />
           </span>
@@ -95,7 +103,14 @@ export default function HostConnection({
         <Bullet16Icon
           className={cn(
             'h-4 w-4 flex-none',
-            `text-${getHostConnectionColor(saga, status, matched)}-400`
+            getHostConnectionColor(saga, status, matched) === 'red' &&
+              'text-red-400',
+            getHostConnectionColor(saga, status, matched) === 'yellow' &&
+              'text-yellow-400',
+            getHostConnectionColor(saga, status, matched) === 'green' &&
+              'text-green-400',
+            getHostConnectionColor(saga, status, matched) === 'gray' &&
+              'text-gray-400'
           )}
         />
       )}
@@ -106,9 +121,15 @@ export default function HostConnection({
       {type === 'row' && (
         <div
           className={cn(
-            'h-full w-full rounded-xl px-6 py-4 leading-6',
-            `text-${getHostConnectionColor(saga, status, matched)}-500`,
-            `bg-${getHostConnectionColor(saga, status, matched)}-50`
+            'h-full w-full rounded-xl border px-6 py-3 leading-6',
+            getHostConnectionColor(saga, status, matched) === 'red' &&
+              'border-red-400 bg-red-50 text-red-500',
+            getHostConnectionColor(saga, status, matched) === 'yellow' &&
+              'border-yellow-400 bg-yellow-50 text-yellow-500',
+            getHostConnectionColor(saga, status, matched) === 'green' &&
+              'border-green-200 bg-green-50 text-green-500',
+            getHostConnectionColor(saga, status, matched) === 'gray' &&
+              'border-gray-400 bg-gray-50 text-gray-500'
           )}
         >
           {getText(saga, ship, status, matched)}
