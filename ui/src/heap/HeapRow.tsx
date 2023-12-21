@@ -17,7 +17,6 @@ import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
-import useNest from '@/logic/useNest';
 import getHeapContentType from '@/logic/useHeapContentType';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { firstInlineSummary } from '@/logic/tiptap';
@@ -27,14 +26,9 @@ import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
-import { Post, Story, VerseBlock } from '@/types/channel';
-import {
-  useIsPostUndelivered,
-  usePostToggler,
-  useTrackedPostStatus,
-  useTrackedPosts,
-} from '@/state/channel/channel';
-import { linkUrlFromContent } from '@/logic/channel';
+import { Post, Story, VerseBlock, imageUrlFromContent } from '@/types/channel';
+import { useIsPostUndelivered, usePostToggler } from '@/state/channel/channel';
+import { linkUrlFromContent, useChannelFlag } from '@/logic/channel';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -64,7 +58,7 @@ function Actions({
   author,
 }: TopBarProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const nest = useNest();
+  const chFlag = useChannelFlag();
   const {
     didCopy,
     menuOpen,
@@ -76,7 +70,7 @@ function Actions({
     navigateToCurio,
     toggleHidden,
     isHidden,
-  } = useCurioActions({ nest, time, refToken });
+  } = useCurioActions({ nest: `heap/${chFlag}`, time, refToken });
 
   return (
     <div
@@ -217,7 +211,7 @@ export default function HeapRow({
   const { content } = post?.essay || { content: [] };
   const navigate = useNavigate();
   const { isHidden } = usePostToggler(time);
-  const url = linkUrlFromContent(content) || '';
+  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { embed, isLoading, isError, error } = useEmbed(url);
   const calm = useCalm();
   const { isImage, isAudio, isText } = getHeapContentType(url);
