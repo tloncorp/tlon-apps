@@ -119,7 +119,6 @@ export const useFileStore = create<FileStore>((set, get) => ({
     try {
       // TODO: fix upload compression for Safari and iOS webview
       if (isImageFile(file) && !isIOSWebView() && !isSafari()) {
-        console.log('bl: running compression');
         compressedFile = await imageCompression(file, compressionOptions);
       }
     } catch (error) {
