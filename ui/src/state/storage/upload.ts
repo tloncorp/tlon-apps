@@ -135,6 +135,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           method: 'PUT',
           headers: {
             'Content-Type': compressedFile.type,
+            'Content-Length': compressedFile.size.toString(),
           },
           body: compressedFile,
         };
