@@ -9,6 +9,7 @@ import imageCompression from 'browser-image-compression';
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/api';
 import { Status } from '@/logic/status';
+import { isIOSWebView, isSafari } from '@/logic/native';
 import {
   FileStore,
   StorageConfiguration,
@@ -116,7 +117,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
     let compressedFile: File = file;
 
     try {
-      if (isImageFile(file)) {
+      // TODO: fix upload compression for Safari and iOS webview
+      if (isImageFile(file) && !isIOSWebView() && !isSafari()) {
+        console.log('bl: running compression');
         compressedFile = await imageCompression(file, compressionOptions);
       }
     } catch (error) {
