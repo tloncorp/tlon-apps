@@ -240,8 +240,10 @@
     ?:  =(our her)  &
     =/  =path
       %+  welp  groups-scry
-      :+  %channel  kind.nest
-      /(scot %p ship.nest)/[name.nest]/can-read/(scot %p her)/loob
-    .^(? %gx path)
+      /can-read/noun
+    =/  test=$-([ship nest:g] ?)
+      =>  [path=path nest=nest:g ..zuse]  ~+
+      .^($-([ship nest] ?) %gx path)
+    (test her nest)
   --
 --

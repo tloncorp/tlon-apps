@@ -1049,6 +1049,13 @@
         :-  bloc=(~(has in go-bloc-who) member)
         sects=sects:(~(got by fleet.group) member)
       ==
+      ::
+        [%can-read ~]
+      :+  ~  %noun
+      !>  ^-  $-([ship nest:g] ?)
+      |=  [=ship =nest:g]
+      ?~  cha=(~(get by channels.group) nest)  |
+      (go-can-read ship u.cha)
     ==
   ::
   ++  go-can-read
