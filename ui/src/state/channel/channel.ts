@@ -752,33 +752,29 @@ export function useOrderedPosts(
 
   if (posts.length === 0) {
     return {
-      hasNext: false,
-      hasPrev: false,
       nextPost: null,
       prevPost: null,
       sortedOutlines: [],
     };
   }
 
-  const sortedOutlines = posts;
-
-  sortedOutlines.sort(([a], [b]) => b.compare(a));
-
+  const sortedOutlines = posts
+    .filter(([, v]) => v !== null)
+    .sort(([a], [b]) => b.compare(a));
   const postId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
-  const newest = posts[posts.length - 1]?.[0];
-  const oldest = posts[0]?.[0];
-  const hasNext = posts.length > 0 && newest && postId.gt(newest);
-  const hasPrev = posts.length > 0 && oldest && postId.lt(oldest);
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(postId));
 
-  const nextPost = hasNext ? sortedOutlines[currentIdx - 1] : null;
+  const nextPost = currentIdx > 0 ? sortedOutlines[currentIdx - 1] : null;
   if (nextPost) {
     prefetchPostWithComments({
       nest,
       time: udToDec(nextPost[0].toString()),
     });
   }
-  const prevPost = hasPrev ? sortedOutlines[currentIdx + 1] : null;
+  const prevPost =
+    currentIdx < sortedOutlines.length - 1
+      ? sortedOutlines[currentIdx + 1]
+      : null;
   if (prevPost) {
     prefetchPostWithComments({
       nest,
@@ -787,8 +783,6 @@ export function useOrderedPosts(
   }
 
   return {
-    hasNext,
-    hasPrev,
     nextPost,
     prevPost,
     sortedOutlines,
