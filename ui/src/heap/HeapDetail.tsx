@@ -139,7 +139,7 @@ export default function HeapDetail({ title }: ViewProps) {
           ) : null}
         </div>
         <div className="flex w-full flex-col lg:h-full lg:w-72 lg:border-l-2 lg:border-gray-50 xl:w-96">
-          {essay ? <HeapDetailSidebarInfo essay={essay} /> : null}
+          <HeapDetailSidebarInfo essay={essay} />
           {idTime && (
             <HeapDetailComments
               time={idTime}
