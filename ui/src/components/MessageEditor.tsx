@@ -165,8 +165,14 @@ export function useMessageEditor({
         suggestion: getMentionPopup('~'),
       })
     );
+    // Extending like this generates a warning
+    // Duplicate extension names found: ['mention']. This can lead to issues.
+    // But the extend method's documentation says the name can'tbe changed
+    // https://tiptap.dev/docs/editor/guide/custom-extensions#extend-existing-extensions
+    // If we add a name: property, the @ mentions stop working
+    // Needs more research but opting to make it work over a warning for now
     extensions.unshift(
-      Mention.extend({ priority: 999, name: 'at-mention' }).configure({
+      Mention.extend({ priority: 999 }).configure({
         HTMLAttributes: {
           class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
         },
