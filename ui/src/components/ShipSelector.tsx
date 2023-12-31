@@ -273,7 +273,7 @@ export default function ShipSelector({
   inner = false,
   isLoading = false,
   hasPrompt = true,
-  placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
+  placeholder: placeholderProp,
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
   autoFocus = true,
   containerClassName,
@@ -293,7 +293,11 @@ export default function ShipSelector({
   const validShips = ships
     ? ships.every((ship) => isValidNewOption(preSig(ship.value)))
     : false;
-  const mobilePlaceholder = 'Search for Urbit ID';
+  const placeholder =
+    placeholderProp ??
+    (isMobile
+      ? 'Search for Urbit ID'
+      : 'Search for Urbit ID (e.g. ~sampel-palnet) or display name');
 
   const handleEnter = () => {
     const isInputting = !!(
@@ -516,7 +520,7 @@ export default function ShipSelector({
         }
         onKeyDown={onKeyDown}
         inputValue={inputValue}
-        placeholder={isMobile ? mobilePlaceholder : placeholder}
+        placeholder={placeholder}
         hideSelectedOptions
         // TODO: create custom filter for sorting potential DM participants.
         filterOption={() => true} // disable the default filter
@@ -614,7 +618,7 @@ export default function ShipSelector({
       }
       onKeyDown={onKeyDown}
       inputValue={inputValue}
-      placeholder={isMobile ? mobilePlaceholder : placeholder}
+      placeholder={placeholder}
       hideSelectedOptions
       // TODO: create custom filter for sorting potential DM participants.
       filterOption={() => true} // disable the default filter

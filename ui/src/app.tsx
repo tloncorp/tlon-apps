@@ -100,7 +100,6 @@ import { DragAndDropProvider } from '@/logic/DragAndDropContext';
 import LureAutojoiner from '@/groups/LureAutojoiner';
 import { isNativeApp, postActionToNativeApp } from '@/logic/native';
 import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
-import NewGroupView from './groups/NewGroup/NewGroupView';
 import EyrieMenu from './eyrie/EyrieMenu';
 import GroupVolumeDialog from './groups/GroupVolumeDialog';
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
@@ -114,6 +113,7 @@ import UpdateNoticeSheet from './components/UpdateNotices';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import GroupAddDialog from './groups/GroupAddDialog';
 import GroupCreateDialog from './groups/GroupCreateDialog';
+import GroupJoinDialog from './groups/GroupJoinDialog';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -419,7 +419,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               path="/profile/about"
               element={<AboutView title={`About • ${groupsTitle}`} />}
             />
-            <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route path="/leap" element={<Leap openDefault />} />
             <Route path="/groups/:ship/:name" element={<Groups />}>
               <Route element={isMobile ? <MobileSidebar /> : undefined}>
@@ -550,6 +549,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/groups/new" element={<NewGroupDialog />} />
           <Route path="/groups/add" element={<GroupAddDialog />} />
           <Route path="/groups/create" element={<GroupCreateDialog />} />
+          <Route path="/groups/join" element={<GroupJoinDialog />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>

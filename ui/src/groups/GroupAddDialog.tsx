@@ -17,7 +17,7 @@ export default function GroupAddDialog() {
       <ul className="mt-6 divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100">
         <li>
           <Link
-            to="/groups/create"
+            to="/groups/join"
             state={location.state}
             className="flex items-center gap-4 py-4 px-6 active:bg-gray-100"
           >
