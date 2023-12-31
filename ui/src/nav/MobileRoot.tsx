@@ -1,9 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
 import {
-  useGangList,
   useLoadingGroups,
   useGangsWithClaim,
   useGroupsWithQuery,
@@ -22,7 +21,6 @@ import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import GroupJoinList from '@/groups/GroupJoinList';
 import NavigateIcon from '@/components/icons/NavigateIcon';
 import WelcomeCard from '@/components/WelcomeCard';
-import { isNativeApp } from '@/logic/native';
 
 export default function MobileRoot() {
   const [isScrolling, setIsScrolling] = useState(false);
@@ -30,7 +28,7 @@ export default function MobileRoot() {
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
-  const gangs = useGangList();
+  const location = useLocation();
   const pinnedGroups = usePinnedGroups();
   const pendingGangs = usePendingGangsWithoutClaim();
   const loadingGroups = useLoadingGroups();
@@ -66,7 +64,8 @@ export default function MobileRoot() {
               />
               <Link
                 className="default-focus flex text-base"
-                to="/groups/new-mobile"
+                to="/groups/add"
+                state={{ backgroundLocation: location }}
               >
                 <AddIconMobileNav className="h-8 w-8 text-black" />
               </Link>

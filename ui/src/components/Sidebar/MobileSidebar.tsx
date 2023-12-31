@@ -1,4 +1,5 @@
 import cn from 'classnames';
+import { useContext, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
@@ -8,7 +9,6 @@ import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useLocalState } from '@/state/local';
 import { useHasUnreadMessages } from '@/state/chat';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
-import { useContext, useEffect, useState } from 'react';
 import { useCharge } from '@/state/docket';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';
@@ -18,7 +18,7 @@ import MessagesIcon from '../icons/MessagesIcon';
 import Avatar from '../Avatar';
 import NavigateIcon from '../icons/NavigateIcon';
 
-function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
+function GroupsTab(props: { isInactive: boolean }) {
   const navigate = useNavigate();
   const { groupsLocation } = useLocalState.getState();
   const groupsUnread = useIsAnyGroupUnread();
@@ -43,8 +43,10 @@ function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
       <div className="flex h-8 w-8 items-center justify-center">
         <HomeIconMobileNav
           isInactive={props.isInactive}
-          isDarkMode={props.isDarkMode}
-          className="h-[20px] w-[18px]"
+          className={cn(
+            'h-[20px] w-[18px]',
+            props.isInactive && 'opacity-20 dark:opacity-80'
+          )}
         />
       </div>
       <div className="flex flex-1 items-end">
@@ -172,7 +174,6 @@ export default function MobileSidebar() {
           <ul className="flex h-12">
             <GroupsTab
               isInactive={isInactive('/groups') && location.pathname !== '/'}
-              isDarkMode={isDarkMode}
             />
             <MessagesTab
               isInactive={isInactive('/messages') && isInactive('/dm')}

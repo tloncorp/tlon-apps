@@ -112,6 +112,8 @@ import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import UpdateNoticeSheet from './components/UpdateNotices';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
+import GroupAddDialog from './groups/GroupAddDialog';
+import GroupCreateDialog from './groups/GroupCreateDialog';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -546,6 +548,8 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             }
           />
           <Route path="/groups/new" element={<NewGroupDialog />} />
+          <Route path="/groups/add" element={<GroupAddDialog />} />
+          <Route path="/groups/create" element={<GroupCreateDialog />} />
           <Route path="/groups/:ship/:name">
             <Route path="invite" element={<GroupInviteDialog />} />
           </Route>
