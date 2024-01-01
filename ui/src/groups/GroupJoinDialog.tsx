@@ -86,7 +86,11 @@ export default function GroupJoinDialog() {
           isValidNewOption={isValidNewOption}
         />
       </div>
-      {hasResults ? <GroupJoinList gangs={gangsToDisplay} /> : null}
+      {hasResults ? (
+        <div className="mt-4 max-h-[60vh] overflow-y-auto">
+          <GroupJoinList gangs={gangsToDisplay} />
+        </div>
+      ) : null}
     </WidgetDrawer>
   );
 }
