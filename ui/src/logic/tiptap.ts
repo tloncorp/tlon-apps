@@ -448,7 +448,8 @@ export function JSONToInlines(
         },
       ];
     }
-    case 'mention': {
+    case 'mention':
+    case 'at-mention': {
       return [
         {
           ship: preSig(json.attrs?.id),
