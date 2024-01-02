@@ -22,10 +22,11 @@ import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import GroupJoinList from '@/groups/GroupJoinList';
 import NavigateIcon from '@/components/icons/NavigateIcon';
 import WelcomeCard from '@/components/WelcomeCard';
-import { isNativeApp } from '@/logic/native';
+import AddGroupSheet from '@/groups/AddGroupSheet';
 
 export default function MobileRoot() {
   const [isScrolling, setIsScrolling] = useState(false);
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
@@ -64,12 +65,9 @@ export default function MobileRoot() {
                 setSortFn={setSortFn}
                 sortOptions={sortOptions}
               />
-              <Link
-                className="default-focus flex text-base"
-                to="/groups/new-mobile"
-              >
+              <button onClick={() => setAddGroupOpen(true)}>
                 <AddIconMobileNav className="h-8 w-8 text-black" />
-              </Link>
+              </button>
             </div>
           }
         />
@@ -130,6 +128,7 @@ export default function MobileRoot() {
               </GroupList>
             </GroupsScrollingContext.Provider>
           )}
+          <AddGroupSheet open={addGroupOpen} onOpenChange={setAddGroupOpen} />
         </div>
       </nav>
     </Layout>
