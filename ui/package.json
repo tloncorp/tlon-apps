@@ -173,7 +173,7 @@
     "usehooks-ts": "^2.6.0",
     "uuid": "^9.0.0",
     "validator": "^13.7.0",
-    "vaul": "^0.4.6",
+    "vaul": "^0.8.0",
     "video-react": "^0.16.0",
     "workbox-precaching": "^6.5.4",
     "zustand": "^3.7.2"
