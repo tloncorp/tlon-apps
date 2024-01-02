@@ -39,6 +39,7 @@ export default function GroupInfoEditor({ title }: ViewProps) {
       ...group?.meta,
       privacy,
     },
+    mode: 'onChange',
   });
   const { enabled, describe } = useLure(groupFlag);
   const { mutate: editMutation, status: editStatus } = useEditGroupMutation({

@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import GroupInfoPreview from '@/groups/NewGroup/GroupInfoPreview';
@@ -10,12 +11,19 @@ import { GroupMeta } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
 
 export default function GroupInfoFields() {
-  const { register, watch } = useFormContext<GroupMeta>();
+  const {
+    register,
+    watch,
+    formState: { errors },
+  } = useFormContext<GroupMeta>();
   const [iconType, setIconType] = useState<ImageOrColorFieldState>('color');
   const [coverType, setCoverType] = useState<ImageOrColorFieldState>('color');
-  const watchImage = watch('image');
-  const watchTitle = watch('title');
-  const watchCover = watch('cover');
+  const [watchImage, watchTitle, watchCover, watchDescription] = watch([
+    'image',
+    'title',
+    'cover',
+    'description',
+  ]);
   const showEmpty = iconType === 'image' && !isValidUrl(watchImage);
   const showCoverEmpty = coverType === 'image' && !isValidUrl(watchCover);
   const calm = useCalm();
@@ -98,15 +106,33 @@ export default function GroupInfoFields() {
         </div>
       )}
 
-      <div>
-        <label htmlFor="description" className="block pb-1.5 font-bold">
+      <div className="space-y-1.5">
+        <label
+          htmlFor="description"
+          className={cn(
+            'block font-bold transition-colors',
+            errors.description && 'text-red-500'
+          )}
+        >
           Group Description
         </label>
         <textarea
           {...register('description', { maxLength: 300 })}
-          className="input h-24 w-full"
+          className={cn(
+            'input h-24 w-full',
+            errors.description &&
+              'border-red-500/50 focus-within:border-red-500/50 focus-visible:border-red-500/50'
+          )}
           spellCheck={`${!calm.disableSpellcheck}`}
         />
+        <div
+          className={cn(
+            'text-right text-sm text-gray-500 transition-colors',
+            errors.description && 'text-red-500'
+          )}
+        >
+          {watchDescription.length}/300
+        </div>
       </div>
     </div>
   );
