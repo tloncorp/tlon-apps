@@ -875,32 +875,32 @@
     ++  leave-channels
       |=  nests=(list nest:g)
       ^-  (list card)
-      %+  turn
+      %+  murn
           nests
       |=  nes=nest:g
-      ^-  card
+      ^-  (unit card)
+      ?.  ?=(?(%chat %diary %heap) p.nes)
+        ~
       =/  =dock  [our.bowl %channels]
-      =/  action=a-channels:d
-        ?>  ?=(?(%chat %diary %heap) p.nes)
-        [%channel nes %leave ~]
+      =/  action=a-channels:d  [%channel nes %leave ~]
       =/  =cage  channel-action+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
-      [%pass wire %agent dock %poke cage]
+      `[%pass wire %agent dock %poke cage]
     ::
     ++  join-channels
       |=  nests=(list nest:g)
       ^-  (list card)
-      %+  turn
+      %+  murn
           nests
       |=  nes=nest:g
-      ^-  card
+      ^-  (unit card)
+      ?.  ?=(?(%chat %diary %heap) p.nes)
+        ~
       =/  =dock  [our.bowl %channels]
-      =/  action=a-channels:d
-        ?>  ?=(?(%chat %diary %heap) p.nes)
-        [%channel nes %join flag]
+      =/  action=a-channels:d  [%channel nes %join flag]
       =/  =cage  ['channel-action' !>(action)]
       =/  =wire  (snoc go-area %join-channels)
-      [%pass wire %agent dock %poke cage]
+      `[%pass wire %agent dock %poke cage]
     --
   ::
   ++  go-leave
