@@ -110,7 +110,7 @@ export default function GroupInfoFields() {
         <label
           htmlFor="description"
           className={cn(
-            'block font-bold',
+            'block font-bold transition-colors',
             errors.description && 'text-red-500'
           )}
         >
@@ -127,7 +127,7 @@ export default function GroupInfoFields() {
         />
         <div
           className={cn(
-            'text-right text-sm text-gray-500',
+            'text-right text-sm text-gray-500 transition-colors',
             errors.description && 'text-red-500'
           )}
         >
