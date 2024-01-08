@@ -1,5 +1,4 @@
 import cn from 'classnames';
-import { useLocation } from 'react-router';
 import React, {
   useCallback,
   useEffect,
@@ -29,16 +28,11 @@ import {
   canReadChannel,
 } from '@/logic/channel';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import HashIcon from '@/components/icons/HashIcon';
 import useFilteredSections from '@/logic/useFilteredSections';
 import GroupListPlaceholder from '@/components/Sidebar/GroupListPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
-import CaretRightIcon from '@/components/icons/CaretRightIcon';
-import ElipsisIcon from '@/components/icons/EllipsisIcon';
-import SmileIcon from '@/components/icons/SmileIcon';
-import PlaneIcon from '@/components/icons/PlaneIcon';
 import { DEFAULT_SORT } from '@/constants';
 
 const UNZONED = 'default';
@@ -139,8 +133,6 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
   const vessel = useVessel(flag, window.our);
   const isChannelJoined = useCheckChannelJoined();
   const isChannelUnread = useCheckChannelUnread();
-  const location = useLocation();
-
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   useEffect(() => {
@@ -201,48 +193,9 @@ const ChannelList = React.memo(({ paddingTop }: { paddingTop?: number }) => {
     if (!isMobile) {
       return <ChannelSorter isMobile={false} />;
     }
-
-    return (
-      <div className={cn('mx-4 sm:mx-2', paddingTop && `pt-${paddingTop}`)}>
-        <SidebarItem
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
-              <HashIcon className="m-1 h-6 w-6 text-gray-800" />
-            </div>
-          }
-          to={`/groups/${flag}/channels`}
-          actions={<CaretRightIcon className="h-6 w-6 text-gray-800" />}
-        >
-          Channels
-        </SidebarItem>
-        <SidebarItem
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50">
-              <SmileIcon className="m-1 h-6 w-6 text-gray-800" />
-            </div>
-          }
-          to="./members"
-          actions={<CaretRightIcon className="h-6 w-6 text-gray-800" />}
-        >
-          Members
-        </SidebarItem>
-        <SidebarItem
-          color="text-blue"
-          highlight="bg-blue-soft"
-          icon={
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-soft">
-              <PlaneIcon className="h-6 w-6" />
-            </div>
-          }
-          to={`/groups/${flag}/invite`}
-          state={{ backgroundLocation: location }}
-          actions={<ElipsisIcon className="h-6 w-6 text-blue" />}
-        >
-          Invite People
-        </SidebarItem>
-      </div>
-    );
-  }, [isMobile, flag, location, paddingTop]);
+    // TODO: Add welcome message to group for admins and non-admins
+    return <div className={cn(paddingTop && `pt-${paddingTop}`)} />;
+  }, [isMobile, paddingTop]);
 
   const renderSectionHeader = useCallback(
     (section: string) => <Divider isMobile={isMobile}>{section}</Divider>,

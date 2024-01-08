@@ -2,7 +2,7 @@
 /-  meta
 /+  default-agent, verb, dbug
 /+  cur=curios
-/+  volume
+/+  volume, cutils=channel-utils
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  heap-json
@@ -979,11 +979,8 @@
     !=(~ (~(int in writers.perm.heap) sects.perms))
   ::
   ++  he-can-read
-    |=  her=ship
-    =/  =path
-      %+  welp  he-groups-scry
-      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
-    .^(? %gx path)
+    %~  can-read  perms:cutils
+    [our.bowl now.bowl [%heap flag] group.perm.heap]
   ::
   ++  he-pub
     |=  =path

@@ -33,7 +33,7 @@ export default function ShipConnection({
   const color = isSelf
     ? 'text-green-400'
     : matchedOrPending
-    ? getConnectionColor(status)
+    ? getConnectionColor(status) === 'yellow' && 'text-yellow-400'
     : 'text-red-400';
   const text = isSelf
     ? 'This is you'

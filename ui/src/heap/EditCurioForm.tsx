@@ -4,11 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useParams, useNavigate } from 'react-router';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import {
-  useDeletePostMutation,
-  useEditPostMutation,
-  usePost,
-} from '@/state/channel/channel';
+import { useEditPostMutation, usePost } from '@/state/channel/channel';
 import { isLinkCurio, isValidUrl } from '@/logic/utils';
 import useRequestState from '@/logic/useRequestState';
 import { inlinesToJSON, JSONToInlines } from '@/logic/tiptap';
@@ -20,6 +16,7 @@ import { chatStoryFromStory, storyFromChatStory } from '@/types/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import HeapTextInput from './HeapTextInput';
+import useCurioActions from './useCurioActions';
 
 type EditCurioFormSchema = {
   title: string;
@@ -45,11 +42,14 @@ export default function EditCurioForm() {
     [note, isLoading]
   );
   const editMutation = useEditPostMutation();
-  const delMutation = useDeletePostMutation();
   const isLinkMode = !isLoading ? isLinkCurio(contentAsChatStory) : false;
   const { isPending, setPending, setReady } = useRequestState();
   const firstInline = !isLoading && contentAsChatStory.inline[0];
   const { title } = getKindDataFromEssay(note.essay);
+  const { onDelete, isDeleteLoading } = useCurioActions({
+    nest,
+    time: idTime ?? '',
+  });
 
   const defaultValues: EditCurioFormSchema = {
     title: !isLoading ? title : '',
@@ -71,24 +71,6 @@ export default function EditCurioForm() {
   const isValidInput = isLinkMode
     ? isValidUrl(watchedContent)
     : Object.keys(draftText || {}).length > 0;
-
-  const onDelete = useCallback(async () => {
-    if (!chFlag || !idTime) {
-      return;
-    }
-
-    delMutation.mutate(
-      {
-        nest,
-        time: idTime,
-      },
-      {
-        onSuccess: () => {
-          navigate(`/groups/${groupFlag}/channels/heap/${chFlag}`);
-        },
-      }
-    );
-  }, [chFlag, idTime, nest, delMutation, groupFlag, navigate]);
 
   const onSubmit = useCallback(
     async ({ content, title: curioTitle }: EditCurioFormSchema) => {
@@ -252,7 +234,7 @@ export default function EditCurioForm() {
         onConfirm={onDelete}
         setOpen={setDeleteOpen}
         closeOnClickOutside={true}
-        loading={delMutation.isLoading}
+        loading={isDeleteLoading}
         title="Delete Gallery Item"
         confirmText="Delete"
         message="Are you sure you want to delete this gallery item?"

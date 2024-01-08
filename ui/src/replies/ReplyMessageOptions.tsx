@@ -53,7 +53,7 @@ export default function ReplyMessageOptions(props: {
     whomParts[0] === 'heap' ||
     whomParts[0] === 'diary';
   const nest = alreadyHaveHan ? whom : `chat/${whom}`;
-  const { seal, memo } = reply ?? emptyReply;
+  const { seal, memo } = reply.seal.id ? reply : emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const threadParentId = seal['parent-id'];
@@ -337,7 +337,7 @@ export default function ReplyMessageOptions(props: {
       {isMobile ? (
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
-        <div className="absolute right-2 -top-5 z-10 h-full">
+        <div className="absolute right-2 -top-5 z-10">
           <div
             data-testid="chat-message-options"
             className="sticky top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"

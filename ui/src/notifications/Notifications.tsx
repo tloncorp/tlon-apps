@@ -13,6 +13,7 @@ import { Skein } from '@/types/hark';
 import GroupSummary from '@/groups/GroupSummary';
 import MobileHeader from '@/components/MobileHeader';
 import ToggleGroup from '@/components/ToggleGroup';
+import WelcomeCard from '@/components/WelcomeCard';
 import { NotificationFilterType, useNotifications } from './useNotifications';
 
 export interface NotificationsProps {
@@ -216,11 +217,14 @@ export default function Notifications({
 
         <div className="card pt-6">
           {!isMobile && (
-            <div className="mb-6 flex w-full items-center justify-between">
-              <h2 className="text-lg font-bold">
-                {group && 'Group '}Activity{!group && ' in All Groups'}
-              </h2>
-              {hasUnreads && MarkAsRead}
+            <div>
+              <WelcomeCard />
+              <div className="mb-6 flex w-full items-center justify-between">
+                <h2 className="text-lg font-bold">
+                  {group && 'Group '}Activity{!group && ' in All Groups'}
+                </h2>
+                {hasUnreads && MarkAsRead}
+              </div>
             </div>
           )}
           {loaded ? (

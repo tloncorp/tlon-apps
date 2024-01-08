@@ -173,6 +173,8 @@ export function initializeChat({
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(ChatKeys.pending(), () => invited || []);
   queryClient.setQueryData(ChatKeys.unreads(), () => unreads || {});
+
+  useChatStore.getState().update(unreads);
 }
 
 interface PageParam {
@@ -703,16 +705,11 @@ export function useDmUnreads() {
     }
 
     if (unread !== null) {
-      if (unread['unread-id'] === null && unread.count === 0) {
-        // if unread is null and count is 0, we can assume that the channel
-        // has been read and we can remove it from the unreads list
-        useChatStore.getState().read(whom);
-      } else {
-        useChatStore
-          .getState()
-          .unread(whom, unread, () => markDmRead({ whom }));
-      }
+      useChatStore
+        .getState()
+        .handleUnread(whom, unread, () => markDmRead({ whom }));
     }
+
     queryClient.setQueryData(dmUnreadsKey, (d: DMUnreads | undefined) => {
       if (d === undefined) {
         return undefined;

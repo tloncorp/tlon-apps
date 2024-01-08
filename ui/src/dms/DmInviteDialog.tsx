@@ -52,7 +52,7 @@ export default function DmInviteDialog({
     <Dialog
       open={inviteIsOpen}
       onOpenChange={setInviteIsOpen}
-      containerClass="w-full sm:max-w-xl"
+      containerClass="w-full sm:max-w-xl overflow-visible"
       className="mb-64 bg-transparent p-0"
     >
       <div className="card">

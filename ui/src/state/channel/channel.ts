@@ -706,9 +706,13 @@ function removePostFromInfiniteQuery(nest: string, time: string) {
   const deletedId = decToUd(time);
   const currentData = queryClient.getQueryData(queryKey) as any;
   const newPages =
-    currentData?.pages.map((page: any) =>
-      page.filter(([id]: any) => id !== deletedId)
-    ) ?? [];
+    currentData?.pages.map((page: any) => {
+      if (Array.isArray(page)) {
+        return page.filter(([id]: any) => id !== deletedId);
+      }
+
+      return page;
+    }) ?? [];
   queryClient.setQueryData(queryKey, (data: any) => ({
     pages: newPages,
     pageParams: data.pageParams,
@@ -748,33 +752,29 @@ export function useOrderedPosts(
 
   if (posts.length === 0) {
     return {
-      hasNext: false,
-      hasPrev: false,
       nextPost: null,
       prevPost: null,
       sortedOutlines: [],
     };
   }
 
-  const sortedOutlines = posts;
-
-  sortedOutlines.sort(([a], [b]) => b.compare(a));
-
+  const sortedOutlines = posts
+    .filter(([, v]) => v !== null)
+    .sort(([a], [b]) => b.compare(a));
   const postId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
-  const newest = posts[posts.length - 1]?.[0];
-  const oldest = posts[0]?.[0];
-  const hasNext = posts.length > 0 && newest && postId.gt(newest);
-  const hasPrev = posts.length > 0 && oldest && postId.lt(oldest);
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(postId));
 
-  const nextPost = hasNext ? sortedOutlines[currentIdx - 1] : null;
+  const nextPost = currentIdx > 0 ? sortedOutlines[currentIdx - 1] : null;
   if (nextPost) {
     prefetchPostWithComments({
       nest,
       time: udToDec(nextPost[0].toString()),
     });
   }
-  const prevPost = hasPrev ? sortedOutlines[currentIdx + 1] : null;
+  const prevPost =
+    currentIdx < sortedOutlines.length - 1
+      ? sortedOutlines[currentIdx + 1]
+      : null;
   if (prevPost) {
     prefetchPostWithComments({
       nest,
@@ -783,8 +783,6 @@ export function useOrderedPosts(
   }
 
   return {
-    hasNext,
-    hasPrev,
     nextPost,
     prevPost,
     sortedOutlines,
@@ -1038,15 +1036,9 @@ export function useUnreads(): Unreads {
       const [app, flag] = nestToFlag(nest);
 
       if (app === 'chat') {
-        if (unread['unread-id'] === null && unread.count === 0) {
-          // if unread is null and count is 0, we can assume that the channel
-          // has been read and we can remove it from the unreads list
-          useChatStore.getState().read(flag);
-        } else {
-          useChatStore
-            .getState()
-            .unread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
-        }
+        useChatStore
+          .getState()
+          .handleUnread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
       }
 
       queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
@@ -1167,21 +1159,6 @@ export function usePostKeys(nest: Nest) {
   const { posts } = useInfinitePosts(nest);
 
   return useMemo(() => posts.map(([k]) => k), [posts]);
-}
-
-export function useGetFirstUnreadID(nest: Nest) {
-  const keys = usePostKeys(nest);
-  const unread = useUnread(nest);
-
-  const { 'unread-id': lastRead } = unread;
-
-  if (!lastRead) {
-    return null;
-  }
-
-  const lastReadBN = bigInt(lastRead);
-  const firstUnread = keys.find((key) => key.gt(lastReadBN));
-  return firstUnread ?? null;
 }
 
 export function useJoinMutation() {
@@ -1586,7 +1563,7 @@ export function useDeletePostMutation() {
         if ('post' in event.response) {
           const { id, 'r-post': postResponse } = event.response.post;
           return (
-            id === variables.time &&
+            decToUd(id) === variables.time &&
             'set' in postResponse &&
             postResponse.set === null
           );

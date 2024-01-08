@@ -1099,14 +1099,14 @@ export function getPendingText(status: ConnectionPendingStatus, ship: string) {
 
 export function getConnectionColor(status?: ConnectionStatus) {
   if (!status) {
-    return 'text-gray-400';
+    return 'gray';
   }
 
   if ('pending' in status) {
-    return 'text-yellow-400';
+    return 'yellow';
   }
 
-  return status.complete === 'yes' ? 'text-green-400' : 'text-red-400';
+  return status.complete === 'yes' ? 'green' : 'red';
 }
 
 export function getCompatibilityText(saga: Saga | null) {
