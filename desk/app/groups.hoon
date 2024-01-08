@@ -250,6 +250,8 @@
 ++  verify-group-cabals
   |=  [[=flag:g [* =group:g]] core=_cor]
   =.  core
+    ::  repair members as needed
+    ::
     %+  roll
       ~(tap by fleet.group)
     |=  [[s=ship =vessel:fleet:g] cre=_core]
@@ -261,19 +263,23 @@
     ~(tap by channels.group)
   |=  [[=nest:g =channel:g] cr=_core]
   =.  cr
+    ::  repair readers as needed
+    ::
     =/  readers  (~(dif in readers.channel) ~(key by cabals.group))
     ?.  (gth ~(wyt in readers) 0)  cr
     =/  action  [flag now.bowl %channel nest %del-sects readers]
     cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
+  ::  repair writers as needed
+  ::
   =+  .^(has=? %gu (channel-scry nest))
   ?.  has  cr
   =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
   =/  diff  (~(dif in writers) ~(key by cabals.group))
   ?.  (gth ~(wyt in diff) 0)  cr
-  ?.  =(p.nest ?(%chat %heap %diary))  cr
-  =/  update  [q.nest [now.bowl [%del-sects diff]]]
-  =/  cage  [%channels-action !>(update)]
-  cr(cards [[%pass /groups/role %agent [p.q.nest p.nest] %poke cage] cards.cr])
+  ?.  ?=(?(%chat %heap %diary) p.nest)  cr
+  =/  cmd=c-channels:d  [%channel nest %del-writers diff]
+  =/  cage  [%channel-command !>(cmd)]
+  cr(cards [[%pass /groups/role %agent [p.q.nest %channels-server] %poke cage] cards.cr])
 ::
 ::  +load: load next state
 ++  load
