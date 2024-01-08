@@ -200,10 +200,7 @@ const GroupActions = React.memo(
         containerClassName:
           'border border-gray-100 md:border-none mb-4 md:mb-0',
         content: (
-          <Link
-            to={`/groups/${flag}/edit`}
-            state={{ backgroundLocation: location }}
-          >
+          <Link to={`/groups/${flag}/edit`}>
             Group settings
             {isMobile && (
               <div className="pt-1.5 text-[14px] font-normal text-gray-400">
