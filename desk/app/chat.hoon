@@ -934,12 +934,12 @@
         `[u.who u.tim]
       ?~  cite-targets
         ~
-      `[[author.writ time] cite-targets]
+      `[id.writ cite-targets]
     %=  old-chat  wit.pact
       %-  malt
       %+  murn  (tap:on:writs:old wit.pact.old-chat)
       |=  [=time =writ:old]
-      ?.  (~(has in citations) [author.writ time])  ~
+      ?.  (~(has in citations) id.writ)  ~
       `[time writ]
     ==
   ++  convert-pin
