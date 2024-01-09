@@ -1227,17 +1227,37 @@ export function useGroupEditRoleMutation() {
 }
 
 export function useGroupDelRoleMutation() {
-  const mutationFn = async (variables: { flag: string; sect: string }) => {
+  const queryClient = useQueryClient();
+  const mutationFn = async ({ flag, sect }: { flag: string; sect: string }) => {
     const diff = {
       cabal: {
-        sect: variables.sect,
+        sect,
         diff: { del: null },
       },
     };
-    await api.poke(groupAction(variables.flag, diff));
+    await api.poke(groupAction(flag, diff));
   };
 
-  return useGroupMutation(mutationFn);
+  return useGroupMutation(mutationFn, {
+    onMutate: ({ flag, sect }: { flag: string; sect: string }) => {
+      // Optimistically remove role from cached group
+      queryClient.setQueryData(
+        [GROUPS_KEY, flag],
+        (group: Group | undefined) => {
+          if (!group?.cabals[sect]) {
+            return group;
+          }
+
+          const nextGroup = { ...group };
+          delete nextGroup.cabals[sect];
+          return nextGroup;
+        }
+      );
+    },
+    onSettled: (data, err, { flag }: { flag: string }) => {
+      queryClient.invalidateQueries([GROUPS_KEY, flag]);
+    },
+  });
 }
 
 export function useGroupIndex(ship: string) {

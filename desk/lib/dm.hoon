@@ -17,36 +17,38 @@
   ==
 ::
 ++  unread
-  |=  [our=ship last-read=time unread-threads=(set id:c)]
+  |=  [our=ship recency=time last-read=time unread-threads=(set id:c)]
   ^-  unread:unreads:c
-  =/  =time
-    ?~  tim=(ram:on:writs:c wit.pac)  *time
-    key.u.tim
+  :-  recency
   =/  unreads
-    (lot:on:writs:c wit.pac `last-read ~)
-  =/  unread-id=(unit message-key:c)
+    %+  skim
+      %-  bap:on:writs:c
+      (lot:on:writs:c wit.pac `last-read ~)
+    |=([=time =writ:c] !=(author.writ our))
+  =/  count  (lent unreads)
+  =/  unread=(unit [message-key:c @ud])
     ::TODO  in the ~ case, we could traverse further up, to better handle
     ::      cases where the most recent message was deleted.
-    (bind (pry:on:writs:c unreads) |=([key=@da val=writ:c] [id time]:val))
-  =/  count
-    (lent (skim ~(tap by unreads) |=([tim=^time =writ:c] !=(author.writ our))))
+    ?~  unreads  ~
+    (some [id time]:val:(rear unreads) count)
   ::  now do the same for all unread threads
   ::
-  =/  [sum=@ud threads=(map message-key:c message-key:c)]
+  =/  [sum=@ud threads=(map message-key:c [message-key:c @ud])]
     %+  roll  ~(tap in unread-threads)
-    |=  [=id:c sum=@ud threads=(map message-key:c message-key:c)]
+    |=  [=id:c sum=@ud threads=(map message-key:c [message-key:c @ud])]
     =/  parent   (get id)
     ?~  parent   [sum threads]
-    =/  unreads  (lot:on:replies:c replies.writ.u.parent `last-read ~)
-    :-  %+  add  sum
-        %-  lent
-        %+  skim  ~(tap by unreads)
-        |=([* =reply:c] !=(author.reply our))
-    =/  reply-id=(unit message-key:c)
-      (bind (pry:on:replies:c unreads) |=([* reply:c] [id time]))
-    ?~  reply-id  threads
-    (~(put by threads) [id time]:writ.u.parent u.reply-id)
-  [time (add count sum) unread-id threads]
+    =/  unreads
+      %+  skim
+        %-  bap:on:replies:c
+        (lot:on:replies:c replies.writ.u.parent `last-read ~)
+      |=([* =reply:c] !=(author.reply our))
+    =/  count=@ud  (lent unreads)
+    :-  (add sum count)
+    ?~  unreads  threads
+    %+  ~(put by threads)  [id time]:writ.u.parent
+    [[id time]:val:(rear unreads) count]
+  [(add count sum) unread threads]
 ::
 ++  get
   |=  =id:c

@@ -150,7 +150,6 @@ export default function ChatInput({
     [targetId, dropZoneId]
   );
   const id = replying ? `${whom}-${replying}` : whom;
-  chatStoreLogger.log('InputRender', id);
   const [draft, setDraft] = useLocalStorage(
     createStorageKey(`chat-${id}`),
     inlinesToJSON([''])
@@ -349,6 +348,7 @@ export default function ChatInput({
       onUpdate.current.flush();
       setDraft(inlinesToJSON(['']));
       setTimeout(() => {
+        // TODO: chesterton's fence, but why execute a read here?
         useChatStore.getState().read(whom);
         clearAttachments();
       }, 0);

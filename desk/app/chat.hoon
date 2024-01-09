@@ -1202,7 +1202,7 @@
   ::
   ++  cu-unread
     %+  unread:cu-pact  our.bowl
-    [last-read unread-threads]:remark.club
+    [recency last-read unread-threads]:remark.club
   ::
   ++  cu-create
     |=  =create:club:c
@@ -1829,7 +1829,7 @@
   ::
   ++  di-unread
     %+  unread:di-pact  our.bowl
-    [last-read unread-threads]:remark.dm
+    [recency last-read unread-threads]:remark.dm
   ++  di-remark-diff
     |=  diff=remark-diff:c
     ^+  di-core

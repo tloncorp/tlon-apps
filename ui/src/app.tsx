@@ -441,15 +441,55 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 <Route path="members" element={<Members />} />
               </Route>
               <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
-                <Route
-                  index
-                  element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
-                />
-                <Route
-                  path="members"
-                  element={<GroupMembers title={`• ${groupsTitle}`} />}
-                />
+                {!isMobile && (
+                  <>
+                    <Route
+                      path="info"
+                      element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
+                    />
+                    <Route
+                      path="invites-privacy"
+                      element={
+                        <GroupInvitesPrivacy title={`• ${groupsTitle}`} />
+                      }
+                    />
+                    <Route
+                      path="members"
+                      element={<GroupMembers title={`• ${groupsTitle}`} />}
+                    />
+
+                    <Route
+                      path="roles"
+                      element={<GroupRoles title={`• ${groupsTitle}`} />}
+                    />
+                    <Route path="delete" element={<GroupDelete />} />
+                  </>
+                )}
               </Route>
+              {isMobile && (
+                <>
+                  <Route
+                    path="/groups/:ship/:name/edit/info"
+                    element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
+                  />
+                  <Route
+                    path="/groups/:ship/:name/edit/invites-privacy"
+                    element={<GroupInvitesPrivacy title={`• ${groupsTitle}`} />}
+                  />
+                  <Route
+                    path="/groups/:ship/:name/edit/members"
+                    element={<GroupMembers title={`• ${groupsTitle}`} />}
+                  />
+                  <Route
+                    path="/groups/:ship/:name/edit/roles"
+                    element={<GroupRoles title={`• ${groupsTitle}`} />}
+                  />
+                  <Route
+                    path="/groups/:ship/:name/edit/delete"
+                    element={<GroupDelete />}
+                  />
+                </>
+              )}
               <Route
                 path="channels/chat/:chShip/:chName"
                 element={<GroupChannel type="chat" />}
@@ -561,22 +601,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             path="/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
             element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
           />
-          <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
-            <Route
-              index
-              element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
-            />
-            <Route path="invites-privacy" element={<GroupInvitesPrivacy />} />
-            <Route
-              path="members"
-              element={<GroupMembers title={`• ${groupsTitle}`} />}
-            />
-            <Route
-              path="roles"
-              element={<GroupRoles title={`• ${groupsTitle}`} />}
-            />
-            <Route path="delete" element={<GroupDelete />} />
-          </Route>
           <Route
             path="/groups/:ship/:name/leave"
             element={<GroupLeaveDialog />}

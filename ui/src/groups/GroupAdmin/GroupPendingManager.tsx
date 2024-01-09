@@ -79,13 +79,13 @@ export default function GroupPendingManager() {
   }
 
   return (
-    <div className={cn('card flex h-1/2 flex-col')}>
+    <div className={cn('flex h-1/2 flex-col')}>
       <div
         className={cn(
           'flex w-full flex-col items-center justify-between space-y-2 pb-2 md:flex-row'
         )}
       >
-        <h2 className="flex w-full items-center text-lg font-bold md:w-auto">
+        <h2 className="flex w-full items-center text-lg font-semibold md:w-auto">
           Invited{' '}
           <div className="ml-2 rounded border border-gray-800 px-2 py-0.5 text-xs font-medium uppercase text-gray-800">
             {results.length}

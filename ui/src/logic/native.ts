@@ -19,6 +19,11 @@ export const isIOSWebView = () => {
   );
 };
 
+export const isSafari = () => {
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /^((?!chrome|android).)*safari/i.test(userAgent);
+};
+
 export const isAndroidWebView = () => {
   const userAgent = window.navigator.userAgent.toLowerCase();
   return isNativeApp() && /android/.test(userAgent);

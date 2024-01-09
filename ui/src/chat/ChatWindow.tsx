@@ -57,6 +57,7 @@ export default function ChatWindow({
   const { mutate: markRead } = useMarkReadMutation();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
+  const clearOnNavRef = useRef({ readTimeout, nest, whom, markRead });
   const { compatible } = useChannelCompatibility(nest);
   const navigate = useNavigate();
   const latestMessageIndex = messages.length - 1;
@@ -134,14 +135,20 @@ export default function ChatWindow({
     }
   }, [fetchNextPage, hasNextPage, isFetching]);
 
+  // read the messages once navigated away
+  useEffect(() => {
+    clearOnNavRef.current = { readTimeout, nest, whom, markRead };
+  }, [readTimeout, nest, whom, markRead]);
+
   useEffect(
     () => () => {
-      if (readTimeout !== undefined && readTimeout !== 0) {
-        useChatStore.getState().read(whom);
-        markRead({ nest });
+      const curr = clearOnNavRef.current;
+      if (curr.readTimeout !== undefined && curr.readTimeout !== 0) {
+        useChatStore.getState().read(curr.whom);
+        curr.markRead({ nest: curr.nest });
       }
     },
-    [readTimeout, nest, whom, markRead]
+    []
   );
 
   useEffect(() => {

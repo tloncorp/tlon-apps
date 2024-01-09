@@ -210,7 +210,7 @@ const chat: Handler[] = [
           unreads[k] = {
             recency: 1652302200000,
             count: 1,
-            'unread-id': null,
+            unread: null,
             threads: {},
           };
         })
@@ -222,13 +222,13 @@ const chat: Handler[] = [
         '0v4.00000.qcas9.qndoa.7loa7.loa7l': {
           recency: 1652302200000,
           count: 1,
-          'unread-id': null,
+          unread: null,
           threads: {},
         },
         '~zod/test': {
           recency: 1652302200000,
           count: 1,
-          'unread-id': null,
+          unread: null,
           threads: {},
         },
       };
@@ -269,7 +269,7 @@ const chat: Handler[] = [
         unread: {
           recency: 0,
           count: 0,
-          'unread-id': null,
+          unread: null,
           threads: {},
         },
       }),
@@ -430,7 +430,7 @@ const dms: Handler[] = [
         const unread = {
           recency: 1652302200000,
           count: 1,
-          'unread-id': null,
+          unread: null,
           threads: {},
         };
         dmList[req.json.ship] = unread;

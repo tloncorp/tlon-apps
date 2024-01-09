@@ -228,10 +228,11 @@
 +$  unread
   $:  recency=time
       count=@ud
-      unread-id=(unit id-post)
-      threads=(map id-post id-reply)
+      unread=(unit [id=id-post count=@ud])
+      threads=(map id-post [id=id-reply count=@ud])
   ==
 ::  $remark: markers representing unread state
+::    recency:        time of most recent message
 ::    last-read:      time at which the user last read this channel
 ::    watching:       unused, intended for disabling unread accumulation
 ::    unread-threads: threads that contain unread messages

@@ -1,5 +1,6 @@
 import ob from 'urbit-ob';
 import React, { useCallback, useState } from 'react';
+import { useMatch } from 'react-router-dom';
 import cn from 'classnames';
 import Dialog, { DialogClose } from '@/components/Dialog';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
@@ -13,7 +14,6 @@ import {
 } from '@/state/groups/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, getPrivacyFromGroup, preSig } from '@/logic/utils';
-import Sheet, { SheetContent } from '@/components/Sheet';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import HostConnection from '@/channels/HostConnection';
@@ -49,6 +49,10 @@ export function GroupInviteBlock() {
       'complete' in data.status &&
       data.status.complete !== 'yes');
 
+  // Determine if we are in the "Invite People" dialog , which is different
+  // than the "Invites & Privacy" section of Group Settings
+  const isInviteDialog = useMatch('/groups/:ship/:name/invite');
+
   const onInvite = useCallback(async () => {
     const shipList = ships.map((s) => preSig(s.value));
 
@@ -83,7 +87,12 @@ export function GroupInviteBlock() {
 
   return (
     <div>
-      <h2 className="text-xl">Invite via Urbit ID</h2>
+      <div className="my-3">
+        <h2 className="mb-2 text-lg font-semibold">Invite via Urbit ID</h2>
+        <p className="leading-5 text-gray-600">
+          Invite people to your group who are already using Urbit.
+        </p>
+      </div>
       {hasIssue && (
         <HostConnection
           type="combo"
@@ -93,7 +102,7 @@ export function GroupInviteBlock() {
           saga={group?.saga || null}
         />
       )}
-      <div className="w-full py-3">
+      <div className="w-full">
         <ShipSelector
           ships={ships}
           setShips={setShips}
@@ -102,8 +111,11 @@ export function GroupInviteBlock() {
           autoFocus={false}
         />
       </div>
-      <div className="flex items-center justify-end space-x-2">
-        <DialogClose className="secondary-button">Cancel</DialogClose>
+      <div className="mt-3 flex items-center justify-end space-x-2">
+        {isInviteDialog && (
+          <DialogClose className="secondary-button">Cancel</DialogClose>
+        )}
+
         {addMembersStatus === 'success' ? (
           <button disabled className="button">
             Invites Sent
@@ -148,9 +160,11 @@ export default function GroupInviteDialog() {
       <div className="space-y-6">
         {group ? (
           <>
-            <div>
-              <h2 className="text-xl">Share Group</h2>
-              <h3 className="text-[17px] text-gray-500">{group.meta.title}</h3>
+            <div className="text-lg leading-6">
+              <div className="font-semibold text-gray-800">Share Group</div>
+              <div className="font-normal text-gray-400">
+                {group.meta.title}
+              </div>
             </div>
             <LureInviteBlock flag={flag} group={group} />
             <GroupInviteBlock />
@@ -164,7 +178,7 @@ export default function GroupInviteDialog() {
     <WidgetDrawer
       open={true}
       onOpenChange={(o) => !o && dismiss()}
-      className="h-[70vh] px-10 py-6"
+      className="px-10 py-6"
     >
       {renderContent()}
     </WidgetDrawer>

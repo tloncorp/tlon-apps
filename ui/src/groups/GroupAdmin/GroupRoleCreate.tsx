@@ -10,31 +10,40 @@ import {
 } from '@/state/groups';
 import { strToSym } from '@/logic/utils';
 
-export default function GroupRoleCreate() {
+type Props = {
+  onCreate: () => void;
+};
+
+export default function GroupRoleCreate({ onCreate }: Props) {
   const { cabal } = useParams<{ cabal: string }>();
   const flag = useRouteGroup();
   const group = useGroup(flag);
   const { compatible, text } = useGroupCompatibility(flag);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const { mutate, status } = useGroupAddRoleMutation();
+  const { mutateAsync, status } = useGroupAddRoleMutation();
 
   useEffect(() => {
-    if (cabal && group && title === '' && description === '') {
+    if (cabal && group?.cabals[cabal] && title === '' && description === '') {
       setTitle(group.cabals[cabal].meta.title);
       setDescription(group.cabals[cabal].meta.description);
     }
   }, [cabal, group, title, description]);
 
-  const createRole = () => {
-    mutate({
-      flag,
-      sect: strToSym(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1'),
-      meta: {
-        title,
-        description,
-      },
-    });
+  const createRole = async () => {
+    try {
+      await mutateAsync({
+        flag,
+        sect: strToSym(title).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1'),
+        meta: {
+          title,
+          description,
+        },
+      });
+      onCreate();
+    } catch (err) {
+      console.error('Error creating group role:', err);
+    }
   };
 
   return (
@@ -75,7 +84,7 @@ export default function GroupRoleCreate() {
             }
           >
             {status === 'loading' ? (
-              <div className="flex flex-row space-x-2">
+              <div className="flex items-center gap-1">
                 {cabal ? 'Updating...' : 'Creating...'}
                 <LoadingSpinner className="h-4 w-4" />
               </div>

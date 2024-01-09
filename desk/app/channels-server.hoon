@@ -361,7 +361,7 @@
     |=  [=nest:c co=_cor]
     ^+  cor
     %+  roll  ~(tap in p.diff)
-    |=  [=ship ci=_cor]
+    |=  [=ship ci=_co]
     ^+  cor
     =/  ca  (ca-abed:ca-core:ci nest)
     ca-abet:(ca-revoke:ca ship)

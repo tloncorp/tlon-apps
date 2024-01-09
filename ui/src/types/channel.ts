@@ -322,8 +322,13 @@ export interface Channels {
 export interface Unread {
   recency: number;
   count: number;
-  'unread-id': string | null;
-  threads: Record<string, string>;
+  unread: UnreadPoint | null;
+  threads: Record<string, UnreadPoint>;
+}
+
+export interface UnreadPoint {
+  id: string;
+  count: number;
 }
 
 export interface Unreads {

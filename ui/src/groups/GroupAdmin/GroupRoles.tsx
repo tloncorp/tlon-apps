@@ -28,6 +28,8 @@ import KeyIcon from '@/components/icons/KeyIcon';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import IconButton from '@/components/IconButton';
 import Tooltip from '@/components/Tooltip';
+import MobileHeader from '@/components/MobileHeader';
+import { useIsMobile } from '@/logic/useMedia';
 import RoleCreate from './GroupRoleCreate';
 
 function eqRoleName(a: string, b: string) {
@@ -49,12 +51,13 @@ export default function GroupRoles({ title }: { title: string }) {
   const [search, setSearch] = useState('');
   const [editRole, setEditRole] = useState('');
   const [createRole, setCreateRole] = useState(false);
-  const { mutate: deleteRoleMutation, status: deleteStatus } =
+  const { mutateAsync: deleteRoleMutation, status: deleteStatus } =
     useGroupDelRoleMutation();
   const roles = group?.cabals;
   const fleet = group?.fleet;
   const channels = useChannels();
   const { state } = useLocation();
+  const isMobile = useIsMobile();
 
   // TODO: is this needed?
   const currentlyUsedRoles = group
@@ -104,9 +107,13 @@ export default function GroupRoles({ title }: { title: string }) {
     onUpdate.current(value);
   }, []);
 
-  const handleDeleteRole = (role: string) => {
-    deleteRoleMutation({ flag, sect: role });
-    setEditRole('');
+  const handleDeleteRole = async (role: string) => {
+    try {
+      await deleteRoleMutation({ flag, sect: role });
+      setEditRole('');
+    } catch (err) {
+      console.error('Error deleting group role:', err);
+    }
   };
 
   const onRoleTitleChange = useCallback(
@@ -155,8 +162,8 @@ export default function GroupRoles({ title }: { title: string }) {
   useEffect(() => {
     if (!editingRoleTitle && !editingDescription) {
       if (editRole) {
-        setRoleTitle(group?.cabals[editRole].meta.title || '');
-        setDescription(group?.cabals[editRole].meta.description || '');
+        setRoleTitle(group?.cabals[editRole]?.meta.title || '');
+        setDescription(group?.cabals[editRole]?.meta.description || '');
       } else {
         setRoleTitle('');
         setDescription('');
@@ -172,20 +179,16 @@ export default function GroupRoles({ title }: { title: string }) {
           {group?.meta ? `Roles for ${group.meta.title} ${title}` : title}
         </title>
       </Helmet>
+      {isMobile && (
+        <MobileHeader title="Roles" pathBack={`/groups/${flag}/edit`} />
+      )}
       {editRole === '' && !createRole && (
-        <div className="card mb-4 flex flex-col space-y-4">
-          <h2 className="text-lg font-bold">Group Roles</h2>
+        <div className=" my-4 flex flex-col space-y-4 px-6 md:px-4">
+          <h2 className="text-lg font-semibold">Group Roles</h2>
           <p className="leading-5 text-gray-600">
             Create roles for sub-groups of members. Assign roles to group
-            members in the{' '}
-            <Link
-              state={{ backgroundLocation: state.backgroundLocation }}
-              to={`/groups/${flag}/edit/members`}
-            >
-              Members
-            </Link>{' '}
-            tab. Assign read and write permissions for roles in the Edit dialog
-            of each channel.
+            members in the Members section. Assign read and write permissions
+            for roles in the Edit dialog of each channel.
           </p>
           <div>
             {(privacy === 'public' || amAdmin) && (
@@ -210,7 +213,7 @@ export default function GroupRoles({ title }: { title: string }) {
                 icon={<CaretLeftIcon className="h-5 w-5 text-gray-400" />}
               />
               <h2 className="text-lg font-bold">
-                Editing Role: {group?.cabals[editRole].meta.title}
+                Editing Role: {group?.cabals[editRole]?.meta.title}
               </h2>
             </div>
             <div className="flex flex-col space-y-2">
@@ -243,7 +246,7 @@ export default function GroupRoles({ title }: { title: string }) {
                   disabled={status === 'loading' || !compatible}
                 >
                   {status === 'loading' ? (
-                    <div className="flex flex-row space-x-2">
+                    <div className="flex items-center gap-1">
                       Saving...
                       <LoadingSpinner className="h-4 w-4" />
                     </div>
@@ -336,7 +339,7 @@ export default function GroupRoles({ title }: { title: string }) {
               />
               <h2 className="text-lg font-bold">Create Role</h2>
             </div>
-            <RoleCreate />
+            <RoleCreate onCreate={backToRoles} />
           </>
         )}
       </div>
@@ -366,21 +369,21 @@ export default function GroupRoles({ title }: { title: string }) {
             </button>
             <Tooltip content={text} open={compatible ? false : undefined}>
               <button
-                className="button center-items flex bg-red"
+                className="button flex items-center gap-1 bg-red"
                 disabled={
                   !compatible ||
                   deleteStatus === 'loading' ||
                   !eqRoleName(
                     deleteField,
-                    group?.cabals[editRole].meta.title || ''
+                    group?.cabals[editRole]?.meta.title || ''
                   )
                 }
                 onClick={() => handleDeleteRole(editRole)}
               >
                 {deleteStatus === 'loading' ? (
                   <>
-                    <LoadingSpinner h-4 w-4 mr-2 />
                     Deleting...
+                    <LoadingSpinner h-4 w-4 mr-2 />
                   </>
                 ) : (
                   'Delete'

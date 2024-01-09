@@ -7,6 +7,7 @@ import {
   Docket,
   DocketHref,
   Treaty,
+  udToDec,
   unixToDa,
 } from '@urbit/api';
 import { formatUv } from '@urbit/aura';
@@ -315,6 +316,16 @@ export function getSectTitle(cabals: Cabals, sect: string) {
   return cabals[sect]?.meta.title || sect;
 }
 
+export function getPatdaParts(patda: string) {
+  const parts = patda.split('/');
+
+  return {
+    ship: parts[0],
+    time: parts[1],
+    timeDec: udToDec(parts[1]),
+  };
+}
+
 export function getFlagParts(flag: string) {
   const parts = flag.split('/');
 
@@ -449,13 +460,13 @@ export function hasKeys(obj: Record<string, unknown>) {
 }
 
 export const IMAGE_REGEX =
-  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.webm|\.svg)(?:\?.*)?$/i;
+  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)(?:\?.*)?$/i;
-export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv)(?:\?.*)?$/i;
+export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv|\.webm)(?:\?.*)?$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
-  /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|webm|svg)(?:\?.*)?$/i;
+  /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|svg)(?:\?.*)?$/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
 export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
 // sig and hep explicitly left out
@@ -1088,14 +1099,14 @@ export function getPendingText(status: ConnectionPendingStatus, ship: string) {
 
 export function getConnectionColor(status?: ConnectionStatus) {
   if (!status) {
-    return 'text-gray-400';
+    return 'gray';
   }
 
   if ('pending' in status) {
-    return 'text-yellow-400';
+    return 'yellow';
   }
 
-  return status.complete === 'yes' ? 'text-green-400' : 'text-red-400';
+  return status.complete === 'yes' ? 'green' : 'red';
 }
 
 export function getCompatibilityText(saga: Saga | null) {
