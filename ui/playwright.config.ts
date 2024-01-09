@@ -96,13 +96,13 @@ export default defineConfig({
   webServer: [
     {
       command: `cross-env SHIP_URL=${
-        (shipManifest as Record<string, any>)['~zod'].url
+        (shipManifest as Record<string, any>)['~habduc-patbud'].url
       } npm run dev-no-ssl`,
       url: 'http://localhost:3000/apps/groups/',
     },
     {
       command: `cross-env SHIP_URL=${
-        (shipManifest as Record<string, any>)['~bus'].url
+        (shipManifest as Record<string, any>)['~naldeg-mardev'].url
       } E2E_PORT_3001=true npm run dev-no-ssl`,
       url: 'http://localhost:3001/apps/groups/',
     },

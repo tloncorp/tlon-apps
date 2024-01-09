@@ -56,6 +56,22 @@ const ships: Record<
     ), // eslint-disable-line
     extractPath: path.join(__dirname, 'bus'),
   },
+  'habduc-patbud': {
+    ...shipManifest['~habduc-patbud'],
+    savePath: path.join(
+      __dirname,
+      shipManifest['~habduc-patbud'].downloadUrl.split('/').pop()!
+    ), // eslint-disable-line
+    extractPath: path.join(__dirname, 'habduc-patbud'),
+  },
+  'naldeg-mardev': {
+    ...shipManifest['~naldeg-mardev'],
+    savePath: path.join(
+      __dirname,
+      shipManifest['~naldeg-mardev'].downloadUrl.split('/').pop()!
+    ), // eslint-disable-line
+    extractPath: path.join(__dirname, 'naldeg-mardev'),
+  },
 };
 
 const targetShip = process.env.SHIP_NAME;
