@@ -12,11 +12,11 @@
 /+  chat-json
 /*  desk-bill  %bill  /desk/bill
 ::
-%-  agent:dbug
 %-  %-  agent:neg
     :+  |
       [~.chat-dms^%0 ~ ~]
     [%chat^[~.chat-dms^%0 ~ ~] ~ ~]
+%-  agent:dbug
 %+  verb-lib  |
 ::
 ^-  agent:gall
@@ -935,12 +935,20 @@
       ?~  cite-targets
         ~
       `[id.writ cite-targets]
-    %=  old-chat  wit.pact
-      %-  malt
-      %+  murn  (tap:on:writs:old wit.pact.old-chat)
-      |=  [=time =writ:old]
-      ?.  (~(has in citations) id.writ)  ~
-      `[time writ]
+    %=  old-chat
+      log  ~
+      dex.pact
+        %-  malt
+        %+  murn  ~(tap by dex.pact.old-chat)
+        |=  [=id:old =time]
+        ?.  (~(has in citations) id)  ~
+        `[id time]
+      wit.pact
+        %-  malt
+        %+  murn  (tap:on:writs:old wit.pact.old-chat)
+        |=  [=time =writ:old]
+        ?.  (~(has in citations) id.writ)  ~
+        `[time writ]
     ==
   ++  convert-pin
     |=  =whom:t
