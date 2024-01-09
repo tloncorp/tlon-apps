@@ -12,11 +12,11 @@
 /+  chat-json
 /*  desk-bill  %bill  /desk/bill
 ::
+%-  agent:dbug
 %-  %-  agent:neg
     :+  |
       [~.chat-dms^%0 ~ ~]
     [%chat^[~.chat-dms^%0 ~ ~] ~ ~]
-%-  agent:dbug
 %+  verb-lib  |
 ::
 ^-  agent:gall
