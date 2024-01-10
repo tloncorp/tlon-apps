@@ -78,7 +78,7 @@ export default function Eyrie() {
               {errors.map((e, i) => (
                 <div
                   key={e.time}
-                  className="flex items-center space-x-2 py-1 px-2"
+                  className="flex items-center space-x-2 px-2 py-1"
                 >
                   <div>{new Date(e.time).toLocaleTimeString()}</div>
                   <div>{e.msg}</div>

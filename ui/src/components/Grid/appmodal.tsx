@@ -45,7 +45,7 @@ export default function AppModal() {
         )}
         {title && <span className="font-semibold text-black">{title}</span>}
       </div>
-      <div className="absolute top-1 right-10 flex cursor-pointer items-center justify-center rounded-md bg-white text-gray-600 hover:bg-gray-50">
+      <div className="absolute right-10 top-1 flex cursor-pointer items-center justify-center rounded-md bg-white text-gray-600 hover:bg-gray-50">
         <a href={path} title="Open in new tab" target="_blank" rel="noreferrer">
           <ArrowNEIcon className="h-8 w-8" />
         </a>

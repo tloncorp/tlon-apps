@@ -72,7 +72,7 @@ export default function DiaryNoteHeader({
         <div className="flex w-full flex-col justify-center">
           <span
             className={cn(
-              'ellipsis text-lg font-bold line-clamp-1 sm:text-sm sm:font-semibold'
+              'ellipsis line-clamp-1 text-lg font-bold sm:text-sm sm:font-semibold'
             )}
           >
             {title}

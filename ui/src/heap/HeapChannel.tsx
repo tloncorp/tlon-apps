@@ -159,7 +159,7 @@ function HeapChannel({ title }: ViewProps) {
     () => (
       <div
         id={dropZoneId}
-        className="absolute top-0 left-0 flex h-full w-full items-center justify-center bg-gray-50 p-10 opacity-95"
+        className="absolute left-0 top-0 flex h-full w-full items-center justify-center bg-gray-50 p-10 opacity-95"
       >
         <div className="flex h-full w-full items-center justify-center rounded-lg border-[3px] border-dashed border-gray-200">
           <div className="text-lg font-bold">Drop Attachments Here</div>
@@ -220,8 +220,8 @@ function HeapChannel({ title }: ViewProps) {
               displayMode === 'list'
                 ? 'heap-list'
                 : isMobile
-                ? 'heap-grid-mobile'
-                : 'heap-grid'
+                  ? 'heap-grid-mobile'
+                  : 'heap-grid'
             }
             stateChanged={(state) => {
               virtuosoStateByFlag[chFlag] = state;
@@ -240,7 +240,7 @@ function HeapChannel({ title }: ViewProps) {
           >
             <Toast.Description asChild>
               <div
-                className="absolute top-0 left-0 z-50 flex w-full cursor-pointer items-start justify-center border-green"
+                className="absolute left-0 top-0 z-50 flex w-full cursor-pointer items-start justify-center border-green"
                 onClick={() => setDragErrorMessage('')}
               >
                 <div className="mt-2 rounded-lg bg-red-100 p-4 font-semibold text-red shadow-sm">

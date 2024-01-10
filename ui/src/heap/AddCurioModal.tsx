@@ -234,7 +234,7 @@ export default function AddCurioModal({
         <h2 className="text-lg font-bold">Post New Block</h2>
       </header>
 
-      <section className="align-center align-center mt-6 mb-6 flex w-full flex-col justify-center">
+      <section className="align-center align-center mb-6 mt-6 flex w-full flex-col justify-center">
         {mode === 'input' ? (
           <NewCurioInput
             onChange={onChange}

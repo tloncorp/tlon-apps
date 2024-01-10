@@ -95,7 +95,7 @@ export default function MobileGroupChannelList() {
         <ChannelList paddingTop={6} />
       </div>
       <div
-        className="absolute top-[-5%] left-[-5%] -z-10 h-64 w-[110%] bg-cover bg-center mix-blend-multiply blur-md dark:mix-blend-screen"
+        className="absolute left-[-5%] top-[-5%] -z-10 h-64 w-[110%] bg-cover bg-center mix-blend-multiply blur-md dark:mix-blend-screen"
         style={bgStyle()}
       />
     </>

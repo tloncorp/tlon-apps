@@ -347,24 +347,27 @@ export function JSONToInlines(
         return [{ break: null }];
       }
 
-      const inlines = json.content.reduce((memo, c, idx) => {
-        // this check is here again, for typescript "null" detection
-        if (!json.content) {
-          return [{ break: null }];
-        }
-        const isContentFinal = idx === json.content.length - 1;
-        const lastMessage = memo[idx - 1];
-        const isBreakDirectlyBefore =
-          lastMessage &&
-          typeof lastMessage !== 'string' &&
-          'break' in lastMessage;
-        if (isContentFinal && !isBreakDirectlyBefore) {
-          return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang), [
-            { break: null },
-          ]);
-        }
-        return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang));
-      }, [] as (Inline | Block)[]);
+      const inlines = json.content.reduce(
+        (memo, c, idx) => {
+          // this check is here again, for typescript "null" detection
+          if (!json.content) {
+            return [{ break: null }];
+          }
+          const isContentFinal = idx === json.content.length - 1;
+          const lastMessage = memo[idx - 1];
+          const isBreakDirectlyBefore =
+            lastMessage &&
+            typeof lastMessage !== 'string' &&
+            'break' in lastMessage;
+          if (isContentFinal && !isBreakDirectlyBefore) {
+            return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang), [
+              { break: null },
+            ]);
+          }
+          return memo.concat(JSONToInlines(c, limitNewlines, codeWithLang));
+        },
+        [] as (Inline | Block)[]
+      );
       return limitNewlines ? limitBreaks(inlines) : inlines;
     }
     case 'doc': {
@@ -665,8 +668,8 @@ export function makeListing(listing: Listing): JSONContent {
         list.type === 'ordered'
           ? 'orderedList'
           : list.type === 'unordered'
-          ? 'bulletList'
-          : 'taskList',
+            ? 'bulletList'
+            : 'taskList',
       content: list.items.map((item) => makeListing(item)),
     };
 

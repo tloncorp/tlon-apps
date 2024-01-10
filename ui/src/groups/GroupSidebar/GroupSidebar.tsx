@@ -96,13 +96,13 @@ function GroupHeader() {
           <div className="max-w-[130px] truncate">
             {claim ? preview?.meta.title : group?.meta.title}
           </div>
-          <CaretDown16Icon className="absolute top-3 right-2 h-4 w-4" />
+          <CaretDown16Icon className="absolute right-2 top-3 h-4 w-4" />
         </SidebarItem>
       </GroupActions>
       <Link
         to=".."
         className={cn(
-          'h-6-w-6 absolute top-2.5 left-2 z-40 flex items-center justify-center rounded bg-white bg-transparent p-1 text-gray-400',
+          'h-6-w-6 absolute left-2 top-2.5 z-40 flex items-center justify-center rounded bg-transparent bg-white p-1 text-gray-400',
           needsUpdate ? 'bg-yellow' : 'bg-transparent'
         )}
       >
@@ -130,7 +130,7 @@ export default function GroupSidebar() {
   return (
     <nav className="flex h-full min-w-64 flex-none flex-col bg-white">
       <div className="flex min-h-0 flex-col">
-        <div className="flex flex-col space-y-0.5 px-2 pt-2 pb-4">
+        <div className="flex flex-col space-y-0.5 px-2 pb-4 pt-2">
           <GroupHeader />
           <SidebarItem
             icon={

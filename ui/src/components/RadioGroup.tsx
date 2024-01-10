@@ -39,7 +39,7 @@ export default function RadioGroup({
           value={option.value}
           aria-label={option.ariaLabel ?? option.label}
           className={cn(
-            'flex h-14 cursor-pointer items-center justify-between border-b border-gray-200 py-2 px-6 text-left',
+            'flex h-14 cursor-pointer items-center justify-between border-b border-gray-200 px-6 py-2 text-left',
             index === 0 ? 'rounded-t-xl' : '',
             index === options.length - 1 ? 'rounded-b-xl border-b-0' : '',
             index !== 0 && index !== options.length - 1 ? 'border-t-0' : '',
@@ -48,11 +48,11 @@ export default function RadioGroup({
           )}
         >
           <div>
-            <label className="block line-clamp-1" htmlFor={option.value}>
+            <label className="line-clamp-1 block" htmlFor={option.value}>
               {option.label}
             </label>
             {option.secondaryLabel && (
-              <p className="mt-[4px] text-sm font-normal text-gray-600 line-clamp-1">
+              <p className="mt-[4px] line-clamp-1 text-sm font-normal text-gray-600">
                 {option.secondaryLabel}
               </p>
             )}

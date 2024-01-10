@@ -124,7 +124,7 @@ export default function HeapDetailHeader({
         <div className="flex w-full flex-col justify-center">
           <span
             className={cn(
-              'ellipsis break-all text-lg font-bold line-clamp-1 sm:text-sm sm:font-semibold'
+              'ellipsis line-clamp-1 break-all text-lg font-bold sm:text-sm sm:font-semibold'
             )}
           >
             {isCite ? 'Reference' : `${description()}: `}

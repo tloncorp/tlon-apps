@@ -27,7 +27,7 @@ export default function UpdateNoticeSheet() {
           installed. Please do so now.
         </p>
         <button
-          className="button mt-10 py-3 px-4"
+          className="button mt-10 px-4 py-3"
           onClick={() => triggerUpdate(true)}
         >
           Install Update
@@ -51,7 +51,7 @@ export function DesktopUpdateButton() {
           Update Required
         </h3>
       </div>
-      <p className="mt-1 ml-2 text-black dark:text-white">
+      <p className="ml-2 mt-1 text-black dark:text-white">
         Click here to update now
       </p>
     </button>

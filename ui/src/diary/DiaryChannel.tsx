@@ -137,7 +137,7 @@ function DiaryChannel({ title }: ViewProps) {
     });
 
   const itemContent = (i: number, [time, outline]: PageTuple) => (
-    <div className="my-6 mx-auto max-w-[600px] px-6">
+    <div className="mx-auto my-6 max-w-[600px] px-6">
       <DiaryListItem note={outline!} time={time} />
       {lastArrangedNote === time.toString() && (
         <div className="mt-6 flex justify-center">
@@ -187,7 +187,7 @@ function DiaryChannel({ title }: ViewProps) {
           <Toast.Root duration={3000} defaultOpen={false} open={showToast}>
             <Toast.Description asChild>
               <div className="absolute z-10 flex -translate-x-2/4 items-center justify-between space-x-2 rounded-lg bg-white font-semibold text-black shadow-xl dark:bg-gray-200">
-                <span className="py-2 px-4">Note successfully published</span>
+                <span className="px-4 py-2">Note successfully published</span>
               </div>
             </Toast.Description>
           </Toast.Root>

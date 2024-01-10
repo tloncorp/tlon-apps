@@ -74,7 +74,7 @@ function TitleButton({
             <div className="flex space-x-1 align-middle">
               <span
                 className={cn(
-                  'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                  'ellipsis line-clamp-1 text-sm font-bold sm:font-semibold'
                 )}
               >
                 {contact.nickname}
@@ -84,7 +84,7 @@ function TitleButton({
             <ShipName
               full
               name={ship}
-              className="w-full break-all text-sm text-gray-400 line-clamp-1"
+              className="line-clamp-1 w-full break-all text-sm text-gray-400"
             />
           </>
         ) : (
@@ -143,7 +143,7 @@ export default function Dm() {
 
   const conversationHeader = useMemo(
     () => (
-      <div className="pt-4 pb-12">
+      <div className="pb-12 pt-4">
         <DMHero ship={ship} contact={contact} />
       </div>
     ),
@@ -280,7 +280,7 @@ export default function Dm() {
                 isScrolling={isScrolling}
               />
             ) : confirmedMismatch ? (
-              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">
                 Your version of the app does not match the other party.
               </div>
             ) : null}

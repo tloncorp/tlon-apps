@@ -55,12 +55,12 @@ function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
       <div className="flex w-full flex-col justify-center">
         <span
           className={cn(
-            'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+            'ellipsis line-clamp-1 text-sm font-bold sm:font-semibold'
           )}
         >
           <ClubName club={club} />
         </span>
-        <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+        <span className="line-clamp-1 w-full break-all text-sm text-gray-400">
           <span>{`${count} ${pluralize('Member', count)}${
             hasPending ? ',' : ''
           }`}</span>
@@ -218,7 +218,7 @@ export default function MultiDm() {
                 isScrolling={isScrolling}
               />
             ) : confirmedMismatch ? (
-              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">
                 Your version of the app does not match some of the members of
                 this chat.
               </div>
@@ -231,7 +231,7 @@ export default function MultiDm() {
             whom={clubId}
             root={root}
             prefixedElement={
-              <div className="pt-4 pb-12">
+              <div className="pb-12 pt-4">
                 <MultiDmHero club={club} />
               </div>
             }

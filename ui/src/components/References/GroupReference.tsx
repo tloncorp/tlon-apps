@@ -144,15 +144,15 @@ function GroupReference({
               <img
                 src={meta.cover}
                 loading="lazy"
-                className="absolute top-0 left-0 h-full w-full object-cover"
+                className="absolute left-0 top-0 h-full w-full object-cover"
               />
             ) : (
               <div
                 style={{ background: meta?.cover }}
-                className="absolute top-0 left-0 h-full w-full"
+                className="absolute left-0 top-0 h-full w-full"
               />
             )}
-            <div className="absolute top-2 left-2 flex items-center space-x-2 rounded p-2 text-base font-bold">
+            <div className="absolute left-2 top-2 flex items-center space-x-2 rounded p-2 text-base font-bold">
               <GroupAvatar {...meta} size="h-6 w-6" />
               <span
                 className="text-white dark:text-black"
@@ -187,7 +187,7 @@ function GroupReference({
         <div className="grow text-sm font-semibold leading-4">
           <h3 className="line-clamp-1">{meta?.title || flag} </h3>
           {!plain && (
-            <p className="font-medium text-gray-400 line-clamp-1">
+            <p className="line-clamp-1 font-medium text-gray-400">
               by{' '}
               <ShipName
                 className="overflow-hidden text-ellipsis whitespace-nowrap"
