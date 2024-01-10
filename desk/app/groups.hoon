@@ -874,11 +874,12 @@
   |=  [=nest:g =id-post:d id-reply=(unit id-reply:d)]
   ^-  rope:ha
   =/  prefix  (channel-scry nest)
-  =/  ch-path
+  =/  ch-path=path
     ?~  id-reply  
       (welp prefix /hark/rope/(scot %ud id-post))
     (welp prefix /hark/rope/(scot %ud id-post)/(scot %ud u.id-reply))
-  .^(rope:ha %gx (snoc ch-path %noun))
+  =/  =path  (snoc ch-path %noun)
+  .^(rope:ha %gx path)
 ::
 ++  group-core
   |_  [=flag:g =net:g =group:g gone=_|]

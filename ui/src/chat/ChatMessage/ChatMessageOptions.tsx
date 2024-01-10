@@ -214,15 +214,14 @@ function ChatMessageOptions(props: {
     navigate('/report-content', {
       state: {
         backgroundLocation: location,
-        contentId: decToUd(
-          useChatState.getState().getTime(whom, writ.seal.id).toString()
-        ),
+        post: seal.id,
+        reply: null,
         nest: `chat/${chFlag}`,
         groupFlag,
       },
     });
-    hide();
-  }, [navigate, hide, writ, whom, location, chFlag, groupFlag]);
+    hidePost();
+  }, [navigate, hidePost, seal, location, chFlag, groupFlag]);
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
@@ -349,7 +348,7 @@ function ChatMessageOptions(props: {
     ),
   });
 
-  if (!location.pathname.includes('groups/messages')) {
+  if (!isDMorMultiDM) {
     actions.push({
       key: 'report',
       onClick: reportContent,

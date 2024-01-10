@@ -36,6 +36,7 @@ import {
 import { emptyReply, Reply } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
+import CautionIcon from '@/components/icons/CautionIcon';
 
 export default function ReplyMessageOptions(props: {
   open: boolean;
@@ -223,6 +224,28 @@ export default function ReplyMessageOptions(props: {
     [isPostHidden, showPost, hidePost]
   );
 
+  const reportContent = useCallback(() => {
+    navigate('/report-content', {
+      state: {
+        backgroundLocation: location,
+        post: threadParentId,
+        reply: seal.id,
+        nest: `chat/${chShip}/${chName}`,
+        groupFlag,
+      },
+    });
+    hidePost();
+  }, [
+    navigate,
+    hidePost,
+    threadParentId,
+    seal,
+    location,
+    chShip,
+    chName,
+    groupFlag,
+  ]);
+
   const showReactAction = canWrite;
   // TODO handle reply replies
   const showCopyAction = !!groupFlag;
@@ -312,6 +335,19 @@ export default function ReplyMessageOptions(props: {
       </div>
     ),
   });
+
+  if (!isDMorMultiDM) {
+    actions.push({
+      key: 'report',
+      onClick: reportContent,
+      content: (
+        <div className="flex items-center">
+          <CautionIcon className="mr-2 h-6 w-6" />
+          Report Message
+        </div>
+      ),
+    });
+  }
 
   if (showDeleteAction) {
     actions.push({

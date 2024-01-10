@@ -40,6 +40,7 @@ import {
 } from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { Scope, VolumeValue } from '@/types/volume';
+import { decToUd } from '@urbit/api';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -1388,13 +1389,17 @@ export function useFlagContentMutation() {
   const mutationFn = async (variables: {
     flag: string;
     nest: string;
-    id: string;
+    post: string;
+    reply: string | null;
   }) => {
     await api.poke<GroupAction>(
       groupAction(variables.flag, {
         'flag-content': {
           nest: variables.nest,
-          id: variables.id,
+          'post-key': {
+            post: decToUd(variables.post),
+            reply: variables.reply ? decToUd(variables.reply) : null,
+          },
         },
       })
     );

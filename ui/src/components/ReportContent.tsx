@@ -48,7 +48,7 @@ export default function ReportContent() {
   const onReport = () => {
     if (
       !location.state.groupFlag ||
-      !location.state.contentId ||
+      !location.state.post ||
       !location.state.nest
     ) {
       console.error('Error reporting content.', location.state);
@@ -56,7 +56,8 @@ export default function ReportContent() {
     }
 
     mutate({
-      id: location.state.contentId,
+      post: location.state.post,
+      reply: location.state.reply,
       nest: location.state.nest,
       flag: location.state.groupFlag,
     });
