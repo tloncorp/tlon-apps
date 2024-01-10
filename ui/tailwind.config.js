@@ -312,7 +312,6 @@ module.exports = {
         { name: 'dark', selectors: ['.dark'], theme: dark.theme },
       ],
     }),
-    require('@tailwindcss/line-clamp'),
     require('@tailwindcss/typography'),
     require('@tailwindcss/container-queries'),
     plugin(({ addUtilities }) => {
