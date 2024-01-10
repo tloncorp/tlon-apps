@@ -24,7 +24,7 @@ export default function ReactionDetails({
         onOpenChange={onOpenChange}
         className="px-[20px] pt-6"
       >
-        <ReactionsWidget reacts={reactions} className="h-[40vh] pt-3 pb-12" />
+        <ReactionsWidget reacts={reactions} className="h-[40vh] pb-12 pt-3" />
       </WidgetDrawer>
     );
   }

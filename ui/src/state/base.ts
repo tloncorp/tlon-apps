@@ -35,7 +35,7 @@ export const stateSetter = <T extends Record<string, unknown>>(
   const [state] = produceWithPatches(old, fn) as readonly [
     T & BaseState<T>,
     any,
-    Patch[]
+    Patch[],
   ];
   // console.log(patches);
   set(state);
@@ -51,7 +51,7 @@ export const optStateSetter = <T extends Record<string, unknown>>(
   const [state, , patches] = produceWithPatches(old, fn) as readonly [
     T & BaseState<T>,
     any,
-    Patch[]
+    Patch[],
   ];
   set({ ...state, patches: { ...state.patches, [id]: patches } });
   return id;

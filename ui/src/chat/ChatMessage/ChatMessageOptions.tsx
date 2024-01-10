@@ -371,7 +371,7 @@ function ChatMessageOptions(props: {
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
         <div
-          className="absolute right-2 -top-5 z-10 min-h-fit"
+          className="absolute -top-5 right-2 z-10 min-h-fit"
           ref={containerRef}
         >
           <div

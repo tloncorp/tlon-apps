@@ -3,7 +3,6 @@ import { IconProps } from './icon';
 import ChristmasIcon from './ChristmasIcon';
 
 export default function AppGroupsIcon({ className }: IconProps) {
-
   // christmas decoration
   const now = new Date();
   const day = now.getDate();

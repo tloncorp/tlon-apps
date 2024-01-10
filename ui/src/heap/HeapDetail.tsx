@@ -105,7 +105,7 @@ export default function HeapDetail({ title }: ViewProps) {
       <div className="flex h-full flex-col overflow-y-auto lg:flex-row">
         <div className="group relative flex flex-1">
           {nextNote ? (
-            <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
+            <div className="absolute left-0 top-0 flex h-full w-16 flex-col justify-center">
               <Link
                 to={curioHref(nextNote[0])}
                 className={cn(
@@ -115,14 +115,14 @@ export default function HeapDetail({ title }: ViewProps) {
                 )}
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
-                  <CaretLeftIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
+                  <CaretLeftIcon className="mx-auto my-0 block h-6 w-6 text-gray-300" />
                 </div>
               </Link>
             </div>
           ) : null}
           <HeapDetailBody essay={essay} />
           {prevNote ? (
-            <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
+            <div className="absolute right-0 top-0 flex h-full w-16 flex-col justify-center">
               <Link
                 to={curioHref(prevNote[0])}
                 className={cn(
@@ -132,7 +132,7 @@ export default function HeapDetail({ title }: ViewProps) {
                 )}
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
-                  <CaretRightIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
+                  <CaretRightIcon className="mx-auto my-0 block h-6 w-6 text-gray-300" />
                 </div>
               </Link>
             </div>

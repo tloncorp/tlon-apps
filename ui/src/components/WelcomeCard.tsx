@@ -37,7 +37,7 @@ export default function WelcomeCard() {
 
   if (isMobile) {
     return (
-      <div className="mx-6 mt-2 mb-4 space-y-4 rounded-[32px] bg-green-soft py-6 px-8">
+      <div className="mx-6 mb-4 mt-2 space-y-4 rounded-[32px] bg-green-soft px-8 py-6">
         <h3 className="text-lg font-medium">Welcome to Tlon</h3>
         <p className="leading-5">
           This is Tlon: An app for messaging friends and constructing
@@ -49,7 +49,7 @@ export default function WelcomeCard() {
         </p>
         <div className="space-x-3 text-right font-medium">
           <button
-            className="mt-2 rounded-lg py-2 px-3 active:opacity-90 dark:bg-green-800"
+            className="mt-2 rounded-lg px-3 py-2 active:opacity-90 dark:bg-green-800"
             onClick={() => close()}
           >
             Close
@@ -60,7 +60,7 @@ export default function WelcomeCard() {
   }
 
   return (
-    <div className="mt-2 mb-8 max-w-[800px] space-y-2 rounded-xl bg-green-soft p-6">
+    <div className="mb-8 mt-2 max-w-[800px] space-y-2 rounded-xl bg-green-soft p-6">
       <div className="flex w-full justify-between">
         <h3 className="text-lg font-medium">Welcome to Tlon</h3>
         <button

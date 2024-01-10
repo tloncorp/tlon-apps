@@ -236,7 +236,7 @@ export default function FindGroups({ title }: ViewProps) {
           <section className={cn('card mb-6 space-y-8')}>
             <div>
               <h1 className="text-lg font-bold">Join With Code</h1>
-              <p className="mt-4 mb-8 leading-6 text-gray-600">
+              <p className="mb-8 mt-4 leading-6 text-gray-600">
                 If you know the{' '}
                 <abbr title="~sampel-palnet" className="cursor-help">
                   host ID

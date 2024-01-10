@@ -43,7 +43,7 @@ export default function NewDM() {
       }
       footer={
         shouldBlockInput ? (
-          <div className="flex items-center justify-center border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+          <div className="flex items-center justify-center border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">
             {haveAllNegotiations ? (
               'Your version of the app does not match some of the members of this chat.'
             ) : (

@@ -58,7 +58,7 @@ export default function ChannelTitleButton({
           <span className="line-clamp-1">{channel?.meta.title}</span>
           <HostConnection ship={ship} saga={saga} status={data?.status} />
         </div>
-        <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+        <span className="line-clamp-1 w-full break-all text-sm text-gray-400">
           {channel?.meta.description}
         </span>
       </div>

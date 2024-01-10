@@ -13,7 +13,7 @@ export default function EmptySectionTools({
   const location = useLocation();
 
   return (
-    <div className="flex items-center py-4 px-5">
+    <div className="flex items-center px-5 py-4">
       <Link
         to={`/groups/${flag}/channels/new/${sectionKey}`}
         state={{ backgroundLocation: location }}

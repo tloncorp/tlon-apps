@@ -17,12 +17,12 @@ export default function DisconnectNotice() {
 
   if (subscription === 'disconnected') {
     return (
-      <div className="z-50 flex items-center justify-between bg-yellow py-1 px-2 text-sm font-medium text-black dark:text-white">
+      <div className="z-50 flex items-center justify-between bg-yellow px-2 py-1 text-sm font-medium text-black dark:text-white">
         <div className="flex items-center">
           <Asterisk16Icon className="mr-3 h-4 w-4" />
           <span className="mr-1">You are currently offline.</span>
         </div>
-        <button className="py-1 px-2" onClick={onClick}>
+        <button className="px-2 py-1" onClick={onClick}>
           Reconnect
         </button>
       </div>

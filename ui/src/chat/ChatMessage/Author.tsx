@@ -64,7 +64,7 @@ function Author({
             <ShipName
               name={ship}
               showAlias
-              className="text-md font-semibold leading-6 line-clamp-1"
+              className="text-md line-clamp-1 font-semibold leading-6"
             />
           )}
         </div>
@@ -98,7 +98,7 @@ function Author({
           <ShipName
             name={ship}
             showAlias
-            className="text-md break-all font-semibold leading-6 line-clamp-1"
+            className="text-md line-clamp-1 break-all font-semibold leading-6"
           />
         )}
       </div>

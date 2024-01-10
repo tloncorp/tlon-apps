@@ -15,7 +15,7 @@ export default function RoleBadges(props: { ship: string; inList?: boolean }) {
       return (
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
-            <div className="relative shrink-0 cursor-pointer rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium">
+            <div className="relative shrink-0 cursor-pointer rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-medium">
               {displaySects.length}
               <span className="sr-only">Roles</span>
             </div>
@@ -67,7 +67,7 @@ export default function RoleBadges(props: { ship: string; inList?: boolean }) {
                 className={
                   inList
                     ? 'mt-1 rounded-[100px] bg-gray-50 px-2 py-[7px] text-sm font-normal text-gray-400'
-                    : 'shrink-0 rounded-full bg-gray-100 py-0.5 px-1.5 text-xs font-medium'
+                    : 'shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-medium'
                 }
               >
                 {getSectTitle(group.cabals, sect)}

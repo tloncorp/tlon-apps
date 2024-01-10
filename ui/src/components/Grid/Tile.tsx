@@ -46,8 +46,8 @@ export default function Tile({
   const backgroundColor = suspended
     ? suspendColor
     : active
-    ? tileColor || 'purple'
-    : suspendColor;
+      ? tileColor || 'purple'
+      : suspendColor;
 
   // const [{ isDragging }, drag] = useDrag(() => ({
   // type: dragTypes.TILE,
@@ -61,7 +61,7 @@ export default function Tile({
     <div
       // ref={drop}
       className={classNames(
-        'aspect-w-1 aspect-h-1 relative rounded-3xl',
+        'aspect-h-1 aspect-w-1 relative rounded-3xl',
         selected && 'ring-2 ring-blue-500'
         // !isOver && 'ring-transparent'
       )}
@@ -84,7 +84,7 @@ export default function Tile({
         onAuxClick={() => addRecentApp(desk)}
       >
         <div>
-          <div className="absolute top-4 left-4 z-10 flex items-center sm:top-6 sm:left-6">
+          <div className="absolute left-4 top-4 z-10 flex items-center sm:left-6 sm:top-6">
             {pike?.zest === 'held' && !disabled && (
               <BulletIcon className="h-4 w-4 text-orange-500 dark:text-black" />
             )}
@@ -95,17 +95,17 @@ export default function Tile({
                   {suspended
                     ? 'Suspended'
                     : loading
-                    ? 'Installing'
-                    : hung
-                    ? 'Errored'
-                    : null}
+                      ? 'Installing'
+                      : hung
+                        ? 'Errored'
+                        : null}
                 </span>
               </>
             )}
           </div>
           {title && (
             <div
-              className="h4 absolute bottom-[8%] left-[5%] z-10 rounded-lg py-1 px-3 sm:bottom-7 sm:left-5"
+              className="h4 absolute bottom-[8%] left-[5%] z-10 rounded-lg px-3 py-1 sm:bottom-7 sm:left-5"
               style={{ backgroundColor }}
             >
               <h3 className="mix-blend-hard-light">{title}</h3>
@@ -113,7 +113,7 @@ export default function Tile({
           )}
           {image && !loading && (
             <img
-              className="absolute top-0 left-0 h-full w-full object-cover"
+              className="absolute left-0 top-0 h-full w-full object-cover"
               src={image}
               alt=""
             />

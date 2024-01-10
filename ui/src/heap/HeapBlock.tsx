@@ -389,7 +389,7 @@ export default function HeapBlock({
             content={hiddenPostContent}
           />
           {!asRef && (
-            <div className="from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent" />
+            <div className="absolute left-0 top-0 h-full w-full bg-gradient-to-t from-white from-10% via-transparent via-30%" />
           )}
           <BottomBar {...botBar} />
         </div>
@@ -445,7 +445,7 @@ export default function HeapBlock({
             content={content}
           />
           {!asRef && (
-            <div className="from-10% via-30% absolute top-0 left-0 h-full w-full bg-gradient-to-t from-white via-transparent" />
+            <div className="absolute left-0 top-0 h-full w-full bg-gradient-to-t from-white from-10% via-transparent via-30%" />
           )}
           <BottomBar {...botBar} />
         </div>

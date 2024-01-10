@@ -23,7 +23,7 @@ export default function HeapDetailSidebarInfo({
 
   return (
     <div className="m-4 flex flex-col space-y-4 rounded-lg bg-gray-50 p-4">
-      <h2 className="break-all text-base font-semibold text-gray-800 line-clamp-1">
+      <h2 className="line-clamp-1 break-all text-base font-semibold text-gray-800">
         {title && title}
         {!title && !isURL ? textPreview : null}
       </h2>

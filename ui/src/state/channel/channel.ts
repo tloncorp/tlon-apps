@@ -444,11 +444,14 @@ const infinitePostUpdater = (
 
             const newReplies = Object.keys(existingReplies)
               .filter((k) => k !== reply.set?.seal.id)
-              .reduce((acc, k) => {
-                // eslint-disable-next-line no-param-reassign
-                acc[k] = existingReplies[k];
-                return acc;
-              }, {} as { [key: string]: Reply });
+              .reduce(
+                (acc, k) => {
+                  // eslint-disable-next-line no-param-reassign
+                  acc[k] = existingReplies[k];
+                  return acc;
+                },
+                {} as { [key: string]: Reply }
+              );
 
             const newPost = {
               ...post,

@@ -452,7 +452,7 @@ const ChatMessage = React.memo<
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
                 {!isDelivered && (
                   <DoubleCaretRightIcon
-                    className="absolute left-0 bottom-2 h-5 w-5"
+                    className="absolute bottom-2 left-0 h-5 w-5"
                     primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />

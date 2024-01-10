@@ -10,7 +10,7 @@ function DiaryChannelListItemPlaceholder() {
       <div
         className={cn(
           background,
-          'my-4 mx-auto h-48 w-full max-w-[560px] rounded-lg'
+          'mx-auto my-4 h-48 w-full max-w-[560px] rounded-lg'
         )}
       />
     </div>

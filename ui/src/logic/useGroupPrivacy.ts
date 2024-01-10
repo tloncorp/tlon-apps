@@ -8,8 +8,8 @@ export default function useGroupPrivacy(flag: string) {
   const privacy = group
     ? getPrivacyFromGroup(group)
     : gang.preview
-    ? getPrivacyFromPreview(gang.preview)
-    : 'public';
+      ? getPrivacyFromPreview(gang.preview)
+      : 'public';
 
   return {
     visible: ['public', 'private'].includes(privacy),

@@ -12,8 +12,8 @@ const getUnix = (count: number, setTime?: Date) =>
   count > 1
     ? subMinutes(setTime ? setTime : new Date(), count * 5).getTime()
     : setTime
-    ? setTime.getTime()
-    : new Date().getTime();
+      ? setTime.getTime()
+      : new Date().getTime();
 
 export const makeFakeChatWrit = (
   count: number,

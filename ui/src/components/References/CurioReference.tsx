@@ -126,7 +126,7 @@ function CurioReference({
             <img
               src={url}
               loading="lazy"
-              className="absolute top-0 left-0 h-full w-full object-cover"
+              className="absolute left-0 top-0 h-full w-full object-cover"
             />
           }
         />
@@ -139,7 +139,7 @@ function CurioReference({
         contextApp={contextApp}
         image={
           <HeapContent
-            className="absolute top-0 left-0 h-full w-full py-4 px-5 leading-6 line-clamp-3"
+            className="absolute left-0 top-0 line-clamp-3 h-full w-full px-5 py-4 leading-6"
             content={content}
           />
         }
