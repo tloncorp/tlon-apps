@@ -74,7 +74,7 @@ function TalkDescription() {
         used. What makes it special is its directly person-to-person nature, no
         one person or company can ever snoop the messages you send on Talk.
       </p>
-      <p className="mt-4 mb-8">
+      <p className="mb-8 mt-4">
         In addition to the experience you expect, Talk can also aggregate group
         communications from Groups and other software in the Urbit ecosystem.
       </p>

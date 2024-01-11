@@ -171,7 +171,7 @@ function SingleGroupLabel({ data }: { data: GroupOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded bg-gray-100">
-      <span className="py-1 px-2 font-semibold">{value}</span>
+      <span className="px-2 py-1 font-semibold">{value}</span>
     </div>
   );
 }

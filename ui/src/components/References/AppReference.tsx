@@ -62,7 +62,7 @@ function AppReference({ flag, isScrolling }: AppReferenceProps) {
               </div>
             </div>
           </div>
-          <div className="pr-2 pb-2">
+          <div className="pb-2 pr-2">
             <button
               className="small-button ml-2 w-fit bg-blue text-white dark:text-black"
               onClick={openLink}

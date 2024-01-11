@@ -91,18 +91,18 @@ function NotificationContent({
   if (conIsNote) {
     return (
       <div className="flex flex-col space-y-2">
-        <p className="leading-5 text-gray-800 line-clamp-1">
+        <p className="line-clamp-1 leading-5 text-gray-800">
           {_.map(_.slice(content, 0, 2), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
         </p>
         <div className="note-inline-block flex p-4">
-          <p className="leading-5 text-gray-800 line-clamp-1">
+          <p className="line-clamp-1 leading-5 text-gray-800">
             {_.map(_.slice(content, 2, 3), (c: YarnContent, i) =>
               renderContent(c, i)
             )}
           </p>
-          <p className="leading-5 text-gray-400 line-clamp-1">
+          <p className="line-clamp-1 leading-5 text-gray-400">
             {_.map(_.slice(content, 3), (c: YarnContent, i) =>
               renderContent(c, i)
             )}
@@ -115,7 +115,7 @@ function NotificationContent({
   if (conIsBlock) {
     return (
       <div className="flex flex-col space-y-2">
-        <p className="leading-5 text-gray-800 line-clamp-1">
+        <p className="line-clamp-1 leading-5 text-gray-800">
           {_.map(_.slice(content, 0, 2), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
@@ -127,12 +127,12 @@ function NotificationContent({
   if (conIsMention) {
     return (
       <>
-        <p className="mb-2 leading-5 text-gray-400 line-clamp-4">
+        <p className="mb-2 line-clamp-4 leading-5 text-gray-400">
           {_.map(_.slice(content, 0, 2), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
         </p>
-        <p className="leading-5 text-gray-800 line-clamp-2">
+        <p className="line-clamp-2 leading-5 text-gray-800">
           {_.map(_.slice(content, 2), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
@@ -144,12 +144,12 @@ function NotificationContent({
   if (conIsReply || conIsComment) {
     return (
       <>
-        <p className="mb-2 leading-5 text-gray-400 line-clamp-4">
+        <p className="mb-2 line-clamp-4 leading-5 text-gray-400">
           {_.map(_.slice(content, 0, 4), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
         </p>
-        <p className="leading-5 text-gray-800 line-clamp-2">
+        <p className="line-clamp-2 leading-5 text-gray-800">
           {_.map(_.slice(content, 6), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
@@ -159,7 +159,7 @@ function NotificationContent({
   }
 
   return (
-    <p className="leading-5 text-gray-800 line-clamp-3">
+    <p className="line-clamp-3 leading-5 text-gray-800">
       {_.map(content, (c: YarnContent, i) => renderContent(c, i))}
     </p>
   );

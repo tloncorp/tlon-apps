@@ -195,12 +195,12 @@ export default function ChatThread() {
               <div className="flex w-full flex-col justify-center">
                 <span
                   className={cn(
-                    'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                    'ellipsis line-clamp-1 text-sm font-bold sm:font-semibold'
                   )}
                 >
                   Thread
                 </span>
-                <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+                <span className="line-clamp-1 w-full break-all text-sm text-gray-400">
                   {threadTitle}
                 </span>
               </div>
@@ -255,7 +255,7 @@ export default function ChatThread() {
             isScrolling={isScrolling}
           />
         ) : !canWrite ? null : (
-          <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+          <div className="rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">
             {text}
           </div>
         )}

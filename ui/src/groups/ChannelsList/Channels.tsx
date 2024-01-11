@@ -63,7 +63,7 @@ export default function Channels({
                 <EmptySectionTools sectionKey={listId} />
               ) : null}
               {isNew === true ? (
-                <div className="flex items-center py-4 px-5">
+                <div className="flex items-center px-5 py-4">
                   <h2 className="font-semibold text-gray-600">
                     Please give this Section a name
                   </h2>

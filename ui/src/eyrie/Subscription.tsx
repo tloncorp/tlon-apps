@@ -39,8 +39,8 @@ export default function Subscription({ sub, facts }: SubscriptionProps) {
             firstMount.current
               ? 'bg-gray-200'
               : recentlyReceived
-              ? 'bg-pink-400'
-              : 'pulseOut'
+                ? 'bg-pink-400'
+                : 'pulseOut'
           )}
         >
           <span>{sub.id}</span>
@@ -53,7 +53,7 @@ export default function Subscription({ sub, facts }: SubscriptionProps) {
         <h2 className="font-semibold">fact log:</h2>
         <div className="h-[200px] w-full overflow-scroll whitespace-nowrap rounded-md bg-gray-100 font-mono">
           {facts.map((f, i) => (
-            <div key={f.time} className="flex items-center space-x-4 py-1 px-2">
+            <div key={f.time} className="flex items-center space-x-4 px-2 py-1">
               <div className="w-8 flex-none text-right">{f.id}</div>
               <div className="w-28 flex-none">
                 {new Date(f.time).toLocaleTimeString()}

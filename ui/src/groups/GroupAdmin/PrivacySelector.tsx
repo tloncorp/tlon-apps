@@ -79,7 +79,7 @@ function PrivacySettingRow({
         className={cn(
           'flex items-center',
           horizontal
-            ? 'space-x-2 sm:flex-col sm:space-y-2 sm:space-x-0'
+            ? 'space-x-2 sm:flex-col sm:space-x-0 sm:space-y-2'
             : 'mb-2 flex-row space-x-2'
         )}
       >

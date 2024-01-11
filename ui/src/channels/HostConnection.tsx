@@ -42,8 +42,8 @@ export function getText(
   return !status
     ? 'No connection data'
     : 'pending' in status
-    ? getPendingText(status, ship)
-    : getCompletedText(status, ship);
+      ? getPendingText(status, ship)
+      : getCompletedText(status, ship);
 }
 
 function getHostConnectionColor(

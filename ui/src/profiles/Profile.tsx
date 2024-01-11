@@ -280,7 +280,7 @@ export default function Profile({ title }: ViewProps) {
               <XIcon className="h-5 w-5" />
             </Drawer.Close>
           </div>
-          <p className="pt-1.5 pr-10 text-gray-400">
+          <p className="pr-10 pt-1.5 text-gray-400">
             Anybody on Tlon can use this link to send you a direct message.
           </p>
         </div>

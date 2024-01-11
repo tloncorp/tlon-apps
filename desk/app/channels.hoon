@@ -801,9 +801,20 @@
     =.  load.net.channel  &
     =.  ca-core  (ca-apply-checkpoint chk &)
     =.  ca-core  ca-start-updates
+    =.  ca-core  (ca-fetch-contacts chk)
     =.  ca-core  ca-sync-backlog
     =/  wire  (weld ca-area /checkpoint)
     (emit %pass wire %agent [ship.nest server] %leave ~)
+  ::
+  ++  ca-fetch-contacts
+    |=  chk=u-checkpoint:c
+    =/  authors=(list ship)
+      %~  tap  in  %-  sy
+      %+  murn  ~(val by posts.chk)
+        |=  up=(unit v-post:c)
+        ?~  up  ~
+        `author.u.up
+    (emit [%pass /contacts/join-heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed authors])])
   ::
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]

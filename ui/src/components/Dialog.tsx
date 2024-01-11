@@ -24,23 +24,23 @@ export const DialogContent = React.forwardRef<
         <div className={classNames('dialog', className)}>
           {children}
           {close === 'default' && (
-            <DialogPrimitive.Close className="icon-button absolute top-6 right-6">
+            <DialogPrimitive.Close className="icon-button absolute right-6 top-6">
               <X16Icon className="h-4 w-4" />
             </DialogPrimitive.Close>
           )}
         </div>
         {close === 'lightbox' && (
-          <DialogPrimitive.Close className="icon-button absolute top-6 right-6 bg-white">
+          <DialogPrimitive.Close className="icon-button absolute right-6 top-6 bg-white">
             <X16Icon className="h-4 w-4" />
           </DialogPrimitive.Close>
         )}
         {close === 'app' && (
-          <DialogPrimitive.Close className="icon-button absolute top-8 right-6 h-8 w-8 bg-white p-1">
+          <DialogPrimitive.Close className="icon-button absolute right-6 top-8 h-8 w-8 bg-white p-1">
             <XIcon className="h-5 w-5" />
           </DialogPrimitive.Close>
         )}
         {close === 'header' && (
-          <DialogPrimitive.Close className="icon-button absolute top-8 right-8 bg-white">
+          <DialogPrimitive.Close className="icon-button absolute right-8 top-8 bg-white">
             <X16Icon className="h-4 w-4" />
           </DialogPrimitive.Close>
         )}

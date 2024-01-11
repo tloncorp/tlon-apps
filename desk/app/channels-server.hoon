@@ -16,7 +16,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %2
+    $:  %3
         =v-channels:c
     ==
   --
@@ -86,12 +86,19 @@
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-  ?>  ?=(%2 -.old)
+  =?  cor  ?=(%2 -.old)  (emit %pass /trim %agent [our.bowl %chat] %poke %chat-trim !>(~))
+  =?  old  ?=(%2 -.old)  (state-2-to-3 old)
+  ?>  ?=(%3 -.old)
   =.  state  old
   inflate-io
   ::
-  +$  versioned-state  $%(state-2 state-1 state-0)
-  +$  state-2  current-state
+  +$  versioned-state  $%(state-3 state-2 state-1 state-0)
+  +$  state-3  current-state
+  +$  state-2  [%2 =v-channels:c]
+  ++  state-2-to-3
+    |=  old=state-2
+    ^-  state-3
+    [%3 +.old]
   ::
   ::  %1 to %2
   ::
@@ -204,17 +211,15 @@
   ^+  cor
   =.  cor
     %-  emil
-    %-  turn  :_  |=(=note:agent:gall [%pass /migrate note])
-    ^-  (list note:agent:gall)
-    :~  [%agent [our.bowl %diary] %poke %diary-migrate-server !>(~)]
-        [%agent [our.bowl %heap] %poke %heap-migrate-server !>(~)]
-        [%agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
+    :~  [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate-server !>(~)]
+        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate-server !>(~)]
+        [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
         ::NOTE  we do these here and not in /app/channels, because it's
         ::      important that the server migration happens first, so that
         ::      the client migration may successfully establish subscriptions.
-        [%agent [our.bowl %diary] %poke %diary-migrate !>(~)]
-        [%agent [our.bowl %heap] %poke %heap-migrate !>(~)]
-        [%agent [our.bowl %chat] %poke %chat-migrate !>(~)]
+        [%pass /migrate %agent [our.bowl %diary] %poke %diary-migrate !>(~)]
+        [%pass /migrate %agent [our.bowl %heap] %poke %heap-migrate !>(~)]
+        [%pass /migrate/final %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
     ==
   inflate-io
 ::
@@ -323,6 +328,19 @@
         %poke-ack
       ?~  p.sign  cor
       %-  (slog 'channels-server: migration poke failure' >wire< u.p.sign)
+      cor
+    ==
+      [%migrate %final ~]
+    ?+  -.sign  !!
+        %poke-ack
+      ?~  p.sign
+      (emit %pass /trim %agent [our.bowl %chat] %poke %chat-trim !>(~))
+      %-  (slog 'channels-server: migration poke failure' >wire< u.p.sign)
+      cor
+    ==
+      [%trim ~]
+    ?+  -.sign  !!
+        %poke-ack
       cor
     ==
   ==

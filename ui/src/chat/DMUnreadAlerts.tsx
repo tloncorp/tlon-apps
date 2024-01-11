@@ -68,7 +68,7 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
 
   return (
     <>
-      <div className="absolute top-2 left-1/2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
+      <div className="absolute left-1/2 top-2 z-20 flex w-full -translate-x-1/2 flex-wrap items-center justify-center gap-2">
         <Link
           to={to}
           className="button whitespace-nowrap bg-blue-soft text-sm text-blue dark:bg-blue-900 lg:text-base"

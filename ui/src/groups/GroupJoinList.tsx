@@ -44,7 +44,7 @@ export function GroupJoinItem({
       }
       actions={
         banned ? (
-          <div className="rounded-full bg-red-soft py-1 px-2 text-sm font-medium text-red ">
+          <div className="rounded-full bg-red-soft px-2 py-1 text-sm font-medium text-red ">
             Banned
           </div>
         ) : status === 'loading' ? (
@@ -54,15 +54,15 @@ export function GroupJoinItem({
         ) : (
           <button
             className={cn(
-              'rounded-full bg-blue-soft py-1 px-2 text-sm font-medium text-blue mix-blend-multiply disabled:bg-gray-100  dark:bg-blue-500 dark:text-black dark:mix-blend-screen dark:disabled:bg-gray-100 '
+              'rounded-full bg-blue-soft px-2 py-1 text-sm font-medium text-blue mix-blend-multiply disabled:bg-gray-100  dark:bg-blue-500 dark:text-black dark:mix-blend-screen dark:disabled:bg-gray-100 '
             )}
             onClick={open}
           >
             {status === 'error'
               ? 'Errored'
               : highlight
-              ? 'Invited'
-              : button.text}
+                ? 'Invited'
+                : button.text}
           </button>
         )
       }
@@ -70,7 +70,7 @@ export function GroupJoinItem({
       <div className="flex h-12 flex-col justify-center">
         <h2>{gang.preview?.meta.title || preload?.title || flag}</h2>
         {preload?.description && (
-          <p className="pr-12 text-sm font-normal text-gray-400 line-clamp-1 sm:mt-1">
+          <p className="line-clamp-1 pr-12 text-sm font-normal text-gray-400 sm:mt-1">
             {preload?.description}
           </p>
         )}

@@ -138,7 +138,7 @@ export default function ChannelsListItem({
       >
         <div
           className={cn(
-            'flex items-center justify-between rounded-lg py-2 px-2 md:py-5 md:px-8',
+            'flex items-center justify-between rounded-lg px-2 py-2 md:px-8 md:py-5',
             {
               'bg-gray-50': snapshot?.isDragging,
               'bg-white': !snapshot?.isDragging,
@@ -163,7 +163,7 @@ export default function ChannelsListItem({
             </div>
             <div>
               <div className="mr-2 flex items-center space-x-2">
-                <h2 className="text-md font-semibold line-clamp-1">
+                <h2 className="text-md line-clamp-1 font-semibold">
                   {meta.title}
                 </h2>
               </div>

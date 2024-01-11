@@ -158,7 +158,7 @@ function ChatChannel({ title }: ViewProps) {
                 isScrolling={isScrolling}
               />
             ) : !canWrite && compatible ? null : (
-              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">
                 {text}
               </div>
             )}
