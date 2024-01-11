@@ -73,7 +73,8 @@ export default function useCurioActions({
     navigate('/report-content', {
       state: {
         backgroundLocation: location,
-        contentId: time,
+        post: time,
+        reply: null,
         nest,
         groupFlag: flag,
       },

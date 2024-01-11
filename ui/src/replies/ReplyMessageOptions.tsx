@@ -230,21 +230,12 @@ export default function ReplyMessageOptions(props: {
         backgroundLocation: location,
         post: threadParentId,
         reply: seal.id,
-        nest: `chat/${chShip}/${chName}`,
+        nest,
         groupFlag,
       },
     });
     hidePost();
-  }, [
-    navigate,
-    hidePost,
-    threadParentId,
-    seal,
-    location,
-    chShip,
-    chName,
-    groupFlag,
-  ]);
+  }, [navigate, hidePost, threadParentId, seal, location, nest, groupFlag]);
 
   const showReactAction = canWrite;
   // TODO handle reply replies
@@ -425,6 +416,26 @@ export default function ReplyMessageOptions(props: {
                 }
                 label="View Reactions"
                 action={openReactionDetails}
+              />
+            )}
+            <IconButton
+              icon={
+                isHidden ? (
+                  <VisibleIcon className="h-6 w-6 text-gray-400" />
+                ) : (
+                  <HiddenIcon className="h-6 w-6 text-gray-400" />
+                )
+              }
+              label={isHidden ? 'Show Message' : 'Hide Message'}
+              showTooltip
+              action={isDMorMultiDM ? toggleMsg : togglePost}
+            />
+            {!isDMorMultiDM && (
+              <IconButton
+                icon={<CautionIcon className="h-6 w-6 text-gray-400" />}
+                label={isHidden ? 'Show Message' : 'Report Message'}
+                showTooltip
+                action={reportContent}
               />
             )}
             {showDeleteAction && (

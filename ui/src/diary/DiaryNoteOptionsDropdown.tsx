@@ -124,7 +124,8 @@ export default function DiaryNoteOptionsDropdown({
           state: {
             backgroundLocation: location,
             groupFlag,
-            contentId: time,
+            post: time,
+            reply: null,
             nest,
           },
         });

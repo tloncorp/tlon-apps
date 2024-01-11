@@ -474,7 +474,7 @@ function ChatMessageOptions(props: {
               showTooltip
               action={isDMorMultiDM ? toggleMsg : togglePost}
             />
-            {!location.pathname.includes('groups/messages') && (
+            {!isDMorMultiDM && (
               <IconButton
                 icon={<CautionIcon className="h-6 w-6 text-gray-400" />}
                 label={isHidden ? 'Show Message' : 'Report Message'}
