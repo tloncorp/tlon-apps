@@ -809,6 +809,7 @@
   ++  ca-fetch-contacts
     |=  chk=u-checkpoint:c
     =/  authors=(list ship)
+      %~  tap  in  %-  sy
       %+  murn  ~(val by posts.chk)
         |=  up=(unit v-post:c)
         ?~  up  ~
