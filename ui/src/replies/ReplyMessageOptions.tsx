@@ -155,7 +155,7 @@ export default function ReplyMessageOptions(props: {
   }, [doCopy, isMobile, onOpenChange]);
 
   const setReplyParam = useCallback(() => {
-    setSearchParams({ reply: seal.id }, { replace: true });
+    setSearchParams({ replyTo: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
 
   const onEmoji = useCallback(

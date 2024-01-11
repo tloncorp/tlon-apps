@@ -1,7 +1,7 @@
 import bigInt from 'big-integer';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { udToDec } from '@urbit/api';
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
@@ -52,6 +52,11 @@ export default function DiaryNote({ title }: ViewProps) {
   const channel = useGroupChannel(groupFlag, nest);
   const { ship } = getFlagParts(chFlag);
   const { post: note, status } = usePost(nest, noteId);
+  const location = useLocation();
+  const scrollTo = useMemo(() => {
+    const reply = new URLSearchParams(location.search).get('reply');
+    return reply ? bigInt(reply) : bigInt.zero;
+  }, [location.search]);
   const isPending = useIsPostPending({
     author: window.our,
     sent: note?.essay?.sent,
@@ -236,7 +241,12 @@ export default function DiaryNote({ title }: ViewProps) {
               {groupedReplies.map(([_t, g]) =>
                 g.map((props) => (
                   <li key={props.time.toString()}>
-                    <ReplyMessage whom={nest} {...props} showReply />
+                    <ReplyMessage
+                      whom={nest}
+                      {...props}
+                      isLinked={props.time.eq(scrollTo)}
+                      showReply
+                    />
                   </li>
                 ))
               )}
