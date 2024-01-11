@@ -61,8 +61,8 @@ export const isHosted =
 export const hostingUploadURL = isStagingHosted
   ? 'https://memex.test.tlon.systems'
   : isHosted
-    ? 'https://memex.tlon.network'
-    : '';
+  ? 'https://memex.tlon.network'
+  : '';
 
 export const dmListPath = isTalk ? '/' : '/messages';
 
@@ -1097,16 +1097,40 @@ export function getPendingText(status: ConnectionPendingStatus, ship: string) {
   }
 }
 
+export const greenConnection = {
+  name: 'green',
+  dot: 'text-green-400',
+  bar: 'border-green-200 bg-green-50 text-green-500',
+};
+
+export const yellowConnection = {
+  name: 'yellow',
+  dot: 'text-yellow-400',
+  bar: 'border-yellow-400 bg-yellow-50 text-yellow-500',
+};
+
+export const redConnection = {
+  name: 'red',
+  dot: 'text-red-400',
+  bar: 'border-red-400 bg-red-50 text-red-500',
+};
+
+export const grayConnection = {
+  name: 'gray',
+  dot: 'text-gray-400',
+  bar: 'border-gray-400 bg-gray-50 text-gray-500',
+};
+
 export function getConnectionColor(status?: ConnectionStatus) {
   if (!status) {
-    return 'gray';
+    return grayConnection;
   }
 
   if ('pending' in status) {
-    return 'yellow';
+    return yellowConnection;
   }
 
-  return status.complete === 'yes' ? 'green' : 'red';
+  return status.complete === 'yes' ? greenConnection : redConnection;
 }
 
 export function getCompatibilityText(saga: Saga | null) {
