@@ -29,7 +29,7 @@ To get started, make sure your %groups desk is mounted:
 Sync the latest %groups files:
 
 ```
-rsync -avL --delete desk/* ~/urbit/zod/groups/
+rsync -avL desk/* ~/urbit/zod/groups/
 ```
 
 And commit:
