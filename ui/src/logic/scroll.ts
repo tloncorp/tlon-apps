@@ -100,18 +100,16 @@ export function useUserHasScrolled(scrollElementRef: RefObject<HTMLElement>) {
     const listenerOptions = { capture: true, passive: true };
     function handleInteraction() {
       setUserHasScrolled(true);
-      triggerEvents.forEach(
-        (eventName) =>
-          el?.removeEventListener(eventName, handleInteraction, listenerOptions)
+      triggerEvents.forEach((eventName) =>
+        el?.removeEventListener(eventName, handleInteraction, listenerOptions)
       );
     }
     triggerEvents.forEach((eventName) => {
       el?.addEventListener(eventName, handleInteraction, listenerOptions);
     });
     return () => {
-      triggerEvents.forEach(
-        (eventName) =>
-          el?.removeEventListener(eventName, handleInteraction, listenerOptions)
+      triggerEvents.forEach((eventName) =>
+        el?.removeEventListener(eventName, handleInteraction, listenerOptions)
       );
     };
   }, [scrollElementRef, userHasScrolled]);

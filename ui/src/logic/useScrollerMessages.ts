@@ -103,7 +103,7 @@ function useMessageItems({
     newDay: boolean;
     writ: Writ | Post | Reply;
   }[],
-  WritArray,
+  WritArray
 ] {
   const messageDays = useRef(new Map<string, number>());
 

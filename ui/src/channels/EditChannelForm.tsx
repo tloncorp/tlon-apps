@@ -116,19 +116,19 @@ export default function EditChannelForm({
           ? (flag: string, writers: string[]) =>
               addSectsMutation({ nest: makeDiaryNest(flag), writers })
           : app === 'heap'
-            ? (flag: string, writers: string[]) =>
-                addSectsMutation({ nest: makeHeapNest(flag), writers })
-            : (flag: string, writers: string[]) =>
-                addSectsMutation({ nest: makeChatNest(flag), writers });
+          ? (flag: string, writers: string[]) =>
+              addSectsMutation({ nest: makeHeapNest(flag), writers })
+          : (flag: string, writers: string[]) =>
+              addSectsMutation({ nest: makeChatNest(flag), writers });
       const delSects =
         app === 'diary'
           ? (flag: string, writers: string[]) =>
               delSectsMutation({ nest: makeDiaryNest(flag), writers })
           : app === 'heap'
-            ? (flag: string, writers: string[]) =>
-                delSectsMutation({ nest: makeHeapNest(flag), writers })
-            : (flag: string, writers: string[]) =>
-                delSectsMutation({ nest: makeChatNest(flag), writers });
+          ? (flag: string, writers: string[]) =>
+              delSectsMutation({ nest: makeHeapNest(flag), writers })
+          : (flag: string, writers: string[]) =>
+              delSectsMutation({ nest: makeChatNest(flag), writers });
 
       if (privacy !== 'public') {
         await addSects(

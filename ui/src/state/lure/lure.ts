@@ -130,40 +130,34 @@ export const useLureState = create<LureState>(
         const prevLure = get().lures[flag];
         const [enabled, url, metadata, outstandingPoke] = await Promise.all([
           // enabled
-          asyncWithDefault(
-            () => {
-              lureLogger.log(performance.now(), 'fetching enabled', flag);
-              return api
-                .subscribeOnce<boolean>(
-                  'grouper',
-                  `/group-enabled/${flag}`,
-                  LURE_REQUEST_TIMEOUT
-                )
-                .then((en) => {
-                  lureLogger.log(performance.now(), 'enabled fetched', flag);
+          asyncWithDefault(() => {
+            lureLogger.log(performance.now(), 'fetching enabled', flag);
+            return api
+              .subscribeOnce<boolean>(
+                'grouper',
+                `/group-enabled/${flag}`,
+                LURE_REQUEST_TIMEOUT
+              )
+              .then((en) => {
+                lureLogger.log(performance.now(), 'enabled fetched', flag);
 
-                  return en;
-                });
-            },
-            prevLure?.enabled
-          ),
+                return en;
+              });
+          }, prevLure?.enabled),
           // url
-          asyncWithDefault(
-            () => {
-              lureLogger.log(performance.now(), 'fetching url', flag);
-              return api
-                .subscribeOnce<string>(
-                  'reel',
-                  `/token-link/${flag}`,
-                  LURE_REQUEST_TIMEOUT
-                )
-                .then((u) => {
-                  lureLogger.log(performance.now(), 'url fetched', flag);
-                  return u;
-                });
-            },
-            prevLure?.url
-          ),
+          asyncWithDefault(() => {
+            lureLogger.log(performance.now(), 'fetching url', flag);
+            return api
+              .subscribeOnce<string>(
+                'reel',
+                `/token-link/${flag}`,
+                LURE_REQUEST_TIMEOUT
+              )
+              .then((u) => {
+                lureLogger.log(performance.now(), 'url fetched', flag);
+                return u;
+              });
+          }, prevLure?.url),
           // metadata
           asyncWithDefault(
             () =>

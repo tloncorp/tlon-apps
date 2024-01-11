@@ -166,8 +166,8 @@ export default function ChatInput({
     replyingWrit && replyingWrit[1] && 'essay' in replyingWrit[1]
       ? replyingWrit[1].essay.author
       : replyingWrit && replyingWrit[1] && 'memo' in replyingWrit[1]
-        ? replyingWrit[1].memo.author
-        : null;
+      ? replyingWrit[1].memo.author
+      : null;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
