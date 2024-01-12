@@ -41,24 +41,30 @@ const GroupsSidebarItem = React.memo(
           />
         }
         actions={
-          <GroupActions
-            open={optionsOpen}
-            onOpenChange={setOptionsOpen}
-            flag={flag}
-            triggerDisabled={disableActions}
-          />
+          isNew ? (
+            <GroupActions
+              open={optionsOpen}
+              onOpenChange={setOptionsOpen}
+              flag={flag}
+              triggerDisabled={disableActions}
+            >
+              <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
+                NEW
+              </p>
+            </GroupActions>
+          ) : (
+            <GroupActions
+              open={optionsOpen}
+              onOpenChange={setOptionsOpen}
+              flag={flag}
+              triggerDisabled={disableActions}
+            />
+          )
         }
         to={`/groups/${flag}`}
         {...handlers}
       >
-        <div className="flex w-full justify-between">
-          {group?.meta.title}
-          {isNew ? (
-            <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
-              NEW
-            </p>
-          ) : undefined}
-        </div>
+        {group?.meta.title}
       </SidebarItem>
     );
   }
