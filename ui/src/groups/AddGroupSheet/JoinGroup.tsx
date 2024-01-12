@@ -144,6 +144,7 @@ function JoinSelector(props: {
 function PreviewGroup(props: {
   flag: string;
   back: () => void;
+  close: () => void;
   className?: string;
 }) {
   if (!props.flag) {
@@ -158,12 +159,18 @@ function PreviewGroup(props: {
       >
         <CaretLeftIcon className="relative right-1 h-6 w-6" />
       </div>
-      <MobileGroupPreview flag={props.flag} />
+      <MobileGroupPreview flag={props.flag} closeOnJoin={props.close} />
     </div>
   );
 }
 
-export default function JoinGroup({ back }: { back: () => void }) {
+export default function JoinGroup({
+  back,
+  onOpenChange,
+}: {
+  back: () => void;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [flag, setFlag] = useState('');
 
   return (
@@ -177,6 +184,7 @@ export default function JoinGroup({ back }: { back: () => void }) {
         className={flag ? '' : 'hidden'}
         flag={flag}
         back={() => setFlag('')}
+        close={() => onOpenChange(false)}
       />
     </>
   );

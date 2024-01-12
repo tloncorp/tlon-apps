@@ -38,7 +38,13 @@ function getGroupHeading(title: string, flag: string) {
   return title.length > 60 ? `${title.slice(0, 59).trim()}...` : title;
 }
 
-export function MobileGroupPreview({ flag }: { flag: string }) {
+export function MobileGroupPreview({
+  flag,
+  closeOnJoin,
+}: {
+  flag: string;
+  closeOnJoin?: () => void;
+}) {
   const [showLongJoinMessage, setShowLongJoinMessage] = useState(false);
   const navigate = useNavigate();
   const gang = useGang(flag);
@@ -60,9 +66,13 @@ export function MobileGroupPreview({ flag }: { flag: string }) {
 
   useEffect(() => {
     if (readyToNavigate && !isTalk && newlyJoined) {
-      navigate(`/groups/${flag}`);
+      if (closeOnJoin) {
+        closeOnJoin();
+      } else {
+        navigate(`/groups/${flag}`);
+      }
     }
-  }, [readyToNavigate, flag, navigate, newlyJoined]);
+  }, [readyToNavigate, flag, navigate, newlyJoined, closeOnJoin]);
 
   useEffect(() => {
     if (isJoining && !readyToNavigate && !showLongJoinMessage) {

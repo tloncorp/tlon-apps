@@ -74,7 +74,9 @@ export default function AddGroupSheet(props: {
       <div className="mt-4">
         {view === 'root' && <CreateOrJoin />}
         {view === 'create' && <CreateGroup back={() => setView('root')} />}
-        {view === 'join' && <JoinGroup back={() => setView('root')} />}
+        {view === 'join' && (
+          <JoinGroup back={() => setView('root')} onOpenChange={onOpenChange} />
+        )}
       </div>
       {!isNativeApp() && <div className="pb-6" />}
     </WidgetDrawer>
