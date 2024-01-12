@@ -73,7 +73,7 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
 
   if (requested) {
     sideBarIcon = (
-      <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
+      <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-blue">
         Join Requested
       </p>
     );
@@ -81,7 +81,7 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
 
   if (errored || probablyOffline) {
     sideBarIcon = (
-      <p className="flex items-center rounded-full bg-orange-soft px-2 py-1 text-sm text-orange">
+      <p className="flex items-center rounded-full bg-orange-soft px-2 py-1 text-orange">
         Tap to retry join
       </p>
     );
