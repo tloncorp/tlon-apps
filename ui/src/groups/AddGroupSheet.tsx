@@ -3,11 +3,9 @@ import cn from 'classnames';
 import WidgetDrawer from '@/components/WidgetDrawer';
 import HomeIconMobileNav from '@/components/icons/HomeIconMobileNav';
 import NewRaysIcon from '@/components/icons/NewRaysIcon';
-import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
-import { strToSym } from '@/logic/utils';
-import { useCreateGroupMutation } from '@/state/groups';
-import { useNavigate } from 'react-router-dom';
 import { isNativeApp } from '@/logic/native';
+import JoinGroup from './AddGroupSheet/JoinGroup';
+import CreateGroup from './AddGroupSheet/CreateGroup';
 
 function DragHandle() {
   return (
@@ -17,104 +15,24 @@ function DragHandle() {
   );
 }
 
-function CreateGroup(props: { back: () => void }) {
-  const { mutateAsync: createGroupMutation, isLoading } =
-    useCreateGroupMutation();
-  const navigate = useNavigate();
-  const [input, setInput] = useState('');
-  const shortCode = strToSym(input).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
-
-  const createGroup = useCallback(async () => {
-    if (!input || !shortCode) return;
-
-    try {
-      await createGroupMutation({
-        title: input,
-        description: '',
-        image: '',
-        cover: '',
-        name: shortCode,
-        members: {},
-        cordon: {
-          open: {
-            ships: [],
-            ranks: [],
-          },
-        },
-        secret: false,
-      });
-
-      const flag = `${window.our}/${shortCode}`;
-      navigate(`/groups/${flag}`);
-    } catch (error) {
-      console.log("Couldn't create group", error);
-    }
-  }, [createGroupMutation, input, shortCode, navigate]);
-
-  return (
-    <div className="flex w-full flex-col items-center">
-      <div className="mb-4 flex w-full items-center justify-between px-2">
-        <div
-          className="flex h-6 w-6 items-center justify-center"
-          onClick={() => props.back()}
-        >
-          <CaretLeft16Icon className="h-6 w-6" />
-        </div>
-        <h3 className="text-[17px]">New Group</h3>
-        <div className="invisible h-6 w-6" />
-      </div>
-      <div className="flex w-full flex-col pt-6">
-        <label className="text-small pb-3 text-gray-400">
-          Name your group, you can edit it later
-        </label>
-        <input
-          className="w-full rounded-lg border border-gray-100 px-4 py-3.5 text-lg outline-none"
-          autoFocus
-          placeholder="Group name"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <p className="text-small pt-4 text-gray-400">
-          Your <span className="text-black">public</span> group will live at:
-          <br />
-          {window.ship || '~latter-bolden'}/group/
-          <span className="text-black">
-            {input !== '' ? shortCode : 'group-name'}
-          </span>
-        </p>
-        <p className="text-small pt-6 text-gray-400">
-          {' '}
-          You can edit your group's privacy later.{' '}
-        </p>
-      </div>
-      <button
-        className="mt-6 w-full rounded-lg border border-blue-200 bg-blue-soft px-6 py-4 text-lg font-semibold text-blue disabled:border-gray-100 disabled:bg-gray-50 disabled:text-gray-400"
-        disabled={input === ''}
-        onClick={createGroup}
-      >
-        Create Group
-      </button>
-    </div>
-  );
-}
-
 export default function AddGroupSheet(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const [view, setView] = useState<'root' | 'create' | 'join'>('root');
-  const height = view === 'root' ? 'h-30vh' : 'h-60vh';
 
   const onOpenChange = (open: boolean) => {
     if (!open) {
       setView('root');
     }
-    props.onOpenChange(open);
+    if (props.onOpenChange) {
+      props.onOpenChange(open);
+    }
   };
 
   const CreateOrJoin = useCallback(() => {
     return (
-      <div className="flex w-full flex-col items-center">
+      <div className="flex w-full flex-col items-center pb-4">
         <h3 className="mt-4 mb-6 text-[17px] ">Add a group</h3>
         <div className="flex flex-col rounded-lg border border-gray-100">
           <button
@@ -150,12 +68,13 @@ export default function AddGroupSheet(props: {
     <WidgetDrawer
       open={props.open}
       onOpenChange={onOpenChange}
-      className={cn('px-6', height)}
+      className={cn('px-6', view === 'root' && 'h-[30vh]!')}
     >
       <DragHandle />
       <div className="mt-4">
         {view === 'root' && <CreateOrJoin />}
         {view === 'create' && <CreateGroup back={() => setView('root')} />}
+        {view === 'join' && <JoinGroup back={() => setView('root')} />}
       </div>
       {!isNativeApp() && <div className="pb-6" />}
     </WidgetDrawer>
