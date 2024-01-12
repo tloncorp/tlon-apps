@@ -81,14 +81,14 @@ export function ShipSearchResultsDisplay({
 }) {
   if (searchResults.length === 0) {
     return (
-      <div className="mt-5 flex h-[250px] w-full items-center justify-center">
+      <div className="mt-3 flex h-[200px] w-full items-center justify-center">
         <h3 className="text-lg text-gray-400">No hosts found.</h3>
       </div>
     );
   }
 
   return (
-    <div className="mt-5 h-[250px] w-full overflow-auto">
+    <div className="mt-3 h-[200px] w-full overflow-auto">
       {searchResults.map(({ value, label }) => (
         <div className="mt-4" key={value}>
           <ShipResultRow
@@ -113,19 +113,19 @@ export function ShipGroupsDisplay({
 }) {
   if (loading) {
     return (
-      <div className="mt-5 flex h-[250px] w-full items-center justify-center">
+      <div className="mt-3 flex h-[200px] w-full items-center justify-center">
         <LoadingSpinner className="h-6 w-6" />
       </div>
     );
   }
   if (!gangs || !hasKeys(gangs))
     return (
-      <div className="mt-5 flex h-[250px] w-full items-center justify-center">
+      <div className="mt-3 flex h-[200px] w-full items-center justify-center">
         <h3 className="text-lg text-gray-400">No groups found.</h3>
       </div>
     );
   return (
-    <div className="mt-5 h-[250px] w-full overflow-auto">
+    <div className="mt-3 h-[200px] w-full overflow-auto">
       {Object.entries(gangs).map(([flag]) => (
         <GroupResultRow
           flag={flag}

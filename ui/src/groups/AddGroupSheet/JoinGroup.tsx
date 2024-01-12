@@ -135,7 +135,7 @@ function JoinSelector(props: {
         />
       ) : null}
       {!showShipSearch && !showGroups && (
-        <div className="mt-5 h-[250px] w-full" />
+        <div className="mt-3 h-[200px] w-full" />
       )}
     </div>
   );
