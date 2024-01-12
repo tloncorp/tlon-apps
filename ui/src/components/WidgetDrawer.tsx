@@ -25,7 +25,7 @@ export default function WidgetDrawer({
         <Drawer.Overlay className="fixed inset-0 z-[49] bg-black/20" />
         <Drawer.Content
           className={cn(
-            'fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-[32px] bg-white',
+            'fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-[32px] bg-white outline-none',
             className
           )}
           style={{
