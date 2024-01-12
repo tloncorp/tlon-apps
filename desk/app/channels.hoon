@@ -458,7 +458,7 @@
     ?~  p.sign  cor
     %-  (slog leaf+"Failed to hark" u.p.sign)
     cor
-      [%contacts %join-heed]
+      [%contacts %join-heed ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
     %-  (slog leaf+"Failed to add contacts" u.p.sign)
