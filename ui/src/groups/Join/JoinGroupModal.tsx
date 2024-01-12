@@ -260,11 +260,17 @@ export default function JoinGroupModal() {
   const isMobile = useIsMobile();
   const dismiss = useDismissNavigate();
 
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      dismiss();
+    }
+  };
+
   if (isMobile) {
     return (
       <WidgetDrawer
         open={true}
-        onOpenChange={() => dismiss()}
+        onOpenChange={onOpenChange}
         className="h-[60vh] px-8"
       >
         <MobileGroupPreview flag={flag} />
