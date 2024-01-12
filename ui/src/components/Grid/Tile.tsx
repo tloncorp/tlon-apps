@@ -46,8 +46,8 @@ export default function Tile({
   const backgroundColor = suspended
     ? suspendColor
     : active
-      ? tileColor || 'purple'
-      : suspendColor;
+    ? tileColor || 'purple'
+    : suspendColor;
 
   // const [{ isDragging }, drag] = useDrag(() => ({
   // type: dragTypes.TILE,
@@ -95,10 +95,10 @@ export default function Tile({
                   {suspended
                     ? 'Suspended'
                     : loading
-                      ? 'Installing'
-                      : hung
-                        ? 'Errored'
-                        : null}
+                    ? 'Installing'
+                    : hung
+                    ? 'Errored'
+                    : null}
                 </span>
               </>
             )}

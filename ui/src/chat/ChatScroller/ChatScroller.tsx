@@ -141,7 +141,7 @@ function useFakeVirtuosoHandle(
           virtualizer.scrollToIndex(index, { align, behavior });
           if (done) setTimeout(done, 500);
         },
-      }) as VirtuosoHandle,
+      } as VirtuosoHandle),
     [virtualizer]
   );
 }
@@ -295,8 +295,8 @@ export default function ChatScroller({
   const isInverted = isEmpty
     ? false
     : !isScrollable
-      ? true
-      : loadDirection === 'older';
+    ? true
+    : loadDirection === 'older';
   // We want to render newest messages first, but we receive them oldest-first.
   // This is a simple way to reverse the order without having to reverse a big array.
   const transformIndex = useCallback(

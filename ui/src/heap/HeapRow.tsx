@@ -289,7 +289,7 @@ export default function HeapRow({
               content={hiddenPostContent}
             />
           </div>
-          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Text</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
@@ -362,7 +362,7 @@ export default function HeapRow({
           <div className="line-clamp-1 text-lg font-semibold">
             <HeapContent className={cn('line-clamp-1')} content={content} />
           </div>
-          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Text</span>
             <span>{replyCount} comments</span>
           </div>
@@ -413,7 +413,7 @@ export default function HeapRow({
           <div className="line-clamp-1 break-all text-lg font-semibold">
             {textFallbackTitle}
           </div>
-          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Image</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -458,7 +458,7 @@ export default function HeapRow({
           <div className="line-clamp-1 break-all text-lg font-semibold">
             {textFallbackTitle}
           </div>
-          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Audio</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -515,7 +515,7 @@ export default function HeapRow({
             <div className="line-clamp-1 break-all text-lg font-semibold">
               Tweet by @{twitterHandle}
             </div>
-            <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
+            <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
               <span>Tweet</span>
               <a href={url} target="_blank" rel="noreferrer">
                 Source
@@ -568,7 +568,7 @@ export default function HeapRow({
           <div className="line-clamp-1 break-all text-lg font-semibold">
             {title && !calm.disableRemoteContent ? title : textFallbackTitle}
           </div>
-          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Link</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -612,7 +612,7 @@ export default function HeapRow({
         <div className="line-clamp-1 break-all text-lg font-semibold">
           {textFallbackTitle}
         </div>
-        <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
+        <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
           <span>Link</span>
           <a href={url} target="_blank" rel="noreferrer">
             Source

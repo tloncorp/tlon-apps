@@ -44,16 +44,13 @@ const usePalsState = create<PalsState>((set, get) => ({
       if (!data.outgoing) {
         data.outgoing = {};
       }
-      const mutuals = Object.keys(data.outgoing).reduce(
-        (acc, cur) => {
-          if (data?.incoming?.[cur]) {
-            // eslint-disable-next-line no-param-reassign
-            acc[cur] = data?.outgoing?.[cur]?.lists;
-          }
-          return acc;
-        },
-        {} as { [key: string]: any }
-      );
+      const mutuals = Object.keys(data.outgoing).reduce((acc, cur) => {
+        if (data?.incoming?.[cur]) {
+          // eslint-disable-next-line no-param-reassign
+          acc[cur] = data?.outgoing?.[cur]?.lists;
+        }
+        return acc;
+      }, {} as { [key: string]: any });
       set({
         pals: data,
         mutuals,

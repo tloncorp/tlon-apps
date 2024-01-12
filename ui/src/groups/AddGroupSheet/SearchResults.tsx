@@ -41,7 +41,7 @@ export function GroupResultRow({
           </div>
         </div>
         {meta?.description && (
-          <p className="pr-12 text-sm font-normal text-gray-400 line-clamp-1 sm:mt-1">
+          <p className="line-clamp-1 pr-12 text-sm font-normal text-gray-400 sm:mt-1">
             {meta.description}
           </p>
         )}

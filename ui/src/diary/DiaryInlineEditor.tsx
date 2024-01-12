@@ -220,7 +220,7 @@ export default function DiaryInlineEditor({
       )}
       {/* This is nested in a div so that the bubble  menu is keyboard accessible */}
       <EditorContent
-        className="prose prose-lg w-full dark:prose-invert"
+        className="prose-lg prose w-full dark:prose-invert"
         editor={editor}
       />
       {!isMobile ? <ChatInputMenu editor={editor} /> : null}

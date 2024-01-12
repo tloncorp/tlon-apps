@@ -33,17 +33,17 @@ export default function ShipConnection({
   const color = isSelf
     ? 'text-green-400'
     : matchedOrPending
-      ? getConnectionColor(status) === 'yellow' && 'text-yellow-400'
-      : 'text-red-400';
+    ? getConnectionColor(status) === 'yellow' && 'text-yellow-400'
+    : 'text-red-400';
   const text = isSelf
     ? 'This is you'
     : !status
-      ? 'No connection data'
-      : 'pending' in status
-        ? getPendingText(status, ship)
-        : matchedOrPending
-          ? getCompletedText(status, ship)
-          : 'Your version does not match the other party';
+    ? 'No connection data'
+    : 'pending' in status
+    ? getPendingText(status, ship)
+    : matchedOrPending
+    ? getCompletedText(status, ship)
+    : 'Your version does not match the other party';
 
   return (
     <span
