@@ -458,6 +458,11 @@
     ?~  p.sign  cor
     %-  (slog leaf+"Failed to hark" u.p.sign)
     cor
+      [%contacts %join-heed]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf+"Failed to add contacts" u.p.sign)
+    cor
   ::
       [=kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
