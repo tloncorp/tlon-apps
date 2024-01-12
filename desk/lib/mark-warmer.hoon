@@ -18,7 +18,6 @@
 /$  writ        %writ                 %json
 /$  writs       %chat-paged-writs     %json
 /$  clubs       %clubs                %json
-/$  ch-pins     %chat-pins            %json
 /$  ch-hidden   %hidden-messages      %json
 /$  crew        %chat-club-crew       %json
 ~
