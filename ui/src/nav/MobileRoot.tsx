@@ -99,20 +99,26 @@ export default function MobileRoot() {
                 loadingGroups={loadingGroups}
                 isScrolling={scroll.current}
               >
-                {hasPinnedGroups || hasPendingGangs || hasLoadingGroups ? (
+                {hasPinnedGroups ||
+                hasPendingGangs ||
+                hasGangsWithClaims ||
+                hasLoadingGroups ||
+                hasNewGroups ? (
                   <>
                     {hasPinnedGroups ? (
-                      <div className="px-4">
-                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                          Pinned
-                        </h2>
-                        {pinnedGroupsOptions}
-                      </div>
-                    ) : null}
+                      <>
+                        <div className="px-4">
+                          <h2 className="mb-0.5 p-2 font-sans text-gray-400">
+                            Pinned
+                          </h2>
+                          {pinnedGroupsOptions}
+                        </div>
 
-                    <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
-                      All Groups
-                    </h2>
+                        <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
+                          All Groups
+                        </h2>
+                      </>
+                    ) : null}
 
                     <div className="px-4">
                       {(hasLoadingGroups || hasGangsWithClaims) && (
