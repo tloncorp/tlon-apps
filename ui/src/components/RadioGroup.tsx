@@ -52,7 +52,7 @@ export default function RadioGroup({
               {option.label}
             </label>
             {option.secondaryLabel && (
-              <p className="line-clamp-1 mt-[4px] text-sm font-normal text-gray-600">
+              <p className="mt-[4px] line-clamp-1 text-sm font-normal text-gray-600">
                 {option.secondaryLabel}
               </p>
             )}

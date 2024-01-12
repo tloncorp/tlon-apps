@@ -23,7 +23,7 @@ function ReferenceInHeap({
         </div>
         <div className="flex grow flex-col">
           <div className="line-clamp-1 text-lg font-semibold">{title}</div>
-          <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
             {byline}
           </div>
           {children}
@@ -46,7 +46,7 @@ function ReferenceInHeap({
               {title}
             </div>
           )}
-          <div className="line-clamp-1 mt-1 flex space-x-2 text-base font-semibold text-gray-400">
+          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
             {byline}
           </div>
           {children}
@@ -68,7 +68,7 @@ function ReferenceInHeap({
         {type === 'text' && (
           <div
             className={cn(
-              'from-10% via-30% absolute left-0 top-0 h-full w-full bg-gradient-to-t from-white via-transparent'
+              'absolute left-0 top-0 h-full w-full bg-gradient-to-t from-white from-10% via-transparent via-30%'
             )}
           />
         )}

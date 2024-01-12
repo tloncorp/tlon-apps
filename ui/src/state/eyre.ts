@@ -146,11 +146,14 @@ export const useEyreState = create<EyreState>((set, get) => ({
       update((draft) => {
         draft.channel = uid;
         draft.subscriptions =
-          subscriptions.reduce((subs, s) => {
-            // eslint-disable-next-line no-param-reassign
-            subs[s.id.toString()] = s;
-            return subs;
-          }, {} as Record<string, Subscription>) || {};
+          subscriptions.reduce(
+            (subs, s) => {
+              // eslint-disable-next-line no-param-reassign
+              subs[s.id.toString()] = s;
+              return subs;
+            },
+            {} as Record<string, Subscription>
+          ) || {};
       });
     });
   },

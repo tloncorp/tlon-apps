@@ -61,8 +61,8 @@ export function GroupJoinItem({
             {status === 'error'
               ? 'Errored'
               : highlight
-              ? 'Invited'
-              : button.text}
+                ? 'Invited'
+                : button.text}
           </button>
         )
       }

@@ -33,7 +33,7 @@ export default function AddGroupSheet(props: {
   const CreateOrJoin = useCallback(() => {
     return (
       <div className="flex w-full flex-col items-center pb-4">
-        <h3 className="mt-4 mb-6 text-[17px] ">Add a group</h3>
+        <h3 className="mb-6 mt-4 text-[17px] ">Add a group</h3>
         <div className="flex flex-col rounded-lg border border-gray-100">
           <button
             className="flex items-center border-b border-gray-100 px-6 py-4"

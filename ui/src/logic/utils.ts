@@ -61,8 +61,8 @@ export const isHosted =
 export const hostingUploadURL = isStagingHosted
   ? 'https://memex.test.tlon.systems'
   : isHosted
-  ? 'https://memex.tlon.network'
-  : '';
+    ? 'https://memex.tlon.network'
+    : '';
 
 export const dmListPath = isTalk ? '/' : '/messages';
 

@@ -37,8 +37,9 @@ export default function CreateGroup(props: { back: () => void }) {
       });
 
       const flag = `${window.our}/${shortCode}`;
-      const randomNumber = Math.floor(Math.random() * 10000);
+      navigate(`/groups/${flag}`);
 
+      const randomNumber = Math.floor(Math.random() * 10000);
       await createChannelMutation({
         kind: 'chat',
         group: flag,
@@ -48,8 +49,6 @@ export default function CreateGroup(props: { back: () => void }) {
         readers: [],
         writers: [],
       });
-
-      navigate(`/groups/${flag}`);
     } catch (error) {
       console.log("Couldn't create group", error);
     }

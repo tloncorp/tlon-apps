@@ -39,8 +39,8 @@ export default function Subscription({ sub, facts }: SubscriptionProps) {
             firstMount.current
               ? 'bg-gray-200'
               : recentlyReceived
-              ? 'bg-pink-400'
-              : 'pulseOut'
+                ? 'bg-pink-400'
+                : 'pulseOut'
           )}
         >
           <span>{sub.id}</span>

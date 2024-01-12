@@ -220,8 +220,8 @@ function HeapChannel({ title }: ViewProps) {
               displayMode === 'list'
                 ? 'heap-list'
                 : isMobile
-                ? 'heap-grid-mobile'
-                : 'heap-grid'
+                  ? 'heap-grid-mobile'
+                  : 'heap-grid'
             }
             stateChanged={(state) => {
               virtuosoStateByFlag[chFlag] = state;
