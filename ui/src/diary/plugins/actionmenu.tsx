@@ -56,8 +56,8 @@ export const actionMenuItems: ActionMenuItemProps[] = [
         .focus()
         .deleteRange(range)
         .toggleCodeBlock()
-        .selectNodeBackward()
         .insertContent([{ type: 'paragraph' }])
+        .selectNodeBackward()
         .run();
     },
   },
@@ -70,8 +70,8 @@ export const actionMenuItems: ActionMenuItemProps[] = [
         .focus()
         .deleteRange(range)
         .toggleTaskList()
-        .selectNodeBackward()
         .insertContent([{ type: 'paragraph' }])
+        .selectNodeBackward()
         .run();
     },
   },
