@@ -1,13 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
 import {
-  useGangList,
   useLoadingGroups,
   useGangsWithClaim,
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
+  useNewGroups,
 } from '@/state/groups';
 import { usePinnedGroups } from '@/state/pins';
 import GroupList from '@/components/Sidebar/GroupList';
@@ -31,10 +30,10 @@ export default function MobileRoot() {
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
-  const gangs = useGangList();
   const pinnedGroups = usePinnedGroups();
   const pendingGangs = usePendingGangsWithoutClaim();
   const loadingGroups = useLoadingGroups();
+  const newGroups = useNewGroups();
   const gangsWithClaims = useGangsWithClaim();
   const { data: groups, isLoading } = useGroupsWithQuery();
   const sortedGroups = sortGroups(groups);
@@ -46,9 +45,18 @@ export default function MobileRoot() {
     [pinnedGroups]
   );
 
+  const newGroupsOptions = useMemo(
+    () =>
+      newGroups.map(([flag]) => (
+        <GroupsSidebarItem key={flag} flag={flag} isNew />
+      )),
+    [newGroups]
+  );
+
   const hasPinnedGroups = !!pinnedGroupsOptions.length;
   const hasLoadingGroups = !!loadingGroups.length;
   const hasGangsWithClaims = !!gangsWithClaims.length;
+  const hasNewGroups = !!newGroups.length;
   const hasPendingGangs = Object.keys(pendingGangs).length > 0;
 
   return (
@@ -87,6 +95,7 @@ export default function MobileRoot() {
               <GroupList
                 groups={sortedGroups}
                 pinnedGroups={Object.entries(pinnedGroups)}
+                newGroups={newGroups}
                 loadingGroups={loadingGroups}
                 isScrolling={scroll.current}
               >
@@ -101,25 +110,27 @@ export default function MobileRoot() {
                       </div>
                     ) : null}
 
-                    {(hasLoadingGroups || hasGangsWithClaims) && (
-                      <div className="px-4">
-                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                          Pending
-                        </h2>
-                        {hasLoadingGroups &&
-                          loadingGroups.map(([flag, _]) => (
-                            <GangItem key={flag} flag={flag} isJoining />
-                          ))}
-                        {hasGangsWithClaims &&
-                          gangsWithClaims.map((flag) => (
-                            <GangItem key={flag} flag={flag} />
-                          ))}
-                      </div>
-                    )}
-
                     <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
                       All Groups
                     </h2>
+
+                    <div className="px-4">
+                      {(hasLoadingGroups || hasGangsWithClaims) && (
+                        <>
+                          {hasLoadingGroups &&
+                            loadingGroups.map(([flag, _]) => (
+                              <GangItem key={flag} flag={flag} isJoining />
+                            ))}
+                          {hasGangsWithClaims &&
+                            gangsWithClaims.map((flag) => (
+                              <GangItem key={flag} flag={flag} />
+                            ))}
+
+                          {hasNewGroups && newGroupsOptions}
+                        </>
+                      )}
+                    </div>
+
                     {hasPendingGangs && (
                       <GroupJoinList highlightAll gangs={pendingGangs} />
                     )}
