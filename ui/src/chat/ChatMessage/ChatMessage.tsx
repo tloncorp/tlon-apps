@@ -108,9 +108,7 @@ const hiddenMessage: Story = [
   {
     inline: [
       {
-        italics: [
-          'You have hidden this message. You can unhide it from the options menu.',
-        ],
+        italics: ['You have hidden or flagged this message.'],
       },
     ],
   },
