@@ -15,8 +15,6 @@ import {
 } from '@/state/groups';
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import SidebarItem from './SidebarItem';
-import Lock16Icon from '../icons/Lock16Icon';
-import ExclamationPoint from '../icons/ExclamationPoint';
 import X16Icon from '../icons/X16Icon';
 
 // Gang is a pending group invite
@@ -66,16 +64,27 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
   let sideBarIcon;
   if (isJoining) {
     sideBarIcon = (
-      <LoadingSpinner
-        className={isMobile ? 'h-4 w-4 text-gray-400' : 'h-3 w-3 text-gray-400'}
-      />
+      <div className="flex items-center rounded-full bg-blue-soft p-1 text-blue">
+        <LoadingSpinner className={isMobile ? 'h-3 w-3' : 'h-3 w-3'} />
+        <p className="px-1 text-sm">Joining..</p>
+      </div>
     );
   }
+
   if (requested) {
-    sideBarIcon = <Lock16Icon className="h-4 w-4 text-gray-400" />;
+    sideBarIcon = (
+      <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
+        Join Requested
+      </p>
+    );
   }
+
   if (errored || probablyOffline) {
-    sideBarIcon = <ExclamationPoint className="h-4 w-4 text-gray-400" />;
+    sideBarIcon = (
+      <p className="flex items-center rounded-full bg-orange-soft px-2 py-1 text-sm text-orange">
+        Tap to retry join
+      </p>
+    );
   }
 
   if (!requested && !errored && !isJoining && !probablyOffline) {
