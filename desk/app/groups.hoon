@@ -1247,7 +1247,10 @@
     ?.  =(src.bowl our.bowl)
       ~|("%group-action poke failed: only allowed from self" !!)
     ::  must have permission to write
-    ?.  ?|(go-is-bloc ?&(?=(%fleet -.diff) ?=([%add ~] q.diff)))
+    ?.  ?|  go-is-bloc
+            ?=(%flag-content -.diff)
+            ?&(?=(%fleet -.diff) ?=([%add ~] q.diff))
+        ==
       ~|("%group-action poke failed: can't write to host" !!)
     =/  =wire  (snoc go-area %proxy)
     =/  =dock  [p.flag dap.bowl]
