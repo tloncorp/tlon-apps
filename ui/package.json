@@ -173,7 +173,7 @@
     "usehooks-ts": "^2.6.0",
     "uuid": "^9.0.0",
     "validator": "^13.7.0",
-    "vaul": "^0.8.0",
+    "vaul": "file:../../vaul",
     "video-react": "^0.16.0",
     "workbox-precaching": "^6.5.4",
     "zustand": "^3.7.2"
@@ -195,7 +195,7 @@
     "@types/portscanner": "^2.1.1",
     "@types/prismjs": "^1.26.0",
     "@types/qrcode": "^1.5.2",
-    "@types/react": "^18.2.17",
+    "@types/react": "^18.2.46",
     "@types/react-beautiful-dnd": "^13.1.2",
     "@types/react-dom": "^18.2.7",
     "@types/react-helmet": "^6.1.5",
