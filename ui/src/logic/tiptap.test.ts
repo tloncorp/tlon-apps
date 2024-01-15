@@ -7,6 +7,7 @@ import {
   inlinesToJSON,
   inlineToContent,
   JSONToInlines,
+  tipTapToString,
   wrapParagraphs,
 } from './tiptap';
 
@@ -820,5 +821,35 @@ describe('JSONToInlines', () => {
       { link: { href: 'https://urbit.org', content: 'click here' } },
     ];
     expect(output).toEqual(expected);
+  });
+});
+
+describe('tipTapToString', () => {
+  it('parses text with marks', () => {
+    const input: JSONContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Example text with part in ',
+            },
+            {
+              type: 'text',
+              marks: [
+                {
+                  type: 'italic',
+                },
+              ],
+              text: 'italic',
+            },
+          ],
+        },
+      ],
+    };
+    const output = tipTapToString(input);
+    expect(output).toEqual('Example text with part in italic');
   });
 });
