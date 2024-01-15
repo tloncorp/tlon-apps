@@ -6,6 +6,7 @@ import { useCreateMutation } from '@/state/channel/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import LargeTextInput from '@/components/FullsizeTextInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
+import LargePrimaryButton from '@/components/LargePrimaryButton';
 
 export default function CreateGroup(props: { back: () => void }) {
   const { mutateAsync: createGroupMutation, isLoading } =
@@ -90,9 +91,8 @@ export default function CreateGroup(props: { back: () => void }) {
         </p>
       </div>
 
-      <div className="flex w-full flex-grow items-center justify-center">
-        <button
-          className="mt-6 w-full rounded-lg border border-blue-200 bg-blue-soft px-6 py-4 text-lg font-semibold text-blue disabled:border-gray-100 disabled:bg-gray-50 disabled:text-gray-400 dark:border-blue-500 dark:disabled:border-gray-100"
+      <div className="mt-6 flex w-full flex-grow items-center justify-center">
+        <LargePrimaryButton
           disabled={input === '' || isLoading || channelIsLoading}
           onClick={createGroup}
         >
@@ -103,7 +103,7 @@ export default function CreateGroup(props: { back: () => void }) {
           ) : (
             'Create Group'
           )}
-        </button>
+        </LargePrimaryButton>
       </div>
     </div>
   );
