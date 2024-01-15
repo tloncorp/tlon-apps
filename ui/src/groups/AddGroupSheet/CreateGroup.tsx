@@ -86,8 +86,7 @@ export default function CreateGroup(props: { back: () => void }) {
           </span>
         </p>
         <p className="text-small pt-6 text-gray-400">
-          {' '}
-          You can edit your group's privacy later.{' '}
+          You can edit your group&apos;s privacy later.
         </p>
       </div>
 
