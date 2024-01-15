@@ -30,14 +30,20 @@ export default function AddGroupSheet(props: {
     }
   };
 
+  const delayedViewNav = (newView: 'root' | 'create' | 'join') => {
+    setTimeout(() => {
+      setView(newView);
+    }, 100);
+  };
+
   const CreateOrJoin = useCallback(() => {
     return (
       <div className="flex w-full flex-col items-center pb-4">
         <h3 className="mb-6 mt-4 text-[17px] ">Add a group</h3>
         <div className="flex flex-col rounded-lg border border-gray-100">
           <button
-            className="flex items-center border-b border-gray-100 px-6 py-4"
-            onClick={() => setView('join')}
+            className="flex items-center border-b border-gray-100 px-6 py-4 active:bg-blue-100"
+            onClick={() => delayedViewNav('join')}
           >
             <HomeIconMobileNav className="mr-4 h-6 w-6" isInactive asIcon />
             <div className="flex flex-col items-start">
@@ -48,8 +54,8 @@ export default function AddGroupSheet(props: {
             </div>
           </button>
           <button
-            className="flex items-center px-6 py-4 text-blue"
-            onClick={() => setView('create')}
+            className="flex items-center px-6 py-4 text-blue active:bg-blue-100"
+            onClick={() => delayedViewNav('create')}
           >
             <NewRaysIcon className="mr-4 h-6 w-6" />
             <div className="flex flex-col items-start">
