@@ -7,14 +7,6 @@ import { isNativeApp } from '@/logic/native';
 import JoinGroup from './AddGroupSheet/JoinGroup';
 import CreateGroup from './AddGroupSheet/CreateGroup';
 
-function DragHandle() {
-  return (
-    <div className="my-3 flex w-full justify-center">
-      <div className="h-[5px] w-[32px] rounded-[100px] bg-gray-100" />
-    </div>
-  );
-}
-
 export default function AddGroupSheet(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -75,8 +67,8 @@ export default function AddGroupSheet(props: {
       open={props.open}
       onOpenChange={onOpenChange}
       className={cn('px-6', view === 'root' && 'h-[30vh]!')}
+      withGrabber={true}
     >
-      <DragHandle />
       <div className="mt-4">
         {view === 'root' && <CreateOrJoin />}
         {view === 'create' && <CreateGroup back={() => setView('root')} />}

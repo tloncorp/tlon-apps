@@ -2,12 +2,21 @@ import { Drawer } from 'vaul';
 import cn from 'classnames';
 import { useSafeAreaInsets } from '@/logic/native';
 
+function Grabber() {
+  return (
+    <div className="my-3 flex w-full justify-center">
+      <div className="h-[5px] w-[32px] rounded-[100px] bg-gray-100" />
+    </div>
+  );
+}
+
 interface WidgetSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
   children: React.ReactNode;
   className?: string;
+  withGrabber?: boolean;
 }
 
 export default function WidgetDrawer({
@@ -16,6 +25,7 @@ export default function WidgetDrawer({
   title,
   children,
   className,
+  withGrabber = false,
 }: WidgetSheetProps) {
   const insets = useSafeAreaInsets();
 
@@ -33,6 +43,7 @@ export default function WidgetDrawer({
             marginTop: open ? insets.top : undefined,
           }}
         >
+          {withGrabber && <Grabber />}
           <div hidden={!title}>
             <h3 className="pl-3 text-lg leading-6">{title}</h3>
           </div>
