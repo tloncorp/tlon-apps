@@ -80,7 +80,7 @@ export default function CreateGroup(props: { back: () => void }) {
         <p className="text-small pt-4 text-gray-400">
           Your <span className="text-black">public</span> group will live at:
           <br />
-          {window.ship || '~latter-bolden'}/group/
+          {window.our}/
           <span className="text-black">
             {input !== '' ? shortCode : 'group-name'}
           </span>
