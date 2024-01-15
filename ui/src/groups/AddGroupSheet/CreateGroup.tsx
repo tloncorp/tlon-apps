@@ -91,7 +91,7 @@ export default function CreateGroup(props: { back: () => void }) {
         </p>
       </div>
 
-      <div className="mt-6 flex w-full flex-grow items-center justify-center">
+      <div className="mt-6 flex w-full grow items-center justify-center">
         <LargePrimaryButton
           disabled={input === '' || isLoading || channelIsLoading}
           onClick={createGroup}
