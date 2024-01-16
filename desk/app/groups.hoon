@@ -939,7 +939,7 @@
       `nest
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =.  fleet.group
-      %-  ~(rut by fleet.group)
+      %-  ~(urn by fleet.group)
       |=  [=ship =vessel:fleet:g]
       ?.  (~(has in admins) ship)
         vessel
@@ -1564,7 +1564,7 @@
       =.  sects.diff  (~(int in sects.diff) ~(key by cabals.group))
       ?:  =(~ sects.diff)  go-core
       =.  fleet.group
-        %-  ~(rut by fleet.group)
+        %-  ~(urn by fleet.group)
         |=  [=ship =vessel:fleet:g]
         ?.  (~(has in ships) ship)  vessel
         vessel(sects (~(uni in sects.vessel) sects.diff))
@@ -1601,7 +1601,7 @@
       ?>  go-is-bloc
       ?:  &(has-host (~(has in sects.diff) 'admin'))  go-core
       =.  fleet.group
-        %-  ~(rut by fleet.group)
+        %-  ~(urn by fleet.group)
         |=  [=ship =vessel:fleet:g]
         ?.  (~(has in ships) ship)  vessel
         vessel(sects (~(dif in sects.vessel) sects.diff))
