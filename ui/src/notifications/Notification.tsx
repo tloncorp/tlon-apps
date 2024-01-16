@@ -127,7 +127,7 @@ function NotificationContent({
   if (conIsMention) {
     return (
       <>
-        <p className="line-clamp-4 mb-2 leading-5 text-gray-400">
+        <p className="mb-2 line-clamp-4 leading-5 text-gray-400">
           {_.map(_.slice(content, 0, 2), (c: YarnContent, i) =>
             renderContent(c, i)
           )}
@@ -144,7 +144,7 @@ function NotificationContent({
   if (conIsReply || conIsComment) {
     return (
       <>
-        <p className="line-clamp-4 mb-2 leading-5 text-gray-400">
+        <p className="mb-2 line-clamp-4 leading-5 text-gray-400">
           {_.map(_.slice(content, 0, 4), (c: YarnContent, i) =>
             renderContent(c, i)
           )}

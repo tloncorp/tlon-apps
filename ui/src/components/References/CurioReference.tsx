@@ -139,7 +139,7 @@ function CurioReference({
         contextApp={contextApp}
         image={
           <HeapContent
-            className="line-clamp-3 absolute left-0 top-0 h-full w-full px-5 py-4 leading-6"
+            className="absolute left-0 top-0 line-clamp-3 h-full w-full px-5 py-4 leading-6"
             content={content}
           />
         }
