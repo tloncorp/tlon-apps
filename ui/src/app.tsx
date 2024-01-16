@@ -692,12 +692,12 @@ function checkIfLoggedIn() {
 function handleGridRedirect(navigate: NavigateFunction) {
   const query = new URLSearchParams(window.location.search);
 
-  if (query.has('grid-note')) {
+  if (query.has('landscape-note')) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    navigate(decodeURIComponent(query.get('grid-note')!));
+    navigate(decodeURIComponent(query.get('landscape-note')!));
   } else if (query.has('grid-link')) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    navigate(decodeURIComponent(query.get('grid-link')!));
+    navigate(decodeURIComponent(query.get('landscape-link')!));
   }
 }
 
