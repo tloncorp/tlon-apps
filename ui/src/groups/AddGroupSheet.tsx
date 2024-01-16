@@ -11,29 +11,37 @@ function CreateOrJoin(props: { onCreate: () => void; onJoin: () => void }) {
   return (
     <div className="flex w-full flex-col items-center pb-4">
       <h3 className="mb-6 mt-4 text-[17px] ">Add a group</h3>
-      <div className="flex flex-col rounded-lg border border-gray-100">
+      <div className="flex flex-col overflow-hidden rounded-lg border border-gray-100">
         <button
-          className="flex items-center border-b border-gray-100 px-6 py-4 active:bg-blue-100"
+          className="group flex items-center overflow-hidden border-b border-gray-100 px-6 py-4 active:bg-blue-100 dark:active:bg-blue"
           onClick={props.onJoin}
         >
-          <HomeIconMobileNav className="mr-4 h-6 w-6" isInactive asIcon />
+          <HomeIconMobileNav
+            className="mr-4 h-6 w-6 group-active:dark:text-black"
+            isInactive
+            asIcon
+          />
           <div className="flex flex-col items-start">
-            <h4 className="mb-1.5 text-[17px] tracking-wide">Join a group</h4>
-            <p className="text-gray-300">
+            <h4 className="mb-1.5 text-[17px] tracking-wide group-active:dark:text-black">
+              Join a group
+            </h4>
+            <p className="text-gray-300 group-active:dark:text-black">
               Join with short code or host's Urbit ID
             </p>
           </div>
         </button>
         <button
-          className="flex items-center px-6 py-4 text-blue active:bg-blue-100"
+          className="group flex items-center overflow-hidden px-6 py-4 text-blue active:bg-blue-100 dark:active:bg-blue"
           onClick={props.onCreate}
         >
-          <NewRaysIcon className="mr-4 h-6 w-6" />
-          <div className="flex flex-col items-start">
-            <h4 className="mb-1.5 text-[17px] tracking-wide">
+          <NewRaysIcon className="mr-4 h-6 w-6 group-active:dark:text-black" />
+          <div className="flex flex-col items-start ">
+            <h4 className="mb-1.5 text-[17px] tracking-wide group-active:dark:text-black">
               Create new group
             </h4>
-            <p className="text-gray-300">Start a group from scratch</p>
+            <p className="text-gray-300 group-active:dark:text-black">
+              Start a group from scratch
+            </p>
           </div>
         </button>
       </div>
