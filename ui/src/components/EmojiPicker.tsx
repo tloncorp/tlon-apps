@@ -76,16 +76,18 @@ export default function EmojiPicker({
 
   const onEmojiSelect = useCallback(
     async (emoji: { shortcodes: string }) => {
-      if (isDMOrMultiDM && !inThread) {
-        addFeelToDm({ whom: whom!, id: writId, react: emoji.shortcodes });
-      } else if (isDMOrMultiDM && inThread) {
-        addFeelToDmReply({
-          whom: whom!,
-          writId: threadParentId!,
-          replyId: writId,
-          react: emoji.shortcodes,
-        });
-      } else if (inThread) {
+      if (isDMOrMultiDM) {
+        if (inThread && writId !== threadParentId!) {
+          addFeelToDmReply({
+            whom: whom!,
+            writId: threadParentId!,
+            replyId: writId,
+            react: emoji.shortcodes,
+          });
+        } else {
+          addFeelToDm({ whom: whom!, id: writId, react: emoji.shortcodes });
+        }
+      } else if (inThread && writId !== threadParentId) {
         addFeelToReply({
           nest,
           postId: threadParentId!,
