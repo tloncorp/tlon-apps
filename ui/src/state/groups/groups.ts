@@ -28,7 +28,7 @@ import {
   Gang,
 } from '@/types/groups';
 import api from '@/api';
-import { BaitCite } from '@/types/channel';
+import { BaitCite, Post, Reply } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
@@ -1407,4 +1407,35 @@ export function useFlagContentMutation() {
   };
 
   return useGroupMutation(mutationFn);
+}
+
+export function useFlaggedData(
+  flag: string,
+  nest: string,
+  postId: string,
+  replyId?: string
+) {
+  const group = useGroup(flag);
+  const empty = {
+    flagData: undefined,
+    isFlaggedByMe: false,
+  };
+
+  if (!group || !group['flagged-content'] || !group['flagged-content'][nest]) {
+    return empty;
+  }
+
+  const flaggedContent = group['flagged-content'][nest];
+  const flagData = flaggedContent[postId];
+
+  if (!flagData) {
+    return empty;
+  }
+
+  return {
+    flagData,
+    isFlaggedByMe: replyId
+      ? flagData.replies[replyId]?.includes(window.our)
+      : flagData.flagged && flagData.flaggers.includes(window.our),
+  };
 }

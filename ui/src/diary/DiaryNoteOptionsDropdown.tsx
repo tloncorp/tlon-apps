@@ -10,7 +10,7 @@ import {
 import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { useRouteGroup } from '@/state/groups';
+import { useFlaggedData, useRouteGroup } from '@/state/groups';
 import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
@@ -59,6 +59,7 @@ export default function DiaryNoteOptionsDropdown({
     time,
   });
   const { show, hide, isHidden } = usePostToggler(time);
+  const { isFlaggedByMe } = useFlaggedData(groupFlag, nest, time);
 
   const actions: Action[] = [
     {
@@ -118,7 +119,8 @@ export default function DiaryNoteOptionsDropdown({
     });
     actions.push({
       key: 'hide',
-      content: 'Report Note',
+      type: isFlaggedByMe ? 'disabled' : 'destructive',
+      content: isFlaggedByMe ? "You've flagged this note" : 'Report Note',
       onClick: () => {
         navigate('/report-content', {
           state: {

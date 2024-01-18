@@ -11,7 +11,13 @@ import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
-import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import {
+  useAmAdmin,
+  useFlaggedData,
+  useGroup,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups';
 import {
   useMessageToggler,
   useAddDmReactMutation,
@@ -115,9 +121,7 @@ function ChatMessageOptions(props: {
     [isMessageHidden, isPostHidden]
   );
   const containerRef = useRef<HTMLDivElement>(null);
-  const flagData = group?.['flagged-content']?.[nest]?.[seal.id];
-  const isFlaggedByMe =
-    flagData?.flagged && flagData?.flaggers?.includes(window.our);
+  const { isFlaggedByMe } = useFlaggedData(groupFlag, nest, seal.id);
 
   const onDelete = async () => {
     if (isMobile) {

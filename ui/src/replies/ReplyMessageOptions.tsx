@@ -5,7 +5,13 @@ import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
-import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import {
+  useAmAdmin,
+  useFlaggedData,
+  useGroup,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups';
 import {
   useAddDMReplyReactMutation,
   useDeleteDMReplyMutation,
@@ -99,8 +105,12 @@ export default function ReplyMessageOptions(props: {
     isDeleteReplyLoading ||
     isDeleteChatMessageLoading ||
     isDeleteDMReplyLoading;
-  const flagData = group?.['flagged-content']?.[nest]?.[threadParentId];
-  const isFlaggedByMe = flagData?.replies?.[seal.id]?.includes(window.our);
+  const { isFlaggedByMe } = useFlaggedData(
+    groupFlag,
+    nest,
+    seal['parent-id'],
+    seal.id
+  );
 
   const {
     show: showPost,

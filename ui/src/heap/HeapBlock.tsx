@@ -5,7 +5,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
-import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
+import {
+  useRouteGroup,
+  useAmAdmin,
+  useFlaggedData,
+} from '@/state/groups/groups';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
@@ -64,6 +68,7 @@ function TopBar({
   canEdit,
   author,
 }: TopBarProps) {
+  const groupFlag = useRouteGroup();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const chFlag = useChannelFlag();
   const nest = citeNest || `heap/${chFlag}`;
@@ -84,6 +89,7 @@ function TopBar({
     time,
     refToken: refToken ?? linkFromNotification,
   });
+  const { isFlaggedByMe } = useFlaggedData(groupFlag, nest, time);
 
   if (asRef || asMobileNotification) {
     return null;
@@ -125,7 +131,8 @@ function TopBar({
 
       actions.push({
         key: 'report',
-        content: 'Report Post',
+        type: isFlaggedByMe ? 'disabled' : 'destructive',
+        content: isFlaggedByMe ? "You've flagged this post" : 'Report Post',
         onClick: reportContent,
       });
     }
