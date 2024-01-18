@@ -1396,6 +1396,7 @@ export function useFlagContentMutation() {
       groupAction(variables.flag, {
         'flag-content': {
           nest: variables.nest,
+          src: window.our,
           'post-key': {
             post: decToUd(variables.post),
             reply: variables.reply ? decToUd(variables.reply) : null,

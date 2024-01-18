@@ -70,10 +70,16 @@ export interface AfarCordon {
 
 export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
-// values are an object keyed by post id with a value if any of the
-// post's replies are flagged
+// represents whether a post or its replies are flagged and by whom
+export interface FlagData {
+  flagged: boolean;
+  flaggers: string[];
+  replies: Record<string, string[]>;
+}
+
+// values are an object keyed by post id
 export interface FlaggedContent {
-  [nest: string]: Record<string, string[]>;
+  [nest: string]: Record<string, FlagData>;
 }
 
 export interface Group {
@@ -279,6 +285,7 @@ export interface SecretDiff {
 export interface FlagContentDiff {
   'flag-content': {
     nest: string;
+    src: string;
     'post-key': {
       post: string;
       reply: string | null;

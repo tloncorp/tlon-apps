@@ -1347,7 +1347,7 @@
       %meta     (go-meta-update p.diff)
       %secret   (go-secret-update p.diff)
       %del      go-core(gone &)
-      %flag-content  (go-flag-content [nest post-key]:diff)
+      %flag-content  (go-flag-content +:diff)
     ==
   ::
   ++  go-secret-update
@@ -1359,14 +1359,16 @@
     =.  meta.group  meta
     go-core
   ++  go-flag-content
-    |=  [=nest:g post-key:g]
-    =/  posts  (~(gut by flagged-content.group) nest *(jug time time))
+    |=  [=nest:g =post-key:g src=ship]
+    =/  posts  (~(gut by flagged-content.group) nest *(map post-key:g flaggers:g))
+    =/  flaggers=(unit flaggers:g)  (~(get by posts) post-key)
     =/  channel-flagged
-      ?~  reply  (~(put by posts) post ~)
-      (~(put ju posts) post u.reply)
+      %+  ~(put by posts)  post-key
+      ?~  flaggers  (sy ~[src])
+      (~(put in u.flaggers) src)
     =.  flagged-content.group  (~(put by flagged-content.group) nest channel-flagged)
     ?:  |(from-self !go-is-our-bloc)  go-core
-    =/  =rope:ha  (get-channel-rope nest post reply)
+    =/  =rope:ha  (get-channel-rope nest post-key)
     =/  link
       (welp /groups/(scot %p p.flag)/[q.flag]/channels ted.rope)
     =/  =new-yarn:ha
@@ -1374,7 +1376,8 @@
       :*  rope
           link
           `['See post' link]
-          :~  'A member of your group has reported a post as inappropriate.'
+          :~  [%ship src]
+              ' has reported a post as inappropriate.'
           ==
       ==
     =.  cor  (emit (pass-hark new-yarn))

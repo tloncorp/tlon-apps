@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import React, {
   useCallback,
   useEffect,
@@ -114,6 +115,9 @@ function ChatMessageOptions(props: {
     [isMessageHidden, isPostHidden]
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const flagData = group?.['flagged-content']?.[nest]?.[seal.id];
+  const isFlaggedByMe =
+    flagData?.flagged && flagData?.flaggers?.includes(window.our);
 
   const onDelete = async () => {
     if (isMobile) {
@@ -348,14 +352,16 @@ function ChatMessageOptions(props: {
     ),
   });
 
+  console.log(flagData, isFlaggedByMe);
   if (!isDMorMultiDM) {
     actions.push({
       key: 'report',
       onClick: reportContent,
+      type: isFlaggedByMe ? 'disabled' : 'destructive',
       content: (
         <div className="flex items-center">
           <CautionIcon className="mr-2 h-6 w-6" />
-          Report Message
+          {isFlaggedByMe ? 'You\ve flagged this message' : 'Report Message'}
         </div>
       ),
     });
@@ -476,10 +482,22 @@ function ChatMessageOptions(props: {
             />
             {!isDMorMultiDM && (
               <IconButton
-                icon={<CautionIcon className="h-6 w-6 text-gray-400" />}
-                label={isHidden ? 'Show Message' : 'Report Message'}
+                icon={
+                  <CautionIcon
+                    className={cn(
+                      'h-6 w-6',
+                      isFlaggedByMe ? 'text-gray-200' : 'text-gray-400'
+                    )}
+                  />
+                }
+                label={
+                  isFlaggedByMe
+                    ? "You've flagged this message"
+                    : 'Report Message'
+                }
                 showTooltip
                 action={reportContent}
+                disabled={isFlaggedByMe}
               />
             )}
             {showDeleteAction && (

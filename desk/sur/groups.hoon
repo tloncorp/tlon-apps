@@ -263,7 +263,7 @@
       [%secret p=?]
       [%create p=group]
       [%del ~]
-      [%flag-content =nest =post-key]
+      [%flag-content =nest =post-key src=ship]
   ==
 ::
 ::  $action: the complete set of data required to edit a group
@@ -317,9 +317,10 @@
 ::
 +$  post-key  [post=time reply=(unit time)]
 ::
++$  flaggers  (set ship)
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
-+$  flagged-content  (map nest (jug time time))
++$  flagged-content  (map nest (map post-key flaggers))
 ::
 ::  $join: a join request, can elect to join all channels
 ::
