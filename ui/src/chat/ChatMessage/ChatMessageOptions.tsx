@@ -352,7 +352,6 @@ function ChatMessageOptions(props: {
     ),
   });
 
-  console.log(flagData, isFlaggedByMe);
   if (!isDMorMultiDM) {
     actions.push({
       key: 'report',
@@ -361,7 +360,7 @@ function ChatMessageOptions(props: {
       content: (
         <div className="flex items-center">
           <CautionIcon className="mr-2 h-6 w-6" />
-          {isFlaggedByMe ? 'You\ve flagged this message' : 'Report Message'}
+          {isFlaggedByMe ? "You've flagged this message" : 'Report Message'}
         </div>
       ),
     });

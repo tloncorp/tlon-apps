@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import cn from 'classnames';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
@@ -98,6 +99,8 @@ export default function ReplyMessageOptions(props: {
     isDeleteReplyLoading ||
     isDeleteChatMessageLoading ||
     isDeleteDMReplyLoading;
+  const flagData = group?.['flagged-content']?.[nest]?.[threadParentId];
+  const isFlaggedByMe = flagData?.replies?.[seal.id]?.includes(window.our);
 
   const {
     show: showPost,
@@ -330,11 +333,12 @@ export default function ReplyMessageOptions(props: {
   if (!isDMorMultiDM) {
     actions.push({
       key: 'report',
+      type: isFlaggedByMe ? 'disabled' : 'destructive',
       onClick: reportContent,
       content: (
         <div className="flex items-center">
           <CautionIcon className="mr-2 h-6 w-6" />
-          Report Message
+          {isFlaggedByMe ? "You've flagged this message" : 'Report Message'}
         </div>
       ),
     });
@@ -432,10 +436,22 @@ export default function ReplyMessageOptions(props: {
             />
             {!isDMorMultiDM && (
               <IconButton
-                icon={<CautionIcon className="h-6 w-6 text-gray-400" />}
-                label={isHidden ? 'Show Message' : 'Report Message'}
+                icon={
+                  <CautionIcon
+                    className={cn(
+                      'h-6 w-6',
+                      isFlaggedByMe ? 'text-gray-200' : 'text-gray-400'
+                    )}
+                  />
+                }
+                label={
+                  isFlaggedByMe
+                    ? "You've flagged this message"
+                    : 'Report Message'
+                }
                 showTooltip
                 action={reportContent}
+                disabled={isFlaggedByMe}
               />
             )}
             {showDeleteAction && (
