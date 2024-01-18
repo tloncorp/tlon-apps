@@ -31,7 +31,6 @@ import {
   PostDataResponse,
   ChannelScan,
   ChannelScanItem,
-  ReferenceResponse,
   ReplyTuple,
   newChatMap,
   HiddenPosts,
@@ -51,7 +50,7 @@ import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { isNativeApp } from '@/logic/native';
-import channelKey from './keys';
+import { channelKey } from './keys';
 
 const POST_PAGE_SIZE = isNativeApp()
   ? STANDARD_MESSAGE_FETCH_PAGE_SIZE
@@ -222,11 +221,7 @@ export function usePostsOnHost(
   return data as Posts;
 }
 
-const infinitePostUpdater = (
-  queryKey: QueryKey,
-  data: ChannelsResponse,
-  initialTime?: string
-) => {
+const infinitePostUpdater = (queryKey: QueryKey, data: ChannelsResponse) => {
   const { nest, response } = data;
 
   if (!('post' in response)) {
@@ -616,7 +611,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
       app: 'channels',
       path: `/${nest}`,
       event: (data: ChannelsResponse) => {
-        infinitePostUpdater(queryKey, data, initialTime);
+        infinitePostUpdater(queryKey, data);
         invalidate.current(data);
       },
     });
@@ -751,7 +746,7 @@ export async function prefetchPostWithComments({
 export function useReplyPost(nest: Nest, id: string | null) {
   const { posts } = useInfinitePosts(nest);
 
-  return id && posts.find(([k, v]) => k.eq(bigInt(id)));
+  return id && posts.find(([k, _v]) => k.eq(bigInt(id)));
 }
 
 export function useOrderedPosts(
@@ -1133,7 +1128,7 @@ export function useRemotePost(
   replyId?: string
 ) {
   checkNest(nest);
-  const [han, flag] = nestToFlag(nest);
+  const [han, _flag] = nestToFlag(nest);
   const path = `/said/${nest}/post/${decToUd(id)}${
     replyId ? `/${decToUd(replyId)}` : ''
   }`;
@@ -1374,6 +1369,7 @@ export function useAddPostMutation(nest: string) {
               resolve(timePosted);
             });
         } catch (e) {
+          // eslint-disable-next-line no-console
           console.error(e);
         }
       }),
@@ -1433,7 +1429,7 @@ export function useAddPostMutation(nest: string) {
       }
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
-    onError: async (_error, variables, context) => {
+    onError: async (_error, variables) => {
       usePostsStore.setState((state) => ({
         ...state,
         trackedPosts: state.trackedPosts.filter(

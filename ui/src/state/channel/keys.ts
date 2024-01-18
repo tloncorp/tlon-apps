@@ -12,4 +12,4 @@ export const ChannnelKeys = {
   infinitePostsKey,
 };
 
-export default channelKey;
+export default ChannnelKeys;
