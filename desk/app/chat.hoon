@@ -1723,6 +1723,8 @@
       ?:  =(src.bowl ship)
         di-core
       di-core(gone &)
+    =.  cor
+      (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed ~[ship]])])
     =.  net.dm  %done
     (di-post-notice ' joined the chat')
   ::
@@ -1739,6 +1741,13 @@
     |=  [=wire =sign:agent:gall]
     ^+  di-core
     ?+    wire  ~|(bad-dm-take/wire !!)
+        [%contacts %heed ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      ::  TODO: handle?
+      %-  (slog leaf/"Failed to add contact" u.p.sign)
+      di-core
+    ::
         [%hark ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
