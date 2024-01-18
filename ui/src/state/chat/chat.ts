@@ -40,7 +40,11 @@ import { ChatStore, useChatInfo, useChatStore } from '@/chat/useChatStore';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import queryClient from '@/queryClient';
-import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import {
+  LARGE_MESSAGE_FETCH_PAGE_SIZE,
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
+import { isNativeApp } from '@/logic/native';
 import { CacheId, PostStatus, TrackedPost } from '../channel/channel';
 import ChatKeys from './keys';
 import emptyMultiDm, {
@@ -50,6 +54,10 @@ import emptyMultiDm, {
   removePendingFromCache,
   removeUnreadFromCache,
 } from './utils';
+
+const CHAT_PAGE_SIZE = isNativeApp()
+  ? STANDARD_MESSAGE_FETCH_PAGE_SIZE
+  : LARGE_MESSAGE_FETCH_PAGE_SIZE;
 
 export interface State {
   trackedWrits: TrackedPost[];
@@ -1284,13 +1292,13 @@ export function useInfiniteDMs(whom: string, initialTime?: string) {
       if (pageParam) {
         const { time, direction } = pageParam;
         const ud = decToUd(time.toString());
-        path = `/${type}/${whom}/writs/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`;
+        path = `/${type}/${whom}/writs/${direction}/${ud}/${CHAT_PAGE_SIZE}/light`;
       } else if (initialTime) {
         path = `/${type}/${whom}/writs/around/${decToUd(initialTime)}/${
-          INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
+          CHAT_PAGE_SIZE / 2
         }/light`;
       } else {
-        path = `/${type}/${whom}/writs/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/light`;
+        path = `/${type}/${whom}/writs/newest/${CHAT_PAGE_SIZE}/light`;
       }
 
       const response = await api.scry<PagedWrits>({
