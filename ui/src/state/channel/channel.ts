@@ -43,11 +43,19 @@ import { checkNest, log, nestToFlag } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
-import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import {
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+  LARGE_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import channelKey, { ChannnelKeys } from './keys';
+import { isNativeApp } from '@/logic/native';
+import channelKey from './keys';
+
+const POST_PAGE_SIZE = isNativeApp()
+  ? STANDARD_MESSAGE_FETCH_PAGE_SIZE
+  : LARGE_MESSAGE_FETCH_PAGE_SIZE;
 
 async function updatePostInCache(
   variables: { nest: Nest; postId: string },
@@ -194,7 +202,7 @@ export function usePostsOnHost(
   const { data } = useReactQueryScry({
     queryKey: [han, 'posts', 'live', flag],
     app: 'channels',
-    path: `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/${nest}/posts/newest/${STANDARD_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
     options: {
       cacheTime: 0,
@@ -622,13 +630,13 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
       if (pageParam) {
         const { time, direction } = pageParam;
         const ud = decToUd(time);
-        path = `/${nest}/posts/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
       } else if (initialTime) {
         path = `/${nest}/posts/around/${decToUd(initialTime)}/${
-          INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
+          POST_PAGE_SIZE / 2
         }/outline`;
       } else {
-        path = `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
       }
 
       const response = await api.scry<PagedPosts>({
@@ -848,7 +856,10 @@ export function useChannels(): Channels {
       const { nest } = event;
       const [han, flag] = nestToFlag(nest);
       const infinitePostQueryKey = [han, 'posts', flag, 'infinite'];
-      infinitePostUpdater(infinitePostQueryKey, event);
+      const existingQueryData = queryClient.getQueryData(infinitePostQueryKey);
+      if (existingQueryData) {
+        infinitePostUpdater(infinitePostQueryKey, event);
+      }
     }
 
     invalidate.current(event);
