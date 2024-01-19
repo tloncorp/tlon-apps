@@ -25,8 +25,8 @@ function CreateOrJoin(props: { onCreate: () => void; onJoin: () => void }) {
             <h4 className="mb-1.5 text-[17px] tracking-wide group-active:dark:text-black">
               Join a group
             </h4>
-            <p className="text-gray-300 group-active:dark:text-black">
-              Join with short code or host's Urbit ID
+            <p className="text-left text-gray-300 group-active:dark:text-black">
+              Join with short code or host&#39;s Urbit ID
             </p>
           </div>
         </button>
@@ -39,7 +39,7 @@ function CreateOrJoin(props: { onCreate: () => void; onJoin: () => void }) {
             <h4 className="mb-1.5 text-[17px] tracking-wide group-active:dark:text-black">
               Create new group
             </h4>
-            <p className="text-gray-300 group-active:dark:text-black">
+            <p className="text-left text-gray-300 group-active:dark:text-black">
               Start a group from scratch
             </p>
           </div>
