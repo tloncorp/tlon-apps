@@ -7,8 +7,10 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import LargeTextInput from '@/components/FullsizeTextInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import LargePrimaryButton from '@/components/LargePrimaryButton';
+import Dialog from '@/components/Dialog';
+import { useDismissNavigate } from '@/logic/routing';
 
-export default function CreateGroup(props: { back: () => void }) {
+export function CreateGroupSheetView(props: { back: () => void }) {
   const { mutateAsync: createGroupMutation, isLoading } =
     useCreateGroupMutation();
   const { mutateAsync: createChannelMutation, isLoading: channelIsLoading } =
@@ -51,7 +53,8 @@ export default function CreateGroup(props: { back: () => void }) {
         writers: [],
       });
     } catch (error) {
-      console.log("Couldn't create group", error);
+      // eslint-disable-next-line no-console
+      console.error("Couldn't create group", error);
     }
   }, [createGroupMutation, input, shortCode, navigate, createChannelMutation]);
 
@@ -106,5 +109,112 @@ export default function CreateGroup(props: { back: () => void }) {
         </LargePrimaryButton>
       </div>
     </div>
+  );
+}
+
+export function CreateGroupDialog() {
+  const dismiss = useDismissNavigate();
+  const { mutateAsync: createGroupMutation, isLoading } =
+    useCreateGroupMutation();
+  const { mutateAsync: createChannelMutation, isLoading: channelIsLoading } =
+    useCreateMutation();
+  const navigate = useNavigate();
+  const [input, setInput] = useState('');
+  const shortCode = strToSym(input).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
+
+  const createGroup = useCallback(async () => {
+    if (!input || !shortCode) return;
+
+    try {
+      await createGroupMutation({
+        title: input,
+        description: '',
+        image: '#999999',
+        cover: '#D9D9D9',
+        name: shortCode,
+        members: {},
+        cordon: {
+          open: {
+            ships: [],
+            ranks: [],
+          },
+        },
+        secret: false,
+      });
+
+      const flag = `${window.our}/${shortCode}`;
+      navigate(`/groups/${flag}`);
+
+      const randomNumber = Math.floor(Math.random() * 10000);
+      await createChannelMutation({
+        kind: 'chat',
+        group: flag,
+        name: `welcome-${randomNumber}`,
+        title: 'Welcome',
+        description: 'Welcome to your new group!',
+        readers: [],
+        writers: [],
+      });
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Couldn't create group", error);
+    }
+  }, [createGroupMutation, input, shortCode, navigate, createChannelMutation]);
+
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      dismiss();
+    }
+  };
+
+  return (
+    <Dialog
+      className="flex h-[400px] w-[500px] flex-col items-start"
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+    >
+      <div className="mb-4 text-lg font-bold">
+        <h3 className="block">New Group</h3>
+      </div>
+
+      <div className="flex w-full flex-col pt-6">
+        <label className="text-small pb-3 text-gray-400">
+          Name your group, you can edit it later
+        </label>
+        <LargeTextInput
+          placeholder="Group name"
+          autoFocus
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+        />
+        <p className="text-small pt-4 text-gray-400">
+          Your <span className="text-black">public</span> group will live at:
+          <br />
+          {window.our}/
+          <span className="text-black">
+            {input !== '' ? shortCode : 'group-name'}
+          </span>
+        </p>
+        <p className="text-small pt-6 text-gray-400">
+          You can edit your group&apos;s privacy later.
+        </p>
+      </div>
+
+      <div className="mt-6 flex w-full grow items-center justify-center">
+        <LargePrimaryButton
+          disabled={input === '' || isLoading || channelIsLoading}
+          onClick={createGroup}
+        >
+          {isLoading || channelIsLoading ? (
+            <span className="flex w-full items-center justify-center">
+              <LoadingSpinner className="h-5 w-5" />
+            </span>
+          ) : (
+            'Create Group'
+          )}
+        </LargePrimaryButton>
+      </div>
+    </Dialog>
   );
 }

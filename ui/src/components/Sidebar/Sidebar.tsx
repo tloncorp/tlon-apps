@@ -6,6 +6,7 @@ import React, {
   useContext,
 } from 'react';
 import cn from 'classnames';
+import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
@@ -39,6 +40,10 @@ import ReconnectingSpinner from '../ReconnectingSpinner';
 import SystemChrome from './SystemChrome';
 import ActionMenu, { Action } from '../ActionMenu';
 import { DesktopUpdateButton } from '../UpdateNotices';
+import TlonIcon from '../icons/TlonIcon';
+import HomeIcon from '../icons/HomeIcon';
+import HomeIconMobileNav from '../icons/HomeIconMobileNav';
+import AddGroupSidebarItem from './AddGroupSidebarItem';
 
 export const GroupsAppMenu = React.memo(() => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -97,7 +102,7 @@ export const GroupsAppMenu = React.memo(() => {
         )}
         icon={
           <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
-            <AppGroupsIcon
+            <TlonIcon
               className={cn(
                 'h-6 w-6',
                 menuOpen ? 'hidden' : 'group-hover:hidden'
@@ -114,7 +119,7 @@ export const GroupsAppMenu = React.memo(() => {
         }
       >
         <div className="flex items-center justify-between">
-          Groups
+          Tlon
           <ReconnectingSpinner
             className={cn(
               'h-4 w-4 group-hover:hidden',
@@ -195,7 +200,26 @@ export default function Sidebar() {
         })}
       >
         <UpdateOrAppMenu />
-        <SystemChrome />
+
+        <AddGroupSidebarItem />
+
+        <SidebarItem
+          icon={<ActivityIndicator count={count} />}
+          to={`/notifications`}
+          defaultRoute
+        >
+          Activity
+        </SidebarItem>
+
+        <SidebarItem
+          highlight={shipColor}
+          icon={<Avatar size="xs" ship={window.our} />}
+          to={'/profile/edit'}
+        >
+          <ShipName showAlias name={window.our} />
+        </SidebarItem>
+
+        {/* <SystemChrome />
         <SidebarItem
           highlight={shipColor}
           icon={<Avatar size="xs" ship={window.our} />}
@@ -229,7 +253,7 @@ export default function Sidebar() {
           state={{ backgroundLocation: location }}
         >
           Create Group
-        </SidebarItem>
+        </SidebarItem> */}
       </div>
       <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
         <GroupsScrollingContext.Provider value={isScrolling}>
