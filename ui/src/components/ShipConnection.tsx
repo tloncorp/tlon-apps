@@ -1,5 +1,4 @@
 import cn from 'classnames';
-import React from 'react';
 import { useNegotiate } from '@/state/negotiation';
 import { ConnectionStatus } from '../state/vitals';
 import {
@@ -33,7 +32,7 @@ export default function ShipConnection({
   const color = isSelf
     ? 'text-green-400'
     : matchedOrPending
-      ? getConnectionColor(status) === 'yellow' && 'text-yellow-400'
+      ? getConnectionColor(status).dot
       : 'text-red-400';
   const text = isSelf
     ? 'This is you'

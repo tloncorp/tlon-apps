@@ -41,6 +41,7 @@ import {
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { Scope, VolumeValue } from '@/types/volume';
 import { decToUd } from '@urbit/api';
+import { useNewGroupFlags } from '../settings';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -464,6 +465,15 @@ export function useLoadingGroups() {
       (group && groupIsInitializing(group)) ||
       (gangs[flag] && gangs[flag].preview && gangIsJoining(gangs[flag]))
     );
+  });
+}
+
+export function useNewGroups() {
+  const groups = useGroups();
+  const newGroupFlags = useNewGroupFlags();
+
+  return Object.entries(groups).filter(([flag]) => {
+    return newGroupFlags.includes(flag);
   });
 }
 

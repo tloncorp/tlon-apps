@@ -458,6 +458,11 @@
     ?~  p.sign  cor
     %-  (slog leaf+"Failed to hark" u.p.sign)
     cor
+      [%contacts @ ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf+"Failed to add contacts" u.p.sign)
+    cor
   ::
       [=kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -814,7 +819,7 @@
         |=  up=(unit v-post:c)
         ?~  up  ~
         `author.u.up
-    (emit [%pass /contacts/join-heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed authors])])
+    (ca-heed authors)
   ::
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]
@@ -945,9 +950,11 @@
         (~(put ju diffs.future.channel) id-post u-post)
       ca-core
     ::
-    ?-    -.u-post
-        %reply  (ca-u-reply id-post u.u.post id.u-post u-reply.u-post)
+    ?-  -.u-post
+        %reply
+      (ca-u-reply id-post u.u.post id.u-post u-reply.u-post)
         %reacts
+      =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.u.post)))
       =/  merged  (ca-apply-reacts reacts.u.u.post reacts.u-post)
       ?:  =(merged reacts.u.u.post)  ca-core
       =.  posts.channel
@@ -955,12 +962,16 @@
       (ca-response %post id-post %reacts (uv-reacts:utils merged))
     ::
         %essay
+      =.  ca-core  (ca-heed ~[author.u.u.post])
       =^  changed  +.u.u.post  (apply-rev:c +.u.u.post +.u-post)
       ?.  changed  ca-core
       =.  posts.channel  (put:on-v-posts:c posts.channel id-post `u.u.post)
       (ca-response %post id-post %essay +>.u.u.post)
     ==
   ::
+  ++  ca-heed
+    |=  authors=(list ship)
+    (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed authors])])
   ++  ca-u-reply
     |=  [=id-post:c post=v-post:c =id-reply:c =u-reply:c]
     ^+  ca-core
@@ -982,10 +993,12 @@
       =*  new  u.reply.u-reply
       =/  merged  (need (ca-apply-reply id-reply `old `new))
       ?:  =(merged old)  ca-core
+      =.  ca-core  (ca-heed ~[author.new])
       (put-reply `merged %set `(uv-reply:utils id-post merged))
     ::
     ?~  reply  ca-core
     ::
+    =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.u.reply)))
     =/  merged  (ca-apply-reacts reacts.u.u.reply reacts.u-reply)
     ?:  =(merged reacts.u.u.reply)  ca-core
     (put-reply `u.u.reply(reacts merged) %reacts (uv-reacts:utils merged))

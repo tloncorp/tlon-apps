@@ -31,7 +31,6 @@ import {
   PostDataResponse,
   ChannelScan,
   ChannelScanItem,
-  ReferenceResponse,
   ReplyTuple,
   newChatMap,
   HiddenPosts,
@@ -43,11 +42,19 @@ import { checkNest, log, nestToFlag } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
-import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import {
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+  LARGE_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import channelKey, { ChannnelKeys } from './keys';
+import { isNativeApp } from '@/logic/native';
+import { channelKey } from './keys';
+
+const POST_PAGE_SIZE = isNativeApp()
+  ? STANDARD_MESSAGE_FETCH_PAGE_SIZE
+  : LARGE_MESSAGE_FETCH_PAGE_SIZE;
 
 async function updatePostInCache(
   variables: { nest: Nest; postId: string },
@@ -194,7 +201,7 @@ export function usePostsOnHost(
   const { data } = useReactQueryScry({
     queryKey: [han, 'posts', 'live', flag],
     app: 'channels',
-    path: `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/${nest}/posts/newest/${STANDARD_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
     options: {
       cacheTime: 0,
@@ -214,11 +221,7 @@ export function usePostsOnHost(
   return data as Posts;
 }
 
-const infinitePostUpdater = (
-  queryKey: QueryKey,
-  data: ChannelsResponse,
-  initialTime?: string
-) => {
+const infinitePostUpdater = (queryKey: QueryKey, data: ChannelsResponse) => {
   const { nest, response } = data;
 
   if (!('post' in response)) {
@@ -608,7 +611,7 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
       app: 'channels',
       path: `/${nest}`,
       event: (data: ChannelsResponse) => {
-        infinitePostUpdater(queryKey, data, initialTime);
+        infinitePostUpdater(queryKey, data);
         invalidate.current(data);
       },
     });
@@ -622,13 +625,13 @@ export function useInfinitePosts(nest: Nest, initialTime?: string) {
       if (pageParam) {
         const { time, direction } = pageParam;
         const ud = decToUd(time);
-        path = `/${nest}/posts/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
       } else if (initialTime) {
         path = `/${nest}/posts/around/${decToUd(initialTime)}/${
-          INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
+          POST_PAGE_SIZE / 2
         }/outline`;
       } else {
-        path = `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
       }
 
       const response = await api.scry<PagedPosts>({
@@ -743,7 +746,7 @@ export async function prefetchPostWithComments({
 export function useReplyPost(nest: Nest, id: string | null) {
   const { posts } = useInfinitePosts(nest);
 
-  return id && posts.find(([k, v]) => k.eq(bigInt(id)));
+  return id && posts.find(([k, _v]) => k.eq(bigInt(id)));
 }
 
 export function useOrderedPosts(
@@ -848,7 +851,10 @@ export function useChannels(): Channels {
       const { nest } = event;
       const [han, flag] = nestToFlag(nest);
       const infinitePostQueryKey = [han, 'posts', flag, 'infinite'];
-      infinitePostUpdater(infinitePostQueryKey, event);
+      const existingQueryData = queryClient.getQueryData(infinitePostQueryKey);
+      if (existingQueryData) {
+        infinitePostUpdater(infinitePostQueryKey, event);
+      }
     }
 
     invalidate.current(event);
@@ -1122,7 +1128,7 @@ export function useRemotePost(
   replyId?: string
 ) {
   checkNest(nest);
-  const [han, flag] = nestToFlag(nest);
+  const [han, _flag] = nestToFlag(nest);
   const path = `/said/${nest}/post/${decToUd(id)}${
     replyId ? `/${decToUd(replyId)}` : ''
   }`;
@@ -1363,6 +1369,7 @@ export function useAddPostMutation(nest: string) {
               resolve(timePosted);
             });
         } catch (e) {
+          // eslint-disable-next-line no-console
           console.error(e);
         }
       }),
@@ -1422,7 +1429,7 @@ export function useAddPostMutation(nest: string) {
       }
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
-    onError: async (_error, variables, context) => {
+    onError: async (_error, variables) => {
       usePostsStore.setState((state) => ({
         ...state,
         trackedPosts: state.trackedPosts.filter(

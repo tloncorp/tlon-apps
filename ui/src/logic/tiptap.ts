@@ -1,4 +1,12 @@
-import _ from 'lodash';
+import { reduce, isEqual } from 'lodash';
+import { JSONContent } from '@tiptap/react';
+import {
+  Editor,
+  Extension,
+  KeyboardShortcutCommand,
+  PasteRule,
+} from '@tiptap/core';
+import { deSig } from '@urbit/api';
 import {
   Inline,
   InlineKey,
@@ -12,23 +20,7 @@ import {
   Link,
   Task,
 } from '@/types/content';
-import { reduce, isEqual } from 'lodash';
-import { JSONContent } from '@tiptap/react';
-import {
-  Editor,
-  Extension,
-  KeyboardShortcutCommand,
-  PasteRule,
-} from '@tiptap/core';
-import { deSig } from '@urbit/api';
-import {
-  Block,
-  Story,
-  Listing,
-  HeaderLevel,
-  isCite,
-  Cite,
-} from '@/types/channel';
+import { Block, Story, Listing, HeaderLevel, Cite } from '@/types/channel';
 import { citeToPath, getFirstInline, pathToCite, preSig } from './utils';
 
 export interface EditorOnUpdateProps {
@@ -91,7 +83,7 @@ export function tipTapToString(json: JSONContent): string {
   }
 
   if (json.marks && json.marks.length > 0) {
-    const first = _.first(json.marks);
+    const first = json.marks[0];
 
     if (!first) {
       throw new Error('Unsure what this is');
@@ -101,7 +93,9 @@ export function tipTapToString(json: JSONContent): string {
       return first.attrs.href;
     }
 
-    return tipTapToString(json);
+    const jsonWithoutMarks = { ...json };
+    delete jsonWithoutMarks.marks;
+    return tipTapToString(jsonWithoutMarks);
   }
 
   return json.text || '';
