@@ -120,7 +120,7 @@ export default function DmOptions({
   };
 
   const handlePin = useCallback(
-    async (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
       e.stopPropagation();
       const isPinned = pinned.includes(whom);
       if (isPinned) {

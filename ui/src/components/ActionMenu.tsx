@@ -14,7 +14,7 @@ export type ActionType =
 export interface Action {
   key: string;
   type?: ActionType;
-  onClick?: React.MouseEventHandler<HTMLDivElement>;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   content: ReactNode;
   keepOpenOnClick?: boolean;
   containerClassName?: string;
@@ -82,7 +82,7 @@ const ActionMenu = React.memo(
               <Drawer.Overlay className="fixed inset-0 z-[49] bg-black/20" />
               <Drawer.Content className="fixed bottom-0 z-[49] flex w-full flex-col rounded-t-[32px] bg-white px-[24px] pb-8 pt-4 after:!bg-transparent">
                 {actions.map((action) => (
-                  <div
+                  <button
                     key={action.key}
                     onClick={
                       action.keepOpenOnClick
@@ -97,13 +97,14 @@ const ActionMenu = React.memo(
                       action.containerClassName,
                       'select-none rounded-xl px-6 py-4'
                     )}
+                    disabled={action.type === 'disabled'}
                   >
                     {typeof action.content === 'string' ? (
                       <span>{action.content}</span>
                     ) : (
                       action.content
                     )}
-                  </div>
+                  </button>
                 ))}
               </Drawer.Content>
             </Drawer.Portal>
@@ -130,7 +131,14 @@ const ActionMenu = React.memo(
                   asChild
                   key={action.key}
                   disabled={action.type === 'disabled'}
-                  onClick={action.onClick}
+                  onSelect={(event: Event) =>
+                    action.onClick?.(
+                      event as unknown as React.MouseEvent<
+                        HTMLButtonElement,
+                        MouseEvent
+                      >
+                    )
+                  }
                   className={cn(
                     classNameForType(action.type),
                     action.containerClassName
