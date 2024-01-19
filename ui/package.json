@@ -242,7 +242,7 @@
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-visualizer": "^5.6.0",
     "tailwindcss": "^3.2.7",
-    "tailwindcss-theme-swapper": "^0.10.0",
+    "tailwindcss-theme-swapper": "^0.9.0",
     "tar-fs": "^3.0.4",
     "tsc-files": "^1.1.3",
     "typescript": "^4.6.3",
