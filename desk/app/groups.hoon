@@ -1,6 +1,4 @@
 /-  g=groups, ha=hark, h=heap, d=channels, c=chat
-/-  g-one=group
-/-  m-one=metadata-store
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
@@ -104,8 +102,6 @@
       %reset-all-perms  reset-all-perms
       %verify-cabals  verify-cabals
     ==
-  ::
-      %group-import  (import-groups !<(imports:g vase))
   ::
       %reset-group-perms
     =+  !<(=flag:g vase)
@@ -645,164 +641,6 @@
     =/  cage  group-invite+!>(`invite:g`[flag ship])
     =/  line  `wire`/gangs/(scot %p p.flag)/[q.flag]/invite
     [%pass line %agent [ship dap.bowl] %poke cage]
-::
-++  import-groups
-  |=  =imports:g
-  ^+  cor
-  =/  imports  ~(tap by imports)
-  |-
-  ?~  imports  cor
-  =.  cor  (import-group i.imports)
-  $(imports t.imports)
-::
-++  import-group
-  |=  $:  =flag:g
-          =association:met:g
-          chan=(map flag:g association:met:g)
-          roles=(set flag:g)
-          =group:old:g
-      ==
-  |^
-  =/  [cabals=(map sect:g cabal:g) members=(jug ship sect:g)]
-    %+  roll  ~(tap by roles)
-    |=  [=flag:g cabals=(map sect:g cabal:g) members=(jug ship sect:g)]
-    ^-  [(map sect:g cabal:g) (jug ship sect:g)]
-    =/  =sect:g  (sect-for-flag flag)
-    :_  (~(put ju members) p.flag sect)
-    %+  ~(put by cabals)  sect
-    ?~  ass=(~(get by chan) flag)
-      *cabal:g
-    :_  ~
-    :*  (rap 3 'Writers: ' title.metadatum.u.ass ~)
-        (rap 3 'The writers role for the ' title.metadatum.u.ass ' channel' ~)
-        ''
-        ''
-    ==
-  =/  =channels:channel:g
-    %-  ~(gas by *channels:channel:g)
-    %+  murn  ~(tap by chan)
-    |=  [=flag:g =association:met:g]
-    ^-  (unit [nest:g channel:g])
-    ?~  dud=(graph-meta-to-agent metadatum.association)
-      ~
-    :-  ~
-    :-  [u.dud flag]
-    ^-  channel:g
-    :*  (old-assoc-to-new-meta association)
-        date-created.metadatum.association
-        %default
-        |
-        ::
-        ^-  (set sect:g)
-        ?.  (~(has in roles) flag)  ~
-        (silt (sect-for-flag flag) ~)
-    ==
-  =|  zones=(map zone:g realm:zone:g)
-  =|  zone-ord=(list zone:g)
-  =|  bloc=(set sect:g)  :: admin perms set up in +go-init at end
-  =/  =cordon:g  (policy-to-cordon policy.group)
-  =/  meta=data:meta
-    (old-assoc-to-new-meta association)
-  =/  =fleet:g
-    %-  ~(gas by *fleet:g)
-    %+  turn  ~(tap in members.group)
-    |=  =ship
-    ^-  [_ship vessel:fleet:g]
-    [ship (~(get ju members) ship) now.bowl]
-  =/  admins=(set ship)  (~(get ju tags.group) %admin)
-  =/  =group:g
-    :*  fleet
-        cabals
-        zones
-        zone-ord
-        bloc
-        channels
-        ~(key by channels)
-        cordon
-        =(%invite -.policy.group)
-        meta
-    ==
-  =/  =net:g
-    ?:  =(p.flag our.bowl)
-      pub/(put:log-on:g *log:g import-epoch create/group)
-    [%sub (sub import-epoch ~d1) | chi/~]
-  =.  groups  (~(put by groups) flag [net group])
-  =.  shoal
-    %-  ~(gas by shoal)
-    %+  turn  ~(tap in imported.group)
-    |=(=nest:g [q p]:nest)
-  go-abet:(go-init:(go-abed:group-core flag) admins) :: setup defaults
-  ::
-  ++  sect-for-flag
-    |=  =flag:g
-    `sect:g`(rap 3 'import/' (scot %p p.flag) '/' q.flag ~)
-  ::
-  ++  graph-mark-to-agent
-  |=  =mark
-  ^-  (unit term)
-  ?+  mark  ~
-    %graph-validator-chat     `%chat
-    %graph-validator-link     `%heap
-    %graph-validator-publish  `%diary
-  ==
-  ::
-  ++  graph-meta-to-agent
-    |=  =metadatum:m-one
-    ^-  (unit dude:gall)
-    ?.  ?=(%graph -.config.metadatum)
-      ~
-    ?+  module.config.metadatum  ~
-      %chat  `%chat
-      %link  `%heap
-      %publish   `%diary  :: TODO
-    ==
-  ::
-  ++  old-assoc-to-new-meta
-   |=  =association:m-one
-   (old-to-new-meta metadatum.association)
-  ::
-  ++  get-hex
-    |=  =color:m-one
-    (crip (welp ~['#'] (trip (en:base16:mimes:html 3 color))))
-  ++  old-to-new-meta
-    |=  =metadatum:m-one
-    ^-  data:meta
-    =,(metadatum [title description picture (get-hex color)])
-  ::
-  ++  policy-to-cordon
-    |=  =policy:g-one
-    ^-  cordon:g
-    ?-    -.policy
-        %open
-      [%open banned ban-ranks]:policy
-    ::
-        %invite
-      [%shut pending.policy ~]
-    ==
-  ::
-  ++  scry
-    |=  [care=@tas =dude:gall =path]
-    ^+  path
-    :*  care
-        (scot %p our.bowl)
-        dude
-        (scot %da now.bowl)
-        path
-    ==
-  ::
-  ++  old-flag-path
-    `path`/ship/(scot %p p.flag)/[q.flag]
-  ::
-  ++  scry-group
-    =-  .^((unit group:g-one) -)
-    %^  scry  %gx  %group-store
-    `path`[%groups (snoc old-flag-path %noun)]
-  ::
-  ++  scry-meta
-    =-  .^(associations:m-one -)
-    %^  scry  %gx  %metadata-store
-    `path`[%group (snoc old-flag-path %noun)]
-  --
 ::
 ++  group-core
   |_  [=flag:g =net:g =group:g gone=_|]

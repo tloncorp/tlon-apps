@@ -796,18 +796,6 @@
     ==
   ++  he-pass
     |%
-    ++  writer-sect
-      |=  [ships=(set ship) =association:met:h]
-      =/  =sect:g
-        (rap 3 %heap '-' (scot %p p.flag) '-' q.flag ~)
-      =/  title=@t
-        (rap 3 'Writers: ' title.metadatum.association ~)
-      =/  desc=@t
-        (rap 3 'The writers role for the ' title.metadatum.association ' chat' ~)
-      %+  poke-group  %import-writers
-      :+  group.association   now.bowl
-      [%cabal sect %add title desc '' '']
-    ::
     ++  poke-group
       |=  [=term =action:g]
       ^+  he-core

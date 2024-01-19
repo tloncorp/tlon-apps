@@ -1,4 +1,4 @@
-/-  hark=hark-store, resource, graph-store
+/-  hark=hark-store, resource
 |%
 +$  provider-action
   $%  [%add service=term notify=@t binding=@t auth-token=@t =whitelist]

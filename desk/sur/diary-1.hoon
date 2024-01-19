@@ -1,7 +1,5 @@
-/-  g=groups, c=cite, graph-store, e=epic
+/-  g=groups, c=cite, e=epic
 /-  zer=diary-0
-/-  metadata-store
-/+  lib-graph=graph-store
 |%
 ++  old
   |%
@@ -323,12 +321,4 @@
       readers=(set sect:g)
       writers=(set sect:g)
   ==
-+$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
-::
-+$  imports  (map flag import)
-::
-++  gra  graph-store
-++  orm-gra  orm:lib-graph
-++  orm-log-gra  orm-log:lib-graph
-++  met  metadata-store
 --
