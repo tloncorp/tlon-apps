@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import cookies from 'browser-cookies';
 import { Outlet, useMatch, useNavigate } from 'react-router';
 import _ from 'lodash';
@@ -19,6 +19,7 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { canReadChannel } from '@/logic/channel';
+import { useNewGroupFlags, usePutEntryMutation } from '@/state/settings';
 
 function Groups() {
   const navigate = useNavigate();
@@ -32,6 +33,11 @@ function Groups() {
   const unreads = useUnreads();
   const connection = useGroupConnection(flag);
   const vessel = useVessel(flag, window.our);
+  const newGroupFlags = useNewGroupFlags();
+  const { mutate: setNewGroupFlags } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'newGroupFlags',
+  });
   const isMobile = useIsMobile();
   const root = useMatch({
     path: '/groups/:ship/:name',
@@ -108,6 +114,16 @@ function Groups() {
     navigate,
     hasUsedGroupsCount,
   ]);
+
+  useEffect(() => {
+    if (newGroupFlags.includes(flag)) {
+      try {
+        setNewGroupFlags({ val: newGroupFlags.filter((f) => f !== flag) });
+      } catch (e) {
+        console.error('Error clearing new group status', e);
+      }
+    }
+  }, [newGroupFlags, flag, setNewGroupFlags]);
 
   useGroupsAnalyticsEvent({
     name: 'open_group',

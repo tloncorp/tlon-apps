@@ -102,6 +102,7 @@ export interface SettingsState {
     logActivity?: boolean;
     analyticsId?: string;
     seenWelcomeCard?: boolean;
+    newGroupFlags: string[];
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -502,6 +503,18 @@ export function useSeenWelcomeCard() {
     }
 
     return data.groups.seenWelcomeCard ?? false;
+  }, [isLoading, data]);
+}
+
+export function useNewGroupFlags() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      return [];
+    }
+
+    return data.groups.newGroupFlags ?? [];
   }, [isLoading, data]);
 }
 

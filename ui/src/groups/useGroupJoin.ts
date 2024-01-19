@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useModalNavigate, useDismissNavigate } from '@/logic/routing';
@@ -13,6 +13,7 @@ import {
 import { Gang, Group, PrivacyType } from '@/types/groups';
 import useNavigateByApp from '@/logic/useNavigateByApp';
 import { useSawRopeMutation } from '@/state/hark';
+import { useNewGroupFlags, usePutEntryMutation } from '@/state/settings';
 
 function getButtonText(
   privacy: PrivacyType,
@@ -48,7 +49,7 @@ export default function useGroupJoin(
   const navigateByApp = useNavigateByApp();
   const modalNavigate = useModalNavigate();
   const dismiss = useDismissNavigate();
-  const group = useGroup(flag, modalIsOpen);
+  const group = useGroup(flag, inModal);
   const { privacy } = useGroupPrivacy(flag);
   const requested = gang?.claim?.progress === 'knocking';
   const invited = gang?.invite;
@@ -60,6 +61,12 @@ export default function useGroupJoin(
   const { mutate: rejectMutation, status: rejectStatus } =
     useGroupRejectMutation();
   const { mutate: sawRopeMutation } = useSawRopeMutation();
+  const newGroupFlags = useNewGroupFlags();
+  const [newlyJoined, setNewlyJoined] = useState(false);
+  const { mutate: setNewGroupFlags } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'newGroupFlags',
+  });
 
   const open = useCallback(() => {
     if (group && !groupIsInitializing(group)) {
@@ -90,6 +97,10 @@ export default function useGroupJoin(
 
       try {
         joinMutation({ flag, privacy });
+        setNewlyJoined(true);
+        if (!newGroupFlags.includes(flag)) {
+          setNewGroupFlags({ val: [...newGroupFlags, flag] });
+        }
       } catch (e) {
         if (requested) {
           rescindMutation({ flag });
@@ -111,6 +122,8 @@ export default function useGroupJoin(
     rescindMutation,
     rejectMutation,
     sawRopeMutation,
+    newGroupFlags,
+    setNewGroupFlags,
   ]);
 
   const reject = useCallback(async () => {
@@ -173,6 +186,7 @@ export default function useGroupJoin(
     dismiss,
     open,
     join,
+    newlyJoined,
     status,
     rejectStatus,
     knockStatus,

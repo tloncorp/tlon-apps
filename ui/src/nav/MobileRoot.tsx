@@ -1,13 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import useGroupSort from '@/logic/useGroupSort';
 import {
-  useGangList,
   useLoadingGroups,
   useGangsWithClaim,
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
+  useNewGroups,
 } from '@/state/groups';
 import { usePinnedGroups } from '@/state/pins';
 import GroupList from '@/components/Sidebar/GroupList';
@@ -22,18 +21,19 @@ import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import GroupJoinList from '@/groups/GroupJoinList';
 import NavigateIcon from '@/components/icons/NavigateIcon';
 import WelcomeCard from '@/components/WelcomeCard';
-import { isNativeApp } from '@/logic/native';
+import AddGroupSheet from '@/groups/AddGroupSheet';
 
 export default function MobileRoot() {
   const [isScrolling, setIsScrolling] = useState(false);
+  const [addGroupOpen, setAddGroupOpen] = useState(false);
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
   );
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
-  const gangs = useGangList();
   const pinnedGroups = usePinnedGroups();
   const pendingGangs = usePendingGangsWithoutClaim();
   const loadingGroups = useLoadingGroups();
+  const newGroups = useNewGroups();
   const gangsWithClaims = useGangsWithClaim();
   const { data: groups, isLoading } = useGroupsWithQuery();
   const sortedGroups = sortGroups(groups);
@@ -45,9 +45,18 @@ export default function MobileRoot() {
     [pinnedGroups]
   );
 
+  const newGroupsOptions = useMemo(
+    () =>
+      newGroups.map(([flag]) => (
+        <GroupsSidebarItem key={flag} flag={flag} isNew />
+      )),
+    [newGroups]
+  );
+
   const hasPinnedGroups = !!pinnedGroupsOptions.length;
   const hasLoadingGroups = !!loadingGroups.length;
   const hasGangsWithClaims = !!gangsWithClaims.length;
+  const hasNewGroups = !!newGroups.length;
   const hasPendingGangs = Object.keys(pendingGangs).length > 0;
 
   return (
@@ -64,12 +73,9 @@ export default function MobileRoot() {
                 setSortFn={setSortFn}
                 sortOptions={sortOptions}
               />
-              <Link
-                className="default-focus flex text-base"
-                to="/groups/new-mobile"
-              >
+              <button onClick={() => setAddGroupOpen(true)}>
                 <AddIconMobileNav className="h-8 w-8 text-black" />
-              </Link>
+              </button>
             </div>
           }
         />
@@ -89,39 +95,43 @@ export default function MobileRoot() {
               <GroupList
                 groups={sortedGroups}
                 pinnedGroups={Object.entries(pinnedGroups)}
+                newGroups={newGroups}
                 loadingGroups={loadingGroups}
                 isScrolling={scroll.current}
               >
-                {hasPinnedGroups || hasPendingGangs || hasLoadingGroups ? (
+                {hasPinnedGroups ||
+                hasPendingGangs ||
+                hasGangsWithClaims ||
+                hasLoadingGroups ||
+                hasNewGroups ? (
                   <>
-                    {hasPinnedGroups ? (
-                      <div className="px-4">
-                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                          Pinned
-                        </h2>
-                        {pinnedGroupsOptions}
-                      </div>
-                    ) : null}
+                    <div className="px-4">
+                      {hasPinnedGroups ? (
+                        <>
+                          <h2 className="mb-0.5 p-2 font-sans text-gray-400">
+                            Pinned
+                          </h2>
+                          {pinnedGroupsOptions}
 
-                    {(hasLoadingGroups || hasGangsWithClaims) && (
-                      <div className="px-4">
-                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                          Pending
-                        </h2>
-                        {hasLoadingGroups &&
-                          loadingGroups.map(([flag, _]) => (
-                            <GangItem key={flag} flag={flag} isJoining />
-                          ))}
-                        {hasGangsWithClaims &&
-                          gangsWithClaims.map((flag) => (
-                            <GangItem key={flag} flag={flag} />
-                          ))}
-                      </div>
-                    )}
+                          <h2 className="my-2 p-2 font-sans text-gray-400">
+                            All Groups
+                          </h2>
+                        </>
+                      ) : null}
 
-                    <h2 className="my-2 ml-2 p-2 pl-4 font-sans text-gray-400">
-                      All Groups
-                    </h2>
+                      {hasLoadingGroups &&
+                        loadingGroups.map(([flag, _]) => (
+                          <GangItem key={flag} flag={flag} isJoining />
+                        ))}
+
+                      {hasGangsWithClaims &&
+                        gangsWithClaims.map((flag) => (
+                          <GangItem key={flag} flag={flag} />
+                        ))}
+
+                      {hasNewGroups && newGroupsOptions}
+                    </div>
+
                     {hasPendingGangs && (
                       <GroupJoinList highlightAll gangs={pendingGangs} />
                     )}
@@ -130,6 +140,7 @@ export default function MobileRoot() {
               </GroupList>
             </GroupsScrollingContext.Provider>
           )}
+          <AddGroupSheet open={addGroupOpen} onOpenChange={setAddGroupOpen} />
         </div>
       </nav>
     </Layout>
