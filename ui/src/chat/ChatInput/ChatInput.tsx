@@ -25,6 +25,7 @@ import MessageEditor, {
 import Avatar from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
+import MenuIcon from '@/components/icons/MenuIcon';
 import {
   chatStoreLogger,
   fetchChatBlocks,
@@ -63,6 +64,8 @@ import { CacheId } from '@/state/channel/channel';
 import { WritDelta, WritTuple } from '@/types/dms';
 import messageSender from '@/logic/messageSender';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+
+import CanvasDraw from "@win11react/react-canvas-draw";
 
 interface ChatInputProps {
   whom: string;
@@ -177,6 +180,8 @@ export default function ChatInput({
   const shipIsBlocked = useIsShipBlocked(whom);
   const shipHasBlockedUs = useShipHasBlockedUs(whom);
   const { mutate: unblockShip } = useUnblockShipMutation();
+  const [canvas, setCanvas] = useState(null);
+  const [showCanvas, setShowCanvas] = useState(false);
 
   const handleUnblockClick = useCallback(() => {
     unblockShip({
@@ -313,11 +318,30 @@ export default function ChatInput({
 
       const blocks = fetchChatBlocks(id);
       if (
+        !showCanvas &&
         !editor.getText() &&
         !blocks.length &&
         !replyCite &&
         chatInfo.blocks.length === 0
       ) {
+        return;
+      }
+
+      if (showCanvas) {
+        canvas.canvas.drawing.toBlob(blob => {
+          console.log('try uploading this blob:', blob);
+          const localUploader = useFileStore.getState().getUploader(uploadKey);
+          if (localUploader) {
+            localUploader.uploadFiles([new File([blob], 'pictochat.png')]);
+            console.log('started the upload, maybe?');
+            setShowCanvas(false);
+            //TODO  only once we know upload has succeeded,
+            //      don't if we show an upload error or w/e
+            // onSubmit(editor);
+          } else {
+            console.log('failed to construct localUploader');
+          }
+        });
         return;
       }
 
@@ -354,6 +378,9 @@ export default function ChatInput({
       }, 0);
     },
     [
+      uploadKey,
+      canvas,
+      showCanvas,
       whom,
       groupFlag,
       privacy,
@@ -639,6 +666,11 @@ export default function ChatInput({
             </button>
           </div>
         ) : null}
+        {showCanvas ? (
+          <div className="mb-4 flex items-center justify-start font-semibold">
+            <CanvasDraw ref={setCanvas} canvasWidth={800} canvasHeight={300} />
+          </div>
+        ) : null}
         {showReply && ship && replyingWrit ? (
           <div className="mb-4 flex items-center justify-start font-semibold">
             <span className="text-gray-600">Replying to</span>
@@ -664,6 +696,13 @@ export default function ChatInput({
               )}
             />
           )}
+          <button
+            title={'pictochat mode'}
+            className="absolute bottom-2 mr-8 text-grey-600"
+            onClick={() => setShowCanvas(!showCanvas)}
+          >
+            <MenuIcon className="h-4 w-4" />
+          </button>
           {uploader && !uploadError && mostRecentFile?.status !== 'loading' ? (
             <button
               title={'Upload an image'}
@@ -690,12 +729,14 @@ export default function ChatInput({
       <button
         className={cn('button px-2')}
         disabled={
+          !showCanvas && (
           sendDisabled ||
           mostRecentFile?.status === 'loading' ||
           mostRecentFile?.status === 'error' ||
           mostRecentFile?.url === '' ||
           !messageEditor ||
           (messageEditor?.getText() === '' && chatInfo.blocks.length === 0)
+          )
         }
         onMouseDown={(e) => {
           e.preventDefault();

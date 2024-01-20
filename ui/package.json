@@ -108,6 +108,7 @@
     "@urbit/aura": "^1.0.0",
     "@urbit/http-api": "^3.0.0",
     "@urbit/sigil-js": "^2.1.0",
+    "@win11react/react-canvas-draw": "^1.2.2",
     "any-ascii": "^0.3.1",
     "big-integer": "^1.6.51",
     "browser-cookies": "^1.2.0",
