@@ -42,7 +42,7 @@ function ChatSearchResult({
   }, [writ, time]);
   const isReply = 'parent-id' in writ.seal;
   const replyScrollTo =
-    isReply && 'time' in writ.seal ? `?thread-msg=${writ.seal.time}` : '';
+    isReply && 'time' in writ.seal ? `?reply=${writ.seal.time}` : '';
   const scrollTo = `?msg=${postId}`;
   const to = isReply
     ? `${root}/message/${postId}${replyScrollTo}`

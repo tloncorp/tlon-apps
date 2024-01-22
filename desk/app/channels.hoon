@@ -1080,29 +1080,18 @@
         ca-core
       ::  we want to be notified if we were mentioned in the post
       ::
+      =/  =rope:ha  (ca-rope -.kind-data.post id-post ~)
       ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
-          ca-core
-        =/  =path
-          ?-    -.kind-data.post
-            %diary  /note/(rsh 4 (scot %ui id-post))
-            %heap   /curio/(rsh 4 (scot %ui id-post))
-            %chat   /message/(rsh 4 (scot %ui id-post))
-          ==
+          ca-core        
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin path cs ~)))
+        (emit (pass-hark (ca-spin rope cs ~)))
       ::
       ?:  (want-hark %any)
-        =/  =path
-          ?-    -.kind-data.post
-            %diary  /note/(rsh 4 (scot %ui id-post))
-            %heap   /curio/(rsh 4 (scot %ui id-post))
-            %chat   /message/(rsh 4 (scot %ui id-post))
-          ==
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' sent a message: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin path cs ~)))
+        (emit (pass-hark (ca-spin rope cs ~)))
       ca-core
     ::
     ++  on-reply
@@ -1134,13 +1123,8 @@
       ::
       =;  cs=(unit (list content:ha))
         ?~  cs  ca-core
-        =/  =path
-          ?-    -.kind-data.post
-            %diary  /note/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
-            %heap   /curio/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
-            %chat   /message/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
-          ==
-        (emit (pass-hark (ca-spin path u.cs ~)))
+        =/  =rope:ha  (ca-rope -.kind-data.post id-post `id.reply)
+        (emit (pass-hark (ca-spin rope u.cs ~)))
       ::  notify because we wrote the post the reply responds to
       ::
       ?:  =(author.post our.bowl)
@@ -1207,16 +1191,30 @@
       ==
     --
   ::
-  ::  convert content into a full yarn suitable for hark
-  ::
-  ++  ca-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
-    ^-  new-yarn:ha
+  ++  ca-rope
+    |=  [=kind:c =id-post:c id-reply=(unit id-reply:c)]
+    ^-  rope:ha
+    =/  =path
+      ?-    kind
+        %diary  /note/(rsh 4 (scot %ui id-post))
+        %heap   /curio/(rsh 4 (scot %ui id-post))
+        %chat   /message/(rsh 4 (scot %ui id-post))
+      ==
+    =/  rest
+      ?~  id-reply  path
+      (snoc path (rsh 4 (scot %ui u.id-reply)))
     =*  group  group.perm.perm.channel
     =/  gn=nest:g  nest
     =/  thread  (welp /[kind.nest]/(scot %p ship.nest)/[name.nest] rest)
-    =/  rope  [`group `gn q.byk.bowl thread]
-    =/  link  (welp /groups/(scot %p p.group)/[q.group]/channels thread)
+    [`group `gn q.byk.bowl thread]
+  ::
+  ::  convert content into a full yarn suitable for hark
+  ::
+  ++  ca-spin
+    |=  [=rope:ha con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
+    =*  group  group.perm.perm.channel
+    =/  link  (welp /groups/(scot %p p.group)/[q.group]/channels ted.rope)
     [& & rope con link but]
   ::
   ::  give a "response" to our subscribers
@@ -1275,6 +1273,11 @@
     ?+    pole  [~ ~]
         [%posts rest=*]  (ca-peek-posts rest.pole)
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
+        [%hark %rope post=@ ~]
+      ``noun+!>((ca-rope kind.nest (slav %ud post.pole) ~))
+        [%hark %rope post=@ reply=@ ~]
+      :^  ~  ~  %noun  !>
+      (ca-rope kind.nest (slav %ud post.pole) `(slav %ud reply.pole))
         [%search %text skip=@ count=@ nedl=@ ~]
       :^  ~  ~  %channel-scan  !>
       %^    text:ca-search

@@ -51,7 +51,7 @@ export default function DMUnreadAlerts({ whom, root }: DMUnreadAlertsProps) {
   let date = new Date();
   if (hasThreadUnreads && threadIsOlder) {
     const [id, thread] = oldestThread!;
-    to = `${root}/message/${id}?thread-msg=${thread.time}`;
+    to = `${root}/message/${id}?reply=${thread.time}`;
     date = new Date(daToUnix(bigInt(thread.time)));
   } else {
     to = `${root}?msg=${mainChat!.time}`;

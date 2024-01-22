@@ -65,6 +65,7 @@
       %meta     (meta p.d)
       %secret   b/p.d
       %del      ~
+      %flag-content  (flag-content +:d)
     ==
   ::
   ++  zone-diff
@@ -148,6 +149,18 @@
       %del-sects  a/(turn ~(tap in sects.d) (lead %s))
     ==
   ::
+  ++  flag-content
+    |=  [n=nest:g =post-key:g src=@p]
+    %-  pairs
+    :~  nest/s/(nest n)
+        src/(ship src)
+        :-  %post
+        %-  pairs
+        :~  post/(time-id post.post-key)
+            reply/?~(reply.post-key ~ (time-id u.reply.post-key))
+        ==
+    ==
+  ::
   ++  groups
     |=  gs=groups:g
     %-  pairs
@@ -215,6 +228,7 @@
         cordon/(cordon cordon.gr)
         meta/(meta meta.gr)
         secret/b/secret.gr
+        flagged-content/(flagged-content flagged-content.gr)
     ==
   ::
   ++  group-ui
@@ -230,6 +244,7 @@
         meta/(meta meta.gr)
         secret/b/secret.gr
         saga/?~(saga.gr ~ (saga u.saga.gr))
+        flagged-content/(flagged-content flagged-content.gr)
     ==
   ::
   ++  fleet
@@ -340,6 +355,42 @@
       [%chat %ship *]  (scot %p p.whom.w)
       [%chat %club *]  (scot %uv p.whom.w)
     ==
+  ++  flagged-content
+    |=  fc=flagged-content:g
+    =-  
+      %-  pairs
+      %+  turn  ~(tap by -)
+      |=  [n=nest:g posts=(map ^time flagged-data)]
+      :-  (nest n)
+      ::  object so we can easily check if it's in the set
+      %-  pairs
+      %+  turn  ~(tap by posts)
+      |=  [post=^time data=flagged-data]
+      :-  `@t`(rsh 4 (scot %ui post))
+      %-  pairs
+      :~  flagged/b/flagged.data
+          flaggers/a/(turn ~(tap in flaggers.data) ship)
+          :-  %replies
+          %-  pairs
+          %+  turn  ~(tap by replies.data)
+          |=  [reply=^time =flaggers:g]
+          :-  `@t`(rsh 4 (scot %ui reply))
+          a/(turn ~(tap in flaggers) ship)
+      ==
+    %-  ~(run by fc)
+    |=  flags=(map post-key:g flaggers:g)
+    %+  roll  ~(tap by flags)
+    |=  [[pk=post-key:g flaggers=(set @p)] new-posts=(map ^time flagged-data)]
+    ^-  (map ^time flagged-data)
+    %+  ~(put by new-posts)  post.pk
+    =/  =flagged-data  (~(gut by new-posts) post.pk *flagged-data)
+    ?~  reply.pk  flagged-data(flagged &, flaggers flaggers)
+    flagged-data(replies (~(put by replies.flagged-data) u.reply.pk flaggers))
+  ::
+  +$  flagged-data  [flagged=_| =flaggers:g replies=(map ^time flaggers:g)]
+  ++  time-id
+    |=  =@da
+    s+`@t`(rsh 4 (scot %ui da))
   --
 ::
 ++  dejs
@@ -414,6 +465,7 @@
         meta/meta
         secret/bo
         del/ul
+        flag-content/flag-content
     ==
   ::
   ++  zone-delta
@@ -515,6 +567,12 @@
         delta/zone-delta
     ==
   ::
+  ++  flag-content
+    %-  ot
+    :~  nest/nest
+        post-key/(ot post/(se %ud) reply/(mu (se %ud)) ~)
+        src/ship
+    ==
   ++  meta
     %-  ot
     :~  title/so

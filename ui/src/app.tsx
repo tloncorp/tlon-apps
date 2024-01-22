@@ -113,6 +113,7 @@ import UpdateNoticeSheet from './components/UpdateNotices';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import { CreateGroupDialog } from './groups/AddGroup/CreateGroup';
 import { JoinGroupDialog } from './groups/AddGroup/JoinGroup';
+import ReportContent from './components/ReportContent';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -627,6 +628,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="dm/:id/edit-info" element={<MultiDMEditModal />} />
+          <Route path="/report-content" element={<ReportContent />} />
           {isMobile ? (
             <>
               <Route

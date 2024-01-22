@@ -55,7 +55,7 @@ export default function ChatUnreadAlerts({
   let date = new Date();
   if (hasThreadUnreads && threadIsOlder) {
     const [id, thread] = oldestThread!;
-    to = `${root}/message/${id}?thread-msg=${thread.id}`;
+    to = `${root}/message/${id}?reply=${thread.id}`;
     date = new Date(daToUnix(bigInt(thread.id)));
   } else {
     to = `${root}?msg=${mainChat!.id}`;

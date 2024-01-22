@@ -165,33 +165,25 @@ function NotificationContent({
   );
 }
 
-function mentionPath(bin: Skein): string {
-  const { wer } = bin.top;
-  const parts = wer.split('/');
-  const han = parts[4];
-  const index = parts.indexOf('note');
-  const id = parts[index + 1];
-
-  if (index < 0 || !id) {
-    return wer;
-  }
-
-  if (han === 'diary' || han === 'heap') {
-    return wer;
-  }
-
-  return `${parts.slice(0, index).join('/')}?msg=${id}`;
-}
-
 // This is for backwards compatibility. The %channels backend used to send a
 // generic 'post' type in the path for all post replies, but now sends 'note',
 // 'curio' and 'message' for diary, heap, and chat posts, respectively. This
 // function replaces the 'post' type with the correct type.
-function postReplacer(pathParts: string[], replacer: string): string {
+function postReplacer(pathParts: string[]): string {
+  const han = pathParts[4];
   const newPath = pathParts
     .map((word, index) => {
       if (index === 8 && word === 'post') {
-        return replacer;
+        switch (han) {
+          case 'heap':
+            return 'curio';
+          case 'diary':
+            return 'note';
+          case 'chat':
+            return 'message';
+          default:
+            return 'post';
+        }
       }
       return word;
     })
@@ -202,27 +194,30 @@ function postReplacer(pathParts: string[], replacer: string): string {
 function getPath(bin: Skein): string {
   const { wer } = bin.top;
   const pathParts = wer.split('/');
-  const isHeapReply = pathParts.includes('heap') && pathParts.length === 11;
-  const isDiaryReply = pathParts.includes('diary') && pathParts.length === 11;
-  const isChatReply = pathParts.includes('chat') && pathParts.length === 11;
-
-  if (isMention(bin.top)) {
-    return mentionPath(bin);
+  // if not going to a specific post, return the path
+  if (pathParts.length < 10) {
+    return wer;
   }
 
-  if (isHeapReply) {
-    return postReplacer(pathParts, 'curio');
+  const path = postReplacer(pathParts);
+  const parts = path.split('/');
+  const isChatMsg = parts.includes('chat');
+  const index = 8;
+  const post = parts[index + 1];
+  const reply = parts[index + 2];
+
+  // all replies should go to the post and scroll to the reply
+  if (reply) {
+    return `${parts.slice(0, index + 2).join('/')}?reply=${reply}`;
   }
 
-  if (isDiaryReply) {
-    return postReplacer(pathParts, 'note');
+  // chat messages should go to the channel and scroll to the message
+  if (isChatMsg) {
+    return `${parts.slice(0, index).join('/')}?msg=${post}`;
   }
 
-  if (isChatReply) {
-    return postReplacer(pathParts, 'message');
-  }
-
-  return wer;
+  // all other posts should go to the post
+  return path;
 }
 
 export default function Notification({
