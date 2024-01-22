@@ -28,7 +28,7 @@ import {
   Gang,
 } from '@/types/groups';
 import api from '@/api';
-import { BaitCite } from '@/types/channel';
+import { BaitCite, Post, Reply } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
@@ -40,6 +40,7 @@ import {
 } from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { Scope, VolumeValue } from '@/types/volume';
+import { decToUd } from '@urbit/api';
 import { useNewGroupFlags } from '../settings';
 
 export const GROUP_ADMIN = 'admin';
@@ -49,7 +50,7 @@ export const GROUPS_KEY = 'groups';
 function groupAction(flag: string, diff: GroupDiff): Poke<GroupAction> {
   return {
     app: 'groups',
-    mark: 'group-action-2',
+    mark: 'group-action-3',
     json: {
       flag,
       update: {
@@ -1391,5 +1392,60 @@ export function useGroupCompatibility(flag: string) {
     saga,
     compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
+  };
+}
+
+export function useFlagContentMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    nest: string;
+    post: string;
+    reply: string | null;
+  }) => {
+    await api.poke<GroupAction>(
+      groupAction(variables.flag, {
+        'flag-content': {
+          nest: variables.nest,
+          src: window.our,
+          'post-key': {
+            post: decToUd(variables.post),
+            reply: variables.reply ? decToUd(variables.reply) : null,
+          },
+        },
+      })
+    );
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useFlaggedData(
+  flag: string,
+  nest: string,
+  postId: string,
+  replyId?: string
+) {
+  const group = useGroup(flag);
+  const empty = {
+    flagData: undefined,
+    isFlaggedByMe: false,
+  };
+
+  if (!group || !group['flagged-content'] || !group['flagged-content'][nest]) {
+    return empty;
+  }
+
+  const flaggedContent = group['flagged-content'][nest];
+  const flagData = flaggedContent[postId];
+
+  if (!flagData) {
+    return empty;
+  }
+
+  return {
+    flagData,
+    isFlaggedByMe: replyId
+      ? flagData.replies[replyId]?.includes(window.our)
+      : flagData.flagged && flagData.flaggers.includes(window.our),
   };
 }

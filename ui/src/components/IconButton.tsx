@@ -9,6 +9,7 @@ interface IconButtonProps {
   showTooltip?: boolean;
   className?: string;
   small?: boolean;
+  disabled?: boolean;
 }
 
 export default function IconButton({
@@ -18,6 +19,7 @@ export default function IconButton({
   showTooltip,
   className = '',
   small = false,
+  disabled = false,
 }: IconButtonProps) {
   return (
     <div className={cn('group-two cursor-pointer', className)}>
@@ -53,7 +55,8 @@ export default function IconButton({
         <Tooltip.Trigger asChild>
           <button
             className={cn(
-              'flex h-8 w-8 items-center justify-center rounded group-two-hover:bg-gray-50',
+              'flex h-8 w-8 items-center justify-center rounded',
+              !disabled && 'group-two-hover:bg-gray-50',
               {
                 'h-8 w-8': !small,
                 'h-6 w-6': small,
@@ -61,6 +64,7 @@ export default function IconButton({
             )}
             onClick={action}
             aria-label={label}
+            disabled={disabled}
           >
             {icon}
           </button>

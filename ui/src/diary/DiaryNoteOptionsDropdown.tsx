@@ -1,6 +1,6 @@
 import React, { PropsWithChildren, useState } from 'react';
 import classNames from 'classnames';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import {
   useArrangedPosts,
@@ -10,6 +10,7 @@ import {
 import { useChannelCompatibility } from '@/logic/channel';
 import { getFlagParts } from '@/logic/utils';
 import ActionMenu, { Action } from '@/components/ActionMenu';
+import { useFlaggedData, useRouteGroup } from '@/state/groups';
 import useDiaryActions from './useDiaryActions';
 
 type DiaryNoteOptionsDropdownProps = PropsWithChildren<{
@@ -30,6 +31,7 @@ export default function DiaryNoteOptionsDropdown({
   triggerClassName,
   canEdit,
 }: DiaryNoteOptionsDropdownProps) {
+  const groupFlag = useRouteGroup();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const nest = `diary/${flag}`;
   const arrangedNotes = useArrangedPosts(nest);
@@ -39,6 +41,8 @@ export default function DiaryNoteOptionsDropdown({
     author,
     sent,
   });
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     isOpen,
     didCopy,
@@ -55,6 +59,7 @@ export default function DiaryNoteOptionsDropdown({
     time,
   });
   const { show, hide, isHidden } = usePostToggler(time);
+  const { isFlaggedByMe } = useFlaggedData(groupFlag, nest, time);
 
   const actions: Action[] = [
     {
@@ -111,6 +116,23 @@ export default function DiaryNoteOptionsDropdown({
       key: 'hide',
       content: isHidden ? 'Show Note' : 'Hide Note for Me',
       onClick: isHidden ? show : hide,
+    });
+    actions.push({
+      key: 'hide',
+      type: isFlaggedByMe ? 'disabled' : 'destructive',
+      content: isFlaggedByMe ? "You've flagged this note" : 'Report Note',
+      onClick: () => {
+        navigate('/report-content', {
+          state: {
+            backgroundLocation: location,
+            groupFlag,
+            post: time,
+            reply: null,
+            nest,
+          },
+        });
+        hide();
+      },
     });
   }
 

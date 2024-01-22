@@ -165,6 +165,7 @@ export function createMockGroup(title: string): Group {
     'zone-ord': ['default'],
     secret: false,
     saga: { synced: null },
+    'flagged-content': {},
   };
 }
 const mockGroupOne: Group = {
@@ -237,6 +238,7 @@ const mockGroupOne: Group = {
   'zone-ord': ['default'],
   secret: false,
   saga: { synced: null },
+  'flagged-content': {},
 };
 
 const mockGroupTwo: Group = {
@@ -314,6 +316,7 @@ const mockGroupTwo: Group = {
   'zone-ord': ['default'],
   secret: false,
   saga: { synced: null },
+  'flagged-content': {},
 };
 
 const mockGroups: { [flag: string]: Group } = {

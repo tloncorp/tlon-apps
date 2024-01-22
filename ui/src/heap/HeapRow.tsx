@@ -8,7 +8,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
-import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
+import {
+  useRouteGroup,
+  useAmAdmin,
+  useFlaggedData,
+} from '@/state/groups/groups';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
@@ -57,8 +61,10 @@ function Actions({
   canEdit,
   author,
 }: TopBarProps) {
+  const groupFlag = useRouteGroup();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const chFlag = useChannelFlag();
+  const nest = `heap/${chFlag}`;
   const {
     didCopy,
     menuOpen,
@@ -70,7 +76,9 @@ function Actions({
     navigateToCurio,
     toggleHidden,
     isHidden,
-  } = useCurioActions({ nest: `heap/${chFlag}`, time, refToken });
+    reportContent,
+  } = useCurioActions({ nest, time, refToken });
+  const { isFlaggedByMe } = useFlaggedData(groupFlag, nest, time);
 
   return (
     <div
@@ -165,9 +173,23 @@ function Actions({
                 </>
               ) : null}
               {!asRef && author !== window.our ? (
-                <button onClick={toggleHidden} className="small-menu-button">
-                  {isHidden ? 'Show Post' : 'Hide Post for Me'}
-                </button>
+                <>
+                  <button onClick={toggleHidden} className="small-menu-button">
+                    {isHidden ? 'Show Post' : 'Hide Post for Me'}
+                  </button>
+                  <button
+                    onClick={reportContent}
+                    className={cn(
+                      'small-menu-button',
+                      isFlaggedByMe
+                        ? 'text-gray-200'
+                        : 'text-red hover:bg-red-50 dark:hover:bg-red-900'
+                    )}
+                    disabled={isFlaggedByMe}
+                  >
+                    {isFlaggedByMe ? "You've flagged this post" : 'Report Post'}
+                  </button>
+                </>
               ) : null}
             </div>
           </div>

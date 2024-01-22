@@ -53,7 +53,7 @@ export default function DiaryCommentField({
   const isMobile = useIsMobile();
   const [searchParams, setSearchParms] = useSearchParams();
   const [replyCite, setReplyCite] = useState<{ cite: Cite }>();
-  const replyId = searchParams.get('reply');
+  const replyId = searchParams.get('replyTo');
   const nest = `${han}/${flag}`;
   const reply = useReply(nest, replyTo, replyId || '');
   const chatInfo = useChatInfo(replyTo);
