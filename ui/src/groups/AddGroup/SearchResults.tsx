@@ -1,5 +1,5 @@
 import cn from 'classnames';
-import { Gang, Gangs } from '@/types/groups';
+import { Gang } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { useGang, useGroup } from '@/state/groups';

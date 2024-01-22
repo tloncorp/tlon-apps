@@ -92,16 +92,24 @@ export function JoinGroupDialog() {
           />
         </div>
 
-        <div className="mt-6 h-[350px]">
+        <div className="mt-6">
           {ship ? (
-            <ShipGroupsDisplay
-              autoHeight={true}
-              flags={resultFlags}
-              loading={loading}
-              size="desktop"
-              hostMayBeOffline={hostMayBeOffline}
-              selectGroup={(selectedFlag) => setFlag(selectedFlag)}
-            />
+            <>
+              <p className="text-gray-400">
+                Groups hosted by{' '}
+                <span className="text-black">{ship.label}</span>:
+              </p>
+              <div className="h-[320px]">
+                <ShipGroupsDisplay
+                  autoHeight={true}
+                  flags={resultFlags}
+                  loading={loading}
+                  size="desktop"
+                  hostMayBeOffline={hostMayBeOffline}
+                  selectGroup={(selectedFlag) => setFlag(selectedFlag)}
+                />
+              </div>
+            </>
           ) : (
             <div className="mt-16 h-[300px]">
               <InvitedGroupsDisplay selectFlag={setFlag} />
