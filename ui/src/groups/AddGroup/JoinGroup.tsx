@@ -12,6 +12,7 @@ import { ShipGroupsDisplay, ShipSearchResultsDisplay } from './SearchResults';
 import { MobileGroupPreview } from '../Join/JoinGroupModal';
 import useShipSearch from './useShipSearch';
 import useGroupSearch from './useGroupSearch';
+import InvitedGroupsDisplay from './InvitedGroupsDisplay';
 
 export default function JoinGroupSheet({
   back,
@@ -40,6 +41,7 @@ export default function JoinGroupSheet({
 }
 
 export function JoinGroupDialog() {
+  const [open, setOpen] = useState(true);
   const [ship, setShip] = useState<ShipOption | null>(null);
   const [flag, setFlag] = useState<string | null>(null);
 
@@ -58,59 +60,64 @@ export function JoinGroupDialog() {
     }
   };
 
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
+  const onOpenChange = (newOpen: boolean) => {
+    // Any click when the nested modal is open will count as a click
+    // outside of the root mobile, so we manually keep it open
+    if (flag) return;
+
+    if (!newOpen) {
+      setOpen(false);
       dismiss();
     }
   };
 
   return (
-    <Dialog defaultOpen modal onOpenChange={onOpenChange}>
-      {flag === null && (
-        <div className="h-[500px] w-[600px] outline-none">
-          <DialogTitle className="text-lg font-bold">Join a Group</DialogTitle>
-          <div className="mt-8">
-            <label>
-              Search for existing groups with a host&apos;s name, Urbit ID, or a
-              group invite shortcode.
-            </label>
-            <ShipSelector
-              containerClassName="mt-4"
-              isMulti={false}
-              isClearable={true}
-              hasPrompt={false}
-              ships={ship ? [ship] : []}
-              setShips={selectShip}
-              menuPlacement="bottom"
-              placeholder="e.g. ~nibset-napwyn/tlon"
-            />
-          </div>
-
-          <div className="mt-6 h-[350px]">
-            {ship ? (
-              <ShipGroupsDisplay
-                gangs={{}}
-                autoHeight={true}
-                flags={resultFlags}
-                loading={loading}
-                size="desktop"
-                hostMayBeOffline={hostMayBeOffline}
-                selectGroup={(selectedFlag) => setFlag(selectedFlag)}
-              />
-            ) : null}
-          </div>
-        </div>
-      )}
-
-      {flag !== null && (
-        <div className="h-[400px] w-[400px]">
-          <PreviewGroup
-            flag={flag}
-            back={() => setFlag(null)}
-            close={() => dismiss()}
+    <Dialog open={open} modal onOpenChange={onOpenChange}>
+      <div className="h-[500px] w-[600px] outline-none">
+        <DialogTitle className="text-lg font-bold">Join a Group</DialogTitle>
+        <div className="mt-8">
+          <label>
+            Search for existing groups with a host&apos;s name, Urbit ID, or a
+            group invite shortcode.
+          </label>
+          <ShipSelector
+            containerClassName="mt-4"
+            isMulti={false}
+            isClearable={true}
+            hasPrompt={false}
+            ships={ship ? [ship] : []}
+            setShips={selectShip}
+            menuPlacement="bottom"
+            placeholder="e.g. ~nibset-napwyn/tlon"
           />
         </div>
-      )}
+
+        <div className="mt-6 h-[350px]">
+          {ship ? (
+            <ShipGroupsDisplay
+              gangs={{}}
+              autoHeight={true}
+              flags={resultFlags}
+              loading={loading}
+              size="desktop"
+              hostMayBeOffline={hostMayBeOffline}
+              selectGroup={(selectedFlag) => setFlag(selectedFlag)}
+            />
+          ) : (
+            <div className="mt-16 h-[300px]">
+              <InvitedGroupsDisplay selectFlag={setFlag} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Dialog
+        className="min-w-[400px] max-w-md"
+        open={flag !== null}
+        onOpenChange={(newOpen) => (newOpen ? null : setFlag(null))}
+      >
+        <MobileGroupPreview flag={flag ?? ''} closeOnJoin={() => dismiss()} />
+      </Dialog>
     </Dialog>
   );
 }
