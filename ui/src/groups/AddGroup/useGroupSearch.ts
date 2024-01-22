@@ -19,7 +19,7 @@ export default function useGroupSearch(query: string): SearchResult {
     potentialShip && inputIsShortcode ? preSig(`${potentialShip}/${name}`) : '';
 
   const { groupIndex, fetchStatus } = useGroupIndex(potentialShip);
-  const check = useConnectivityCheck(potentialShip);
+  const { data } = useConnectivityCheck(potentialShip);
 
   const flags = Object.entries(groupIndex || {})
     .filter(([flag, preview]) => {
@@ -41,6 +41,6 @@ export default function useGroupSearch(query: string): SearchResult {
     flags,
     loading: fetchStatus === 'fetching',
     isValidShortcode: !!(inputIsShortcode && potentialShip),
-    hostMayBeOffline: check.status !== 'success',
+    hostMayBeOffline: !data || !data.status || 'pending' in data.status,
   };
 }

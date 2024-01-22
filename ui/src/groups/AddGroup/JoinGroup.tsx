@@ -95,7 +95,6 @@ export function JoinGroupDialog() {
         <div className="mt-6 h-[350px]">
           {ship ? (
             <ShipGroupsDisplay
-              gangs={{}}
               autoHeight={true}
               flags={resultFlags}
               loading={loading}
@@ -209,7 +208,6 @@ function JoinSelector(props: {
       ) : null}
       {showGroups ? (
         <ShipGroupsDisplay
-          gangs={{}}
           hostMayBeOffline={hostMayBeOffline}
           flags={resultFlags}
           loading={loading}

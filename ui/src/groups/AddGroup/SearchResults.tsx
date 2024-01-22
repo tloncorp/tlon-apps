@@ -29,7 +29,6 @@ export function GroupResultRow({
         <GroupAvatar
           {...gang.preview?.meta}
           className="flex-none"
-          // size="h-12 w-12 sm:h-6 sm:w-6 rounded-lg sm:rounded"
           size={size === 'mobile' ? 'h-6 w-6 rounded' : 'h-12 w-12 rounded-lg'}
         />
       }
@@ -106,7 +105,6 @@ export function ShipSearchResultsDisplay({
 }
 
 export function ShipGroupsDisplay({
-  gangs,
   flags,
   hostMayBeOffline,
   loading,
@@ -114,16 +112,13 @@ export function ShipGroupsDisplay({
   selectGroup,
   size = 'mobile',
 }: {
-  gangs: Gangs;
-  flags?: string[];
+  flags: string[];
   loading: boolean;
   autoHeight?: boolean;
   hostMayBeOffline?: boolean;
   size?: 'mobile' | 'desktop';
   selectGroup: (flag: string) => void;
 }) {
-  const groupFlags = flags || Object.keys(gangs);
-
   if (loading) {
     return (
       <div
@@ -137,15 +132,18 @@ export function ShipGroupsDisplay({
     );
   }
 
-  if (groupFlags.length === 0) {
+  if (flags.length === 0) {
     return (
       <div
         className={cn(
-          'mt-3 flex w-full items-center justify-center',
+          'mt-3 flex w-full flex-col items-center justify-center',
           autoHeight ?? 'h-[200px]'
         )}
       >
-        <h3 className="text-lg text-gray-400">No groups found.</h3>
+        <h3 className="text-lg text-gray-400">No groups found</h3>
+        {hostMayBeOffline && (
+          <p className="mt-1 text-sm text-gray-300">The host may be offline.</p>
+        )}
       </div>
     );
   }
@@ -157,7 +155,7 @@ export function ShipGroupsDisplay({
         autoHeight ?? 'h-[200px]'
       )}
     >
-      {groupFlags.map((flag) => (
+      {flags.map((flag) => (
         <GroupResultRow
           flag={flag}
           key={flag}
