@@ -255,14 +255,27 @@ export function DesktopGroupPreview({ flag }: { flag: string }) {
   );
 }
 
-export default function JoinGroupModal() {
-  const flag = useRouteGroup();
+export default function GroupPreviewModal({
+  flag,
+  open,
+  onClose,
+}: {
+  flag?: string;
+  open?: boolean;
+  onClose?: () => void;
+}) {
+  const routeFlag = useRouteGroup();
+  const groupFlag = flag ?? routeFlag;
   const isMobile = useIsMobile();
   const dismiss = useDismissNavigate();
 
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
-      dismiss();
+  const onOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      if (onClose) {
+        onClose();
+      } else {
+        dismiss();
+      }
     }
   };
 
@@ -273,18 +286,19 @@ export default function JoinGroupModal() {
         onOpenChange={onOpenChange}
         className="h-[60vh] px-8"
       >
-        <MobileGroupPreview flag={flag} />
+        <MobileGroupPreview flag={groupFlag} />
       </WidgetDrawer>
     );
   }
 
   return (
     <Dialog
-      defaultOpen
+      defaultOpen={open === undefined}
+      open={open === undefined ? undefined : open}
       onOpenChange={() => dismiss()}
       containerClass="w-full max-w-md"
     >
-      <DesktopGroupPreview flag={flag} />
+      <DesktopGroupPreview flag={groupFlag} />
     </Dialog>
   );
 }

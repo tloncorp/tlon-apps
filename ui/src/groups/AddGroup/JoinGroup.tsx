@@ -1,71 +1,144 @@
 import { useRef, useState } from 'react';
 import cn from 'classnames';
-import { isValidPatp } from 'urbit-ob';
-import { preSig, whomIsFlag } from '@/logic/utils';
-import { useGangs, useGroupIndex, useGroups } from '@/state/groups';
-import { Gangs } from '@/types/groups';
+import { useDismissNavigate } from '@/logic/routing';
+import { whomIsFlag } from '@/logic/utils';
+import ShipSelector, { ShipOption } from '@/components/ShipSelector';
+import Dialog from '@/components/Dialog';
+import { DialogTitle } from '@radix-ui/react-dialog';
+import { useGangs, useGroups } from '@/state/groups';
 import LargeTextInput from '@/components/FullsizeTextInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { ShipGroupsDisplay, ShipSearchResultsDisplay } from './SearchResults';
 import { MobileGroupPreview } from '../Join/JoinGroupModal';
 import useShipSearch from './useShipSearch';
+import useGroupSearch from './useGroupSearch';
+
+export default function JoinGroupSheet({
+  back,
+  onOpenChange,
+}: {
+  back: () => void;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [flag, setFlag] = useState('');
+
+  return (
+    <>
+      <JoinSelector
+        className={flag ? 'hidden' : ''}
+        back={back}
+        selectGroup={(f) => setFlag(f)}
+      />
+      <PreviewGroup
+        className={flag ? '' : 'hidden'}
+        flag={flag}
+        back={() => setFlag('')}
+        close={() => onOpenChange(false)}
+      />
+    </>
+  );
+}
+
+export function JoinGroupDialog() {
+  const [ship, setShip] = useState<ShipOption | null>(null);
+  const [flag, setFlag] = useState<string | null>(null);
+
+  const dismiss = useDismissNavigate();
+  const {
+    flags: resultFlags,
+    loading,
+    hostMayBeOffline,
+  } = useGroupSearch(ship?.value ?? '');
+
+  const selectShip = (ships: ShipOption[]) => {
+    if (ships.length > 0) {
+      setShip(ships[0]);
+    } else {
+      setShip(null);
+    }
+  };
+
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      dismiss();
+    }
+  };
+
+  return (
+    <Dialog defaultOpen modal onOpenChange={onOpenChange}>
+      {flag === null && (
+        <div className="h-[500px] w-[600px] outline-none">
+          <DialogTitle className="text-lg font-bold">Join a Group</DialogTitle>
+          <div className="mt-8">
+            <label>
+              Search for existing groups with a host&apos;s name, Urbit ID, or a
+              group invite shortcode.
+            </label>
+            <ShipSelector
+              containerClassName="mt-4"
+              isMulti={false}
+              isClearable={true}
+              hasPrompt={false}
+              ships={ship ? [ship] : []}
+              setShips={selectShip}
+              menuPlacement="bottom"
+              placeholder="e.g. ~nibset-napwyn/tlon"
+            />
+          </div>
+
+          <div className="mt-6 h-[350px]">
+            {ship ? (
+              <ShipGroupsDisplay
+                gangs={{}}
+                autoHeight={true}
+                flags={resultFlags}
+                loading={loading}
+                size="desktop"
+                hostMayBeOffline={hostMayBeOffline}
+                selectGroup={(selectedFlag) => setFlag(selectedFlag)}
+              />
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {flag !== null && (
+        <div className="h-[400px] w-[400px]">
+          <PreviewGroup
+            flag={flag}
+            back={() => setFlag(null)}
+            close={() => dismiss()}
+          />
+        </div>
+      )}
+    </Dialog>
+  );
+}
 
 function JoinSelector(props: {
   selectGroup: (flag: string) => void;
   back: () => void;
   className?: string;
 }) {
+  const existingGangs = useGangs();
+  const groups = useGroups();
   const [selected, setSelected] = useState('');
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const inputIsShortcode = input.includes('/');
-  const [rawShip, name] = input?.split('/') ?? [];
-  const potentialShip =
-    rawShip && isValidPatp(preSig(rawShip)) ? preSig(rawShip) : '';
-  const potentialFlag =
-    potentialShip && inputIsShortcode ? preSig(`${potentialShip}/${name}`) : '';
-
-  const existingGangs = useGangs();
-  const groups = useGroups();
-  const { groupIndex, fetchStatus } = useGroupIndex(
-    selected || potentialShip || ''
-  );
   const shipSearchResults = useShipSearch(input);
-
-  const indexedGangs = groupIndex
-    ? Object.entries(groupIndex)
-        .filter(([flag, preview]) => {
-          // Hide secret gangs
-          if ('afar' in preview.cordon) {
-            return false;
-          }
-
-          // if searching for shortcode, filter out gangs that don't match
-          if (inputIsShortcode) {
-            return flag.startsWith(potentialFlag);
-          }
-
-          return true;
-        })
-        .reduce(
-          (memo, [flag, preview]) => ({
-            ...memo,
-            [flag]: {
-              preview,
-              invite: null,
-              claim: flag in existingGangs ? existingGangs[flag].claim : null,
-            },
-          }),
-          {} as Gangs
-        )
-    : null;
+  const {
+    flags: resultFlags,
+    loading,
+    hostMayBeOffline,
+    isValidShortcode,
+  } = useGroupSearch(selected || input);
 
   // only consider search results where theres something meaningful to go off of
   const validQuery = input.length && input !== '~';
 
-  const showShipSearch = !selected && !inputIsShortcode && validQuery;
-  const showGroups = selected || inputIsShortcode;
+  const showShipSearch = !selected && !isValidShortcode && validQuery;
+  const showGroups = selected || isValidShortcode;
 
   const onChange = (newInput: string) => {
     if (whomIsFlag(newInput) && (existingGangs[newInput] || groups[newInput])) {
@@ -129,8 +202,10 @@ function JoinSelector(props: {
       ) : null}
       {showGroups ? (
         <ShipGroupsDisplay
-          gangs={indexedGangs || {}}
-          loading={fetchStatus === 'fetching'}
+          gangs={{}}
+          hostMayBeOffline={hostMayBeOffline}
+          flags={resultFlags}
+          loading={loading}
           selectGroup={props.selectGroup}
         />
       ) : null}
@@ -154,38 +229,12 @@ function PreviewGroup(props: {
   return (
     <div className={cn('flex h-[50vh] flex-col', props.className)}>
       <div
-        className="flex h-6 w-6 items-center justify-center"
+        className="flex h-6 w-6 cursor-pointer items-center justify-center"
         onClick={() => props.back()}
       >
         <CaretLeftIcon className="relative right-1 h-6 w-6" />
       </div>
       <MobileGroupPreview flag={props.flag} closeOnJoin={props.close} />
     </div>
-  );
-}
-
-export default function JoinGroup({
-  back,
-  onOpenChange,
-}: {
-  back: () => void;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [flag, setFlag] = useState('');
-
-  return (
-    <>
-      <JoinSelector
-        className={flag ? 'hidden' : ''}
-        back={back}
-        selectGroup={(f) => setFlag(f)}
-      />
-      <PreviewGroup
-        className={flag ? '' : 'hidden'}
-        flag={flag}
-        back={() => setFlag('')}
-        close={() => onOpenChange(false)}
-      />
-    </>
   );
 }
