@@ -6,7 +6,6 @@ import React, {
   useContext,
 } from 'react';
 import cn from 'classnames';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
@@ -20,10 +19,7 @@ import {
   usePendingInvites,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
-import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import AddIcon16 from '@/components/icons/Add16Icon';
 import { usePinnedGroups } from '@/state/pins';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
@@ -41,8 +37,6 @@ import SystemChrome from './SystemChrome';
 import ActionMenu, { Action } from '../ActionMenu';
 import { DesktopUpdateButton } from '../UpdateNotices';
 import TlonIcon from '../icons/TlonIcon';
-import HomeIcon from '../icons/HomeIcon';
-import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import AddGroupSidebarItem from './AddGroupSidebarItem';
 
 export const GroupsAppMenu = React.memo(() => {
@@ -201,8 +195,6 @@ export default function Sidebar() {
       >
         <UpdateOrAppMenu />
 
-        <AddGroupSidebarItem />
-
         <SidebarItem
           icon={<ActivityIndicator count={count} />}
           to={`/notifications`}
@@ -210,6 +202,8 @@ export default function Sidebar() {
         >
           Activity
         </SidebarItem>
+
+        <AddGroupSidebarItem />
 
         <SidebarItem
           highlight={shipColor}
