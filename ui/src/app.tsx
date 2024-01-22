@@ -43,7 +43,7 @@ import ProfileModal from '@/profiles/ProfileModal';
 import MultiDMEditModal from '@/dms/MultiDMEditModal';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import FindGroups from '@/groups/FindGroups';
-import GroupPreviewModal from '@/groups/Join/JoinGroupModal';
+import GroupPreviewModal from '@/groups/Join/GroupPreview';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';

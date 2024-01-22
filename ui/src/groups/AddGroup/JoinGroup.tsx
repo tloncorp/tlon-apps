@@ -9,7 +9,7 @@ import { useGangs, useGroups } from '@/state/groups';
 import LargeTextInput from '@/components/FullsizeTextInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { ShipGroupsDisplay, ShipSearchResultsDisplay } from './SearchResults';
-import { MobileGroupPreview } from '../Join/JoinGroupModal';
+import { MobileGroupPreview } from '../Join/GroupPreview';
 import useShipSearch from './useShipSearch';
 import useGroupSearch from './useGroupSearch';
 import InvitedGroupsDisplay from './InvitedGroupsDisplay';
