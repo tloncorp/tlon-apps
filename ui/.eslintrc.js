@@ -45,12 +45,6 @@ module.exports = {
       'warn',
       { argsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' },
     ],
-    '@typescript-eslint/no-use-before-define': [
-      'error',
-      {
-        typedefs: false,
-      },
-    ],
   },
   settings: {
     tailwindcss: {
