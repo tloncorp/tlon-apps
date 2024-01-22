@@ -212,42 +212,6 @@ export default function Sidebar() {
         >
           <ShipName showAlias name={window.our} />
         </SidebarItem>
-
-        {/* <SystemChrome />
-        <SidebarItem
-          highlight={shipColor}
-          icon={<Avatar size="xs" ship={window.our} />}
-          to={'/profile/edit'}
-        >
-          <ShipName showAlias name={window.our} />
-        </SidebarItem>
-        <SidebarItem
-          icon={<ActivityIndicator count={count} />}
-          to={`/notifications`}
-          defaultRoute
-        >
-          Activity
-        </SidebarItem>
-        <SidebarItem
-          icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
-          to="/find"
-        >
-          <div className="flex items-center">
-            Discover
-            {pendingInvitesCount > 0 ? (
-              <span className="ml-auto pr-2 font-semibold text-blue">
-                {pendingInvitesCount}
-              </span>
-            ) : null}
-          </div>
-        </SidebarItem>
-        <SidebarItem
-          icon={<AddIcon16 className="m-1 h-4 w-4" />}
-          to="/groups/new"
-          state={{ backgroundLocation: location }}
-        >
-          Create Group
-        </SidebarItem> */}
       </div>
       <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
         <GroupsScrollingContext.Provider value={isScrolling}>
