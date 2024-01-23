@@ -64,6 +64,7 @@ function CreateGroupBody() {
         </label>
         <LargeTextInput
           placeholder="Group name"
+          data-testid="create-group-name-input"
           autoFocus
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -85,6 +86,7 @@ function CreateGroupBody() {
         <LargePrimaryButton
           disabled={input === '' || loading}
           onClick={() => createGroup({ title: input, shortCode })}
+          data-testid="create-group-submit-button"
         >
           {loading ? (
             <span className="flex w-full items-center justify-center">

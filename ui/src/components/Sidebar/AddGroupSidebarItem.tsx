@@ -25,7 +25,7 @@ export default function AddGroupSidebarItem() {
           icon={<HomeIconMobileNav className="m-1 h-4 w-4" />}
           actions={<AddIcon16 className="h-4 w-4" />}
         >
-          Groups
+          <span data-testid="add-group-sidebar-button">Groups</span>
         </SidebarItem>
       </Dropdown.Trigger>
 
@@ -37,12 +37,14 @@ export default function AddGroupSidebarItem() {
       >
         <Dropdown.Item
           className="dropdown-item"
+          data-testid="join-group-dropdown-button"
           onClick={() => navigateToModal('/add-group/join')}
         >
           Join a Group
         </Dropdown.Item>
         <Dropdown.Item
           className="dropdown-item"
+          data-testid="create-group-dropdown-button"
           onClick={() => navigateToModal('/add-group/create')}
         >
           Create a new Group

@@ -606,7 +606,7 @@ const runPlaywrightTests = async () => {
   const runTests = () =>
     new Promise<void>((resolve, reject) => {
       console.log(`Running tests`);
-      const playwrightArgs = ['playwright', 'test', '--workers=2', ''];
+      const playwrightArgs = ['playwright', 'test', '--workers=2', '--ui'];
 
       if (process.env.DEBUG_PLAYWRIGHT) {
         playwrightArgs.push('--debug');
