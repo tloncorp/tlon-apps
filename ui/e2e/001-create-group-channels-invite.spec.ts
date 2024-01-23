@@ -44,7 +44,7 @@ test('Create a group', async ({ browser }) => {
   await page.getByTestId('create-group-dropdown-button').click();
   await page.getByTestId('create-group-name-input').fill('mardev Club');
   await page.getByTestId('create-group-submit-button').click();
-  await page.getByText('Welcome').waitFor();
+  await page.getByText('New Channel').waitFor();
 });
 
 test('Create a chat channel', async ({ browser }) => {
