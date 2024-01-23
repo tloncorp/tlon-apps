@@ -9,27 +9,6 @@ const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/`;
 const groupOwner = 'mardev';
 const invitedShip = 'patbud';
 
-// test('Create a group', async ({ browser }) => {
-//   test.skip(process.env.APP === 'chat', 'skip on talk');
-
-//   // Authenticate as mardev
-//   const ownerContext = await browser.newContext({
-//     storageState: shipManifest['~naldeg-mardev'].authFile,
-//   });
-//   const page = await ownerContext.newPage();
-//   await page.goto(ownerUrl);
-//   await page.getByRole('link', { name: 'Create Group' }).waitFor();
-//   await page.getByRole('link', { name: 'Create Group' }).click();
-//   await page.getByPlaceholder('e.g. Urbit Fan Club').click();
-//   await page.getByPlaceholder('e.g. Urbit Fan Club').fill('mardev Club');
-//   await page.locator('textarea[name="description"]').click();
-//   await page.locator('textarea[name="description"]').fill('Get in.');
-//   await page.getByRole('button', { name: 'Next: Privacy' }).click();
-//   await page.getByRole('button', { name: 'Next' }).click();
-//   await page.getByRole('button', { name: 'Create Group' }).click();
-//   await page.getByRole('heading', { name: 'or drag a Channel here' }).waitFor();
-// });
-
 test('Create a group', async ({ browser }) => {
   test.skip(process.env.APP === 'chat', 'skip on talk');
 
@@ -58,8 +37,6 @@ test('Create a chat channel', async ({ browser }) => {
   await page.goto(ownerUrl);
   await page.getByRole('link', { name: 'mardev Club' }).waitFor();
   await page.getByRole('link', { name: 'mardev Club' }).click();
-  // await page.getByRole('heading', { name: 'or drag a Channel here' }).waitFor();
-  // await page.getByRole('link', { name: 'New Channel' }).nth(1).click();
   await page.getByRole('link', { name: 'New Channel' }).waitFor();
   await page.getByRole('link', { name: 'New Channel' }).click();
   await page
