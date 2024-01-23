@@ -51,7 +51,7 @@ export default function DMThread() {
   const isMobile = useIsMobile();
   const appName = useAppName();
   const [loading, setLoading] = useState(false);
-  const scrollTo = new URLSearchParams(location.search).get('thread-msg');
+  const scrollTo = new URLSearchParams(location.search).get('reply');
   const whom = ship || '';
   const id = `${idShip!}/${idTime!}`;
   const { writ, isLoading } = useWrit(whom, id);

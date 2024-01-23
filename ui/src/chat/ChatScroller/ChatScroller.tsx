@@ -60,7 +60,13 @@ const ChatScrollerItem = React.memo(
 
     if ('memo' in writ) {
       return (
-        <ReplyMessage key={writ.seal.id} reply={writ} time={time} {...rest} />
+        <ReplyMessage
+          key={writ.seal.id}
+          reply={writ}
+          time={time}
+          {...rest}
+          showReply
+        />
       );
     }
 

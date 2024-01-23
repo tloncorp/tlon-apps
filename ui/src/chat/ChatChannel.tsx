@@ -50,7 +50,10 @@ function ChatChannel({ title }: ViewProps) {
   const { mutate: sendMessage } = useAddPostMutation(nest);
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const chatReplyId = useMemo(() => searchParams.get('reply'), [searchParams]);
+  const chatReplyId = useMemo(
+    () => searchParams.get('replyTo'),
+    [searchParams]
+  );
   const replyingWrit = useReplyPost(nest, chatReplyId);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
