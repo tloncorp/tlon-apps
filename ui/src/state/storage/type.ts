@@ -7,6 +7,7 @@ export interface StorageConfiguration {
   buckets: Set<string>;
   currentBucket: string;
   region: string;
+  publicUrlBase: string;
   presignedUrl: string;
   service: StorageService;
 }

@@ -216,21 +216,24 @@ export const useFileStore = create<FileStore>((set, get) => ({
         ACL: 'public-read',
       });
 
-      const url = await getSignedUrl(client, command).catch((e) => {
-        console.log('failed to get signed url', { e });
-        return '';
-      });
+      const url = config.publicUrlBase
+        ? new URL(key, config.publicUrlBase).toString()
+        : await getSignedUrl(client, command)
+            .then((res) => res.split('?')[0])
+            .catch((e) => {
+              console.log('failed to get signed url', { e });
+              return '';
+            });
 
       client
         .send(command)
         .then(() => {
-          const fileUrl = url.split('?')[0];
           updateStatus(uploader, key, 'success');
-          imageSize(fileUrl)
+          imageSize(url)
             .then((s) =>
               updateFile(uploader, key, {
                 size: s,
-                url: fileUrl,
+                url,
               })
             )
             .catch((e) => {
