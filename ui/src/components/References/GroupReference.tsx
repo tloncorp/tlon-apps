@@ -231,7 +231,7 @@ function GroupReference({
               </div>
             ) : (
               <button
-                className="small-button whitespace-nowrap bg-blue-softer text-blue dark:text-black"
+                className="small-button whitespace-nowrap bg-blue text-white dark:text-black"
                 onClick={plain ? button.action : open}
                 disabled={button.disabled || status === 'error'}
               >
