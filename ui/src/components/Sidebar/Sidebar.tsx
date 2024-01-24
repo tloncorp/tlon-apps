@@ -98,7 +98,7 @@ export const GroupsAppMenu = React.memo(() => {
           <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
             <TlonIcon
               className={cn(
-                'h-6 w-6',
+                'h-[22px] w-[22px]',
                 menuOpen ? 'hidden' : 'group-hover:hidden'
               )}
             />
