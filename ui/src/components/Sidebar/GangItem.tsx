@@ -58,7 +58,7 @@ export default function GangItem(props: {
   const defaultView =
     !requested && !errored && !isJoining && !probablyOffline && !invited;
 
-  const handleCancel = async (e: any) => {
+  const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (requested) {
       rescindMutation({ flag });
@@ -98,7 +98,7 @@ export default function GangItem(props: {
   if (invited) {
     sideBarIcon = (
       <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
-        Invited
+        Invite
       </p>
     );
   }
@@ -191,9 +191,9 @@ export default function GangItem(props: {
           </div>
           {requested ? (
             <>
-              <span>You've requested to join this group.</span>
+              <span>You&#39;ve requested to join this group.</span>
               <span>
-                An admin will have to approve your request and then you'll
+                An admin will have to approve your request and then you&#39;ll
                 receive an invitation to join.
               </span>
             </>
@@ -209,7 +209,8 @@ export default function GangItem(props: {
             <>
               <span>Attempting to Join</span>
               <span>
-                You're trying to join this group, but it can't be reached.
+                You&#39;re trying to join this group, but it can&#39;t be
+                reached.
               </span>
             </>
           ) : (

@@ -17,6 +17,7 @@ import {
   useGangsWithClaim,
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
+  useNewGroups,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
@@ -158,6 +159,7 @@ export default function Sidebar() {
   const invitedGroups = usePendingGangsWithoutClaim();
   const pinnedGroups = usePinnedGroups();
   const loadingGroups = useLoadingGroups();
+  const newGroups = useNewGroups();
   const gangsWithClaims = useGangsWithClaim();
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
@@ -167,6 +169,7 @@ export default function Sidebar() {
   const hasLoadingGroups = !!loadingGroups.length;
   const hasGangsWithClaims = !!gangsWithClaims.length;
   const hasInvitedGroups = !!Object.keys(invitedGroups).length;
+  const hasNewGroups = !!newGroups.length;
 
   const pinnedGroupsOptions = useMemo(
     () =>
@@ -197,6 +200,13 @@ export default function Sidebar() {
     [gangsWithClaims]
   );
 
+  const newGroupsDisplay = useMemo(
+    () =>
+      newGroups.map(([flag]) => (
+        <GroupsSidebarItem key={flag} flag={flag} isNew />
+      )),
+    [newGroups]
+  );
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
@@ -239,6 +249,7 @@ export default function Sidebar() {
             groups={sortedGroups}
             pinnedGroups={Object.entries(pinnedGroups)}
             loadingGroups={loadingGroups}
+            newGroups={newGroups}
             isScrolling={scroll.current}
             atTopChange={atTopChange}
           >
@@ -272,7 +283,9 @@ export default function Sidebar() {
                 </div>
               </div>
 
-              {!sortedGroups.length && !isLoading && (
+              {hasNewGroups && <div className="mx-2">{newGroupsDisplay}</div>}
+
+              {!sortedGroups.length && !hasNewGroups && !isLoading && (
                 <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
                   Check out <strong>Discover</strong> above to find new groups
                   in your network or view group invites.
