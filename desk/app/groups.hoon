@@ -431,14 +431,19 @@
   ?+    pole  [~ ~]
       [%x %gangs ~]  ``gangs+!>(xeno)
       [%x %init ~]  ``noun+!>([groups-light xeno])
-      [%x %init %v0 ~]  ``noun+!>([groups-light-ui xeno])
+      [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno])
+      [%x %init %v1 ~]  ``noun+!>([groups-light-ui xeno])
       [%x %groups %light ~]  ``groups+!>(groups-light)
-      [%x %groups %light %v0 ~]  ``groups-ui+!>(groups-light-ui)
+      [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
+      [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui)
   ::
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
+    ``groups-ui-v0+!>(`groups-ui:zer:old:g`(~(run by groups) to-group-ui-v0))
+  ::
+      [%x %groups %v1 ~]
     ``groups-ui+!>(`groups-ui:g`(~(run by groups) to-group-ui))
   ::
       [%x %groups ship=@ name=@ rest=*]
@@ -448,6 +453,8 @@
     ?~  rest.pole
       ``group+!>(+.u.group)
     ?:  =(/v0 rest.pole)
+      ``group-ui-v0+!>(`group-ui:zer:old:g`(to-group-ui-v0 u.group))
+    ?:  =(/v1 rest.pole)
       ``group-ui+!>(`group-ui:g`(to-group-ui u.group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
@@ -503,12 +510,35 @@
   %-  ~(run by groups)
   |=  [=net:g =group:g]
   (to-group-ui net (drop-fleet group))
+++  groups-light-ui-v0
+  ^-  groups-ui:zer:old:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  (to-group-ui-v0 net (drop-fleet group))
 ++  to-group-ui
   |=  [=net:g =group:g]
   ^-  group-ui:g
   :-  group
   ?+  -.net  ~
       %sub  `saga.net
+  ==
+++  to-group-ui-v0
+  |=  [=net:g =group:g]
+  ^-  group-ui:zer:old:g
+  :_ 
+    ?+  -.net  ~
+        %sub  `saga.net
+    ==
+  :*  fleet.group
+      cabals.group
+      zones.group
+      zone-ord.group
+      bloc.group
+      channels.group
+      imported.group
+      cordon.group
+      secret.group
+      meta.group
   ==
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]

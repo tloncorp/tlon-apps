@@ -175,6 +175,13 @@
     |=  [f=flag:g gr=group-ui:g]
     [(flag f) (group-ui gr)]
   ::
+  ++  groups-ui-v0
+    |=  gs=groups-ui:zer:old:g
+    %-  pairs
+    %+  turn  ~(tap by gs)
+    |=  [f=flag:g gr=group-ui:zer:old:g]
+    [(flag f) (group-ui-v0 gr)]
+  ::
   ++  gangs
     |=  gs=(map flag:g gang:g)
     %-  pairs
@@ -245,6 +252,21 @@
         secret/b/secret.gr
         saga/?~(saga.gr ~ (saga u.saga.gr))
         flagged-content/(flagged-content flagged-content.gr)
+    ==
+  ::
+  ++  group-ui-v0
+    |=  gr=group-ui:zer:old:g
+    %-  pairs
+    :~  fleet/(fleet fleet.gr)
+        cabals/(cabals cabals.gr)
+        zones/(zones zones.gr)
+        zone-ord/a/(turn zone-ord.gr (lead %s))
+        channels/(channels channels.gr)
+        bloc/a/(turn ~(tap in bloc.gr) (lead %s))
+        cordon/(cordon cordon.gr)
+        meta/(meta meta.gr)
+        secret/b/secret.gr
+        saga/?~(saga.gr ~ (saga u.saga.gr))
     ==
   ::
   ++  fleet
