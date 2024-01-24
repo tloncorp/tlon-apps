@@ -36,14 +36,14 @@ export default function AddGroupSidebarItem() {
         onFocusOutside={() => onOpenChange(false)}
       >
         <Dropdown.Item
-          className="dropdown-item"
+          className="dropdown-item default-focus"
           data-testid="join-group-dropdown-button"
           onClick={() => navigateToModal('/add-group/join')}
         >
           Join a Group
         </Dropdown.Item>
         <Dropdown.Item
-          className="dropdown-item"
+          className="dropdown-item default-focus"
           data-testid="create-group-dropdown-button"
           onClick={() => navigateToModal('/add-group/create')}
         >
