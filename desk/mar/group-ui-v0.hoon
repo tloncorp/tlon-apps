@@ -5,7 +5,7 @@
 ++  grow
   |%
   ++  noun  group-ui
-  ++  json  (group-ui-0:enjs:j group-ui)
+  ++  json  (group-ui-v0:enjs:j group-ui)
   --
 ++  grab
   |%

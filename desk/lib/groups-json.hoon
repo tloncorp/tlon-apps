@@ -175,12 +175,12 @@
     |=  [f=flag:g gr=group-ui:g]
     [(flag f) (group-ui gr)]
   ::
-  ++  groups-ui-0
+  ++  groups-ui-v0
     |=  gs=groups-ui:zer:old:g
     %-  pairs
     %+  turn  ~(tap by gs)
     |=  [f=flag:g gr=group-ui:zer:old:g]
-    [(flag f) (group-ui-0 gr)]
+    [(flag f) (group-ui-v0 gr)]
   ::
   ++  gangs
     |=  gs=(map flag:g gang:g)
@@ -254,7 +254,7 @@
         flagged-content/(flagged-content flagged-content.gr)
     ==
   ::
-  ++  group-ui-0
+  ++  group-ui-v0
     |=  gr=group-ui:zer:old:g
     %-  pairs
     :~  fleet/(fleet fleet.gr)
