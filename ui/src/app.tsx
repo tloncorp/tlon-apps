@@ -279,6 +279,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             }
           />
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
+          <Route path="/report-content" element={<ReportContent />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
           <Route
