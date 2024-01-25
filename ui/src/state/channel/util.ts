@@ -15,7 +15,7 @@ export default function shouldAddPostToCache(
     return false;
   }
 
-  // if we have data, but not the newest, we must be viewing a scrollback. We shouldn't add
+  // if we have data but not the newest, we must be viewing a scrollback. We shouldn't add
   // the post to the cache since you'd have a gap between the new messages and the scrollback
   // history until the refetch completes
   const hasNewer = queryData.pages && queryData.pages[0]?.newer;
