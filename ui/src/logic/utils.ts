@@ -776,7 +776,7 @@ export function sliceMap<T>(
   return empty;
 }
 
-const apps = ['writ', 'writs', 'hive', 'team', 'channels'];
+const apps = ['chat', 'groups', 'channels', 'reel', 'grouper'];
 const groups = [
   'create',
   'zone',
@@ -790,11 +790,30 @@ const groups = [
   'del-ships',
   'add-ranks',
   'del-ranks',
-  'channel',
   'join',
   'cabal',
   'fleet',
 ];
+const chat = [
+  'chat-dm-action',
+  'chat-club-action-0',
+  'chat-dm-archive',
+  'chat-dm-unarchive',
+  'chat-dm-rsvp',
+  'chat-club-create',
+  'chat-block-ship',
+  'chat-unblock-ship',
+  'hive',
+  'writ',
+];
+const channels = [
+  'channel-action',
+  'leave',
+  'add-writers',
+  'del-writers',
+  'post',
+];
+const lure = ['grouper-enable', 'grouper-disable'];
 const misc = [
   'saw-seam',
   'saw-rope',
@@ -805,7 +824,7 @@ const misc = [
   'put-entry',
   'del-entry',
 ];
-const wrappers = ['update', 'diff', 'delta'];
+const wrappers = ['update', 'diff', 'delta', 'action', 'channel'];
 const general = [
   'add-sects',
   'del-sects',
@@ -817,6 +836,7 @@ const general = [
   'del-react',
   'meta',
   'init',
+  'reply',
 ];
 
 export function actionDrill(
@@ -825,7 +845,15 @@ export function actionDrill(
   prefix = ''
 ): string[] {
   const keys: string[] = [];
-  const allowed = general.concat(wrappers, apps, groups, misc);
+  const allowed = general.concat(
+    wrappers,
+    apps,
+    groups,
+    misc,
+    chat,
+    channels,
+    lure
+  );
 
   Object.entries(obj).forEach(([key, val]) => {
     const path = prefix ? `${prefix}.${key}` : key;
@@ -854,6 +882,27 @@ export function actionDrill(
   });
 
   return keys.filter((k) => k !== '');
+}
+
+export function parseKind(json: Record<string, unknown>): string {
+  // eslint-disable-next-line
+  // @ts-ignore
+  const nest =
+    json && json.channel && json.channel.nest ? json.channel.nest : '';
+
+  if (nest.includes('heap/~')) {
+    return 'heap';
+  }
+
+  if (nest.includes('diary/~')) {
+    return 'diary';
+  }
+
+  if (nest.includes('chat/~')) {
+    return 'chat';
+  }
+
+  return '';
 }
 
 export function truncateProse(content: Story, maxCharacters: number): Story {
