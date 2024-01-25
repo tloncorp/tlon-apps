@@ -8,12 +8,15 @@ import React, {
 } from 'react';
 import { uniq } from 'lodash';
 import { useIsMobile } from './useMedia';
+import { createDevLogger } from './utils';
 
 interface DragTargetContext {
   targetIdStack: string[];
   pushTargetID: (id: string) => void;
   popTargetID: (id: string) => void;
 }
+
+export const dragLogger = createDevLogger('DragAndDrop', false);
 
 export const DragTargetContext = createContext<DragTargetContext>({
   targetIdStack: [],
@@ -70,9 +73,12 @@ export function DragAndDropProvider({
   const handleDragEnter = useCallback((e: DragEvent) => {
     preventDefault(e);
 
+    if (document.visibilityState !== 'visible') return;
+
     // prevent drag enter from firing multiple times
     dragCounter.current += 1;
     setIsDragging(true);
+    dragLogger.log('drag enter', dragCounter.current);
   }, []);
 
   const handleDragLeave = useCallback((e: DragEvent) => {
@@ -80,16 +86,25 @@ export function DragAndDropProvider({
 
     // prevent drag leave from firing multiple times
     dragCounter.current -= 1;
+    dragLogger.log('drag leave', dragCounter.current);
 
     if (dragCounter.current === 0) {
       setIsDragging(false);
       setIsOver(false);
+    } else if (e.relatedTarget === null) {
+      // drag has left the window and we should reset regardless of counter
+      setIsDragging(false);
+      setIsOver(false);
+      dragCounter.current = 0;
     }
   }, []);
 
   const handleDragOver = useCallback((e: DragEvent) => {
     preventDefault(e);
+    if (document.visibilityState !== 'visible') return;
+
     setIsOver(true);
+    dragLogger.log('drag over', dragCounter.current);
   }, []);
 
   const handleDrop = useCallback(
@@ -100,10 +115,10 @@ export function DragAndDropProvider({
 
       setIsDragging(false);
       setIsOver(false);
+      dragLogger.log('handle drop');
 
       const targetElement = recurseNode || (e.target as HTMLElement);
 
-      // if (targetElement && targetElement.id !== dropZone) return;
       if (targetElement && targetElement.id !== dropZone) {
         if (targetElement.parentElement) {
           handleDrop(e, dropZone, targetElement.parentElement);
