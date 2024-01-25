@@ -8,20 +8,17 @@ import { Status } from '@/logic/status';
 import { useIsMobile } from '@/logic/useMedia';
 import { nestToFlag, getFlagParts } from '@/logic/utils';
 import { useRouteGroup, useDeleteChannelMutation } from '@/state/groups';
-import { GroupChannel, Saga } from '@/types/groups';
+import { GroupChannel } from '@/types/groups';
 import { useIsChannelHost } from '@/logic/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { ConnectionStatus } from '@/state/vitals';
 import VolumeSetting from '@/components/VolumeSetting';
-import HostConnection from './HostConnection';
+import ChannelHostConnection from './ChannelHostConnection';
 
 export type ChannelActionsProps = PropsWithChildren<{
   nest: string;
   prettyAppName: string;
   channel: GroupChannel | undefined;
   isAdmin: boolean | undefined;
-  status?: ConnectionStatus;
-  saga: Saga | null;
   leave: ({ nest }: { nest: string }) => Promise<void>;
   className?: string;
 }>;
@@ -31,8 +28,6 @@ const ChannelActions = React.memo(
     nest,
     prettyAppName,
     channel,
-    saga,
-    status,
     isAdmin,
     leave,
     className,
@@ -105,7 +100,7 @@ const ChannelActions = React.memo(
         <div className="-mx-2 flex flex-col space-y-6">
           <div className="flex flex-col space-y-1">
             <span className="text-lg text-gray-800">Notification Settings</span>
-            <span className="font-[17px] font-normal text-gray-400">
+            <span className="text-[17px] font-normal text-gray-400">
               {channel?.meta.title || `~${nest}`}
             </span>
           </div>
@@ -120,10 +115,8 @@ const ChannelActions = React.memo(
         key: 'connectivity',
         keepOpenOnClick: true,
         content: (
-          <HostConnection
-            ship={ship}
-            saga={saga}
-            status={status}
+          <ChannelHostConnection
+            nest={nest}
             type="combo"
             className="-ml-1 text-[17px] font-medium text-gray-800"
           />
