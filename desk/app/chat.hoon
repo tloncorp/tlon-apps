@@ -4,6 +4,7 @@
 /-  contacts
 /+  default-agent, verb-lib=verb, dbug, neg=negotiate
 /+  pac=dm
+/+  mig=chat-graph
 /+  utils=channel-utils
 /+  volume
 /+  wood-lib=wood
@@ -423,10 +424,134 @@
     [*remark:one club]
   --
 ::
+++  import-dms
+  |=  =graph:gra:old
+  ^+  cor
+  =/  old-dms  (tap:orm-gra:old graph)
+  =|  =remark:c
+  =.  last-read.remark  now.bowl
+  |-  =*  loop  $
+  ?~  old-dms  cor
+  =/  [ship=@ =node:gra:old]  i.old-dms
+  ?.  ?=(%graph -.children.node)
+    loop(old-dms t.old-dms)
+  =/  dm  (~(gut by dms) ship *dm:c)
+  =/  old-pact=pact:c  (graph-to-pact p.children.node [ship (scot %p ship)])
+  =/  new-pact=pact:c
+    :-   (uni:on:writs:c wit.old-pact wit.pact.dm)
+    (~(uni by dex.old-pact) dex.pact.dm)
+  =.  dms
+    (~(put by dms) ship new-pact remark %done |)
+  loop(old-dms t.old-dms)
+::
+++  pact-4-to-5
+  |=  =pact:old
+  ^-  pact:c
+  :_  dex.pact
+  =/  writs  (tap:on:writs:old wit.pact)
+  =/  reply-index=(map @da replies:c)
+    %+  roll  writs
+    |=  [[=time =writ:old] reply-index=(map @da replies:c)]
+    ?~  replying.writ  reply-index
+    =/  old-replies=replies:c  (~(gut by reply-index) time *replies:c)
+    =/  reply-time  (~(get by dex.pact) u.replying.writ)
+    ?~  reply-time  reply-index
+    %+  ~(put by reply-index)  u.reply-time
+    (put:on:replies:c old-replies time (reply-4-to-5 u.replying.writ time writ))
+  %+  gas:on:writs:c  *writs:c
+  %+  murn  writs
+  |=  [=time =writ:old]
+  ^-  (unit [^time writ:c])
+  ?^  replying.writ  ~
+  =/  =replies:c  (~(gut by reply-index) time *replies:c)
+  (some time (writ-4-to-5 time writ replies))
+++  writ-4-to-5
+  |=  [=time old=writ:old =replies:c]
+  ^-  writ:c
+  =;  qm=reply-meta:d
+    :-  [id.old time feels.old replies qm]
+    (essay-4-to-5 +.old)
+  ::
+  =/  last-repliers=(set ship)
+    =|  repliers=(set ship)
+    =/  entries=(list [* reply:c])  (bap:on:replies:c replies)
+    |-
+    ?:  |(=(~ entries) =(3 ~(wyt in repliers)))
+      repliers
+    =/  [* =reply:c]  -.entries
+    ?:  (~(has in repliers) author.reply)
+      $(entries +.entries)
+    (~(put in repliers) author.reply)
+  :*  (wyt:on:replies:c replies)
+      last-repliers
+      (biff (ram:on:replies:c replies) |=([=^time *] `time))
+  ==
+::
+++  reply-4-to-5
+  |=  [parent-id=id:c =time old=writ:old]
+  ^-  reply:c
+  [[id.old parent-id time feels.old] (memo-4-to-5 +.old)]
+::
+++  memo-4-to-5
+  |=  memo:old
+  ^-  memo:d
+  [(story-4-to-5 author content) author sent]
+::
+++  essay-4-to-5
+  |=  memo:old
+  ^-  essay:c
+  [(memo-4-to-5 +<) %chat ?-(-.content %story ~, %notice [%notice ~])]
+::
+++  story-4-to-5
+  |=  [=ship old=content:old]
+  ^-  story:d
+  ?-    -.old
+      %notice  ~[%inline pfix.p.old ship+ship sfix.p.old]~
+      %story
+    %+  welp
+      (turn p.p.old (lead %block))
+    [%inline q.p.old]~
+  ==
+::
+++  graph-to-pact
+  |=  [=graph:gra:old =flag:old]
+  %-  pact-4-to-5
+  ^-  pact:old
+  =/  ls
+    %+  murn  (tap:orm-gra:old graph)
+    |=  [=time =node:gra:old]
+    ^-  (unit [_time writ:old])
+    ?~  wit=(node-to-writ time node flag)
+      ~
+    `[time u.wit]
+  :-  (gas:on:writs:old *writs:old ls)
+  %-  ~(gas by *index:old)
+  %+  turn  ls
+  |=  [=time =writ:old]
+  ^-  [id:old _time]
+  [id.writ time]
+::  TODO: review crashing semantics
+::        check graph ordering (backwards iirc)
+++  node-to-writ
+  |=  [=time =node:gra:old =flag:old]
+  ^-  (unit writ:old)
+  ?.  ?=(%& -.post.node)
+    ~
+  =*  pos  p.post.node
+  :: using the received timestamp
+  :: defends against shitty clients, bc we didn't enforce uniqueness last time
+  :: but breaks referential transparency, so you can't quote migrated
+  :: messages
+  :: XX: probably change?
+  :-  ~
+  :-  [[author.pos time] ~ ~]
+  [~ author.pos time-sent.pos story/(~(con nert:mig flag %chat) contents.pos)]
+::
 ++  poke
   |=  [=mark =vase]
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
+      %dm-imports     (import-dms !<(graph:gra:old vase))
       %chat-negotiate
     ::TODO  arguably should just be a /mar/negotiate
     (emit (initiate:neg !<(@p vase) dap.bowl))
