@@ -73,6 +73,8 @@ export function DragAndDropProvider({
   const handleDragEnter = useCallback((e: DragEvent) => {
     preventDefault(e);
 
+    if (document.visibilityState !== 'visible') return;
+
     // prevent drag enter from firing multiple times
     dragCounter.current += 1;
     setIsDragging(true);
@@ -99,6 +101,8 @@ export function DragAndDropProvider({
 
   const handleDragOver = useCallback((e: DragEvent) => {
     preventDefault(e);
+    if (document.visibilityState !== 'visible') return;
+
     setIsOver(true);
     dragLogger.log('drag over', dragCounter.current);
   }, []);
