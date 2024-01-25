@@ -1689,7 +1689,6 @@ export function useCreateMutation() {
             view: 'list',
             order: [],
             sort: 'time',
-            saga: { synced: null },
           },
         });
       }

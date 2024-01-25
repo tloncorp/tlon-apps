@@ -312,7 +312,6 @@ export interface Channel {
   view: DisplayMode;
   order: string[];
   sort: SortMode;
-  saga: Saga | null;
 }
 
 export interface Channels {

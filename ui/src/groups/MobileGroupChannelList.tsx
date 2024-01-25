@@ -4,23 +4,19 @@ import { useGroupFlag, useGroup, useAmAdmin } from '@/state/groups';
 import ChannelList, { ChannelSorter } from '@/groups/GroupSidebar/ChannelList';
 import GroupAvatar from '@/groups/GroupAvatar';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import HostConnection from '@/channels/HostConnection';
-import { getFlagParts, isColor } from '@/logic/utils';
-import { useConnectivityCheck } from '@/state/vitals';
+import { isColor } from '@/logic/utils';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import { useCalm } from '@/state/settings';
 import { useTextColor } from '@/logic/useTextColor';
 import GroupActions from './GroupActions';
+import GroupHostConnection from './GroupHostConnection';
 
 export default function MobileGroupChannelList() {
   const flag = useGroupFlag();
   const group = useGroup(flag);
   const isAdmin = useAmAdmin(flag);
   const location = useLocation();
-  const host = getFlagParts(flag).ship;
-  const { data } = useConnectivityCheck(host);
-  const saga = group?.saga || null;
   const defaultImportCover = group?.meta.cover === '0x0';
   const calm = useCalm();
   const textColor = useTextColor(group?.meta.cover || '');
@@ -50,7 +46,7 @@ export default function MobileGroupChannelList() {
           backgroundColor: 'transparent',
         }}
         title={
-          <GroupActions flag={flag} saga={saga} status={data?.status}>
+          <GroupActions flag={flag}>
             <button className="flex w-full flex-col items-center">
               <GroupAvatar image={group?.meta.image} className="mt-3" />
               <div className="relative my-1 flex w-max items-center justify-center space-x-1">
@@ -64,12 +60,7 @@ export default function MobileGroupChannelList() {
                 >
                   {group?.meta.title}
                 </h1>
-                <HostConnection
-                  ship={host}
-                  status={data?.status}
-                  saga={saga}
-                  type="bullet"
-                />
+                <GroupHostConnection flag={flag} type="bullet" />
               </div>
             </button>
           </GroupActions>

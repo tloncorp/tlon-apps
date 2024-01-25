@@ -349,10 +349,80 @@
     ==
   --
 ::
+++  import-dms
+  |=  =graph:gra:old
+  ^+  cor
+  =/  old-dms  (tap:orm-gra:old graph)
+  =|  =remark:old
+  =.  last-read.remark  now.bowl
+  |-  =*  loop  $
+  ?~  old-dms  cor
+  =/  [ship=@ =node:gra:old]  i.old-dms
+  ?.  ?=(%graph -.children.node)
+    loop(old-dms t.old-dms)
+  =/  dm  (~(gut by dms) ship *dm:c)
+  =/  old-pact  (graph-to-pact p.children.node [ship (scot %p ship)])
+  =/  new-pact
+    :-  (~(uni by dex.old-pact) dex.pact.dm)
+    (uni:on:writs:c wit.old-pact wit.pact.dm)
+  =.  dms
+    (~(put by dms) ship new-pact remark %done |)
+  loop(old-dms t.old-dms)
+::
+++  pact-4-to-5
+  |=  =pact:old
+  ^-  pact:c
+  :_  dex.pact
+  =/  writs  (tap:on:writs:old wit.pact)
+  =/  reply-index=(map @da replies:c)
+    %+  roll  writs
+    |=  [[=time =writ:old] reply-index=(map @da replies:c)]
+    ?~  replying.writ  reply-index
+    =/  old-replies=replies:c  (~(gut by reply-index) time *replies:c)
+    =/  reply-time  (~(get by dex.pact) u.replying.writ)
+    ?~  reply-time  reply-index
+    %+  ~(put by reply-index)  u.reply-time
+    (put:on:replies:c old-replies time (reply-4-to-5 u.replying.writ time writ))
+  %+  gas:on:writs:c  *writs:c
+  %+  murn  writs
+  |=  [=time =writ:old]
+  ^-  (unit [^time writ:c])
+  ?^  replying.writ  ~
+  =/  =replies:c  (~(gut by reply-index) time *replies:c)
+  (some time (writ-4-to-5 time writ replies))
+++  graph-to-pact
+  |=    [=graph:gra:old =flag:c]
+  %-  pact-4-to-5
+  ^-  pact:old
+  %-  ~(gas pac *pact:old)
+  %+  murn  (tap:orm-gra:old graph)
+  |=  [=time =node:gra:old]
+  ^-  (unit [_time writ:old])
+  ?~  wit=(node-to-writ time node flag)
+    ~
+  `[time u.wit]
+::  TODO: review crashing semantics
+::        check graph ordering (backwards iirc)
+++  node-to-writ
+  |=  [=time =node:gra:old =flag:c]
+  ^-  (unit writ:old)
+  ?.  ?=(%& -.post.node)
+    ~
+  =*  pos  p.post.node
+  :: using the received timestamp
+  :: defends against shitty clients, bc we didn't enforce uniqueness last time
+  :: but breaks referential transparency, so you can't quote migrated
+  :: messages
+  :: XX: probably change?
+  :-  ~
+  :-  [[author.pos time] ~ ~]
+  [~ author.pos time-sent.pos story/(~(con nert:mig flag %chat) contents.pos)]
+::
 ++  poke
   |=  [=mark =vase]
   |^  ^+  cor
   ?+    mark  ~|(bad-poke/mark !!)
+      %dm-imports     (import-dms !<(graph:gra:old vase))
       %chat-negotiate
     ::TODO  arguably should just be a /mar/negotiate
     (emit (initiate:neg !<(@p vase) dap.bowl))
