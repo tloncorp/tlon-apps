@@ -885,9 +885,9 @@ export function actionDrill(
 }
 
 export function parseKind(json: Record<string, unknown>): string {
-  // eslint-disable-next-line
-  // @ts-ignore
   const nest =
+    // eslint-disable-next-line
+    // @ts-ignore
     json && json.channel && json.channel.nest ? json.channel.nest : '';
 
   if (nest.includes('heap/~')) {
