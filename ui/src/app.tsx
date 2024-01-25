@@ -113,6 +113,7 @@ import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import UpdateNoticeSheet from './components/UpdateNotices';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
 import ReportContent from './components/ReportContent';
+import CowboyHat from './🤠';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
