@@ -90,7 +90,7 @@ async function startTalk() {
             () =>
               api.scry<Groups>({
                 app: 'groups',
-                path: '/groups/light/v0',
+                path: '/groups/light/v1',
               }),
             {}
           ),
