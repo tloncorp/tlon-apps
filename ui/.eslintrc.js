@@ -30,6 +30,7 @@ module.exports = {
         extensions: ['.jsx', '.tsx'],
       },
     ],
+    'react/jsx-key': 'warn',
     'tailwindcss/no-custom-classname': [
       0,
       {
