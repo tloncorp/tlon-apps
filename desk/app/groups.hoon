@@ -1,4 +1,4 @@
-/-  g=groups, ha=hark, h=heap, d=channels, c=chat
+/-  g=groups, ha=hark, h=heap, d=channels, c=chat, tac=contacts
 /-  g-one=group
 /-  m-one=metadata-store
 /-  meta
@@ -297,6 +297,7 @@
     =.  state  old
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
+    =.  cor  watch-contact
     ?:  =(okay:g cool)  cor
     =.  cor  (emil (drop load:epos))
     =/  groups  ~(tap in ~(key by groups))
@@ -583,6 +584,8 @@
     =/  =ship  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     (take-chan nest sign)
+      [%contact ~]
+    (take-contact sign)
   ==
 ::
 ++  arvo
@@ -631,6 +634,27 @@
     =.  shoal  (~(put by shoal) gra dude)
     =.  cor  (give %fact matching cage.sign)
     (give %kick matching ~)
+  ==
+::
+++  watch-contact
+  (emit %pass /contact %agent [our.bowl %contacts] %watch /contact)
+::
+++  take-contact
+  |=  =sign:agent:gall
+  ?+  -.sign  cor
+      %kick
+    watch-contact
+  ::
+      %watch-ack
+    cor
+  ::
+      %fact
+    =+  !<(=update:tac q.cage.sign)
+    ?~  con.update  cor
+    %-  emil
+    %+  turn  ~(tap in groups.con.update)
+    |=  =flag:g
+    [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /groups/(scot %p p.flag)/[q.flag]/preview]
   ==
 ::
 ++  watch-epic
