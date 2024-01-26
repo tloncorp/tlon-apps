@@ -1,6 +1,6 @@
 ::
 /-  *notify, resource, ha=hark
-/+  default-agent, verb, dbug, group, agentio
+/+  default-agent, verb, dbug, agentio
 ::
 |%
 +$  card  card:agent:gall
@@ -362,7 +362,14 @@
     =/  gs  ~(tap in groups.whitelist.entry)
     |-
     ?~  gs  %.n
-    ?:  (~(is-member group bowl) who i.gs)
+    =+  .^  members=(set ship)
+          %gx
+          (scot %p our.bowl)
+          %groups
+          (scot %da now.bowl)
+          /groups/(scot %p entity.i.gs)/[name.i.gs]/fleet/ships/ships
+        ==
+    ?:  (~(has in members) who)
       %.y
     $(gs t.gs)
   --

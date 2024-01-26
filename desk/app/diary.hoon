@@ -91,7 +91,6 @@
   =+  !<([old=versioned-state cool=epic:e] vase)
   |-
   ?-  -.old
-    %0  $(old (state-0-to-1 old))
     %1  $(old (state-1-to-2 old))
     ::
       %2
@@ -115,14 +114,7 @@
     $(diaries t.diaries)
   ==
   ::
-  +$  versioned-state  $%(current-state state-0 state-1)
-  +$  state-0
-    $:  %0
-        shelf=shelf:zero
-        voc=(map [flag:zero plan:zero] (unit said:zero))
-        ::  true represents imported, false pending import
-        imp=(map flag:zero ?)
-    ==
+  +$  versioned-state  $%(current-state state-1)
   +$  state-1
     $:  %1
         =shelf:d
@@ -131,7 +123,6 @@
         imp=(map flag:d ?)
     ==
   +$  state-2  current-state
-  ++  zero  zero:old:d
   ++  state-1-to-2
     |=  s=state-1
     ^-  state-2
@@ -141,25 +132,6 @@
       hidden-posts  ~
       imp    imp.s
     ==
-  ::
-  ++  state-0-to-1
-    |=  s=state-0
-    ^-  state-1
-    %*  .  *state-1
-      shelf  (convert-shelf shelf.s)
-      voc    voc.s
-      imp    imp.s
-    ==
-  ::
-++  convert-shelf
-    |=  old-shelf=shelf:zero
-    ^-  shelf:d
-    %-  malt
-    %+  turn
-      ~(tap by old-shelf)
-    |=  [=flag:d old-diary=diary:zero]
-    ^-  [flag:d diary:d]
-    [flag [~ old-diary]]
   ::
   ++  restore-missing-subs
     %+  roll
