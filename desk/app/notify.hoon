@@ -362,7 +362,6 @@
     =/  gs  ~(tap in groups.whitelist.entry)
     |-
     ?~  gs  %.n
-    ::REVIEW
     =+  .^  members=(set ship)
           %gx
           (scot %p our.bowl)
