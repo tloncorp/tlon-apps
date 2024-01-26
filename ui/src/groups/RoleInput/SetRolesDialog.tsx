@@ -36,9 +36,9 @@ export default function SetRolesDialog({
         )}
       </div>
       <div className="max-h-[300px] overflow-auto">
-        {roles.map((role, index) => (
-          <div className="my-2">
-            <RoleSelect key={index} role={role} member={member} />
+        {roles.map((role) => (
+          <div className="my-2" key={role}>
+            <RoleSelect role={role} member={member} />
           </div>
         ))}
       </div>
