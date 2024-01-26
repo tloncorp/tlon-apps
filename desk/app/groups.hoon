@@ -436,7 +436,7 @@
     ``groups+!>(`groups:g`(~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
-    ``groups-ui-v0+!>(`groups-ui:zer:old:g`(~(run by groups) to-group-ui-v0))
+    ``groups-ui-v0+!>(`groups-ui:zero`(~(run by groups) to-group-ui-v0))
   ::
       [%x %groups %v1 ~]
     ``groups-ui+!>(`groups-ui:g`(~(run by groups) to-group-ui))
@@ -448,7 +448,7 @@
     ?~  rest.pole
       ``group+!>(+.u.group)
     ?:  =(/v0 rest.pole)
-      ``group-ui-v0+!>(`group-ui:zer:old:g`(to-group-ui-v0 u.group))
+      ``group-ui-v0+!>(`group-ui:zero`(to-group-ui-v0 u.group))
     ?:  =(/v1 rest.pole)
       ``group-ui+!>(`group-ui:g`(to-group-ui u.group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
@@ -506,7 +506,7 @@
   |=  [=net:g =group:g]
   (to-group-ui net (drop-fleet group))
 ++  groups-light-ui-v0
-  ^-  groups-ui:zer:old:g
+  ^-  groups-ui:zero
   %-  ~(run by groups)
   |=  [=net:g =group:g]
   (to-group-ui-v0 net (drop-fleet group))
@@ -519,8 +519,8 @@
   ==
 ++  to-group-ui-v0
   |=  [=net:g =group:g]
-  ^-  group-ui:zer:old:g
-  :_ 
+  ^-  group-ui:zero
+  :_
     ?+  -.net  ~
         %sub  `saga.net
     ==
