@@ -21,7 +21,7 @@ export default function SetRolesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} className={className}>
-      <h3 className="mt-1 font-bold">Set Roles</h3>
+      <h3 className="mt-1 font-bold">Edit Roles</h3>
       <div className="my-5 flex flex-col items-center justify-center">
         <Avatar ship={member} size="small" className="mb-2" />
         {contact?.nickname ? (
@@ -35,11 +35,13 @@ export default function SetRolesDialog({
           </span>
         )}
       </div>
-      {roles.map((role) => (
-        <div className="my-2">
-          <RoleSelect role={role} member={member} />
-        </div>
-      ))}
+      <div className="max-h-[300px] overflow-auto">
+        {roles.map((role) => (
+          <div className="my-2">
+            <RoleSelect role={role} member={member} />
+          </div>
+        ))}
+      </div>
     </Dialog>
   );
 }
