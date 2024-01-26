@@ -6,6 +6,10 @@ on:
         type: string
         required: false
         description: Enter the tag to deploy
+        default: staging
+  push:
+    branches:
+      - 'staging'
 jobs:
   deploy:
     runs-on: ubuntu-latest
