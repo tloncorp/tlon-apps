@@ -1,7 +1,6 @@
 import { debounce } from 'lodash';
 import React, {
   ChangeEvent,
-  MouseEvent,
   useCallback,
   useMemo,
   useRef,
@@ -20,7 +19,6 @@ import ShipName from '@/components/ShipName';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { isNativeApp } from '@/logic/native';
 import useNavigateByApp from '@/logic/useNavigateByApp';
-import { getSectTitle } from '@/logic/utils';
 import { useContact } from '@/state/contact';
 import {
   useRouteGroup,
@@ -29,86 +27,22 @@ import {
   useGroupDelMembersMutation,
   useGroupFlag,
   useAmAdmin,
-  useVessel,
   useSects,
-  useGroupSectMutation,
   useGroupCompatibility,
 } from '@/state/groups';
 import XIcon from '@/components/icons/XIcon';
-import { Vessel } from '@/types/groups';
-import CheckIcon from '@/components/icons/CheckIcon';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import RoleBadges from '@/components/RoleBadges';
 import ShipScroller from '@/components/ShipScroller';
+import { useIsMobile } from '@/logic/useMedia';
+import SetRolesDialog from './RoleInput/SetRolesDialog';
+import RoleSelect from './RoleInput/RoleSelector';
 
 interface GroupMemberItemProps {
   ship: string;
 }
 
-function Role({ role, member }: { role: string; member: string }) {
-  const flag = useGroupFlag();
-  const group = useGroup(flag);
-  const vessel = useVessel(flag, member);
-  const [sectLoading, setSectLoading] = useState('');
-  const [isOwner, setIsOwner] = useState(false);
-  const { mutateAsync: sectMutation } = useGroupSectMutation();
-
-  const toggleSect = useCallback(
-    (ship: string, sect: string, v: Vessel) => async (event: MouseEvent) => {
-      event.preventDefault();
-
-      const inSect = v.sects.includes(sect);
-
-      if (inSect && sect === 'admin' && flag.includes(ship)) {
-        setIsOwner(true);
-        return;
-      }
-      if (inSect) {
-        try {
-          setSectLoading(sect);
-          await sectMutation({ flag, ship, sects: [sect], operation: 'del' });
-          setSectLoading('');
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        try {
-          setSectLoading(sect);
-          await sectMutation({ flag, ship, sects: [sect], operation: 'add' });
-          setSectLoading('');
-        } catch (e) {
-          console.log(e);
-        }
-      }
-    },
-    [flag, sectMutation]
-  );
-
-  if (!group) {
-    return null;
-  }
-
-  return (
-    <button
-      onClick={toggleSect(member, role, vessel)}
-      className="flex items-center"
-    >
-      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-200">
-        {sectLoading === role ? (
-          <LoadingSpinner className="h-4 w-4" />
-        ) : isOwner ? (
-          <ExclamationPoint className="h-4 w-4 text-red" />
-        ) : vessel.sects.includes(role) ? (
-          <CheckIcon className="h-4 w-4" />
-        ) : null}
-      </div>
-      <span className="ml-4">{getSectTitle(group.cabals, role)}</span>
-    </button>
-  );
-}
-
 const Member = React.memo(({ ship: member }: GroupMemberItemProps) => {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const flag = useGroupFlag();
   const group = useGroup(flag);
@@ -178,7 +112,7 @@ const Member = React.memo(({ ship: member }: GroupMemberItemProps) => {
 
   const roleActions: Action[] = sects.map((s) => ({
     key: s,
-    content: <Role role={s} member={member} />,
+    content: <RoleSelect role={s} member={member} />,
     keepOpenOnClick: true,
   }));
 
@@ -229,12 +163,22 @@ const Member = React.memo(({ ship: member }: GroupMemberItemProps) => {
           </div>
         </SidebarItem>
       </ActionMenu>
-      <ActionMenu
-        className="w-full"
-        open={rolesIsOpen}
-        onOpenChange={setRolesIsOpen}
-        actions={roleActions}
-      />
+      {isMobile ? (
+        <ActionMenu
+          className="w-full"
+          open={rolesIsOpen}
+          onOpenChange={setRolesIsOpen}
+          actions={roleActions}
+        />
+      ) : (
+        <SetRolesDialog
+          className="min-w-[300px]"
+          open={rolesIsOpen}
+          onOpenChange={setRolesIsOpen}
+          member={member}
+          roles={sects}
+        />
+      )}
       <ConfirmationModal
         title="Kick Member"
         message={`Are you sure you want to kick ${member}?`}

@@ -16,13 +16,11 @@ import {
   useLoadingGroups,
   useGangsWithClaim,
   useGroupsWithQuery,
-  usePendingInvites,
+  usePendingGangsWithoutClaim,
+  useNewGroups,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
-import MagnifyingGlass from '@/components/icons/MagnifyingGlass16Icon';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import AddIcon16 from '@/components/icons/Add16Icon';
 import { usePinnedGroups } from '@/state/pins';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
@@ -36,9 +34,10 @@ import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import ReconnectingSpinner from '../ReconnectingSpinner';
-import SystemChrome from './SystemChrome';
 import ActionMenu, { Action } from '../ActionMenu';
 import { DesktopUpdateButton } from '../UpdateNotices';
+import TlonIcon from '../icons/TlonIcon';
+import AddGroupSidebarItem from './AddGroupSidebarItem';
 
 export const GroupsAppMenu = React.memo(() => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -97,9 +96,9 @@ export const GroupsAppMenu = React.memo(() => {
         )}
         icon={
           <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
-            <AppGroupsIcon
+            <TlonIcon
               className={cn(
-                'h-6 w-6',
+                'h-[22px] w-[22px]',
                 menuOpen ? 'hidden' : 'group-hover:hidden'
               )}
             />
@@ -114,7 +113,7 @@ export const GroupsAppMenu = React.memo(() => {
         }
       >
         <div className="flex items-center justify-between">
-          Groups
+          Tlon
           <ReconnectingSpinner
             className={cn(
               'h-4 w-4 group-hover:hidden',
@@ -152,32 +151,62 @@ const UpdateOrAppMenu = React.memo(() => {
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
-  const location = useLocation();
-  const pendingInvites = usePendingInvites();
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
-  const pendingInvitesCount = pendingInvites.length;
   const { count } = useNotifications();
   const { data: groups, isLoading } = useGroupsWithQuery();
+  const invitedGroups = usePendingGangsWithoutClaim();
   const pinnedGroups = usePinnedGroups();
   const loadingGroups = useLoadingGroups();
+  const newGroups = useNewGroups();
   const gangsWithClaims = useGangsWithClaim();
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
   const ref = useRef<HTMLDivElement>(null);
+
+  const hasPinnedGroups = !!Object.keys(pinnedGroups).length;
+  const hasLoadingGroups = !!loadingGroups.length;
+  const hasGangsWithClaims = !!gangsWithClaims.length;
+  const hasInvitedGroups = !!Object.keys(invitedGroups).length;
+  const hasNewGroups = !!newGroups.length;
+
   const pinnedGroupsOptions = useMemo(
     () =>
-      Object.entries(pinnedGroups).map(([flag]) => (
+      Object.keys(pinnedGroups).map((flag) => (
         <GroupsSidebarItem key={flag} flag={flag} />
       )),
     [pinnedGroups]
   );
 
-  const hasPinnedGroups = !!pinnedGroupsOptions.length;
-  const hasLoadingGroups = !!loadingGroups.length;
-  const hasGangsWithClaims = !!gangsWithClaims.length;
+  const invitedGroupsDisplay = useMemo(
+    () =>
+      Object.keys(invitedGroups).map((flag) => (
+        <GangItem key={flag} flag={flag} invited />
+      )),
+    [invitedGroups]
+  );
 
+  const loadingGroupsDisplay = useMemo(
+    () =>
+      loadingGroups.map(([flag, _]) => (
+        <GangItem key={flag} flag={flag} isJoining />
+      )),
+    [loadingGroups]
+  );
+
+  const gangsWithClaimsDisplay = useMemo(
+    () => gangsWithClaims.map((flag) => <GangItem key={flag} flag={flag} />),
+    [gangsWithClaims]
+  );
+
+  const newGroupsDisplay = useMemo(
+    () =>
+      newGroups.map(([flag]) => (
+        <GroupsSidebarItem key={flag} flag={flag} isNew />
+      )),
+    [newGroups]
+  );
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
   const scroll = useRef(
     debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
@@ -195,14 +224,7 @@ export default function Sidebar() {
         })}
       >
         <UpdateOrAppMenu />
-        <SystemChrome />
-        <SidebarItem
-          highlight={shipColor}
-          icon={<Avatar size="xs" ship={window.our} />}
-          to={'/profile/edit'}
-        >
-          <ShipName showAlias name={window.our} />
-        </SidebarItem>
+
         <SidebarItem
           icon={<ActivityIndicator count={count} />}
           to={`/notifications`}
@@ -210,25 +232,15 @@ export default function Sidebar() {
         >
           Activity
         </SidebarItem>
+
+        <AddGroupSidebarItem />
+
         <SidebarItem
-          icon={<MagnifyingGlass className="m-1 h-4 w-4" />}
-          to="/find"
+          highlight={shipColor}
+          icon={<Avatar size="xs" ship={window.our} />}
+          to={'/profile/edit'}
         >
-          <div className="flex items-center">
-            Discover
-            {pendingInvitesCount > 0 ? (
-              <span className="ml-auto pr-2 font-semibold text-blue">
-                {pendingInvitesCount}
-              </span>
-            ) : null}
-          </div>
-        </SidebarItem>
-        <SidebarItem
-          icon={<AddIcon16 className="m-1 h-4 w-4" />}
-          to="/groups/new"
-          state={{ backgroundLocation: location }}
-        >
-          Create Group
+          <ShipName showAlias name={window.our} />
         </SidebarItem>
       </div>
       <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
@@ -237,33 +249,26 @@ export default function Sidebar() {
             groups={sortedGroups}
             pinnedGroups={Object.entries(pinnedGroups)}
             loadingGroups={loadingGroups}
+            newGroups={newGroups}
             isScrolling={scroll.current}
             atTopChange={atTopChange}
           >
-            {hasPinnedGroups && (
-              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
-                <h2 className="p-2 text-sm font-semibold text-gray-400">
-                  Pinned Groups
-                </h2>
-                {pinnedGroupsOptions}
-              </div>
-            )}
+            <SidebarTopSection
+              title="Pinned Groups"
+              empty={!hasPinnedGroups && !hasInvitedGroups}
+            >
+              {hasPinnedGroups && pinnedGroupsOptions}
+              {hasInvitedGroups && invitedGroupsDisplay}
+            </SidebarTopSection>
 
-            {(hasLoadingGroups || hasGangsWithClaims) && (
-              <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
-                <h2 className="p-2 text-sm font-semibold text-gray-400">
-                  Pending
-                </h2>
-                {hasLoadingGroups &&
-                  loadingGroups.map(([flag, _]) => (
-                    <GangItem key={flag} flag={flag} isJoining />
-                  ))}
-                {hasGangsWithClaims &&
-                  gangsWithClaims.map((flag) => (
-                    <GangItem key={flag} flag={flag} />
-                  ))}
-              </div>
-            )}
+            <SidebarTopSection
+              title="Pending"
+              empty={!hasLoadingGroups && !hasGangsWithClaims}
+            >
+              {hasLoadingGroups && loadingGroupsDisplay}
+              {hasGangsWithClaims && gangsWithClaimsDisplay}
+            </SidebarTopSection>
+
             <div ref={ref} className="flex-initial">
               <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
                 <h2 className="px-2 text-sm font-semibold text-gray-400">
@@ -278,7 +283,9 @@ export default function Sidebar() {
                 </div>
               </div>
 
-              {!sortedGroups.length && !isLoading && (
+              {hasNewGroups && <div className="mx-2">{newGroupsDisplay}</div>}
+
+              {!sortedGroups.length && !hasNewGroups && !isLoading && (
                 <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
                   Check out <strong>Discover</strong> above to find new groups
                   in your network or view group invites.
@@ -289,5 +296,24 @@ export default function Sidebar() {
         </GroupsScrollingContext.Provider>
       </div>
     </nav>
+  );
+}
+
+function SidebarTopSection({
+  title,
+  children,
+  empty,
+}: {
+  title: string;
+  children: React.ReactNode;
+  empty: boolean;
+}) {
+  if (empty) return null;
+
+  return (
+    <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
+      <h2 className="p-2 text-sm font-semibold text-gray-400">{title}</h2>
+      {children}
+    </div>
   );
 }

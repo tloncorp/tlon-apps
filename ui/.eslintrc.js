@@ -30,6 +30,7 @@ module.exports = {
         extensions: ['.jsx', '.tsx'],
       },
     ],
+    'react/jsx-key': 'warn',
     'tailwindcss/no-custom-classname': [
       0,
       {
@@ -44,12 +45,6 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': [
       'warn',
       { argsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' },
-    ],
-    '@typescript-eslint/no-use-before-define': [
-      'error',
-      {
-        typedefs: false,
-      },
     ],
   },
   settings: {

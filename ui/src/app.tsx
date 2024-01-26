@@ -2,7 +2,6 @@
 import cookies from 'browser-cookies';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet';
-import _ from 'lodash';
 import {
   BrowserRouter as Router,
   Routes,
@@ -44,7 +43,7 @@ import ProfileModal from '@/profiles/ProfileModal';
 import MultiDMEditModal from '@/dms/MultiDMEditModal';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import FindGroups from '@/groups/FindGroups';
-import JoinGroupModal from '@/groups/Join/JoinGroupModal';
+import GroupPreviewModal from '@/groups/Join/GroupPreview';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
@@ -112,6 +111,8 @@ import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import UpdateNoticeSheet from './components/UpdateNotices';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
+import { CreateGroupDialog } from './groups/AddGroup/CreateGroup';
+import { JoinGroupDialog } from './groups/AddGroup/JoinGroup';
 import ReportContent from './components/ReportContent';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
@@ -281,7 +282,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
           <Route path="/report-content" element={<ReportContent />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
-          <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
+          <Route path="/gangs/:ship/:name" element={<GroupPreviewModal />} />
           <Route
             path="/gangs/:ship/:name/reject"
             element={<RejectConfirmModal />}
@@ -563,6 +564,8 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/blocked" element={<BlockedUsersDialog />} />
           <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
           <Route path="/activity-collection" element={<ActivityModal />} />
+          <Route path="/add-group/create" element={<CreateGroupDialog />} />
+          <Route path="/add-group/join" element={<JoinGroupDialog />} />
           <Route
             path="/grid"
             element={
@@ -607,7 +610,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             path="/groups/:ship/:name/leave"
             element={<GroupLeaveDialog />}
           />
-          <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
+          <Route path="/gangs/:ship/:name" element={<GroupPreviewModal />} />
           <Route
             path="/gangs/:ship/:name/reject"
             element={<RejectConfirmModal />}

@@ -1,10 +1,10 @@
-import { MAX_DISPLAYED_OPTIONS } from '@/constants';
-import { useMemoizedContacts } from '@/state/contact';
-import { deSig, preSig } from '@urbit/api';
+import { useMemo } from 'react';
 import _ from 'lodash';
 import { isValidPatp } from 'urbit-ob';
 import fuzzy from 'fuzzy';
-import { useMemo } from 'react';
+import { deSig, preSig } from '@urbit/api';
+import { MAX_DISPLAYED_OPTIONS } from '@/constants';
+import { useMemoizedContacts } from '@/state/contact';
 
 export default function useShipSearch(
   query: string
