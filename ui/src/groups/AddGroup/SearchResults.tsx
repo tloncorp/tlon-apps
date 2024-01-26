@@ -1,6 +1,6 @@
-import { Gang, Gangs } from '@/types/groups';
+import cn from 'classnames';
+import { Gang } from '@/types/groups';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { hasKeys } from '@/logic/utils';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { useGang, useGroup } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
@@ -10,9 +10,11 @@ import GroupAvatar from '../GroupAvatar';
 
 export function GroupResultRow({
   flag,
+  size,
   onClick,
 }: {
   flag: string;
+  size: 'mobile' | 'desktop';
   onClick: () => void;
 }) {
   const gang: Gang = useGang(flag);
@@ -27,7 +29,7 @@ export function GroupResultRow({
         <GroupAvatar
           {...gang.preview?.meta}
           className="flex-none"
-          size="h-12 w-12 sm:h-6 sm:w-6 rounded-lg sm:rounded"
+          size={size === 'mobile' ? 'h-6 w-6 rounded' : 'h-12 w-12 rounded-lg'}
         />
       }
     >
@@ -103,34 +105,62 @@ export function ShipSearchResultsDisplay({
 }
 
 export function ShipGroupsDisplay({
-  gangs,
+  flags,
+  hostMayBeOffline,
   loading,
+  autoHeight,
   selectGroup,
+  size = 'mobile',
 }: {
-  gangs: Gangs;
+  flags: string[];
   loading: boolean;
+  autoHeight?: boolean;
+  hostMayBeOffline?: boolean;
+  size?: 'mobile' | 'desktop';
   selectGroup: (flag: string) => void;
 }) {
   if (loading) {
     return (
-      <div className="mt-3 flex h-[200px] w-full items-center justify-center">
+      <div
+        className={cn(
+          'mt-3 flex w-full items-center justify-center',
+          autoHeight ?? 'h-[200px]'
+        )}
+      >
         <LoadingSpinner className="h-6 w-6" />
       </div>
     );
   }
-  if (!gangs || !hasKeys(gangs))
+
+  if (flags.length === 0) {
     return (
-      <div className="mt-3 flex h-[200px] w-full items-center justify-center">
-        <h3 className="text-lg text-gray-400">No groups found.</h3>
+      <div
+        className={cn(
+          'mt-3 flex w-full flex-col items-center justify-center',
+          autoHeight ?? 'h-[200px]'
+        )}
+      >
+        <h3 className="text-lg text-gray-400">No groups found</h3>
+        {hostMayBeOffline && (
+          <p className="mt-1 text-sm text-gray-300">The host may be offline.</p>
+        )}
       </div>
     );
+  }
+
   return (
-    <div className="mt-3 h-[200px] w-full overflow-auto">
-      {Object.entries(gangs).map(([flag]) => (
+    <div
+      className={cn(
+        'mt-3 max-h-full w-full overflow-auto',
+        autoHeight ?? 'h-[200px]'
+      )}
+    >
+      {flags.map((flag) => (
         <GroupResultRow
           flag={flag}
           key={flag}
           onClick={() => selectGroup(flag)}
+          size={size}
         />
       ))}
     </div>

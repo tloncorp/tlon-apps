@@ -24,6 +24,7 @@ interface GroupReferenceProps {
   description?: string;
   contextApp?: string;
   children?: React.ReactNode;
+  customOnClick?: (flag: string) => void;
 }
 
 function GroupReference({
@@ -33,6 +34,7 @@ function GroupReference({
   onlyButton = false,
   contextApp,
   children,
+  customOnClick,
 }: GroupReferenceProps) {
   const calm = useCalm();
   const gang = useGang(flag);
@@ -181,7 +183,7 @@ function GroupReference({
     >
       <button
         className="flex w-full items-center justify-between space-x-2 text-left"
-        onClick={open}
+        onClick={customOnClick ? () => customOnClick(flag) : open}
       >
         <GroupAvatar {...meta} size="h-12 w-12 shrink-0" />
         <div className="grow text-sm font-semibold leading-4">
@@ -214,7 +216,7 @@ function GroupReference({
           <>
             {gang.invite && !group && status !== 'loading' ? (
               <button
-                className="small-button bg-red text-white dark:text-black"
+                className="small-button mr-3 bg-red text-white dark:text-black"
                 onClick={reject}
               >
                 Reject
@@ -229,7 +231,7 @@ function GroupReference({
               </div>
             ) : (
               <button
-                className="small-button whitespace-nowrap bg-blue-softer text-blue dark:text-black"
+                className="small-button whitespace-nowrap bg-blue text-white dark:text-black"
                 onClick={plain ? button.action : open}
                 disabled={button.disabled || status === 'error'}
               >

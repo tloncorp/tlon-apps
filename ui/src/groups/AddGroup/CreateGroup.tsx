@@ -1,60 +1,14 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { strToSym } from '@/logic/utils';
-import { useCreateGroupMutation } from '@/state/groups';
-import { useNavigate } from 'react-router-dom';
-import { useCreateMutation } from '@/state/channel/channel';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import LargeTextInput from '@/components/FullsizeTextInput';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import LargePrimaryButton from '@/components/LargePrimaryButton';
+import Dialog from '@/components/Dialog';
+import { useDismissNavigate } from '@/logic/routing';
+import useCreateDefaultGroup from '@/logic/useCreateDefaultGroup';
 
-export default function CreateGroup(props: { back: () => void }) {
-  const { mutateAsync: createGroupMutation, isLoading } =
-    useCreateGroupMutation();
-  const { mutateAsync: createChannelMutation, isLoading: channelIsLoading } =
-    useCreateMutation();
-  const navigate = useNavigate();
-  const [input, setInput] = useState('');
-  const shortCode = strToSym(input).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
-
-  const createGroup = useCallback(async () => {
-    if (!input || !shortCode) return;
-
-    try {
-      await createGroupMutation({
-        title: input,
-        description: '',
-        image: '#999999',
-        cover: '#D9D9D9',
-        name: shortCode,
-        members: {},
-        cordon: {
-          open: {
-            ships: [],
-            ranks: [],
-          },
-        },
-        secret: false,
-      });
-
-      const flag = `${window.our}/${shortCode}`;
-      navigate(`/groups/${flag}`);
-
-      const randomNumber = Math.floor(Math.random() * 10000);
-      await createChannelMutation({
-        kind: 'chat',
-        group: flag,
-        name: `welcome-${randomNumber}`,
-        title: 'Welcome',
-        description: 'Welcome to your new group!',
-        readers: [],
-        writers: [],
-      });
-    } catch (error) {
-      console.log("Couldn't create group", error);
-    }
-  }, [createGroupMutation, input, shortCode, navigate, createChannelMutation]);
-
+export function CreateGroupSheetView(props: { back: () => void }) {
   return (
     <div className="flex w-full flex-col items-center">
       <div className="mb-4 flex w-full items-center justify-between">
@@ -68,12 +22,49 @@ export default function CreateGroup(props: { back: () => void }) {
         <div className="invisible h-6 w-6" />
       </div>
 
+      <CreateGroupBody />
+    </div>
+  );
+}
+
+export function CreateGroupDialog() {
+  const dismiss = useDismissNavigate();
+  const onOpenChange = (open: boolean) => {
+    if (!open) {
+      dismiss();
+    }
+  };
+
+  return (
+    <Dialog
+      className="flex h-[400px] w-[500px] flex-col items-start"
+      defaultOpen
+      modal
+      onOpenChange={onOpenChange}
+    >
+      <div className="mb-4 text-lg font-bold">
+        <h3 className="block">New Group</h3>
+      </div>
+      <CreateGroupBody />
+    </Dialog>
+  );
+}
+
+function CreateGroupBody() {
+  const [input, setInput] = useState('');
+  const shortCode = strToSym(input).replace(/[^a-z]*([a-z][-\w\d]+)/i, '$1');
+
+  const { createGroup, loading } = useCreateDefaultGroup();
+
+  return (
+    <>
       <div className="flex w-full flex-col pt-6">
         <label className="text-small pb-3 text-gray-400">
           Name your group, you can edit it later
         </label>
         <LargeTextInput
           placeholder="Group name"
+          data-testid="create-group-name-input"
           autoFocus
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -93,10 +84,11 @@ export default function CreateGroup(props: { back: () => void }) {
 
       <div className="mt-6 flex w-full grow items-center justify-center">
         <LargePrimaryButton
-          disabled={input === '' || isLoading || channelIsLoading}
-          onClick={createGroup}
+          disabled={input === '' || loading}
+          onClick={() => createGroup({ title: input, shortCode })}
+          data-testid="create-group-submit-button"
         >
-          {isLoading || channelIsLoading ? (
+          {loading ? (
             <span className="flex w-full items-center justify-center">
               <LoadingSpinner className="h-5 w-5" />
             </span>
@@ -105,6 +97,6 @@ export default function CreateGroup(props: { back: () => void }) {
           )}
         </LargePrimaryButton>
       </div>
-    </div>
+    </>
   );
 }
