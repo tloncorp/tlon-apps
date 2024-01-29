@@ -358,7 +358,12 @@
   ::
   ++  head
     ;head
-      ;title:"lmao"
+      ;+  =;  name=tape
+            ;title:"{name}"
+          =*  ship  (scow %p our.bowl)
+          ?~  ours  ship
+          ?:  =('' nickname.u.ours)  ship
+          "{(trip nickname.u.ours)} ({ship})"
       ;style:"{(trip style)}"
     ==
   ::
@@ -379,6 +384,7 @@
           ;div#profile-overlay4;
         ::
           ;div#profile-header
+            ::TODO  embed sigil if there's no avatar
             ;+  =/  avatar=@t  ?~(ours 'xx' ?~(avatar.u.ours 'xx' u.avatar.u.ours))
             ;img#profile-avatar
                =src  "{(trip avatar)}"
