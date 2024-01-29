@@ -1,0 +1,607 @@
+::  profile: public profile page engine
+::
+/-  contacts
+/+  dbug, verb
+::
+|%
++$  state-0
+  $:  %0
+      bound=?
+      previous-home=(unit dude:gall)
+  ==
+::
++$  card  $+(card card:agent:gall)
+--
+::
+|_  [=bowl:gall state-0]
++*  this   .
+    state  +<+
+++  bind
+  ^-  (quip card _state)
+  ::TODO  maybe want to serve at /, but see below
+  :-  [%pass /eyre/connect %arvo %e %connect [~ /profile] dap.bowl]~
+  ::  if we will be overwriting an existing binding, remember it, so that we
+  ::  may restore it if we ever +unbind ourselves
+  ::
+  state
+  ::  actually, docket serves a couple things at or somewhere / implicitly,
+  ::  things that other frontends depend on. we may want to be a tad more
+  ::  careful here, if we still want to serve on / ourselves...
+  :: =+  .^  binds=(list [=binding:eyre * =action:eyre])
+  ::       /e/(scot %p our.bowl)/bindings/(scot %da now.bowl)
+  ::     ==
+  :: |-
+  :: ?~  binds  state
+  :: ?.  ?=([[~ ~] * [%app *]] i.binds)
+  ::   $(binds t.binds)
+  :: state(previous-home `app.action.i.binds)
+::
+++  did-bind
+  |=  success=?
+  ^-  (quip card _state)
+  ?:  success
+    [~ state(bound &)]
+  [~ state(bound |, previous-home ~)]
+::
+++  unbind
+  ^-  (quip card _state)
+  ?.  bound  [~ state]
+  =.  bound  |
+  ?~  previous-home
+    :_  state
+    [%pass /eyre/connect %arvo %e %disconnect [~ /]]~
+  ::  if we had overwritten another agent's binding, restore it
+  ::
+  :_  state(previous-home ~)
+  [%pass /eyre/connect %arvo %e %connect [~ /] u.previous-home]~
+::
+++  serve
+  |=  order:rudder
+  ^-  (list card)
+  %+  spout:rudder  id
+  %-  paint:rudder
+  =/  =query:rudder  (purse:rudder url.request)
+  ::  we bound at /, so act as a final routing catch-all. to be polite,
+  ::  if the request is not for / or /profile, we redirect to landscape.
+  ::
+  ?.  ?=(?(~ [%profile ~]) site.query)
+    ~&  [%redirecting site.query]
+    [%move '/apps/landscape/']
+  ::
+  :-  %page
+  =,  contacts
+  =+  .^  =rolodex
+        /gx/(scot %p our.bowl)/contacts/(scot %da now.bowl)/all/contact-rolodex
+      ==
+  =/  ours=(unit contact)
+    ::NOTE  we scry for the full rolodex, because we are not guaranteed to
+    ::      have an entry for ourselves, and contacts doesn't expose a "safe"
+    ::      (as in crashless) endpoint for checking
+    =/  =foreign  (~(gut by rolodex) our.bowl *foreign)
+    ?:  ?=([[@ ^] *] foreign)
+      ~!  foreign
+      `con.for.foreign
+    ~  ::TODO  or bunted $contact?
+  :: =?  ours  ?=(~ ours)
+  ::   %-  some
+  ::   :*  'Hot Zod'
+  ::       'swagalactic overlorder'
+  ::       'centered'
+  ::       0x0
+  ::       `'https://i.imgur.com/ehSV8fz.png'
+  ::       `'https://i.imgur.com/H6U503h.png'
+  ::       ~
+  ::   ==
+  |^  ;html
+        ;+  head
+        ;+  body
+      ==
+  ::
+  ++  style
+    '''
+    @import url("https://fonts.cdnfonts.com/css/source-code-pro");
+
+    .body {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .call-to-action {
+      position: absolute;
+      bottom: 36px;
+      left: 36px;
+      border: 2px solid black;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      color: black;
+    }
+
+    .call-to-action-icon {
+      position: relative;
+      top: 2px;
+    }
+
+    .call-to-action-text {
+      margin: 0 0 0 8px;
+      font-weight: 500;
+    }
+
+    #profile-widget {
+      position: relative;
+      width: 400px;
+      height: 400px;
+      max-width: 85vw;
+      max-height: 85vw;
+      border-radius: 40px;
+
+      position: relative;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      color: white;
+
+      box-shadow: 0px 10px 50px 0px rgba(0, 0, 0, 0.1),
+        0px 20px 30px 0px rgba(0, 0, 0, 0.15), 0px 0px 1px 0px black;
+
+      transition: transform 0.3s ease-in-out;
+    }
+
+    .profile-background {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      z-index: 1;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -o-user-select: none;
+      user-select: none;
+    }
+
+    #profile-overlay1 {
+      z-index: 6;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+
+      background: rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(1px);
+      box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.1);
+    }
+
+    #profile-overlay2 {
+      z-index: 7;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 120px;
+
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(1px);
+      box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.2);
+    }
+
+    #profile-overlay3 {
+      z-index: 8;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+
+      background: rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(1px);
+      box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.1);
+    }
+
+    #profile-overlay4 {
+      z-index: 9;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 210px;
+
+      background: rgba(0, 0, 0, 0.3);
+      box-shadow: 0 -20px 30px 18px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(1px);
+    }
+
+    #profile-content {
+      position: relative;
+      width: 100%;
+      height: 220px;
+
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: start;
+
+      padding: 0px 36px 0px 36px;
+      z-index: 99;
+    }
+
+    #profile-header {
+      display: flex;
+      align-items: center;
+      position: relative;
+      z-index: 11;
+    }
+
+    #profile-avatar {
+      width: 80px;
+      aspect-ratio: 1 / 1;
+      border-radius: 12px;
+      margin-right: 16px;
+      object-fit: cover;
+      z-index: 3;
+    }
+
+    #profile-title {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: start;
+    }
+
+    #profile-nickname {
+      margin-top: 0;
+      margin-bottom: 0;
+      font-size: 17px;
+      font-weight: 500;
+    }
+
+    #profile-username {
+      font-family: "Source Code Pro", monospace;
+      margin-bottom: 0;
+      font-size: 16px;
+      opacity: 70%;
+      margin-top: 4px;
+    }
+
+    #profile-bio {
+      flex: 1;
+      position: relative;
+      z-index: 11;
+      overflow: hidden;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #bio-title {
+      font-size: 17px;
+      opacity: 70%;
+      display: block;
+    }
+
+    #bio-content {
+      flex: 1;
+      margin-top: 6px;
+      font-size: 17px;
+      line-height: 24px;
+    }
+
+    .fade-text {
+      background: linear-gradient(
+        to bottom,
+        rgb(255, 255, 255) 0%,
+        rgb(255, 255, 255) 20%,
+        rgba(255, 255, 255, 0.1) 100%
+      );
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+      display: inline-block;
+    }
+
+    @media (max-width: 480px) {
+      #profile-widget {
+        border-radius: 40px;
+      }
+
+      #profile-overlay4 {
+        height: 180px;
+      }
+
+      #profile-overlay3 {
+        height: 100px;
+      }
+
+      #profile-content {
+        height: 200px;
+        padding: 0 30px 0px 30px;
+      }
+
+      #profile-avatar {
+        width: 72px;
+      }
+
+      .fade-text {
+        background: linear-gradient(
+          to bottom,
+          rgb(255, 255, 255) 0%,
+          rgb(255, 255, 255) 5%,
+          rgba(255, 255, 255, 0.1) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: transparent;
+        display: inline-block;
+      }
+    }
+    '''
+  ::
+  ++  style-old
+    '''
+    body {
+      background-color: white;
+      background-size: cover;
+    }
+    #card {
+      margin: 30vh auto 0;
+      border: 1px solid black;
+      border-radius: 20px;
+      padding: 30px;
+      width: 50vw;
+      background-color: white;
+    }
+    #deets img {
+      max-width: 50%;
+    }
+    '''
+  ::
+  ++  head
+    ;head
+      ;title:"lmao"
+      ;style:"{(trip style)}"
+    ==
+  ::
+  ++  body
+    ;body.body
+      ;div#profile-widget
+        ;*  ?~  ours  ~
+            ?~  cover.u.ours  ~
+        :_  ~
+        ;img#profile-background.profile-background
+           =src  "{(trip u.cover.u.ours)}"
+           =alt  "Background";
+
+        ;div#profile-content
+          ;div#profile-overlay1;
+          ;div#profile-overlay2;
+          ;div#profile-overlay3;
+          ;div#profile-overlay4;
+        ::
+          ;div#profile-header
+            ;+  =/  avatar=@t  ?~(ours 'xx' ?~(avatar.u.ours 'xx' u.avatar.u.ours))
+            ;img#profile-avatar
+               =src  "{(trip avatar)}"
+               =alt  "Avatar";
+            ;div#profile-title
+              ;*  =*  plain  ;p#profile-nickname:"{(scow %p our.bowl)}"
+                  ?~  ours  [plain]~
+                  ?:  =('' nickname.u.ours)  [plain]~
+                  :~  ;p#profile-nickname:"{(trip nickname.u.ours)}"
+                      ;p#profile-username:"{(scow %p our.bowl)}"
+                  ==
+            ==
+          ==
+        ::
+          ;*  ?~  ours  ~
+              ?:  =('' bio.u.ours)  ~
+          :_  ~
+          ;div#profile-bio
+            ;span#bio-title:"Info"
+            ;span#bio-content
+              ;*  %+  join  `manx`;br;
+                  %+  turn  (to-wain:format bio.u.ours)
+                  |=  p=@t  ^-  manx
+                  [[%$ $+[p ~] ~] ~]
+            ==
+          ==
+        ==
+      ==
+      ::TODO  maybe only display if Host header has *.tlon.network?
+      ;a.call-to-action/"https://tlon.network/lure/~nibset-napwyn/tlon"
+        ;div.call-to-action-icon
+          ;svg
+            =width  "18"
+            =height  "18"
+            =viewBox  "0 0 18 18"
+            =fill  "none"
+            =xmlns  "http://www.w3.org/2000/svg"
+            ;path
+              =d  "M15.4151 0.259814L0.497261 1.82774C0.222631 1.85661 0.0233995 2.10264 0.0522642 2.37727L0.391982 5.60946C0.420847 5.88409 0.666877 6.08332 0.941507 6.05446L5.41686 5.58408C5.96612 5.52635 6.45818 5.92482 6.51591 6.47407L6.79029 9.08469C6.84081 9.5653 6.49215 9.99585 6.01155 10.0464C5.53095 10.0969 5.10039 9.74822 5.04988 9.26762L4.85389 7.40289C4.82502 7.12826 4.57899 6.92903 4.30436 6.95789L1.07217 7.29761C0.797538 7.32648 0.598306 7.57251 0.627171 7.84714L1.56793 16.7978C1.62566 17.3471 2.11772 17.7456 2.66698 17.6878L16.5903 16.2244C17.1395 16.1667 17.538 15.6746 17.4803 15.1254L16.5395 6.17468C16.5107 5.90005 16.2646 5.70082 15.99 5.72968L12.7578 6.0694C12.4832 6.09827 12.2839 6.3443 12.3128 6.61893L12.5088 8.48366C12.5593 8.96426 12.2107 9.39481 11.73 9.44533C11.2494 9.49584 10.8189 9.14718 10.7684 8.66658L10.494 6.05596C10.4363 5.5067 10.8347 5.01464 11.384 4.95691L15.8593 4.48653C16.134 4.45767 16.3332 4.21164 16.3043 3.93701L15.9646 0.70481C15.9357 0.430181 15.6897 0.230949 15.4151 0.259814Z"
+              =fill  "black"
+              =style  "fill: black; fill-opacity: 1";
+          ==
+        ==
+        ;p.call-to-action-text:"Hop on Tlon"
+      ==
+    ==
+  ::
+  ++  body-old
+    =/  bos=tape
+      ?~  ours  ""
+      ?~  cover.u.ours  ""
+      "background-image: url('{(trip u.cover.u.ours)}')"
+    ;body(style bos)
+      ;div#card
+        ;b:"{(scow %p our.bowl)}"
+        ;br;
+        ;+  deets
+      ==
+    ==
+  ::
+  ++  deets
+    ?~  ours
+      ;i:"an enigma..."
+    =,  u.ours
+    ;div#deets
+      ;+  ?~  avatar.u.ours  :/""
+          ;img.avatar(src "{(trip u.avatar)}", style "border-color: #{((x-co:co 6) color)}");
+      ;table
+        ;tr
+          ;td:"nickname"
+          ;td:"{(trip nickname)}"
+        ==
+        ;tr
+          ;td:"status"
+          ;td:"{(trip status)}"
+        ==
+        ;tr
+          ;td:"bio"
+          ;td:"{(trip bio)}"
+        ==
+      ==
+    ==
+  --
+::
+++  rudder  ::  http request utils
+  ::NOTE  most of the below are also available in /lib/server, but we
+  ::      reimplement them here for independence's sake
+  |%
+  +$  order  [id=@ta inbound-request:eyre]
+  +$  query  [trail args=(list [key=@t value=@t])]
+  +$  trail  [ext=(unit @ta) site=(list @t)]
+  +$  reply
+    $%  [%page bod=manx]                                  ::  html page
+        [%xtra hed=header-list:http bod=manx]             ::  html page w/ heads
+        [%next loc=@t msg=@t]                             ::  303, succeeded
+        [%move loc=@t]                                    ::  308, use other
+        [%auth loc=@t]                                    ::  307, please log in
+        [%code cod=@ud msg=@t]                            ::  error code page
+    ==
+  ::
+  ++  purse  ::  url cord to query
+    |=  url=@t
+    ^-  query
+    (fall (rush url ;~(plug apat:de-purl:html yque:de-purl:html)) [[~ ~] ~])
+  ::
+  ++  press  ::  manx to octs
+    (cork en-xml:html as-octt:mimes:html)
+  ::
+  ++  paint  ::  render response into payload
+    |=  =reply
+    ^-  simple-payload:http
+    ?-  -.reply
+      %page  [[200 ['content-type' 'text/html']~] `(press bod.reply)]
+      %xtra  =?  hed.reply  ?=(~ (get-header:http 'content-type' hed.reply))
+               ['content-type'^'text/html' hed.reply]
+             [[200 hed.reply] `(press bod.reply)]
+      %next  =;  loc  [[303 ['location' loc]~] ~]
+             ?~  msg.reply  loc.reply
+             %+  rap  3
+             :~  loc.reply
+                 ?:(?=(^ (find "?" (trip loc.reply))) '&' '?')
+                 'rmsg='
+                 (crip (en-urlt:html (trip msg.reply)))
+             ==
+      %move  [[308 ['location' loc.reply]~] ~]
+      %auth  =/  loc  (crip (en-urlt:html (trip loc.reply)))
+             [[307 ['location' (cat 3 '/~/login?redirect=' loc)]~] ~]
+      %code  !!  ::(issue +.reply)
+    ==
+  ::
+  ++  spout  ::  build full response cards
+    |=  [eyre-id=@ta simple-payload:http]
+    ^-  (list card)
+    =/  =path  /http-response/[eyre-id]
+    :~  [%give %fact ~[path] [%http-response-header !>(response-header)]]
+        [%give %fact ~[path] [%http-response-data !>(data)]]
+        [%give %kick ~[path] ~]
+    ==
+  --
+--
+::
+%-  agent:dbug
+%+  verb  |
+::
+=|  state-0
+=*  state  -
+^-  agent:gall
+|_  =bowl:gall
++*  this  .
+    do    ~(. +>+ bowl state)
+++  on-init
+  ^-  (quip card _this)
+  [~ this]
+::
+++  on-save
+  !>(state)
+::
+++  on-load
+  |=  ole=vase
+  ^-  (quip card _this)
+  [~ this(state !<(state-0 ole))]
+::
+++  on-poke
+  |=  [=mark =vase]
+  ^-  (quip card _this)
+  ?+  mark  !!
+      %noun
+    =^  caz  state
+      ?+  q.vase  !!
+        %bind    bind:do
+        %unbind  unbind:do
+      ==
+    [caz this]
+  ::
+      %handle-http-request
+    :_  this
+    (serve:do !<(order:rudder:do vase))
+  ==
+::
+++  on-watch
+  |=  =path
+  ^-  (quip card _this)
+  ?+  path  !!
+    [%http-response *]  [~ this]
+  ==
+::
+++  on-arvo
+  |=  [=wire sign=sign-arvo]
+  ~|  wire
+  ?+  wire  ~|(%strange-wire !!)
+      [%eyre %connect ~]
+    ~!  sign
+    ?>  ?=([%eyre %bound *] sign)
+    =^  caz  state  (did-bind:do accepted.sign)
+    [caz this]
+  ==
+::
+++  on-leave  |=(* [~ this])
+++  on-agent  |=(* [~ this])
+++  on-peek   |=(* ~)
+::
+++  on-fail
+  |=  [=term =tang]
+  ^-  (quip card _this)
+  %-  (slog (rap 3 dap.bowl ' failed, ' term ~) tang)
+  [~ this]
+--
