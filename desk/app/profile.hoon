@@ -356,25 +356,6 @@
     }
     '''
   ::
-  ++  style-old
-    '''
-    body {
-      background-color: white;
-      background-size: cover;
-    }
-    #card {
-      margin: 30vh auto 0;
-      border: 1px solid black;
-      border-radius: 20px;
-      padding: 30px;
-      width: 50vw;
-      background-color: white;
-    }
-    #deets img {
-      max-width: 50%;
-    }
-    '''
-  ::
   ++  head
     ;head
       ;title:"lmao"
@@ -442,42 +423,6 @@
           ==
         ==
         ;p.call-to-action-text:"Hop on Tlon"
-      ==
-    ==
-  ::
-  ++  body-old
-    =/  bos=tape
-      ?~  ours  ""
-      ?~  cover.u.ours  ""
-      "background-image: url('{(trip u.cover.u.ours)}')"
-    ;body(style bos)
-      ;div#card
-        ;b:"{(scow %p our.bowl)}"
-        ;br;
-        ;+  deets
-      ==
-    ==
-  ::
-  ++  deets
-    ?~  ours
-      ;i:"an enigma..."
-    =,  u.ours
-    ;div#deets
-      ;+  ?~  avatar.u.ours  :/""
-          ;img.avatar(src "{(trip u.avatar)}", style "border-color: #{((x-co:co 6) color)}");
-      ;table
-        ;tr
-          ;td:"nickname"
-          ;td:"{(trip nickname)}"
-        ==
-        ;tr
-          ;td:"status"
-          ;td:"{(trip status)}"
-        ==
-        ;tr
-          ;td:"bio"
-          ;td:"{(trip bio)}"
-        ==
       ==
     ==
   --
