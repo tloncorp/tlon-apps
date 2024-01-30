@@ -458,6 +458,11 @@
     ?~  p.sign  cor
     %-  (slog leaf+"Failed to hark" u.p.sign)
     cor
+      [%contacts @ ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf+"Failed to add contacts" u.p.sign)
+    cor
   ::
       [=kind:c ship=@ name=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -629,19 +634,15 @@
           %unwatch  remark.channel(watching |)
           %read-at  !!  ::TODO
           %read
-        =.  unread-threads.remark.channel  *(set id-post:c)
-        =/  post  (ram:on-v-posts:c posts.channel)
-        ?~  post  remark.channel(last-read *@da)
-        ::  set read marker at time of latest content. we don't use now.bowl,
-        ::  because we may still receive content with ids before now.bowl
-        =/  latest
-          %-  ~(rep in unread-threads.remark.channel)
-          |=  [=id-post:c latest=_key.u.post]
-          ?~  post=(get:on-v-posts:c posts.channel id-post)  latest
-          ?~  u.post  latest
-          ?~  reply=(ram:on-v-replies:c replies.u.u.post)  latest
-          (max key.u.reply latest)
-        remark.channel(last-read (add latest (div ~s1 100)))
+        ::  set read marker at time of latest content. conveniently, we can use
+        ::  the always-up-to-date recency for that.
+        ::  we don't use now.bowl, because we may still receive content
+        ::  with ids before now.bowl
+        ::
+        %_  remark.channel
+          last-read       (add recency.remark.channel (div ~s1 100))
+          unread-threads  ~
+        ==
       ==
     =.  ca-core  ca-give-unread
     (ca-response a-remark)
@@ -805,9 +806,20 @@
     =.  load.net.channel  &
     =.  ca-core  (ca-apply-checkpoint chk &)
     =.  ca-core  ca-start-updates
+    =.  ca-core  (ca-fetch-contacts chk)
     =.  ca-core  ca-sync-backlog
     =/  wire  (weld ca-area /checkpoint)
     (emit %pass wire %agent [ship.nest server] %leave ~)
+  ::
+  ++  ca-fetch-contacts
+    |=  chk=u-checkpoint:c
+    =/  authors=(list ship)
+      %~  tap  in  %-  sy
+      %+  murn  ~(val by posts.chk)
+        |=  up=(unit v-post:c)
+        ?~  up  ~
+        `author.u.up
+    (ca-heed authors)
   ::
   ++  ca-apply-checkpoint
     |=  [chk=u-checkpoint:c send=?]
@@ -938,9 +950,11 @@
         (~(put ju diffs.future.channel) id-post u-post)
       ca-core
     ::
-    ?-    -.u-post
-        %reply  (ca-u-reply id-post u.u.post id.u-post u-reply.u-post)
+    ?-  -.u-post
+        %reply
+      (ca-u-reply id-post u.u.post id.u-post u-reply.u-post)
         %reacts
+      =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.u.post)))
       =/  merged  (ca-apply-reacts reacts.u.u.post reacts.u-post)
       ?:  =(merged reacts.u.u.post)  ca-core
       =.  posts.channel
@@ -948,12 +962,16 @@
       (ca-response %post id-post %reacts (uv-reacts:utils merged))
     ::
         %essay
+      =.  ca-core  (ca-heed ~[author.u.u.post])
       =^  changed  +.u.u.post  (apply-rev:c +.u.u.post +.u-post)
       ?.  changed  ca-core
       =.  posts.channel  (put:on-v-posts:c posts.channel id-post `u.u.post)
       (ca-response %post id-post %essay +>.u.u.post)
     ==
   ::
+  ++  ca-heed
+    |=  authors=(list ship)
+    (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed authors])])
   ++  ca-u-reply
     |=  [=id-post:c post=v-post:c =id-reply:c =u-reply:c]
     ^+  ca-core
@@ -975,10 +993,12 @@
       =*  new  u.reply.u-reply
       =/  merged  (need (ca-apply-reply id-reply `old `new))
       ?:  =(merged old)  ca-core
+      =.  ca-core  (ca-heed ~[author.new])
       (put-reply `merged %set `(uv-reply:utils id-post merged))
     ::
     ?~  reply  ca-core
     ::
+    =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.u.reply)))
     =/  merged  (ca-apply-reacts reacts.u.u.reply reacts.u-reply)
     ?:  =(merged reacts.u.u.reply)  ca-core
     (put-reply `u.u.reply(reacts merged) %reacts (uv-reacts:utils merged))
@@ -1060,29 +1080,18 @@
         ca-core
       ::  we want to be notified if we were mentioned in the post
       ::
+      =/  =rope:ha  (ca-rope -.kind-data.post id-post ~)
       ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
-          ca-core
-        =/  =path
-          ?-    -.kind-data.post
-            %diary  /note/(rsh 4 (scot %ui id-post))
-            %heap   /curio/(rsh 4 (scot %ui id-post))
-            %chat   /message/(rsh 4 (scot %ui id-post))
-          ==
+          ca-core        
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin path cs ~)))
+        (emit (pass-hark (ca-spin rope cs ~)))
       ::
       ?:  (want-hark %any)
-        =/  =path
-          ?-    -.kind-data.post
-            %diary  /note/(rsh 4 (scot %ui id-post))
-            %heap   /curio/(rsh 4 (scot %ui id-post))
-            %chat   /message/(rsh 4 (scot %ui id-post))
-          ==
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' sent a message: ' (flatten:utils content.post)]
-        (emit (pass-hark (ca-spin path cs ~)))
+        (emit (pass-hark (ca-spin rope cs ~)))
       ca-core
     ::
     ++  on-reply
@@ -1114,13 +1123,8 @@
       ::
       =;  cs=(unit (list content:ha))
         ?~  cs  ca-core
-        =/  =path
-          ?-    -.kind-data.post
-            %diary  /note/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
-            %heap   /curio/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
-            %chat   /message/(rsh 4 (scot %ui id-post))/(rsh 4 (scot %ui id.reply))
-          ==
-        (emit (pass-hark (ca-spin path u.cs ~)))
+        =/  =rope:ha  (ca-rope -.kind-data.post id-post `id.reply)
+        (emit (pass-hark (ca-spin rope u.cs ~)))
       ::  notify because we wrote the post the reply responds to
       ::
       ?:  =(author.post our.bowl)
@@ -1187,16 +1191,30 @@
       ==
     --
   ::
-  ::  convert content into a full yarn suitable for hark
-  ::
-  ++  ca-spin
-    |=  [rest=path con=(list content:ha) but=(unit button:ha)]
-    ^-  new-yarn:ha
+  ++  ca-rope
+    |=  [=kind:c =id-post:c id-reply=(unit id-reply:c)]
+    ^-  rope:ha
+    =/  =path
+      ?-    kind
+        %diary  /note/(rsh 4 (scot %ui id-post))
+        %heap   /curio/(rsh 4 (scot %ui id-post))
+        %chat   /message/(rsh 4 (scot %ui id-post))
+      ==
+    =/  rest
+      ?~  id-reply  path
+      (snoc path (rsh 4 (scot %ui u.id-reply)))
     =*  group  group.perm.perm.channel
     =/  gn=nest:g  nest
     =/  thread  (welp /[kind.nest]/(scot %p ship.nest)/[name.nest] rest)
-    =/  rope  [`group `gn q.byk.bowl thread]
-    =/  link  (welp /groups/(scot %p p.group)/[q.group]/channels thread)
+    [`group `gn q.byk.bowl thread]
+  ::
+  ::  convert content into a full yarn suitable for hark
+  ::
+  ++  ca-spin
+    |=  [=rope:ha con=(list content:ha) but=(unit button:ha)]
+    ^-  new-yarn:ha
+    =*  group  group.perm.perm.channel
+    =/  link  (welp /groups/(scot %p p.group)/[q.group]/channels ted.rope)
     [& & rope con link but]
   ::
   ::  give a "response" to our subscribers
@@ -1213,38 +1231,39 @@
     :-  recency.remark.channel
     =/  unreads
       %+  skim
-        %~  tap  by
+        %-  bap:on-v-posts:c
         (lot:on-v-posts:c posts.channel `last-read.remark.channel ~)
       |=  [tim=time post=(unit v-post:c)]
       ?&  ?=(^ post)
           !=(author.u.post our.bowl)
       ==
-    =/  unread-id=(unit id-post:c)
-      ?~  unreads  ~
+    =/  count  (lent unreads)
+    =/  unread=(unit [id-post:c @ud])
       ::TODO  in the ~ case, we could traverse further up, to better handle
       ::      cases where the most recent message was deleted.
-      (some -:(rear unreads))
-    =/  count  (lent unreads)
+      ?~  unreads  ~
+      (some -:(rear unreads) count)
     ::  now do the same for all unread threads
     ::
-    =/  [sum=@ud threads=(map id-post:c id-reply:c)]
+    =/  [sum=@ud threads=(map id-post:c [id-reply:c @ud])]
       %+  roll  ~(tap in unread-threads.remark.channel)
-      |=  [id=id-post:c sum=@ud threads=(map id-post:c id-reply:c)]
+      |=  [id=id-post:c sum=@ud threads=(map id-post:c [id-reply:c @ud])]
       =/  parent    (get:on-v-posts:c posts.channel id)
       ?~  parent    [sum threads]
       ?~  u.parent  [sum threads]
       =/  unreads
         %+  skim
-          %~  tap  by
+          %-  bap:on-v-replies:c
           (lot:on-v-replies:c replies.u.u.parent `last-read.remark.channel ~)
         |=  [tim=time reply=(unit v-reply:c)]
         ?&  ?=(^ reply)
             !=(author.u.reply our.bowl)
         ==
-      :-  (add sum (lent unreads))
+      =/  count=@ud  (lent unreads)
+      :-  (add sum count)
       ?~  unreads  threads
-      (~(put by threads) id -:(rear unreads))
-    [(add count sum) unread-id threads]
+      (~(put by threads) id -:(rear unreads) count)
+    [(add count sum) unread threads]
   ::
   ::  handle scries
   ::
@@ -1254,6 +1273,11 @@
     ?+    pole  [~ ~]
         [%posts rest=*]  (ca-peek-posts rest.pole)
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
+        [%hark %rope post=@ ~]
+      ``noun+!>((ca-rope kind.nest (slav %ud post.pole) ~))
+        [%hark %rope post=@ reply=@ ~]
+      :^  ~  ~  %noun  !>
+      (ca-rope kind.nest (slav %ud post.pole) `(slav %ud reply.pole))
         [%search %text skip=@ count=@ nedl=@ ~]
       :^  ~  ~  %channel-scan  !>
       %^    text:ca-search

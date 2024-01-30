@@ -37,7 +37,7 @@ const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
       ([key, value]) =>
         ({
           [key]: key !== 'color' ? value : value.replace('#', ''),
-        } as ContactEditField)
+        }) as ContactEditField
     );
 
   const toRemove: ContactDelGroup[] = _.difference(

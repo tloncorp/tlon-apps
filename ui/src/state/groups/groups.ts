@@ -28,7 +28,7 @@ import {
   Gang,
 } from '@/types/groups';
 import api from '@/api';
-import { BaitCite } from '@/types/channel';
+import { BaitCite, Post, Reply } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
 import useReactQueryScry from '@/logic/useReactQueryScry';
@@ -40,6 +40,8 @@ import {
 } from '@/logic/utils';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { Scope, VolumeValue } from '@/types/volume';
+import { decToUd } from '@urbit/api';
+import { useNewGroupFlags } from '../settings';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -48,7 +50,7 @@ export const GROUPS_KEY = 'groups';
 function groupAction(flag: string, diff: GroupDiff): Poke<GroupAction> {
   return {
     app: 'groups',
-    mark: 'group-action-2',
+    mark: 'group-action-3',
     json: {
       flag,
       update: {
@@ -99,20 +101,25 @@ export function useGroupsWithQuery() {
     queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
-    scry: `/groups/light/v0`,
+    scry: `/groups/light/v1`,
     options: {
       refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
   });
 
-  if (rest.isLoading || rest.isError || !data) {
-    return { data: emptyGroups, ...rest };
-  }
+  const stringifiedRest = JSON.stringify(rest);
 
-  return {
-    data,
-    ...rest,
-  };
+  return useMemo(() => {
+    if (rest.isLoading || rest.isError || !data) {
+      return { data: emptyGroups, ...rest };
+    }
+
+    return {
+      data,
+      ...rest,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, stringifiedRest, rest.isLoading, rest.isError]);
 }
 
 export function useGroups() {
@@ -120,7 +127,7 @@ export function useGroups() {
     queryKey: [GROUPS_KEY],
     app: 'groups',
     path: `/groups/ui`,
-    scry: `/groups/light/v0`,
+    scry: `/groups/light/v1`,
     options: {
       refetchOnReconnect: false, // handled in bootstrap reconnect flow
     },
@@ -156,12 +163,14 @@ export function useGroup(flag: string, updating = false): Group | undefined {
   const { data, ...rest } = useReactQueryScry<Group>({
     queryKey,
     app: 'groups',
-    path: `/groups/${flag}/v0`,
+    path: `/groups/${flag}/v1`,
     options: {
       enabled: !!flag && flag !== '' && updating && connection,
       initialData: group,
       refetchOnMount: updating,
       retry: true,
+      // prevents skeleton from flashing on unmount when we have cached data
+      keepPreviousData: true,
     },
   });
 
@@ -456,6 +465,15 @@ export function useLoadingGroups() {
       (group && groupIsInitializing(group)) ||
       (gangs[flag] && gangs[flag].preview && gangIsJoining(gangs[flag]))
     );
+  });
+}
+
+export function useNewGroups() {
+  const groups = useGroups();
+  const newGroupFlags = useNewGroupFlags();
+
+  return Object.entries(groups).filter(([flag]) => {
+    return newGroupFlags.includes(flag);
   });
 }
 
@@ -1220,17 +1238,37 @@ export function useGroupEditRoleMutation() {
 }
 
 export function useGroupDelRoleMutation() {
-  const mutationFn = async (variables: { flag: string; sect: string }) => {
+  const queryClient = useQueryClient();
+  const mutationFn = async ({ flag, sect }: { flag: string; sect: string }) => {
     const diff = {
       cabal: {
-        sect: variables.sect,
+        sect,
         diff: { del: null },
       },
     };
-    await api.poke(groupAction(variables.flag, diff));
+    await api.poke(groupAction(flag, diff));
   };
 
-  return useGroupMutation(mutationFn);
+  return useGroupMutation(mutationFn, {
+    onMutate: ({ flag, sect }: { flag: string; sect: string }) => {
+      // Optimistically remove role from cached group
+      queryClient.setQueryData(
+        [GROUPS_KEY, flag],
+        (group: Group | undefined) => {
+          if (!group?.cabals[sect]) {
+            return group;
+          }
+
+          const nextGroup = { ...group };
+          delete nextGroup.cabals[sect];
+          return nextGroup;
+        }
+      );
+    },
+    onSettled: (data, err, { flag }: { flag: string }) => {
+      queryClient.invalidateQueries([GROUPS_KEY, flag]);
+    },
+  });
 }
 
 export function useGroupIndex(ship: string) {
@@ -1354,5 +1392,60 @@ export function useGroupCompatibility(flag: string) {
     saga,
     compatible: sagaCompatible(saga),
     text: getCompatibilityText(saga),
+  };
+}
+
+export function useFlagContentMutation() {
+  const mutationFn = async (variables: {
+    flag: string;
+    nest: string;
+    post: string;
+    reply: string | null;
+  }) => {
+    await api.poke<GroupAction>(
+      groupAction(variables.flag, {
+        'flag-content': {
+          nest: variables.nest,
+          src: window.our,
+          'post-key': {
+            post: decToUd(variables.post),
+            reply: variables.reply ? decToUd(variables.reply) : null,
+          },
+        },
+      })
+    );
+  };
+
+  return useGroupMutation(mutationFn);
+}
+
+export function useFlaggedData(
+  flag: string,
+  nest: string,
+  postId: string,
+  replyId?: string
+) {
+  const group = useGroup(flag);
+  const empty = {
+    flagData: undefined,
+    isFlaggedByMe: false,
+  };
+
+  if (!group || !group['flagged-content'] || !group['flagged-content'][nest]) {
+    return empty;
+  }
+
+  const flaggedContent = group['flagged-content'][nest];
+  const flagData = flaggedContent[postId];
+
+  if (!flagData) {
+    return empty;
+  }
+
+  return {
+    flagData,
+    isFlaggedByMe: replyId
+      ? flagData.replies[replyId]?.includes(window.our)
+      : flagData.flagged && flagData.flaggers.includes(window.our),
   };
 }

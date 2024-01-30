@@ -39,7 +39,7 @@ export default function LightBox({
           Source
         </a>
       )}
-      <DialogPrimitive.Close className="icon-button absolute top-2 right-2 bg-white">
+      <DialogPrimitive.Close className="icon-button absolute right-2 top-2 bg-white">
         <X16Icon className="white h-4 w-4" />
       </DialogPrimitive.Close>
     </Dialog>

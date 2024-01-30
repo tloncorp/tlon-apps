@@ -26,6 +26,7 @@ import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { useIsScrolling } from '@/logic/scroll';
 import { useNegotiateMulti } from '@/state/negotiation';
+import ClubName from '@/components/ClubName';
 import MultiDmInvite from './MultiDmInvite';
 import MultiDmAvatar from './MultiDmAvatar';
 import MultiDmHero from './MultiDmHero';
@@ -37,7 +38,6 @@ import DmSearch from './DmSearch';
 function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
   const count = club.team.length;
   const hasPending = club.hive.length > 0;
-  const groupName = club.meta.title || club.team.concat(club.hive).join(', ');
   const BackButton = isMobile ? Link : 'div';
   const appName = useAppName();
 
@@ -55,12 +55,12 @@ function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
       <div className="flex w-full flex-col justify-center">
         <span
           className={cn(
-            'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+            'ellipsis line-clamp-1 text-sm font-bold sm:font-semibold'
           )}
         >
-          {groupName}
+          <ClubName club={club} />
         </span>
-        <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+        <span className="line-clamp-1 w-full break-all text-sm text-gray-400">
           <span>{`${count} ${pluralize('Member', count)}${
             hasPending ? ',' : ''
           }`}</span>
@@ -83,7 +83,6 @@ export default function MultiDm() {
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
   const appName = useAppName();
-  const groupName = club?.meta.title || club?.team.concat(club.hive).join(', ');
   const root = `/dm/${clubId}`;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
@@ -157,7 +156,9 @@ export default function MultiDm() {
                               <MultiDmAvatar {...club.meta} size="xs" />
                             </div>
                             <h1 className="ml-2 flex overflow-hidden">
-                              <span className="truncate">{groupName}</span>
+                              <span className="truncate">
+                                <ClubName club={club} />
+                              </span>
                             </h1>
                           </button>
                         </DmOptions>
@@ -217,7 +218,7 @@ export default function MultiDm() {
                 isScrolling={isScrolling}
               />
             ) : confirmedMismatch ? (
-              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">
                 Your version of the app does not match some of the members of
                 this chat.
               </div>
@@ -230,7 +231,7 @@ export default function MultiDm() {
             whom={clubId}
             root={root}
             prefixedElement={
-              <div className="pt-4 pb-12">
+              <div className="pb-12 pt-4">
                 <MultiDmHero club={club} />
               </div>
             }

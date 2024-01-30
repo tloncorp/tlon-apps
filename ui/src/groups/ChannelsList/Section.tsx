@@ -102,7 +102,7 @@ export default function Section({
             ref={provided.innerRef}
             {...(compatible ? provided.draggableProps : {})}
           >
-            <div className="card mb-4 px-0 pt-0 pb-3">
+            <div className="card mb-4 px-0 pb-3 pt-0">
               <header className="flex items-center justify-between rounded-t-lg bg-white px-2 pb-2 pt-4 md:px-8 md:pt-8">
                 <div className="flex flex-col">
                   <div className="flex w-full items-center">
@@ -165,7 +165,7 @@ export default function Section({
     );
   }
   return (
-    <div className="card mb-4 px-0 pt-0 pb-3">
+    <div className="card mb-4 px-0 pb-3 pt-0">
       <header className="flex items-center justify-between rounded-t-lg bg-white px-2 pb-2 pt-4 md:px-8 md:pt-8">
         <div className="flex w-full items-center">
           <h2 className="alt-highlight text-lg font-semibold">

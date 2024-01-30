@@ -1,3 +1,6 @@
+import { useLocation } from 'react-router-dom';
+import { useMemo } from 'react';
+import bigInt from 'big-integer';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useUnread, usePerms } from '@/state/channel/channel';
 import { ReplyTuple } from '@/types/channel';
@@ -24,6 +27,11 @@ export default function HeapDetailComments({
   const group = useGroup(groupFlag);
   const chFlag = useChannelFlag();
   const nest = `heap/${chFlag}`;
+  const location = useLocation();
+  const scrollTo = useMemo(() => {
+    const reply = new URLSearchParams(location.search).get('reply');
+    return reply ? bigInt(reply) : bigInt.zero;
+  }, [location.search]);
   const perms = usePerms(nest);
   const sort = useDiaryCommentSortMode(chFlag ?? '');
   const vessel = useVessel(groupFlag, window.our);
@@ -56,7 +64,12 @@ export default function HeapDetailComments({
             {groupedReplies.map(([_t, g]) =>
               g.map((props) => (
                 <li key={props.time.toString()}>
-                  <ReplyMessage whom={nest} {...props} showReply />
+                  <ReplyMessage
+                    whom={nest}
+                    {...props}
+                    showReply
+                    isLinked={props.time.eq(scrollTo)}
+                  />
                 </li>
               ))
             )}

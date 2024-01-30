@@ -101,6 +101,8 @@ export interface SettingsState {
     showActivityMessage?: boolean;
     logActivity?: boolean;
     analyticsId?: string;
+    seenWelcomeCard?: boolean;
+    newGroupFlags: string[];
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -488,6 +490,31 @@ export function useGroupSideBarSort(): Record<string, SidebarSortMode> {
     const { groups } = data;
 
     return JSON.parse(groups.groupSideBarSort ?? '{"~": "A → Z"}');
+  }, [isLoading, data]);
+}
+
+export function useSeenWelcomeCard() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      console.log('returning default');
+      return true;
+    }
+
+    return data.groups.seenWelcomeCard ?? false;
+  }, [isLoading, data]);
+}
+
+export function useNewGroupFlags() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      return [];
+    }
+
+    return data.groups.newGroupFlags ?? [];
   }, [isLoading, data]);
 }
 

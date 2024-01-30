@@ -1,112 +1,92 @@
 import React from 'react';
-import cn from 'classnames';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useAmAdmin, useRouteGroup, useGroup } from '@/state/groups/groups';
-import Dialog from '@/components/Dialog';
+import { Outlet } from 'react-router-dom';
+import { useAmAdmin, useRouteGroup } from '@/state/groups/groups';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
 import HomeIcon from '@/components/icons/HomeIcon';
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
 import PeopleIcon from '@/components/icons/PeopleIcon';
 import BadgeIcon from '@/components/icons/BadgeIcon';
 import XIcon from '@/components/icons/XIcon';
-import { getFlagParts } from '@/logic/utils';
-import HostConnection from '@/channels/HostConnection';
-import { useConnectivityCheck } from '@/state/vitals';
-import GroupAvatar from '../GroupAvatar';
+import MobileHeader from '@/components/MobileHeader';
 
 export default function GroupAdmin() {
-  const { state } = useLocation();
   const flag = useRouteGroup();
-  const isAdmin = useAmAdmin(flag);
-  const group = useGroup(flag);
-  const dismiss = useDismissNavigate();
   const isMobile = useIsMobile();
-  const host = getFlagParts(flag).ship;
-  const { data } = useConnectivityCheck(host || '');
+  const isAdmin = useAmAdmin(flag);
 
-  const onOpenChange = (open: boolean) => {
-    if (!open) {
-      dismiss();
-    }
-  };
-
-  return (
-    <Dialog
-      defaultOpen
-      modal
-      onOpenChange={onOpenChange}
-      close="header"
-      className="h-[90vh] w-[90vw] overflow-hidden p-0 sm:h-[75vh] sm:max-h-[800px] sm:w-[75vw] sm:max-w-[800px]"
-      id="admin-dialog"
-      onInteractOutside={(e) => e.preventDefault()}
-    >
-      {isAdmin ? (
-        <div className="flex h-full w-full flex-col">
-          <div className="flex items-center space-x-2 border-b-2 border-b-gray-50 p-4">
-            <GroupAvatar image={group?.meta.image} title={group?.meta.title} />
-            <h2 className="font-semibold">Settings</h2>
-          </div>
-          <div className="flex h-full flex-col overflow-hidden sm:flex-row">
-            <aside className="order-2 flex flex-col p-2 sm:order-1 sm:h-full sm:w-[266px]">
-              <nav className="grow">
-                <SidebarItem
-                  to={`/groups/${flag}/edit`}
-                  icon={<HomeIcon className="h-6 w-6" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
-                >
-                  Group Info
-                </SidebarItem>
-                <SidebarItem
-                  to={`/groups/${flag}/edit/invites-privacy`}
-                  icon={<AddPersonIcon className="h-6 w-6" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
-                >
-                  Invites &amp; Privacy
-                </SidebarItem>
-                <SidebarItem
-                  to={`/groups/${flag}/edit/members`}
-                  icon={<PeopleIcon className="h-6 w-6" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
-                >
-                  Members
-                </SidebarItem>
-                <SidebarItem
-                  to={`/groups/${flag}/edit/roles`}
-                  icon={<BadgeIcon className="h-6 w-6" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
-                >
-                  Roles
-                </SidebarItem>
-                <SidebarItem
-                  to={`/groups/${flag}/edit/delete`}
-                  icon={<XIcon className="m-0.5 h-5 w-5" />}
-                  state={{ backgroundLocation: state.backgroundLocation }}
-                >
-                  Delete Group
-                </SidebarItem>
-              </nav>
-              <div className="rounded-lg bg-gray-50 p-2 pl-3 text-sm">
-                <HostConnection
-                  type="combo"
-                  ship={host}
-                  status={data?.status}
-                  saga={group?.saga || null}
-                />
+  if (isAdmin) {
+    return (
+      <>
+        {isMobile && (
+          <MobileHeader title="Group Settings" pathBack={`/groups/${flag}`} />
+        )}
+        <nav className="w-full px-4 md:w-64 md:shrink-0 md:px-1 md:py-2">
+          <SidebarItem
+            showCaret
+            to={`/groups/${flag}/edit/info`}
+            icon={
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-50 text-gray-600 md:h-6 md:w-6 md:bg-transparent">
+                <HomeIcon className="h-6 w-6" />
               </div>
-            </aside>
-            <main
-              className={cn(
-                'order-1 h-full w-full overflow-auto bg-gray-50 sm:order-2',
-                isMobile ? 'p-3' : 'p-6'
-              )}
-            >
-              <Outlet />
-            </main>
+            }
+          >
+            Group Info
+          </SidebarItem>
+          <SidebarItem
+            showCaret
+            to={`/groups/${flag}/edit/invites-privacy`}
+            icon={
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-50 text-gray-600 md:h-6 md:w-6 md:bg-transparent">
+                <AddPersonIcon className="h-6 w-6" />
+              </div>
+            }
+          >
+            Invites &amp; Privacy
+          </SidebarItem>
+          <SidebarItem
+            showCaret
+            to={`/groups/${flag}/edit/members`}
+            icon={
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-50 text-gray-600 md:h-6 md:w-6 md:bg-transparent">
+                <PeopleIcon className="h-6 w-6" />
+              </div>
+            }
+          >
+            Members
+          </SidebarItem>
+          <SidebarItem
+            showCaret
+            to={`/groups/${flag}/edit/roles`}
+            icon={
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-50 text-gray-600 md:h-6 md:w-6 md:bg-transparent">
+                <BadgeIcon className="h-6 w-6" />
+              </div>
+            }
+          >
+            Roles
+          </SidebarItem>
+          <SidebarItem
+            showCaret
+            to={`/groups/${flag}/edit/delete`}
+            icon={
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-50 text-gray-600 md:h-6 md:w-6 md:bg-transparent">
+                <XIcon className="m-0.5 h-5 w-5" />
+              </div>
+            }
+          >
+            Delete Group
+          </SidebarItem>
+        </nav>
+
+        {!isMobile && (
+          <div className="w-full border-l-2 border-gray-50">
+            <Outlet />
           </div>
-        </div>
-      ) : null}
-    </Dialog>
-  );
+        )}
+      </>
+    );
+  }
+
+  return null;
 }

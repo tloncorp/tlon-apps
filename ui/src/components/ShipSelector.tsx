@@ -105,7 +105,7 @@ function LoadingIndicator() {
   return <LoadingSpinner />;
 }
 
-function SearchGroupMessage({ value }: { value: string }) {
+export function SearchGroupMessage({ value }: { value: string }) {
   return (
     <div className="flex content-center space-x-1 px-2 py-3 text-gray-400">
       <span className="italic">Search for {value}</span>
@@ -207,7 +207,7 @@ function SingleShipLabel({ data }: { data: ShipOption }) {
   const { value } = data;
   return (
     <div className="flex h-6 items-center rounded bg-gray-100">
-      <ShipName name={value} showAlias className="py-1 px-2 font-semibold" />
+      <ShipName name={value} showAlias className="px-2 py-1 font-semibold" />
     </div>
   );
 }
@@ -307,10 +307,6 @@ export default function ShipSelector({
     }
     if (ships && ships.length > 0 && validShips && onEnter) {
       onEnter(ships);
-      // TODO: Is this a Chesterton's fence? Why only clear if not multi? Should onEnter be responsible for clearing?
-      // if (!isMulti) {
-      //   setShips([]);
-      // }
     }
   };
 

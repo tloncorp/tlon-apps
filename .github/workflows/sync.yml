@@ -10,8 +10,6 @@ jobs:
     name: "Syncs the latest livenet deploy from develop to master"
     steps:
       - uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.REPO_TOKEN }}
       - name: Set Git config
         run: |
           git config --local user.email "actions@github.com"
@@ -19,9 +17,9 @@ jobs:
       - name: Merge Dev to Master
         run: |
           git fetch --unshallow
-          git checkout develop
+          git checkout staging
           git pull
           git checkout master
           git pull
-          git merge --no-ff develop
+          git merge --no-ff staging
           git push

@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import React, {
   useCallback,
   useEffect,
@@ -10,7 +11,13 @@ import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
-import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import {
+  useAmAdmin,
+  useFlaggedData,
+  useGroup,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups';
 import {
   useMessageToggler,
   useAddDmReactMutation,
@@ -42,6 +49,7 @@ import { emptyPost, Post } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
 import { inlineSummary } from '@/logic/tiptap';
+import CautionIcon from '@/components/icons/CautionIcon';
 
 function ChatMessageOptions(props: {
   open: boolean;
@@ -113,6 +121,7 @@ function ChatMessageOptions(props: {
     [isMessageHidden, isPostHidden]
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const { isFlaggedByMe } = useFlaggedData(groupFlag, nest, seal.id);
 
   const onDelete = async () => {
     if (isMobile) {
@@ -155,7 +164,7 @@ function ChatMessageOptions(props: {
   }, [doCopyText, isMobile, onOpenChange]);
 
   const reply = useCallback(() => {
-    setSearchParams({ reply: seal.id }, { replace: true });
+    setSearchParams({ replyTo: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
 
   const startThread = () => {
@@ -208,6 +217,19 @@ function ChatMessageOptions(props: {
     () => (isPostHidden ? showPost() : hidePost()),
     [isPostHidden, showPost, hidePost]
   );
+
+  const reportContent = useCallback(() => {
+    navigate('/report-content', {
+      state: {
+        backgroundLocation: location,
+        post: seal.id,
+        reply: null,
+        nest: `chat/${chFlag}`,
+        groupFlag,
+      },
+    });
+    hidePost();
+  }, [navigate, hidePost, seal, location, chFlag, groupFlag]);
 
   const openPicker = useCallback(() => setPickerOpen(true), [setPickerOpen]);
 
@@ -334,6 +356,20 @@ function ChatMessageOptions(props: {
     ),
   });
 
+  if (!isDMorMultiDM) {
+    actions.push({
+      key: 'report',
+      onClick: reportContent,
+      type: isFlaggedByMe ? 'disabled' : 'destructive',
+      content: (
+        <div className="flex items-center">
+          <CautionIcon className="mr-2 h-6 w-6" />
+          {isFlaggedByMe ? "You've flagged this message" : 'Report Message'}
+        </div>
+      ),
+    });
+  }
+
   if (showDeleteAction) {
     actions.push({
       key: 'delete',
@@ -371,7 +407,7 @@ function ChatMessageOptions(props: {
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
         <div
-          className="absolute right-2 -top-5 z-10 min-h-fit"
+          className="absolute -top-5 right-2 z-10 min-h-fit"
           ref={containerRef}
         >
           <div
@@ -447,6 +483,26 @@ function ChatMessageOptions(props: {
               showTooltip
               action={isDMorMultiDM ? toggleMsg : togglePost}
             />
+            {!isDMorMultiDM && (
+              <IconButton
+                icon={
+                  <CautionIcon
+                    className={cn(
+                      'h-6 w-6',
+                      isFlaggedByMe ? 'text-gray-200' : 'text-gray-400'
+                    )}
+                  />
+                }
+                label={
+                  isFlaggedByMe
+                    ? "You've flagged this message"
+                    : 'Report Message'
+                }
+                showTooltip
+                action={reportContent}
+                disabled={isFlaggedByMe}
+              />
+            )}
             {showDeleteAction && (
               <IconButton
                 icon={<XIcon className="h-6 w-6 text-red" />}

@@ -45,6 +45,7 @@ import {
   useChatStore,
 } from '../useChatStore';
 import ReactionDetails from '../ChatReactions/ReactionDetails';
+import { getUnreadStatus, threadIsOlderThanLastRead } from '../unreadUtils';
 
 export interface ChatMessageProps {
   whom: string;
@@ -62,52 +63,28 @@ export interface ChatMessageProps {
   isScrolling?: boolean;
 }
 
-function unreadStatus(
-  unread: Unread | undefined,
+function getUnreadDisplay(
+  unread: Unread | DMUnread | undefined,
   id: string
 ): 'none' | 'top' | 'thread' {
   if (!unread) {
     return 'none';
   }
 
-  const unreadId = unread['unread-id'];
-  const threads = unread.threads || {};
-  const threadKeys = Object.keys(threads).sort((a, b) => a.localeCompare(b));
-  const topId = threadKeys[0];
+  const { unread: mainChat, threads } = unread;
+  const { hasMainChatUnreads } = getUnreadStatus(unread);
+  const threadIsOlder = threadIsOlderThanLastRead(unread, id);
+  const hasThread = !!threads[id];
 
-  if (topId && topId === id && (!unreadId || topId < unreadId)) {
+  // if we have a thread, only mark it as explicitly unread
+  // if it's not nested under main chat unreads
+  if (hasThread && (!hasMainChatUnreads || threadIsOlder)) {
     return 'thread';
   }
 
-  if (unreadId === id) {
-    return 'top';
-  }
-
-  return 'none';
-}
-
-function dmUnreadStatus(unread: DMUnread | undefined, id: string) {
-  if (!unread) {
-    return 'none';
-  }
-
-  const unreadId = unread['unread-id'];
-  const threads = unread.threads || {};
-  const threadKeys = Object.entries(threads).sort(([, a], [, b]) =>
-    a['parent-time'].localeCompare(b['parent-time'])
-  );
-  const topId = threadKeys[0]?.[0];
-  const topTime = threadKeys[0]?.[1]['parent-time'];
-
-  if (
-    topId &&
-    topId === id &&
-    (!unreadId || (topTime && topTime < unreadId.time))
-  ) {
-    return 'thread';
-  }
-
-  if (unreadId?.id === id) {
+  // if this message is the oldest unread in the main chat,
+  // show the divider
+  if (hasMainChatUnreads && mainChat!.id === id) {
     return 'top';
   }
 
@@ -131,9 +108,7 @@ const hiddenMessage: Story = [
   {
     inline: [
       {
-        italics: [
-          'You have hidden this message. You can unhide it from the options menu.',
-        ],
+        italics: ['You have hidden or flagged this message.'],
       },
     ],
   },
@@ -173,9 +148,10 @@ const ChatMessage = React.memo<
       const isDMOrMultiDM = useIsDmOrMultiDm(whom);
       const chatInfo = useChatInfo(whom);
       const unread = chatInfo?.unread;
-      const unreadDisplay = isDMOrMultiDM
-        ? dmUnreadStatus(unread?.unread as DMUnread, seal.id)
-        : unreadStatus(unread?.unread as Unread, seal.id);
+      const unreadDisplay = useMemo(
+        () => getUnreadDisplay(unread?.unread, seal.id),
+        [unread, seal.id]
+      );
       const { hovering, setHovering } = useChatHovering(whom, seal.id);
       const { open: pickerOpen } = useChatDialog(whom, seal.id, 'picker');
       const { mutate: markChatRead } = useMarkReadMutation();
@@ -202,11 +178,7 @@ const ChatMessage = React.memo<
               return;
             }
 
-            const {
-              seen: markSeen,
-              read,
-              delayedRead,
-            } = useChatStore.getState();
+            const { seen: markSeen, delayedRead } = useChatStore.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -223,18 +195,6 @@ const ChatMessage = React.memo<
                   markChatRead({ nest: `chat/${whom}` });
                 }
               });
-              return;
-            }
-
-            /* finally, if the marker transitions back to not being visible,
-              we can assume the user is done and clear the unread. */
-            if (!inView && unread && seen) {
-              read(whom);
-              if (isDMOrMultiDM) {
-                markDmRead({ whom });
-              } else {
-                markChatRead({ nest: `chat/${whom}` });
-              }
             }
           },
           [unreadDisplay, unread, whom, isDMOrMultiDM, markChatRead, markDmRead]
@@ -368,7 +328,7 @@ const ChatMessage = React.memo<
           {unread && unreadDisplay === 'top' ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.unread.count}
+              unreadCount={unread.unread.unread?.count || 0}
               ref={viewRef}
             />
           ) : null}
@@ -381,7 +341,7 @@ const ChatMessage = React.memo<
           <div className="group-one relative z-0 flex w-full select-none sm:select-auto">
             {isDelivered && (
               <ChatMessageOptions
-                open={optionsOpen || hasDialogsOpen}
+                open={optionsOpen || (hasDialogsOpen && !isMobile)}
                 onOpenChange={setOptionsOpen}
                 hideThreadReply={hideReplies}
                 whom={whom}
@@ -490,7 +450,7 @@ const ChatMessage = React.memo<
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
                 {!isDelivered && (
                   <DoubleCaretRightIcon
-                    className="absolute left-0 bottom-2 h-5 w-5"
+                    className="absolute bottom-2 left-0 h-5 w-5"
                     primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />

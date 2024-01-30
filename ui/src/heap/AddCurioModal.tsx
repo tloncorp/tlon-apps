@@ -136,6 +136,16 @@ export default function AddCurioModal({
   }, [draggedFile, pastedFile]);
 
   useEffect(() => {
+    async function addUpload() {
+      try {
+        setStatus('loading');
+        await addCurio(mostRecentFile!.url);
+      } finally {
+        uploader?.clear();
+        setStatus('initial');
+        onOpenChange(false);
+      }
+    }
     if (
       mostRecentFile &&
       mostRecentFile.status === 'error' &&
@@ -143,6 +153,7 @@ export default function AddCurioModal({
     ) {
       setStatus('error');
       setErrorMessage(mostRecentFile.errorMessage);
+      uploader?.clear();
     }
 
     if (
@@ -150,9 +161,9 @@ export default function AddCurioModal({
       mostRecentFile.status === 'success' &&
       mostRecentFile.url
     ) {
-      addCurio(mostRecentFile.url);
+      addUpload();
     }
-  }, [mostRecentFile, addCurio]);
+  }, [mostRecentFile, addCurio, onOpenChange, uploader]);
 
   const onPastedFiles = useCallback(
     (files: FileList) => {
@@ -223,7 +234,7 @@ export default function AddCurioModal({
         <h2 className="text-lg font-bold">Post New Block</h2>
       </header>
 
-      <section className="align-center align-center mt-6 mb-6 flex w-full flex-col justify-center">
+      <section className="align-center align-center mb-6 mt-6 flex w-full flex-col justify-center">
         {mode === 'input' ? (
           <NewCurioInput
             onChange={onChange}

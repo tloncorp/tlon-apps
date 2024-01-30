@@ -266,7 +266,7 @@ export default function DiaryAddNote() {
               <div className="flex h-6 w-6 items-center justify-center">
                 <PencilIcon className="h-3 w-3 text-gray-600" />
               </div>
-              <span className="ellipsis text-lg font-bold line-clamp-1 sm:text-sm sm:font-semibold">
+              <span className="ellipsis line-clamp-1 text-lg font-bold sm:text-sm sm:font-semibold">
                 Editing
               </span>
             </Link>
@@ -345,6 +345,7 @@ export default function DiaryAddNote() {
                   name="Edit with Markdown"
                   status={toggleMarkdownStatus}
                   className="mb-4"
+                  dataTestid="edit-with-markdown-toggle"
                 />
                 {editWithMarkdown && editor ? (
                   <DiaryMarkdownEditor

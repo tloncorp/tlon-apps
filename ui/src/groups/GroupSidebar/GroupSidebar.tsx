@@ -1,6 +1,6 @@
 import cn from 'classnames';
 import _ from 'lodash';
-import { useContext } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 import { useIsDark } from '@/logic/useMedia';
 import {
   useAmAdmin,
@@ -30,11 +30,14 @@ function GroupHeader() {
   const group = useGroup(flag);
   const { needsUpdate } = useContext(AppUpdateContext);
   const { preview, claim } = useGang(flag);
-  const defaultImportCover = group?.meta.cover === '0x0';
+  const defaultImportCover = useMemo(
+    () => group?.meta.cover === '0x0',
+    [group?.meta.cover]
+  );
   const calm = useCalm();
   const isDark = useIsDark();
 
-  const bgStyle = () => {
+  const bgStyle = useCallback(() => {
     if (
       group &&
       !isColor(group?.meta.cover) &&
@@ -50,9 +53,9 @@ function GroupHeader() {
         backgroundColor: group?.meta.cover,
       };
     return {};
-  };
+  }, [group, defaultImportCover, calm.disableRemoteContent]);
 
-  const fgStyle = () => {
+  const fgStyle = useCallback(() => {
     if (group && !isColor(group?.meta.cover) && !defaultImportCover)
       return {
         color: 'text-white dark:text-black',
@@ -65,7 +68,7 @@ function GroupHeader() {
       return { color: `text-${fg}` };
     }
     return { color: 'text-gray-800' };
-  };
+  }, [group, defaultImportCover, isDark]);
 
   return (
     <div
@@ -93,13 +96,13 @@ function GroupHeader() {
           <div className="max-w-[130px] truncate">
             {claim ? preview?.meta.title : group?.meta.title}
           </div>
-          <CaretDown16Icon className="absolute top-3 right-2 h-4 w-4" />
+          <CaretDown16Icon className="absolute right-2 top-3 h-4 w-4" />
         </SidebarItem>
       </GroupActions>
       <Link
         to=".."
         className={cn(
-          'h-6-w-6 absolute top-2.5 left-2 z-40 flex items-center justify-center rounded bg-white bg-transparent p-1 text-gray-400',
+          'h-6-w-6 absolute left-2 top-2.5 z-40 flex items-center justify-center rounded bg-transparent bg-white p-1 text-gray-400',
           needsUpdate ? 'bg-yellow' : 'bg-transparent'
         )}
       >
@@ -119,12 +122,15 @@ export default function GroupSidebar() {
   const isDark = useIsDark();
   const location = useLocation();
   const isAdmin = useAmAdmin(flag);
-  const privacy = group ? getPrivacyFromGroup(group) : undefined;
+  const privacy = useMemo(
+    () => (group ? getPrivacyFromGroup(group) : undefined),
+    [group]
+  );
 
   return (
     <nav className="flex h-full min-w-64 flex-none flex-col bg-white">
       <div className="flex min-h-0 flex-col">
-        <div className="flex flex-col space-y-0.5 px-2 pt-2 pb-4">
+        <div className="flex flex-col space-y-0.5 px-2 pb-4 pt-2">
           <GroupHeader />
           <SidebarItem
             icon={

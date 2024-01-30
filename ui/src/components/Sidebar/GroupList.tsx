@@ -33,6 +33,7 @@ interface GroupListProps {
   groups: [string, Group][];
   pinnedGroups: [string, Group][];
   loadingGroups: [string, Group][];
+  newGroups?: [string, Group][];
   children: React.ReactNode;
   isScrolling: (scrolling: boolean) => void;
   atTopChange?: (atTop: boolean) => void;
@@ -44,6 +45,7 @@ export default function GroupList({
   groups,
   pinnedGroups,
   loadingGroups,
+  newGroups,
   children,
   isScrolling,
   atTopChange,
@@ -57,16 +59,17 @@ export default function GroupList({
       : { main: 400, reverse: 400 },
   };
 
-  const pinnedOrLoading = useMemo(() => {
+  const flagsToFilter = useMemo(() => {
     const flags = new Set();
     pinnedGroups.forEach(([flag]) => flags.add(flag));
     loadingGroups.forEach(([flag]) => flags.add(flag));
+    newGroups?.forEach(([flag]) => flags.add(flag));
     return flags;
-  }, [pinnedGroups, loadingGroups]);
+  }, [pinnedGroups, loadingGroups, newGroups]);
 
   const allOtherGroups = useMemo(
-    () => groups.filter(([flag, _g]) => !pinnedOrLoading.has(flag)),
-    [groups, pinnedOrLoading]
+    () => groups.filter(([flag, _g]) => !flagsToFilter.has(flag)),
+    [groups, flagsToFilter]
   );
 
   const headerHeightRef = useRef<number>(0);

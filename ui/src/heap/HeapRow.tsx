@@ -8,7 +8,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { isValidUrl, validOembedCheck } from '@/logic/utils';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
-import { useRouteGroup, useAmAdmin } from '@/state/groups/groups';
+import {
+  useRouteGroup,
+  useAmAdmin,
+  useFlaggedData,
+} from '@/state/groups/groups';
 // eslint-disable-next-line import/no-cycle
 import HeapContent from '@/heap/HeapContent';
 import TwitterIcon from '@/components/icons/TwitterIcon';
@@ -17,7 +21,6 @@ import ElipsisSmallIcon from '@/components/icons/EllipsisSmallIcon';
 import MusicLargeIcon from '@/components/icons/MusicLargeIcon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import CopyIcon from '@/components/icons/CopyIcon';
-import useNest from '@/logic/useNest';
 import getHeapContentType from '@/logic/useHeapContentType';
 import CheckIcon from '@/components/icons/CheckIcon';
 import { firstInlineSummary } from '@/logic/tiptap';
@@ -27,14 +30,9 @@ import ShipName from '@/components/ShipName';
 import TextIcon from '@/components/icons/Text16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
-import { Post, Story, VerseBlock } from '@/types/channel';
-import {
-  useIsPostUndelivered,
-  usePostToggler,
-  useTrackedPostStatus,
-  useTrackedPosts,
-} from '@/state/channel/channel';
-import { linkUrlFromContent } from '@/logic/channel';
+import { Post, Story, VerseBlock, imageUrlFromContent } from '@/types/channel';
+import { useIsPostUndelivered, usePostToggler } from '@/state/channel/channel';
+import { linkUrlFromContent, useChannelFlag } from '@/logic/channel';
 import useCurioActions from './useCurioActions';
 
 interface CurioDisplayProps {
@@ -63,8 +61,10 @@ function Actions({
   canEdit,
   author,
 }: TopBarProps) {
+  const groupFlag = useRouteGroup();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const nest = useNest();
+  const chFlag = useChannelFlag();
+  const nest = `heap/${chFlag}`;
   const {
     didCopy,
     menuOpen,
@@ -76,7 +76,9 @@ function Actions({
     navigateToCurio,
     toggleHidden,
     isHidden,
+    reportContent,
   } = useCurioActions({ nest, time, refToken });
+  const { isFlaggedByMe } = useFlaggedData(groupFlag, nest, time);
 
   return (
     <div
@@ -171,9 +173,23 @@ function Actions({
                 </>
               ) : null}
               {!asRef && author !== window.our ? (
-                <button onClick={toggleHidden} className="small-menu-button">
-                  {isHidden ? 'Show Post' : 'Hide Post for Me'}
-                </button>
+                <>
+                  <button onClick={toggleHidden} className="small-menu-button">
+                    {isHidden ? 'Show Post' : 'Hide Post for Me'}
+                  </button>
+                  <button
+                    onClick={reportContent}
+                    className={cn(
+                      'small-menu-button',
+                      isFlaggedByMe
+                        ? 'text-gray-200'
+                        : 'text-red hover:bg-red-50 dark:hover:bg-red-900'
+                    )}
+                    disabled={isFlaggedByMe}
+                  >
+                    {isFlaggedByMe ? "You've flagged this post" : 'Report Post'}
+                  </button>
+                </>
               ) : null}
             </div>
           </div>
@@ -217,7 +233,7 @@ export default function HeapRow({
   const { content } = post?.essay || { content: [] };
   const navigate = useNavigate();
   const { isHidden } = usePostToggler(time);
-  const url = linkUrlFromContent(content) || '';
+  const url = linkUrlFromContent(content) || imageUrlFromContent(content) || '';
   const { embed, isLoading, isError, error } = useEmbed(url);
   const calm = useCalm();
   const { isImage, isAudio, isText } = getHeapContentType(url);
@@ -289,13 +305,13 @@ export default function HeapRow({
           <TextIcon className="h-6 w-6 text-gray-400" />
         </div>
         <div className="flex grow flex-col">
-          <div className="text-lg font-semibold line-clamp-1">
+          <div className="line-clamp-1 text-lg font-semibold">
             <HeapContent
               className={cn('line-clamp-1')}
               content={hiddenPostContent}
             />
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Text</span>
           </div>
           <div className="mt-3 flex space-x-2 text-base font-semibold text-gray-800">
@@ -365,10 +381,10 @@ export default function HeapRow({
           <TextIcon className="h-6 w-6 text-gray-400" />
         </div>
         <div className="flex grow flex-col">
-          <div className="text-lg font-semibold line-clamp-1">
+          <div className="line-clamp-1 text-lg font-semibold">
             <HeapContent className={cn('line-clamp-1')} content={content} />
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Text</span>
             <span>{replyCount} comments</span>
           </div>
@@ -416,10 +432,10 @@ export default function HeapRow({
           )}
         </div>
         <div className="flex grow flex-col">
-          <div className="break-all text-lg font-semibold line-clamp-1">
+          <div className="line-clamp-1 break-all text-lg font-semibold">
             {textFallbackTitle}
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Image</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -461,10 +477,10 @@ export default function HeapRow({
           <MusicLargeIcon className="h-6 w-6 text-gray-400" />
         </div>
         <div className="flex grow flex-col">
-          <div className="break-all text-lg font-semibold line-clamp-1">
+          <div className="line-clamp-1 break-all text-lg font-semibold">
             {textFallbackTitle}
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Audio</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -518,10 +534,10 @@ export default function HeapRow({
             />
           </div>
           <div className="flex grow flex-col">
-            <div className="break-all text-lg font-semibold line-clamp-1">
+            <div className="line-clamp-1 break-all text-lg font-semibold">
               Tweet by @{twitterHandle}
             </div>
-            <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+            <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
               <span>Tweet</span>
               <a href={url} target="_blank" rel="noreferrer">
                 Source
@@ -571,10 +587,10 @@ export default function HeapRow({
           )}
         </div>
         <div className="flex grow flex-col">
-          <div className="break-all text-lg font-semibold line-clamp-1">
+          <div className="line-clamp-1 break-all text-lg font-semibold">
             {title && !calm.disableRemoteContent ? title : textFallbackTitle}
           </div>
-          <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+          <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
             <span>Link</span>
             <a href={url} target="_blank" rel="noreferrer">
               Source
@@ -615,10 +631,10 @@ export default function HeapRow({
         <LinkIcon className="h-6 w-6 text-gray-400" />
       </div>
       <div className="flex grow flex-col">
-        <div className="break-all text-lg font-semibold line-clamp-1">
+        <div className="line-clamp-1 break-all text-lg font-semibold">
           {textFallbackTitle}
         </div>
-        <div className="mt-1 flex space-x-2 text-base font-semibold text-gray-400 line-clamp-1">
+        <div className="mt-1 line-clamp-1 flex space-x-2 text-base font-semibold text-gray-400">
           <span>Link</span>
           <a href={url} target="_blank" rel="noreferrer">
             Source

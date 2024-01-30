@@ -40,13 +40,13 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
         <div className={classNames('sheet', className)}>
           {children}
           {showClose && !lightbox && (
-            <DialogPrimitive.Close className="icon-button absolute top-6 right-6">
+            <DialogPrimitive.Close className="icon-button absolute right-6 top-6">
               <X16Icon className="h-4 w-4" />
             </DialogPrimitive.Close>
           )}
         </div>
         {showClose && lightbox && (
-          <DialogPrimitive.Close className="icon-button absolute top-6 right-6 bg-white">
+          <DialogPrimitive.Close className="icon-button absolute right-6 top-6 bg-white">
             <X16Icon className="h-4 w-4" />
           </DialogPrimitive.Close>
         )}

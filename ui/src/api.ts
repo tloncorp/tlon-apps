@@ -13,7 +13,7 @@ import UrbitBase, {
 import _ from 'lodash';
 import { useLocalState } from '@/state/local';
 import useSchedulerStore from './state/scheduler';
-import { actionDrill, isHosted } from './logic/utils';
+import { actionDrill, isHosted, parseKind } from './logic/utils';
 import { useEyreState } from './state/eyre';
 
 export const IS_MOCK =
@@ -52,7 +52,12 @@ function hostingUrl(url: string, messages: EyrePayload) {
   if (json.action === 'poke' && 'mark' in json) {
     const base = `${url}?mark=${json.mark}`;
     const actions = json.json ? actionDrill(json.json).join(',') : [];
-    return actions.length > 0 ? `${base}&actions=${actions}` : base;
+    const kind = parseKind(json.json);
+    const ret =
+      actions.length > 0
+        ? `${base}&actions=${actions}${kind ? `&kind=${kind}` : ''}`
+        : base;
+    return ret;
   }
 
   return url;

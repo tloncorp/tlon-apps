@@ -518,6 +518,9 @@
     ?>  from-self
     =+  !<(flag=[ship term] vase)
     (refs:migrate flag)
+      %chat-trim
+    ?>  from-self
+    trim:migrate
   ::  backwards compatibility
   ::
       %dm-rsvp
@@ -902,6 +905,51 @@
       !>(`a-channels:d`[%channel [%chat flag] %post u.command])
     `[%pass /migrate %agent [our.bowl %channels] %poke cage]
   ::
+  ++  trim
+    =-  =.  old-chats  -  cor
+    ^-  (map flag:two:old:c chat:two:old:c)
+    %-  ~(run by old-chats)
+    |=  old-chat=chat:two:old:c
+    =/  citations=(set [ship time])
+      %-  sy
+      ^-  (list [ship time])
+      %-  zing
+      ^-  (list (list [ship time]))
+      %+  murn  (tap:on:writs:old wit.pact.old-chat)
+      |=  [=time =writ:old]
+      ^-  (unit (list [ship ^time]))
+      ::  return citer message and cited message
+      ?.  =(our.bowl author.writ)  ~
+      =/  cite-targets=(list [ship ^time])
+        ?.  ?=(%story -.content.writ)  ~
+        %+  murn  p.p.content.writ
+        |=  =block:old
+        ^-  (unit [ship ^time])
+        ?.  ?=([%cite %chan [%chat *] *] block)  ~
+        ?.  ?=([%msg @ @ ~] wer.cite.block)  ~
+        =/  who  (slaw %p i.t.wer.cite.block)
+        ?~  who  ~
+        =/  tim  (slaw %ud i.t.t.wer.cite.block)
+        ?~  tim  ~
+        `[u.who u.tim]
+      ?~  cite-targets
+        ~
+      `[id.writ cite-targets]
+    %=  old-chat
+      log  ~
+      dex.pact
+        %-  malt
+        %+  murn  ~(tap by dex.pact.old-chat)
+        |=  [=id:old =time]
+        ?.  (~(has in citations) id)  ~
+        `[id time]
+      wit.pact
+        %-  malt
+        %+  murn  (tap:on:writs:old wit.pact.old-chat)
+        |=  [=time =writ:old]
+        ?.  (~(has in citations) id.writ)  ~
+        `[time writ]
+    ==
   ++  convert-pin
     |=  =whom:t
     ^-  whom:u
@@ -1162,7 +1210,7 @@
   ::
   ++  cu-unread
     %+  unread:cu-pact  our.bowl
-    [last-read unread-threads]:remark.club
+    [recency last-read unread-threads]:remark.club
   ::
   ++  cu-create
     |=  =create:club:c
@@ -1675,6 +1723,8 @@
       ?:  =(src.bowl ship)
         di-core
       di-core(gone &)
+    =.  cor
+      (emit [%pass /contacts/heed %agent [our.bowl %contacts] %poke contact-action-0+!>([%heed ~[ship]])])
     =.  net.dm  %done
     (di-post-notice ' joined the chat')
   ::
@@ -1691,6 +1741,13 @@
     |=  [=wire =sign:agent:gall]
     ^+  di-core
     ?+    wire  ~|(bad-dm-take/wire !!)
+        [%contacts %heed ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  di-core
+      ::  TODO: handle?
+      %-  (slog leaf/"Failed to add contact" u.p.sign)
+      di-core
+    ::
         [%hark ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
@@ -1789,7 +1846,7 @@
   ::
   ++  di-unread
     %+  unread:di-pact  our.bowl
-    [last-read unread-threads]:remark.dm
+    [recency last-read unread-threads]:remark.dm
   ++  di-remark-diff
     |=  diff=remark-diff:c
     ^+  di-core

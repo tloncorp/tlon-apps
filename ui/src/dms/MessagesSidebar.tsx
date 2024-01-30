@@ -218,7 +218,7 @@ export default function MessagesSidebar() {
               </div>
             ) : null}
 
-            <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 px-4 pt-2 pb-1">
+            <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 px-4 pb-1 pt-2">
               <h2 className="text-sm font-bold text-gray-400">
                 {messagesFilter}
               </h2>

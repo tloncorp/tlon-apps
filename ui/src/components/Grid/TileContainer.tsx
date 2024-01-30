@@ -56,7 +56,7 @@ export default function TileContainer({
     <div
       // ref={drop}
       className={classNames(
-        'aspect-w-1 aspect-h-1 relative rounded-3xl ring-transparent'
+        'aspect-h-1 aspect-w-1 relative rounded-3xl ring-transparent'
         // isOver && 'ring-blue-500',
         // !isOver && 'ring-transparent'
       )}

@@ -244,8 +244,8 @@
   +$  unread
     $:  recency=time
         count=@ud
-        unread-id=(unit message-key)
-        threads=(map message-key message-key)
+        unread=(unit [message-key count=@ud])
+        threads=(map message-key [message-key count=@ud])
     ==
   +$  update
     (pair whom unread)

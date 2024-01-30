@@ -168,7 +168,7 @@ export default function ProfileModal() {
           </div>
         )}
       </div>
-      <footer className="flex flex-col space-y-2 py-4 px-6">
+      <footer className="flex flex-col space-y-2 px-6 py-4">
         <div className="flex items-center justify-end space-x-2">
           {pals.installed &&
             ship !== window.our &&

@@ -1,10 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import cn from 'classnames';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useSearchParams } from 'react-router-dom';
 import { decToUd } from '@urbit/api';
 import { useCopy, useIsDmOrMultiDm } from '@/logic/utils';
 import { canWriteChannel } from '@/logic/channel';
-import { useAmAdmin, useGroup, useRouteGroup, useVessel } from '@/state/groups';
+import {
+  useAmAdmin,
+  useFlaggedData,
+  useGroup,
+  useRouteGroup,
+  useVessel,
+} from '@/state/groups';
 import {
   useAddDMReplyReactMutation,
   useDeleteDMReplyMutation,
@@ -36,6 +43,7 @@ import {
 import { emptyReply, Reply } from '@/types/channel';
 import VisibleIcon from '@/components/icons/VisibleIcon';
 import HiddenIcon from '@/components/icons/HiddenIcon';
+import CautionIcon from '@/components/icons/CautionIcon';
 
 export default function ReplyMessageOptions(props: {
   open: boolean;
@@ -53,7 +61,7 @@ export default function ReplyMessageOptions(props: {
     whomParts[0] === 'heap' ||
     whomParts[0] === 'diary';
   const nest = alreadyHaveHan ? whom : `chat/${whom}`;
-  const { seal, memo } = reply ?? emptyReply;
+  const { seal, memo } = reply.seal.id ? reply : emptyReply;
   const groupFlag = useRouteGroup();
   const isAdmin = useAmAdmin(groupFlag);
   const threadParentId = seal['parent-id'];
@@ -97,6 +105,12 @@ export default function ReplyMessageOptions(props: {
     isDeleteReplyLoading ||
     isDeleteChatMessageLoading ||
     isDeleteDMReplyLoading;
+  const { isFlaggedByMe } = useFlaggedData(
+    groupFlag,
+    nest,
+    seal['parent-id'],
+    seal.id
+  );
 
   const {
     show: showPost,
@@ -154,7 +168,7 @@ export default function ReplyMessageOptions(props: {
   }, [doCopy, isMobile, onOpenChange]);
 
   const setReplyParam = useCallback(() => {
-    setSearchParams({ reply: seal.id }, { replace: true });
+    setSearchParams({ replyTo: seal.id }, { replace: true });
   }, [seal, setSearchParams]);
 
   const onEmoji = useCallback(
@@ -222,6 +236,19 @@ export default function ReplyMessageOptions(props: {
     () => (isPostHidden ? showPost() : hidePost()),
     [isPostHidden, showPost, hidePost]
   );
+
+  const reportContent = useCallback(() => {
+    navigate('/report-content', {
+      state: {
+        backgroundLocation: location,
+        post: threadParentId,
+        reply: seal.id,
+        nest,
+        groupFlag,
+      },
+    });
+    hidePost();
+  }, [navigate, hidePost, threadParentId, seal, location, nest, groupFlag]);
 
   const showReactAction = canWrite;
   // TODO handle reply replies
@@ -313,6 +340,20 @@ export default function ReplyMessageOptions(props: {
     ),
   });
 
+  if (!isDMorMultiDM) {
+    actions.push({
+      key: 'report',
+      type: isFlaggedByMe ? 'disabled' : 'destructive',
+      onClick: reportContent,
+      content: (
+        <div className="flex items-center">
+          <CautionIcon className="mr-2 h-6 w-6" />
+          {isFlaggedByMe ? "You've flagged this message" : 'Report Message'}
+        </div>
+      ),
+    });
+  }
+
   if (showDeleteAction) {
     actions.push({
       key: 'delete',
@@ -337,7 +378,7 @@ export default function ReplyMessageOptions(props: {
       {isMobile ? (
         <ActionMenu open={open} onOpenChange={onOpenChange} actions={actions} />
       ) : (
-        <div className="absolute right-2 -top-5 z-10 h-full">
+        <div className="absolute -top-5 right-2 z-10">
           <div
             data-testid="chat-message-options"
             className="sticky top-0 flex space-x-0.5 rounded-lg border border-gray-100 bg-white p-[1px] align-middle"
@@ -389,6 +430,38 @@ export default function ReplyMessageOptions(props: {
                 }
                 label="View Reactions"
                 action={openReactionDetails}
+              />
+            )}
+            <IconButton
+              icon={
+                isHidden ? (
+                  <VisibleIcon className="h-6 w-6 text-gray-400" />
+                ) : (
+                  <HiddenIcon className="h-6 w-6 text-gray-400" />
+                )
+              }
+              label={isHidden ? 'Show Message' : 'Hide Message'}
+              showTooltip
+              action={isDMorMultiDM ? toggleMsg : togglePost}
+            />
+            {!isDMorMultiDM && (
+              <IconButton
+                icon={
+                  <CautionIcon
+                    className={cn(
+                      'h-6 w-6',
+                      isFlaggedByMe ? 'text-gray-200' : 'text-gray-400'
+                    )}
+                  />
+                }
+                label={
+                  isFlaggedByMe
+                    ? "You've flagged this message"
+                    : 'Report Message'
+                }
+                showTooltip
+                action={reportContent}
+                disabled={isFlaggedByMe}
               />
             )}
             {showDeleteAction && (

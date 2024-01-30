@@ -12,8 +12,8 @@ const getUnix = (count: number, setTime?: Date) =>
   count > 1
     ? subMinutes(setTime ? setTime : new Date(), count * 5).getTime()
     : setTime
-    ? setTime.getTime()
-    : new Date().getTime();
+      ? setTime.getTime()
+      : new Date().getTime();
 
 export const makeFakeChatWrit = (
   count: number,
@@ -134,49 +134,49 @@ export const dmList: DMUnreads = {
   '~fabled-faster': {
     recency: 0,
     count: 0,
-    'unread-id': null,
+    unread: null,
     threads: {},
   },
   '~nocsyx-lassul': {
     recency: 1652302200000,
     count: 3,
-    'unread-id': null,
+    unread: null,
     threads: {},
   },
   '~fallyn-balfus': {
     recency: 0,
     count: 0,
-    'unread-id': null,
+    unread: null,
     threads: {},
   },
   '~finned-palmer': {
     recency: 1652302200000,
     count: 2,
-    'unread-id': null,
+    unread: null,
     threads: {},
   },
   '~datder-sonnet': {
     recency: 1652302200000,
     count: 1,
-    'unread-id': null,
+    unread: null,
     threads: {},
   },
   '~hastuc-dibtux': {
     recency: 0,
     count: 0,
-    'unread-id': null,
+    unread: null,
     threads: {},
   },
   '~rilfun-lidlen': {
     recency: 0,
     count: 0,
-    'unread-id': null,
+    unread: null,
     threads: {},
   },
   '~mister-dister-dozzod-dozzod': {
     recency: 0,
     count: 0,
-    'unread-id': null,
+    unread: null,
     threads: {},
   },
 };

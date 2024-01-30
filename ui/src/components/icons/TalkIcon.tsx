@@ -1,7 +1,15 @@
 import React from 'react';
 import { IconProps } from './icon';
+import ChristmasIcon from './ChristmasIcon';
 
 export default function TalkIcon({ className }: IconProps) {
+  // christmas decoration
+  const now = new Date();
+  const day = now.getDate();
+  if (now.getMonth() === 11 && day >= 24 && day <= 26) {
+    return <ChristmasIcon className={className} />;
+  }
+
   return (
     <svg
       className={className}

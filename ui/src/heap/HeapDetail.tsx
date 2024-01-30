@@ -44,12 +44,10 @@ export default function HeapDetail({ title }: ViewProps) {
   const { title: curioTitle } = getKindDataFromEssay(note.essay);
   const { isChatInputFocused } = useChatInputFocus();
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
-  const {
-    hasNext,
-    hasPrev,
-    nextPost: nextNote,
-    prevPost: prevNote,
-  } = useOrderedPosts(nest, idTime || '');
+  const { nextPost: nextNote, prevPost: prevNote } = useOrderedPosts(
+    nest,
+    idTime || ''
+  );
   const initialNote = location.state?.initialCurio as Post | undefined;
   const essay = note?.essay || initialNote?.essay;
   const isUndelivered = useIsPostUndelivered(initialNote);
@@ -106,10 +104,10 @@ export default function HeapDetail({ title }: ViewProps) {
       </Helmet>
       <div className="flex h-full flex-col overflow-y-auto lg:flex-row">
         <div className="group relative flex flex-1">
-          {hasNext ? (
-            <div className="absolute top-0 left-0 flex h-full w-16 flex-col justify-center">
+          {nextNote ? (
+            <div className="absolute left-0 top-0 flex h-full w-16 flex-col justify-center">
               <Link
-                to={curioHref(nextNote?.[0])}
+                to={curioHref(nextNote[0])}
                 className={cn(
                   ' z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent',
                   !isMobile &&
@@ -117,16 +115,16 @@ export default function HeapDetail({ title }: ViewProps) {
                 )}
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
-                  <CaretLeftIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
+                  <CaretLeftIcon className="mx-auto my-0 block h-6 w-6 text-gray-300" />
                 </div>
               </Link>
             </div>
           ) : null}
           <HeapDetailBody essay={essay} />
-          {hasPrev ? (
-            <div className="absolute top-0 right-0 flex h-full w-16 flex-col justify-center">
+          {prevNote ? (
+            <div className="absolute right-0 top-0 flex h-full w-16 flex-col justify-center">
               <Link
-                to={curioHref(prevNote?.[0])}
+                to={curioHref(prevNote[0])}
                 className={cn(
                   ' z-40 flex h-16 w-16 flex-col items-center justify-center bg-transparent',
                   !isMobile &&
@@ -134,7 +132,7 @@ export default function HeapDetail({ title }: ViewProps) {
                 )}
               >
                 <div className="h-8 w-8 rounded border-gray-300 bg-white p-[3px]">
-                  <CaretRightIcon className="my-0 mx-auto block h-6 w-6 text-gray-300" />
+                  <CaretRightIcon className="mx-auto my-0 block h-6 w-6 text-gray-300" />
                 </div>
               </Link>
             </div>

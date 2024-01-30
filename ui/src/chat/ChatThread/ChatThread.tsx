@@ -16,7 +16,7 @@ import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import { isGroups } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
-import { useIsMobile } from '@/logic/useMedia';
+import useMedia, { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
@@ -34,7 +34,7 @@ import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
-import { useChatInfo, useChatStore } from '../useChatStore';
+import { chatStoreLogger, useChatInfo, useChatStore } from '../useChatStore';
 
 export default function ChatThread() {
   const { name, chShip, ship, chName, idTime } = useParams<{
@@ -53,11 +53,11 @@ export default function ChatThread() {
   const groupFlag = useRouteGroup();
   const { mutate: sendMessage } = useAddReplyMutation();
   const location = useLocation();
-  const scrollTo = new URLSearchParams(location.search).get('msg');
+  const scrollTo = new URLSearchParams(location.search).get('reply');
   const { mutate: markRead } = useMarkReadMutation();
   const channel = useGroupChannel(groupFlag, nest)!;
   const [searchParams, setSearchParams] = useSearchParams();
-  const replyId = useMemo(() => searchParams.get('reply'), [searchParams]);
+  const replyId = useMemo(() => searchParams.get('replyTo'), [searchParams]);
   const reply = useReply(nest, idTime!, replyId || '');
   const replyingWrit: ReplyTuple | undefined =
     reply && replyId ? [bigInt(replyId), reply] : undefined;
@@ -107,6 +107,8 @@ export default function ChatThread() {
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
   const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
   const readTimeout = useChatInfo(flag).unread?.readTimeout;
+  const isSmall = useMedia('(max-width: 1023px)');
+  const clearOnNavRef = useRef({ isSmall, readTimeout, nest, flag, markRead });
 
   const returnURL = useCallback(
     () =>
@@ -130,15 +132,25 @@ export default function ChatThread() {
   );
   useEventListener('keydown', onEscape, threadRef);
 
-  useEffect(
-    () => () => {
-      if (readTimeout !== undefined && readTimeout !== 0) {
-        useChatStore.getState().read(flag);
-        markRead({ nest });
+  // read the messages once navigated away
+  useEffect(() => {
+    clearOnNavRef.current = { isSmall, readTimeout, nest, flag, markRead };
+  }, [readTimeout, nest, flag, isSmall, markRead]);
+
+  useEffect(() => {
+    return () => {
+      const curr = clearOnNavRef.current;
+      if (
+        curr.isSmall &&
+        curr.readTimeout !== undefined &&
+        curr.readTimeout !== 0
+      ) {
+        chatStoreLogger.log('unmount read from thread');
+        useChatStore.getState().read(curr.flag);
+        curr.markRead({ nest: curr.nest });
       }
-    },
-    [readTimeout, nest, flag, markRead]
-  );
+    };
+  }, []);
 
   const BackButton = isMobile ? Link : 'div';
 
@@ -183,12 +195,12 @@ export default function ChatThread() {
               <div className="flex w-full flex-col justify-center">
                 <span
                   className={cn(
-                    'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                    'ellipsis line-clamp-1 text-sm font-bold sm:font-semibold'
                   )}
                 >
                   Thread
                 </span>
-                <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+                <span className="line-clamp-1 w-full break-all text-sm text-gray-400">
                   {threadTitle}
                 </span>
               </div>
@@ -243,7 +255,7 @@ export default function ChatThread() {
             isScrolling={isScrolling}
           />
         ) : !canWrite ? null : (
-          <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+          <div className="rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">
             {text}
           </div>
         )}

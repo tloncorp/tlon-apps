@@ -57,7 +57,7 @@ export default function ImageURLUploadField({
           })}
         />
         {!isFocused && !urlHasLength ? (
-          <div className="pointer-events-none absolute top-0 left-0 flex h-full w-full cursor-pointer items-center">
+          <div className="pointer-events-none absolute left-0 top-0 flex h-full w-full cursor-pointer items-center">
             <LinkIcon className="mr-1 inline h-4 w-4 shrink-0 fill-gray-100" />
             <span className="pointer-events-none">Paste an image URL</span>
           </div>

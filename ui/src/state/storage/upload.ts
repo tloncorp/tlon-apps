@@ -9,6 +9,7 @@ import imageCompression from 'browser-image-compression';
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/api';
 import { Status } from '@/logic/status';
+import { isIOSWebView, isSafari } from '@/logic/native';
 import {
   FileStore,
   StorageConfiguration,
@@ -83,9 +84,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
     const fileList = [...files].map((file) => ({
       file,
-      key: `${window.ship}/${deSig(formatDa(unixToDa(new Date().getTime())))}-${
-        file.name
-      }`,
+      key: `${window.ship}/${deSig(
+        formatDa(unixToDa(new Date().getTime()))
+      )}-${file.name.split(' ').join('-')}`,
       status: 'initial' as Status,
       url: '',
       size: [0, 0] as [number, number],
@@ -116,7 +117,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
     let compressedFile: File = file;
 
     try {
-      if (isImageFile(file)) {
+      // TODO: fix upload compression for Safari and iOS webview
+      if (isImageFile(file) && !isIOSWebView() && !isSafari()) {
         compressedFile = await imageCompression(file, compressionOptions);
       }
     } catch (error) {
@@ -214,21 +216,24 @@ export const useFileStore = create<FileStore>((set, get) => ({
         ACL: 'public-read',
       });
 
-      const url = await getSignedUrl(client, command).catch((e) => {
-        console.log('failed to get signed url', { e });
-        return '';
-      });
+      const url = config.publicUrlBase
+        ? new URL(key, config.publicUrlBase).toString()
+        : await getSignedUrl(client, command)
+            .then((res) => res.split('?')[0])
+            .catch((e) => {
+              console.log('failed to get signed url', { e });
+              return '';
+            });
 
       client
         .send(command)
         .then(() => {
-          const fileUrl = url.split('?')[0];
           updateStatus(uploader, key, 'success');
-          imageSize(fileUrl)
+          imageSize(url)
             .then((s) =>
               updateFile(uploader, key, {
                 size: s,
-                url: fileUrl,
+                url,
               })
             )
             .catch((e) => {

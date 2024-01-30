@@ -23,7 +23,7 @@ export default function MessageSelector() {
       style={{
         paddingTop: safeAreaInsets.top,
       }}
-      className="relative z-50 flex w-full flex-col items-center py-3 px-4 sm:flex-row sm:space-x-2"
+      className="relative z-50 flex w-full flex-col items-center px-4 py-3 sm:flex-row sm:space-x-2"
     >
       <ShipSelector
         ships={ships}

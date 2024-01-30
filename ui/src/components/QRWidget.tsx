@@ -43,7 +43,7 @@ export default function QRWidget({
       <div className="flex flex-1 items-center justify-center py-8">
         <QRCode value={link} size={200} fgColor="#3b82f6" bgColor="#bfdbfe" />
       </div>
-      <div className="flex items-center justify-between rounded-b-xl bg-blue-500 py-4 px-6 text-blue-100">
+      <div className="flex items-center justify-between rounded-b-xl bg-blue-500 px-6 py-4 text-blue-100">
         <span className="w-4/5 truncate text-lg">{displayURL}</span>
         {navigator.share !== undefined ? (
           <ShareIcon className="w-6" />
@@ -99,7 +99,7 @@ export function QRWidgetPlaceholder({
           </div>
         )}
       </div>
-      <div className="flex items-center justify-between rounded-b-xl bg-gray-200 py-4 px-6 text-blue-100">
+      <div className="flex items-center justify-between rounded-b-xl bg-gray-200 px-6 py-4 text-blue-100">
         <span className="w-4/5 truncate text-lg text-gray-500">{value}</span>
         {type === 'loading' && (
           <LoadingSpinner

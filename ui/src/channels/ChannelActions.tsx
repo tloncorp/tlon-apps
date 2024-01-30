@@ -105,7 +105,7 @@ const ChannelActions = React.memo(
         <div className="-mx-2 flex flex-col space-y-6">
           <div className="flex flex-col space-y-1">
             <span className="text-lg text-gray-800">Notification Settings</span>
-            <span className="font-normal font-[17px] text-gray-400">
+            <span className="font-[17px] font-normal text-gray-400">
               {channel?.meta.title || `~${nest}`}
             </span>
           </div>

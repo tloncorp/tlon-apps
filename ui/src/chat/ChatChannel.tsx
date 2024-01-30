@@ -50,7 +50,10 @@ function ChatChannel({ title }: ViewProps) {
   const { mutate: sendMessage } = useAddPostMutation(nest);
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
   const { isDragging, isOver } = useDragAndDrop(dropZoneId);
-  const chatReplyId = useMemo(() => searchParams.get('reply'), [searchParams]);
+  const chatReplyId = useMemo(
+    () => searchParams.get('replyTo'),
+    [searchParams]
+  );
   const replyingWrit = useReplyPost(nest, chatReplyId);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
@@ -155,7 +158,7 @@ function ChatChannel({ title }: ViewProps) {
                 isScrolling={isScrolling}
               />
             ) : !canWrite && compatible ? null : (
-              <div className="rounded-lg border-2 border-transparent bg-gray-50 py-1 px-2 leading-5 text-gray-600">
+              <div className="rounded-lg border-2 border-transparent bg-gray-50 px-2 py-1 leading-5 text-gray-600">
                 {text}
               </div>
             )}

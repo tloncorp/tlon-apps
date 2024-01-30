@@ -85,9 +85,7 @@ const hiddenMessage: Story = [
   {
     inline: [
       {
-        italics: [
-          'You have hidden this message. You can unhide it from the options menu.',
-        ],
+        italics: ['You have hidden or flagged this message.'],
       },
     ],
   },
@@ -111,7 +109,7 @@ const ReplyMessage = React.memo<
       }: ReplyMessageProps,
       ref
     ) => {
-      const { seal, memo } = reply ?? emptyReply;
+      const { seal, memo } = reply.seal.id ? reply : emptyReply;
       const container = useRef<HTMLDivElement>(null);
       const isThreadOp = seal['parent-id'] === seal.id;
       const isMobile = useIsMobile();
@@ -146,11 +144,7 @@ const ReplyMessage = React.memo<
               return;
             }
 
-            const {
-              seen: markSeen,
-              read,
-              delayedRead,
-            } = useChatStore.getState();
+            const { seen: markSeen, delayedRead } = useChatStore.getState();
 
             /* once the unseen marker comes into view we need to mark it
                as seen and start a timer to mark it read so it goes away.
@@ -167,18 +161,6 @@ const ReplyMessage = React.memo<
                   markChatRead({ nest: `chat/${whom}` });
                 }
               });
-              return;
-            }
-
-            /* finally, if the marker transitions back to not being visible,
-              we can assume the user is done and clear the unread. */
-            if (!inView && unread && seen) {
-              read(whom);
-              if (isDMOrMultiDM) {
-                markDmRead({ whom });
-              } else {
-                markChatRead({ nest: `chat/${whom}` });
-              }
             }
           },
           [unread, whom, isDMOrMultiDM, markChatRead, markDmRead, isUnread]
@@ -291,11 +273,11 @@ const ReplyMessage = React.memo<
           {unread && isUnread ? (
             <DateDivider
               date={unix}
-              unreadCount={unread.unread.count}
+              unreadCount={unread.unread.threads[seal['parent-id']]?.count || 0}
               ref={viewRef}
             />
           ) : null}
-          {newDay ? <DateDivider date={unix} /> : null}
+          {newDay && !isUnread ? <DateDivider date={unix} /> : null}
           {newAuthor ? (
             <Author ship={memo.author} date={unix} hideRoles />
           ) : null}
@@ -352,7 +334,7 @@ const ReplyMessage = React.memo<
               <div className="relative flex w-5 items-end rounded-r sm:group-one-hover:bg-gray-50">
                 {!isDelivered && (
                   <DoubleCaretRightIcon
-                    className="absolute left-0 bottom-2 h-5 w-5"
+                    className="absolute bottom-2 left-0 h-5 w-5"
                     primary={isSent ? 'text-black' : 'text-gray-200'}
                     secondary="text-gray-200"
                   />

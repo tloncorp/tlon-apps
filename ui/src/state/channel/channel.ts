@@ -31,7 +31,6 @@ import {
   PostDataResponse,
   ChannelScan,
   ChannelScanItem,
-  ReferenceResponse,
   ReplyTuple,
   newChatMap,
   HiddenPosts,
@@ -43,11 +42,19 @@ import { checkNest, log, nestToFlag } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
-import { INITIAL_MESSAGE_FETCH_PAGE_SIZE } from '@/constants';
+import {
+  STANDARD_MESSAGE_FETCH_PAGE_SIZE,
+  LARGE_MESSAGE_FETCH_PAGE_SIZE,
+} from '@/constants';
 import queryClient from '@/queryClient';
 import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
-import channelKey, { ChannnelKeys } from './keys';
+import { isNativeApp } from '@/logic/native';
+import { channelKey } from './keys';
+
+const POST_PAGE_SIZE = isNativeApp()
+  ? STANDARD_MESSAGE_FETCH_PAGE_SIZE
+  : LARGE_MESSAGE_FETCH_PAGE_SIZE;
 
 async function updatePostInCache(
   variables: { nest: Nest; postId: string },
@@ -194,7 +201,7 @@ export function usePostsOnHost(
   const { data } = useReactQueryScry({
     queryKey: [han, 'posts', 'live', flag],
     app: 'channels',
-    path: `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`,
+    path: `/${nest}/posts/newest/${STANDARD_MESSAGE_FETCH_PAGE_SIZE}/outline`,
     priority: 2,
     options: {
       cacheTime: 0,
@@ -214,11 +221,7 @@ export function usePostsOnHost(
   return data as Posts;
 }
 
-const infinitePostUpdater = (
-  queryKey: QueryKey,
-  data: ChannelsResponse,
-  initialTime?: string
-) => {
+const infinitePostUpdater = (queryKey: QueryKey, data: ChannelsResponse) => {
   const { nest, response } = data;
 
   if (!('post' in response)) {
@@ -444,11 +447,14 @@ const infinitePostUpdater = (
 
             const newReplies = Object.keys(existingReplies)
               .filter((k) => k !== reply.set?.seal.id)
-              .reduce((acc, k) => {
-                // eslint-disable-next-line no-param-reassign
-                acc[k] = existingReplies[k];
-                return acc;
-              }, {} as { [key: string]: Reply });
+              .reduce(
+                (acc, k) => {
+                  // eslint-disable-next-line no-param-reassign
+                  acc[k] = existingReplies[k];
+                  return acc;
+                },
+                {} as { [key: string]: Reply }
+              );
 
             const newPost = {
               ...post,
@@ -579,11 +585,7 @@ type PageParam = null | {
   direction: string;
 };
 
-export function useInfinitePosts(
-  nest: Nest,
-  initialTime?: string,
-  latest = false
-) {
+export function useInfinitePosts(nest: Nest, initialTime?: string) {
   const [han, flag] = nestToFlag(nest);
   const queryKey = useMemo(() => [han, 'posts', flag, 'infinite'], [han, flag]);
 
@@ -609,7 +611,7 @@ export function useInfinitePosts(
       app: 'channels',
       path: `/${nest}`,
       event: (data: ChannelsResponse) => {
-        infinitePostUpdater(queryKey, data, initialTime);
+        infinitePostUpdater(queryKey, data);
         invalidate.current(data);
       },
     });
@@ -620,16 +622,16 @@ export function useInfinitePosts(
     queryFn: async ({ pageParam }: { pageParam?: PageParam }) => {
       let path = '';
 
-      if (pageParam && !latest) {
+      if (pageParam) {
         const { time, direction } = pageParam;
         const ud = decToUd(time);
-        path = `/${nest}/posts/${direction}/${ud}/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
-      } else if (initialTime && !latest) {
+        path = `/${nest}/posts/${direction}/${ud}/${POST_PAGE_SIZE}/outline`;
+      } else if (initialTime) {
         path = `/${nest}/posts/around/${decToUd(initialTime)}/${
-          INITIAL_MESSAGE_FETCH_PAGE_SIZE / 2
+          POST_PAGE_SIZE / 2
         }/outline`;
       } else {
-        path = `/${nest}/posts/newest/${INITIAL_MESSAGE_FETCH_PAGE_SIZE}/outline`;
+        path = `/${nest}/posts/newest/${POST_PAGE_SIZE}/outline`;
       }
 
       const response = await api.scry<PagedPosts>({
@@ -710,9 +712,13 @@ function removePostFromInfiniteQuery(nest: string, time: string) {
   const deletedId = decToUd(time);
   const currentData = queryClient.getQueryData(queryKey) as any;
   const newPages =
-    currentData?.pages.map((page: any) =>
-      page.filter(([id]: any) => id !== deletedId)
-    ) ?? [];
+    currentData?.pages.map((page: any) => {
+      if (Array.isArray(page)) {
+        return page.filter(([id]: any) => id !== deletedId);
+      }
+
+      return page;
+    }) ?? [];
   queryClient.setQueryData(queryKey, (data: any) => ({
     pages: newPages,
     pageParams: data.pageParams,
@@ -740,7 +746,7 @@ export async function prefetchPostWithComments({
 export function useReplyPost(nest: Nest, id: string | null) {
   const { posts } = useInfinitePosts(nest);
 
-  return id && posts.find(([k, v]) => k.eq(bigInt(id)));
+  return id && posts.find(([k, _v]) => k.eq(bigInt(id)));
 }
 
 export function useOrderedPosts(
@@ -752,33 +758,29 @@ export function useOrderedPosts(
 
   if (posts.length === 0) {
     return {
-      hasNext: false,
-      hasPrev: false,
       nextPost: null,
       prevPost: null,
       sortedOutlines: [],
     };
   }
 
-  const sortedOutlines = posts;
-
-  sortedOutlines.sort(([a], [b]) => b.compare(a));
-
+  const sortedOutlines = posts
+    .filter(([, v]) => v !== null)
+    .sort(([a], [b]) => b.compare(a));
   const postId = typeof currentId === 'string' ? bigInt(currentId) : currentId;
-  const newest = posts[posts.length - 1]?.[0];
-  const oldest = posts[0]?.[0];
-  const hasNext = posts.length > 0 && newest && postId.gt(newest);
-  const hasPrev = posts.length > 0 && oldest && postId.lt(oldest);
   const currentIdx = sortedOutlines.findIndex(([i, _c]) => i.eq(postId));
 
-  const nextPost = hasNext ? sortedOutlines[currentIdx - 1] : null;
+  const nextPost = currentIdx > 0 ? sortedOutlines[currentIdx - 1] : null;
   if (nextPost) {
     prefetchPostWithComments({
       nest,
       time: udToDec(nextPost[0].toString()),
     });
   }
-  const prevPost = hasPrev ? sortedOutlines[currentIdx + 1] : null;
+  const prevPost =
+    currentIdx < sortedOutlines.length - 1
+      ? sortedOutlines[currentIdx + 1]
+      : null;
   if (prevPost) {
     prefetchPostWithComments({
       nest,
@@ -787,8 +789,6 @@ export function useOrderedPosts(
   }
 
   return {
-    hasNext,
-    hasPrev,
     nextPost,
     prevPost,
     sortedOutlines,
@@ -851,7 +851,10 @@ export function useChannels(): Channels {
       const { nest } = event;
       const [han, flag] = nestToFlag(nest);
       const infinitePostQueryKey = [han, 'posts', flag, 'infinite'];
-      infinitePostUpdater(infinitePostQueryKey, event);
+      const existingQueryData = queryClient.getQueryData(infinitePostQueryKey);
+      if (existingQueryData) {
+        infinitePostUpdater(infinitePostQueryKey, event);
+      }
     }
 
     invalidate.current(event);
@@ -1042,15 +1045,9 @@ export function useUnreads(): Unreads {
       const [app, flag] = nestToFlag(nest);
 
       if (app === 'chat') {
-        if (unread['unread-id'] === null && unread.count === 0) {
-          // if unread is null and count is 0, we can assume that the channel
-          // has been read and we can remove it from the unreads list
-          useChatStore.getState().read(flag);
-        } else {
-          useChatStore
-            .getState()
-            .unread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
-        }
+        useChatStore
+          .getState()
+          .handleUnread(flag, unread, () => markRead({ nest: `chat/${flag}` }));
       }
 
       queryClient.setQueryData(['unreads'], (d: Unreads | undefined) => {
@@ -1131,7 +1128,7 @@ export function useRemotePost(
   replyId?: string
 ) {
   checkNest(nest);
-  const [han, flag] = nestToFlag(nest);
+  const [han, _flag] = nestToFlag(nest);
   const path = `/said/${nest}/post/${decToUd(id)}${
     replyId ? `/${decToUd(replyId)}` : ''
   }`;
@@ -1171,21 +1168,6 @@ export function usePostKeys(nest: Nest) {
   const { posts } = useInfinitePosts(nest);
 
   return useMemo(() => posts.map(([k]) => k), [posts]);
-}
-
-export function useGetFirstUnreadID(nest: Nest) {
-  const keys = usePostKeys(nest);
-  const unread = useUnread(nest);
-
-  const { 'unread-id': lastRead } = unread;
-
-  if (!lastRead) {
-    return null;
-  }
-
-  const lastReadBN = bigInt(lastRead);
-  const firstUnread = keys.find((key) => key.gt(lastReadBN));
-  return firstUnread ?? null;
 }
 
 export function useJoinMutation() {
@@ -1387,6 +1369,7 @@ export function useAddPostMutation(nest: string) {
               resolve(timePosted);
             });
         } catch (e) {
+          // eslint-disable-next-line no-console
           console.error(e);
         }
       }),
@@ -1446,7 +1429,7 @@ export function useAddPostMutation(nest: string) {
       }
       queryClient.removeQueries(queryKey(variables.cacheId));
     },
-    onError: async (_error, variables, context) => {
+    onError: async (_error, variables) => {
       usePostsStore.setState((state) => ({
         ...state,
         trackedPosts: state.trackedPosts.filter(
@@ -1590,7 +1573,7 @@ export function useDeletePostMutation() {
         if ('post' in event.response) {
           const { id, 'r-post': postResponse } = event.response.post;
           return (
-            id === variables.time &&
+            decToUd(id) === variables.time &&
             'set' in postResponse &&
             postResponse.set === null
           );

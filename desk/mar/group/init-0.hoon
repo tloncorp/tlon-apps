@@ -1,6 +1,6 @@
 /-  g=groups
 /+  j=groups-json
-|_  =init:g
+|_  =init:zer:old:g
 ++  grad  %noun
 ++  grow
   |%
@@ -8,6 +8,6 @@
   --
 ++  grab
   |%
-  ++  noun  init:g
+  ++  noun  init:zer:old:g
   --
 --

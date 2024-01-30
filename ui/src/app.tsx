@@ -112,6 +112,7 @@ import BlockedUsersDialog from './components/Settings/BlockedUsersDialog';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import UpdateNoticeSheet from './components/UpdateNotices';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
+import ReportContent from './components/ReportContent';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -278,6 +279,7 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             }
           />
           <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
+          <Route path="/report-content" element={<ReportContent />} />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="/gangs/:ship/:name" element={<JoinGroupModal />} />
           <Route
@@ -440,6 +442,56 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
                 <Route path="members" element={<Members />} />
               </Route>
+              <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
+                {!isMobile && (
+                  <>
+                    <Route
+                      path="info"
+                      element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
+                    />
+                    <Route
+                      path="invites-privacy"
+                      element={
+                        <GroupInvitesPrivacy title={`• ${groupsTitle}`} />
+                      }
+                    />
+                    <Route
+                      path="members"
+                      element={<GroupMembers title={`• ${groupsTitle}`} />}
+                    />
+
+                    <Route
+                      path="roles"
+                      element={<GroupRoles title={`• ${groupsTitle}`} />}
+                    />
+                    <Route path="delete" element={<GroupDelete />} />
+                  </>
+                )}
+              </Route>
+              {isMobile && (
+                <>
+                  <Route
+                    path="/groups/:ship/:name/edit/info"
+                    element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
+                  />
+                  <Route
+                    path="/groups/:ship/:name/edit/invites-privacy"
+                    element={<GroupInvitesPrivacy title={`• ${groupsTitle}`} />}
+                  />
+                  <Route
+                    path="/groups/:ship/:name/edit/members"
+                    element={<GroupMembers title={`• ${groupsTitle}`} />}
+                  />
+                  <Route
+                    path="/groups/:ship/:name/edit/roles"
+                    element={<GroupRoles title={`• ${groupsTitle}`} />}
+                  />
+                  <Route
+                    path="/groups/:ship/:name/edit/delete"
+                    element={<GroupDelete />}
+                  />
+                </>
+              )}
               <Route
                 path="channels/chat/:chShip/:chName"
                 element={<GroupChannel type="chat" />}
@@ -551,22 +603,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             path="/groups/:ship/:name/channels/:chType/:chShip/:chName/volume"
             element={<ChannelVolumeDialog title={`• ${groupsTitle}`} />}
           />
-          <Route path="/groups/:ship/:name/edit" element={<GroupAdmin />}>
-            <Route
-              index
-              element={<GroupInfoEditor title={`• ${groupsTitle}`} />}
-            />
-            <Route path="invites-privacy" element={<GroupInvitesPrivacy />} />
-            <Route
-              path="members"
-              element={<GroupMembers title={`• ${groupsTitle}`} />}
-            />
-            <Route
-              path="roles"
-              element={<GroupRoles title={`• ${groupsTitle}`} />}
-            />
-            <Route path="delete" element={<GroupDelete />} />
-          </Route>
           <Route
             path="/groups/:ship/:name/leave"
             element={<GroupLeaveDialog />}
@@ -590,6 +626,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           />
           <Route path="/profile/:ship" element={<ProfileModal />} />
           <Route path="dm/:id/edit-info" element={<MultiDMEditModal />} />
+          <Route path="/report-content" element={<ReportContent />} />
           {isMobile ? (
             <>
               <Route
@@ -598,6 +635,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
               />
               <Route
                 path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/picker/:writTime"
+                element={<EmojiPicker />}
+              />
+              <Route
+                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/:idReplyTime/picker/:writTime"
                 element={<EmojiPicker />}
               />
               <Route
@@ -654,12 +695,12 @@ function checkIfLoggedIn() {
 function handleGridRedirect(navigate: NavigateFunction) {
   const query = new URLSearchParams(window.location.search);
 
-  if (query.has('grid-note')) {
+  if (query.has('landscape-note')) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    navigate(decodeURIComponent(query.get('grid-note')!));
+    navigate(decodeURIComponent(query.get('landscape-note')!));
   } else if (query.has('grid-link')) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    navigate(decodeURIComponent(query.get('grid-link')!));
+    navigate(decodeURIComponent(query.get('landscape-link')!));
   }
 }
 

@@ -1,11 +1,12 @@
 import cn from 'classnames';
-import React from 'react';
 import { ConnectionStatus } from '@/state/vitals';
 import {
   getConnectionColor,
   getCompletedText,
   getPendingText,
   getCompatibilityText,
+  redConnection,
+  grayConnection,
 } from '@/logic/utils';
 import { Saga } from '@/types/groups';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
@@ -16,7 +17,7 @@ interface HostConnectionProps {
   ship: string;
   saga: Saga | null;
   status?: ConnectionStatus;
-  type?: 'default' | 'combo' | 'text' | 'bullet';
+  type?: 'default' | 'combo' | 'text' | 'bullet' | 'row';
   className?: string;
 }
 
@@ -27,7 +28,7 @@ export function getText(
   negotiationMatch?: boolean
 ) {
   if (ship === window.our) {
-    return 'You are the host';
+    return 'You are the host.';
   }
 
   if (saga && !('synced' in saga)) {
@@ -35,14 +36,14 @@ export function getText(
   }
 
   if (negotiationMatch === false) {
-    return 'Your version of groups does not match the host.';
+    return 'Your version of Tlon does not match the host.';
   }
 
   return !status
     ? 'No connection data'
     : 'pending' in status
-    ? getPendingText(status, ship)
-    : getCompletedText(status, ship);
+      ? getPendingText(status, ship)
+      : getCompletedText(status, ship);
 }
 
 function getHostConnectionColor(
@@ -51,15 +52,15 @@ function getHostConnectionColor(
   negotiationMatch?: boolean
 ) {
   if (saga && !('synced' in saga)) {
-    return 'text-red-400';
+    return redConnection;
   }
 
   if (negotiationMatch === false) {
-    return 'text-red-400';
+    return redConnection;
   }
 
   const color = getConnectionColor(status);
-  return color === 'text-red-400' ? 'text-gray-400' : color;
+  return color.name === 'red' ? grayConnection : color;
 }
 
 export default function HostConnection({
@@ -85,7 +86,7 @@ export default function HostConnection({
             <Bullet16Icon
               className={cn(
                 'h-4 w-4 flex-none',
-                getHostConnectionColor(saga, status, matched)
+                getHostConnectionColor(saga, status, matched).dot
               )}
             />
           </span>
@@ -95,12 +96,23 @@ export default function HostConnection({
         <Bullet16Icon
           className={cn(
             'h-4 w-4 flex-none',
-            getHostConnectionColor(saga, status, matched)
+            getHostConnectionColor(saga, status, matched).dot
           )}
         />
       )}
       {(type === 'combo' || type === 'text') && (
         <span>{getText(saga, ship, status, matched)}</span>
+      )}
+
+      {type === 'row' && (
+        <div
+          className={cn(
+            'h-full w-full rounded-xl border px-6 py-3 leading-6',
+            getHostConnectionColor(saga, status, matched).bar
+          )}
+        >
+          {getText(saga, ship, status, matched)}
+        </div>
       )}
     </span>
   );

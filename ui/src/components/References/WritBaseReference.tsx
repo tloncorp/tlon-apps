@@ -166,7 +166,7 @@ function WritBaseReference({
       >
         <ReferenceInHeap type="text" contextApp={contextApp}>
           <ChatContent
-            className="p-2 line-clamp-1"
+            className="line-clamp-1 p-2"
             story={content}
             isScrolling={false}
           />

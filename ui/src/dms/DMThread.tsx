@@ -22,7 +22,7 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import useLeap from '@/components/Leap/useLeap';
-import { useIsMobile } from '@/logic/useMedia';
+import useMedia, { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import MobileHeader from '@/components/MobileHeader';
@@ -32,7 +32,11 @@ import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
-import { useChatInfo, useChatStore } from '@/chat/useChatStore';
+import {
+  chatStoreLogger,
+  useChatInfo,
+  useChatStore,
+} from '@/chat/useChatStore';
 
 export default function DMThread() {
   const { chShip, ship, chName, idTime, idShip } = useParams<{
@@ -47,7 +51,7 @@ export default function DMThread() {
   const isMobile = useIsMobile();
   const appName = useAppName();
   const [loading, setLoading] = useState(false);
-  const scrollTo = new URLSearchParams(location.search).get('msg');
+  const scrollTo = new URLSearchParams(location.search).get('reply');
   const whom = ship || '';
   const id = `${idShip!}/${idTime!}`;
   const { writ, isLoading } = useWrit(whom, id);
@@ -67,6 +71,8 @@ export default function DMThread() {
   const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const readTimeout = useChatInfo(whom).unread?.readTimeout;
   const { mutate: markDmRead } = useMarkDmReadMutation();
+  const isSmall = useMedia('(max-width: 1023px)');
+  const clearOnNavRef = useRef({ isSmall, readTimeout, whom, markDmRead });
 
   const isClub = ship ? (ob.isValidPatp(ship) ? false : true) : false;
   const club = useMultiDm(ship || '');
@@ -118,15 +124,24 @@ export default function DMThread() {
   useEventListener('keydown', onEscape, threadRef);
 
   // read the messages once navigated away
-  useEffect(
-    () => () => {
-      if (readTimeout !== undefined && readTimeout !== 0) {
-        useChatStore.getState().read(whom);
-        markDmRead({ whom });
+  useEffect(() => {
+    clearOnNavRef.current = { isSmall, readTimeout, whom, markDmRead };
+  }, [readTimeout, whom, isSmall, markDmRead]);
+
+  useEffect(() => {
+    return () => {
+      const curr = clearOnNavRef.current;
+      if (
+        curr.isSmall &&
+        curr.readTimeout !== undefined &&
+        curr.readTimeout !== 0
+      ) {
+        chatStoreLogger.log('unmount read from thread');
+        useChatStore.getState().read(curr.whom);
+        curr.markDmRead({ whom: curr.whom });
       }
-    },
-    [readTimeout, whom, markDmRead]
-  );
+    };
+  }, []);
 
   if (!writ || isLoading) return null;
 
@@ -173,12 +188,12 @@ export default function DMThread() {
               <div className="flex w-full flex-col justify-center">
                 <span
                   className={cn(
-                    'ellipsis text-sm font-bold line-clamp-1 sm:font-semibold'
+                    'ellipsis line-clamp-1 text-sm font-bold sm:font-semibold'
                   )}
                 >
                   Thread
                 </span>
-                <span className="w-full break-all text-sm text-gray-400 line-clamp-1">
+                <span className="line-clamp-1 w-full break-all text-sm text-gray-400">
                   {threadTitle}
                 </span>
               </div>

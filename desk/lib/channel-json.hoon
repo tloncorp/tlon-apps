@@ -346,16 +346,23 @@
     %-  pairs
     :~  recency/(time recency.b)
         count/(numb count.b)
-        unread-id/?~(unread-id.b ~ (id u.unread-id.b))
+        unread/?~(unread.b ~ (unread-point u.unread.b))
         threads/(unread-threads threads.b)
     ==
   ::
   ++  unread-threads
-    |=  u=(map id-post:c id-reply:c)
+    |=  u=(map id-post:c [id-reply:c @ud])
     %-  pairs
     %+  turn  ~(tap by u)
-    |=  [p=id-post:c r=id-reply:c]
-    [+:(id p) (id r)]
+    |=  [p=id-post:c u=[id-reply:c @ud]]
+    [+:(id p) (unread-point u)]
+  ::
+  ++  unread-point
+    |=  [t=@da count=@ud]
+    %-  pairs
+    :~  id/(id t)
+        count/(numb count)
+    ==
   ::
   ++  pins
     |=  ps=(list nest:c)

@@ -1,7 +1,12 @@
 import _ from 'lodash';
 import Urbit from '@urbit/http-api';
 import api from '@/api';
-import { asyncWithDefault, asyncWithFallback, isTalk } from '@/logic/utils';
+import {
+  asyncWithDefault,
+  asyncWithFallback,
+  isTalk,
+  nestToFlag,
+} from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { Gangs, Groups } from '@/types/groups';
 import { TalkInit, GroupsInit } from '@/types/ui';
@@ -16,6 +21,7 @@ import useSchedulerStore from './scheduler';
 import { useStorage } from './storage';
 import { initializeChat } from './chat';
 import { pinsKey } from './pins';
+import { ChannnelKeys } from './channel/keys';
 
 const emptyGroupsInit: GroupsInit = {
   groups: {},
@@ -52,6 +58,17 @@ async function startGroups() {
   queryClient.setQueryData(['channels'], channels);
   queryClient.setQueryData(['unreads'], unreads);
   queryClient.setQueryData(pinsKey(), pins);
+
+  // if we have unreads for cached channels, refetch them
+  // in advance
+  Object.keys(unreads || {}).forEach((nest) => {
+    const unread = unreads[nest];
+    const queryKey = ChannnelKeys.infinitePostsKey(nest);
+    if (unread.count > 0 && queryClient.getQueryData(queryKey)) {
+      queryClient.refetchQueries(queryKey);
+    }
+  });
+
   // make sure we remove the app part from the nest before handing it over
   useChatStore
     .getState()
@@ -73,7 +90,7 @@ async function startTalk() {
             () =>
               api.scry<Groups>({
                 app: 'groups',
-                path: '/groups/light/v0',
+                path: '/groups/light/v1',
               }),
             {}
           ),

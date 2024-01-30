@@ -166,7 +166,7 @@ export function useMessageEditor({
       })
     );
     extensions.unshift(
-      Mention.extend({ priority: 999 }).configure({
+      Mention.extend({ priority: 999, name: 'at-mention' }).configure({
         HTMLAttributes: {
           class: 'inline-block rounded bg-blue-soft px-1.5 py-0 text-blue',
         },

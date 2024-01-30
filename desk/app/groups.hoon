@@ -16,7 +16,7 @@
   +$  card  card:agent:gall
   ++  import-epoch  ~2022.10.11
   +$  current-state
-    $:  %1
+    $:  %2
         groups=net-groups:g
       ::
         $=  volume
@@ -134,16 +134,18 @@
           ~  ~  ~  ~  ~  ~
           cordon.create
           secret.create
-          title.create
-          description.create
-          image.create
-          cover.create
+          :*  title.create
+              description.create
+              image.create
+              cover.create
+          ==
+          ~
       ==
     =.  groups  (~(put by groups) flag *net:g group)
     =.  cor  (give-invites flag ~(key by members.create))
     go-abet:(go-init:(go-abed:group-core flag) ~)
   ::
-      ?(%group-action-2 %group-action-1 %group-action-0)
+      ?(%group-action-3 %group-action-2 %group-action-1 %group-action-0)
     =+  !<(=action:g vase)
     =.  p.q.action  now.bowl
     =/  group-core  (go-abed:group-core p.action)
@@ -212,7 +214,7 @@
 ++  channel-scry
   |=  =nest:g
   ^-  path
-  /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+  /(scot %p our.bowl)/channels/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
 ::
 ++  reset-all-perms
   (~(rep by groups) (reset-group-perms cor))
@@ -250,6 +252,8 @@
 ++  verify-group-cabals
   |=  [[=flag:g [* =group:g]] core=_cor]
   =.  core
+    ::  repair members as needed
+    ::
     %+  roll
       ~(tap by fleet.group)
     |=  [[s=ship =vessel:fleet:g] cre=_core]
@@ -261,52 +265,119 @@
     ~(tap by channels.group)
   |=  [[=nest:g =channel:g] cr=_core]
   =.  cr
+    ::  repair readers as needed
+    ::
     =/  readers  (~(dif in readers.channel) ~(key by cabals.group))
     ?.  (gth ~(wyt in readers) 0)  cr
     =/  action  [flag now.bowl %channel nest %del-sects readers]
     cr(cards [[%pass /groups/role %agent [our.bowl dap.bowl] %poke [act:mar:g !>(action)]] cards.cr])
+  ::  repair writers as needed
+  ::
   =+  .^(has=? %gu (channel-scry nest))
   ?.  has  cr
   =+  .^([writers=(set sect:g) *] %gx (welp (channel-scry nest) /perm/noun))
   =/  diff  (~(dif in writers) ~(key by cabals.group))
   ?.  (gth ~(wyt in diff) 0)  cr
-  ?.  =(p.nest ?(%chat %heap %diary))  cr
-  =/  update  [q.nest [now.bowl [%del-sects diff]]]
-  =/  cage  [%channels-action !>(update)]
-  cr(cards [[%pass /groups/role %agent [p.q.nest p.nest] %poke cage] cards.cr])
+  ?.  ?=(?(%chat %heap %diary) p.nest)  cr
+  =/  cmd=c-channels:d  [%channel nest %del-writers diff]
+  =/  cage  [%channel-command !>(cmd)]
+  cr(cards [[%pass /groups/role %agent [p.q.nest %channels-server] %poke cage] cards.cr])
 ::
 ::  +load: load next state
 ++  load
   |=  =vase
   |^  ^+  cor
   =+  !<([old=versioned-state cool=epic:e] vase)
-  =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-  ?>  ?=(%1 -.old)
-  =.  state  old
-  =.  cor  restore-missing-subs
-  =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
-  ?:  =(okay:g cool)  cor
-  =.  cor  (emil (drop load:epos))
-  =/  groups  ~(tap in ~(key by groups))
   |-
-  ?~  groups
-    cor
-  =.  cor
-    go-abet:go-upgrade:(go-abed:group-core i.groups)
-  $(groups t.groups)
+  ?-  -.old
+      %0  $(old (state-0-to-1 old))
+      %1  $(old (state-1-to-2 old))
   ::
-  +$  versioned-state  $%(current-state state-0)
+      %2
+    =.  state  old
+    =.  cor  restore-missing-subs
+    =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
+    ?:  =(okay:g cool)  cor
+    =.  cor  (emil (drop load:epos))
+    =/  groups  ~(tap in ~(key by groups))
+    |-
+    ?~  groups
+      cor
+    =.  cor
+      go-abet:go-upgrade:(go-abed:group-core i.groups)
+    $(groups t.groups)
+  ==
+  ++  zero  zer:old:g
+  +$  versioned-state  $%(current-state state-1 state-0)
   +$  state-0
     $:  %0
-        groups=net-groups:g
-        xeno=gangs:g
-        shoal=(map flag:g dude:gall)
+        groups=net-groups:zero
+        xeno=gangs:zero
+        shoal=(map flag:zero dude:gall)
+    ==
+  ::
+  +$  state-1
+    $:  %1
+      groups=net-groups:zero
+      ::
+        $=  volume
+        $:  base=level:v
+            area=(map flag:zero level:v)  ::  override per group
+            chan=(map nest:zero level:v)  ::  override per channel
+        ==
+      ::
+        xeno=gangs:zero
+        ::  graph -> agent
+        shoal=(map flag:zero dude:gall)
     ==
   ::
   ++  state-0-to-1
     |=  state-0
-    ^-  current-state
+    ^-  state-1
     [%1 groups [*level:v ~ ~] xeno shoal]
+  ::
+  ++  state-1-to-2
+    |=  state-1
+    ^-  current-state
+    [%2 (groups-1-to-2 groups) volume xeno shoal]
+  ::
+  ++  groups-1-to-2
+    |=  groups=net-groups:zero
+    ^-  net-groups:g
+    %-  ~(run by groups)
+    |=  [=net:zero gr=group:zero]
+    ^-  [net:g group:g]
+    :_  (group-1-to-2 gr)
+    ?-  -.net
+        %sub  net
+        %pub
+      :-  %pub
+      %+  gas:log-on:g  *log:g
+      %+  turn
+        (tap:log-on:zero p.net)
+      |=  [t=time =diff:zero]
+      ^-  [time diff:g]
+      :-  t
+      ?+  -.diff  diff
+        %create  [%create (group-1-to-2 p.diff)]
+      ==
+    ==
+  ++  group-1-to-2
+    |=  gr=group:zero
+    ^-  group:g
+    %*  .  *group:g
+      fleet            fleet.gr
+      cabals           cabals.gr
+      zones            zones.gr
+      zone-ord         zone-ord.gr
+      bloc             bloc.gr
+      channels         channels.gr
+      imported         imported.gr
+      cordon           cordon.gr
+      secret           secret.gr
+      meta             meta.gr
+      flagged-content  ~
+    ==
   ::
   ++  restore-missing-subs
     %+  roll
@@ -360,14 +431,19 @@
   ?+    pole  [~ ~]
       [%x %gangs ~]  ``gangs+!>(xeno)
       [%x %init ~]  ``noun+!>([groups-light xeno])
-      [%x %init %v0 ~]  ``noun+!>([groups-light-ui xeno])
+      [%x %init %v0 ~]  ``noun+!>([groups-light-ui-v0 xeno])
+      [%x %init %v1 ~]  ``noun+!>([groups-light-ui xeno])
       [%x %groups %light ~]  ``groups+!>(groups-light)
-      [%x %groups %light %v0 ~]  ``groups-ui+!>(groups-light-ui)
+      [%x %groups %light %v0 ~]  ``groups-ui-v0+!>(groups-light-ui-v0)
+      [%x %groups %light %v1 ~]  ``groups-ui+!>(groups-light-ui)
   ::
       [%x %groups ~]
     ``groups+!>(`groups:g`(~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
+    ``groups-ui-v0+!>(`groups-ui:zer:old:g`(~(run by groups) to-group-ui-v0))
+  ::
+      [%x %groups %v1 ~]
     ``groups-ui+!>(`groups-ui:g`(~(run by groups) to-group-ui))
   ::
       [%x %groups ship=@ name=@ rest=*]
@@ -377,6 +453,8 @@
     ?~  rest.pole
       ``group+!>(+.u.group)
     ?:  =(/v0 rest.pole)
+      ``group-ui-v0+!>(`group-ui:zer:old:g`(to-group-ui-v0 u.group))
+    ?:  =(/v1 rest.pole)
       ``group-ui+!>(`group-ui:g`(to-group-ui u.group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
   ::
@@ -432,12 +510,35 @@
   %-  ~(run by groups)
   |=  [=net:g =group:g]
   (to-group-ui net (drop-fleet group))
+++  groups-light-ui-v0
+  ^-  groups-ui:zer:old:g
+  %-  ~(run by groups)
+  |=  [=net:g =group:g]
+  (to-group-ui-v0 net (drop-fleet group))
 ++  to-group-ui
   |=  [=net:g =group:g]
   ^-  group-ui:g
   :-  group
   ?+  -.net  ~
       %sub  `saga.net
+  ==
+++  to-group-ui-v0
+  |=  [=net:g =group:g]
+  ^-  group-ui:zer:old:g
+  :_ 
+    ?+  -.net  ~
+        %sub  `saga.net
+    ==
+  :*  fleet.group
+      cabals.group
+      zones.group
+      zone-ord.group
+      bloc.group
+      channels.group
+      imported.group
+      cordon.group
+      secret.group
+      meta.group
   ==
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]
@@ -654,7 +755,7 @@
           =association:met:g
           chan=(map flag:g association:met:g)
           roles=(set flag:g)
-          =group:old:g
+          =group:g-one
       ==
   |^
   =/  [cabals=(map sect:g cabal:g) members=(jug ship sect:g)]
@@ -715,6 +816,7 @@
         cordon
         =(%invite -.policy.group)
         meta
+        ~
     ==
   =/  =net:g
     ?:  =(p.flag our.bowl)
@@ -798,6 +900,17 @@
     `path`[%group (snoc old-flag-path %noun)]
   --
 ::
+++  get-channel-rope
+  |=  [=nest:g =id-post:d id-reply=(unit id-reply:d)]
+  ^-  rope:ha
+  =/  prefix  (channel-scry nest)
+  =/  ch-path=path
+    ?~  id-reply  
+      (welp prefix /hark/rope/(scot %ud id-post))
+    (welp prefix /hark/rope/(scot %ud id-post)/(scot %ud u.id-reply))
+  =/  =path  (snoc ch-path %noun)
+  .^(rope:ha %gx path)
+::
 ++  group-core
   |_  [=flag:g =net:g =group:g gone=_|]
   ++  go-core  .
@@ -875,32 +988,32 @@
     ++  leave-channels
       |=  nests=(list nest:g)
       ^-  (list card)
-      %+  turn
+      %+  murn
           nests
       |=  nes=nest:g
-      ^-  card
+      ^-  (unit card)
+      ?.  ?=(?(%chat %diary %heap) p.nes)
+        ~
       =/  =dock  [our.bowl %channels]
-      =/  action=a-channels:d
-        ?>  ?=(?(%chat %diary %heap) p.nes)
-        [%channel nes %leave ~]
+      =/  action=a-channels:d  [%channel nes %leave ~]
       =/  =cage  channel-action+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
-      [%pass wire %agent dock %poke cage]
+      `[%pass wire %agent dock %poke cage]
     ::
     ++  join-channels
       |=  nests=(list nest:g)
       ^-  (list card)
-      %+  turn
+      %+  murn
           nests
       |=  nes=nest:g
-      ^-  card
+      ^-  (unit card)
+      ?.  ?=(?(%chat %diary %heap) p.nes)
+        ~
       =/  =dock  [our.bowl %channels]
-      =/  action=a-channels:d
-        ?>  ?=(?(%chat %diary %heap) p.nes)
-        [%channel nes %join flag]
+      =/  action=a-channels:d  [%channel nes %join flag]
       =/  =cage  ['channel-action' !>(action)]
       =/  =wire  (snoc go-area %join-channels)
-      [%pass wire %agent dock %poke cage]
+      `[%pass wire %agent dock %poke cage]
     --
   ::
   ++  go-leave
@@ -933,7 +1046,7 @@
       `nest
     =.  zone-ord.group  (~(push of zone-ord.group) %default)
     =.  fleet.group
-      %-  ~(rut by fleet.group)
+      %-  ~(urn by fleet.group)
       |=  [=ship =vessel:fleet:g]
       ?.  (~(has in admins) ship)
         vessel
@@ -1049,6 +1162,13 @@
         :-  bloc=(~(has in go-bloc-who) member)
         sects=sects:(~(got by fleet.group) member)
       ==
+      ::
+        [%can-read ~]
+      :+  ~  %noun
+      !>  ^-  $-([ship nest:g] ?)
+      |=  [=ship =nest:g]
+      ?~  cha=(~(get by channels.group) nest)  |
+      (go-can-read ship u.cha)
     ==
   ::
   ++  go-can-read
@@ -1119,9 +1239,9 @@
       ::  XX: does init need to be handled specially?
       ?+  p.cage  (go-odd-update p.cage)
         %epic            (go-take-epic !<(epic:e q.cage))
-        %group-log-2     (go-apply-log !<(log:g q.cage))
-        %group-update-2  (go-update !<(update:g q.cage))
-        %group-init-2    (go-fact-init !<(init:g q.cage))
+        %group-log-3     (go-apply-log !<(log:g q.cage))
+        %group-update-3  (go-update !<(update:g q.cage))
+        %group-init-3    (go-fact-init !<(init:g q.cage))
       ==
     ==
   ::
@@ -1157,7 +1277,10 @@
     ?.  =(src.bowl our.bowl)
       ~|("%group-action poke failed: only allowed from self" !!)
     ::  must have permission to write
-    ?.  ?|(go-is-bloc ?&(?=(%fleet -.diff) ?=([%add ~] q.diff)))
+    ?.  ?|  go-is-bloc
+            ?=(%flag-content -.diff)
+            ?&(?=(%fleet -.diff) ?=([%add ~] q.diff))
+        ==
       ~|("%group-action poke failed: can't write to host" !!)
     =/  =wire  (snoc go-area %proxy)
     =/  =dock  [p.flag dap.bowl]
@@ -1254,6 +1377,7 @@
       %meta     (go-meta-update p.diff)
       %secret   (go-secret-update p.diff)
       %del      go-core(gone &)
+      %flag-content  (go-flag-content +:diff)
     ==
   ::
   ++  go-secret-update
@@ -1263,6 +1387,30 @@
   ++  go-meta-update
     |=  meta=data:meta
     =.  meta.group  meta
+    go-core
+  ++  go-flag-content
+    |=  [=nest:g =post-key:g src=ship]
+    =/  posts  (~(gut by flagged-content.group) nest *(map post-key:g flaggers:g))
+    =/  flaggers=(unit flaggers:g)  (~(get by posts) post-key)
+    =/  channel-flagged
+      %+  ~(put by posts)  post-key
+      ?~  flaggers  (sy ~[src])
+      (~(put in u.flaggers) src)
+    =.  flagged-content.group  (~(put by flagged-content.group) nest channel-flagged)
+    ?:  |(from-self !go-is-our-bloc)  go-core
+    =/  =rope:ha  (get-channel-rope nest post-key)
+    =/  link
+      (welp /groups/(scot %p p.flag)/[q.flag]/channels ted.rope)
+    =/  =new-yarn:ha
+      %-  spin
+      :*  rope
+          link
+          `['See post' link]
+          :~  [%ship src]
+              ' has reported a post as inappropriate.'
+          ==
+      ==
+    =.  cor  (emit (pass-hark new-yarn))
     go-core
   ++  go-zone-update
     |=  [=zone:g =delta:zone:g]
@@ -1398,7 +1546,7 @@
         =.  ask.cordon.group  (~(uni in ask.cordon) q.diff)
         =/  ships  q.diff
         ?:  from-self  go-core
-        =/  link  (go-link /info/members/pending)
+        =/  link  (go-link /edit/members)
         =/  =new-yarn:ha
           %-  spin
           :*  (go-rope /asks)
@@ -1551,7 +1699,7 @@
       =.  sects.diff  (~(int in sects.diff) ~(key by cabals.group))
       ?:  =(~ sects.diff)  go-core
       =.  fleet.group
-        %-  ~(rut by fleet.group)
+        %-  ~(urn by fleet.group)
         |=  [=ship =vessel:fleet:g]
         ?.  (~(has in ships) ship)  vessel
         vessel(sects (~(uni in sects.vessel) sects.diff))
@@ -1588,7 +1736,7 @@
       ?>  go-is-bloc
       ?:  &(has-host (~(has in sects.diff) 'admin'))  go-core
       =.  fleet.group
-        %-  ~(rut by fleet.group)
+        %-  ~(urn by fleet.group)
         |=  [=ship =vessel:fleet:g]
         ?.  (~(has in ships) ship)  vessel
         vessel(sects (~(dif in sects.vessel) sects.diff))

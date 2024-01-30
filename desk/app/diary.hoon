@@ -4,7 +4,7 @@
 /+  default-agent, verb, dbug
 /+  not=notes
 /+  qup=quips
-/+  volume
+/+  volume, cutils=channel-utils
 /+  epos-lib=saga
 ::  performance, keep warm
 /+  diary-json
@@ -1033,11 +1033,8 @@
     !=(~ (~(int in writers.perm.diary) sects.perms))
   ::
   ++  di-can-read
-    |=  her=ship
-    =/  =path
-      %+  welp  di-groups-scry
-      /channel/[dap.bowl]/(scot %p p.flag)/[q.flag]/can-read/(scot %p her)/loob
-    .^(? %gx path)
+    %~  can-read  perms:cutils
+    [our.bowl now.bowl [%diary flag] group.perm.diary]
   ::
   ++  di-pub
     |=  =path

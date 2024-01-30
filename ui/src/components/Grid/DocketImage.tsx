@@ -37,7 +37,7 @@ export default function DocketImage({
     >
       {image && !imageError && (
         <img
-          className="absolute top-0 left-0 h-full w-full object-cover"
+          className="absolute left-0 top-0 h-full w-full object-cover"
           src={image}
           alt=""
           onError={() => setImageError(true)}

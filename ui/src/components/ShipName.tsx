@@ -1,5 +1,5 @@
 import { cite } from '@urbit/api';
-import React, { HTMLAttributes } from 'react';
+import React, { HTMLAttributes, useMemo } from 'react';
 import { useCalm } from '@/state/settings';
 import { useContact } from '../state/contact';
 
@@ -17,7 +17,7 @@ export default function ShipName({
 }: ShipNameProps) {
   const contact = useContact(name);
   const separator = /([_^-])/;
-  const citedName = full ? name : cite(name);
+  const citedName = useMemo(() => (full ? name : cite(name)), [name, full]);
   const calm = useCalm();
 
   if (!citedName) {

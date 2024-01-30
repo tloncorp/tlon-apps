@@ -80,7 +80,7 @@ export default function ChatInputMenuToolbar({
             />
             <button
               type="submit"
-              className="button ml-1 bg-transparent py-0.5 px-1.5 text-sm font-medium leading-4 text-gray-800 hover:bg-transparent hover:ring-2 disabled:bg-transparent disabled:text-gray-400"
+              className="button ml-1 bg-transparent px-1.5 py-0.5 text-sm font-medium leading-4 text-gray-800 hover:bg-transparent hover:ring-2 disabled:bg-transparent disabled:text-gray-400"
               disabled={!formState.isValid}
             >
               Done

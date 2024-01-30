@@ -150,7 +150,6 @@ export default function ChatInput({
     [targetId, dropZoneId]
   );
   const id = replying ? `${whom}-${replying}` : whom;
-  chatStoreLogger.log('InputRender', id);
   const [draft, setDraft] = useLocalStorage(
     createStorageKey(`chat-${id}`),
     inlinesToJSON([''])
@@ -167,8 +166,8 @@ export default function ChatInput({
     replyingWrit && replyingWrit[1] && 'essay' in replyingWrit[1]
       ? replyingWrit[1].essay.author
       : replyingWrit && replyingWrit[1] && 'memo' in replyingWrit[1]
-      ? replyingWrit[1].memo.author
-      : null;
+        ? replyingWrit[1].memo.author
+        : null;
   const isMobile = useIsMobile();
   const uploadKey = `chat-input-${id}`;
   const uploader = useUploader(uploadKey);
@@ -349,6 +348,7 @@ export default function ChatInput({
       onUpdate.current.flush();
       setDraft(inlinesToJSON(['']));
       setTimeout(() => {
+        // TODO: chesterton's fence, but why execute a read here?
         useChatStore.getState().read(whom);
         clearAttachments();
       }, 0);
@@ -420,8 +420,12 @@ export default function ChatInput({
     if (replyingWrit && messageEditor && !messageEditor.isDestroyed) {
       messageEditor?.commands.focus();
       const mention = ship ? makeMention(ship.slice(1)) : null;
-      messageEditor?.commands.setContent(mention);
-      messageEditor?.commands.insertContent(': ');
+      const needsMentionInsert =
+        mention && !messageEditor.getText().includes(`${ship}:`);
+      if (needsMentionInsert) {
+        messageEditor?.commands.setContent(mention);
+        messageEditor?.commands.insertContent(': ');
+      }
       const path =
         replyingWrit[1] && 'memo' in replyingWrit[1]
           ? `/1/chan/chat/${whom}/msg/${threadParentId}/${replyingWrit[0].toString()}`
@@ -603,7 +607,7 @@ export default function ChatInput({
               <div key={idx} className="relative p-1.5">
                 <button
                   onClick={() => onRemove(idx)}
-                  className="icon-button absolute top-4 right-4"
+                  className="icon-button absolute right-4 top-4"
                 >
                   <X16Icon className="h-4 w-4" />
                 </button>
@@ -647,7 +651,7 @@ export default function ChatInput({
         ) : null}
         <div className="relative flex items-end justify-end">
           {!isMobile && (
-            <Avatar size="xs" ship={window.our} className="mr-2 mb-1" />
+            <Avatar size="xs" ship={window.our} className="mb-1 mr-2" />
           )}
           {messageEditor && (
             <MessageEditor
