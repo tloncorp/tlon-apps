@@ -176,6 +176,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-direction: column;
+      gap: 1rem;
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -208,6 +210,7 @@
     }
 
     .widget {
+      box-sizing: border-box;
       width: 400px;
       max-width: 85vw;
       border-radius: 40px;
