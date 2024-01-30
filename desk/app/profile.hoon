@@ -49,7 +49,7 @@
   =.  bound  |
   ?~  previous-home
     :_  state
-    [%pass /eyre/connect %arvo %e %disconnect [~ /]]~
+    [%pass /eyre/connect %arvo %e %disconnect [~ /profile]]~
   ::  if we had overwritten another agent's binding, restore it
   ::
   :_  state(previous-home ~)
@@ -58,17 +58,30 @@
 ++  serve
   |=  order:rudder
   ^-  (list card)
-  %+  spout:rudder  id
+  =;  payload=simple-payload:http
+    ?.  =('/profile' url.request)  (spout:rudder id payload)
+    ::  if we got requested the profile page, that means it's not in cache.
+    ::  serve the response, but also add it into cache.
+    ::
+    :-  [%pass /eyre/cache %arvo %e %set-response '/profile' `[| %payload payload]]
+    (spout:rudder id payload)
   %-  paint:rudder
   =/  =query:rudder  (purse:rudder url.request)
   ::  we bound at /, so act as a final routing catch-all. to be polite,
   ::  if the request is not for / or /profile, we redirect to landscape.
   ::
   ?.  ?=(?(~ [%profile ~]) site.query)
-    ~&  [%redirecting site.query]
     [%move '/apps/landscape/']
-  ::
-  :-  %page
+  [%page render-page]
+::
+++  update-cache
+  ^-  (list card)
+  =/  payload=simple-payload:http
+    (paint:rudder %page render-page)
+  [%pass /eyre/cache %arvo %e %set-response '/profile' `[| %payload payload]]~
+::
+++  render-page
+  ^-  manx
   =,  contacts
   =+  .^  =rolodex
         /gx/(scot %p our.bowl)/contacts/(scot %da now.bowl)/all/contact-rolodex
@@ -82,16 +95,6 @@
       ~!  foreign
       `con.for.foreign
     ~  ::TODO  or bunted $contact?
-  :: =?  ours  ?=(~ ours)
-  ::   %-  some
-  ::   :*  'Hot Zod'
-  ::       'swagalactic overlorder'
-  ::       'centered'
-  ::       0x0
-  ::       `'https://i.imgur.com/ehSV8fz.png'
-  ::       `'https://i.imgur.com/H6U503h.png'
-  ::       ~
-  ::   ==
   |^  ;html
         ;+  head
         ;+  body
@@ -446,7 +449,6 @@
         [%next loc=@t msg=@t]                             ::  303, succeeded
         [%move loc=@t]                                    ::  308, use other
         [%auth loc=@t]                                    ::  307, please log in
-        [%code cod=@ud msg=@t]                            ::  error code page
     ==
   ::
   ++  purse  ::  url cord to query
@@ -476,7 +478,6 @@
       %move  [[308 ['location' loc.reply]~] ~]
       %auth  =/  loc  (crip (en-urlt:html (trip loc.reply)))
              [[307 ['location' (cat 3 '/~/login?redirect=' loc)]~] ~]
-      %code  !!  ::(issue +.reply)
     ==
   ::
   ++  spout  ::  build full response cards
@@ -501,7 +502,8 @@
     do    ~(. +>+ bowl state)
 ++  on-init
   ^-  (quip card _this)
-  [~ this]
+  :_  this
+  [%pass /contacts/ours %agent [our.bowl %contacts] %watch /contact]~
 ::
 ++  on-save
   !>(state)
@@ -516,6 +518,7 @@
   ^-  (quip card _this)
   ?+  mark  !!
       %noun
+    ?>  =(src our):bowl
     =^  caz  state
       ?+  q.vase  !!
         %bind    bind:do
@@ -535,9 +538,18 @@
     [%http-response *]  [~ this]
   ==
 ::
+++  on-agent
+  |=  [=wire =sign:agent:gall]
+  ~|  wire=wire
+  ?+  wire  ~|(%strange-wire !!)
+      [%contacts %ours ~]
+    :-  update-cache:do
+    this
+  ==
+::
 ++  on-arvo
   |=  [=wire sign=sign-arvo]
-  ~|  wire
+  ~|  wire=wire
   ?+  wire  ~|(%strange-wire !!)
       [%eyre %connect ~]
     ~!  sign
@@ -547,7 +559,6 @@
   ==
 ::
 ++  on-leave  |=(* [~ this])
-++  on-agent  |=(* [~ this])
 ++  on-peek   |=(* ~)
 ::
 ++  on-fail
