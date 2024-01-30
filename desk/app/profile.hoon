@@ -8,6 +8,24 @@
   $:  %0
       bound=?
       previous-home=(unit dude:gall)
+    ::
+      widgets=(map desk (map term widget))
+      layout=(list [=desk =term])
+  ==
+::
++$  widget
+  $:  desc=@t
+      body=marl
+  ==
+::
++$  command  ::  agent command
+  $%  [%update-widget =desk =term =widget]
+      [%delete-widget =desk =term]
+  ==
+::
++$  action  ::  user action
+  $%  [%put-widget =desk =term]
+      [%del-widget =desk =term]
   ==
 ::
 +$  card  $+(card card:agent:gall)
@@ -55,6 +73,54 @@
   :_  state(previous-home ~)
   [%pass /eyre/connect %arvo %e %connect [~ /] u.previous-home]~
 ::
+++  on-command
+  |=  =command
+  ^-  (quip card _state)
+  ?-  -.command
+      %update-widget
+    =,  command
+    =.  widgets
+      %+  ~(put by widgets)  desk
+      (~(put by (~(gut by widgets) desk ~)) term widget)
+    :_  state
+    ?.  ?=(^ (find [desk term]~ layout))
+      ~
+    update-cache
+  ::
+      %delete-widget
+    =,  command
+    =.  widgets
+      =/  nu  (~(del by (~(gut by widgets) desk ~)) term)
+      ?:  =(~ nu)  (~(del by widgets) desk)
+      (~(put by widgets) desk nu)
+    =/  spot=(unit @ud)
+      (find [desk term]~ layout)
+    =?  layout  ?=(^ spot)
+      (oust [u.spot 1] layout)
+    :_  state
+    ?~  spot  ~
+    update-cache
+  ==
+::
+++  on-action
+  |=  =action
+  ^-  (quip card _state)
+  ?-  -.action
+      %put-widget
+    =,  action
+    ?^  (find [desk term]~ layout)
+      [~ state]
+    =.  layout  [[desk term] layout]
+    [update-cache state]
+  ::
+      %del-widget
+    =,  action
+    ?~  spot=(find [desk term]~ layout)
+      [~ state]
+    =.  layout  (oust [u.spot 1] layout)
+    [update-cache state]
+  ==
+::
 ++  serve
   |=  order:rudder
   ^-  (list card)
@@ -94,7 +160,7 @@
     ?:  ?=([[@ ^] *] foreign)
       ~!  foreign
       `con.for.foreign
-    ~  ::TODO  or bunted $contact?
+    ~
   |^  ;html
         ;+  head
         ;+  body
@@ -139,6 +205,23 @@
     .call-to-action-text {
       margin: 0 0 0 8px;
       font-weight: 500;
+    }
+
+    .widget {
+      width: 400px;
+      max-width: 85vw;
+      border-radius: 40px;
+      margin-top: 40px;
+      padding: 40px;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      color: black;
+      box-shadow: 0px 10px 50px 0px rgba(0, 0, 0, 0.1),
+        0px 20px 30px 0px rgba(0, 0, 0, 0.15), 0px 0px 1px 0px black;
     }
 
     #profile-widget {
@@ -416,6 +499,11 @@
           ==
         ==
       ==
+      ;*  %+  turn  layout
+          |=  [=desk =term]
+          ;div.widget
+            ;*  body:(~(got by (~(got by widgets) desk)) term)
+          ==
       ::TODO  maybe only display if Host header has *.tlon.network?
       ;a.call-to-action/"https://tlon.network/lure/~nibset-napwyn/tlon"
         ;div.call-to-action-icon
@@ -511,7 +599,8 @@
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
-  [~ this(state !<(state-0 ole))]
+  =.  state  !<(state-0 ole)
+  [update-cache:do this]
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -521,8 +610,10 @@
     ?>  =(src our):bowl
     =^  caz  state
       ?+  q.vase  !!
-        %bind    bind:do
-        %unbind  unbind:do
+        %bind         bind:do
+        %unbind       unbind:do
+        [%command *]  (on-command:do ;;(command +.q.vase))
+        [%action *]   (on-action:do ;;(action +.q.vase))
       ==
     [caz this]
   ::
