@@ -17,11 +17,11 @@ import {
   ValueContainerProps,
   ClearIndicatorProps,
   InputActionMeta,
+  type SelectInstance,
 } from 'react-select';
 import { deSig } from '@urbit/api';
 import _, { includes } from 'lodash';
 import CreatableSelect from 'react-select/creatable';
-import Select from 'react-select/dist/declarations/src/Select';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import X16Icon from '@/components/icons/X16Icon';
 import { preSig, whomIsFlag } from '@/logic/utils';
@@ -280,7 +280,7 @@ export default function ShipSelector({
   autoFocus = true,
   containerClassName,
 }: ShipSelectorProps) {
-  const selectRef = useRef<Select<
+  const selectRef = useRef<SelectInstance<
     ShipOption,
     true,
     GroupBase<ShipOption>

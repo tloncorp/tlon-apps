@@ -2,10 +2,6 @@
   "name": "landscape-apps",
   "version": "3.3.0",
   "private": true,
-  "engines": {
-    "node": "^20.11.0",
-    "npm": "^10.2.4"
-  },
   "scripts": {
     "prepare": "cd .. && husky install ui/.husky",
     "rube": "tsc ./rube/index.ts --outDir ./rube/dist && node ./rube/dist/index.js",
@@ -103,6 +99,7 @@
     "@tiptap/react": "^2.0.3",
     "@tiptap/suggestion": "^2.0.3",
     "@tloncorp/mock-http-api": "^1.2.0",
+    "@tloncorp/shared": "*",
     "@types/marked": "^4.3.0",
     "@urbit/api": "^2.2.0",
     "@urbit/aura": "^1.0.0",
@@ -249,5 +246,8 @@
     "vite": "^4.4.3",
     "vite-plugin-pwa": "^0.14.4",
     "vitest": "^0.34.1"
+  },
+  "msw": {
+    "workerDirectory": "./public"
   }
 }

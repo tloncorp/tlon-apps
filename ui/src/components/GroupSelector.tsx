@@ -17,9 +17,9 @@ import {
   ValueContainerProps,
   ClearIndicatorProps,
   InputActionMeta,
+  type SelectInstance,
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import Select from 'react-select/dist/declarations/src/Select';
 import { deSig } from '@urbit/api';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import X16Icon from '@/components/icons/X16Icon';
@@ -240,7 +240,7 @@ export default function GroupSelector({
   placeholder = 'Search for groups...',
   isValidNewOption = (val) => true,
 }: GroupSelectorProps) {
-  const selectRef = useRef<Select<
+  const selectRef = useRef<SelectInstance<
     GroupOption,
     true,
     GroupBase<GroupOption>

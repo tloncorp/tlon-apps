@@ -1,10 +1,11 @@
+import type { GroupMeta } from '@tloncorp/shared';
+
 import { BaitCite } from '@/types/channel';
 import { GroupsInit } from '@/types/ui';
 import {
   Gangs,
   Group,
   Rank,
-  GroupMeta,
   GroupChannel,
   GroupIndex,
   ChannelPreview,

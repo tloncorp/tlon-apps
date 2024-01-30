@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "ui/",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --prefix ./packages/shared",
+    "build:web": "npm run build:shared && npm run build --prefix ./ui"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.1"
+  },
+  "engines": {
+    "node": "^20.11.0",
+    "npm": "^10.2.4"
+  }
+}
