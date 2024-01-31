@@ -660,6 +660,7 @@
   ::
       %json
     =-  (on-poke %noun !>([%action -]))
+    %.  !<(json vase)
     =,  dejs:format
     %-  of
     :~  'bind'^ul
