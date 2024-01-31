@@ -4,12 +4,8 @@ import { useLocation, useNavigate } from 'react-router';
 import { cite, deSig, preSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
-import { useGroupFlag, useGroups } from '@/state/groups';
-import {
-  usePinnedGroups,
-  usePinnedChannels,
-  usePinnedClubs,
-} from '@/state/pins';
+import { useGroupFlag, useGroups, usePinnedGroups } from '@/state/groups';
+import { usePinnedChannels, usePinnedClubs } from '@/state/pins';
 import { Group, GroupChannel } from '@/types/groups';
 import {
   LEAP_DESCRIPTION_TRUNCATE_LENGTH,
