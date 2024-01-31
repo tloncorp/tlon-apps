@@ -26,7 +26,9 @@
   ==
 ::
 +$  action  ::  user action
-  $%  [%put-widget =desk =term]
+  $%  [%bind ~]
+      [%unbind ~]
+      [%put-widget =desk =term]
       [%del-widget =desk =term]
       [%toggle-cta set=(unit ?)]
   ==
@@ -109,6 +111,9 @@
   |=  =action
   ^-  (quip card _state)
   ?-  -.action
+    %bind    bind
+    %unbind  unbind
+  ::
       %put-widget
     =,  action
     ?^  (find [desk term]~ layout)
@@ -648,12 +653,21 @@
     ?>  =(src our):bowl
     =^  caz  state
       ?+  q.vase  !!
-        %bind         bind:do
-        %unbind       unbind:do
         [%command *]  (on-command:do ;;(command +.q.vase))
         [%action *]   (on-action:do ;;(action +.q.vase))
       ==
     [caz this]
+  ::
+      %json
+    =-  (on-poke %noun !>([%action -]))
+    =,  dejs:format
+    %-  of
+    :~  'bind'^ul
+        'unbind'^ul
+        'put-widget'^(ot 'desk'^so 'term'^so ~)
+        'del-widget'^(ot 'desk'^so 'term'^so ~)
+        'toggle-cta'^(pe ~ bo)
+    ==
   ::
       %handle-http-request
     :_  this
@@ -687,8 +701,31 @@
     [caz this]
   ==
 ::
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  ?+  path  [~ ~]
+      [%x %widgets %json ~]
+    =;  =json  ``json+!>(json)
+    =,  enjs:format
+    %-  pairs
+    %+  turn  ~(tap by widgets)
+    |=  [=desk wis=(map term widget)]
+    :-  desk
+    %-  pairs
+    %+  turn  ~(tap by wis)
+    |=  [=term widget]
+    [term s+desc]
+  ::
+      [%x %layout %json ~]
+    =;  =json  ``json+!>(json)
+    :-  %a
+    %+  turn  layout
+    |=  [=desk =term]
+    (pairs:enjs:format 'desk'^s+desk 'term'^s+term ~)
+  ==
+::
 ++  on-leave  |=(* [~ this])
-++  on-peek   |=(* ~)
 ::
 ++  on-fail
   |=  [=term =tang]
