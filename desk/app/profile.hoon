@@ -446,14 +446,40 @@
     '''
   ::
   ++  head
+    =/  ship=tape  (scow %p our.bowl)
+    =/  name=tape
+      ?~  ours  ship
+      ?:  =('' nickname.u.ours)  ship
+      "{(trip nickname.u.ours)} ({ship})"
     ;head
-      ;+  =;  name=tape
-            ;title:"{name}"
-          =*  ship  (scow %p our.bowl)
-          ?~  ours  ship
-          ?:  =('' nickname.u.ours)  ship
-          "{(trip nickname.u.ours)} ({ship})"
+      ;title:"{name}"
       ;style:"{(trip style)}"
+    ::
+      ;meta(property "og:title", content "{name}");
+      ;meta(property "twitter:title", content "{name}");
+      ;meta(property "og:site_name", content "Urbit");
+      ;meta(property "og:type", content "article");
+      ;meta(property "twitter:card", content "summary_large_image");
+      ;meta(property "og:article:author:username", content "{ship}");
+    ::
+      ;*  =/  bio=(unit @t)
+            ?~  ours  ~
+            ?~(b=(to-wain:format bio.u.ours) ~ `i.b)
+          =/  desc  (trip (fall bio 'on Urbit'))
+      :~  ;meta(property "og:description", content "{desc}");
+          ;meta(property "twitter:description", content "{desc}");
+      ==
+    ::
+      ;*  ?~  ours  ~
+          ?~  cover.u.ours  ~
+      :~  ;meta(property "og:image", content "{(trip u.cover.u.ours)}");
+          ;meta(property "twitter:image", content "{(trip u.cover.u.ours)}");
+      ==
+    ::
+      ;*  ?~  ours  ~
+          ?:  =('' nickname.u.ours)  ~
+          :_  ~
+      ;meta(property "og:article:author:first_name", content "{(trip nickname.u.ours)}");
     ==
   ::
   ++  body
