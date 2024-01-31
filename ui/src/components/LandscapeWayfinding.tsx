@@ -2,13 +2,11 @@ import cn from 'classnames';
 import ob from 'urbit-ob';
 import { NavLink, useLocation } from 'react-router-dom';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import useAppName from '@/logic/useAppName';
 import GroupReference from '@/components/References/GroupReference';
 import { useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
 import { useCalmSettingMutation } from '@/state/settings';
 import { useIsMobile } from '@/logic/useMedia';
-import { isTalk } from '@/logic/utils';
 import { useDismissNavigate } from '@/logic/routing';
 import Dialog from './Dialog';
 
@@ -60,28 +58,6 @@ function GroupsDescription() {
   );
 }
 
-function TalkDescription() {
-  return (
-    <div className="flex flex-col leading-5">
-      <h1 className="my-8 text-2xl font-bold">Where am I?</h1>
-      <p>
-        Tlon Corporation&rsquo;s “Talk” app, a simple, powerful, and secure
-        instant messaging software for individuals or small groups of people.
-      </p>
-      <h1 className="my-8 text-2xl font-bold">What can I do here?</h1>
-      <p>
-        Talk is simple: It works like any other messaging app you&rsquo;ve ever
-        used. What makes it special is its directly person-to-person nature, no
-        one person or company can ever snoop the messages you send on Talk.
-      </p>
-      <p className="mb-8 mt-4">
-        In addition to the experience you expect, Talk can also aggregate group
-        communications from Groups and other software in the Urbit ecosystem.
-      </p>
-    </div>
-  );
-}
-
 export default function LandscapeWayfinding() {
   const isMobile = useIsMobile();
   const gang = useGang('~nibset-napwyn/tlon');
@@ -106,8 +82,8 @@ export default function LandscapeWayfinding() {
     <Dropdown.Root>
       <div
         className={cn('fixed left-5 z-45', {
-          'bottom-10': !isMobile || (isTalk && isMobile),
-          'bottom-20': isMobile && !isTalk,
+          'bottom-10': !isMobile,
+          'bottom-20': isMobile,
         })}
       >
         <Dropdown.Trigger className="relative" asChild>
@@ -164,7 +140,6 @@ export default function LandscapeWayfinding() {
 }
 
 export function LandscapeWayfindingModal() {
-  const app = useAppName();
   const dismiss = useDismissNavigate();
   const onOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -179,8 +154,7 @@ export function LandscapeWayfindingModal() {
       containerClass="md:w-1/2 w-full z-50"
       close="none"
     >
-      {app === 'Groups' && <GroupsDescription />}
-      {app === 'Talk' && <TalkDescription />}
+      <GroupsDescription />
     </Dialog>
   );
 }

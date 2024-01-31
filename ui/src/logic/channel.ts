@@ -22,7 +22,6 @@ import {
 } from '@/constants';
 import {
   getFlagParts,
-  isTalk,
   getNestShip,
   nestToFlag,
   getFirstInline,
@@ -348,11 +347,7 @@ export function useFullChannel({
 
   useEffect(() => {
     if (channel && !canRead) {
-      if (isTalk) {
-        navigate('/');
-      } else {
-        navigate(`/groups/${groupFlag}`);
-      }
+      navigate(`/groups/${groupFlag}`);
       setRecentChannel('');
     }
   }, [groupFlag, group, channel, vessel, navigate, setRecentChannel, canRead]);

@@ -1,14 +1,12 @@
 # Development
 
-These instructions are for working on Groups and Talk as a developer at Tlon.
+These instructions are for working on Groups as a developer at Tlon.
 
 ## Project Structure
 
 - `/desk`: The folder containing the desk for Groups. This currently contains the agents for all other apps.
 
-- `/talk`: Holds the necessary files for the app to appear as a tile, but all agents are located in the groups desk.
-
-- `/ui`: Groups and Talk are built primarily using [React], [Typescript], and [Tailwind CSS]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
+- `/ui`: Groups is built primarily using [React], [Typescript], and [Tailwind CSS]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
 
 ## Getting Started
 
@@ -38,7 +36,7 @@ And commit:
 |commit %groups
 ```
 
-Since %groups and %talk have already been released and are now in the pill. It is very unlikely that you would have to create those desks from scratch, but if you do you can follow these instructions or use Tlon's
+Since %groups has already been released and is now in the pill. It is very unlikely that you would have to create this desk from scratch, but if you do you can follow these instructions or use Tlon's
 [Bouncer](https://github.com/tloncorp/bouncer) utility (requires Ruby 3+).
 
 1. Clone or pull latest versions of this repo, `tloncorp/landscape` and `urbit/urbit`.
@@ -67,19 +65,19 @@ Since %groups and %talk have already been released and are now in the pill. It i
 
 ## Deploying
 
-Groups and Talk are distributed via the Urbit network by way of a [glob](https://developers.urbit.org/reference/additional/dist/glob#-make-glob), or a Landscape application bundle. Instructions are as follows:
+Groups is distributed via the Urbit network by way of a [glob](https://developers.urbit.org/reference/additional/dist/glob#-make-glob), or a Landscape application bundle. Instructions are as follows:
 
-0. Run `npm run build` in the `ui` directory, which outputs to `/dist`.
-1. Create or launch an urbit using the -F flag.
-2. On that urbit, if you don't already have a desk to run from, run `|merge %work our %base` to create a new desk and mount it with `|mount %work`.
-3. Now the `%work` desk is accessible through the host OS's filesystem as a directory of that urbit's pier ie `~/zod/work`.
-4. From the repo you can run `rsync -avL --delete ui/dist/ ~/zod/work/groups` and `rsync -avL desk/mar/webmanifest.hoon ~/zod/work/mar/webmanifest.hoon` where `~/zod` is your fake urbit's pier.
-5. Once completed, run `|commit %work` on your urbit and you should see your files logged back out from the dojo.
-6. Run `=dir /=landscape` to switch to the landscape desk directory.
-7. Run `-make-glob %work /groups`. This will create a glob from the folder where you just added files. It will output to `~/zod/.urb/put`.
-8. Navigate to `~/zod/.urb/put` you should see a file that looks something like: `glob-0v5.fdf99.nph65.qecq3.ncpjn.q13mb.glob`. The characters between `glob-` and `.glob` are a hash of the glob's contents.
-9. Upload the glob to any publicly available HTTP endpoint that can serve files. This allows the application to be distributed over HTTP.
-10. Once you've uploaded the glob, update the corresponding entry in the docket file at `desk/desk.docket-0`. Both the full URL and the hash should be updated to match the glob we just created, on the line that looks like this:
+1. Run `npm run build` in the `ui` directory, which outputs to `/dist`.
+2. Create or launch an urbit using the -F flag.
+3. On that urbit, if you don't already have a desk to run from, run `|merge %work our %base` to create a new desk and mount it with `|mount %work`.
+4. Now the `%work` desk is accessible through the host OS's filesystem as a directory of that urbit's pier ie `~/zod/work`.
+5. From the repo you can run `rsync -avL --delete ui/dist/ ~/zod/work/groups` and `rsync -avL desk/mar/webmanifest.hoon ~/zod/work/mar/webmanifest.hoon` where `~/zod` is your fake urbit's pier.
+6. Once completed, run `|commit %work` on your urbit and you should see your files logged back out from the dojo.
+7. Run `=dir /=landscape` to switch to the landscape desk directory.
+8. Run `-make-glob %work /groups`. This will create a glob from the folder where you just added files. It will output to `~/zod/.urb/put`.
+9. Navigate to `~/zod/.urb/put` you should see a file that looks something like: `glob-0v5.fdf99.nph65.qecq3.ncpjn.q13mb.glob`. The characters between `glob-` and `.glob` are a hash of the glob's contents.
+10. Upload the glob to any publicly available HTTP endpoint that can serve files. This allows the application to be distributed over HTTP.
+11. Once you've uploaded the glob, update the corresponding entry in the docket file at `desk/desk.docket-0`. Both the full URL and the hash should be updated to match the glob we just created, on the line that looks like this:
 
 ```hoon
 glob-http+['https://bootstrap.urbit.org/glob-0v5.fdf99.nph65.qecq3.ncpjn.q13mb.glob' 0v5.fdf99.nph65.qecq3.ncpjn.q13mb]

@@ -1,6 +1,6 @@
 import posthog, { Properties } from 'posthog-js';
 import { PrivacyType } from '@/types/groups';
-import { isTalk, log } from './utils';
+import { log } from './utils';
 import { isNativeApp } from './native';
 
 export type AnalyticsEventName =
@@ -80,8 +80,8 @@ export const captureAnalyticsEvent = (
   name: AnalyticsEventName,
   properties?: Properties
 ) => {
-  // Do not capture any analytics events for Talk
-  if (isTalk || isNativeApp()) {
+  // TODO: verify we actually want this
+  if (isNativeApp()) {
     return;
   }
 

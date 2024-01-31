@@ -11,7 +11,6 @@ const groupOwner = 'mardev';
 test.use({ storageState: 'e2e/.auth/habduc-patbud.json' });
 
 test('Add markdown note to existing notebook channel', async ({ page }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
   await page.goto(testUrl);
   await page.getByRole('link', { name: `${groupOwner} test group` }).waitFor();
   await page.getByRole('link', { name: `${groupOwner} test group` }).click();
@@ -47,7 +46,6 @@ test('Add markdown note to existing notebook channel', async ({ page }) => {
 });
 
 test('Edit markdown note', async ({ page }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
   await page.goto(testUrl);
   await page.getByRole('link', { name: `${groupOwner} test group` }).waitFor();
   await page.getByRole('link', { name: `${groupOwner} test group` }).click();

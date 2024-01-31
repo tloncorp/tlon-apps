@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Theme,
@@ -10,7 +9,6 @@ import {
   useTheme,
   useThemeMutation,
 } from '@/state/settings';
-import { isGroups, isTalk } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import Setting from './Setting';
@@ -68,8 +66,7 @@ export default function Settings() {
         <div className="mb-6 flex flex-col">
           <h2 className="mb-2 text-lg font-bold">CalmEngine</h2>
           <span className="text-gray-600">
-            Tune the behavior of attention-grabbing interfaces in{' '}
-            {isTalk ? 'Talk' : 'Groups'}
+            Tune the behavior of attention-grabbing interfaces in Tlon
           </span>
         </div>
         <Setting
@@ -80,8 +77,7 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn user-set visual avatars off and only display urbit sigils in{' '}
-            {isTalk ? 'Talk' : 'Groups'}
+            Turn user-set visual avatars off and only display urbit sigils in Tlon
           </p>
         </Setting>
         <Setting
@@ -93,7 +89,7 @@ export default function Settings() {
         >
           <p className="leading-5 text-gray-600">
             Turn user-set nicknames off and only display urbit-style names
-            across {isTalk ? 'Talk' : 'Groups'}
+            across Tlon
           </p>
         </Setting>
         <Setting
@@ -104,8 +100,7 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn off the "wayfinding" helper menu in the bottom left of the{' '}
-            {isTalk ? 'Talk' : 'Groups'} sidebar
+            Turn off the "wayfinding" helper menu in the bottom left of the Tlon sidebar
           </p>
         </Setting>
       </div>
@@ -128,25 +123,23 @@ export default function Settings() {
           <h2 className="mb-2 text-lg font-bold">Privacy</h2>
           <span className="text-gray-600">
             Limit your urbit’s ability to be read or tracked by clearnet
-            services in {isTalk ? 'Talk' : 'Groups'}
+            services in Tlon
           </span>
         </div>
-        {isGroups && (
-          <Setting
-            on={logActivity}
-            toggle={() => toggleLogActivity({ val: !logActivity })}
-            status={logActivityStatus}
-            name="Log Groups Usage"
-            labelClassName="font-semibold"
-          >
-            <p className="leading-5 text-gray-600">
-              Enable or disable basic activity tracking in Groups. Tlon uses
-              this data to make product decisions and to bring you a better
-              Groups experience.
-            </p>
-          </Setting>
-        )}
-        {isGroups && logActivity && (
+        <Setting
+          on={logActivity}
+          toggle={() => toggleLogActivity({ val: !logActivity })}
+          status={logActivityStatus}
+          name="Log Groups Usage"
+          labelClassName="font-semibold"
+        >
+          <p className="leading-5 text-gray-600">
+            Enable or disable basic activity tracking in Groups. Tlon uses
+            this data to make product decisions and to bring you a better
+            Groups experience.
+          </p>
+        </Setting>
+        {logActivity && (
           <div className="flex flex-col items-center space-y-2">
             <div className="flex flex-row items-center space-x-2">
               <button
@@ -171,8 +164,8 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn spell-check off across all text inputs in{' '}
-            {isTalk ? 'Talk' : 'Groups'}. Spell-check reads your keyboard input,
+            Turn spell-check off across all text inputs in
+            Tlon. Spell-check reads your keyboard input,
             which may be undesirable.
           </p>
         </Setting>
@@ -184,8 +177,7 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn off automatically-displaying media embeds across{' '}
-            {isTalk ? 'Talk' : 'Groups'}. This may result in some software
+            Turn off automatically-displaying media embeds across Tlon. This may result in some software
             appearing to have content missing.
           </p>
         </Setting>
@@ -211,7 +203,7 @@ export default function Settings() {
           status={status}
         >
           <p className="leading-5 text-gray-600">
-            Change the color scheme of the {isTalk ? 'Talk' : 'Groups'}{' '}
+            Change the color scheme of the Tlon
           </p>
         </SettingDropdown>
       </div>

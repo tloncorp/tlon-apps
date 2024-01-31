@@ -300,12 +300,11 @@ export interface ClubAction {
   diff: ClubDiff;
 }
 
-export interface TalkInit {
+export interface DMInit {
   clubs: Clubs;
   dms: string[];
-  unreads: DMUnreads;
+  dmUnreads: DMUnreads;
   invited: string[];
-  pins: string[];
 }
 
 export type ChatScanItem = { writ: Writ } | WritReplyReferenceResponse;

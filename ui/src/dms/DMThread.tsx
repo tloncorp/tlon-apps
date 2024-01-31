@@ -26,7 +26,6 @@ import useMedia, { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import MobileHeader from '@/components/MobileHeader';
-import useAppName from '@/logic/useAppName';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
@@ -49,7 +48,6 @@ export default function DMThread() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
-  const appName = useAppName();
   const [loading, setLoading] = useState(false);
   const scrollTo = new URLSearchParams(location.search).get('reply');
   const whom = ship || '';
@@ -162,7 +160,7 @@ export default function DMThread() {
               <BranchIcon className="h-6 w-6 text-gray-600" />
               <h1 className="text-[17px] text-gray-800">
                 Thread
-                {appName === 'Groups' && <span>: {threadTitle}</span>}
+                <span>: {threadTitle}</span>
               </h1>
             </div>
           }

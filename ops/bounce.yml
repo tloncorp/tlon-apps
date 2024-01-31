@@ -6,33 +6,25 @@ env:
   ship_path: '~/dev/urbit/ships'
 script:
   - merge:
-    - cmd: 'merge %garden our %base'
+    - cmd: 'merge %landscape our %base'
       type: 'urbit:app'
     - cmd: 'merge %groups our %base'
       type: 'urbit:app'
-    - cmd: 'merge %talk our %base'
-      type: 'urbit:app'
   - mount:
-    - cmd: 'mount %garden'
+    - cmd: 'mount %landscape'
       type: 'urbit:app'
     - cmd: 'mount %groups'
-      type: 'urbit:app'
-    - cmd: 'mount %talk'
       type: 'urbit:app'
   - sync:
     - cmd: '~/dev/urbit/landscape-apps/ops/sync.sh'
       type: 'system'
   - commit:
-    - cmd: 'commit %garden'
+    - cmd: 'commit %landscape'
       type: 'urbit:app'
     - cmd: 'commit %groups'
       type: 'urbit:app'
-    - cmd: 'commit %talk'
-      type: 'urbit:app'
   - install:
-    - cmd: 'install our %garden'
+    - cmd: 'install our %landscape'
       type: 'urbit:app'
     - cmd: 'install our %groups'
-      type: 'urbit:app'
-    - cmd: 'install our %talk'
       type: 'urbit:app'

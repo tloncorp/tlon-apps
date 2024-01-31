@@ -18,7 +18,6 @@ import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
-import useAppName from '@/logic/useAppName';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
@@ -221,7 +220,6 @@ function EditProfileContent() {
 export default function EditProfile({ title }: ViewProps) {
   useAnalyticsEvent('profile_edit');
   const isMobile = useIsMobile();
-  const app = useAppName();
 
   return (
     <Layout
@@ -229,7 +227,7 @@ export default function EditProfile({ title }: ViewProps) {
         isMobile ? (
           <MobileHeader
             title="Edit Profile"
-            pathBack={app === 'Talk' ? '/' : '/profile'}
+            pathBack="/profile"
           />
         ) : null
       }
