@@ -47,17 +47,19 @@
   +$  unreads
     (map whom unread)
   +$  unread
-    $:  recency=time
-        count=@ud
+    $:  count=@ud
         unread=(unit [message-key count=@ud])
         threads=(map message-key [message-key count=@ud])
     ==
   +$  update
     (pair whom unread)
   --
++$  message-key
+  $%  [%time =id =time]
+      [%recency =id =time recency=time]
+  ==
 +$  whom
   $%  [%ship p=ship]
       [%club p=id:club]
   ==
-+$  message-key  [=id =time]
 --
