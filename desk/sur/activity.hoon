@@ -1,8 +1,6 @@
 |%
-+$  state
-  $:  stream=(mop time event)
-      indices=(map concern stream)
-  ==
++$  stream=(mop time event)
++$  indices=(map concern stream)
 +$  concern
   $%  [%group group-concern]
       [%channel channel-concern]
@@ -37,29 +35,23 @@
       [%post post-concern occasion=?(%message %mention %reply %notice)]
       [%writ writ-concern occasion=?(%message %mention %reply %notice)]
   ==
-::
-::  this is similar to the way unreads are handled for DMs. in the case of
-::  chats, recency will just happen to be the same as the key time.
-::
 ++  unreads
   =<  unreads
   |%
   +$  unreads
     (map whom unread)
   +$  unread
-    $:  count=@ud
+    $:  recency=time
+        count=@ud
         unread=(unit [message-key count=@ud])
         threads=(map message-key [message-key count=@ud])
     ==
   +$  update
     (pair whom unread)
   --
-+$  message-key
-  $%  [%time =id =time]
-      [%recency =id =time recency=time]
-  ==
 +$  whom
   $%  [%ship p=ship]
       [%club p=id:club]
   ==
++$  message-key  [=id =time]
 --
