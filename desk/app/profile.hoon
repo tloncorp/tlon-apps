@@ -15,8 +15,9 @@
   ==
 ::
 +$  widget
-  $:  desc=@t
-      body=marl
+  $:  %0
+      desc=@t
+      body=[%marl =marl]
   ==
 ::
 +$  command  ::  agent command
@@ -537,7 +538,7 @@
       ;*  %+  turn  layout
           |=  [=desk =term]
           ;div.widget
-            ;*  body:(~(got by (~(got by widgets) desk)) term)
+            ;*  marl.body:(~(got by (~(got by widgets) desk)) term)
           ==
       ::TODO  maybe only display if Host header has *.tlon.network?
       ;*  ?.  tlon-cta  ~
