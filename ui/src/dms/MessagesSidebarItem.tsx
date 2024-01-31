@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import useLongPress from '@/logic/useLongPress';
 import ClubName from '@/components/ClubName';
+import useAppName from '@/logic/useAppName';
 import Avatar, { AvatarSizes } from '../components/Avatar';
 import ShipName from '../components/ShipName';
 import DmOptions from './DMOptions';
@@ -10,7 +11,7 @@ import useMedia, { useIsMobile } from '../logic/useMedia';
 import GroupAvatar from '../groups/GroupAvatar';
 import SidebarItem from '../components/Sidebar/SidebarItem';
 import MultiDmAvatar, { MultiDmAvatarSize } from './MultiDmAvatar';
-import { whomIsDm, whomIsMultiDm } from '../logic/utils';
+import { isTalk, whomIsDm, whomIsMultiDm } from '../logic/utils';
 import { useMessagesScrolling } from './MessagesScrollingContext';
 
 interface MessagesSidebarItemProps {
@@ -40,6 +41,10 @@ function ChannelSidebarItem({
   const group = useGroup(groupFlag || '');
   const isScrolling = useMessagesScrolling();
 
+  const to = isTalk
+    ? `/groups/${groupFlag}/channels/${nest}`
+    : `/dm/groups/${groupFlag}/channels/${nest}`;
+
   if (!channel) {
     return null;
   }
@@ -47,7 +52,7 @@ function ChannelSidebarItem({
   return (
     <SidebarItem
       inexact
-      to={`/groups/${groupFlag}/channels/${nest}`}
+      to={to}
       icon={
         <GroupAvatar
           size="h-12 w-12 sm:h-6 sm:w-6 rounded-lg sm:rounded"
