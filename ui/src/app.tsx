@@ -358,13 +358,18 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               }
             />
-            <Route path="/messages" element={<MobileMessagesSidebar />} />
+            <Route
+              path="/messages"
+              element={isMobile ? <MobileMessagesSidebar /> : null}
+            />
             <Route path="/dm/" element={<Dms />}>
               <Route index element={<DMHome />} />
+
               <Route path="new">
                 <Route index element={<NewDM />} />
                 <Route path=":ship" element={<Message />} />
               </Route>
+
               <Route path=":ship" element={<Message />}>
                 {isSmall ? null : (
                   <Route
@@ -372,6 +377,27 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                     element={<DMThread />}
                   />
                 )}
+              </Route>
+
+              <Route path="groups/:ship/:name/*" element={<Groups />}>
+                <Route
+                  path="channels/chat/:chShip/:chName"
+                  element={<GroupChannel type="chat" />}
+                >
+                  <Route
+                    path="*"
+                    element={<ChatChannel title={` • ${appHead('').title}`} />}
+                  />
+                  {isSmall ? (
+                    <Route path="message/:idTime" element={<ChatThread />} />
+                  ) : null}
+                  {isMobile && (
+                    <Route
+                      path="search/:query?"
+                      element={<MobileChatSearch />}
+                    />
+                  )}
+                </Route>
               </Route>
               {isSmall && (
                 <Route

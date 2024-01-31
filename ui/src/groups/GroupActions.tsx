@@ -15,15 +15,12 @@ import {
   useGang,
   useGroup,
   useGroupCancelMutation,
+  usePinnedGroups,
 } from '@/state/groups';
+import { useAddPinMutation, useDeletePinMutation } from '@/state/pins';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { useIsMobile } from '@/logic/useMedia';
 import VolumeSetting from '@/components/VolumeSetting';
-import {
-  useAddPinMutation,
-  useDeletePinMutation,
-  usePinnedGroups,
-} from '@/state/pins';
 import GroupHostConnection from './GroupHostConnection';
 
 const { ship } = window;
