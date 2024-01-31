@@ -7,8 +7,8 @@ import {
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
   useNewGroups,
+  usePinnedGroups,
 } from '@/state/groups';
-import { usePinnedGroups } from '@/state/pins';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
@@ -47,7 +47,7 @@ export default function MobileRoot() {
 
   const newGroupsOptions = useMemo(
     () =>
-      newGroups.map(([flag]) => (
+      Object.keys(newGroups).map(([flag]) => (
         <GroupsSidebarItem key={flag} flag={flag} isNew />
       )),
     [newGroups]
@@ -92,13 +92,7 @@ export default function MobileRoot() {
             </div>
           ) : (
             <GroupsScrollingContext.Provider value={isScrolling}>
-              <GroupList
-                groups={sortedGroups}
-                pinnedGroups={Object.entries(pinnedGroups)}
-                newGroups={newGroups}
-                loadingGroups={loadingGroups}
-                isScrolling={scroll.current}
-              >
+              <GroupList groups={sortedGroups} isScrolling={scroll.current}>
                 {hasPinnedGroups ||
                 hasPendingGangs ||
                 hasGangsWithClaims ||
@@ -120,7 +114,7 @@ export default function MobileRoot() {
                       ) : null}
 
                       {hasLoadingGroups &&
-                        loadingGroups.map(([flag, _]) => (
+                        Object.keys(loadingGroups).map(([flag, _]) => (
                           <GangItem key={flag} flag={flag} isJoining />
                         ))}
 

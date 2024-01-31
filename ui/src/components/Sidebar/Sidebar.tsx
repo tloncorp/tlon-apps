@@ -4,150 +4,44 @@ import React, {
   useMemo,
   useCallback,
   useContext,
+  useEffect,
 } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
-import { Link } from 'react-router-dom';
-import { useLocation } from 'react-router';
-import ActivityIndicator from '@/components/Sidebar/ActivityIndicator';
+import { useLocation } from 'react-router-dom';
+import ActivityIndicator, {
+  ActivitySidebarItem,
+} from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
 import {
   useLoadingGroups,
   useGangsWithClaim,
   useGroupsWithQuery,
+  usePinnedGroups,
   usePendingGangsWithoutClaim,
   useNewGroups,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import { usePinnedGroups } from '@/state/pins';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
-import ArrowNWIcon from '../icons/ArrowNWIcon';
-import MenuIcon from '../icons/MenuIcon';
 import GroupsSidebarItem from './GroupsSidebarItem';
 import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
-import ReconnectingSpinner from '../ReconnectingSpinner';
-import ActionMenu, { Action } from '../ActionMenu';
 import { DesktopUpdateButton } from '../UpdateNotices';
-import TlonIcon from '../icons/TlonIcon';
 import AddGroupSidebarItem from './AddGroupSidebarItem';
-
-export const GroupsAppMenu = React.memo(() => {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const location = useLocation();
-
-  const actions: Action[] = [
-    {
-      key: 'submit',
-      type: 'prominent',
-      content: (
-        <a
-          className="no-underline"
-          href="https://airtable.com/shrflFkf5UyDFKhmW"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Submit Feedback
-        </a>
-      ),
-    },
-    {
-      key: 'about',
-      content: (
-        <Link to="/about" state={{ backgroundLocation: location }}>
-          About Groups
-        </Link>
-      ),
-    },
-    {
-      key: 'settings',
-      content: (
-        <Link
-          to="/settings"
-          className=""
-          state={{ backgroundLocation: location }}
-        >
-          App Settings
-        </Link>
-      ),
-    },
-  ];
-
-  return (
-    <ActionMenu
-      open={menuOpen}
-      onOpenChange={setMenuOpen}
-      actions={actions}
-      align="start"
-    >
-      <SidebarItem
-        className={cn(
-          menuOpen
-            ? 'bg-gray-100 text-gray-800'
-            : 'text-black hover:text-gray-800',
-          'group'
-        )}
-        icon={
-          <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
-            <TlonIcon
-              className={cn(
-                'h-[22px] w-[22px]',
-                menuOpen ? 'hidden' : 'group-hover:hidden'
-              )}
-            />
-            <MenuIcon
-              aria-label="Open Menu"
-              className={cn(
-                'm-1 h-4 w-4 text-gray-800',
-                menuOpen ? 'block' : 'hidden group-hover:block'
-              )}
-            />
-          </div>
-        }
-      >
-        <div className="flex items-center justify-between">
-          Tlon
-          <ReconnectingSpinner
-            className={cn(
-              'h-4 w-4 group-hover:hidden',
-              menuOpen ? 'hidden' : 'block'
-            )}
-          />
-          <a
-            title="Back to Landscape"
-            aria-label="Back to Landscape"
-            href="/apps/landscape"
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              'h-6 w-6 no-underline',
-              menuOpen ? 'block' : 'hidden group-hover:block'
-            )}
-            // Prevents the dropdown trigger from being fired (therefore, opening the menu)
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              return false;
-            }}
-          >
-            <ArrowNWIcon className="text-gray-400" />
-          </a>
-        </div>
-      </SidebarItem>
-    </ActionMenu>
-  );
-});
-
-const UpdateOrAppMenu = React.memo(() => {
-  const { needsUpdate } = useContext(AppUpdateContext);
-  return needsUpdate ? <DesktopUpdateButton /> : <GroupsAppMenu />;
-});
+import SidebarHeader from './SidebarHeader';
+import MessagesIcon from '../icons/MessagesIcon';
+import SidebarTopMenu from './SidebarTopMenu';
+import useActiveTab, { ActiveTab } from './util';
+import MessagesSidebar from './MessagesSidebar';
+import useSearchFilter, { GroupSearchRecord } from './useSearchFilter';
+import X16Icon from '../icons/X16Icon';
 
 export default function Sidebar() {
   const isMobile = useIsMobile();
@@ -164,6 +58,59 @@ export default function Sidebar() {
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
   const ref = useRef<HTMLDivElement>(null);
+  const activeTab = useActiveTab();
+
+  const [searchInput, setSearchInput] = useState('');
+  const hasSearch = searchInput.length > 0;
+  const searchResults = useSearchFilter(searchInput);
+  useEffect(() => {
+    // if we switch between messages & groups, clear the search
+    setSearchInput('');
+  }, [activeTab]);
+
+  const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
+  const scroll = useRef(
+    debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
+  );
+
+  // get all non-segmented groups
+  const flagsToFilter = useMemo(() => {
+    const flags = new Set();
+    Object.entries(pinnedGroups).forEach(([flag]) => flags.add(flag));
+    loadingGroups.forEach(([flag]) => flags.add(flag));
+    newGroups?.forEach(([flag]) => flags.add(flag));
+    return flags;
+  }, [pinnedGroups, loadingGroups, newGroups]);
+
+  const allOtherGroups = useMemo(
+    () => sortedGroups.filter(([flag, _g]) => !flagsToFilter.has(flag)),
+    [sortedGroups, flagsToFilter]
+  );
+
+  // we don't know how search results should appear in the result list
+  // ahead of time, so we need to check for any special statuses
+  const flagStatus = useMemo(() => {
+    const accum = new Map<string, 'new' | 'invited' | 'loading'>();
+    Object.keys(loadingGroups).forEach((flag) => {
+      accum.set(flag, 'loading');
+    });
+    Object.keys(invitedGroups).forEach((flag) => {
+      accum.set(flag, 'invited');
+    });
+    Object.keys(newGroups).forEach((flag) => {
+      accum.set(flag, 'new');
+    });
+    return accum;
+  }, [loadingGroups, newGroups, invitedGroups]);
+
+  const augmentedSearchResults = useMemo(
+    () =>
+      searchResults.map((result) => ({
+        ...result,
+        status: flagStatus.get(result.flag),
+      })),
+    [searchResults, flagStatus]
+  );
 
   const hasPinnedGroups = !!Object.keys(pinnedGroups).length;
   const hasLoadingGroups = !!loadingGroups.length;
@@ -207,10 +154,6 @@ export default function Sidebar() {
       )),
     [newGroups]
   );
-  const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
-  const scroll = useRef(
-    debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
-  );
 
   if (isMobile) {
     return <MobileSidebar />;
@@ -218,82 +161,110 @@ export default function Sidebar() {
 
   return (
     <nav className="flex h-full w-full flex-none flex-col bg-white">
-      <div
-        className={cn('flex w-full flex-col space-y-0.5 p-2', {
-          'bottom-shadow': !atTop,
-        })}
-      >
-        <UpdateOrAppMenu />
+      <SidebarTopMenu />
 
-        <SidebarItem
-          icon={<ActivityIndicator count={count} />}
-          to={`/notifications`}
-          defaultRoute
-        >
-          Activity
-        </SidebarItem>
-
-        <AddGroupSidebarItem />
-
-        <SidebarItem
-          highlight={shipColor}
-          icon={<Avatar size="xs" ship={window.our} />}
-          to={'/profile/edit'}
-        >
-          <ShipName showAlias name={window.our} />
-        </SidebarItem>
-      </div>
       <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
-        <GroupsScrollingContext.Provider value={isScrolling}>
-          <GroupList
-            groups={sortedGroups}
-            pinnedGroups={Object.entries(pinnedGroups)}
-            loadingGroups={loadingGroups}
-            newGroups={newGroups}
-            isScrolling={scroll.current}
-            atTopChange={atTopChange}
+        <div className="relative mb-1 flex border-t-2 border-gray-50">
+          <input
+            id="search"
+            type="text"
+            autoFocus
+            className={cn(
+              'input w-full border-none bg-white py-3 pl-4 pr-8 mix-blend-multiply placeholder:text-sm placeholder:font-medium dark:mix-blend-normal',
+              !atTop && 'bottom-shadow'
+            )}
+            placeholder={
+              activeTab === 'messages' ? 'Search Messages' : 'Search Groups'
+            }
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+          <button
+            className={cn(
+              'absolute right-3 top-3.5 h-4 w-4 text-gray-400',
+              !searchInput && 'hidden'
+            )}
+            onClick={() => setSearchInput('')}
           >
-            <SidebarTopSection
-              title="Pinned Groups"
-              empty={!hasPinnedGroups && !hasInvitedGroups}
+            <X16Icon />
+          </button>
+        </div>
+        {activeTab !== 'messages' && (
+          <GroupsScrollingContext.Provider value={isScrolling}>
+            <GroupList
+              groups={
+                searchInput
+                  ? (augmentedSearchResults as GroupSearchRecord[])
+                  : allOtherGroups
+              }
+              isScrolling={scroll.current}
+              atTopChange={atTopChange}
             >
-              {hasPinnedGroups && pinnedGroupsOptions}
-              {hasInvitedGroups && invitedGroupsDisplay}
-            </SidebarTopSection>
+              {!searchInput && (
+                <>
+                  <SidebarTopSection
+                    title="Pinned Groups"
+                    empty={!hasPinnedGroups && !hasInvitedGroups}
+                    noBorder={true}
+                  >
+                    {hasPinnedGroups && pinnedGroupsOptions}
+                    {hasInvitedGroups && invitedGroupsDisplay}
+                  </SidebarTopSection>
 
-            <SidebarTopSection
-              title="Pending"
-              empty={!hasLoadingGroups && !hasGangsWithClaims}
-            >
-              {hasLoadingGroups && loadingGroupsDisplay}
-              {hasGangsWithClaims && gangsWithClaimsDisplay}
-            </SidebarTopSection>
+                  <SidebarTopSection
+                    title="Pending"
+                    empty={!hasLoadingGroups && !hasGangsWithClaims}
+                  >
+                    {hasLoadingGroups && loadingGroupsDisplay}
+                    {hasGangsWithClaims && gangsWithClaimsDisplay}
+                  </SidebarTopSection>
 
-            <div ref={ref} className="flex-initial">
-              <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
-                <h2 className="px-2 text-sm font-semibold text-gray-400">
-                  {sortFn === 'A → Z' ? 'Groups A → Z' : 'Recent Activity'}
-                </h2>
-                <div className="pr-1">
-                  <SidebarSorter
-                    sortFn={sortFn}
-                    setSortFn={setSortFn}
-                    sortOptions={sortOptions}
-                  />
-                </div>
-              </div>
+                  <div ref={ref} className="flex-initial">
+                    <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 p-2 pb-1">
+                      <h2 className="px-2 text-sm font-semibold text-gray-400">
+                        {sortFn === 'A → Z'
+                          ? 'Groups A → Z'
+                          : 'Recent Activity'}
+                      </h2>
+                      <div className="pr-1">
+                        <SidebarSorter
+                          sortFn={sortFn}
+                          setSortFn={setSortFn}
+                          sortOptions={sortOptions}
+                        />
+                      </div>
+                    </div>
 
-              {hasNewGroups && <div className="mx-2">{newGroupsDisplay}</div>}
+                    {hasNewGroups && (
+                      <div className="mx-2">{newGroupsDisplay}</div>
+                    )}
 
-              {!sortedGroups.length && !hasNewGroups && !isLoading && (
-                <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
-                  Check out <strong>Discover</strong> above to find new groups
-                  in your network or view group invites.
-                </div>
+                    {!sortedGroups.length && !hasNewGroups && !isLoading && (
+                      <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
+                        Check out <strong>Discover</strong> above to find new
+                        groups in your network or view group invites.
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
-            </div>
-          </GroupList>
-        </GroupsScrollingContext.Provider>
+
+              {searchInput && (
+                <SidebarTopSection
+                  title={
+                    augmentedSearchResults.length
+                      ? 'Search results:'
+                      : 'No groups found.'
+                  }
+                  empty={false}
+                />
+              )}
+            </GroupList>
+          </GroupsScrollingContext.Provider>
+        )}
+        {activeTab === 'messages' && (
+          <MessagesSidebar searchQuery={searchInput} />
+        )}
       </div>
     </nav>
   );
@@ -301,18 +272,27 @@ export default function Sidebar() {
 
 function SidebarTopSection({
   title,
+  noBorder = false,
   children,
   empty,
 }: {
-  title: string;
-  children: React.ReactNode;
+  title?: string;
+  noBorder?: boolean;
+  children?: React.ReactNode;
   empty: boolean;
 }) {
   if (empty) return null;
 
   return (
-    <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 pb-1">
-      <h2 className="p-2 text-sm font-semibold text-gray-400">{title}</h2>
+    <div
+      className={cn(
+        'mb-4 flex flex-col p-2 pb-1',
+        !noBorder && 'border-t-2 border-gray-50'
+      )}
+    >
+      {title && (
+        <h2 className="p-2 text-sm font-semibold text-gray-400">{title}</h2>
+      )}
       {children}
     </div>
   );
