@@ -11,6 +11,7 @@
     ::
       widgets=(map desk (map term widget))
       layout=(list [=desk =term])
+      tlon-cta=?
   ==
 ::
 +$  widget
@@ -26,6 +27,7 @@
 +$  action  ::  user action
   $%  [%put-widget =desk =term]
       [%del-widget =desk =term]
+      [%toggle-cta set=(unit ?)]
   ==
 ::
 +$  card  $+(card card:agent:gall)
@@ -118,6 +120,10 @@
     ?~  spot=(find [desk term]~ layout)
       [~ state]
     =.  layout  (oust [u.spot 1] layout)
+    [update-cache state]
+  ::
+      %toggle-cta
+    =.  tlon-cta  (fall set.action !tlon-cta)
     [update-cache state]
   ==
 ::
@@ -534,6 +540,8 @@
             ;*  body:(~(got by (~(got by widgets) desk)) term)
           ==
       ::TODO  maybe only display if Host header has *.tlon.network?
+      ;*  ?.  tlon-cta  ~
+          :_  ~
       ;a.call-to-action/"https://tlon.network/lure/~nibset-napwyn/tlon"
         ;div.call-to-action-icon
           ;svg
