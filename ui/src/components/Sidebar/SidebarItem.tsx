@@ -16,6 +16,7 @@ import CaretRightIcon from '../icons/CaretRightIcon';
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   to?: string;
+  override?: boolean;
   defaultRoute?: boolean;
   actions?:
     | React.ReactNode
@@ -57,6 +58,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
     {
       icon,
       to,
+      override = false,
       color = 'text-gray-800 sm:text-gray-600',
       highlight = 'bg-gray-50',
       fontWeight,
@@ -145,7 +147,9 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           'group relative my-0.5 flex w-full items-center justify-between rounded-lg',
           color,
           !hasHoverColor() && !active ? `hover:${highlight}` : null,
-          !hasHoverColor() && active && to !== '/' ? 'bg-gray-100' : null
+          !hasHoverColor() && active && (to !== '/' || override)
+            ? 'bg-gray-100'
+            : null
         )}
       >
         <Action
