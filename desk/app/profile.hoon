@@ -6,7 +6,7 @@
 |%
 +$  state-0
   $:  %0
-      bound=?
+      bound=_|
       previous-home=(unit dude:gall)
     ::
       widgets=(map desk (map term widget))
