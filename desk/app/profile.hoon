@@ -193,6 +193,7 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
+      background-color: white;
     }
 
     .call-to-action {
@@ -222,16 +223,13 @@
     }
 
     .widget {
+      position: relative;
       box-sizing: border-box;
       width: 400px;
       max-width: 85vw;
       border-radius: 40px;
-      margin-top: 40px;
-      padding: 40px;
+      margin-top: 20px;
       overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: flex-end;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
       color: black;
@@ -511,8 +509,7 @@
           ;div#profile-overlay4;
         ::
           ;div#profile-header
-            ;+  =?  ours  ?=(^ ours)  ours(avatar.u ~)
-                ?:  &(?=(^ ours) ?=(^ avatar.u.ours))
+            ;+  ?:  &(?=(^ ours) ?=(^ avatar.u.ours))
                   ;img#profile-avatar
                     =src  "{(trip u.avatar.u.ours)}"
                     =alt  "Avatar";
