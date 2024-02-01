@@ -5,6 +5,7 @@ import useWidgets, {
   useShowWidgetMutation,
 } from '@/state/profile/profile';
 import { Widget } from '@/state/profile/types';
+import { useCharges } from '@/state/docket';
 import { useState } from 'react';
 
 export default function EditPublicProfile({
@@ -15,6 +16,7 @@ export default function EditPublicProfile({
   onOpenChange: (change: boolean) => void;
 }) {
   const widgets = useWidgets();
+  const charges = useCharges();
   const { mutateAsync: show, isLoading: showLoading } = useShowWidgetMutation();
   const { mutateAsync: hide, isLoading: hideLoading } = useHideWidgetMutation();
   const isLoading = showLoading || hideLoading;
@@ -58,7 +60,7 @@ export default function EditPublicProfile({
                 loading={isLoading && loadingWidget === widget.name}
               />
               <div className="ml-4">
-                <h4 className="pb-1 font-semibold">{name}</h4>
+                <h4 className="pb-1 font-semibold">{charges[sourceApp]?.title || sourceApp}: {name}</h4>
                 <p className="text-sm text-gray-400">{description}</p>
               </div>
             </div>
