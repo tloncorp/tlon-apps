@@ -531,11 +531,12 @@
                   =alt  "Sigil";
           ::
             ;div#profile-title
-              ;*  =*  plain  ;p#profile-nickname:"{(scow %p our.bowl)}"
+              ;*  =*  name  (cite:title our.bowl)
+                  =*  plain  ;p#profile-nickname(title "{(scow %p our.bowl)}"):"{name}"
                   ?~  ours  [plain]~
                   ?:  =('' nickname.u.ours)  [plain]~
                   :~  ;p#profile-nickname:"{(trip nickname.u.ours)}"
-                      ;p#profile-username:"{(scow %p our.bowl)}"
+                      ;p#profile-username(title "{(scow %p our.bowl)}"):"{name}"
                   ==
             ==
           ==
