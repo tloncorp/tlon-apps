@@ -509,7 +509,7 @@
           ;div#profile-overlay4;
         ::
           ;div#profile-header
-            ;+  ?:  &(?=(^ ours) ?=(^ avatar.u.ours))
+            ;+  ?:  &(?=(^ ours) ?=(^ avatar.u.ours) !=('' u.avatar.u.ours))
                   ;img#profile-avatar
                     =src  "{(trip u.avatar.u.ours)}"
                     =alt  "Avatar";
