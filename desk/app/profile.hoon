@@ -554,7 +554,7 @@
       ==
       ;*  %+  turn  layout
           |=  [=desk =term]
-          ;div.widget
+          ;div.widget(id "{(trip desk)}--{(trip term)}")
             ;*  marl.body:(~(got by (~(got by widgets) desk)) term)
           ==
       ::TODO  maybe only display if Host header has *.tlon.network?
