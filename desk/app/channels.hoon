@@ -575,6 +575,7 @@
     ==
   ++  ca-abed
     |=  n=nest:c
+    ?.  (~(has by v-channels) n)  ca-core
     ca-core(nest n, channel (~(got by v-channels) n))
   ::
   ++  ca-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
@@ -1274,10 +1275,19 @@
         [%posts rest=*]  (ca-peek-posts rest.pole)
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
         [%hark %rope post=@ ~]
-      ``noun+!>((ca-rope kind.nest (slav %ud post.pole) ~))
-        [%hark %rope post=@ reply=@ ~]
+      =/  id  (slav %ud post.pole)
       :^  ~  ~  %noun  !>
-      (ca-rope kind.nest (slav %ud post.pole) `(slav %ud reply.pole))
+      ?.  (has:on-v-posts:c posts.channel id)  ~
+      `(ca-rope kind.nest id ~)
+        [%hark %rope post=@ reply=@ ~]
+      =/  post-id  (slav %ud post.pole)
+      =/  reply-id  (slav %ud reply.pole)
+      :^  ~  ~  %noun  !>
+      =/  post  (get:on-v-posts:c posts.channel post-id)
+      ?~  post  ~
+      ?~  u.post  ~
+      ?.  (has:on-v-replies:c replies.u.u.post reply-id)  ~
+      `(ca-rope kind.nest post-id `reply-id)
         [%search %text skip=@ count=@ nedl=@ ~]
       :^  ~  ~  %channel-scan  !>
       %^    text:ca-search
