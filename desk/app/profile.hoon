@@ -511,11 +511,25 @@
           ;div#profile-overlay4;
         ::
           ;div#profile-header
-            ::TODO  embed sigil if there's no avatar
-            ;+  =/  avatar=@t  ?~(ours 'xx' ?~(avatar.u.ours 'xx' u.avatar.u.ours))
-            ;img#profile-avatar
-               =src  "{(trip avatar)}"
-               =alt  "Avatar";
+            ;+  =?  ours  ?=(^ ours)  ours(avatar.u ~)
+                ?:  &(?=(^ ours) ?=(^ avatar.u.ours))
+                  ;img#profile-avatar
+                    =src  "{(trip u.avatar.u.ours)}"
+                    =alt  "Avatar";
+                =/  color=tape
+                  %-  (x-co:co 6)
+                  ?~(ours 0x0 color.u.ours)
+                ?:  (gth our.bowl 0xffff.ffff)
+                  ::  just the color, for moons and comets
+                  ::
+                  ;div#profile-avatar(style "background-color: #{color}");
+                ::TODO  we can't control margin, color etc from this. we should
+                ::      probably import sigil.hoon, that way we can support
+                ::      moon and comet sigils too
+                ;img#profile-avatar
+                  =src  "https://azimuth.network/erc721/{+:(scow %p our.bowl)}.svg"
+                  =alt  "Sigil";
+          ::
             ;div#profile-title
               ;*  =*  plain  ;p#profile-nickname:"{(scow %p our.bowl)}"
                   ?~  ours  [plain]~
