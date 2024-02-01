@@ -24,6 +24,7 @@ type SidebarProps = PropsWithChildren<{
   // "active" state even if the route is deeper than
   // the link's 'to' attribute
   inexact?: boolean;
+  unclamped?: boolean;
   color?: string;
   highlight?: string;
   transparent?: boolean;
@@ -61,6 +62,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
       highlight = 'bg-gray-50',
       fontWeight,
       fontSize = 'text-lg',
+      unclamped = false,
       actions,
       className,
       children,
@@ -166,7 +168,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
             title={typeof children === 'string' ? children : undefined}
             className={cn(
               'max-w-full flex-1 text-left font-sans sm:text-base',
-              isMobile ? 'line-clamp-1' : 'truncate',
+              unclamped ? '' : isMobile ? 'line-clamp-1' : 'truncate',
               actions && 'pr-4',
               !fontWeight ? 'sm:font-semibold' : fontWeight,
               !color ? 'text-gray-800 sm:text-gray-600' : color,
