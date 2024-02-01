@@ -16,7 +16,6 @@ import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
-import useAppName from '@/logic/useAppName';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
@@ -26,12 +25,12 @@ export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
   const messagesFilter = useMessagesFilter();
   const [filterOpen, setFilterOpen] = useState(false);
-  const appName = useAppName();
   const { mutate } = usePutEntryMutation({
     bucket: 'talk',
     key: 'messagesFilter',
   });
-  const pinned = usePinnedChats(appName === 'Groups');
+  // TODO: may need to tweak
+  const pinned = usePinnedChats(true);
 
   const setFilterMode = (mode: SidebarFilter) => {
     mutate({ val: mode });
@@ -109,7 +108,7 @@ export default function MobileMessagesSidebar() {
       <nav className={cn('flex h-full w-full flex-col bg-white')}>
         <MessagesScrollingContext.Provider value={isScrolling}>
           <MessagesList
-            filter={appName === 'Groups' ? filters.dms : messagesFilter}
+            filter={messagesFilter}
             isScrolling={scroll.current}
           >
             {pinned && pinned.length > 0 ? (

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import _ from 'lodash';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -21,7 +21,6 @@ import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
-import useAppName from '@/logic/useAppName';
 import {
   useAddReplyMutation,
   usePost,
@@ -46,7 +45,6 @@ export default function ChatThread() {
   }>();
   const isMobile = useIsMobile();
   const { isChatInputFocused } = useChatInputFocus();
-  const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const nest = `chat/${flag}`;
@@ -169,7 +167,7 @@ export default function ChatThread() {
               <BranchIcon className="h-6 w-6 text-gray-600" />
               <h1 className="text-[17px] text-gray-800">
                 Thread
-                {appName === 'Groups' && <span>: {threadTitle}</span>}
+                <span>: {threadTitle}</span>
               </h1>
             </div>
           }

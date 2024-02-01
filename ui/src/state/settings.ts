@@ -14,7 +14,7 @@ import {
 } from '@/constants';
 import { DisplayMode, SortMode } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { isHosted, isTalk } from '@/logic/utils';
+import { isHosted } from '@/logic/utils';
 import { isNativeApp } from '@/logic/native';
 import api from '@/api';
 
@@ -88,10 +88,6 @@ export interface SettingsState {
   diary: {
     settings: Stringified<DiarySetting[]>;
     markdown: boolean;
-  };
-  talk: {
-    messagesFilter: SidebarFilter;
-    showVitaMessage: boolean;
   };
   groups: {
     orderedGroupPins: string[];
@@ -349,8 +345,7 @@ export function useLogActivity() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
-    // Do not capture any analytics events for Talk
-    if (isTalk || isNativeApp()) {
+    if (isNativeApp()) {
       return false;
     }
 
@@ -561,33 +556,6 @@ export function useShowActivityMessage() {
 
     return data.groups?.showActivityMessage || false;
   }, [isLoading, data, cookie]);
-}
-
-export function useShowVitaMessage() {
-  const { data, isLoading } = useMergedSettings();
-
-  return useMemo(() => {
-    if (isLoading || data === undefined || window.desk !== 'talk') {
-      return false;
-    }
-
-    const setting = data[window.desk]?.showVitaMessage;
-    return setting;
-  }, [isLoading, data]);
-}
-
-export function useMessagesFilter() {
-  const { data, isLoading } = useMergedSettings();
-
-  return useMemo(() => {
-    if (isLoading || data === undefined || data.talk === undefined) {
-      return filters.dms;
-    }
-
-    const { talk } = data;
-
-    return talk.messagesFilter ?? filters.dms;
-  }, [isLoading, data]);
 }
 
 export function useTiles() {

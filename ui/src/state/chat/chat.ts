@@ -170,19 +170,19 @@ export function initializeChat({
   dms,
   clubs,
   invited,
-  unreads,
+  dmUnreads,
 }: {
   dms: string[];
   clubs: Clubs;
   invited: string[];
-  unreads: DMUnreads;
+  dmUnreads: DMUnreads;
 }) {
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(ChatKeys.pending(), () => invited || []);
-  queryClient.setQueryData(ChatKeys.unreads(), () => unreads || {});
+  queryClient.setQueryData(ChatKeys.unreads(), () => dmUnreads || {});
 
-  useChatStore.getState().update(unreads);
+  useChatStore.getState().update(dmUnreads);
 }
 
 interface PageParam {

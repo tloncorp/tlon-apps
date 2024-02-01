@@ -9,12 +9,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import packageJson from './package.json';
 import manifest from './src/assets/manifest';
-import chatmanifest from './src/assets/chatmanifest';
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
-  const app = process.env.APP || 'groups';
-  process.env.VITE_APP = app;
   process.env.VITE_STORAGE_VERSION =
     mode === 'dev' ? Date.now().toString() : packageJson.version;
 
@@ -31,21 +28,16 @@ export default ({ mode }: { mode: string }) => {
   console.log(SHIP_URL2);
 
   // eslint-disable-next-line
-  const base = (mode: string, app: string) => {
+  const base = (mode: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return '';
     }
 
-    switch (app) {
-      case 'chat':
-        return '/apps/talk/';
-      default:
-        return '/apps/groups/';
-    }
+    return '/apps/groups/';
   };
 
   // eslint-disable-next-line
-  const plugins = (mode: string, app: string) => {
+  const plugins = (mode: string) => {
     if (mode === 'mock' || mode === 'staging') {
       return [
         basicSsl(),
@@ -55,72 +47,36 @@ export default ({ mode }: { mode: string }) => {
       ];
     }
 
-    switch (app) {
-      case 'chat':
-        return [
-          process.env.SSL === 'true' ? basicSsl() : null,
-          urbitPlugin({
-            base: 'talk',
-            target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
-            changeOrigin: true,
-            secure: false,
-          }),
-          react({
-            jsxImportSource: '@welldone-software/why-did-you-render',
-          }),
-          VitePWA({
-            base: '/apps/talk/',
-            manifest: chatmanifest,
-            injectRegister: 'inline',
-            registerType: 'prompt',
-            strategies: 'injectManifest',
-            srcDir: 'src',
-            filename: 'sw.ts',
-            devOptions: {
-              enabled: mode === 'sw',
-              type: 'module',
-            },
-            injectManifest: {
-              globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-              maximumFileSizeToCacheInBytes: 100000000,
-            },
-          }),
-        ];
-      default:
-        return [
-          process.env.SSL === 'true' ? basicSsl() : null,
-          urbitPlugin({
-            base: 'groups',
-            target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
-            changeOrigin: true,
-            secure: false,
-          }),
-          react({
-            jsxImportSource: '@welldone-software/why-did-you-render',
-          }),
-          VitePWA({
-            base: '/apps/groups/',
-            manifest,
-            injectRegister: 'inline',
-            registerType: 'prompt',
-            strategies: 'injectManifest',
-            srcDir: 'src',
-            filename: 'sw.ts',
-            devOptions: {
-              enabled: mode === 'sw',
-              type: 'module',
-            },
-            injectManifest: {
-              globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-              maximumFileSizeToCacheInBytes: 100000000,
-            },
-          }),
-        ];
-    }
+    return [
+      process.env.SSL === 'true' ? basicSsl() : null,
+      urbitPlugin({
+        base: 'groups',
+        target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
+        changeOrigin: true,
+        secure: false,
+      }),
+      react({
+        jsxImportSource: '@welldone-software/why-did-you-render',
+      }),
+      VitePWA({
+        base: '/apps/groups/',
+        manifest,
+        injectRegister: 'inline',
+        registerType: 'prompt',
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
+        devOptions: {
+          enabled: mode === 'sw',
+          type: 'module',
+        },
+        injectManifest: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+          maximumFileSizeToCacheInBytes: 100000000,
+        },
+      }),
+    ];
   };
-
-  console.log(process.env.APP);
-  console.log(mode, app, base(mode, app));
 
   const rollupOptions = {
     external:
@@ -161,7 +117,7 @@ export default ({ mode }: { mode: string }) => {
   };
 
   return defineConfig({
-    base: base(mode, app),
+    base: base(mode),
     server: {
       https: process.env.SSL === 'true' ? true : false,
       host: 'localhost',
@@ -184,7 +140,7 @@ export default ({ mode }: { mode: string }) => {
               ],
             },
           } as BuildOptions),
-    plugins: plugins(mode, app),
+    plugins: plugins(mode),
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

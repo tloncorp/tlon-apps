@@ -48,14 +48,12 @@ import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
 import groupsFavicon from '@/assets/groups.svg';
-import talkFavicon from '@/assets/talk.svg';
 import GroupInvitesPrivacy from '@/groups/GroupAdmin/GroupInvitesPrivacy';
 import Notifications from '@/notifications/Notifications';
 import ChatChannel from '@/chat/ChatChannel';
 import HeapChannel from '@/heap/HeapChannel';
 import DiaryChannel from '@/diary/DiaryChannel';
 import DiaryNote from '@/diary/DiaryNote';
-import DMNotification from '@/notifications/DMNotification';
 import GroupNotification from '@/notifications/GroupNotification';
 import EditCurioModal from '@/heap/EditCurioModal';
 import Members from '@/groups/Members';
@@ -64,13 +62,11 @@ import GroupRoles from '@/groups/GroupAdmin/GroupRoles';
 import GroupInfoEditor from '@/groups/GroupAdmin/GroupInfoEditor';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import DisconnectNotice from '@/components/DisconnectNotice';
-import TalkNav from '@/nav/TalkNav';
-import TalkHead from '@/dms/TalkHead';
 import MobileMessagesSidebar from '@/dms/MobileMessagesSidebar';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import MobileGroupsNavHome from '@/nav/MobileRoot';
 import Leap from '@/components/Leap/Leap';
-import { isTalk, preSig } from '@/logic/utils';
+import { preSig } from '@/logic/utils';
 import bootstrap from '@/state/bootstrap';
 import AboutDialog from '@/components/About/AboutDialog';
 import MobileGroupChannelList from '@/groups/MobileGroupChannelList';
@@ -79,7 +75,6 @@ import LandscapeWayfinding, {
 } from '@/components/LandscapeWayfinding';
 import { useScheduler } from '@/state/scheduler';
 import { LeapProvider } from '@/components/Leap/useLeap';
-import VitaMessage from '@/components/VitaMessage';
 import Dialog from '@/components/Dialog';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
 import EmojiPicker from '@/components/EmojiPicker';
@@ -156,161 +151,11 @@ const SuspendedDiaryAddNote = (
   </Suspense>
 );
 
-const appHead = (appName: string) => {
-  switch (appName) {
-    case 'chat':
-      return {
-        title: 'Talk',
-        icon: talkFavicon,
-      };
-    default:
-      return {
-        title: 'Groups',
-        icon: groupsFavicon,
-      };
-  }
-};
-
 interface RoutesProps {
   state: { backgroundLocation?: Location } | null;
   location: Location;
   isMobile: boolean;
   isSmall: boolean;
-}
-
-function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
-  return (
-    <>
-      <Routes location={state?.backgroundLocation || location}>
-        <Route element={<TalkNav />}>
-          <Route
-            index
-            element={isMobile ? <MobileMessagesSidebar /> : <DMHome />}
-          />
-          <Route
-            path="/notifications"
-            element={
-              <Notifications
-                child={DMNotification}
-                title={`• ${appHead('chat').title}`}
-              />
-            }
-          />
-          <Route path="/dm/" element={<Dms />}>
-            <Route index element={<DMHome />} />
-            <Route path="new">
-              <Route index element={<NewDM />} />
-              <Route path=":ship" element={<Message />} />
-            </Route>
-            <Route path=":ship">
-              <Route index element={<Message />} />
-              <Route path="*" element={<Message />}>
-                {isSmall ? null : (
-                  <Route
-                    path="message/:idShip/:idTime"
-                    element={<DMThread />}
-                  />
-                )}
-              </Route>
-            </Route>
-            {isSmall && (
-              <Route
-                path=":ship/message/:idShip/:idTime"
-                element={<DMThread />}
-              />
-            )}
-            {isMobile && (
-              <Route path=":ship/search/:query?" element={<MobileDmSearch />} />
-            )}
-          </Route>
-
-          <Route path="/groups/:ship/:name/*" element={<Groups />}>
-            <Route
-              path="channels/chat/:chShip/:chName"
-              element={<GroupChannel type="chat" />}
-            >
-              <Route
-                path="*"
-                element={<ChatChannel title={` • ${appHead('').title}`} />}
-              />
-              {isSmall ? (
-                <Route path="message/:idTime" element={<ChatThread />} />
-              ) : null}
-              {isMobile && (
-                <Route path="search/:query?" element={<MobileChatSearch />} />
-              )}
-            </Route>
-          </Route>
-
-          <Route
-            path="/profile/edit"
-            element={
-              <EditProfile title={`Edit Profile • ${appHead('chat').title}`} />
-            }
-          />
-        </Route>
-      </Routes>
-      {state?.backgroundLocation ? (
-        <Routes>
-          <Route path="/about" element={<AboutDialog />} />
-          <Route path="/settings" element={<SettingsDialog />} />
-          <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
-          <Route
-            path="/grid"
-            element={
-              <SuspendedModal>
-                <Grid />
-              </SuspendedModal>
-            }
-          />
-          <Route
-            path="/app/:desk"
-            element={
-              <SuspendedModal>
-                <AppModal />
-              </SuspendedModal>
-            }
-          />
-          <Route
-            path="/app/:desk/info"
-            element={
-              <SuspendedModal>
-                <TileInfo />
-              </SuspendedModal>
-            }
-          />
-          <Route path="/dm/:id/edit-info" element={<MultiDMEditModal />} />
-          <Route path="/report-content" element={<ReportContent />} />
-          <Route path="/profile/:ship" element={<ProfileModal />} />
-          <Route path="/gangs/:ship/:name" element={<GroupPreviewModal />} />
-          <Route
-            path="/gangs/:ship/:name/reject"
-            element={<RejectConfirmModal />}
-          />
-          {isMobile ? (
-            <>
-              <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/picker/:writTime"
-                element={<EmojiPicker />}
-              />
-              <Route
-                path="/groups/:ship/:name/channels/chat/:chShip/:chName/message/:idTime/picker/:writTime"
-                element={<EmojiPicker />}
-              />
-              <Route
-                path="/dm/:ship/picker/:writShip/:writTime"
-                element={<EmojiPicker />}
-              />
-              <Route
-                path="/dm/:ship/message/:idShip/:idTime/picker/:writShip/:writTime"
-                element={<EmojiPicker />}
-              />
-            </>
-          ) : null}
-        </Routes>
-      ) : null}
-    </>
-  );
 }
 
 function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
@@ -321,13 +166,13 @@ function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
   return (
     <Notifications
       child={GroupNotification}
-      title={`Activity • ${appHead('').title}`}
+      title="Activity • Tlon"
     />
   );
 }
 
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
-  const groupsTitle = appHead('').title;
+  const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
 
   useEffect(() => {
@@ -386,7 +231,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 >
                   <Route
                     path="*"
-                    element={<ChatChannel title={` • ${appHead('').title}`} />}
+                    element={<ChatChannel title=" • Tlon" />}
                   />
                   {isSmall ? (
                     <Route path="message/:idTime" element={<ChatThread />} />
@@ -785,29 +630,16 @@ function App() {
       <LeapProvider>
         <ChatInputFocusProvider>
           <DragAndDropProvider>
-            {isTalk ? (
-              <>
-                <TalkHead />
-                <ChatRoutes
-                  state={state}
-                  location={location}
-                  isMobile={isMobile}
-                  isSmall={isSmall}
-                />
-              </>
-            ) : (
-              <GroupsRoutes
-                state={state}
-                location={location}
-                isMobile={isMobile}
-                isSmall={isSmall}
-              />
-            )}
+            <GroupsRoutes
+              state={state}
+              location={location}
+              isMobile={isMobile}
+              isSmall={isSmall}
+            />
           </DragAndDropProvider>
         </ChatInputFocusProvider>
         <Leap />
       </LeapProvider>
-      <VitaMessage />
     </div>
   );
 }
@@ -897,10 +729,10 @@ function RoutedApp() {
     >
       <Router basename={basename(app)}>
         <Helmet>
-          <title>{appHead(app).title}</title>
+          <title>Tlon</title>
           <link
             rel="icon"
-            href={appHead(app).icon}
+            href={groupsFavicon}
             sizes="any"
             type="image/svg+xml"
           />
