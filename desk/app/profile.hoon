@@ -118,7 +118,7 @@
     =,  action
     ?^  (find [desk term]~ layout)
       [~ state]
-    =.  layout  [[desk term] layout]
+    =.  layout  (snoc layout [desk term])
     [update-cache state]
   ::
       %del-widget
