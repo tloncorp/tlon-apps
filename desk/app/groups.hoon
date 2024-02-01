@@ -904,6 +904,7 @@
   |=  [=nest:g =id-post:d id-reply=(unit id-reply:d)]
   ^-  (unit rope:ha)
   =/  prefix  (channel-scry nest)
+  ?.  .^(has=? %gu prefix)  ~
   =/  ch-path=path
     ?~  id-reply  
       (welp prefix /hark/rope/(scot %ud id-post))

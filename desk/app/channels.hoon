@@ -575,7 +575,6 @@
     ==
   ++  ca-abed
     |=  n=nest:c
-    ?.  (~(has by v-channels) n)  ca-core
     ca-core(nest n, channel (~(got by v-channels) n))
   ::
   ++  ca-area  `path`/[kind.nest]/(scot %p ship.nest)/[name.nest]
