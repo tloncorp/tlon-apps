@@ -107,12 +107,14 @@
       [%x %init ~]
     =+  .^([=groups-ui:g =gangs:g] (scry %gx %groups /init/v1/noun))
     =+  .^([=unreads:d =channels:d] (scry %gx %channels /init/noun))
+    =+  .^(=chat:u (scry %gx %chat /init/noun))
     =/  =init:u
       :*  groups-ui
           gangs
           channels
           unreads
           pins
+          chat
       ==
     ``ui-init+!>(init)
   ::

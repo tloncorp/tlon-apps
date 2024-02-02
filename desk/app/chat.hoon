@@ -1570,16 +1570,6 @@
         ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
         ?~  entry  (di-give-writs-diff diff)
         =*  op  writ.u.entry
-        =/  new-yarn-groups
-          %+  di-spin-groups
-            :~  [%ship author.memo]  ' replied to '
-                [%emph (flatten:utils content.op)]  ': '
-                [%ship author.memo]  ': '
-                (flatten:utils content.memo)
-            ==
-          ~
-        =?  cor  (want-hark %to-us)
-          (emit (pass-hark new-yarn-groups))
         =/  new-yarn
           %^  di-spin  /(rsh 4 (scot %ui time.u.entry))
             :~  [%ship author.memo]  ' replied to '

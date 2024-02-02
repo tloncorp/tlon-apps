@@ -22,16 +22,18 @@ const emptyGroupsInit: GroupsInit = {
   gangs: {},
   channels: {},
   unreads: {},
-  dms: [],
-  clubs: {},
-  dmUnreads: {},
-  invited: [],
   pins: [],
+  chat: {
+    dms: [],
+    clubs: {},
+    dmUnreads: {},
+    invited: [],
+  },
 };
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { channels, unreads, groups, gangs, pins, ...chatData } =
+  const { channels, unreads, groups, gangs, pins, chat } =
     await asyncWithDefault(
       () =>
         api.scry<GroupsInit>({
@@ -46,7 +48,7 @@ async function startGroups() {
   queryClient.setQueryData(['channels'], channels);
   queryClient.setQueryData(['unreads'], unreads);
   queryClient.setQueryData(pinsKey(), pins);
-  initializeChat(chatData);
+  initializeChat(chat);
 
   // if we have unreads for cached channels, refetch them
   // in advance

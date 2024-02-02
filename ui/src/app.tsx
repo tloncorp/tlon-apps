@@ -577,12 +577,20 @@ function App() {
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
   const { disableWayfinding } = useCalm();
+  const showWayfinding = // Don't show the wayfinding button in DMs or Channels pages on mobile
+    // if (
+    //   (isMobile && location.pathname.includes('dm')) ||
+    //   location.pathname.includes('channels/') ||
+    //   location.pathname.includes('profile/')
+    // ) {
+    //   return null;
+    // }
 
-  useEffect(() => {
-    if (isNativeApp()) {
-      postActionToNativeApp('appLoaded');
-    }
-  }, []);
+    useEffect(() => {
+      if (isNativeApp()) {
+        postActionToNativeApp('appLoaded');
+      }
+    }, []);
   useEffect(() => {
     handleError(() => {
       checkIfLoggedIn();
