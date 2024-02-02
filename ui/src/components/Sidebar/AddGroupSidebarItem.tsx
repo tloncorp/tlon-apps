@@ -40,7 +40,7 @@ export default function AddGroupSidebarItem() {
         defaultRoute
         color={activeTab === 'groups' ? 'text-black' : 'text-gray-600'}
         actions={
-          <Dropdown.Trigger>
+          <Dropdown.Trigger data-testid="add-group-sidebar-button-icon">
             <AddIcon16 className="relative top-[2px] hidden h-4 w-4 group-hover:block" />
           </Dropdown.Trigger>
         }
