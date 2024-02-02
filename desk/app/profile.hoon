@@ -719,6 +719,9 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+      [%x %bound %json ~]
+    ``json+!>(b+bound)
+  ::
       [%x %widgets %json ~]
     =;  =json  ``json+!>(json)
     =,  enjs:format
