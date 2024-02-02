@@ -191,8 +191,8 @@ export default function MessagesSidebar({
         isScrolling={scroll.current}
       >
         {pinned && pinned.length > 0 ? (
-          <div className="mb-4 flex flex-col p-2 px-2 pb-1">
-            <h2 className="my-2 px-2 text-sm font-bold text-gray-400">
+          <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 px-2 pb-1">
+            <h2 className="my-2 px-2 text-sm font-semibold text-gray-400">
               Pinned Messages
             </h2>
 
@@ -203,7 +203,9 @@ export default function MessagesSidebar({
         ) : null}
 
         <div className="flex h-10 items-center justify-between border-t-2 border-gray-50 px-4 pb-1 pt-2">
-          <h2 className="text-sm font-bold text-gray-400">{messagesFilter}</h2>
+          <h2 className="text-sm font-semibold text-gray-400">
+            {messagesFilter}
+          </h2>
           <ActionMenu
             open={filterOpen}
             onOpenChange={setFilterOpen}
