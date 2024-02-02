@@ -1,7 +1,7 @@
 ::  profile: public profile page engine
 ::
 /-  contacts
-/+  dbug, verb
+/+  dbug, verb, sigil
 ::
 |%
 +$  state-0
@@ -351,6 +351,7 @@
 
     #profile-avatar {
       width: 80px;
+      overflow: hidden;
       aspect-ratio: 1 / 1;
       border-radius: 12px;
       margin-right: 16px;
@@ -514,19 +515,18 @@
                   ;img#profile-avatar
                     =src  "{(trip u.avatar.u.ours)}"
                     =alt  "Avatar";
-                =/  color=tape
-                  %-  (x-co:co 6)
-                  ?~(ours 0x0 color.u.ours)
-                ?:  (gth our.bowl 0xffff.ffff)
-                  ::  just the color, for moons and comets
-                  ::
-                  ;div#profile-avatar(style "background-color: #{color}");
-                ::TODO  we can't control margin, color etc from this. we should
-                ::      probably import sigil.hoon, that way we can support
-                ::      moon and comet sigils too
-                ;img#profile-avatar
-                  =src  "https://azimuth.network/erc721/{+:(scow %p our.bowl)}.svg"
-                  =alt  "Sigil";
+                =/  value=@ux   ?~(ours 0x0 color.u.ours)
+                =/  color=tape  ((x-co:co 6) value)
+                ;div#profile-avatar(style "background-color: #{color}")
+                  ;+  %.  our.bowl
+                  %_  sigil
+                    size  80
+                    bg  '#'^color
+                    ::REVIEW  groups fe caps the color's lightness, instead of
+                    ::        choosing between white/black fg. should we, too?
+                    fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
+                  ==
+                ==
           ::
             ;div#profile-title
               ;*  =*  name  (cite:title our.bowl)
