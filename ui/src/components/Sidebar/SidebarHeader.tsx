@@ -3,6 +3,8 @@ import cn from 'classnames';
 import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
+import useGroupJoin from '@/groups/useGroupJoin';
+import { useGang } from '@/state/groups';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
 import ReconnectingSpinner from '../ReconnectingSpinner';
@@ -13,10 +15,12 @@ import { LeapShortcutIcon } from './SystemChrome';
 const SidebarHeader = React.memo(() => {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const gang = useGang('~nibset-napwyn/tlon');
+  const { open } = useGroupJoin('~nibset-napwyn/tlon', gang, false);
 
   const actions: Action[] = [
     {
-      key: 'submit',
+      key: 'leap',
       content: (
         <a
           className="no-underline"
@@ -48,7 +52,7 @@ const SidebarHeader = React.memo(() => {
       key: 'about',
       content: (
         <Link to="/about" state={{ backgroundLocation: location }}>
-          About Groups
+          About Tlon
         </Link>
       ),
     },
@@ -62,6 +66,22 @@ const SidebarHeader = React.memo(() => {
         >
           App Settings
         </Link>
+      ),
+    },
+    {
+      key: 'privacy',
+      content: (
+        <Link to="/privacy" state={{ backgroundLocation: location }}>
+          Privacy Notice
+        </Link>
+      ),
+    },
+    {
+      key: 'help',
+      content: (
+        <button className="cursor-pointer" onClick={open}>
+          Help & Support
+        </button>
       ),
     },
     {

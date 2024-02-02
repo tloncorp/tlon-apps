@@ -77,7 +77,6 @@ export interface SettingsState {
     disableRemoteContent: boolean;
     disableSpellcheck: boolean;
     disableNicknames: boolean;
-    disableWayfinding: boolean;
   };
   tiles: {
     order: string[];
@@ -199,7 +198,6 @@ const emptyCalm: SettingsState['calmEngine'] = {
   disableRemoteContent: false,
   disableSpellcheck: false,
   disableNicknames: false,
-  disableWayfinding: false,
 };
 
 const loadingCalm: SettingsState['calmEngine'] = {
@@ -208,7 +206,6 @@ const loadingCalm: SettingsState['calmEngine'] = {
   disableRemoteContent: true,
   disableSpellcheck: true,
   disableNicknames: true,
-  disableWayfinding: true,
 };
 
 export function useCalm() {

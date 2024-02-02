@@ -24,7 +24,6 @@ export default function Settings() {
     disableNicknames,
     disableSpellcheck,
     disableRemoteContent,
-    disableWayfinding,
   } = useCalm();
   const theme = useTheme();
   const { mutate, status } = useThemeMutation();
@@ -36,8 +35,6 @@ export default function Settings() {
     useCalmSettingMutation('disableSpellcheck');
   const { mutate: toggleRemoteContent, status: remoteContentStatus } =
     useCalmSettingMutation('disableRemoteContent');
-  const { mutate: toggleWayfinding, status: wayfindingStatus } =
-    useCalmSettingMutation('disableWayfinding');
   const { mutate: toggleLogActivity, status: logActivityStatus } =
     usePutEntryMutation({ bucket: window.desk, key: 'logActivity' });
   const { mutate: resetAnalyticsId, status: resetAnalyticsIdStatus } =
@@ -91,18 +88,6 @@ export default function Settings() {
           <p className="leading-5 text-gray-600">
             Turn user-set nicknames off and only display urbit-style names
             across Tlon
-          </p>
-        </Setting>
-        <Setting
-          on={disableWayfinding}
-          toggle={() => toggleWayfinding(!disableWayfinding)}
-          status={wayfindingStatus}
-          name="Disable wayfinding"
-          labelClassName="font-semibold"
-        >
-          <p className="leading-5 text-gray-600">
-            Turn off the "wayfinding" helper menu in the bottom left of the Tlon
-            sidebar
           </p>
         </Setting>
       </div>

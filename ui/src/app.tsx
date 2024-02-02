@@ -70,9 +70,6 @@ import { preSig } from '@/logic/utils';
 import bootstrap from '@/state/bootstrap';
 import AboutDialog from '@/components/About/AboutDialog';
 import MobileGroupChannelList from '@/groups/MobileGroupChannelList';
-import LandscapeWayfinding, {
-  LandscapeWayfindingModal,
-} from '@/components/LandscapeWayfinding';
 import { useScheduler } from '@/state/scheduler';
 import { LeapProvider } from '@/components/Leap/useLeap';
 import Dialog from '@/components/Dialog';
@@ -420,7 +417,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
           <Route path="/privacy" element={<PrivacyNotice />} />
           <Route path="/settings" element={<SettingsDialog />} />
           <Route path="/blocked" element={<BlockedUsersDialog />} />
-          <Route path="/wayfinding" element={<LandscapeWayfindingModal />} />
           <Route path="/activity-collection" element={<ActivityModal />} />
           <Route path="/add-group/create" element={<CreateGroupDialog />} />
           <Route path="/add-group/join" element={<JoinGroupDialog />} />
@@ -576,21 +572,13 @@ function App() {
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(max-width: 1023px)');
-  const { disableWayfinding } = useCalm();
-  const showWayfinding = // Don't show the wayfinding button in DMs or Channels pages on mobile
-    // if (
-    //   (isMobile && location.pathname.includes('dm')) ||
-    //   location.pathname.includes('channels/') ||
-    //   location.pathname.includes('profile/')
-    // ) {
-    //   return null;
-    // }
 
-    useEffect(() => {
-      if (isNativeApp()) {
-        postActionToNativeApp('appLoaded');
-      }
-    }, []);
+  useEffect(() => {
+    if (isNativeApp()) {
+      postActionToNativeApp('appLoaded');
+    }
+  }, []);
+
   useEffect(() => {
     handleError(() => {
       checkIfLoggedIn();
@@ -620,7 +608,6 @@ function App() {
 
   return (
     <div className="flex h-full w-full flex-col">
-      {!disableWayfinding && !isMobile && <LandscapeWayfinding />}
       <DisconnectNotice />
       <LeapProvider>
         <ChatInputFocusProvider>
