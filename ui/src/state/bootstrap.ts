@@ -26,7 +26,7 @@ const emptyGroupsInit: GroupsInit = {
   chat: {
     dms: [],
     clubs: {},
-    dmUnreads: {},
+    unreads: {},
     invited: [],
   },
 };
