@@ -73,6 +73,16 @@ export default function useWidgets(): Widget[] {
         });
       });
     });
+    //  make sure the profile widget is at the top,
+    //  and that groups widgets show above others,
+    //  and that the rest is sorted alphabetically.
+    wid.sort((a: Widget, b: Widget) => {
+      if (a.id === 'groups:profile') return -1;
+      if (b.id === 'groups:profile') return 1;
+      if (a.sourceApp === 'groups') return -1;
+      if (b.sourceApp === 'groups') return 1;
+      return a.id.localeCompare(b.id);
+    });
     return wid;
   }, [available, visibleIds]);
 
