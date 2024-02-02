@@ -162,7 +162,7 @@ export default function Sidebar() {
               !atTop && 'bottom-shadow'
             )}
             placeholder={
-              activeTab === 'messages' ? 'Search Messages' : 'Search Groups'
+              activeTab === 'messages' ? 'Filter Messages' : 'Filter Groups'
             }
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
