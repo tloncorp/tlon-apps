@@ -23,8 +23,8 @@ export default function EditPublicProfile({
   const [loadingWidget, setLoadingWidget] = useState('');
 
   const onToggle = async (widget: Widget) => {
-    const { name, sourceApp, visible } = widget;
-    setLoadingWidget(name);
+    const { id, name, sourceApp, visible } = widget;
+    setLoadingWidget(id);
     if (visible) {
       await hide({ name, sourceApp });
     } else {
@@ -57,7 +57,7 @@ export default function EditPublicProfile({
             >
               <SpinToggle
                 enabled={visible}
-                loading={isLoading && loadingWidget === widget.name}
+                loading={isLoading && loadingWidget === widget.id}
               />
               <div className="ml-4">
                 <h4 className="pb-1 font-semibold">{charges[sourceApp]?.title || sourceApp}: {name}</h4>
