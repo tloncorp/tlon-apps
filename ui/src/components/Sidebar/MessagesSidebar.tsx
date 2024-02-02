@@ -191,7 +191,7 @@ export default function MessagesSidebar({
         isScrolling={scroll.current}
       >
         {pinned && pinned.length > 0 ? (
-          <div className="mb-4 flex flex-col border-t-2 border-gray-50 p-2 px-2 pb-1">
+          <div className="mb-4 flex flex-col p-2 px-2 pb-1">
             <h2 className="my-2 px-2 text-sm font-bold text-gray-400">
               Pinned Messages
             </h2>
