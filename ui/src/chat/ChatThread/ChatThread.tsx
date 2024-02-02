@@ -32,6 +32,7 @@ import {
 import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+import useActiveTab from '@/components/Sidebar/util';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import { chatStoreLogger, useChatInfo, useChatStore } from '../useChatStore';
@@ -109,11 +110,14 @@ export default function ChatThread() {
   const readTimeout = useChatInfo(flag).unread?.readTimeout;
   const isSmall = useMedia('(max-width: 1023px)');
   const clearOnNavRef = useRef({ isSmall, readTimeout, nest, flag, markRead });
+  const activeTab = useActiveTab();
 
   const returnURL = useCallback(
     () =>
-      `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
-    [chName, chShip, name, ship, idTime]
+      `${
+        activeTab === 'messages' ? '/dm' : ''
+      }/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
+    [chName, chShip, name, ship, idTime, activeTab]
   );
 
   const onAtBottom = useCallback(() => {

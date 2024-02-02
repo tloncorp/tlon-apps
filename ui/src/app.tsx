@@ -313,19 +313,6 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
-function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
-  if (isMobile) {
-    return <MobileGroupsNavHome />;
-  }
-
-  return (
-    <Notifications
-      child={GroupNotification}
-      title={`Activity • ${appHead('').title}`}
-    />
-  );
-}
-
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   const groupsTitle = appHead('').title;
   const loaded = useSettingsLoaded();
@@ -348,7 +335,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<GroupsNav />}>
           <Route element={isMobile ? <MobileSidebar /> : undefined}>
-            <Route index element={<HomeRoute isMobile={isMobile} />} />
+            <Route index element={isMobile ? <MobileGroupsNavHome /> : null} />
             <Route
               path="/notifications"
               element={
@@ -370,13 +357,16 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 <Route path=":ship" element={<Message />} />
               </Route>
 
-              <Route path=":ship" element={<Message />}>
-                {isSmall ? null : (
-                  <Route
-                    path="message/:idShip/:idTime"
-                    element={<DMThread />}
-                  />
-                )}
+              <Route path=":ship">
+                <Route index element={<Message />} />
+                <Route path="*" element={<Message />}>
+                  {isSmall ? null : (
+                    <Route
+                      path="message/:idShip/:idTime"
+                      element={<DMThread />}
+                    />
+                  )}
+                </Route>
               </Route>
 
               <Route path="groups/:ship/:name/*" element={<Groups />}>
@@ -384,10 +374,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   path="channels/chat/:chShip/:chName"
                   element={<GroupChannel type="chat" />}
                 >
-                  <Route
-                    path="*"
-                    element={<ChatChannel title={` • ${appHead('').title}`} />}
-                  />
+                  <Route path="*" element={<ChatChannel />} />
                   {isSmall ? (
                     <Route path="message/:idTime" element={<ChatThread />} />
                   ) : null}
