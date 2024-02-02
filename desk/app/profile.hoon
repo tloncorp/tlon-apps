@@ -1,5 +1,10 @@
 ::  profile: public profile page engine
 ::
+::    optionally binds to /profile, serving a small version of the host ship's
+::    groups profile to the public web.
+::    other apps can poke this agent with widgets of their own, and the user
+::    can choose which widgets to display on their public page.
+::
 /-  contacts
 /+  dbug, verb, sigil
 ::
@@ -19,12 +24,12 @@
       body=[%marl =marl]
   ==
 ::
-+$  command  ::  agent command
++$  command  ::  commands from other agents
   $%  [%update-widget =desk =term =widget]
       [%delete-widget =desk =term]
   ==
 ::
-+$  action  ::  user action
++$  action  ::  actions by the user
   $%  [%bind ~]
       [%unbind ~]
       [%put-widget =desk =term]
@@ -131,10 +136,9 @@
     (spout:rudder id payload)
   %-  paint:rudder
   =/  =query:rudder  (purse:rudder url.request)
-  ::  we bound at /, so act as a final routing catch-all. to be polite,
-  ::  if the request is not for / or /profile, we redirect to landscape.
+  ::  if the request is not for /profile, we redirect to landscape
   ::
-  ?.  ?=(?(~ [%profile ~]) site.query)
+  ?.  ?=([%profile ~] site.query)
     [%move '/apps/landscape/']
   [%page render-page]
 ::
@@ -276,7 +280,11 @@
                   profile-widget
                 marl.body:(~(got by (~(got by widgets) desk)) term)
           ==
+      ::  optionally render the tlon.io signup cta
+      ::
       ::TODO  maybe only display if Host header has *.tlon.network?
+      ::      we can't know ahead of time, but could know on first visit, or
+      ::      at customization-time...
       ;*  ?.  tlon-cta  ~
           :_  ~
       ;a.call-to-action/"https://tlon.network/lure/~nibset-napwyn/tlon"
