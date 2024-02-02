@@ -7,7 +7,6 @@
 +$  state-0
   $:  %0
       bound=_|
-      previous-home=(unit dude:gall)
     ::
       widgets=(map desk (map term widget))
       layout=(list [=desk =term])
@@ -41,42 +40,29 @@
     state  +<+
 ++  bind
   ^-  (quip card _state)
-  ::TODO  maybe want to serve at /, but see below
-  :-  [%pass /eyre/connect %arvo %e %connect [~ /profile] dap.bowl]~
-  ::  if we will be overwriting an existing binding, remember it, so that we
-  ::  may restore it if we ever +unbind ourselves
-  ::
-  state
-  ::  actually, docket serves a couple things at or somewhere / implicitly,
-  ::  things that other frontends depend on. we may want to be a tad more
-  ::  careful here, if we still want to serve on / ourselves...
-  :: =+  .^  binds=(list [=binding:eyre * =action:eyre])
-  ::       /e/(scot %p our.bowl)/bindings/(scot %da now.bowl)
-  ::     ==
-  :: |-
-  :: ?~  binds  state
-  :: ?.  ?=([[~ ~] * [%app *]] i.binds)
-  ::   $(binds t.binds)
-  :: state(previous-home `app.action.i.binds)
+  :_  state
+  :-  [%pass /eyre/connect %arvo %e %connect [~ /profile] dap.bowl]
+  update-cache
 ::
 ++  did-bind
   |=  success=?
   ^-  (quip card _state)
   ?:  success
     [~ state(bound &)]
-  [~ state(bound |, previous-home ~)]
+  [~ state(bound |)]
 ::
 ++  unbind
   ^-  (quip card _state)
   ?.  bound  [~ state]
   =.  bound  |
-  ?~  previous-home
-    :_  state
-    [%pass /eyre/connect %arvo %e %disconnect [~ /profile]]~
-  ::  if we had overwritten another agent's binding, restore it
-  ::
-  :_  state(previous-home ~)
-  [%pass /eyre/connect %arvo %e %connect [~ /] u.previous-home]~
+  ::NOTE  at the time of writing, both eyre & the runtime serve 404s for urls
+  ::      whose cache entries were deleted, rather than passing the request in
+  ::      as normal. not the end of the world for us, but it does mean that
+  ::      we will have made /profile unusable for dynamic content...
+  :_  state
+  :~  [%pass /eyre/connect %arvo %e %disconnect [~ /profile]]
+      [%pass /eyre/cache %arvo %e %set-response '/profile' ~]
+  ==
 ::
 ++  on-command
   |=  =command
