@@ -726,6 +726,9 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
+      [%x %bound ~]
+    ``loob+!>(bound)
+  ::
       [%x %bound %json ~]
     ``json+!>(b+bound)
   ::

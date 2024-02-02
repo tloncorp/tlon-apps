@@ -6,6 +6,7 @@
       =channels:d
       =unreads:d
       pins=(list whom)
+      profile=?
   ==
 ::  $whom: ID for an "item"
 ::
