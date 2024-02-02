@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Channel: Notebooks">
+<g id="Notebook">
+<rect id="Pages" x="8.9" y="6.9" width="15.2" height="18.2" rx="2.1" stroke="#333333" stroke-width="1.8"/>
+<path id="Ring 3" d="M7 11H11" stroke="#333333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Ring 2" d="M7 16H11" stroke="#333333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Ring 1" d="M7 21H11" stroke="#333333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+</svg>

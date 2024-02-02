@@ -1,0 +1,257 @@
+export const postWithImage = {
+  id: '170.141.184.506.616.696.178.535.413.175.965.188.096',
+  author: '~forfel-norfel',
+  metadata: null,
+  content:
+    '[{"block":{"image":{"width":1488,"alt":"1CF846DC-528C-46F4-A925-0AE5BAF7A0B9.jpeg","src":"https://nyc3.digitaloceanspaces.com/forfel-norfel/forfel-norfel/2024.1.19..20.18.6..f333.3333.3333.3333-1CF846DC-528C-46F4-A925-0AE5BAF7A0B9.jpeg","height":2119}}}]',
+  sentAt: 1705695492479,
+  receivedAt: 1705695492674,
+  replyCount: 0,
+  type: 'chat',
+  reactions: [],
+  images: [
+    {
+      src: 'https://nyc3.digitaloceanspaces.com/forfel-norfel/forfel-norfel/2024.1.19..20.18.6..f333.3333.3333.3333-1CF846DC-528C-46F4-A925-0AE5BAF7A0B9.jpeg',
+      alt: '1CF846DC-528C-46F4-A925-0AE5BAF7A0B9.jpeg',
+      width: 1488,
+      height: 2119,
+    },
+  ],
+  text: '[image]',
+  group: {
+    id: '~tommur-dostyn/tlon-studio',
+    iconImage:
+      'https://img.freepik.com/free-photo/smooth-white-stucco-wall_1194-6786.jpg?w=2000',
+    iconImageColor: null,
+    coverImage: null,
+    coverImageColor: null,
+    title: 'Tlon Studio',
+    description: '',
+    isSecret: false,
+  },
+  channel: {
+    id: 'chat/~tommur-dostyn/support',
+    loadedOldest: null,
+    nextOldestPage: null,
+    syncedAt: 1705699053506,
+    addedAt: null,
+    image: null,
+    title: 'Support',
+    cover: null,
+    description: null,
+    joined: null,
+    syncing: null,
+    totalPosts: 1712,
+  },
+};
+
+export const postWithCodeBlock = {
+  id: '170.141.184.506.616.525.073.779.736.596.929.576.960',
+  author: '~lagrev-nocfep',
+  metadata: null,
+  content:
+    '[{"inline":[{"code":"> .^((list path) %gt /=emissary=/$)\\n~[\\n  /delegate/~fes\\n  /patron/~tex\\n  /patron/~fes\\n  /delegates\\n  /delegate/~tex\\n  /outgoing\\n  /delegate/~zod\\n  /patrons\\n  /incoming\\n  /patron/~zod\\n]\\n\\n> .^([%ud @ud] %gw /=emissary=//patrons)\\n[%ud 34]\\n\\n~zod:dojo> .^([%ud @ud] %gw /=emissary=//outgoing|\\nbail: 4\\n\\nbail: 2\\ndojo: failed to process input"}]}]',
+  sentAt: 1705686212017,
+  receivedAt: 1705686217066,
+  replyCount: 0,
+  type: 'chat',
+  reactions: [],
+  images: [],
+  text: '> .^((list path) %gt /=emissary=/$)\n~[\n  /delegate/~fes\n  /patron/~tex\n  /patron/~fes\n  /delegates\n  /delegate/~tex\n  /outgoing\n  /delegate/~zod\n  /patrons\n  /incoming\n  /patron/~zod\n]\n\n> .^([%ud @ud] %gw /=emissary=//patrons)\n[%ud 34]\n\n~zod:dojo> .^([%ud @ud] %gw /=emissary=//outgoing|\nbail: 4\n\nbail: 2\ndojo: failed to process input',
+  group: {
+    id: '~dister-dozzod-lapdeg/battery-payload',
+    iconImage:
+      'https://github.com/sigilante/curriculum/blob/master/img/awl-small.png?raw=true',
+    iconImageColor: null,
+    coverImage: null,
+    coverImageColor: null,
+    title: '💻 [battery payload]',
+    description:
+      'Urbit Foundation developer community.  App Workshop and Build Party materials and support.',
+    isSecret: false,
+  },
+  channel: {
+    id: 'chat/~dister-dozzod-lapdeg/userspace-8167',
+    loadedOldest: null,
+    nextOldestPage: null,
+    syncedAt: 1705699053810,
+    addedAt: null,
+    image: null,
+    title: 'Userspace',
+    cover: '#000000',
+    description: '& middleware',
+    joined: null,
+    syncing: null,
+    totalPosts: 1842,
+  },
+};
+
+export const postWithRef = {
+  id: '170.141.184.506.616.625.477.658.362.817.762.295.808',
+  author: '~rilfun-lidlen',
+  metadata: null,
+  content:
+    '[{"block":{"cite":{"chan":{"nest":"chat/~tommur-dostyn/support","where":"/msg/170141184506615522163148558744632164352"}}}}]',
+  sentAt: 1705691659089,
+  receivedAt: 1705691659972,
+  replyCount: 0,
+  type: 'chat',
+  reactions: [],
+  images: [],
+  text: '[ref]',
+  group: {},
+  channel: {
+    id: 'chat/~bitpyx-dildus/interface',
+    loadedOldest: null,
+    nextOldestPage: null,
+    syncedAt: 1705692663900,
+    addedAt: null,
+    image: null,
+    title: 'Homestead',
+    cover: '#000000',
+    description: null,
+    joined: null,
+    syncing: null,
+    totalPosts: 51775,
+  },
+};
+
+export const postWithVideo = {
+  id: '170.141.184.506.603.446.545.588.382.971.604.238.336',
+  author: '~forfel-norfel',
+  metadata: null,
+  content:
+    '[{"block":{"image":{"width":888,"alt":"RPReplay_Final1704977168.mp4","src":"https://nyc3.digitaloceanspaces.com/forfel-norfel/forfel-norfel/2024.1.11..12.47.3..d604.1893.74bc.6a7e-RPReplay_Final1704977168.mp4","height":1920}}}]',
+  sentAt: 1704977228415,
+  receivedAt: 1704977228632,
+  replyCount: 0,
+  type: 'chat',
+  reactions: [],
+  images: [
+    {
+      src: 'https://nyc3.digitaloceanspaces.com/forfel-norfel/forfel-norfel/2024.1.11..12.47.3..d604.1893.74bc.6a7e-RPReplay_Final1704977168.mp4',
+      alt: 'RPReplay_Final1704977168.mp4',
+      width: 888,
+      height: 1920,
+    },
+  ],
+  text: '[image]',
+  group: {
+    id: '~tommur-dostyn/tlon-studio',
+    iconImage:
+      'https://img.freepik.com/free-photo/smooth-white-stucco-wall_1194-6786.jpg?w=2000',
+    iconImageColor: null,
+    coverImage: null,
+    coverImageColor: null,
+    title: 'Tlon Studio',
+    description: '',
+    isSecret: false,
+  },
+  channel: {
+    id: 'chat/~tommur-dostyn/support',
+    loadedOldest: null,
+    nextOldestPage: null,
+    syncedAt: 1705699053506,
+    addedAt: null,
+    image: null,
+    title: 'Support',
+    cover: null,
+    description: null,
+    joined: null,
+    syncing: null,
+    totalPosts: 1712,
+  },
+};
+
+export const postWithBlockQuote = {
+  id: '170.141.184.506.617.692.302.337.091.123.053.330.432',
+  author: '~palfun-foslup',
+  metadata: null,
+  content:
+    '[{"inline":[{"blockquote":["did you build it",{"break":null}]},"ugh fine",{"break":null},{"link":{"href":"https://github.com/tloncorp/landscape-apps/commit/13c46dd7e20d2a3fd269c4ec22f0faf50fd9e50f","content":"https://github.com/tloncorp/landscape-apps/commit/13c46dd7e20d2a3fd269c4ec22f0faf50fd9e50f"}},{"break":null}]},{"block":{"image":{"width":1603,"alt":"pictochat.gif","src":"http://img.plfn.io:9000/img/palfun-foslup/2024.1.20..11.15.56..e106.24dd.2f1a.9fbe-pictochat.gif","height":910}}}]',
+  sentAt: 1705749492261,
+  receivedAt: 1705749492653,
+  replyCount: 1,
+  type: 'chat',
+  reactions: [],
+  images: [
+    {
+      src: 'http://img.plfn.io:9000/img/palfun-foslup/2024.1.20..11.15.56..e106.24dd.2f1a.9fbe-pictochat.gif',
+      alt: 'pictochat.gif',
+      width: 1603,
+      height: 910,
+    },
+  ],
+  text: 'did you build it  ugh fine https://github.com/tloncorp/landscape-apps/commit/13c46dd7e20d2a3fd269c4ec22f0faf50fd9e50f [image]',
+  group: {
+    id: '~dabben-larbet/tlon',
+    iconImage:
+      'https://fabled-faster.nyc3.digitaloceanspaces.com/fabled-faster/2022.2.07..20.08.05-original_8f7c14b2bb300088b2c2d495cdbff2c1.png',
+    iconImageColor: '#ededed',
+    coverImage: null,
+    coverImageColor: null,
+    title: 'Tlon',
+    description:
+      'We build infrastructure that is technically excellent,  architecturally sound, and aesthetically beautiful',
+    isSecret: true,
+  },
+  channel: {
+    id: 'chat/~nocsyx-lassul/bongtable',
+    loadedOldest: null,
+    nextOldestPage: null,
+    syncedAt: 1705767138937,
+    addedAt: null,
+    image: null,
+    title: 'Bongtable',
+    cover: null,
+    description: 'For riffing on harebrained ideas without being shut down',
+    joined: null,
+    syncing: null,
+    totalPosts: 102,
+  },
+};
+
+export const postWithDiary = {
+  id: '170.141.184.506.600.624.792.591.281.136.452.239.360',
+  author: '~haddef-sigwen',
+  metadata: {
+    title: '~2024.1.9 MINUTE',
+    image: '',
+  },
+  content:
+    '[{"inline":["Attendees: ",{"ship":"~haddef-sigwen"}," , ",{"ship":"~fabled-faster"}," , ",{"ship":"~tocref-ripmyr"}," , ",{"ship":"~ripwen-sabrup"}," , ",{"ship":"~lidreg-dillut"}," ",{"break":null}]},{"block":{"listing":{"list":{"items":[{"item":["Everyone is on the multisig! Crazy",{"break":null}]},{"list":{"items":[{"item":["The maintenance work was light — regularly check into Stripe and check on fulfillment, kicking occasionally",{"break":null}]},{"item":["It was Stripe -> Printful connection",{"break":null}]}],"contents":["Shop wasn\'t as set and forget as we wanted; was set up on a previous LLC Ed had",{"break":null}],"type":"unordered"}},{"item":["So, history: at first ",{"ship":"~mopfel-winrux"}," and ",{"ship":"~battus-datsun"}," and ",{"ship":"~haddef-sigwen"}," met in like May-June, started work on Albums, back-end was ready for testing around August, but started proper in Sept, from Sept to Oct the front-end was done, then we were unsure whether to extend it, make new apps, etc.",{"break":null}]},{"item":["mopfel and haddef felt like we should do a multisig meeting to ask what the next quarter is like for Structure",{"break":null}]},{"list":{"items":[{"item":["see ",{"link":{"href":"https://kit.design/","content":"https://kit.design/"}}," for example",{"break":null}]},{"item":["matilde: is there some sort of design component thing that works in our context?",{"break":null}]}],"contents":["ed: maybe just small libraries that do super basic things is a fine start given the commitment load in the past",{"break":null}],"type":"unordered"}}],"contents":[],"type":"unordered"}}}},{"inline":[{"break":null}]},{"block":{"listing":{"list":{"items":[{"list":{"items":[{"item":["there are some but off-urbit design-adjacent communities",{"break":null}]}],"contents":["are there opportunities for integration with other groups?",{"break":null}],"type":"unordered"}},{"list":{"items":[{"item":["ed: maybe 80% is just the social value of the group, i think",{"break":null}]},{"item":["matilde: agrees, it\'s about the schelling point about urbit-adjacent designers who come and go from the ecosystem, somewhere to congregate and continue the discussion",{"break":null}]}],"contents":["matilde: what is it that you want out of structure?",{"break":null}],"type":"unordered"}},{"list":{"items":[{"item":["fabled++",{"break":null}]}],"contents":[{"ship":"~ripwen-sabrup"}," proposes an interface to interact with an urbit\'s event log",{"break":null}],"type":"unordered"}}],"contents":[],"type":"unordered"}}}},{"inline":[{"break":null}]}]',
+  sentAt: 1704823161070,
+  receivedAt: 1704824261096,
+  replyCount: 0,
+  type: 'diary',
+  reactions: [],
+  images: [],
+  text: "Attendees:  ~haddef-sigwen  ,  ~fabled-faster  ,  ~tocref-ripmyr  ,  ~ripwen-sabrup  ,  ~lidreg-dillut   Everyone is on the multisig! Crazy  The maintenance work was light — regularly check into Stripe and check on fulfillment, kicking occasionally  It was Stripe -> Printful connection  So, history: at first  ~mopfel-winrux  and  ~battus-datsun  and  ~haddef-sigwen  met in like May-June, started work on Albums, back-end was ready for testing around August, but started proper in Sept, from Sept to Oct the front-end was done, then we were unsure whether to extend it, make new apps, etc.  mopfel and haddef felt like we should do a multisig meeting to ask what the next quarter is like for Structure  see  https://kit.design/  for example  matilde: is there some sort of design component thing that works in our context?  there are some but off-urbit design-adjacent communities  ed: maybe 80% is just the social value of the group, i think  matilde: agrees, it's about the schelling point about urbit-adjacent designers who come and go from the ecosystem, somewhere to congregate and continue the discussion  fabled++",
+  group: {
+    id: '~topdem/structure',
+    iconImage:
+      'https://s3.us-east-1.amazonaws.com/haddefsigwen1/haddef-sigwen/2023.6.27..05.17.03-tumblr_f3031a40e7444a7854e30e387b512ebf_7beaba7e_2048.jpg',
+    iconImageColor: null,
+    coverImage: null,
+    coverImageColor: null,
+    title: 'Structure',
+    description:
+      'STRUCTURE GROUP GAIDEN: Harvest Nine  \n\nMechanics. Design. Structure. Urbit R&D Para-Organisation. ',
+    isSecret: false,
+  },
+  channel: {
+    id: 'diary/~topdem/annals',
+    loadedOldest: null,
+    nextOldestPage: null,
+    syncedAt: 1705085914928,
+    addedAt: null,
+    image: null,
+    title: 'Annals',
+    cover: null,
+    description:
+      ':: In the beginning. In the end. :: Open meeting, Tuesdays at 12pm EST at  https://app.gather.town/app/xAYeiPI2XDYhRM9t/urbit-hacker-house?spawnToken=J8JeGYQjQymjhDwXUsG0',
+    joined: null,
+    syncing: null,
+    totalPosts: 15,
+  },
+};

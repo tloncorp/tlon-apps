@@ -1,0 +1,5 @@
+{
+  "name": "Whatever",
+  "displayName": "Whatever",
+  "platforms": ["ios", "android"]
+}

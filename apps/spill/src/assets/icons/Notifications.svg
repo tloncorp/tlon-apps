@@ -1,0 +1,8 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Notifications">
+<g id="Bell">
+<path id="Shell" d="M8.13176 12.9459C8.62777 8.97781 12.001 6 16 6V6C19.999 6 23.3722 8.97781 23.8682 12.9459L24.7331 19.865C24.8748 20.9987 23.9909 22 22.8484 22H9.1516C8.00912 22 7.12517 20.9987 7.26687 19.865L8.13176 12.9459Z" stroke="#333333" stroke-width="1.8"/>
+<path id="Ringer" d="M19 23C19 24.6569 17.6569 26 16 26C14.3431 26 13 24.6569 13 23" stroke="#333333" stroke-width="1.8" stroke-linecap="round"/>
+</g>
+</g>
+</svg>

@@ -2,14 +2,22 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "ui/",
-    "packages/*"
+    "apps/*",
+    "packages/*",
+    "ui/"
   ],
   "scripts": {
     "build:shared": "npm run build --prefix ./packages/shared",
-    "build:web": "npm run build:shared && npm run build --prefix ./ui"
+    "build:web": "npm run build:shared && npm run build --prefix ./ui",
+    "dev:shared": "npm run dev --prefix ./packages/shared",
+    "dev:android": "concurrently \"npm run dev:shared\" \"npm run android --prefix ./apps/spill\"",
+    "dev:ios": "concurrently \"npm run dev:shared\" \"npm run ios --prefix ./apps/spill\"",
+    "dev:web": "concurrently \"npm run dev:shared\" \"npm run dev-no-ssl --prefix ./ui\"",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
+    "concurrently": "^8.2.2",
+    "patch-package": "^6.4.7",
     "tsup": "^8.0.1"
   },
   "engines": {

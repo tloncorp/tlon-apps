@@ -1,0 +1,56 @@
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "strict": false,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@api": [
+        "./src/api"
+      ],
+      "@api/*": [
+        "./src/api/*"
+      ],
+      "@assets": [
+        "./src/assets"
+      ],
+      "@assets/*": [
+        "./src/assets/*"
+      ],
+      "@components": [
+        "./src/components"
+      ],
+      "@components/*": [
+        "./src/components/*"
+      ],
+      "@ochre": [
+        "./src/components/ochre"
+      ],
+      "@ochre/*": [
+        "./src/components/ochre/*"
+      ],
+      "@db": [
+        "./src/db"
+      ],
+      "@db/*": [
+        "./src/db/*"
+      ],
+      "@theme": [
+        "./src/theme"
+      ],
+      "@theme/*": [
+        "./src/theme/*"
+      ],
+      "@utils": [
+        "./src/utils"
+      ],
+      "@utils/*": [
+        "./src/utils/*"
+      ],
+    }
+  },
+  "exclude": [
+    "src/api/urbit/*",
+    "src/api/urbit/src/*"
+  ]
+}

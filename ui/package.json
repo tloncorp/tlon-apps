@@ -38,7 +38,6 @@
     "e2e:debug": "cross-env DEBUG_PLAYWRIGHT=true npm run e2e",
     "e2e:chat": "cross-env SHIP_NAME=zod APP=chat npm run e2e && cross-env SHIP_NAME=bus APP=chat npm run e2e",
     "tsc": "tsc --noEmit",
-    "postinstall": "patch-package",
     "e2e:codegen": "concurrently \"npm run dev-no-ssl\" \"npx playwright codegen http://localhost:3000\"",
     "cosmos": "cosmos"
   },
@@ -229,7 +228,6 @@
     "lint-staged": "^15.0.0",
     "msw": "^0.44.2",
     "node-fetch": "^2.6.12",
-    "patch-package": "^6.4.7",
     "postcss": "^8.4.12",
     "postcss-import": "^14.1.0",
     "prettier": "^3.1.1",
