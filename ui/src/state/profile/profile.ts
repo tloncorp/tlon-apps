@@ -8,18 +8,20 @@ import api from '@/api';
 import { ProfLayout, ProfWidgets, Widget } from './types';
 import ProfileKeys from './keys';
 
-interface ProfileStore {
-  isPublic: boolean;
-  setIsPublic: (newValue: boolean) => void;
-}
-const useProfileStore = create<ProfileStore>((set) => ({
-  isPublic: false,
-  setIsPublic: (newValue: boolean) => set({ isPublic: newValue }),
-}));
-
 // stub since we cant get this in the api?
 export function useProfileIsPublic(): boolean {
-  return useProfileStore((state) => state.isPublic);
+  const { data } = useReactQueryScry<boolean>({
+    queryKey: ProfileKeys.bound(),
+    app: 'profile',
+    path: '/bound/json',
+    options: { refetchOnMount: true },
+  });
+
+  if (!data) {
+    return queryClient.getQueryData(ProfileKeys.bound()) || false;
+  }
+
+  return data;
 }
 
 function useAvailableWidgets(): ProfWidgets {
@@ -163,8 +165,6 @@ export function useShowWidgetMutation() {
 }
 
 export function useMakeProfilePublicMutation() {
-  const setIsPublic = useProfileStore((state) => state.setIsPublic);
-
   const mutationFn = async () => {
     api.poke({
       app: 'profile',
@@ -181,14 +181,12 @@ export function useMakeProfilePublicMutation() {
       await queryClient.cancelQueries(ProfileKeys.layout());
 
       // update cache
-      setIsPublic(true);
+      queryClient.setQueriesData(ProfileKeys.bound(), true);
     },
   });
 }
 
 export function useMakeProfilePrivateMutation() {
-  const setIsPublic = useProfileStore((state) => state.setIsPublic);
-
   const mutationFn = async () => {
     await api.poke({
       app: 'profile',
@@ -205,7 +203,7 @@ export function useMakeProfilePrivateMutation() {
       await queryClient.cancelQueries(ProfileKeys.layout());
 
       // update cache
-      setIsPublic(false);
+      queryClient.setQueriesData(ProfileKeys.bound(), false);
     },
   });
 }
