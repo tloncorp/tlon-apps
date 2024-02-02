@@ -19,13 +19,12 @@ import {
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
 import useGroupSort from '@/logic/useGroupSort';
-import { useNotifications } from '@/notifications/useNotifications';
 import GroupsSidebarItem from './GroupsSidebarItem';
 import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
 import SidebarTopMenu from './SidebarTopMenu';
-import useActiveTab, { ActiveTab } from './util';
+import useActiveTab from './util';
 import MessagesSidebar from './MessagesSidebar';
 import useSearchFilter, { GroupSearchRecord } from './useSearchFilter';
 import X16Icon from '../icons/X16Icon';
