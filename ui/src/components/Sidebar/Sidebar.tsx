@@ -57,6 +57,7 @@ export default function Sidebar() {
   const gangsWithClaims = useGangsWithClaim();
   const sortedGroups = sortGroups(groups);
   const shipColor = useProfileColor(window.our);
+  const searchRef = useRef<HTMLInputElement>(null);
   const ref = useRef<HTMLDivElement>(null);
   const activeTab = useActiveTab();
 
@@ -66,6 +67,7 @@ export default function Sidebar() {
   useEffect(() => {
     // if we switch between messages & groups, clear the search
     setSearchInput('');
+    searchRef.current?.focus();
   }, [activeTab]);
 
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
@@ -166,6 +168,7 @@ export default function Sidebar() {
       <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
         <div className="relative mb-1 flex border-t-2 border-gray-50">
           <input
+            ref={searchRef}
             id="search"
             type="text"
             autoFocus
