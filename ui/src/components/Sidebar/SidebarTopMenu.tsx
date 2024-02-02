@@ -37,7 +37,7 @@ const SidebarTopMenu = React.memo(() => {
           <MessagesIcon
             className={cn(
               'm-1 h-4 w-4',
-              activeTab === 'messages' && 'text-gray-700'
+              activeTab === 'messages' && 'text-black'
             )}
             nonNav
             isInactive={activeTab !== 'messages'}
@@ -50,6 +50,7 @@ const SidebarTopMenu = React.memo(() => {
         }
         to={'/messages'}
         className="group"
+        color={activeTab === 'messages' ? 'text-black' : 'text-gray-600'}
       >
         Messages
       </SidebarItem>
@@ -58,8 +59,9 @@ const SidebarTopMenu = React.memo(() => {
 
       <SidebarItem
         highlight={shipColor}
-        icon={<Avatar size="xs" ship={window.our} />}
+        icon={<Avatar size="sidebar" className="m-1" ship={window.our} />}
         to={'/profile/edit'}
+        color={activeTab === 'profile' ? 'text-black' : 'text-gray-600'}
       >
         <ShipName showAlias name={window.our} />
       </SidebarItem>

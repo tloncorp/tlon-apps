@@ -31,14 +31,17 @@ const SidebarHeader = React.memo(() => {
     {
       key: 'landscape',
       content: (
-        <a
-          className="no-underline"
-          href="https://airtable.com/shrflFkf5UyDFKhmW"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Back to Landscape
-        </a>
+        <>
+          <a
+            className="dropdown-item no-underline"
+            href="https://airtable.com/shrflFkf5UyDFKhmW"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Back to Landscape
+          </a>
+          <div className="mx-0 h-[2px] w-full bg-gray-50 px-0" />
+        </>
       ),
     },
     {

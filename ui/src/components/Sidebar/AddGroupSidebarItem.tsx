@@ -29,7 +29,7 @@ export default function AddGroupSidebarItem() {
           <HomeIconMobileNav
             className={cn(
               'm-1 h-4 w-4',
-              activeTab === 'groups' && 'text-gray-700'
+              activeTab === 'groups' && 'text-black'
             )}
             asIcon
             isInactive={activeTab !== 'groups'}
@@ -38,9 +38,10 @@ export default function AddGroupSidebarItem() {
         to="/"
         override
         defaultRoute
+        color={activeTab === 'groups' ? 'text-black' : 'text-gray-600'}
         actions={
           <Dropdown.Trigger>
-            <AddIcon16 className="hidden h-4 w-4 group-hover:block" />
+            <AddIcon16 className="relative top-[2px] hidden h-4 w-4 group-hover:block" />
           </Dropdown.Trigger>
         }
       >
