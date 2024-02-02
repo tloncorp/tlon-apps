@@ -236,224 +236,6 @@
       box-shadow: 0px 10px 50px 0px rgba(0, 0, 0, 0.1),
         0px 20px 30px 0px rgba(0, 0, 0, 0.15), 0px 0px 1px 0px black;
     }
-
-    #profile-widget {
-      position: relative;
-      width: 400px;
-      height: 400px;
-      max-width: 85vw;
-      max-height: 85vw;
-      border-radius: 40px;
-
-      position: relative;
-      aspect-ratio: 1 / 1;
-      overflow: hidden;
-
-      display: flex;
-      justify-content: center;
-      align-items: flex-end;
-
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-        Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-      color: white;
-
-      box-shadow: 0px 10px 50px 0px rgba(0, 0, 0, 0.1),
-        0px 20px 30px 0px rgba(0, 0, 0, 0.15), 0px 0px 1px 0px black;
-
-      transition: transform 0.3s ease-in-out;
-    }
-
-    .profile-background {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      position: absolute;
-      z-index: 1;
-      -webkit-user-select: none;
-      -khtml-user-select: none;
-      -moz-user-select: none;
-      -o-user-select: none;
-      user-select: none;
-    }
-
-    #profile-overlay1 {
-      z-index: 6;
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 50px;
-
-      background: rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(1px);
-      box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.1);
-    }
-
-    #profile-overlay2 {
-      z-index: 7;
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 120px;
-
-      background: rgba(0, 0, 0, 0.2);
-      backdrop-filter: blur(1px);
-      box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.2);
-    }
-
-    #profile-overlay3 {
-      z-index: 8;
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 200px;
-
-      background: rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(1px);
-      box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.1);
-    }
-
-    #profile-overlay4 {
-      z-index: 9;
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 210px;
-
-      background: rgba(0, 0, 0, 0.3);
-      box-shadow: 0 -20px 30px 18px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(1px);
-    }
-
-    #profile-content {
-      position: relative;
-      width: 100%;
-      height: 220px;
-
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      align-items: start;
-
-      padding: 0px 36px 0px 36px;
-      z-index: 99;
-    }
-
-    #profile-header {
-      display: flex;
-      align-items: center;
-      position: relative;
-      z-index: 11;
-    }
-
-    #profile-avatar {
-      width: 80px;
-      overflow: hidden;
-      aspect-ratio: 1 / 1;
-      border-radius: 12px;
-      margin-right: 16px;
-      object-fit: cover;
-      z-index: 3;
-    }
-
-    #profile-title {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: start;
-    }
-
-    #profile-nickname {
-      margin-top: 0;
-      margin-bottom: 0;
-      font-size: 17px;
-      font-weight: 500;
-    }
-
-    #profile-username {
-      font-family: "Source Code Pro", monospace;
-      margin-bottom: 0;
-      font-size: 16px;
-      opacity: 70%;
-      margin-top: 4px;
-    }
-
-    #profile-bio {
-      flex: 1;
-      position: relative;
-      z-index: 11;
-      overflow: hidden;
-      margin-top: 20px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    #bio-title {
-      font-size: 17px;
-      opacity: 70%;
-      display: block;
-    }
-
-    #bio-content {
-      flex: 1;
-      margin-top: 6px;
-      font-size: 17px;
-      line-height: 24px;
-    }
-
-    .fade-text {
-      background: linear-gradient(
-        to bottom,
-        rgb(255, 255, 255) 0%,
-        rgb(255, 255, 255) 20%,
-        rgba(255, 255, 255, 0.1) 100%
-      );
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      color: transparent;
-      display: inline-block;
-    }
-
-    @media (max-width: 480px) {
-      #profile-widget {
-        border-radius: 40px;
-      }
-
-      #profile-overlay4 {
-        height: 180px;
-      }
-
-      #profile-overlay3 {
-        height: 100px;
-      }
-
-      #profile-content {
-        height: 200px;
-        padding: 0 30px 0px 30px;
-      }
-
-      #profile-avatar {
-        width: 72px;
-      }
-
-      .fade-text {
-        background: linear-gradient(
-          to bottom,
-          rgb(255, 255, 255) 0%,
-          rgb(255, 255, 255) 5%,
-          rgba(255, 255, 255, 0.1) 100%
-        );
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        color: transparent;
-        display: inline-block;
-      }
-    }
     '''
   ::
   ++  head
@@ -496,67 +278,17 @@
   ::
   ++  body
     ;body.body
-      ;div#profile-widget
-        ;*  ?~  ours  ~
-            ?~  cover.u.ours  ~
-        :_  ~
-        ;img#profile-background.profile-background
-           =src  "{(trip u.cover.u.ours)}"
-           =alt  "Background";
-
-        ;div#profile-content
-          ;div#profile-overlay1;
-          ;div#profile-overlay2;
-          ;div#profile-overlay3;
-          ;div#profile-overlay4;
-        ::
-          ;div#profile-header
-            ;+  ?:  &(?=(^ ours) ?=(^ avatar.u.ours) !=('' u.avatar.u.ours))
-                  ;img#profile-avatar
-                    =src  "{(trip u.avatar.u.ours)}"
-                    =alt  "Avatar";
-                =/  value=@ux   ?~(ours 0x0 color.u.ours)
-                =/  color=tape  ((x-co:co 6) value)
-                ;div#profile-avatar(style "background-color: #{color}")
-                  ;+  %.  our.bowl
-                  %_  sigil
-                    size  80
-                    bg  '#'^color
-                    ::REVIEW  groups fe caps the color's lightness, instead of
-                    ::        choosing between white/black fg. should we, too?
-                    fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
-                  ==
-                ==
-          ::
-            ;div#profile-title
-              ;*  =*  name  (cite:title our.bowl)
-                  =*  plain  ;p#profile-nickname(title "{(scow %p our.bowl)}"):"{name}"
-                  ?~  ours  [plain]~
-                  ?:  =('' nickname.u.ours)  [plain]~
-                  :~  ;p#profile-nickname:"{(trip nickname.u.ours)}"
-                      ;p#profile-username(title "{(scow %p our.bowl)}"):"{name}"
-                  ==
-            ==
-          ==
-        ::
-          ;*  ?~  ours  ~
-              ?:  =('' bio.u.ours)  ~
-          :_  ~
-          ;div#profile-bio
-            ;span#bio-title:"Info"
-            ;span#bio-content
-              ;*  %+  join  `manx`;br;
-                  %+  turn  (to-wain:format bio.u.ours)
-                  |=  p=@t  ^-  manx
-                  [[%$ $+[p ~] ~] ~]
-            ==
-          ==
-        ==
-      ==
-      ;*  %+  turn  layout
+      ::  render all the widgets
+      ::
+      ;*  %+  murn  layout
           |=  [=desk =term]
+          ?.  (~(has by (~(gut by widgets) desk ~)) term)
+            ~
+          %-  some
           ;div.widget(id "{(trip desk)}--{(trip term)}")
-            ;*  marl.body:(~(got by (~(got by widgets) desk)) term)
+            ;*  ?:  ?=([%groups %profile] [desk term])
+                  profile-widget
+                marl.body:(~(got by (~(got by widgets) desk)) term)
           ==
       ::TODO  maybe only display if Host header has *.tlon.network?
       ;*  ?.  tlon-cta  ~
@@ -576,6 +308,290 @@
           ==
         ==
         ;p.call-to-action-text:"Hop on Tlon"
+      ==
+    ==
+  ::
+  ++  profile-widget
+    ^-  marl
+    ::NOTE  the #groups--profile container is provided by +body above
+    =/  style=@t
+      '''
+      #groups--profile {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        max-width: 85vw;
+        max-height: 85vw;
+        border-radius: 40px;
+
+        position: relative;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+        color: white;
+
+        box-shadow: 0px 10px 50px 0px rgba(0, 0, 0, 0.1),
+          0px 20px 30px 0px rgba(0, 0, 0, 0.15), 0px 0px 1px 0px black;
+
+        transition: transform 0.3s ease-in-out;
+      }
+
+      #profile-background {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        z-index: 1;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -o-user-select: none;
+        user-select: none;
+      }
+
+      #profile-overlay1 {
+        z-index: 6;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 50px;
+
+        background: rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(1px);
+        box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.1);
+      }
+
+      #profile-overlay2 {
+        z-index: 7;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 120px;
+
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(1px);
+        box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.2);
+      }
+
+      #profile-overlay3 {
+        z-index: 8;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 200px;
+
+        background: rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(1px);
+        box-shadow: 0 -50px 16px 18px rgba(0, 0, 0, 0.1);
+      }
+
+      #profile-overlay4 {
+        z-index: 9;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 210px;
+
+        background: rgba(0, 0, 0, 0.3);
+        box-shadow: 0 -20px 30px 18px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(1px);
+      }
+
+      #profile-content {
+        position: relative;
+        width: 100%;
+        height: 220px;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: start;
+
+        padding: 0px 36px 0px 36px;
+        z-index: 99;
+      }
+
+      #profile-header {
+        display: flex;
+        align-items: center;
+        position: relative;
+        z-index: 11;
+      }
+
+      #profile-avatar {
+        width: 80px;
+        overflow: hidden;
+        aspect-ratio: 1 / 1;
+        border-radius: 12px;
+        margin-right: 16px;
+        object-fit: cover;
+        z-index: 3;
+      }
+
+      #profile-title {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: start;
+      }
+
+      #profile-nickname {
+        margin-top: 0;
+        margin-bottom: 0;
+        font-size: 17px;
+        font-weight: 500;
+      }
+
+      #profile-username {
+        font-family: "Source Code Pro", monospace;
+        margin-bottom: 0;
+        font-size: 16px;
+        opacity: 70%;
+        margin-top: 4px;
+      }
+
+      #profile-bio {
+        flex: 1;
+        position: relative;
+        z-index: 11;
+        overflow: hidden;
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      #bio-title {
+        font-size: 17px;
+        opacity: 70%;
+        display: block;
+      }
+
+      #bio-content {
+        flex: 1;
+        margin-top: 6px;
+        font-size: 17px;
+        line-height: 24px;
+      }
+
+      .fade-text {
+        background: linear-gradient(
+          to bottom,
+          rgb(255, 255, 255) 0%,
+          rgb(255, 255, 255) 20%,
+          rgba(255, 255, 255, 0.1) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: transparent;
+        display: inline-block;
+      }
+
+      @media (max-width: 480px) {
+        #profile-widget {
+          border-radius: 40px;
+        }
+
+        #profile-overlay4 {
+          height: 180px;
+        }
+
+        #profile-overlay3 {
+          height: 100px;
+        }
+
+        #profile-content {
+          height: 200px;
+          padding: 0 30px 0px 30px;
+        }
+
+        #profile-avatar {
+          width: 72px;
+        }
+
+        .fade-text {
+          background: linear-gradient(
+            to bottom,
+            rgb(255, 255, 255) 0%,
+            rgb(255, 255, 255) 5%,
+            rgba(255, 255, 255, 0.1) 100%
+          );
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          color: transparent;
+          display: inline-block;
+        }
+      }
+      '''
+    :~
+      ;style:"{(trip style)}"
+    ::
+      :-  [%$ ~]
+      ;*  ?~  ours  ~
+          ?~  cover.u.ours  ~
+      :_  ~
+      ;img#profile-background
+        =src  "{(trip u.cover.u.ours)}"
+        =alt  "Background";
+    ::
+      ;div#profile-content
+        ;div#profile-overlay1;
+        ;div#profile-overlay2;
+        ;div#profile-overlay3;
+        ;div#profile-overlay4;
+      ::
+        ;div#profile-header
+          ;+  ?:  &(?=(^ ours) ?=(^ avatar.u.ours) !=('' u.avatar.u.ours))
+                ;img#profile-avatar
+                  =src  "{(trip u.avatar.u.ours)}"
+                  =alt  "Avatar";
+              =/  value=@ux   ?~(ours 0x0 color.u.ours)
+              =/  color=tape  ((x-co:co 6) value)
+              ;div#profile-avatar(style "background-color: #{color}")
+                ;+  %.  our.bowl
+                %_  sigil
+                  size  80
+                  bg  '#'^color
+                  ::REVIEW  groups fe caps the color's lightness, instead of
+                  ::        choosing between white/black fg. should we, too?
+                  fg  "white" ::?:((gth (div (roll (rip 3 value) add) 3) 127) "black" "white")
+                ==
+              ==
+        ::
+          ;div#profile-title
+            ;*  =*  name  (cite:title our.bowl)
+                =*  plain  ;p#profile-nickname(title "{(scow %p our.bowl)}"):"{name}"
+                ?~  ours  [plain]~
+                ?:  =('' nickname.u.ours)  [plain]~
+                :~  ;p#profile-nickname:"{(trip nickname.u.ours)}"
+                    ;p#profile-username(title "{(scow %p our.bowl)}"):"{name}"
+                ==
+          ==
+        ==
+      ::
+        ;*  ?~  ours  ~
+            ?:  =('' bio.u.ours)  ~
+        :_  ~
+        ;div#profile-bio
+          ;span#bio-title:"Info"
+          ;span#bio-content
+            ;*  %+  join  `manx`;br;
+                %+  turn  (to-wain:format bio.u.ours)
+                |=  p=@t  ^-  manx
+                [[%$ $+[p ~] ~] ~]
+          ==
+        ==
       ==
     ==
   --
@@ -646,6 +662,11 @@
     do    ~(. +>+ bowl state)
 ++  on-init
   ^-  (quip card _this)
+  ::NOTE  we special-case the "internal" [%groups %profile] widget
+  =.  layout  [%groups %profile]~
+  =.  widgets
+    %+  ~(put by widgets)  %groups
+    (~(put by *(map term widget)) %profile %0 'Profile' %marl ~)
   :_  this
   [%pass /contacts/ours %agent [our.bowl %contacts] %watch /contact]~
 ::
