@@ -21,16 +21,23 @@ function itemContent(_i: number, item: AnyListItem) {
     const record = item.data;
     if (record.type === 'group') {
       return (
-        <GroupsSidebarItem flag={record.flag} isNew={record.status === 'new'} />
+        <div className="px-4 sm:px-2">
+          <GroupsSidebarItem
+            flag={record.flag}
+            isNew={record.status === 'new'}
+          />
+        </div>
       );
     }
 
     return (
-      <GangItem
-        flag={record.flag}
-        invited={record.status === 'invited'}
-        isJoining={record.status === 'loading'}
-      />
+      <div className="px-4 sm:px-2">
+        <GangItem
+          flag={record.flag}
+          invited={record.status === 'invited'}
+          isJoining={record.status === 'loading'}
+        />
+      </div>
     );
   }
 
