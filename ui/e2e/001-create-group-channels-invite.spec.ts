@@ -5,7 +5,7 @@ import shipManifest from './shipManifest.json';
 // patbud is the invited ship
 
 const ownerUrl = `${shipManifest['~naldeg-mardev'].webUrl}/apps/groups/`;
-const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/`;
+const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/notifications`;
 const groupOwner = 'mardev';
 const invitedShip = 'patbud';
 
