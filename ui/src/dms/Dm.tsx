@@ -216,9 +216,7 @@ export default function Dm() {
                           </button>
                         </DmOptions>
                       }
-                      pathBack={
-                        isMobile ? '/messages' : '/'
-                      }
+                      pathBack={isMobile ? '/messages' : '/'}
                       action={
                         <div className="flex h-12 flex-row items-center justify-end space-x-3">
                           <ReconnectingSpinner />

@@ -77,7 +77,8 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn user-set visual avatars off and only display urbit sigils in Tlon
+            Turn user-set visual avatars off and only display urbit sigils in
+            Tlon
           </p>
         </Setting>
         <Setting
@@ -100,7 +101,8 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn off the "wayfinding" helper menu in the bottom left of the Tlon sidebar
+            Turn off the "wayfinding" helper menu in the bottom left of the Tlon
+            sidebar
           </p>
         </Setting>
       </div>
@@ -134,9 +136,9 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Enable or disable basic activity tracking in Groups. Tlon uses
-            this data to make product decisions and to bring you a better
-            Groups experience.
+            Enable or disable basic activity tracking in Groups. Tlon uses this
+            data to make product decisions and to bring you a better Groups
+            experience.
           </p>
         </Setting>
         {logActivity && (
@@ -164,9 +166,8 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn spell-check off across all text inputs in
-            Tlon. Spell-check reads your keyboard input,
-            which may be undesirable.
+            Turn spell-check off across all text inputs in Tlon. Spell-check
+            reads your keyboard input, which may be undesirable.
           </p>
         </Setting>
         <Setting
@@ -177,8 +178,8 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Turn off automatically-displaying media embeds across Tlon. This may result in some software
-            appearing to have content missing.
+            Turn off automatically-displaying media embeds across Tlon. This may
+            result in some software appearing to have content missing.
           </p>
         </Setting>
       </div>

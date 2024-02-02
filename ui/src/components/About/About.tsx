@@ -22,11 +22,7 @@ export default function About() {
 
   return (
     <div className="flex flex-col space-y-8 text-[17px] leading-[22px]">
-      {!isMobile && (
-        <span className="text-lg font-bold">
-          About Tlon
-        </span>
-      )}
+      {!isMobile && <span className="text-lg font-bold">About Tlon</span>}
       <span className="px-2 text-gray-500">{charge?.info}</span>
       <div className="grid grid-cols-3 gap-y-2 rounded-xl bg-gray-50 p-6">
         <span className="flex items-center text-lg text-gray-400">Version</span>

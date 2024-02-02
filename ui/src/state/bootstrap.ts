@@ -1,9 +1,7 @@
 import _ from 'lodash';
 import Urbit from '@urbit/http-api';
 import api from '@/api';
-import {
-  asyncWithDefault,
-} from '@/logic/utils';
+import { asyncWithDefault } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { GroupsInit } from '@/types/ui';
 import { useChatStore } from '@/chat/useChatStore';
@@ -33,14 +31,15 @@ const emptyGroupsInit: GroupsInit = {
 
 async function startGroups() {
   // make sure if this errors we don't kill the entire app
-  const { channels, unreads, groups, gangs, pins, ...chatData } = await asyncWithDefault(
-    () =>
-      api.scry<GroupsInit>({
-        app: 'groups-ui',
-        path: '/init',
-      }),
-    emptyGroupsInit
-  );
+  const { channels, unreads, groups, gangs, pins, ...chatData } =
+    await asyncWithDefault(
+      () =>
+        api.scry<GroupsInit>({
+          app: 'groups-ui',
+          path: '/init',
+        }),
+      emptyGroupsInit
+    );
 
   queryClient.setQueryData(['groups'], groups);
   queryClient.setQueryData(['gangs'], gangs);
@@ -94,9 +93,7 @@ function auxiliaryData() {
 }
 
 let auxiliaryTimer = 0;
-export default async function bootstrap(
-  reset = 'initial' as Bootstrap
-) {
+export default async function bootstrap(reset = 'initial' as Bootstrap) {
   if (reset === 'full-reset') {
     api.reset();
   }

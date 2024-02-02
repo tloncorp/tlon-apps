@@ -20,12 +20,7 @@ import {
   RECENT_SORT,
   SortMode,
 } from '@/constants';
-import {
-  getFlagParts,
-  getNestShip,
-  nestToFlag,
-  getFirstInline,
-} from './utils';
+import { getFlagParts, getNestShip, nestToFlag, getFirstInline } from './utils';
 import useSidebarSort, {
   useRecentSort,
   Sorter,

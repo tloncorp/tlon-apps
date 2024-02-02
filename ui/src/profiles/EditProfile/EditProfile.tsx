@@ -225,10 +225,7 @@ export default function EditProfile({ title }: ViewProps) {
     <Layout
       header={
         isMobile ? (
-          <MobileHeader
-            title="Edit Profile"
-            pathBack="/profile"
-          />
+          <MobileHeader title="Edit Profile" pathBack="/profile" />
         ) : null
       }
       className="w-full bg-gray-50"
