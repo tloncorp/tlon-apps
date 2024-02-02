@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import { useMutation } from '@tanstack/react-query';
 import _ from 'lodash';
-import create from 'zustand';
 import queryClient from '@/queryClient';
 import api from '@/api';
 import { ProfLayout, ProfWidgets, Widget } from './types';
@@ -37,6 +36,15 @@ function useAvailableWidgets(): ProfWidgets {
   }
 
   return data;
+}
+
+export function refreshAvailableWidgets() {
+  const hasStaleData = !!queryClient.getQueriesData(ProfileKeys.widgets());
+  const notAlreadyFetching = !queryClient.isFetching(ProfileKeys.widgets());
+
+  if (hasStaleData && notAlreadyFetching) {
+    queryClient.invalidateQueries(ProfileKeys.widgets());
+  }
 }
 
 function useVisibleWidgetIds(): ProfLayout {

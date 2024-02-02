@@ -1,12 +1,13 @@
 import SpinToggle from '@/components/SpinToggle';
 import WidgetDrawer from '@/components/WidgetDrawer';
 import useWidgets, {
+  refreshAvailableWidgets,
   useHideWidgetMutation,
   useShowWidgetMutation,
 } from '@/state/profile/profile';
 import { Widget } from '@/state/profile/types';
 import { useCharges } from '@/state/docket';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function EditPublicProfile({
   open,
@@ -21,6 +22,12 @@ export default function EditPublicProfile({
   const { mutateAsync: hide, isLoading: hideLoading } = useHideWidgetMutation();
   const isLoading = showLoading || hideLoading;
   const [loadingWidget, setLoadingWidget] = useState('');
+
+  useEffect(() => {
+    // no subscription for available widgets, so we refresh data
+    // manually on mount
+    refreshAvailableWidgets();
+  }, []);
 
   const onToggle = async (widget: Widget) => {
     const { id, name, sourceApp, visible } = widget;
@@ -60,7 +67,9 @@ export default function EditPublicProfile({
                 loading={isLoading && loadingWidget === widget.id}
               />
               <div className="ml-4">
-                <h4 className="pb-1 font-semibold">{charges[sourceApp]?.title || sourceApp}: {name}</h4>
+                <h4 className="pb-1 font-semibold">
+                  {charges[sourceApp]?.title || sourceApp}: {name}
+                </h4>
                 <p className="text-sm text-gray-400">{description}</p>
               </div>
             </div>
