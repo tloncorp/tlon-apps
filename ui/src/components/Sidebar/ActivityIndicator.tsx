@@ -45,13 +45,14 @@ export function ActivitySidebarItem() {
         <BellIcon
           className={cn(
             'm-1 h-4 w-4',
-            activeTab === 'notifications' && 'text-gray-700'
+            activeTab === 'notifications' ? 'text-black' : 'text-gray-600'
           )}
           isInactive={activeTab !== 'notifications'}
           nonNav
         />
       }
       actions={count > 0 && <ActivityIndicator count={count} />}
+      color={activeTab === 'notifications' ? 'text-black' : 'text-gray-600'}
       to={`/notifications`}
     >
       Activity

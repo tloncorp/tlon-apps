@@ -3,15 +3,10 @@ import React, {
   useRef,
   useMemo,
   useCallback,
-  useContext,
   useEffect,
 } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
-import { useLocation } from 'react-router-dom';
-import ActivityIndicator, {
-  ActivitySidebarItem,
-} from '@/components/Sidebar/ActivityIndicator';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import GroupList from '@/components/Sidebar/GroupList';
 import {
@@ -23,20 +18,12 @@ import {
   useNewGroups,
 } from '@/state/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import SidebarItem from '@/components/Sidebar/SidebarItem';
-import ShipName from '@/components/ShipName';
-import Avatar, { useProfileColor } from '@/components/Avatar';
 import useGroupSort from '@/logic/useGroupSort';
 import { useNotifications } from '@/notifications/useNotifications';
-import { AppUpdateContext } from '@/logic/useAppUpdates';
 import GroupsSidebarItem from './GroupsSidebarItem';
 import SidebarSorter from './SidebarSorter';
 import GangItem from './GangItem';
 import { GroupsScrollingContext } from './GroupsScrollingContext';
-import { DesktopUpdateButton } from '../UpdateNotices';
-import AddGroupSidebarItem from './AddGroupSidebarItem';
-import SidebarHeader from './SidebarHeader';
-import MessagesIcon from '../icons/MessagesIcon';
 import SidebarTopMenu from './SidebarTopMenu';
 import useActiveTab, { ActiveTab } from './util';
 import MessagesSidebar from './MessagesSidebar';
@@ -48,7 +35,6 @@ export default function Sidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
-  const { count } = useNotifications();
   const { data: groups, isLoading } = useGroupsWithQuery();
   const invitedGroups = usePendingGangsWithoutClaim();
   const pinnedGroups = usePinnedGroups();
@@ -56,7 +42,7 @@ export default function Sidebar() {
   const newGroups = useNewGroups();
   const gangsWithClaims = useGangsWithClaim();
   const sortedGroups = sortGroups(groups);
-  const shipColor = useProfileColor(window.our);
+  const searchRef = useRef<HTMLInputElement>(null);
   const ref = useRef<HTMLDivElement>(null);
   const activeTab = useActiveTab();
 
@@ -66,6 +52,7 @@ export default function Sidebar() {
   useEffect(() => {
     // if we switch between messages & groups, clear the search
     setSearchInput('');
+    searchRef.current?.focus();
   }, [activeTab]);
 
   const atTopChange = useCallback((top: boolean) => setAtTop(top), []);
@@ -164,8 +151,9 @@ export default function Sidebar() {
       <SidebarTopMenu />
 
       <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
-        <div className="relative mb-1 flex border-t-2 border-gray-50">
+        <div className="relative mb-1 flex">
           <input
+            ref={searchRef}
             id="search"
             type="text"
             autoFocus
@@ -174,7 +162,7 @@ export default function Sidebar() {
               !atTop && 'bottom-shadow'
             )}
             placeholder={
-              activeTab === 'messages' ? 'Search Messages' : 'Search Groups'
+              activeTab === 'messages' ? 'Filter Messages' : 'Filter Groups'
             }
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -193,19 +181,18 @@ export default function Sidebar() {
           <GroupsScrollingContext.Provider value={isScrolling}>
             <GroupList
               groups={
-                searchInput
+                hasSearch
                   ? (augmentedSearchResults as GroupSearchRecord[])
                   : allOtherGroups
               }
               isScrolling={scroll.current}
               atTopChange={atTopChange}
             >
-              {!searchInput && (
+              {!hasSearch && (
                 <>
                   <SidebarTopSection
                     title="Pinned Groups"
                     empty={!hasPinnedGroups && !hasInvitedGroups}
-                    noBorder={true}
                   >
                     {hasPinnedGroups && pinnedGroupsOptions}
                     {hasInvitedGroups && invitedGroupsDisplay}
@@ -249,7 +236,7 @@ export default function Sidebar() {
                 </>
               )}
 
-              {searchInput && (
+              {hasSearch && (
                 <SidebarTopSection
                   title={
                     augmentedSearchResults.length

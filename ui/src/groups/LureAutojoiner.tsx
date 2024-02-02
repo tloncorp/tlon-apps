@@ -5,12 +5,12 @@ import {
   useGroupJoinMutation,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
-import useNavigateByApp from '@/logic/useNavigateByApp';
 import { getPrivacyFromGang } from '@/logic/utils';
+import { useNavigate } from 'react-router';
 
 export default function LureAutojoiner(): React.ReactElement {
   const { mutateAsync: joinMutation } = useGroupJoinMutation();
-  const navigateByApp = useNavigateByApp();
+  const navigate = useNavigate();
 
   const pendingGangsWithoutClaim = usePendingGangsWithoutClaim();
 
@@ -24,12 +24,12 @@ export default function LureAutojoiner(): React.ReactElement {
           if (cookies.get(cookieName)) {
             await joinMutation({ flag, privacy });
             cookies.erase(cookieName);
-            navigateByApp(`/groups/${flag}`);
+            navigate(`/groups/${flag}`);
           }
         }
       });
     },
-    [joinMutation, navigateByApp]
+    [joinMutation, navigate]
   );
 
   useEffect(() => {

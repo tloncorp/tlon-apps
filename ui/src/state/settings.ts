@@ -89,6 +89,10 @@ export interface SettingsState {
     settings: Stringified<DiarySetting[]>;
     markdown: boolean;
   };
+  talk: {
+    messagesFilter: SidebarFilter;
+    showVitaMessage: boolean;
+  };
   groups: {
     orderedGroupPins: string[];
     sideBarSort: SidebarSortMode;
@@ -345,6 +349,7 @@ export function useLogActivity() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
+    // TODO: is this correct?
     if (isNativeApp()) {
       return false;
     }
@@ -556,6 +561,33 @@ export function useShowActivityMessage() {
 
     return data.groups?.showActivityMessage || false;
   }, [isLoading, data, cookie]);
+}
+
+export function useShowVitaMessage() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || window.desk !== 'talk') {
+      return false;
+    }
+
+    const setting = data[window.desk]?.showVitaMessage;
+    return setting;
+  }, [isLoading, data]);
+}
+
+export function useMessagesFilter() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.talk === undefined) {
+      return filters.dms;
+    }
+
+    const { talk } = data;
+
+    return talk.messagesFilter ?? filters.dms;
+  }, [isLoading, data]);
 }
 
 export function useTiles() {

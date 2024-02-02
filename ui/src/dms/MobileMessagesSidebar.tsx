@@ -83,18 +83,6 @@ export default function MobileMessagesSidebar() {
         action={
           <div className="flex h-12 items-center justify-end space-x-2">
             <ReconnectingSpinner />
-            {appName === 'Talk' ? (
-              <ActionMenu
-                open={filterOpen}
-                onOpenChange={setFilterOpen}
-                actions={filterActions}
-                asChild={false}
-                triggerClassName="default-focus -mr-0.5 p-1"
-                ariaLabel="Groups Filter Options"
-              >
-                <FilterIconMobileNav className="h-8 w-8 text-black" />
-              </ActionMenu>
-            ) : null}
             <Link
               to="/dm/new"
               className="default-focus flex items-center text-base"
@@ -107,10 +95,7 @@ export default function MobileMessagesSidebar() {
       />
       <nav className={cn('flex h-full w-full flex-col bg-white')}>
         <MessagesScrollingContext.Provider value={isScrolling}>
-          <MessagesList
-            filter={messagesFilter}
-            isScrolling={scroll.current}
-          >
+          <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
             {pinned && pinned.length > 0 ? (
               <>
                 <div className="px-4">

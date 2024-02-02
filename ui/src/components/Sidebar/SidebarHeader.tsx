@@ -8,6 +8,7 @@ import MenuIcon from '../icons/MenuIcon';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import ActionMenu, { Action } from '../ActionMenu';
 import TlonIcon from '../icons/TlonIcon';
+import { LeapShortcutIcon } from './SystemChrome';
 
 const SidebarHeader = React.memo(() => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -16,7 +17,6 @@ const SidebarHeader = React.memo(() => {
   const actions: Action[] = [
     {
       key: 'submit',
-      type: 'prominent',
       content: (
         <a
           className="no-underline"
@@ -24,8 +24,24 @@ const SidebarHeader = React.memo(() => {
           target="_blank"
           rel="noreferrer"
         >
-          Submit Feedback
+          <LeapShortcutIcon className="text-indigo" />
         </a>
+      ),
+    },
+    {
+      key: 'landscape',
+      content: (
+        <>
+          <a
+            className="dropdown-item no-underline"
+            href="https://airtable.com/shrflFkf5UyDFKhmW"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Back to Landscape
+          </a>
+          <div className="mx-0 h-[2px] w-full bg-gray-50 px-0" />
+        </>
       ),
     },
     {
@@ -70,6 +86,7 @@ const SidebarHeader = React.memo(() => {
       actions={actions}
       align="start"
       className="w-full"
+      contentClassName="w-[238px]"
     >
       <SidebarItem
         className={cn(
@@ -79,10 +96,14 @@ const SidebarHeader = React.memo(() => {
           'group'
         )}
         icon={
-          <div className={cn('h-6 w-6 rounded group-hover:bg-gray-100')}>
+          <div
+            className={cn(
+              'flex h-6 w-6 items-center justify-center rounded group-hover:bg-gray-100'
+            )}
+          >
             <TlonIcon
               className={cn(
-                'h-[22px] w-[22px]',
+                'm-1 h-[18px] w-[18px]',
                 menuOpen ? 'hidden' : 'group-hover:hidden'
               )}
             />
