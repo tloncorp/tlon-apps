@@ -1,6 +1,6 @@
 |%
 +$  stream  (mop time event)
-+$  indices  (map index [=stream =unreads])
++$  indices  (map index [=stream =reads])
 +$  reads  [floor=time (set event-id=time)]
 +$  derived-unreads  [time count=@ud threads=(list [time count=@ud])]
 +$  index
