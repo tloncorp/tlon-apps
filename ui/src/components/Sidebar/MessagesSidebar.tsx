@@ -10,9 +10,10 @@ import {
   usePutEntryMutation,
 } from '@/state/settings';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import MessagesList from '../../dms/MessagesList';
-import MessagesSidebarItem from '../../dms/MessagesSidebarItem';
-import { MessagesScrollingContext } from '../../dms/MessagesScrollingContext';
+import MessagesList from '@/dms/MessagesList';
+import MessagesSidebarItem from '@/dms/MessagesSidebarItem';
+import { MessagesScrollingContext } from '@/dms/MessagesScrollingContext';
+import TalkHead from '@/dms/TalkHead';
 
 export default function MessagesSidebar({
   searchQuery,
@@ -61,7 +62,7 @@ export default function MessagesSidebar({
     {
       key: 'groups',
       onClick: () => setFilterMode(filters.groups),
-      content: 'Group Talk Channels',
+      content: 'Group Chat Channels',
       containerClassName: cn(
         'flex items-center space-x-2 rounded-none',
         messagesFilter === filters.groups && 'bg-gray-50 text-gray-800'
@@ -71,6 +72,7 @@ export default function MessagesSidebar({
 
   return (
     <MessagesScrollingContext.Provider value={isScrolling}>
+      <TalkHead />
       <MessagesList
         filter={messagesFilter}
         searchQuery={searchQuery}

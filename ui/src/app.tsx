@@ -216,7 +216,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   path="channels/chat/:chShip/:chName"
                   element={<GroupChannel type="chat" />}
                 >
-                  <Route path="*" element={<ChatChannel />} />
+                  <Route
+                    path="*"
+                    element={<ChatChannel title={` • ${groupsTitle}`} />}
+                  />
                   {isSmall ? (
                     <Route path="message/:idTime" element={<ChatThread />} />
                   ) : null}
@@ -628,7 +631,6 @@ function App() {
 
 function RoutedApp() {
   const mode = import.meta.env.MODE;
-  const app = import.meta.env.VITE_APP;
   const [userThemeColor, setUserThemeColor] = useState('#ffffff');
   const showDevTools = useShowDevTools();
   const isStandAlone = useIsStandaloneMode();
@@ -644,17 +646,12 @@ function RoutedApp() {
     [needsUpdate, triggerUpdate]
   );
 
-  const basename = (appName: string) => {
+  const basename = () => {
     if (mode === 'mock' || mode === 'staging') {
       return '/';
     }
 
-    switch (appName) {
-      case 'chat':
-        return isStandAlone ? '/apps/talk/' : '/apps/talk';
-      default:
-        return isStandAlone ? '/apps/groups/' : '/apps/groups';
-    }
+    return '/apps/groups';
   };
 
   const theme = useTheme();
@@ -709,7 +706,7 @@ function RoutedApp() {
       onError={(e) => captureError('app error boundary', e)}
       onReset={() => window.location.reload()}
     >
-      <Router basename={basename(app)}>
+      <Router basename={basename()}>
         <Helmet>
           <title>Tlon</title>
           <link
