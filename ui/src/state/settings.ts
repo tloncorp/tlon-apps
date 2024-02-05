@@ -91,6 +91,7 @@ export interface SettingsState {
   talk: {
     messagesFilter: SidebarFilter;
     showVitaMessage: boolean;
+    seenSunsetMessage: boolean;
   };
   groups: {
     orderedGroupPins: string[];
@@ -500,6 +501,19 @@ export function useSeenWelcomeCard() {
     }
 
     return data.groups.seenWelcomeCard ?? false;
+  }, [isLoading, data]);
+}
+
+export function useSeenTalkSunset() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      console.log('returning sunset default');
+      return false;
+    }
+
+    return data.talk.seenSunsetMessage ?? false;
   }, [isLoading, data]);
 }
 
