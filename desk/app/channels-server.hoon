@@ -611,7 +611,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply  `(put:on-v-replies:c replies id.c-reply ~)
       ?~  u.reply  `replies
-      ?>  =(src.bowl author.u.u.reply)
+      ?>  |(=(src.bowl author.u.u.reply) (is-admin:ca-perms src.bowl))
       :-  `[%reply id.c-reply %set ~]
       (put:on-v-replies:c replies id.c-reply ~)
     ::
