@@ -80,11 +80,6 @@ export const captureAnalyticsEvent = (
   name: AnalyticsEventName,
   properties?: Properties
 ) => {
-  // TODO: verify we actually want this
-  if (isNativeApp()) {
-    return;
-  }
-
   log('Attempting to capture analytics event', name);
   const captureProperties: Properties = {
     ...(properties || {}),

@@ -347,11 +347,6 @@ export function useLogActivity() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
-    // TODO: is this correct?
-    if (isNativeApp()) {
-      return false;
-    }
-
     if (isLoading || data === undefined || data.groups === undefined) {
       return isHosted;
     }
