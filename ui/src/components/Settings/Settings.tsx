@@ -117,7 +117,7 @@ export default function Settings() {
           on={logActivity}
           toggle={() => toggleLogActivity({ val: !logActivity })}
           status={logActivityStatus}
-          name="Log Groups Usage"
+          name="Log Usage"
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
