@@ -569,12 +569,15 @@
     :~
       ;style:"{(trip style)}"
     ::
-      :-  [%$ ~]
-      ;*  ?~  ours  ~
-          ?~  cover.u.ours  ~
-      :_  ~
+      =/  src=(unit @t)
+        ?~  ours  ~
+        ?~  cover.u.ours  ~
+        ?:  =('' u.cover.u.ours)  ~
+        `u.cover.u.ours
+      ?~  src
+        ;img#profile-background;
       ;img#profile-background
-        =src  "{(trip u.cover.u.ours)}"
+        =src  "{(trip u.src)}"
         =alt  "Background";
     ::
       ;div#profile-content
