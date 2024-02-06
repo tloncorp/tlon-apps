@@ -63,7 +63,7 @@ export default function MessagesSidebar({
     {
       key: 'groups',
       onClick: () => setFilterMode(filters.groups),
-      content: 'Group Talk Channels',
+      content: 'Chat Channels',
       containerClassName: cn(
         'flex items-center space-x-2 rounded-none',
         messagesFilter === filters.groups && 'bg-gray-50 text-gray-800'
