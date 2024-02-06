@@ -53,8 +53,9 @@ export function ActivitySidebarItem() {
       }
       actions={count > 0 && <ActivityIndicator count={count} />}
       color={activeTab === 'notifications' ? 'text-black' : 'text-gray-600'}
-      to={`/notifications`}
+      to={`/`}
       defaultRoute
+      override
     >
       Activity
     </SidebarItem>
