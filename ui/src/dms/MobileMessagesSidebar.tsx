@@ -3,7 +3,6 @@ import cn from 'classnames';
 import { debounce } from 'lodash';
 import { Link } from 'react-router-dom';
 import { usePinnedChats } from '@/state/pins';
-import { useMessagesFilter } from '@/state/settings';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
@@ -13,8 +12,6 @@ import { MessagesScrollingContext } from './MessagesScrollingContext';
 
 export default function MobileMessagesSidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
-  const messagesFilter = useMessagesFilter();
-  // TODO: may need to tweak
   const pinned = usePinnedChats(true);
 
   const scroll = useRef(
@@ -40,21 +37,14 @@ export default function MobileMessagesSidebar() {
       />
       <nav className={cn('flex h-full w-full flex-col bg-white')}>
         <MessagesScrollingContext.Provider value={isScrolling}>
-          <MessagesList filter={messagesFilter} isScrolling={scroll.current}>
+          <MessagesList filter="Direct Messages" isScrolling={scroll.current}>
             {pinned && pinned.length > 0 ? (
-              <>
-                <div className="px-4">
-                  <h2 className="mb-0.5 p-2 font-sans text-gray-400">Pinned</h2>
-                  {pinned.map((ship: string) => (
-                    <MessagesSidebarItem key={ship} whom={ship} />
-                  ))}
-                </div>
-                <div className="flex flex-row items-center justify-between px-4">
-                  <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                    {messagesFilter}
-                  </h2>
-                </div>
-              </>
+              <div className="px-4">
+                <h2 className="mb-0.5 p-2 font-sans text-gray-400">Pinned</h2>
+                {pinned.map((ship: string) => (
+                  <MessagesSidebarItem key={ship} whom={ship} />
+                ))}
+              </div>
             ) : null}
           </MessagesList>
         </MessagesScrollingContext.Provider>
