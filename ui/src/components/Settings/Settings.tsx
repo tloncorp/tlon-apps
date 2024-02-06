@@ -121,9 +121,8 @@ export default function Settings() {
           labelClassName="font-semibold"
         >
           <p className="leading-5 text-gray-600">
-            Enable or disable basic activity tracking. Tlon uses this
-            data to make product decisions and to bring you a better
-            experience.
+            Enable or disable basic activity tracking. Tlon uses this data to
+            make product decisions and to bring you a better experience.
           </p>
         </Setting>
         {logActivity && (
