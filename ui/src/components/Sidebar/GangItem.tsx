@@ -81,8 +81,8 @@ export default function GangItem(props: {
 
   if (requested) {
     sideBarIcon = (
-      <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-blue">
-        Join Requested
+      <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
+        Requested
       </p>
     );
   }

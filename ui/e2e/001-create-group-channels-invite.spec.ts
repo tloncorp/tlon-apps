@@ -5,7 +5,7 @@ import shipManifest from './shipManifest.json';
 // patbud is the invited ship
 
 const ownerUrl = `${shipManifest['~naldeg-mardev'].webUrl}/apps/groups/`;
-const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/`;
+const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/notifications`;
 const groupOwner = 'mardev';
 const invitedShip = 'patbud';
 
@@ -19,7 +19,9 @@ test('Create a group', async ({ browser }) => {
   const page = await ownerContext.newPage();
   await page.goto(ownerUrl);
   await page.getByTestId('add-group-sidebar-button').waitFor();
-  await page.getByTestId('add-group-sidebar-button').click();
+  await page.getByTestId('add-group-sidebar-button').hover();
+  await page.getByTestId('add-group-sidebar-button-icon').waitFor();
+  await page.getByTestId('add-group-sidebar-button-icon').click();
   await page.getByTestId('create-group-dropdown-button').click();
   await page.getByTestId('create-group-name-input').fill('mardev Club');
   await page.getByTestId('create-group-submit-button').click();

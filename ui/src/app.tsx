@@ -313,19 +313,6 @@ function ChatRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   );
 }
 
-function HomeRoute({ isMobile = true }: { isMobile: boolean }) {
-  if (isMobile) {
-    return <MobileGroupsNavHome />;
-  }
-
-  return (
-    <Notifications
-      child={GroupNotification}
-      title={`Activity • ${appHead('').title}`}
-    />
-  );
-}
-
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   const groupsTitle = appHead('').title;
   const loaded = useSettingsLoaded();
@@ -348,7 +335,20 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<GroupsNav />}>
           <Route element={isMobile ? <MobileSidebar /> : undefined}>
-            <Route index element={<HomeRoute isMobile={isMobile} />} />
+            <Route path="/groups" element={<GroupsNav />} />
+            <Route
+              index
+              element={
+                isMobile ? (
+                  <MobileGroupsNavHome />
+                ) : (
+                  <Notifications
+                    child={GroupNotification}
+                    title={`Activity • ${groupsTitle}`}
+                  />
+                )
+              }
+            />
             <Route
               path="/notifications"
               element={
@@ -358,20 +358,46 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               }
             />
-            <Route path="/messages" element={<MobileMessagesSidebar />} />
+            <Route
+              path="/messages"
+              element={isMobile ? <MobileMessagesSidebar /> : null}
+            />
             <Route path="/dm/" element={<Dms />}>
               <Route index element={<DMHome />} />
+
               <Route path="new">
                 <Route index element={<NewDM />} />
                 <Route path=":ship" element={<Message />} />
               </Route>
-              <Route path=":ship" element={<Message />}>
-                {isSmall ? null : (
-                  <Route
-                    path="message/:idShip/:idTime"
-                    element={<DMThread />}
-                  />
-                )}
+
+              <Route path=":ship">
+                <Route index element={<Message />} />
+                <Route path="*" element={<Message />}>
+                  {isSmall ? null : (
+                    <Route
+                      path="message/:idShip/:idTime"
+                      element={<DMThread />}
+                    />
+                  )}
+                </Route>
+              </Route>
+
+              <Route path="groups/:ship/:name/*" element={<Groups />}>
+                <Route
+                  path="channels/chat/:chShip/:chName"
+                  element={<GroupChannel type="chat" />}
+                >
+                  <Route path="*" element={<ChatChannel />} />
+                  {isSmall ? (
+                    <Route path="message/:idTime" element={<ChatThread />} />
+                  ) : null}
+                  {isMobile && (
+                    <Route
+                      path="search/:query?"
+                      element={<MobileChatSearch />}
+                    />
+                  )}
+                </Route>
               </Route>
               {isSmall && (
                 <Route

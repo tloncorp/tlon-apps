@@ -13,6 +13,7 @@ export type SubscriptionStatus = 'connected' | 'disconnected' | 'reconnecting';
 interface LocalState {
   browserId: string;
   currentTheme: 'light' | 'dark';
+  manuallyShowTalkSunset: boolean;
   subscription: SubscriptionStatus;
   groupsLocation: string;
   messagesLocation: string;
@@ -33,6 +34,7 @@ export const useLocalState = create<LocalState>(
       subscription: 'connected',
       groupsLocation: '/',
       messagesLocation: '/messages',
+      manuallyShowTalkSunset: false,
       showDevTools: import.meta.env.DEV,
       errorCount: 0,
       airLockErrorCount: 0,
@@ -65,6 +67,11 @@ export function useBrowserId() {
 const selCurrentTheme = (s: LocalState) => s.currentTheme;
 export function useCurrentTheme() {
   return useLocalState(selCurrentTheme);
+}
+
+const selManuallyShowTalkSunset = (s: LocalState) => s.manuallyShowTalkSunset;
+export function useManuallyShowTalkSunset() {
+  return useLocalState(selManuallyShowTalkSunset);
 }
 
 export const setLocalState = (f: (s: LocalState) => void) =>

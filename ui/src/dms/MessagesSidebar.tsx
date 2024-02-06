@@ -22,6 +22,8 @@ import SystemChrome from '@/components/Sidebar/SystemChrome';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import { DesktopUpdateButton } from '@/components/UpdateNotices';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
+import CautionIcon from '@/components/icons/CautionIcon';
+import { useLocalState } from '@/state/local';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
 import { MessagesScrollingContext } from './MessagesScrollingContext';
@@ -32,8 +34,14 @@ export function TalkAppMenu() {
 
   const actions: Action[] = [
     {
+      key: 'sunset',
+      onClick: () => {
+        useLocalState.setState({ manuallyShowTalkSunset: true });
+      },
+      content: <span className="text-indigo">Talk is Sunsetting</span>,
+    },
+    {
       key: 'submit',
-      type: 'prominent',
       content: (
         <a
           className="no-underline"
@@ -100,7 +108,9 @@ export function TalkAppMenu() {
         }
       >
         <div className="flex items-center justify-between">
-          Talk
+          <span className="flex items-center justify-center">
+            Talk <CautionIcon className="ml-2 h-5 w-5 text-indigo" />
+          </span>
           <ReconnectingSpinner className="h-4 w-4 group-hover:hidden" />
           <a
             title="Back to Landscape"

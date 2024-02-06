@@ -12,7 +12,7 @@ export default function HomeIconMobileNav({
   asIcon?: boolean;
 } & IconProps) {
   const opacity = useMemo(
-    () => (asIcon ? '1' : isDarkMode ? '.8' : '0.2'),
+    () => (asIcon ? '.4' : isDarkMode ? '.8' : '0.2'),
     [isDarkMode, asIcon]
   );
   if (isInactive) {

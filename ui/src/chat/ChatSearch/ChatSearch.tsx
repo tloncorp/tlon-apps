@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
 import { disableDefault } from '@/logic/utils';
 import { useSafeAreaInsets } from '@/logic/native';
+import useActiveTab from '@/components/Sidebar/util';
 import { ChatMap } from '@/types/channel';
 import ChatSearchResults from './ChatSearchResults';
 import { useChatSearchInput } from './useChatSearchInput';
@@ -36,6 +37,7 @@ export default function ChatSearch({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const isSmall = useMedia('(min-width: 768px) and (max-width: 1099px)');
+  const activeTab = useActiveTab();
   const safeAreaInsets = useSafeAreaInsets();
   const scrollerRef = React.useRef<VirtuosoHandle>(null);
   const { selected, rawInput, onChange, onKeyDown } = useChatSearchInput({
@@ -67,7 +69,7 @@ export default function ChatSearch({
     }
   }, []);
 
-  const onDialogClose = useCallback(
+  const onOpenChange = useCallback(
     (open: boolean) => {
       if (!open) {
         navigate(root);
@@ -104,7 +106,11 @@ export default function ChatSearch({
               isSmall={isSmall}
             />
           </label>
-          <Dialog.Root open modal={false} onOpenChange={onDialogClose}>
+          <Dialog.Root
+            open
+            modal={activeTab === 'messages' ? true : false}
+            onOpenChange={onOpenChange}
+          >
             <Dialog.Content
               onInteractOutside={preventClose}
               onOpenAutoFocus={disableDefault}
