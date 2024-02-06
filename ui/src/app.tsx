@@ -177,7 +177,20 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<GroupsNav />}>
           <Route element={isMobile ? <MobileSidebar /> : undefined}>
-            <Route index element={isMobile ? <MobileGroupsNavHome /> : null} />
+            <Route path="/groups" element={<GroupsNav />} />
+            <Route
+              index
+              element={
+                isMobile ? (
+                  <MobileGroupsNavHome />
+                ) : (
+                  <Notifications
+                    child={GroupNotification}
+                    title={`Activity • ${groupsTitle}`}
+                  />
+                )
+              }
+            />
             <Route
               path="/notifications"
               element={

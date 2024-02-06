@@ -10,7 +10,7 @@ export default function useActiveTab(): ActiveTab {
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
 
-  if (location.pathname === '/') {
+  if (isActive('/groups')) {
     return 'groups';
   }
 
@@ -18,7 +18,7 @@ export default function useActiveTab(): ActiveTab {
     return 'messages';
   }
 
-  if (isActive('/notifications')) {
+  if (isActive('/notifications') || location.pathname === '/') {
     return 'notifications';
   }
 

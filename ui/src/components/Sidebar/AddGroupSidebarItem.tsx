@@ -35,9 +35,7 @@ export default function AddGroupSidebarItem() {
             isInactive={activeTab !== 'groups'}
           />
         }
-        to="/"
-        override
-        defaultRoute
+        to="/groups"
         color={activeTab === 'groups' ? 'text-black' : 'text-gray-600'}
         actions={
           <Dropdown.Trigger data-testid="add-group-sidebar-button-icon">

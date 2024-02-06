@@ -84,9 +84,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
     const fileList = [...files].map((file) => ({
       file,
-      key: `${window.ship}/${deSig(formatDa(unixToDa(new Date().getTime())))}-${
-        file.name
-      }`,
+      key: `${window.ship}/${deSig(
+        formatDa(unixToDa(new Date().getTime()))
+      )}-${file.name.split(' ').join('-')}`,
       status: 'initial' as Status,
       url: '',
       size: [0, 0] as [number, number],
