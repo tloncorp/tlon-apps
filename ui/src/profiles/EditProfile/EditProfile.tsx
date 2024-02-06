@@ -16,12 +16,14 @@ import ShipName from '@/components/ShipName';
 import GroupSelector, { GroupOption } from '@/components/GroupSelector';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
+import { useProfileIsPublic } from '@/state/profile/profile';
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
 import useAppName from '@/logic/useAppName';
 import ProfileFields from './ProfileFields';
 import ProfileCoverImage from '../ProfileCoverImage';
 import ProfileGroup from './ProfileGroup';
+import PublicProfileSelector from '../PublicProfileSelector';
 
 interface ProfileFormSchema extends Omit<Contact, 'groups'> {
   groups: GroupOption[];
@@ -52,6 +54,8 @@ const onFormSubmit = (values: ProfileFormSchema, contact: Contact) => {
 };
 
 function EditProfileContent() {
+  const profileIsPublic = useProfileIsPublic();
+  const isMobile = useIsMobile();
   const [allGroups, setAllGroups] = useState<GroupOption[]>([]);
   const groupData = useGroups();
   const groupFlags = Object.keys(groupData);
@@ -162,6 +166,15 @@ function EditProfileContent() {
             </div>
           </div>
         </div>
+
+        {!isMobile && profileIsPublic && (
+          <div className="card mb-4">
+            <div className="max-w-lg">
+              <PublicProfileSelector isMobile={false} />
+            </div>
+          </div>
+        )}
+
         <div className="card">
           <form
             className="flex flex-col space-y-8"

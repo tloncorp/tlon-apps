@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import SpinToggle from '@/components/SpinToggle';
 import WidgetDrawer from '@/components/WidgetDrawer';
 import useWidgets, {
@@ -8,6 +9,8 @@ import useWidgets, {
 import { Widget } from '@/state/profile/types';
 import { useCharges } from '@/state/docket';
 import { useEffect, useState } from 'react';
+import Dialog from '@/components/Dialog';
+import { useIsMobile } from '@/logic/useMedia';
 
 export default function EditPublicProfile({
   open,
@@ -16,6 +19,7 @@ export default function EditPublicProfile({
   open: boolean;
   onOpenChange: (change: boolean) => void;
 }) {
+  const isMobile = useIsMobile();
   const widgets = useWidgets();
   const charges = useCharges();
   const { mutateAsync: show, isLoading: showLoading } = useShowWidgetMutation();
@@ -41,11 +45,7 @@ export default function EditPublicProfile({
   };
 
   return (
-    <WidgetDrawer
-      open={open}
-      onOpenChange={onOpenChange}
-      className="h-[50vh] px-10 py-8"
-    >
+    <Container open={open} onOpenChange={onOpenChange}>
       <h2 className="text-lg font-semibold">Customize Profile</h2>
       <p className="pt-4 leading-5 text-gray-400">
         Your profile can connect to your Urbit in all sorts of ways. It's your
@@ -53,7 +53,7 @@ export default function EditPublicProfile({
       </p>
 
       <h3 className="mb-2 pt-8 text-gray-400">Available Widgets</h3>
-      <div className=" overflow-scroll">
+      <div className={cn('overflow-scroll', !isMobile && 'h-[200px]')}>
         {widgets.map((widget) => {
           const { name, sourceApp, description, visible } = widget;
           return (
@@ -76,6 +76,36 @@ export default function EditPublicProfile({
           );
         })}
       </div>
+    </Container>
+  );
+}
+
+function Container({
+  open,
+  onOpenChange,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (newOpen: boolean) => void;
+  children: React.ReactNode;
+}) {
+  const isMobile = useIsMobile();
+
+  return isMobile ? (
+    <WidgetDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      className="h-[50vh] px-10 py-8"
+    >
+      {children}
     </WidgetDrawer>
+  ) : (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      containerClass="w-full sm:max-w-lg h-[500px] overflow-hidden focus-visible:border-none focus:outline-none"
+    >
+      {children}
+    </Dialog>
   );
 }

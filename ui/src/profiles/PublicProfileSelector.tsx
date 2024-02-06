@@ -14,7 +14,11 @@ import CopyIcon from '@/components/icons/CopyIcon';
 import NewRaysIcon from '@/components/icons/NewRaysIcon';
 import EditPublicProfile from './EditPublicProfile';
 
-export default function PublicProfileSelector() {
+export default function PublicProfileSelector({
+  isMobile = true,
+}: {
+  isMobile?: boolean;
+}) {
   const profileIsPublic = useProfileIsPublic();
   const [fakeLoading, setFakeLoading] = useState(false); // ~give it a minute~
   const { mutate: makePublic, isLoading: pubLoading } =
@@ -47,7 +51,7 @@ export default function PublicProfileSelector() {
       <SidebarItem
         unclamped
         color="text-gray-900"
-        fontWeight="font-normal"
+        fontWeight={isMobile ? 'font-normal' : 'font-semibold'}
         fontSize="text-[17px]"
         className="leading-5"
         onClick={() => toggleProfile()}
@@ -83,7 +87,12 @@ export default function PublicProfileSelector() {
       </SidebarItem>
 
       {!profileLoading && profileIsPublic && (
-        <div className="flex w-full items-center justify-center pl-4 pr-2">
+        <div
+          className={cn(
+            'flex w-full items-center justify-center pl-4 pr-2',
+            !isMobile && 'mt-3'
+          )}
+        >
           <div className="flex w-full flex-col rounded-xl bg-gray-400 p-0 dark:bg-gray-200">
             <button
               onClick={doCopy}
