@@ -54,5 +54,4 @@ export default function useSearchFilter(query: string): GroupSearchRecord[] {
       record.title.toLowerCase().startsWith(query.toLowerCase()) ||
       deSig(record.flag)?.startsWith(deSig(query) || '')
   );
-
 }
