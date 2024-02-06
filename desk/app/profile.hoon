@@ -297,7 +297,7 @@
       ::  render all the widgets
       ::
       ;div.widget-column
-        ;div.widget-padding;
+        ;div(class "widget-padding{?:(?=([* ~] layout) " solo" "")}");
         ;*  %+  murn  layout
             |=  [=desk =term]
             ?.  (~(has by (~(gut by widgets) desk ~)) term)
