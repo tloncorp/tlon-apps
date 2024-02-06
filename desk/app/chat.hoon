@@ -1092,7 +1092,6 @@
   ++  cu-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
-    ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %groups /club/(scot %uv id)]
     =/  link  (welp /dm/(scot %uv id) rest)
     [& & rope con link but]
@@ -1491,7 +1490,6 @@
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
-    ::  hard coded desk because these shouldn't appear in groups
     =/  rope  [~ ~ %groups /dm/(scot %p ship)]
     =/  link  (welp /dm/(scot %p ship) rest)
     [& & rope con link but]
