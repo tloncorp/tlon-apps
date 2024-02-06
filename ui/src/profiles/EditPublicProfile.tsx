@@ -34,12 +34,12 @@ export default function EditPublicProfile({
   }, []);
 
   const onToggle = async (widget: Widget) => {
-    const { id, name, sourceApp, visible } = widget;
+    const { id, visible } = widget;
     setLoadingWidget(id);
     if (visible) {
-      await hide({ name, sourceApp });
+      await hide({ id });
     } else {
-      await show({ name, sourceApp });
+      await show({ id });
     }
     setLoadingWidget('');
   };

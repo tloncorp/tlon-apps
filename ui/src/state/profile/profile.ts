@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import _ from 'lodash';
 import queryClient from '@/queryClient';
 import api from '@/api';
-import { ProfLayout, ProfWidgets, Widget } from './types';
+import { ProfLayout, ProfWidgets, Widget, getWidgetIdParts } from './types';
 import ProfileKeys from './keys';
 
 // stub since we cant get this in the api?
@@ -101,15 +101,16 @@ export default function useWidgets(): Widget[] {
 export function useHideWidgetMutation() {
   const visible = useVisibleWidgetIds();
 
-  const mutationFn = async (variables: { sourceApp: string; name: string }) => {
-    console.log('hiding widget', variables);
+  const mutationFn = async (variables: { id: string }) => {
+    const { desk, term } = getWidgetIdParts(variables.id);
+
     await api.poke({
       app: 'profile',
       mark: 'json',
       json: {
         'del-widget': {
-          desk: variables.sourceApp,
-          term: variables.name,
+          desk,
+          term,
         },
       },
     });
@@ -121,8 +122,9 @@ export function useHideWidgetMutation() {
       await queryClient.cancelQueries(ProfileKeys.layout());
 
       // update cache
+      const { desk, term } = getWidgetIdParts(variables.id);
       const newVisible = visible.filter(
-        (w) => !(w.desk === variables.sourceApp && w.term === variables.name)
+        (w) => !(w.desk === desk && w.term === term)
       );
       queryClient.setQueryData(ProfileKeys.layout(), newVisible);
     },
@@ -135,14 +137,16 @@ export function useHideWidgetMutation() {
 export function useShowWidgetMutation() {
   const visible = useVisibleWidgetIds();
 
-  const mutationFn = async (variables: { sourceApp: string; name: string }) => {
+  const mutationFn = async (variables: { id: string }) => {
+    const { desk, term } = getWidgetIdParts(variables.id);
+
     await api.poke({
       app: 'profile',
       mark: 'json',
       json: {
         'put-widget': {
-          desk: variables.sourceApp,
-          term: variables.name,
+          desk,
+          term,
         },
       },
     });
@@ -154,13 +158,10 @@ export function useShowWidgetMutation() {
       await queryClient.cancelQueries(ProfileKeys.layout());
 
       // update cache
+      const { desk, term } = getWidgetIdParts(variables.id);
       const newVisible = _.cloneDeep(visible);
-      if (
-        !newVisible.some(
-          (w) => w.desk === variables.sourceApp && w.term === variables.name
-        )
-      ) {
-        newVisible.push({ desk: variables.sourceApp, term: variables.name });
+      if (!newVisible.some((w) => w.desk === desk && w.term === term)) {
+        newVisible.push({ desk, term });
       }
 
       queryClient.setQueryData(ProfileKeys.layout(), newVisible);
