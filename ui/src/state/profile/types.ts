@@ -14,6 +14,10 @@ export interface Widget {
   id: string;
   name: string;
   sourceApp: string;
-  description: string;
   visible: boolean;
+}
+
+export function getWidgetIdParts(id: string): { desk: Desk; term: Term } {
+  const [desk, term] = id.split(':');
+  return { desk, term };
 }

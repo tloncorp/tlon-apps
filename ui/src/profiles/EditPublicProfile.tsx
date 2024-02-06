@@ -55,7 +55,7 @@ export default function EditPublicProfile({
       <h3 className="mb-2 pt-8 text-gray-400">Available Widgets</h3>
       <div className={cn('overflow-scroll', !isMobile && 'h-[200px]')}>
         {widgets.map((widget) => {
-          const { name, sourceApp, description, visible } = widget;
+          const { name, sourceApp, visible } = widget;
           return (
             <div
               key={widget.id}
@@ -67,10 +67,10 @@ export default function EditPublicProfile({
                 loading={isLoading && loadingWidget === widget.id}
               />
               <div className="ml-4">
-                <h4 className="pb-1 font-semibold">
-                  {charges[sourceApp]?.title || sourceApp}: {name}
-                </h4>
-                <p className="text-sm text-gray-400">{description}</p>
+                <span className="text-sm text-gray-400">
+                  {charges[sourceApp]?.title || sourceApp}
+                </span>
+                <h4 className="pb-1 text-lg">{name}</h4>
               </div>
             </div>
           );

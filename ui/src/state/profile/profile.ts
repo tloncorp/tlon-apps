@@ -75,10 +75,9 @@ export default function useWidgets(): Widget[] {
       Object.entries(deskWidgets).forEach(([term, description]) => {
         const id = `${desk}:${term}`;
         wid.push({
-          id: `${desk}:${term}`, // mark plz <3
-          name: term,
+          id: `${desk}:${term}`,
+          name: description,
           sourceApp: desk,
-          description,
           visible: visibleIds.has(id),
         });
       });
