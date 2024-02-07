@@ -29,6 +29,13 @@ interface DeepLinkData {
   wer?: string;
 }
 
+export async function getDmLink(): Promise<string> {
+  const dmPath = `dm/${window.our}`;
+  const fallbackUrl = `https://tlon.network/lure/~loshut-lonreg/tlon`; // for now, send to generic signup page on desktop
+  const link = await createDeepLink(fallbackUrl, 'wer', dmPath);
+  return link || '';
+}
+
 export const createDeepLink = async (
   fallbackUrl: string | undefined,
   type: DeepLinkType,
