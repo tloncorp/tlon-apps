@@ -17,7 +17,8 @@
     `con.for.foreign
   ~
 |^  %-  ~(gas by *(map term [%0 @t %marl marl]))
-    :~  [%profile %0 'Profile' %marl profile-widget]
+    :~  [%profile %0 'Profile Header' %marl profile-widget]
+        [%profile-bio %0 'Profile Bio' %marl profile-bio]
         [%join-button %0 '"Join me" button' %marl join-button]
     ==
 ::
@@ -113,6 +114,36 @@
       ;div.blurred-sphere.sphere-2;
     ==
   ==
+::
+++  profile-bio
+  ^-  marl
+  =/  style=@t
+      '''
+        .profile-bio > p {
+          font-size: 17px;
+          font-style: normal;
+          font-weight: 400;
+        }
+
+        .profile-bio-title {
+          opacity: 50%;
+        }
+
+        .profile-bio-content {
+          margin-top: 12px;
+          line-height: 22px;
+          letter-spacing: -0.408px;
+
+        }
+      '''
+  :~
+    ;style:"{(trip style)}"
+  ::
+  ;div.profile-bio
+    ;p.profile-bio-title: Info
+    ;p.profile-bio-content: Another change to the content of my profile. I keep adding sentences, isnt it fun? I agree. For sure.
+  ==
+==
 ::
 ++  profile-widget
   ^-  marl

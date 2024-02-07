@@ -378,7 +378,7 @@
 ++  on-init
   ^-  (quip card _this)
   ::NOTE  we special-case the "internal" widgets
-  =.  layout  [[%groups %profile] [%groups %join-button] ~]
+  =.  layout  [[%groups %profile] [%groups %join-button] [%groups %profile-bio] ~]
   :_  this
   :~  [%pass /contacts/ours %agent [our.bowl %contacts] %watch /contact]
       [%pass /refresh %arvo %b %wait now.bowl]
