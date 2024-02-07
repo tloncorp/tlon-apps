@@ -222,6 +222,7 @@
 
     .widget {
       position: relative;
+      overflow: hidden;
       box-sizing: border-box;
       max-width: 85vw;
       margin-top: 20px;
