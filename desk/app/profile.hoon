@@ -306,6 +306,8 @@
             ;div.widget(id "{(trip desk)}--{(trip term)}")
               ;*  ?:  ?=([%groups %profile] [desk term])
                     profile-widget
+                  ?:  ?=([%groups %join-me-button] [desk term])
+                    join-me-button
                   marl.body:(~(got by (~(got by widgets) desk)) term)
             ==
       ==
@@ -314,23 +316,88 @@
         ::TODO  maybe only display if Host header has *.tlon.network?
         ::      we can't know ahead of time, but could know on first visit, or
         ::      at customization-time...
-        ;*  ?.  tlon-cta  ~
-            :_  ~
-        ;a.call-to-action/"https://tlon.network/lure/~nibset-napwyn/tlon"
-          ;div.call-to-action-icon
-            ;svg
-              =width  "18"
-              =height  "18"
-              =viewBox  "0 0 18 18"
-              =fill  "none"
-              =xmlns  "http://www.w3.org/2000/svg"
-              ;path#call-to-action-icon-path
-                =d  "M15.4151 0.259814L0.497261 1.82774C0.222631 1.85661 0.0233995 2.10264 0.0522642 2.37727L0.391982 5.60946C0.420847 5.88409 0.666877 6.08332 0.941507 6.05446L5.41686 5.58408C5.96612 5.52635 6.45818 5.92482 6.51591 6.47407L6.79029 9.08469C6.84081 9.5653 6.49215 9.99585 6.01155 10.0464C5.53095 10.0969 5.10039 9.74822 5.04988 9.26762L4.85389 7.40289C4.82502 7.12826 4.57899 6.92903 4.30436 6.95789L1.07217 7.29761C0.797538 7.32648 0.598306 7.57251 0.627171 7.84714L1.56793 16.7978C1.62566 17.3471 2.11772 17.7456 2.66698 17.6878L16.5903 16.2244C17.1395 16.1667 17.538 15.6746 17.4803 15.1254L16.5395 6.17468C16.5107 5.90005 16.2646 5.70082 15.99 5.72968L12.7578 6.0694C12.4832 6.09827 12.2839 6.3443 12.3128 6.61893L12.5088 8.48366C12.5593 8.96426 12.2107 9.39481 11.73 9.44533C11.2494 9.49584 10.8189 9.14718 10.7684 8.66658L10.494 6.05596C10.4363 5.5067 10.8347 5.01464 11.384 4.95691L15.8593 4.48653C16.134 4.45767 16.3332 4.21164 16.3043 3.93701L15.9646 0.70481C15.9357 0.430181 15.6897 0.230949 15.4151 0.259814Z";
-            ==
-          ==
-          ;p.call-to-action-text:"Join me on Tlon"
-        ==
+        :: ;*  ?.  tlon-cta  ~
+        ::     :_  ~
+        :: ;a.call-to-action/"https://tlon.network/lure/~nibset-napwyn/tlon"
+        ::   ;div.call-to-action-icon
+        ::     ;svg
+        ::       =width  "18"
+        ::       =height  "18"
+        ::       =viewBox  "0 0 18 18"
+        ::       =fill  "none"
+        ::       =xmlns  "http://www.w3.org/2000/svg"
+        ::       ;path#call-to-action-icon-path
+        ::         =d  "M15.4151 0.259814L0.497261 1.82774C0.222631 1.85661 0.0233995 2.10264 0.0522642 2.37727L0.391982 5.60946C0.420847 5.88409 0.666877 6.08332 0.941507 6.05446L5.41686 5.58408C5.96612 5.52635 6.45818 5.92482 6.51591 6.47407L6.79029 9.08469C6.84081 9.5653 6.49215 9.99585 6.01155 10.0464C5.53095 10.0969 5.10039 9.74822 5.04988 9.26762L4.85389 7.40289C4.82502 7.12826 4.57899 6.92903 4.30436 6.95789L1.07217 7.29761C0.797538 7.32648 0.598306 7.57251 0.627171 7.84714L1.56793 16.7978C1.62566 17.3471 2.11772 17.7456 2.66698 17.6878L16.5903 16.2244C17.1395 16.1667 17.538 15.6746 17.4803 15.1254L16.5395 6.17468C16.5107 5.90005 16.2646 5.70082 15.99 5.72968L12.7578 6.0694C12.4832 6.09827 12.2839 6.3443 12.3128 6.61893L12.5088 8.48366C12.5593 8.96426 12.2107 9.39481 11.73 9.44533C11.2494 9.49584 10.8189 9.14718 10.7684 8.66658L10.494 6.05596C10.4363 5.5067 10.8347 5.01464 11.384 4.95691L15.8593 4.48653C16.134 4.45767 16.3332 4.21164 16.3043 3.93701L15.9646 0.70481C15.9357 0.430181 15.6897 0.230949 15.4151 0.259814Z";
+        ::     ==
+        ::   ==
+        ::   ;p.call-to-action-text:"Join me on Tlon"
+        :: ==
     ==
+  ::
+  ::
+  ++  join-me-button
+    ^-  marl
+    =/  style=@t
+    '''
+    .hero-button {
+      margin-top: 72px;
+      padding: 16px 32px;
+      background-color: black;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      font-size: 20px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+      border: none;
+      outline: none;
+      text-decoration: none;
+    }
+
+    .hero-button:active {
+      background-color: #1a1a1a;
+    }
+
+    .hero-button-svg {
+      height: 20px;
+      width: 20px;
+      margin-right: 14px;
+      fill: white;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .hero-button {
+        background-color: white;
+        color: black;
+      }
+
+      .hero-button:active {
+        background-color: #f0f0f0;
+      }
+
+      .hero-button-svg {
+        fill: black;
+      }
+    }
+    '''
+    :~
+      ;style:"{(trip style)}"
+    ;a.hero-button/"https://join.tlon.io/dm-{(oust [0 1] (scow %p our.bowl))}"
+      ;svg.hero-button-svg
+        =width  "18"
+        =height  "18"
+        =viewBox  "0 0 18 18"
+        =xmlns  "http://www.w3.org/2000/svg"
+        ;path
+          =d  "M15.4151 0.259814L0.497261 1.82774C0.222631 1.85661 0.0233995 2.10264 0.0522642 2.37727L0.391982 5.60946C0.420847 5.88409 0.666877 6.08332 0.941507 6.05446L5.41686 5.58408C5.96612 5.52635 6.45818 5.92482 6.51591 6.47407L6.79029 9.08469C6.84081 9.5653 6.49215 9.99585 6.01155 10.0464C5.53095 10.0969 5.10039 9.74822 5.04988 9.26762L4.85389 7.40289C4.82502 7.12826 4.57899 6.92903 4.30436 6.95789L1.07217 7.29761C0.797538 7.32648 0.598306 7.57251 0.627171 7.84714L1.56793 16.7978C1.62566 17.3471 2.11772 17.7456 2.66698 17.6878L16.5903 16.2244C17.1395 16.1667 17.538 15.6746 17.4803 15.1254L16.5395 6.17468C16.5107 5.90005 16.2646 5.70082 15.99 5.72968L12.7578 6.0694C12.4832 6.09827 12.2839 6.3443 12.3128 6.61893L12.5088 8.48366C12.5593 8.96426 12.2107 9.39481 11.73 9.44533C11.2494 9.49584 10.8189 9.14718 10.7684 8.66658L10.494 6.05596C10.4363 5.5067 10.8347 5.01464 11.384 4.95691L15.8593 4.48653C16.134 4.45767 16.3332 4.21164 16.3043 3.93701L15.9646 0.70481C15.9357 0.430181 15.6897 0.230949 15.4151 0.259814Z";
+      ==
+      ;span:"Join me on Tlon"
+    ==
+  ==
   ::
   ++  profile-widget
     ^-  marl
@@ -698,10 +765,10 @@
 ++  on-init
   ^-  (quip card _this)
   ::NOTE  we special-case the "internal" [%groups %profile] widget
-  =.  layout  [%groups %profile]~
+  =.  layout  [[%groups %profile] [%groups %join-me-button] ~]
   =.  widgets
     %+  ~(put by widgets)  %groups
-    (~(put by *(map term widget)) %profile %0 'Profile' %marl ~)
+    (~(put by (~(put by *(map term widget)) %profile %0 'Profile' %marl ~)) %join-me-button %0 'Join me Button' %marl ~)
   :_  this
   [%pass /contacts/ours %agent [our.bowl %contacts] %watch /contact]~
 ::
