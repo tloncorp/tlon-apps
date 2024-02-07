@@ -45,14 +45,13 @@
 ++  bind
   ^-  (quip card _state)
   :_  state
-  :-  [%pass /eyre/connect %arvo %e %connect [~ /profile] dap.bowl]
-  update-cache
+  [%pass /eyre/connect %arvo %e %connect [~ /profile] dap.bowl]~
 ::
 ++  did-bind
   |=  success=?
   ^-  (quip card _state)
   ?:  success
-    [~ state(bound &)]
+    [update-cache state(bound &)]
   [~ state(bound |)]
 ::
 ++  unbind
@@ -139,6 +138,7 @@
 ::
 ++  update-cache
   ^-  (list card)
+  ?.  bound  ~
   =/  payload=simple-payload:http
     (paint:rudder %page render-page)
   [%pass /eyre/cache %arvo %e %set-response '/profile' `[| %payload payload]]~
