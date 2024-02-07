@@ -16,7 +16,6 @@
     ::
       widgets=(map desk (map term widget))
       layout=(list [=desk =term])
-      tlon-cta=?
   ==
 ::
 +$  widget
@@ -35,7 +34,6 @@
       [%unbind ~]
       [%put-widget =desk =term]
       [%del-widget =desk =term]
-      [%toggle-cta set=(unit ?)]
   ==
 ::
 +$  card  $+(card card:agent:gall)
@@ -118,10 +116,6 @@
     ?~  spot=(find [desk term]~ layout)
       [~ state]
     =.  layout  (oust [u.spot 1] layout)
-    [update-cache state]
-  ::
-      %toggle-cta
-    =.  tlon-cta  (fall set.action !tlon-cta)
     [update-cache state]
   ==
 ::
@@ -423,7 +417,6 @@
         'unbind'^ul
         'put-widget'^(ot 'desk'^so 'term'^so ~)
         'del-widget'^(ot 'desk'^so 'term'^so ~)
-        'toggle-cta'^(pe ~ bo)
     ==
   ::
       %handle-http-request
