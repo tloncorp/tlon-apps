@@ -147,8 +147,8 @@
   ^-  (quip card _state)
   =/  giz=(map term widget)  (~(gut by widgets) %groups ~)
   =.  giz  (~(uni by giz) (stock-widgets bowl))
-  :-  update-cache
-  state(widgets (~(put by widgets) %groups giz))
+  =.  widgets  (~(put by widgets) %groups giz)
+  [update-cache state]
 ::
 ++  render-page
   ^-  manx
