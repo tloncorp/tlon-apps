@@ -141,7 +141,7 @@
   ::
   ;div.profile-bio
     ;p.profile-bio-title: Info
-    ;p.profile-bio-content: Another change to the content of my profile. I keep adding sentences, isnt it fun? I agree. For sure.
+    ;p.profile-bio-content: Some placeholder bio content for previewing what this will look like when completed
   ==
 ==
 ::
