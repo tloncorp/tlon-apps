@@ -633,6 +633,19 @@
         }
       }
       '''
+     =/  script=@t
+      '''
+      function isTextClipped(element) {
+        return element.scrollHeight > element.clientHeight;
+      }
+
+      const bioContainer = document.getElementById("profile-bio");
+      const bio = document.getElementById("bio-content");
+
+      if (isTextClipped(bioContainer)) {
+        bio.classList.add("fade-text");
+      }
+      '''
     :~
       ;style:"{(trip style)}"
     ::
@@ -694,6 +707,7 @@
                 [[%$ $+[p ~] ~] ~]
           ==
         ==
+        ;script:"{(trip script)}"
       ==
     ==
   --
