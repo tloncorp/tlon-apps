@@ -220,9 +220,7 @@ export default function Notifications({
             <div>
               <WelcomeCard />
               <div className="mb-6 flex w-full items-center justify-between">
-                <h2 className="text-lg font-bold">
-                  {group && 'Group '}Activity{!group && ' in All Groups'}
-                </h2>
+                <h2 className="text-lg font-bold">Activity</h2>
                 {hasUnreads && MarkAsRead}
               </div>
             </div>
@@ -231,7 +229,7 @@ export default function Notifications({
             notifications.length === 0 ? (
               <div className="mt-3 flex w-full items-center justify-center">
                 <span className="text-base font-semibold text-gray-400">
-                  No notifications from {group ? 'this' : 'any'} group.
+                  No notifications
                 </span>
               </div>
             ) : (
