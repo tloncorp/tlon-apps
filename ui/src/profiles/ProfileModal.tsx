@@ -9,11 +9,9 @@ import Dialog from '@/components/Dialog';
 import ShipName from '@/components/ShipName';
 import PalIcon from '@/components/PalIcon';
 import usePalsState from '@/state/pals';
-import useNavigateByApp from '@/logic/useNavigateByApp';
 import { useAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
-import { isNativeApp } from '@/logic/native';
 import {
   useBlockShipMutation,
   useIsShipBlocked,
@@ -60,7 +58,6 @@ export default function ProfileModal() {
   const cover = contact?.cover || '';
   const dismiss = useDismissNavigate();
   const navigate = useNavigate();
-  const navigateByApp = useNavigateByApp();
   const isMobile = useIsMobile();
   const pals = usePalsState();
   const { data, showConnection } = useConnectivityCheck(ship || '');
@@ -93,11 +90,7 @@ export default function ProfileModal() {
   };
 
   const handleMessageClick = () => {
-    if (isNativeApp()) {
-      navigate(`/dm/${ship}`);
-    } else {
-      navigateByApp(`/dm/${ship}`);
-    }
+    navigate(`/dm/${ship}`);
   };
 
   const handleBlockClick = () => {

@@ -25,7 +25,6 @@ import ShipName from '@/components/ShipName';
 import { Contact } from '@/types/contact';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import useAppName from '@/logic/useAppName';
 import ShipConnection from '@/components/ShipConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import MobileHeader from '@/components/MobileHeader';
@@ -47,13 +46,12 @@ function TitleButton({
   contact: Contact;
   isMobile: boolean;
 }) {
-  const appName = useAppName();
   const BackButton = isMobile ? Link : 'div';
   const { data } = useConnectivityCheck(ship || '');
 
   return (
     <BackButton
-      to={appName === 'Groups' && isMobile ? '/messages' : '/'}
+      to={isMobile ? '/messages' : '/'}
       className={cn(
         'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
       )}
@@ -113,7 +111,6 @@ export default function Dm() {
   const { data } = useConnectivityCheck(ship || '');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const appName = useAppName();
   const inSearch = useMatch(`/dm/${ship}/search/*`);
   const isAccepted = !useDmIsPending(ship);
   const unread = useDmUnread(ship);
@@ -219,9 +216,7 @@ export default function Dm() {
                           </button>
                         </DmOptions>
                       }
-                      pathBack={
-                        appName === 'Groups' && isMobile ? '/messages' : '/'
-                      }
+                      pathBack={isMobile ? '/messages' : '/'}
                       action={
                         <div className="flex h-12 flex-row items-center justify-end space-x-3">
                           <ReconnectingSpinner />

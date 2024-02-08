@@ -1089,18 +1089,10 @@
     =/  uid  `@uv`(shax (jam ['clubs' (add counter eny.bowl)]))
     [uid cu-core(counter +(counter))]
   ::
-  ++  cu-spin-groups
-    |=  [con=(list content:ha) but=(unit button:ha)]
-    ^-  new-yarn:ha
-    =/  rope  [~ ~ %groups /club/(scot %uv id)]
-    =/  link  /dm/(scot %uv id)
-    [& & rope con link but]
-  ::
   ++  cu-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
-    ::  hard coded desk because these shouldn't appear in groups
-    =/  rope  [~ ~ %talk /club/(scot %uv id)]
+    =/  rope  [~ ~ %groups /club/(scot %uv id)]
     =/  link  (welp /dm/(scot %uv id) rest)
     [& & rope con link but]
   ::
@@ -1231,15 +1223,6 @@
         =.  cor  (give-unread club/id cu-unread)
         ?:  =(our.bowl author.memo)  (cu-give-writs-diff diff.delta)
         ?^  kind.q.diff.delta  (cu-give-writs-diff diff.delta)
-        =/  new-yarn-groups
-          %+  cu-spin-groups
-            :~  [%ship author.memo]
-                ': '
-                (flatten:utils content.memo)
-            ==
-          ~
-        =?  cor  (want-hark %to-us)
-          (emit (pass-hark new-yarn-groups))
         =/  new-yarn
           %^  cu-spin
             ~
@@ -1504,18 +1487,10 @@
   ++  di-area  `path`/dm/(scot %p ship)
   ++  di-area-writs  `path`/dm/(scot %p ship)/writs
   ::
-  ++  di-spin-groups
-    |=  [con=(list content:ha) but=(unit button:ha)]
-    ^-  new-yarn:ha
-    =/  rope  [~ ~ %groups /dm/(scot %p ship)]
-    =/  link  /dm/(scot %p ship)
-    [& & rope con link but]
-  ::
   ++  di-spin
     |=  [rest=path con=(list content:ha) but=(unit button:ha)]
     ^-  new-yarn:ha
-    ::  hard coded desk because these shouldn't appear in groups
-    =/  rope  [~ ~ %talk /dm/(scot %p ship)]
+    =/  rope  [~ ~ %groups /dm/(scot %p ship)]
     =/  link  (welp /dm/(scot %p ship) rest)
     [& & rope con link but]
   ::
@@ -1563,16 +1538,6 @@
         (give-unread ship/ship di-unread)
       ?:  from-self    (di-give-writs-diff diff)
       ?^  kind.q.diff  (di-give-writs-diff diff)
-      =/  new-yarn-groups
-        %+  di-spin-groups
-          :~  [%ship author.memo]
-              ?:  =(net.dm %invited)  ' has invited you to a direct message'
-              ': '
-              ?:(=(net.dm %invited) '' (flatten:utils content.memo))
-          ==
-        ~
-      =?  cor  (want-hark %to-us)
-        (emit (pass-hark new-yarn-groups))
       =/  new-yarn
         %^  di-spin  ~
           :~  [%ship author.memo]
@@ -1603,16 +1568,6 @@
         ?:  =(our.bowl author.memo)  (di-give-writs-diff diff)
         ?~  entry  (di-give-writs-diff diff)
         =*  op  writ.u.entry
-        =/  new-yarn-groups
-          %+  di-spin-groups
-            :~  [%ship author.memo]  ' replied to '
-                [%emph (flatten:utils content.op)]  ': '
-                [%ship author.memo]  ': '
-                (flatten:utils content.memo)
-            ==
-          ~
-        =?  cor  (want-hark %to-us)
-          (emit (pass-hark new-yarn-groups))
         =/  new-yarn
           %^  di-spin  /(rsh 4 (scot %ui time.u.entry))
             :~  [%ship author.memo]  ' replied to '

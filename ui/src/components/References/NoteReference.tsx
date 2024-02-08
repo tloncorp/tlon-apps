@@ -13,7 +13,6 @@ import {
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
 import useGroupJoin from '@/groups/useGroupJoin';
-import useNavigateByApp from '@/logic/useNavigateByApp';
 // eslint-disable-next-line import/no-cycle
 import DiaryContent from '@/diary/DiaryContent/DiaryContent';
 import getKindDataFromEssay from '@/logic/getKindData';
@@ -41,7 +40,6 @@ function NoteReference({
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
   const { reference, isError } = useRemotePost(nest, id, isScrolling);
-  const navigateByApp = useNavigateByApp();
   const navigate = useNavigate();
   const location = useLocation();
   const note = useMemo(() => {
@@ -81,7 +79,7 @@ function NoteReference({
       return;
     }
 
-    navigateByApp(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
+    navigate(`/groups/${groupFlag}/channels/${nest}/note/${id}`);
   };
 
   const prettyDate = makePrettyDate(new Date(note.essay.sent));

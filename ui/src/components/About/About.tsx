@@ -1,4 +1,4 @@
-import { isTalk, useCopy } from '@/logic/utils';
+import { useCopy } from '@/logic/utils';
 import { useCharge } from '@/state/docket';
 import { usePike } from '@/state/kiln';
 import IconButton from '@/components/IconButton';
@@ -8,8 +8,8 @@ import { useIsMobile } from '@/logic/useMedia';
 
 export default function About() {
   const isMobile = useIsMobile();
-  const pike = usePike(isTalk ? 'talk' : 'groups');
-  const charge = useCharge(isTalk ? 'talk' : 'groups');
+  const pike = usePike('groups');
+  const charge = useCharge('groups');
   const { didCopy: didCopyHash, doCopy: doCopyHash } = useCopy(
     pike?.hash || ''
   );
@@ -22,11 +22,7 @@ export default function About() {
 
   return (
     <div className="flex flex-col space-y-8 text-[17px] leading-[22px]">
-      {!isMobile && (
-        <span className="text-lg font-bold">
-          About {isTalk ? 'Talk' : 'Groups'}
-        </span>
-      )}
+      {!isMobile && <span className="text-lg font-bold">About Tlon</span>}
       <span className="px-2 text-gray-500">{charge?.info}</span>
       <div className="grid grid-cols-3 gap-y-2 rounded-xl bg-gray-50 p-6">
         <span className="flex items-center text-lg text-gray-400">Version</span>

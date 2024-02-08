@@ -4,7 +4,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import { useGroupChannel, useAmAdmin } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
-import { isTalk } from '@/logic/utils';
 import ChannelActions, { ChannelActionsProps } from './ChannelActions';
 import ChannelTitleButton from './ChannelTitleButton';
 import ChannelIcon from './ChannelIcon';
@@ -63,7 +62,7 @@ export default function ChannelHeader({
             {children}
           </div>
         }
-        pathBack={isTalk ? '/' : `/groups/${groupFlag}`}
+        pathBack={`/groups/${groupFlag}`}
       />
     );
   }

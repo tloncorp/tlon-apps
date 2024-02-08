@@ -1,7 +1,6 @@
 import cn from 'classnames';
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
-import { isTalk } from '@/logic/utils';
 import { useGroupChannel } from '@/state/groups';
 import { Link } from 'react-router-dom';
 import ChannelIcon from './ChannelIcon';
@@ -21,9 +20,6 @@ export default function ChannelTitleButton({
   const BackButton = isMobile ? Link : 'div';
 
   function backTo() {
-    if (isMobile && isTalk) {
-      return '/';
-    }
     return `/groups/${flag}`;
   }
 

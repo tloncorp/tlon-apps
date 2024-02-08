@@ -1,9 +1,7 @@
-import React from 'react';
 import cn from 'classnames';
 import { usePike } from '@/state/kiln';
 import useVereState from '@/state/vere';
 import { useCharge } from '@/state/docket';
-import { isTalk } from '@/logic/utils';
 import Dialog, { DialogClose } from './Dialog';
 
 interface ErrorAlertProps {
@@ -16,10 +14,10 @@ function SubmitIssue({ error }: { error: Error }) {
   const title = error.message;
   const { location } = window;
   const { vereVersion, loaded } = useVereState();
-  const pike = usePike(isTalk ? 'talk' : 'groups');
-  const charge = useCharge(isTalk ? 'talk' : 'groups');
+  const pike = usePike('groups');
+  const charge = useCharge('groups');
   const body = `
-  App: ${isTalk ? 'Talk' : 'Groups'}%0A
+  App: Tlon%0A
   Version: ${charge?.version}%0A
   Vere Version: ${loaded ? vereVersion : ''}%0A
   Hash: ${pike?.hash}%0A

@@ -762,14 +762,15 @@
 ::
 ++  get-channel-rope
   |=  [=nest:g =id-post:d id-reply=(unit id-reply:d)]
-  ^-  rope:ha
+  ^-  (unit rope:ha)
   =/  prefix  (channel-scry nest)
+  ?.  .^(has=? %gu prefix)  ~
   =/  ch-path=path
     ?~  id-reply
       (welp prefix /hark/rope/(scot %ud id-post))
     (welp prefix /hark/rope/(scot %ud id-post)/(scot %ud u.id-reply))
   =/  =path  (snoc ch-path %noun)
-  .^(rope:ha %gx path)
+  .^((unit rope:ha) %gx path)
 ::
 ++  group-core
   |_  [=flag:g =net:g =group:g gone=_|]
@@ -1258,12 +1259,13 @@
       (~(put in u.flaggers) src)
     =.  flagged-content.group  (~(put by flagged-content.group) nest channel-flagged)
     ?:  |(from-self !go-is-our-bloc)  go-core
-    =/  =rope:ha  (get-channel-rope nest post-key)
+    =/  rope=(unit rope:ha)  (get-channel-rope nest post-key)
+    ?~  rope  go-core
     =/  link
-      (welp /groups/(scot %p p.flag)/[q.flag]/channels ted.rope)
+      (welp /groups/(scot %p p.flag)/[q.flag]/channels ted.u.rope)
     =/  =new-yarn:ha
       %-  spin
-      :*  rope
+      :*  u.rope
           link
           `['See post' link]
           :~  [%ship src]

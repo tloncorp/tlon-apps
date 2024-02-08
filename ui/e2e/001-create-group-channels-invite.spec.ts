@@ -5,13 +5,11 @@ import shipManifest from './shipManifest.json';
 // patbud is the invited ship
 
 const ownerUrl = `${shipManifest['~naldeg-mardev'].webUrl}/apps/groups/`;
-const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/`;
+const invitedUrl = `${shipManifest['~habduc-patbud'].webUrl}/apps/groups/notifications`;
 const groupOwner = 'mardev';
 const invitedShip = 'patbud';
 
 test('Create a group', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as mardev
   const ownerContext = await browser.newContext({
     storageState: shipManifest['~naldeg-mardev'].authFile,
@@ -19,7 +17,9 @@ test('Create a group', async ({ browser }) => {
   const page = await ownerContext.newPage();
   await page.goto(ownerUrl);
   await page.getByTestId('add-group-sidebar-button').waitFor();
-  await page.getByTestId('add-group-sidebar-button').click();
+  await page.getByTestId('add-group-sidebar-button').hover();
+  await page.getByTestId('add-group-sidebar-button-icon').waitFor();
+  await page.getByTestId('add-group-sidebar-button-icon').click();
   await page.getByTestId('create-group-dropdown-button').click();
   await page.getByTestId('create-group-name-input').fill('mardev Club');
   await page.getByTestId('create-group-submit-button').click();
@@ -27,8 +27,6 @@ test('Create a group', async ({ browser }) => {
 });
 
 test('Create a chat channel', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as mardev
   const ownerContext = await browser.newContext({
     storageState: shipManifest['~naldeg-mardev'].authFile,
@@ -60,8 +58,6 @@ test('Create a chat channel', async ({ browser }) => {
 });
 
 test('Create a notebook channel and post to it.', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as owner
   const ownerContext = await browser.newContext({
     storageState: shipManifest['~naldeg-mardev'].authFile,
@@ -96,8 +92,6 @@ test('Create a notebook channel and post to it.', async ({ browser }) => {
 });
 
 test('Invite to a group', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as owner
   const ownerContext = await browser.newContext({
     storageState: shipManifest['~naldeg-mardev'].authFile,
@@ -123,8 +117,6 @@ test('Invite to a group', async ({ browser }) => {
 });
 
 test('Accept group invite', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as habduc-patbud
   const invitedContext = await browser.newContext({
     storageState: shipManifest['~habduc-patbud'].authFile,

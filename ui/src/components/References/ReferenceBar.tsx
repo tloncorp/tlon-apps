@@ -5,7 +5,7 @@ import { BigInteger } from 'big-integer';
 import Author from '@/chat/ChatMessage/Author';
 import ChannelIcon from '@/channels/ChannelIcon';
 import GroupAvatar from '@/groups/GroupAvatar';
-import useNavigateByApp from '@/logic/useNavigateByApp';
+import { useNavigate } from 'react-router';
 
 interface ReferenceBarProps {
   nest: string;
@@ -34,13 +34,13 @@ export default function ReferenceBar({
   heapComment = false,
   reply = false,
 }: ReferenceBarProps) {
-  const navigateByApp = useNavigateByApp();
+  const navigate = useNavigate();
   const unix = new Date(daToUnix(time));
 
   const navigateToChannel = useCallback(() => {
     if (!groupFlag) return;
-    navigateByApp(`/groups/${groupFlag}/channels/${nest}`);
-  }, [nest, groupFlag, navigateByApp]);
+    navigate(`/groups/${groupFlag}/channels/${nest}`);
+  }, [nest, groupFlag, navigate]);
 
   return (
     <div

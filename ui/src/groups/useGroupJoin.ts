@@ -11,7 +11,6 @@ import {
   useGroupRescindMutation,
 } from '@/state/groups';
 import { Gang, Group, PrivacyType } from '@/types/groups';
-import useNavigateByApp from '@/logic/useNavigateByApp';
 import { useSawRopeMutation } from '@/state/hark';
 import { useNewGroupFlags, usePutEntryMutation } from '@/state/settings';
 
@@ -46,7 +45,6 @@ export default function useGroupJoin(
   const modalIsOpen =
     !!location.state?.backgroundLocation &&
     location.pathname.includes('gangs/');
-  const navigateByApp = useNavigateByApp();
   const modalNavigate = useModalNavigate();
   const dismiss = useDismissNavigate();
   const group = useGroup(flag, inModal);
@@ -70,13 +68,13 @@ export default function useGroupJoin(
 
   const open = useCallback(() => {
     if (group && !groupIsInitializing(group)) {
-      return navigateByApp(`/groups/${flag}`);
+      return navigate(`/groups/${flag}`);
     }
 
     return navigate(`/gangs/${flag}`, {
       state: { backgroundLocation: location },
     });
-  }, [flag, group, location, navigate, navigateByApp]);
+  }, [flag, group, location, navigate]);
 
   const join = useCallback(async () => {
     if (privacy === 'private' && !invited) {
@@ -107,7 +105,7 @@ export default function useGroupJoin(
         } else {
           rejectMutation({ flag });
         }
-        return navigateByApp(`/find/${flag}`);
+        return navigate(`/find/${flag}`);
       }
     }
     return null;
@@ -116,7 +114,7 @@ export default function useGroupJoin(
     invited,
     flag,
     requested,
-    navigateByApp,
+    navigate,
     joinMutation,
     knockMutation,
     rescindMutation,
@@ -148,7 +146,7 @@ export default function useGroupJoin(
         state: { backgroundLocation: location },
       });
     } else {
-      navigateByApp(`/gangs/${flag}/reject`);
+      navigate(`/gangs/${flag}/reject`);
     }
   }, [
     flag,
@@ -157,7 +155,7 @@ export default function useGroupJoin(
     dismiss,
     modalNavigate,
     privacy,
-    navigateByApp,
+    navigate,
     rejectMutation,
   ]);
 
@@ -165,19 +163,19 @@ export default function useGroupJoin(
     if (group && modalIsOpen && !inModal) {
       if (redirectItem) {
         if (redirectItem.type === 'chat') {
-          navigateByApp(
+          navigate(
             `/groups/${flag}/channels/${redirectItem.nest}?msg=${redirectItem.id}`
           );
         } else {
-          navigateByApp(
+          navigate(
             `/groups/${flag}/channels/${redirectItem.nest}/${redirectItem.type}/${redirectItem.id}`
           );
         }
       } else {
-        navigateByApp(`/groups/${flag}`);
+        navigate(`/groups/${flag}`);
       }
     }
-  }, [group, navigateByApp, flag, redirectItem, modalIsOpen, inModal]);
+  }, [group, navigate, flag, redirectItem, modalIsOpen, inModal]);
 
   return {
     group,
