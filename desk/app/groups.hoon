@@ -102,8 +102,6 @@
     ?+  q.vase  !!
       %reset-all-perms  reset-all-perms
       %verify-cabals  verify-cabals
-      %test-loop  test-loop
-      %cancel-loop  cancel-loop
     ==
   ::
       %reset-group-perms
@@ -281,25 +279,6 @@
   =/  cmd=c-channels:d  [%channel nest %del-writers diff]
   =/  cage  [%channel-command !>(cmd)]
   cr(cards [[%pass /groups/role %agent [p.q.nest %channels-server] %poke cage] cards.cr])
-++  test-loop
-  =/  =wire  /test-loop
-  =/  =dock  [our.bowl dap.bowl]
-  (emit [%pass wire %agent dock %watch wire])
-++  take-loop
-  |=  =sign:agent:gall
-  ^+  cor
-  ?+  -.sign  cor
-      %kick
-    ((subscribe /test-loop [our.bowl dap.bowl] /test-loop) &)
-  ::
-      %watch-ack
-    cor
-  ==
-++  cancel-loop
-  =^  card=(unit card)  subs
-    (~(cancel s [subs bowl]) /test-loop)
-  ?~  card  cor
-  (emit u.card)
 ::
 ::  +load: load next state
 ++  load
@@ -432,7 +411,6 @@
     [%groups ~]           cor
     [%groups %ui ~]       cor
     [%gangs %updates ~]   cor
-    [%test-loop ~]        (give %kick ~[/test-loop] ~)
   ::
     [%epic ~]  (give %fact ~ epic+!>(okay:g))
   ::
@@ -588,7 +566,6 @@
       [%epic ~]  (take-epic sign)
       [%helm *]  cor
       [%groups %role ~]  cor
-      [%test-loop ~]  (take-loop sign)
       [?(%hark %groups %chat %heap %diary) ~]  cor
       [%cast ship=@ name=@ ~]  (take-cast [(slav %p ship.pole) name.pole] sign)
   ::
