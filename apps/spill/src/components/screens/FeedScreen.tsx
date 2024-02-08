@@ -21,7 +21,7 @@ import {
   NavigationScreenProps,
   useNavigateToChannel,
   useScreenHeight,
-} from '../../utils/navigation';
+} from '@utils/navigation.tsx';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {ToggleGroup} from '@components/ToggleGroup';
 
@@ -90,7 +90,7 @@ export function FeedScreen({navigation}: NavigationScreenProps<'Feed'>) {
         <Sheet.Overlay />
         <Sheet.Frame borderRadius={'$l'}>
           <SheetHeader>
-            <SheetHeader.LeftControls></SheetHeader.LeftControls>
+            <SheetHeader.LeftControls />
             <SheetHeader.Title>
               <SheetHeader.TitleText>Grouping</SheetHeader.TitleText>
             </SheetHeader.Title>
@@ -125,6 +125,19 @@ export function FeedScreen({navigation}: NavigationScreenProps<'Feed'>) {
           </Sheet.ScrollView>
         </Sheet.Frame>
       </Sheet>
+      <XStack
+        justifyContent="space-between"
+        borderTopColor="$border"
+        borderWidth={1}
+        paddingHorizontal="$l"
+        paddingTop="$s"
+        paddingBottom={insets.bottom + 16}>
+        <Icon size={'$l'} icon={'Home'} color={'$tertiaryText'} />
+        <Icon size={'$l'} icon={'ChannelTalk'} color={'$tertiaryText'} />
+        <Icon size={'$l'} icon={'Notifications'} color={'$primaryText'} />
+        <Icon size={'$l'} icon={'Discover'} color={'$tertiaryText'} />
+        <Icon size={'$l'} icon={'Profile'} color={'$tertiaryText'} />
+      </XStack>
     </Stack>
   );
 }
@@ -155,6 +168,7 @@ function GroupFeed() {
     () => ({
       ...db.TabSettings.default(),
       view: {
+        showGroup: false,
         showChannel: false,
         showTime: false,
       },
@@ -162,18 +176,21 @@ function GroupFeed() {
     [],
   );
 
-  const renderItem = useCallback(({item}: ListRenderItemInfo<db.Channel>) => {
+  const renderItem = useCallback(({item}: ListRenderItemInfo<db.Group>) => {
     return <GroupFeedListItem model={item} />;
   }, []);
 
   return (
     <StreamContext.Provider value={settingsWithDefaults}>
       <FlatList
-        getItemKey={db.getObjectId}
+        keyExtractor={db.getObjectId}
         data={groups}
         renderItem={renderItem}
         contentContainerStyle={{padding: getTokenValue('$size.s')}}
         ItemSeparatorComponent={Separator}
+        maxToRenderPerBatch={3}
+        initialNumToRender={3}
+        windowSize={2}
       />
     </StreamContext.Provider>
   );
@@ -186,14 +203,28 @@ function ChannelFeed() {
     return <ChannelFeedListItem model={item} />;
   }, []);
 
+  const settingsWithDefaults = useMemo(
+    () => ({
+      ...db.TabSettings.default(),
+      view: {
+        showGroup: false,
+        showChannel: false,
+        showTime: false,
+      },
+    }),
+    [],
+  );
+
   return (
-    <FlatList
-      getItemKey={db.getObjectId}
-      data={channels}
-      renderItem={renderItem}
-      contentContainerStyle={{padding: getTokenValue('$size.s')}}
-      ItemSeparatorComponent={Separator}
-    />
+    <StreamContext.Provider value={settingsWithDefaults}>
+      <FlatList
+        keyExtractor={db.getObjectId}
+        data={channels}
+        renderItem={renderItem}
+        contentContainerStyle={{padding: getTokenValue('$size.s')}}
+        ItemSeparatorComponent={Separator}
+      />
+    </StreamContext.Provider>
   );
 }
 
@@ -213,7 +244,7 @@ function PostFeed() {
 
   return (
     <FlatList
-      getItemKey={db.getObjectId}
+      keyExtractor={db.getObjectId}
       data={posts}
       renderItem={renderItem}
       contentContainerStyle={{padding: getTokenValue('$size.s')}}
@@ -225,8 +256,6 @@ function PostFeed() {
 const Separator = styled(Stack, {
   height: '$s',
 });
-
-const maxPreviewItems = 10;
 
 function GroupFeedListItem({model}: {model: db.Group}) {
   const channels = db.useQuery(
@@ -253,6 +282,7 @@ function GroupFeedListItem({model}: {model: db.Group}) {
               key={c.id}
               maxPreviewPosts={3}
               showTime={false}
+              showGroupLabel={false}
             />
           );
         })}
@@ -264,11 +294,13 @@ function GroupFeedListItem({model}: {model: db.Group}) {
 function ChannelFeedListItem({
   model,
   maxPreviewPosts = 10,
+  showGroupLabel = true,
   showTime = true,
 }: {
   model: db.Channel;
   maxPreviewPosts?: number;
   showTime?: boolean;
+  showGroupLabel?: boolean;
 }) {
   const items = db.useQuery(
     'Post',
@@ -288,11 +320,12 @@ function ChannelFeedListItem({
   return (
     <FeedListItem onPress={handlePress}>
       <XStack alignItems="center" gap="$s">
+        {model.group && showGroupLabel && <GroupToken model={model.group} />}
         <ChannelToken model={model} />
         {showTime && time ? <SizableText size="$s">{time}</SizableText> : null}
       </XStack>
 
-      <ListItem.MainContent>
+      <ListItem.MainContent flexDirection={'column'}>
         <YStack>
           {items.slice(0, maxPreviewPosts).map((i, index) => {
             const previousItem = items[index - 1];
@@ -300,6 +333,7 @@ function ChannelFeedListItem({
               !previousItem || i.author !== previousItem.author;
             return (
               <PostListItem
+                paddingHorizontal={0}
                 pressable={false}
                 key={i.id}
                 model={i}

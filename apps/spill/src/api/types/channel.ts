@@ -355,9 +355,9 @@ export interface PostReferenceResponse {
 
 export type ReferenceResponse = ReplyReferenceResponse | PostReferenceResponse;
 
-export interface Said {
+export interface Said<T extends ReferenceResponse = ReferenceResponse> {
   nest: Nest;
-  reference: ReferenceResponse;
+  reference: T;
 }
 
 export interface Init {

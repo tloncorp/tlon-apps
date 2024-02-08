@@ -10,7 +10,7 @@ import {
   YStack,
 } from '@ochre';
 import React, {ComponentProps, useMemo} from 'react';
-import {formatTime} from '../utils/format';
+import {useFormattedTime} from '../utils/format';
 import {useBoundHandler} from '../utils/useBoundHandler';
 import BasePostContent from './PostContent';
 import Toggleable from './Toggleable';
@@ -100,9 +100,6 @@ export function PostListItemComponent({
       .filter(i => !!i)
       .join(' / ');
   }, [model.channel, model.group]);
-  const time = useMemo(() => {
-    return formatTime(model.receivedAt);
-  }, [model.receivedAt]);
   const handlePress = useBoundHandler(model, onPress);
   const handleLongPress = useBoundHandler(model, onLongPress);
   // Tamagui considers an element to be pressable if onPress keys are set at
@@ -125,11 +122,11 @@ export function PostListItemComponent({
       {...handlers}
       highlighted={isHighlighted ?? false}
       {...props}>
-      {showHeader && model.author && contextLabel && time && (
+      {showHeader && model.author && contextLabel && (
         <PostHeader
           author={model.author}
           contextLabel={contextLabel}
-          time={time}
+          time={model.receivedAt}
           replyCount={model.replyCount}
         />
       )}
@@ -191,7 +188,7 @@ const PostHeader = React.memo(
   }: {
     author: string;
     contextLabel: string;
-    time: string;
+    time?: number;
     replyCount?: number;
   }) => {
     return (
@@ -200,9 +197,7 @@ const PostHeader = React.memo(
           <PostAuthor author={author} />
         </Toggleable>
         <Toggleable target="showTime">
-          <SizableText color="$tertiaryText" size="$s">
-            {time}
-          </SizableText>
+          <PostTime time={time} />
         </Toggleable>
         <Toggleable target="showChannel">
           <SizableText
@@ -227,11 +222,22 @@ const PostHeader = React.memo(
 
 PostHeader.displayName = 'PostHeader';
 
+function PostTime({time}: {time?: number}) {
+  const formattedTime = useFormattedTime(time);
+  return (
+    <SizableText color="$tertiaryText" size="$s">
+      {formattedTime}
+    </SizableText>
+  );
+}
+
 function PostAuthor({author}: {author: string}) {
   return (
-    <XStack gap="$xs" alignItems="center">
+    <XStack gap="$xs" alignItems="center" flexShrink={1}>
       {author && <Avatar id={author} size={'$m'} />}
-      <SizableText numberOfLines={1}>{author}</SizableText>
+      <SizableText numberOfLines={1} flexShrink={1}>
+        {author}
+      </SizableText>
     </XStack>
   );
 }

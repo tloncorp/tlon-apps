@@ -172,7 +172,7 @@ export interface SubscriptionRequestInterface extends SubscriptionInterface {
   path: Path;
 }
 
-export interface Headers {
+export interface headers {
   'Content-Type': string;
   Cookie?: string;
 }
@@ -198,5 +198,3 @@ export class ResumableError extends Error {}
 export class FatalError extends Error {}
 
 export class ReapError extends Error {}
-
-export class AuthError extends Error {}

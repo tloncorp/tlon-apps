@@ -255,3 +255,49 @@ export const postWithDiary = {
     totalPosts: 15,
   },
 };
+
+export const postWithGroupRef = {
+  id: '170.141.184.506.621.756.205.354.706.279.671.529.472',
+  author: '~sidnym-ladrut',
+  metadata: null,
+  content:
+    '[{"inline":["For anyone with an interest in Urbit TUIs or ",{"inline-code":"dojo"},"/pretty printer gripes, feel free to join this new group!",{"break":null}]},{"type":"reference","referenceType":"group","groupId":"~mister-hoster-sidnym-ladrut/tui"}]',
+  sentAt: 1705969760169,
+  receivedAt: 1705969797277,
+  replyCount: 0,
+  type: 'chat',
+  reactions: [
+    {
+      name: '~polrel-witter',
+      reaction: ':surfer:',
+    },
+  ],
+  images: [],
+  text: 'For anyone with an interest in Urbit TUIs or  dojo /pretty printer gripes, feel free to join this new group! [ref]',
+  group: {
+    id: '~halbex-palheb/uf-public',
+    iconImage:
+      'https://interstellar.nyc3.digitaloceanspaces.com/battus-datsun/2022.11.07..19.39.22-Sig.png',
+    iconImageColor: '#000000',
+    coverImage: null,
+    coverImageColor: null,
+    title: 'UF',
+    description: 'The latest from the Urbit Foundation',
+    isSecret: false,
+  },
+  channel: {
+    id: 'chat/~halbex-palheb/general-4066',
+    loadedOldest: null,
+    nextOldestPage: null,
+    syncedAt: 1706298631669,
+    addedAt: null,
+    image:
+      'https://ipfs.io/ipfs/QmZbUnGxk7JPndNMQNNbremEBpbNnMKCfuUnWEiDZNpfrL',
+    title: 'General',
+    cover: '#000000',
+    description: 'Questions, hangout, general conversation',
+    joined: null,
+    syncing: null,
+    totalPosts: 2846,
+  },
+};

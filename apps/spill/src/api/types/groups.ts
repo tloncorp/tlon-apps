@@ -67,15 +67,15 @@ export type Cordon = OpenCordon | ShutCordon | AfarCordon;
 
 export interface Group {
   fleet: Fleet;
-  cabals: Cabals;
-  channels: GroupChannels;
+  cabals?: Cabals;
+  channels?: GroupChannels;
   cordon: Cordon;
   meta: GroupMeta;
-  zones: Zones;
-  'zone-ord': Zone[];
-  bloc: string[];
+  zones?: Zones;
+  'zone-ord'?: Zone[];
+  bloc?: string[];
   secret: boolean;
-  saga: Saga | null;
+  saga?: Saga | null;
 }
 
 export interface Fleet {

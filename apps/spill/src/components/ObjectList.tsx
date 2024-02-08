@@ -6,9 +6,9 @@ import {FlatList} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {getTokenValue} from 'tamagui';
 import {
-  NavigationProp,
   navigateToChannel,
   navigateToGroup,
+  NavigationProp,
 } from '../utils/navigation';
 import {useDetailView} from '../utils/state';
 import {useSync, useSyncState} from '../utils/sync';
@@ -215,7 +215,7 @@ export function GroupList(props: ObjectListProps) {
     [],
   );
 
-  const handleLongPressGroup = useCallback((group: db.Group) => {}, []);
+  const handleLongPressGroup = useCallback(() => {}, []);
 
   const navigation = useNavigation<NavigationProp<'Group'>>();
   const handlePressGroup = useCallback(

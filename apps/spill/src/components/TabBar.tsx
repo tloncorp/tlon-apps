@@ -1,5 +1,5 @@
 import * as db from '@db';
-import {Button, Icon, ScrollView, Stack, XStack, SizableText} from '@ochre';
+import {Button, Icon, ScrollView, SizableText, Stack, XStack} from '@ochre';
 import {LinearGradient} from '@tamagui/linear-gradient';
 import React, {useCallback, useMemo} from 'react';
 import {WithSafeAreaInsetsProps} from 'react-native-safe-area-context';
@@ -66,7 +66,7 @@ const TabBarComponent = React.memo(
                 flexShrink={1}
                 showsHorizontalScrollIndicator={false}>
                 <TabBarTabs flexShrink={1}>
-                  {[...defaultTabs, ...tabGroup.tabs].map((s, index) => {
+                  {tabGroup.tabs.map((s, index) => {
                     return (
                       <TabBarButton
                         // Using index to access settings as the realm mapped
@@ -104,12 +104,6 @@ const TabBarContainer = styled(XStack, {
   left: 0,
   width: '100%',
   justifyContent: 'center',
-});
-
-const TabBarContent = styled(XStack, {
-  padding: '$m',
-  gap: '$s',
-  maxWidth: '100%',
 });
 
 const TabBarTabList = styled(XStack, {

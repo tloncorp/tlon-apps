@@ -4,7 +4,7 @@ import {
 } from '@components/ObjectListItem';
 import {ChannelToken, GroupToken} from '@components/ObjectToken';
 import * as db from '@db';
-import {ListPicker, createPickerItem} from '@ochre/ListPicker';
+import {createPickerItem, ListPicker} from '@ochre/ListPicker';
 import React from 'react';
 
 // Channel
@@ -32,7 +32,7 @@ const ChannelPickerItem = createPickerItem(ChannelListItemComponent);
 const getChannelOptions = (searchQuery: string | null, ops: db.Operations) => {
   return ops.getObjects(
     'Channel',
-    db.channelQuery({containsText: searchQuery ? [searchQuery] : []}),
+    db.channelQuery({containsText: searchQuery ? searchQuery : null}),
   );
 };
 
@@ -59,8 +59,5 @@ export function GroupPicker({
 const GroupPickerItem = createPickerItem(GroupListItemComponent);
 
 const getGroupOptions = (searchQuery: string | null, ops: db.Operations) => {
-  return ops.getObjects(
-    'Group',
-    db.groupQuery({titleContainsText: searchQuery}),
-  );
+  return ops.getObjects('Group', db.groupQuery({containsText: searchQuery}));
 };

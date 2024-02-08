@@ -11,6 +11,8 @@ import type {PrimarySchemaName, SchemaModel, SchemaValue} from './types';
 import {Results} from './types';
 import {asReadOnlyArray} from './utils';
 
+// Generic helpers
+
 export function create<T extends PrimarySchemaName>(
   realm: Realm,
   model: T,
@@ -68,7 +70,33 @@ export function batch<T>(realm: Realm, cb: () => T) {
   }
 }
 
+// Account
+
+export function getAccount(realm: Realm) {
+  return getObject(realm, 'Account', models.DEFAULT_ACCOUNT_ID);
+}
+
 // Post
+
+export const createOrUpdatePost = (
+  realm: Realm,
+  post: models.Post,
+  updateMode = UpdateMode.Modified,
+) => {
+  return create(realm, 'Post', post, updateMode);
+};
+
+export const createOrUpdatePosts = (
+  realm: Realm,
+  posts: models.Post[],
+  updateMode = UpdateMode.Modified,
+) => {
+  return batch(realm, () => {
+    for (let post of posts) {
+      create(realm, 'Post', post, updateMode);
+    }
+  });
+};
 
 /**
  * Stores a list of posts from a single channel. Slightly more efficient than
@@ -173,4 +201,12 @@ export function deleteTab(
       tabGroup.tabs.splice(settingsIndex, 1);
     });
   }
+}
+
+// Apps
+
+export function createApp(realm: Realm, app: models.App) {
+  return batch(realm, () => {
+    create(realm, 'App', app, UpdateMode.Modified);
+  });
 }

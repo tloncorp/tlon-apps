@@ -2,11 +2,10 @@ import {ObjectList} from '@components/ObjectList';
 import * as db from '@db';
 import {SizableText, Stack} from '@ochre';
 import {useNavigation} from '@react-navigation/native';
-import React, {useLayoutEffect, useMemo} from 'react';
-import {capitalize, pluralize} from '@utils/format';
-import {filterEmpty} from '@utils/list';
+import {capitalize, commaSeparatedList, pluralize} from '@utils/format';
 import {NavigationScreenProps} from '@utils/navigation';
 import {useTabSettings} from '@utils/useTabSettings';
+import React, {useLayoutEffect, useMemo} from 'react';
 
 export function StreamScreen({route}: NavigationScreenProps<'Activity'>) {
   const settings = useTabSettings(
@@ -20,10 +19,10 @@ export function StreamScreen({route}: NavigationScreenProps<'Activity'>) {
     navigation.setOptions({title});
   }, [navigation, title]);
 
-  return <ActivityScreenView settings={settings} />;
+  return <StreamScreenView settings={settings} />;
 }
 
-function ActivityScreenView({settings}: {settings: db.TabSettings | null}) {
+function StreamScreenView({settings}: {settings: db.TabSettings | null}) {
   return (
     <Stack flex={1} backgroundColor={'$background'}>
       {settings ? (
@@ -39,15 +38,15 @@ function useSettingsTitle(settings: db.TabSettings | null) {
   const query = settings?.query;
   return useMemo(() => {
     const entityName = pluralize(3, capitalize(query?.groupBy ?? 'post'));
-    const ofTypeText = textList(query?.ofType, 'and');
+    const ofTypeText = commaSeparatedList(query?.ofType, 'and');
     const inChannelsText = query?.inChannels?.length
-      ? textList(
+      ? commaSeparatedList(
           query.inChannels.map(c => c.title),
           'and',
         )
       : null;
     const inGroupsText = query?.inGroups?.length
-      ? textList(
+      ? commaSeparatedList(
           query.inGroups.map(c => c.title),
           'and',
         )
@@ -57,22 +56,7 @@ function useSettingsTitle(settings: db.TabSettings | null) {
       : inGroupsText || inChannelsText
       ? entityName
       : 'All ' + entityName;
-    const scope = textList([inChannelsText, inGroupsText], 'and in');
+    const scope = commaSeparatedList([inChannelsText, inGroupsText], 'and in');
     return [entity, scope].filter(t => !!t).join(' in ');
   }, [query]);
-}
-
-function textList(
-  arr: (string | null | undefined)[] | null | undefined,
-  conjunction: string,
-) {
-  const filtered = arr ? filterEmpty(arr) : null;
-  if (!filtered || !filtered.length) {
-    return null;
-  }
-  if (filtered.length === 1) {
-    return filtered[0];
-  }
-  const last = filtered.pop();
-  return filtered.join(', ') + ` ${conjunction} ` + last;
 }

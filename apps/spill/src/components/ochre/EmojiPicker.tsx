@@ -1,7 +1,7 @@
 import React, {useCallback, useMemo} from 'react';
 import {ViewStyle, VirtualizedList} from 'react-native';
-import {Emoji, emoji} from '../emoji';
-import {XStack, Text} from '@ochre';
+import {Emoji, emoji} from '@utils/emoji';
+import {Text, XStack} from '@ochre';
 import {styled} from 'tamagui';
 
 export function EmojiPicker() {
@@ -38,6 +38,7 @@ export function EmojiPicker() {
     />
   );
 }
+
 const EmojiRow = React.memo(({emojis}: {emojis: Emoji[]}) => {
   return (
     <XStack flex={1} justifyContent="center">

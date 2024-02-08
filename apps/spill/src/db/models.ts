@@ -60,6 +60,7 @@ export type Group = {
   coverColor?: string;
   description?: string;
   isSecret: boolean;
+  isPreview?: boolean;
 
   // Linked objects
   channels?: Channel[];
@@ -232,6 +233,37 @@ const threadUnreadStateSchema = {
 
 export type PostType = 'heap' | 'chat' | 'notice' | 'diary';
 
+export interface ChannelReference {
+  type: 'reference';
+  referenceType: 'channel';
+  channelId: string;
+  postId: string;
+  replyId?: string;
+}
+
+export interface GroupReference {
+  type: 'reference';
+  referenceType: 'group';
+  groupId: string;
+}
+
+export interface AppReference {
+  type: 'reference';
+  referenceType: 'app';
+  userId: string;
+  appId: string;
+}
+
+export type ContentReference = ChannelReference | GroupReference | AppReference;
+
+export type PostFlags = {
+  hasAppReference?: boolean;
+  hasChannelReference?: boolean;
+  hasGroupReference?: boolean;
+  hasLink?: boolean;
+  hasImage?: boolean;
+};
+
 export type Post = {
   id: string;
   author?: string;
@@ -248,7 +280,7 @@ export type Post = {
   // Direct Relations
   channel?: Channel;
   group?: Group;
-};
+} & PostFlags;
 
 const postSchema = {
   name: 'Post',
@@ -266,6 +298,11 @@ const postSchema = {
     reactions: 'Reaction[]',
     images: 'Image[]',
     text: 'string?',
+    hasAppReference: 'bool?',
+    hasChannelReference: 'bool?',
+    hasGroupReference: 'bool?',
+    hasLink: 'bool?',
+    hasImage: 'bool?',
   },
   primaryKey: 'id',
 } as const;
@@ -439,22 +476,26 @@ export type StreamViewSettingsKey = keyof StreamViewSettings;
 export type StreamGroupBy = 'channel' | 'group' | 'post';
 export type StreamPostType = 'chat' | 'diary' | 'heap' | 'all';
 
+// TODO: at some point this is probably going to need to be split for different
+// query types.
 export interface StreamQuerySettings {
   groupBy?: StreamGroupBy;
   byAuthors?: string[];
   ofType?: StreamPostType[];
   inGroups?: Group[];
   inChannels?: Channel[];
-  containsText?: string[];
+  containsText?: string | null;
   hasLink?: boolean;
   hasImage?: boolean;
   hasEmbed?: boolean;
+  includeEmpty?: boolean;
   hasBlockCode?: boolean;
   hasBlockQuote?: boolean;
   receivedBefore?: number;
   receivedAfter?: number;
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
+  updatedAfter?: number | null;
 }
 
 export const StreamQuerySettings = {
@@ -465,7 +506,6 @@ export const StreamQuerySettings = {
       ofType: [],
       inGroups: [],
       inChannels: [],
-      containsText: [],
       hasLink: false,
       hasImage: false,
       hasEmbed: false,
@@ -493,6 +533,48 @@ const streamQuerySettingsSchema = {
   },
 } as const;
 
+export type App = {
+  id: string;
+  color: string;
+  title: string;
+  image?: string;
+  license: string;
+  version: string;
+  desk: string;
+  website: string;
+  publisherId: string;
+  hash: string;
+  description?: string;
+  updatedAt: number;
+  sourceType: string;
+  sourceHash?: string;
+  sourceBase: string;
+  sourceUrl: string;
+};
+
+const appSchema = {
+  name: 'App',
+  properties: {
+    id: 'string',
+    color: 'string',
+    title: 'string',
+    image: 'string?',
+    license: 'string',
+    version: 'string',
+    desk: 'string',
+    website: 'string',
+    publisherId: 'string',
+    hash: 'string',
+    description: 'string?',
+    updatedAt: 'int',
+    sourceType: 'string',
+    sourceHash: 'string?',
+    sourceBase: 'string',
+    sourceUrl: 'string',
+  },
+  primaryKey: 'id',
+} as const;
+
 export const schemas = [
   contactSchema,
   accountSchema,
@@ -513,6 +595,7 @@ export const schemas = [
   streamViewSettingsSchema,
   streamQuerySettingsSchema,
   tabIconSchema,
+  appSchema,
 ];
 
 export type PrimarySchemaMap = {
@@ -523,6 +606,7 @@ export type PrimarySchemaMap = {
   Post: Post;
   User: User;
   TabGroupSettings: TabGroupSettings;
+  App: App;
 };
 
 export type EmbeddedSchemaMap = {

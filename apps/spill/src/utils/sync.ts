@@ -1,30 +1,12 @@
-import {atom, useAtomValue, useSetAtom} from 'jotai';
-import {useCallback, useRef} from 'react';
 import * as api from '@api';
 import {PagedPostsData} from '@api/conversion';
 import * as db from '@db';
+import {useCallback, useRef} from 'react';
 import {createLogger} from './debug';
 
-export const syncStateAtom = atom<{
-  isSyncing: boolean;
-  stage: 'initial' | 'channels' | 'posts' | 'groups';
-  channelsToSync: number;
-  channelsSynced: number;
-  lastSync: number;
-}>({
-  isSyncing: false,
-  stage: 'initial',
-  channelsToSync: 0,
-  channelsSynced: 0,
-  lastSync: 0,
-});
-
-const logger = createLogger('Sync', false);
-
-export const useSyncState = () => useAtomValue(syncStateAtom);
+const logger = createLogger('sync', true);
 
 export function useSync() {
-  const setSyncState = useSetAtom(syncStateAtom);
   const ops = db.useOps();
   const isSyncing = useRef(false);
 
@@ -33,29 +15,11 @@ export function useSync() {
       logger.log('sync already in progress, bailing');
       return;
     }
-    setSyncState(state => ({
-      ...state,
-      isSyncing: true,
-      stage: 'groups',
-      channelsToSync: 0,
-      channelsSynced: 0,
-      lastSync: Date.now(),
-    }));
     isSyncing.current = true;
 
-    ops.createGroups(await api.getGroups());
-
-    setSyncState(state => ({
-      ...state,
-      stage: 'channels',
-    }));
+    await syncGroups(ops);
 
     const unreads = await api.getUnreadChannels();
-    setSyncState(state => ({
-      ...state,
-      stage: 'posts',
-      channelsToSync: unreads.length,
-    }));
     const sortedUnreads = unreads.sort((a, b) => {
       return b.unreadState.updatedAt - a.unreadState.updatedAt;
     });
@@ -64,31 +28,44 @@ export function useSync() {
         ops.update('Channel', unreadChannel);
       });
     });
-    let counter = 0;
     for (let unreadChannel of sortedUnreads) {
-      ++counter;
       await syncChannel(
+        ops,
         unreadChannel.id,
         unreadChannel.unreadState.updatedAt,
-        ops,
       );
-      setSyncState(state => ({
-        ...state,
-        channelsSynced: counter,
-      }));
     }
     isSyncing.current = false;
-    setSyncState(state => ({
-      ...state,
-      stage: 'initial',
-      isSyncing: false,
-    }));
-  }, [ops, setSyncState]);
+  }, [ops]);
 
   return {sync};
 }
 
-export async function syncPostsBefore(post: db.Post, ops: db.Operations) {
+export async function syncUnreadChannels(ops: db.Operations) {
+  const unreads = await api.getUnreadChannels();
+  const sortedUnreads = unreads.sort((a, b) => {
+    return b.unreadState.updatedAt - a.unreadState.updatedAt;
+  });
+  ops.batch(() => {
+    sortedUnreads.forEach(unreadChannel => {
+      ops.update('Channel', unreadChannel);
+    });
+  });
+  for (let unreadChannel of sortedUnreads) {
+    await syncChannel(
+      ops,
+      unreadChannel.id,
+      unreadChannel.unreadState.updatedAt,
+    );
+  }
+}
+
+export async function syncGroups(ops: db.Operations) {
+  const groups = await api.getGroups();
+  ops.createGroups(groups);
+}
+
+export async function syncPostsBefore(ops: db.Operations, post: db.Post) {
   if (!post.channel) {
     throw new Error("post is missing channel, can't sync");
   }
@@ -98,15 +75,15 @@ export async function syncPostsBefore(post: db.Post, ops: db.Operations) {
     cursor: post.id,
     includeReplies: false,
   });
-  storePostData(post.channel, postsResponse, ops);
+  persistPagedPostData(post.channel, postsResponse, ops);
 }
 
 const MAX_PAGES = 1;
 
 export async function syncChannel(
+  ops: db.Operations,
   id: string,
   updatedAt: number,
-  ops: db.Operations,
 ) {
   const channel = ops.getObject('Channel', id);
   if (!channel) {
@@ -114,7 +91,6 @@ export async function syncChannel(
   }
   const isStale = (channel.syncedAt ?? 0) < updatedAt;
   if (!isStale) {
-    logger.log('Skipping unchanged channel', channel.id);
     return;
   }
   logger.log('Sync channel', id);
@@ -133,7 +109,7 @@ export async function syncChannel(
         ...nextOlderPageParams,
         includeReplies: false,
       });
-      storePostData(channel, postsResponse, ops);
+      persistPagedPostData(channel, postsResponse, ops);
       nextOlderPageParams = postsResponse.older
         ? {cursor: postsResponse.older}
         : null;
@@ -149,13 +125,52 @@ export async function syncChannel(
         cursor: channel.latestPost.id,
         includeReplies: false,
       });
-      storePostData(channel, postsResponse, ops);
+      persistPagedPostData(channel, postsResponse, ops);
     }
   }
   ops.update('Channel', {id, syncedAt: Date.now()});
 }
 
-function storePostData(
+export async function syncChannelReference(
+  {channelId, postId, replyId}: db.ChannelReference,
+  ops: db.Operations,
+) {
+  const existingPost = ops.getObject('Post', postId);
+  if (existingPost) {
+    console.log('Already have post', existingPost.id);
+    return;
+  }
+  const data = await api.getChannelReference(channelId, postId, replyId);
+  ops.createChannelPosts([data], {id: channelId});
+}
+
+export async function syncGroupReference(
+  {groupId}: db.GroupReference,
+  ops: db.Operations,
+) {
+  const existingPost = ops.getObject('Group', groupId);
+  if (existingPost) {
+    console.log('Already have post', existingPost.id);
+    return;
+  }
+  const data = await api.getGroupReference(groupId);
+  ops.createGroups([data]);
+}
+
+export async function syncAppReference(
+  {userId, appId}: db.AppReference,
+  ops: db.Operations,
+) {
+  const existingApp = ops.getObject('App', userId + '/' + appId);
+  if (existingApp) {
+    logger.log('Already have app', existingApp.id);
+    return;
+  }
+  const result = await api.getAppReference(userId, appId);
+  ops.createApp(result);
+}
+
+function persistPagedPostData(
   channel: db.Channel,
   data: PagedPostsData,
   ops: db.Operations,

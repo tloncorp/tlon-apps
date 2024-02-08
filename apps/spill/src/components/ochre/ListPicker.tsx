@@ -9,14 +9,9 @@ import React, {
 } from 'react';
 import {FlatList, ListRenderItemInfo} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {
-  ScrollViewProps,
-  TamaguiComponent,
-  styled,
-  withStaticProperties,
-} from 'tamagui';
+import {ScrollViewProps, styled, withStaticProperties} from 'tamagui';
 import {pluralize} from '../../utils/format';
-import {Input, SizableText, XStack, YStack} from './core';
+import {TextInput, SizableText, XStack, YStack} from './core';
 import {Button} from './core/Button';
 import {ListItemProps} from './ListItem';
 import {Sheet, SheetHeader} from './Sheet';
@@ -212,7 +207,11 @@ export function ListPickerList<T extends {id: string}>({
           padding="$s"
           borderBottomWidth={1}
           borderBottomColor="$borderColor">
-          <Input placeholder="Filter" flex={1} onChangeText={setSearchQuery} />
+          <TextInput
+            placeholder="Filter"
+            flex={1}
+            onChangeText={setSearchQuery}
+          />
         </XStack>
         <FlatList
           data={options}

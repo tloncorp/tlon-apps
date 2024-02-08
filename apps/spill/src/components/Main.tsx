@@ -1,42 +1,44 @@
-import React, {PropsWithChildren, useEffect} from 'react';
-import {UpdateMode} from 'realm';
 import * as api from '@api';
 import * as db from '@db';
-import {createLogger} from '@utils/debug';
-import useIsLoggedIn from '@utils/state';
-import {useSync} from '@utils/sync';
-import {Routes} from './Routes';
 import {Stack} from '@ochre';
+import {createLogger} from '@utils/debug';
+import React, {PropsWithChildren, useEffect} from 'react';
+import {useSync} from '../utils/sync';
 import {ObjectDetailView} from './ObjectDetailView';
+import {Routes} from './Routes';
 import {ShipLoginScreen} from './screens/ShipLoginScreen';
 
 const logger = createLogger('Main');
 
 export function Main() {
-  const isLoggedIn = useIsLoggedIn();
   const realm = db.useRealm();
-  logger.log('realm initialized at', realm.path);
+  const ops = db.useOps();
+  const authState = api.useAuthState();
   const {sync} = useSync();
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    // Log realm path so that we can find for browsing with realm studio
+    logger.log('realm initialized at', realm.path);
+    // Initial attempt to authenticate with stored account
+    const account = ops.getAccount();
+    api.authenticateWithAccount(account);
+    // Only want this to log once on initialization
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (authState !== 'logged-in') {
       return;
     }
     const channelEventEmitter = api.createChannelSubscription();
     channelEventEmitter.on('post', post => {
-      realm.write(() => {
-        db.create(realm, 'Post', post, UpdateMode.Modified);
-      });
+      ops.createOrUpdatePost(post);
     });
     channelEventEmitter.on('posts', posts => {
-      realm.write(() => {
-        posts.forEach(post => {
-          db.create(realm, 'Post', post, UpdateMode.Modified);
-        });
-      });
+      ops.createOrUpdatePosts(posts);
     });
     sync();
-  }, [isLoggedIn, realm, sync]);
+  }, [ops, sync, authState]);
 
   return (
     <Stack flex={1} backgroundColor={'$background'}>
@@ -47,10 +49,15 @@ export function Main() {
     </Stack>
   );
 }
+
 export function AuthCheck({children}: PropsWithChildren) {
-  const isLoggedIn = useIsLoggedIn();
-  if (isLoggedIn == null) {
+  const authState = api.useAuthState();
+  if (
+    authState === 'initial' ||
+    authState === 'verifying-cookie' ||
+    authState === 'logged-in'
+  ) {
     return children;
   }
-  return isLoggedIn ? children : <ShipLoginScreen />;
+  return <ShipLoginScreen />;
 }

@@ -10,6 +10,8 @@ import {
   SchemaValue,
   WrappedOperations,
 } from './types';
+import * as models from './models';
+import {postQuery} from './queries';
 
 export const useOps = () => {
   const realm = rlm.useRealm();
@@ -17,6 +19,7 @@ export const useOps = () => {
     // Pulling these out because they're generic and I haven't figured out a way to
     // get typing to work for them
     const {create, update, getObject, getObjects, ...basicQueries} = queries;
+    // Merge manually typed + automatically typed operations
     return {
       create: <T extends PrimarySchemaName>(
         model: T,
@@ -61,4 +64,11 @@ export function useObject<T extends SchemaName>(
   primaryKey: SchemaValue<T>,
 ): SchemaModel<T> | null {
   return rlm.useObject<SchemaModel<T>>(model, primaryKey);
+}
+export function useStreamQuery(
+  settings: models.StreamQuerySettings | null | undefined,
+  deps: DependencyList,
+) {
+  const query = useMemo(() => postQuery(settings), [settings]);
+  return useQuery('Post', query, deps);
 }

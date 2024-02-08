@@ -2,10 +2,10 @@ import * as db from '@db';
 import {YStack} from '@ochre';
 import React, {useMemo} from 'react';
 import {PostList} from './ObjectList';
-import * as specialPosts from './posts';
-import posts from './posts.json';
+import * as specialPosts from '../fixtures/posts';
+import posts from '../fixtures/posts.json';
 
-const data = [...Object.values(specialPosts), ...posts];
+const data = [...Object.values(specialPosts), ...posts] as unknown as db.Post[];
 
 export default () => {
   const settings: db.TabSettings = useMemo(() => {

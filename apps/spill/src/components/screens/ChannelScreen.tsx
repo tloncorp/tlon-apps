@@ -3,7 +3,7 @@ import * as db from '@db';
 import {Input, Stack} from '@ochre';
 import React, {useMemo} from 'react';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {NavigationScreenProps, useScreenHeight} from '../../utils/navigation';
+import {NavigationScreenProps, useScreenHeight} from '@utils/navigation.tsx';
 
 export function ChannelScreen({route}: NavigationScreenProps<'Channel'>) {
   const {channelId, highlightedPostId} = route.params;

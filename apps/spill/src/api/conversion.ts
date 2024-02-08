@@ -1,4 +1,10 @@
-import {daToUnix, formatUd as baseFormatUd, parseUd} from '@urbit/aura';
+import {
+  daToUnix,
+  parseDa,
+  formatUd as baseFormatUd,
+  parseUd,
+  parseUx,
+} from '@urbit/aura';
 import * as db from '@db';
 import * as ub from './types';
 
@@ -36,23 +42,89 @@ export function toPostData(
     ? 'notice'
     : (channelId.split('/')[0] as db.PostType);
   const kindData = post?.essay['kind-data'];
+  const [content, flags] = toPostContent(post?.essay.content);
   return {
     id,
     type,
     // Kind data will override
     metadata: parseKindData(kindData),
     author: post?.essay.author,
-    content: JSON.stringify(post?.essay.content),
+    content: JSON.stringify(content),
     text: getTextContent(post?.essay.content),
     sentAt: post?.essay.sent,
-    receivedAt: daToDate(id),
+    receivedAt: udToDate(id),
     replyCount: post?.seal.meta.replyCount,
     images: getPostImages(post),
     reactions: toReactionsData(post?.seal.reacts ?? {}),
     channel: {
       id: channelId,
     },
+    ...flags,
   };
+}
+
+export function toPostContent(
+  story?: ub.Story,
+): [(ub.Verse | db.ContentReference)[] | null, db.PostFlags | null] {
+  if (!story) {
+    return [null, null];
+  }
+  const flags: db.PostFlags = {
+    hasAppReference: false,
+    hasChannelReference: false,
+    hasGroupReference: false,
+    hasLink: false,
+    hasImage: false,
+  };
+  const convertedContent = story.map(verse => {
+    if ('block' in verse && 'cite' in verse.block) {
+      const reference = toContentReference(verse.block.cite);
+      if (reference) {
+        if (reference.referenceType === 'app') {
+          flags.hasAppReference = true;
+        } else if (reference.referenceType === 'channel') {
+          flags.hasChannelReference = true;
+        } else if (reference.referenceType === 'group') {
+          flags.hasGroupReference = true;
+        }
+        return reference;
+      }
+    }
+    return verse;
+  });
+  return [convertedContent, flags];
+}
+
+// TODO: This doesn't handle bait cites, does it need to?
+export function toContentReference(cite: ub.Cite): db.ContentReference | null {
+  if ('chan' in cite) {
+    const channelId = cite.chan.nest;
+    const postId = cite.chan.where.split('/')[2];
+    if (!postId) {
+      console.error('found invalid ref', cite);
+      return null;
+    }
+    const replyId = cite.chan.where.split('/')[3];
+    return {
+      type: 'reference',
+      referenceType: 'channel',
+      channelId,
+      postId: formatUd(postId),
+      replyId: replyId ? formatUd(replyId) : undefined,
+    };
+  } else if ('group' in cite) {
+    return {type: 'reference', referenceType: 'group', groupId: cite.group};
+  } else if ('desk' in cite) {
+    const parts = cite.desk.flag.split('/');
+    const userId = parts[0];
+    const appId = parts[1];
+    if (!userId || !appId) {
+      console.error('found invalid ref', cite);
+      return null;
+    }
+    return {type: 'reference', referenceType: 'app', userId, appId};
+  }
+  return null;
 }
 
 function getTextContent(story?: ub.Story | undefined) {
@@ -166,37 +238,25 @@ function toReactionsData(reacts: Record<string, string>): db.Reaction[] {
   });
 }
 
-function daToDate(da: string) {
+function udToDate(da: string) {
   return daToUnix(parseUd(da));
 }
 
-function toGroupsData(groups: Record<string, ub.Group>) {
+function daToDate(da: string) {
+  return daToUnix(parseDa(da));
+}
+
+export function toGroupsData(groups: Record<string, ub.Group>) {
   return Object.entries(groups).map(([id, group]) => {
     return toGroupData(id, group);
   });
 }
 
-function toGroupData(id: string, group: ub.Group): db.Group {
-  const iconImage = group.meta.image;
-  const iconImageData = iconImage
-    ? isColor(iconImage)
-      ? {iconImageColor: iconImage}
-      : {iconImage: iconImage}
-    : {};
-  const coverImage = group.meta.cover;
-  const coverImageData = coverImage
-    ? isColor(coverImage)
-      ? {iconImageColor: coverImage}
-      : {iconImage: coverImage}
-    : {};
+export function toGroupData(id: string, group: ub.Group): db.Group {
   return {
     id,
-    isSecret: group.secret,
-    title: group.meta.title,
-    ...iconImageData,
-    ...coverImageData,
-    description: group.meta.description,
-    roles: Object.entries(group.cabals).map(([name, role]) => {
+    ...toGroupMetadata(group),
+    roles: Object.entries(group.cabals ?? {}).map(([name, role]) => {
       const data: db.GroupRole = {
         name,
         ...role.meta,
@@ -204,8 +264,8 @@ function toGroupData(id: string, group: ub.Group): db.Group {
       return data as db.GroupRole;
     }),
     navSections: group['zone-ord']
-      .map(zoneId => {
-        const zone = group.zones[zoneId];
+      ?.map(zoneId => {
+        const zone = group.zones?.[zoneId];
         if (!zone) {
           return;
         }
@@ -223,7 +283,40 @@ function toGroupData(id: string, group: ub.Group): db.Group {
     members: Object.entries(group.fleet).map(([userId, vessel]) => {
       return toGroupMember(userId, vessel);
     }),
-    channels: toGroupChannelsData(group.channels),
+    channels: group.channels ? toGroupChannelsData(group.channels) : [],
+  };
+}
+
+export function toGroupPreviewData(
+  id: string,
+  group: ub.Group | ub.GroupPreview,
+): db.Group {
+  return {
+    id,
+    isPreview: true,
+    ...toGroupMetadata(group),
+  };
+}
+
+function toGroupMetadata(group: ub.Group | ub.GroupPreview) {
+  const iconImage = group.meta.image;
+  const iconImageData = iconImage
+    ? isColor(iconImage)
+      ? {iconImageColor: iconImage}
+      : {iconImage: iconImage}
+    : {};
+  const coverImage = group.meta.cover;
+  const coverImageData = coverImage
+    ? isColor(coverImage)
+      ? {iconImageColor: coverImage}
+      : {iconImage: coverImage}
+    : {};
+  return {
+    isSecret: group.secret,
+    title: group.meta.title,
+    ...iconImageData,
+    ...coverImageData,
+    description: group.meta.description,
   };
 }
 
@@ -233,6 +326,45 @@ function omitEmpty(val: string) {
 
 function isColor(value: string) {
   return value[0] === '#';
+}
+
+export function toApp(treaty: ub.Treaty): db.App {
+  return {
+    id: treaty.ship + '/' + treaty.desk,
+    desk: treaty.desk,
+    title: treaty.title,
+    description: treaty.info,
+    color: '#' + parseUx(treaty.color),
+    image: treaty.image,
+    website: treaty.website,
+    license: treaty.license,
+    version: treaty.version,
+    publisherId: treaty.ship,
+    updatedAt: daToDate(treaty.cass.da),
+    hash: treaty.hash,
+    ...toAppSource(treaty),
+  };
+}
+
+function toAppSource(
+  treaty: ub.Treaty,
+): Pick<db.App, 'sourceBase' | 'sourceHash' | 'sourceType' | 'sourceUrl'> {
+  if ('glob' in treaty.href) {
+    const glob = treaty.href.glob;
+    const ref = glob['glob-reference'];
+    return {
+      sourceBase: glob.base,
+      sourceHash: ref.hash,
+      sourceType: 'http' in ref.location ? 'httpGlob' : 'amesGlob',
+      sourceUrl: 'http' in ref.location ? ref.location.http : ref.location.ames,
+    };
+  } else {
+    return {
+      sourceBase: treaty.href.site,
+      sourceType: 'site',
+      sourceUrl: treaty.href.site,
+    };
+  }
 }
 
 function toGroupChannelsData(channels: ub.GroupChannels): db.Channel[] {

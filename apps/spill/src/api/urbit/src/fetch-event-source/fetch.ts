@@ -1,10 +1,10 @@
-import { ReapError } from '../types';
+import { FatalError, ReapError } from '../types';
 import { EventSourceMessage, getBytes, getLines, getMessages } from './parse';
 
 export const EventStreamContentType = 'text/event-stream';
 
 const DefaultRetryInterval = 1000;
-const LastEventId = 'last-EVENT-id';
+const LastEventId = 'last-event-id';
 
 export interface FetchEventSourceInit extends RequestInit {
   /**
@@ -119,9 +119,9 @@ export function fetchEventSource(
             headers,
             signal: curRequestController.signal,
           }),
-          new Promise((_, innerReject) => {
+          new Promise((_, reject) => {
             setTimeout(
-              () => innerReject(new Error('fetch timed out')),
+              () => reject(new Error('fetch timed out')),
               responseTimeout
             );
           }),

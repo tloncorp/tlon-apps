@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useRef} from 'react';
+import * as db from '@db';
 
 // expands object types one level deep
 export type Expand<T> = T extends infer O ? {[K in keyof O]: O[K]} : never;
@@ -87,4 +88,33 @@ export function useLogChange(label: string, value: any, logValue = false) {
       console.log(`${label}:change`);
     }
   }
+}
+
+export function stringifyPost(post: db.Post) {
+  const {group: rawGroup, channel: rawChannel, ...basePost} = post;
+  const {
+    members,
+    channels,
+    posts: _groupPosts,
+    roles: _groupRoles,
+    navSections: _groupNavSections,
+    latestPost: _groupLatestPost,
+    ...group
+  } = rawGroup ?? {};
+  const {
+    posts: _channelsPosts,
+    latestPost: _channelLatestPost,
+    group: _channelGroup,
+    unreadState: _channelUnreadState,
+    ...channel
+  } = rawChannel ?? {};
+  return JSON.stringify(
+    {
+      ...basePost,
+      group,
+      channel,
+    },
+    null,
+    2,
+  );
 }

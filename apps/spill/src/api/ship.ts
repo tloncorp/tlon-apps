@@ -9,7 +9,7 @@ export const getShipFromUrl = (shipUrl: string) => {
 };
 
 export const getShipFromCookie = (cookie: string) =>
-  cookie.match(SHIP_COOKIE_REGEX)![0].slice(0, -1);
+  cookie.match(SHIP_COOKIE_REGEX)![0].slice(0, -1).replace('~', '');
 
 export const getShipUrl = (shipId: string) =>
   SHIP_URL_PATTERN.replace('{shipId}', shipId);
@@ -44,6 +44,9 @@ export const normalizeShipUrl = (shipUrl: string) => {
     // "sampel-palnet.tlon.network" instead of "https://sampel-palnet.tlon.network",
     // or when they enter a URL with a path like "sampel-palnet.tlon.network/apps/groups"
     let transformed = shipUrl.trim();
+
+    // Remove trailing slashes
+    transformed = transformed.replace(/\/+$/, '');
 
     // Prepend protocol if missing, defaulting to HTTPS
     if (!/^https?:\/\//i.test(transformed)) {

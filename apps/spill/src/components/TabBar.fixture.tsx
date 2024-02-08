@@ -1,6 +1,9 @@
 import * as db from '@db';
 import {IconName, Stack, XStack} from '@ochre';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {
+  BottomTabBarProps,
+  createBottomTabNavigator,
+} from '@react-navigation/bottom-tabs';
 import React from 'react';
 import {useValue} from 'react-cosmos/client';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -11,17 +14,21 @@ export const TabNavigator = createBottomTabNavigator();
 const icons: IconName[] = ['Channel', 'ChannelTalk', 'ChannelGalleries'];
 
 export default () => {
-  const [count, setCount] = useValue('count', {defaultValue: 3});
+  const [count] = useValue('count', {defaultValue: 3});
   const insets = useSafeAreaInsets();
   const settings = Array.from({length: count}, () =>
     db.TabSettings.default(),
   ).map((t, i) => {
-    t.icon.value = icons[i % icons.length]!;
-    return t;
+    return {...t, icon: {...t.icon, value: icons[i % icons.length]!}};
   });
 
-  const renderTabBar = props => {
-    return <TabBar {...props} insets={insets} screenSettings={settings} />;
+  const tabGroup: db.TabGroupSettings = {
+    id: 'default',
+    tabs: settings,
+  };
+
+  const renderTabBar = (props: BottomTabBarProps) => {
+    return <TabBar {...props} insets={insets} tabGroup={tabGroup} />;
   };
 
   return (

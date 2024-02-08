@@ -1,6 +1,6 @@
 import * as api from '@api';
 import * as db from '@db';
-import {Button, Input, Text, YStack} from '@ochre';
+import {Button, Text, TextInput, YStack} from '@ochre';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Controller, useForm} from 'react-hook-form';
 import {KeyboardAvoidingView, Platform} from 'react-native';
@@ -35,38 +35,33 @@ export const ShipLoginScreen = () => {
   const queries = db.useOps();
 
   const onSubmit = handleSubmit(async ({shipUrl, accessCode}) => {
-    console.log('Handle submit');
     setIsSubmitting(true);
 
-    const ship = api.getShipFromUrl(shipUrl) ?? '';
     const shipUrlToUse = api.normalizeShipUrl(shipUrl);
-    console.log('Ship', ship, shipUrl, accessCode);
 
     setFormattedShipUrl(shipUrlToUse);
 
     try {
-      await api.init({
-        ship,
-        shipUrl: shipUrlToUse,
-        accessCode,
-      });
+      await api.authenticateWithCode(
+        {
+          shipUrl: shipUrlToUse,
+          accessCode,
+        },
+        credentials => {
+          queries.createOrUpdateAccount({
+            id: db.DEFAULT_ACCOUNT_ID,
+            ship: credentials.ship,
+            url: credentials.url,
+            cookie: credentials.cookie,
+          });
+          setIsSubmitting(false);
+        },
+      );
     } catch (err) {
       console.log('Error!', err);
       setRemoteError((err as Error).message);
     }
-
-    queries.createOrUpdateAccount({
-      id: db.DEFAULT_ACCOUNT_ID,
-      ship,
-      url: shipUrlToUse,
-      cookie: api.getCookie(),
-    });
-
-    setIsSubmitting(false);
-    console.log('done submit');
   });
-
-  console.log('Errors', errors);
 
   useEffect(() => {
     if (errors.shipUrl && formattedShipUrl) {
@@ -98,44 +93,38 @@ export const ShipLoginScreen = () => {
         <YStack gap="$xs">
           <Text>Ship URL</Text>
           <Controller
+            name="shipUrl"
             control={control}
             rules={urlControllerRules}
-            render={({field: {onChange, onBlur, value, ref}}) => (
-              <Input
-                height="$l"
-                placeholder="sampel-palnet.tlon.network"
-                placeholderTextColor="#999999"
-                onBlur={onBlur}
+            render={({field: {onChange, ...field}}) => (
+              <TextInput
+                {...field}
                 onChangeText={onChange}
+                placeholder="sampel-palnet.tlon.network"
                 onSubmitEditing={handleSubmitUrl}
-                value={value}
                 textContentType="oneTimeCode"
                 keyboardType="url"
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="next"
                 enablesReturnKeyAutomatically
-                ref={ref}
               />
             )}
-            name="shipUrl"
           />
           {errors.shipUrl ? <Text>{errors.shipUrl.message}</Text> : null}
         </YStack>
         <YStack gap="$xs">
           <Text>Access Code</Text>
           <Controller
+            name="accessCode"
             control={control}
             rules={accessCodeControllerRules}
-            render={({field: {onChange, onBlur, value, ref}}) => (
-              <Input
-                ref={ref}
-                placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
-                placeholderTextColor="$tertiaryText"
-                onBlur={onBlur}
+            render={({field: {onChange, ...field}}) => (
+              <TextInput
+                {...field}
                 onChangeText={onChange}
+                placeholder="xxxxxx-xxxxxx-xxxxxx-xxxxxx"
                 onSubmitEditing={onSubmit}
-                value={value}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -143,14 +132,14 @@ export const ShipLoginScreen = () => {
                 enablesReturnKeyAutomatically
               />
             )}
-            name="accessCode"
           />
           {errors.accessCode ? <Text>{errors.accessCode.message}</Text> : null}
         </YStack>
         <Button
           onPress={onSubmit}
           disabled={isSubmitting}
-          justifyContent="center">
+          justifyContent="center"
+          height={'$xl'}>
           <Button.Text textAlign="center">
             {isSubmitting ? 'Connecting...' : 'Connect'}
           </Button.Text>

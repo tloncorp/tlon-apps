@@ -3,7 +3,7 @@ import {FlatList, ViewStyle} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import * as db from '@db';
 import {formatTime} from '@utils/format';
-import {useSync} from '@utils/sync';
+import {useSync} from '../utils/sync';
 import {Button, SizableText, XStack, YStack} from '@ochre';
 import {styled} from 'tamagui';
 

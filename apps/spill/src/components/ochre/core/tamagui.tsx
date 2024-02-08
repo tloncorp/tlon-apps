@@ -1,5 +1,4 @@
 export {
-  Input,
   Paragraph,
   ScrollView,
   SizableText,

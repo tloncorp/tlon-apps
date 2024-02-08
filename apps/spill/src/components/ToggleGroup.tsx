@@ -70,7 +70,6 @@ export function ToggleGroupItem<T>({
   }, []);
   return (
     <XStack
-      flex={1}
       pressStyle={pressStyle}
       onPress={handlePress}
       borderColor={'$border'}
@@ -80,7 +79,7 @@ export function ToggleGroupItem<T>({
       height="$xl"
       paddingHorizontal={'$l'}
       backgroundColor={selected ? '$secondaryBackground' : undefined}>
-      <SizableText flex={1} textAlign="center">
+      <SizableText textAlign="center">
         {item.icon && item.icon}
         {item.label}
       </SizableText>

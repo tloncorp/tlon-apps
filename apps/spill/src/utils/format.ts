@@ -1,5 +1,6 @@
 import {differenceInDays, endOfToday, format} from 'date-fns';
 import {useMemo} from 'react';
+import * as list from './list';
 
 export function makePrettyDayAndDateAndTime(date: Date) {
   const fullDate = format(date.getTime(), 'M/d/yy');
@@ -100,4 +101,19 @@ export function pluralize(
   pluralForm = `${input}s`,
 ) {
   return count === 1 ? input : pluralForm;
+}
+
+export function commaSeparatedList(
+  arr: (string | null | undefined)[] | null | undefined,
+  conjunction: string,
+) {
+  const filtered = arr ? list.filterEmpty(arr) : null;
+  if (!filtered || !filtered.length) {
+    return null;
+  }
+  if (filtered.length === 1) {
+    return filtered[0];
+  }
+  const last = filtered.pop();
+  return filtered.join(', ') + ` ${conjunction} ` + last;
 }

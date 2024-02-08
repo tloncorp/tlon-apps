@@ -1,8 +1,16 @@
-import {createSheet, styled, withStaticProperties} from 'tamagui';
-import {YStack, SizableText, XStack} from './core';
+import React from 'react';
+import {
+  StackProps,
+  TamaguiElement,
+  createSheet,
+  styled,
+  withStaticProperties,
+} from 'tamagui';
+import {YStack, SizableText, XStack, Stack} from './core';
 
 const Overlay = styled(YStack, {
-  animation: 'simple',
+  name: 'SheetOverlay',
+  animation: 'quick',
   enterStyle: {opacity: 0},
   exitStyle: {opacity: 0},
   backgroundColor: '$backgroundOverlay',
@@ -25,13 +33,35 @@ const Overlay = styled(YStack, {
 });
 
 const Frame = styled(YStack, {
+  name: 'SheetFrame',
   borderTopLeftRadius: '$l',
   borderTopRightRadius: '$l',
   backgroundColor: '$background',
 });
 
-const Handle = styled(YStack, {
-  backgroundColor: '$background',
+const HandleIndicator = styled(YStack, {
+  name: 'HandleIndicator',
+  backgroundColor: '$border',
+  height: 5,
+  width: 32,
+  borderRadius: 100,
+});
+
+const HandleBase = React.forwardRef<TamaguiElement>(function (
+  props: StackProps,
+  ref,
+) {
+  return (
+    <Stack width={'100%'} alignItems="center" padding="$m" ref={ref} {...props}>
+      <HandleIndicator />
+    </Stack>
+  );
+});
+
+HandleBase.displayName = 'HandleBase';
+
+const Handle = styled(HandleBase, {
+  name: 'StyledHandle',
 });
 
 // Something weird going on with typing here? This works when sheet components

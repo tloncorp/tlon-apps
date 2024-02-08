@@ -1,22 +1,19 @@
-import EventSource from 'react-native-sse';
+import { isBrowser, isNode } from 'browser-or-node';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
-
-const isNode = true;
-const isBrowser = false;
+import EventSource from 'react-native-sse';
 
 import {
-  AuthError,
-  AuthenticationInterface,
-  FatalError,
-  Message,
-  PokeHandlers,
-  PokeInterface,
-  ReapError,
-  SSEOptions,
   Scry,
-  SubscriptionRequestInterface,
   Thread,
-  Headers,
+  AuthenticationInterface,
+  PokeInterface,
+  SubscriptionRequestInterface,
+  headers,
+  SSEOptions,
+  PokeHandlers,
+  Message,
+  FatalError,
+  ReapError,
 } from './types';
 import EventEmitter, { hexString } from './utils';
 
@@ -117,16 +114,16 @@ export class Urbit {
   }
 
   private get fetchOptions(): any {
-    const headers: Headers = {
+    const headers: headers = {
       'Content-Type': 'application/json',
     };
     if (!isBrowser) {
-      headers.Cookie = this.cookie;
+      // headers.Cookie = this.cookie;
     }
     return {
+      credentials: 'include',
       accept: '*',
       headers,
-      credentials: 'omit',
       signal: this.abort.signal,
     };
   }
@@ -163,7 +160,10 @@ export class Urbit {
     code,
     verbose = false,
   }: AuthenticationInterface) {
-    const airlock = new Urbit(url, code);
+    const airlock = new Urbit(
+      url.startsWith('http') ? url : `http://${url}`,
+      code
+    );
     airlock.verbose = verbose;
     airlock.ship = ship;
     await airlock.connect();
@@ -190,6 +190,7 @@ export class Urbit {
     callback: (data: UrbitHttpApiEvent[T]) => void
   ): void {
     this.emitter.on(event, callback);
+
     this.verbose && console.log(event, 'listening active');
     if (event === 'init') {
       this.emitter.emit(event, {
@@ -251,7 +252,6 @@ export class Urbit {
           : 'Connecting from node context'
       );
     }
-
     return fetch(`${this.url}/~/login`, {
       method: 'post',
       body: `password=${this.code}`,
@@ -260,22 +260,24 @@ export class Urbit {
       if (this.verbose) {
         console.log('Received authentication response', response);
       }
-      // if (response.status >= 200 && response.status < 300) {
-      //   throw new Error('Login failed with status ' + response.status);
-      // }
-
+      if (response.status >= 200 && response.status < 300) {
+        throw new Error('Login failed with status ' + response.status);
+      }
       const cookie = response.headers.get('set-cookie');
       if (!this.ship && cookie) {
         this.ship = new RegExp(/urbauth-~([\w-]+)/).exec(cookie)[1];
       }
       if (!isBrowser) {
-        this.cookie = cookie.split(';')[0];
+        this.cookie = cookie;
       }
       this.getShipName();
       this.getOurName();
     });
   }
 
+  /**
+   * Initializes the SSE pipe for the appropriate channel.
+   */
   /**
    * Initializes the SSE pipe for the appropriate channel.
    */
@@ -368,13 +370,8 @@ export class Urbit {
         if (event.data && JSON.parse(event.data)) {
           const data: any = JSON.parse(event.data);
 
-          if (
-            data.response === 'poke' &&
-            this.outstandingPokes.has(parseInt(event.lastEventId))
-          ) {
-            const funcs = this.outstandingPokes.get(
-              parseInt(event.lastEventId)
-            );
+          if (data.response === 'poke' && this.outstandingPokes.has(data.id)) {
+            const funcs = this.outstandingPokes.get(data.id);
             if (data.hasOwnProperty('ok')) {
               funcs.onSuccess();
             } else if (data.hasOwnProperty('err')) {
@@ -423,37 +420,27 @@ export class Urbit {
       });
 
       es.addEventListener('error', (error) => {
-        let outError: typeof error | AuthError = error;
-        if (error.type === 'error') {
-          if (error.xhrStatus === 401 || error.xhrStatus === 403) {
-            outError = new AuthError('Auth error', { cause: error });
-          }
-        }
-
         this.errorCount++;
         this.emit('error', { time: Date.now(), msg: JSON.stringify(error) });
 
-        if (outError instanceof ReapError) {
+        if (error instanceof ReapError) {
           console.log('reap error');
           this.seamlessReset();
           return;
         }
-        if (
-          !(outError instanceof FatalError) &&
-          !(outError instanceof AuthError)
-        ) {
+        if (!(error instanceof FatalError)) {
           this.emit('status-update', { status: 'reconnecting' });
           this.onRetry && this.onRetry();
           return Math.min(5000, Math.pow(2, this.errorCount - 1) * 750);
         }
         this.emit('status-update', { status: 'errored' });
         console.log('calling onError');
-        this.onError && this.onError(outError);
-        console.log('rejecting', hasOpened, outError);
+        this.onError && this.onError(error);
+        console.log('rejecting', hasOpened, error);
         if (!hasOpened) {
-          onFatalError(outError);
+          onFatalError(error);
         }
-        throw outError;
+        throw error;
       });
 
       es.addEventListener('close', () => {
@@ -572,10 +559,10 @@ export class Urbit {
           reject('quit');
         }
       };
-      const event = (e: T, mark: string, subscriptionId: number) => {
+      const event = (e: T, mark: string, eventId: number) => {
         if (!done) {
           resolve(e);
-          this.unsubscribe(subscriptionId);
+          this.unsubscribe(eventId);
         }
       };
       const request = { app, path, event, err: reject, quit };
@@ -621,6 +608,7 @@ export class Urbit {
       mark,
       json,
     };
+    console.log('POKE', message);
     this.outstandingPokes.set(message.id, {
       onSuccess: () => {
         onSuccess();

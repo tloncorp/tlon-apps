@@ -20,11 +20,19 @@ import {
   isShip,
   isStrikethrough,
 } from '@api/types/content';
+import * as db from '@db';
 import {Image, SizableText, Stack, Text, XStack, YStack} from '@ochre';
 import {TextStyleProps} from '@tamagui/core';
-import React, {ReactElement, useCallback, useMemo} from 'react';
+import {
+  syncAppReference,
+  syncChannelReference,
+  syncGroupReference,
+} from '../utils/sync';
+import React, {ReactElement, useCallback, useEffect, useMemo} from 'react';
 import {Linking} from 'react-native';
+
 import {SizableTextProps, styled} from 'tamagui';
+import {PostListItem} from './ObjectListItem';
 
 interface PostContentProps {
   story: Story;
@@ -225,28 +233,6 @@ export function BlockContent({story}: BlockContentProps) {
     return <ImageContent image={story.image} />;
   }
 
-  if ('cite' in story) {
-    let content = '';
-    if ('chan' in story.cite) {
-      content = 'Ref: message in ' + story.cite.chan.nest;
-    } else if ('group' in story.cite) {
-      content = 'Ref: Group ' + story.cite.group;
-    } else if ('desk' in story.cite) {
-      content = 'Desk:' + story.cite.desk;
-    } else if ('bait' in story.cite) {
-      content = 'Bait: ' + story.cite.bait.group;
-    }
-
-    return (
-      <Stack
-        padding="$xs"
-        borderRadius={'$xs'}
-        backgroundColor={'$secondaryBackground'}>
-        <SizableText>{content}</SizableText>
-      </Stack>
-    );
-  }
-
   if ('header' in story) {
     return <HeaderContent header={story.header} />;
   }
@@ -268,6 +254,110 @@ export function BlockContent({story}: BlockContentProps) {
   }
 
   return <SizableText>{JSON.stringify(story)}</SizableText>;
+}
+
+function ContentReference({reference}: {reference: db.ContentReference}) {
+  if (reference.referenceType === 'channel') {
+    return <ChannelReference reference={reference} />;
+  } else if (reference.referenceType === 'group') {
+    return <GroupReference reference={reference} />;
+  } else if (reference.referenceType === 'app') {
+    return <AppReference reference={reference} />;
+  } else {
+    return (
+      <XStack
+        padding="$xs"
+        borderRadius={'$xs'}
+        backgroundColor={'$secondaryBackground'}>
+        <SizableText>{JSON.stringify(reference)}</SizableText>
+      </XStack>
+    );
+  }
+}
+
+function GroupReference({reference}: {reference: db.GroupReference}) {
+  const ops = db.useOps();
+  useEffect(() => {
+    syncGroupReference(reference, ops);
+  }, [ops, reference]);
+  return null;
+}
+
+function AppReference({reference}: {reference: db.AppReference}) {
+  const ops = db.useOps();
+  const app = db.useObject('App', reference.userId + '/' + reference.appId);
+  useEffect(() => {
+    syncAppReference(reference, ops);
+  }, [ops, reference]);
+  const iconBorderWidth = app?.color.toUpperCase() === '#FFFFFF' ? 1 : 0;
+  console.log(
+    app?.color,
+    app?.image,
+    app?.color?.toUpperCase(),
+    app?.color.toUpperCase() === '#FFFFFF',
+    iconBorderWidth,
+  );
+  console;
+  return (
+    <XStack
+      padding="$m"
+      borderColor="$border"
+      borderRadius="$m"
+      borderWidth={1}>
+      {app ? (
+        <XStack gap="$s">
+          <Stack
+            //@ts-ignore user-supplied color
+            backgroundColor={app.color}
+            borderColor="$border"
+            borderWidth={iconBorderWidth}
+            borderRadius="$s"
+            width={'$l'}
+            height={'$l'}
+            flexShrink={0}>
+            <Image
+              source={{uri: app.image}}
+              width={100}
+              height={100}
+              borderRadius="$s"
+            />
+          </Stack>
+          <YStack>
+            <XStack gap="$s">
+              <SizableText size="$s">
+                {app.title} by {app.publisherId}
+              </SizableText>
+            </XStack>
+            <SizableText size="$s">Application</SizableText>
+          </YStack>
+        </XStack>
+      ) : (
+        <SizableText>Loading</SizableText>
+      )}
+    </XStack>
+  );
+}
+
+function ChannelReference({reference}: {reference: db.ChannelReference}) {
+  const ops = db.useOps();
+  const post = db.useObject('Post', reference.postId);
+
+  useEffect(() => {
+    if (!post) {
+      syncChannelReference(reference, ops);
+    }
+  }, [ops, reference, post]);
+
+  return post ? (
+    <PostListItem
+      model={post}
+      borderColor={'$border'}
+      borderWidth={1}
+      borderRadius={'$m'}
+    />
+  ) : (
+    <SizableText>Ref not loaded</SizableText>
+  );
 }
 
 function ImageContent({image}: {image: StoryImage['image']}) {
@@ -326,9 +416,12 @@ function HeaderContent({header}: {header: Header['header']}) {
 
 function PostContent({story = [], writId = 'not-writ'}: PostContentProps) {
   const storyInlines = (
-    story.filter(s => 'inline' in s) as VerseInline[]
+    story.filter(s => s && 'inline' in s) as VerseInline[]
   ).flatMap(i => i.inline);
-  const storyBlocks = story.filter(s => 'block' in s) as VerseBlock[];
+  const storyBlocks = story.filter(s => (s && 'block' in s) || 'type' in s) as (
+    | VerseBlock
+    | db.ContentReference
+  )[];
   // const inlineLength = storyInlines.length;
   // const blockLength = storyBlocks.length;
   // const firstBlockCode = storyInlines.findIndex(isBlockCode);
@@ -372,15 +465,22 @@ function PostContent({story = [], writId = 'not-writ'}: PostContentProps) {
     <YStack gap="$xs">
       {blockContent
         .filter(a => !!a)
-        .map((storyItem, index) => (
-          <Stack key={`${storyItem.toString()}-${index}`}>
-            <BlockContent
-              story={storyItem.block}
-              writId={writId}
-              blockIndex={index}
-            />
-          </Stack>
-        ))}
+        .map((storyItem, index) => {
+          console.log(storyItem, index);
+          return (
+            <Stack key={`${storyItem.toString()}-${index}`}>
+              {isContentReference(storyItem) ? (
+                <ContentReference reference={storyItem} />
+              ) : (
+                <BlockContent
+                  story={storyItem.block}
+                  writId={writId}
+                  blockIndex={index}
+                />
+              )}
+            </Stack>
+          );
+        })}
 
       {inlineGroups.map((items, index) => {
         const isBlock = items.length === 1;
@@ -408,6 +508,10 @@ function PostContent({story = [], writId = 'not-writ'}: PostContentProps) {
       })}
     </YStack>
   );
+}
+
+function isContentReference(t: unknown): t is db.ContentReference {
+  return t instanceof Object && 'type' in t && t.type === 'reference';
 }
 
 export default React.memo(PostContent);

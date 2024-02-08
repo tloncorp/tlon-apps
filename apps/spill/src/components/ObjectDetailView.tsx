@@ -3,7 +3,7 @@ import {useDetailView} from '@utils/state';
 import {Paragraph, ScrollView, Sheet, Stack, XStack, YStack} from '@ochre';
 import {ChannelToken, GroupToken, UserToken} from './ObjectToken';
 import PostContent from './PostContent';
-import * as db from '@db';
+import {stringifyPost} from '@utils/debug.ts';
 
 export function ObjectDetailView() {
   const {activeDetailView, clearDetailView} = useDetailView();
@@ -59,33 +59,4 @@ export function ObjectDetailView() {
       </Sheet.ScrollView>
     </Sheet>
   ) : null;
-}
-
-function stringifyPost(post: db.Post) {
-  const {group: rawGroup, channel: rawChannel, ...basePost} = post;
-  const {
-    members,
-    channels,
-    posts: _groupPosts,
-    roles: _groupRoles,
-    navSections: _groupNavSections,
-    latestPost: _groupLatestPost,
-    ...group
-  } = rawGroup ?? {};
-  const {
-    posts: _channelsPosts,
-    latestPost: _channelLatestPost,
-    group: _channelGroup,
-    unreadState: _channelUnreadState,
-    ...channel
-  } = rawChannel ?? {};
-  return JSON.stringify(
-    {
-      ...basePost,
-      group,
-      channel,
-    },
-    null,
-    2,
-  );
 }

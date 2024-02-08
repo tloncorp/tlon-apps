@@ -1,8 +1,7 @@
 import * as db from '@db';
-import {Image, XStack} from '@ochre';
+import {Avatar, Image, XStack} from '@ochre';
 import React from 'react';
 import {SizableText, styled, withStaticProperties} from 'tamagui';
-import {Avatar} from './ochre/Avatar';
 
 const ObjectTokenFrame = styled(XStack, {
   alignSelf: 'flex-start',

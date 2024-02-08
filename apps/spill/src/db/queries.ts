@@ -1,20 +1,10 @@
-import {DependencyList, useMemo} from 'react';
-import {useQuery} from './hooks';
 import * as models from './models';
 import {QueryFn, Results} from './types';
+import {hasValues} from '@utils/list';
 
 export const channelQuery =
-  (
-    settings?:
-      | (models.StreamQuerySettings & {
-          sortBy?: 'title' | 'latestPost';
-          includeEmpty?: boolean;
-          updatedAfter?: number | null;
-        })
-      | null,
-  ): QueryFn<'Channel'> =>
+  (settings?: models.StreamQuerySettings | null): QueryFn<'Channel'> =>
   (channels: Results<'Channel'>) => {
-    console.log('in groups', settings?.inGroups);
     channels = channels.filtered('title != NULL');
     if (!settings?.includeEmpty) {
       channels = channels.filtered('latestPost != NULL');
@@ -39,28 +29,19 @@ export const channelQuery =
     }
     const sortBy = settings?.sortBy || 'latestPost';
     const resolvedSortBy =
-      sortBy !== 'latestPost' ? sortBy : 'latestPost.receivedAt';
+      sortBy === 'latestPost' ? 'latestPost.receivedAt' : sortBy;
     const resolvedSortDirection = settings?.sortDirection || 'desc';
     return channels.sorted(resolvedSortBy, resolvedSortDirection === 'desc');
   };
 
-export const groupQuery =
-  (settings?: {
-    titleContainsText?: string | null;
-    sortBy?: string;
-    sortDirection?: 'asc' | 'desc';
-    updatedAfter: number | null;
-  }) =>
-  (groups: Results<'Group'>) => {
-    if (settings?.titleContainsText) {
-      groups = groups.filtered(
-        'title CONTAINS[c] $0',
-        settings.titleContainsText,
-      );
+export const groupQuery = (settings?: models.StreamQuerySettings | null) => {
+  return (groups: Results<'Group'>) => {
+    if (settings?.containsText) {
+      groups = groups.filtered('title CONTAINS[c] $0', settings.containsText);
     }
     const sortBy = settings?.sortBy || 'latestPost';
     const resolvedSortBy =
-      sortBy !== 'latestPost' ? sortBy : 'latestPost.receivedAt';
+      sortBy === 'latestPost' ? 'latestPost.receivedAt' : sortBy;
     const resolvedSortDirection = settings?.sortDirection || 'desc';
     if (sortBy === 'latestPost') {
       groups = groups.filtered('latestPost != NULL');
@@ -73,9 +54,10 @@ export const groupQuery =
     }
     return groups.sorted(resolvedSortBy, resolvedSortDirection === 'desc');
   };
+};
 
 export const postQuery =
-  (settings: models.StreamQuerySettings | null | undefined): QueryFn<'Post'> =>
+  (settings?: models.StreamQuerySettings | null): QueryFn<'Post'> =>
   (posts: Results<'Post'>) => {
     // Author being null indicates that this is a deleted post.
     // TODO: Consider adding an isDeleted field to posts.
@@ -97,27 +79,10 @@ export const postQuery =
         settings.inGroups.map((g: models.Group) => g.id),
       );
     }
-    if (settings?.receivedAfter) {
-      posts = posts.filtered('receivedAt > $0', settings.receivedAfter);
-    }
-    if (settings?.receivedBefore) {
-      posts = posts.filtered('receivedAt < $0', settings.receivedBefore);
+    if (settings?.updatedAfter) {
+      posts = posts.filtered('receivedAt > $0', settings.updatedAfter);
     }
     const sortBy = settings?.sortBy || 'receivedAt';
     const resolvedSortDirection = settings?.sortDirection || 'desc';
     return posts.sorted(sortBy, resolvedSortDirection === 'desc');
   };
-
-export function useStreamQuery(
-  settings: models.StreamQuerySettings | null | undefined,
-  deps: DependencyList,
-) {
-  const query = useMemo(() => postQuery(settings), [settings]);
-  return useQuery('Post', query, deps);
-}
-
-function hasValues<T extends {length: number}>(
-  list: T | null | undefined,
-): list is T {
-  return !!(list && list.length > 0);
-}

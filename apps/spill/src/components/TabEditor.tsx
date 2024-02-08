@@ -237,7 +237,7 @@ function StreamContentTypeEditor({
   onChange,
 }: {
   value: db.StreamPostType[] | null;
-  onChange: (newValue: db.StreamPostType) => void;
+  onChange: (newValue: db.StreamPostType | null) => void;
 }) {
   const handleChange = useCallback(
     (newValue: db.StreamPostType | 'all') => {

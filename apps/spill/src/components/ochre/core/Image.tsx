@@ -1,9 +1,25 @@
+import React, {ComponentProps, useMemo} from 'react';
 import FastImage from 'react-native-fast-image';
+import {SvgUri} from 'react-native-svg';
 import {styled} from 'tamagui';
 
-// TODO: Is this efficient? `usePropsAndStyle` warns about possible issues,
-// should investigate.
-// Might make more sense to pull in the full tamagui image component from here:
-// https://github.com/tamagui/tamagui/blob/master/packages/image/src/Image.tsx
+const StyledFastImage = styled(FastImage, {name: 'FastImage'});
+const StyledSvgUri = styled(SvgUri, {name: 'Svg'});
 
-export const Image = styled(FastImage, {name: 'FastImage'});
+export const Image = function (
+  // TODO: Add support for fallback and onLoad, props are only slightly different
+  props: Omit<ComponentProps<typeof StyledFastImage>, 'fallback' | 'onLoad'>,
+) {
+  const url = useMemo(() => {
+    return typeof props.source === 'string'
+      ? props.source
+      : typeof props.source === 'object'
+      ? props.source?.uri
+      : undefined;
+  }, [props.source]);
+
+  if (url && url.endsWith('svg')) {
+    return <StyledSvgUri {...props} uri={url} />;
+  }
+  return <StyledFastImage {...props} />;
+};

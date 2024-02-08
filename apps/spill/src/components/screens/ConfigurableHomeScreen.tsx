@@ -106,7 +106,7 @@ export function ConfigurableHomeScreenNavigator() {
     [addTab, editTab, openTab, tabGroup],
   );
 
-  const allTabs = [...defaultTabs, ...(tabGroup?.tabs ?? [])];
+  const allTabs = [...(tabGroup?.tabs ?? [])];
 
   return (
     <TabNavigator.Navigator
@@ -194,7 +194,7 @@ export const ConfigurableHomeScreen = ({
   }, [deleteTab, editingTab]);
 
   const editorTabSettings =
-    (editingTab !== null ? tabGroup?.tabs?.[editingTab] : null) ?? null;
+    (editingTab === null ? null : tabGroup?.tabs?.[editingTab]) ?? null;
 
   return (
     <ConfigurableHomeScreenContext.Provider value={contextValue}>

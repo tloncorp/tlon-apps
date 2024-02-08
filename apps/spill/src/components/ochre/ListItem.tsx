@@ -1,17 +1,20 @@
 import React, {ComponentProps, PropsWithChildren, ReactElement} from 'react';
-import {XStackProps, styled, withStaticProperties} from 'tamagui';
-import {useFormattedTime} from '../../utils/format';
+import {styled, withStaticProperties} from 'tamagui';
+import {useFormattedTime} from '@utils/format';
 import {Image} from './core/Image';
 import {SizableText, Stack, XStack, YStack} from './core/tamagui';
 
-export type ListItemProps<T> = {
+interface BaseListItemProps<T> {
   model: T;
   StartIcon?: ReactElement | null;
   EndIcon?: ReactElement | null;
   onPress?: (model: T) => void;
   onLongPress?: (model: T) => void;
   highlighted?: boolean;
-} & ComponentProps<typeof ListItemFrame>;
+}
+
+export type ListItemProps<T> = BaseListItemProps<T> &
+  Omit<ComponentProps<typeof ListItemFrame>, keyof BaseListItemProps<T>>;
 
 export const ListItemFrame = styled(XStack, {
   name: 'ListItemFrame',
@@ -52,6 +55,7 @@ function ListItemImage({
       width={48}
       height={48}
       borderRadius="$s"
+      //@ts-ignore This is an arbitrary, user-set color
       backgroundColor={backgroundColor ?? '$secondaryBackground'}
       {...props}
       source={{

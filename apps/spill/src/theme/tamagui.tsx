@@ -106,9 +106,14 @@ export const themes = {
     border: tokens.color.gray100,
     borderColor: tokens.color.gray100,
     borderFocus: tokens.color.gray200,
+    borderColorFocus: tokens.color.gray200,
     activeBorder: tokens.color.gray200,
     statusBar: tokens.color.black,
     error: tokens.color.red,
+    destructiveAction: tokens.color.red,
+    destructiveActionBorder: tokens.color.redSoft,
+    externalAction: tokens.color.blue,
+    externalActionBorder: tokens.color.blueSoft,
   },
 };
 
@@ -166,16 +171,6 @@ export const config = createTamagui({
   themes,
   settings: {
     allowedStyleValues: 'somewhat-strict',
-  },
-  defaultProps: {
-    Input: {
-      borderColor: '$border',
-      borderColorFocus: '$borderFocus',
-    },
-    TextInput: {
-      borderColor: '$border',
-      borderColorFocus: '$borderFocus',
-    },
   },
   animations,
 });

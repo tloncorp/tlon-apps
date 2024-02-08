@@ -9,6 +9,5 @@ export const StreamContext = React.createContext<db.TabSettings>({
     ofType: [],
     groupBy: 'post',
     inGroups: [],
-    containsText: [],
   },
 });

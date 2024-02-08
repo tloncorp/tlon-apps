@@ -1,226 +1,143 @@
-import {formatUd, unixToDa} from '@urbit/aura';
-import EventEmitter from 'events';
 import * as db from '@db';
-import {timer} from '@utils/debug';
+import CookieManager from '@react-native-cookies/cookies';
+import {formatUd, unixToDa} from '@urbit/aura';
+import {appStore} from '@utils/state';
+import EventEmitter from 'events';
+import {atom, useAtomValue} from 'jotai';
 import * as io from './conversion';
-import * as groups from './types';
+import {getShipFromCookie} from './ship';
+import * as ub from './types';
 import {Contact} from './types/contact';
 import {Groups} from './types/groups';
 import * as urbit from './urbit/src';
+import {createLogger} from '@utils/debug';
+import * as list from '@utils/list';
 
 export * from './ship';
 
-type PatP = `~${string}`;
-type PatUv = `0v${string}`;
-type GroupChatId = PatUv;
-type ChannelId = string;
+const logger = createLogger('api', false);
 
 let urbitClient: urbit.Urbit;
 
-export async function initWithCookie({
-  shipUrl,
-  ship,
-  cookie,
-}: {
-  shipUrl: string;
-  ship: string;
-  cookie: string;
-}) {
-  if (urbitClient) return;
-  console.log('init with coolke', shipUrl, ship, cookie);
-  urbitClient = new urbit.Urbit(shipUrl);
-  urbitClient.cookie = cookie;
-  urbitClient.ship = ship;
-  timer.start('opening airlock');
-  await urbitClient.poke({
-    app: 'hood',
-    mark: 'helm-hi',
-    json: 'opening airlock',
-  });
-  timer.stop('opening airlock');
-  timer.start('opening event source');
-  await urbitClient.eventSource();
-  timer.stop('opening event source');
-}
+type AuthState =
+  | 'initial'
+  | 'verifying-cookie'
+  | 'logging-in'
+  | 'not-logged-in'
+  | 'logged-in';
 
-export const init = async ({
-  ship,
-  shipUrl,
-  accessCode,
-}: {
-  ship: string;
-  shipUrl: string;
-  accessCode: string;
-}) => {
-  console.log('init called');
-  if (urbitClient) return;
-  console.log('Base init', ship, shipUrl, accessCode);
-  const startTime = Date.now();
-  urbitClient = await urbit.Urbit.authenticate({
-    url: shipUrl,
-    code: accessCode,
-    ship: ship,
-  });
-  console.log('authenticated in', Date.now() - startTime + 'ms');
+export const authState = atom<AuthState>('initial');
 
-  // events:  'subscription' 'status-update' 'id-update' 'fact' 'error' 'reset' 'seamless-reset' 'init';
-  // urbitClient.on('subscription', subscription => {
-  //   console.log('UE: subscription', subscription);
-  // });
-  // urbitClient.on('status-update', statusUpdate => {
-  //   console.log('UE: status-update', statusUpdate);
-  // });
-  // urbitClient.on('id-update', idUpdate => {
-  //   console.log('UE: id-update', idUpdate);
-  // });
-  // urbitClient.on('fact', fact => {
-  //   console.log('UE: fact', fact);
-  // });
-  // urbitClient.on('error', error => {
-  //   console.log('UE: error', error);
-  // });
-  // urbitClient.on('reset', reset => {
-  //   console.log('UE: reset', reset);
-  // });
-  // urbitClient.on('seamless-reset', reset => {
-  //   console.log('UE: seamless-reset', reset);
-  // });
-  // urbitClient.on('init', initData => {
-  //   console.log('UE: init', initData);
-  // });
+appStore.sub(authState, () => {
+  logger.log('Auth state changed to', appStore.get(authState));
+});
+
+export const useAuthState = () => useAtomValue(authState);
+
+type AccountData = Omit<db.Account, 'id'>;
+const accountState = atom<AccountData | null>(null);
+
+export const authenticateWithCode = async (
+  credentials: {
+    shipUrl: string;
+    accessCode: string;
+  },
+  onSuccess: (account: AccountData) => void,
+) => {
+  logger.log('authenticating with code', credentials);
+  if (!canLogIn()) {
+    logger.log("can't log in", appStore.get(authState));
+    return;
+  }
+  appStore.set(authState, 'logging-in');
+  try {
+    logger.log('fetching login endpoint');
+    const response = await fetch(`${credentials.shipUrl}/~/login`, {
+      method: 'post',
+      body: `password=${credentials.accessCode}`,
+      credentials: 'include',
+    });
+
+    const rawCookie = response.headers.get('set-cookie');
+    if (!rawCookie) {
+      throw new Error('Missing cookie');
+    }
+
+    const cookie = rawCookie.split(';')[0];
+    if (!cookie) {
+      throw new Error('invalid cookie');
+    }
+
+    const ship = getShipFromCookie(cookie);
+    logger.log('got cookie+ship', cookie, ship);
+    appStore.set(accountState, {
+      url: credentials.shipUrl,
+      ship,
+      cookie,
+    });
+    await setupChannel();
+    appStore.set(authState, 'logged-in');
+    onSuccess({url: credentials.shipUrl, cookie, ship});
+  } catch (e) {
+    appStore.set(authState, 'not-logged-in');
+    throw e;
+  }
 };
 
-export function getCookie() {
-  return urbitClient.cookie;
-}
-interface SendMessageParams {
-  from: PatP;
-  to: PatP | ChannelId | GroupChatId;
-  time: Date;
-  content: groups.Story;
-}
-
-function isPatP(input: string): input is PatP {
-  return input.startsWith('~');
-}
-
-function isChannelId(input: string): input is ChannelId {
-  return input.match(/[\w+]\/~[\w-]+\/[\w-]+/) !== null;
-}
-
-function isGroupChatId(input: string): input is GroupChatId {
-  return input.startsWith('0v');
-}
-
-function createMessageId(from: PatP, time: Date) {
-  return `${from}/${formatUd(unixToDa(time.getTime()))}`;
-}
-
-export function sendMessage(params: SendMessageParams) {
-  if (isPatP(params.to)) {
-    sendDmMessage(params);
-  } else if (isChannelId(params.to)) {
-    sendChannelMessage(params);
-  } else if (isGroupChatId(params.to)) {
-    sendGroupChatMessage(params);
-  } else {
-    throw new Error('Invalid recipient id');
+export async function authenticateWithAccount(credentials?: db.Account | null) {
+  if (!canLogIn()) {
+    return;
+  }
+  if (!credentials || !credentials.cookie) {
+    appStore.set(authState, 'not-logged-in');
+    return;
+  }
+  try {
+    const [cookieName, cookieValue] = credentials.cookie.split('=');
+    if (!cookieName || !cookieValue) {
+      throw new Error('invalid cookie');
+    }
+    appStore.set(authState, 'verifying-cookie');
+    await CookieManager.clearAll();
+    await CookieManager.set(credentials.url, {
+      name: cookieName,
+      value: cookieValue,
+      path: '/',
+      version: '1',
+      secure: true,
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365).toString(),
+    });
+    appStore.set(accountState, credentials);
+    await setupChannel();
+    appStore.set(authState, 'logged-in');
+  } catch (e) {
+    appStore.set(authState, 'not-logged-in');
+    throw e;
   }
 }
 
-function sendDmMessage({from, to, time, content}: SendMessageParams) {
-  return sendPoke({
-    ship: from.slice(1),
-    app: 'chat',
-    mark: 'chat-dm-action',
-    json: {
-      ship: to,
-      diff: {
-        id: createMessageId(from, time),
-        delta: {
-          add: {
-            memo: {
-              content,
-              author: from,
-              sent: time.getTime(),
-            },
-            kind: null,
-            time: null,
-          },
-        },
-      },
-    },
-  });
+function canLogIn() {
+  const currentAuthState = appStore.get(authState);
+  return currentAuthState === 'not-logged-in' || currentAuthState === 'initial';
 }
 
-// Maybe a protocol version number? Not sure why this value, but this is what's
-// used in landscape-apps.
-const GROUP_CHAT_UID = '0v3';
+export async function setupChannel() {
+  const credentials = appStore.get(accountState);
+  if (!credentials) {
+    throw new Error("can't setup channel without credentials");
+  }
 
-function sendGroupChatMessage({from, to, time, content}: SendMessageParams) {
-  return sendPoke({
-    ship: from.slice(1),
-    app: 'chat',
-    mark: 'chat-club-action-0',
-    json: {
-      id: to,
-      diff: {
-        uid: GROUP_CHAT_UID,
-        delta: {
-          writ: {
-            id: createMessageId(from, time),
-            delta: {
-              add: {
-                memo: {
-                  content: content,
-                  author: from,
-                  sent: time.getTime(),
-                },
-                kind: null,
-                time: null,
-              },
-            },
-          },
-        },
-      },
-    },
-  });
+  urbitClient = new urbit.Urbit(credentials.url);
+  urbitClient.cookie = credentials.cookie;
+  urbitClient.ship = credentials.ship;
+
+  await urbitClient.eventSource();
 }
-
-function sendChannelMessage({from, to, time, content}: SendMessageParams) {
-  return sendPoke({
-    ship: from.slice(1),
-    app: 'channels',
-    mark: 'channel-action',
-    json: {
-      channel: {
-        nest: to,
-        action: {
-          post: {
-            add: {
-              'kind-data': {
-                chat: null,
-              },
-              author: from,
-              sent: time.getDate(),
-              content: content,
-            },
-          },
-        },
-      },
-    },
-  });
-}
-
-export const sendPoke = async <T>(poke: urbit.Poke<T>) => {
-  await urbitClient.poke(poke);
-};
 
 async function scry<T>(app: string, path: `${string}`) {
-  return urbitClient.scry({
-    app,
-    path,
-  }) as Promise<T>;
+  return fetch(
+    `${appStore.get(accountState)?.url}/~/scry/${app}${path}.json`,
+  ).then(res => res.json()) as Promise<T>;
 }
 
 export const getGroups = async (
@@ -242,12 +159,12 @@ export const getContacts = async (): Promise<Record<string, Contact>> => {
 };
 
 export const getUnreadChannels = async () => {
-  const response = await scry<groups.Unreads>('channels', '/unreads');
+  const response = await scry<ub.Unreads>('channels', '/unreads');
   return io.channelUnreads.toLocal(response);
 };
 
 export const getChannelPosts = async (
-  channelId: ChannelId,
+  channelId: string,
   {
     cursor,
     date,
@@ -271,13 +188,9 @@ export const getChannelPosts = async (
   let finalCursor = cursor ? cursor : formatDateParam(date!);
   const mode = includeReplies ? 'post' : 'outline';
   const path = `/${channelId}/posts/${direction}/${finalCursor}/${count}/${mode}`;
-  const result = await scry<groups.PagedPosts>('channels', path);
+  const result = await scry<ub.PagedPosts>('channels', path);
   return io.toPagedPostsData(channelId, result);
 };
-
-function formatDateParam(date: Date) {
-  return formatUd(unixToDa(date!.getTime()));
-}
 
 export type EventMap = {
   [key: string]: (...args: any[]) => void;
@@ -299,10 +212,7 @@ export const createChannelSubscription = () => {
   urbitClient.subscribe({
     app: 'channels',
     path: '/',
-    err(error, id) {
-      // console.log('E: channels error', error, id);
-    },
-    event(data, mark, id) {
+    event(data, mark) {
       if (isChannelResponse(data, mark)) {
         const {nest: channelId, response} = data;
         if ('posts' in response) {
@@ -318,33 +228,58 @@ export const createChannelSubscription = () => {
         }
       }
     },
-    quit(data) {
-      // console.log('E: channels quit', data);
-    },
   });
 
   return emitter;
 };
 
+export async function getChannelReference(
+  channelId: string,
+  postId: string,
+  replyId?: string,
+) {
+  const path =
+    '/' +
+    list
+      .filterEmpty(['said', channelId, 'post', io.formatUd(postId), replyId])
+      .join('/');
+  const result = (await urbitClient.subscribeOnce(
+    'channels',
+    path,
+  )) as ub.Said<ub.PostReferenceResponse>;
+  return io.toPostData(
+    result.reference.post.seal.id,
+    result.nest,
+    result.reference.post,
+  );
+}
+
+export async function getGroupReference(groupId: string) {
+  const path = `/gangs/${groupId}/preview`;
+  const result = (await urbitClient.subscribeOnce(
+    'groups',
+    path,
+  )) as ub.GroupPreview;
+  return io.toGroupPreviewData(groupId, result);
+}
+
+export async function getAppReference(userId: string, appId: string) {
+  const path = `/treaty/${userId}/${appId}`;
+  const result = (await urbitClient.subscribeOnce(
+    'treaty',
+    path,
+    20000,
+  )) as ub.Treaty;
+  return io.toApp(result);
+}
+
 function isChannelResponse(
   data: any,
   mark: string,
-): data is groups.ChannelsResponse {
+): data is ub.ChannelsResponse {
   return mark === 'channel-response';
 }
 
-export const subscribeToChannel = async (channelId: ChannelId) => {
-  urbitClient.subscribe({
-    app: 'channels',
-    path: '/' + channelId,
-    err(error, id) {
-      console.log('E: channels error', channelId, error, id);
-    },
-    event(data, mark, id) {
-      console.log('E: channels event', channelId, data, mark, id);
-    },
-    quit(data) {
-      console.log('E: channels quit', channelId, data);
-    },
-  });
-};
+function formatDateParam(date: Date) {
+  return formatUd(unixToDa(date!.getTime()));
+}

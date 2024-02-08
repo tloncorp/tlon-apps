@@ -2,7 +2,7 @@ import {ChannelList} from '@components/ObjectList';
 import * as db from '@db';
 import {Stack} from '@ochre';
 import React, {useMemo} from 'react';
-import {NavigationScreenProps, useScreenHeight} from '../../utils/navigation';
+import {NavigationScreenProps, useScreenHeight} from '@utils/navigation.tsx';
 
 export function GroupScreen({route}: NavigationScreenProps<'Group'>) {
   const {groupId} = route.params;
