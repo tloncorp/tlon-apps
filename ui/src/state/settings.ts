@@ -511,7 +511,7 @@ export function useSeenTalkSunset() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
-    if (isLoading || data === undefined || data.groups === undefined) {
+    if (isLoading || data === undefined || data.talk === undefined) {
       console.log('returning sunset default');
       return false;
     }

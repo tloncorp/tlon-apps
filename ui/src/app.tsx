@@ -165,7 +165,7 @@ const appHead = (appName: string) => {
       };
     default:
       return {
-        title: 'Groups',
+        title: 'Tlon',
         icon: groupsFavicon,
       };
   }
@@ -387,7 +387,10 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                   path="channels/chat/:chShip/:chName"
                   element={<GroupChannel type="chat" />}
                 >
-                  <Route path="*" element={<ChatChannel />} />
+                  <Route
+                    path="*"
+                    element={<ChatChannel title={`• ${groupsTitle}`} />}
+                  />
                   {isSmall ? (
                     <Route path="message/:idTime" element={<ChatThread />} />
                   ) : null}

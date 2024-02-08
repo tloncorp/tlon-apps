@@ -59,6 +59,22 @@ export default function MobileRoot() {
   const hasNewGroups = !!newGroups.length;
   const hasPendingGangs = Object.keys(pendingGangs).length > 0;
 
+  // get all non-segmented groups
+  const flagsToFilter = useMemo(() => {
+    const flags = new Set();
+    Object.entries(pinnedGroups).forEach(([flag]) => flags.add(flag));
+    Object.entries(pendingGangs).forEach(([flag]) => flags.add(flag));
+    loadingGroups.forEach(([flag]) => flags.add(flag));
+    newGroups?.forEach(([flag]) => flags.add(flag));
+    gangsWithClaims.forEach((flag) => flags.add(flag));
+    return flags;
+  }, [pinnedGroups, loadingGroups, newGroups, gangsWithClaims, pendingGangs]);
+
+  const allOtherGroups = useMemo(
+    () => sortedGroups.filter(([flag, _g]) => !flagsToFilter.has(flag)),
+    [sortedGroups, flagsToFilter]
+  );
+
   return (
     <Layout
       className="flex-1 bg-white"
@@ -92,7 +108,7 @@ export default function MobileRoot() {
             </div>
           ) : (
             <GroupsScrollingContext.Provider value={isScrolling}>
-              <GroupList groups={sortedGroups} isScrolling={scroll.current}>
+              <GroupList groups={allOtherGroups} isScrolling={scroll.current}>
                 {hasPinnedGroups ||
                 hasPendingGangs ||
                 hasGangsWithClaims ||

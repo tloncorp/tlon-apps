@@ -63,10 +63,12 @@ export default function Sidebar() {
   const flagsToFilter = useMemo(() => {
     const flags = new Set();
     Object.entries(pinnedGroups).forEach(([flag]) => flags.add(flag));
+    Object.entries(invitedGroups).forEach(([flag]) => flags.add(flag));
     loadingGroups.forEach(([flag]) => flags.add(flag));
     newGroups?.forEach(([flag]) => flags.add(flag));
+    gangsWithClaims.forEach((flag) => flags.add(flag));
     return flags;
-  }, [pinnedGroups, loadingGroups, newGroups]);
+  }, [pinnedGroups, loadingGroups, newGroups, gangsWithClaims, invitedGroups]);
 
   const allOtherGroups = useMemo(
     () => sortedGroups.filter(([flag, _g]) => !flagsToFilter.has(flag)),

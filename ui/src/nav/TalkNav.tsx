@@ -5,7 +5,7 @@ import MessagesSidebar from '@/dms/MessagesSidebar';
 import Dialog from '@/components/Dialog';
 import CautionIcon from '@/components/icons/CautionIcon';
 import WidgetDrawer from '@/components/WidgetDrawer';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   usePutEntryMutation,
   useSeenTalkSunset,
@@ -14,15 +14,25 @@ import {
 import { useLocalState, useManuallyShowTalkSunset } from '@/state/local';
 
 export default function TalkNav() {
+  const [timedDelay, setTimedDelay] = useState(false);
   const isMobile = useIsMobile();
   const seenSunset = useSeenTalkSunset();
   const manuallyShowSunset = useManuallyShowTalkSunset();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setTimedDelay(true);
+    }, 3000);
+    return () => clearTimeout(timeout);
+  }, [setTimedDelay]);
 
   return (
     <div className={cn('fixed flex h-full w-full')}>
       {isMobile ? null : <MessagesSidebar />}
       <Outlet />
-      {(!seenSunset || manuallyShowSunset) && <TalkSunsetNotification />}
+      {timedDelay && (!seenSunset || manuallyShowSunset) && (
+        <TalkSunsetNotification />
+      )}
     </div>
   );
 }
