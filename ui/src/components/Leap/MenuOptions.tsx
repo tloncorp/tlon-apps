@@ -1,6 +1,3 @@
-import React from 'react';
-import { isTalk } from '@/logic/utils';
-import TalkIcon from '../icons/TalkIcon';
 import ArrowEIcon16 from '../icons/ArrowEIcon16';
 import AppGroupsIcon from '../icons/AppGroupsIcon';
 import AddIcon16 from '../icons/Add16Icon';
@@ -31,13 +28,20 @@ export interface IMenuOption {
   modal: boolean;
 }
 
-export const groupsMenuOptions: IMenuOption[] = [
+export const menuOptions: IMenuOption[] = [
   {
     title: 'Apps',
     subtitle: '',
     to: '/grid',
     icon: GridIcon,
     modal: true,
+  },
+  {
+    title: 'New Message',
+    subtitle: '',
+    to: '/dm/new',
+    icon: PlusBadge,
+    modal: false,
   },
   {
     title: 'Activity',
@@ -68,45 +72,14 @@ export const groupsMenuOptions: IMenuOption[] = [
     modal: false,
   },
   {
-    title: `${isTalk ? 'Talk' : 'Groups'} Settings`,
+    title: 'Tlon Settings',
     subtitle: '',
     to: '/settings',
     icon: CommandBadge,
     modal: true,
   },
   {
-    title: 'Talk',
-    subtitle: '',
-    to: '/',
-    icon: TalkIcon,
-    modal: false,
-  },
-];
-
-export const talkMenuOptions: IMenuOption[] = [
-  {
-    title: 'Apps',
-    subtitle: '',
-    to: '/grid',
-    icon: GridIcon,
-    modal: true,
-  },
-  {
-    title: 'New Message',
-    subtitle: '',
-    to: '/dm/new',
-    icon: PlusBadge,
-    modal: false,
-  },
-  {
-    title: 'Profile',
-    subtitle: '',
-    to: '/profile/edit',
-    icon: CommandBadge,
-    modal: false,
-  },
-  {
-    title: 'Groups',
+    title: 'Tlon',
     subtitle: '',
     to: '/',
     icon: AppGroupsIcon,

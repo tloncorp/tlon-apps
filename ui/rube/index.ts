@@ -266,7 +266,6 @@ const bootShip = (
 
 const copyDesks = async () => {
   const groups = path.resolve(__dirname, '../../../desk');
-  const talk = path.resolve(__dirname, '../../../talk');
 
   for (const ship of Object.values(ships)) {
     if (targetShip && targetShip !== ship.ship) {
@@ -274,13 +273,10 @@ const copyDesks = async () => {
     }
 
     const groupsDir = path.join(ship.extractPath, ship.ship, 'groups');
-    const talkDir = path.join(ship.extractPath, ship.ship, 'talk');
 
     try {
       console.log(`Copying ${groups} to ${groupsDir}`);
       await fsExtra.copy(groups, groupsDir, { overwrite: true });
-      console.log(`Copying ${talk} to ${talkDir}`);
-      await fsExtra.copy(talk, talkDir, { overwrite: true, dereference: true });
     } catch (e) {
       console.error('Error copying desks', e);
     }
@@ -403,7 +399,6 @@ const mountDesks = async () => {
     }
 
     await hoodCommand(ship.ship, `mount %groups`, ship.loopbackPort);
-    await hoodCommand(ship.ship, `mount %talk`, ship.loopbackPort);
   }
 };
 
@@ -416,7 +411,6 @@ const commitDesks = async () => {
     }
 
     await hoodCommand(ship.ship, `commit %groups`, ship.loopbackPort);
-    await hoodCommand(ship.ship, `commit %talk`, ship.loopbackPort);
   }
 };
 
@@ -498,7 +492,6 @@ const getStartHashes = async () => {
 
     startHashes[ship.ship] = {
       groups: json.groups.hash,
-      talk: json.talk.hash,
     };
     console.log(`Start hashes for ~${ship.ship}:`, startHashes[ship.ship]);
   }
@@ -519,21 +512,12 @@ const shipsAreReadyForTests = async () => {
 
       const json = JSON.parse(response);
 
-      if (
-        json.groups.hash !== startHashes[ship.ship].groups &&
-        json.talk.hash !== startHashes[ship.ship].talk
-      ) {
-        console.log(`~${ship.ship} is ready`, {
-          groups: json.groups.hash,
-          talk: json.talk.hash,
-        });
+      if (json.groups.hash !== startHashes[ship.ship].groups) {
+        console.log(`~${ship.ship} is ready`, json.groups.hash);
         return true;
       }
 
-      console.log(`~${ship.ship} is not ready`, {
-        groups: json.groups.hash,
-        talk: json.talk.hash,
-      });
+      console.log(`~${ship.ship} is not ready`, json.groups.hash);
 
       return false;
     })

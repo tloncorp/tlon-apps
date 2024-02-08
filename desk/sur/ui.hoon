@@ -6,6 +6,15 @@
       =channels:d
       =unreads:d
       pins=(list whom)
+      =chat
+  ==
+::
++$  chat
+  $:  clubs=(map id:club:c crew:club:c)
+      dms=(set ship)
+      =unreads:c
+      invited=(set ship)
+      pins=(list whom:c)
   ==
 ::  $whom: ID for an "item"
 ::

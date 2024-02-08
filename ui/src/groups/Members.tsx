@@ -17,8 +17,6 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import MobileHeader from '@/components/MobileHeader';
 import ShipName from '@/components/ShipName';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
-import { isNativeApp } from '@/logic/native';
-import useNavigateByApp from '@/logic/useNavigateByApp';
 import { useContact } from '@/state/contact';
 import {
   useRouteGroup,
@@ -57,7 +55,6 @@ const Member = React.memo(({ ship: member }: GroupMemberItemProps) => {
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const contact = useContact(member);
   const location = useLocation();
-  const navigateByApp = useNavigateByApp();
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
 
@@ -68,11 +65,7 @@ const Member = React.memo(({ ship: member }: GroupMemberItemProps) => {
   };
 
   const onSendMessage = (ship: string) => {
-    if (isNativeApp()) {
-      navigate(`/dm/${ship}`);
-    } else {
-      navigateByApp(`/dm/${ship}`);
-    }
+    navigate(`/dm/${ship}`);
   };
 
   const kick = useCallback(

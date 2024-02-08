@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useContext } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import Filter16Icon from '@/components/icons/Filter16Icon';
@@ -10,17 +10,16 @@ import {
   usePutEntryMutation,
 } from '@/state/settings';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { AppUpdateContext } from '@/logic/useAppUpdates';
-import MessagesList from '../../dms/MessagesList';
-import MessagesSidebarItem from '../../dms/MessagesSidebarItem';
-import { MessagesScrollingContext } from '../../dms/MessagesScrollingContext';
+import MessagesList from '@/dms/MessagesList';
+import MessagesSidebarItem from '@/dms/MessagesSidebarItem';
+import { MessagesScrollingContext } from '@/dms/MessagesScrollingContext';
+import TalkHead from '@/dms/TalkHead';
 
 export default function MessagesSidebar({
   searchQuery,
 }: {
   searchQuery?: string;
 }) {
-  const { needsUpdate } = useContext(AppUpdateContext);
   const [atTop, setAtTop] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -73,6 +72,7 @@ export default function MessagesSidebar({
 
   return (
     <MessagesScrollingContext.Provider value={isScrolling}>
+      <TalkHead />
       <MessagesList
         filter={messagesFilter}
         searchQuery={searchQuery}

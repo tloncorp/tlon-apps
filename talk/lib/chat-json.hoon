@@ -1,1 +1,0 @@
-../../desk/lib/chat-json.hoon

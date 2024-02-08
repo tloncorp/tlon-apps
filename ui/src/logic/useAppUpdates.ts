@@ -1,7 +1,6 @@
 import { createContext, useCallback, useState, useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import useKilnState, { usePike } from '@/state/kiln';
-import { isTalk } from './utils';
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
@@ -44,7 +43,7 @@ function useServiceWorker() {
 
 export default function useAppUpdates() {
   const { needRefresh, updateServiceWorker } = useServiceWorker();
-  const pike = usePike(isTalk ? 'talk' : 'groups');
+  const pike = usePike('groups');
 
   const [needsUpdate, setNeedsUpdate] = useState(false);
   const [initialHash, setInitialHash] = useState<string | null>(null);
@@ -67,9 +66,8 @@ export default function useAppUpdates() {
 
   const triggerUpdate = useCallback(
     async (returnToRoot: boolean) => {
-      const basePath = isTalk ? 'apps/talk' : 'apps/groups';
       const path = returnToRoot
-        ? `${window.location.origin}/${basePath}/?updatedAt=${Date.now()}`
+        ? `${window.location.origin}/apps/groups/?updatedAt=${Date.now()}`
         : `${window.location.href}?updatedAt=${Date.now()}`;
 
       if (needRefresh) {

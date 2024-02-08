@@ -2,7 +2,6 @@ import cn from 'classnames';
 import React, { PropsWithChildren, useCallback } from 'react';
 import { VirtuosoHandle } from 'react-virtuoso';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { isTalk } from '@/logic/utils';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
@@ -78,8 +77,6 @@ export default function ChatSearch({
     [navigate, root]
   );
 
-  const backTo = isMobile && isTalk ? '/' : root;
-
   return (
     <div
       className="border-b-2 border-gray-50 bg-white"
@@ -141,7 +138,7 @@ export default function ChatSearch({
           </Dialog.Root>
         </div>
         {!isSmall && (
-          <Link to={backTo} className="default-focus secondary-button">
+          <Link to={root} className="default-focus secondary-button">
             Cancel
           </Link>
         )}

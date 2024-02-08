@@ -10,8 +10,6 @@ const groupOwner = 'mardev';
 const invitedShip = 'patbud';
 
 test('Create a group', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as mardev
   const ownerContext = await browser.newContext({
     storageState: shipManifest['~naldeg-mardev'].authFile,
@@ -29,8 +27,6 @@ test('Create a group', async ({ browser }) => {
 });
 
 test('Create a chat channel', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as mardev
   const ownerContext = await browser.newContext({
     storageState: shipManifest['~naldeg-mardev'].authFile,
@@ -62,8 +58,6 @@ test('Create a chat channel', async ({ browser }) => {
 });
 
 test('Create a notebook channel and post to it.', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as owner
   const ownerContext = await browser.newContext({
     storageState: shipManifest['~naldeg-mardev'].authFile,
@@ -98,8 +92,6 @@ test('Create a notebook channel and post to it.', async ({ browser }) => {
 });
 
 test('Invite to a group', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as owner
   const ownerContext = await browser.newContext({
     storageState: shipManifest['~naldeg-mardev'].authFile,
@@ -125,8 +117,6 @@ test('Invite to a group', async ({ browser }) => {
 });
 
 test('Accept group invite', async ({ browser }) => {
-  test.skip(process.env.APP === 'chat', 'skip on talk');
-
   // Authenticate as habduc-patbud
   const invitedContext = await browser.newContext({
     storageState: shipManifest['~habduc-patbud'].authFile,

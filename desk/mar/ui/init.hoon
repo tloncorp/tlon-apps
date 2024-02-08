@@ -15,6 +15,13 @@
         channels/(channels:enjs:dj channels.init)
         unreads/(unreads:enjs:dj unreads.init)
         pins/a/(turn pins.init whom:enjs:gj)
+        :-  %chat
+        %-  pairs
+        :~  clubs/(clubs:enjs:cj clubs.chat.init)
+            dms/a/(turn ~(tap in dms.chat.init) ship:enjs:gj)
+            unreads/(unreads:enjs:cj unreads.chat.init)
+            invited/a/(turn ~(tap in invited.chat.init) ship:enjs:gj)
+        ==
     ==
   --
 ++  grab
