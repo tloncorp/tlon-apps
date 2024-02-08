@@ -148,16 +148,32 @@
   ::
   ;div.profile-bio
     ;p.profile-bio-title: Info
-     ;*  ?~  ours  ~
-          ?:  =('' bio.u.ours)  ~
-      :_  ~
-        ;p.profile-bio-content
-          ;*  %+  join  `manx`;br;
-              %+  turn  (to-wain:format bio.u.ours)
-              |=  p=@t  ^-  manx
-              [[%$ $+[p ~] ~] ~]
-        ==
+      ;p.profile-bio-content
+        ;*  =*  stand-in
+              =/  class=tape
+                ?-  (clan:title our.bowl)
+                  %czar  "galaxy"
+                  %king  "star"
+                  %duke  "planet"
+                  %earl  "moon"
+                  %pawn  "comet"
+                ==
+              =/  since=tape
+                =+  .^([@ud time=@da] %cw /(scot %p our.bowl)/base/1)
+                =.  time  (sub time (mod time ~d1))
+                (scow %da time)
+              :_  ~
+              ;p
+                ;em:"A {class} flying through space since {since}..."
+              ==
+            ?~  ours  stand-in
+            ?:  =('' bio.u.ours)  stand-in
+            %+  join  `manx`;br;
+            %+  turn  (to-wain:format bio.u.ours)
+            |=  p=@t  ^-  manx
+            [[%$ $+[p ~] ~] ~]
       ==
+    ==
   ==
 ::
 ++  profile-widget
