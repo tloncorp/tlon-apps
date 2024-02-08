@@ -18,10 +18,10 @@ import {
   ClearIndicatorProps,
   InputActionMeta,
 } from 'react-select';
+import { deSig } from '@urbit/api';
 import _, { includes } from 'lodash';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select/dist/declarations/src/Select';
-import { deSig } from '@urbit/api';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import X16Icon from '@/components/icons/X16Icon';
 import { preSig, whomIsFlag } from '@/logic/utils';
@@ -52,6 +52,7 @@ interface ShipSelectorProps {
   isValidNewOption?: (value: string) => boolean;
   autoFocus?: boolean;
   containerClassName?: string;
+  menuPlacement?: 'auto' | 'bottom' | 'top';
 }
 
 function Control({ children, ...props }: ControlProps<ShipOption, true>) {
@@ -273,6 +274,7 @@ export default function ShipSelector({
   inner = false,
   isLoading = false,
   hasPrompt = true,
+  menuPlacement = 'auto',
   placeholder = 'Search for Urbit ID (e.g. ~sampel-palnet) or display name',
   isValidNewOption = (val) => (val ? ob.isValidPatp(preSig(val)) : false),
   autoFocus = true,
@@ -449,7 +451,7 @@ export default function ShipSelector({
   if (!isMulti) {
     return (
       <CreatableSelect
-        menuPlacement="auto"
+        menuPlacement={menuPlacement}
         handleEnter={handleEnter}
         ref={selectRef}
         formatCreateLabel={AddNewOption}

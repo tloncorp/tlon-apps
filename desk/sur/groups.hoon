@@ -1,13 +1,5 @@
-/-  meta, e=epic, zero=groups-0
-/-  g-one=group
-/-  grp=group-store
-/-  metadata-store
+/-  meta, e=epic
 |%
-++  old
-  |%
-  ++  zer  zero
-  --
-::
 ++  okay  `epic:e`3
 ++  mar
   |%
@@ -370,9 +362,4 @@
   ==
 ::
 +$  gangs  (map flag gang)
-++  met     metadata-store
-::
-+$  import  [self=association:met chan=(map flag =association:met) roles=(set flag) =group:g-one]
-::
-+$  imports  (map flag import)
 --

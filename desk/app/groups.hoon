@@ -1,6 +1,4 @@
-/-  g=groups, ha=hark, h=heap, d=channels, c=chat
-/-  g-one=group
-/-  m-one=metadata-store
+/-  g=groups, zero=groups-0, ha=hark, h=heap, d=channels, c=chat, tac=contacts
 /-  meta
 /-  e=epic
 /+  default-agent, verb, dbug
@@ -104,8 +102,6 @@
       %reset-all-perms  reset-all-perms
       %verify-cabals  verify-cabals
     ==
-  ::
-      %group-import  (import-groups !<(imports:g vase))
   ::
       %reset-group-perms
     =+  !<(=flag:g vase)
@@ -297,6 +293,7 @@
     =.  state  old
     =.  cor  restore-missing-subs
     =.  cor  (emit %pass /groups/role %agent [our.bowl dap.bowl] %poke noun+!>(%verify-cabals))
+    =.  cor  watch-contact
     ?:  =(okay:g cool)  cor
     =.  cor  (emil (drop load:epos))
     =/  groups  ~(tap in ~(key by groups))
@@ -307,7 +304,6 @@
       go-abet:go-upgrade:(go-abed:group-core i.groups)
     $(groups t.groups)
   ==
-  ++  zero  zer:old:g
   +$  versioned-state  $%(current-state state-1 state-0)
   +$  state-0
     $:  %0
@@ -441,7 +437,7 @@
     ``groups+!>(`groups:g`(~(run by groups) tail))
   ::
       [%x %groups %v0 ~]
-    ``groups-ui-v0+!>(`groups-ui:zer:old:g`(~(run by groups) to-group-ui-v0))
+    ``groups-ui-v0+!>(`groups-ui:zero`(~(run by groups) to-group-ui-v0))
   ::
       [%x %groups %v1 ~]
     ``groups-ui+!>(`groups-ui:g`(~(run by groups) to-group-ui))
@@ -453,7 +449,7 @@
     ?~  rest.pole
       ``group+!>(+.u.group)
     ?:  =(/v0 rest.pole)
-      ``group-ui-v0+!>(`group-ui:zer:old:g`(to-group-ui-v0 u.group))
+      ``group-ui-v0+!>(`group-ui:zero`(to-group-ui-v0 u.group))
     ?:  =(/v1 rest.pole)
       ``group-ui+!>(`group-ui:g`(to-group-ui u.group))
     (go-peek:(go-abed:group-core ship name.pole) rest.pole)
@@ -511,7 +507,7 @@
   |=  [=net:g =group:g]
   (to-group-ui net (drop-fleet group))
 ++  groups-light-ui-v0
-  ^-  groups-ui:zer:old:g
+  ^-  groups-ui:zero
   %-  ~(run by groups)
   |=  [=net:g =group:g]
   (to-group-ui-v0 net (drop-fleet group))
@@ -524,8 +520,8 @@
   ==
 ++  to-group-ui-v0
   |=  [=net:g =group:g]
-  ^-  group-ui:zer:old:g
-  :_ 
+  ^-  group-ui:zero
+  :_
     ?+  -.net  ~
         %sub  `saga.net
     ==
@@ -583,6 +579,8 @@
     =/  =ship  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
     (take-chan nest sign)
+      [%contact ~]
+    (take-contact sign)
   ==
 ::
 ++  arvo
@@ -631,6 +629,27 @@
     =.  shoal  (~(put by shoal) gra dude)
     =.  cor  (give %fact matching cage.sign)
     (give %kick matching ~)
+  ==
+::
+++  watch-contact
+  (emit %pass /contact %agent [our.bowl %contacts] %watch /contact)
+::
+++  take-contact
+  |=  =sign:agent:gall
+  ?+  -.sign  cor
+      %kick
+    watch-contact
+  ::
+      %watch-ack
+    cor
+  ::
+      %fact
+    =+  !<(=update:tac q.cage.sign)
+    ?~  con.update  cor
+    %-  emil
+    %+  turn  ~(tap in groups.con.update)
+    |=  =flag:g
+    [%pass /gangs/(scot %p p.flag)/[q.flag]/preview %agent [p.flag dap.bowl] %watch /groups/(scot %p p.flag)/[q.flag]/preview]
   ==
 ::
 ++  watch-epic
@@ -741,172 +760,13 @@
     =/  line  `wire`/gangs/(scot %p p.flag)/[q.flag]/invite
     [%pass line %agent [ship dap.bowl] %poke cage]
 ::
-++  import-groups
-  |=  =imports:g
-  ^+  cor
-  =/  imports  ~(tap by imports)
-  |-
-  ?~  imports  cor
-  =.  cor  (import-group i.imports)
-  $(imports t.imports)
-::
-++  import-group
-  |=  $:  =flag:g
-          =association:met:g
-          chan=(map flag:g association:met:g)
-          roles=(set flag:g)
-          =group:g-one
-      ==
-  |^
-  =/  [cabals=(map sect:g cabal:g) members=(jug ship sect:g)]
-    %+  roll  ~(tap by roles)
-    |=  [=flag:g cabals=(map sect:g cabal:g) members=(jug ship sect:g)]
-    ^-  [(map sect:g cabal:g) (jug ship sect:g)]
-    =/  =sect:g  (sect-for-flag flag)
-    :_  (~(put ju members) p.flag sect)
-    %+  ~(put by cabals)  sect
-    ?~  ass=(~(get by chan) flag)
-      *cabal:g
-    :_  ~
-    :*  (rap 3 'Writers: ' title.metadatum.u.ass ~)
-        (rap 3 'The writers role for the ' title.metadatum.u.ass ' channel' ~)
-        ''
-        ''
-    ==
-  =/  =channels:channel:g
-    %-  ~(gas by *channels:channel:g)
-    %+  murn  ~(tap by chan)
-    |=  [=flag:g =association:met:g]
-    ^-  (unit [nest:g channel:g])
-    ?~  dud=(graph-meta-to-agent metadatum.association)
-      ~
-    :-  ~
-    :-  [u.dud flag]
-    ^-  channel:g
-    :*  (old-assoc-to-new-meta association)
-        date-created.metadatum.association
-        %default
-        |
-        ::
-        ^-  (set sect:g)
-        ?.  (~(has in roles) flag)  ~
-        (silt (sect-for-flag flag) ~)
-    ==
-  =|  zones=(map zone:g realm:zone:g)
-  =|  zone-ord=(list zone:g)
-  =|  bloc=(set sect:g)  :: admin perms set up in +go-init at end
-  =/  =cordon:g  (policy-to-cordon policy.group)
-  =/  meta=data:meta
-    (old-assoc-to-new-meta association)
-  =/  =fleet:g
-    %-  ~(gas by *fleet:g)
-    %+  turn  ~(tap in members.group)
-    |=  =ship
-    ^-  [_ship vessel:fleet:g]
-    [ship (~(get ju members) ship) now.bowl]
-  =/  admins=(set ship)  (~(get ju tags.group) %admin)
-  =/  =group:g
-    :*  fleet
-        cabals
-        zones
-        zone-ord
-        bloc
-        channels
-        ~(key by channels)
-        cordon
-        =(%invite -.policy.group)
-        meta
-        ~
-    ==
-  =/  =net:g
-    ?:  =(p.flag our.bowl)
-      pub/(put:log-on:g *log:g import-epoch create/group)
-    [%sub (sub import-epoch ~d1) | chi/~]
-  =.  groups  (~(put by groups) flag [net group])
-  =.  shoal
-    %-  ~(gas by shoal)
-    %+  turn  ~(tap in imported.group)
-    |=(=nest:g [q p]:nest)
-  go-abet:(go-init:(go-abed:group-core flag) admins) :: setup defaults
-  ::
-  ++  sect-for-flag
-    |=  =flag:g
-    `sect:g`(rap 3 'import/' (scot %p p.flag) '/' q.flag ~)
-  ::
-  ++  graph-mark-to-agent
-  |=  =mark
-  ^-  (unit term)
-  ?+  mark  ~
-    %graph-validator-chat     `%chat
-    %graph-validator-link     `%heap
-    %graph-validator-publish  `%diary
-  ==
-  ::
-  ++  graph-meta-to-agent
-    |=  =metadatum:m-one
-    ^-  (unit dude:gall)
-    ?.  ?=(%graph -.config.metadatum)
-      ~
-    ?+  module.config.metadatum  ~
-      %chat  `%chat
-      %link  `%heap
-      %publish   `%diary  :: TODO
-    ==
-  ::
-  ++  old-assoc-to-new-meta
-   |=  =association:m-one
-   (old-to-new-meta metadatum.association)
-  ::
-  ++  get-hex
-    |=  =color:m-one
-    (crip (welp ~['#'] (trip (en:base16:mimes:html 3 color))))
-  ++  old-to-new-meta
-    |=  =metadatum:m-one
-    ^-  data:meta
-    =,(metadatum [title description picture (get-hex color)])
-  ::
-  ++  policy-to-cordon
-    |=  =policy:g-one
-    ^-  cordon:g
-    ?-    -.policy
-        %open
-      [%open banned ban-ranks]:policy
-    ::
-        %invite
-      [%shut pending.policy ~]
-    ==
-  ::
-  ++  scry
-    |=  [care=@tas =dude:gall =path]
-    ^+  path
-    :*  care
-        (scot %p our.bowl)
-        dude
-        (scot %da now.bowl)
-        path
-    ==
-  ::
-  ++  old-flag-path
-    `path`/ship/(scot %p p.flag)/[q.flag]
-  ::
-  ++  scry-group
-    =-  .^((unit group:g-one) -)
-    %^  scry  %gx  %group-store
-    `path`[%groups (snoc old-flag-path %noun)]
-  ::
-  ++  scry-meta
-    =-  .^(associations:m-one -)
-    %^  scry  %gx  %metadata-store
-    `path`[%group (snoc old-flag-path %noun)]
-  --
-::
 ++  get-channel-rope
   |=  [=nest:g =id-post:d id-reply=(unit id-reply:d)]
   ^-  (unit rope:ha)
   =/  prefix  (channel-scry nest)
   ?.  .^(has=? %gu prefix)  ~
   =/  ch-path=path
-    ?~  id-reply  
+    ?~  id-reply
       (welp prefix /hark/rope/(scot %ud id-post))
     (welp prefix /hark/rope/(scot %ud id-post)/(scot %ud u.id-reply))
   =/  =path  (snoc ch-path %noun)

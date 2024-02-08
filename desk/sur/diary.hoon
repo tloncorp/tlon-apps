@@ -1,13 +1,5 @@
-/-  g=groups, c=cite, graph-store, e=epic
-/-  zer=diary-0
-/-  metadata-store
-/+  lib-graph=graph-store
+/-  g=groups, c=cite, e=epic
 |%
-++  old
-  |%
-  ++  zero  zer
-  --
-::
 ++  okay  `epic:e`3
 ++  mar
   |%
@@ -330,13 +322,4 @@
   $%  [%hide =time]
       [%show =time]
   ==
-::
-+$  import  [writers=(set ship) =association:met =update-log:gra =graph:gra]
-::
-+$  imports  (map flag import)
-::
-++  gra  graph-store
-++  orm-gra  orm:lib-graph
-++  orm-log-gra  orm-log:lib-graph
-++  met  metadata-store
 --

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import * as Popover from '@radix-ui/react-popover';
 import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
@@ -18,8 +19,13 @@ import SidebarItem from './SidebarItem';
 import X16Icon from '../icons/X16Icon';
 
 // Gang is a pending group invite
-export default function GangItem(props: { flag: string; isJoining?: boolean }) {
-  const { flag, isJoining = false } = props;
+export default function GangItem(props: {
+  flag: string;
+  isJoining?: boolean;
+  invited?: boolean;
+}) {
+  const { flag, isJoining = false, invited = false } = props;
+  const location = useLocation();
   const gang = useGang(flag);
   const group = useGroup(flag);
   const gangPreview = useGangPreview(flag);
@@ -49,8 +55,10 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
   const errored = gang && gang.claim && gang.claim.progress === 'error';
   const probablyOffline =
     gang && !gang.preview && gang.claim && gang.claim.progress === 'adding';
+  const defaultView =
+    !requested && !errored && !isJoining && !probablyOffline && !invited;
 
-  const handleCancel = async (e: any) => {
+  const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (requested) {
       rescindMutation({ flag });
@@ -73,8 +81,8 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
 
   if (requested) {
     sideBarIcon = (
-      <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-blue">
-        Join Requested
+      <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
+        Requested
       </p>
     );
   }
@@ -87,7 +95,15 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
     );
   }
 
-  if (!requested && !errored && !isJoining && !probablyOffline) {
+  if (invited) {
+    sideBarIcon = (
+      <p className="flex items-center rounded-full bg-blue-soft px-2 py-1 text-sm text-blue">
+        Invite
+      </p>
+    );
+  }
+
+  if (defaultView) {
     return (
       <SidebarItem
         icon={
@@ -109,6 +125,33 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
         {...handlers}
       >
         <span className="inline-block w-full truncate opacity-60">
+          {preview ? preview.meta.title : flag}
+        </span>
+      </SidebarItem>
+    );
+  }
+
+  if (invited) {
+    return (
+      <SidebarItem
+        icon={<GroupAvatar {...preview?.meta} size="h-12 w-12 sm:h-6 sm:w-6" />}
+        actions={
+          invited ? (
+            sideBarIcon
+          ) : (
+            <GroupActions
+              open={optionsOpen}
+              onOpenChange={setOptionsOpen}
+              flag={flag}
+              triggerDisabled={isMobile}
+            />
+          )
+        }
+        to={`/gangs/${flag}`}
+        state={{ backgroundLocation: location }}
+        {...handlers}
+      >
+        <span className="inline-block w-full truncate">
           {preview ? preview.meta.title : flag}
         </span>
       </SidebarItem>
@@ -148,9 +191,9 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
           </div>
           {requested ? (
             <>
-              <span>You've requested to join this group.</span>
+              <span>You&#39;ve requested to join this group.</span>
               <span>
-                An admin will have to approve your request and then you'll
+                An admin will have to approve your request and then you&#39;ll
                 receive an invitation to join.
               </span>
             </>
@@ -166,7 +209,8 @@ export default function GangItem(props: { flag: string; isJoining?: boolean }) {
             <>
               <span>Attempting to Join</span>
               <span>
-                You're trying to join this group, but it can't be reached.
+                You&#39;re trying to join this group, but it can&#39;t be
+                reached.
               </span>
             </>
           ) : (

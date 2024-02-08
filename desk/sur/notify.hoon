@@ -1,4 +1,4 @@
-/-  hark=hark-store, resource, graph-store
+/-  resource
 |%
 +$  provider-action
   $%  [%add service=term notify=@t binding=@t auth-token=@t =whitelist]
@@ -15,8 +15,15 @@
 ::
 +$  uid  @uvH
 ::
-+$  notification
-  [=bin:hark =body:hark]
+++  notification
+  =<  note
+  |%
+  +$  note     [=bin =body]
+  +$  bin      [=path =place]
+  +$  place    [=desk =path]
+  +$  body     [title=content =content =time binned=path link=path]
+  +$  content  (list $%([%ship =ship] [%cord =cord]))
+  --
 ::
 +$  whitelist
   $:  public=?

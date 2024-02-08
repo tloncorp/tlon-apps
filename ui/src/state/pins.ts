@@ -5,9 +5,7 @@ import { whomIsDm, whomIsFlag, whomIsMultiDm, whomIsNest } from '@/logic/utils';
 import { useMemo } from 'react';
 import api from '@/api';
 import _ from 'lodash';
-import { Groups } from '@/types/groups';
 import { Nest } from '@/types/channel';
-import { useGroups } from './groups';
 
 export const pinsKey = () => ['groups-ui', 'pins'];
 
@@ -60,16 +58,6 @@ export function usePinnedChannels(): Nest[] {
 export function useGroupPins(): Pins {
   const allPins = usePins();
   return useMemo(() => allPins.filter((pin) => whomIsFlag(pin)), [allPins]);
-}
-
-export function usePinnedGroups(): Groups {
-  const pins = useGroupPins();
-  const groups = useGroups();
-
-  return pins.reduce(
-    (acc, pin) => ({ ...acc, [pin]: groups[pin] }),
-    {} as Groups
-  );
 }
 
 export function useAddPinMutation() {

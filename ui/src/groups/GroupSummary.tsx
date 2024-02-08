@@ -7,10 +7,10 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import GroupAvatar from '@/groups/GroupAvatar';
 import Globe16Icon from '@/components/icons/Globe16Icon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import HostConnection from '@/channels/HostConnection';
 import { useConnectivityCheck } from '@/state/vitals';
 import { useGroup } from '@/state/groups';
 import ShipConnection from '@/components/ShipConnection';
+import GroupHostConnection from './GroupHostConnection';
 
 export type GroupSummarySize = 'default' | 'small';
 
@@ -69,12 +69,7 @@ export default function GroupSummary({
             </span>
           ) : null}
           {!check ? null : group ? (
-            <HostConnection
-              type="combo"
-              ship={ship}
-              status={data?.status}
-              saga={group?.saga || null}
-            />
+            <GroupHostConnection type="combo" flag={flag} />
           ) : (
             <ShipConnection
               type="combo"

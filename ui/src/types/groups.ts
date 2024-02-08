@@ -411,3 +411,7 @@ export interface ChannelPreview {
   meta: GroupMeta;
   group: GroupPreview;
 }
+
+export function isGroup(obj: any): obj is Group {
+  return 'fleet' in obj && 'cabals' in obj;
+}

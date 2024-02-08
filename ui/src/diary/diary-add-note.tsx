@@ -129,7 +129,7 @@ export default function DiaryAddNote() {
     const data = JSONToInlines(editor?.getJSON(), false, true);
     const values = getValues();
 
-    const noteContent = constructStory(data);
+    const noteContent = constructStory(data, true);
     const now = Date.now();
     const cacheId = {
       author: window.our,

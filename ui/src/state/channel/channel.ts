@@ -51,6 +51,7 @@ import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { isNativeApp } from '@/logic/native';
 import { channelKey } from './keys';
+import shouldAddPostToCache from './util';
 
 const POST_PAGE_SIZE = isNativeApp()
   ? STANDARD_MESSAGE_FETCH_PAGE_SIZE
@@ -852,7 +853,11 @@ export function useChannels(): Channels {
       const [han, flag] = nestToFlag(nest);
       const infinitePostQueryKey = [han, 'posts', flag, 'infinite'];
       const existingQueryData = queryClient.getQueryData(infinitePostQueryKey);
-      if (existingQueryData) {
+      if (
+        shouldAddPostToCache(
+          existingQueryData as { pages: PagedPosts[] } | undefined
+        )
+      ) {
         infinitePostUpdater(infinitePostQueryKey, event);
       }
     }
@@ -1689,7 +1694,6 @@ export function useCreateMutation() {
             view: 'list',
             order: [],
             sort: 'time',
-            saga: { synced: null },
           },
         });
       }

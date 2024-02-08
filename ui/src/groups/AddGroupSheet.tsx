@@ -4,8 +4,8 @@ import WidgetDrawer from '@/components/WidgetDrawer';
 import HomeIconMobileNav from '@/components/icons/HomeIconMobileNav';
 import NewRaysIcon from '@/components/icons/NewRaysIcon';
 import { isNativeApp } from '@/logic/native';
-import JoinGroup from './AddGroupSheet/JoinGroup';
-import CreateGroup from './AddGroupSheet/CreateGroup';
+import JoinGroupSheet from './AddGroup/JoinGroup';
+import { CreateGroupSheetView as CreateGroup } from './AddGroup/CreateGroup';
 
 function CreateOrJoin(props: { onCreate: () => void; onJoin: () => void }) {
   return (
@@ -86,7 +86,10 @@ export default function AddGroupSheet(props: {
         )}
         {view === 'create' && <CreateGroup back={() => setView('root')} />}
         {view === 'join' && (
-          <JoinGroup back={() => setView('root')} onOpenChange={onOpenChange} />
+          <JoinGroupSheet
+            back={() => setView('root')}
+            onOpenChange={onOpenChange}
+          />
         )}
       </div>
       {!isNativeApp() && <div className="pb-6" />}

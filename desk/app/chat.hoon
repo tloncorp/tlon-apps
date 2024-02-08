@@ -41,8 +41,8 @@
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
-        old-chats=(map flag:two:old:c chat:two:old:c)  :: for migration
-        old-pins=(list whom:two:old:c)
+        old-chats=(map flag:old chat:old)  :: for migration
+        old-pins=(list whom:old)
     ==
   --
 =|  current-state
@@ -114,8 +114,6 @@
   =+  !<([old=versioned-state cool=@ud] vase)
   |-
   ?-  -.old
-    %0  $(old (state-0-to-1 old))
-    %1  $(old (state-1-to-2 old))
     %2  $(old (state-2-to-3 old))
     %3  $(old (state-3-to-4 old))
     %4  $(old (state-4-to-5 old))
@@ -123,35 +121,7 @@
     %6  (emil(state old) (drop load:epos))
   ==
   ::
-  +$  versioned-state  $%(current-state state-5 state-4 state-3 state-2 state-1 state-0)
-  +$  state-0
-    $:  %0
-        chats=(map flag:zero chat:zero)
-        dms=(map ship dm:zero)
-        clubs=(map id:club:zero club:zero)
-        drafts=(map whom:zero story:zero)
-        pins=(list whom:zero)
-        bad=(set ship)
-        inv=(set ship)
-        voc=(map [flag:zero id:zero] (unit said:zero))
-        fish=(map [flag:zero @] id:zero)
-        ::  true represents imported, false pending import
-        imp=(map flag:zero ?)
-    ==
-  +$  state-1
-    $:  %1
-        chats=(map flag:one chat:one)
-        dms=(map ship dm:one)
-        clubs=(map id:club:one club:one)
-        drafts=(map whom:one story:one)
-        pins=(list whom:one)
-        bad=(set ship)
-        inv=(set ship)
-        voc=(map [flag:one id:one] (unit said:one))
-        fish=(map [flag:one @] id:one)
-        ::  true represents imported, false pending import
-        imp=(map flag:one ?)
-    ==
+  +$  versioned-state  $%(current-state state-5 state-4 state-3 state-2)
   +$  state-2
     $:  %2
         chats=(map flag:two chat:two)
@@ -209,16 +179,14 @@
         blocked=(set ship)
         blocked-by=(set ship)
         hidden-messages=(set id:c)
-        old-chats=(map flag:two:old:c chat:two:old:c)  :: for migration
-        old-pins=(list whom:two:old:c)
+        old-chats=(map flag:old chat:old)  :: for migration
+        old-pins=(list whom:old)
     ==
   +$  club-5    [heard:club:c remark=remark-5 =pact:c crew:club:c]
   +$  dm-5      [=pact:c remark=remark-5 net:dm:c pin=_|]
   +$  remark-5  [last-read=time watching=_| unread-threads=(set id:c)]
   +$  state-6  current-state
-  ++  zero     zero:old:c
-  ++  one      one:old:c
-  ++  two      two:old:c
+  ++  two      old
   ++  three    c
   ++  state-5-to-6
     |=  s=state-5
@@ -379,48 +347,6 @@
       voc     voc.s
       chats   chats.s
     ==
-  ++  state-1-to-2
-    |=  s=state-1
-    ^-  state-2
-    %*  .  *state-2
-      dms     dms.s
-      clubs   (clubs-1-to-2 clubs.s)
-      drafts  drafts.s
-      pins    pins.s
-      bad     bad.s
-      inv     inv.s
-      fish    fish.s
-      voc     voc.s
-      chats   chats.s
-    ==
-  ::
-  ++  clubs-1-to-2
-    |=  clubs=(map id:club:one club:one)
-    ^-  (map id:club:two club:two)
-    %-  ~(run by clubs)
-    |=  =club:one
-    [*heard:club:two club]
-  ::
-  ++  state-0-to-1
-    |=  s=state-0
-    ^-  state-1
-    %*  .  *state-1
-      dms     dms.s
-      clubs   (clubs-0-to-1 clubs.s)
-      drafts  drafts.s
-      pins    pins.s
-      bad     bad.s
-      inv     inv.s
-      fish    fish.s
-      voc     voc.s
-      chats   chats.s
-    ==
-  ++  clubs-0-to-1
-    |=  clubs=(map id:club:zero club:zero)
-    ^-  (map id:club:one club:one)
-    %-  ~(run by clubs)
-    |=  =club:zero
-    [*remark:one club]
   --
 ::
 ++  poke
@@ -850,7 +776,7 @@
 ++  from-self  =(our src):bowl
 ++  migrate
   |%
-  ++  t  two:old:c
+  ++  t  old
   ++  server
     =/  server-channels=v-channels:d
       %+  convert-channels  &
@@ -907,9 +833,9 @@
   ::
   ++  trim
     =-  =.  old-chats  -  cor
-    ^-  (map flag:two:old:c chat:two:old:c)
+    ^-  (map flag:old chat:old)
     %-  ~(run by old-chats)
-    |=  old-chat=chat:two:old:c
+    |=  old-chat=chat:old
     =/  citations=(set [ship time])
       %-  sy
       ^-  (list [ship time])

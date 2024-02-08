@@ -1,15 +1,14 @@
-import React, { PropsWithChildren } from 'react';
+import { PropsWithChildren } from 'react';
 import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
-import { useGroupChannel, useAmAdmin, useGroup } from '@/state/groups';
+import { useGroupChannel, useAmAdmin } from '@/state/groups';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import MobileHeader from '@/components/MobileHeader';
-import { getFlagParts, isTalk } from '@/logic/utils';
-import { useConnectivityCheck } from '@/state/vitals';
+import { isTalk } from '@/logic/utils';
 import ChannelActions, { ChannelActionsProps } from './ChannelActions';
 import ChannelTitleButton from './ChannelTitleButton';
-import HostConnection from './HostConnection';
 import ChannelIcon from './ChannelIcon';
+import ChannelHostConnection from './ChannelHostConnection';
 
 export type ChannelHeaderProps = PropsWithChildren<{
   groupFlag: string;
@@ -28,18 +27,13 @@ export default function ChannelHeader({
   const isMobile = useIsMobile();
   const channel = useGroupChannel(groupFlag, nest);
   const isAdmin = useAmAdmin(groupFlag);
-  const group = useGroup(groupFlag);
-  const host = getFlagParts(groupFlag).ship;
-  const { data } = useConnectivityCheck(host);
-  const saga = group?.saga || null;
+
   const actionProps: ChannelActionsProps = {
     nest,
     prettyAppName,
     channel,
     isAdmin,
     leave,
-    saga,
-    status: data?.status,
   };
 
   if (isMobile) {
@@ -57,11 +51,9 @@ export default function ChannelHeader({
             <h1 className="ml-2 flex flex-1 items-center overflow-hidden text-[17px] leading-5 text-gray-800">
               <span className="truncate">{channel?.meta.title}</span>
             </h1>
-            <HostConnection
+            <ChannelHostConnection
               className="ml-1 inline-flex flex-none"
-              ship={host}
-              status={data?.status}
-              saga={saga}
+              nest={nest}
             />
           </ChannelActions>
         }
