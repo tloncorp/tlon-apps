@@ -312,6 +312,10 @@
       justify-content: center;
       align-items: center;
     }
+    .profile-headline-avatar svg {
+      width: 100% !important;
+      height: 100% !important;
+    }
 
     .profile-headline-nickname {
       z-index: 99;
@@ -389,7 +393,6 @@
           ;div.profile-headline-avatar-sigil(style "background-color: #{color}")
             ;+  %.  our.bowl
             %_  sigil
-              size  80
               bg  '#'^color
               ::REVIEW  groups fe caps the color's lightness, instead of
               ::        choosing between white/black fg. should we, too?
