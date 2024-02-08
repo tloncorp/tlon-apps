@@ -1,21 +1,14 @@
 import React, { useContext } from 'react';
-import cn from 'classnames';
-import { debounce } from 'lodash';
-import { Link, useLocation } from 'react-router-dom';
-import ActivityIndicator, {
-  ActivitySidebarItem,
-} from '@/components/Sidebar/ActivityIndicator';
-import { useIsMobile } from '@/logic/useMedia';
+import { ActivitySidebarItem } from '@/components/Sidebar/ActivityIndicator';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import AddGroupSidebarItem from './AddGroupSidebarItem';
 import SidebarHeader from './SidebarHeader';
-import MessagesIcon from '../icons/MessagesIcon';
 import { DesktopUpdateButton } from '../UpdateNotices';
 import useActiveTab from './util';
-import AddIcon16 from '../icons/Add16Icon';
+import MessagesSidebarItem from './MessagesSidebarItem';
 
 const UpdateOrAppMenu = React.memo(() => {
   const { needsUpdate } = useContext(AppUpdateContext);
@@ -31,30 +24,7 @@ const SidebarTopMenu = React.memo(() => {
       <UpdateOrAppMenu />
 
       <AddGroupSidebarItem />
-
-      <SidebarItem
-        icon={
-          <MessagesIcon
-            className={cn(
-              'm-1 h-4 w-4',
-              activeTab === 'messages' && 'text-black'
-            )}
-            nonNav
-            isInactive={activeTab !== 'messages'}
-          />
-        }
-        actions={
-          <Link to="/dm/new" className="hidden group-hover:block">
-            <AddIcon16 className="h-4 w-4" />
-          </Link>
-        }
-        to={'/messages'}
-        className="group"
-        color={activeTab === 'messages' ? 'text-black' : 'text-gray-600'}
-      >
-        Messages
-      </SidebarItem>
-
+      <MessagesSidebarItem />
       <ActivitySidebarItem />
 
       <SidebarItem
