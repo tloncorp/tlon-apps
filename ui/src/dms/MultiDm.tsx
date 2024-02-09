@@ -13,7 +13,7 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import { useMultiDm, useMultiDmIsPending, useSendMessage } from '@/state/chat';
 import { useIsMobile } from '@/logic/useMedia';
-import { dmListPath, isGroups, pluralize } from '@/logic/utils';
+import { dmListPath, pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Club } from '@/types/dms';
@@ -83,7 +83,7 @@ export default function MultiDm() {
   const root = `/dm/${clubId}`;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
   const { match: negotiationMatch, isLoading: negotiationLoading } =
     useNegotiateMulti(dmParticipants, 'chat', 'chat');

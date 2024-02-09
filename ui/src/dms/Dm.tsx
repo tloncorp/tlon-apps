@@ -32,7 +32,7 @@ import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobi
 import DmWindow from '@/dms/DmWindow';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
-import { dmListPath, isGroups } from '@/logic/utils';
+import { dmListPath } from '@/logic/utils';
 import { useNegotiate } from '@/state/negotiation';
 import MessageSelector from './MessageSelector';
 import DmSearch from './DmSearch';
@@ -118,7 +118,7 @@ export default function Dm() {
   const isScrolling = useIsScrolling(scrollElementRef);
   const canStart = ship && !!unread;
   const root = `/dm/${ship}`;
-  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const { matchedOrPending, isLoading: negotiationLoading } = useNegotiate(
     ship,
     'chat',

@@ -14,7 +14,6 @@ import {
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
-import { isGroups } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
@@ -104,7 +103,7 @@ export default function ChatThread() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
-  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const readTimeout = useChatInfo(flag).unread?.readTimeout;
   const isSmall = useMedia('(max-width: 1023px)');
   const clearOnNavRef = useRef({ isSmall, readTimeout, nest, flag, markRead });
