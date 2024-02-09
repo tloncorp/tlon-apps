@@ -10,8 +10,8 @@
     "build:shared": "npm run build --prefix ./packages/shared",
     "build:web": "npm run build:shared && npm run build --prefix ./ui",
     "dev:shared": "npm run dev --prefix ./packages/shared",
-    "dev:android": "concurrently \"npm run dev:shared\" \"npm run android --prefix ./apps/tlon-mobile\"",
-    "dev:ios": "concurrently \"npm run dev:shared\" \"npm run ios --prefix ./apps/tlon-mobile\"",
+    "dev:android": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run android --prefix ./apps/tlon-mobile\"",
+    "dev:ios": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run ios --prefix ./apps/tlon-mobile\"",
     "dev:web": "concurrently \"npm run dev:shared\" \"npm run dev-no-ssl --prefix ./ui\"",
     "postinstall": "patch-package"
   },

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "157622845881",
+    "project_id": "tlon-mobile-staging",
+    "storage_bucket": "tlon-mobile-staging.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157622845881:android:e03c63bd5a3bc87cf27668",
+        "android_client_info": {
+          "package_name": "io.tlon.groups.staging"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPPGSCuJstxYqZnbDCMNzGC6pM8cQHXm0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
