@@ -23,7 +23,6 @@ import useMedia, { useIsDark, useIsMobile } from '@/logic/useMedia';
 import useErrorHandler from '@/logic/useErrorHandler';
 import {
   useAnalyticsId,
-  useCalm,
   useLogActivity,
   useSettingsLoaded,
   useTheme,
@@ -42,7 +41,6 @@ import GroupInfo from '@/groups/GroupAdmin/GroupInfo';
 import ProfileModal from '@/profiles/ProfileModal';
 import MultiDMEditModal from '@/dms/MultiDMEditModal';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
-import FindGroups from '@/groups/FindGroups';
 import GroupPreviewModal from '@/groups/Join/GroupPreview';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
@@ -257,20 +255,6 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
                 />
               )}
             </Route>
-            {/* Find by Invite URL */}
-            <Route
-              path="/find/:ship/:name"
-              element={<FindGroups title={`Discover • ${groupsTitle}`} />}
-            />
-            {/* Find by Nickname or @p */}
-            <Route
-              path="/find/:ship"
-              element={<FindGroups title={`Discover • ${groupsTitle}`} />}
-            />
-            <Route
-              path="/find"
-              element={<FindGroups title={`Discover • ${groupsTitle}`} />}
-            />
             <Route
               path="/profile/edit"
               element={<EditProfile title={`Edit Profile • ${groupsTitle}`} />}

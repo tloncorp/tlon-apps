@@ -16,7 +16,6 @@ import BellIcon from '../icons/BellIcon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import MessagesIcon from '../icons/MessagesIcon';
 import Avatar from '../Avatar';
-import NavigateIcon from '../icons/NavigateIcon';
 
 function GroupsTab(props: { isInactive: boolean; isDarkMode: boolean }) {
   const navigate = useNavigate();
@@ -182,20 +181,6 @@ export default function MobileSidebar() {
               isInactive={isInactive('/notifications')}
               isDarkMode={isDarkMode}
             />
-            <NavTab
-              to="/find"
-              linkClass="h-full !pb-0 flex flex-col items-start justify-start"
-            >
-              <div className="flex-1" />
-              <div className="flex h-8 w-8 items-center justify-center">
-                <NavigateIcon
-                  isInactive={isInactive('/find')}
-                  isDarkMode={isDarkMode}
-                  className="h-[20px] w-[18px]"
-                />
-              </div>
-              <div className="flex-1" />
-            </NavTab>
             {needsUpdate ? (
               <NavTab
                 to="/update-needed"
