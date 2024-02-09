@@ -45,10 +45,10 @@ export default function useMessagesUnreadCount(): number {
       pins
         .filter((pin) => whomIsNest(pin))
         .reduce((accum, whom) => {
-          const unread = dmUnreads[whom];
+          const unread = channelUnreads[whom];
           return unread?.count > 0 ? accum + 1 : accum;
         }, 0),
-    [pins, dmUnreads]
+    [pins, channelUnreads]
   );
 
   const unreadCount = useMemo(() => {
