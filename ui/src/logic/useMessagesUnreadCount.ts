@@ -35,7 +35,7 @@ export default function useMessagesUnreadCount(): number {
         .filter((pin) => whomIsDm(pin) || whomIsMultiDm(pin))
         .reduce((accum, whom) => {
           const unread = dmUnreads[whom];
-          return unread.count > 0 ? accum + 1 : accum;
+          return unread?.count > 0 ? accum + 1 : accum;
         }, 0),
     [pins, dmUnreads]
   );
@@ -46,7 +46,7 @@ export default function useMessagesUnreadCount(): number {
         .filter((pin) => whomIsNest(pin))
         .reduce((accum, whom) => {
           const unread = dmUnreads[whom];
-          return unread.count > 0 ? accum + 1 : accum;
+          return unread?.count > 0 ? accum + 1 : accum;
         }, 0),
     [pins, dmUnreads]
   );
