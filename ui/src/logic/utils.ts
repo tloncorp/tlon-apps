@@ -47,7 +47,6 @@ import type {
   ConnectionStatus,
 } from '../state/vitals';
 
-export const isGroups = import.meta.env.VITE_APP === 'groups';
 export const isStagingHosted =
   import.meta.env.DEV ||
   (import.meta.env.VITE_SHIP_URL || '').endsWith('.test.tlon.systems') ||

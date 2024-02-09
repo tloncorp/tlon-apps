@@ -9,7 +9,6 @@ import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
 import { useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import { isGroups } from '@/logic/utils';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
@@ -65,7 +64,7 @@ function ChatChannel({ title }: ViewProps) {
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
   const shouldApplyPaddingBottom = useMemo(
-    () => isGroups && isMobile && !isChatInputFocused,
+    () => isMobile && !isChatInputFocused,
     [isMobile, isChatInputFocused]
   );
 
