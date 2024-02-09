@@ -23,6 +23,7 @@ jobs:
   build-frontend:
     runs-on: ubuntu-latest
     name: 'Build Frontend'
+    needs: setup
     steps:
       - uses: actions/checkout@v3
         with:
