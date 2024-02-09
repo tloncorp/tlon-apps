@@ -1,6 +1,6 @@
-import { createContext, useCallback, useState, useEffect } from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import useKilnState, { usePike } from '@/state/kiln';
+import { createContext, useCallback, useEffect, useState } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
@@ -56,13 +56,17 @@ export default function useAppUpdates() {
     return () => clearInterval(interval);
   }, []);
 
-  if (pike) {
-    if (!initialHash) {
-      setInitialHash(pike.hash);
-    } else if (initialHash !== pike.hash && !needsUpdate) {
-      setNeedsUpdate(true);
+  useEffect(() => {
+    if (pike) {
+      if (!initialHash) {
+        setInitialHash(pike.hash);
+      } else if (initialHash !== pike.hash && !needsUpdate) {
+        // wait 5 minutes before showing the update prompt in case there
+        // are multiple updates in quick succession
+        setTimeout(() => setNeedsUpdate(true), 5 * 60 * 1000);
+      }
     }
-  }
+  }, [pike, initialHash, needsUpdate]);
 
   const triggerUpdate = useCallback(
     async (returnToRoot: boolean) => {
@@ -84,7 +88,7 @@ export default function useAppUpdates() {
   );
 
   return {
-    needsUpdate: needsUpdate || needRefresh,
+    needsUpdate: needRefresh,
     triggerUpdate,
   };
 }
