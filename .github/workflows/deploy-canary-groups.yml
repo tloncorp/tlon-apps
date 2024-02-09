@@ -13,18 +13,6 @@ on:
 env:
   tag: ${{ github.event.inputs.tag || 'staging' }}
 jobs:
-<<<<<<< Updated upstream
-  setup:
-    runs-on: ubuntu-latest
-    name: 'Setup Variable'
-    steps:
-    - name: Set default value
-        id: tag
-        run: |
-          TAG=${{ github.event.inputs.tag }}
-          echo "value=${TAG:-"staging"}" >> "$GITHUB_OUTPUT"
-=======
->>>>>>> Stashed changes
   build-frontend:
     runs-on: ubuntu-latest
     name: 'Build Frontend'
