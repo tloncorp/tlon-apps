@@ -19,7 +19,6 @@ import MobileHeader from '@/components/MobileHeader';
 import Layout from '@/components/Layout/Layout';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import GroupJoinList from '@/groups/GroupJoinList';
-import NavigateIcon from '@/components/icons/NavigateIcon';
 import WelcomeCard from '@/components/WelcomeCard';
 import AddGroupSheet from '@/groups/AddGroupSheet';
 
