@@ -1,8 +1,0 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g id="Clock">
-<g id="Clock_2">
-<circle id="Face" cx="16" cy="16" r="9" stroke="#333333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-<path id="Hands" d="M16 11V16L13 19" stroke="#333333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-</g>
-</svg>

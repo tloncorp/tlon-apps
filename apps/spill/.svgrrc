@@ -1,6 +1,0 @@
-{
-  "ref": true,
-  "replaceAttrValues": {
-    "#333333": "{props.color}"
-  }
-}

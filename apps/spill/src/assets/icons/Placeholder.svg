@@ -1,6 +1,0 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g id="Placeholder">
-<rect id="Boundary" x="6.9" y="6.9" width="18.2" height="18.2" rx="3.1" stroke="#333333" stroke-width="1.8"/>
-<path id="Cross" d="M16 16L20 12M16 16L12 12M16 16L12 20M16 16L20 20" stroke="#333333" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-</svg>
