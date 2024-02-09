@@ -1,6 +1,5 @@
-import { createContext, useCallback, useState, useEffect } from 'react';
+import { createContext, useCallback } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import useKilnState, { usePike } from '@/state/kiln';
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
@@ -43,26 +42,6 @@ function useServiceWorker() {
 
 export default function useAppUpdates() {
   const { needRefresh, updateServiceWorker } = useServiceWorker();
-  const pike = usePike('groups');
-
-  const [needsUpdate, setNeedsUpdate] = useState(false);
-  const [initialHash, setInitialHash] = useState<string | null>(null);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      useKilnState.getState().fetchPikes();
-    }, CHECK_FOR_UPDATES_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  if (pike) {
-    if (!initialHash) {
-      setInitialHash(pike.hash);
-    } else if (initialHash !== pike.hash && !needsUpdate) {
-      setNeedsUpdate(true);
-    }
-  }
 
   const triggerUpdate = useCallback(
     async (returnToRoot: boolean) => {
@@ -84,7 +63,7 @@ export default function useAppUpdates() {
   );
 
   return {
-    needsUpdate: needsUpdate || needRefresh,
+    needsUpdate: needRefresh,
     triggerUpdate,
   };
 }
