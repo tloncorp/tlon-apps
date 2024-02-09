@@ -7,6 +7,7 @@
       =unreads:d
       pins=(list whom)
       =chat
+      profile=?
   ==
 ::
 +$  chat

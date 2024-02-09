@@ -15,6 +15,8 @@
         channels/(channels:enjs:dj channels.init)
         unreads/(unreads:enjs:dj unreads.init)
         pins/a/(turn pins.init whom:enjs:gj)
+        profile/b/profile.init
+      ::
         :-  %chat
         %-  pairs
         :~  clubs/(clubs:enjs:cj clubs.chat.init)
