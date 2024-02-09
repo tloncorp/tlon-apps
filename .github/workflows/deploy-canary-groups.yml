@@ -11,13 +11,23 @@ on:
     branches:
       - 'staging'
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    name: 'Setup Variable'
+    steps:
+    - name: Set default value
+        id: tag
+        run: |
+          TAG=${{ github.event.inputs.tag }}
+          echo "value=${TAG:-"staging"}" >> "$GITHUB_OUTPUT"
   build-frontend:
     runs-on: ubuntu-latest
     name: 'Build Frontend'
+    needs: setup
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: ${{ steps.tag.outputs.value }}
       - uses: actions/setup-node@v3
         with:
           node-version-file: ./ui/.nvmrc
@@ -36,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: ${{ steps.tag.outputs.value }}
       - uses: actions/download-artifact@v3
         with:
           name: 'ui-dist'
@@ -58,7 +68,7 @@ jobs:
           git config --global user.email github-actions@github.com
           git add desk/desk.docket-0
           git commit -n -m "update glob: ${{ steps.glob.outputs.hash }} [skip actions]" || echo "No changes to commit"
-          INPUT=${{ github.event.inputs.tag }}
+          INPUT=${{ steps.tag.outputs.value }}
           BRANCH=${INPUT:-"staging"}
           git pull origin $BRANCH --rebase --autostash
           git push
@@ -77,7 +87,7 @@ jobs:
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ github.event.inputs.tag }}
+          ./.github/helpers/deploy.sh tloncorp/landscape-apps groups binnec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ steps.tag.outputs.value }}
         env:
           SSH_SEC_KEY: ${{ secrets.GCP_SSH_SEC_KEY }}
           SSH_PUB_KEY: ${{ secrets.GCP_SSH_PUB_KEY }}
