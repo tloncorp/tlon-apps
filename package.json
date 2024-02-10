@@ -18,7 +18,8 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "patch-package": "^6.4.7",
-    "tsup": "^8.0.1"
+    "tsup": "^8.0.1",
+    "vitest": "^1.2.2"
   },
   "engines": {
     "node": "^20.11.0",

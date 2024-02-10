@@ -14,7 +14,7 @@
     "format:swift": "swiftformat **/*.swift --exclude ./ios/Pods, ./node_modules",
     "lint": "eslint ./src",
     "test": "vitest --watch false",
-    "typecheck": "tsc --noEmit",
+    "tsc": "tsc --noEmit",
     "postinstall": "npm run generate",
     "eas-build-post-install": "./post-install"
   },

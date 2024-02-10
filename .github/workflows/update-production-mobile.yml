@@ -1,9 +1,6 @@
-name: Push Updates [Production]
+name: Push Tlon Mobile Update [Production]
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 env:
   NOTIFY_PROVIDER: rivfur-livmet
   NOTIFY_SERVICE: groups-native
@@ -17,7 +14,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version-file: ./ui/.nvmrc
       - name: Set up Expo and EAS
         uses: expo/expo-github-action@v8
         with:
@@ -26,5 +23,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Push update for all platforms
+        working-directory: ./apps/tlon-mobile
         run:
           eas update --auto --platform all --channel production --non-interactive

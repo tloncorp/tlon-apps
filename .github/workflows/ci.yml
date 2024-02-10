@@ -5,10 +5,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.0.0
+        uses: actions/checkout@v4
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3.1.1
+        uses: actions/setup-node@v4
         with:
           node-version-file: ./ui/.nvmrc
 
@@ -19,12 +19,13 @@ jobs:
         run: npm run build:shared
 
       - name: Run Lint
-        run: npm run lint
-        working-directory: ./ui
+        run: npm run lint --workspaces --if-present
+
+      - name: Check Types
+        run: npm run tsc --workspaces --if-present
 
       - name: Run Tests
-        run: npm run test -- run
-        working-directory: ./ui
+        run: npm run test --workspaces --if-present -- run
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps

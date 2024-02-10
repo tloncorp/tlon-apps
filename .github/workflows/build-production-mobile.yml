@@ -1,4 +1,4 @@
-name: Build Apps [Production]
+name: Build Tlon Mobile [Production]
 on:
   workflow_dispatch:
     inputs:
@@ -9,9 +9,6 @@ on:
           - all
           - android
           - ios
-  push:
-    tags:
-      - "v*"
 env:
   NOTIFY_PROVIDER: rivfur-livmet
   NOTIFY_SERVICE: groups-native
@@ -25,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version-file: ./ui/.nvmrc
       - name: Set up Expo and EAS
         uses: expo/expo-github-action@v8
         with:
@@ -34,6 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build for selected platforms
+        working-directory: ./apps/tlon-mobile
         run:
           eas build --profile production --platform ${{ inputs.platform || 'all' }} --non-interactive --auto-submit
         env:
