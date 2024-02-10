@@ -13,6 +13,7 @@ import { useAvatar } from '@/state/avatar';
 import { SigilProps } from '@/types/sigil';
 
 export type AvatarSizes =
+  | 'sidebar'
   | 'xxs'
   | 'xs'
   | 'small'
@@ -41,6 +42,7 @@ interface AvatarMeta {
 
 const sizeMap: Record<AvatarSizes, AvatarMeta> = {
   xxs: { classes: 'h-4 w-4', size: 10 },
+  sidebar: { classes: 'h-[16px] w-[16px] rounded-[3px]', size: 11 },
   xs: { classes: 'w-6 h-6 rounded', size: 12 },
   small: { classes: 'w-8 h-8 rounded', size: 16 },
   'default-sm': { classes: 'w-9 h-9 rounded-lg', size: 18 },
@@ -189,6 +191,7 @@ function Avatar({
       className={classNames(
         'relative flex flex-none items-center justify-center rounded bg-black',
         classes,
+        size === 'sidebar' && 'p-1.5',
         size === 'xs' && 'p-1.5',
         size === 'small' && 'p-2',
         size === 'default' && 'p-3',

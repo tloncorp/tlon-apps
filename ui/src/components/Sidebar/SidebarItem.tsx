@@ -16,6 +16,7 @@ import CaretRightIcon from '../icons/CaretRightIcon';
 type SidebarProps = PropsWithChildren<{
   icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   to?: string;
+  override?: boolean;
   defaultRoute?: boolean;
   actions?:
     | React.ReactNode
@@ -24,6 +25,7 @@ type SidebarProps = PropsWithChildren<{
   // "active" state even if the route is deeper than
   // the link's 'to' attribute
   inexact?: boolean;
+  unclamped?: boolean;
   color?: string;
   highlight?: string;
   transparent?: boolean;
@@ -57,10 +59,12 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
     {
       icon,
       to,
+      override = false,
       color = 'text-gray-800 sm:text-gray-600',
       highlight = 'bg-gray-50',
       fontWeight,
       fontSize = 'text-lg',
+      unclamped = false,
       actions,
       className,
       children,
@@ -145,7 +149,9 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           'group relative my-0.5 flex w-full items-center justify-between rounded-lg',
           color,
           !hasHoverColor() && !active ? `hover:${highlight}` : null,
-          !hasHoverColor() && active && to !== '/' ? 'bg-gray-100' : null
+          !hasHoverColor() && active && (to !== '/' || override)
+            ? 'bg-gray-100'
+            : null
         )}
       >
         <Action
@@ -166,7 +172,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
             title={typeof children === 'string' ? children : undefined}
             className={cn(
               'max-w-full flex-1 text-left font-sans sm:text-base',
-              isMobile ? 'line-clamp-1' : 'truncate',
+              unclamped ? '' : isMobile ? 'line-clamp-1' : 'truncate',
               actions && 'pr-4',
               !fontWeight ? 'sm:font-semibold' : fontWeight,
               !color ? 'text-gray-800 sm:text-gray-600' : color,

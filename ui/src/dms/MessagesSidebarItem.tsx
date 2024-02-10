@@ -40,6 +40,8 @@ function ChannelSidebarItem({
   const group = useGroup(groupFlag || '');
   const isScrolling = useMessagesScrolling();
 
+  const to = `/dm/groups/${groupFlag}/channels/${nest}`;
+
   if (!channel) {
     return null;
   }
@@ -47,7 +49,7 @@ function ChannelSidebarItem({
   return (
     <SidebarItem
       inexact
-      to={`/groups/${groupFlag}/channels/${nest}`}
+      to={to}
       icon={
         <GroupAvatar
           size="h-12 w-12 sm:h-6 sm:w-6 rounded-lg sm:rounded"

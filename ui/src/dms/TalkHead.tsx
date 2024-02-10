@@ -49,7 +49,7 @@ export default function TalkHead() {
 
   return (
     <Helmet defer={false}>
-      {unreads > 0 ? <title>{`(${unreads}) `}Talk</title> : <title>Talk</title>}
+      {unreads > 0 ? <title>{`(${unreads}) `}Tlon</title> : <title>Tlon</title>}
     </Helmet>
   );
 }

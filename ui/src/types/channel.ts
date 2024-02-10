@@ -552,7 +552,10 @@ export const emptyReply: Reply = {
   },
 };
 
-export function constructStory(data: (Inline | Block)[]): Story {
+export function constructStory(
+  data: (Inline | Block)[],
+  codeAsBlock?: boolean
+): Story {
   const isBlock = (c: Inline | Block) =>
     [
       'image',
@@ -564,6 +567,7 @@ export function constructStory(data: (Inline | Block)[]): Story {
       'header',
       'rule',
       'cite',
+      codeAsBlock ? 'code' : '',
     ].some((k) => typeof c !== 'string' && k in c);
   const postContent: Story = [];
   let index = 0;

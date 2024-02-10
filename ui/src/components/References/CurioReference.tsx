@@ -8,7 +8,6 @@ import HeapBlock from '@/heap/HeapBlock';
 import HeapContent from '@/heap/HeapContent';
 import { useChannelPreview, useGang } from '@/state/groups';
 import useGroupJoin from '@/groups/useGroupJoin';
-import useNavigateByApp from '@/logic/useNavigateByApp';
 import { firstInlineSummary } from '@/logic/tiptap';
 import { useRemotePost } from '@/state/channel/channel';
 import { imageUrlFromContent } from '@/types/channel';
@@ -44,7 +43,6 @@ function CurioReference({
   const preview = useChannelPreview(nest, isScrolling);
   const location = useLocation();
   const navigate = useNavigate();
-  const navigateByApp = useNavigateByApp();
   const groupFlag = preview?.group?.flag || '~zod/test';
   const gang = useGang(groupFlag);
   const { group } = useGroupJoin(groupFlag, gang);
@@ -90,7 +88,7 @@ function CurioReference({
       });
       return;
     }
-    navigateByApp(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);
+    navigate(`/groups/${groupFlag}/channels/${nest}/curio/${idCurio}`);
   };
 
   if (contextApp === 'heap-row') {

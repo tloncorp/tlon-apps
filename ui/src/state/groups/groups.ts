@@ -26,6 +26,7 @@ import {
   PrivacyType,
   Vessel,
   Gang,
+  isGroup,
 } from '@/types/groups';
 import api from '@/api';
 import { BaitCite, Post, Reply } from '@/types/channel';
@@ -42,6 +43,7 @@ import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { Scope, VolumeValue } from '@/types/volume';
 import { decToUd } from '@urbit/api';
 import { useNewGroupFlags } from '../settings';
+import { useGroupPins } from '../pins';
 
 export const GROUP_ADMIN = 'admin';
 
@@ -409,6 +411,16 @@ export function usePendingGangs() {
     });
 
   return pendingGangs;
+}
+
+export function usePinnedGroups(): Groups {
+  const pins = useGroupPins();
+  const groups = useGroups();
+
+  return pins.reduce(
+    (acc, pin) => ({ ...acc, [pin]: groups[pin] }),
+    {} as Groups
+  );
 }
 
 export function usePendingGangsWithoutClaim() {

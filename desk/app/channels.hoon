@@ -1083,7 +1083,7 @@
       =/  =rope:ha  (ca-rope -.kind-data.post id-post ~)
       ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
-          ca-core        
+          ca-core
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
         (emit (pass-hark (ca-spin rope cs ~)))
@@ -1274,10 +1274,19 @@
         [%posts rest=*]  (ca-peek-posts rest.pole)
         [%perm ~]        ``channel-perm+!>(perm.perm.channel)
         [%hark %rope post=@ ~]
-      ``noun+!>((ca-rope kind.nest (slav %ud post.pole) ~))
-        [%hark %rope post=@ reply=@ ~]
+      =/  id  (slav %ud post.pole)
       :^  ~  ~  %noun  !>
-      (ca-rope kind.nest (slav %ud post.pole) `(slav %ud reply.pole))
+      ?.  (has:on-v-posts:c posts.channel id)  ~
+      `(ca-rope kind.nest id ~)
+        [%hark %rope post=@ reply=@ ~]
+      =/  post-id  (slav %ud post.pole)
+      =/  reply-id  (slav %ud reply.pole)
+      :^  ~  ~  %noun  !>
+      =/  post  (get:on-v-posts:c posts.channel post-id)
+      ?~  post  ~
+      ?~  u.post  ~
+      ?.  (has:on-v-replies:c replies.u.u.post reply-id)  ~
+      `(ca-rope kind.nest post-id `reply-id)
         [%search %text skip=@ count=@ nedl=@ ~]
       :^  ~  ~  %channel-scan  !>
       %^    text:ca-search
@@ -1360,11 +1369,11 @@
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
       ?~  u.post  `~
-      (ca-peek-replies replies.u.u.post rest.pole)
+      (ca-peek-replies id.u.u.post replies.u.u.post rest.pole)
     ==
   ::
   ++  ca-peek-replies
-    |=  [replies=v-replies:c =(pole knot)]
+    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
@@ -1388,7 +1397,7 @@
       =/  reply  (get:on-v-replies:c replies `@da`time)
       ?~  reply  ~
       ?~  u.reply  `~
-      ``channel-reply+!>(u.u.reply)
+      ``channel-reply+!>(`reply:c`(uv-reply:utils parent-id u.u.reply))
     ==
   ::
   ++  ca-search

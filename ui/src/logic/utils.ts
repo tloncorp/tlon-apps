@@ -47,8 +47,6 @@ import type {
   ConnectionStatus,
 } from '../state/vitals';
 
-export const isTalk = import.meta.env.VITE_APP === 'chat';
-export const isGroups = import.meta.env.VITE_APP === 'groups';
 export const isStagingHosted =
   import.meta.env.DEV ||
   (import.meta.env.VITE_SHIP_URL || '').endsWith('.test.tlon.systems') ||
@@ -64,7 +62,7 @@ export const hostingUploadURL = isStagingHosted
     ? 'https://memex.tlon.network'
     : '';
 
-export const dmListPath = isTalk ? '/' : '/messages';
+export const dmListPath = '/messages';
 
 export function createDevLogger(tag: string, enabled: boolean) {
   return new Proxy(console, {
@@ -466,7 +464,7 @@ export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv|\.webm)(?:\?.*)?$/i;
 export const URL_REGEX = /(https?:\/\/[^\s]+)/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const IMAGE_URL_REGEX =
-  /^(http(s?):)([/|.|\w|\s|-]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|svg)(?:\?.*)?$/i;
+  /^(http(s?):)([/.\w\s-:]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|svg)(?:\?.*)?$/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
 export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
 // sig and hep explicitly left out

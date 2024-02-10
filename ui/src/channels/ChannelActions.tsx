@@ -8,6 +8,7 @@ import { Status } from '@/logic/status';
 import { useIsMobile } from '@/logic/useMedia';
 import { nestToFlag, getFlagParts } from '@/logic/utils';
 import { useRouteGroup, useDeleteChannelMutation } from '@/state/groups';
+import useActiveTab from '@/components/Sidebar/util';
 import { GroupChannel } from '@/types/groups';
 import { useIsChannelHost } from '@/logic/channel';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -47,6 +48,7 @@ const ChannelActions = React.memo(
     const isChannelHost = useIsChannelHost(flag);
     const { mutate: deleteChannelMutate } = useDeleteChannelMutation();
     const hasChildren = !!children;
+    const activeTab = useActiveTab();
 
     const leaveChannel = useCallback(async () => {
       try {
@@ -54,7 +56,9 @@ const ChannelActions = React.memo(
         navigate(
           isMobile
             ? `/groups/${ship}/${name}`
-            : `/groups/${ship}/${name}/channels`
+            : activeTab === 'messages'
+              ? `/messages`
+              : `/groups/${ship}/${name}/channels`
         );
       } catch (error) {
         if (error) {
@@ -62,7 +66,7 @@ const ChannelActions = React.memo(
           console.error(`[ChannelHeader:LeaveError] ${error}`);
         }
       }
-    }, [nest, ship, name, navigate, leave, isMobile]);
+    }, [nest, ship, name, navigate, leave, isMobile, activeTab]);
 
     const onDeleteChannelConfirm = useCallback(async () => {
       setDeleteStatus('loading');

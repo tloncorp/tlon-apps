@@ -542,12 +542,12 @@
       (put:on-v-posts:c posts.channel id ~ new)
     ::
         %edit
-      ?>  =(src.bowl author.essay.c-post)
+      ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
       ?>  =(kind.nest -.kind-data.essay.c-post)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  `posts.channel
       ?~  u.post  `posts.channel
-      ?>  =(src.bowl author.u.u.post)
+      ?>  |(=(src.bowl author.u.u.post) (is-admin:ca-perms src.bowl))
       ::TODO  could optimize and no-op if the edit is identical to current
       =/  new=v-post:c  [-.u.u.post +(rev.u.u.post) essay.c-post]
       :-  `[%post id.c-post %set ~ new]
@@ -611,7 +611,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply  `(put:on-v-replies:c replies id.c-reply ~)
       ?~  u.reply  `replies
-      ?>  =(src.bowl author.u.u.reply)
+      ?>  |(=(src.bowl author.u.u.reply) (is-admin:ca-perms src.bowl))
       :-  `[%reply id.c-reply %set ~]
       (put:on-v-replies:c replies id.c-reply ~)
     ::

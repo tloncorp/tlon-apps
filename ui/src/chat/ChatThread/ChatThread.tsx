@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import _ from 'lodash';
 import cn from 'classnames';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -14,14 +14,12 @@ import {
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import BranchIcon from '@/components/icons/BranchIcon';
 import X16Icon from '@/components/icons/X16Icon';
-import { isGroups } from '@/logic/utils';
 import useLeap from '@/components/Leap/useLeap';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import keyMap from '@/keyMap';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useChannelCompatibility, useChannelFlag } from '@/logic/channel';
 import MobileHeader from '@/components/MobileHeader';
-import useAppName from '@/logic/useAppName';
 import {
   useAddReplyMutation,
   usePost,
@@ -32,6 +30,7 @@ import {
 import { ReplyTuple } from '@/types/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
+import useActiveTab from '@/components/Sidebar/util';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import { chatStoreLogger, useChatInfo, useChatStore } from '../useChatStore';
@@ -46,7 +45,6 @@ export default function ChatThread() {
   }>();
   const isMobile = useIsMobile();
   const { isChatInputFocused } = useChatInputFocus();
-  const appName = useAppName();
   const scrollerRef = useRef<VirtuosoHandle>(null);
   const flag = useChannelFlag()!;
   const nest = `chat/${flag}`;
@@ -105,15 +103,18 @@ export default function ChatThread() {
     perms.writers.length === 0 ||
     _.intersection(perms.writers, vessel.sects).length !== 0;
   const { compatible, text } = useChannelCompatibility(`chat/${flag}`);
-  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const readTimeout = useChatInfo(flag).unread?.readTimeout;
   const isSmall = useMedia('(max-width: 1023px)');
   const clearOnNavRef = useRef({ isSmall, readTimeout, nest, flag, markRead });
+  const activeTab = useActiveTab();
 
   const returnURL = useCallback(
     () =>
-      `/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
-    [chName, chShip, name, ship, idTime]
+      `${
+        activeTab === 'messages' ? '/dm' : ''
+      }/groups/${ship}/${name}/channels/chat/${chShip}/${chName}?msg=${idTime}`,
+    [chName, chShip, name, ship, idTime, activeTab]
   );
 
   const onAtBottom = useCallback(() => {
@@ -169,7 +170,7 @@ export default function ChatThread() {
               <BranchIcon className="h-6 w-6 text-gray-600" />
               <h1 className="text-[17px] text-gray-800">
                 Thread
-                {appName === 'Groups' && <span>: {threadTitle}</span>}
+                <span>: {threadTitle}</span>
               </h1>
             </div>
           }

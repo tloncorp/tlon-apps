@@ -1,7 +1,6 @@
-import { createContext, useCallback, useState, useEffect } from 'react';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import useKilnState, { usePike } from '@/state/kiln';
-import { isTalk } from './utils';
+import { createContext, useCallback, useEffect, useState } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
@@ -44,7 +43,7 @@ function useServiceWorker() {
 
 export default function useAppUpdates() {
   const { needRefresh, updateServiceWorker } = useServiceWorker();
-  const pike = usePike(isTalk ? 'talk' : 'groups');
+  const pike = usePike('groups');
 
   const [needsUpdate, setNeedsUpdate] = useState(false);
   const [initialHash, setInitialHash] = useState<string | null>(null);
@@ -57,19 +56,22 @@ export default function useAppUpdates() {
     return () => clearInterval(interval);
   }, []);
 
-  if (pike) {
-    if (!initialHash) {
-      setInitialHash(pike.hash);
-    } else if (initialHash !== pike.hash && !needsUpdate) {
-      setNeedsUpdate(true);
+  useEffect(() => {
+    if (pike) {
+      if (!initialHash) {
+        setInitialHash(pike.hash);
+      } else if (initialHash !== pike.hash && !needsUpdate) {
+        // wait 5 minutes before showing the update prompt in case there
+        // are multiple updates in quick succession
+        setTimeout(() => setNeedsUpdate(true), 5 * 60 * 1000);
+      }
     }
-  }
+  }, [pike, initialHash, needsUpdate]);
 
   const triggerUpdate = useCallback(
     async (returnToRoot: boolean) => {
-      const basePath = isTalk ? 'apps/talk' : 'apps/groups';
       const path = returnToRoot
-        ? `${window.location.origin}/${basePath}/?updatedAt=${Date.now()}`
+        ? `${window.location.origin}/apps/groups/?updatedAt=${Date.now()}`
         : `${window.location.href}?updatedAt=${Date.now()}`;
 
       if (needRefresh) {
@@ -86,7 +88,7 @@ export default function useAppUpdates() {
   );
 
   return {
-    needsUpdate: needsUpdate || needRefresh,
+    needsUpdate: needRefresh,
     triggerUpdate,
   };
 }

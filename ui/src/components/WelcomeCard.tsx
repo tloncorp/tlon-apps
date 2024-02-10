@@ -1,7 +1,8 @@
 import { usePutEntryMutation, useSeenWelcomeCard } from '@/state/settings';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useIsMobile } from '@/logic/useMedia';
 import { Link, useLocation } from 'react-router-dom';
+import { getDmLink } from '@/logic/branch';
 import X16Icon from './icons/X16Icon';
 
 export default function WelcomeCard() {
@@ -13,14 +14,21 @@ export default function WelcomeCard() {
     key: 'seenWelcomeCard',
   });
   const [optimisticallyHide, setOptimisticallyHide] = useState(false);
+  const welcomeCardHidden = alreadySeen || optimisticallyHide;
+
+  useEffect(() => {
+    if (!welcomeCardHidden) {
+      getDmLink();
+    }
+  }, [welcomeCardHidden]);
 
   const close = useCallback(() => {
     setOptimisticallyHide(true);
     mutate({ val: true });
   }, [mutate]);
 
-  const TlonStudioLink = useCallback(() => {
-    return (
+  const TlonStudioLink = useCallback(
+    () => (
       <Link
         className="font-semibold no-underline dark:font-bold"
         to="/gangs/~tommur-dostyn/tlon-studio"
@@ -28,10 +36,11 @@ export default function WelcomeCard() {
       >
         Tlon Studio
       </Link>
-    );
-  }, [location]);
+    ),
+    [location]
+  );
 
-  if (alreadySeen || optimisticallyHide) {
+  if (welcomeCardHidden) {
     return null;
   }
 

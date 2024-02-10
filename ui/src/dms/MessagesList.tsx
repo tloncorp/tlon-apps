@@ -11,11 +11,19 @@ import { canReadChannel } from '@/logic/channel';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import { Unread } from '@/types/channel';
 import { usePinnedChats } from '@/state/pins';
-import { usePendingDms, usePendingMultiDms, useDmUnreads } from '../state/chat';
+import { useContacts } from '@/state/contact';
+import { deSig } from '@urbit/api';
+import {
+  usePendingDms,
+  usePendingMultiDms,
+  useDmUnreads,
+  useMultiDms,
+} from '../state/chat';
 import MessagesSidebarItem from './MessagesSidebarItem';
 
 type MessagesListProps = PropsWithChildren<{
   filter: SidebarFilter;
+  searchQuery?: string;
   atTopChange?: (atTop: boolean) => void;
   isScrolling?: (scrolling: boolean) => void;
 }>;
@@ -37,6 +45,7 @@ let virtuosoState: StateSnapshot | undefined;
 
 export default function MessagesList({
   filter,
+  searchQuery,
   atTopChange,
   isScrolling,
   children,
@@ -54,6 +63,8 @@ export default function MessagesList({
     }),
     [channelUnreads, dmUnreads]
   );
+  const contacts = useContacts();
+  const clubs = useMultiDms();
   const chats = useChats();
   const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
@@ -84,7 +95,7 @@ export default function MessagesList({
           return false;
         }
 
-        if (pinned.includes(b)) {
+        if (pinned.includes(b) && !searchQuery) {
           return false;
         }
 
@@ -104,9 +115,50 @@ export default function MessagesList({
           return false;
         }
 
+        if (searchQuery) {
+          if (b.includes('/')) {
+            const titleMatch = group.meta.title
+              .toLowerCase()
+              .startsWith(searchQuery.toLowerCase());
+            const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
+            return titleMatch || shipMatch;
+          }
+
+          if (whomIsDm(b)) {
+            const contact = contacts[b];
+            const nicknameMatch = contact?.nickname
+              .toLowerCase()
+              .startsWith(searchQuery.toLowerCase());
+            const shipMatch = deSig(b)?.startsWith(deSig(searchQuery) || '');
+            return nicknameMatch || shipMatch;
+          }
+
+          if (whomIsMultiDm(b)) {
+            const club = clubs[b];
+            const titleMatch = club?.meta.title
+              ?.toLowerCase()
+              .startsWith(searchQuery.toLowerCase());
+            const shipsMatch = club?.hive?.some(
+              (ship) => deSig(ship)?.startsWith(deSig(searchQuery) || '')
+            );
+            return titleMatch || shipsMatch;
+          }
+        }
+
         return true; // is all
       }),
-    [allPending, unreads, filter, pinned, sortMessages, chats, groups]
+    [
+      sortMessages,
+      unreads,
+      chats,
+      groups,
+      pinned,
+      searchQuery,
+      allPending,
+      filter,
+      contacts,
+      clubs,
+    ]
   );
 
   const headerHeightRef = useRef<number>(0);

@@ -14,7 +14,7 @@ import {
 } from '@/constants';
 import { DisplayMode, SortMode } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { isHosted, isTalk } from '@/logic/utils';
+import { isHosted } from '@/logic/utils';
 import { isNativeApp } from '@/logic/native';
 import api from '@/api';
 
@@ -77,7 +77,6 @@ export interface SettingsState {
     disableRemoteContent: boolean;
     disableSpellcheck: boolean;
     disableNicknames: boolean;
-    disableWayfinding: boolean;
   };
   tiles: {
     order: string[];
@@ -92,6 +91,7 @@ export interface SettingsState {
   talk: {
     messagesFilter: SidebarFilter;
     showVitaMessage: boolean;
+    seenSunsetMessage: boolean;
   };
   groups: {
     orderedGroupPins: string[];
@@ -199,7 +199,6 @@ const emptyCalm: SettingsState['calmEngine'] = {
   disableRemoteContent: false,
   disableSpellcheck: false,
   disableNicknames: false,
-  disableWayfinding: false,
 };
 
 const loadingCalm: SettingsState['calmEngine'] = {
@@ -208,7 +207,6 @@ const loadingCalm: SettingsState['calmEngine'] = {
   disableRemoteContent: true,
   disableSpellcheck: true,
   disableNicknames: true,
-  disableWayfinding: true,
 };
 
 export function useCalm() {
@@ -349,11 +347,6 @@ export function useLogActivity() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
-    // Do not capture any analytics events for Talk
-    if (isTalk || isNativeApp()) {
-      return false;
-    }
-
     if (isLoading || data === undefined || data.groups === undefined) {
       return isHosted;
     }
@@ -503,6 +496,19 @@ export function useSeenWelcomeCard() {
     }
 
     return data.groups.seenWelcomeCard ?? false;
+  }, [isLoading, data]);
+}
+
+export function useSeenTalkSunset() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.groups === undefined) {
+      console.log('returning sunset default');
+      return false;
+    }
+
+    return data.talk.seenSunsetMessage ?? false;
   }, [isLoading, data]);
 }
 

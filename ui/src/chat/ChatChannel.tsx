@@ -9,12 +9,12 @@ import Layout from '@/components/Layout/Layout';
 import { ViewProps } from '@/types/groups';
 import { useRouteGroup } from '@/state/groups/groups';
 import ChannelHeader from '@/channels/ChannelHeader';
-import { isGroups } from '@/logic/utils';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
+import useActiveTab from '@/components/Sidebar/util';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import {
   useAddPostMutation,
@@ -54,14 +54,17 @@ function ChatChannel({ title }: ViewProps) {
     () => searchParams.get('replyTo'),
     [searchParams]
   );
+  const activeTab = useActiveTab();
   const replyingWrit = useReplyPost(nest, chatReplyId);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const root = `/groups/${groupFlag}/channels/${nest}`;
+  const root = `${
+    activeTab === 'messages' ? '/dm' : ''
+  }/groups/${groupFlag}/channels/${nest}`;
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
   const shouldApplyPaddingBottom = useMemo(
-    () => isGroups && isMobile && !isChatInputFocused,
+    () => isMobile && !isChatInputFocused,
     [isMobile, isChatInputFocused]
   );
 
