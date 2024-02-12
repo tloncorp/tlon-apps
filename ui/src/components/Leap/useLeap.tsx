@@ -31,6 +31,7 @@ import ShapesIcon from '../icons/ShapesIcon';
 import NotebookIcon from '../icons/NotebookIcon';
 import PeopleIcon from '../icons/PeopleIcon';
 import GridIcon from '../icons/GridIcon';
+import useActiveTab from '../Sidebar/util';
 
 interface LeapContext {
   isOpen: boolean;
@@ -110,6 +111,7 @@ export default function useLeap() {
     [mutuals]
   );
   const menuOptions = app === 'Talk' ? talkMenuOptions : groupsMenuOptions;
+  const tab = useActiveTab();
 
   const menu =
     inputValue === ''
@@ -220,13 +222,7 @@ export default function useLeap() {
       },
       ...filteredShips.map(([patp, contact], idx) => {
         const onSelect = () => {
-          if (app === 'Talk') {
-            navigate(`/dm/${patp}`);
-          } else {
-            modalNavigate(`/profile/${preSig(patp)}`, {
-              state: { backgroundLocation: location },
-            });
-          }
+          navigate(`/dm/${patp}`);
           setSelectedIndex(0);
           setInputValue('');
           setIsOpen(false);
@@ -242,18 +238,15 @@ export default function useLeap() {
             0,
             LEAP_DESCRIPTION_TRUNCATE_LENGTH
           ),
-          to: `/profile/${patp}`,
+          to: `/dm/${patp}`,
           resultIndex: idx,
         };
       }),
     ];
   }, [
-    app,
     contacts,
     inputValue,
     isDMUnread,
-    location,
-    modalNavigate,
     navigate,
     preSiggedMutuals,
     dms,
@@ -351,8 +344,10 @@ export default function useLeap() {
       },
       ...filteredChannels.map(({ groupFlag, group, channel, nest }, idx) => {
         const [chType, chFlag] = nestToFlag(nest);
+        const loc = `/groups/${groupFlag}/channels/${nest}`;
+        const nav = tab === 'messages' ? `/dm${loc}` : loc;
         const onSelect = () => {
-          navigate(`/groups/${groupFlag}/channels/${nest}`);
+          navigate(nav);
           setSelectedIndex(0);
           setInputValue('');
           setIsOpen(false);
@@ -377,7 +372,7 @@ export default function useLeap() {
           input: inputValue,
           title: channel.meta.title,
           subtitle: group.meta.title,
-          to: `/groups/${groupFlag}/channels/chat/${chFlag}`,
+          to: nav,
           resultIndex:
             idx +
             (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
@@ -387,6 +382,7 @@ export default function useLeap() {
       }),
     ];
   }, [
+    tab,
     currentGroupFlag,
     groups,
     inputValue,
