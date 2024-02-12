@@ -45,7 +45,7 @@ import GroupPreviewModal from '@/groups/Join/GroupPreview';
 import RejectConfirmModal from '@/groups/Join/RejectConfirmModal';
 import EditProfile from '@/profiles/EditProfile/EditProfile';
 import HeapDetail from '@/heap/HeapDetail';
-import groupsFavicon from '@/assets/groups.svg';
+import tlonFavicon from '@/assets/favicon.ico';
 import GroupInvitesPrivacy from '@/groups/GroupAdmin/GroupInvitesPrivacy';
 import Notifications from '@/notifications/Notifications';
 import ChatChannel from '@/chat/ChatChannel';
@@ -708,7 +708,7 @@ function RoutedApp() {
           <title>Tlon</title>
           <link
             rel="icon"
-            href={groupsFavicon}
+            href={tlonFavicon}
             sizes="any"
             type="image/svg+xml"
           />
