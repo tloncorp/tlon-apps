@@ -602,7 +602,7 @@ export default function ChatScroller({
 
       if (scrollDirection === null && isAtExactScrollEnd) {
         logger.log(
-          'not isInverted and scrollDirection is null setting reading direction to up'
+          "not isInverted, scrollDirection is null, and we're at the bottom setting reading direction to up"
         );
         readingDirectionRef.current = 'up';
       }
