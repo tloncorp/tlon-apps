@@ -172,6 +172,7 @@ export interface ChatScrollerProps {
   isLoadingOlder: boolean;
   isLoadingNewer: boolean;
   replying?: boolean;
+  inThread?: boolean;
   /**
    * Element to be inserted at the top of the list scroll after we've loaded the
    * entire history.
@@ -193,6 +194,7 @@ export default function ChatScroller({
   isLoadingOlder,
   isLoadingNewer,
   replying = false,
+  inThread = false,
   topLoadEndMarker,
   scrollTo: rawScrollTo = undefined,
   scrollerRef,
@@ -268,6 +270,80 @@ export default function ChatScroller({
     return count - 1;
   }, [messageKeys, count, scrollTo]);
 
+  const virtualizerRef = useRef<DivVirtualizer>();
+  // We need to track whether we're force scrolling so that we don't attempt
+  // to change reading direction or load new content while we're in the
+  // middle of a forced scroll.
+  const isForceScrolling = useRef(false);
+
+  /**
+   * Set scroll position, bypassing virtualizer change logic.
+   */
+  const forceScroll = useCallback((offset: number) => {
+    if (isForceScrolling.current) return;
+    isForceScrolling.current = true;
+    const virt = virtualizerRef.current;
+    if (!virt) return;
+    virt.scrollOffset = offset;
+    virt.scrollElement?.scrollTo?.({ top: offset });
+    setTimeout(() => {
+      isForceScrolling.current = false;
+    }, 300);
+  }, []);
+
+  const isEmpty = useMemo(
+    () => count === 0 && hasLoadedNewest && hasLoadedOldest,
+    [count, hasLoadedNewest, hasLoadedOldest]
+  );
+  const contentHeight = virtualizerRef.current?.getTotalSize() ?? 0;
+  const scrollElementHeight = scrollElementRef.current?.clientHeight ?? 0;
+  const isScrollable = useMemo(
+    () => contentHeight > scrollElementHeight,
+    [contentHeight, scrollElementHeight]
+  );
+
+  const { clientHeight, scrollTop, scrollHeight } =
+    scrollElementRef.current ?? {
+      clientHeight: 0,
+      scrollTop: 0,
+      scrollHeight: 0,
+    };
+  // Prevent list from being at the end of new messages and old messages
+  // at the same time -- can happen if there are few messages loaded.
+  const atEndThreshold = Math.min(
+    (scrollHeight - clientHeight) / 2,
+    thresholds.atEndThreshold
+  );
+  const isAtExactScrollEnd = scrollHeight - scrollTop === clientHeight;
+  const isAtScrollBeginning = scrollTop === 0;
+  const isAtScrollEnd =
+    scrollTop + clientHeight >= scrollHeight - atEndThreshold;
+  const readingDirectionRef = useRef('');
+
+  // Determine whether the list should be inverted based on reading direction
+  // and whether the content is scrollable or if we're scrolling to a specific
+  // message.
+  // If the user is scrolling up, we want to keep the list inverted.
+  // If the user is scrolling down, we want to keep the list normal.
+  // If the user is at the bottom, we want it inverted (this is set in the readingDirection
+  // conditions further below).
+  // If the content is not scrollable, we want it inverted.
+  // If we're scrolling to a specific message, we want it normal because we
+  // assume the user is reading from that message down.
+  // However, if we're scrolling to a particular message in a thread, we want it inverted.
+
+  const isInverted = isEmpty
+    ? false
+    : userHasScrolled && readingDirectionRef.current === 'down'
+      ? false
+      : userHasScrolled && readingDirectionRef.current === 'up'
+        ? true
+        : scrollElementRef.current?.clientHeight && !isScrollable
+          ? true
+          : scrollTo && !inThread
+            ? false
+            : true;
+
   useObjectChangeLogging(
     {
       isAtTop,
@@ -278,31 +354,12 @@ export default function ChatScroller({
       anchorIndex,
       isLoadingOlder,
       isLoadingNewer,
+      isInverted,
+      userHasScrolled,
     },
     logger
   );
 
-  const virtualizerRef = useRef<DivVirtualizer>();
-
-  /**
-   * Set scroll position, bypassing virtualizer change logic.
-   */
-  const forceScroll = useCallback((offset: number) => {
-    const virt = virtualizerRef.current;
-    if (!virt) return;
-    virt.scrollOffset = offset;
-    virt.scrollElement?.scrollTo?.({ top: offset });
-  }, []);
-
-  const isEmpty = count === 0 && hasLoadedNewest && hasLoadedOldest;
-  const contentHeight = virtualizerRef.current?.getTotalSize() ?? 0;
-  const scrollElementHeight = scrollElementRef.current?.clientHeight ?? 0;
-  const isScrollable = contentHeight > scrollElementHeight;
-  const isInverted = isEmpty
-    ? false
-    : !isScrollable
-      ? true
-      : loadDirection === 'older';
   // We want to render newest messages first, but we receive them oldest-first.
   // This is a simple way to reverse the order without having to reverse a big array.
   const transformIndex = useCallback(
@@ -427,25 +484,13 @@ export default function ChatScroller({
       if (anchorIndex !== null && !userHasScrolled) {
         scrollToAnchor();
       }
-      const { clientHeight, scrollTop, scrollHeight } =
-        scrollElementRef.current ?? {
-          clientHeight: 0,
-          scrollTop: 0,
-          scrollHeight: 0,
-        };
-      // Prevent list from being at the end of new messages and old messages
-      // at the same time -- can happen if there are few messages loaded.
-      const atEndThreshold = Math.min(
-        (scrollHeight - clientHeight) / 2,
-        thresholds.atEndThreshold
-      );
-      const isAtScrollBeginning = scrollTop === 0;
-      const isAtScrollEnd =
-        scrollTop + clientHeight >= scrollHeight - atEndThreshold;
-      const nextAtTop =
-        (isInverted && isAtScrollEnd) || (!isInverted && isAtScrollBeginning);
-      const nextAtBottom =
-        (isInverted && isAtScrollBeginning) || (!isInverted && isAtScrollEnd);
+      const nextAtTop = isForceScrolling.current
+        ? false
+        : (isInverted && isAtScrollEnd) || (!isInverted && isAtScrollBeginning);
+      const nextAtBottom = isForceScrolling.current
+        ? false
+        : (isInverted && isAtScrollBeginning) || (!isInverted && isAtScrollEnd);
+
       setIsAtTop(nextAtTop);
       setIsAtBottom(nextAtBottom);
     }, [
@@ -453,7 +498,8 @@ export default function ChatScroller({
       anchorIndex,
       userHasScrolled,
       scrollToAnchor,
-      scrollElementRef,
+      isAtScrollBeginning,
+      isAtScrollEnd,
     ]),
   });
   virtualizerRef.current = virtualizer;
@@ -487,9 +533,18 @@ export default function ChatScroller({
   // When the list inverts, we need to flip the scroll position in order to appear to stay in the same place.
   // We do this here as opposed to in an effect so that virtualItems is correct in time for this render.
   const lastIsInverted = useRef(isInverted);
-  if (userHasScrolled && isInverted !== lastIsInverted.current) {
+  if (
+    userHasScrolled &&
+    isInverted !== lastIsInverted.current &&
+    !isLoadingOlder &&
+    !isLoadingNewer
+  ) {
     logger.log('inverting chat scroller');
-    forceScroll(contentHeight - virtualizer.scrollOffset);
+    const offset = contentHeight - virtualizerRef.current.scrollOffset;
+    // We need to subtract the height of the scroll element to get the correct
+    // offset when inverting.
+    const newOffset = offset - scrollElementHeight;
+    forceScroll(newOffset);
     lastIsInverted.current = isInverted;
   }
 
@@ -498,6 +553,61 @@ export default function ChatScroller({
   // On first run, virtualizerRef will be empty, so contentHeight will be undefined.
   // TODO: Distentangle virtualizer init to avoid this.
   const finalHeight = contentHeight ?? virtualizer.getTotalSize();
+
+  const { scrollDirection } = virtualizerRef.current ?? {};
+
+  if (userHasScrolled && !isForceScrolling.current) {
+    logger.log('setting reading direction');
+
+    if (isInverted) {
+      if (
+        scrollDirection === 'backward' &&
+        readingDirectionRef.current !== 'down'
+      ) {
+        logger.log(
+          'isInverted and scrollDirection is backward setting reading direction to down'
+        );
+        readingDirectionRef.current = 'down';
+      }
+
+      if (
+        scrollDirection === 'forward' &&
+        readingDirectionRef.current !== 'up'
+      ) {
+        logger.log(
+          'isInverted and scrollDirection is forward setting reading direction to up'
+        );
+        readingDirectionRef.current = 'up';
+      }
+    } else {
+      if (
+        scrollDirection === 'backward' &&
+        readingDirectionRef.current !== 'up'
+      ) {
+        logger.log(
+          'not isInverted and scrollDirection is backward setting reading direction to up'
+        );
+        readingDirectionRef.current = 'up';
+      }
+
+      if (
+        scrollDirection === 'forward' &&
+        readingDirectionRef.current !== 'down'
+      ) {
+        logger.log(
+          'not isInverted and scrollDirection is forward setting reading direction to down'
+        );
+        readingDirectionRef.current = 'down';
+      }
+
+      if (scrollDirection === null && isAtExactScrollEnd) {
+        logger.log(
+          'not isInverted and scrollDirection is null setting reading direction to up'
+        );
+        readingDirectionRef.current = 'up';
+      }
+    }
+  }
 
   return (
     <>
@@ -559,6 +669,8 @@ export default function ChatScroller({
             count,
             scrollOffset: virtualizer.scrollOffset,
             scrollHeight: finalHeight,
+            scrollDirection: virtualizer.scrollDirection,
+            readingDirection: readingDirectionRef.current,
             hasLoadedNewest,
             hasLoadedOldest,
             anchorIndex,
