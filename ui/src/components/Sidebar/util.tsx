@@ -1,4 +1,6 @@
-import { useLocation } from 'react-router';
+import { useNavState, usePutEntryMutation } from '@/state/settings';
+import { useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
 export type ActiveTab =
   | 'messages'
@@ -27,4 +29,47 @@ export default function useActiveTab(): ActiveTab {
   }
 
   return 'other';
+}
+
+export function useNavToTab() {
+  const navState = useNavState();
+  const navigate = useNavigate();
+
+  return useCallback(
+    (tab: 'messages' | 'groups') => {
+      if (tab === 'groups') {
+        navigate(navState.groups || '/groups');
+      }
+
+      if (tab === 'messages') {
+        navigate(navState.messages || '/messages');
+      }
+    },
+    [navState, navigate]
+  );
+}
+
+export function useSaveNavState() {
+  const { mutate: mutateMessages } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'messagesNavState',
+  });
+
+  const { mutate: mutateGroups } = usePutEntryMutation({
+    bucket: 'groups',
+    key: 'groupsNavState',
+  });
+
+  return useCallback(
+    (tab: ActiveTab, path: string) => {
+      if (tab === 'groups') {
+        mutateGroups({ val: path });
+      }
+
+      if (tab === 'messages') {
+        mutateMessages({ val: path });
+      }
+    },
+    [mutateGroups, mutateMessages]
+  );
 }
