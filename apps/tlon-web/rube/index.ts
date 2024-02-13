@@ -268,7 +268,7 @@ const bootShip = (
 };
 
 const copyDesks = async () => {
-  const groups = path.resolve(__dirname, '../../../desk');
+  const groups = path.resolve(__dirname, '../../../../desk');
 
   for (const ship of Object.values(ships)) {
     if (targetShip && targetShip !== ship.ship) {
