@@ -14,7 +14,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./ui/.nvmrc
+          node-version-file: .nvmrc
       - name: Set up Expo and EAS
         uses: expo/expo-github-action@v8
         with:
@@ -24,5 +24,4 @@ jobs:
         run: npm ci
       - name: Push update for all platforms
         working-directory: ./apps/tlon-mobile
-        run:
-          eas update --auto --platform all --channel production --non-interactive
+        run: eas update --auto --platform all --channel production --non-interactive

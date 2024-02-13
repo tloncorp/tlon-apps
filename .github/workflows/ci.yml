@@ -10,7 +10,7 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./ui/.nvmrc
+          node-version-file: .nvmrc
 
       - name: Install Dependencies
         run: npm ci
@@ -29,19 +29,19 @@ jobs:
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
-        working-directory: ./ui
+        working-directory: ./apps/tlon-web
 
       - name: Run E2E Tests for Groups
         run: npm run e2e
-        working-directory: ./ui
+        working-directory: ./apps/tlon-web
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: playwright-report
-          path: ./ui/playwright-report/
+          path: ./apps/tlon-web/playwright-report/
           retention-days: 30
 
       - name: Build
         run: npm run build
-        working-directory: ./ui
+        working-directory: ./apps/tlon-web

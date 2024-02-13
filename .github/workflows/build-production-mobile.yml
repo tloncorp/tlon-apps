@@ -22,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./ui/.nvmrc
+          node-version-file: .nvmrc
       - name: Set up Expo and EAS
         uses: expo/expo-github-action@v8
         with:
@@ -32,8 +32,7 @@ jobs:
         run: npm ci
       - name: Build for selected platforms
         working-directory: ./apps/tlon-mobile
-        run:
-          eas build --profile production --platform ${{ inputs.platform || 'all' }} --non-interactive --auto-submit
+        run: eas build --profile production --platform ${{ inputs.platform || 'all' }} --non-interactive --auto-submit
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}

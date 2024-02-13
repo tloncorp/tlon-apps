@@ -11,7 +11,7 @@ final class PocketUserAPI: PocketAPI {
     static func fetchContacts() async throws -> [String: Contact] {
         let result: [String: ContactInfo?] = try await PocketAPI.fetchDecodable("/~/scry/contacts/all")
         var contacts = [String: Contact]()
-        result.forEach { id, info in
+        for (id, info) in result {
             if let info {
                 contacts[id] = Contact(id: id, info: info)
             }

@@ -5,6 +5,6 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "esModuleInterop": false,
-    "allowSyntheticDefaultImports": true,
-  },
+    "allowSyntheticDefaultImports": true
+  }
 }

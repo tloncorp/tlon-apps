@@ -1,0 +1,55 @@
+import MobileHeader from '@/components/MobileHeader';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import { usePinnedChats } from '@/state/pins';
+import cn from 'classnames';
+import { debounce } from 'lodash';
+import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+
+import MessagesList from './MessagesList';
+import { MessagesScrollingContext } from './MessagesScrollingContext';
+import MessagesSidebarItem from './MessagesSidebarItem';
+
+export default function MobileMessagesSidebar() {
+  const [isScrolling, setIsScrolling] = useState(false);
+  const pinned = usePinnedChats(true);
+
+  const scroll = useRef(
+    debounce((scrolling: boolean) => setIsScrolling(scrolling), 200)
+  );
+
+  return (
+    <div className="flex h-full w-full flex-col">
+      <MobileHeader
+        title="Messages"
+        action={
+          <div className="flex h-12 items-center justify-end space-x-2">
+            <ReconnectingSpinner />
+            <Link
+              to="/dm/new"
+              className="default-focus flex items-center text-base"
+              aria-label="New Direct Message"
+            >
+              <AddIconMobileNav className="h-8 w-8 text-black" />
+            </Link>
+          </div>
+        }
+      />
+      <nav className={cn('flex h-full w-full flex-col bg-white')}>
+        <MessagesScrollingContext.Provider value={isScrolling}>
+          <MessagesList filter="Direct Messages" isScrolling={scroll.current}>
+            {pinned && pinned.length > 0 ? (
+              <div className="px-4">
+                <h2 className="mb-0.5 p-2 font-sans text-gray-400">Pinned</h2>
+                {pinned.map((ship: string) => (
+                  <MessagesSidebarItem key={ship} whom={ship} />
+                ))}
+              </div>
+            ) : null}
+          </MessagesList>
+        </MessagesScrollingContext.Provider>
+      </nav>
+    </div>
+  );
+}

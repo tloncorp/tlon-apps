@@ -8,7 +8,7 @@
 import Alamofire
 import Foundation
 
-class PocketAPI {
+enum PocketAPI {
     static func fetchDecodable<T: Decodable>(_ path: String, timeoutInterval: TimeInterval = 10, retries: Int = 0) async throws -> T {
         guard let shipURL = UrbitModule.shipUrl else {
             throw APIError.unknownShip

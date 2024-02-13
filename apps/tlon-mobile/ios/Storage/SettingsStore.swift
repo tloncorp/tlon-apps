@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct SettingsStore {
+enum SettingsStore {
     static var disableAvatars: Bool = UserDefaults.standard.bool(forKey: "settings.calmEngine.disableAvatars") {
         didSet {
             UserDefaults.standard.set(disableNicknames, forKey: "settings.calmEngine.disableAvatars")

@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct TlonError {
+enum TlonError {
     static var NotificationsFetchYarn = "notifications_fetch_yarn"
     static var NotificationsFetchGroupChannel = "notifications_fetch_group_channel"
     static var NotificationsFetchClub = "notifications_fetch_club"
