@@ -36,7 +36,7 @@ import { PageTuple, ReplyTuple } from '@/types/channel';
 import { useShowDevTools } from '@/state/local';
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
-const logger = createDevLogger('ChatScroller', true);
+const logger = createDevLogger('ChatScroller', false);
 
 interface CustomScrollItemData {
   type: 'custom';
@@ -279,18 +279,23 @@ export default function ChatScroller({
   /**
    * Set scroll position, bypassing virtualizer change logic.
    */
-  const forceScroll = useCallback((offset: number) => {
-    if (isForceScrolling.current) return;
-    logger.log('force scrolling to', offset);
-    isForceScrolling.current = true;
-    const virt = virtualizerRef.current;
-    if (!virt) return;
-    virt.scrollOffset = offset;
-    virt.scrollElement?.scrollTo?.({ top: offset });
-    setTimeout(() => {
-      isForceScrolling.current = false;
-    }, 300);
-  }, []);
+  const forceScroll = useCallback(
+    (offset: number, bypassDelay = false) => {
+      if (isForceScrolling.current && !bypassDelay) return;
+      if (!inThread) {
+        logger.log('force scrolling to', offset);
+      }
+      isForceScrolling.current = true;
+      const virt = virtualizerRef.current;
+      if (!virt) return;
+      virt.scrollOffset = offset;
+      virt.scrollElement?.scrollTo?.({ top: offset });
+      setTimeout(() => {
+        isForceScrolling.current = false;
+      }, 300);
+    },
+    [inThread]
+  );
 
   const isEmpty = useMemo(
     () => count === 0 && hasLoadedNewest && hasLoadedOldest,
@@ -357,6 +362,7 @@ export default function ChatScroller({
       isLoadingNewer,
       isInverted,
       userHasScrolled,
+      isForceScrolling: isForceScrolling.current,
     },
     logger
   );
@@ -390,7 +396,7 @@ export default function ChatScroller({
   // Reset scroll when scrollTo changes
   useEffect(() => {
     if (scrollTo === undefined) return;
-    logger.log('scrollto changed');
+    logger.log('scrollto changed', scrollTo?.toString());
     resetUserHasScrolled();
     scrollToAnchor();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -555,7 +561,9 @@ export default function ChatScroller({
     // offset when inverting.
     const newOffset = offset - scrollElementHeight;
     logger.log('inverting chat scroller, setting offset to', newOffset);
-    forceScroll(newOffset);
+    // We need to bypass the delay here because we're inverting the scroll
+    // immediately after the user has scrolled in this case.
+    forceScroll(newOffset, true);
     lastIsInverted.current = isInverted;
   }
 
