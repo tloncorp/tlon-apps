@@ -180,14 +180,13 @@
     @import url("https://fonts.cdnfonts.com/css/source-code-pro");
 
     .body {
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      height: 100%;
       display: flex;
       justify-content: center;
       align-items: flex-start;
       margin: 0;
       padding: 0;
-      overflow: scroll;
       background-color: white;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
