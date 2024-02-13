@@ -3,13 +3,20 @@ import { Link } from 'react-router-dom';
 import useMessagesUnreadCount from '@/logic/useMessagesUnreadCount';
 import MessagesIcon from '../icons/MessagesIcon';
 import SidebarItem from './SidebarItem';
-import useActiveTab from './util';
+import useActiveTab, { useNavToTab } from './util';
 import AddIcon16 from '../icons/Add16Icon';
 import ActivityIndicator from './ActivityIndicator';
 
 export default function MessagesSidebarItem() {
   const activeTab = useActiveTab();
   const unreadCount = useMessagesUnreadCount();
+  const navToTab = useNavToTab();
+
+  const onClick = () => {
+    if (activeTab !== 'messages') {
+      navToTab('messages');
+    }
+  };
 
   return (
     <SidebarItem
@@ -41,7 +48,7 @@ export default function MessagesSidebarItem() {
           </Link>
         </div>
       }
-      to={'/messages'}
+      onClick={onClick}
       className="group"
       color={activeTab === 'messages' ? 'text-black' : 'text-gray-600'}
     >

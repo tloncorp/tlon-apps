@@ -4,7 +4,7 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
 import ShipName from '@/components/ShipName';
 import Avatar, { useProfileColor } from '@/components/Avatar';
-import AddGroupSidebarItem from './AddGroupSidebarItem';
+import GroupsSidebarItem from './AddGroupSidebarItem';
 import SidebarHeader from './SidebarHeader';
 import { DesktopUpdateButton } from '../UpdateNotices';
 import useActiveTab from './util';
@@ -23,7 +23,7 @@ const SidebarTopMenu = React.memo(() => {
     <div className="flex w-full flex-col space-y-0.5 p-2">
       <UpdateOrAppMenu />
 
-      <AddGroupSidebarItem />
+      <GroupsSidebarItem />
       <MessagesSidebarItem />
       <ActivitySidebarItem />
 

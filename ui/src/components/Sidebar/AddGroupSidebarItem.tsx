@@ -5,13 +5,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import AddIcon16 from '../icons/Add16Icon';
 import HomeIconMobileNav from '../icons/HomeIconMobileNav';
 import SidebarItem from './SidebarItem';
-import useActiveTab from './util';
+import useActiveTab, { useNavToTab } from './util';
 
-export default function AddGroupSidebarItem() {
+export default function GroupSidebarItem() {
   const navigate = useNavigate();
   const location = useLocation();
   const activeTab = useActiveTab();
   const [open, setOpen] = useState(false);
+  const navToTab = useNavToTab();
 
   const onOpenChange = (openChange: boolean) => {
     setOpen(openChange);
@@ -19,6 +20,12 @@ export default function AddGroupSidebarItem() {
 
   const navigateToModal = (path: string) => {
     navigate(path, { state: { backgroundLocation: location } });
+  };
+
+  const onClick = () => {
+    if (activeTab !== 'groups') {
+      navToTab('groups');
+    }
   };
 
   return (
@@ -35,7 +42,7 @@ export default function AddGroupSidebarItem() {
             isInactive={activeTab !== 'groups'}
           />
         }
-        to="/groups"
+        onClick={onClick}
         color={activeTab === 'groups' ? 'text-black' : 'text-gray-600'}
         actions={
           <Dropdown.Trigger data-testid="add-group-sidebar-button-icon">
