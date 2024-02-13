@@ -85,8 +85,9 @@
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
     ^-  (quip card _this)
-    ~&  strange-diary-arvo+wire
-    `this
+    =^  cards  state
+      abet:(arvo:cor wire sign)
+    [cards this]
   --
 |_  [=bowl:gall cards=(list card)]
 ++  abet  [(flop cards) state]
@@ -567,6 +568,19 @@
       [%u =kind:c ship=@ name=@ ~]
     =/  =ship  (slav %p ship.pole)
     ``loob+!>((~(has by v-channels) kind.pole ship name.pole))
+  ==
+::
+++  arvo
+  |=  [=(pole knot) sign=sign-arvo]
+  ^+  cor
+  ?+  pole  ~|(bad-arvo-take/pole !!)
+      [%~.~ %cancel-retry rest=*]  cor
+  ::
+      [%~.~ %retry rest=*]
+    =^  card=(unit card)  subs
+      (~(handle-wakeup s [subs bowl]) pole)
+    ?~  card  cor
+    (emit u.card)
   ==
 ::
 ++  unreads
