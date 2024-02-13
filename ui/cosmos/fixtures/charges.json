@@ -116,8 +116,8 @@
             "info": "A suite of applications to communicate on Urbit"
         },
         "groups": {
-            "image": "https://bootstrap.urbit.org/icon-groups.svg?v=1",
-            "title": "Groups",
+            "image": "https://bootstrap.urbit.org/tlon.png",
+            "title": "Tlon",
             "license": "MIT",
             "version": "4.2.8",
             "website": "https://tlon.io",

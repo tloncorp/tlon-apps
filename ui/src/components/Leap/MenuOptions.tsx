@@ -1,8 +1,8 @@
 import ArrowEIcon16 from '../icons/ArrowEIcon16';
-import AppGroupsIcon from '../icons/AppGroupsIcon';
 import AddIcon16 from '../icons/Add16Icon';
 import GridIcon from '../icons/GridIcon';
 import { IconProps } from '../icons/icon';
+import TlonIcon from '../icons/TlonIcon';
 
 function CommandBadge() {
   return (
@@ -82,7 +82,7 @@ export const menuOptions: IMenuOption[] = [
     title: 'Tlon',
     subtitle: '',
     to: '/',
-    icon: AppGroupsIcon,
+    icon: TlonIcon,
     modal: false,
   },
 ];
