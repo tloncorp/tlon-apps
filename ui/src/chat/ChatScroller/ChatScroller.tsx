@@ -36,7 +36,7 @@ import { PageTuple, ReplyTuple } from '@/types/channel';
 import { useShowDevTools } from '@/state/local';
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 
-const logger = createDevLogger('ChatScroller', false);
+const logger = createDevLogger('ChatScroller', true);
 
 interface CustomScrollItemData {
   type: 'custom';
@@ -281,6 +281,7 @@ export default function ChatScroller({
    */
   const forceScroll = useCallback((offset: number) => {
     if (isForceScrolling.current) return;
+    logger.log('force scrolling to', offset);
     isForceScrolling.current = true;
     const virt = virtualizerRef.current;
     if (!virt) return;
@@ -371,9 +372,11 @@ export default function ChatScroller({
    * Scroll to current anchor index
    */
   const scrollToAnchor = useCallback(() => {
-    logger.log('scrolling to anchor');
     const virt = virtualizerRef.current;
     if (!virt || anchorIndex === null) return;
+    logger.log('scrolling to anchor', {
+      anchorIndex,
+    });
     const index = transformIndex(anchorIndex);
     const [nextOffset] = virt.getOffsetForIndex(index, 'center');
     const measurement = virt.measurementsCache[index];
@@ -386,6 +389,7 @@ export default function ChatScroller({
 
   // Reset scroll when scrollTo changes
   useEffect(() => {
+    if (scrollTo === undefined) return;
     logger.log('scrollto changed');
     resetUserHasScrolled();
     scrollToAnchor();
@@ -458,7 +462,11 @@ export default function ChatScroller({
         // By default, the virtualizer tries to keep the position of the topmost
         // item on screen pinned, but we need to override that behavior to keep a
         // message centered or to stay at the bottom of the chat.
-        if (anchorIndex !== null && !userHasScrolled) {
+        if (
+          anchorIndex !== null &&
+          !userHasScrolled &&
+          !isForceScrolling.current
+        ) {
           // Fix for no-param-reassign
           scrollToAnchor();
         } else {
@@ -481,7 +489,11 @@ export default function ChatScroller({
     // Called by the virtualizer whenever any layout property changes.
     // We're using it to keep track of top and bottom thresholds.
     onChange: useCallback(() => {
-      if (anchorIndex !== null && !userHasScrolled) {
+      if (
+        anchorIndex !== null &&
+        !userHasScrolled &&
+        !isForceScrolling.current
+      ) {
         scrollToAnchor();
       }
       const nextAtTop = isForceScrolling.current
@@ -534,16 +546,15 @@ export default function ChatScroller({
   // We do this here as opposed to in an effect so that virtualItems is correct in time for this render.
   const lastIsInverted = useRef(isInverted);
   if (
-    userHasScrolled &&
     isInverted !== lastIsInverted.current &&
     !isLoadingOlder &&
     !isLoadingNewer
   ) {
-    logger.log('inverting chat scroller');
     const offset = contentHeight - virtualizerRef.current.scrollOffset;
     // We need to subtract the height of the scroll element to get the correct
     // offset when inverting.
     const newOffset = offset - scrollElementHeight;
+    logger.log('inverting chat scroller, setting offset to', newOffset);
     forceScroll(newOffset);
     lastIsInverted.current = isInverted;
   }
@@ -557,8 +568,6 @@ export default function ChatScroller({
   const { scrollDirection } = virtualizerRef.current ?? {};
 
   if (userHasScrolled && !isForceScrolling.current) {
-    logger.log('setting reading direction');
-
     if (isInverted) {
       if (
         scrollDirection === 'backward' &&
