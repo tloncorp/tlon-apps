@@ -44,6 +44,7 @@ export default function GroupSidebarItem() {
         }
         onClick={onClick}
         color={activeTab === 'groups' ? 'text-black' : 'text-gray-600'}
+        highlightPath="/groups"
         actions={
           <Dropdown.Trigger data-testid="add-group-sidebar-button-icon">
             <AddIcon16 className="relative top-[2px] hidden h-4 w-4 group-hover:block" />

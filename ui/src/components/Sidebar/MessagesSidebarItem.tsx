@@ -48,6 +48,7 @@ export default function MessagesSidebarItem() {
           </Link>
         </div>
       }
+      highlightPath="/messages"
       onClick={onClick}
       className="group"
       color={activeTab === 'messages' ? 'text-black' : 'text-gray-600'}
