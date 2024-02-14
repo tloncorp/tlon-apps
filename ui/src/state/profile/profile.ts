@@ -39,10 +39,12 @@ function useAvailableWidgets(): ProfWidgets {
 }
 
 export function refreshAvailableWidgets() {
-  const hasStaleData = !!queryClient.getQueriesData(ProfileKeys.widgets());
-  const notAlreadyFetching = !queryClient.isFetching(ProfileKeys.widgets());
+  const hasPotentiallyStaleData = !!queryClient.getQueriesData(
+    ProfileKeys.widgets()
+  );
 
-  if (hasStaleData && notAlreadyFetching) {
+  if (hasPotentiallyStaleData) {
+    queryClient.cancelQueries(ProfileKeys.widgets());
     queryClient.invalidateQueries(ProfileKeys.widgets());
   }
 }
