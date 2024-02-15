@@ -27,11 +27,17 @@ export default function EditPublicProfile({
   const isLoading = showLoading || hideLoading;
   const [loadingWidget, setLoadingWidget] = useState('');
 
+  // no subscription for available widgets, so we refresh data
+  // manually on mount and open
   useEffect(() => {
-    // no subscription for available widgets, so we refresh data
-    // manually on mount
     refreshAvailableWidgets();
   }, []);
+
+  useEffect(() => {
+    if (open) {
+      refreshAvailableWidgets();
+    }
+  }, [open]);
 
   const onToggle = async (widget: Widget) => {
     const { id, visible } = widget;
