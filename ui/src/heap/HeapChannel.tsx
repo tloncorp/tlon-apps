@@ -15,7 +15,7 @@ import useDismissChannelNotifications from '@/logic/useDismissChannelNotificatio
 import { useIsMobile } from '@/logic/useMedia';
 import { useFullChannel } from '@/logic/channel';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { PASTEABLE_MEDIA_TYPES } from '@/constants';
 import { useUploader } from '@/state/storage';
 import X16Icon from '@/components/icons/X16Icon';
 import getKindDataFromEssay from '@/logic/getKindData';
@@ -124,7 +124,7 @@ function HeapChannel({ title }: ViewProps) {
 
   const handleDrop = useCallback((fileList: FileList) => {
     const uploadFile = Array.from(fileList).find((file) =>
-      PASTEABLE_IMAGE_TYPES.includes(file.type)
+      PASTEABLE_MEDIA_TYPES.includes(file.type)
     );
     if (uploadFile) {
       setDraggedFile(uploadFile);

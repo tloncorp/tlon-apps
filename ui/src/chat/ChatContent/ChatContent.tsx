@@ -20,7 +20,7 @@ import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
 import ContentReference from '@/components/References/ContentReference';
 import ShipName from '@/components/ShipName';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
-import { isSingleEmoji } from '@/logic/utils';
+import { isSingleEmoji, VIDEO_REGEX } from '@/logic/utils';
 import {
   Story,
   Block,
@@ -167,6 +167,23 @@ export function BlockContent({
   blockIndex,
 }: BlockContentProps) {
   if (isImage(story)) {
+    // The `image` block type sent from the backend can be a video or an image.
+    // We need to check the src to determine which it is.
+    // TODO: add an 'video' block type on the backend to make this more explicit,
+    // or rename the 'image' block type to 'media' or something similar.
+    const isVideoFile = VIDEO_REGEX.test(story.image.src);
+
+    if (isVideoFile) {
+      return (
+        <ChatEmbedContent
+          writId={writId}
+          url={story.image.src}
+          // content in this case is the video URL
+          content={story.image.src}
+        />
+      );
+    }
+
     return (
       <ChatContentImage
         src={story.image.src}

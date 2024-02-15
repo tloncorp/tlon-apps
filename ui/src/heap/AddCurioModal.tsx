@@ -7,7 +7,7 @@ import { createCurioHeart } from '@/logic/heap';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { tipTapToString } from '@/logic/tiptap';
 import { useFileStore, useUploader } from '@/state/storage';
-import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { PASTEABLE_MEDIA_TYPES } from '@/constants';
 import { useAddPostMutation } from '@/state/channel/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';
@@ -172,7 +172,7 @@ export default function AddCurioModal({
         return;
       }
       const uploadFile = Array.from(files).find((file) =>
-        PASTEABLE_IMAGE_TYPES.includes(file.type)
+        PASTEABLE_MEDIA_TYPES.includes(file.type)
       );
 
       if (uploadFile) {
