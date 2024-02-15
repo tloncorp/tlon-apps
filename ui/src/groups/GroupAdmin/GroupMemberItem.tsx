@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import cn from 'classnames';
 import _ from 'lodash';
 import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -26,7 +26,6 @@ import { Vessel } from '@/types/groups';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import AddBadgeIcon from '@/components/icons/AddBadgeIcon';
-import useNavigateByApp from '@/logic/useNavigateByApp';
 import { getChannelHosts } from '@/logic/channel';
 
 interface GroupMemberItemProps {
@@ -48,7 +47,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   const contact = useContact(member);
   const location = useLocation();
   const modalNavigate = useModalNavigate();
-  const navigateByApp = useNavigateByApp();
+  const navigate = useNavigate();
   const { compatible } = useGroupCompatibility(flag);
   const { mutate: delMembersMutation } = useGroupDelMembersMutation();
   const { mutate: banShipsMutation } = useGroupBanShipsMutation();
@@ -62,7 +61,7 @@ function GroupMemberItem({ member }: GroupMemberItemProps) {
   };
 
   const onSendMessage = (ship: string) => {
-    navigateByApp(`/dm/${ship}`);
+    navigate(`/dm/${ship}`);
   };
 
   const kick = useCallback(

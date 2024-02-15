@@ -14,7 +14,7 @@ import {
 } from '@/constants';
 import { DisplayMode, SortMode } from '@/types/channel';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
-import { isHosted, isTalk } from '@/logic/utils';
+import { isHosted } from '@/logic/utils';
 import { isNativeApp } from '@/logic/native';
 import api from '@/api';
 
@@ -77,7 +77,6 @@ export interface SettingsState {
     disableRemoteContent: boolean;
     disableSpellcheck: boolean;
     disableNicknames: boolean;
-    disableWayfinding: boolean;
   };
   tiles: {
     order: string[];
@@ -202,7 +201,6 @@ const emptyCalm: SettingsState['calmEngine'] = {
   disableRemoteContent: false,
   disableSpellcheck: false,
   disableNicknames: false,
-  disableWayfinding: false,
 };
 
 const loadingCalm: SettingsState['calmEngine'] = {
@@ -211,7 +209,6 @@ const loadingCalm: SettingsState['calmEngine'] = {
   disableRemoteContent: true,
   disableSpellcheck: true,
   disableNicknames: true,
-  disableWayfinding: true,
 };
 
 export function useCalm() {
@@ -352,11 +349,6 @@ export function useLogActivity() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
-    // Do not capture any analytics events for Talk
-    if (isTalk || isNativeApp()) {
-      return false;
-    }
-
     if (isLoading || data === undefined || data.groups === undefined) {
       return isHosted;
     }

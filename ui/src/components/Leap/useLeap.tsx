@@ -13,8 +13,6 @@ import {
   LEAP_RESULT_TRUNCATE_SIZE,
 } from '@/constants';
 import { emptyContact, useContacts } from '@/state/contact';
-import { useModalNavigate } from '@/logic/routing';
-import useAppName from '@/logic/useAppName';
 import { useCheckDmUnread, useDms, useMultiDms } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/channel';
@@ -22,7 +20,7 @@ import { Club } from '@/types/dms';
 import { useMutuals } from '@/state/pals';
 import { Contact } from '@/types/contact';
 import { ChargeWithDesk, useCharges } from '@/state/docket';
-import { groupsMenuOptions, talkMenuOptions } from './MenuOptions';
+import { menuOptions } from './MenuOptions';
 import GroupIcon from '../icons/GroupIcon';
 import PersonIcon from '../icons/PersonIcon';
 import UnknownAvatarIcon from '../icons/UnknownAvatarIcon';
@@ -90,7 +88,6 @@ export default function useLeap() {
     setSelectedIndex,
   } = React.useContext(LeapContext);
   const navigate = useNavigate();
-  const modalNavigate = useModalNavigate();
   const groups = useGroups();
   const currentGroupFlag = useGroupFlag();
   const { isGroupUnread } = useIsGroupUnread();
@@ -104,24 +101,20 @@ export default function useLeap() {
   const dms = useDms();
   const charges = useCharges();
   const location = useLocation();
-  const app = useAppName();
   const mutuals = useMutuals();
+  const tab = useActiveTab();
   const preSiggedMutuals = useMemo(
     () => Object.keys(mutuals).map((m) => preSig(m)),
     [mutuals]
   );
-  const menuOptions = app === 'Talk' ? talkMenuOptions : groupsMenuOptions;
-  const tab = useActiveTab();
 
   const menu =
     inputValue === ''
       ? menuOptions.map((o, idx) => ({
           ...o,
           onSelect: () => {
-            if (app === 'Talk' && o.title === 'Groups') {
+            if (o.title === 'Tlon') {
               window.open(`${window.location.origin}/apps/groups/`, '_blank');
-            } else if (app === 'Groups' && o.title === 'Talk') {
-              window.open(`${window.location.origin}/apps/talk/`, '_blank');
             } else if (o.modal === true) {
               navigate(o.to, { state: { backgroundLocation: location } });
             } else {
@@ -343,7 +336,7 @@ export default function useLeap() {
         section: 'Channels',
       },
       ...filteredChannels.map(({ groupFlag, group, channel, nest }, idx) => {
-        const [chType, chFlag] = nestToFlag(nest);
+        const [chType, _chFlag] = nestToFlag(nest);
         const loc = `/groups/${groupFlag}/channels/${nest}`;
         const nav = tab === 'messages' ? `/dm${loc}` : loc;
         const onSelect = () => {
@@ -446,14 +439,7 @@ export default function useLeap() {
       ...filteredGroups.map(([flag, group], idx) => {
         const path = `/groups/${flag}`;
         const onSelect = () => {
-          if (app === 'Talk') {
-            window.open(
-              `${window.location.origin}/apps/groups${path}`,
-              '_blank'
-            );
-          } else {
-            navigate(path);
-          }
+          navigate(path);
           setSelectedIndex(0);
           setInputValue('');
           setIsOpen(false);
@@ -479,7 +465,6 @@ export default function useLeap() {
       }),
     ];
   }, [
-    app,
     channelResults.length,
     groups,
     inputValue,
@@ -541,11 +526,7 @@ export default function useLeap() {
       ...filteredMultiDms.map(([flag, multiDm], idx) => {
         const path = `/dm/${flag}`;
         const onSelect = () => {
-          if (app === 'Talk') {
-            navigate(path);
-          } else {
-            window.open(`${window.location.origin}/apps/talk${path}`, '_blank');
-          }
+          navigate(path);
           setSelectedIndex(0);
           setInputValue('');
           setIsOpen(false);
@@ -572,7 +553,6 @@ export default function useLeap() {
       }),
     ];
   }, [
-    app,
     channelResults.length,
     inputValue,
     multiDms,
@@ -594,9 +574,7 @@ export default function useLeap() {
     const scoreChargeResult = (
       entry: fuzzy.FilterResult<[string, ChargeWithDesk]>
     ): number => {
-      const { score, original } = entry;
-      const [_, charge] = original;
-
+      const { score } = entry;
       const newScore = score;
 
       return newScore;

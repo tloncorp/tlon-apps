@@ -13,14 +13,13 @@ import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import { useMultiDm, useMultiDmIsPending, useSendMessage } from '@/state/chat';
 import { useIsMobile } from '@/logic/useMedia';
-import { dmListPath, isGroups, pluralize } from '@/logic/utils';
+import { dmListPath, pluralize } from '@/logic/utils';
 import useMessageSelector from '@/logic/useMessageSelector';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { Club } from '@/types/dms';
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import MagnifyingGlassMobileNavIcon from '@/components/icons/MagnifyingGlassMobileNavIcon';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import useAppName from '@/logic/useAppName';
 import MobileHeader from '@/components/MobileHeader';
 import DmWindow from '@/dms/DmWindow';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
@@ -39,11 +38,10 @@ function TitleButton({ club, isMobile }: { club: Club; isMobile: boolean }) {
   const count = club.team.length;
   const hasPending = club.hive.length > 0;
   const BackButton = isMobile ? Link : 'div';
-  const appName = useAppName();
 
   return (
     <BackButton
-      to={appName === 'Groups' && isMobile ? '/messages' : '/'}
+      to={isMobile ? '/messages' : '/'}
       className={cn(
         'default-focus ellipsis w-max-sm inline-flex h-10 appearance-none items-center justify-center space-x-2 rounded p-2'
       )}
@@ -82,11 +80,10 @@ export default function MultiDm() {
   const inSearch = useMatch(`/dm/${clubId}/search/*`);
   const isAccepted = !useMultiDmIsPending(clubId);
   const club = useMultiDm(clubId);
-  const appName = useAppName();
   const root = `/dm/${clubId}`;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const shouldApplyPaddingBottom = isGroups && isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
   const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
   const { match: negotiationMatch, isLoading: negotiationLoading } =
     useNegotiateMulti(dmParticipants, 'chat', 'chat');
@@ -163,9 +160,7 @@ export default function MultiDm() {
                           </button>
                         </DmOptions>
                       }
-                      pathBack={
-                        appName === 'Groups' && isMobile ? '/messages' : '/'
-                      }
+                      pathBack={isMobile ? '/messages' : '/'}
                       action={
                         <div className="flex h-12 flex-row items-center justify-end space-x-3">
                           <ReconnectingSpinner />

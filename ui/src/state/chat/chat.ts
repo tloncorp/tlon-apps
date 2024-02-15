@@ -32,6 +32,7 @@ import {
   ReplyDelta,
   Hive,
   Writs,
+  DMInit,
 } from '@/types/dms';
 import { Reply, Replies, ChannelsAction, ReplyTuple } from '@/types/channel';
 import api from '@/api';
@@ -166,17 +167,7 @@ function resolveHiddenMessages(toggle: ToggleMessage) {
   };
 }
 
-export function initializeChat({
-  dms,
-  clubs,
-  invited,
-  unreads,
-}: {
-  dms: string[];
-  clubs: Clubs;
-  invited: string[];
-  unreads: DMUnreads;
-}) {
+export function initializeChat({ dms, clubs, invited, unreads }: DMInit) {
   queryClient.setQueryData(['dms', 'dms'], () => dms || []);
   queryClient.setQueryData(['dms', 'multi'], () => clubs || {});
   queryClient.setQueryData(ChatKeys.pending(), () => invited || []);

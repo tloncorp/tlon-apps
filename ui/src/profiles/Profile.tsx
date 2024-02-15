@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet';
+import cn from 'classnames';
 import { Link } from 'react-router-dom';
 import { ViewProps } from '@/types/groups';
 import { useIsMobile } from '@/logic/useMedia';
@@ -26,10 +27,11 @@ import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
 import XIcon from '@/components/icons/XIcon';
 import MessagesIcon from '@/components/icons/MessagesIcon';
 import { Drawer } from 'vaul';
-import { createDeepLink } from '@/logic/branch';
+import { createDeepLink, getDmLink } from '@/logic/branch';
 import CopyIcon from '@/components/icons/CopyIcon';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ProfileCoverImage from './ProfileCoverImage';
+import PublicProfileSelector from './PublicProfileSelector';
 
 export function ShareApp() {
   let link = 'https://tlon.io/';
@@ -84,13 +86,11 @@ export default function Profile({ title }: ViewProps) {
   const [qrOpen, setQrOpen] = useState(false);
 
   useEffect(() => {
-    async function getLink() {
-      const dmPath = `dm/${window.our}`;
-      const fallbackUrl = `https://tlon.network/lure/~loshut-lonreg/tlon`; // for now, send to generic signup page on desktop
-      const link = await createDeepLink(fallbackUrl, 'wer', dmPath);
+    async function populateLink() {
+      const link = await getDmLink();
       setDmLink(link || '');
     }
-    getLink();
+    populateLink();
   }, []);
 
   return (
@@ -148,6 +148,7 @@ export default function Profile({ title }: ViewProps) {
         </div>
         <nav className="flex grow flex-col justify-between gap-1 p-4">
           <div className="space-y-1">
+            <PublicProfileSelector />
             <SidebarItem
               onClick={() => setQrOpen(true)}
               color="text-gray-900"

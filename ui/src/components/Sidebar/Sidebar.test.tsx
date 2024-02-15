@@ -41,7 +41,6 @@ vi.mock('@/logic/utils', () => ({
   randomElement: (a: any[]) => a[0],
   storageVersion: () => 0,
   clearStorageMigration: () => ({}),
-  isTalk: () => false,
   createDevLogger: () => ({
     log: () => ({}),
   }),

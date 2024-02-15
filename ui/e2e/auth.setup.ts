@@ -13,7 +13,7 @@ setup('authenticate patbud', async ({ page }) => {
   await page
     .context()
     .storageState({ path: shipManifest['~habduc-patbud'].authFile });
-  await page.getByRole('link', { name: 'Groups' }).waitFor();
+  await page.getByRole('link', { name: 'Tlon' }).waitFor();
 });
 
 setup('authenticate mardev', async ({ page }) => {
@@ -28,5 +28,5 @@ setup('authenticate mardev', async ({ page }) => {
   await page
     .context()
     .storageState({ path: shipManifest['~naldeg-mardev'].authFile });
-  await page.getByRole('link', { name: 'Groups' }).waitFor();
+  await page.getByRole('link', { name: 'Tlon' }).waitFor();
 });

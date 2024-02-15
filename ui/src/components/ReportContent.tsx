@@ -2,7 +2,6 @@ import { useLocation } from 'react-router';
 import cn from 'classnames';
 import { useIsMobile } from '@/logic/useMedia';
 import { useDismissNavigate } from '@/logic/routing';
-import { isNativeApp } from '@/logic/native';
 import { useFlagContentMutation } from '@/state/groups';
 import Dialog from './Dialog';
 import WidgetDrawer from './WidgetDrawer';

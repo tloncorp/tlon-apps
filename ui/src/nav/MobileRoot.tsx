@@ -19,7 +19,6 @@ import MobileHeader from '@/components/MobileHeader';
 import Layout from '@/components/Layout/Layout';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import GroupJoinList from '@/groups/GroupJoinList';
-import NavigateIcon from '@/components/icons/NavigateIcon';
 import WelcomeCard from '@/components/WelcomeCard';
 import AddGroupSheet from '@/groups/AddGroupSheet';
 
@@ -35,7 +34,7 @@ export default function MobileRoot() {
   const loadingGroups = useLoadingGroups();
   const newGroups = useNewGroups();
   const gangsWithClaims = useGangsWithClaim();
-  const { data: groups, isLoading } = useGroupsWithQuery();
+  const { data: groups } = useGroupsWithQuery();
   const sortedGroups = sortGroups(groups);
   const pinnedGroupsOptions = useMemo(
     () =>
@@ -100,56 +99,48 @@ export default function MobileRoot() {
       <nav className="flex h-full flex-1 flex-col overflow-y-auto overflow-x-hidden">
         <WelcomeCard />
         <div className="flex-1">
-          {sortedGroups.length === 0 && !isLoading ? (
-            <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
-              Tap the <span className="sr-only">find icon</span>
-              <NavigateIcon className="inline-flex h-4 w-4" /> below to find new
-              groups in your network or view group invites.
-            </div>
-          ) : (
-            <GroupsScrollingContext.Provider value={isScrolling}>
-              <GroupList groups={allOtherGroups} isScrolling={scroll.current}>
-                {hasPinnedGroups ||
-                hasPendingGangs ||
-                hasGangsWithClaims ||
-                hasLoadingGroups ||
-                hasNewGroups ? (
-                  <>
-                    <div className="px-4">
-                      {hasPinnedGroups ? (
-                        <>
-                          <h2 className="mb-0.5 p-2 font-sans text-gray-400">
-                            Pinned
-                          </h2>
-                          {pinnedGroupsOptions}
+          <GroupsScrollingContext.Provider value={isScrolling}>
+            <GroupList groups={sortedGroups} isScrolling={scroll.current}>
+              {hasPinnedGroups ||
+              hasPendingGangs ||
+              hasGangsWithClaims ||
+              hasLoadingGroups ||
+              hasNewGroups ? (
+                <>
+                  <div className="px-4">
+                    {hasPinnedGroups ? (
+                      <>
+                        <h2 className="mb-0.5 p-2 font-sans text-gray-400">
+                          Pinned
+                        </h2>
+                        {pinnedGroupsOptions}
 
-                          <h2 className="my-2 p-2 font-sans text-gray-400">
-                            All Groups
-                          </h2>
-                        </>
-                      ) : null}
+                        <h2 className="my-2 p-2 font-sans text-gray-400">
+                          All Groups
+                        </h2>
+                      </>
+                    ) : null}
 
-                      {hasLoadingGroups &&
-                        Object.keys(loadingGroups).map(([flag, _]) => (
-                          <GangItem key={flag} flag={flag} isJoining />
-                        ))}
+                    {hasLoadingGroups &&
+                      Object.keys(loadingGroups).map(([flag, _]) => (
+                        <GangItem key={flag} flag={flag} isJoining />
+                      ))}
 
-                      {hasGangsWithClaims &&
-                        gangsWithClaims.map((flag) => (
-                          <GangItem key={flag} flag={flag} />
-                        ))}
+                    {hasGangsWithClaims &&
+                      gangsWithClaims.map((flag) => (
+                        <GangItem key={flag} flag={flag} />
+                      ))}
 
-                      {hasNewGroups && newGroupsOptions}
-                    </div>
+                    {hasNewGroups && newGroupsOptions}
+                  </div>
 
-                    {hasPendingGangs && (
-                      <GroupJoinList highlightAll gangs={pendingGangs} />
-                    )}
-                  </>
-                ) : null}
-              </GroupList>
-            </GroupsScrollingContext.Provider>
-          )}
+                  {hasPendingGangs && (
+                    <GroupJoinList highlightAll gangs={pendingGangs} />
+                  )}
+                </>
+              ) : null}
+            </GroupList>
+          </GroupsScrollingContext.Provider>
           <AddGroupSheet open={addGroupOpen} onOpenChange={setAddGroupOpen} />
         </div>
       </nav>

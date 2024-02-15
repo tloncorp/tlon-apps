@@ -82,13 +82,14 @@ function ContentReference({
     if (app === 'chat') {
       const idWrit = segments[2];
       const idReply = segments[3];
+      const isThreadParent = idWrit === idReply;
       return (
         <WritChanReference
           isScrolling={isScrolling}
           nest={nest}
           contextApp={contextApp}
           idWrit={idWrit}
-          idReply={idReply}
+          idReply={isThreadParent ? undefined : idReply}
         >
           {children}
         </WritChanReference>

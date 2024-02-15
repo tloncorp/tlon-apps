@@ -7,9 +7,6 @@ on:
         required: false
         default: develop
         description: Enter the tag to deploy
-  push:
-    branches:
-      - 'develop'
 jobs:
   build-frontend:
     runs-on: ubuntu-latest

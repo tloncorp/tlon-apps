@@ -47,8 +47,6 @@ import type {
   ConnectionStatus,
 } from '../state/vitals';
 
-export const isTalk = import.meta.env.VITE_APP === 'chat';
-export const isGroups = import.meta.env.VITE_APP === 'groups';
 export const isStagingHosted =
   import.meta.env.DEV ||
   (import.meta.env.VITE_SHIP_URL || '').endsWith('.test.tlon.systems') ||
@@ -64,7 +62,7 @@ export const hostingUploadURL = isStagingHosted
     ? 'https://memex.tlon.network'
     : '';
 
-export const dmListPath = isTalk ? '/' : '/messages';
+export const dmListPath = '/messages';
 
 export function createDevLogger(tag: string, enabled: boolean) {
   return new Proxy(console, {

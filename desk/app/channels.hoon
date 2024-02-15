@@ -1083,7 +1083,7 @@
       =/  =rope:ha  (ca-rope -.kind-data.post id-post ~)
       ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
-          ca-core        
+          ca-core
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
         (emit (pass-hark (ca-spin rope cs ~)))
@@ -1369,11 +1369,11 @@
       =/  post  (get:on posts.channel `@da`time)
       ?~  post  ~
       ?~  u.post  `~
-      (ca-peek-replies replies.u.u.post rest.pole)
+      (ca-peek-replies id.u.u.post replies.u.u.post rest.pole)
     ==
   ::
   ++  ca-peek-replies
-    |=  [replies=v-replies:c =(pole knot)]
+    |=  [parent-id=id-post:c replies=v-replies:c =(pole knot)]
     ^-  (unit (unit cage))
     =*  on   on-v-replies:c
     ?+    pole  [~ ~]
@@ -1397,7 +1397,7 @@
       =/  reply  (get:on-v-replies:c replies `@da`time)
       ?~  reply  ~
       ?~  u.reply  `~
-      ``channel-reply+!>(u.u.reply)
+      ``channel-reply+!>(`reply:c`(uv-reply:utils parent-id u.u.reply))
     ==
   ::
   ++  ca-search

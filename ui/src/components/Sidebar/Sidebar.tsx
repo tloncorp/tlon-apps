@@ -34,7 +34,7 @@ export default function Sidebar() {
   const [isScrolling, setIsScrolling] = useState(false);
   const [atTop, setAtTop] = useState(true);
   const { sortFn, setSortFn, sortOptions, sortGroups } = useGroupSort();
-  const { data: groups, isLoading } = useGroupsWithQuery();
+  const { data: groups } = useGroupsWithQuery();
   const invitedGroups = usePendingGangsWithoutClaim();
   const pinnedGroups = usePinnedGroups();
   const loadingGroups = useLoadingGroups();
@@ -226,13 +226,6 @@ export default function Sidebar() {
 
                     {hasNewGroups && (
                       <div className="mx-2">{newGroupsDisplay}</div>
-                    )}
-
-                    {!sortedGroups.length && !hasNewGroups && !isLoading && (
-                      <div className="mx-4 my-2 rounded-lg bg-indigo-50 p-4 leading-5 text-gray-700 dark:bg-indigo-900/50">
-                        Check out <strong>Discover</strong> above to find new
-                        groups in your network or view group invites.
-                      </div>
                     )}
                   </div>
                 </>

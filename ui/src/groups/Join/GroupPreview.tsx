@@ -15,7 +15,6 @@ import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import {
   getFlagParts,
   getPrivacyFromPreview,
-  isTalk,
   matchesBans,
   pluralRank,
   toTitleCase,
@@ -65,7 +64,7 @@ export function MobileGroupPreview({
   const readyToNavigate = group && !groupIsInitializing(group);
 
   useEffect(() => {
-    if (readyToNavigate && !isTalk && newlyJoined) {
+    if (readyToNavigate && newlyJoined) {
       if (closeOnJoin) {
         closeOnJoin();
       } else {
@@ -199,7 +198,7 @@ export function DesktopGroupPreview({ flag }: { flag: string }) {
   const readyToNavigate = group && !groupIsInitializing(group);
 
   useEffect(() => {
-    if (readyToNavigate && !isTalk) {
+    if (readyToNavigate) {
       navigate(`/groups/${flag}`);
     }
   }, [readyToNavigate, flag, navigate]);
