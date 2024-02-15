@@ -43,13 +43,14 @@ import {
   URL_REGEX,
   createStorageKey,
   useThreadParentId,
+  VIDEO_REGEX,
 } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useGroupFlag } from '@/state/groups';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
-import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { PASTEABLE_MEDIA_TYPES } from '@/constants';
 import {
   Nest,
   PostEssay,
@@ -190,7 +191,7 @@ export default function ChatInput({
 
       if (
         localUploader &&
-        Array.from(fileList).some((f) => PASTEABLE_IMAGE_TYPES.includes(f.type))
+        Array.from(fileList).some((f) => PASTEABLE_MEDIA_TYPES.includes(f.type))
       ) {
         localUploader.uploadFiles(fileList);
         useFileStore.getState().setUploadType(uploadKey, 'drag');
@@ -603,28 +604,39 @@ export default function ChatInput({
       >
         {imageBlocks.length > 0 ? (
           <div className="mb-2 flex flex-wrap items-center">
-            {imageBlocks.map((img, idx) => (
-              <div key={idx} className="relative p-1.5">
-                <button
-                  onClick={() => onRemove(idx)}
-                  className="icon-button absolute right-4 top-4"
-                >
-                  <X16Icon className="h-4 w-4" />
-                </button>
-                {IMAGE_REGEX.test(img.image.src) ? (
-                  <img
-                    title={img.image.alt}
-                    src={img.image.src}
-                    className="h-32 w-32 object-cover"
-                  />
-                ) : (
-                  <div
-                    title={img.image.alt}
-                    className="h-32 w-32 animate-pulse bg-gray-200"
-                  />
-                )}
-              </div>
-            ))}
+            {imageBlocks.map((img, idx) => {
+              const isVideo = VIDEO_REGEX.test(img.image.src);
+              const isImage = IMAGE_REGEX.test(img.image.src);
+
+              return (
+                <div key={idx} className="relative p-1.5">
+                  <button
+                    onClick={() => onRemove(idx)}
+                    className="icon-button absolute right-4 top-4"
+                  >
+                    <X16Icon className="h-4 w-4" />
+                  </button>
+                  {isImage ? (
+                    <img
+                      title={img.image.alt}
+                      src={img.image.src}
+                      className="h-32 w-32 object-cover"
+                    />
+                  ) : isVideo ? (
+                    <video
+                      title={img.image.alt}
+                      src={img.image.src}
+                      className="h-32 w-32 object-cover"
+                    />
+                  ) : (
+                    <div
+                      title={img.image.alt}
+                      className="h-32 w-32 animate-pulse bg-gray-200"
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : null}
 
@@ -632,7 +644,7 @@ export default function ChatInput({
           <div className="mb-4 flex items-center justify-start font-semibold">
             <span className="mr-2 text-gray-600">Attached: </span>
             {chatInfo.blocks.length}{' '}
-            {chatInfo.blocks.every((b) => 'image' in b) ? 'image' : 'reference'}
+            {chatInfo.blocks.every((b) => 'image' in b) ? 'file' : 'reference'}
             {chatInfo.blocks.length === 1 ? '' : 's'}
             <button className="icon-button ml-auto" onClick={clearAttachments}>
               <X16Icon className="h-4 w-4" />

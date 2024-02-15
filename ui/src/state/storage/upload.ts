@@ -32,6 +32,18 @@ function imageSize(url: string) {
   return size;
 }
 
+function videoSize(url: string) {
+  const video = document.createElement('video');
+  video.src = url;
+  video.load();
+  const size = new Promise<[number, number]>((resolve) => {
+    video.addEventListener('loadedmetadata', () => {
+      resolve([video.videoWidth, video.videoHeight]);
+    });
+  });
+  return size;
+}
+
 function isImageFile(file: File) {
   const acceptedImageTypes = [
     'image/jpeg',
@@ -42,6 +54,16 @@ function isImageFile(file: File) {
     'image/bmp',
   ];
   return acceptedImageTypes.includes(file.type);
+}
+
+function isVideoFile(file: File) {
+  const acceptedVideoTypes = [
+    'video/mp4',
+    'video/webm',
+    'video/ogg',
+    'video/quicktime',
+  ];
+  return acceptedVideoTypes.includes(file.type);
 }
 
 export const useFileStore = create<FileStore>((set, get) => ({
@@ -173,17 +195,31 @@ export const useFileStore = create<FileStore>((set, get) => ({
               return '';
             });
             updateStatus(uploader, key, 'success');
-            imageSize(fileUrl)
-              .then((s) =>
-                updateFile(uploader, key, {
-                  size: s,
-                  url: fileUrl,
-                })
-              )
-              .catch((e) => {
-                console.log('failed to get image size', { e });
-                return '';
-              });
+            if (isImageFile(file)) {
+              imageSize(fileUrl)
+                .then((s) =>
+                  updateFile(uploader, key, {
+                    size: s,
+                    url: fileUrl,
+                  })
+                )
+                .catch((e) => {
+                  console.log('failed to get image size', { e });
+                  return '';
+                });
+            } else if (isVideoFile(file)) {
+              videoSize(fileUrl)
+                .then((s) =>
+                  updateFile(uploader, key, {
+                    size: s,
+                    url: fileUrl,
+                  })
+                )
+                .catch((e) => {
+                  console.log('failed to get video size', { e });
+                  return '';
+                });
+            }
           })
           .catch((error: any) => {
             updateStatus(
@@ -229,17 +265,31 @@ export const useFileStore = create<FileStore>((set, get) => ({
         .send(command)
         .then(() => {
           updateStatus(uploader, key, 'success');
-          imageSize(url)
-            .then((s) =>
-              updateFile(uploader, key, {
-                size: s,
-                url,
-              })
-            )
-            .catch((e) => {
-              console.log('failed to get image size', { e });
-              return '';
-            });
+          if (isImageFile(file)) {
+            imageSize(url)
+              .then((s) =>
+                updateFile(uploader, key, {
+                  size: s,
+                  url,
+                })
+              )
+              .catch((e) => {
+                console.log('failed to get image size', { e });
+                return '';
+              });
+          } else if (isVideoFile(file)) {
+            videoSize(url)
+              .then((s) =>
+                updateFile(uploader, key, {
+                  size: s,
+                  url,
+                })
+              )
+              .catch((e) => {
+                console.log('failed to get video size', { e });
+                return '';
+              });
+          }
         })
         .catch((error: any) => {
           updateStatus(

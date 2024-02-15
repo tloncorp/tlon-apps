@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { BigPlayButton, Player } from 'video-react';
 import { AUDIO_REGEX, validOembedCheck, VIDEO_REGEX } from '@/logic/utils';
 import { useIsMobile } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
 import { useEmbed } from '@/state/embed';
-import DOMPurify from 'dompurify';
 import YouTubeEmbed from './YouTubeEmbed';
 import TwitterEmbed from './TwitterEmbed';
 import SpotifyEmbed from './SpotifyEmbed';

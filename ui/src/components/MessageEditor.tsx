@@ -26,7 +26,7 @@ import {
   useChatStore,
 } from '@/chat/useChatStore';
 import { useCalm } from '@/state/settings';
-import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { PASTEABLE_MEDIA_TYPES } from '@/constants';
 import { useFileStore } from '@/state/storage';
 import { Cite } from '@/types/channel';
 import getMentionPopup from './Mention/MentionPopup';
@@ -90,7 +90,7 @@ export function useMessageEditor({
         uploader &&
         event.clipboardData &&
         Array.from(event.clipboardData.files).some((f) =>
-          PASTEABLE_IMAGE_TYPES.includes(f.type)
+          PASTEABLE_MEDIA_TYPES.includes(f.type)
         )
       ) {
         // TODO should blocks first be updated here to show the loading state?
