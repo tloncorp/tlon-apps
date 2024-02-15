@@ -9,7 +9,6 @@
   $%  [%channel channel-concern]
       [%dm dm-concern]
   ==
-::  could do this per-channel/concern
 +$  volume  (map flavor level)
 +$  flavor
   $?  %dm-invite
@@ -34,9 +33,9 @@
 +$  group-concern    group=flag
 +$  channel-concern  [channel=nest group=flag]
 +$  dm-concern       =whom
++$  dm-post-concern  [=message-key =whom]
 +$  post-concern     [=message-key channel=nest group=flag]
 +$  reply-concern    [=message-key target=message-key channel=nest group=flag]
-+$  dm-post-concern  [=writ-key =whom]
 +$  whom
   $%  [%ship p=ship]
       [%club p=id:club]
@@ -46,9 +45,14 @@
   ::  same as content of actual message
   ~
 +$  action
-  $%  [%add ...]
-      [%read ...]
-      [%adjust ...]
+  $%  [%add =event]
+      [%read =read-action]
+      [%adjust =flavor =level]
   ==
 +$  unread-summary  [time count=@ud threads=(list [time count=@ud])]
++$  read-action
+  $%  [%last-seen =time]
+      [%thread =time]
+      [%post =time]
+  ==
 --
