@@ -1,31 +1,19 @@
 import { useMemo } from 'react';
-import { useDmUnreads } from '@/state/chat';
-import { useUnreads } from '@/state/channel/channel';
+import { useChatStoreDmUnreads } from '@/state/chat';
+import { useChatStoreChannelUnreads } from '@/state/channel/channel';
 import { useMessagesFilter } from '@/state/settings';
 import { usePinnedChats } from '@/state/pins';
-import { whomIsDm, whomIsMultiDm, whomIsNest } from '@/logic/utils';
+import { nestToFlag, whomIsDm, whomIsMultiDm, whomIsNest } from '@/logic/utils';
 
 export default function useMessagesUnreadCount(): number {
-  const { data: dmUnreads } = useDmUnreads();
-  const channelUnreads = useUnreads();
+  const dmUnreads = useChatStoreDmUnreads();
+  const channelUnreads = useChatStoreChannelUnreads();
   const messagesFilter = useMessagesFilter();
   const pins = usePinnedChats();
 
-  const dmUnreadsCount = useMemo(
-    () =>
-      Object.entries(dmUnreads).reduce(
-        (acc, [_whom, unread]) => (unread.count > 0 ? acc + 1 : acc),
-        0
-      ),
-    [dmUnreads]
-  );
+  const dmUnreadsCount = useMemo(() => dmUnreads.length, [dmUnreads]);
   const chatChannelUnreadsCount = useMemo(
-    () =>
-      Object.entries(channelUnreads).reduce(
-        (acc, [channel, unread]) =>
-          unread.count > 0 && channel.includes('chat/') ? acc + 1 : acc,
-        0
-      ),
+    () => channelUnreads.length,
     [channelUnreads]
   );
 
@@ -34,8 +22,8 @@ export default function useMessagesUnreadCount(): number {
       pins
         .filter((pin) => whomIsDm(pin) || whomIsMultiDm(pin))
         .reduce((accum, whom) => {
-          const unread = dmUnreads[whom];
-          return unread?.count > 0 ? accum + 1 : accum;
+          const unread = dmUnreads.find((un) => un === whom);
+          return unread ? accum + 1 : accum;
         }, 0),
     [pins, dmUnreads]
   );
@@ -45,8 +33,11 @@ export default function useMessagesUnreadCount(): number {
       pins
         .filter((pin) => whomIsNest(pin))
         .reduce((accum, whom) => {
-          const unread = channelUnreads[whom];
-          return unread?.count > 0 ? accum + 1 : accum;
+          const unread = channelUnreads.find((un) => {
+            const [_, flag] = nestToFlag(whom);
+            return un === flag;
+          });
+          return unread ? accum + 1 : accum;
         }, 0),
     [pins, channelUnreads]
   );

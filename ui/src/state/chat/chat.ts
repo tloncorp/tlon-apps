@@ -1702,6 +1702,25 @@ export function useCheckDmUnread() {
   );
 }
 
+export function useChatStoreDmUnreads(): string[] {
+  const chats = useChatStore(selChats);
+
+  return useMemo(
+    () =>
+      Object.entries(chats).reduce((acc, [k, v]) => {
+        if (whomIsDm(k)) {
+          const { unread } = v;
+          if (unread && !unread.seen) {
+            acc.push(k);
+          }
+        }
+
+        return acc;
+      }, [] as string[]),
+    [chats]
+  );
+}
+
 export function useMultiDmIsPending(id: string): boolean {
   const unread = useDmUnread(id);
   const chat = useMultiDm(id);
