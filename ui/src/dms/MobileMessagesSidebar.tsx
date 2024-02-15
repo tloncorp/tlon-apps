@@ -44,6 +44,9 @@ export default function MobileMessagesSidebar() {
                 {pinned.map((ship: string) => (
                   <MessagesSidebarItem key={ship} whom={ship} />
                 ))}
+                <h2 className="mt-2 p-2 font-sans text-gray-400">
+                  Direct Messages
+                </h2>
               </div>
             ) : null}
           </MessagesList>
