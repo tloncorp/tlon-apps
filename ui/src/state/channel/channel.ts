@@ -38,7 +38,7 @@ import {
   ChannelsSubscribeResponse,
 } from '@/types/channel';
 import api from '@/api';
-import { checkNest, log, nestToFlag } from '@/logic/utils';
+import { checkNest, log, nestToFlag, whomIsFlag } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
@@ -1083,6 +1083,25 @@ export function useUnreads(): Unreads {
   }
 
   return data as Unreads;
+}
+
+export function useChatStoreChannelUnreads() {
+  const chats = useChatStore((s) => s.chats);
+
+  return useMemo(
+    () =>
+      Object.entries(chats).reduce((acc, [k, v]) => {
+        if (whomIsFlag(k)) {
+          const { unread } = v;
+
+          if (unread && !unread.seen) {
+            acc.push(k);
+          }
+        }
+        return acc;
+      }, [] as string[]),
+    [chats]
+  );
 }
 
 export function useIsJoined(nest: Nest) {

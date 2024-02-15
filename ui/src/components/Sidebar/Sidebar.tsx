@@ -63,10 +63,12 @@ export default function Sidebar() {
   const flagsToFilter = useMemo(() => {
     const flags = new Set();
     Object.entries(pinnedGroups).forEach(([flag]) => flags.add(flag));
+    Object.entries(invitedGroups).forEach(([flag]) => flags.add(flag));
     loadingGroups.forEach(([flag]) => flags.add(flag));
     newGroups?.forEach(([flag]) => flags.add(flag));
+    gangsWithClaims.forEach((flag) => flags.add(flag));
     return flags;
-  }, [pinnedGroups, loadingGroups, newGroups]);
+  }, [pinnedGroups, loadingGroups, newGroups, gangsWithClaims, invitedGroups]);
 
   const allOtherGroups = useMemo(
     () => sortedGroups.filter(([flag, _g]) => !flagsToFilter.has(flag)),
@@ -149,33 +151,34 @@ export default function Sidebar() {
     <nav className="flex h-full w-full flex-none flex-col bg-white">
       <SidebarTopMenu />
 
+      <div className="relative mb-1 flex">
+        <input
+          ref={searchRef}
+          id="search"
+          type="text"
+          autoFocus
+          className={cn(
+            'input w-full border-none bg-white py-3 pl-4 pr-8 mix-blend-multiply placeholder:text-sm placeholder:font-medium dark:mix-blend-normal',
+            !atTop && 'bottom-shadow'
+          )}
+          placeholder={
+            activeTab === 'messages' ? 'Filter Messages' : 'Filter Groups'
+          }
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <button
+          className={cn(
+            'absolute right-3 top-3.5 h-4 w-4 text-gray-400',
+            !searchInput && 'hidden'
+          )}
+          onClick={() => setSearchInput('')}
+        >
+          <X16Icon />
+        </button>
+      </div>
+
       <div className="flex-auto space-y-3 overflow-x-hidden sm:space-y-1">
-        <div className="relative mb-1 flex">
-          <input
-            ref={searchRef}
-            id="search"
-            type="text"
-            autoFocus
-            className={cn(
-              'input w-full border-none bg-white py-3 pl-4 pr-8 mix-blend-multiply placeholder:text-sm placeholder:font-medium dark:mix-blend-normal',
-              !atTop && 'bottom-shadow'
-            )}
-            placeholder={
-              activeTab === 'messages' ? 'Filter Messages' : 'Filter Groups'
-            }
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          <button
-            className={cn(
-              'absolute right-3 top-3.5 h-4 w-4 text-gray-400',
-              !searchInput && 'hidden'
-            )}
-            onClick={() => setSearchInput('')}
-          >
-            <X16Icon />
-          </button>
-        </div>
         {activeTab !== 'messages' && (
           <GroupsScrollingContext.Provider value={isScrolling}>
             <GroupList

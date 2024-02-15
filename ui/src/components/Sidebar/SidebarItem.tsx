@@ -28,6 +28,7 @@ type SidebarProps = PropsWithChildren<{
   unclamped?: boolean;
   color?: string;
   highlight?: string;
+  highlightPath?: string;
   transparent?: boolean;
   fontWeight?: string;
   fontSize?: string;
@@ -62,6 +63,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
       override = false,
       color = 'text-gray-800 sm:text-gray-600',
       highlight = 'bg-gray-50',
+      highlightPath,
       fontWeight,
       fontSize = 'text-lg',
       unclamped = false,
@@ -84,6 +86,7 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
     const matches = useMatch(
       (defaultRoute ? '/' : matchString) || 'DONT_MATCH'
     );
+    const highlightMatch = useMatch(highlightPath || 'DONT_MATCH');
     const active = useMemo(() => !!matches, [matches]);
     const isMobile = useIsMobile();
     const Wrapper = 'div';
@@ -149,7 +152,8 @@ const SidebarItem = React.forwardRef<HTMLDivElement, SidebarProps>(
           'group relative my-0.5 flex w-full items-center justify-between rounded-lg',
           color,
           !hasHoverColor() && !active ? `hover:${highlight}` : null,
-          !hasHoverColor() && active && (to !== '/' || override)
+          (!hasHoverColor() && active && (to !== '/' || override)) ||
+            highlightMatch
             ? 'bg-gray-100'
             : null
         )}

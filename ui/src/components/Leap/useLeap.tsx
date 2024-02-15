@@ -13,7 +13,6 @@ import {
   LEAP_RESULT_TRUNCATE_SIZE,
 } from '@/constants';
 import { emptyContact, useContacts } from '@/state/contact';
-import { useModalNavigate } from '@/logic/routing';
 import { useCheckDmUnread, useDms, useMultiDms } from '@/state/chat';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import { useCheckChannelUnread } from '@/logic/channel';
@@ -30,6 +29,7 @@ import ShapesIcon from '../icons/ShapesIcon';
 import NotebookIcon from '../icons/NotebookIcon';
 import PeopleIcon from '../icons/PeopleIcon';
 import GridIcon from '../icons/GridIcon';
+import useActiveTab from '../Sidebar/util';
 
 interface LeapContext {
   isOpen: boolean;
@@ -88,7 +88,6 @@ export default function useLeap() {
     setSelectedIndex,
   } = React.useContext(LeapContext);
   const navigate = useNavigate();
-  const modalNavigate = useModalNavigate();
   const groups = useGroups();
   const currentGroupFlag = useGroupFlag();
   const { isGroupUnread } = useIsGroupUnread();
@@ -103,6 +102,7 @@ export default function useLeap() {
   const charges = useCharges();
   const location = useLocation();
   const mutuals = useMutuals();
+  const tab = useActiveTab();
   const preSiggedMutuals = useMemo(
     () => Object.keys(mutuals).map((m) => preSig(m)),
     [mutuals]
@@ -231,7 +231,7 @@ export default function useLeap() {
             0,
             LEAP_DESCRIPTION_TRUNCATE_LENGTH
           ),
-          to: `/profile/${patp}`,
+          to: `/dm/${patp}`,
           resultIndex: idx,
         };
       }),
@@ -336,9 +336,11 @@ export default function useLeap() {
         section: 'Channels',
       },
       ...filteredChannels.map(({ groupFlag, group, channel, nest }, idx) => {
-        const [chType, chFlag] = nestToFlag(nest);
+        const [chType, _chFlag] = nestToFlag(nest);
+        const loc = `/groups/${groupFlag}/channels/${nest}`;
+        const nav = tab === 'messages' ? `/dm${loc}` : loc;
         const onSelect = () => {
-          navigate(`/groups/${groupFlag}/channels/${nest}`);
+          navigate(nav);
           setSelectedIndex(0);
           setInputValue('');
           setIsOpen(false);
@@ -363,7 +365,7 @@ export default function useLeap() {
           input: inputValue,
           title: channel.meta.title,
           subtitle: group.meta.title,
-          to: `/groups/${groupFlag}/channels/chat/${chFlag}`,
+          to: nav,
           resultIndex:
             idx +
             (shipResults.length > LEAP_RESULT_TRUNCATE_SIZE
@@ -373,6 +375,7 @@ export default function useLeap() {
       }),
     ];
   }, [
+    tab,
     currentGroupFlag,
     groups,
     inputValue,
@@ -571,9 +574,7 @@ export default function useLeap() {
     const scoreChargeResult = (
       entry: fuzzy.FilterResult<[string, ChargeWithDesk]>
     ): number => {
-      const { score, original } = entry;
-      const [_, charge] = original;
-
+      const { score } = entry;
       const newScore = score;
 
       return newScore;

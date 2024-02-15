@@ -103,6 +103,8 @@ export interface SettingsState {
     analyticsId?: string;
     seenWelcomeCard?: boolean;
     newGroupFlags: string[];
+    groupsNavState?: string;
+    messagesNavState?: string;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -499,12 +501,24 @@ export function useSeenWelcomeCard() {
   }, [isLoading, data]);
 }
 
+export function useNavState() {
+  const { data, isLoading } = useMergedSettings();
+
+  if (isLoading || data === undefined || data.groups === undefined) {
+    return { groups: '', messages: '' };
+  }
+
+  return {
+    groups: data.groups.groupsNavState ?? '',
+    messages: data.groups.messagesNavState ?? '',
+  };
+}
+
 export function useSeenTalkSunset() {
   const { data, isLoading } = useMergedSettings();
 
   return useMemo(() => {
-    if (isLoading || data === undefined || data.groups === undefined) {
-      console.log('returning sunset default');
+    if (isLoading || data === undefined || data.talk === undefined) {
       return false;
     }
 
