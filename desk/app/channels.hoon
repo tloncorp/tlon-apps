@@ -923,6 +923,8 @@
       ?~  post
         =/  post=(unit post:c)  (bind post.u-post uv-post:utils)
         =?  ca-core  ?=(^ post.u-post)
+          (ca-heed ~[author.u.post.u-post])
+        =?  ca-core  ?=(^ post.u-post)
           ::TODO  what about the "mention was added during edit" case?
           (on-post:ca-hark id-post u.post.u-post)
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post post.u-post)
@@ -932,6 +934,7 @@
         =.  posts.channel  (put:on-v-posts:c posts.channel id-post ~)
         (ca-response %post id-post %set ~)
       ::
+      =.  ca-core  (ca-heed ~[author.u.post.u-post])
       =*  old  u.u.post
       =*  new  u.post.u-post
       =/  merged  (ca-apply-post id-post old new)
