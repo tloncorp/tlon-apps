@@ -1,10 +1,13 @@
 /+  mp=mop-extensions
 |%
-+$  stream  ((mop time event) lte)
-+$  eon     ((on time event) lte)
+++  eon     ((on time event) lte)
 ++  emp     ((mp time event) lte)
+++  mep     ((on time event-parent) lte)
++$  stream  ((mop time event) lte)
 +$  indices  (map index [=stream =reads])
-+$  reads  [floor=time (set event-id=time)]
++$  reads  [floor=time =event-parents)]
++$  event-parent  [seen=? reply-floor=time]
++$  event-parents  ((mop time event-parent) lte)
 +$  index
   $%  [%channel channel-concern]
       [%dm dm-concern]
@@ -40,13 +43,13 @@
   $%  [%ship p=ship]
       [%club p=id:club]
   ==
-+$  message-key  [=id =time]
++$  message-key  [id=(pair ship time) =time]
 +$  content
   ::  same as content of actual message
   ~
 +$  action
   $%  [%add =event]
-      [%read =read-action]
+      [%read =index =read-action]
       [%adjust =flavor =level]
   ==
 +$  unread-summary  [time count=@ud threads=(list [time count=@ud])]

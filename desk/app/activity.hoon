@@ -69,6 +69,7 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  from-self  =(our src):bowl
+::
 ++  init
   ^+  cor
   =.  volume
@@ -85,6 +86,7 @@
         [%flag %default]
     ==
   cor
+::
 ++  load
   |=  =vase
   |^  ^+  cor
@@ -92,6 +94,7 @@
   ?>  ?=(%0 -.old)
   =.  state  old
   cor
+::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
@@ -100,15 +103,14 @@
     =+  !<(=action:a vase)
     ?-  -.action
         %add
-      ::  TODO
-      cor
+      (add action)
         %read
-      ::  TODO
-      cor
+      (read action)
         %adjust
-      cor
+      (adjust action)
     ==
   ==
+::
 ++  watch
   |=  =(pole knot)
   ^+  cor
@@ -117,6 +119,7 @@
     %notifications  ?>(from-self cor)
     %reads  ?>(from-self cor)
   ==
+::
 ++  peek
   |=  =(pole knot)
   ^-  (unit (unit cage))
@@ -132,7 +135,45 @@
       [%x %event id=@]
     ``activity-event+!>((got:eon:a (slav %da id.pole)))
       [%x %unreads ~]
-    ::  TODO get unread summary from each bucket
-    ``activity-unreads+!>((summarize-unreads indices))
+    ``activity-unreads+!>(summarize-unreads)
   ==
+::
+++  add
+  ::  TODO add to stream & indices, update unreads, and send facts
+  |=  =action:a
+  =.  
+::
+++  read
+  ::  TODO update state and send facts
+  |=  =action:a
+  ?-  -.read-action.action
+      %last-seen
+    =/  indy  (~(get by indices) index)
+    ?~  indy  cor
+    =.  indices
+      (~(put by indices) index [stream.indy [time.action events.indy]])
+    cor
+    ::
+      %thread
+    =/  indy  (~(get by indices) index)
+    ?~  indy  cor
+    
+    ::
+      %post
+    =/  indy  (~(get by indices) index)
+    ?~  indy  cor
+    
+  ==
+::
+++  adjust
+  |=  =flavor:a =level:a
+  =.  volume
+    (~(put by volume) flavor level
+  cor
+::
+++  summarize-unreads
+  %-  ~(run by indices)
+  |=  [=stream:a =reads:a]
+  ::  TODO slice by floor, remove seen messages, handle threads
+  ~
 --
