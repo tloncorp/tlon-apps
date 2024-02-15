@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { findLastIndex } from 'lodash';
 import cn from 'classnames';
 import { Link } from 'react-router-dom';
@@ -34,6 +34,8 @@ interface ChatContentProps {
   isScrolling?: boolean;
   className?: string;
   writId?: string;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  isInReference?: boolean;
 }
 
 interface InlineContentProps {
@@ -207,6 +209,8 @@ function ChatContent({
   isScrolling = false,
   className = '',
   writId = 'not-writ',
+  onClick,
+  isInReference,
 }: ChatContentProps) {
   const storyInlines = (
     story.filter((s) => 'inline' in s) as VerseInline[]
@@ -227,8 +231,38 @@ function ChatContent({
     return 0;
   });
 
+  useEffect(() => {
+    // If we have an onClick handler (as we would in the case of this component
+    // being use in a reference), we need to add a click listener to the chat
+    // content. This is to prevent the click handler from firing when clicking
+    // on a link within the chat content.
+    // This will *NOT* work if you just pass the onClick handler directly to the
+    // chat content. You need to wrap it in a function that checks the target
+    // element.
+
+    if (onClick) {
+      const handleClick = (e: MouseEvent) => {
+        const target = e.target as HTMLElement | null;
+
+        if (target && target.id === `${writId}-chat-content`) {
+          onClick(e as unknown as React.MouseEvent<HTMLAnchorElement>);
+        }
+      };
+      document.addEventListener('click', handleClick);
+      return () => {
+        document.removeEventListener('click', handleClick);
+      };
+    }
+
+    return () => ({});
+  }, [onClick, writId]);
+
   return (
-    <div className={cn('leading-6', className)}>
+    <div
+      data-in-reference={isInReference}
+      id={`${writId}-chat-content`}
+      className={cn('leading-6', className)}
+    >
       {blockLength > 0 ? (
         <>
           {blockContent

@@ -160,15 +160,13 @@ function WritBaseReference({
 
   if (contextApp === 'heap-comment') {
     return (
-      <div
-        onClick={handleOpenReferenceClick}
-        className="cursor-pointer rounded-lg border-2 border-gray-50 text-base"
-      >
+      <div className="cursor-pointer rounded-lg border-2 border-gray-50 text-base">
         <ReferenceInHeap type="text" contextApp={contextApp}>
           <ChatContent
             className="line-clamp-1 p-2"
             story={content}
             isScrolling={false}
+            onClick={handleOpenReferenceClick}
           />
           {children}
           <ReferenceBar
@@ -192,11 +190,15 @@ function WritBaseReference({
         'mb-2': isReply,
       })}
     >
-      <div
-        onClick={handleOpenReferenceClick}
-        className={'cursor-pointer p-2 group-hover:bg-gray-50'}
-      >
-        <ChatContent className="p-2" story={content} isScrolling={false} />
+      <div className={'cursor-pointer p-2 group-hover:bg-gray-50'}>
+        <ChatContent
+          className="p-2"
+          story={content}
+          isScrolling={false}
+          onClick={handleOpenReferenceClick}
+          writId={noteId}
+          isInReference
+        />
       </div>
       <ReferenceBar
         nest={nest}
