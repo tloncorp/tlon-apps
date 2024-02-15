@@ -100,7 +100,7 @@ export default function MobileRoot() {
         <WelcomeCard />
         <div className="flex-1">
           <GroupsScrollingContext.Provider value={isScrolling}>
-            <GroupList groups={sortedGroups} isScrolling={scroll.current}>
+            <GroupList groups={allOtherGroups} isScrolling={scroll.current}>
               {hasPinnedGroups ||
               hasPendingGangs ||
               hasGangsWithClaims ||
