@@ -8,7 +8,7 @@ import { DMUnread } from '@/types/dms';
 import { useUnreads, useChats } from '@/state/channel/channel';
 import { useGroups } from '@/state/groups';
 import { canReadChannel } from '@/logic/channel';
-import EmptyPlaceholder from '@/components/EmptyPlaceholder';
+import { InlineEmptyPlaceholder } from '@/components/EmptyPlaceholder';
 import { Unread } from '@/types/channel';
 import { usePinnedChats } from '@/state/pins';
 import { useContacts } from '@/state/contact';
@@ -68,6 +68,7 @@ export default function MessagesList({
   const chats = useChats();
   const groups = useGroups();
   const allPending = pending.concat(pendingMultis);
+  const hasPending = allPending && allPending.length > 0;
   const isMobile = useIsMobile();
   const thresholds = {
     atBottomThreshold: 125,
@@ -199,13 +200,13 @@ export default function MessagesList({
     () => ({
       Header: () => head,
       EmptyPlaceholder: () =>
-        isMobile ? (
-          <EmptyPlaceholder>
+        isMobile && !hasPending ? (
+          <InlineEmptyPlaceholder className="mt-24">
             Your direct messages will be shown here
-          </EmptyPlaceholder>
+          </InlineEmptyPlaceholder>
         ) : null,
     }),
-    [head, isMobile]
+    [head, isMobile, hasPending]
   );
 
   const virtuosoRef = useRef<VirtuosoHandle>(null);
