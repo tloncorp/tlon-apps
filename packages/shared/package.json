@@ -1,0 +1,11 @@
+{
+  "name": "@tloncorp/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "npm run build -- --watch"
+  },
+  "dependencies": {}
+}

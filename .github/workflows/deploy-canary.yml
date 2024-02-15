@@ -22,15 +22,15 @@ jobs:
           ref: ${{ env.tag }}
       - uses: actions/setup-node@v3
         with:
-          node-version-file: ./ui/.nvmrc
-      - working-directory: ./ui
+          node-version-file: .nvmrc
+      - working-directory: ./apps/tlon-web
         run: |
           npm ci
           npm run build
       - uses: actions/upload-artifact@v3
         with:
           name: 'ui-dist'
-          path:  ui/dist
+          path:  apps/tlon-web/dist
   glob:
     runs-on: ubuntu-latest
     name: 'Make a glob'
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: 'ui-dist'
-          path: ui/dist
+          path: apps/tlon-web/dist
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
@@ -52,7 +52,7 @@ jobs:
       - name: 'glob'
         uses: ./.github/actions/glob
         with:
-          folder: 'ui/dist/*'
+          folder: 'apps/tlon-web/dist/*'
           docket: 'desk/desk.docket-0'
       - name: Commit and Push Glob
         run: |

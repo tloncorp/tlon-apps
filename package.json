@@ -1,0 +1,30 @@
+{
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --prefix ./packages/shared",
+    "build:web": "npm run build:shared && npm run build --prefix ./apps/tlon-web",
+    "dev:shared": "npm run dev --prefix ./packages/shared",
+    "dev:android": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run android --prefix ./apps/tlon-mobile\"",
+    "dev:ios": "concurrently \"npm run dev:shared\" \"npm run dev --prefix ./apps/tlon-mobile\" \"npm run ios --prefix ./apps/tlon-mobile\"",
+    "dev:web": "concurrently \"npm run dev:shared\" \"npm run dev-no-ssl --prefix ./apps/tlon-web\"",
+    "test": "npm run test --workspaces --if-present -- run -u",
+    "prepare": "husky",
+    "postinstall": "patch-package"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "husky": "^9.0.10",
+    "patch-package": "^6.4.7",
+    "tsup": "^8.0.1",
+    "vitest": "^1.2.2"
+  },
+  "engines": {
+    "node": "^20.11.0",
+    "npm": "^10.2.4"
+  }
+}
