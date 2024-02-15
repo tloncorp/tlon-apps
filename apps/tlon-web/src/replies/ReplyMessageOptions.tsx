@@ -66,7 +66,9 @@ export default function ReplyMessageOptions(props: {
   const isAdmin = useAmAdmin(groupFlag);
   const threadParentId = seal['parent-id'];
   const { didCopy, doCopy } = useCopy(
-    `/1/chan/${nest}/msg/${threadParentId}/${seal.id}`
+    `/1/chan/${nest}/msg/${
+      threadParentId === seal.id ? seal.id : `${threadParentId}/${seal.id}`
+    }`
   );
   const { open: pickerOpen, setOpen: setPickerOpen } = useChatDialog(
     whom,

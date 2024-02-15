@@ -7,6 +7,7 @@ import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
 
 import ActionMenu, { Action } from '../ActionMenu';
+import useLeap from '../Leap/useLeap';
 import ReconnectingSpinner from '../ReconnectingSpinner';
 import ArrowNWIcon from '../icons/ArrowNWIcon';
 import MenuIcon from '../icons/MenuIcon';
@@ -14,6 +15,7 @@ import TlonIcon from '../icons/TlonIcon';
 import { LeapShortcutIcon } from './SystemChrome';
 
 const SidebarHeader = React.memo(() => {
+  const { setIsOpen: setLeapOpen } = useLeap();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
   const gang = useGang('~nibset-napwyn/tlon');
@@ -23,30 +25,17 @@ const SidebarHeader = React.memo(() => {
     {
       key: 'leap',
       content: (
-        <a
-          className="no-underline"
-          href="https://airtable.com/shrflFkf5UyDFKhmW"
-          target="_blank"
-          rel="noreferrer"
-        >
+        <div onClick={() => setLeapOpen(true)}>
           <LeapShortcutIcon className="text-indigo" />
-        </a>
+        </div>
       ),
     },
     {
       key: 'landscape',
       content: (
-        <>
-          <a
-            className="dropdown-item no-underline"
-            href="https://airtable.com/shrflFkf5UyDFKhmW"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Back to Landscape
-          </a>
-          <div className="mx-0 h-[2px] w-full bg-gray-50 px-0" />
-        </>
+        <a className="dropdown-item no-underline" href={window.location.origin}>
+          Back to Landscape
+        </a>
       ),
     },
     {

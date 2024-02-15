@@ -1,6 +1,6 @@
 import { BaitCite } from '@/types/channel';
 import { GroupsInit } from '@/types/ui';
-import type { GroupMeta } from '@tloncorp/shared';
+import { GroupMeta } from '@tloncorp/shared';
 
 import {
   ChannelPreview,

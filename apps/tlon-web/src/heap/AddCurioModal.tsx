@@ -1,6 +1,6 @@
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { PASTEABLE_MEDIA_TYPES } from '@/constants';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { createCurioHeart } from '@/logic/heap';
 import { tipTapToString } from '@/logic/tiptap';
@@ -173,7 +173,7 @@ export default function AddCurioModal({
         return;
       }
       const uploadFile = Array.from(files).find((file) =>
-        PASTEABLE_IMAGE_TYPES.includes(file.type)
+        PASTEABLE_MEDIA_TYPES.includes(file.type)
       );
 
       if (uploadFile) {

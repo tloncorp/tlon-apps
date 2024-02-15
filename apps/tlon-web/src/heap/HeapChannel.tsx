@@ -1,7 +1,7 @@
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import Layout from '@/components/Layout/Layout';
 import X16Icon from '@/components/icons/X16Icon';
-import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { PASTEABLE_MEDIA_TYPES } from '@/constants';
 import HeapBlock from '@/heap/HeapBlock';
 import HeapRow from '@/heap/HeapRow';
 import { useDragAndDrop } from '@/logic/DragAndDropContext';
@@ -125,7 +125,7 @@ function HeapChannel({ title }: ViewProps) {
 
   const handleDrop = useCallback((fileList: FileList) => {
     const uploadFile = Array.from(fileList).find((file) =>
-      PASTEABLE_IMAGE_TYPES.includes(file.type)
+      PASTEABLE_MEDIA_TYPES.includes(file.type)
     );
     if (uploadFile) {
       setDraggedFile(uploadFile);

@@ -15,14 +15,14 @@ type AnyListItem = TopContentListItem | GroupListItem | SearchListItem;
 
 function itemContent(_i: number, item: AnyListItem) {
   if (item.type === 'top') {
-    return item.component;
+    return <div className="min-h-[1px]">{item.component}</div>;
   }
 
   if (item.type === 'search') {
     const record = item.data;
     if (record.type === 'group') {
       return (
-        <div className="px-4 sm:px-2">
+        <div className="min-h-[1px] px-4 sm:px-2">
           <GroupsSidebarItem
             flag={record.flag}
             isNew={record.status === 'new'}
@@ -32,7 +32,7 @@ function itemContent(_i: number, item: AnyListItem) {
     }
 
     return (
-      <div className="px-4 sm:px-2">
+      <div className="min-h-[1px] px-4 sm:px-2">
         <GangItem
           flag={record.flag}
           invited={record.status === 'invited'}
@@ -44,7 +44,7 @@ function itemContent(_i: number, item: AnyListItem) {
 
   const [flag] = item.data;
   return (
-    <div className="px-4 sm:px-2">
+    <div className="min-h-[1px] px-4 sm:px-2">
       <GroupsSidebarItem key={flag} flag={flag} />
     </div>
   );

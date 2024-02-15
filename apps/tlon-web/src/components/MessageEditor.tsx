@@ -4,7 +4,7 @@ import {
   useChatBlocks,
   useChatStore,
 } from '@/chat/useChatStore';
-import { PASTEABLE_IMAGE_TYPES } from '@/constants';
+import { PASTEABLE_MEDIA_TYPES } from '@/constants';
 import { Shortcuts, refPasteRule } from '@/logic/tiptap';
 import { useIsMobile } from '@/logic/useMedia';
 import { useCalm } from '@/state/settings';
@@ -91,7 +91,7 @@ export function useMessageEditor({
         uploader &&
         event.clipboardData &&
         Array.from(event.clipboardData.files).some((f) =>
-          PASTEABLE_IMAGE_TYPES.includes(f.type)
+          PASTEABLE_MEDIA_TYPES.includes(f.type)
         )
       ) {
         // TODO should blocks first be updated here to show the loading state?

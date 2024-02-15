@@ -97,13 +97,7 @@ export const useNotifications = (
 
   const unreads = skeins.filter((s) => s.unread);
   const filteredSkeins = skeins.filter(filter);
-  const filteredSkeinsForDesktop = filteredSkeins.filter(
-    (s) => !isDm(s.top.rope) && !isClub(s.top.rope)
-  );
-
-  const notifications = groupSkeinsByDate(
-    isMobile ? filteredSkeins : filteredSkeinsForDesktop
-  );
+  const notifications = groupSkeinsByDate(filteredSkeins);
 
   return {
     notifications,

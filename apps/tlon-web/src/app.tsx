@@ -1,6 +1,6 @@
 // Copyright 2022, Tlon Corporation
 import { IS_MOCK } from '@/api';
-import groupsFavicon from '@/assets/groups.svg';
+import tlonFavicon from '@/assets/favicon.ico';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
 import ChatChannel from '@/chat/ChatChannel';
 import ChatThread from '@/chat/ChatThread/ChatThread';
@@ -709,7 +709,7 @@ function RoutedApp() {
           <title>Tlon</title>
           <link
             rel="icon"
-            href={groupsFavicon}
+            href={tlonFavicon}
             sizes="any"
             type="image/svg+xml"
           />

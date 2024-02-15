@@ -1,1 +1,1 @@
-export { GroupMeta } from "./types/groups";
+export type { GroupMeta } from "./types/groups";

@@ -9,7 +9,7 @@ export const LEAP_RESULT_TRUNCATE_SIZE = 5;
 export const LEAP_RESULT_SCORE_THRESHOLD = 10;
 export const CURIO_PAGE_SIZE = 250;
 
-export const PASTEABLE_IMAGE_TYPES = [
+export const PASTEABLE_MEDIA_TYPES = [
   'image/gif',
   'image/jpeg',
   'image/jpg',
@@ -17,6 +17,10 @@ export const PASTEABLE_IMAGE_TYPES = [
   'image/svg',
   'image/tif',
   'image/webp',
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/quicktime',
 ];
 
 export const AUTHORS = [
