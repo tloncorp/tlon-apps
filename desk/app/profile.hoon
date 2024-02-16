@@ -181,13 +181,12 @@
 
     .body {
       width: 100vw;
-      height: 100vh;
+      max-height: 100vh;
       display: flex;
-      justify-content: center;
-      align-items: flex-start;
+      flex-direction: column;
+      align-items: center;
       margin: 0;
       padding: 0;
-      overflow: scroll;
       background-color: white;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
@@ -249,10 +248,10 @@
 
     .widget {
       position: relative;
-      overflow: hidden;
       box-sizing: border-box;
-      max-width: 85vw;
-      margin-top: 20px;
+      width: 100%;
+      max-width: 345px;
+      margin: 0 auto 20px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
       color: black;

@@ -1,0 +1,38 @@
+name: Build Tlon Mobile [Production]
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: Select platform
+        options:
+          - all
+          - android
+          - ios
+env:
+  NOTIFY_PROVIDER: rivfur-livmet
+  NOTIFY_SERVICE: groups-native
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Create new build
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Set up Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Build for selected platforms
+        working-directory: ./apps/tlon-mobile
+        run: eas build --profile production --platform ${{ inputs.platform || 'all' }} --non-interactive --auto-submit
+        env:
+          EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
+          EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}

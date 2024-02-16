@@ -28,8 +28,7 @@
     '''
     .hero-button {
       position: relative;
-      overflow: hidden;
-      width: 345px;
+      width: 100%;
       padding: 12px 0px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
@@ -255,7 +254,7 @@
     }
 
     #profile-with-header {
-      margin-bottom: 20px;
+      margin: 0 auto 20px;
       position: relative;
       width: 345px;
       height: 345px;

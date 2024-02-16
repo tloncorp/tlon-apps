@@ -12,6 +12,7 @@ ref=${6:-"develop"}
 [ "$desk" == "talk" ] && from="talk" || from="desk"
 folder=$ship/$desk
 
+echo "Deploying $desk from $ref of $repo to $ship in $zone of $project"
 set -e
 set -o pipefail
 cmdfile=$(mktemp "${TMPDIR:-/tmp/}janeway.XXXXXXXXX")

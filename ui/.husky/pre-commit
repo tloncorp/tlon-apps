@@ -1,9 +1,0 @@
-#!/bin/sh
-cd ui
-
-npm run test -- run -u
-
-git add src/\*.snap
-
-npx lint-staged
-

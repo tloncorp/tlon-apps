@@ -1,0 +1,31 @@
+{
+  "cli": {
+    "version": ">= 3.8.1",
+    "promptToConfigurePushNotifications": false
+  },
+  "build": {
+    "preview": {
+      "channel": "preview",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "channel": "production"
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "releaseStatus": "draft",
+        "track": "internal",
+        "changesNotSentForReview": true
+      },
+      "ios": {
+        "ascAppId": "6451392109",
+        "appleTeamId": "XU9PR2N722"
+      }
+    }
+  }
+}
