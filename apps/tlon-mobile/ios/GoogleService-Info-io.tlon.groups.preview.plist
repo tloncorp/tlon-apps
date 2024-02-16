@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDk3OH2oJyY0rkyw2JV7jA1ClZGBIoSzrM</string>
+	<string>AIzaSyDnjh8qXbZkuM_Bh1-tkP46FA-y2Uai7pc</string>
 	<key>GCM_SENDER_ID</key>
-	<string>157622845881</string>
+	<string>543296749236</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>io.tlon.groups.staging</string>
+	<string>io.tlon.groups.preview</string>
 	<key>PROJECT_ID</key>
-	<string>tlon-mobile-staging</string>
+	<string>tlon-groups-mobile</string>
 	<key>STORAGE_BUCKET</key>
-	<string>tlon-mobile-staging.appspot.com</string>
+	<string>tlon-groups-mobile.appspot.com</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:157622845881:ios:0142449d758fd047f27668</string>
+	<string>1:543296749236:ios:8f24114b091162df3e21e1</string>
 </dict>
 </plist>
