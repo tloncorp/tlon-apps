@@ -39,7 +39,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="io.tlon.groups.staging"/>
+        <data android:scheme="io.tlon.groups"/>
       </intent-filter>
       <!-- Branch App Links - Live App -->
       <intent-filter android:autoVerify="true">

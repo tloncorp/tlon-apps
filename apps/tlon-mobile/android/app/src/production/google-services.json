@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "543296749236",
+    "project_id": "tlon-groups-mobile",
+    "storage_bucket": "tlon-groups-mobile.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:543296749236:android:3c51b56a1b8d31173e21e1",
+        "android_client_info": {
+          "package_name": "io.tlon.groups"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "543296749236-1l5r4ipguvjdh083t5j7h1eicqi21j0o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDm8-5daeW5B8j6i_RIoSvOgnx6Fo0gEOU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "543296749236-1l5r4ipguvjdh083t5j7h1eicqi21j0o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

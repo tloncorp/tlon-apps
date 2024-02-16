@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:157622845881:android:e03c63bd5a3bc87cf27668",
         "android_client_info": {
-          "package_name": "io.tlon.groups.staging"
+          "package_name": "io.tlon.groups.preview"
         }
       },
       "oauth_client": [],
