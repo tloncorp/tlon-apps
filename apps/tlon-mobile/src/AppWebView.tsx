@@ -14,7 +14,7 @@ import { useShip } from './contexts/ship';
 import { useWebView } from './hooks/useWebView';
 import { markChatRead } from './lib/chatApi';
 import { getHostingUser } from './lib/hostingApi';
-import { connectNotifications } from './lib/notifications';
+// import { connectNotifications } from './lib/notifications';
 import type { MainStackParamList } from './types';
 import {
   getHostingToken,
@@ -143,7 +143,7 @@ export const RawAppWebView = ({
     );
 
     // Start notification prompt
-    connectNotifications();
+    // connectNotifications();
 
     return () => {
       // Clean up listeners
