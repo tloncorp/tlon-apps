@@ -20,7 +20,7 @@
         $=  volume
         $:  base=level:v
             area=(map flag:g level:v)  ::  override per group
-            chan=(map nest:g level:v)  ::  override per channel            
+            chan=(map nest:g level:v)  ::  override per channel
         ==
       ::
         xeno=gangs:g
@@ -336,7 +336,7 @@
         $=  volume
         $:  base=level:v
             area=(map flag:g level:v)  ::  override per group
-            chan=(map nest:g level:v)  ::  override per channel            
+            chan=(map nest:g level:v)  ::  override per channel
         ==
       ::
         xeno=gangs:g
