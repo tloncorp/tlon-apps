@@ -1,9 +1,10 @@
-import api from '@/api';
-import queryClient from '@/queryClient';
-import { MatchingEvent, MatchingResponse } from '@/types/negotiation';
 import { useQuery } from '@tanstack/react-query';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import api from '@/api';
+import queryClient from '@/queryClient';
+import { MatchingEvent, MatchingResponse } from '@/types/negotiation';
 
 function negotiationUpdater(
   event: MatchingEvent | null,

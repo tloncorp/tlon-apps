@@ -1,6 +1,7 @@
-import useShipNames from '@/logic/useShipNames';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import React from 'react';
+
+import useShipNames from '@/logic/useShipNames';
 
 export default function PendingIndicator({ hive }: { hive: string[] }) {
   const hiveNames = useShipNames({ ships: hive });

@@ -1,9 +1,10 @@
+import { useState } from 'react';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import SortIcon from '@/components/icons/SortIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import useSidebarSort from '@/logic/useSidebarSort';
-import { useState } from 'react';
 
 type SidebarSorterProps = Omit<
   ReturnType<typeof useSidebarSort>,

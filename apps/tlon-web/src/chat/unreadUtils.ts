@@ -1,6 +1,7 @@
+import bigInt from 'big-integer';
+
 import { Unread } from '@/types/channel';
 import { DMUnread } from '@/types/dms';
-import bigInt from 'big-integer';
 
 export function threadIsOlderThanLastRead(
   unread: DMUnread | Unread,

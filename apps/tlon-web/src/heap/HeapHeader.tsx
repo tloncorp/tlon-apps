@@ -1,3 +1,7 @@
+import * as Dropdown from '@radix-ui/react-dropdown-menu';
+import cn from 'classnames';
+import React, { useEffect, useState } from 'react';
+
 import ChannelHeader from '@/channels/ChannelHeader';
 import DisplayDropdown from '@/channels/DisplayDropdown';
 import ActionMenu, { Action } from '@/components/ActionMenu';
@@ -16,9 +20,6 @@ import {
   usePutEntryMutation,
 } from '@/state/settings';
 import { DisplayMode, SortMode } from '@/types/channel';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import cn from 'classnames';
-import React, { useEffect, useState } from 'react';
 
 import AddCurioModal from './AddCurioModal';
 

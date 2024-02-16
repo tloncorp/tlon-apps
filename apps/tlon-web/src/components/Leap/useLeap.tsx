@@ -1,3 +1,9 @@
+import { cite, deSig, preSig } from '@urbit/api';
+import fuzzy from 'fuzzy';
+import { uniqBy } from 'lodash';
+import React, { useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+
 import {
   LEAP_DESCRIPTION_TRUNCATE_LENGTH,
   LEAP_RESULT_SCORE_THRESHOLD,
@@ -15,11 +21,6 @@ import { usePinnedChannels, usePinnedClubs } from '@/state/pins';
 import { Contact } from '@/types/contact';
 import { Club } from '@/types/dms';
 import { Group, GroupChannel } from '@/types/groups';
-import { cite, deSig, preSig } from '@urbit/api';
-import fuzzy from 'fuzzy';
-import { uniqBy } from 'lodash';
-import React, { useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 import useActiveTab from '../Sidebar/util';
 import BubbleIcon from '../icons/BubbleIcon';

@@ -1,3 +1,11 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { DelBucket, DelEntry, PutBucket, Value } from '@urbit/api';
+import cookies from 'browser-cookies';
+import produce from 'immer';
+import _ from 'lodash';
+import { useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+
 import api from '@/api';
 import {
   ALPHABETICAL_SORT,
@@ -10,13 +18,6 @@ import { isNativeApp } from '@/logic/native';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import { isHosted } from '@/logic/utils';
 import { DisplayMode, SortMode } from '@/types/channel';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { DelBucket, DelEntry, PutBucket, Value } from '@urbit/api';
-import cookies from 'browser-cookies';
-import produce from 'immer';
-import _ from 'lodash';
-import { useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 
 interface ChannelSetting {
   flag: string;

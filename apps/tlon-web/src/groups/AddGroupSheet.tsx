@@ -1,9 +1,10 @@
+import cn from 'classnames';
+import { useState } from 'react';
+
 import WidgetDrawer from '@/components/WidgetDrawer';
 import HomeIconMobileNav from '@/components/icons/HomeIconMobileNav';
 import NewRaysIcon from '@/components/icons/NewRaysIcon';
 import { isNativeApp } from '@/logic/native';
-import cn from 'classnames';
-import { useState } from 'react';
 
 import { CreateGroupSheetView as CreateGroup } from './AddGroup/CreateGroup';
 import JoinGroupSheet from './AddGroup/JoinGroup';

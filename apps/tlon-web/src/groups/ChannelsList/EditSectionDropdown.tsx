@@ -1,9 +1,10 @@
+import cn from 'classnames';
+import { useState } from 'react';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import ElipsisIcon from '@/components/icons/EllipsisIcon';
 import { useGroupCompatibility, useRouteGroup } from '@/state/groups';
-import cn from 'classnames';
-import { useState } from 'react';
 
 interface EditSectionDropDownProps {
   handleEditClick: () => void;

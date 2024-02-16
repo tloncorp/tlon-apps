@@ -1,9 +1,10 @@
-import * as useMedia from '@/logic/useMedia';
-import { makeFakeChatWrit, unixToDaStr } from '@/mocks/chat';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { unixToDa } from '@urbit/api';
 import React, { ReactPortal } from 'react';
 import { SpyInstance, beforeEach, describe, expect, it } from 'vitest';
+
+import * as useMedia from '@/logic/useMedia';
+import { makeFakeChatWrit, unixToDaStr } from '@/mocks/chat';
 
 import { fireEvent, render, screen, userEvent } from '../../../test/utils';
 import ChatMessage from './ChatMessage';

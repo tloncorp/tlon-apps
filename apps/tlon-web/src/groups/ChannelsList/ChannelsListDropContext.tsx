@@ -1,10 +1,3 @@
-import {
-  useAddChannelMutation,
-  useAmAdmin,
-  useGroupMoveChannelMutation,
-  useGroupMoveZoneMutation,
-  useRouteGroup,
-} from '@/state/groups';
 import { formatUv } from '@urbit/aura';
 import bigInt from 'big-integer';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -13,6 +6,14 @@ import {
   DraggableLocation,
   DropResult,
 } from 'react-beautiful-dnd';
+
+import {
+  useAddChannelMutation,
+  useAmAdmin,
+  useGroupMoveChannelMutation,
+  useGroupMoveZoneMutation,
+  useRouteGroup,
+} from '@/state/groups';
 
 import ChannelManagerHeader from './ChannelManagerHeader';
 import ChannelsListSections from './ChannelsListSections';

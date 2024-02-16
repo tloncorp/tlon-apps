@@ -1,5 +1,6 @@
-import NavigationDots from '@/components/NavigationDots';
 import { useValue } from 'react-cosmos/client';
+
+import NavigationDots from '@/components/NavigationDots';
 
 export default function NavigationDotsFixture() {
   const [maxSteps] = useValue('maxSteps', { defaultValue: 3 });

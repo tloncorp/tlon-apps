@@ -1,9 +1,10 @@
+import cn from 'classnames';
+import { PropsWithChildren } from 'react';
+
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import { useAmAdmin, useGroupChannel } from '@/state/groups';
-import cn from 'classnames';
-import { PropsWithChildren } from 'react';
 
 import ChannelActions, { ChannelActionsProps } from './ChannelActions';
 import ChannelHostConnection from './ChannelHostConnection';

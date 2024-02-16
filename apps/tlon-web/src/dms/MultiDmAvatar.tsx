@@ -1,8 +1,9 @@
+import cn from 'classnames';
+import React, { useState } from 'react';
+
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isColor } from '@/logic/utils';
 import { useAvatar } from '@/state/avatar';
-import cn from 'classnames';
-import React, { useState } from 'react';
 
 import PeopleIcon from '../components/icons/PeopleIcon';
 

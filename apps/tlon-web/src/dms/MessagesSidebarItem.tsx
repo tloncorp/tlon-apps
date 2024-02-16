@@ -1,6 +1,7 @@
+import React, { useEffect, useState } from 'react';
+
 import ClubName from '@/components/ClubName';
 import useLongPress from '@/logic/useLongPress';
-import React, { useEffect, useState } from 'react';
 
 import Avatar, { AvatarSizes } from '../components/Avatar';
 import ShipName from '../components/ShipName';

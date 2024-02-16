@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Draggable } from 'react-beautiful-dnd';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import PinIcon16 from '@/components/icons/PinIcon16';
 import SixDotIcon from '@/components/icons/SixDotIcon';
@@ -13,9 +17,6 @@ import {
   useGroupDeleteZoneMutation,
   useRouteGroup,
 } from '@/state/groups';
-import cn from 'classnames';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Draggable } from 'react-beautiful-dnd';
 
 interface SectionProps {
   sectionData: SectionListItem;

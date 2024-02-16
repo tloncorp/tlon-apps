@@ -1,3 +1,6 @@
+import { debounce } from 'lodash';
+import { useMemo, useRef, useState } from 'react';
+
 import Layout from '@/components/Layout/Layout';
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
@@ -19,8 +22,6 @@ import {
   usePendingGangsWithoutClaim,
   usePinnedGroups,
 } from '@/state/groups';
-import { debounce } from 'lodash';
-import { useMemo, useRef, useState } from 'react';
 
 export default function MobileRoot() {
   const [isScrolling, setIsScrolling] = useState(false);

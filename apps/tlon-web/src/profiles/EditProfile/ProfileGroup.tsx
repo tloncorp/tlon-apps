@@ -1,6 +1,7 @@
+import React from 'react';
+
 import X16Icon from '@/components/icons/X16Icon';
 import { useGroup } from '@/state/groups';
-import React from 'react';
 
 interface ProfileGroupProps {
   groupFlag: string;

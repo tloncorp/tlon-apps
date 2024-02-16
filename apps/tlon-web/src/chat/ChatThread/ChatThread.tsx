@@ -1,3 +1,12 @@
+import bigInt from 'big-integer';
+import cn from 'classnames';
+import _ from 'lodash';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router-dom';
+import { VirtuosoHandle } from 'react-virtuoso';
+import { useEventListener } from 'usehooks-ts';
+
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import useLeap from '@/components/Leap/useLeap';
@@ -24,14 +33,6 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { ReplyTuple } from '@/types/channel';
-import bigInt from 'big-integer';
-import cn from 'classnames';
-import _ from 'lodash';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
-import { Link, useSearchParams } from 'react-router-dom';
-import { VirtuosoHandle } from 'react-virtuoso';
-import { useEventListener } from 'usehooks-ts';
 
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import { chatStoreLogger, useChatInfo, useChatStore } from '../useChatStore';

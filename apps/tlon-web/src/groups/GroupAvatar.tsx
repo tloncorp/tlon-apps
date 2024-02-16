@@ -1,10 +1,11 @@
+import cn from 'classnames';
+import React, { useMemo } from 'react';
+
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import { useIsDark } from '@/logic/useMedia';
 import { isColor } from '@/logic/utils';
 import { useAvatar } from '@/state/avatar';
 import { useCalm } from '@/state/settings';
-import cn from 'classnames';
-import React, { useMemo } from 'react';
 
 interface GroupAvatarProps {
   image?: string;

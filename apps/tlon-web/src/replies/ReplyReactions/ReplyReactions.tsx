@@ -1,3 +1,6 @@
+import _ from 'lodash';
+import { useCallback, useState } from 'react';
+
 import EmojiPicker from '@/components/EmojiPicker';
 import AddReactIcon from '@/components/icons/AddReactIcon';
 import { useIsMobile } from '@/logic/useMedia';
@@ -8,8 +11,6 @@ import {
 } from '@/state/channel/channel';
 import { useAddDMReplyReactMutation } from '@/state/chat';
 import { ReplySeal } from '@/types/channel';
-import _ from 'lodash';
-import { useCallback, useState } from 'react';
 
 import ReplyReaction from './ReplyReaction';
 

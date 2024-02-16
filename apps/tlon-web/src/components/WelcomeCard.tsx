@@ -1,8 +1,9 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+
 import { getDmLink } from '@/logic/branch';
 import { useIsMobile } from '@/logic/useMedia';
 import { usePutEntryMutation, useSeenWelcomeCard } from '@/state/settings';
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
 
 import X16Icon from './icons/X16Icon';
 

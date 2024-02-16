@@ -1,7 +1,8 @@
-import { useModalNavigate } from '@/logic/routing';
-import { Contact } from '@/types/contact';
 import { Patp } from '@urbit/api';
 import { useLocation } from 'react-router';
+
+import { useModalNavigate } from '@/logic/routing';
+import { Contact } from '@/types/contact';
 
 import Avatar from '../components/Avatar';
 import ShipName from '../components/ShipName';

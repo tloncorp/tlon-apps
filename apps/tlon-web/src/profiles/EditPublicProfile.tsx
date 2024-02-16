@@ -1,3 +1,6 @@
+import cn from 'classnames';
+import { useEffect, useState } from 'react';
+
 import Dialog from '@/components/Dialog';
 import SpinToggle from '@/components/SpinToggle';
 import WidgetDrawer from '@/components/WidgetDrawer';
@@ -9,8 +12,6 @@ import useWidgets, {
   useShowWidgetMutation,
 } from '@/state/profile/profile';
 import { Widget } from '@/state/profile/types';
-import cn from 'classnames';
-import { useEffect, useState } from 'react';
 
 export default function EditPublicProfile({
   open,

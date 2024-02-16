@@ -1,7 +1,8 @@
 /* eslint-disable react/no-danger */
-import TwitterXIcon from '@/components/icons/TwitterXIcon';
 import DOMPurify from 'dompurify';
 import { Tweet, useTweet } from 'react-tweet';
+
+import TwitterXIcon from '@/components/icons/TwitterXIcon';
 
 interface TwitterEmbedProps {
   embedHtml: string;

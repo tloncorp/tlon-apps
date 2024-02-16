@@ -1,6 +1,7 @@
-import { useAmAdmin, useRouteGroup } from '@/state/groups';
 import React from 'react';
 import { Droppable } from 'react-beautiful-dnd';
+
+import { useAmAdmin, useRouteGroup } from '@/state/groups';
 
 import Section from './Section';
 import { SectionMap } from './types';

@@ -1,5 +1,6 @@
-import LinkIcon from '@/components/icons/LinkIcon';
 import React from 'react';
+
+import LinkIcon from '@/components/icons/LinkIcon';
 
 export default function EmbedFallback({ url }: { url: string }) {
   return (

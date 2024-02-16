@@ -1,3 +1,8 @@
+import Picker from '@emoji-mart/react';
+import * as Popover from '@radix-ui/react-popover';
+import React, { useCallback, useEffect } from 'react';
+import { useParams } from 'react-router';
+
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
 import { useDismissNavigate } from '@/logic/routing';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
@@ -18,10 +23,6 @@ import {
 import useEmoji from '@/state/emoji';
 import { useRouteGroup } from '@/state/groups';
 import { useCurrentTheme } from '@/state/local';
-import Picker from '@emoji-mart/react';
-import * as Popover from '@radix-ui/react-popover';
-import React, { useCallback, useEffect } from 'react';
-import { useParams } from 'react-router';
 
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 

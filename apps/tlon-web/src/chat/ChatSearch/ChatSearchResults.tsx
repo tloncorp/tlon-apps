@@ -1,9 +1,10 @@
-import { useIsMobile } from '@/logic/useMedia';
-import { ChatMap, Post, Reply } from '@/types/channel';
-import { Writ } from '@/types/dms';
 import { BigInteger } from 'big-integer';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+
+import { useIsMobile } from '@/logic/useMedia';
+import { ChatMap, Post, Reply } from '@/types/channel';
+import { Writ } from '@/types/dms';
 
 import ChatScrollerPlaceholder from '../ChatScroller/ChatScrollerPlaceholder';
 import ChatSearchResult from './ChatSearchResult';

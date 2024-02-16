@@ -1,10 +1,11 @@
-import { Channels, Perm, Posts } from '@/types/channel';
 import {
   Handler,
   ScryHandler,
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
 import { subMinutes } from 'date-fns';
+
+import { Channels, Perm, Posts } from '@/types/channel';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 

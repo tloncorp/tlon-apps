@@ -1,6 +1,7 @@
-import icons, { smallIcons } from '@/components/icons';
 import { Component, useEffect, useState } from 'react';
 import { useValue } from 'react-cosmos/client';
+
+import icons, { smallIcons } from '@/components/icons';
 
 export default function IconButtonFixture() {
   const [{ showTooltip, tooltipText }] = useValue('Tooltip', {

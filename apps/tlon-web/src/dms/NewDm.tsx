@@ -1,3 +1,6 @@
+import cn from 'classnames';
+import React, { useMemo, useRef } from 'react';
+
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Layout from '@/components/Layout/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -8,8 +11,6 @@ import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
 import { dmListPath } from '@/logic/utils';
-import cn from 'classnames';
-import React, { useMemo, useRef } from 'react';
 
 import MessageSelector from './MessageSelector';
 

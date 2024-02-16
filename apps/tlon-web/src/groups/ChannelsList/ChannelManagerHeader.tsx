@@ -1,3 +1,6 @@
+import cn from 'classnames';
+import { Link, useLocation } from 'react-router-dom';
+
 import Tooltip from '@/components/Tooltip';
 import { useIsMobile } from '@/logic/useMedia';
 import {
@@ -5,8 +8,6 @@ import {
   useGroupCompatibility,
   useRouteGroup,
 } from '@/state/groups';
-import cn from 'classnames';
-import { Link, useLocation } from 'react-router-dom';
 
 import GroupHostConnection from '../GroupHostConnection';
 import ChannelsListSearch from './ChannelsListSearch';

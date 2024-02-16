@@ -1,8 +1,9 @@
-import { useIsMobile } from '@/logic/useMedia';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import cn from 'classnames';
 import React, { PropsWithChildren, ReactNode } from 'react';
 import { Drawer } from 'vaul';
+
+import { useIsMobile } from '@/logic/useMedia';
 
 export type ActionType =
   | 'default'

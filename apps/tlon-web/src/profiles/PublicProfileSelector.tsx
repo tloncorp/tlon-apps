@@ -1,3 +1,6 @@
+import cn from 'classnames';
+import { useState } from 'react';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import CheckIcon from '@/components/icons/CheckIcon';
@@ -10,8 +13,6 @@ import {
   useMakeProfilePublicMutation,
   useProfileIsPublic,
 } from '@/state/profile/profile';
-import cn from 'classnames';
-import { useState } from 'react';
 
 import EditPublicProfile from './EditPublicProfile';
 

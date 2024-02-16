@@ -1,7 +1,8 @@
-import { Fact, Subscription as SubscriptionType } from '@/state/eyre';
 import * as Accordion from '@radix-ui/react-accordion';
 import cn from 'classnames';
 import React, { useEffect, useRef, useState } from 'react';
+
+import { Fact, Subscription as SubscriptionType } from '@/state/eyre';
 
 interface SubscriptionProps {
   sub: SubscriptionType;

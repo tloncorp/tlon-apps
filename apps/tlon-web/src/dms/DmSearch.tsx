@@ -1,6 +1,7 @@
+import { useParams } from 'react-router';
+
 import ChatSearch, { ChatSearchProps } from '@/chat/ChatSearch/ChatSearch';
 import { useInfiniteChatSearch } from '@/state/chat/search';
-import { useParams } from 'react-router';
 
 export default function DmSearch(
   props: Omit<ChatSearchProps, 'scan' | 'query' | 'isLoading' | 'endReached'>

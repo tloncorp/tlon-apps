@@ -1,15 +1,3 @@
-import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
-import {
-  chatStoreLogger,
-  useChatBlocks,
-  useChatStore,
-} from '@/chat/useChatStore';
-import { PASTEABLE_MEDIA_TYPES } from '@/constants';
-import { Shortcuts, refPasteRule } from '@/logic/tiptap';
-import { useIsMobile } from '@/logic/useMedia';
-import { useCalm } from '@/state/settings';
-import { useFileStore } from '@/state/storage';
-import { Cite } from '@/types/channel';
 import Blockquote from '@tiptap/extension-blockquote';
 import Bold from '@tiptap/extension-bold';
 import Code from '@tiptap/extension-code';
@@ -29,6 +17,19 @@ import { EditorView } from '@tiptap/pm/view';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
 import cn from 'classnames';
 import React, { useCallback, useMemo } from 'react';
+
+import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
+import {
+  chatStoreLogger,
+  useChatBlocks,
+  useChatStore,
+} from '@/chat/useChatStore';
+import { PASTEABLE_MEDIA_TYPES } from '@/constants';
+import { Shortcuts, refPasteRule } from '@/logic/tiptap';
+import { useIsMobile } from '@/logic/useMedia';
+import { useCalm } from '@/state/settings';
+import { useFileStore } from '@/state/storage';
+import { Cite } from '@/types/channel';
 
 import getMentionPopup from './Mention/MentionPopup';
 

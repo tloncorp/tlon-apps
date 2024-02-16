@@ -1,3 +1,21 @@
+import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
+import { BigInteger } from 'big-integer';
+import React, {
+  PropsWithChildren,
+  ReactElement,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  FlatIndexLocationWithAlign,
+  FlatScrollIntoViewLocation,
+  VirtuosoHandle,
+} from 'react-virtuoso';
+
 import ChatMessage from '@/chat/ChatMessage/ChatMessage';
 import ChatNotice from '@/chat/ChatNotice';
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
@@ -17,23 +35,6 @@ import ReplyMessage from '@/replies/ReplyMessage';
 import { useShowDevTools } from '@/state/local';
 import { PageTuple, ReplyTuple } from '@/types/channel';
 import { WritTuple } from '@/types/dms';
-import { Virtualizer, useVirtualizer } from '@tanstack/react-virtual';
-import { BigInteger } from 'big-integer';
-import React, {
-  PropsWithChildren,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import {
-  FlatIndexLocationWithAlign,
-  FlatScrollIntoViewLocation,
-  VirtuosoHandle,
-} from 'react-virtuoso';
 
 import ChatScrollerDebugOverlay from './ChatScrollerDebugOverlay';
 

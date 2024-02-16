@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import React, { useCallback } from 'react';
+import { useLocation } from 'react-router';
+
 import Avatar from '@/components/Avatar';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipName from '@/components/ShipName';
@@ -11,9 +15,6 @@ import {
   useGroupInviteMutation,
   useGroupRevokeMutation,
 } from '@/state/groups';
-import cn from 'classnames';
-import React, { useCallback } from 'react';
-import { useLocation } from 'react-router';
 
 interface PendingMemberItemProps {
   member: string;

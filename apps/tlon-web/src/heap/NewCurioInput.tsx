@@ -1,5 +1,3 @@
-import { Shortcuts } from '@/logic/tiptap';
-import { useCalm } from '@/state/settings';
 import Blockquote from '@tiptap/extension-blockquote';
 import Bold from '@tiptap/extension-bold';
 import Code from '@tiptap/extension-code';
@@ -17,6 +15,9 @@ import { Slice } from '@tiptap/pm/model';
 import { EditorView } from '@tiptap/pm/view';
 import { Editor, EditorContent, JSONContent, useEditor } from '@tiptap/react';
 import { useCallback, useMemo } from 'react';
+
+import { Shortcuts } from '@/logic/tiptap';
+import { useCalm } from '@/state/settings';
 
 interface NewCurioInput {
   placeholder: string;

@@ -1,6 +1,7 @@
-import { hostingUploadURL, isHosted } from '@/logic/utils';
 import { enableMapSet } from 'immer';
 import _ from 'lodash';
+
+import { hostingUploadURL, isHosted } from '@/logic/utils';
 
 import {
   BaseState,

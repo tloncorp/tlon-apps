@@ -1,10 +1,11 @@
+import cn from 'classnames';
+import React, { MouseEvent, useEffect, useState } from 'react';
+import { useFormContext } from 'react-hook-form';
+
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useCalm } from '@/state/settings';
 import { useUploader } from '@/state/storage';
-import cn from 'classnames';
-import React, { MouseEvent, useEffect, useState } from 'react';
-import { useFormContext } from 'react-hook-form';
 
 interface CoverImageInputProps {
   className?: string;

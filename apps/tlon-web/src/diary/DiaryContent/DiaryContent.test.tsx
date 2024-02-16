@@ -1,5 +1,6 @@
-import { Inline } from '@/types/content';
 import { describe, expect, it } from 'vitest';
+
+import { Inline } from '@/types/content';
 
 import { groupByParagraph } from './DiaryContent';
 

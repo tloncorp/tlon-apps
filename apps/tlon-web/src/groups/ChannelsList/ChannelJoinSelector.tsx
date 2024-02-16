@@ -1,7 +1,8 @@
-import CheckIcon from '@/components/icons/CheckIcon';
-import { ChannelFormSchema } from '@/types/groups';
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
+
+import CheckIcon from '@/components/icons/CheckIcon';
+import { ChannelFormSchema } from '@/types/groups';
 
 export default function ChannelJoinSelector() {
   const { register, watch } = useFormContext<ChannelFormSchema>();

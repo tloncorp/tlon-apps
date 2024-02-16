@@ -1,3 +1,7 @@
+import { deSig } from '@urbit/api';
+import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
+import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+
 import { InlineEmptyPlaceholder } from '@/components/EmptyPlaceholder';
 import { canReadChannel } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
@@ -10,9 +14,6 @@ import { usePinnedChats } from '@/state/pins';
 import { SidebarFilter, filters } from '@/state/settings';
 import { Unread } from '@/types/channel';
 import { DMUnread } from '@/types/dms';
-import { deSig } from '@urbit/api';
-import React, { PropsWithChildren, useEffect, useMemo, useRef } from 'react';
-import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 import {
   useDmUnreads,

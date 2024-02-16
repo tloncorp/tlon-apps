@@ -1,3 +1,8 @@
+import { Editor, JSONContent } from '@tiptap/react';
+import cn from 'classnames';
+import { reduce } from 'lodash';
+import React, { useCallback, useEffect } from 'react';
+
 import {
   fetchChatBlocks,
   useChatInfo,
@@ -21,10 +26,6 @@ import {
 } from '@/state/channel/channel';
 import { PostEssay, constructStory } from '@/types/channel';
 import { Inline, InlineKey } from '@/types/content';
-import { Editor, JSONContent } from '@tiptap/react';
-import cn from 'classnames';
-import { reduce } from 'lodash';
-import React, { useCallback, useEffect } from 'react';
 
 interface HeapTextInputProps {
   flag: string;

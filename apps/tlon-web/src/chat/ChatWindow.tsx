@@ -1,10 +1,3 @@
-import ChatScroller from '@/chat/ChatScroller/ChatScroller';
-import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
-import EmptyPlaceholder from '@/components/EmptyPlaceholder';
-import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
-import { useChannelCompatibility } from '@/logic/channel';
-import { log } from '@/logic/utils';
-import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
 import bigInt from 'big-integer';
 import React, {
   ReactElement,
@@ -16,6 +9,14 @@ import React, {
 } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
+
+import ChatScroller from '@/chat/ChatScroller/ChatScroller';
+import ChatUnreadAlerts from '@/chat/ChatUnreadAlerts';
+import EmptyPlaceholder from '@/components/EmptyPlaceholder';
+import ArrowS16Icon from '@/components/icons/ArrowS16Icon';
+import { useChannelCompatibility } from '@/logic/channel';
+import { log } from '@/logic/utils';
+import { useInfinitePosts, useMarkReadMutation } from '@/state/channel/channel';
 
 import ChatScrollerPlaceholder from './ChatScroller/ChatScrollerPlaceholder';
 import { useChatInfo, useChatStore } from './useChatStore';

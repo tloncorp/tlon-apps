@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
-import { hostingUploadURL } from '@/logic/utils';
 import _ from 'lodash';
+
+import { hostingUploadURL } from '@/logic/utils';
 
 import { BaseState } from '../base';
 import { BaseStorageState, StorageUpdate } from './type';

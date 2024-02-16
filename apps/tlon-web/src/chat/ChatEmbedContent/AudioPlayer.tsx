@@ -1,4 +1,3 @@
-import LightBox from '@/components/LightBox';
 import React, {
   MouseEvent,
   useCallback,
@@ -7,6 +6,8 @@ import React, {
   useState,
 } from 'react';
 import { useParams } from 'react-router';
+
+import LightBox from '@/components/LightBox';
 
 import { useChatDialog } from '../useChatStore';
 

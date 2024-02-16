@@ -1,3 +1,9 @@
+import bigInt from 'big-integer';
+import cn from 'classnames';
+import { Helmet } from 'react-helmet';
+import { useParams } from 'react-router';
+import { Link, useLocation } from 'react-router-dom';
+
 import Layout from '@/components/Layout/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
@@ -15,11 +21,6 @@ import {
 import { useRouteGroup } from '@/state/groups';
 import { Post, newReplyMap } from '@/types/channel';
 import { ViewProps } from '@/types/groups';
-import bigInt from 'big-integer';
-import cn from 'classnames';
-import { Helmet } from 'react-helmet';
-import { useParams } from 'react-router';
-import { Link, useLocation } from 'react-router-dom';
 
 import HeapDetailBody from './HeapDetail/HeapDetailBody';
 import HeapDetailHeader from './HeapDetail/HeapDetailHeader';

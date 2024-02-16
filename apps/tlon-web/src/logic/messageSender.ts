@@ -1,3 +1,5 @@
+import { JSONContent } from '@tiptap/core';
+
 import { CacheId } from '@/state/channel/channel';
 import { SendMessageVariables, SendReplyVariables } from '@/state/chat';
 import { buildAddDelta, createMessage } from '@/state/chat/utils';
@@ -10,7 +12,6 @@ import {
   constructStory,
 } from '@/types/channel';
 import { WritDelta } from '@/types/dms';
-import { JSONContent } from '@tiptap/core';
 
 import { JSONToInlines } from './tiptap';
 import { isImageUrl } from './utils';

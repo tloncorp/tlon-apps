@@ -1,3 +1,7 @@
+import bigInt from 'big-integer';
+import { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
+
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { canWriteChannel, useChannelFlag } from '@/logic/channel';
@@ -7,9 +11,6 @@ import { usePerms, useUnread } from '@/state/channel/channel';
 import { useGroup, useRouteGroup, useVessel } from '@/state/groups/groups';
 import { useDiaryCommentSortMode } from '@/state/settings';
 import { ReplyTuple } from '@/types/channel';
-import bigInt from 'big-integer';
-import { useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
 
 import HeapDetailCommentField from './HeapDetailCommentField';
 

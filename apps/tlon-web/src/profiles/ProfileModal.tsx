@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
+
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import Dialog from '@/components/Dialog';
@@ -18,9 +22,6 @@ import {
 import useContactState, { useContact } from '@/state/contact';
 import usePalsState from '@/state/pals';
 import { useConnectivityCheck } from '@/state/vitals';
-import cn from 'classnames';
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
 
 import FavoriteGroupGrid from './FavoriteGroupGrid';
 import ProfileBio from './ProfileBio';

@@ -1,13 +1,14 @@
+import { Node, NodeViewProps } from '@tiptap/core';
+import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
+import cn from 'classnames';
+import React, { useEffect, useRef, useState } from 'react';
+
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import LinkIcon from '@/components/icons/LinkIcon';
 import { useCalm } from '@/state/settings';
 import { useUploader } from '@/state/storage';
-import { Node, NodeViewProps } from '@tiptap/core';
-import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
-import cn from 'classnames';
-import React, { useEffect, useRef, useState } from 'react';
 
 import useDiaryNode from './useDiaryNode';
 

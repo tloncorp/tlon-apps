@@ -1,3 +1,8 @@
+import _ from 'lodash';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import { FormProvider, useForm } from 'react-hook-form';
+
 import Avatar from '@/components/Avatar';
 import GroupSelector, { GroupOption } from '@/components/GroupSelector';
 import Layout from '@/components/Layout/Layout';
@@ -15,10 +20,6 @@ import {
   ContactEditField,
 } from '@/types/contact';
 import { ViewProps } from '@/types/groups';
-import _ from 'lodash';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Helmet } from 'react-helmet';
-import { FormProvider, useForm } from 'react-hook-form';
 
 import ProfileCoverImage from '../ProfileCoverImage';
 import PublicProfileSelector from '../PublicProfileSelector';

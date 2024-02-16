@@ -1,11 +1,12 @@
+import cn from 'classnames';
+import { Outlet, useLocation, useMatch } from 'react-router';
+
 import NavTab from '@/components/NavTab';
 import BellIcon from '@/components/icons/BellIcon';
 import HashIcon from '@/components/icons/HashIcon';
 import { useSafeAreaInsets } from '@/logic/native';
 import { useIsDark } from '@/logic/useMedia';
 import { useGroup, useGroupFlag } from '@/state/groups/groups';
-import cn from 'classnames';
-import { Outlet, useLocation, useMatch } from 'react-router';
 
 import GroupAvatar from '../GroupAvatar';
 

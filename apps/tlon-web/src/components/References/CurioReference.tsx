@@ -1,3 +1,7 @@
+import bigInt from 'big-integer';
+import React, { useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+
 import ShipName from '@/components/ShipName';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import useGroupJoin from '@/groups/useGroupJoin';
@@ -12,9 +16,6 @@ import getHeapContentType from '@/logic/useHeapContentType';
 import { useRemotePost } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
 import { imageUrlFromContent } from '@/types/channel';
-import bigInt from 'big-integer';
-import React, { useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 import ReferenceBar from './ReferenceBar';
 import ReferenceInHeap from './ReferenceInHeap';

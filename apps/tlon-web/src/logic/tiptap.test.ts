@@ -1,8 +1,9 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { Block } from '@/types/channel';
-import { Inline } from '@/types/content';
 import { JSONContent } from '@tiptap/react';
 import { describe, expect, it } from 'vitest';
+
+import { Block } from '@/types/channel';
+import { Inline } from '@/types/content';
 
 import {
   JSONToInlines,

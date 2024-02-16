@@ -1,6 +1,7 @@
-import keyMap from '@/keyMap';
 import React, { useRef } from 'react';
 import { useEventListener } from 'usehooks-ts';
+
+import keyMap from '@/keyMap';
 
 import Dialog from '../Dialog';
 import MobileHeader from '../MobileHeader';

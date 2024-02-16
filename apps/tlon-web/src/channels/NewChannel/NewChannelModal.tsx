@@ -1,6 +1,7 @@
+import React from 'react';
+
 import Dialog from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import React from 'react';
 
 import NewChannelForm from './NewChannelForm';
 

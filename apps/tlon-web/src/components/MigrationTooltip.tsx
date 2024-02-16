@@ -1,7 +1,8 @@
-import useGroupPrivacy from '@/logic/useGroupPrivacy';
-import { useGroupLeaveMutation } from '@/state/groups';
 import * as Popover from '@radix-ui/react-popover';
 import React, { PropsWithChildren } from 'react';
+
+import useGroupPrivacy from '@/logic/useGroupPrivacy';
+import { useGroupLeaveMutation } from '@/state/groups';
 
 import ShipName from './ShipName';
 

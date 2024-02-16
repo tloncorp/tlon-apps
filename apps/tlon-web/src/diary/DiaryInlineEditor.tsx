@@ -1,10 +1,3 @@
-import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
-import IconButton from '@/components/IconButton';
-import getMentionPopup from '@/components/Mention/MentionPopup';
-import AddIcon16 from '@/components/icons/Add16Icon';
-import { Shortcuts } from '@/logic/tiptap';
-import { useIsMobile } from '@/logic/useMedia';
-import { useCalm } from '@/state/settings';
 import * as Popover from '@radix-ui/react-popover';
 import { EditorOptions, KeyboardShortcutCommand, Range } from '@tiptap/core';
 import Blockquote from '@tiptap/extension-blockquote';
@@ -38,6 +31,14 @@ import {
 } from '@tiptap/react';
 import cn from 'classnames';
 import { useState } from 'react';
+
+import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
+import IconButton from '@/components/IconButton';
+import getMentionPopup from '@/components/Mention/MentionPopup';
+import AddIcon16 from '@/components/icons/Add16Icon';
+import { Shortcuts } from '@/logic/tiptap';
+import { useIsMobile } from '@/logic/useMedia';
+import { useCalm } from '@/state/settings';
 
 import DiaryCiteNode from './DiaryCiteNode';
 import DiaryImageNode from './DiaryImageNode';

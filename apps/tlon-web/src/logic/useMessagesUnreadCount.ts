@@ -1,9 +1,10 @@
+import { useMemo } from 'react';
+
 import { nestToFlag, whomIsDm, whomIsMultiDm, whomIsNest } from '@/logic/utils';
 import { useChatStoreChannelUnreads } from '@/state/channel/channel';
 import { useChatStoreDmUnreads } from '@/state/chat';
 import { usePinnedChats } from '@/state/pins';
 import { useMessagesFilter } from '@/state/settings';
-import { useMemo } from 'react';
 
 export default function useMessagesUnreadCount(): number {
   const dmUnreads = useChatStoreDmUnreads();

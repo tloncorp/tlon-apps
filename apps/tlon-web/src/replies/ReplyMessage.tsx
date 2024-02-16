@@ -1,5 +1,19 @@
 /* eslint-disable react/no-unused-prop-types */
 // eslint-disable-next-line import/no-cycle
+import { daToUnix } from '@urbit/api';
+import { BigInteger } from 'big-integer';
+import cn from 'classnames';
+import { format } from 'date-fns';
+import debounce from 'lodash/debounce';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useInView } from 'react-intersection-observer';
+
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import Author from '@/chat/ChatMessage/Author';
 import DateDivider from '@/chat/ChatMessage/DateDivider';
@@ -26,19 +40,6 @@ import {
 } from '@/state/chat';
 import { Reply, Story, Unread, emptyReply } from '@/types/channel';
 import { DMUnread } from '@/types/dms';
-import { daToUnix } from '@urbit/api';
-import { BigInteger } from 'big-integer';
-import cn from 'classnames';
-import { format } from 'date-fns';
-import debounce from 'lodash/debounce';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { useInView } from 'react-intersection-observer';
 
 import ReplyMessageOptions from './ReplyMessageOptions';
 import ReplyReactions from './ReplyReactions/ReplyReactions';

@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import { debounce } from 'lodash';
+import { useCallback, useRef, useState } from 'react';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Filter16Icon from '@/components/icons/Filter16Icon';
 import MessagesList from '@/dms/MessagesList';
@@ -11,9 +15,6 @@ import {
   useMessagesFilter,
   usePutEntryMutation,
 } from '@/state/settings';
-import cn from 'classnames';
-import { debounce } from 'lodash';
-import { useCallback, useRef, useState } from 'react';
 
 export default function MessagesSidebar({
   searchQuery,
