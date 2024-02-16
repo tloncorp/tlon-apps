@@ -1,3 +1,9 @@
+import * as Dropdown from '@radix-ui/react-dropdown-menu';
+import cn from 'classnames';
+import _ from 'lodash';
+import React, { useCallback, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -22,11 +28,6 @@ import {
   useVessel,
 } from '@/state/groups';
 import { Vessel } from '@/types/groups';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import cn from 'classnames';
-import _ from 'lodash';
-import React, { useCallback, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 interface GroupMemberItemProps {
   member: string;

@@ -1,6 +1,7 @@
+import React from 'react';
+
 import { getAppName } from '@/logic/utils';
 import { DocketWithDesk } from '@/state/docket';
-import React from 'react';
 
 import DocketImage from './DocketImage';
 

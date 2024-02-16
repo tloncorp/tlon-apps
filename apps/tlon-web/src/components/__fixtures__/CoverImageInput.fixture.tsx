@@ -1,6 +1,7 @@
-import CoverImageInput from '@/components/CoverImageInput';
 import { useSelect } from 'react-cosmos/client';
 import { FormProvider, useForm } from 'react-hook-form';
+
+import CoverImageInput from '@/components/CoverImageInput';
 
 export default function CoverImageInputFixture() {
   const form = useForm({});

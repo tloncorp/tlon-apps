@@ -1,3 +1,6 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+
 import { useDismissNavigate, useModalNavigate } from '@/logic/routing';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import {
@@ -11,8 +14,6 @@ import {
 import { useSawRopeMutation } from '@/state/hark';
 import { useNewGroupFlags, usePutEntryMutation } from '@/state/settings';
 import { Gang, Group, PrivacyType } from '@/types/groups';
-import { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 function getButtonText(
   privacy: PrivacyType,

@@ -1,7 +1,8 @@
-import { useRemotePost } from '@/state/channel/channel';
 import { udToDec } from '@urbit/api';
 import bigInt from 'big-integer';
 import React from 'react';
+
+import { useRemotePost } from '@/state/channel/channel';
 
 import UnavailableReference from './UnavailableReference';
 // import { useWritByFlagAndGraphIndex } from '@/state/chat';

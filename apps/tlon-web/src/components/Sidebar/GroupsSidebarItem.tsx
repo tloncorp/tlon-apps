@@ -1,9 +1,10 @@
+import React, { useEffect, useMemo, useState } from 'react';
+
 import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
 import useLongPress from '@/logic/useLongPress';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroups } from '@/state/groups';
-import React, { useEffect, useMemo, useState } from 'react';
 
 import { useGroupsScrolling } from './GroupsScrollingContext';
 import SidebarItem from './SidebarItem';

@@ -1,3 +1,18 @@
+import bigInt from 'big-integer';
+import cn from 'classnames';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import { Link } from 'react-router-dom';
+import { VirtuosoHandle } from 'react-virtuoso';
+import ob from 'urbit-ob';
+import { useEventListener } from 'usehooks-ts';
+
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
@@ -22,20 +37,6 @@ import {
   useWrit,
 } from '@/state/chat';
 import { ReplyTuple } from '@/types/channel';
-import bigInt from 'big-integer';
-import cn from 'classnames';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
-import { Link } from 'react-router-dom';
-import { VirtuosoHandle } from 'react-virtuoso';
-import ob from 'urbit-ob';
-import { useEventListener } from 'usehooks-ts';
 
 export default function DMThread() {
   const { chShip, ship, chName, idTime, idShip } = useParams<{

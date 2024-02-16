@@ -1,3 +1,9 @@
+import cn from 'classnames';
+import React, { useMemo, useRef } from 'react';
+import { Helmet } from 'react-helmet';
+import { Route, Routes, useMatch, useParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router-dom';
+
 import ChannelHeader from '@/channels/ChannelHeader';
 import ChannelSearch from '@/channels/ChannelSearch';
 import ChannelTitleButton from '@/channels/ChannelTitleButton';
@@ -19,11 +25,6 @@ import {
 } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups/groups';
 import { ViewProps } from '@/types/groups';
-import cn from 'classnames';
-import React, { useMemo, useRef } from 'react';
-import { Helmet } from 'react-helmet';
-import { Route, Routes, useMatch, useParams } from 'react-router';
-import { Link, useSearchParams } from 'react-router-dom';
 
 import ChatThread from './ChatThread/ChatThread';
 

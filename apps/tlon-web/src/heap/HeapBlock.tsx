@@ -1,3 +1,8 @@
+import cn from 'classnames';
+import { formatDistanceToNow } from 'date-fns';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -30,10 +35,6 @@ import {
 } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
 import { Post, Story, imageUrlFromContent, isCite } from '@/types/channel';
-import cn from 'classnames';
-import { formatDistanceToNow } from 'date-fns';
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
 
 import useCurioActions from './useCurioActions';
 

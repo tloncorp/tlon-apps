@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import { useContext, useEffect, useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router';
+
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
 import { isNativeApp, useSafeAreaInsets } from '@/logic/native';
@@ -8,9 +12,6 @@ import { useNotifications } from '@/notifications/useNotifications';
 import { useHasUnreadMessages } from '@/state/chat';
 import { useCharge } from '@/state/docket';
 import { useLocalState } from '@/state/local';
-import cn from 'classnames';
-import { useContext, useEffect, useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router';
 
 import Avatar from '../Avatar';
 import NavTab, { DoubleClickableNavTab } from '../NavTab';

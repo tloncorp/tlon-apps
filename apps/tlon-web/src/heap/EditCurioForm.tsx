@@ -1,3 +1,9 @@
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { JSONContent } from '@tiptap/core';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router';
+
 import ConfirmationModal from '@/components/ConfirmationModal';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useChannelFlag } from '@/logic/channel';
@@ -10,11 +16,6 @@ import { useEditPostMutation, usePost } from '@/state/channel/channel';
 import { useRouteGroup } from '@/state/groups';
 import { chatStoryFromStory, storyFromChatStory } from '@/types/channel';
 import { Inline } from '@/types/content';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { JSONContent } from '@tiptap/core';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router';
 
 import HeapTextInput from './HeapTextInput';
 import useCurioActions from './useCurioActions';

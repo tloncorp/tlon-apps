@@ -1,3 +1,7 @@
+import { DialogTitle } from '@radix-ui/react-dialog';
+import cn from 'classnames';
+import { useRef, useState } from 'react';
+
 import Dialog from '@/components/Dialog';
 import LargeTextInput from '@/components/FullsizeTextInput';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
@@ -5,9 +9,6 @@ import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useDismissNavigate } from '@/logic/routing';
 import { whomIsFlag } from '@/logic/utils';
 import { useGangs, useGroups } from '@/state/groups';
-import { DialogTitle } from '@radix-ui/react-dialog';
-import cn from 'classnames';
-import { useRef, useState } from 'react';
 
 import { MobileGroupPreview } from '../Join/GroupPreview';
 import InvitedGroupsDisplay from './InvitedGroupsDisplay';

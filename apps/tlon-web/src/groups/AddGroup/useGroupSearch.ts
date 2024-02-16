@@ -1,7 +1,8 @@
-import { useGroupIndex } from '@/state/groups';
-import { useConnectivityCheck } from '@/state/vitals';
 import { preSig } from '@urbit/api';
 import { isValidPatp } from 'urbit-ob';
+
+import { useGroupIndex } from '@/state/groups';
+import { useConnectivityCheck } from '@/state/vitals';
 
 export interface SearchResult {
   flags: string[];

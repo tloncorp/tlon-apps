@@ -1,3 +1,8 @@
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import React, { useCallback, useEffect, useState } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { useParams } from 'react-router-dom';
+
 import ImageOrColorField, {
   ImageOrColorFieldState,
 } from '@/components/ImageOrColorField';
@@ -9,10 +14,6 @@ import { Status } from '@/logic/status';
 import { isValidUrl } from '@/logic/utils';
 import { useEditMultiDm, useMultiDm } from '@/state/chat';
 import { GroupMeta } from '@/types/groups';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
-import React, { useCallback, useEffect, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
-import { useParams } from 'react-router-dom';
 
 interface MultiDMInfoFormProps {
   setEditing: (editing: boolean) => void;

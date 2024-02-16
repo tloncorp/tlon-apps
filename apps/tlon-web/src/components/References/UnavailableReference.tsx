@@ -1,6 +1,7 @@
-import { ChannelPreview } from '@/types/groups';
 import bigInt from 'big-integer';
 import React from 'react';
+
+import { ChannelPreview } from '@/types/groups';
 
 import ExclamationPoint from '../icons/ExclamationPoint';
 import ReferenceBar from './ReferenceBar';

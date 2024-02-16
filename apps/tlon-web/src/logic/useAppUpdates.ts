@@ -1,6 +1,7 @@
-import useKilnState, { usePike } from '@/state/kiln';
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+
+import useKilnState, { usePike } from '@/state/kiln';
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
 

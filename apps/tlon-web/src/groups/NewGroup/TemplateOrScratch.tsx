@@ -1,5 +1,6 @@
-import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import React from 'react';
+
+import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 
 interface TemplateOrScratchProps {
   next: (templateType?: string) => void;

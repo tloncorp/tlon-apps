@@ -1,7 +1,8 @@
+import { useParams } from 'react-router';
+
 import DiaryCommentField from '@/diary/DiaryCommentField';
 import { useChannelFlag } from '@/logic/channel';
 import { useRouteGroup } from '@/state/groups';
-import { useParams } from 'react-router';
 
 export default function HeapDetailCommentField() {
   const { idTime } = useParams();

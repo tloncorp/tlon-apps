@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipConnection from '@/components/ShipConnection';
@@ -25,9 +29,6 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { useConnectivityCheck } from '@/state/vitals';
-import cn from 'classnames';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
 
 import GroupAvatar from '../GroupAvatar';
 

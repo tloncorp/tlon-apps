@@ -1,5 +1,6 @@
-import MobileHeader from '@/components/MobileHeader';
 import { useStep } from 'usehooks-ts';
+
+import MobileHeader from '@/components/MobileHeader';
 
 import NewGroup from './NewGroup';
 

@@ -1,3 +1,6 @@
+import cn from 'classnames';
+import React from 'react';
+
 import ShipName from '@/components/ShipName';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
 import GroupAvatar from '@/groups/GroupAvatar';
@@ -11,8 +14,6 @@ import {
 } from '@/logic/utils';
 import { useGang, useGangPreview } from '@/state/groups';
 import { useCalm } from '@/state/settings';
-import cn from 'classnames';
-import React from 'react';
 
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import ReferenceInHeap from './ReferenceInHeap';

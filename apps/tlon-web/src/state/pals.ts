@@ -1,6 +1,7 @@
 // Special thanks @willbach of @uqbar-dao
-import api from '@/api';
 import create, { SetState } from 'zustand';
+
+import api from '@/api';
 
 interface Outgoing {
   lists: string[];

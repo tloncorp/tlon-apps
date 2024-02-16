@@ -1,6 +1,7 @@
-import { useSafeAreaInsets } from '@/logic/native';
 import cn from 'classnames';
 import { Drawer } from 'vaul';
+
+import { useSafeAreaInsets } from '@/logic/native';
 
 function Grabber() {
   return (

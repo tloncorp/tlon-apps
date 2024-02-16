@@ -1,6 +1,7 @@
-import useMessagesUnreadCount from '@/logic/useMessagesUnreadCount';
 import cn from 'classnames';
 import { Link } from 'react-router-dom';
+
+import useMessagesUnreadCount from '@/logic/useMessagesUnreadCount';
 
 import AddIcon16 from '../icons/Add16Icon';
 import MessagesIcon from '../icons/MessagesIcon';

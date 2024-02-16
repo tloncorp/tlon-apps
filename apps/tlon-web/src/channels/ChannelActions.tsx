@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import React, { PropsWithChildren, useCallback, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import useActiveTab from '@/components/Sidebar/util';
 import VolumeSetting from '@/components/VolumeSetting';
@@ -10,9 +14,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import { getFlagParts, nestToFlag } from '@/logic/utils';
 import { useDeleteChannelMutation, useRouteGroup } from '@/state/groups';
 import { GroupChannel } from '@/types/groups';
-import cn from 'classnames';
-import React, { PropsWithChildren, useCallback, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 import ChannelHostConnection from './ChannelHostConnection';
 

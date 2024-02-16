@@ -1,10 +1,11 @@
+import { Helmet } from 'react-helmet';
+import { useParams } from 'react-router';
+
 import Dialog from '@/components/Dialog';
 import VolumeSetting from '@/components/VolumeSetting';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroupChannel, useRouteGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
-import { Helmet } from 'react-helmet';
-import { useParams } from 'react-router';
 
 export default function ChannelVolumeDialog({ title }: ViewProps) {
   const { chType, chShip, chName } = useParams<{

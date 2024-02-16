@@ -1,6 +1,7 @@
-import { useRouteGroup } from '@/state/groups';
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
+import { useRouteGroup } from '@/state/groups';
 
 interface EmptySectionToolsProps {
   sectionKey: string;

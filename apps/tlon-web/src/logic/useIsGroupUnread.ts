@@ -1,5 +1,6 @@
-import { useGroups } from '@/state/groups';
 import { useCallback } from 'react';
+
+import { useGroups } from '@/state/groups';
 
 import { useCheckChannelUnread } from './channel';
 

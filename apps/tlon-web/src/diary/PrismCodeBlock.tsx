@@ -1,4 +1,3 @@
-import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { NodeViewProps, findChildren } from '@tiptap/core';
 import CodeBlock, { CodeBlockOptions } from '@tiptap/extension-code-block';
@@ -13,6 +12,8 @@ import {
 import React, { useState } from 'react';
 import hoon from 'refractor/lang/hoon.js';
 import { refractor } from 'refractor/lib/common.js';
+
+import CaretDown16Icon from '@/components/icons/CaretDown16Icon';
 
 import './PrismCodeBlock.css';
 

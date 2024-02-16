@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import React, { useCallback, useState } from 'react';
+import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
+
 import ChannelIcon from '@/channels/ChannelIcon';
 import Tooltip from '@/components/Tooltip';
 import SixDotIcon from '@/components/icons/SixDotIcon';
@@ -22,9 +26,6 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { GroupChannel } from '@/types/groups';
-import cn from 'classnames';
-import React, { useCallback, useState } from 'react';
-import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 
 interface ChannelsListItemProps {
   nest: string;

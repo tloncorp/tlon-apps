@@ -1,10 +1,11 @@
+import React, { useEffect } from 'react';
+
 import ShipName from '@/components/ShipName';
 import ColorBoxIcon from '@/components/icons/ColorBoxIcon';
 import { useIsDark } from '@/logic/useMedia';
 import { getFlagParts } from '@/logic/utils';
 import useDocketState, { useTreaty } from '@/state/docket';
 import { useCalm } from '@/state/settings';
-import React, { useEffect } from 'react';
 
 interface AppReferenceProps {
   flag: string;

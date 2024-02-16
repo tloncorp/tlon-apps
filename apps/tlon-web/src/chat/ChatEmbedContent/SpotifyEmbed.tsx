@@ -1,7 +1,8 @@
-import LightBox from '@/components/LightBox';
-import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import React from 'react';
 import { useParams } from 'react-router';
+
+import LightBox from '@/components/LightBox';
+import CaretRightIcon from '@/components/icons/CaretRightIcon';
 
 import { useChatDialog } from '../useChatStore';
 

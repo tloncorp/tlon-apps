@@ -1,3 +1,6 @@
+import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Avatar from '@/components/Avatar';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
@@ -7,8 +10,6 @@ import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { useIsMobile } from '@/logic/useMedia';
 import { useBlockedShips, useUnblockShipMutation } from '@/state/chat';
 import { useContact } from '@/state/contact';
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 const BlockedUser = React.memo(({ ship: user }: { ship: string }) => {
   const navigate = useNavigate();

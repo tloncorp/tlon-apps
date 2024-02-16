@@ -1,3 +1,6 @@
+import React, { ChangeEvent, useCallback, useState } from 'react';
+import { useNavigate } from 'react-router';
+
 import Dialog, { DialogClose } from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MobileHeader from '@/components/MobileHeader';
@@ -9,8 +12,6 @@ import {
   useGroupCompatibility,
   useRouteGroup,
 } from '@/state/groups';
-import React, { ChangeEvent, useCallback, useState } from 'react';
-import { useNavigate } from 'react-router';
 
 const removeSpecialChars = (s: string) =>
   s.toLocaleLowerCase().replace(/[^\w\s]/gi, '');

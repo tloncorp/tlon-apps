@@ -1,3 +1,7 @@
+import * as Popover from '@radix-ui/react-popover';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+
 import GroupActions from '@/groups/GroupActions';
 import GroupAvatar from '@/groups/GroupAvatar';
 import useLongPress from '@/logic/useLongPress';
@@ -11,9 +15,6 @@ import {
   useGroupLeaveMutation,
   useGroupRescindMutation,
 } from '@/state/groups';
-import * as Popover from '@radix-ui/react-popover';
-import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 
 import LoadingSpinner from '../LoadingSpinner/LoadingSpinner';
 import X16Icon from '../icons/X16Icon';

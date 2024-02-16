@@ -1,7 +1,8 @@
+import React from 'react';
+
 import GroupInfoFields from '@/groups/GroupAdmin/GroupInfoFields';
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
-import React from 'react';
 
 interface NewGroupFormProps {
   isValid: boolean;

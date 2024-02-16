@@ -1,3 +1,7 @@
+import * as Tooltip from '@radix-ui/react-tooltip';
+import cn from 'classnames';
+import { useCallback, useEffect } from 'react';
+
 import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import { useIsDmOrMultiDm, useThreadParentId } from '@/logic/utils';
@@ -12,9 +16,6 @@ import {
   useDeleteDMReplyReactMutation,
 } from '@/state/chat';
 import useEmoji from '@/state/emoji';
-import * as Tooltip from '@radix-ui/react-tooltip';
-import cn from 'classnames';
-import { useCallback, useEffect } from 'react';
 
 interface ReplyReactionProps {
   whom: string;

@@ -1,8 +1,9 @@
+import { useEffect } from 'react';
+
 import { useIsChannelUnread } from '@/logic/channel';
 import { useNotifications } from '@/notifications/useNotifications';
 import { useRouteGroup } from '@/state/groups';
 import { useSawRopeMutation } from '@/state/hark';
-import { useEffect } from 'react';
 
 import { nestToFlag } from './utils';
 

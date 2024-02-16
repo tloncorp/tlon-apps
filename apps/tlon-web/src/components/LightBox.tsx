@@ -1,7 +1,8 @@
-import Dialog from '@/components/Dialog';
-import { useSafeAreaInsets } from '@/logic/native';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import React from 'react';
+
+import Dialog from '@/components/Dialog';
+import { useSafeAreaInsets } from '@/logic/native';
 
 import X16Icon from './icons/X16Icon';
 

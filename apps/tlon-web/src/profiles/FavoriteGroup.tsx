@@ -1,9 +1,10 @@
-import GroupAvatar from '@/groups/GroupAvatar';
-import { useModalNavigate } from '@/logic/routing';
-import { useGang, useGangPreview, useGroup } from '@/state/groups';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router';
+
+import GroupAvatar from '@/groups/GroupAvatar';
+import { useModalNavigate } from '@/logic/routing';
+import { useGang, useGangPreview, useGroup } from '@/state/groups';
 
 interface FavoriteGroupProps {
   groupFlag: string;

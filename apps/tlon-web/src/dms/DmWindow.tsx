@@ -1,3 +1,9 @@
+import { udToDec } from '@urbit/api';
+import bigInt from 'big-integer';
+import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { VirtuosoHandle } from 'react-virtuoso';
+
 import ChatScroller from '@/chat/ChatScroller/ChatScroller';
 import ChatScrollerPlaceholder from '@/chat/ChatScroller/ChatScrollerPlaceholder';
 import DMUnreadAlerts from '@/chat/DMUnreadAlerts';
@@ -7,11 +13,6 @@ import { useIsScrolling } from '@/logic/scroll';
 import { getPatdaParts, log } from '@/logic/utils';
 import { useInfiniteDMs, useMarkDmReadMutation } from '@/state/chat';
 import { WritTuple } from '@/types/dms';
-import { udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
-import { ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { VirtuosoHandle } from 'react-virtuoso';
 
 interface DmWindowProps {
   whom: string;

@@ -1,3 +1,8 @@
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { useCallback } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router';
+
 import ChannelTypeSelector from '@/channels/ChannelTypeSelector';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import Tooltip from '@/components/Tooltip';
@@ -11,10 +16,6 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { NewChannelFormSchema } from '@/types/groups';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
-import { useCallback } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router';
 
 export default function NewChannelForm() {
   const { section } = useParams<{ section: string }>();
