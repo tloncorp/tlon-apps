@@ -1,3 +1,7 @@
+import * as Tooltip from '@radix-ui/react-tooltip';
+import cn from 'classnames';
+import React, { useCallback, useEffect } from 'react';
+
 import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import {
@@ -5,9 +9,6 @@ import {
   useDeletePostReactMutation,
 } from '@/state/channel/channel';
 import useEmoji from '@/state/emoji';
-import * as Tooltip from '@radix-ui/react-tooltip';
-import cn from 'classnames';
-import React, { useCallback, useEffect } from 'react';
 
 interface NotReactionProps {
   whom: string;

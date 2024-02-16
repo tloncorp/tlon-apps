@@ -1,3 +1,8 @@
+import { Editor } from '@tiptap/react';
+import cn from 'classnames';
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
 import ChatInputMenu from '@/chat/ChatInputMenu/ChatInputMenu';
 import {
   fetchChatBlocks,
@@ -21,10 +26,6 @@ import { pathToCite } from '@/logic/utils';
 import { useAddReplyMutation, useReply } from '@/state/channel/channel';
 import { Cite, Kind, Story } from '@/types/channel';
 import { Inline } from '@/types/content';
-import { Editor } from '@tiptap/react';
-import cn from 'classnames';
-import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 
 interface DiaryCommentFieldProps {
   flag: string;

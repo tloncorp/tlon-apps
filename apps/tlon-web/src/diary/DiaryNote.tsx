@@ -1,3 +1,9 @@
+import { udToDec } from '@urbit/api';
+import bigInt from 'big-integer';
+import { useCallback, useEffect, useMemo } from 'react';
+import { Helmet } from 'react-helmet';
+import { useLocation, useNavigate, useParams } from 'react-router';
+
 import Divider from '@/components/Divider';
 import Layout from '@/components/Layout/Layout';
 import { useChatInputFocus } from '@/logic/ChatInputFocusContext';
@@ -31,11 +37,6 @@ import { useDiaryCommentSortMode } from '@/state/settings';
 import { useConnectivityCheck } from '@/state/vitals';
 import { Post, Posts } from '@/types/channel';
 import { ViewProps } from '@/types/groups';
-import { udToDec } from '@urbit/api';
-import bigInt from 'big-integer';
-import { useCallback, useEffect, useMemo } from 'react';
-import { Helmet } from 'react-helmet';
-import { useLocation, useNavigate, useParams } from 'react-router';
 
 import DiaryCommentField from './DiaryCommentField';
 import DiaryContent from './DiaryContent/DiaryContent';

@@ -1,9 +1,10 @@
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import CaretDownIcon from '@/components/icons/CaretDownIcon';
-import CheckIcon from '@/components/icons/CheckIcon';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { HTMLAttributes } from 'react';
 import slugify from 'slugify';
+
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import CaretDownIcon from '@/components/icons/CaretDownIcon';
+import CheckIcon from '@/components/icons/CheckIcon';
 
 type SettingProps = {
   name: string;

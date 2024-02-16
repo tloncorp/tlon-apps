@@ -1,12 +1,13 @@
-import CheckIcon from '@/components/icons/CheckIcon';
-import { useGroup, useRouteGroup } from '@/state/groups';
-import { ChannelFormSchema, ChannelPrivacyType } from '@/types/groups';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import cn from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import _ from 'lodash';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
+
+import CheckIcon from '@/components/icons/CheckIcon';
+import { useGroup, useRouteGroup } from '@/state/groups';
+import { ChannelFormSchema, ChannelPrivacyType } from '@/types/groups';
 
 interface ChannelPrivacySetting {
   title: string;

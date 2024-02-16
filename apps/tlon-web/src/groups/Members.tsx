@@ -1,3 +1,15 @@
+import { deSig } from '@urbit/api';
+import fuzzy from 'fuzzy';
+import { debounce } from 'lodash';
+import React, {
+  ChangeEvent,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useLocation, useNavigate } from 'react-router';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -21,17 +33,6 @@ import {
   useRouteGroup,
   useSects,
 } from '@/state/groups';
-import { deSig } from '@urbit/api';
-import fuzzy from 'fuzzy';
-import { debounce } from 'lodash';
-import React, {
-  ChangeEvent,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { useLocation, useNavigate } from 'react-router';
 
 import RoleSelect from './RoleInput/RoleSelector';
 import SetRolesDialog from './RoleInput/SetRolesDialog';

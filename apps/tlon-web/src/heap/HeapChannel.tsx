@@ -1,3 +1,10 @@
+import * as Toast from '@radix-ui/react-toast';
+import bigInt from 'big-integer';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import { Outlet, useParams } from 'react-router';
+import { GridStateSnapshot, VirtuosoGrid } from 'react-virtuoso';
+
 import EmptyPlaceholder from '@/components/EmptyPlaceholder';
 import Layout from '@/components/Layout/Layout';
 import X16Icon from '@/components/icons/X16Icon';
@@ -15,12 +22,6 @@ import { useHeapDisplayMode, useHeapSortMode } from '@/state/settings';
 import { useUploader } from '@/state/storage';
 import { PageTuple, Post } from '@/types/channel';
 import { ViewProps } from '@/types/groups';
-import * as Toast from '@radix-ui/react-toast';
-import bigInt from 'big-integer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Helmet } from 'react-helmet';
-import { Outlet, useParams } from 'react-router';
-import { GridStateSnapshot, VirtuosoGrid } from 'react-virtuoso';
 
 import HeapHeader from './HeapHeader';
 import HeapPlaceholder from './HeapPlaceholder';

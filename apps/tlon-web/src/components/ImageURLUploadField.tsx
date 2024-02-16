@@ -1,11 +1,12 @@
+import cn from 'classnames';
+import React, { useEffect, useState } from 'react';
+import { UseFormRegister, UseFormSetValue } from 'react-hook-form';
+
 import { UploadErrorPopover } from '@/chat/ChatInput/ChatInput';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import LinkIcon from '@/components/icons/LinkIcon';
 import { isValidUrl } from '@/logic/utils';
 import { useUploader } from '@/state/storage';
-import cn from 'classnames';
-import React, { useEffect, useState } from 'react';
-import { UseFormRegister, UseFormSetValue } from 'react-hook-form';
 
 interface ImageURLUploadFieldProps {
   formRegister: UseFormRegister<any>;

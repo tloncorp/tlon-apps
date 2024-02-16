@@ -1,3 +1,15 @@
+import cn from 'classnames';
+import React, { useCallback, useMemo, useRef } from 'react';
+import {
+  Outlet,
+  Route,
+  Routes,
+  useMatch,
+  useNavigate,
+  useParams,
+} from 'react-router';
+import { Link } from 'react-router-dom';
+
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import Avatar from '@/components/Avatar';
 import Layout from '@/components/Layout/Layout';
@@ -23,17 +35,6 @@ import { useContact } from '@/state/contact';
 import { useNegotiate } from '@/state/negotiation';
 import { useConnectivityCheck } from '@/state/vitals';
 import { Contact } from '@/types/contact';
-import cn from 'classnames';
-import React, { useCallback, useMemo, useRef } from 'react';
-import {
-  Outlet,
-  Route,
-  Routes,
-  useMatch,
-  useNavigate,
-  useParams,
-} from 'react-router';
-import { Link } from 'react-router-dom';
 
 import DmSearch from './DmSearch';
 import MessageSelector from './MessageSelector';

@@ -1,6 +1,7 @@
+import React from 'react';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useSubscriptionStatus } from '@/state/local';
-import React from 'react';
 
 type Props = {
   className?: string;

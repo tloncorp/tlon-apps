@@ -1,3 +1,13 @@
+import {
+  Editor,
+  Extension,
+  KeyboardShortcutCommand,
+  PasteRule,
+} from '@tiptap/core';
+import { JSONContent } from '@tiptap/react';
+import { deSig } from '@urbit/api';
+import { isEqual, reduce } from 'lodash';
+
 import { Block, Cite, HeaderLevel, Listing, Story } from '@/types/channel';
 import {
   Inline,
@@ -12,15 +22,6 @@ import {
   isShip,
   isStrikethrough,
 } from '@/types/content';
-import {
-  Editor,
-  Extension,
-  KeyboardShortcutCommand,
-  PasteRule,
-} from '@tiptap/core';
-import { JSONContent } from '@tiptap/react';
-import { deSig } from '@urbit/api';
-import { isEqual, reduce } from 'lodash';
 
 import { citeToPath, getFirstInline, pathToCite, preSig } from './utils';
 

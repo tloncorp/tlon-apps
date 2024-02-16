@@ -1,7 +1,8 @@
-import { useIsMobile } from '@/logic/useMedia';
-import { randomElement } from '@/logic/utils';
 import cn from 'classnames';
 import * as React from 'react';
+
+import { useIsMobile } from '@/logic/useMedia';
+import { randomElement } from '@/logic/utils';
 
 interface ChatScrollerPlaceholderProps {
   count: number;

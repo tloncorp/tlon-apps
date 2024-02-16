@@ -1,7 +1,8 @@
 /* eslint-disable import/no-cycle */
+import faker from '@faker-js/faker';
+
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';
-import faker from '@faker-js/faker';
 
 import {
   Cordon,

@@ -1,3 +1,8 @@
+import bigInt from 'big-integer';
+import cn from 'classnames';
+import React, { useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 // eslint-disable-next-line import/no-cycle
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import useGroupJoin from '@/groups/useGroupJoin';
@@ -6,10 +11,6 @@ import { useChannelFlag } from '@/logic/channel';
 import { isImageUrl, nestToFlag } from '@/logic/utils';
 import { useChannelPreview, useGang } from '@/state/groups';
 import { ReferenceResponse } from '@/types/channel';
-import bigInt from 'big-integer';
-import cn from 'classnames';
-import React, { useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 
 import ShipName from '../ShipName';
 import ReferenceBar from './ReferenceBar';

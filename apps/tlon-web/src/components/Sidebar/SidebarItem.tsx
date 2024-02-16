@@ -1,6 +1,3 @@
-import { useIsMobile } from '@/logic/useMedia';
-import { isColor } from '@/logic/utils';
-import { useCurrentTheme } from '@/state/local';
 import cn from 'classnames';
 import { mix } from 'color2k';
 import React, {
@@ -11,6 +8,10 @@ import React, {
   useState,
 } from 'react';
 import { Link, LinkProps, useMatch } from 'react-router-dom';
+
+import { useIsMobile } from '@/logic/useMedia';
+import { isColor } from '@/logic/utils';
+import { useCurrentTheme } from '@/state/local';
 
 import CaretRightIcon from '../icons/CaretRightIcon';
 

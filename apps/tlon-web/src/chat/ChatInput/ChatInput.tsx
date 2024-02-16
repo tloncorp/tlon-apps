@@ -1,3 +1,17 @@
+import * as Popover from '@radix-ui/react-popover';
+import { Editor } from '@tiptap/react';
+import cn from 'classnames';
+import _, { debounce } from 'lodash';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useLocalStorage } from 'usehooks-ts';
+
 import {
   chatStoreLogger,
   fetchChatBlocks,
@@ -50,19 +64,6 @@ import {
   ReplyTuple,
 } from '@/types/channel';
 import { WritTuple } from '@/types/dms';
-import * as Popover from '@radix-ui/react-popover';
-import { Editor } from '@tiptap/react';
-import cn from 'classnames';
-import _, { debounce } from 'lodash';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useLocalStorage } from 'usehooks-ts';
 
 interface ChatInputProps {
   whom: string;

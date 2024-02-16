@@ -1,3 +1,9 @@
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import _ from 'lodash';
+import React, { useCallback } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ChannelPermsSelector from '@/groups/ChannelsList/ChannelPermsSelector';
 import { channelHref, prettyChannelTypeName } from '@/logic/channel';
@@ -17,11 +23,6 @@ import {
 } from '@/state/groups';
 import { SortMode } from '@/types/channel';
 import { ChannelFormSchema, GroupChannel } from '@/types/groups';
-import * as DialogPrimitive from '@radix-ui/react-dialog';
-import _ from 'lodash';
-import React, { useCallback } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router';
 
 import ChannelSortSelector from './ChannelSortSelector';
 import ChannelViewSelector from './ChannelViewSelector';

@@ -1,6 +1,7 @@
-import { randomElement } from '@/logic/utils';
 import cn from 'classnames';
 import * as React from 'react';
+
+import { randomElement } from '@/logic/utils';
 
 function DiaryChannelListItemPlaceholder() {
   const background = `bg-gray-${randomElement([100, 200, 400])}`;

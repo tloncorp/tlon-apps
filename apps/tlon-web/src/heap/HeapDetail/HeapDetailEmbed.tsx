@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 /* eslint-disable react/no-danger */
-import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 import cn from 'classnames';
 import DOMPurify from 'dompurify';
 import React from 'react';
 import EmbedContainer from 'react-oembed-container';
+
+import EmbedFallback from '@/heap/HeapDetail/EmbedFallback';
 
 interface HeapDetailEmbedProps {
   oembed: any;

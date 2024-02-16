@@ -1,3 +1,7 @@
+import _, { get, groupBy } from 'lodash';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
+
 import { ChatStore, useChatStore } from '@/chat/useChatStore';
 import {
   ALPHABETICAL_SORT,
@@ -17,9 +21,6 @@ import { useNegotiate } from '@/state/negotiation';
 import { Perm, Story, Unreads } from '@/types/channel';
 import { isLink } from '@/types/content';
 import { Channels, Group, GroupChannel, Vessel, Zone } from '@/types/groups';
-import _, { get, groupBy } from 'lodash';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
 
 import useRecentChannel from './useRecentChannel';
 import useSidebarSort, {

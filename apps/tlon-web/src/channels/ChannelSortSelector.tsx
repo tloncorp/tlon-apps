@@ -1,5 +1,6 @@
-import { ChannelFormSchema } from '@/types/groups';
 import { useFormContext } from 'react-hook-form';
+
+import { ChannelFormSchema } from '@/types/groups';
 
 interface SortSettingRowProps {
   type: 'time' | 'arranged';

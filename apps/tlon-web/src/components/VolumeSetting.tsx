@@ -1,3 +1,5 @@
+import React, { useEffect, useState } from 'react';
+
 import {
   useBaseVolumeSetMutation,
   useGroupChannelVolumeSetMutation,
@@ -6,7 +8,6 @@ import {
   useVolume,
 } from '@/state/groups';
 import { LevelNames, Scope, VolumeValue } from '@/types/volume';
-import React, { useEffect, useState } from 'react';
 
 import RadioGroup, { RadioGroupOption } from './RadioGroup';
 

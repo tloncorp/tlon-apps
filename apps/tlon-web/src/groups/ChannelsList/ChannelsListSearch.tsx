@@ -1,6 +1,7 @@
-import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 import cn from 'classnames';
 import React, { ChangeEvent } from 'react';
+
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
 
 import useChannelListSearch from './useChannelListSearch';
 

@@ -1,8 +1,9 @@
+import React from 'react';
+import { useParams } from 'react-router';
+
 import LightBox from '@/components/LightBox';
 import CaretRightIcon from '@/components/icons/CaretRightIcon';
 import { useIsMobile } from '@/logic/useMedia';
-import React from 'react';
-import { useParams } from 'react-router';
 
 import { useChatDialog } from '../useChatStore';
 

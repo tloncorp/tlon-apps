@@ -1,6 +1,7 @@
-import ImageOrColorField from '@/components/ImageOrColorField';
 import { useSelect } from 'react-cosmos/client';
 import { FormProvider, useForm } from 'react-hook-form';
+
+import ImageOrColorField from '@/components/ImageOrColorField';
 
 export default function ImageOrColorFieldFixture() {
   const form = useForm({});

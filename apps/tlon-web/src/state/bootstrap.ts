@@ -1,10 +1,11 @@
+import Urbit from '@urbit/http-api';
+import _ from 'lodash';
+
 import api from '@/api';
 import { useChatStore } from '@/chat/useChatStore';
 import { asyncWithDefault } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { GroupsInit } from '@/types/ui';
-import Urbit from '@urbit/http-api';
-import _ from 'lodash';
 
 import { ChannnelKeys } from './channel/keys';
 import { initializeChat } from './chat';

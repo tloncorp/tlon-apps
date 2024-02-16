@@ -1,5 +1,6 @@
-import { PrivacyType } from '@/types/groups';
 import posthog, { Properties } from 'posthog-js';
+
+import { PrivacyType } from '@/types/groups';
 
 import { isNativeApp } from './native';
 import { log } from './utils';

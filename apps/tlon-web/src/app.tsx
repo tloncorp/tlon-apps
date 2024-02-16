@@ -1,4 +1,20 @@
 // Copyright 2022, Tlon Corporation
+import { TooltipProvider } from '@radix-ui/react-tooltip';
+import cookies from 'browser-cookies';
+import { usePostHog } from 'posthog-js/react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import { Helmet } from 'react-helmet';
+import {
+  Location,
+  NavigateFunction,
+  Route,
+  BrowserRouter as Router,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
+
 import { IS_MOCK } from '@/api';
 import tlonFavicon from '@/assets/favicon.ico';
 import NewChannelModal from '@/channels/NewChannel/NewChannelModal';
@@ -73,21 +89,6 @@ import {
   useSettingsLoaded,
   useTheme,
 } from '@/state/settings';
-import { TooltipProvider } from '@radix-ui/react-tooltip';
-import cookies from 'browser-cookies';
-import { usePostHog } from 'posthog-js/react';
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
-import { ErrorBoundary } from 'react-error-boundary';
-import { Helmet } from 'react-helmet';
-import {
-  Location,
-  NavigateFunction,
-  Route,
-  BrowserRouter as Router,
-  Routes,
-  useLocation,
-  useNavigate,
-} from 'react-router-dom';
 
 import ChannelVolumeDialog from './channels/ChannelVolumeDialog';
 import MobileChatSearch from './chat/ChatSearch/MobileChatSearch';

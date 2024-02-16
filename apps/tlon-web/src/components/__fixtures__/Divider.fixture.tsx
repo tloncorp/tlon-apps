@@ -1,5 +1,6 @@
-import Divider from '@/components/Divider';
 import { useValue } from 'react-cosmos/client';
+
+import Divider from '@/components/Divider';
 
 export default function DividerFixture() {
   const [isMobile] = useValue('Is mobile', { defaultValue: false });

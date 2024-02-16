@@ -1,6 +1,7 @@
+import { ChangeEvent, useRef } from 'react';
+
 import MagnifyingGlassIcon from '@/components/icons/MagnifyingGlassIcon';
 import X16Icon from '@/components/icons/X16Icon';
-import { ChangeEvent, useRef } from 'react';
 
 interface SearchBarProps {
   value: string;

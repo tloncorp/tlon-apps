@@ -1,3 +1,11 @@
+import { daToUnix } from '@urbit/api';
+import bigInt from 'big-integer';
+import cn from 'classnames';
+import { formatDistanceToNow } from 'date-fns';
+import _ from 'lodash';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+
 import Avatar from '@/components/Avatar';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import IconButton from '@/components/IconButton';
@@ -26,13 +34,6 @@ import {
 } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
 import { Post, Story, VerseBlock, imageUrlFromContent } from '@/types/channel';
-import { daToUnix } from '@urbit/api';
-import bigInt from 'big-integer';
-import cn from 'classnames';
-import { formatDistanceToNow } from 'date-fns';
-import _ from 'lodash';
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
 
 import useCurioActions from './useCurioActions';
 

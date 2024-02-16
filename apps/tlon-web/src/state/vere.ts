@@ -1,5 +1,6 @@
-import api from '@/api';
 import create, { SetState } from 'zustand';
+
+import api from '@/api';
 
 interface Vere {
   cur: VereState;

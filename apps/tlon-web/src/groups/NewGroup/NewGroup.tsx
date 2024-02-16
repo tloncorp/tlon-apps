@@ -1,3 +1,7 @@
+import { ReactElement, useCallback, useState } from 'react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router';
+
 import NavigationDots from '@/components/NavigationDots';
 import NewGroupForm from '@/groups/NewGroup/NewGroupForm';
 import NewGroupInvite from '@/groups/NewGroup/NewGroupInvite';
@@ -5,9 +9,6 @@ import NewGroupPrivacy from '@/groups/NewGroup/NewGroupPrivacy';
 import { strToSym } from '@/logic/utils';
 import { useCreateGroupMutation } from '@/state/groups';
 import { Cordon, GroupFormSchema } from '@/types/groups';
-import { ReactElement, useCallback, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router';
 
 export type Role = 'Member' | 'Admin';
 

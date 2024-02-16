@@ -1,6 +1,7 @@
-import { useNavState, usePutEntryMutation } from '@/state/settings';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+
+import { useNavState, usePutEntryMutation } from '@/state/settings';
 
 export type ActiveTab =
   | 'messages'

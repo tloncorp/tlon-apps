@@ -1,8 +1,9 @@
+import * as Dropdown from '@radix-ui/react-dropdown-menu';
+import cn from 'classnames';
+
 import GridIcon from '@/components/icons/GridIcon';
 import ListIcon from '@/components/icons/ListIcon';
 import { DisplayMode } from '@/types/channel';
-import * as Dropdown from '@radix-ui/react-dropdown-menu';
-import cn from 'classnames';
 
 interface DisplayDropdownProps {
   displayMode: DisplayMode;

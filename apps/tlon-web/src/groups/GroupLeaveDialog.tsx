@@ -1,3 +1,6 @@
+import React, { useCallback } from 'react';
+import { useNavigate } from 'react-router';
+
 import Dialog, { DialogClose } from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
@@ -6,8 +9,6 @@ import {
   useGroupLeaveMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
-import React, { useCallback } from 'react';
-import { useNavigate } from 'react-router';
 
 export default function GroupInviteDialog() {
   const dismiss = useDismissNavigate();

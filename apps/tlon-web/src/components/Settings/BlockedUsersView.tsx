@@ -1,6 +1,7 @@
-import { ViewProps } from '@/types/groups';
 import React from 'react';
 import { Helmet } from 'react-helmet';
+
+import { ViewProps } from '@/types/groups';
 
 import MobileHeader from '../MobileHeader';
 import BlockedUsers from './BlockedUsers';

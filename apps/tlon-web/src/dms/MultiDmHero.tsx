@@ -1,6 +1,7 @@
-import ClubName from '@/components/ClubName';
 import cn from 'classnames';
 import React from 'react';
+
+import ClubName from '@/components/ClubName';
 
 import { pluralize } from '../logic/utils';
 import { Club } from '../types/dms';

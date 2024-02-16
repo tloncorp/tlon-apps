@@ -1,10 +1,3 @@
-import ExclamationPoint from '@/components/icons/ExclamationPoint';
-import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
-import X16Icon from '@/components/icons/X16Icon';
-import { MAX_DISPLAYED_OPTIONS } from '@/constants';
-import GroupAvatar from '@/groups/GroupAvatar';
-import { preSig, whomIsFlag } from '@/logic/utils';
-import { useGroup, useGroups } from '@/state/groups';
 import { deSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import React, { useMemo, useRef, useState } from 'react';
@@ -28,6 +21,14 @@ import {
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import ob from 'urbit-ob';
+
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import X16Icon from '@/components/icons/X16Icon';
+import { MAX_DISPLAYED_OPTIONS } from '@/constants';
+import GroupAvatar from '@/groups/GroupAvatar';
+import { preSig, whomIsFlag } from '@/logic/utils';
+import { useGroup, useGroups } from '@/state/groups';
 
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 import ShipName from './ShipName';

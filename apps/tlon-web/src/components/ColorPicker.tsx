@@ -1,4 +1,3 @@
-import { isColor } from '@/logic/utils';
 import * as Popover from '@radix-ui/react-popover';
 import classNames from 'classnames';
 import React from 'react';
@@ -11,6 +10,8 @@ import {
   PathValue,
   useFormContext,
 } from 'react-hook-form';
+
+import { isColor } from '@/logic/utils';
 
 interface ColorPickerProps {
   color: string;

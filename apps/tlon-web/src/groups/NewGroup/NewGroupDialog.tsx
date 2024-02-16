@@ -1,6 +1,7 @@
+import { useStep } from 'usehooks-ts';
+
 import Dialog from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
-import { useStep } from 'usehooks-ts';
 
 import NewGroup from './NewGroup';
 

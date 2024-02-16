@@ -1,6 +1,7 @@
-import { useIsMobile } from '@/logic/useMedia';
 import React, { forwardRef } from 'react';
 import { Virtuoso, Components as VirtuosoComponents } from 'react-virtuoso';
+
+import { useIsMobile } from '@/logic/useMedia';
 
 import PendingMemberItem from './PendingMemberItem';
 

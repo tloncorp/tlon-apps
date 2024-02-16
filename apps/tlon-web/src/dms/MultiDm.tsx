@@ -1,3 +1,15 @@
+import cn from 'classnames';
+import React, { useCallback, useRef } from 'react';
+import {
+  Outlet,
+  Route,
+  Routes,
+  useMatch,
+  useNavigate,
+  useParams,
+} from 'react-router';
+import { Link } from 'react-router-dom';
+
 import ChatInput from '@/chat/ChatInput/ChatInput';
 import ClubName from '@/components/ClubName';
 import Layout from '@/components/Layout/Layout';
@@ -15,17 +27,6 @@ import { dmListPath, pluralize } from '@/logic/utils';
 import { useMultiDm, useMultiDmIsPending, useSendMessage } from '@/state/chat';
 import { useNegotiateMulti } from '@/state/negotiation';
 import { Club } from '@/types/dms';
-import cn from 'classnames';
-import React, { useCallback, useRef } from 'react';
-import {
-  Outlet,
-  Route,
-  Routes,
-  useMatch,
-  useNavigate,
-  useParams,
-} from 'react-router';
-import { Link } from 'react-router-dom';
 
 import DmOptions from './DMOptions';
 import DmSearch from './DmSearch';

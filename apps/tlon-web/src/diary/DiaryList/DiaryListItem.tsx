@@ -1,3 +1,6 @@
+import cn from 'classnames';
+import { useNavigate } from 'react-router';
+
 import DiaryNoteHeadline from '@/diary/DiaryNoteHeadline';
 import {
   useIsPostPending,
@@ -5,8 +8,6 @@ import {
   usePostToggler,
 } from '@/state/channel/channel';
 import { Post } from '@/types/channel';
-import cn from 'classnames';
-import { useNavigate } from 'react-router';
 
 interface DiaryListItemProps {
   note: Post;

@@ -1,3 +1,7 @@
+import cn from 'classnames';
+import React, { useCallback } from 'react';
+import { FormProvider, useForm, useFormContext } from 'react-hook-form';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import Tooltip from '@/components/Tooltip';
 import GlobeIcon from '@/components/icons/GlobeIcon';
@@ -14,9 +18,6 @@ import {
 } from '@/state/groups';
 import { useLure } from '@/state/lure/lure';
 import { GroupFormSchema, GroupMeta, PrivacyType } from '@/types/groups';
-import cn from 'classnames';
-import React, { useCallback } from 'react';
-import { FormProvider, useForm, useFormContext } from 'react-hook-form';
 
 interface PrivacySetting {
   title: string;

@@ -1,3 +1,8 @@
+import cn from 'classnames';
+import { useCallback, useState } from 'react';
+import { useMatch } from 'react-router-dom';
+import ob from 'urbit-ob';
+
 import Dialog, { DialogClose } from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ShipSelector, { ShipOption } from '@/components/ShipSelector';
@@ -12,10 +17,6 @@ import {
   useGroupInviteMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
-import cn from 'classnames';
-import { useCallback, useState } from 'react';
-import { useMatch } from 'react-router-dom';
-import ob from 'urbit-ob';
 
 import GroupHostConnection from './GroupHostConnection';
 import LureInviteBlock from './LureInviteBlock';

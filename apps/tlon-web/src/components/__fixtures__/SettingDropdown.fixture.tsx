@@ -1,5 +1,6 @@
-import SettingDropdown from '@/components/Settings/SettingDropdown';
 import { useSelect, useValue } from 'react-cosmos/client';
+
+import SettingDropdown from '@/components/Settings/SettingDropdown';
 
 const options = [
   { label: 'First Option', value: 'first' },

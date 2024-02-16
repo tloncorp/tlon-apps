@@ -1,5 +1,3 @@
-import useLeap from '@/components/Leap/useLeap';
-import keyMap from '@/keyMap';
 import * as Popover from '@radix-ui/react-popover';
 import { Editor as CoreEditor } from '@tiptap/core';
 import {
@@ -15,6 +13,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
+
+import useLeap from '@/components/Leap/useLeap';
+import keyMap from '@/keyMap';
 
 import { useIsMobile } from '../../logic/useMedia';
 import ChatInputMenuToolbar, {
