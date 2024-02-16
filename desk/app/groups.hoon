@@ -356,7 +356,7 @@
   ++  state-2-to-3
     |=  state-2
     ^-  current-state
-    [%3 groups volume xeno shoal ~]
+    [%3 groups volume xeno shoal *^subs:s]
   ::
   ++  groups-1-to-2
     |=  groups=net-groups:zero
@@ -611,19 +611,17 @@
       [%~.~ %cancel-retry rest=*]  cor
   ::
       [%~.~ %retry rest=*]
-    =^  card=(unit card)  subs
+    =^  caz=(list card)  subs
       (~(handle-wakeup s [subs bowl]) pole)
-    ?~  card  cor
-    (emit u.card)
+    (emil caz)
   ==
 ::
 ++  subscribe
   |=  [=wire =dock =path]
   |=  delay=?
-  =^  card=(unit card)  subs
+  =^  caz=(list card)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
-  ?~  card  cor
-  (emit u.card)
+  (emil caz)
 ::
 ++  cast
   |=  [grp=flag:g gra=flag:g]
@@ -818,7 +816,7 @@
         (~(del by groups) flag)
       (~(put by groups) flag net group)
     ?.  gone  cor
-    =?  cor  !=(p.flag our.bowl)  (emit leave:go-pass)
+    =?  cor  !=(p.flag our.bowl)  (emil leave:go-pass)
     =/  =action:g  [flag now.bowl %del ~]
     (give %fact ~[/groups/ui] act:mar:g !>(action))
   ++  go-abed
@@ -868,10 +866,12 @@
   ++  go-pass
     |%
     ++  leave
-      ^-  card
+      ^-  (list card)
       =/  =wire  (snoc go-area %updates)
       =/  =dock  [p.flag dap.bowl]
-      [%pass wire %agent dock %leave ~]
+      =^  caz=(list card)  subs
+        (~(unsubscribe s [subs bowl]) wire dock)
+      caz
     ::
     ++  remove-self
       ^-  card

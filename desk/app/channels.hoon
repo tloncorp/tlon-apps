@@ -105,10 +105,9 @@
   |=  delay=?
   ^+  cor
   ?:  (~(has by wex.bowl) wire dock)  cor
-  =^  card=(unit card)  subs
+  =^  caz=(list card)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
-  ?~  card  cor
-  (emit u.card)
+  (emil caz)
 ::
 ++  load
   |=  =vase
@@ -146,7 +145,7 @@
     |=  s=state-2
     ^-  state-3
     %=  s  -  %3
-        pending-ref-edits  [pending-ref-edits.s ~]
+        pending-ref-edits  [pending-ref-edits.s *^subs:^s]
     ==
   ++  v-channel-1
     |^  ,[global local]
@@ -577,10 +576,9 @@
       [%~.~ %cancel-retry rest=*]  cor
   ::
       [%~.~ %retry rest=*]
-    =^  card=(unit card)  subs
+    =^  caz=(list card)  subs
       (~(handle-wakeup s [subs bowl]) pole)
-    ?~  card  cor
-    (emit u.card)
+    (emil caz)
   ==
 ::
 ++  unreads
