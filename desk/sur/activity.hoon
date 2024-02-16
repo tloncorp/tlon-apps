@@ -52,10 +52,11 @@
       [%read =index =read-action]
       [%adjust =flavor =level]
   ==
-+$  unread-summary  [time count=@ud threads=(list [time count=@ud])]
++$  unread-summary  [newest=time count=@ud threads=(list [oldest-unread=time count=@ud])]
 +$  read-action
   $%  [%last-seen =time]
       [%thread =time]
       [%post =time]
+      [%all ~]
   ==
 --

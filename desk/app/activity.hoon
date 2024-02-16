@@ -117,7 +117,7 @@
   ?+  pole  ~|(bat-watch-path+pole !!)
     ~  ?>(from-self cor)
     %notifications  ?>(from-self cor)
-    %reads  ?>(from-self cor)
+    %unreads  ?>(from-self cor)
   ==
 ::
 ++  peek
@@ -135,7 +135,7 @@
       [%x %event id=@]
     ``activity-event+!>((got:eon:a (slav %da id.pole)))
       [%x %unreads ~]
-    ``activity-unreads+!>(summarize-unreads)
+    ``activity-unreads+!>((~(run by indices) summarize-unreads))
   ==
 ::
 ++  add
@@ -144,26 +144,59 @@
   =.  
 ::
 ++  read
-  ::  TODO update state and send facts
   |=  =action:a
   ?-  -.read-action.action
       %last-seen
     =/  indy  (~(get by indices) index)
     ?~  indy  cor
+    =/  new
+      [stream.indy [time.action events.indy]]
     =.  indices
-      (~(put by indices) index [stream.indy [time.action events.indy]])
+      (~(put by indices) index new)
+    =.  cor
+      (give-unreads new)
     cor
-    ::
+  ::
       %thread
     =/  indy  (~(get by indices) index)
     ?~  indy  cor
-    
-    ::
+    =/  new
+      (put:mep reads.u.indy time.read-action.action [& time.read-action.action])
+    =.  indices
+      (~(put by indices) index new)
+    =.  cor
+      (give-unreads new)
+    cor
+  ::
       %post
     =/  indy  (~(get by indices) index)
     ?~  indy  cor
-    
+    =/  old-event-parent  (~(get by indy) time.read-action.action)
+    ?~  old-event-parent  cor
+    =/  new
+      :-  stream.u.indy
+      (put:mep reads.u.indy time.read-action.action [& reply-floor.old-event.parent])
+    =.  indices
+      (~(put by indices) index new)
+    =.  cor
+      (give-unreads new)
+    cor
+  ::
+      %all
+    =/  indy  (~(get by indices) index)
+    ?~  indy  cor
+    =/  new
+      [stream.u.indy [now.bowl ~]]
+    =.  indices
+      (~(put by indices)  index  new)
+    =.  cor
+      (give-unreads new)
+    cor
   ==
+::
+++  give-unreads
+  |=  [=stream:a =reads:a]
+  (give %fact ~[/unreads] activity-index-unreads+!>((summarize-unreads [stream reads])))
 ::
 ++  adjust
   |=  =flavor:a =level:a
@@ -172,8 +205,53 @@
   cor
 ::
 ++  summarize-unreads
-  %-  ~(run by indices)
   |=  [=stream:a =reads:a]
-  ::  TODO slice by floor, remove seen messages, handle threads
-  ~
+  ^-  unread-summary:a
+  =.  stream  (lot:eon stream `floor.reads ~)
+  =/  event-parents event-parents.reads
+  ::  for each item in reads
+  ::  remove the post from the event stream
+  ::  remove replies older than reply-floor from the event stream
+  ::  then call stream-to-unreads
+  |-
+  ?~  event-parents  (stream-to-unreads stream)
+  =/  [[=time =event-parent:a] rest=event-parents:a]  (pop:mep reads)
+  %=  $
+      event-parents
+    rest
+  ::
+      stream
+    %^  (dip:eon @)  stream
+      ~
+    |=  [* =event:a]
+    ^-  [(unit event:a) ? @]
+    ?>  ?=(?(%post %reply %dm-post) -.event)
+    ?:  &(seen.event-parent =(time time.message-key.event))
+      [~ ~ ~]
+    ?.  =(-.event %reply)
+      [`event ~ ~]
+    ?:  (lth time.message-key.event reply-floor)
+      [~ ~ ~]
+    [`event ~ ~]
+  ==
+++  stream-to-unreads
+  |=  stream:a
+  ^-  unread-summary:a
+  =/  newest  *time
+  =/  count  0
+  =/  threads=(map time [oldest-unread=time count=@ud])  ~
+  ::  for each event
+  ::  update count and newest
+  ::  if reply, update thread state
+  |-
+  ?~  stream
+    :+  newest count
+    %+  turn  ~(val by threads)
+    |=([parent=time oldest-unread=time count=@ud] [oldest-unread count]))
+  =/  [[@ =event:a] rest=stream:a]  (pop:eon stream)
+  ?=  threads  =(-.event %reply)
+    ::  TODO confirm that using time.message-key here is right
+    =/  old  (~(gut by threads) target.event [time.message-key.event 0])
+    (~(put by threads) target.event [oldest-unread.old +(count.old)])
+  $(newest time.message-key.event, count +(count), stream rest)
 --
