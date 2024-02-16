@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import Dialog from '@/components/Dialog';
 import LargeTextInput from '@/components/FullsizeTextInput';
 import LargePrimaryButton from '@/components/LargePrimaryButton';
@@ -6,7 +8,6 @@ import CaretLeftIcon from '@/components/icons/CaretLeftIcon';
 import { useDismissNavigate } from '@/logic/routing';
 import useCreateDefaultGroup from '@/logic/useCreateDefaultGroup';
 import { strToSym } from '@/logic/utils';
-import { useState } from 'react';
 
 export function CreateGroupSheetView(props: { back: () => void }) {
   return (

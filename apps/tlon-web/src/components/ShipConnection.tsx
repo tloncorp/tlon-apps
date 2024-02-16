@@ -1,5 +1,6 @@
-import { useNegotiate } from '@/state/negotiation';
 import cn from 'classnames';
+
+import { useNegotiate } from '@/state/negotiation';
 
 import {
   getCompletedText,

@@ -1,7 +1,8 @@
+import { useCallback } from 'react';
+
 import Asterisk16Icon from '@/components/icons/Asterisk16Icon';
 import bootstrap from '@/state/bootstrap';
 import { useLocalState, useSubscriptionStatus } from '@/state/local';
-import { useCallback } from 'react';
 
 export default function DisconnectNotice() {
   const { subscription, errorCount } = useSubscriptionStatus();

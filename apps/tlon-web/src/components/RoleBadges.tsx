@@ -1,7 +1,8 @@
-import { getSectTitle } from '@/logic/utils';
-import { useGroup, useGroupFlag, useVessel } from '@/state/groups';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import _ from 'lodash';
+
+import { getSectTitle } from '@/logic/utils';
+import { useGroup, useGroupFlag, useVessel } from '@/state/groups';
 
 export default function RoleBadges(props: { ship: string; inList?: boolean }) {
   const { ship, inList } = props;

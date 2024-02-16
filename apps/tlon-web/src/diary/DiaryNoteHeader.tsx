@@ -1,3 +1,6 @@
+import cn from 'classnames';
+import { Link } from 'react-router-dom';
+
 import ChannelIcon from '@/channels/ChannelIcon';
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
@@ -6,8 +9,6 @@ import { useChannelCompatibility } from '@/logic/channel';
 import { useIsMobile } from '@/logic/useMedia';
 import { getNestShip } from '@/logic/utils';
 import { useConnectivityCheck } from '@/state/vitals';
-import cn from 'classnames';
-import { Link } from 'react-router-dom';
 
 export interface DiaryNoteHeaderProps {
   title: string;

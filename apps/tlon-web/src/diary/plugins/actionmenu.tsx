@@ -1,9 +1,3 @@
-import useLeap from '@/components/Leap/useLeap';
-import CheckIcon from '@/components/icons/CheckIcon';
-import CodeIcon from '@/components/icons/CodeIcon';
-import ShapesIcon from '@/components/icons/ShapesIcon';
-import Sig16Icon from '@/components/icons/Sig16Icon';
-import keyMap from '@/keyMap';
 import { Range } from '@tiptap/core';
 import { PluginKey } from '@tiptap/pm/state';
 import { Editor, Extension, ReactRenderer } from '@tiptap/react';
@@ -11,6 +5,13 @@ import Suggestion, { SuggestionOptions } from '@tiptap/suggestion';
 import cn from 'classnames';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import tippy from 'tippy.js';
+
+import useLeap from '@/components/Leap/useLeap';
+import CheckIcon from '@/components/icons/CheckIcon';
+import CodeIcon from '@/components/icons/CodeIcon';
+import ShapesIcon from '@/components/icons/ShapesIcon';
+import Sig16Icon from '@/components/icons/Sig16Icon';
+import keyMap from '@/keyMap';
 
 const ActionMenuPluginKey = new PluginKey('action-menu');
 

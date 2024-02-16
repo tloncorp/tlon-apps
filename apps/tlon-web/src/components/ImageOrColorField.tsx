@@ -1,7 +1,8 @@
-import { isColor, isValidUrl } from '@/logic/utils';
 import cn from 'classnames';
 import React, { useEffect, useState } from 'react';
 import { FieldPath, FieldValues, useFormContext } from 'react-hook-form';
+
+import { isColor, isValidUrl } from '@/logic/utils';
 
 import { ColorPickerField } from './ColorPicker';
 import ImageURLUploadField from './ImageURLUploadField';

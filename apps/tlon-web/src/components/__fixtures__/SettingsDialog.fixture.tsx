@@ -1,5 +1,6 @@
-import SettingsDialog from '@/components/Settings/SettingsDialog';
 import { MemoryRouter } from 'react-router';
+
+import SettingsDialog from '@/components/Settings/SettingsDialog';
 
 export default function SettingsDialogFixture() {
   return (

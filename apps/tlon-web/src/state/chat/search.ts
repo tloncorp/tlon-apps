@@ -1,3 +1,10 @@
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { decToUd } from '@urbit/api';
+import bigInt from 'big-integer';
+import { useMemo } from 'react';
+import create from 'zustand';
+import { persist } from 'zustand/middleware';
+
 import api from '@/api';
 import { createStorageKey, whomIsDm, whomIsMultiDm } from '@/logic/utils';
 import { ChatMap, ReplyTuple, newChatMap } from '@/types/channel';
@@ -8,12 +15,6 @@ import {
   WritTuple,
   newWritMap,
 } from '@/types/dms';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { decToUd } from '@urbit/api';
-import bigInt from 'big-integer';
-import { useMemo } from 'react';
-import create from 'zustand';
-import { persist } from 'zustand/middleware';
 
 type Whom = string;
 type SearchResult = ChatMap;

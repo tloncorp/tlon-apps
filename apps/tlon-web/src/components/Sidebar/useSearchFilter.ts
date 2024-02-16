@@ -1,9 +1,10 @@
-import { useGangs, useGroups } from '@/state/groups';
-import { Gangs, Groups } from '@/types/groups';
 import { deSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import _ from 'lodash';
 import { useMemo } from 'react';
+
+import { useGangs, useGroups } from '@/state/groups';
+import { Gangs, Groups } from '@/types/groups';
 
 export interface GroupSearchRecord {
   flag: string;

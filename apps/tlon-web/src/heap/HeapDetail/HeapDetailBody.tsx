@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ContentReference from '@/components/References/ContentReference';
 import HeapAudioPlayer from '@/heap/HeapAudioPlayer';
@@ -16,7 +18,6 @@ import {
   imageUrlFromContent,
   isCite,
 } from '@/types/channel';
-import { useEffect } from 'react';
 
 import HeapVideoPlayer from '../HeapVideoPlayer';
 import HeapVimeoPlayer from '../HeapVimeoPlayer';

@@ -1,5 +1,6 @@
-import { useContacts } from '@/state/contact';
 import { preSig } from '@urbit/aura';
+
+import { useContacts } from '@/state/contact';
 
 type Props = {
   ships: string[];

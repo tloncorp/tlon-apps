@@ -1,10 +1,11 @@
+import React, { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import ShipSelector from '@/components/ShipSelector';
 import { useSafeAreaInsets } from '@/logic/native';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
 import { dmListPath } from '@/logic/utils';
-import React, { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 export default function MessageSelector() {
   const { onEnter, setShips, ships } = useMessageSelector();

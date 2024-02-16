@@ -1,11 +1,12 @@
 /* eslint-disable */
+import { JSONContent } from '@tiptap/core';
+import { reduce } from 'lodash';
+import isURL from 'validator/lib/isURL';
+
 import { JSONToInlines } from '@/logic/tiptap';
 import { PostEssay, storyFromChatStory } from '@/types/channel';
 import { ChatStory } from '@/types/channel';
 import { Inline, InlineKey } from '@/types/content';
-import { JSONContent } from '@tiptap/core';
-import { reduce } from 'lodash';
-import isURL from 'validator/lib/isURL';
 
 import { isRef, pathToCite } from './utils';
 import { isImageUrl } from './utils';

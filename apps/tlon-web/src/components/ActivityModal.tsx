@@ -1,3 +1,7 @@
+import * as Collapsible from '@radix-ui/react-collapsible';
+import React, { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
 import { PrivacyContents } from '@/groups/PrivacyNotice';
 import {
   ANALYTICS_DEFAULT_PROPERTIES,
@@ -12,9 +16,6 @@ import {
   usePutEntryMutation,
   useShowActivityMessage,
 } from '@/state/settings';
-import * as Collapsible from '@radix-ui/react-collapsible';
-import React, { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 
 import Dialog from './Dialog';
 

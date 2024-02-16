@@ -1,9 +1,3 @@
-import keyMap from '@/keyMap';
-import { isNativeApp } from '@/logic/native';
-import { preSig } from '@/logic/utils';
-import { useMultiDms } from '@/state/chat';
-import useContactState, { useContacts } from '@/state/contact';
-import { useGroup, useGroupFlag } from '@/state/groups';
 import { PluginKey } from '@tiptap/pm/state';
 import { ReactRenderer } from '@tiptap/react';
 import { SuggestionOptions, SuggestionProps } from '@tiptap/suggestion';
@@ -19,6 +13,13 @@ import React, {
 import { useMatch } from 'react-router';
 import tippy from 'tippy.js';
 import { clan, isValidPatp } from 'urbit-ob';
+
+import keyMap from '@/keyMap';
+import { isNativeApp } from '@/logic/native';
+import { preSig } from '@/logic/utils';
+import { useMultiDms } from '@/state/chat';
+import useContactState, { useContacts } from '@/state/contact';
+import { useGroup, useGroupFlag } from '@/state/groups';
 
 import Avatar from '../Avatar';
 import useLeap from '../Leap/useLeap';

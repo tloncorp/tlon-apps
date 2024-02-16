@@ -1,12 +1,13 @@
-import { useIsMobile } from '@/logic/useMedia';
-import { disableDefault, handleDropdownLink } from '@/logic/utils';
-import useDocketState from '@/state/docket';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Chad, chadIsRunning } from '@urbit/api';
 import classNames from 'classnames';
 import React, { ReactElement, useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useEventListener } from 'usehooks-ts';
+
+import { useIsMobile } from '@/logic/useMedia';
+import { disableDefault, handleDropdownLink } from '@/logic/utils';
+import useDocketState from '@/state/docket';
 
 export interface TileMenuProps {
   desk: string;

@@ -1,5 +1,6 @@
-import MigrationTooltip from '@/components/MigrationTooltip';
 import { useSelect } from 'react-cosmos/client';
+
+import MigrationTooltip from '@/components/MigrationTooltip';
 
 export default function MigrationTooltipFixture() {
   const [side] = useSelect('Side', {

@@ -1,9 +1,10 @@
+import { Helmet } from 'react-helmet';
+
 import Dialog from '@/components/Dialog';
 import VolumeSetting from '@/components/VolumeSetting';
 import { useDismissNavigate } from '@/logic/routing';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
-import { Helmet } from 'react-helmet';
 
 import GroupSummary from './GroupSummary';
 

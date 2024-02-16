@@ -1,9 +1,10 @@
-import ContentReference from '@/components/References/ContentReference';
-import Sig16Icon from '@/components/icons/Sig16Icon';
-import { pathToCite } from '@/logic/utils';
 import { Node, NodeViewProps, mergeAttributes } from '@tiptap/core';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import React from 'react';
+
+import ContentReference from '@/components/References/ContentReference';
+import Sig16Icon from '@/components/icons/Sig16Icon';
+import { pathToCite } from '@/logic/utils';
 
 import useDiaryNode from './useDiaryNode';
 

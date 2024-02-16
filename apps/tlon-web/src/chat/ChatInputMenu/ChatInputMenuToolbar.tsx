@@ -1,3 +1,8 @@
+import { Editor as CoreEditor } from '@tiptap/core';
+import React, { KeyboardEvent } from 'react';
+import { useForm } from 'react-hook-form';
+import isURL from 'validator/es/lib/isURL';
+
 import ChatInputMenuButton from '@/chat/ChatInputMenu/ChatInputMenuButton';
 import BlockquoteIcon from '@/components/icons/BlockquoteIcon';
 import BoldIcon from '@/components/icons/BoldIcon';
@@ -9,10 +14,6 @@ import LinkIcon from '@/components/icons/LinkIcon';
 import StrikeIcon from '@/components/icons/StrikeIcon';
 import X16Icon from '@/components/icons/X16Icon';
 import { useIsMobile } from '@/logic/useMedia';
-import { Editor as CoreEditor } from '@tiptap/core';
-import React, { KeyboardEvent } from 'react';
-import { useForm } from 'react-hook-form';
-import isURL from 'validator/es/lib/isURL';
 
 export type MenuState = 'closed' | 'open' | 'editing-link' | 'link-hover';
 

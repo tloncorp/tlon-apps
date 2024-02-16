@@ -1,7 +1,8 @@
+import { Outlet, useParams } from 'react-router';
+
 import type { AnalyticsChannelType } from '@/logic/analytics';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useRouteGroup } from '@/state/groups';
-import { Outlet, useParams } from 'react-router';
 
 type Props = {
   type: AnalyticsChannelType;

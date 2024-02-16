@@ -1,6 +1,7 @@
-import api from '@/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+
+import api from '@/api';
 
 interface Connected {
   complete: 'yes';

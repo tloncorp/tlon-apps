@@ -1,6 +1,7 @@
-import { useDmRsvpMutation } from '@/state/chat';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
+
+import { useDmRsvpMutation } from '@/state/chat';
 
 import X16Icon from '../components/icons/X16Icon';
 import { useContact } from '../state/contact';

@@ -1,5 +1,4 @@
 /* eslint-disable import/no-cycle */
-import { useLocalState } from '@/state/local';
 import type UrbitMock from '@tloncorp/mock-http-api';
 import UrbitBase, {
   Message,
@@ -12,6 +11,8 @@ import UrbitBase, {
   UrbitHttpApiEventType,
 } from '@urbit/http-api';
 import _ from 'lodash';
+
+import { useLocalState } from '@/state/local';
 
 import { actionDrill, isHosted, parseKind } from './logic/utils';
 import { useEyreState } from './state/eyre';

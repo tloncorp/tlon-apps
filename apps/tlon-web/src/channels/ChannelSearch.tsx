@@ -1,6 +1,7 @@
+import { useParams } from 'react-router';
+
 import ChatSearch, { ChatSearchProps } from '@/chat/ChatSearch/ChatSearch';
 import { useChannelSearch } from '@/state/channel/channel';
-import { useParams } from 'react-router';
 
 export default function ChannelSearch(
   props: Omit<ChatSearchProps, 'scan' | 'query' | 'isLoading' | 'endReached'>

@@ -1,7 +1,8 @@
-import Dialog from '@/components/Dialog';
-import { useDismissNavigate } from '@/logic/routing';
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+
+import Dialog from '@/components/Dialog';
+import { useDismissNavigate } from '@/logic/routing';
 
 export function PrivacyContents({ className }: { className?: string }) {
   const { state } = useLocation();

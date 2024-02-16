@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { normalizeUrbitColor } from '@/logic/utils';
 import {
   Allies,
   AllyUpdateIni,
@@ -25,6 +24,8 @@ import { omit, pick } from 'lodash';
 import React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import create, { SetState } from 'zustand';
+
+import { normalizeUrbitColor } from '@/logic/utils';
 
 import api from '../api';
 

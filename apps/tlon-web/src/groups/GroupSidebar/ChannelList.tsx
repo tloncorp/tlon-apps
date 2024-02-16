@@ -1,3 +1,13 @@
+import cn from 'classnames';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+
 import ChannelIcon from '@/channels/ChannelIcon';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Divider from '@/components/Divider';
@@ -25,15 +35,6 @@ import {
   useVessel,
 } from '@/state/groups';
 import { GroupChannel } from '@/types/groups';
-import cn from 'classnames';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { StateSnapshot, Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 const UNZONED = 'default';
 

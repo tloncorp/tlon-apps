@@ -1,3 +1,8 @@
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import cn from 'classnames';
+import _ from 'lodash';
+import React, { useCallback, useState } from 'react';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import Avatar from '@/components/Avatar';
 import IconButton from '@/components/IconButton';
@@ -9,10 +14,6 @@ import X16Icon from '@/components/icons/X16Icon';
 import XIcon from '@/components/icons/XIcon';
 import { Status } from '@/logic/status';
 import { PrivacyType } from '@/types/groups';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import cn from 'classnames';
-import _ from 'lodash';
-import React, { useCallback, useState } from 'react';
 
 interface NewGroupInviteProps {
   groupName: string;

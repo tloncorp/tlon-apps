@@ -1,8 +1,9 @@
+import React from 'react';
+
 import EditChannelForm from '@/channels/EditChannelForm';
 import Dialog from '@/components/Dialog';
 import { prettyChannelTypeName } from '@/logic/channel';
 import { GroupChannel } from '@/types/groups';
-import React from 'react';
 
 interface EditChannelModalProps {
   nest: string;

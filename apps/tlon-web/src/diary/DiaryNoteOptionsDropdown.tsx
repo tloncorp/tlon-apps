@@ -1,3 +1,7 @@
+import classNames from 'classnames';
+import React, { PropsWithChildren, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useChannelCompatibility } from '@/logic/channel';
@@ -8,9 +12,6 @@ import {
   usePostToggler,
 } from '@/state/channel/channel';
 import { useFlaggedData, useRouteGroup } from '@/state/groups';
-import classNames from 'classnames';
-import React, { PropsWithChildren, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import useDiaryActions from './useDiaryActions';
 

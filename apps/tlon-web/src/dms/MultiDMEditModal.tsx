@@ -1,3 +1,7 @@
+import React, { useCallback, useState } from 'react';
+import { useParams } from 'react-router';
+import { Link } from 'react-router-dom';
+
 import Avatar from '@/components/Avatar';
 import ShipConnection from '@/components/ShipConnection';
 import ShipName from '@/components/ShipName';
@@ -6,9 +10,6 @@ import { useDismissNavigate } from '@/logic/routing';
 import { pluralize } from '@/logic/utils';
 import { useMultiDm } from '@/state/chat';
 import { useConnectivityCheck } from '@/state/vitals';
-import React, { useCallback, useState } from 'react';
-import { useParams } from 'react-router';
-import { Link } from 'react-router-dom';
 
 import Dialog from '../components/Dialog';
 import MultiDMInfoForm from './MultiDMInfoForm';

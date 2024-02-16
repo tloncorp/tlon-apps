@@ -1,3 +1,9 @@
+import cn from 'classnames';
+import { findLastIndex } from 'lodash';
+import React, { useEffect } from 'react';
+import { useLocation } from 'react-router';
+import { Link } from 'react-router-dom';
+
 import ChatContentImage from '@/chat/ChatContent/ChatContentImage';
 import ChatEmbedContent from '@/chat/ChatEmbedContent/ChatEmbedContent';
 // eslint-disable-next-line import/no-cycle
@@ -25,11 +31,6 @@ import {
   isShip,
   isStrikethrough,
 } from '@/types/content';
-import cn from 'classnames';
-import { findLastIndex } from 'lodash';
-import React, { useEffect } from 'react';
-import { useLocation } from 'react-router';
-import { Link } from 'react-router-dom';
 
 interface ChatContentProps {
   story: Story;

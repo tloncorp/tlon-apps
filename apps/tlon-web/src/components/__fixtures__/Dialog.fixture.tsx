@@ -1,5 +1,6 @@
-import Dialog from '@/components/Dialog';
 import { useSelect, useValue } from 'react-cosmos/client';
+
+import Dialog from '@/components/Dialog';
 
 export default function DialogFixture() {
   const [containerClass] = useValue('Container Class', {

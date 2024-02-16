@@ -1,3 +1,6 @@
+import { JSONContent } from '@tiptap/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { PASTEABLE_MEDIA_TYPES } from '@/constants';
@@ -8,8 +11,6 @@ import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { useIsMobile } from '@/logic/useMedia';
 import { useAddPostMutation } from '@/state/channel/channel';
 import { useFileStore, useUploader } from '@/state/storage';
-import { JSONContent } from '@tiptap/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import CurioPreview, { canPreview } from './CurioPreview';
 import NewCurioInput, { EditorUpdate } from './NewCurioInput';

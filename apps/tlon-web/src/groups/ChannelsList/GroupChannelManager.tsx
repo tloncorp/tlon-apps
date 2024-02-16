@@ -1,8 +1,9 @@
+import { Helmet } from 'react-helmet';
+
 import MobileHeader from '@/components/MobileHeader';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useRouteGroup } from '@/state/groups/groups';
 import { ViewProps } from '@/types/groups';
-import { Helmet } from 'react-helmet';
 
 import GroupActions from '../GroupActions';
 import GroupAvatar from '../GroupAvatar';

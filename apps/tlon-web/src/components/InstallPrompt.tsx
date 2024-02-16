@@ -1,7 +1,8 @@
-import api from '@/api';
-import { disableDefault } from '@/logic/utils';
 import * as Popover from '@radix-ui/react-popover';
 import usePWAInstall from 'use-pwa-install';
+
+import api from '@/api';
+import { disableDefault } from '@/logic/utils';
 
 export function enableVita() {
   return api.poke({

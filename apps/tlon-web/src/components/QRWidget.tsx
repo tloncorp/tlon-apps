@@ -1,9 +1,10 @@
-import CopyIcon from '@/components/icons/CopyIcon';
-import { useCopy } from '@/logic/utils';
-import { useCurrentTheme } from '@/state/local';
 import cn from 'classnames';
 import { useMemo } from 'react';
 import QRCode from 'react-qr-code';
+
+import CopyIcon from '@/components/icons/CopyIcon';
+import { useCopy } from '@/logic/utils';
+import { useCurrentTheme } from '@/state/local';
 
 import LoadingSpinner from './LoadingSpinner/LoadingSpinner';
 import CheckIcon from './icons/CheckIcon';

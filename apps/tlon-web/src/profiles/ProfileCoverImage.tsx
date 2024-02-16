@@ -1,9 +1,10 @@
-import { useIsMobile } from '@/logic/useMedia';
-import { useContact } from '@/state/contact';
-import { useCalm } from '@/state/settings';
 import { Contact } from '@urbit/api';
 import classNames from 'classnames';
 import React, { PropsWithChildren } from 'react';
+
+import { useIsMobile } from '@/logic/useMedia';
+import { useContact } from '@/state/contact';
+import { useCalm } from '@/state/settings';
 
 type CoverProps = PropsWithChildren<{
   cover: string;

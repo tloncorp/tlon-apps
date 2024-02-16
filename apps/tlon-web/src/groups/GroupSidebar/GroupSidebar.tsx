@@ -1,3 +1,8 @@
+import cn from 'classnames';
+import _ from 'lodash';
+import { useCallback, useContext, useMemo } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+
 import { foregroundFromBackground } from '@/components/Avatar';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddIcon from '@/components/icons/AddIcon';
@@ -20,10 +25,6 @@ import {
   useGroupFlag,
 } from '@/state/groups/groups';
 import { useCalm } from '@/state/settings';
-import cn from 'classnames';
-import _ from 'lodash';
-import { useCallback, useContext, useMemo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
 
 function GroupHeader() {
   const flag = useGroupFlag();

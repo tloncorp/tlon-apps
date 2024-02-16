@@ -1,11 +1,12 @@
+import _ from 'lodash';
+import { useMemo } from 'react';
+import { Helmet } from 'react-helmet';
+
 import { canReadChannel } from '@/logic/channel';
 import { useChannels, useUnreads } from '@/state/channel/channel';
 import { useDmUnreads, useMultiDms } from '@/state/chat';
 import { useGroups } from '@/state/groups';
 import { useMessagesFilter } from '@/state/settings';
-import _ from 'lodash';
-import { useMemo } from 'react';
-import { Helmet } from 'react-helmet';
 
 export default function TalkHead() {
   const messagesFilter = useMessagesFilter();

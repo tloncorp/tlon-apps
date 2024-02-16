@@ -1,9 +1,10 @@
+import React from 'react';
+
 import Avatar from '@/components/Avatar';
 import IconButton from '@/components/IconButton';
 import Bubble16Icon from '@/components/icons/Bubble16Icon';
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import { pluralize } from '@/logic/utils';
-import React from 'react';
 
 interface DiaryCommentersProps {
   replyCount: number;

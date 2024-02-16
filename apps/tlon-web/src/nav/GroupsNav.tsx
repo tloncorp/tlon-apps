@@ -1,3 +1,8 @@
+import cn from 'classnames';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { Outlet, matchPath, useLocation, useMatch } from 'react-router';
+
 import Sidebar from '@/components/Sidebar/Sidebar';
 import useActiveTab, {
   ActiveTab,
@@ -5,10 +10,6 @@ import useActiveTab, {
 } from '@/components/Sidebar/util';
 import GroupSidebar from '@/groups/GroupSidebar/GroupSidebar';
 import { useIsMobile } from '@/logic/useMedia';
-import cn from 'classnames';
-import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
-import { Outlet, matchPath, useLocation, useMatch } from 'react-router';
 
 export function DesktopNav() {
   const location = useLocation();

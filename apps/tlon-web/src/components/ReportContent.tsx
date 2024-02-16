@@ -1,8 +1,9 @@
+import cn from 'classnames';
+import { useLocation } from 'react-router';
+
 import { useDismissNavigate } from '@/logic/routing';
 import { useIsMobile } from '@/logic/useMedia';
 import { useFlagContentMutation } from '@/state/groups';
-import cn from 'classnames';
-import { useLocation } from 'react-router';
 
 import Dialog from './Dialog';
 import WidgetDrawer from './WidgetDrawer';

@@ -1,5 +1,20 @@
 /* eslint-disable react/no-unused-prop-types */
 // eslint-disable-next-line import/no-cycle
+import { daToUnix } from '@urbit/api';
+import { BigInteger } from 'big-integer';
+import cn from 'classnames';
+import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
+import debounce from 'lodash/debounce';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useInView } from 'react-intersection-observer';
+import { NavLink, useParams } from 'react-router-dom';
+
 import ChatContent from '@/chat/ChatContent/ChatContent';
 import Author from '@/chat/ChatMessage/Author';
 import ChatMessageOptions from '@/chat/ChatMessage/ChatMessageOptions';
@@ -23,20 +38,6 @@ import {
 } from '@/state/chat';
 import { Post, Story, Unread } from '@/types/channel';
 import { DMUnread } from '@/types/dms';
-import { daToUnix } from '@urbit/api';
-import { BigInteger } from 'big-integer';
-import cn from 'classnames';
-import { format, formatDistanceToNow, formatRelative, isToday } from 'date-fns';
-import debounce from 'lodash/debounce';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { useInView } from 'react-intersection-observer';
-import { NavLink, useParams } from 'react-router-dom';
 
 import ReactionDetails from '../ChatReactions/ReactionDetails';
 import { getUnreadStatus, threadIsOlderThanLastRead } from '../unreadUtils';

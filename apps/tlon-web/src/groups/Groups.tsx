@@ -1,3 +1,8 @@
+import cookies from 'browser-cookies';
+import _ from 'lodash';
+import { useEffect } from 'react';
+import { Outlet, useMatch, useNavigate } from 'react-router';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { canReadChannel } from '@/logic/channel';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
@@ -16,10 +21,6 @@ import {
   useVessel,
 } from '@/state/groups/groups';
 import { useNewGroupFlags, usePutEntryMutation } from '@/state/settings';
-import cookies from 'browser-cookies';
-import _ from 'lodash';
-import { useEffect } from 'react';
-import { Outlet, useMatch, useNavigate } from 'react-router';
 
 function Groups() {
   const navigate = useNavigate();

@@ -1,6 +1,7 @@
+import { MemoryRouter } from 'react-router';
+
 import NavTab from '@/components/NavTab';
 import AppGroupsIcon from '@/components/icons/AppGroupsIcon';
-import { MemoryRouter } from 'react-router';
 
 export default function NavTabFixture() {
   return (

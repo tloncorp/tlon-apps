@@ -1,3 +1,10 @@
+import cn from 'classnames';
+import { toH } from 'hast-to-hyperscript';
+import _ from 'lodash';
+import React from 'react';
+import hoon from 'refractor/lang/hoon.js';
+import { refractor } from 'refractor/lib/common.js';
+
 // eslint-disable-next-line import/no-cycle
 import ContentReference from '@/components/References/ContentReference';
 import { useIsDark } from '@/logic/useMedia';
@@ -13,12 +20,6 @@ import {
   isLink,
   isStrikethrough,
 } from '@/types/content';
-import cn from 'classnames';
-import { toH } from 'hast-to-hyperscript';
-import _ from 'lodash';
-import React from 'react';
-import hoon from 'refractor/lang/hoon.js';
-import { refractor } from 'refractor/lib/common.js';
 
 import DiaryContentImage from './DiaryContentImage';
 

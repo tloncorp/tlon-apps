@@ -1,5 +1,6 @@
-import { IconProps } from '@/components/icons/icon';
 import React from 'react';
+
+import { IconProps } from '@/components/icons/icon';
 
 export default function GlobeIcon({ className }: IconProps) {
   return (

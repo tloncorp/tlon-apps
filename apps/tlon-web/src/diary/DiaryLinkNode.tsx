@@ -1,4 +1,3 @@
-import LinkIcon from '@/components/icons/LinkIcon';
 import { Node, NodeViewProps } from '@tiptap/core';
 import {
   NodeViewContent,
@@ -6,6 +5,8 @@ import {
   ReactNodeViewRenderer,
 } from '@tiptap/react';
 import React from 'react';
+
+import LinkIcon from '@/components/icons/LinkIcon';
 
 import useDiaryNode from './useDiaryNode';
 

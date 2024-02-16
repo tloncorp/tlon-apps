@@ -1,9 +1,10 @@
+import React from 'react';
+
 import BubbleIcon from '@/components/icons/BubbleIcon';
 import NotebookIcon from '@/components/icons/NotebookIcon';
 import ShapesIcon from '@/components/icons/ShapesIcon';
 import UnknownAvatarIcon from '@/components/icons/UnknownAvatarIcon';
 import { nestToFlag } from '@/logic/utils';
-import React from 'react';
 
 interface ChannelIconProps extends React.HTMLAttributes<SVGElement> {
   nest: string;

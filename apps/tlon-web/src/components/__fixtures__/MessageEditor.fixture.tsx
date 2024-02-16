@@ -1,6 +1,7 @@
-import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 import { useCallback } from 'react';
 import { MemoryRouter } from 'react-router';
+
+import MessageEditor, { useMessageEditor } from '@/components/MessageEditor';
 
 export default function MessageEditorFixture() {
   const messageEditor = useMessageEditor({

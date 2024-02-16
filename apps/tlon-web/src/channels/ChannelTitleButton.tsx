@@ -1,8 +1,9 @@
+import cn from 'classnames';
+import { Link } from 'react-router-dom';
+
 import CaretLeft16Icon from '@/components/icons/CaretLeft16Icon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroupChannel } from '@/state/groups';
-import cn from 'classnames';
-import { Link } from 'react-router-dom';
 
 import ChannelHostConnection from './ChannelHostConnection';
 import ChannelIcon from './ChannelIcon';
