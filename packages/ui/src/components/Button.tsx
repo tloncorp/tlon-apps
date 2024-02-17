@@ -1,14 +1,14 @@
 import { getSize } from "@tamagui/get-token";
+import { cloneElement, useContext } from "react";
 import {
+  createStyledContext,
   SizeTokens,
   Stack,
-  Text,
-  createStyledContext,
   styled,
+  Text,
   useTheme,
   withStaticProperties,
 } from "tamagui";
-import { cloneElement, useContext } from "react";
 
 export const ButtonContext = createStyledContext<{ size: SizeTokens }>({
   size: "$m",
@@ -38,8 +38,8 @@ export const ButtonText = styled(Text, {
 
   variants: {
     size: {
-      "...fontSize": (name, { font }) => ({
-        fontSize: font?.size[name],
+      "...fontSize": (name) => ({
+        fontSize: name,
       }),
     },
   } as const,

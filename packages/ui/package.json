@@ -10,8 +10,6 @@
   "dependencies": {
     "@tamagui/animations-moti": "^1.89.26",
     "@tamagui/get-token": "^1.89.26",
-    "@tamagui/vite-plugin": "^1.89.26",
-    "tamagui": "^1.89.26",
-    "vite": "^4.4.3"
+    "tamagui": "^1.89.26"
   }
 }
