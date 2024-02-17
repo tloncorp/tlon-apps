@@ -29,6 +29,7 @@
   "submit": {
     "preview": {
       "android": {
+        "applicationId": "io.tlon.groups.preview",
         "releaseStatus": "draft",
         "track": "internal",
         "changesNotSentForReview": true
@@ -40,6 +41,7 @@
     },
     "production": {
       "android": {
+        "applicationId": "io.tlon.groups",
         "releaseStatus": "draft",
         "track": "internal",
         "changesNotSentForReview": true
