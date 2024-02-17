@@ -7,7 +7,10 @@
     "preview": {
       "channel": "preview",
       "env": {
-        "IS_PREVIEW": true
+        "APP_VARIANT": "preview"
+      },
+      "android": {
+        "gradleCommand": ":app:bundlePreviewRelease"
       },
       "ios": {
         "scheme": "Landscape-preview"
@@ -15,6 +18,9 @@
     },
     "production": {
       "channel": "production",
+      "android": {
+        "gradleCommand": ":app:bundleProductionRelease"
+      },
       "ios": {
         "scheme": "Landscape"
       }

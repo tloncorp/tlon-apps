@@ -118,14 +118,14 @@ android {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
     }
-    flavorDimensions = ["env"]
+    flavorDimensions "profile"
     productFlavors {
         production {
-            dimension "env"
+            dimension "profile"
             applicationId "io.tlon.groups"
         }
         preview {
-            dimension "env"
+            dimension "profile"
             applicationId "io.tlon.groups.preview"
         }
     }
