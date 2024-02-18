@@ -13,6 +13,11 @@ import { WebViewStack } from './WebViewStack';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
+const ICON_SIZE = {
+  width: 20,
+  height: 20,
+};
+
 export const TabStack = () => (
   <Tab.Navigator
     initialRouteName="Groups"
@@ -23,13 +28,13 @@ export const TabStack = () => (
       component={WebViewStack}
       initialParams={{ initialPath: '/' }}
       options={{
-        tabBarIcon: ({ focused, size }) =>
+        tabBarIcon: ({ focused }) =>
           focused ? (
-            <HomeFilled width={size} height={size} />
+            <HomeFilled {...ICON_SIZE} />
           ) : (
-            <HomeOutlined width={size} height={size} />
+            <HomeOutlined {...ICON_SIZE} />
           ),
-        tabBarLabel: '',
+        tabBarShowLabel: false,
       }}
     />
     <Tab.Screen
@@ -37,13 +42,13 @@ export const TabStack = () => (
       component={WebViewStack}
       initialParams={{ initialPath: '/messages' }}
       options={{
-        tabBarIcon: ({ focused, size }) =>
+        tabBarIcon: ({ focused }) =>
           focused ? (
-            <MessagesFilled width={size} height={size} />
+            <MessagesFilled {...ICON_SIZE} />
           ) : (
-            <MessagesOutlined width={size} height={size} />
+            <MessagesOutlined {...ICON_SIZE} />
           ),
-        tabBarLabel: '',
+        tabBarShowLabel: false,
       }}
     />
     <Tab.Screen
@@ -51,19 +56,22 @@ export const TabStack = () => (
       component={WebViewStack}
       initialParams={{ initialPath: '/notifications' }}
       options={{
-        tabBarIcon: ({ focused, size }) =>
+        tabBarIcon: ({ focused }) =>
           focused ? (
-            <ActivityFilled width={size} height={size} />
+            <ActivityFilled {...ICON_SIZE} />
           ) : (
-            <ActivityOutlined width={size} height={size} />
+            <ActivityOutlined {...ICON_SIZE} />
           ),
-        tabBarLabel: '',
+        tabBarShowLabel: false,
       }}
     />
     <Tab.Screen
       name="Profile"
       component={WebViewStack}
       initialParams={{ initialPath: '/profile' }}
+      options={{
+        tabBarShowLabel: false,
+      }}
     />
   </Tab.Navigator>
 );
