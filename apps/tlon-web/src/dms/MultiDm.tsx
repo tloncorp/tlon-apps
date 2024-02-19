@@ -23,6 +23,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
+import useShowTabBar from '@/logic/useShowTabBar';
 import { dmListPath, pluralize } from '@/logic/utils';
 import { useMultiDm, useMultiDmIsPending, useSendMessage } from '@/state/chat';
 import { useNegotiateMulti } from '@/state/negotiation';
@@ -85,7 +86,8 @@ export default function MultiDm() {
   const root = `/dm/${clubId}`;
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const showTabBar = useShowTabBar();
+  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
   const dmParticipants = [...(club?.team ?? []), ...(club?.hive ?? [])];
   const { match: negotiationMatch, isLoading: negotiationLoading } =
     useNegotiateMulti(dmParticipants, 'chat', 'chat');

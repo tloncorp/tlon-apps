@@ -106,6 +106,7 @@ import NewGroupDialog from './groups/NewGroup/NewGroupDialog';
 import NewGroupView from './groups/NewGroup/NewGroupView';
 import { ChatInputFocusProvider } from './logic/ChatInputFocusContext';
 import useAppUpdates, { AppUpdateContext } from './logic/useAppUpdates';
+import useShowTabBar from './logic/useShowTabBar';
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/lib/index.prod.js').then(
@@ -158,6 +159,7 @@ interface RoutesProps {
 function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
   const groupsTitle = 'Tlon';
   const loaded = useSettingsLoaded();
+  const showTabBar = useShowTabBar();
 
   useEffect(() => {
     if (loaded) {
@@ -176,7 +178,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
       <ActivityChecker />
       <Routes location={state?.backgroundLocation || location}>
         <Route element={<GroupsNav />}>
-          <Route element={isMobile ? <MobileSidebar /> : undefined}>
+          <Route element={showTabBar ? <MobileSidebar /> : undefined}>
             <Route path="/groups" element={<GroupsNav />} />
             <Route
               index
@@ -280,7 +282,7 @@ function GroupsRoutes({ state, location, isMobile, isSmall }: RoutesProps) {
             <Route path="/groups/new-mobile" element={<NewGroupView />} />
             <Route path="/leap" element={<Leap openDefault />} />
             <Route path="/groups/:ship/:name" element={<Groups />}>
-              <Route element={isMobile ? <MobileSidebar /> : undefined}>
+              <Route element={showTabBar ? <MobileSidebar /> : undefined}>
                 <Route
                   index
                   element={isMobile ? <MobileGroupChannelList /> : null}
@@ -638,7 +640,7 @@ function RoutedApp() {
   const analyticsId = useAnalyticsId();
   const { needsUpdate, triggerUpdate } = useAppUpdates();
   const body = document.querySelector('body');
-  const colorSchemeFromNative = window.colorscheme;
+  const colorSchemeFromNative = window.nativeOptions?.colorScheme;
 
   const appUpdateContextValue = useMemo(
     () => ({ needsUpdate, triggerUpdate }),

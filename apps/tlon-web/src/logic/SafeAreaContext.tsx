@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 
-const defaultSafeAreaInsets = window.safeAreaInsets ?? {
+const defaultSafeAreaInsets = window.nativeOptions?.safeAreaInsets ?? {
   top: 0,
   bottom: 0,
   left: 0,

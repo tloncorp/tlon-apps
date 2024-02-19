@@ -29,6 +29,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useIsScrolling } from '@/logic/scroll';
 import { useIsMobile } from '@/logic/useMedia';
 import useMessageSelector from '@/logic/useMessageSelector';
+import useShowTabBar from '@/logic/useShowTabBar';
 import { dmListPath } from '@/logic/utils';
 import { useDmIsPending, useDmUnread, useSendMessage } from '@/state/chat';
 import { useContact } from '@/state/contact';
@@ -118,9 +119,10 @@ export default function Dm() {
   const unread = useDmUnread(ship);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
+  const showTabBar = useShowTabBar();
   const canStart = ship && !!unread;
   const root = `/dm/${ship}`;
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
   const { matchedOrPending, isLoading: negotiationLoading } = useNegotiate(
     ship,
     'chat',

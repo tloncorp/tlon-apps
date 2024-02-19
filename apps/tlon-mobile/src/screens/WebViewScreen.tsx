@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeWebViewOptions } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -190,6 +191,12 @@ const InnerWebViewScreen = ({
     }
   }, [shipUrl, gotoPath, navigation]);
 
+  const nativeOptions: NativeWebViewOptions = {
+    colorScheme,
+    hideTabBar: true,
+    safeAreaInsets,
+  };
+
   return (
     <WebView
       {...webViewProps}
@@ -203,8 +210,7 @@ const InnerWebViewScreen = ({
           : { flex: 0, height: 0, opacity: 0 }
       }
       injectedJavaScriptBeforeContentLoaded={`
-        window.colorscheme="${colorScheme}";
-        window.safeAreaInsets=${JSON.stringify(safeAreaInsets)};
+        window.nativeOptions=${JSON.stringify(nativeOptions)};
       `}
       onLoad={() => {
         // Start a timeout in case the web app doesn't send the appLoaded message
