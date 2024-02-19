@@ -161,7 +161,10 @@ export default function MobileSidebar() {
   return (
     <section
       className="padding-bottom-transition fixed inset-0 z-40 flex h-full w-full select-none flex-col border-gray-50 bg-white"
-      style={{ paddingBottom: isChatInputFocused ? 0 : safeAreaInsets.bottom }}
+      style={{
+        paddingBottom:
+          isChatInputFocused || !showTabBar ? 0 : safeAreaInsets.bottom,
+      }}
     >
       <Outlet />
       {showTabBar ? (
