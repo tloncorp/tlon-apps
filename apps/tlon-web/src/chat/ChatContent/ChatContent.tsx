@@ -163,7 +163,11 @@ export function InlineContent({
   }
 
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
-  return null;
+  return (
+    <span className="font-bold">
+      This content cannot be rendered, unhandled message type.
+    </span>
+  );
 }
 
 export function BlockContent({
@@ -206,7 +210,11 @@ export function BlockContent({
   }
 
   console.error(`Unhandled message type: ${JSON.stringify(story)}`);
-  return null;
+  return (
+    <span className="font-bold">
+      This content cannot be rendered, unhandled message type.
+    </span>
+  );
 }
 
 function ChatContent({
