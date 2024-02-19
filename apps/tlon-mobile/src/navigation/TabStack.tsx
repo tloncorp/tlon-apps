@@ -20,6 +20,7 @@ const ICON_SIZE = {
 
 export const TabStack = () => (
   <Tab.Navigator
+    id="TabBar"
     initialRouteName="Groups"
     screenOptions={{ headerShown: false }}
   >

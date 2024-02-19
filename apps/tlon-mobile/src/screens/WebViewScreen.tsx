@@ -152,6 +152,15 @@ const InnerWebViewScreen = ({
     };
   }, [shipUrl]);
 
+  useEffect(
+    () =>
+      // @ts-expect-error: react-navigation ID and event name mismatch
+      navigation.getParent('TabBar')?.addListener('tabPress', () => {
+        navigation.setParams({ gotoPath: initialPath });
+      }),
+    [navigation, initialPath]
+  );
+
   // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
   useFocusEffect(
     useCallback(() => {
@@ -211,6 +220,9 @@ const InnerWebViewScreen = ({
       }
       injectedJavaScriptBeforeContentLoaded={`
         window.nativeOptions=${JSON.stringify(nativeOptions)};
+        // set old values for backwards compatibility
+        window.colorscheme="${nativeOptions.colorScheme}";
+        window.safeAreaInsets=${JSON.stringify(nativeOptions.safeAreaInsets)};
       `}
       onLoad={() => {
         // Start a timeout in case the web app doesn't send the appLoaded message
