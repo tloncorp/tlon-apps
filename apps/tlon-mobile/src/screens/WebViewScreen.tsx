@@ -152,11 +152,14 @@ const InnerWebViewScreen = ({
     };
   }, [shipUrl]);
 
+  // If the tab for this screen gets tapped while focused, navigate back to the initial path
   useEffect(
     () =>
       // @ts-expect-error: react-navigation ID and event name mismatch
       navigation.getParent('TabBar')?.addListener('tabPress', () => {
-        navigation.setParams({ gotoPath: initialPath });
+        if (navigation.isFocused()) {
+          navigation.setParams({ gotoPath: initialPath });
+        }
       }),
     [navigation, initialPath]
   );
@@ -200,6 +203,7 @@ const InnerWebViewScreen = ({
     }
   }, [shipUrl, gotoPath, navigation]);
 
+  // Injected web settings
   const nativeOptions: NativeWebViewOptions = {
     colorScheme,
     hideTabBar: true,
