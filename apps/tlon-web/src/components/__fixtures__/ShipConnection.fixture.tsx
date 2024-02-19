@@ -1,6 +1,7 @@
+import { useSelect } from 'react-cosmos/client';
+
 import ShipConnection from '@/components/ShipConnection';
 import { ConnectionStatus } from '@/state/vitals';
-import { useSelect } from 'react-cosmos/client';
 
 export default function ShipConnectionFixture() {
   const [type] = useSelect('Type', {

@@ -1,8 +1,9 @@
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import Toggle from '@/components/Toggle';
 import cn from 'classnames';
 import React, { HTMLAttributes } from 'react';
 import slugify from 'slugify';
+
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import Toggle from '@/components/Toggle';
 
 type SettingProps = {
   name: string;

@@ -1,9 +1,10 @@
-import { citeToPath, nestToFlag, useCopy } from '@/logic/utils';
-import { useDeletePostMutation, usePostToggler } from '@/state/channel/channel';
-import { useGroupFlag } from '@/state/groups';
 import { decToUd } from '@urbit/api';
 import { useCallback, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+
+import { citeToPath, nestToFlag, useCopy } from '@/logic/utils';
+import { useDeletePostMutation, usePostToggler } from '@/state/channel/channel';
+import { useGroupFlag } from '@/state/groups';
 
 interface useCurioActionsProps {
   nest: string;

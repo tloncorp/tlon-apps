@@ -1,11 +1,12 @@
-import ColorPicker from '@/components/ColorPicker';
-import ImageURLUploadField from '@/components/ImageURLUploadField';
-import { normalizeUrbitColor } from '@/logic/utils';
-import { useCalm } from '@/state/settings';
 import { ContactEditField } from '@urbit/api';
 import { debounce } from 'lodash';
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
+
+import ColorPicker from '@/components/ColorPicker';
+import ImageURLUploadField from '@/components/ImageURLUploadField';
+import { normalizeUrbitColor } from '@/logic/utils';
+import { useCalm } from '@/state/settings';
 
 export default function ProfileFields() {
   const { register, watch, setValue, formState } =

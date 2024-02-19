@@ -1,12 +1,3 @@
-import Avatar from '@/components/Avatar';
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import ExclamationPoint from '@/components/icons/ExclamationPoint';
-import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
-import X16Icon from '@/components/icons/X16Icon';
-import { MAX_DISPLAYED_OPTIONS } from '@/constants';
-import { useIsMobile } from '@/logic/useMedia';
-import { preSig, whomIsFlag } from '@/logic/utils';
-import { useMemoizedContacts } from '@/state/contact';
 import { deSig } from '@urbit/api';
 import fuzzy from 'fuzzy';
 import _, { includes } from 'lodash';
@@ -31,6 +22,16 @@ import {
 } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import ob from 'urbit-ob';
+
+import Avatar from '@/components/Avatar';
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ExclamationPoint from '@/components/icons/ExclamationPoint';
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import X16Icon from '@/components/icons/X16Icon';
+import { MAX_DISPLAYED_OPTIONS } from '@/constants';
+import { useIsMobile } from '@/logic/useMedia';
+import { preSig, whomIsFlag } from '@/logic/utils';
+import { useMemoizedContacts } from '@/state/contact';
 
 import ShipName from './ShipName';
 import UnknownAvatarIcon from './icons/UnknownAvatarIcon';

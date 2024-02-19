@@ -1,5 +1,3 @@
-import { PATP_REGEX, REF_REGEX } from '@/logic/utils';
-import { JSONContent } from '@/types/content';
 // currently importing from tiptap, but this could be imported directly from
 // prosemirror when/if we ditch tiptap
 import { Node, DOMParser as PMDomParser, Schema } from '@tiptap/pm/model';
@@ -12,6 +10,9 @@ import {
 } from 'prosemirror-markdown';
 import { useEffect, useState } from 'react';
 import ob from 'urbit-ob';
+
+import { PATP_REGEX, REF_REGEX } from '@/logic/utils';
+import { JSONContent } from '@/types/content';
 
 import parserRules from './parserRules';
 import schema from './schema';

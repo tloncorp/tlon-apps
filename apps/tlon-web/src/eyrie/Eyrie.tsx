@@ -1,7 +1,8 @@
-import { Fact, useEyreState } from '@/state/eyre';
 import * as Accordion from '@radix-ui/react-accordion';
 import cn from 'classnames';
 import React from 'react';
+
+import { Fact, useEyreState } from '@/state/eyre';
 
 import Subscription from './Subscription';
 

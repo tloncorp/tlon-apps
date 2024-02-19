@@ -1,6 +1,7 @@
-import Setting from '@/components/Settings/Setting';
 import { useCallback } from 'react';
 import { useSelect, useValue } from 'react-cosmos/client';
+
+import Setting from '@/components/Settings/Setting';
 
 export default function SettingFixture() {
   const [on, setOn] = useValue<boolean>('On', { defaultValue: false });

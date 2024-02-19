@@ -1,7 +1,8 @@
-import { Kind, Reply, ReplyTuple, Unread } from '@/types/channel';
 import { daToUnix } from '@urbit/aura';
 import bigInt, { BigInteger } from 'big-integer';
 import { isSameDay } from 'date-fns';
+
+import { Kind, Reply, ReplyTuple, Unread } from '@/types/channel';
 
 export interface ReplyProps {
   han: Kind;

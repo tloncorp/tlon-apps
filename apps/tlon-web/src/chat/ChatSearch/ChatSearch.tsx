@@ -1,14 +1,15 @@
-import useActiveTab from '@/components/Sidebar/util';
-import { useSafeAreaInsets } from '@/logic/native';
-import useMedia, { useIsMobile } from '@/logic/useMedia';
-import { disableDefault } from '@/logic/utils';
-import { ChatMap } from '@/types/channel';
 import * as Dialog from '@radix-ui/react-dialog';
 import cn from 'classnames';
 import React, { PropsWithChildren, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 import { VirtuosoHandle } from 'react-virtuoso';
+
+import useActiveTab from '@/components/Sidebar/util';
+import { useSafeAreaInsets } from '@/logic/native';
+import useMedia, { useIsMobile } from '@/logic/useMedia';
+import { disableDefault } from '@/logic/utils';
+import { ChatMap } from '@/types/channel';
 
 import ChatSearchResults from './ChatSearchResults';
 import SearchBar from './SearchBar';

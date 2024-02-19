@@ -1,6 +1,7 @@
+import { useNavigate } from 'react-router';
+
 import { useCreateMutation } from '@/state/channel/channel';
 import { useCreateGroupMutation } from '@/state/groups';
-import { useNavigate } from 'react-router';
 
 export default function useCreateDefaultGroup() {
   const { mutateAsync: createGroupMutation, isLoading } =

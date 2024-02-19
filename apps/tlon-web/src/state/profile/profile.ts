@@ -1,9 +1,10 @@
-import api from '@/api';
-import useReactQueryScry from '@/logic/useReactQueryScry';
-import queryClient from '@/queryClient';
 import { useMutation } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useMemo } from 'react';
+
+import api from '@/api';
+import useReactQueryScry from '@/logic/useReactQueryScry';
+import queryClient from '@/queryClient';
 
 import ProfileKeys from './keys';
 import { ProfLayout, ProfWidgets, Widget, getWidgetIdParts } from './types';

@@ -1,5 +1,3 @@
-import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
-import { useGroup, useRouteGroup } from '@/state/groups/groups';
 import { deSig } from '@urbit/api';
 import cn from 'classnames';
 import fuzzy from 'fuzzy';
@@ -11,6 +9,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
+
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import { useGroup, useRouteGroup } from '@/state/groups/groups';
 
 import MemberScroller from './MemberScroller';
 

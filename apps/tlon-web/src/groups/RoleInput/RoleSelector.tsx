@@ -1,3 +1,5 @@
+import { MouseEvent, useCallback, useState } from 'react';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import CheckIcon from '@/components/icons/CheckIcon';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
@@ -9,7 +11,6 @@ import {
   useVessel,
 } from '@/state/groups';
 import { Vessel } from '@/types/groups';
-import { MouseEvent, useCallback, useState } from 'react';
 
 export default function RoleSelect({
   role,

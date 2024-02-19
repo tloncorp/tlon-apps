@@ -1,5 +1,3 @@
-import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
-import { useGroup, useRouteGroup } from '@/state/groups/groups';
 import { daToUnix, deSig } from '@urbit/api';
 import bigInt from 'big-integer';
 import cn from 'classnames';
@@ -12,6 +10,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
+
+import MagnifyingGlass16Icon from '@/components/icons/MagnifyingGlass16Icon';
+import { useGroup, useRouteGroup } from '@/state/groups/groups';
 
 import PendingScroller from './PendingScroller';
 

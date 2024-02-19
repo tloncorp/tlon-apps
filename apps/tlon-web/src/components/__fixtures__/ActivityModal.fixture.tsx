@@ -1,5 +1,6 @@
-import ActivityModal from '@/components/ActivityModal';
 import { MemoryRouter } from 'react-router';
+
+import ActivityModal from '@/components/ActivityModal';
 
 export default function ActivityModalFixture() {
   return (

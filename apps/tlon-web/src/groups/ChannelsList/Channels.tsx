@@ -1,11 +1,12 @@
+import React from 'react';
+import { Draggable, Droppable } from 'react-beautiful-dnd';
+
 import ChannelsListItem from '@/groups/ChannelsList/ChannelsListItem';
 import {
   useAmAdmin,
   useGroupCompatibility,
   useRouteGroup,
 } from '@/state/groups';
-import React from 'react';
-import { Draggable, Droppable } from 'react-beautiful-dnd';
 
 import EmptySectionTools from './EmptySectionTools';
 import { ChannelListItem } from './types';

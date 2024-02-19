@@ -1,6 +1,7 @@
-import GlobeIcon from '@/components/icons/GlobeIcon';
 import { useValue } from 'react-cosmos/client';
 import { MemoryRouter } from 'react-router';
+
+import GlobeIcon from '@/components/icons/GlobeIcon';
 
 import LeapRow from '../LeapRow';
 

@@ -1,5 +1,6 @@
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import React from 'react';
+
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 
 export default function HeapLoadingRow() {
   return (

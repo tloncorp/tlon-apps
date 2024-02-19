@@ -1,9 +1,3 @@
-import { isValidUrl, normalizeUrbitColor } from '@/logic/utils';
-import { useAvatar } from '@/state/avatar';
-import { useContact } from '@/state/contact';
-import { useCurrentTheme } from '@/state/local';
-import { useCalm } from '@/state/settings';
-import { SigilProps } from '@/types/sigil';
 import { Contact, cite } from '@urbit/api';
 import '@urbit/sigil-js';
 import classNames from 'classnames';
@@ -11,6 +5,13 @@ import { darken, lighten, parseToHsla } from 'color2k';
 import _ from 'lodash';
 import React, { CSSProperties, useMemo } from 'react';
 import { isValidPatp } from 'urbit-ob';
+
+import { isValidUrl, normalizeUrbitColor } from '@/logic/utils';
+import { useAvatar } from '@/state/avatar';
+import { useContact } from '@/state/contact';
+import { useCurrentTheme } from '@/state/local';
+import { useCalm } from '@/state/settings';
+import { SigilProps } from '@/types/sigil';
 
 export type AvatarSizes =
   | 'sidebar'

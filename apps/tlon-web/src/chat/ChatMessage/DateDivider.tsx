@@ -1,6 +1,7 @@
-import { makePrettyDay, pluralize } from '@/logic/utils';
 import cn from 'classnames';
 import React, { Ref } from 'react';
+
+import { makePrettyDay, pluralize } from '@/logic/utils';
 
 interface DateDividerProps {
   date: Date;

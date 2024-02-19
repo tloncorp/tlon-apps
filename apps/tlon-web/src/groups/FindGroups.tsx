@@ -1,3 +1,9 @@
+import cn from 'classnames';
+import React, { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import ob from 'urbit-ob';
+
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
 import ShipConnection from '@/components/ShipConnection';
@@ -12,11 +18,6 @@ import {
 } from '@/state/groups';
 import { useConnectivityCheck } from '@/state/vitals';
 import { Gangs, ViewProps } from '@/types/groups';
-import cn from 'classnames';
-import React, { useEffect, useState } from 'react';
-import { Helmet } from 'react-helmet';
-import { useLocation, useNavigate, useParams } from 'react-router';
-import ob from 'urbit-ob';
 
 import GroupJoinList, { GroupJoinItem } from './GroupJoinList';
 import GroupJoinListPlaceholder from './GroupJoinListPlaceholder';

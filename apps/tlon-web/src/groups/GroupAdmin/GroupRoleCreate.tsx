@@ -1,3 +1,6 @@
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import Tooltip from '@/components/Tooltip';
 import { strToSym } from '@/logic/utils';
@@ -7,8 +10,6 @@ import {
   useGroupCompatibility,
   useRouteGroup,
 } from '@/state/groups';
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router';
 
 type Props = {
   onCreate: () => void;

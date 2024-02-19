@@ -1,7 +1,8 @@
-import { useCharge } from '@/state/docket';
-import { usePike } from '@/state/kiln';
 import React from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+
+import { useCharge } from '@/state/docket';
+import { usePike } from '@/state/kiln';
 
 import Dialog, { DialogContent } from '../Dialog';
 import AppInfo from './AppInfo';

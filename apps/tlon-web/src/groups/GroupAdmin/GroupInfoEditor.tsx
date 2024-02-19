@@ -1,3 +1,7 @@
+import React, { useCallback } from 'react';
+import { Helmet } from 'react-helmet';
+import { FormProvider, useForm } from 'react-hook-form';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import MobileHeader from '@/components/MobileHeader';
 import Tooltip from '@/components/Tooltip';
@@ -18,9 +22,6 @@ import {
   PrivacyType,
   ViewProps,
 } from '@/types/groups';
-import React, { useCallback } from 'react';
-import { Helmet } from 'react-helmet';
-import { FormProvider, useForm } from 'react-hook-form';
 
 import GroupInfoFields from './GroupInfoFields';
 

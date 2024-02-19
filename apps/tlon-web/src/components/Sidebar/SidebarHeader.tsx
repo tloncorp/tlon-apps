@@ -1,10 +1,11 @@
-import SidebarItem from '@/components/Sidebar/SidebarItem';
-import useGroupJoin from '@/groups/useGroupJoin';
-import { useGang } from '@/state/groups';
 import cn from 'classnames';
 import React, { useState } from 'react';
 import { useLocation } from 'react-router';
 import { Link } from 'react-router-dom';
+
+import SidebarItem from '@/components/Sidebar/SidebarItem';
+import useGroupJoin from '@/groups/useGroupJoin';
+import { useGang } from '@/state/groups';
 
 import ActionMenu, { Action } from '../ActionMenu';
 import useLeap from '../Leap/useLeap';

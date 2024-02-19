@@ -1,3 +1,6 @@
+import React from 'react';
+import { Outlet } from 'react-router-dom';
+
 import MobileHeader from '@/components/MobileHeader';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import AddPersonIcon from '@/components/icons/AddPersonIcon';
@@ -7,8 +10,6 @@ import PeopleIcon from '@/components/icons/PeopleIcon';
 import XIcon from '@/components/icons/XIcon';
 import { useIsMobile } from '@/logic/useMedia';
 import { useAmAdmin, useRouteGroup } from '@/state/groups/groups';
-import React from 'react';
-import { Outlet } from 'react-router-dom';
 
 export default function GroupAdmin() {
   const flag = useRouteGroup();

@@ -1,9 +1,10 @@
+import React, { useContext } from 'react';
+
 import Avatar, { useProfileColor } from '@/components/Avatar';
 import ShipName from '@/components/ShipName';
 import { ActivitySidebarItem } from '@/components/Sidebar/ActivityIndicator';
 import SidebarItem from '@/components/Sidebar/SidebarItem';
 import { AppUpdateContext } from '@/logic/useAppUpdates';
-import React, { useContext } from 'react';
 
 import { DesktopUpdateButton } from '../UpdateNotices';
 import GroupsSidebarItem from './AddGroupSidebarItem';

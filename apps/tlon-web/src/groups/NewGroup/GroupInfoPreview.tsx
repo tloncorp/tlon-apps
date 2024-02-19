@@ -1,9 +1,10 @@
+import cn from 'classnames';
+import React from 'react';
+
 import { ImageOrColorFieldState } from '@/components/ImageOrColorField';
 import EmptyIconBox from '@/components/icons/EmptyIconBox';
 import GroupAvatar from '@/groups/GroupAvatar';
 import { isValidUrl } from '@/logic/utils';
-import cn from 'classnames';
-import React from 'react';
 
 interface GroupInfoPreviewProps {
   iconType: ImageOrColorFieldState;

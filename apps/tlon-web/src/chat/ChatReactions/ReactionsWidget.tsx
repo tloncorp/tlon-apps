@@ -1,9 +1,10 @@
-import Avatar from '@/components/Avatar';
-import ShipName from '@/components/ShipName';
 import * as Tabs from '@radix-ui/react-tabs';
 import cn from 'classnames';
 import _ from 'lodash';
 import { useMemo, useState } from 'react';
+
+import Avatar from '@/components/Avatar';
+import ShipName from '@/components/ShipName';
 
 function byShortcode(a: [string, string], b: [string, string]) {
   const aCode = a[1];

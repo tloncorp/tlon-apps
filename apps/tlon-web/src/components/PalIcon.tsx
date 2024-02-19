@@ -1,7 +1,8 @@
-import { usePals } from '@/state/pals';
 import cn from 'classnames';
 import _ from 'lodash';
 import { useMemo } from 'react';
+
+import { usePals } from '@/state/pals';
 
 const outgoingSvg = (
   <svg

@@ -1,12 +1,13 @@
+import cookies from 'browser-cookies';
+import { useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router';
+
 import { getPrivacyFromGang } from '@/logic/utils';
 import {
   useGroupJoinMutation,
   usePendingGangsWithoutClaim,
 } from '@/state/groups';
 import { Gangs } from '@/types/groups';
-import cookies from 'browser-cookies';
-import { useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router';
 
 export default function LureAutojoiner(): React.ReactElement {
   const { mutateAsync: joinMutation } = useGroupJoinMutation();

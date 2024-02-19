@@ -1,6 +1,7 @@
-import { EyreState, useEyreState } from '@/state/eyre';
 import * as Popover from '@radix-ui/react-popover';
 import React from 'react';
+
+import { EyreState, useEyreState } from '@/state/eyre';
 
 import Eyrie from './Eyrie';
 

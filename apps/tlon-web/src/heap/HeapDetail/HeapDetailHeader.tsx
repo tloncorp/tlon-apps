@@ -1,3 +1,6 @@
+import cn from 'classnames';
+import { Link } from 'react-router-dom';
+
 import ChannelIcon from '@/channels/ChannelIcon';
 import MobileHeader from '@/components/MobileHeader';
 import ReconnectingSpinner from '@/components/ReconnectingSpinner';
@@ -11,8 +14,6 @@ import { isImageUrl, makePrettyDayAndTime } from '@/logic/utils';
 import { useAmAdmin } from '@/state/groups';
 import { PostEssay, chatStoryFromStory } from '@/types/channel';
 import { isLink } from '@/types/content';
-import cn from 'classnames';
-import { Link } from 'react-router-dom';
 
 import useCurioActions from '../useCurioActions';
 

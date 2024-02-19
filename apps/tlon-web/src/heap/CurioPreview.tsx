@@ -1,9 +1,10 @@
-import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
-import ContentReference from '@/components/References/ContentReference';
-import { isImageUrl, isRef, pathToCite } from '@/logic/utils';
 import cn from 'classnames';
 import { useEffect, useState } from 'react';
 import isURL from 'validator/lib/isURL';
+
+import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
+import ContentReference from '@/components/References/ContentReference';
+import { isImageUrl, isRef, pathToCite } from '@/logic/utils';
 
 export function canPreview(text: string) {
   return (

@@ -1,6 +1,7 @@
-import { useSafeAreaInsets } from '@/logic/native';
 import cn from 'classnames';
 import { Link } from 'react-router-dom';
+
+import { useSafeAreaInsets } from '@/logic/native';
 
 import CaretLeftIconMobileNav from './icons/CaretLeftIconMobileNav';
 

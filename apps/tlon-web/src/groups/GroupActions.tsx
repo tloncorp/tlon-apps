@@ -1,3 +1,12 @@
+import cn from 'classnames';
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
 import VolumeSetting from '@/components/VolumeSetting';
@@ -13,14 +22,6 @@ import {
   usePinnedGroups,
 } from '@/state/groups';
 import { useAddPinMutation, useDeletePinMutation } from '@/state/pins';
-import cn from 'classnames';
-import React, {
-  PropsWithChildren,
-  useCallback,
-  useEffect,
-  useState,
-} from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import GroupHostConnection from './GroupHostConnection';
 

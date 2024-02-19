@@ -1,3 +1,7 @@
+import { useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import { VirtuosoHandle } from 'react-virtuoso';
+
 import ChatSearchResults from '@/chat/ChatSearch/ChatSearchResults';
 import SearchBar from '@/chat/ChatSearch/SearchBar';
 import Layout from '@/components/Layout/Layout';
@@ -5,9 +9,6 @@ import { useSafeAreaInsets } from '@/logic/native';
 import useDebounce from '@/logic/useDebounce';
 import { useChannelSearch } from '@/state/channel/channel';
 import { useSearchState } from '@/state/chat/search';
-import { useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
-import { VirtuosoHandle } from 'react-virtuoso';
 
 export default function MobileChatSearch() {
   const params = useParams<{

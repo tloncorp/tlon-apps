@@ -1,6 +1,7 @@
-import { isValidUrl, jsonFetch } from '@/logic/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
+
+import { isValidUrl, jsonFetch } from '@/logic/utils';
 
 const OEMBED_PROVIDER = 'https://noembed.com/embed';
 

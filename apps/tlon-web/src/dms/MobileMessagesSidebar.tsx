@@ -1,11 +1,12 @@
-import MobileHeader from '@/components/MobileHeader';
-import ReconnectingSpinner from '@/components/ReconnectingSpinner';
-import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
-import { usePinnedChats } from '@/state/pins';
 import cn from 'classnames';
 import { debounce } from 'lodash';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+
+import MobileHeader from '@/components/MobileHeader';
+import ReconnectingSpinner from '@/components/ReconnectingSpinner';
+import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
+import { usePinnedChats } from '@/state/pins';
 
 import MessagesList from './MessagesList';
 import { MessagesScrollingContext } from './MessagesScrollingContext';

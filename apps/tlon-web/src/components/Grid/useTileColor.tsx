@@ -1,5 +1,3 @@
-import { getDarkColor } from '@/logic/utils';
-import { useCurrentTheme } from '@/state/local';
 import {
   darken,
   hsla,
@@ -7,6 +5,9 @@ import {
   parseToHsla,
   readableColorIsBlack,
 } from 'color2k';
+
+import { getDarkColor } from '@/logic/utils';
+import { useCurrentTheme } from '@/state/local';
 
 function bgAdjustedColor(color: string, darkBg: boolean): string {
   return darkBg ? lighten(color, 0.1) : darken(color, 0.1);

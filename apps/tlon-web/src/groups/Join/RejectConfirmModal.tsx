@@ -1,11 +1,12 @@
+import React, { useCallback, useEffect, useRef } from 'react';
+import { useLocalStorage } from 'usehooks-ts';
+
 import Dialog from '@/components/Dialog';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useDismissNavigate } from '@/logic/routing';
 import useGroupPrivacy from '@/logic/useGroupPrivacy';
 import { toTitleCase } from '@/logic/utils';
 import { useGang, useGroupRejectMutation, useRouteGroup } from '@/state/groups';
-import React, { useCallback, useEffect, useRef } from 'react';
-import { useLocalStorage } from 'usehooks-ts';
 
 const PRIVATE_COPY =
   "If you reject this invite, you'll need to send a membership request in order to join this group.";

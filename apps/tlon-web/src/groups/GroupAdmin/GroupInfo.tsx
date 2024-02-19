@@ -1,8 +1,9 @@
+import React from 'react';
+import { Helmet } from 'react-helmet';
+
 import Dialog from '@/components/Dialog';
 import { useDismissNavigate } from '@/logic/routing';
 import { ViewProps } from '@/types/groups';
-import React from 'react';
-import { Helmet } from 'react-helmet';
 
 import { useGroup, useRouteGroup } from '../../state/groups/groups';
 import GroupSummary from '../GroupSummary';

@@ -1,8 +1,9 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import { createMockGroup } from '@/mocks/groups';
-import { Group } from '@/types/groups';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
+
+import { createMockGroup } from '@/mocks/groups';
+import { Group } from '@/types/groups';
 
 import { render } from '../../../test/utils';
 import Sidebar from './Sidebar';

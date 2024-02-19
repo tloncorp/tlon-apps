@@ -1,11 +1,12 @@
-import ChannelIcon from '@/channels/ChannelIcon';
-import Author from '@/chat/ChatMessage/Author';
-import GroupAvatar from '@/groups/GroupAvatar';
 import { daToUnix } from '@urbit/api';
 import { BigInteger } from 'big-integer';
 import cn from 'classnames';
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router';
+
+import ChannelIcon from '@/channels/ChannelIcon';
+import Author from '@/chat/ChatMessage/Author';
+import GroupAvatar from '@/groups/GroupAvatar';
 
 interface ReferenceBarProps {
   nest: string;

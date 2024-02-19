@@ -1,3 +1,6 @@
+import React from 'react';
+import { useForm } from 'react-hook-form';
+
 import { strToSym } from '@/logic/utils';
 import {
   useGroupCreateZoneMutation,
@@ -6,8 +9,6 @@ import {
   useRouteGroup,
 } from '@/state/groups';
 import { GroupMeta } from '@/types/groups';
-import React from 'react';
-import { useForm } from 'react-hook-form';
 
 interface HandleSectionNameEditInputProps {
   handleEditingChange: () => void;

@@ -1,3 +1,7 @@
+import bigInt from 'big-integer';
+import React, { useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import Avatar from '@/components/Avatar';
 import { NOTE_REF_DISPLAY_LIMIT } from '@/constants';
 // eslint-disable-next-line import/no-cycle
@@ -13,9 +17,6 @@ import {
 } from '@/logic/utils';
 import { useRemotePost } from '@/state/channel/channel';
 import { useChannelPreview, useGang } from '@/state/groups';
-import bigInt from 'big-integer';
-import React, { useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 
 import ShipName from '../ShipName';
 import NotebookIcon from '../icons/NotebookIcon';

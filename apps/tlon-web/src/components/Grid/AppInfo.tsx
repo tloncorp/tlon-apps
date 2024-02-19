@@ -1,9 +1,10 @@
-import { getAppHref, getAppName } from '@/logic/utils';
-import useDocketState, { ChargeWithDesk, useTreaty } from '@/state/docket';
 import { Pike, Treaty, chadIsRunning } from '@urbit/api';
 import cn from 'classnames';
 import clipboardCopy from 'clipboard-copy';
 import React, { useCallback, useState } from 'react';
+
+import { getAppHref, getAppName } from '@/logic/utils';
+import useDocketState, { ChargeWithDesk, useTreaty } from '@/state/docket';
 
 import Dialog, { DialogClose, DialogContent, DialogTrigger } from '../Dialog';
 import { Button, PillButton } from './Button';

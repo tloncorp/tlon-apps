@@ -1,3 +1,5 @@
+import { useCallback, useMemo } from 'react';
+
 import { DEFAULT_SORT, RECENT_SORT, SortMode } from '@/constants';
 import { useUnreads } from '@/state/channel/channel';
 import { useDmUnreads } from '@/state/chat';
@@ -6,7 +8,6 @@ import {
   usePutEntryMutation,
   useSideBarSortMode,
 } from '@/state/settings';
-import { useCallback, useMemo } from 'react';
 
 import { whomIsDm, whomIsMultiDm } from './utils';
 

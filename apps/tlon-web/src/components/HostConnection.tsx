@@ -1,3 +1,5 @@
+import cn from 'classnames';
+
 import Tooltip from '@/components/Tooltip';
 import Bullet16Icon from '@/components/icons/Bullet16Icon';
 import {
@@ -8,7 +10,6 @@ import {
   redConnection,
 } from '@/logic/utils';
 import { ConnectionStatus } from '@/state/vitals';
-import cn from 'classnames';
 
 export interface HostConnectionProps {
   ship: string;

@@ -1,3 +1,7 @@
+import * as Tooltip from '@radix-ui/react-tooltip';
+import cn from 'classnames';
+import React, { useCallback, useEffect } from 'react';
+
 import ShipName from '@/components/ShipName';
 import X16Icon from '@/components/icons/X16Icon';
 import { captureGroupsAnalyticsEvent } from '@/logic/analytics';
@@ -11,9 +15,6 @@ import { useAddDmReactMutation, useDelDmReactMutation } from '@/state/chat';
 import useEmoji from '@/state/emoji';
 import { useRouteGroup } from '@/state/groups';
 import { PostSeal, ReplySeal } from '@/types/channel';
-import * as Tooltip from '@radix-ui/react-tooltip';
-import cn from 'classnames';
-import React, { useCallback, useEffect } from 'react';
 
 interface ChatReactionProps {
   whom: string;

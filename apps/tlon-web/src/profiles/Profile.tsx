@@ -1,3 +1,9 @@
+import cn from 'classnames';
+import { useEffect, useState } from 'react';
+import { Helmet } from 'react-helmet';
+import { Link } from 'react-router-dom';
+import { Drawer } from 'vaul';
+
 import Avatar from '@/components/Avatar';
 import MobileHeader from '@/components/MobileHeader';
 import QRWidget, { QRWidgetPlaceholder } from '@/components/QRWidget';
@@ -25,11 +31,6 @@ import { useIsMobile } from '@/logic/useMedia';
 import { isHosted, useCopy, useIsHttps } from '@/logic/utils';
 import { useOurContact } from '@/state/contact';
 import { ViewProps } from '@/types/groups';
-import cn from 'classnames';
-import { useEffect, useState } from 'react';
-import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
-import { Drawer } from 'vaul';
 
 import ProfileCoverImage from './ProfileCoverImage';
 import PublicProfileSelector from './PublicProfileSelector';

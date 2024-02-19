@@ -1,3 +1,13 @@
+import cn from 'classnames';
+import { debounce } from 'lodash';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+
 import GroupList from '@/components/Sidebar/GroupList';
 import MobileSidebar from '@/components/Sidebar/MobileSidebar';
 import useGroupSort from '@/logic/useGroupSort';
@@ -10,15 +20,6 @@ import {
   usePendingGangsWithoutClaim,
   usePinnedGroups,
 } from '@/state/groups';
-import cn from 'classnames';
-import { debounce } from 'lodash';
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
 
 import X16Icon from '../icons/X16Icon';
 import GangItem from './GangItem';

@@ -1,5 +1,6 @@
-import { useNotifications } from '@/notifications/useNotifications';
 import cn from 'classnames';
+
+import { useNotifications } from '@/notifications/useNotifications';
 
 import BellIcon from '../icons/BellIcon';
 import BulletIcon from '../icons/BulletIcon';

@@ -1,9 +1,10 @@
+import React from 'react';
+import { Helmet } from 'react-helmet';
+
 import MobileHeader from '@/components/MobileHeader';
 import { useIsMobile } from '@/logic/useMedia';
 import { useGroup, useRouteGroup } from '@/state/groups';
 import { ViewProps } from '@/types/groups';
-import React from 'react';
-import { Helmet } from 'react-helmet';
 
 import { GroupInviteBlock } from '../GroupInviteDialog';
 import LureInviteBlock from '../LureInviteBlock';

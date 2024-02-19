@@ -1,3 +1,5 @@
+import { Link, useLocation } from 'react-router-dom';
+
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import { useIsMobile } from '@/logic/useMedia';
 import {
@@ -10,7 +12,6 @@ import {
   useTheme,
   useThemeMutation,
 } from '@/state/settings';
-import { Link, useLocation } from 'react-router-dom';
 
 import VolumeSetting from '../VolumeSetting';
 import Setting from './Setting';
