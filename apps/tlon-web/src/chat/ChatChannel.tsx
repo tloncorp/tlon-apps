@@ -18,6 +18,7 @@ import { useDragAndDrop } from '@/logic/DragAndDropContext';
 import { useFullChannel } from '@/logic/channel';
 import { useIsScrolling } from '@/logic/scroll';
 import useMedia, { useIsMobile } from '@/logic/useMedia';
+import useShowTabBar from '@/logic/useShowTabBar';
 import {
   useAddPostMutation,
   useLeaveMutation,
@@ -60,15 +61,13 @@ function ChatChannel({ title }: ViewProps) {
   const replyingWrit = useReplyPost(nest, chatReplyId);
   const scrollElementRef = useRef<HTMLDivElement>(null);
   const isScrolling = useIsScrolling(scrollElementRef);
+  const showTabBar = useShowTabBar();
   const root = `${
     activeTab === 'messages' ? '/dm' : ''
   }/groups/${groupFlag}/channels/${nest}`;
   // We only inset the bottom for groups, since DMs display the navbar
   // underneath this view
-  const shouldApplyPaddingBottom = useMemo(
-    () => isMobile && !isChatInputFocused,
-    [isMobile, isChatInputFocused]
-  );
+  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
 
   const {
     group,

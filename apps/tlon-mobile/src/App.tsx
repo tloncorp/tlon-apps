@@ -14,15 +14,15 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
-import { AppWebView } from './AppWebView';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { ShipProvider, useShip } from './contexts/ship';
 import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
+import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
+import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
-import { ExternalWebViewScreen } from './screens/ExternalWebViewScreen';
 import { JoinWaitListScreen } from './screens/JoinWaitListScreen';
 import { RequestPhoneVerifyScreen } from './screens/RequestPhoneVerifyScreen';
 import { ReserveShipScreen } from './screens/ReserveShipScreen';
@@ -35,14 +35,13 @@ import { SignUpEmailScreen } from './screens/SignUpEmailScreen';
 import { SignUpPasswordScreen } from './screens/SignUpPasswordScreen';
 import { TlonLoginScreen } from './screens/TlonLoginScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
-import type { MainStackParamList, OnboardingStackParamList } from './types';
+import type { OnboardingStackParamList } from './types';
 import { posthogAsync, trackError } from './utils/posthog';
 
 type Props = {
   wer?: string;
 };
 
-const MainStack = createNativeStackNavigator<MainStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
 const App = ({ wer: initialWer }: Props) => {
@@ -52,17 +51,8 @@ const App = ({ wer: initialWer }: Props) => {
   const [connected, setConnected] = useState(true);
   const { wer, lure, priorityToken, clearDeepLink } = useDeepLink();
   const navigation = useNavigation();
+  const screenOptions = useScreenOptions();
   const gotoPath = wer ?? initialWer;
-
-  const screenOptions = {
-    headerTitle: '',
-    headerBackTitleVisible: false,
-    headerShadowVisible: false,
-    headerStyle: {
-      backgroundColor: isDarkMode ? '#000' : '#fff',
-    },
-    headerTintColor: isDarkMode ? '#fff' : '#333',
-  };
 
   useEffect(() => {
     const unsubscribeFromNetInfo = NetInfo.addEventListener(
@@ -125,21 +115,7 @@ const App = ({ wer: initialWer }: Props) => {
                 <LoadingSpinner />
               </View>
             ) : isAuthenticated ? (
-              <MainStack.Navigator
-                initialRouteName="AppWebView"
-                screenOptions={screenOptions}
-              >
-                <MainStack.Screen
-                  name="AppWebView"
-                  component={AppWebView}
-                  options={{ headerShown: false }}
-                  initialParams={{ gotoPath }}
-                />
-                <MainStack.Screen
-                  name="ExternalWebView"
-                  component={ExternalWebViewScreen}
-                />
-              </MainStack.Navigator>
+              <TabStack />
             ) : (
               <OnboardingStack.Navigator
                 initialRouteName="Welcome"

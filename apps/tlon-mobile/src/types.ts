@@ -4,13 +4,25 @@ export type SignUpExtras = {
   telemetry?: boolean;
 };
 
-export type MainStackParamList = {
-  AppWebView: { gotoPath?: string };
+type WebViewScreenParams = {
+  initialPath: string;
+  gotoPath?: string;
+};
+
+export type WebViewStackParamList = {
+  WebView: WebViewScreenParams;
   ExternalWebView: {
     uri: string;
     headers?: Record<string, string | null>;
     injectedJavaScript?: string;
   };
+};
+
+export type TabParamList = {
+  Groups: WebViewScreenParams;
+  Messages: WebViewScreenParams;
+  Activity: WebViewScreenParams;
+  Profile: WebViewScreenParams;
 };
 
 export type OnboardingStackParamList = {

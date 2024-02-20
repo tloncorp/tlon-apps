@@ -10,6 +10,7 @@ const config = getDefaultConfig(projectRoot);
 module.exports = mergeConfig(config, {
   watchFolders: [workspaceRoot],
   transformer: {
+    babelTransformerPath: require.resolve('react-native-svg-transformer'),
     getTransformOptions: async () => ({
       transform: {
         experimentalImportSupport: false,
@@ -24,10 +25,12 @@ module.exports = mergeConfig(config, {
     }),
   },
   resolver: {
+    assetExts: config.resolver.assetExts.filter((ext) => ext !== 'svg'),
     disableHierarchicalLookup: true,
     nodeModulesPaths: [
       path.resolve(projectRoot, 'node_modules'),
       path.resolve(workspaceRoot, 'node_modules'),
     ],
+    sourceExts: [...config.resolver.sourceExts, 'svg'],
   },
 });
