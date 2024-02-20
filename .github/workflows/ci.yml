@@ -15,9 +15,6 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build Shared Packages
-        run: npm run build:shared
-
       - name: Run Lint
         run: npm run lint --workspaces --if-present
 
