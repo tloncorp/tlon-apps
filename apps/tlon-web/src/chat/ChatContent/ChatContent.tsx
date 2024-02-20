@@ -162,7 +162,12 @@ export function InlineContent({
     return <br />;
   }
 
-  throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
+  console.error(`Unhandled message type: ${JSON.stringify(story)}`);
+  return (
+    <span className="font-bold">
+      This content cannot be rendered, unhandled message type.
+    </span>
+  );
 }
 
 export function BlockContent({
@@ -204,7 +209,12 @@ export function BlockContent({
     return <ContentReference cite={story.cite} isScrolling={isScrolling} />;
   }
 
-  throw new Error(`Unhandled message type: ${JSON.stringify(story)}`);
+  console.error(`Unhandled message type: ${JSON.stringify(story)}`);
+  return (
+    <span className="font-bold">
+      This content cannot be rendered, unhandled message type.
+    </span>
+  );
 }
 
 function ChatContent({
