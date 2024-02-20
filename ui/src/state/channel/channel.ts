@@ -38,7 +38,7 @@ import {
   ChannelsSubscribeResponse,
 } from '@/types/channel';
 import api from '@/api';
-import { checkNest, log, nestToFlag } from '@/logic/utils';
+import { checkNest, log, nestToFlag, whomIsFlag } from '@/logic/utils';
 import useReactQuerySubscription from '@/logic/useReactQuerySubscription';
 import useReactQueryScry from '@/logic/useReactQueryScry';
 import useReactQuerySubscribeOnce from '@/logic/useReactQuerySubscribeOnce';
@@ -51,6 +51,7 @@ import { useChatStore } from '@/chat/useChatStore';
 import asyncCallWithTimeout from '@/logic/asyncWithTimeout';
 import { isNativeApp } from '@/logic/native';
 import { channelKey } from './keys';
+import shouldAddPostToCache from './util';
 
 const POST_PAGE_SIZE = isNativeApp()
   ? STANDARD_MESSAGE_FETCH_PAGE_SIZE
@@ -852,7 +853,11 @@ export function useChannels(): Channels {
       const [han, flag] = nestToFlag(nest);
       const infinitePostQueryKey = [han, 'posts', flag, 'infinite'];
       const existingQueryData = queryClient.getQueryData(infinitePostQueryKey);
-      if (existingQueryData) {
+      if (
+        shouldAddPostToCache(
+          existingQueryData as { pages: PagedPosts[] } | undefined
+        )
+      ) {
         infinitePostUpdater(infinitePostQueryKey, event);
       }
     }
@@ -1078,6 +1083,25 @@ export function useUnreads(): Unreads {
   }
 
   return data as Unreads;
+}
+
+export function useChatStoreChannelUnreads() {
+  const chats = useChatStore((s) => s.chats);
+
+  return useMemo(
+    () =>
+      Object.entries(chats).reduce((acc, [k, v]) => {
+        if (whomIsFlag(k)) {
+          const { unread } = v;
+
+          if (unread && !unread.seen) {
+            acc.push(k);
+          }
+        }
+        return acc;
+      }, [] as string[]),
+    [chats]
+  );
 }
 
 export function useIsJoined(nest: Nest) {
@@ -1689,7 +1713,6 @@ export function useCreateMutation() {
             view: 'list',
             order: [],
             sort: 'time',
-            saga: { synced: null },
           },
         });
       }

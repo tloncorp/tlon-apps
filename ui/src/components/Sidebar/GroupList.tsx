@@ -4,18 +4,46 @@ import { useIsMobile } from '@/logic/useMedia';
 import { Group } from '@/types/groups';
 import GroupListPlaceholder from './GroupListPlaceholder';
 import GroupsSidebarItem from './GroupsSidebarItem';
+import { GroupSearchRecord, isGroupSearchRecord } from './useSearchFilter';
+import GangItem from './GangItem';
 
 type TopContentListItem = { type: 'top'; component: ReactNode };
 type GroupListItem = { type: 'group'; data: [string, Group] };
-type AnyListItem = TopContentListItem | GroupListItem;
+type SearchListItem = { type: 'search'; data: GroupSearchRecord };
+type AnyListItem = TopContentListItem | GroupListItem | SearchListItem;
 
 function itemContent(_i: number, item: AnyListItem) {
   if (item.type === 'top') {
-    return item.component;
+    return <div className="min-h-[1px]">{item.component}</div>;
   }
+
+  if (item.type === 'search') {
+    const record = item.data;
+    if (record.type === 'group') {
+      return (
+        <div className="min-h-[1px] px-4 sm:px-2">
+          <GroupsSidebarItem
+            flag={record.flag}
+            isNew={record.status === 'new'}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="min-h-[1px] px-4 sm:px-2">
+        <GangItem
+          flag={record.flag}
+          invited={record.status === 'invited'}
+          isJoining={record.status === 'loading'}
+        />
+      </div>
+    );
+  }
+
   const [flag] = item.data;
   return (
-    <div className="px-4 sm:px-2">
+    <div className="min-h-[1px] px-4 sm:px-2">
       <GroupsSidebarItem key={flag} flag={flag} />
     </div>
   );
@@ -25,15 +53,17 @@ function computeItemKey(_i: number, item: AnyListItem) {
   if (item.type === 'top') {
     return 'top';
   }
+
+  if (item.type === 'search') {
+    return `search:${item.data.flag}`;
+  }
+
   const [flag] = item.data;
   return flag;
 }
 
 interface GroupListProps {
-  groups: [string, Group][];
-  pinnedGroups: [string, Group][];
-  loadingGroups: [string, Group][];
-  newGroups?: [string, Group][];
+  groups: [string, Group][] | GroupSearchRecord[];
   children: React.ReactNode;
   isScrolling: (scrolling: boolean) => void;
   atTopChange?: (atTop: boolean) => void;
@@ -43,9 +73,6 @@ let virtuosoState: StateSnapshot | undefined;
 
 export default function GroupList({
   groups,
-  pinnedGroups,
-  loadingGroups,
-  newGroups,
   children,
   isScrolling,
   atTopChange,
@@ -58,19 +85,6 @@ export default function GroupList({
       ? { main: 200, reverse: 200 }
       : { main: 400, reverse: 400 },
   };
-
-  const flagsToFilter = useMemo(() => {
-    const flags = new Set();
-    pinnedGroups.forEach(([flag]) => flags.add(flag));
-    loadingGroups.forEach(([flag]) => flags.add(flag));
-    newGroups?.forEach(([flag]) => flags.add(flag));
-    return flags;
-  }, [pinnedGroups, loadingGroups, newGroups]);
-
-  const allOtherGroups = useMemo(
-    () => groups.filter(([flag, _g]) => !flagsToFilter.has(flag)),
-    [groups, flagsToFilter]
-  );
 
   const headerHeightRef = useRef<number>(0);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -93,12 +107,16 @@ export default function GroupList({
       : [];
     return [
       ...top,
-      ...allOtherGroups.map<GroupListItem>((g) => ({
-        type: 'group',
-        data: g,
-      })),
+      ...groups.map<GroupListItem | SearchListItem>((g) =>
+        isGroupSearchRecord(g)
+          ? { type: 'search', data: g }
+          : {
+              type: 'group',
+              data: g,
+            }
+      ),
     ];
-  }, [allOtherGroups, header]);
+  }, [groups, header]);
 
   useEffect(() => {
     if (!headerRef.current) {
@@ -145,7 +163,7 @@ export default function GroupList({
       computeItemKey={computeItemKey}
       itemContent={itemContent}
       restoreStateFrom={virtuosoState}
-      className="h-full w-full list-none overflow-x-hidden"
+      className="border-top-none h-full w-full list-none overflow-x-hidden"
       isScrolling={isScrolling}
       atTopStateChange={atTopChange}
     />

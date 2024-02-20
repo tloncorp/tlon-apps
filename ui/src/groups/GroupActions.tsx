@@ -9,29 +9,19 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import EllipsisIcon from '@/components/icons/EllipsisIcon';
 import useIsGroupUnread from '@/logic/useIsGroupUnread';
 import UnreadIndicator from '@/components/Sidebar/UnreadIndicator';
-import {
-  citeToPath,
-  getFlagParts,
-  getPrivacyFromGroup,
-  useCopy,
-} from '@/logic/utils';
+import { citeToPath, getPrivacyFromGroup, useCopy } from '@/logic/utils';
 import {
   useAmAdmin,
   useGang,
   useGroup,
   useGroupCancelMutation,
+  usePinnedGroups,
 } from '@/state/groups';
+import { useAddPinMutation, useDeletePinMutation } from '@/state/pins';
 import ActionMenu, { Action } from '@/components/ActionMenu';
-import { Saga } from '@/types/groups';
-import { ConnectionStatus } from '@/state/vitals';
-import HostConnection from '@/channels/HostConnection';
 import { useIsMobile } from '@/logic/useMedia';
 import VolumeSetting from '@/components/VolumeSetting';
-import {
-  useAddPinMutation,
-  useDeletePinMutation,
-  usePinnedGroups,
-} from '@/state/pins';
+import GroupHostConnection from './GroupHostConnection';
 
 const { ship } = window;
 
@@ -102,8 +92,6 @@ type GroupActionsProps = PropsWithChildren<{
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   flag: string;
-  saga?: Saga | null;
-  status?: ConnectionStatus;
   triggerDisabled?: boolean;
   className?: string;
 }>;
@@ -113,8 +101,6 @@ const GroupActions = React.memo(
     open,
     onOpenChange,
     flag,
-    saga,
-    status,
     triggerDisabled,
     className,
     children,
@@ -160,19 +146,12 @@ const GroupActions = React.memo(
       });
     }
 
-    if (saga && isMobile) {
+    if (isMobile) {
       actions.push({
         key: 'connection',
         keepOpenOnClick: true,
         containerClassName: '!p-0 mb-4',
-        content: (
-          <HostConnection
-            ship={getFlagParts(flag).ship}
-            status={status}
-            saga={saga}
-            type="row"
-          />
-        ),
+        content: <GroupHostConnection flag={flag} type="row" />,
       });
     }
 

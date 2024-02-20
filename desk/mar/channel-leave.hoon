@@ -1,4 +1,4 @@
-/-  c=chat
+/-  c=chat-2
 /+  j=groups-json
 |_  =leave:c
 ++  grad  %noun

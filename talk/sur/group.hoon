@@ -1,1 +1,0 @@
-../../desk/sur/group.hoon

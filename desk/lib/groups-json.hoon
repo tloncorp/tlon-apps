@@ -1,4 +1,4 @@
-/-  g=groups, u=ui, e=epic
+/-  g=groups, u=ui, e=epic, zer=groups-0
 /-  meta
 |%
 ++  enjs
@@ -176,10 +176,10 @@
     [(flag f) (group-ui gr)]
   ::
   ++  groups-ui-v0
-    |=  gs=groups-ui:zer:old:g
+    |=  gs=groups-ui:zer
     %-  pairs
     %+  turn  ~(tap by gs)
-    |=  [f=flag:g gr=group-ui:zer:old:g]
+    |=  [f=flag:g gr=group-ui:zer]
     [(flag f) (group-ui-v0 gr)]
   ::
   ++  gangs
@@ -255,7 +255,7 @@
     ==
   ::
   ++  group-ui-v0
-    |=  gr=group-ui:zer:old:g
+    |=  gr=group-ui:zer
     %-  pairs
     :~  fleet/(fleet fleet.gr)
         cabals/(cabals cabals.gr)
@@ -379,7 +379,7 @@
     ==
   ++  flagged-content
     |=  fc=flagged-content:g
-    =-  
+    =-
       %-  pairs
       %+  turn  ~(tap by -)
       |=  [n=nest:g posts=(map ^time flagged-data)]

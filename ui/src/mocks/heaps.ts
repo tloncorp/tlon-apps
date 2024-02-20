@@ -3,9 +3,8 @@ import {
   ScryHandler,
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
-import { BigIntOrderedMap } from '@urbit/api';
 import { subMinutes } from 'date-fns';
-import { newReplyMap, Posts, Perm, Channels } from '@/types/channel';
+import { Posts, Perm, Channels } from '@/types/channel';
 
 const unixTime = subMinutes(new Date(), 1).getTime();
 
@@ -20,7 +19,6 @@ const mockStash: Channels = {
     view: 'grid',
     order: [],
     sort: 'time',
-    saga: null,
   },
 };
 

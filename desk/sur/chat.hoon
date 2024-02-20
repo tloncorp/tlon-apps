@@ -1,12 +1,6 @@
-/-  g=groups, d=channels, dos=chat-2, uno=chat-1, zer=chat-0
+/-  g=groups, d=channels
 /-  meta
 |%
-++  old
-  |%
-  ++  zero  zer
-  ++  one   uno
-  ++  two   dos
-  --
 ::
 ::  $id: an identifier for chat messages
 +$  id     (pair ship time)

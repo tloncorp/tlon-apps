@@ -17,6 +17,8 @@ import MobileHeader from '@/components/MobileHeader';
 import AddIconMobileNav from '@/components/icons/AddIconMobileNav';
 import FilterIconMobileNav from '@/components/icons/FilterIconMobileNav';
 import useAppName from '@/logic/useAppName';
+import CautionIcon from '@/components/icons/CautionIcon';
+import { useLocalState } from '@/state/local';
 import ActionMenu, { Action } from '@/components/ActionMenu';
 import MessagesList from './MessagesList';
 import MessagesSidebarItem from './MessagesSidebarItem';
@@ -80,7 +82,7 @@ export default function MobileMessagesSidebar() {
   return (
     <div className="flex h-full w-full flex-col">
       <MobileHeader
-        title="Messages"
+        title={appName === 'Talk' ? <TalkSunsetHeader /> : 'Messages'}
         action={
           <div className="flex h-12 items-center justify-end space-x-2">
             <ReconnectingSpinner />
@@ -130,6 +132,17 @@ export default function MobileMessagesSidebar() {
           </MessagesList>
         </MessagesScrollingContext.Provider>
       </nav>
+    </div>
+  );
+}
+
+function TalkSunsetHeader() {
+  const onClick = () =>
+    useLocalState.setState({ manuallyShowTalkSunset: true });
+
+  return (
+    <div className="flex items-center justify-center py-1" onClick={onClick}>
+      Messages <CautionIcon className="ml-2 h-5 w-5 text-indigo" />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import ob from 'urbit-ob';
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMatch } from 'react-router-dom';
 import cn from 'classnames';
 import Dialog, { DialogClose } from '@/components/Dialog';
@@ -8,24 +8,20 @@ import { useDismissNavigate } from '@/logic/routing';
 import {
   useGroup,
   useGroupAddMembersMutation,
-  useGroupCompatibility,
   useGroupInviteMutation,
   useRouteGroup,
 } from '@/state/groups/groups';
 import { useIsMobile } from '@/logic/useMedia';
-import { getFlagParts, getPrivacyFromGroup, preSig } from '@/logic/utils';
+import { getPrivacyFromGroup, preSig } from '@/logic/utils';
 import LoadingSpinner from '@/components/LoadingSpinner/LoadingSpinner';
 import ExclamationPoint from '@/components/icons/ExclamationPoint';
-import HostConnection from '@/channels/HostConnection';
-import { useConnectivityCheck } from '@/state/vitals';
 import WidgetDrawer from '@/components/WidgetDrawer';
 import LureInviteBlock from './LureInviteBlock';
+import GroupHostConnection from './GroupHostConnection';
 
 export function GroupInviteBlock() {
   const flag = useRouteGroup();
   const group = useGroup(flag);
-  const host = getFlagParts(flag).ship;
-  const { data } = useConnectivityCheck(host);
   const privacy = group ? getPrivacyFromGroup(group) : 'public';
   const [ships, setShips] = useState<ShipOption[]>([]);
   const validShips =
@@ -42,12 +38,6 @@ export function GroupInviteBlock() {
     status: addMembersStatus,
     reset: resetAddMembers,
   } = useGroupAddMembersMutation();
-  const { compatible } = useGroupCompatibility(flag);
-  const hasIssue =
-    !compatible ||
-    (data?.status &&
-      'complete' in data.status &&
-      data.status.complete !== 'yes');
 
   // Determine if we are in the "Invite People" dialog , which is different
   // than the "Invites & Privacy" section of Group Settings
@@ -93,15 +83,12 @@ export function GroupInviteBlock() {
           Invite people to your group who are already using Urbit.
         </p>
       </div>
-      {hasIssue && (
-        <HostConnection
-          type="combo"
-          className="mb-4 text-sm"
-          ship={host}
-          status={data?.status}
-          saga={group?.saga || null}
-        />
-      )}
+      <GroupHostConnection
+        type="combo"
+        className="mb-4 text-sm"
+        flag={flag}
+        hideIfConnected
+      />
       <div className="w-full">
         <ShipSelector
           ships={ships}

@@ -92,6 +92,7 @@ export interface SettingsState {
   talk: {
     messagesFilter: SidebarFilter;
     showVitaMessage: boolean;
+    seenSunsetMessage: boolean;
   };
   groups: {
     orderedGroupPins: string[];
@@ -103,6 +104,8 @@ export interface SettingsState {
     analyticsId?: string;
     seenWelcomeCard?: boolean;
     newGroupFlags: string[];
+    groupsNavState?: string;
+    messagesNavState?: string;
   };
   loaded: boolean;
   putEntry: (bucket: string, key: string, value: Value) => Promise<void>;
@@ -503,6 +506,31 @@ export function useSeenWelcomeCard() {
     }
 
     return data.groups.seenWelcomeCard ?? false;
+  }, [isLoading, data]);
+}
+
+export function useNavState() {
+  const { data, isLoading } = useMergedSettings();
+
+  if (isLoading || data === undefined || data.groups === undefined) {
+    return { groups: '', messages: '' };
+  }
+
+  return {
+    groups: data.groups.groupsNavState ?? '',
+    messages: data.groups.messagesNavState ?? '',
+  };
+}
+
+export function useSeenTalkSunset() {
+  const { data, isLoading } = useMergedSettings();
+
+  return useMemo(() => {
+    if (isLoading || data === undefined || data.talk === undefined) {
+      return false;
+    }
+
+    return data.talk.seenSunsetMessage ?? false;
   }, [isLoading, data]);
 }
 

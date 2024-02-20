@@ -93,11 +93,7 @@ export default function ProfileModal() {
   };
 
   const handleMessageClick = () => {
-    if (isNativeApp()) {
-      navigate(`/dm/${ship}`);
-    } else {
-      navigateByApp(`/dm/${ship}`);
-    }
+    navigate(`/dm/${ship}`);
   };
 
   const handleBlockClick = () => {

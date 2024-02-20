@@ -7,8 +7,8 @@ import {
   useGroupsWithQuery,
   usePendingGangsWithoutClaim,
   useNewGroups,
+  usePinnedGroups,
 } from '@/state/groups';
-import { usePinnedGroups } from '@/state/pins';
 import GroupList from '@/components/Sidebar/GroupList';
 import SidebarSorter from '@/components/Sidebar/SidebarSorter';
 import GroupsSidebarItem from '@/components/Sidebar/GroupsSidebarItem';
@@ -47,7 +47,7 @@ export default function MobileRoot() {
 
   const newGroupsOptions = useMemo(
     () =>
-      newGroups.map(([flag]) => (
+      Object.keys(newGroups).map(([flag]) => (
         <GroupsSidebarItem key={flag} flag={flag} isNew />
       )),
     [newGroups]
@@ -58,6 +58,22 @@ export default function MobileRoot() {
   const hasGangsWithClaims = !!gangsWithClaims.length;
   const hasNewGroups = !!newGroups.length;
   const hasPendingGangs = Object.keys(pendingGangs).length > 0;
+
+  // get all non-segmented groups
+  const flagsToFilter = useMemo(() => {
+    const flags = new Set();
+    Object.entries(pinnedGroups).forEach(([flag]) => flags.add(flag));
+    Object.entries(pendingGangs).forEach(([flag]) => flags.add(flag));
+    loadingGroups.forEach(([flag]) => flags.add(flag));
+    newGroups?.forEach(([flag]) => flags.add(flag));
+    gangsWithClaims.forEach((flag) => flags.add(flag));
+    return flags;
+  }, [pinnedGroups, loadingGroups, newGroups, gangsWithClaims, pendingGangs]);
+
+  const allOtherGroups = useMemo(
+    () => sortedGroups.filter(([flag, _g]) => !flagsToFilter.has(flag)),
+    [sortedGroups, flagsToFilter]
+  );
 
   return (
     <Layout
@@ -92,13 +108,7 @@ export default function MobileRoot() {
             </div>
           ) : (
             <GroupsScrollingContext.Provider value={isScrolling}>
-              <GroupList
-                groups={sortedGroups}
-                pinnedGroups={Object.entries(pinnedGroups)}
-                newGroups={newGroups}
-                loadingGroups={loadingGroups}
-                isScrolling={scroll.current}
-              >
+              <GroupList groups={allOtherGroups} isScrolling={scroll.current}>
                 {hasPinnedGroups ||
                 hasPendingGangs ||
                 hasGangsWithClaims ||
@@ -120,7 +130,7 @@ export default function MobileRoot() {
                       ) : null}
 
                       {hasLoadingGroups &&
-                        loadingGroups.map(([flag, _]) => (
+                        Object.keys(loadingGroups).map(([flag, _]) => (
                           <GangItem key={flag} flag={flag} isJoining />
                         ))}
 
