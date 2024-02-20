@@ -281,23 +281,18 @@ export default function ChatScroller({
   /**
    * Set scroll position, bypassing virtualizer change logic.
    */
-  const forceScroll = useCallback(
-    (offset: number, bypassDelay = false) => {
-      if (isForceScrolling.current && !bypassDelay) return;
-      if (!inThread) {
-        logger.log('force scrolling to', offset);
-      }
-      isForceScrolling.current = true;
-      const virt = virtualizerRef.current;
-      if (!virt) return;
-      virt.scrollOffset = offset;
-      virt.scrollElement?.scrollTo?.({ top: offset });
-      setTimeout(() => {
-        isForceScrolling.current = false;
-      }, 300);
-    },
-    [inThread]
-  );
+  const forceScroll = useCallback((offset: number, bypassDelay = false) => {
+    if (isForceScrolling.current && !bypassDelay) return;
+    logger.log('force scrolling to', offset);
+    isForceScrolling.current = true;
+    const virt = virtualizerRef.current;
+    if (!virt) return;
+    virt.scrollOffset = offset;
+    virt.scrollElement?.scrollTo?.({ top: offset });
+    setTimeout(() => {
+      isForceScrolling.current = false;
+    }, 300);
+  }, []);
 
   const isEmpty = useMemo(
     () => count === 0 && hasLoadedNewest && hasLoadedOldest,
@@ -577,56 +572,90 @@ export default function ChatScroller({
 
   const { scrollDirection } = virtualizerRef.current ?? {};
 
-  if (userHasScrolled && !isForceScrolling.current) {
-    if (isInverted) {
-      if (
-        scrollDirection === 'backward' &&
-        readingDirectionRef.current !== 'down'
-      ) {
-        logger.log(
-          'isInverted and scrollDirection is backward setting reading direction to down'
-        );
-        readingDirectionRef.current = 'down';
-      }
+  const lastOffset = useRef<number | null>(null);
 
-      if (
-        scrollDirection === 'forward' &&
-        readingDirectionRef.current !== 'up'
-      ) {
-        logger.log(
-          'isInverted and scrollDirection is forward setting reading direction to up'
-        );
-        readingDirectionRef.current = 'up';
-      }
-    } else {
-      if (
-        scrollDirection === 'backward' &&
-        readingDirectionRef.current !== 'up'
-      ) {
-        logger.log(
-          'not isInverted and scrollDirection is backward setting reading direction to up'
-        );
-        readingDirectionRef.current = 'up';
-      }
+  useEffect(() => {
+    if (lastOffset.current === null) {
+      lastOffset.current = virtualizer.scrollOffset;
+    }
 
-      if (
-        scrollDirection === 'forward' &&
-        readingDirectionRef.current !== 'down'
-      ) {
-        logger.log(
-          'not isInverted and scrollDirection is forward setting reading direction to down'
-        );
-        readingDirectionRef.current = 'down';
-      }
+    if (isScrolling) {
+      lastOffset.current = virtualizer.scrollOffset;
+    }
+  }, [isScrolling, virtualizer.scrollOffset]);
 
-      if (scrollDirection === null && isAtExactScrollEnd) {
-        logger.log(
-          "not isInverted, scrollDirection is null, and we're at the bottom setting reading direction to up"
-        );
-        readingDirectionRef.current = 'up';
+  // We use the absolute change in scroll offset to throttle the change in
+  // reading direction. This is because the scroll direction can change
+  // rapidly when the user is scrolling, and we don't want to change the
+  // reading direction too quickly, it can be jumpy.
+  // There is still a small jump when the user changes direction, but it's
+  // less noticeable than if we didn't throttle it.
+  const absoluteOffsetChange = lastOffset.current
+    ? Math.abs(virtualizer.scrollOffset - lastOffset.current)
+    : 0;
+
+  useEffect(() => {
+    if (
+      userHasScrolled &&
+      !isForceScrolling.current &&
+      absoluteOffsetChange > 30
+    ) {
+      if (isInverted) {
+        if (
+          scrollDirection === 'backward' &&
+          readingDirectionRef.current !== 'down'
+        ) {
+          logger.log(
+            'isInverted and scrollDirection is backward setting reading direction to down'
+          );
+          readingDirectionRef.current = 'down';
+        }
+
+        if (
+          scrollDirection === 'forward' &&
+          readingDirectionRef.current !== 'up'
+        ) {
+          logger.log(
+            'isInverted and scrollDirection is forward setting reading direction to up'
+          );
+          readingDirectionRef.current = 'up';
+        }
+      } else {
+        if (
+          scrollDirection === 'backward' &&
+          readingDirectionRef.current !== 'up'
+        ) {
+          logger.log(
+            'not isInverted and scrollDirection is backward setting reading direction to up'
+          );
+          readingDirectionRef.current = 'up';
+        }
+
+        if (
+          scrollDirection === 'forward' &&
+          readingDirectionRef.current !== 'down'
+        ) {
+          logger.log(
+            'not isInverted and scrollDirection is forward setting reading direction to down'
+          );
+          readingDirectionRef.current = 'down';
+        }
+
+        if (scrollDirection === null && isAtExactScrollEnd) {
+          logger.log(
+            "not isInverted, scrollDirection is null, and we're at the bottom setting reading direction to up"
+          );
+          readingDirectionRef.current = 'up';
+        }
       }
     }
-  }
+  }, [
+    scrollDirection,
+    userHasScrolled,
+    isAtExactScrollEnd,
+    isInverted,
+    absoluteOffsetChange,
+  ]);
 
   return (
     <>
