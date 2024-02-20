@@ -7,12 +7,13 @@ import {
   useState,
 } from 'react';
 
-const defaultSafeAreaInsets = window.nativeOptions?.safeAreaInsets ?? {
-  top: 0,
-  bottom: 0,
-  left: 0,
-  right: 0,
-};
+const defaultSafeAreaInsets = window.nativeOptions?.safeAreaInsets ??
+  window.safeAreaInsets ?? {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
 
 const SafeAreaContext = createContext({
   safeAreaInsets: defaultSafeAreaInsets,
