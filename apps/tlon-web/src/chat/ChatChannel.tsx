@@ -49,6 +49,9 @@ function ChatChannel({ title }: ViewProps) {
   const isSmall = useMedia('(max-width: 1023px)');
   const inThread = !!idTime;
   const inSearch = useMatch(`/groups/${groupFlag}/channels/${nest}/search/*`);
+  const inDmSearch = useMatch(
+    `/dm/groups/${groupFlag}/channels/${nest}/search/*`
+  );
   const { mutateAsync: leaveChat } = useLeaveMutation();
   const { mutate: sendMessage } = useAddPostMutation(nest);
   const dropZoneId = `chat-input-dropzone-${chFlag}`;
@@ -156,7 +159,7 @@ function ChatChannel({ title }: ViewProps) {
                 whom={chFlag}
                 sendChatMessage={sendMessage}
                 showReply
-                autoFocus={!inThread && !inSearch}
+                autoFocus={!inThread && !inSearch && !inDmSearch}
                 dropZoneId={dropZoneId}
                 replyingWrit={replyingWrit || undefined}
                 isScrolling={isScrolling}
