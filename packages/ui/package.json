@@ -1,0 +1,15 @@
+{
+  "name": "@tloncorp/ui",
+  "types": "./src",
+  "main": "src/index.ts",
+  "module:jsx": "src",
+  "files": [
+    "types",
+    "dist"
+  ],
+  "dependencies": {
+    "@tamagui/animations-moti": "^1.89.26",
+    "@tamagui/get-token": "^1.89.26",
+    "tamagui": "^1.89.26"
+  }
+}

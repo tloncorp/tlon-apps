@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeWebViewOptions } from '@tloncorp/shared';
 import * as Clipboard from 'expo-clipboard';
 import { addNotificationResponseReceivedListener } from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -9,36 +10,36 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useTailwind } from 'tailwind-rn';
 
-import { IS_IOS } from './constants';
-import { useShip } from './contexts/ship';
-import { useWebView } from './hooks/useWebView';
-import { markChatRead } from './lib/chatApi';
-import { getHostingUser } from './lib/hostingApi';
-// import { connectNotifications } from './lib/notifications';
-import type { MainStackParamList } from './types';
+import { IS_IOS } from '../constants';
+import { useShip } from '../contexts/ship';
+import { useWebView } from '../hooks/useWebView';
+import { markChatRead } from '../lib/chatApi';
+import { getHostingUser } from '../lib/hostingApi';
+// import { connectNotifications } from '../lib/notifications';
+import type { WebViewStackParamList } from '../types';
 import {
   getHostingToken,
   getHostingUserId,
   removeHostingToken,
   removeHostingUserId,
-} from './utils/hosting';
+} from '../utils/hosting';
 
 type WebViewMessage = {
   action: 'copy' | 'logout' | 'manageAccount' | 'appLoaded';
   value?: string;
 };
 
-type Props = NativeStackScreenProps<MainStackParamList, 'AppWebView'>;
+export type Props = NativeStackScreenProps<WebViewStackParamList, 'WebView'>;
 
 const createUri = (shipUrl: string, path?: string) =>
   `${shipUrl}/apps/groups${
     path ? (path.startsWith('/') ? path : `/${path}`) : '/'
   }`;
 
-export const RawAppWebView = ({
+const InnerWebViewScreen = ({
   navigation,
   route: {
-    params: { gotoPath },
+    params: { initialPath, gotoPath },
   },
 }: Props) => {
   const tailwind = useTailwind();
@@ -51,7 +52,7 @@ export const RawAppWebView = ({
     uri: string;
     key: number;
   }>({
-    uri: createUri(shipUrl, gotoPath),
+    uri: createUri(shipUrl, initialPath),
     key: 1,
   });
   const [appLoaded, setAppLoaded] = useState(false);
@@ -151,6 +152,18 @@ export const RawAppWebView = ({
     };
   }, [shipUrl]);
 
+  // If the tab for this screen gets tapped while focused, navigate back to the initial path
+  useEffect(
+    () =>
+      // @ts-expect-error: react-navigation ID and event name mismatch
+      navigation.getParent('TabBar')?.addListener('tabPress', () => {
+        if (navigation.isFocused()) {
+          navigation.setParams({ gotoPath: initialPath });
+        }
+      }),
+    [navigation, initialPath]
+  );
+
   // When this view regains focus from Manage Account, query for hosting user's details and bump back to login if an error occurs
   useFocusEffect(
     useCallback(() => {
@@ -190,6 +203,13 @@ export const RawAppWebView = ({
     }
   }, [shipUrl, gotoPath, navigation]);
 
+  // Injected web settings
+  const nativeOptions: NativeWebViewOptions = {
+    colorScheme,
+    hideTabBar: true,
+    safeAreaInsets,
+  };
+
   return (
     <WebView
       {...webViewProps}
@@ -203,8 +223,10 @@ export const RawAppWebView = ({
           : { flex: 0, height: 0, opacity: 0 }
       }
       injectedJavaScriptBeforeContentLoaded={`
-        window.colorscheme="${colorScheme}";
-        window.safeAreaInsets=${JSON.stringify(safeAreaInsets)};
+        window.nativeOptions=${JSON.stringify(nativeOptions)};
+        // set old values for backwards compatibility
+        window.colorscheme="${nativeOptions.colorScheme}";
+        window.safeAreaInsets=${JSON.stringify(nativeOptions.safeAreaInsets)};
       `}
       onLoad={() => {
         // Start a timeout in case the web app doesn't send the appLoaded message
@@ -231,14 +253,15 @@ export const RawAppWebView = ({
     />
   );
 };
-export const AppWebView = (props: Props) => {
+
+export const WebViewScreen = (props: Props) => {
   const tailwind = useTailwind();
   if (IS_IOS) {
     return (
       <KeyboardAvoidingView behavior="height" style={tailwind('h-full')}>
-        <RawAppWebView {...props} />
+        <InnerWebViewScreen {...props} />
       </KeyboardAvoidingView>
     );
   }
-  return <RawAppWebView {...props} />;
+  return <InnerWebViewScreen {...props} />;
 };

@@ -13,6 +13,7 @@ import { useFullChannel } from '@/logic/channel';
 import getKindDataFromEssay from '@/logic/getKindData';
 import { useGroupsAnalyticsEvent } from '@/logic/useAnalyticsEvent';
 import { useIsMobile } from '@/logic/useMedia';
+import useShowTabBar from '@/logic/useShowTabBar';
 import {
   useIsPostUndelivered,
   useOrderedPosts,
@@ -45,7 +46,8 @@ export default function HeapDetail({ title }: ViewProps) {
   const { post: note, isLoading } = usePost(nest, idTime || '');
   const { title: curioTitle } = getKindDataFromEssay(note.essay);
   const { isChatInputFocused } = useChatInputFocus();
-  const shouldApplyPaddingBottom = isMobile && !isChatInputFocused;
+  const showTabBar = useShowTabBar();
+  const shouldApplyPaddingBottom = showTabBar && !isChatInputFocused;
   const { nextPost: nextNote, prevPost: prevNote } = useOrderedPosts(
     nest,
     idTime || ''

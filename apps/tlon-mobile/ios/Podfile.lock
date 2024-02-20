@@ -1205,6 +1205,8 @@ PODS:
     - glog
     - RCT-Folly (= 2022.05.16.00)
     - React-Core
+  - RNSVG (14.1.0):
+    - React-Core
   - SocketRocket (0.6.1)
   - sqlite3 (3.42.0):
     - sqlite3/common (= 3.42.0)
@@ -1295,6 +1297,7 @@ DEPENDENCIES:
   - RNGestureHandler (from `../../../node_modules/react-native-gesture-handler`)
   - RNReanimated (from `../../../node_modules/react-native-reanimated`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
+  - RNSVG (from `../../../node_modules/react-native-svg`)
   - UMAppLoader (from `../../../node_modules/unimodules-app-loader/ios`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -1481,6 +1484,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../../../node_modules/react-native-screens"
+  RNSVG:
+    :path: "../../../node_modules/react-native-svg"
   UMAppLoader:
     :path: "../../../node_modules/unimodules-app-loader/ios"
   Yoga:
@@ -1584,6 +1589,7 @@ SPEC CHECKSUMS:
   RNGestureHandler: 28bdf9a766c081e603120f79e925b72817c751c6
   RNReanimated: 1873432b0b86d0224bbe19aacea7ad8eef4e7518
   RNScreens: 2b73f5eb2ac5d94fbd61fa4be0bfebd345716825
+  RNSVG: ba3e7232f45e34b7b47e74472386cf4e1a676d0a
   SocketRocket: f32cd54efbe0f095c4d7594881e52619cfe80b17
   sqlite3: f163dbbb7aa3339ad8fc622782c2d9d7b72f7e9c
   UMAppLoader: 5df85360d65cabaef544be5424ac64672e648482
