@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "importHelpers": true,
+    "allowJs": false,
+    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true,
+    "esModuleInterop": true,
+    "preserveSymlinks": true,
+    "incremental": true,
+    "jsx": "react-jsx",
+    "module": "system",
+    "moduleResolution": "node",
+    "noEmitOnError": false,
+    "noImplicitReturns": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "useUnknownInCatchVariables": false,
+    "preserveConstEnums": true,
+    // DONT DO THIS so jsdoc will remain
+    "removeComments": false,
+    "skipLibCheck": true,
+    "sourceMap": false,
+    "strictNullChecks": true,
+    "target": "es2020",
+    "types": [
+      "node",
+      "react"
+    ],
+    "lib": [
+      "dom",
+      "esnext"
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+  ],
+  "exclude": [
+    "node_modules/**/*"
+  ],
+  "typeAcquisition": {
+    "enable": true
+  }
+}

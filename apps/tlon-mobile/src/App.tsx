@@ -7,6 +7,7 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { TamaguiProvider } from '@tloncorp/ui';
 import { PostHogProvider } from 'posthog-react-native';
 import { useEffect, useState } from 'react';
 import { Alert, StatusBar, Text, View } from 'react-native';
@@ -225,12 +226,14 @@ const App = ({ wer: initialWer }: Props) => {
 export default function AnalyticsApp(props: Props) {
   const isDarkMode = useIsDarkMode();
   return (
-    <ShipProvider>
-      <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
-        <PostHogProvider client={posthogAsync} autocapture>
-          <App {...props} />
-        </PostHogProvider>
-      </NavigationContainer>
-    </ShipProvider>
+    <TamaguiProvider>
+      <ShipProvider>
+        <NavigationContainer theme={isDarkMode ? DarkTheme : DefaultTheme}>
+          <PostHogProvider client={posthogAsync} autocapture>
+            <App {...props} />
+          </PostHogProvider>
+        </NavigationContainer>
+      </ShipProvider>
+    </TamaguiProvider>
   );
 }

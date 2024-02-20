@@ -30,6 +30,10 @@ module.exports = mergeConfig(config, {
     nodeModulesPaths: [
       path.resolve(projectRoot, 'node_modules'),
       path.resolve(workspaceRoot, 'node_modules'),
+      // Tamagui packages expect to be able to require anything under the
+      // tamagui umbrella node_modules folder. Some modules fail to resolve
+      // without this.
+      path.resolve(workspaceRoot, 'node_modules/tamagui/node_modules'),
     ],
     sourceExts: [...config.resolver.sourceExts, 'svg'],
   },
