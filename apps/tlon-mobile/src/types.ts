@@ -23,6 +23,7 @@ export type TabParamList = {
   Messages: WebViewScreenParams;
   Activity: WebViewScreenParams;
   Profile: WebViewScreenParams;
+  Discover: WebViewScreenParams;
 };
 
 export type OnboardingStackParamList = {

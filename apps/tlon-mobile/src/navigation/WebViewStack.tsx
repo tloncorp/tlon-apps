@@ -6,10 +6,7 @@ import { ExternalWebViewScreen } from '../screens/ExternalWebViewScreen';
 import { WebViewScreen } from '../screens/WebViewScreen';
 import type { TabParamList, WebViewStackParamList } from '../types';
 
-type Props = BottomTabScreenProps<
-  TabParamList,
-  'Groups' | 'Messages' | 'Activity' | 'Profile'
->;
+type Props = BottomTabScreenProps<TabParamList, keyof TabParamList>;
 
 const Stack = createNativeStackNavigator<WebViewStackParamList>();
 
