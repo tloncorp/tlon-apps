@@ -16,6 +16,14 @@ declare global {
       postMessage: (message: string) => void;
     };
     nativeOptions?: NativeWebViewOptions;
+    // old values for backwards compatibility with Tlon Mobile v3
+    colorscheme: any;
+    safeAreaInsets?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    };
   }
 }
 
