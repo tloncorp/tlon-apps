@@ -6,18 +6,42 @@
   "build": {
     "preview": {
       "channel": "preview",
-      "distribution": "internal",
+      "env": {
+        "APP_VARIANT": "preview"
+      },
       "android": {
-        "buildType": "apk"
+        "gradleCommand": ":app:bundlePreviewRelease"
+      },
+      "ios": {
+        "scheme": "Landscape-preview"
       }
     },
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "android": {
+        "gradleCommand": ":app:bundleProductionRelease"
+      },
+      "ios": {
+        "scheme": "Landscape"
+      }
     }
   },
   "submit": {
+    "preview": {
+      "android": {
+        "applicationId": "io.tlon.groups.preview",
+        "releaseStatus": "draft",
+        "track": "internal",
+        "changesNotSentForReview": true
+      },
+      "ios": {
+        "ascAppId": "6477973000",
+        "appleTeamId": "XU9PR2N722"
+      }
+    },
     "production": {
       "android": {
+        "applicationId": "io.tlon.groups",
         "releaseStatus": "draft",
         "track": "internal",
         "changesNotSentForReview": true

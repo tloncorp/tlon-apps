@@ -15,7 +15,7 @@ import { useShip } from '../contexts/ship';
 import { useWebView } from '../hooks/useWebView';
 import { markChatRead } from '../lib/chatApi';
 import { getHostingUser } from '../lib/hostingApi';
-import { connectNotifications } from '../lib/notifications';
+// import { connectNotifications } from '../lib/notifications';
 import type { WebViewStackParamList } from '../types';
 import {
   getHostingToken,
@@ -144,7 +144,7 @@ const InnerWebViewScreen = ({
     );
 
     // Start notification prompt
-    connectNotifications();
+    // connectNotifications();
 
     return () => {
       // Clean up listeners

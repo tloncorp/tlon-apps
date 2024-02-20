@@ -82,16 +82,13 @@ def jscFlavor = 'org.webkit:android-jsc:+'
 android {
     ndkVersion rootProject.ext.ndkVersion
 
-    buildToolsVersion rootProject.ext.buildToolsVersion
-    compileSdk rootProject.ext.compileSdkVersion
-
     namespace "io.tlon.landscape"
     defaultConfig {
-        applicationId "io.tlon.groups.staging"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 44
-        versionName "3.1.3"
+        compileSdk rootProject.ext.compileSdkVersion
+        versionCode 45
+        versionName "4.0.0"
 
         buildConfigField("boolean", "REACT_NATIVE_UNSTABLE_USE_RUNTIME_SCHEDULER_ALWAYS", (findProperty("reactNative.unstable_useRuntimeSchedulerAlways") ?: true).toString())
     }
@@ -119,6 +116,17 @@ android {
     packagingOptions {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
+        }
+    }
+    flavorDimensions "profile"
+    productFlavors {
+        production {
+            dimension "profile"
+            applicationId "io.tlon.groups"
+        }
+        preview {
+            dimension "profile"
+            applicationId "io.tlon.groups.preview"
         }
     }
 }
@@ -173,14 +181,14 @@ dependencies {
         implementation jscFlavor
     }
 
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.0.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
     implementation("com.android.volley:volley:1.2.1")
 
     // Branch.io
-    implementation("io.branch.sdk.android:library:5.+")
-    implementation("com.google.android.gms:play-services-ads-identifier:17.1.0+")
-    implementation("androidx.browser:browser:1.0.0")
+    implementation("io.branch.sdk.android:library:5.9.0")
+    implementation("com.google.android.gms:play-services-ads-identifier:18.0.1")
+    implementation("androidx.browser:browser:1.7.0")
 }
 
 apply from: new File(["node", "--print", "require.resolve('@react-native-community/cli-platform-android/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim(), "../native_modules.gradle");

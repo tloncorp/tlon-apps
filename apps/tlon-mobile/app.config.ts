@@ -2,12 +2,13 @@ import 'dotenv/config';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 const projectId = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
+const isPreview = process.env.APP_VARIANT === 'preview';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   owner: 'tlon',
   slug: 'groups',
-  name: 'Tlon',
+  name: isPreview ? 'Tlon - Preview' : 'Tlon',
   assetBundlePatterns: ['**/*'],
   extra: {
     eas: {
@@ -26,16 +27,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     recaptchaSiteKeyIOS: process.env.RECAPTCHA_SITE_KEY_IOS,
   },
   ios: {
-    bundleIdentifier: 'io.tlon.groups.staging',
-    runtimeVersion: '3.1.3',
-    buildNumber: '44',
+    runtimeVersion: '4.0.0',
+    buildNumber: '45',
     config: {
       usesNonExemptEncryption: false,
     },
   },
   android: {
-    runtimeVersion: '3.1.3',
-    versionCode: 44,
+    runtimeVersion: '4.0.0',
+    versionCode: 45,
   },
   updates: {
     url: `https://u.expo.dev/${projectId}`,

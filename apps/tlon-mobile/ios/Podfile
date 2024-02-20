@@ -38,7 +38,7 @@ elsif podfile_properties.key?('ios.flipper') then
   end
 end
 
-target 'Landscape' do
+abstract_target 'common' do
   use_expo_modules!
   config = use_native_modules!
 
@@ -85,5 +85,11 @@ target 'Landscape' do
     rescue => e
       Pod::UI.warn e
     end
+  end
+
+  target 'Landscape' do
+  end
+
+  target 'Landscape-preview' do
   end
 end
