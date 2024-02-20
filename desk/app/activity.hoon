@@ -253,11 +253,14 @@
   ?~  stream
     :+  newest  count
     %+  turn  ~(val by threads)
-    |=([parent=time oldest-unread=time count=@ud] [oldest-unread count])
-  =/  [[@ =event:a] rest=stream:a]  (pop:eon stream)
+    |=  [oldest-unread=time count=@ud]
+    [oldest-unread count]
+  =/  [[@ =event:a] rest=stream:a]  (pop:eon:a stream)
   =?  threads  =(-.event %reply)
     ::  TODO confirm that using time.message-key here is right
-    =/  old  (~(gut by threads) target.event [time.message-key.event 0])
-    (~(put by threads) target.event [oldest-unread.old +(count.old)])
+    ?>  ?=([%reply *] event)
+    =/  old  (~(gut by threads) time.target.event [oldest-unread=time.message-key.event count=0])
+    (~(put by threads) time.target.event [oldest-unread.old +(count.old)])
+  ?>  %.y  ::  assert that it's one with a message key (post or dm-post)
   $(newest time.message-key.event, count +(count), stream rest)
 --
