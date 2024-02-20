@@ -37,7 +37,7 @@
     =/  leave  [%pass wire %agent dock %leave ~]
     =/  sub  (~(get by subs) wire)
     ?~  sub
-      ((slog 'No such subscription' >[wire]< ~) [~ subs])
+      ((slog 'No such subscription' >[wire]< ~) [~[leave] subs])
     ~?  verb  ['cancelling' wire]
     :_  (~(del by subs) wire)
     :~  [%pass (weld /~/retry wire) %arvo %b %rest fires-at.u.sub]
