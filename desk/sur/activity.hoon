@@ -1,3 +1,4 @@
+/-  c=channels
 /+  mp=mop-extensions
 |%
 ++  eon     ((on time event) lte)
@@ -5,7 +6,7 @@
 ++  mep     ((on time event-parent) lte)
 +$  stream  ((mop time event) lte)
 +$  indices  (map index [=stream =reads])
-+$  reads  [floor=time =event-parents)]
++$  reads  [floor=time =event-parents]
 +$  event-parent  [seen=? reply-floor=time]
 +$  event-parents  ((mop time event-parent) lte)
 +$  index
@@ -26,27 +27,24 @@
 +$  level  ?(%notify %default %trivial)
 +$  event
   $%  [%dm-invite dm-concern]
-      [%dm-post dm-post-concern =content mention=?]
+      [%dm-post dm-post-concern content=story:c mention=?]
       [%kick group-concern =ship]
       [%join group-concern =ship]
-      [%post post-concern =content mention=?]
-      [%reply reply-concern =content mention=?]
+      [%post post-concern content=story:c mention=?]
+      [%reply reply-concern content=story:c mention=?]
       [%flag post-concern]
   ==
-+$  group-concern    group=flag
-+$  channel-concern  [channel=nest group=flag]
++$  group-concern    group=flag:c
++$  channel-concern  [channel=nest:c group=flag:c]
 +$  dm-concern       =whom
 +$  dm-post-concern  [=message-key =whom]
-+$  post-concern     [=message-key channel=nest group=flag]
-+$  reply-concern    [=message-key target=message-key channel=nest group=flag]
++$  post-concern     [=message-key channel=nest:c group=flag:c]
++$  reply-concern    [=message-key target=message-key channel=nest:c group=flag:c]
 +$  whom
   $%  [%ship p=ship]
-      [%club p=id:club]
+      [%club p=@uvH]
   ==
 +$  message-key  [id=(pair ship time) =time]
-+$  content
-  ::  same as content of actual message
-  ~
 +$  action
   $%  [%add =event]
       [%read =index =read-action]

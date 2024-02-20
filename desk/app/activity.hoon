@@ -2,24 +2,26 @@
 /-  a=activity
 /+  default-agent, verb, dbug
 ::
-|%
-+$  card  card:agent:gall
-::
-+$  versioned-state
-  $%  state-0
-  ==
-::
-+$  state-0
-  [%0 =stream:a =indices:a =volume:a]
+=>
+  |%
+  +$  card  card:agent:gall
+  ::
+  +$  versioned-state
+    $%  state-0
+    ==
+  ::
+  +$  state-0
+    [%0 =stream:a =indices:a =volume:a]
+  --
 ::
 =|  state-0
 =*  state  -
 ::
-%-  agent:dbug
-%+  verb  |
 ^-  agent:gall
 ::
 =<
+  %+  verb  |
+  %-  agent:dbug
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
@@ -89,7 +91,7 @@
 ::
 ++  load
   |=  =vase
-  |^  ^+  cor
+  ^+  cor
   =+  !<(old=versioned-state vase)
   ?>  ?=(%0 -.old)
   =.  state  old
@@ -141,10 +143,12 @@
 ++  add
   ::  TODO add to stream & indices, update unreads, and send facts
   |=  =action:a
-  =.  
+  ^+  cor
+  cor
 ::
 ++  read
   |=  =action:a
+  ^+  cor
   ?-  -.read-action.action
       %last-seen
     =/  indy  (~(get by indices) index)
@@ -188,7 +192,7 @@
     =/  new
       [stream.u.indy [now.bowl ~]]
     =.  indices
-      (~(put by indices)  index  new)
+      (~(put by indices) index new)
     =.  cor
       (give-unreads new)
     cor
@@ -196,19 +200,21 @@
 ::
 ++  give-unreads
   |=  [=stream:a =reads:a]
+  ^+  cor
   (give %fact ~[/unreads] activity-index-unreads+!>((summarize-unreads [stream reads])))
 ::
 ++  adjust
-  |=  =flavor:a =level:a
+  |=  [=flavor:a =level:a]
+  ^+  cor
   =.  volume
-    (~(put by volume) flavor level
+    (~(put by volume) flavor level)
   cor
 ::
 ++  summarize-unreads
   |=  [=stream:a =reads:a]
   ^-  unread-summary:a
   =.  stream  (lot:eon stream `floor.reads ~)
-  =/  event-parents event-parents.reads
+  =/  event-parents  event-parents.reads
   ::  for each item in reads
   ::  remove the post from the event stream
   ::  remove replies older than reply-floor from the event stream
@@ -245,11 +251,11 @@
   ::  if reply, update thread state
   |-
   ?~  stream
-    :+  newest count
+    :+  newest  count
     %+  turn  ~(val by threads)
-    |=([parent=time oldest-unread=time count=@ud] [oldest-unread count]))
+    |=([parent=time oldest-unread=time count=@ud] [oldest-unread count])
   =/  [[@ =event:a] rest=stream:a]  (pop:eon stream)
-  ?=  threads  =(-.event %reply)
+  =?  threads  =(-.event %reply)
     ::  TODO confirm that using time.message-key here is right
     =/  old  (~(gut by threads) target.event [time.message-key.event 0])
     (~(put by threads) target.event [oldest-unread.old +(count.old)])
