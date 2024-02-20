@@ -638,7 +638,7 @@ function RoutedApp() {
   const analyticsId = useAnalyticsId();
   const { needsUpdate, triggerUpdate } = useAppUpdates();
   const body = document.querySelector('body');
-  const colorSchemeFromNative = window.colorscheme;
+  const colorSchemeFromNative = window.nativeOptions?.colorScheme;
 
   const appUpdateContextValue = useMemo(
     () => ({ needsUpdate, triggerUpdate }),

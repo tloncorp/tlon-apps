@@ -2,9 +2,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { WebView } from 'react-native-webview';
 
 import { useWebView } from '../hooks/useWebView';
-import type { MainStackParamList } from '../types';
+import type { WebViewStackParamList } from '../types';
 
-type Props = NativeStackScreenProps<MainStackParamList, 'ExternalWebView'>;
+type Props = NativeStackScreenProps<WebViewStackParamList, 'ExternalWebView'>;
 
 export const ExternalWebViewScreen = ({
   route: {
