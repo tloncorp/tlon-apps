@@ -105,11 +105,11 @@
     =+  !<(=action:a vase)
     ?-  -.action
         %add
-      (add action)
+      (add +.action)
         %read
-      (read action)
+      (read +.action)
         %adjust
-      (adjust action)
+      (adjust +.action)
     ==
   ==
 ::
@@ -142,60 +142,117 @@
 ::
 ++  add
   ::  TODO add to stream & indices, update unreads, and send facts
-  |=  =action:a
+  |=  =event:a
   ^+  cor
+  ::TODO  make sure to set the reply-floor to be the parent time, for new threads,
+  ::      +find-floor assumes on this
+  cor
+::
+++  find-floor
+  |=  [=index:a mode=$%([%all ~] [%reply parent=one-id:a])]
+  ^-  new-floor=(unit time)
+  ?.  (~(has by indices) index)  ~
+  ::  starting at the last-known first-unread location (floor), walk towards
+  ::  the present, to find the new first-unread location (new floor)
+  ::
+  =/  [=orig=stream =reads]
+    (~(got by indices) index)
+  ?>  |(?=(%all -.mode) (has:eon:a event-parents.reads parent.mode))
+  ::  slice off the earlier part of the stream, for efficiency
+  ::
+  =/  =stream
+    =;  beginning=time
+      (lot:eon orig-stream `beginning ~)
+    ?-  -.mode
+        %all    floor.reads
+        %reply  reply-floor:(got:eon:a event-parents.reads parent.mode)
+    ==
+  =|  new-floor=(unit time)
+  |-
+  ?~  stream  new-floor
+  ::
+  =^  [=time =event]  stream  (pop:eon:a stream)
+  ?:  ?&  ?=(%reply -.mode)
+      ?|  !?=(%reply -.event)
+          =(message-key.event parent.mode)
+      ==  ==
+    ::  we're in reply mode, and it's not a reply event, or a reply to
+    ::  something else, so, skip
+    ::
+    $
+  =;  is-read=?
+    ::  if we found something that's unread, we need look no further
+    ::
+    ?.  is-read  $(stream ~)
+    ::  otherwise, continue our walk towards the present
+    ::
+    $(new-floor `time)
+  ?+  -.event  !!
+      ?(%dm-post %post)
+    =*  id=one-id  message-key.event
+    =/  par=(unit event-parent:a)  (get:mep:a event-parents.reads id)
+    ?~(par | seen.u.par)
+  ::
+      %reply
+    =*  id=one-id  message-key.event
+    =/  par=(unit event-parent:a)  (get:mep:a event-parents.reads id)
+    ?~(par | (gte time reply-floor.u.par))
+  ==
+::
+++  update-floor
+  |=  =index:a
+  ^+  cor
+  =/  new-floor  (find-floor index %all ~)
+  =?  indices  ?=(^ new-floor)
+    %+  ~(jab by indices)  index
+    |=  [=stream =reads]
+    [stream reads(floor u.new-floor)]
   cor
 ::
 ++  read
-  |=  =action:a
+  |=  [=index:a action=read-action:a]
   ^+  cor
-  ?-  -.read-action.action
-      %last-seen
-    =/  indy  (~(get by indices) index)
-    ?~  indy  cor
-    =/  new
-      [stream.indy [time.action events.indy]]
-    =.  indices
-      (~(put by indices) index new)
-    =.  cor
-      (give-unreads new)
-    cor
-  ::
+  ?-  -.action
       %thread
     =/  indy  (~(get by indices) index)
     ?~  indy  cor
     =/  new
-      (put:mep reads.u.indy time.read-action.action [& time.read-action.action])
+      =-  u.indy(event-parents.reads -)
+      %+  put:mep:a  event-parents.reads.u.indy
+      =;  new-reply-floor=(unit time)
+        [id.action [& (fall new-reply-floor id.action)]]
+      (find-floor index %reply id.action)
     =.  indices
       (~(put by indices) index new)
-    =.  cor
-      (give-unreads new)
-    cor
+    =.  cor  (update-floor index)
+    (give-unreads new)
   ::
       %post
     =/  indy  (~(get by indices) index)
     ?~  indy  cor
-    =/  old-event-parent  (~(get by indy) time.read-action.action)
+    =/  old-event-parent  (get:mep:a event-parents.reads.u.indy id.action)
     ?~  old-event-parent  cor
     =/  new
-      :-  stream.u.indy
-      (put:mep reads.u.indy time.read-action.action [& reply-floor.old-event.parent])
+      =-  u.indy(event-parents.reads -)
+      %+  put:mep:a  event-parents.reads.u.indy
+      [id.action u.old-event-parent(seen &)]
     =.  indices
       (~(put by indices) index new)
-    =.  cor
-      (give-unreads new)
-    cor
+    =.  cor  (update-floor index)
+    (give-unreads new)
   ::
       %all
     =/  indy  (~(get by indices) index)
     ?~  indy  cor
     =/  new
-      [stream.u.indy [now.bowl ~]]
+      =/  latest=(unit [=time event:a])
+        ::REVIEW  is this taking the item from the correct end? lol
+        (ram:eon:a stream.u.indy)
+      ?~  latest  u.indy
+      u.indy(reads [time.u.latest ~])
     =.  indices
       (~(put by indices) index new)
-    =.  cor
-      (give-unreads new)
-    cor
+    (give-unreads new)
   ==
 ::
 ++  give-unreads
@@ -213,7 +270,7 @@
 ++  summarize-unreads
   |=  [=stream:a =reads:a]
   ^-  unread-summary:a
-  =.  stream  (lot:eon stream `floor.reads ~)
+  =.  stream  (lot:eon:a stream `floor.reads ~)
   =/  event-parents  event-parents.reads
   ::  for each item in reads
   ::  remove the post from the event stream
@@ -221,7 +278,7 @@
   ::  then call stream-to-unreads
   |-
   ?~  event-parents  (stream-to-unreads stream)
-  =/  [[=time =event-parent:a] rest=event-parents:a]  (pop:mep reads)
+  =/  [[=time =event-parent:a] rest=event-parents:a]  (pop:mep:a reads)
   %=  $
       event-parents
     rest
@@ -245,7 +302,7 @@
   ^-  unread-summary:a
   =/  newest  *time
   =/  count  0
-  =/  threads=(map time [oldest-unread=time count=@ud])  ~
+  =/  threads=(map message-id:a [oldest-unread=time count=@ud])  ~
   ::  for each event
   ::  update count and newest
   ::  if reply, update thread state
@@ -256,11 +313,20 @@
     |=  [oldest-unread=time count=@ud]
     [oldest-unread count]
   =/  [[@ =event:a] rest=stream:a]  (pop:eon:a stream)
-  =?  threads  =(-.event %reply)
-    ::  TODO confirm that using time.message-key here is right
-    ?>  ?=([%reply *] event)
-    =/  old  (~(gut by threads) time.target.event [oldest-unread=time.message-key.event count=0])
-    (~(put by threads) time.target.event [oldest-unread.old +(count.old)])
-  ?>  %.y  ::  assert that it's one with a message key (post or dm-post)
-  $(newest time.message-key.event, count +(count), stream rest)
+  =.  count  +(count)
+  =.  newest
+    ?>  ?=(?(%dm-post %post %reply) -.event)
+    ::REVIEW  should we take timestamp of parent post if reply??
+    ::        (in which case we would need to do (max newest time.mk.e))
+    time.message-key.event
+  =?  threads  ?=(%reply -.event)
+    =/  old
+      %+  ~(gut by threads)  id.target.event
+      [oldest-unread=time.message-key.event count=0]
+    %+  ~(put by threads)  id.target.event
+    ::  we don't need to update the timestamp, because we always process the
+    ::  oldest message first
+    ::
+    [oldest-unread.old +(count.old)]
+  $(stream rest)
 --

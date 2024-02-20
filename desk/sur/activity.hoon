@@ -6,9 +6,12 @@
 ++  mep     ((on time event-parent) lte)
 +$  stream  ((mop time event) lte)
 +$  indices  (map index [=stream =reads])
-+$  reads  [floor=time =event-parents]
++$  reads
+  $:  floor=time      ::  latest time above which everything is read
+      =event-parents  ::
+  ==
 +$  event-parent  [seen=? reply-floor=time]
-+$  event-parents  ((mop time event-parent) lte)
++$  event-parents  ((mop one-id event-parent) lte)
 +$  index
   $%  [%channel channel-concern]
       [%dm dm-concern]
@@ -44,17 +47,22 @@
   $%  [%ship p=ship]
       [%club p=@uvH]
   ==
-+$  message-key  [id=(pair ship time) =time]
++$  one-id  time  ::TODO  better name or the Lord so help me
++$  message-id   (pair ship one-id)
++$  message-key  [id=message-id =time]
 +$  action
   $%  [%add =event]
       [%read =index =read-action]
       [%adjust =flavor =level]
   ==
-+$  unread-summary  [newest=time count=@ud threads=(list [oldest-unread=time count=@ud])]
++$  unread-summary
+  $:  newest=time
+      count=@ud
+      threads=(list [oldest-unread=time count=@ud])
+  ==
 +$  read-action
-  $%  [%last-seen =time]
-      [%thread =time]
-      [%post =time]
-      [%all ~]
+  $%  [%thread id=one-id]  ::  mark a whole thread as read
+      [%post id=one-id]    ::  mark an individual post as read
+      [%all ~]             ::  mark _everything_ as read
   ==
 --
