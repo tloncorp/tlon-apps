@@ -165,7 +165,7 @@ export default function ChatThread() {
   }, []);
 
   useEffect(() => {
-    if (replies == null || !idTimeIsNumber) {
+    if (!idTimeIsNumber) {
       navigate(returnURLWithoutMsg());
     }
   }, [replies, idTimeIsNumber, navigate, returnURLWithoutMsg]);
