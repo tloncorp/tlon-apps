@@ -266,6 +266,12 @@
   ::      happen. that way, local subs get established without issue.
   inflate-io
 ::
+++  unsubscribe
+  |=  [=wire =dock]
+  ^+  cor
+  =^  caz=(list card)  subs
+    (~(unsubscribe s [subs bowl]) wire dock)
+  (emil caz)
 ++  inflate-io
   ::  initiate version negotiation with our own channels-server
   ::
@@ -309,7 +315,7 @@
         =(wire path)
       ==
     ?:  keep  cor
-    (emit %pass pole %agent [sub-ship dude] %leave ~)
+    (unsubscribe pole [sub-ship dude])
   ::
   ::  watch all the subscriptions we expect to have
   ::
@@ -607,6 +613,9 @@
     |=  [=wire =dock =path]
     |=  delay=?
     ca-core(cor ((^safe-watch wire dock path) delay))
+  ++  unsubscribe
+    |=  [=wire =dock]
+    ca-core(cor (^unsubscribe wire dock))
   ++  ca-abet
     %_    cor
         v-channels
@@ -767,7 +776,7 @@
           ~
       =/  =path  /[kind.nest]/[name.nest]/create
       =/  =wire  (weld ca-area /create)
-      (emit %pass wire %agent [our.bowl server] %watch path)
+      ((safe-watch wire [our.bowl server] path) |)
     ::
         %kick       (ca-safe-sub &)
         %watch-ack
@@ -782,8 +791,7 @@
       =+  !<(=update:c q.cage)
       =.  ca-core  (ca-u-channels update)
       =.  ca-core  ca-give-unread
-      =.  ca-core
-        (emit %pass (weld ca-area /create) %agent [ship.nest server] %leave ~)
+      =.  ca-core  (unsubscribe (weld ca-area /create) [ship.nest server])
       (ca-safe-sub |)
     ==
   ::
@@ -852,7 +860,7 @@
     =.  ca-core  (ca-fetch-contacts chk)
     =.  ca-core  (ca-sync-backlog |)
     =/  wire  (weld ca-area /checkpoint)
-    (emit %pass wire %agent [ship.nest server] %leave ~)
+    (unsubscribe wire [ship.nest server])
   ::
   ++  ca-fetch-contacts
     |=  chk=u-checkpoint:c
@@ -905,7 +913,7 @@
     |=  chk=u-checkpoint:c
     =.  ca-core  (ca-apply-checkpoint chk |)
     =/  wire  (weld ca-area /backlog)
-    (emit %pass wire %agent [ship.nest server] %leave ~)
+    (unsubscribe wire [ship.nest server])
   ::
   ++  ca-apply-logs
     |=  =log:c
@@ -1128,7 +1136,7 @@
       =/  =rope:ha  (ca-rope -.kind-data.post id-post ~)
       ?:  (was-mentioned:utils content.post our.bowl)
         ?.  (want-hark %mention)
-          ca-core        
+          ca-core
         =/  cs=(list content:ha)
           ~[[%ship author.post] ' mentioned you: ' (flatten:utils content.post)]
         (emit (pass-hark (ca-spin rope cs ~)))
@@ -1620,7 +1628,7 @@
   ::  leave the subscription only
   ::
   ++  ca-simple-leave
-    (emit %pass ca-sub-wire %agent [ship.nest server] %leave ~)
+    (unsubscribe ca-sub-wire [ship.nest server])
   ::
   ::  Leave the subscription, tell people about it, and delete our local
   ::  state for the channel
