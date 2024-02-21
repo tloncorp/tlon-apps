@@ -1,0 +1,1397 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
+		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
+		3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */; };
+		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
+		700B635D2A71DFE90017F40F /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
+		700B63602A71E0810017F40F /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
+		700B63622A71E0D70017F40F /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
+		701A09B02B03081300D8F710 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		7036E3522ACD08E30020A9FB /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
+		7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
+		7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
+		705D26452B7ECDF200F98AD6 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		705D26482B7ECE5400F98AD6 /* Images-preview.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */; };
+		7083A16C2AFB01A30022404A /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
+		709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
+		70A62C612A5A6B1A00EBED16 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 70A62C602A5A6B1A00EBED16 /* SimpleKeychain */; };
+		70D386482A6098F800AFB46E /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70D386472A6098F800AFB46E /* Alamofire */; };
+		70D386582A609BFC00AFB46E /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
+		70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386552A609BFC00AFB46E /* UrbitAPI.swift */; };
+		70D3865A2A609BFC00AFB46E /* PocketNotificationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */; };
+		70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386572A609BFC00AFB46E /* PocketAPI.swift */; };
+		70D386622A609CE100AFB46E /* PocketChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386612A609CE100AFB46E /* PocketChatAPI.swift */; };
+		70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
+		70D3866B2A60A38400AFB46E /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
+		70D3866C2A60A38400AFB46E /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
+		70D3866F2A60A3B300AFB46E /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70D3866E2A60A3B300AFB46E /* UrsusSigil */; };
+		70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
+		70D386722A61F2E400AFB46E /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 008F07F21AC5B25A0029DE68 /* main.jsbundle */; };
+		70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386552A609BFC00AFB46E /* UrbitAPI.swift */; };
+		70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
+		70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
+		70DBBFED2B7C60B50021EA96 /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
+		70DBBFEE2B7C60B50021EA96 /* PocketNotificationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */; };
+		70DBBFEF2B7C60B50021EA96 /* PocketAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386572A609BFC00AFB46E /* PocketAPI.swift */; };
+		70DBBFF02B7C60B50021EA96 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
+		70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
+		70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */; };
+		70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
+		70DBBFF42B7C60B50021EA96 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		70DBBFF52B7C60B50021EA96 /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
+		70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
+		70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
+		70DBBFF82B7C60B50021EA96 /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
+		70DBBFF92B7C60B50021EA96 /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
+		70DBBFFA2B7C60B50021EA96 /* PocketChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386612A609CE100AFB46E /* PocketChatAPI.swift */; };
+		70DBBFFB2B7C60B50021EA96 /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
+		70DBBFFC2B7C60B50021EA96 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
+		70DBBFFD2B7C60B50021EA96 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
+		70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
+		70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
+		70DBC0012B7C60B50021EA96 /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
+		70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE42B7C60B50021EA96 /* UrsusSigil */; };
+		70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE22B7C60B50021EA96 /* Alamofire */; };
+		70DBC0052B7C60B50021EA96 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE02B7C60B50021EA96 /* SimpleKeychain */; };
+		70DBC0082B7C60B50021EA96 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 008F07F21AC5B25A0029DE68 /* main.jsbundle */; };
+		70DBC0182B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist in Resources */ = {isa = PBXBuildFile; fileRef = 70DBC0172B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist */; };
+		70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
+		70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */; };
+		70F99A982B2D2B6E00D77256 /* YarnTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70F99A972B2D2B6E00D77256 /* YarnTests.swift */; };
+		70F99A992B2D319400D77256 /* Yarn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386692A60A38400AFB46E /* Yarn.swift */; };
+		70F99A9A2B2D333300D77256 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386532A609BFC00AFB46E /* PushNotificationManager.swift */; };
+		70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386662A60A37000AFB46E /* INPerson+Extension.swift */; };
+		70F99A9C2B2D336500D77256 /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
+		70F99A9D2B2D336500D77256 /* Error+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701A09AF2B03081300D8F710 /* Error+Extension.swift */; };
+		70F99A9E2B2D336800D77256 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635C2A71DFE90017F40F /* Contact.swift */; };
+		70F99A9F2B2D336800D77256 /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
+		70F99AA02B2D336800D77256 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
+		70F99AA12B2D336800D77256 /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
+		70F99AA22B2D336E00D77256 /* UrbitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386552A609BFC00AFB46E /* UrbitAPI.swift */; };
+		70F99AA32B2D336E00D77256 /* PocketUserAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635A2A71DF860017F40F /* PocketUserAPI.swift */; };
+		70F99AA42B2D336E00D77256 /* PocketNotificationsAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */; };
+		70F99AA52B2D336E00D77256 /* PocketAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386572A609BFC00AFB46E /* PocketAPI.swift */; };
+		70F99AA62B2D336E00D77256 /* PocketChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386612A609CE100AFB46E /* PocketChatAPI.swift */; };
+		70F99AA72B2D337600D77256 /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
+		70F99AA82B2D337600D77256 /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
+		70F99AA92B2D337600D77256 /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
+		70F99AAA2B2D337600D77256 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B635F2A71E0810017F40F /* SettingsStore.swift */; };
+		70F99AAB2B2D337600D77256 /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */; };
+		70F99AAC2B2D338E00D77256 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
+		938C2E18DC4A4F3336AECD7E /* Pods_common_Landscape.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 06B83AD4DCBF09E1B8DCC1E4 /* Pods_common_Landscape.framework */; };
+		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */ = {isa = PBXBuildFile; fileRef = C184662B2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist */; };
+		C515841C010C34E3FD5C5F70 /* Pods_common_Landscape_preview.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CD26F8172CFE23D3CFBE5694 /* Pods_common_Landscape_preview.framework */; };
+		D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61ADD28CFDBC6EFBD36E3DA /* ExpoModulesProvider.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		70F99A922B2D2B5700D77256 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 13B07F861A680F5B00A75B9A;
+			remoteInfo = Landscape;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		008F07F21AC5B25A0029DE68 /* main.jsbundle */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = main.jsbundle; sourceTree = "<group>"; };
+		06B83AD4DCBF09E1B8DCC1E4 /* Pods_common_Landscape.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_common_Landscape.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		13B07F961A680F5B00A75B9A /* Landscape.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Landscape.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = Landscape/AppDelegate.h; sourceTree = "<group>"; };
+		13B07FB01A68108700A75B9A /* AppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = Landscape/AppDelegate.mm; sourceTree = "<group>"; };
+		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Landscape/Images.xcassets; sourceTree = "<group>"; };
+		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Landscape/Info.plist; sourceTree = "<group>"; };
+		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
+		3B0B210E999A7E0E1A345468 /* Pods-common-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-common-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-common-Landscape-preview/Pods-common-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
+		6C2E3173556A471DD304B334 /* Pods-Landscape.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.debug.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.debug.xcconfig"; sourceTree = "<group>"; };
+		700B635A2A71DF860017F40F /* PocketUserAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PocketUserAPI.swift; sourceTree = "<group>"; };
+		700B635C2A71DFE90017F40F /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
+		700B635F2A71E0810017F40F /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		700B63612A71E0D70017F40F /* ContactStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactStore.swift; sourceTree = "<group>"; };
+		701A09AF2B03081300D8F710 /* Error+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Error+Extension.swift"; sourceTree = "<group>"; };
+		7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupChannelStore.swift; sourceTree = "<group>"; };
+		7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsStore.swift; sourceTree = "<group>"; };
+		7036E3552ACD17600020A9FB /* ClubStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubStore.swift; sourceTree = "<group>"; };
+		705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = "Images-preview.xcassets"; path = "Landscape/Images-preview.xcassets"; sourceTree = "<group>"; };
+		7083A16B2AFB01A30022404A /* TlonError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TlonError.swift; sourceTree = "<group>"; };
+		709FC0EC2AC1E25D00B0644D /* Club.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Club.swift; sourceTree = "<group>"; };
+		70D386532A609BFC00AFB46E /* PushNotificationManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
+		70D386552A609BFC00AFB46E /* UrbitAPI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = UrbitAPI.swift; sourceTree = "<group>"; };
+		70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PocketNotificationsAPI.swift; sourceTree = "<group>"; };
+		70D386572A609BFC00AFB46E /* PocketAPI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PocketAPI.swift; sourceTree = "<group>"; };
+		70D386612A609CE100AFB46E /* PocketChatAPI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PocketChatAPI.swift; sourceTree = "<group>"; };
+		70D386662A60A37000AFB46E /* INPerson+Extension.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "INPerson+Extension.swift"; sourceTree = "<group>"; };
+		70D386692A60A38400AFB46E /* Yarn.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Yarn.swift; sourceTree = "<group>"; };
+		70D3866A2A60A38400AFB46E /* Group.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Group.swift; sourceTree = "<group>"; };
+		70D386702A60A3E600AFB46E /* UIColor+Extension.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIColor+Extension.swift"; sourceTree = "<group>"; };
+		70DBC0152B7C60B50021EA96 /* Landscape-preview.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Landscape-preview.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		70DBC0172B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info-io.tlon.groups.preview.plist"; sourceTree = "<group>"; };
+		70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UrbitModule.swift; path = Landscape/UrbitModule.swift; sourceTree = "<group>"; };
+		70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = UrbitModule.m; path = Landscape/UrbitModule.m; sourceTree = "<group>"; };
+		70EAEAB72A57AB8400FE96E4 /* Landscape-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Landscape-Bridging-Header.h"; path = "Landscape/Landscape-Bridging-Header.h"; sourceTree = "<group>"; };
+		70F99A8E2B2D2B5700D77256 /* LandscapeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LandscapeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		70F99A972B2D2B6E00D77256 /* YarnTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YarnTests.swift; sourceTree = "<group>"; };
+		74633B6584F10A6AA2FEE339 /* Pods-common-Landscape.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-common-Landscape.release.xcconfig"; path = "Target Support Files/Pods-common-Landscape/Pods-common-Landscape.release.xcconfig"; sourceTree = "<group>"; };
+		7A4D352CD337FB3A3BF06240 /* Pods-Landscape.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape.release.xcconfig"; path = "Target Support Files/Pods-Landscape/Pods-Landscape.release.xcconfig"; sourceTree = "<group>"; };
+		8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-common-Landscape-preview/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Landscape/SplashScreen.storyboard; sourceTree = "<group>"; };
+		B35AC6CF758CAFC9D112A69F /* Pods-common-Landscape.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-common-Landscape.debug.xcconfig"; path = "Target Support Files/Pods-common-Landscape/Pods-common-Landscape.debug.xcconfig"; sourceTree = "<group>"; };
+		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		C184662B2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info-io.tlon.groups.plist"; sourceTree = "<group>"; };
+		CD26F8172CFE23D3CFBE5694 /* Pods_common_Landscape_preview.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_common_Landscape_preview.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		EE042EA448A634B1DCCA2092 /* Pods-common-Landscape-preview.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-common-Landscape-preview.debug.xcconfig"; path = "Target Support Files/Pods-common-Landscape-preview/Pods-common-Landscape-preview.debug.xcconfig"; sourceTree = "<group>"; };
+		F61ADD28CFDBC6EFBD36E3DA /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-common-Landscape/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Landscape/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		13B07F8C1A680F5B00A75B9A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				70D3866F2A60A3B300AFB46E /* UrsusSigil in Frameworks */,
+				70D386482A6098F800AFB46E /* Alamofire in Frameworks */,
+				70A62C612A5A6B1A00EBED16 /* SimpleKeychain in Frameworks */,
+				938C2E18DC4A4F3336AECD7E /* Pods_common_Landscape.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		70DBC0022B7C60B50021EA96 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */,
+				70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */,
+				70DBC0052B7C60B50021EA96 /* SimpleKeychain in Frameworks */,
+				C515841C010C34E3FD5C5F70 /* Pods_common_Landscape_preview.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		70F99A8B2B2D2B5700D77256 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		13B07FAE1A68108700A75B9A /* Landscape */ = {
+			isa = PBXGroup;
+			children = (
+				BB2F792B24A3F905000567C9 /* Supporting */,
+				008F07F21AC5B25A0029DE68 /* main.jsbundle */,
+				13B07FAF1A68108700A75B9A /* AppDelegate.h */,
+				13B07FB01A68108700A75B9A /* AppDelegate.mm */,
+				13B07FB51A68108700A75B9A /* Images.xcassets */,
+				705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */,
+				13B07FB61A68108700A75B9A /* Info.plist */,
+				13B07FB71A68108700A75B9A /* main.m */,
+				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
+				70EAEAB72A57AB8400FE96E4 /* Landscape-Bridging-Header.h */,
+				70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */,
+				70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */,
+				70D386652A60A37000AFB46E /* Extensions */,
+				70D386682A60A38400AFB46E /* Models */,
+				70D386542A609BFC00AFB46E /* Networking */,
+				70D386522A609BFC00AFB46E /* Notifications */,
+				700B635E2A71E06E0017F40F /* Storage */,
+			);
+			name = Landscape;
+			sourceTree = "<group>";
+		};
+		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
+				06B83AD4DCBF09E1B8DCC1E4 /* Pods_common_Landscape.framework */,
+				CD26F8172CFE23D3CFBE5694 /* Pods_common_Landscape_preview.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		3C9B45BB9D20806D92CA3A84 /* Landscape-preview */ = {
+			isa = PBXGroup;
+			children = (
+				8ACB38DC4FF4D6377774BF5F /* ExpoModulesProvider.swift */,
+			);
+			name = "Landscape-preview";
+			sourceTree = "<group>";
+		};
+		700B635E2A71E06E0017F40F /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				7036E3552ACD17600020A9FB /* ClubStore.swift */,
+				700B63612A71E0D70017F40F /* ContactStore.swift */,
+				7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */,
+				700B635F2A71E0810017F40F /* SettingsStore.swift */,
+				7036E3532ACD0FC90020A9FB /* UserDefaultsStore.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		70D386522A609BFC00AFB46E /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				70D386532A609BFC00AFB46E /* PushNotificationManager.swift */,
+			);
+			name = Notifications;
+			path = Landscape/Notifications;
+			sourceTree = "<group>";
+		};
+		70D386542A609BFC00AFB46E /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				70D386572A609BFC00AFB46E /* PocketAPI.swift */,
+				70D386612A609CE100AFB46E /* PocketChatAPI.swift */,
+				70D386562A609BFC00AFB46E /* PocketNotificationsAPI.swift */,
+				700B635A2A71DF860017F40F /* PocketUserAPI.swift */,
+				70D386552A609BFC00AFB46E /* UrbitAPI.swift */,
+			);
+			name = Networking;
+			path = Landscape/Networking;
+			sourceTree = "<group>";
+		};
+		70D386652A60A37000AFB46E /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				701A09AF2B03081300D8F710 /* Error+Extension.swift */,
+				70D386662A60A37000AFB46E /* INPerson+Extension.swift */,
+				70D386702A60A3E600AFB46E /* UIColor+Extension.swift */,
+			);
+			name = Extensions;
+			path = Landscape/Extensions;
+			sourceTree = "<group>";
+		};
+		70D386682A60A38400AFB46E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				709FC0EC2AC1E25D00B0644D /* Club.swift */,
+				700B635C2A71DFE90017F40F /* Contact.swift */,
+				70D3866A2A60A38400AFB46E /* Group.swift */,
+				7083A16B2AFB01A30022404A /* TlonError.swift */,
+				70D386692A60A38400AFB46E /* Yarn.swift */,
+			);
+			name = Models;
+			path = Landscape/Models;
+			sourceTree = "<group>";
+		};
+		70F99A8F2B2D2B5700D77256 /* LandscapeTests */ = {
+			isa = PBXGroup;
+			children = (
+				70F99A972B2D2B6E00D77256 /* YarnTests.swift */,
+			);
+			path = LandscapeTests;
+			sourceTree = "<group>";
+		};
+		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Libraries;
+			sourceTree = "<group>";
+		};
+		83CBB9F61A601CBA00E9B192 = {
+			isa = PBXGroup;
+			children = (
+				C184662B2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist */,
+				70DBC0172B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist */,
+				13B07FAE1A68108700A75B9A /* Landscape */,
+				70F99A8F2B2D2B5700D77256 /* LandscapeTests */,
+				832341AE1AAA6A7D00B99B32 /* Libraries */,
+				83CBBA001A601CBA00E9B192 /* Products */,
+				2D16E6871FA4F8E400B85C8A /* Frameworks */,
+				D65327D7A22EEC0BE12398D9 /* Pods */,
+				D7E4C46ADA2E9064B798F356 /* ExpoModulesProviders */,
+			);
+			indentWidth = 2;
+			sourceTree = "<group>";
+			tabWidth = 2;
+			usesTabs = 0;
+		};
+		83CBBA001A601CBA00E9B192 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				13B07F961A680F5B00A75B9A /* Landscape.app */,
+				70F99A8E2B2D2B5700D77256 /* LandscapeTests.xctest */,
+				70DBC0152B7C60B50021EA96 /* Landscape-preview.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		92DBD88DE9BF7D494EA9DA96 /* Landscape */ = {
+			isa = PBXGroup;
+			children = (
+				FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */,
+				F61ADD28CFDBC6EFBD36E3DA /* ExpoModulesProvider.swift */,
+			);
+			name = Landscape;
+			sourceTree = "<group>";
+		};
+		BB2F792B24A3F905000567C9 /* Supporting */ = {
+			isa = PBXGroup;
+			children = (
+				BB2F792C24A3F905000567C9 /* Expo.plist */,
+			);
+			name = Supporting;
+			path = Landscape/Supporting;
+			sourceTree = "<group>";
+		};
+		D65327D7A22EEC0BE12398D9 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				6C2E3173556A471DD304B334 /* Pods-Landscape.debug.xcconfig */,
+				7A4D352CD337FB3A3BF06240 /* Pods-Landscape.release.xcconfig */,
+				B35AC6CF758CAFC9D112A69F /* Pods-common-Landscape.debug.xcconfig */,
+				74633B6584F10A6AA2FEE339 /* Pods-common-Landscape.release.xcconfig */,
+				EE042EA448A634B1DCCA2092 /* Pods-common-Landscape-preview.debug.xcconfig */,
+				3B0B210E999A7E0E1A345468 /* Pods-common-Landscape-preview.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		D7E4C46ADA2E9064B798F356 /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				92DBD88DE9BF7D494EA9DA96 /* Landscape */,
+				3C9B45BB9D20806D92CA3A84 /* Landscape-preview */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		13B07F861A680F5B00A75B9A /* Landscape */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Landscape" */;
+			buildPhases = (
+				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
+				FD10A7F022414F080027D42C /* Start Packager */,
+				E99812A83EA5B4CD5D501DE3 /* [Expo] Configure project */,
+				13B07F871A680F5B00A75B9A /* Sources */,
+				13B07F8C1A680F5B00A75B9A /* Frameworks */,
+				13B07F8E1A680F5B00A75B9A /* Resources */,
+				70DBC01A2B7C61690021EA96 /* Copy GoogleService-Info.plist */,
+				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
+				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
+				A8F420A9D9FA89D6A8CAB3CB /* [CP] Embed Pods Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Landscape;
+			packageProductDependencies = (
+				70A62C602A5A6B1A00EBED16 /* SimpleKeychain */,
+				70D386472A6098F800AFB46E /* Alamofire */,
+				70D3866E2A60A3B300AFB46E /* UrsusSigil */,
+			);
+			productName = Landscape;
+			productReference = 13B07F961A680F5B00A75B9A /* Landscape.app */;
+			productType = "com.apple.product-type.application";
+		};
+		70DBBFDF2B7C60B50021EA96 /* Landscape-preview */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 70DBC0122B7C60B50021EA96 /* Build configuration list for PBXNativeTarget "Landscape-preview" */;
+			buildPhases = (
+				70DBBFE62B7C60B50021EA96 /* [CP] Check Pods Manifest.lock */,
+				70DBBFE72B7C60B50021EA96 /* Start Packager */,
+				70DBBFE82B7C60B50021EA96 /* [Expo] Configure project */,
+				70DBBFE92B7C60B50021EA96 /* Sources */,
+				70DBC0022B7C60B50021EA96 /* Frameworks */,
+				70DBC0072B7C60B50021EA96 /* Resources */,
+				70DBC01B2B7C61A20021EA96 /* Copy GoogleService-Info.plist */,
+				70DBC00D2B7C60B50021EA96 /* Bundle React Native code and images */,
+				70DBC00E2B7C60B50021EA96 /* [CP] Copy Pods Resources */,
+				70DBC00F2B7C60B50021EA96 /* [CP] Embed Pods Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Landscape-preview";
+			packageProductDependencies = (
+				70DBBFE02B7C60B50021EA96 /* SimpleKeychain */,
+				70DBBFE22B7C60B50021EA96 /* Alamofire */,
+				70DBBFE42B7C60B50021EA96 /* UrsusSigil */,
+			);
+			productName = Landscape;
+			productReference = 70DBC0152B7C60B50021EA96 /* Landscape-preview.app */;
+			productType = "com.apple.product-type.application";
+		};
+		70F99A8D2B2D2B5700D77256 /* LandscapeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 70F99A962B2D2B5700D77256 /* Build configuration list for PBXNativeTarget "LandscapeTests" */;
+			buildPhases = (
+				70F99A8A2B2D2B5700D77256 /* Sources */,
+				70F99A8B2B2D2B5700D77256 /* Frameworks */,
+				70F99A8C2B2D2B5700D77256 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				70F99A932B2D2B5700D77256 /* PBXTargetDependency */,
+			);
+			name = LandscapeTests;
+			productName = LandscapeTests;
+			productReference = 70F99A8E2B2D2B5700D77256 /* LandscapeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		83CBB9F71A601CBA00E9B192 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1130;
+				TargetAttributes = {
+					13B07F861A680F5B00A75B9A = {
+						LastSwiftMigration = 1250;
+					};
+					70F99A8D2B2D2B5700D77256 = {
+						CreatedOnToolsVersion = 15.0.1;
+						TestTargetID = 13B07F861A680F5B00A75B9A;
+					};
+				};
+			};
+			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Landscape" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 83CBB9F61A601CBA00E9B192;
+			packageReferences = (
+				70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */,
+				70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */,
+				70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */,
+			);
+			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				13B07F861A680F5B00A75B9A /* Landscape */,
+				70DBBFDF2B7C60B50021EA96 /* Landscape-preview */,
+				70F99A8D2B2D2B5700D77256 /* LandscapeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		13B07F8E1A680F5B00A75B9A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
+				705D26452B7ECDF200F98AD6 /* Images.xcassets in Resources */,
+				C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */,
+				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
+				70D386722A61F2E400AFB46E /* main.jsbundle in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		70DBC0072B7C60B50021EA96 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				70DBC0082B7C60B50021EA96 /* Expo.plist in Resources */,
+				705D26482B7ECE5400F98AD6 /* Images-preview.xcassets in Resources */,
+				70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */,
+				70DBC0182B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist in Resources */,
+				70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		70F99A8C2B2D2B5700D77256 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Bundle React Native code and images";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" $PROJECT_ROOT ios relative | tail -n 1)\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
+		};
+		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-common-Landscape-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		70DBBFE62B7C60B50021EA96 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-common-Landscape-preview-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		70DBBFE72B7C60B50021EA96 /* Start Packager */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Start Packager";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\nexport RCT_METRO_PORT=\"${RCT_METRO_PORT:=8081}\"\necho \"export RCT_METRO_PORT=${RCT_METRO_PORT}\" > `$NODE_BINARY --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/.packager.env'\"`\nif [ -z \"${RCT_NO_LAUNCH_PACKAGER+xxx}\" ] ; then\n  if nc -w 5 -z localhost ${RCT_METRO_PORT} ; then\n    if ! curl -s \"http://localhost:${RCT_METRO_PORT}/status\" | grep -q \"packager-status:running\" ; then\n      echo \"Port ${RCT_METRO_PORT} already in use, packager is either not running or not running correctly\"\n      exit 2\n    fi\n  else\n    open `$NODE_BINARY --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/launchPackager.command'\"` || echo \"Can't start packager automatically\"\n  fi\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+		70DBBFE82B7C60B50021EA96 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-common-Landscape-preview/expo-configure-project.sh\"\n";
+		};
+		70DBC00D2B7C60B50021EA96 /* Bundle React Native code and images */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Bundle React Native code and images";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" $PROJECT_ROOT ios relative | tail -n 1)\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
+		};
+		70DBC00E2B7C60B50021EA96 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-common-Landscape-preview/Pods-common-Landscape-preview-resources.sh",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/EXUpdates.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/RCTI18nStrings.bundle",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXUpdates.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCTI18nStrings.bundle",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-common-Landscape-preview/Pods-common-Landscape-preview-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		70DBC00F2B7C60B50021EA96 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-common-Landscape-preview/Pods-common-Landscape-preview-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-common-Landscape-preview/Pods-common-Landscape-preview-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		70DBC01A2B7C61690021EA96 /* Copy GoogleService-Info.plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy GoogleService-Info.plist";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "PATH_TO_CONFIG=$SRCROOT/GoogleService-Info-$PRODUCT_BUNDLE_IDENTIFIER.plist\nFILENAME_IN_BUNDLE=GoogleService-Info.plist\nBUILD_APP_DIR=${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app\necho cp $PATH_TO_CONFIG \"$BUILD_APP_DIR/$FILENAME_IN_BUNDLE\"\ncp $PATH_TO_CONFIG \"$BUILD_APP_DIR/$FILENAME_IN_BUNDLE\"\n";
+		};
+		70DBC01B2B7C61A20021EA96 /* Copy GoogleService-Info.plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy GoogleService-Info.plist";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "PATH_TO_CONFIG=$SRCROOT/GoogleService-Info-$PRODUCT_BUNDLE_IDENTIFIER.plist\nFILENAME_IN_BUNDLE=GoogleService-Info.plist\nBUILD_APP_DIR=${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app\necho cp $PATH_TO_CONFIG \"$BUILD_APP_DIR/$FILENAME_IN_BUNDLE\"\ncp $PATH_TO_CONFIG \"$BUILD_APP_DIR/$FILENAME_IN_BUNDLE\"\n";
+		};
+		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-common-Landscape/Pods-common-Landscape-resources.sh",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/EXUpdates.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/RCTI18nStrings.bundle",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXUpdates.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCTI18nStrings.bundle",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-common-Landscape/Pods-common-Landscape-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		A8F420A9D9FA89D6A8CAB3CB /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-common-Landscape/Pods-common-Landscape-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-common-Landscape/Pods-common-Landscape-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		E99812A83EA5B4CD5D501DE3 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-common-Landscape/expo-configure-project.sh\"\n";
+		};
+		FD10A7F022414F080027D42C /* Start Packager */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Start Packager";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\nexport RCT_METRO_PORT=\"${RCT_METRO_PORT:=8081}\"\necho \"export RCT_METRO_PORT=${RCT_METRO_PORT}\" > `$NODE_BINARY --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/.packager.env'\"`\nif [ -z \"${RCT_NO_LAUNCH_PACKAGER+xxx}\" ] ; then\n  if nc -w 5 -z localhost ${RCT_METRO_PORT} ; then\n    if ! curl -s \"http://localhost:${RCT_METRO_PORT}/status\" | grep -q \"packager-status:running\" ; then\n      echo \"Port ${RCT_METRO_PORT} already in use, packager is either not running or not running correctly\"\n      exit 2\n    fi\n  else\n    open `$NODE_BINARY --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/launchPackager.command'\"` || echo \"Can't start packager automatically\"\n  fi\nfi\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		13B07F871A680F5B00A75B9A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				70D386592A609BFC00AFB46E /* UrbitAPI.swift in Sources */,
+				709FC0ED2AC1E25D00B0644D /* Club.swift in Sources */,
+				7083A16C2AFB01A30022404A /* TlonError.swift in Sources */,
+				7036E3542ACD0FC90020A9FB /* UserDefaultsStore.swift in Sources */,
+				70D3865A2A609BFC00AFB46E /* PocketNotificationsAPI.swift in Sources */,
+				70D3865B2A609BFC00AFB46E /* PocketAPI.swift in Sources */,
+				70D386582A609BFC00AFB46E /* PushNotificationManager.swift in Sources */,
+				700B635D2A71DFE90017F40F /* Contact.swift in Sources */,
+				70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */,
+				70D386672A60A37000AFB46E /* INPerson+Extension.swift in Sources */,
+				701A09B02B03081300D8F710 /* Error+Extension.swift in Sources */,
+				70D3866C2A60A38400AFB46E /* Group.swift in Sources */,
+				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
+				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
+				700B635B2A71DF860017F40F /* PocketUserAPI.swift in Sources */,
+				7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */,
+				70D386622A609CE100AFB46E /* PocketChatAPI.swift in Sources */,
+				7036E3522ACD08E30020A9FB /* GroupChannelStore.swift in Sources */,
+				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
+				13B07FC11A68108700A75B9A /* main.m in Sources */,
+				70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */,
+				700B63622A71E0D70017F40F /* ContactStore.swift in Sources */,
+				70D3866B2A60A38400AFB46E /* Yarn.swift in Sources */,
+				D0A57BA86BAF5327C2EECEE4 /* ExpoModulesProvider.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		70DBBFE92B7C60B50021EA96 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */,
+				70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */,
+				70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */,
+				70DBBFED2B7C60B50021EA96 /* UserDefaultsStore.swift in Sources */,
+				70DBBFEE2B7C60B50021EA96 /* PocketNotificationsAPI.swift in Sources */,
+				70DBBFEF2B7C60B50021EA96 /* PocketAPI.swift in Sources */,
+				70DBBFF02B7C60B50021EA96 /* PushNotificationManager.swift in Sources */,
+				70DBBFF12B7C60B50021EA96 /* Contact.swift in Sources */,
+				70DBBFF22B7C60B50021EA96 /* UrbitModule.m in Sources */,
+				70DBBFF32B7C60B50021EA96 /* INPerson+Extension.swift in Sources */,
+				70DBBFF42B7C60B50021EA96 /* Error+Extension.swift in Sources */,
+				70DBBFF52B7C60B50021EA96 /* Group.swift in Sources */,
+				70DBBFF62B7C60B50021EA96 /* SettingsStore.swift in Sources */,
+				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
+				70DBBFF82B7C60B50021EA96 /* PocketUserAPI.swift in Sources */,
+				70DBBFF92B7C60B50021EA96 /* ClubStore.swift in Sources */,
+				70DBBFFA2B7C60B50021EA96 /* PocketChatAPI.swift in Sources */,
+				70DBBFFB2B7C60B50021EA96 /* GroupChannelStore.swift in Sources */,
+				70DBBFFC2B7C60B50021EA96 /* AppDelegate.mm in Sources */,
+				70DBBFFD2B7C60B50021EA96 /* main.m in Sources */,
+				70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */,
+				70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */,
+				70DBC0012B7C60B50021EA96 /* Yarn.swift in Sources */,
+				3DC46BC1B669DF8F5F059CA8 /* ExpoModulesProvider.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		70F99A8A2B2D2B5700D77256 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				70F99AA52B2D336E00D77256 /* PocketAPI.swift in Sources */,
+				70F99AA82B2D337600D77256 /* ContactStore.swift in Sources */,
+				70F99A9A2B2D333300D77256 /* PushNotificationManager.swift in Sources */,
+				70F99AA42B2D336E00D77256 /* PocketNotificationsAPI.swift in Sources */,
+				70F99AA02B2D336800D77256 /* Club.swift in Sources */,
+				70F99A9B2B2D336500D77256 /* INPerson+Extension.swift in Sources */,
+				70F99AAB2B2D337600D77256 /* UserDefaultsStore.swift in Sources */,
+				70F99A982B2D2B6E00D77256 /* YarnTests.swift in Sources */,
+				70F99AA92B2D337600D77256 /* GroupChannelStore.swift in Sources */,
+				70F99A9F2B2D336800D77256 /* Group.swift in Sources */,
+				70F99AA32B2D336E00D77256 /* PocketUserAPI.swift in Sources */,
+				70F99AA22B2D336E00D77256 /* UrbitAPI.swift in Sources */,
+				70F99AAA2B2D337600D77256 /* SettingsStore.swift in Sources */,
+				70F99AA62B2D336E00D77256 /* PocketChatAPI.swift in Sources */,
+				70F99A992B2D319400D77256 /* Yarn.swift in Sources */,
+				70F99A9D2B2D336500D77256 /* Error+Extension.swift in Sources */,
+				70F99AA12B2D336800D77256 /* TlonError.swift in Sources */,
+				70F99AA72B2D337600D77256 /* ClubStore.swift in Sources */,
+				70F99AAC2B2D338E00D77256 /* UrbitModule.swift in Sources */,
+				70F99A9C2B2D336500D77256 /* UIColor+Extension.swift in Sources */,
+				70F99A9E2B2D336800D77256 /* Contact.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		70F99A932B2D2B5700D77256 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 13B07F861A680F5B00A75B9A /* Landscape */;
+			targetProxy = 70F99A922B2D2B5700D77256 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		13B07F941A680F5B00A75B9A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B35AC6CF758CAFC9D112A69F /* Pods-common-Landscape.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
+				CURRENT_PROJECT_VERSION = 45;
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				DISPLAY_NAME = Tlon;
+				ENABLE_BITCODE = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"FB_SONARKIT_ENABLED=1",
+				);
+				INFOPLIST_FILE = Landscape/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 4.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lc++",
+				);
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups;
+				PRODUCT_NAME = Landscape;
+				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = "$(SRCROOT)/$(PROJECT_NAME)/$(SWIFT_MODULE_NAME)-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		13B07F951A680F5B00A75B9A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 74633B6584F10A6AA2FEE339 /* Pods-common-Landscape.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
+				CURRENT_PROJECT_VERSION = 45;
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				DISPLAY_NAME = Tlon;
+				INFOPLIST_FILE = Landscape/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 4.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lc++",
+				);
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups;
+				PRODUCT_NAME = Landscape;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/$(PROJECT_NAME)/$(SWIFT_MODULE_NAME)-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		70DBC0132B7C60B50021EA96 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = EE042EA448A634B1DCCA2092 /* Pods-common-Landscape-preview.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
+				CURRENT_PROJECT_VERSION = 45;
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				DISPLAY_NAME = "Tlon - Preview";
+				ENABLE_BITCODE = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"FB_SONARKIT_ENABLED=1",
+				);
+				INFOPLIST_FILE = Landscape/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 4.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lc++",
+				);
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups.preview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_MODULE_NAME = Landscape;
+				"SWIFT_OBJC_BRIDGING_HEADER[arch=*]" = "$(SRCROOT)/$(PROJECT_NAME)/$(SWIFT_MODULE_NAME)-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		70DBC0142B7C60B50021EA96 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 3B0B210E999A7E0E1A345468 /* Pods-common-Landscape-preview.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
+				CURRENT_PROJECT_VERSION = 45;
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				DISPLAY_NAME = "Tlon - Preview";
+				INFOPLIST_FILE = Landscape/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 4.0.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-lc++",
+				);
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.groups.preview;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_MODULE_NAME = Landscape;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/$(PROJECT_NAME)/$(SWIFT_MODULE_NAME)-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		70F99A942B2D2B5700D77256 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.LandscapeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Landscape.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Landscape";
+			};
+			name = Debug;
+		};
+		70F99A952B2D2B5700D77256 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = XU9PR2N722;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = io.tlon.LandscapeTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Landscape.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Landscape";
+			};
+			name = Release;
+		};
+		83CBBA201A601CBA00E9B192 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = i386;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+					_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION,
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon-Samples/ReactCommon_Samples.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon/ReactCommon.framework/Headers/react/nativemodule/core",
+					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon-Samples/ReactCommon_Samples.framework/Headers/platform/ios",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-NativeModulesApple/React_NativeModulesApple.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers/react/renderer/graphics/platform/ios",
+					" ${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon/ReactCommon.framework/Headers",
+					" ${PODS_CONFIGURATION_BUILD_DIR}/React-Fabric/React_Fabric.framework/Headers/react/renderer/components/view/platform/cxx",
+					" ${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					/usr/lib/swift,
+					"$(inherited)",
+				);
+				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = "$(inherited)";
+				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
+				OTHER_LDFLAGS = "$(inherited)";
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
+				SDKROOT = iphoneos;
+				USE_HERMES = true;
+			};
+			name = Debug;
+		};
+		83CBBA211A601CBA00E9B192 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				COPY_PHASE_STRIP = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = i386;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION,
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon-Samples/ReactCommon_Samples.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon/ReactCommon.framework/Headers/react/nativemodule/core",
+					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon-Samples/ReactCommon_Samples.framework/Headers/platform/ios",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-NativeModulesApple/React_NativeModulesApple.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers/react/renderer/graphics/platform/ios",
+					" ${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon/ReactCommon.framework/Headers",
+					" ${PODS_CONFIGURATION_BUILD_DIR}/React-Fabric/React_Fabric.framework/Headers/react/renderer/components/view/platform/cxx",
+					" ${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					/usr/lib/swift,
+					"$(inherited)",
+				);
+				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
+				MTL_ENABLE_DEBUG_INFO = NO;
+				OTHER_CFLAGS = "$(inherited)";
+				OTHER_CPLUSPLUSFLAGS = "$(inherited)";
+				OTHER_LDFLAGS = "$(inherited)";
+				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
+				SDKROOT = iphoneos;
+				USE_HERMES = true;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Landscape" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				13B07F941A680F5B00A75B9A /* Debug */,
+				13B07F951A680F5B00A75B9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		70DBC0122B7C60B50021EA96 /* Build configuration list for PBXNativeTarget "Landscape-preview" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				70DBC0132B7C60B50021EA96 /* Debug */,
+				70DBC0142B7C60B50021EA96 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		70F99A962B2D2B5700D77256 /* Build configuration list for PBXNativeTarget "LandscapeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				70F99A942B2D2B5700D77256 /* Debug */,
+				70F99A952B2D2B5700D77256 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Landscape" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				83CBBA201A601CBA00E9B192 /* Debug */,
+				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/auth0/SimpleKeychain";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+		70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/alecananian/UrsusSigil";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		70DBBFE12B7C60B50021EA96 /* XCRemoteSwiftPackageReference "SimpleKeychain" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/auth0/SimpleKeychain";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+		70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Alamofire/Alamofire.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+		70DBBFE52B7C60B50021EA96 /* XCRemoteSwiftPackageReference "UrsusSigil" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/alecananian/UrsusSigil";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		70A62C602A5A6B1A00EBED16 /* SimpleKeychain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70A62C5F2A5A6B1A00EBED16 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
+			productName = SimpleKeychain;
+		};
+		70D386472A6098F800AFB46E /* Alamofire */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70D386462A6098F800AFB46E /* XCRemoteSwiftPackageReference "Alamofire" */;
+			productName = Alamofire;
+		};
+		70D3866E2A60A3B300AFB46E /* UrsusSigil */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70D3866D2A60A3B300AFB46E /* XCRemoteSwiftPackageReference "UrsusSigil" */;
+			productName = UrsusSigil;
+		};
+		70DBBFE02B7C60B50021EA96 /* SimpleKeychain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70DBBFE12B7C60B50021EA96 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
+			productName = SimpleKeychain;
+		};
+		70DBBFE22B7C60B50021EA96 /* Alamofire */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70DBBFE32B7C60B50021EA96 /* XCRemoteSwiftPackageReference "Alamofire" */;
+			productName = Alamofire;
+		};
+		70DBBFE42B7C60B50021EA96 /* UrsusSigil */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 70DBBFE52B7C60B50021EA96 /* XCRemoteSwiftPackageReference "UrsusSigil" */;
+			productName = UrsusSigil;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 83CBB9F71A601CBA00E9B192 /* Project object */;
+}
