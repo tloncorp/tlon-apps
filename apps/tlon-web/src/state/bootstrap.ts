@@ -63,9 +63,12 @@ async function startGroups() {
   });
 
   // make sure we remove the app part from the nest before handing it over
-  useChatStore
-    .getState()
-    .update(_.mapKeys(unreads, (v, k) => k.replace(/\w*\//, '')));
+  useChatStore.getState().update(
+    _.mapKeys(
+      _.pickBy(unreads, (v, k) => k.startsWith('chat')),
+      (v, k) => k.replace(/\w*\//, '')
+    )
+  );
 }
 
 type Bootstrap = 'initial' | 'reset' | 'full-reset';
