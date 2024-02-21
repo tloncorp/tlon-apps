@@ -16,11 +16,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useTailwind } from 'tailwind-rn';
 
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { DEV_LOCAL, DEV_SHIP_CODE } from './constants';
 import { ShipProvider, useShip } from './contexts/ship';
 import { useDeepLink } from './hooks/useDeepLink';
 import { useIsDarkMode } from './hooks/useIsDarkMode';
 import { useScreenOptions } from './hooks/useScreenOptions';
 import { inviteShipWithLure } from './lib/hostingApi';
+import { getDevCookie } from './lib/landscapeApi';
 import { TabStack } from './navigation/TabStack';
 import { CheckVerifyScreen } from './screens/CheckVerifyScreen';
 import { EULAScreen } from './screens/EULAScreen';
@@ -48,7 +50,7 @@ const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const App = ({ wer: initialWer }: Props) => {
   const isDarkMode = useIsDarkMode();
   const tailwind = useTailwind();
-  const { isLoading, isAuthenticated, ship } = useShip();
+  const { isLoading, isAuthenticated, ship, setShip, clearShip } = useShip();
   const [connected, setConnected] = useState(true);
   const { wer, lure, priorityToken, clearDeepLink } = useDeepLink();
   const navigation = useNavigation();
@@ -95,6 +97,29 @@ const App = ({ wer: initialWer }: Props) => {
       })();
     }
   }, [ship, lure, clearDeepLink]);
+
+  useEffect(() => {
+    const DEV_SHIP_URL = 'http://localhost';
+    async function setupDevAuth() {
+      const auth = await getDevCookie(DEV_SHIP_URL, DEV_SHIP_CODE);
+      if (auth) {
+        console.log(`got auth: ${auth.cookie}`);
+        setShip({
+          ship: auth.ship,
+          shipUrl: DEV_SHIP_URL,
+        });
+        console.log(`Development auth configured for ${auth.ship}`);
+      } else {
+        console.warn('Failed to set up development auth');
+        clearShip();
+      }
+    }
+
+    if (DEV_LOCAL) {
+      console.log(`dev local set, code: ${DEV_SHIP_CODE}`);
+      setupDevAuth();
+    }
+  }, []);
 
   useEffect(() => {
     // Broadcast path update to webview when changed

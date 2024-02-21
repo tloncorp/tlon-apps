@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useTailwind } from 'tailwind-rn';
 
-import { IS_IOS } from '../constants';
+import { DEV_LOCAL, IS_IOS } from '../constants';
 import { useShip } from '../contexts/ship';
 import { useWebView } from '../hooks/useWebView';
 import { markChatRead } from '../lib/chatApi';
@@ -43,7 +43,7 @@ const InnerWebViewScreen = ({
   },
 }: Props) => {
   const tailwind = useTailwind();
-  const { shipUrl = '', clearShip } = useShip();
+  const { shipUrl = '', ship, clearShip } = useShip();
   const webViewProps = useWebView();
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
@@ -227,6 +227,11 @@ const InnerWebViewScreen = ({
         // set old values for backwards compatibility
         window.colorscheme="${nativeOptions.colorScheme}";
         window.safeAreaInsets=${JSON.stringify(nativeOptions.safeAreaInsets)};
+        ${
+          DEV_LOCAL
+            ? ` window.our="${ship}"; window.ship="${ship?.slice(1)}"; `
+            : ''
+        }
       `}
       onLoad={() => {
         // Start a timeout in case the web app doesn't send the appLoaded message
