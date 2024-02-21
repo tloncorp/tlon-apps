@@ -7,6 +7,7 @@ import { asyncWithDefault } from '@/logic/utils';
 import queryClient from '@/queryClient';
 import { GroupsInit } from '@/types/ui';
 
+import { infinitePostQueryFn } from './channel/channel';
 import { ChannnelKeys } from './channel/keys';
 import { initializeChat } from './chat';
 import useContactState from './contact';
@@ -52,13 +53,24 @@ async function startGroups() {
   queryClient.setQueryData(pinsKey(), pins);
   initializeChat(chat);
 
-  // if we have unreads for cached channels, refetch them
-  // in advance
-  Object.keys(unreads || {}).forEach((nest) => {
+  // if we have unreads fetch them in advance
+  Object.keys(unreads || {}).forEach(async (nest) => {
     const unread = unreads[nest];
     const queryKey = ChannnelKeys.infinitePostsKey(nest);
-    if (unread.count > 0 && queryClient.getQueryData(queryKey)) {
-      queryClient.refetchQueries(queryKey);
+
+    if (unread.count) {
+      try {
+        // we don't care about the result, just that it's fetched
+        // we do this because we may not have cached data for the channel
+        // (getQueryData was always returning undefined afaict)
+        await queryClient.fetchInfiniteQuery(
+          queryKey,
+          infinitePostQueryFn(nest)
+        );
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error(e);
+      }
     }
   });
 
